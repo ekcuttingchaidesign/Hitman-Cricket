@@ -14,7 +14,8 @@ import type { ResultView, RivalryView, RoomView } from '../game/Challenge';
 import { animate, stagger } from 'animejs';
 import { playFilm, type Film, type Playing } from './Lottie';
 import { StoryStage } from './StoryStage';
-import type { Hand, Player } from '../game/player';
+import type { ReelBeat, ReelShot } from '../game/ShotReel';
+import { readHand, type Hand, type Player } from '../game/player';
 import type { CardFacts } from '../game/ShareCard';
 import {
   BOARD_TABS, boardTabsMarkup, escape, flatTab, kitMarkup, peekMarkup, pickerMarkup,
@@ -1182,6 +1183,13 @@ ${modeSelectMarkup()}
   private storyFilm: Playing | null = null;
   /** The Dressing Room's stage, for the stories played on it: one for the run of them, put away with them. */
   private storyStage: StoryStage | null = null;
+  /**
+   * A stroke's story asks the game to film it under the card (`Story.reel`),
+   * and is told whether it can: only off the cover or after an innings, never
+   * over one being played. `beat` hears the swipe, the ball met and each go
+   * beginning again. Null stops it.
+   */
+  onStoryReel: ((shot: ReelShot | null, beat: (beat: ReelBeat) => void) => boolean) | null = null;
   /** What to do when the stories are finished with. The game decides. */
   onStoriesDone: (() => void) | null = null;
   /**
@@ -1239,6 +1247,23 @@ ${modeSelectMarkup()}
     const room = document.getElementById('whatsnew-room');
     if (story?.stage && stage && room) (this.storyStage ??= new StoryStage()).play(stage, room, story.stage);
     else { this.storyStage?.stop(); this.storyStage = null; }
+    // A stroke's film is the game's own ground: everything else on it is put
+    // out of sight while it plays, the card standing over the bare ground.
+    const filmed = !!story?.reel && !!this.onStoryReel?.(story.reel, beat => {
+      const sheet = overlay.querySelector('.whatsnew-sheet');
+      if (!sheet) return;
+      // Each put up afresh, so its animation runs again on every go.
+      const up = (name: string) => { sheet.classList.remove(name); void (sheet as HTMLElement).offsetWidth; sheet.classList.add(name); };
+      if (beat === 'cue') up('is-cueing');
+      else if (beat === 'hit') up('is-hit');
+      else sheet.classList.remove('is-cueing', 'is-hit');
+    });
+    if (!story?.reel) this.onStoryReel?.(null, () => {});
+    this.viewport.classList.toggle('reel-on', filmed);
+    const sheet = overlay.querySelector('.whatsnew-sheet');
+    sheet?.classList.toggle('is-filmed', filmed);
+    // The swipe and the call drawn the way round the game draws them for a left-hander.
+    if (filmed) sheet?.classList.toggle('is-left', readHand() === 'left');
     const open = document.getElementById('whatsnew-open');
     if (open) open.onclick = () => {
       const go = this.onStoriesOpen;
@@ -1330,6 +1355,7 @@ ${modeSelectMarkup()}
     window.clearTimeout(this.storyHold);
     this.storyFilm?.destroy(); this.storyFilm = null;
     this.storyStage?.stop(); this.storyStage = null;
+    this.onStoryReel?.(null, () => {}); this.viewport.classList.remove('reel-on');
     // Which card they were standing on when they left. Opening was already
     // counted and answers nothing on its own: three cards read to the end and
     // three cards abandoned on the first look identical from the other side,
@@ -1900,7 +1926,7 @@ ${modeSelectMarkup()}
     const shift = Math.max(0, frame.left + margin - box.left) - Math.max(0, box.right - (frame.right - margin));
     if (shift) node.style.translate = `${shift}px 0`;
   }
-  /** The lit lane walked round the five, the thumb swiping each, the caption saying which; still, as drawn, for anybody who asked for less motion. */
+  /** The lit lane walked round the seven, the thumb swiping each, the caption saying which; still, as drawn, for anybody who asked for less motion. */
   private walkLanes(left: boolean) {
     const fan = this.$('mi-stage').querySelector<HTMLElement>('.hb-fan');
     const swipe = fan?.querySelector<HTMLElement>('.hb-swipe');
@@ -1915,7 +1941,7 @@ ${modeSelectMarkup()}
       const lane = laneFor(LANE_ORDER[step], left);
       fan.dataset.lit = String(LANE_ORDER[step]);
       swipe.style.setProperty('--a', `${lane.angle}deg`);
-      caption.innerHTML = captionMarkup(lane.swipe, lane.keys, lane.name.toLowerCase());
+      caption.innerHTML = captionMarkup(lane.swipe, lane.keys, lane.caption);
       this.keepInside(caption);
       go();
     }, LANE_BEAT);

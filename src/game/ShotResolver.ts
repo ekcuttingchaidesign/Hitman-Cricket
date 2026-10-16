@@ -1,5 +1,6 @@
-import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, GAME, GROUND_RUNS, SCOOP, SOLID_SHOT, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
+import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, GAME, GROUND_RUNS, HOOK, LATE_CUT, SCOOP, SOLID_SHOT, SPIN_CUT, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory';
+import { spun } from './DeliveryGenerator';
 import type { Delivery, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './types';
 /**
  * How well a stroke was timed, by the size of the error and nothing else. The
@@ -31,6 +32,74 @@ function groundRuns(rng: { next(): number }): ShotOutcome['runs'] {
     if (roll <= 0) return value;
   }
   return GROUND_RUNS[GROUND_RUNS.length - 1][0];
+}
+/**
+ * The cut at the spinner: he makes room for it, so it is played at any line
+ * (`SPIN_CUT`). Read by the rig and by the score, so the stroke he plays and the
+ * line it is judged on are the same.
+ */
+export function spinCut(delivery: Delivery, attempt: Pick<ShotAttempt, 'shotType'> | null) {
+  return attempt?.shotType === 'SQUARE_CUT' && spun(delivery);
+}
+/** How well this stroke suits the line this ball finishes on: the table's, but the spinner's cut its own. */
+/**
+ * The cut off the spinner at a ball finishing outside leg, which keeps coming
+ * into him as he backs away: see `SPIN_CUT.cramped`.
+ */
+export function crampedCut(delivery: Delivery, attempt: Pick<ShotAttempt, 'shotType'> | null) {
+  return spinCut(delivery, attempt) && effectiveLine(delivery) === 'OUTSIDE_LEG';
+}
+/**
+ * What a cramped cut comes to, off the grade of whichever mode is playing it.
+ * The most it is worth is `best`: one or two in the Blast, one in a Test.
+ */
+export function cramped(outcome: ShotOutcome, rng: { next(): number }, best: 1 | 2): ShotOutcome {
+  const { cramped: rules } = SPIN_CUT, said = rules.feedback;
+  const padded = { ...outcome, runs: 0 as const, madeBatContact: true, padded: true, feedback: said.padded };
+  switch (outcome.timingGrade) {
+    case 'PERFECT': {
+      const runs = best === 2 && rng.next() < rules.two ? 2 : 1;
+      return { ...outcome, runs, madeBatContact: true, feedback: award(runs) };
+    }
+    case 'GOOD':
+      return rng.next() < rules.single
+        ? { ...outcome, runs: 1, madeBatContact: true, feedback: award(1) }
+        : { ...outcome, runs: 0, madeBatContact: true, feedback: said.fielded };
+    case 'OK': return padded;
+    case 'POOR':
+      return rng.next() < rules.caught
+        ? { ...outcome, runs: 0, madeBatContact: true, edged: true, isWicket: true, wicketType: 'CAUGHT', feedback: said.caught }
+        : padded;
+    default: return { ...outcome, runs: 0, madeBatContact: false, feedback: said.missed };
+  }
+}
+/**
+ * Whether a late cut gets bat on this ball: played in time, at a ball going
+ * past off stump. Across one on the stumps he is beaten, whatever the timing.
+ */
+export function lateCutMeets(outcome: Pick<ShotOutcome, 'timingGrade' | 'compatibility'>) {
+  return outcome.timingGrade !== 'MISS' && outcome.compatibility >= LATE_CUT.minFit;
+}
+/**
+ * What a late cut that met the ball comes to, off the grade of whichever mode
+ * is playing it: see `LATE_CUT`. In a Test nobody runs three.
+ */
+export function lateCut(outcome: ShotOutcome, rng: { next(): number }, test: boolean): ShotOutcome {
+  const met = { ...outcome, madeBatContact: true, lateCut: true };
+  const ran = (runs: ShotOutcome['runs']) => ({ ...met, runs, feedback: award(runs) });
+  switch (outcome.timingGrade) {
+    case 'PERFECT': return { ...met, runs: 4, quality: 1, feedback: LATE_CUT.feedback.four };
+    case 'GOOD': return test ? ran(rng.next() < .5 ? 2 : 1) : ran(rng.next() < LATE_CUT.good.three ? 3 : 2);
+    case 'OK': return test ? ran(1) : ran(rng.next() < LATE_CUT.ok.two ? 2 : 1);
+    default:
+      return rng.next() < LATE_CUT.caught
+        ? { ...met, runs: 0, edged: true, isWicket: true, wicketType: 'CAUGHT', feedback: LATE_CUT.feedback.caught }
+        : { ...met, runs: 1, feedback: LATE_CUT.feedback.edged };
+  }
+}
+export function fitOf(delivery: Delivery, shot: ShotType) {
+  const line = effectiveLine(delivery);
+  return shot === 'SQUARE_CUT' && spun(delivery) ? SPIN_CUT.fit[line] : COMPATIBILITY[line][shot];
 }
 /**
  * Whether this ball can be charged at all. Line, length and pace each have to be
@@ -170,13 +239,33 @@ export function scoopShot(delivery: Delivery, attempt: ShotAttempt | null, charg
   return charged && !!attempt && isScoop(attempt.shotType) && scoopable(delivery) ? attempt.shotType : null;
 }
 /**
+ * Whether this is the bouncer the hook answers: short, and on off stump or
+ * wider where it finishes. Down and to leg is the hook at this ball, and only
+ * at this one.
+ */
+export function hookable(delivery: Delivery) {
+  return delivery.style === 'SHORT' && HOOK.lines.includes(effectiveLine(delivery));
+}
+/**
  * What a scoop input is played as. With the meter full and a ball he can get
  * under, the scoop; without either, the swipe was still a swipe down, so it is
- * the block. Read by the rig and by the score, so what he plays and what he is
- * given are always the same stroke.
+ * the block. At a bouncer he can hook, the scoop's diagonal is the hook — the
+ * keys' S and A, which the swipe reads as the hook itself — and a hook at any
+ * other ball is the block too. Read by the rig and by the score, so what he
+ * plays and what he is given are always the same stroke.
  */
 export function playedAs(delivery: Delivery, attempt: ShotAttempt, charged: boolean): ShotAttempt {
-  return isScoop(attempt.shotType) && !scoopShot(delivery, attempt, charged) ? { ...attempt, shotType: 'DEFEND' } : attempt;
+  // At a bouncer the ball's line picks the leg-side stroke, not the thumb: on
+  // off stump or wider it is the hook, anywhere else the pull, whichever way
+  // round the leg side it was asked for — the pull's key, the scoop's
+  // diagonal or the hook's.
+  const leg = attempt.shotType === 'LEG' || attempt.shotType === 'SCOOP' || attempt.shotType === 'HOOK';
+  if (leg && delivery.style === 'SHORT') return { ...attempt, shotType: hookable(delivery) ? 'HOOK' : 'LEG' };
+  if (attempt.shotType === 'HOOK') return { ...attempt, shotType: 'DEFEND' };
+  if (!isScoop(attempt.shotType) || scoopShot(delivery, attempt, charged)) return attempt;
+  // Down and to off with no reverse scoop to play is the late cut; the
+  // keyboard's down and to leg is still the block.
+  return { ...attempt, shotType: attempt.shotType === 'REVERSE_SCOOP' ? 'LATE_CUT' : 'DEFEND' };
 }
 /**
  * Whether there is room to cut: the ball has to be far enough outside off that
@@ -208,6 +297,22 @@ function squareStroke(outcome: ShotOutcome, rng: { next(): number },
   if (outcome.timingGrade === spec.timing.four) return { ...middled, runs: 4, feedback: award(4) };
   if (outcome.timingGrade === 'OK') { const runs = groundRuns(rng); return { ...middled, runs, feedback: award(runs) }; }
   return edge(middled, spec.edged);
+}
+/**
+ * The hook, at the bouncer it answers. Timing alone names it, as it does the
+ * cut's: middled over fine leg for six, a shade under for four, held back
+ * helped round for ones and twos. Worse than that and which side of the ball
+ * he was decides how he is out: late, the ball is on him before the bat is
+ * and it takes the glove through to the keeper; early, the bat is through
+ * and it goes off the top of it, straight up.
+ */
+export function hooked(outcome: ShotOutcome, rng: { next(): number }): ShotOutcome {
+  const middled = { ...outcome, hooked: true, compatibility: 1, quality: TIMING_SCORE[outcome.timingGrade], madeBatContact: true };
+  if (outcome.timingGrade === 'PERFECT') return { ...middled, quality: 1, runs: 6, feedback: HOOK.feedback.six };
+  if (outcome.timingGrade === 'GOOD') return { ...middled, runs: 4, feedback: HOOK.feedback.four };
+  if (outcome.timingGrade === 'OK') { const runs = groundRuns(rng); return { ...middled, runs, feedback: award(runs) }; }
+  if ((outcome.timingDeltaMs ?? 0) > 0) return edge(middled, HOOK.gloved);
+  return { ...middled, aerial: true, isWicket: true, wicketType: 'CAUGHT', feedback: HOOK.skied };
 }
 /**
  * The scoop, once it is settled that he is playing one. The line decides
@@ -260,7 +365,7 @@ export function resolveShot(
   if (attempt) attempt = playedAs(delivery, attempt, charged);
   const delta = attempt ? attempt.inputTimeMs - delivery.idealContactTimeMs : null;
   const timingGrade = delta === null ? 'MISS' : gradeTiming(delta, STYLES[delivery.style].tight, windows);
-  const compatibility = attempt ? COMPATIBILITY[effectiveLine(delivery)][attempt.shotType] : 0;
+  const compatibility = attempt ? fitOf(delivery, attempt.shotType) : 0;
   const quality = TIMING_SCORE[timingGrade] * compatibility;
   const madeBatContact = !!attempt && timingGrade !== 'MISS' && compatibility >= 0.25;
   const outcome: ShotOutcome = { runs: 0, isWicket: false, quality, feedback: 'DOT BALL', timingGrade,
@@ -312,6 +417,9 @@ export function resolveShot(
   if (delivery.style === 'SHORT') {
     if (attempt?.shotType === 'LEG' && timingGrade === 'PERFECT')
       return { ...outcome, runs: 6, feedback: award(6), compatibility: 1, quality: 1, madeBatContact: true };
+    // On off stump or wider, round to fine leg off the diagonal. `playedAs`
+    // has already settled that this is the ball for it.
+    if (attempt?.shotType === 'HOOK' && timingGrade !== 'MISS') return hooked(outcome, rng);
     // Short and wide is the cut's ball: it sits up at chest height with room to
     // free the arms at it, and the stroke is judged on timing alone. Cutting at
     // one too close to the body is cramped, and cramped is the edge.
@@ -330,6 +438,11 @@ export function resolveShot(
     const lbw = Math.abs(delivery.finalTargetX) < 0.12 && rng.next() < GAME.lbwChance;
     return { ...outcome, madeBatContact: false, isWicket: true, wicketType: lbw ? 'LBW' : 'BOWLED', feedback: lbw ? 'LBW!' : 'BOWLED!' };
   }
+  // Run down to third man off the open face. Missed, or played across the
+  // stumps, it is beaten like any other stroke, below.
+  if (attempt?.shotType === 'LATE_CUT' && lateCutMeets(outcome)) return lateCut(outcome, rng, false);
+  // Cut at the spinner's ball going on down the leg side: cramped.
+  if (crampedCut(delivery, attempt)) return cramped(outcome, rng, 2);
   // Wide of off and full: the half-volley. Until now this was the one ball in
   // the game with no stroke worth full value — the cut owns the wide line but
   // only answers a short ball, so a full one left the drive's 0.9 as the

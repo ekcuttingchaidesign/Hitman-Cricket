@@ -78,6 +78,16 @@ export function flightOf(outcome: ShotOutcome): Flight {
       ? shape(58, 20, 1900, 0.1)
       : { ...shape(GROUND_REACH[4], 6.5, 1600, 0.1), bounceAt: 0.7 };
   }
+  if (outcome.hooked && outcome.madeBatContact && !outcome.isWicket && !outcome.hit) {
+    // Hooked: met out in front of him and sent back over him to fine leg, so
+    // it has to climb from the bat, steeply enough to be over his head by the
+    // time it passes him, whatever it is worth. Middled it carries the rope; a
+    // shade under it lands inside and runs on; worked round it lobs over him
+    // and dies on the bounce.
+    if (outcome.runs === 6) return shape(66, 20, 2050, 0.1);
+    if (outcome.runs === 4) return { ...shape(GROUND_REACH[4], 11, 1650, 0.1), bounceAt: 0.66 };
+    return { ...shape(GROUND_REACH[outcome.runs] ?? 5, 4, 1300, 0.1), bounceAt: 0.4 };
+  }
   if (playedOn) {
     // It carries on past the timber rather than stopping dead on it, and that
     // is not decoration: the bails are thrown from the frame the ball reaches
@@ -87,6 +97,7 @@ export function flightOf(outcome: ShotOutcome): Flight {
   }
   if (struckBody) return shape(2.4, 0.42, 640, 0.1);
   if (outcome.defended) return shape(1.9, 0.05, 700, 0.1);
+  if (outcome.padded) return shape(1.2, 0.1, 560, 0.1);
   if (outcome.edged) return shape(1.6, 0.18, 460, 0.42);
   if (toAFielder) {
     // Far enough out to need a fielder, near enough that the take happens where

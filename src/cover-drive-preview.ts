@@ -15,8 +15,8 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, type CoverVersion, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
-import { ADVANCE, GAME, LINE_X } from './config/gameplay';
+import { Batter, type CoverVersion, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
+import { ADVANCE, GAME, LINE_X, SHOT_ANGLES, STYLES } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 import type { ShotType } from './game/types';
 
@@ -30,6 +30,8 @@ interface Stroke {
   label: string; shot: ShotType; charging: boolean; lofted?: boolean;
   /** Played the same in every version: the on drive has only the one. */
   single?: boolean;
+  /** The cut at a spinner, room made by stepping away to leg. */
+  spinCut?: boolean;
   /** Where the ball is met, in the rig's frame. */
   ball: { x: number; y: number; z: number };
   contact: number; end: number; bounceZ: number;
@@ -71,6 +73,30 @@ const STROKES: Record<string, Stroke> = {
     out: { speed: .028, angle: THREE.MathUtils.degToRad(-22), climb: .014 },
     facts: ['full, leg stump', `${STROKE_DURATION_MS} ms`],
     note: 'The on drive lofted for six, played when the swipe is perfectly timed: the on drive\'s own stride and contact, then the arms carry the bat up through the line and over into a wrap, the elbows bent rather than reaching for the sky: the hands just over the front shoulder with the bat lying back over it behind his head, the front elbow up beside the helmet, the back arm across in front of his face, the chest open to long-on and the back foot up on its toe, held to 580 ms. The arms take the bat over, not the wrists: the one turn in his hands is the bottom hand rolling over the top one through the carry, evenly and one way, so that at the wrap the flat face looks out and the curved back of the blade lies against his shoulder; held, nothing turns it, and on the way home, back over his head and down the line, it settles into his guard a little at a time. The six it replaces turned the bat a full turn in his hands on the way home.',
+  },
+  latecut: {
+    label: 'Late cut', shot: 'LATE_CUT', charging: false, single: true, ball: { x: LINE_X.OUTSIDE_OFF, y: .56, z: GAME.contactZ + LATE_CUT_MEETS_AT },
+    contact: LATE_CUT_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: 3.8,
+    phases: [['Stance', -LEAD_MS], ['Back and across', LATE_CUT_LOAD_MS], ['Contact', LATE_CUT_CONTACT_MS], ['Down to the turf', 310], ['Held', 400], ['Up', 620]],
+    out: { speed: .026, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.LATE_CUT), climb: 0 },
+    facts: ['outside off', `${STROKE_DURATION_MS} ms`],
+    note: 'The late cut, off the swipe down and to off (or D and S) without a meter, at pace or spin, in every mode. The back foot goes a long way back towards the stumps and across towards off, and he sinks on it until the back knee is nearly on the turf, the front leg left where it was, bent at the knee. The bat is held up high while he goes down, then comes down late and steep, the hands out at his hip, to meet the ball beside the back pad at 230 ms, 40 cm behind where the other strokes meet it, with the face open to third man. It is not struck: the ball is shown the way, and the blade goes on down until the toe points at the turf behind him, held there with his head down over the hands, before he lifts the bat out towards point and gets up into his guard. Middled it runs away to third man for four, never six; a shade under two or three, held back one or two, poor off the edge to the keeper.',
+  },
+  spincut: {
+    label: 'Cut off the spinner', shot: 'SQUARE_CUT', charging: false, single: true, spinCut: true, ball: { x: LINE_X.MIDDLE, y: .54, z: GAME.contactZ },
+    contact: SPIN_CUT_CONTACT_MS, end: STROKE_DURATION_MS + SPIN_CUT_HOLD_MS, bounceZ: 4.2,
+    phases: [['Stance', -LEAD_MS], ['Back and away', SPIN_CUT_LOAD_MS], ['Contact', SPIN_CUT_CONTACT_MS], ['Through', 260], ['Up', 350], ['Past the ear', 435], ['On the shoulder', 520], ['Home', 795]],
+    out: { speed: .03, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.SQUARE_CUT), climb: 0 },
+    facts: ['off-spinner turning in', `${STROKE_DURATION_MS + SPIN_CUT_HOLD_MS} ms`],
+    note: 'The cut at a spinner, off the same swipe as the cut: an off-spinner pitched outside off and turning in at him, or a leg-spinner pitched on leg and turning away. He makes the room himself: the back foot goes back and away towards leg, the front foot is drawn back with it and the stance opens wide, the weight on the back foot, the bat taken up high. The ball is met at 190 ms out in front of the off stump on the back foot, the bat coming down on it with the arms out straight and the face over the ball, and the hands go on through level towards point at 260, then up at 350 with the blade upright in front of his face. The hands never go over his head: they stop at the peak of the helmet, the elbows down either side of his face, while the bat tips out past his leg-side ear and lands at 520 across the opposite shoulder, the back of the blade to it, the face riding his hands all the way. Held there, as the hook is, it comes off the shoulder the way it went on, stands up in front of him and goes down into his guard.',
+  },
+  hook: {
+    label: 'Hook shot', shot: 'HOOK', charging: false, single: true, ball: { x: LINE_X.OUTSIDE_OFF, y: 1.134, z: GAME.contactZ + HOOK_MEETS_AT },
+    contact: HOOK_CONTACT_MS, end: STROKE_DURATION_MS + HOOK_HOLD_MS, bounceZ: STYLES.SHORT.bounce!,
+    phases: [['Stance', -LEAD_MS], ['Back and across', HOOK_LOAD_MS], ['Down', 160], ['Contact', HOOK_CONTACT_MS], ['Out front', 255], ['To leg', 315], ['Round', 395], ['Wrap', 520], ['Turning', 600], ['Back to the bowler', 720], ['Home', 860]],
+    out: { speed: .03, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.HOOK), climb: .032 },
+    facts: ['bouncer, outside off', `${STROKE_DURATION_MS + HOOK_HOLD_MS} ms`],
+    note: 'The hook, at a bouncer on off stump or wider, off the swipe down and to leg with or without a meter; from Tendulkar\'s off Caddick in 2003 and a net session in slow motion for the hands. He goes back and across, the back foot over towards off stump and the front one drawn back and opened, the bat taken high over the back shoulder. The hands come down and out, and the ball is met at 200 ms well away from him, out in front and towards off, both arms straight and the bat level with its face to the bowler. Then the arms swing it round flat like a baseball bat, still long: straight out in front at 255, out to leg at 315, round behind square at 395, the chest turning with them and the face going round with the body, never in his hands. Only then do the elbows fold, the bottom hand rolling over the top one, and by 520 the bat is wrapped behind his head with the hands up over the front shoulder, the curved back of the blade against it and his head turned after the ball. And the turn the swing began carries on through it, one movement slowing all the way, on his feet as well as his shoulders, the hands staying up over the front shoulder as the body turns under them: square to the leg side, then on round until his back is to the bowler and his hips to the stumps, the front foot come round on its toe to off stump and the back one turned to leg stump, the bat up behind his head pointing away to off and his head up after the ball; held there, he unwinds with the bat brought upright over his head and lets the hands down in front of him into his guard. It goes up over him to backward square leg: middled for six, a shade under for four; late it takes the glove through to the keeper, early it goes straight up.',
   },
 };
 let stroke = STROKES.cover;
@@ -186,7 +212,7 @@ const metAt = () => ({ ...stroke.ball, z: stroke.ball.z + (version === 3 && !str
 function start() {
   batter.reset(); batter.prepare(1); batter.update(0);
   const at = metAt();
-  batter.swing(stroke.shot, 0, at.x, at.y, at.z, stroke.charging, !!stroke.lofted, false, false, version);
+  batter.swing(stroke.shot, 0, at.x, at.y, at.z, stroke.charging, !!stroke.lofted, false, false, version, !!stroke.spinCut);
   swinging = true;
 }
 

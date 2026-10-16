@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, FLAT_SWEEP, GAME, LINES, LINE_X, QUICK_STYLES, SCOOP, SHOTS, SHOT_ANGLES, SPIN_BOWLING, SQUARE_DRIVE, STYLES, SWEEP } from '../src/config/gameplay';
+import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, FLAT_SWEEP, GAME, HOOK, SPIN_CUT, LINES, LINE_X, QUICK_STYLES, SCOOP, SHOTS, SHOT_ANGLES, SPIN_BOWLING, SQUARE_DRIVE, STYLES, SWEEP } from '../src/config/gameplay';
 import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
-import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN } from '../src/game/DeliveryGenerator';
+import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN, SURVIVE_PLAN, bouncersEvery, lateCutsEvery, spinCutsEvery, spun } from '../src/game/DeliveryGenerator';
 import { ballPosition, effectiveLine, flightDrag, flightProgress, stumpIntersection } from '../src/game/DeliveryTrajectory';
 import { COVER_ODDS, coverRoll, coverVersionOf } from '../src/entities/Batter';
 import { resolveSurvive } from '../src/game/Survive';
-import { mapKeys } from '../src/game/InputManager';
+import { mapKeys, mapSwipe } from '../src/game/InputManager';
 import { ScoreManager } from '../src/game/ScoreManager';
 import { SeededRandom } from '../src/game/SeededRandom';
-import { advanceShot, chargeable, cuttable, gradeOf, gradeTiming, playedAs, resolveShot, scoopLine, scoopShot, scoopable, slogSweep, squareDrivable, sweepable, sweeps, turningIn } from '../src/game/ShotResolver';
+import { advanceShot, chargeable, crampedCut, cuttable, fitOf, gradeOf, gradeTiming, hookable, playedAs, spinCut, resolveShot, scoopLine, scoopShot, scoopable, slogSweep, squareDrivable, sweepable, sweeps, turningIn } from '../src/game/ShotResolver';
 import type { Delivery, ShotOutcome, ShotType } from '../src/game/types';
 const delivery = (changes: Partial<Delivery> = {}): Delivery => ({ line: 'MIDDLE', style: 'NORMAL', speedKph: 125, baseTargetX: 0, finalTargetX: 0, bounceZ: GAME.bounceZ, rise: GAME.rise, durationMs: 1000, releaseTimeMs: 0, idealContactTimeMs: 1000, ...changes });
 const rng = (value: number) => ({ next: () => value });
@@ -895,7 +895,9 @@ describe('the scoops', () => {
     expect(scoop(ball, 0, 'SCOOP', .99, false).scooped).toBeUndefined();
     // And at a bouncer, the same: there is no getting under that one.
     const bouncer = at('OFF', { style: 'SHORT', bounceZ: STYLES.SHORT.bounce!, rise: STYLES.SHORT.rise! });
-    expect(playedAs(bouncer, { ...attempt, shotType: 'REVERSE_SCOOP' }, true).shotType).toBe('DEFEND');
+    // The reverse's diagonal there is the late cut, an ordinary stroke.
+    expect(playedAs(bouncer, { ...attempt, shotType: 'REVERSE_SCOOP' }, true).shotType).toBe('LATE_CUT');
+    expect(playedAs(ball, { ...attempt, shotType: 'REVERSE_SCOOP' }, false).shotType).toBe('LATE_CUT');
   });
   it('is paid by timing: six middled, four a shade under, singles held back', () => {
     for (const [shot, line] of [['SCOOP', 'LEG'], ['SCOOP', 'MIDDLE'], ['REVERSE_SCOOP', 'OFF'], ['REVERSE_SCOOP', 'OUTSIDE_OFF']] as const) {
@@ -949,6 +951,214 @@ describe('the scoops', () => {
     const ball = at('MIDDLE');
     expect(scoop(ball, 0, 'STRAIGHT').advance).toBe(true);
     expect(scoop(ball, 0, 'SCOOP').advance).toBeUndefined();
+  });
+});
+
+/**
+ * The cut off the spinner: he makes room, so the off-spinner's ball turning
+ * into him and the leg-spinner's turning away from leg are both cuttable.
+ * The same swipe as the cut; only the ball is different.
+ */
+describe('the late cut', () => {
+  const wide = (x = LINE_X.OUTSIDE_OFF) => delivery({ baseTargetX: x, finalTargetX: x });
+  const lateCutAt = (d: Delivery, delta = 0, roll = .99) =>
+    resolveShot(d, playedAs(d, { shotType: 'LATE_CUT', inputTimeMs: d.idealContactTimeMs + delta }, false), rng(roll));
+  it('is the swipe down and to off, and the keys D and S, without a meter', () => {
+    expect(mapSwipe(60, 60)).toBe('LATE_CUT');
+    expect(mapKeys(['d', 's'])).toBe('REVERSE_SCOOP');
+    const d = wide(), keys = { shotType: 'REVERSE_SCOOP' as const, inputTimeMs: d.idealContactTimeMs };
+    expect(playedAs(d, keys, false).shotType).toBe('LATE_CUT');
+    // With the meter full it is still the reverse scoop.
+    expect(playedAs(d, keys, true).shotType).toBe('REVERSE_SCOOP');
+  });
+  it('is four at the most, middled, and never six', () => {
+    for (const x of [LINE_X.OFF, LINE_X.OUTSIDE_OFF]) for (const roll of [0, .5, .99]) {
+      const middled = lateCutAt(wide(x), 0, roll);
+      expect(middled.runs, `${x}`).toBe(4); expect(middled.lateCut).toBe(true); expect(middled.aerial).toBe(false);
+    }
+    expect(SHOT_ANGLES.LATE_CUT).toBeGreaterThan(SHOT_ANGLES.SQUARE_CUT);
+    expect(SHOT_ANGLES.LATE_CUT).toBeLessThan(SHOT_ANGLES.REVERSE_SCOOP);
+  });
+  it('runs two or three a shade under, one or two held back, and is edged behind when poor', () => {
+    expect([0, .99].map(roll => lateCutAt(wide(), 60, roll).runs)).toEqual([3, 2]);
+    expect([0, .99].map(roll => lateCutAt(wide(), 100, roll).runs)).toEqual([2, 1]);
+    const caught = lateCutAt(wide(), 170, 0);
+    expect(caught.isWicket).toBe(true); expect(caught.wicketType).toBe('CAUGHT'); expect(caught.edged).toBe(true);
+    const edged = lateCutAt(wide(), 170, .99);
+    expect(edged.isWicket).toBe(false); expect(edged.runs).toBe(1);
+  });
+  it('is bowled played across a ball on the stumps, and lets a missed one go by outside off', () => {
+    const straight = lateCutAt(delivery({ baseTargetX: 0, finalTargetX: 0 }), 0, 0);
+    expect(straight.isWicket).toBe(true); expect(straight.madeBatContact).toBe(false);
+    const missed = lateCutAt(wide(), 400);
+    expect(missed.isWicket).toBe(false); expect(missed.madeBatContact).toBe(false);
+  });
+  it('is every ball on `?latecut=1`, in every mode: pitched at off stump or wider, nothing short', () => {
+    for (const plan of [CLASSIC_PLAN, SURVIVE_PLAN, MARATHON_PLAN]) {
+      const generator = new DeliveryGenerator(new SeededRandom(5), lateCutsEvery(plan));
+      const dealt = Array.from({ length: 60 }, () => generator.next(0));
+      expect(dealt.every(ball => ball.line === 'OFF' || ball.line === 'OUTSIDE_OFF')).toBe(true);
+      expect(dealt.some(ball => ball.style === 'SHORT' || ball.style === 'RIB' || spun(ball))).toBe(false);
+    }
+  });
+});
+
+describe('the cut off the spinner', () => {
+  const spinner = (style: 'OFF_SPIN' | 'LEG_SPIN' | 'ARM_BALL', base: number, final: number) =>
+    delivery({ style, baseTargetX: base, finalTargetX: final, speedKph: 88 });
+  const cutAt = (d: Delivery, delta = 0, roll = .99) => resolveShot(d, { shotType: 'SQUARE_CUT', inputTimeMs: d.idealContactTimeMs + delta }, rng(roll));
+  it('is the cut at any spinner, and only at a spinner', () => {
+    expect(spinCut(spinner('OFF_SPIN', .42, .03), { shotType: 'SQUARE_CUT' })).toBe(true);
+    expect(spinCut(spinner('LEG_SPIN', -.42, .19), { shotType: 'SQUARE_CUT' })).toBe(true);
+    expect(spinCut(spinner('ARM_BALL', 0, 0), { shotType: 'SQUARE_CUT' })).toBe(true);
+    expect(spinCut(delivery({ finalTargetX: 0 }), { shotType: 'SQUARE_CUT' })).toBe(false);
+    expect(spinCut(spinner('OFF_SPIN', .42, .03), { shotType: 'LEG' })).toBe(false);
+  });
+  it('suits the lines a spinner turns onto, where the cut at a quick wants width', () => {
+    for (const line of LINES) {
+      const d = spinner('OFF_SPIN', .42, LINE_X[line]);
+      expect(fitOf(d, 'SQUARE_CUT'), line).toBe(SPIN_CUT.fit[line]);
+      expect(fitOf(delivery({ finalTargetX: LINE_X[line] }), 'SQUARE_CUT'), line).toBe(COMPATIBILITY[line].SQUARE_CUT);
+      // Every other stroke at the spinner keeps its own column.
+      expect(fitOf(d, 'STRAIGHT'), line).toBe(COMPATIBILITY[line].STRAIGHT);
+    }
+    expect(SPIN_CUT.fit.MIDDLE).toBeGreaterThan(COMPATIBILITY.MIDDLE.SQUARE_CUT);
+    expect(SPIN_CUT.fit.LEG).toBeGreaterThan(COMPATIBILITY.LEG.SQUARE_CUT);
+  });
+  it('cuts the off-spinner turning in, and the leg-spinner turning away from leg, for boundaries', () => {
+    expect(cutAt(spinner('OFF_SPIN', .42, .03)).runs).toBe(6);
+    expect(cutAt(spinner('LEG_SPIN', -.42, -.03), 60).runs).toBe(4);
+  });
+  it('is edged behind mistimed, and bowled missed with the stumps left open', () => {
+    const edged = cutAt(spinner('OFF_SPIN', .42, .03), 170);
+    expect(edged.isWicket).toBe(true); expect(edged.edged).toBe(true);
+    const missed = cutAt(spinner('OFF_SPIN', .42, .03), 400);
+    expect(missed.isWicket).toBe(true); expect(missed.wicketType).toBe('BOWLED');
+  });
+  it('is cramped at the ball finishing outside leg: squeezed to point at best, gloved behind when poor', () => {
+    for (const style of ['OFF_SPIN', 'ARM_BALL'] as const) {
+      const wide = spinner(style, -.14, LINE_X.OUTSIDE_LEG);
+      expect(crampedCut(wide, { shotType: 'SQUARE_CUT' }), style).toBe(true);
+      // Middled: one or two, never a boundary, along the ground the way the bat goes.
+      const middled = [0, .2, .5, .99].map(roll => cutAt(wide, 0, roll));
+      for (const shot of middled) {
+        expect(shot.isWicket, style).toBe(false); expect(shot.aerial).toBe(false);
+        expect([1, 2]).toContain(shot.runs);
+      }
+      expect(new Set(middled.map(shot => shot.runs))).toEqual(new Set([1, 2]));
+      // A shade under: a single, or straight to point.
+      expect([0, .99].map(roll => cutAt(wide, 60, roll).runs)).toEqual([1, 0]);
+      // Worse: off the inside edge onto the pad, dead.
+      const padded = cutAt(wide, 100);
+      expect(padded.padded).toBe(true); expect(padded.runs).toBe(0); expect(padded.isWicket).toBe(false);
+      // Poor: gloved through to the keeper more often than not.
+      const gloved = cutAt(wide, 170, 0), lucky = cutAt(wide, 170, .99);
+      expect(gloved.isWicket).toBe(true); expect(gloved.edged).toBe(true); expect(gloved.wicketType).toBe('CAUGHT');
+      expect(lucky.isWicket).toBe(false); expect(lucky.padded).toBe(true);
+      // Missed, it goes on down the leg side: it can bowl nobody.
+      const missed = cutAt(wide, 400);
+      expect(missed.isWicket).toBe(false); expect(missed.madeBatContact).toBe(false);
+    }
+    // Every other line the turn leaves him is his to cut for six.
+    for (const line of LINES.filter(line => line !== 'OUTSIDE_LEG')) {
+      expect(crampedCut(spinner('OFF_SPIN', .42, LINE_X[line]), { shotType: 'SQUARE_CUT' }), line).toBe(false);
+      expect(cutAt(spinner('OFF_SPIN', .42, LINE_X[line])).runs, line).toBe(6);
+    }
+    // And the cut at a quick down the leg side is not this.
+    expect(crampedCut(delivery({ finalTargetX: LINE_X.OUTSIDE_LEG }), { shotType: 'SQUARE_CUT' })).toBe(false);
+  });
+  it('is every ball on `?spincut=1`, in every mode: all of the spinner\'s, on every line', () => {
+    for (const plan of [CLASSIC_PLAN, SURVIVE_PLAN, MARATHON_PLAN]) {
+      const dealt = [7, 8, 9].flatMap(seed => {
+        const generator = new DeliveryGenerator(new SeededRandom(seed), spinCutsEvery(plan));
+        return Array.from({ length: 24 }, () => generator.next(0));
+      });
+      expect(dealt.every(ball => spinCut(ball, { shotType: 'SQUARE_CUT' }))).toBe(true);
+      expect(new Set(dealt.map(ball => ball.style))).toEqual(new Set(['OFF_SPIN', 'LEG_SPIN', 'ARM_BALL']));
+      // The one he cannot cut comes too.
+      expect(dealt.some(ball => effectiveLine(ball) === 'OUTSIDE_LEG')).toBe(true);
+    }
+  });
+});
+
+/**
+ * The hook: a bouncer on off stump or wider, round to fine leg off the scoop's
+ * diagonal. An ordinary stroke, so no meter, and the bouncer's: nothing else
+ * is hooked.
+ */
+describe('the hook', () => {
+  const bouncer = (line: keyof typeof LINE_X) => delivery({ line, style: 'SHORT', baseTargetX: LINE_X[line], finalTargetX: LINE_X[line],
+    bounceZ: STYLES.SHORT.bounce!, rise: STYLES.SHORT.rise! });
+  const hook = (d: Delivery, delta = 0, roll = .99, shot: ShotType = 'HOOK') =>
+    resolveShot(d, playedAs(d, { shotType: shot, inputTimeMs: d.idealContactTimeMs + delta }, false), rng(roll));
+  it('answers the bouncer on off stump and wider, and no other ball', () => {
+    expect(LINES.map(line => hookable(bouncer(line)))).toEqual([false, false, false, true, true]);
+    for (const line of LINES) expect(hookable(delivery({ line, baseTargetX: LINE_X[line], finalTargetX: LINE_X[line] })), line).toBe(false);
+  });
+  it('is the whole leg side under the on drive at that ball, meter or none, and leaves the cut and the block where they were', () => {
+    // Down and to leg, and straight out to leg: the ball has picked the hook.
+    expect(mapSwipe(-60, 60, 0, false, true)).toBe('HOOK');
+    expect(mapSwipe(-60, 60, 0, true, true)).toBe('HOOK');
+    expect(mapSwipe(-80, 0, 0, false, true)).toBe('HOOK');
+    expect(mapSwipe(-60, -60, 0, false, true)).toBe('LONG_ON');
+    // Without the ball it is the leg-side stroke, or the scoop on a meter.
+    expect(mapSwipe(-60, 60)).toBe('LEG');
+    expect(mapSwipe(-60, 60, 0, true)).toBe('SCOOP');
+    // The other side and straight down are untouched by it: the cut, the
+    // late cut and the block.
+    expect(mapSwipe(60, 25, 0, false, true)).toBe('SQUARE_CUT');
+    expect(mapSwipe(60, 60, 0, false, true)).toBe('LATE_CUT');
+    expect(mapSwipe(0, 80, 0, false, true)).toBe('DEFEND');
+  });
+  it('is whatever leg-side stroke is asked for at that ball, and the pull at a bouncer on the body: the line decides', () => {
+    const attempt = { shotType: mapKeys(['S', 'A'])!, inputTimeMs: 1000 };
+    for (const shotType of ['SCOOP', 'LEG', 'HOOK'] as const) for (const charged of [false, true]) {
+      expect(playedAs(bouncer('OUTSIDE_OFF'), { ...attempt, shotType }, charged).shotType, shotType).toBe('HOOK');
+      expect(playedAs(bouncer('OFF'), { ...attempt, shotType }, charged).shotType, shotType).toBe('HOOK');
+      for (const line of ['MIDDLE', 'LEG', 'OUTSIDE_LEG'] as const)
+        expect(playedAs(bouncer(line), { ...attempt, shotType }, charged).shotType, `${shotType} ${line}`).toBe('LEG');
+    }
+    // Off a bouncer the hook is nothing, and the keyboard's diagonal the block.
+    expect(playedAs(delivery(), { ...attempt, shotType: 'HOOK' }, true).shotType).toBe('DEFEND');
+    expect(playedAs(delivery(), attempt, false).shotType).toBe('DEFEND');
+  });
+  it('goes over fine leg for six middled, four a shade under, and is worked round held back', () => {
+    for (const line of ['OFF', 'OUTSIDE_OFF'] as const) {
+      const six = hook(bouncer(line));
+      expect(six.runs, line).toBe(6); expect(six.feedback).toBe(HOOK.feedback.six); expect(six.madeBatContact).toBe(true);
+      expect(six.isWicket).toBe(false); expect(six.scooped).toBeUndefined(); expect(six.advance).toBeUndefined();
+      expect(hook(bouncer(line), 60).runs).toBe(4);
+      const worked = hook(bouncer(line), -100, .2);
+      expect([1, 2, 3]).toContain(worked.runs); expect(worked.isWicket).toBe(false);
+    }
+  });
+  it('takes the glove through to the keeper late, and goes straight up early', () => {
+    const late = hook(bouncer('OUTSIDE_OFF'), 170);
+    expect(late.isWicket).toBe(true); expect(late.wicketType).toBe('CAUGHT'); expect(late.edged).toBe(true);
+    expect(late.feedback).toBe(HOOK.gloved);
+    const early = hook(bouncer('OUTSIDE_OFF'), -170);
+    expect(early.isWicket).toBe(true); expect(early.wicketType).toBe('CAUGHT'); expect(early.aerial).toBe(true);
+    expect(early.edged).toBeUndefined(); expect(early.feedback).toBe(HOOK.skied);
+  });
+  it('lets a missed one go on over the stumps', () => {
+    const missed = hook(bouncer('OFF'), 400);
+    expect(missed.isWicket).toBe(false); expect(missed.madeBatContact).toBe(false); expect(missed.runs).toBe(0);
+  });
+  it('is every ball on `?hooks=1`, in every mode, and only some on `?bouncers=1`', () => {
+    for (const plan of [CLASSIC_PLAN, SURVIVE_PLAN, MARATHON_PLAN]) {
+      const hooks = new DeliveryGenerator(new SeededRandom(11), bouncersEvery(plan, true));
+      const bouncers = new DeliveryGenerator(new SeededRandom(11), bouncersEvery(plan));
+      const dealt = Array.from({ length: 120 }, () => [hooks.next(0), bouncers.next(0)]);
+      expect(dealt.every(([ball]) => hookable(ball))).toBe(true);
+      expect(dealt.every(([, ball]) => ball.style === 'SHORT')).toBe(true);
+      expect(dealt.some(([, ball]) => !hookable(ball))).toBe(true);
+      // Both lines it answers come, not one of them.
+      expect(new Set(dealt.map(([ball]) => effectiveLine(ball)))).toEqual(new Set(['OFF', 'OUTSIDE_OFF']));
+    }
+  });
+  it('goes behind square on the leg side, finer than the pull', () => {
+    expect(SHOT_ANGLES.HOOK).toBeLessThan(-90);
+    expect(SHOT_ANGLES.HOOK).toBeLessThan(SHOT_ANGLES.LEG);
   });
 });
 

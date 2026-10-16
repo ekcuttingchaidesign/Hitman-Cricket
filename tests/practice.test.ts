@@ -56,6 +56,7 @@ describe('every switch the game reads', () => {
     lights: 'day or night',
     view: 'which screen opens',
     shot: 'a shot preview page',
+    times: 'which moments the rig sheet draws, a dev page that bats nothing',
     pullpen: 'the colour of the pull\'s flash',
     perf: 'the frame-rate readout, measuring and sending nothing',
     profile: 'asks who is batting under ?debug=1, for the check that walks it; the batting is unchanged',

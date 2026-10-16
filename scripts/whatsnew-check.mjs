@@ -26,7 +26,7 @@
 import { chromium } from '@playwright/test';
 
 /** The update key in `src/game/whats-new.ts`. Bumped there, bumped here. */
-const UPDATE = 'dressing-room';
+const UPDATE = 'new-shots';
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:5199').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
@@ -93,9 +93,52 @@ for (let wound = 0; wound < 6000 && !opened; wound += 100) {
 check(opened, 'the play key stops at the stories the first time');
 if (!opened) { await browser.close(); process.exit(1); }
 
+// The two new strokes first, each filmed in the game itself under a card the
+// whole screen wide; then the Dressing Room in two, each with the way in.
+const filmed = () => page.evaluate(() => {
+  const sheet = document.querySelector('.whatsnew-sheet')?.getBoundingClientRect(), view = document.getElementById('viewport').getBoundingClientRect();
+  const room = document.getElementById('whatsnew-room');
+  const on = document.getElementById('viewport').classList.contains('reel-on');
+  return { reel: on ? document.querySelector('.whatsnew-reel')?.dataset.reel ?? null : null, on,
+    see: document.querySelector('.whatsnew-sheet')?.classList.contains('is-filmed') ?? false,
+    edge: !!sheet && Math.abs(sheet.width - view.width) < 2 && Math.abs(sheet.height - view.height) < 2,
+    // Nothing else on the ground in sight: the cover's poster, the scoreboard, Choose a mode.
+    hidden: [...document.getElementById('viewport').children].filter(node => node.tagName !== 'CANVAS' && node.id !== 'whatsnew-overlay')
+      .every(node => getComputedStyle(node).visibility === 'hidden'),
+    open: !!document.getElementById('whatsnew-open'), out: document.getElementById('whatsnew-done')?.textContent.trim(),
+    swipe: document.querySelector('.whatsnew-cue')?.dataset.way ?? null, call: room?.querySelector('.whatsnew-call')?.textContent ?? null,
+    beats: ['is-cueing', 'is-hit'].filter(name => document.querySelector('.whatsnew-sheet')?.classList.contains(name)) };
+});
 const first = await title();
-// The Dressing Room, in two: the kits and the bats, each with the way out and the way in.
-check(first === 'SUIT UP', 'it opens on the kits', first);
+check(first === 'HOOK IT FOR SIX', 'it opens on the hook', first);
+let film = await filmed();
+check(film.reel === 'hook' && film.on && film.see && film.hidden, 'filmed in the game under the card, nothing else on the ground in sight', JSON.stringify(film));
+check(film.edge, 'the card the whole screen, edge to edge', JSON.stringify(film));
+check(!film.open && /^SKIP (TO MODE SELECTION|AND START BATTING)$/.test(film.out ?? '') && film.swipe === 'leg' && film.call === 'SIX',
+  'one way out under it, the swipe to leg and the six waiting over him', JSON.stringify(film));
+
+// Each holds a while and moves on by itself. Wound in half-second steps until
+// it does: the installed clock also runs on by itself in real time, and one
+// long wind on a slow machine carries a card past its own hold and the next one's too.
+const beats = new Set();
+const holds = async from => {
+  let held = 0;
+  for (; held < 14000 && await title() === from; held += 250) { (await filmed()).beats.forEach(beat => beats.add(beat)); await tick(250, 120); }
+  return held;
+};
+let held = await holds(first);
+check(held >= 5000, 'the hook holding for its film', `${held}ms`);
+check(beats.has('is-cueing') && beats.has('is-hit'), 'the film held for the swipe drawn over it, then the six as he hits it', [...beats].join(','));
+const cut = await title();
+check(cut === 'SHOW IT THE WAY', 'and moving on by itself to the late cut', cut);
+film = await filmed();
+check(film.reel === 'latecut' && film.on && film.edge && film.swipe === 'off' && film.call === 'FOUR', 'filmed the same, the swipe down to off and the four', JSON.stringify(film));
+held = await holds(cut);
+check(held >= 5000, 'holding as long', `${held}ms`);
+const kits = await title();
+check(kits === 'SUIT UP', 'then on to the kits', kits);
+film = await filmed();
+check(!film.reel && !film.on, 'the film put away and the ground as it was', JSON.stringify(film));
 check(!!(await page.$('#whatsnew-stage')) && !(await page.$('.whatsnew-sheet img')), 'full screen for the stage, with no picture to load');
 check(!(await page.$('#whatsnew-stage.is-live')), 'its words standing on their own where the stage cannot be drawn');
 // The two ways on side by side along the foot, the way out on the left, under the room for the stage.
@@ -113,8 +156,7 @@ check(paired(await keys()), 'with SKIP and GO TO DRESSING ROOM side by side unde
 // Each holds a while and moves on by itself. Wound in half-second steps until
 // it does: the installed clock also runs on by itself in real time, and one
 // long wind on a slow machine carries a card past its own hold and the next one's too.
-let held = 0;
-for (; held < 14000 && await title() === first; held += 500) await tick(500, 150);
+held = await holds(kits);
 check(held >= 5000, 'holding a while', `${held}ms`);
 const last = await title();
 check(last === 'EARN YOUR WILLOW', 'and moving on by itself to the bats, the last', last);
@@ -129,11 +171,17 @@ check(!!(await page.$('.whatsnew-sheet')) && await title() === last, 'the last s
 await page.click('#whatsnew-back');
 await tick(400);
 check(await title() === 'SUIT UP', 'a tap back goes back a card', await title());
+await page.click('#whatsnew-back');
+await tick(400);
+check(await title() === 'SHOW IT THE WAY' && (await filmed()).reel === 'latecut', 'and another back to the late cut, filmed again', await title());
+await page.click('#whatsnew-next');
+await tick(400);
 
 await page.click('#whatsnew-done');
 await tick(700);
 check(await page.$eval('#whatsnew-overlay', node => node.classList.contains('hidden')),
   'the key puts the stories away');
+check(!(await page.$('#viewport.reel-on')), 'and no film left over the ground under whatever comes next');
 // Where skipping goes is the build's: Choose a mode where there is one to
 // choose, the innings where the build has chosen. Either way, somewhere.
 const landed = async () => ({ hidden: await page.$eval('#whatsnew-overlay', node => node.classList.contains('hidden')),
@@ -150,7 +198,7 @@ await page.click('#start');
 await tick(800);
 check(!!(await page.$('.whatsnew-sheet')), 'it comes back a second time, because once is missed');
 // Put away this time from the last card: tapped on to it, it holds there.
-for (let i = 0; i < 4 && await title() !== last; i++) { await page.click('#whatsnew-next'); await tick(400); }
+for (let i = 0; i < 6 && await title() !== last; i++) { await page.click('#whatsnew-next'); await tick(400); }
 await tick(9000);
 check(await title() === last, 'tapped on to the last card, it holds there', await title());
 await page.click('#whatsnew-done');
@@ -197,6 +245,8 @@ await page.reload({ waitUntil: 'load' });
 await arrive();
 await page.click('#start');
 await tick(800);
+// On past the strokes to the kits.
+for (let i = 0; i < 4 && await title() !== 'SUIT UP'; i++) { await page.click('#whatsnew-next'); await tick(400); }
 // The stage, playing where it can be drawn: the whole screen behind the words,
 // with room between the title and them for the batter to stand in.
 const staged = () => page.evaluate(() => {
@@ -210,7 +260,7 @@ for (let i = 0; i < 40 && !live.full; i++) { await tick(100, 250); live = await 
 check(live.full && await title() === 'SUIT UP', 'where it can be drawn, the kits play on the stage, full screen', JSON.stringify(live));
 check(live.room > 200, 'with room between the words for the batter', `${live.room}px`);
 // The way in from the first card, without reading on.
-check(paired(await keys()), 'the way in right there on the first card', JSON.stringify(await keys()));
+check(paired(await keys()), 'the way in right there on the first card of the room', JSON.stringify(await keys()));
 // Choose a mode is under the room, and must never be seen on its own on the
 // way: the stories go only once the room is up over them. Watched for on
 // every change to the screens, not on frames, which this page's clock owns.

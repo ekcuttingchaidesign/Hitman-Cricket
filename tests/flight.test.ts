@@ -134,6 +134,11 @@ describe('the strokes that are placed rather than struck', () => {
     expect(flightOf(outcome({ defended: true })).distance).toBeLessThan(2.5);
   });
 
+  it('drops a cramped cut off the inside edge dead at his pad', () => {
+    const padded = flightOf(outcome({ padded: true, runs: 0 }));
+    expect(padded.distance).toBeLessThan(1.5); expect(padded.height).toBeLessThan(.2);
+  });
+
   it('sends the charge out of the ground', () => {
     const flight = flightOf(outcome({ advance: true, runs: 6 }));
     expect(flight.distance).toBeGreaterThan(70);
@@ -180,5 +185,40 @@ describe('the strokes that are placed rather than struck', () => {
     const flight = flightOf(out('CAUGHT', { edged: true }));
     expect(flight.flightMs).toBeLessThan(600);
     expect(flight.height).toBeLessThan(0.5);
+  });
+});
+
+/**
+ * A hooked ball is met out in front of him and goes back past him to fine
+ * leg, so its line runs across where he is standing. It has to be over him
+ * when it gets there: the first hook sent it on at chest height straight
+ * through his shoulder. Flown the way `GameScene.struckAt` flies it, against
+ * the batter's own head and chest as he finishes the stroke.
+ */
+describe('a hooked ball', () => {
+  it('goes over him to fine leg, never through him', async () => {
+    const { Batter, HOOK_CONTACT_MS, HOOK_MEETS_AT } = await import('../src/entities/Batter');
+    const { SHOT_ANGLES } = await import('../src/config/gameplay');
+    const { Vector3 } = await import('three');
+    for (const x of [.14, .42]) for (const runs of [1, 2, 4, 6] as const) for (const swing of [-8, 0, 8]) {
+      const batter = new Batter(); batter.prepare(1); batter.update(0);
+      const origin = new Vector3(x, 1.134, GAME.contactZ + HOOK_MEETS_AT);
+      batter.swing('HOOK', 0, x, origin.y, origin.z);
+      const flight = flightOf(outcome({ hooked: true, runs }));
+      const angle = (SHOT_ANGLES.HOOK + swing) * Math.PI / 180;
+      const end = new Vector3(origin.x + Math.sin(angle) * flight.distance, flight.endY, origin.z + Math.cos(angle) * flight.distance);
+      for (let t = 0; t <= 400; t += 4) {
+        const flown = Math.min(1, t / flight.flightMs);
+        const ball = origin.clone().lerp(end, flown);
+        ball.y += flight.bounceAt > 0 ? Math.sin(Math.min(1, flown / flight.bounceAt) * Math.PI) * flight.height : Math.sin(flown * Math.PI) * flight.height;
+        batter.update(HOOK_CONTACT_MS + t);
+        const pose = batter.inspect(), root = batter.root.position;
+        const chest = new Vector3(...pose.chest), spine = chest.clone().sub(new Vector3(...pose.hip)).normalize();
+        const head = chest.clone().addScaledVector(spine, .31).add(root);
+        const label = `x=${x} runs=${runs} swing=${swing} @${t}`;
+        expect(ball.distanceTo(head), label).toBeGreaterThan(.25);
+        expect(ball.distanceTo(chest.clone().add(root)), label).toBeGreaterThan(.32);
+      }
+    }
   });
 });

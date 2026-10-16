@@ -1882,7 +1882,7 @@ body.start-screen #sound{pointer-events:auto}
 .mi-finish .k-cta{flex:1;min-width:0;width:auto}
 .mi-keys:has(.mi-finish) .mi-skip{display:none}
 
-/* How to hit: five lanes of light from the bat, in the design's own corners,
+/* How to hit: seven lanes of light from the bat, in the design's own corners,
    the lit one in the game's colour; their names at the far ends; the thumb
    below, its trail and the two ghosts it leaves; and the captions under it. */
 .hb-fan{position:absolute;inset:0;display:block}
@@ -1898,9 +1898,11 @@ body.start-screen #sound{pointer-events:auto}
 .hb-label b{font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em}
 .hb-label kbd{padding:0 calc(var(--u) * 4);border-radius:calc(var(--u) * 4);background:#ffffff2e;font:800 calc(var(--u) * 9)/1.4 var(--f-ui);color:inherit}
 .hb-fan[data-lit="0"] .is-lit[data-i="0"],.hb-fan[data-lit="1"] .is-lit[data-i="1"],.hb-fan[data-lit="2"] .is-lit[data-i="2"],
-.hb-fan[data-lit="3"] .is-lit[data-i="3"],.hb-fan[data-lit="4"] .is-lit[data-i="4"]{opacity:1}
+.hb-fan[data-lit="3"] .is-lit[data-i="3"],.hb-fan[data-lit="4"] .is-lit[data-i="4"],
+.hb-fan[data-lit="5"] .is-lit[data-i="5"],.hb-fan[data-lit="6"] .is-lit[data-i="6"]{opacity:1}
 .hb-fan[data-lit="0"] .hb-label[data-i="0"],.hb-fan[data-lit="1"] .hb-label[data-i="1"],.hb-fan[data-lit="2"] .hb-label[data-i="2"],
-.hb-fan[data-lit="3"] .hb-label[data-i="3"],.hb-fan[data-lit="4"] .hb-label[data-i="4"]{border-color:transparent;background:var(--mi-tone);color:#fff}
+.hb-fan[data-lit="3"] .hb-label[data-i="3"],.hb-fan[data-lit="4"] .hb-label[data-i="4"],
+.hb-fan[data-lit="5"] .hb-label[data-i="5"],.hb-fan[data-lit="6"] .hb-label[data-i="6"]{border-color:transparent;background:var(--mi-tone);color:#fff}
 /* The swipe, turned to the lit lane about where the thumb comes to rest
    eighty under the bat: in its own frame the thumb travels up, and the trail
    and the ghosts lie behind it. */
@@ -5628,6 +5630,92 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .is-stage .whatsnew-body{justify-content:flex-start}
 .whatsnew-room{flex:1 1 auto;min-height:0;width:100%;margin-top:14px}
 .is-stage .whatsnew-say{color:#dfe6ec;text-shadow:0 1px 10px #000;text-wrap:balance}
+/* A stroke's film (`Story.reel`, `ShotReel.ts`): the game's own ground is the
+   picture, played by the game's own renderer under the card. So the card is
+   the whole screen edge to edge, never a column in the middle of it, and
+   see-through, with a shade at the top and the foot for the words; and while
+   it plays everything else on the ground is put out of sight (`reel-on`).
+   Where the game cannot film it, the words stand on the sheet's own dark. */
+#viewport.reel-on>:not(canvas):not(#whatsnew-overlay){visibility:hidden}
+#viewport.reel-on>#whatsnew-overlay{background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none}
+.whatsnew-sheet.is-reel{width:100%;max-width:none;background:radial-gradient(120% 70% at 50% 0%,#1b4a72 0%,#0d2739 46%,#07121a 100%)}
+.whatsnew-sheet.is-reel.is-filmed{background:transparent}
+.whatsnew-reel{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:linear-gradient(180deg,#000000a6 0%,#0000 24%,#0000 62%,#000000c4 86%)}
+.is-reel .whatsnew-bars{position:relative;z-index:2}
+.is-reel .whatsnew-body{justify-content:flex-start}
+.is-reel .whatsnew-title,.is-reel .whatsnew-eyebrow{text-shadow:0 1px 12px #000}
+.is-reel .whatsnew-say{color:#eef3f6;text-shadow:0 1px 10px #000;text-wrap:balance}
+/* The swipe, over the whole screen while the film holds on the frame before
+   the bat comes down (`shotCueMarkup`, `CUE`): a shade over the ground, a
+   great arrow the way the thumb goes with a thumb run down it twice, the word
+   and where — or on a keyboard the key — then gone, and the film goes on. The
+   bars and the way out stay over it. Drawn down and to the leg side of a
+   right-hander, turned round for the off side and for a left-hander. */
+.is-reel .whatsnew-bars,.is-reel .whatsnew-foot{z-index:3}
+.whatsnew-room{position:relative}
+.whatsnew-cue{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;
+  background:radial-gradient(90% 62% at 50% 48%,#03101ad9 0%,#01070cf5 72%)}
+.whatsnew-cue-pad{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 10)}
+.whatsnew-cue-track{position:relative;display:block;width:calc(var(--u) * 300);height:calc(var(--u) * 240)}
+.whatsnew-cue[data-way=off] .whatsnew-cue-track,.is-left .whatsnew-cue[data-way=leg] .whatsnew-cue-track{transform:scaleX(-1)}
+.is-left .whatsnew-cue[data-way=off] .whatsnew-cue-track{transform:none}
+.whatsnew-cue-track svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.whatsnew-cue-lane{fill:none;stroke:var(--cta-orange);stroke-width:13;stroke-linecap:round;stroke-dasharray:175;stroke-dashoffset:175;filter:drop-shadow(0 0 10px #ff7a3c)}
+.whatsnew-cue-head{fill:var(--cta-orange);opacity:0;filter:drop-shadow(0 0 8px #ff7a3c)}
+.whatsnew-cue-thumb{position:absolute;left:0;top:0;width:calc(var(--u) * 52);height:calc(var(--u) * 52);border-radius:50%;background:#fff;
+  box-shadow:0 0 0 calc(var(--u) * 11) #ffffff3d,0 0 calc(var(--u) * 34) #ffffffcc;transform:translate(calc(var(--u) * 226),calc(var(--u) * 4))}
+.whatsnew-cue-word{font:400 calc(var(--u) * 64)/1 var(--f-display);letter-spacing:calc(var(--u) * 3);color:#fff;text-shadow:0 calc(var(--u) * 4) 0 #0007,0 0 calc(var(--u) * 24) #ff7a3c99}
+.whatsnew-cue-word kbd{display:inline-block;margin-left:calc(var(--u) * 6);padding:0 calc(var(--u) * 14);border-radius:calc(var(--u) * 10);border:2px solid #ffffff80;
+  border-bottom-width:5px;background:#ffffff1f;font:inherit;letter-spacing:0}
+.whatsnew-cue-where{font:700 calc(var(--u) * 15)/1.2 var(--f-ui);letter-spacing:calc(var(--u) * 2.6);color:#ffd9c4}
+.is-cueing .whatsnew-cue{animation:whatsnew-cue var(--cue) linear both}
+.is-cueing .whatsnew-cue-lane{animation:whatsnew-cue-lane var(--cue) linear both}
+.is-cueing .whatsnew-cue-head{animation:whatsnew-cue-head var(--cue) linear both}
+.is-cueing .whatsnew-cue-thumb{animation:whatsnew-cue-thumb var(--cue) linear both}
+.is-cueing .whatsnew-cue-pad{animation:whatsnew-cue-pad var(--cue) linear both}
+@keyframes whatsnew-cue{0%{opacity:0}9%,86%{opacity:1}100%{opacity:0}}
+@keyframes whatsnew-cue-pad{0%{transform:scale(.86)}12%,100%{transform:scale(1)}}
+@keyframes whatsnew-cue-lane{0%,10%{stroke-dashoffset:175}30%,100%{stroke-dashoffset:0}}
+@keyframes whatsnew-cue-head{0%,26%{opacity:0}31%,100%{opacity:1}}
+/* The thumb down the arrow twice, quick as a swipe is, lifting off between. */
+@keyframes whatsnew-cue-thumb{
+  0%,12%{transform:translate(calc(var(--u) * 226),calc(var(--u) * 4));opacity:0}
+  15%{transform:translate(calc(var(--u) * 226),calc(var(--u) * 4));opacity:1;animation-timing-function:cubic-bezier(.5,0,.3,1)}
+  33%{transform:translate(calc(var(--u) * 22),calc(var(--u) * 166));opacity:1}
+  39%{transform:translate(calc(var(--u) * 22),calc(var(--u) * 166));opacity:0}
+  44%{transform:translate(calc(var(--u) * 226),calc(var(--u) * 4));opacity:0}
+  47%{transform:translate(calc(var(--u) * 226),calc(var(--u) * 4));opacity:1;animation-timing-function:cubic-bezier(.5,0,.3,1)}
+  65%{transform:translate(calc(var(--u) * 22),calc(var(--u) * 166));opacity:1}
+  72%,100%{transform:translate(calc(var(--u) * 22),calc(var(--u) * 166));opacity:0}}
+/* A stroke's card says its name the way the game shouts its moments: the
+   display face, gold with a dark edge, slammed in. */
+.is-reel .whatsnew-eyebrow{display:inline-block;padding:calc(var(--u) * 5) calc(var(--u) * 10);border-radius:999px;background:var(--cta-orange);color:#fff;
+  font-size:calc(var(--u) * 10.5);letter-spacing:calc(var(--u) * 2);text-shadow:none;box-shadow:0 calc(var(--u) * 4) calc(var(--u) * 14) #0008}
+.is-reel .whatsnew-title{font:400 calc(var(--u) * 50)/.95 var(--f-display);letter-spacing:calc(var(--u) * 1.5);color:#ffe28a;
+  background:linear-gradient(180deg,#fff7d6 0%,#ffd45c 52%,#f39a1e 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  -webkit-text-stroke:calc(var(--u) * 1.6) #2a1300;filter:drop-shadow(0 calc(var(--u) * 5) 0 #2a1300) drop-shadow(0 0 calc(var(--u) * 18) #000a);
+  text-shadow:none;transform:rotate(-3deg);animation:whatsnew-title-in .5s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes whatsnew-title-in{from{opacity:0;transform:rotate(-3deg) scale(1.6)}to{opacity:1;transform:rotate(-3deg) scale(1)}}
+@media (prefers-reduced-motion:reduce){
+  .is-reel .whatsnew-title{animation:none}
+  .is-cueing .whatsnew-cue,.is-cueing .whatsnew-cue-lane,.is-cueing .whatsnew-cue-head,.is-cueing .whatsnew-cue-thumb,.is-cueing .whatsnew-cue-pad{animation:none}
+  .is-cueing .whatsnew-cue{opacity:1}
+  .is-cueing .whatsnew-cue-lane{stroke-dashoffset:0}
+  .is-cueing .whatsnew-cue-head{opacity:1}}
+.whatsnew-call{position:absolute;top:6%;font:400 calc(var(--u) * 92)/1 var(--f-display);letter-spacing:calc(var(--u) * 1);color:var(--c-gold);
+  -webkit-text-stroke:calc(var(--u) * 1.5) #3b2508;text-shadow:0 calc(var(--u) * 5) 0 #3b2508,0 0 calc(var(--u) * 30) #f5b83d80;opacity:0;transform:scale(.3) rotate(-10deg)}
+.whatsnew-call[data-way=leg],.is-left .whatsnew-call[data-way=off]{left:7%;right:auto}
+.whatsnew-call[data-way=off],.is-left .whatsnew-call[data-way=leg]{right:7%;left:auto}
+.whatsnew-call[data-call=four]{color:#5fd3ff;-webkit-text-stroke-color:#0a2a3b;text-shadow:0 calc(var(--u) * 5) 0 #0a2a3b,0 0 calc(var(--u) * 30) #5fd3ff80}
+.is-hit .whatsnew-call{animation:whatsnew-call 2.4s .25s both}
+@keyframes whatsnew-call{
+  0%{opacity:0;transform:scale(.3) rotate(-10deg);animation-timing-function:cubic-bezier(.2,1.6,.4,1)}
+  14%{opacity:1;transform:scale(1) rotate(-6deg)}
+  80%{opacity:1;transform:scale(1.04) rotate(-6deg);animation-timing-function:ease-in}
+  100%{opacity:0;transform:scale(1.2) rotate(-6deg)}}
+@media (prefers-reduced-motion:reduce){
+  .is-hit .whatsnew-call{animation:none;opacity:1;transform:rotate(-6deg)}}
 /* A picture with its corners already cut: no frame of our own, and a shadow
    that follows its outline rather than a square box's. */
 .whatsnew-art img.is-cut{

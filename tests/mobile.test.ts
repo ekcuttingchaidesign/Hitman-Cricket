@@ -1,17 +1,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { InputManager, mapKeys, mapSwipe, shotKey } from '../src/game/InputManager';
+import { SWIPE_ZONES } from '../src/config/gameplay';
 import { outcomeSound } from '../src/game/Audio';
 
 describe('swipe directions', () => {
   it.each([
     [-80, 0, 'LEG'], [-60, -60, 'LONG_ON'], [0, -80, 'STRAIGHT'], [60, -60, 'COVER_LONG_OFF'], [80, 0, 'SQUARE_CUT'],
-    // Down is the block, on a 90-degree fan so a hurried drag still finds it.
-    [0, 80, 'DEFEND'], [-60, 60, 'DEFEND'], [60, 60, 'DEFEND'], [-20, 75, 'DEFEND'],
+    // Down is the block, on a fifty-degree fan in a Test (thirty in the Blast,
+    // below); the diagonals either side are the leg side and the late cut.
+    [0, 80, 'DEFEND'], [-60, 60, 'LEG'], [60, 60, 'LATE_CUT'], [-20, 75, 'DEFEND'],
     // There is no dead ground between the outer sectors and the block's fan. A
     // thumb flicking sideways across a phone arcs downward as it goes, and these
     // two used to play nothing at all — which is what a player reported as the
     // batter being unresponsive to a leg-side swipe.
-    [69, 40, 'SQUARE_CUT'], [-69, 40, 'LEG'],
+    [70, 35, 'SQUARE_CUT'], [-69, 40, 'LEG'],
     [60, 30, 'SQUARE_CUT'], [-60, 30, 'LEG'], [-40, 30, 'LEG'],
     [0, 0, null], [12, -12, null], [23, 0, null], [24, 0, 'SQUARE_CUT'],
     [NaN, 0, null], [Infinity, 0, null],
@@ -39,9 +41,10 @@ describe('swipe directions', () => {
     expect(mapSwipe(0, 80, 0, true)).toBe('DEFEND'); expect(mapSwipe(-20, 80, 0, true)).toBe('DEFEND'); expect(mapSwipe(20, 80, 0, true)).toBe('DEFEND');
     expect(mapSwipe(-80, 25, 0, true)).toBe('LEG'); expect(mapSwipe(80, 25, 0, true)).toBe('SQUARE_CUT');
     expect(mapSwipe(0, -80, 0, true)).toBe('STRAIGHT');
-    // Without the meter the same gestures are what they always were.
-    expect(mapSwipe(-60, 60)).toBe('DEFEND'); expect(mapSwipe(60, 60)).toBe('DEFEND');
-    expect(mapSwipe(-69, 40)).toBe('LEG'); expect(mapSwipe(69, 40)).toBe('SQUARE_CUT');
+    // Without the meter down and to leg is the leg-side stroke, and down and
+    // to off the late cut.
+    expect(mapSwipe(-60, 60)).toBe('LEG'); expect(mapSwipe(60, 60)).toBe('LATE_CUT');
+    expect(mapSwipe(-69, 40)).toBe('LEG'); expect(mapSwipe(70, 35)).toBe('SQUARE_CUT');
   });
   it('keeps a useful tolerance around the cardinal directions', () => {
     expect(mapSwipe(70, 15)).toBe('SQUARE_CUT'); expect(mapSwipe(-70, 15)).toBe('LEG'); expect(mapSwipe(15, -70)).toBe('STRAIGHT');
@@ -56,11 +59,26 @@ describe('swipe directions', () => {
       expect(mapSwipe(x, y), `${angle} degrees`).not.toBeNull();
     }
   });
-  it('gives the cut the whole off-side sector, and the block its whole fan', () => {
-    // One flick out to the off is the cut, with the same tolerance as the rest.
-    for (const [x, y] of [[80, 0], [70, -25], [70, 25]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('SQUARE_CUT');
-    // And nothing has been taken out of the block's fan to pay for it.
-    for (const [x, y] of [[0, 80], [-40, 80], [40, 80], [-70, 70], [70, 70]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('DEFEND');
+  it('gives the cut the off side, the late cut the diagonal under it, the leg side its own diagonal, and the block straight down', () => {
+    // One flick out to the off is the cut, with the same tolerance as the rest,
+    // and one that curls down a little is still the cut.
+    for (const [x, y] of [[80, 0], [70, -25], [70, 25], [70, 35], [60, 30]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('SQUARE_CUT');
+    // Down and to off is the late cut.
+    for (const [x, y] of [[70, 70], [60, 60], [40, 80], [80, 60]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('LATE_CUT');
+    // Down and to leg is the leg side's.
+    for (const [x, y] of [[-70, 70], [-40, 80]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('LEG');
+    // Straight down is the block, twenty-five degrees either side of it in a Test.
+    for (const [x, y] of [[0, 80], [20, 80], [-20, 80], [-35, 80]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('DEFEND');
+  });
+  it('narrows the block to fifteen degrees either side in the Blast, where nobody blocks', () => {
+    const blast = (x: number, y: number) => mapSwipe(x, y, 0, false, false, SWIPE_ZONES.blast);
+    expect(blast(0, 80)).toBe('DEFEND'); expect(blast(15, 80)).toBe('DEFEND'); expect(blast(-15, 80)).toBe('DEFEND');
+    // Twenty degrees off straight down: the block in a Test, the diagonals in the Blast.
+    expect(mapSwipe(29, 80)).toBe('DEFEND'); expect(blast(29, 80)).toBe('LATE_CUT');
+    expect(mapSwipe(-29, 80)).toBe('DEFEND'); expect(blast(-29, 80)).toBe('LEG');
+    // And the late cut starts a little higher.
+    expect(blast(70, 40)).toBe('LATE_CUT'); expect(blast(70, 30)).toBe('SQUARE_CUT');
+    expect(SWIPE_ZONES.blast.block * 2).toBe(30); expect(SWIPE_ZONES.test.block * 2).toBe(50);
   });
 });
 
@@ -75,15 +93,16 @@ class Surface extends EventTarget {
 }
 function setup() {
   const keyboard = new EventTarget(); vi.stubGlobal('window', keyboard); vi.stubGlobal('Element', Surface);
-  const surface = new Surface(); let active = true; let now = 100; let scoops = false;
+  const surface = new Surface(); let active = true; let now = 100; let scoops = false; let hooks = false;
   const shoot = vi.fn();
-  const input = new InputManager(() => active, () => now, shoot, surface as unknown as HTMLElement, () => 0, () => scoops);
+  const input = new InputManager(() => active, () => now, shoot, surface as unknown as HTMLElement, () => 0, () => scoops, () => false, () => hooks);
   const pointer = (type: string, x: number, y: number, options: object = {}) => {
     const event = new Event(type, { cancelable: true });
     Object.assign(event, { pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y, ...options });
     surface.dispatchEvent(event);
   };
-  return { input, shoot, surface, pointer, keyboard, time: (time: number) => now = time, active: (value: boolean) => active = value, scoops: (value: boolean) => scoops = value };
+  return { input, shoot, surface, pointer, keyboard, time: (time: number) => now = time, active: (value: boolean) => active = value,
+    scoops: (value: boolean) => scoops = value, hooks: (value: boolean) => hooks = value };
 }
 afterEach(() => vi.unstubAllGlobals());
 describe('touch input integration', () => {
@@ -92,6 +111,22 @@ describe('touch input integration', () => {
     expect(s.shoot).not.toHaveBeenCalled(); s.time(400); s.pointer('pointermove', 130, 70);
     expect(s.shoot).toHaveBeenCalledExactlyOnceWith('COVER_LONG_OFF', 400);
     s.time(700); s.pointer('pointerup', 200, 0); expect(s.shoot).toHaveBeenCalledTimes(1); s.input.dispose();
+  });
+  it('reads which way past the first curl of the flick, but times it where it became a swipe', () => {
+    // The first 24 pixels point down and to off, the late cut; the thumb then
+    // runs out square, the cut. It is the cut, timed at the 24 pixels.
+    const s = setup(); s.pointer('pointerdown', 100, 100);
+    s.time(300); s.pointer('pointermove', 117, 117);
+    expect(s.shoot).not.toHaveBeenCalled();
+    s.time(310); s.pointer('pointermove', 140, 118);
+    expect(s.shoot).toHaveBeenCalledExactlyOnceWith('SQUARE_CUT', 300); s.input.dispose();
+  });
+  it('plays a short flick from where the thumb lifted, timed where it became a swipe', () => {
+    const s = setup(); s.pointer('pointerdown', 100, 100);
+    s.time(350); s.pointer('pointermove', 70, 100);
+    expect(s.shoot).not.toHaveBeenCalled();
+    s.time(360); s.pointer('pointerup', 70, 100);
+    expect(s.shoot).toHaveBeenCalledExactlyOnceWith('LEG', 350); s.input.dispose();
   });
   it('permits only one swipe per delivery and resets for the next', () => {
     const s = setup();
@@ -174,6 +209,25 @@ describe('arrow keys', () => {
     primed.input.flush(500);
     expect(primed.shoot).toHaveBeenCalledWith('DEFEND', 100);
     primed.input.dispose();
+  });
+  it('plays the hook off the down-left swipe and the keys at a bouncer he can hook, meter or none', () => {
+    const swiped = setup(); swiped.hooks(true);
+    swiped.pointer('pointerdown', 100, 100); swiped.pointer('pointermove', 50, 150);
+    expect(swiped.shoot).toHaveBeenCalledExactlyOnceWith('HOOK', 100); swiped.input.dispose();
+    // The block's key waits for its partner rather than committing at once,
+    // and is still timed from the press, in either order.
+    for (const keys of [['s', 'a'], ['a', 's'], ['ArrowDown', 'ArrowLeft']]) {
+      const s = setup(); s.hooks(true);
+      press(s, keys[0]);
+      expect(s.shoot, keys.join(' + ')).not.toHaveBeenCalled();
+      press(s, keys[1]);
+      expect(s.shoot, keys.join(' + ')).toHaveBeenCalledWith('SCOOP', 100);
+      s.input.dispose();
+    }
+    // The bare block key is still the block once the window is out.
+    const ducked = setup(); ducked.hooks(true);
+    press(ducked, 's'); ducked.input.flush(500);
+    expect(ducked.shoot).toHaveBeenCalledWith('DEFEND', 100); ducked.input.dispose();
   });
   it('takes the arrow keys off the browser, and leaves the rest alone', () => {
     const s = setup();

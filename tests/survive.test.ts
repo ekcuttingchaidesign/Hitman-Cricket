@@ -35,6 +35,73 @@ const rolls = (...values: number[]) => {
 const at = (delta: number, shotType: Parameters<typeof resolveSurvive>[1] extends null ? never : 'DEFEND' | 'STRAIGHT' | 'LEG' | 'SQUARE_CUT' | 'COVER_LONG_OFF' = 'STRAIGHT') =>
   ({ shotType, inputTimeMs: 600 + delta });
 
+/**
+ * The late cut in this mode: four at the most, nobody runs three, and the
+ * edge behind when poor.
+ */
+describe('the late cut', () => {
+  const wide = () => ball('NORMAL', { line: 'OUTSIDE_OFF', baseTargetX: .42, finalTargetX: .42 });
+  const cut = (delta: number) => ({ shotType: 'LATE_CUT' as const, inputTimeMs: 600 + delta });
+  it('is four middled, never six, and ones and twos a shade under', () => {
+    for (const roll of [0, .5, .99]) expect(resolveSurvive(wide(), cut(0), rolls(roll)).runs).toBe(4);
+    const shaded = [10, 20, 30, 40, 50, 60].flatMap(delta => [0, .99].map(roll => resolveSurvive(wide(), cut(delta), rolls(roll))));
+    expect(Math.max(...shaded.filter(shot => !shot.isWicket && shot.runs < 4).map(shot => shot.runs))).toBeLessThanOrEqual(2);
+    expect(shaded.every(shot => shot.runs <= 4)).toBe(true);
+  });
+  it('is edged behind when poor, and beaten across the stumps', () => {
+    const poor = [70, 90, 110, 130].map(delta => resolveSurvive(wide(), cut(delta), rolls(0)));
+    expect(poor.some(shot => shot.isWicket && shot.edged && shot.wicketType === 'CAUGHT')).toBe(true);
+    const straight = resolveSurvive(ball('NORMAL'), cut(0), rolls(0));
+    expect(straight.madeBatContact).toBe(false);
+  });
+});
+
+/**
+ * The cut off the spinner at a ball finishing outside leg: cramped, and in this
+ * mode a single at the very most.
+ */
+describe('the cramped cut off the spinner', () => {
+  const wide = (style: DeliveryStyle = 'OFF_SPIN') => ball(style, { line: 'LEG', baseTargetX: -.14, finalTargetX: -.42 });
+  it('is a single middled, never more, and gloved behind when poor', () => {
+    for (const style of ['OFF_SPIN', 'ARM_BALL'] as const) {
+      const middled = resolveSurvive(wide(style), at(0, 'SQUARE_CUT'), rolls(0));
+      expect(middled.runs, style).toBe(1); expect(middled.isWicket).toBe(false);
+      const grades = [0, 30, 60, 100, 140].flatMap(delta => [0, .99].map(roll => resolveSurvive(wide(style), at(delta, 'SQUARE_CUT'), rolls(roll))));
+      expect(Math.max(...grades.map(shot => shot.runs)), style).toBe(1);
+      expect(grades.some(shot => shot.padded), style).toBe(true);
+      const gloved = grades.find(shot => shot.isWicket);
+      expect(gloved?.wicketType, style).toBe('CAUGHT'); expect(gloved?.edged).toBe(true);
+      // Never bowled, stumped or hurt: it is going on down the leg side.
+      expect(grades.every(shot => !shot.hit && (!shot.isWicket || shot.wicketType === 'CAUGHT')), style).toBe(true);
+    }
+  });
+});
+
+/**
+ * The hook in this mode: the cut's ladder at the cut's ball, and its own two
+ * ways out — up off the top edge early, the glove late.
+ */
+describe('the hook', () => {
+  const short = (x: number) => ball('SHORT', { line: x > .3 ? 'OUTSIDE_OFF' : 'OFF', baseTargetX: x, finalTargetX: x });
+  const hook = (delta: number) => ({ shotType: 'HOOK' as const, inputTimeMs: 600 + delta });
+  it('is six middled and four a shade under', () => {
+    expect(resolveSurvive(short(.42), hook(0), rolls(.99)).runs).toBe(6);
+    expect(resolveSurvive(short(.14), hook(30), rolls(.99)).runs).toBe(4);
+  });
+  it('is worked round for ones and twos held back', () => {
+    const worked = resolveSurvive(short(.42), hook(-60), rolls(.1));
+    expect([1, 2]).toContain(worked.runs); expect(worked.isWicket).toBe(false);
+  });
+  it('goes up off the top edge early, and is on the glove late', () => {
+    const early = resolveSurvive(short(.42), hook(-120), rolls(0));
+    expect(early.aerial).toBe(true); expect(early.isWicket).toBe(true);
+    const late = resolveSurvive(short(.42), hook(120), rolls(0));
+    expect(late.isWicket).toBe(true); expect(late.edged).toBe(true); expect(late.feedback).toContain('CAUGHT BEHIND');
+    const hurt = resolveSurvive(short(.42), hook(120), rolls(.99));
+    expect(hurt.isWicket).toBe(false); expect(hurt.hit?.where).toBe('GLOVES');
+  });
+});
+
 describe('the ball that climbs into the ribs', () => {
   // This is the delivery the mode was built around, and the whole reason it can
   // exist is that the post-bounce curve peaks before the batter and is falling

@@ -158,7 +158,7 @@ stroke lands, for the fire trail that burns behind only those
 (`snapshot().burning`); that part takes several minutes in software.
 
 `scripts/pull-check.mjs` is the flash for a bouncer pulled and hit, the one
-ordinary stroke that gets one: focus lines in the pull's pen, a swoosh behind
+ordinary stroke that gets one (the hook, the pull's other half, gets it too): focus lines in the pull's pen, a swoosh behind
 the bat (`snapshot().swishing`) and the ball's tail recoloured
 (`snapshot().tail`), with the ground left in colour. It raises it through the
 debug hook, then plays real innings in both modes, blocking every ball until a
@@ -200,7 +200,9 @@ the innings through `__cricket.marathon` and bats the rest.
 
 `scripts/shots-check.mjs` is how to hit, the coachmarks before a browser's
 first innings (`src/ui/ShotsIntro.ts`), redrawn from the handover (Figma
-128:4759 on): five lanes of light fanned from the bat (`batterOnScreen`), lit
+128:4759 on): seven lanes of light fanned from the bat (`batterOnScreen`) —
+the five up the ground and square, and two short ones down past the bat for
+the late cut and the hook at a bouncer — lit
 in turn in the game's colour with a thumb swiping each and the block a caption,
 the strokes' names at their ends and the keys beside them on a keyboard, the
 words on one card at the foot (SKIP and NEXT, BACK and LET'S BAT on the last);
@@ -295,7 +297,33 @@ plays two devices for one player against the dev server's store; it passes
 `?private=0`, because headless Chromium looks like a private window and would
 otherwise keep nothing.
 
-The update's What's new stories play full screen on the room's own stage
+The update's What's new stories open on the two new strokes, "New shots in
+the house": HOOK IT FOR SIX and SHOW IT THE WAY. Each is filmed in the game
+itself (`src/game/ShotReel.ts`, `Story.reel`): the game's own ground and
+renderer, the player's own batter in their kit and hand, the bowler running in
+and bowling the ball the stroke answers through the scene's own calls, the
+stroke played to it in time, and what it comes to asked of `resolveShot` — the
+six and the four are the rules' answers, not a script's. Only the camera
+(`reelCamera`, through `GameScene.cinematic`) and the clock (`reelPace`, slowed
+through contact) are the film's: the game's view from behind him as the bowler
+runs, a cut in to the stroke side on from the off side, and the camera turning
+after the ball. The card is the whole screen edge to edge and see-through, and
+everything else on the ground is put out of sight while it plays (`reel-on` on
+`#viewport`). On the frame before the bat comes down the film holds (`CUE`,
+the game's clock stopped dead through `timeScale`), a shade comes over the
+whole screen with the swipe that plays the stroke drawn big on it — an arrow
+and a thumb run down it twice, or the key on a keyboard — then it fades and the
+film goes on from that frame (`shotCueMarkup`, `is-cueing` on the sheet). What
+it went for is stamped over him as the ball is met (`shotCallMarkup`,
+`is-hit`), both drawn the way round the game draws them for the player's hand,
+and the card's name is the display face in gold, slammed in. A card holds for
+one go of its film, the hold for the swipe with it (`reelSeconds`). Nothing is scored, counted or sent, and the innings's state is
+never touched, which is why it films only off the cover or after an innings
+(`playReel`); opened from the board mid-innings, the card's words stand on its
+own dark. The update key is `new-shots`, so everybody is shown the four cards
+twice, the Dressing Room's two again among them.
+
+Then the Dressing Room's stories play full screen on the room's own stage
 (`src/ui/StoryStage.ts`, `Story.stage`): every kit on the batter, then every
 bat on the stand, with the title over the top, the words over the foot, and
 the batter framed into the room left between them (`#whatsnew-room`), allowed
@@ -307,7 +335,10 @@ short blue SKIP beside GO TO DRESSING ROOM. Only the last holds still
 (`storyHolds`): the first moves on as any story does, its keys standing where
 the next card's are. `whatsnew-check` refuses the stage's
 module for its clocked walk — every frame is a 3D render, seconds apiece in
-software — and lets it in at the way in to see it play.
+software — and lets it in at the way in to see it play. It holds the strokes'
+cards to the film: the ground under them, the card edge to edge, the film held
+for the swipe and the call put up by the stroke, and nothing left running once
+they are put away.
 
 ## The year recap: kept now for December
 
@@ -459,7 +490,10 @@ the place the board shows. Nothing is written. Production never sees them.
 
 An innings played from a link carrying a switch that changes the game —
 `?nets=1`, `?settled=1`, `?swing=1`, `?express=1`, `?reverse=1`, `?round=1`,
-`?wear=fast`, `?spin=1`, `?charge=…`, `?slowmo=…`, `?bouncers=1`, `?cover=1`
+`?wear=fast`, `?spin=1`, `?charge=…`, `?slowmo=…`, `?bouncers=1`, `?hooks=1`
+(every ball a bouncer on off stump or wider, the hook's ball), `?spincut=1`
+(every ball the spinner's, for the cut off him), `?latecut=1` (every ball
+pace outside off, for the late cut), `?cover=1`
 (every ball the cover drive's own: a stock ball pitched up on off stump),
 `?coverv=1`, `2` or `3` (always that version of the cover strokes), or the
 preview builds' `VITE_SPIN_ONLY` and `VITE_CHARGE_ONLY` — is practice
@@ -529,6 +563,177 @@ so that at the wrap the flat face looks away from the front shoulder and the
 curved back of the blade lies against it; nothing turns it while it is held,
 and it settles into the guard on the way home. The six it replaced reached
 both arms for the sky and turned the bat a full turn in his hands coming home. `cover-drive.html` has both beside the cover strokes.
+
+## The hook
+
+The hook (`'HOOK'`, `STROKES.HOOK` in `src/entities/Batter.ts`) is a bouncer on
+off stump or wider (`hookable`, `HOOK.lines`) hooked round to fine leg, built
+from Tendulkar's off Caddick in 2003, end on in slow motion. It is an ordinary
+stroke, no meter, and the ball's line picks it, not the thumb: at a bouncer
+any leg-side swipe or key — left, down and to leg, A, or S and A — is the
+hook when the ball finishes on off stump or wider and the pull anywhere else
+(`playedAs`; `mapSwipe` reads the whole leg side under the on drive as the
+hook while such a ball is on its way, the input's `hooks`, and S waits for
+its partner key there as it does with a meter). Asked for by a narrow
+diagonal, the hook came out a third of the time: at a bouncer on the body
+there was none, and down-left sat on the line between the pull and the
+block. A hook at any other ball is the block. Down and to off is still the
+cut, the late cut and the block.
+
+He goes back and across first (`HOOK_LOAD_MS`), the back foot over towards
+off stump and the front one drawn back and opened, the bat high over the back
+shoulder; the hands come down and out, and the ball is met well away from
+him at `HOOK_CONTACT_MS` — out in front by `HOOK_MEETS_AT` and towards off,
+both arms straight, the bat level, the face to the bowler. Then the arms swing
+it round flat like a baseball bat, still long: out in front, out to leg, round
+behind square, the chest turning with them. Only then do the elbows fold and
+the bat wraps behind his head, the hands over the front shoulder. The face
+rides the handle from his stance (`riding`) and never turns in his hands but
+twice, a little at a time: the forearms squaring it to the bowler on the way
+down, and the bottom hand rolling over the top one as the elbows fold, so the
+curved back of the blade lies against the front shoulder at the wrap, as the
+on drive's six's does. The first build held the hands at his chest and turned
+the bat on its handle, and was redone from a net session filmed end on. After
+the wrap he turns on, as the clip does, on his feet as well as his shoulders:
+the hands staying up over the front shoulder while the body turns under them,
+square to the leg side and on round until his back is to the bowler and his
+hips to the stumps, the front foot lifted and brought round on its toe to off
+stump (`toe`, `frontFootYaw`) and the back one pivoted to leg stump, the two
+the other way round from where he hit it, and the bat up behind his head
+pointing away to off. It is one turn with the swing, not a second movement
+after it: from the ball on the keys are carried round about his hips
+(`HOOK_SWUNG`, `swungRound`) onto one turn that is fastest through the ball and
+slows all the way to a stop, and they are one key list, which eases to rest
+only at its end. Turned as first authored, the body slowed into the wrap, the
+list stopped there, and the turn after it ran nearly three times as fast, in
+slow motion besides — the batter tests hold the turn to slowing once it peaks.
+Turned that far, a knee bent out to off as every other stroke's is folds
+backwards, so the hook's knees bend the way he faces. Held there, he unwinds with the bat brought upright
+over his head and lets the hands down into his guard, whose bat is up behind
+him already. Taking the hands round behind his head instead, or home back
+through the wrap, put an arm through the helmet. Once he has turned round, the
+hold and home run `HOOK_HOLD_MS` slower than the other strokes' clock, as an
+admired drive holds its finish the longer, so the way home is not hurried; the
+swing and the turn keep the stroke's own tempo. A hook that scores is
+twirled after, as a pull is (`played.pulled`). It shares the
+pull's elbow clearance (`crossBat`) and is in the batter tests' `PLAYS` as
+`hook`.
+
+Met out in front, a ball sent to fine leg goes back across where he stands,
+so a hooked ball (`hooked` on the outcome) climbs from the bat in `flightOf`
+whatever it is worth, and `tests/flight.test.ts` flies it against his head
+and chest: the first build sent a hooked four on along the ground through
+his shoulder.
+
+Timing names it (`hooked` in `ShotResolver.ts`, the cut's ladder): middled
+six over backward square leg (`SHOT_ANGLES.HOOK`, out across the front of him
+the way the bat swings: sent finer it went back over his head towards the
+camera while the bat was still going the other way), a shade under four, held back ones and
+twos; worse and the side decides — late the glove through to the keeper,
+early straight up off the top edge and caught. Missed, it flies on over the
+stumps. Survival and the Marathon pay it the same way off their own windows,
+early skied and late gloved or hurt. A hooked six, and only a six, gets the
+pull's flash (`pulledBouncer`). `?hooks=1` bowls nothing but its ball, every
+ball, in any mode (`bouncersEvery`), and is practice. `scripts/hook-check.mjs`
+plays it in a browser on `?bouncers=1`, keys and a real swipe, in the Blast
+and in Survival;
+`cover-drive.html` has it beside the drives.
+
+## Swipe zones
+
+Where a swipe's direction splits between strokes is `mapSwipe` in
+`src/game/InputManager.ts`, measured off straight up, and two of its edges
+are the mode's (`SWIPE_ZONES` in `src/config/gameplay.ts`): the block's fan
+either side of straight down — fifteen degrees in the Blast, where nobody
+blocks, twenty-five in Survival and the Marathon, where it keeps a batter in
+— and where the cut gives way to the late cut, 117.5 and 120 degrees off
+vertical. Below that the late cut runs down to the block, and on the leg side
+the leg-side stroke runs all the way round to it, the pull or the hook at a
+bouncer (above). On a full meter the scoops take both diagonals from 110
+degrees to the block, as they always did. The numbers came out of a model of
+a thumb twelve to twenty degrees off what it meant; the cost was a careful cut landing 92% of the time in the Blast rather than 98%.
+
+A swipe is timed where it becomes one, when the thumb has moved
+`GAME.swipeDistance` (24 pixels), as it always was; which way it went is read
+further on, at `GAME.swipeRead` (40), or where the thumb lifted if that came
+first, so a short flick still plays. The first pixels of a flick curl, and
+read there a cut swipe came out pointing at the late cut. Reading later
+without timing earlier would have made every swipe up to sixteen
+milliseconds late, which is a grade.
+
+## The cut off the spinner
+
+The cut has a second build for a spinner's ball (`spinCut` in
+`ShotResolver.ts`, `spun` on the delivery: off-spin, leg-spin and the arm
+ball), off the same swipe and the same D key. An off-spinner pitched outside
+off turns in at him and a leg-spinner pitched on leg turns away, and neither
+leaves the width the cut wants, so he makes it: back and away towards leg
+(`SPIN_CUT_ROOM`, the step taken off the ball's line), the front foot drawn
+back with him and the stance opened wide, the weight on the back foot and the
+bat high (`SPIN_CUT_LOAD_MS`). Built from a clip filmed from in front. He meets
+it on the back foot out in front of off stump at `SPIN_CUT_CONTACT_MS`, the
+arms out straight and the face over the ball; the hands go through level
+towards point, then up with the blade upright before his face, and stop at the
+peak of the helmet, the elbows down either side of his face, while the bat
+tips out past his leg-side ear and lands across the opposite shoulder
+(`SPIN_CUT_CLOCK`). Neither the hands nor the bat go over his head: built
+first that way, it read as forced. The face rides the handle (`riding`) and
+turns only as the forearms bring it down over the ball and as the bat goes
+onto the shoulder. Held there as the hook is (`SPIN_CUT_HOLD_MS`, the way home
+slowed with it), it comes off the way it went on and down into his guard; the
+way back over the top of his head went through the helmet.
+Which lines suit it is `SPIN_CUT.fit` in `gameplay.ts`, read through `fitOf`
+in both resolvers in place of the cut's own column, which wants width: off and
+middle as well as outside off, leg less. Outside leg — the off break pitched
+round leg and turning on down it — he is cramped (`crampedCut`, `cramped`,
+`SPIN_CUT.cramped`): the bat still comes across him to off, so the ball goes
+that way, along the ground and without the arms behind it — squeezed to point
+for one or two middled (one in a Test), a single or straight to point a shade
+under, off the inside edge onto his pad (`padded`, dead at his feet) worse,
+gloved behind three times in four when poor, and missed it goes on down the
+leg side and bowls nobody. Never a boundary, and out only when misread and
+mistimed: edged every time, it was too harsh, and cut for six it made the cut
+one swipe for every ball the spinner bowls, the turn never read. `?spin=1` gives the spinner
+every over; `?spincut=1` (`spinCutsEvery`) gives him every ball in any mode,
+all of his on every line, the outside-leg ball included, and is practice. It is `spinCut` in the batter tests' `PLAYS`, and
+`cover-drive.html` has it beside the drives and the hook.
+
+## The late cut
+
+The late cut (`'LATE_CUT'`, `LATE_CUT` in `src/entities/Batter.ts` and
+`src/config/gameplay.ts`) is an ordinary stroke, no meter, in every mode, at
+pace or spin: the swipe down and to off, between the cut and the block
+(`SWIPE_ZONES`), or D and S together, D first — S alone commits the block at
+once. With a full meter, at a ball that can be
+scooped, that diagonal is still the reverse scoop; anywhere else `playedAs`
+turns the reverse scoop's input into the late cut where it used to be the
+block.
+
+Built from a coaching film shot from in front, square on the off side and
+from the bowler's end. The back foot goes a long way back towards the stumps
+and across towards off (`LATE_CUT_LOAD_MS`), and he sinks on it until the back
+knee is nearly on the turf, the front leg left where it was, bent, its knee
+sent forward over its foot rather than out to off as a standing knee is (it
+rose to his hips where the bat comes down). The bat is held high while he
+goes down and comes down late and steep, the hands out at his hip, the front
+elbow ridden up on `leadElbow` as the drives' is, to meet the ball beside the
+back pad at `LATE_CUT_CONTACT_MS`, `LATE_CUT_MEETS_AT` behind where every
+other stroke meets it, with the face open to third man (`riding`, turned once,
+on the way down). Not struck: the blade goes on down until the toe points at
+the turf behind him, held there with his head down over the hands
+(`LATE_CUT_CLOCK`), then lifted out towards point, clear of the back arm, as
+he gets up into his guard.
+
+It wants a ball going past off stump (`COMPATIBILITY`'s `LATE_CUT` column):
+across one on the stumps he misses it and is bowled. On its ball timing names
+it (`lateCut` in `ShotResolver.ts`, both resolvers): middled four along the
+ground to third man (`SHOT_ANGLES.LATE_CUT`), never six; a shade under two or
+three (a single or two in a Test, where nobody runs three); held back one or
+two (one); poor off the edge to the keeper three times in four, else a thick
+edge for a single. A bouncer goes through to the keeper. `?latecut=1`
+(`lateCutsEvery`) bowls nothing but pace aimed at off stump or wider, in any
+mode, and is practice. It is `lateCut` in the batter tests' `PLAYS`, and
+`cover-drive.html` has it beside the drives, the hook and the spinner's cut.
 
 ## A newcomer's first innings
 

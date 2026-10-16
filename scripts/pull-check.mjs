@@ -166,7 +166,9 @@ for (const mode of ['classic', 'survive']) {
       await advance(100); seen = await snap();
     }
     if (seen.phase !== 'BALL_IN_FLIGHT') break;
-    const bouncer = seen.style === 'SHORT';
+    // A bouncer on off stump or wider is the hook's whichever leg-side key is
+    // pressed (the line decides), so only one on the body is pulled here.
+    const bouncer = seen.style === 'SHORT' && seen.effectiveLine !== 'OFF' && seen.effectiveLine !== 'OUTSIDE_OFF';
     if (bouncer) bouncers++;
     await advance(seen.contactAt - seen.elapsed - lead);
     await press(page, bouncer ? 'a' : 's');

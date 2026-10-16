@@ -24,6 +24,7 @@ import { Fireworks } from './fireworks';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 import type { Cutout } from '../ui/Milestone';
 import type { BatSkin, Outfit } from '../game/dressing';
+import type { CameraPose } from '../game/ShotReel';
 import { batSheet } from '../entities/batSkins';
 
 /** How much a kit glows in its own colour under the floodlights: see `kitsUnderLights`. */
@@ -998,10 +999,10 @@ export class GameScene {
   }
   /** How far along its flight the ball the bat was swung at is met, when that is short of the crease without a charge. */
   private meeting = 1;
-  swing(shot: ShotType, now: number, delivery: Delivery, charging = false, lofted = false, sweeping = false, levelled = false, version: CoverVersion = 2, meets = 1) {
+  swing(shot: ShotType, now: number, delivery: Delivery, charging = false, lofted = false, sweeping = false, levelled = false, version: CoverVersion = 2, meets = 1, spinCut = false) {
     this.meeting = charging ? 1 : meets;
     const contact = this.flight(delivery, charging ? GameScene.meetsAt(true) : meets);
-    this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging, lofted, sweeping, levelled, version);
+    this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging, lofted, sweeping, levelled, version, spinCut);
   }
   hit(outcome: ShotOutcome, shot: ShotType | undefined, delivery: Delivery, now: number) {
     this.hitStart = outcome.madeBatContact ? Math.max(now, this.batter.strikeAt) : now;
@@ -1045,11 +1046,11 @@ export class GameScene {
     // happen directly behind the bowler where nothing can be seen of it.
     if ((caught || toAFielder) && Math.abs(angle) < 0.2) angle = 0.22;
     // A ball off the body drops away on the leg side, at his feet.
-    if (struckBody) angle = -0.85;
+    if (struckBody || outcome.padded) angle = -0.85;
     // Along the ground and into the field: never between a fielder's boots.
     // Turned the least it takes to pass him by a stride and a half, which is
     // close enough that he dives for it and it beats him.
-    const along = outcome.madeBatContact && !outcome.aerial && !caught && !outcome.edged && !playedOn && !outcome.defended
+    const along = outcome.madeBatContact && !outcome.aerial && !caught && !outcome.edged && !playedOn && !outcome.defended && !outcome.padded
       && !struckBody && !outcome.advance && flight.height < 1 && outcome.runs >= 1;
     if (along) angle = this.field.clear(this.hitStart, angle, flight.distance);
     this.gathered = false;
@@ -1204,6 +1205,20 @@ export class GameScene {
     (this.shadow.material as THREE.MeshBasicMaterial).opacity = Math.max(0.07, 0.35 - Math.max(0, ball.y) * 0.021);
     this.shadow.visible = visible;
   }
+  /**
+   * A film's camera in place of the game's (`ShotReel.ts`): asked each frame
+   * where to stand, in the game's frame, and handed the ball where it is now
+   * (or was last drawn), so it can follow it. Mirrored with the ground for a right-hander. Null puts
+   * the game's own camera back where it was.
+   */
+  private cinema: ((now: number, ball: readonly [number, number, number] | null) => CameraPose) | null = null;
+  cinematic(view: ((now: number, ball: readonly [number, number, number] | null) => CameraPose) | null) {
+    this.cinema = view;
+    if (!view) {
+      this.camera.position.set(0, 2.9, -5.15); this.resize();
+      this.ball.scale.setScalar(0.115); this.trail.forEach((dot, i) => dot.scale.setScalar(0.115 * (1 - i / 12)));
+    }
+  }
   render(now: number) {
     // A new innings starts the game's clock again from nought, and every plan
     // the field has is timed on the old one: put them back on their marks.
@@ -1235,8 +1250,23 @@ export class GameScene {
       ? outcome.advance ? 0.062 : outcome.aerial ? 0.020 : outcome.runs === 6 ? 0.030 : outcome.runs === 4 ? 0.017 : outcome.isWicket ? 0.022 : 0
       : 0;
     const shake = power * Math.max(0, 1 - since / (outcome?.advance ? 620 : 300));
-    this.camera.position.x = Math.sin(now * 0.085) * shake;
-    this.camera.position.y = 2.9 + Math.sin(now * 0.13) * shake * 0.6;
+    if (this.cinema) {
+      // Where the ball is, or was last drawn: a camera following it keeps looking where it went.
+      const ball = [this.ball.position.x, this.ball.position.y, this.ball.position.z] as const;
+      const { eye, at, fov } = this.cinema(now, ball), side = this.world.scale.x;
+      this.camera.position.set(eye[0] * side + Math.sin(now * 0.085) * shake, eye[1] + Math.sin(now * 0.13) * shake * 0.6, eye[2]);
+      this.camera.lookAt(at[0] * side, at[1], at[2]);
+      if (this.camera.fov !== fov) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
+      // The ball is drawn three times its size so it reads from behind the
+      // batter; a film's camera comes far nearer than that, so it is drawn
+      // smaller the nearer it is, down to near its own size, the trail with it.
+      const near = Math.min(1, Math.max(.4, this.camera.position.distanceTo(this.world.localToWorld(this.ball.position.clone())) / 10));
+      this.ball.scale.setScalar(0.115 * near);
+      this.trail.forEach((dot, i) => dot.scale.setScalar(0.115 * (1 - i / 12) * near));
+    } else {
+      this.camera.position.x = Math.sin(now * 0.085) * shake;
+      this.camera.position.y = 2.9 + Math.sin(now * 0.13) * shake * 0.6;
+    }
     this.sky.mesh.position.copy(this.camera.position);
     if (this.sky.cover !== this.cover.to) {
       const k = Math.min(1, Math.max(0, (now - this.cover.at) / COVER_MS));

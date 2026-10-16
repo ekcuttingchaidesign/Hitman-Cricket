@@ -1,6 +1,6 @@
 import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
-import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
+import { ADVANCE, CONFIDENCE_FULL, GAME, SWIPE_ZONES } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro, type IntroGame } from './ui/MarathonIntro';
 import { CONFIDENCE_STEP, SHOTS_STEP, howToDue, noteHowTo, playedBefore } from './ui/ShotsIntro';
@@ -14,7 +14,7 @@ import { Health } from './game/Health';
 import { TAILENDER, endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { EASE, easeFor, easedSkill, easedWindows, notePlayed, playedIn, seedPlayed } from './game/newcomer';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SURVIVE_PLAN, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SURVIVE_PLAN, bouncersEvery, lateCutsEvery, spinCutsEvery, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -24,13 +24,14 @@ import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
-import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, coverRoll, coverVersionOf, type Celebration, celebrationLength } from './entities/Batter';
-import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
+import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, LATE_CUT_MEETS_AT, coverRoll, coverVersionOf, type Celebration, celebrationLength } from './entities/Batter';
+import { advanceShot, gradeOf, hookable, loftedDrive, playedAs, spinCut, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
 import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
+import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
 import { boundaryCheer, boundaryStreak, GROAN, HUSH, milestoneCheer, MURMUR, nearMiss, RUNUP, SEND_OFF } from './game/crowd';
@@ -597,7 +598,11 @@ export class Game {
       () => this.charged,
       // A left-hander's swipes and side keys, read the way his mirrored
       // screen shows them. Asked of the scene, so the two cannot disagree.
-      () => this.scene.mirrored);
+      () => this.scene.mirrored,
+      // The leg side is the hook at a bouncer on or outside off.
+      () => !!this.delivery && hookable(this.delivery),
+      // The block narrower in the Blast, where nobody blocks: see `SWIPE_ZONES`.
+      () => this.surviving || this.marathoning ? SWIPE_ZONES.test : SWIPE_ZONES.blast);
     // The play key opens the picker rather than an innings — unless a link has
     // already named the mode, in which case it is that mode's play key.
     this.hud.on('start', this.play);
@@ -712,6 +717,7 @@ export class Game {
     // OPEN THE DRESSING ROOM, on the last story: after the stories, the room,
     // over Choose a mode where the stories were on the way to it.
     this.hud.onStoriesOpen = shown => this.openDressing('story', shown);
+    this.hud.onStoryReel = (shot, beat) => this.playReel(shot, beat);
     this.hud.onLadderTab = this.tabLadder;
     this.hud.onBoardFrame = (mode, ladder) => this.boardFrame(mode, ladder);
     this.hud.onBoardPlay = mode => {
@@ -1913,6 +1919,18 @@ export class Game {
    */
   private bouncersOnly = new URLSearchParams(location.search).get('bouncers') === '1';
   /**
+   * `?hooks=1`: every ball a bouncer on off stump or wider, the ball the hook
+   * answers, for trying the hook every ball. See `bouncersEvery`.
+   */
+  private hooksOnly = new URLSearchParams(location.search).get('hooks') === '1';
+  /**
+   * `?spincut=1`: every ball the spinner's, all of his on every line, for
+   * trying the cut off the spinner every ball. See `spinCutsEvery`.
+   */
+  private spinCutsOnly = new URLSearchParams(location.search).get('spincut') === '1';
+  /** `?latecut=1`: every ball the late cut's, pitched up outside off. See `lateCutsEvery`. */
+  private lateCutsOnly = new URLSearchParams(location.search).get('latecut') === '1';
+  /**
    * `?swing=1` and `?express=1`, in a Marathon: the Level 2 swing bowler, the
    * Level 3 express bowler, or the two of them, from the first over — so each
    * can be tried without batting ten or twenty overs to reach him. See
@@ -1955,8 +1973,9 @@ export class Game {
     }
     if (this.marathoning && this.wearFast) return marathonFastWear();
     const plan = this.surviving ? SURVIVE_PLAN : this.marathoning ? MARATHON_PLAN : CLASSIC_PLAN;
-    if (this.bouncersOnly) return { ...plan, spin: undefined, short: undefined, blocks: undefined,
-      specials: { sixesForYorker: Infinity, quickForSlower: Infinity, shortChance: 1 } };
+    if (this.bouncersOnly || this.hooksOnly) return bouncersEvery(plan, this.hooksOnly);
+    if (this.spinCutsOnly) return spinCutsEvery(plan);
+    if (this.lateCutsOnly) return lateCutsEvery(plan);
     if (!this.spinOnly || !plan.spin) return plan;
     // Every over his, from the first: `spinOvers` always gives him `notBefore`
     // and draws the rest from what follows, so asking for all of them from
@@ -2106,11 +2125,16 @@ export class Game {
     const driven = shotType === 'COVER_LONG_OFF' && !charging && !squareDrivable(this.delivery!);
     // The on drive, lofted or along the ground, meets it beside the front pad
     // too, at the end of its stride, and is judged the same.
-    const ahead = driven && version === 3 ? COVER_V3_MEETS_AT : shotType === 'LONG_ON' && !charging ? ON_DRIVE_MEETS_AT : 0;
+    // The hook meets it out in front of him, arms long, so it climbs away over
+    // him to fine leg rather than through him.
+    const ahead = driven && version === 3 ? COVER_V3_MEETS_AT : shotType === 'LONG_ON' && !charging ? ON_DRIVE_MEETS_AT
+      : shotType === 'HOOK' ? HOOK_MEETS_AT : shotType === 'LATE_CUT' ? LATE_CUT_MEETS_AT : 0;
     this.meetsAt = 1 - ahead / (GAME.releaseZ - GAME.contactZ);
     // Versions two and three keep it down: four, never six (`grounded`).
     if (driven && version >= 2) this.attempt = { ...this.attempt, grounded: true };
-    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, version, this.meetsAt);
+    // At the spinner the cut is played making room for it: see `SPIN_CUT`.
+    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, version, this.meetsAt,
+      !charging && spinCut(this.delivery!, this.attempt));
     this.hud.select(shotType, charging);
     // The charge is judged now rather than when the ball arrives, because the
     // ball is not going to arrive: he is going down the pitch to meet it, and
@@ -3047,9 +3071,12 @@ export class Game {
       marksPassed(this.playedMs).forEach(mark => trackOnce(mark, `Played ${mark.slice(7)}`));
     }
     if (this.phase !== 'PAUSED' && !document.hidden) {
+      // A stroke's film held on one frame for its swipe, on the page's clock.
+      if (this.reel && this.reel.hold > 0) this.reel.hold -= dt;
       this.elapsed += dt * this.timeScale;
       this.input.flush(this.elapsed);
       this.update();
+      if (this.reel) this.reelFrame();
     }
     // Level Up covers the whole screen, so the ground under it is not drawn:
     // a phone has one GPU, and the confetti wants it.
@@ -3066,6 +3093,9 @@ export class Game {
    * shot he has won.
    */
   private get timeScale() {
+    // A stroke's film slows through the bat meeting the ball (`reelPace`).
+    // Stopped dead while the swipe is drawn over it.
+    if (this.reel) return this.reel.hold > 0 ? 0 : reelPace(this.elapsed - this.reel.start - this.reel.times.contact);
     if (this.phase !== 'SHOT_RESOLVE' || !this.outcome?.advance) return 1;
     const since = this.elapsed - this.contactAt;
     // Two thirds speed, chosen from three playtest builds side by side. It
@@ -3340,6 +3370,78 @@ export class Game {
    * A bouncer pulled and hit, on the hit: focus lines, a swoosh behind the bat
    * and a streak behind the ball. See `pulledBouncer` and `pullDoodle`.
    */
+  /**
+   * A new stroke, filmed for its What's new story (`ShotReel.ts`), over and over
+   * until the story moves on: the game's ground and its own scene, the bowler
+   * bowling the ball the stroke answers and the player's batter playing it in
+   * time, the camera the film's. Nothing is scored or counted; the innings's
+   * state is never touched, which is why it plays only where no innings is
+   * going on — off the cover, or once one is over — and says so.
+   */
+  private reel: {
+    shot: ReelShot; start: number; times: ReelTimes; delivery: Delivery; beat: (beat: ReelBeat) => void;
+    swung: boolean; struck: boolean; presentAt: number; cheered: boolean;
+    /** How much longer it holds on this frame for the swipe, page milliseconds; and whether it has this go. */
+    hold: number; cued: boolean;
+  } | null = null;
+  private reelCrowd = false;
+  private playReel(shot: ReelShot | null, beat: (beat: ReelBeat) => void): boolean {
+    if (!shot) {
+      if (!this.reel) return false;
+      this.reel = null;
+      this.scene.cinematic(null); this.scene.reset();
+      if (this.reelCrowd) { this.reelCrowd = false; this.audio.crowd(null); }
+      return false;
+    }
+    if (this.phase !== 'START' && this.phase !== 'INNINGS_END') return false;
+    if (!this.reel) {
+      const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat);
+      this.scene.leftHanded(readHand() === 'left');
+      this.scene.cinematic((now, ball) => this.reel ? reelCamera(this.reel.shot, now - this.reel.start, ball) : reelCamera(shot, 0, null));
+      // The stands murmur under it off the cover, where they are quiet; after an innings they are already there.
+      if (this.phase === 'START') { this.reelCrowd = true; this.audio.crowd(MURMUR.blast); }
+    }
+    this.beginReel(shot, beat);
+    return true;
+  }
+  /** A go of the film, from the bowler at his mark. */
+  private beginReel(shot: ReelShot, beat: (beat: ReelBeat) => void) {
+    const times = reelTimes(shot), start = this.elapsed;
+    this.scene.reset(); this.scene.spinner(false); this.scene.express(false); this.scene.round(false);
+    this.reel = { shot, start, times, delivery: reelDelivery(shot, start + times.release), beat, swung: false, struck: false, presentAt: Infinity, cheered: false, hold: 0, cued: false };
+    beat('again');
+  }
+  /** One frame of the film, as `update` plays a ball: run-up, flight, the stroke, the ball away. */
+  private reelFrame() {
+    const reel = this.reel!, t = this.elapsed - reel.start, { times, shot, delivery } = reel;
+    if (t >= reelLength(shot)) { this.beginReel(shot, reel.beat); return; }
+    if (t < times.runup) return;
+    if (t < times.release) { this.scene.runup(Math.min(1, (t - times.runup) / GAME.runupMs)); return; }
+    if (!reel.struck) {
+      const progress = flightProgress(delivery, this.elapsed - delivery.releaseTimeMs);
+      this.scene.delivery(delivery, progress);
+      // The frame before the bat comes down: held, the swipe drawn over it, then on from here.
+      if (!reel.cued && t >= times.swing) { reel.cued = true; reel.hold = CUE.ms; reel.beat('cue'); return; }
+      if (!reel.swung && reel.cued && reel.hold <= 0) {
+        reel.swung = true;
+        this.scene.swing(reelStroke(shot), this.elapsed, delivery, false, false, false, false, 2, reelMeets(shot));
+      }
+      if (progress < reelMeets(shot)) return;
+      const outcome = reelOutcome(shot, delivery), flight = this.scene.hit(outcome, reelStroke(shot), delivery, this.elapsed);
+      reel.struck = true; reel.presentAt = Math.min(flight.presentAt, this.elapsed + AFTER_MS / 2);
+      this.audio.play('hit');
+      // The hooked six's flash, as the game gives it (`pulledBouncer`).
+      if (outcome.hooked && outcome.runs === 6) this.scene.pull(this.elapsed, PULL_PENS[this.pullPen].swish);
+      reel.beat('hit');
+    }
+    this.scene.result(this.elapsed);
+    if (!reel.cheered && this.elapsed >= reel.presentAt) {
+      reel.cheered = true;
+      const runs = shot === 'hook' ? 6 : 4;
+      this.scene.cheer(runs === 6 ? 'hit-six' : 'hit-four', this.elapsed, 0, 1, '');
+      this.audio.cheer(boundaryCheer(runs, 1, false));
+    }
+  }
   private pullUp() {
     this.scene.pull(this.elapsed, PULL_PENS[this.pullPen].swish);
     this.scene.cutout();
@@ -4767,7 +4869,9 @@ export class Game {
   }
 
   private snapshot() {
-    return { phase: this.phase, lesson: this.lesson, seed: this.seed, elapsed: Math.round(this.elapsed), balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
+    return { phase: this.phase, lesson: this.lesson, seed: this.seed, elapsed: Math.round(this.elapsed),
+      // A stroke's film under its story: which, and how far into a go of it, on its own clock.
+      reel: this.reel ? { shot: this.reel.shot, at: Math.round(this.elapsed - this.reel.start), struck: this.reel.struck } : null, balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
       line: this.delivery?.line ?? '—', effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
       baseX: this.delivery?.baseTargetX.toFixed(3) ?? '—', finalX: this.delivery?.finalTargetX.toFixed(3) ?? '—',
       contactAt: Math.round(this.delivery?.idealContactTimeMs ?? 0), timingDelta: this.outcome?.timingDeltaMs?.toFixed(0) ?? '—', timingGrade: this.outcome?.timingGrade ?? '—',

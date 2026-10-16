@@ -252,6 +252,47 @@ export function withoutYorkers(plan: BowlingPlan): BowlingPlan {
 }
 
 /**
+ * Every ball a bouncer, for `?bouncers=1`: no spinner, no planned short balls
+ * or blocks, and no yorker or slower ball owed, since either would stand in
+ * its place. With `hookable`, for `?hooks=1`, every one of them is aimed on
+ * off stump or wider, the ball the hook answers (`hookable`), so the stroke can
+ * be tried every ball. The pace, the timing and the scoring are the mode's.
+ */
+export function bouncersEvery(plan: BowlingPlan, hookable = false): BowlingPlan {
+  const every: BowlingPlan = { ...plan, spin: undefined, short: undefined, blocks: undefined,
+    specials: { sixesForYorker: Infinity, quickForSlower: Infinity, shortChance: 1 } };
+  return hookable
+    ? { ...every, aimed: true, styles: { ...plan.styles, SHORT: { ...plan.styles.SHORT, aimBody: 0, aimWide: 1 } } }
+    : every;
+}
+
+/**
+ * Every ball the late cut's, for `?latecut=1`: the pace bowler's, aimed at off
+ * stump or wider, in any mode — nothing short, no spinner, no blocks. Where
+ * it swings to after that is where it finishes, so the odd one comes back to
+ * the stumps, and is the ball not to late cut.
+ */
+export function lateCutsEvery(plan: BowlingPlan): BowlingPlan {
+  const styles = Object.fromEntries(Object.entries(plan.styles).map(([style, shape]) =>
+    [style, { ...shape, aimBody: 0, aimWide: 1, weight: style === 'SHORT' || style === 'RIB' ? 0 : shape.weight }])) as BowlingPlan['styles'];
+  return { ...plan, spin: undefined, short: undefined, blocks: undefined, aimed: true, styles,
+    specials: { ...plan.specials, shortChance: 0 } };
+}
+
+/**
+ * Every ball the spinner's, for `?spincut=1`, for trying the cut off the
+ * spinner every ball: every over his from the first, in any mode, and all of
+ * his — the off break, the leg break and the arm ball, on every line as he
+ * bowls them, so the ball he cannot cut, the one finishing outside leg, comes
+ * too. The Marathon's blocks and short balls go with the rest.
+ */
+export function spinCutsEvery(plan: BowlingPlan): BowlingPlan {
+  const spin = plan.spin;
+  if (!spin) return plan;
+  return { ...plan, blocks: undefined, short: undefined, spin: { ...spin, overs: spin.ofOvers, notBefore: 0 } };
+}
+
+/**
  * The Marathon with every over bowled round the wicket, from the first, for
  * `?round=1`: the side is otherwise drawn, from the sixth over, so seeing it
  * the honest way takes some batting.
