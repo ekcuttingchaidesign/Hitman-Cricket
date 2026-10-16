@@ -609,7 +609,7 @@ export class Game {
     // second or two to make on a phone. Where they are due, it is made while the
     // cover is up, a moment after the game's own load, so the first story opens
     // on the batter rather than on an empty room.
-    if (whatsNewDue()) window.setTimeout(() => { if (whatsNewDue() && this.phase === 'START' && !this.disposed) this.hud.warmStories(); }, 1500);
+    if (whatsNewDue()) window.setTimeout(() => { if (whatsNewDue() && this.phase === 'START' && !this.disposed) { this.lookForStories(); this.hud.warmStories(); } }, 1500);
     this.hud.on('mode-classic', () => { this.hud.closeModes(); this.choose('CLASSIC'); });
     this.hud.on('mode-survive', () => { this.hud.closeModes(); this.choose('SURVIVE'); });
     this.hud.on('mode-marathon', () => { this.hud.closeModes(); this.choose('MARATHON'); });
@@ -2307,7 +2307,14 @@ export class Game {
   private showStories(where: StoriesWhere, then: (() => void) | null = null) {
     this.mark(`whatsnew-${where}`, 'What\'s new opened');
     this.hud.onStoriesDone = then;
+    this.lookForStories();
     this.hud.stories(where, where === 'intro' && this.locked);
+  }
+
+  /** The strokes' stories are played by the player's own batter: their kit, their bat, their hand. */
+  private lookForStories() {
+    const look = this.myLook();
+    this.hud.storyLook = { outfit: look.outfit, bat: look.bat, left: readHand() === 'left' };
   }
 
   private showBoard = () => {

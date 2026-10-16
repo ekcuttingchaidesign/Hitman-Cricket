@@ -7,11 +7,13 @@ import type { Film } from '../ui/Lottie';
  * player once, in the shape every phone already knows how to read: a card, a
  * bar across the top, a tap to move on.
  *
- * This update is the Dressing Room: the kits and the bats, each played full
- * screen on the room's own stage, with the way out and the way in under both,
- * the last card holding still.
- * (The Test Marathon's film and the career key, the update before, were told
- * twice to everybody who played then.)
+ * This update is two new strokes and the Dressing Room. First the hook and the
+ * late cut, each played by the batter on the room's own stage against a ball,
+ * over and over, with the swipe that plays it; then the kits and the bats,
+ * with the way out and the way in under both, the last card holding still.
+ * (The Dressing Room's two cards were told on their own first, and the Test
+ * Marathon's film and the career key before that, each twice to everybody who
+ * played then.)
  */
 export interface Story {
   key: string;
@@ -64,16 +66,52 @@ export interface Story {
   opens?: 'dressing';
   /**
    * The Dressing Room's own stage, the whole of the screen behind the words,
-   * playing the real models: every kit on the batter in turn, or every bat on
-   * the stand (`StoryStage.ts`). No picture to download and none
-   * to go stale — a phone that cannot draw it cannot play the game either.
+   * playing the real models: every kit on the batter in turn, every bat on
+   * the stand, or the batter playing a stroke against a ball, over and over,
+   * in the player's own kit and hand (`StoryStage.ts`, `rehearse` on the
+   * stage). No picture to download and none to go stale — a phone that cannot
+   * draw it cannot play the game either.
    */
   stage?: StoryStageKind;
 }
 
-export type StoryStageKind = 'kits' | 'bats';
+export type StoryStageKind = 'kits' | 'bats' | StoryShot;
+/** A stroke a story plays on the stage, which is the stage's `Rehearsal`. */
+export type StoryShot = 'hook' | 'latecut';
+
+/**
+ * What a stroke's story puts over the batter as he plays it: the swipe, drawn
+ * as the bat starts down (to the leg side or the off side, the screen turned
+ * round for a left-hander as the game's is), the key that plays it on a
+ * keyboard, and what it is worth once it is met.
+ */
+export const SHOT_CALLS: Record<StoryShot, { way: 'leg' | 'off'; key: string; call: string }> = {
+  hook: { way: 'leg', key: 'A', call: 'SIX' },
+  latecut: { way: 'off', key: 'D + S', call: 'FOUR' },
+};
+
+export const isStoryShot = (kind: StoryStageKind | undefined): kind is StoryShot => kind === 'hook' || kind === 'latecut';
 
 export const STORIES: readonly Story[] = [
+  {
+    key: 'hook-it',
+    eyebrow: 'NEW SHOTS IN THE HOUSE · THE HOOK',
+    title: 'HOOK IT FOR SIX',
+    body: 'Bouncer outside off? Swipe to leg and hook it into the stands.',
+    alt: 'Your batter rocks back and across to a bouncer outside off and hooks it high over backward square leg.',
+    stage: 'hook',
+    // Two goes of the stroke, the second played to its end.
+    holdMs: 8600,
+  },
+  {
+    key: 'show-it-the-way',
+    eyebrow: 'NEW SHOTS IN THE HOUSE · THE LATE CUT',
+    title: 'SHOW IT THE WAY',
+    body: 'Let it come, swipe down to off and steer it past slip for four.',
+    alt: 'Your batter goes back and down on one knee and runs the ball off an open face, fine past the slips to third man.',
+    stage: 'latecut',
+    holdMs: 7000,
+  },
   {
     key: 'suit-up',
     eyebrow: 'WHAT’S NEW · DRESSING ROOM',
@@ -102,7 +140,7 @@ export const STORIES: readonly Story[] = [
  * "seen" flag would mean the second update in this game's life could never be
  * announced at all.
  */
-export const UPDATE = 'dressing-room';
+export const UPDATE = 'new-shots';
 
 /**
  * How many times one browser is shown it unasked.

@@ -1,5 +1,5 @@
 import { BATS, FREE_BAT, OUTFITS, WELCOME_BAT, batOf, type BatSkin, type Outfit } from '../game/dressing';
-import type { StoryStageKind } from '../game/whats-new';
+import { isStoryShot, type StoryStageKind } from '../game/whats-new';
 import type { DressingStage } from '../scene/DressingStage';
 
 /**
@@ -23,6 +23,9 @@ import type { DressingStage } from '../scene/DressingStage';
  */
 const NEARER = 1.25;
 
+/** Who a stroke's story shows playing it: the player's own kit and bat, and the hand they bat with. */
+export interface StoryLook { outfit: Outfit; bat: BatSkin; left: boolean }
+
 export class StoryStage {
   private stage: DressingStage | null = null;
   private loading: Promise<DressingStage | null> | null = null;
@@ -31,6 +34,8 @@ export class StoryStage {
   /** Framed again whenever the screen or the room in it changes, which they do as a card is laid out. */
   private readonly sized = new ResizeObserver(() => this.fit?.());
   private fit: (() => void) | null = null;
+  /** Who plays a stroke's story; the first kit and Boom, right-handed, until the game says. */
+  look: StoryLook | null = null;
 
   /**
    * Played in `host` (`#whatsnew-stage`, the whole sheet), the kind its story
@@ -52,6 +57,19 @@ export class StoryStage {
       };
       this.sized.disconnect(); this.sized.observe(host); this.sized.observe(room);
       this.fit();
+      if (isStoryShot(kind)) {
+        const look = this.look ?? { outfit: OUTFITS[0], bat: batOf(WELCOME_BAT), left: false };
+        stage.dress(look.outfit, look.bat); stage.show('kit', look.outfit.glow);
+        room.classList.toggle('is-left', look.left);
+        stage.rehearse(kind, look.left, beat => {
+          // Each put up afresh, so its animation runs again on every go.
+          const up = (name: string) => { room.classList.remove(name); void room.offsetWidth; room.classList.add(name); };
+          if (beat === 'swipe') up('is-swiping');
+          else if (beat === 'hit') up('is-hit');
+          else room.classList.remove('is-swiping', 'is-hit');
+        });
+        return;
+      }
       const kit = (outfit: Outfit) => { stage.dress(outfit, batOf(WELCOME_BAT)); stage.show('kit', outfit.glow); };
       const bat = (skin: BatSkin) => { stage.showcase(skin); stage.show('bat', skin.glow); };
       // The whole shelf once in the story's seven seconds.
@@ -76,7 +94,7 @@ export class StoryStage {
    */
   warm() {
     this.stopped = false;
-    void this.ready().then(stage => stage?.dress(OUTFITS[0], batOf(WELCOME_BAT)));
+    void this.ready().then(stage => stage?.dress(this.look?.outfit ?? OUTFITS[0], this.look?.bat ?? batOf(WELCOME_BAT)));
   }
 
   /** The stories are put away: the stage and its renderer with them. */
