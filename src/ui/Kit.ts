@@ -30,10 +30,14 @@ import trophy from '../assets/kit/icon-trophy.svg?raw';
 import user from '../assets/kit/icon-user.svg?raw';
 import volume from '../assets/kit/icon-volume.svg?raw';
 import whatsapp from '../assets/kit/icon-whatsapp.svg?raw';
+import lock from '../assets/kit/icon-lock.svg?raw';
+import shield from '../assets/kit/icon-shield.svg?raw';
+import question from '../assets/kit/icon-question.svg?raw';
+import alert from '../assets/kit/icon-alert.svg?raw';
 
 const ICONS = {
   'arrow-left': arrowLeft, chart, check, close, 'chevron-down': chevronDown, 'chevron-right': chevronRight, grid, info, key,
-  scan, share, swords, trophy, user, volume, whatsapp,
+  scan, share, swords, trophy, user, volume, whatsapp, lock, shield, question, alert,
 } as const;
 
 export type IconName = keyof typeof ICONS;
@@ -53,7 +57,7 @@ export function icon(name: IconName, extra = ''): string {
 }
 
 /** The keys: PLAY AGAIN's face on a ledge, in each colour the design has. */
-export type CtaKind = 'primary' | 'mode' | 'share' | 'challenge' | 'play-small' | 'secondary' | 'share-wide' | 'save';
+export type CtaKind = 'primary' | 'mode' | 'share' | 'challenge' | 'play-small' | 'secondary' | 'share-wide' | 'save' | 'solid';
 
 export interface Cta {
   kind: CtaKind;
@@ -75,7 +79,7 @@ const SQUARE: Partial<Record<CtaKind, IconName>> = { share: 'whatsapp', challeng
 const DEFAULT_ICON: Partial<Record<CtaKind, IconName>> = { mode: 'grid', 'share-wide': 'share', ...SQUARE };
 
 export function cta(view: Cta): string {
-  const { kind, label, id, wide = kind === 'secondary' || kind === 'share-wide', ink, disabled = false } = view;
+  const { kind, label, id, wide = kind === 'secondary' || kind === 'share-wide' || kind === 'solid', ink, disabled = false } = view;
   const glyph = view.icon ?? DEFAULT_ICON[kind];
   const square = kind in SQUARE;
   const attrs = [

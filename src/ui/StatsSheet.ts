@@ -1,4 +1,5 @@
 import { keyCardMarkup, type KeyView } from './CareerKey';
+import { passwordCardMarkup } from './Password';
 import { restoreLinkMarkup } from './Restore';
 import { escape, kitMarkup } from './Leaderboard';
 import { statsExplain, type StatsFacts } from '../game/StatsCard';
@@ -56,6 +57,11 @@ export interface StatsSheetView {
   rivals?: RivalsRecord | null;
   /** Who these figures are, with the way to change it. Absent for a player with no name. */
   who?: { name: string; avatar: number } | null;
+  /**
+   * The Set a password card, above Road to Hitman on every card of the rail,
+   * for a named player with none: the career's runs, every mode added up.
+   */
+  password?: { runs: number } | null;
 }
 
 /** The switch's words, shorter than the modes' names: the switch is narrow. */
@@ -82,9 +88,9 @@ export function statsSheetMarkup(view: StatsSheetView): string {
         ${many ? switchMarkup(cards, at) : ''}
       </header>
       <div id="stats-rail" class="stats-stage${many ? ' is-rail' : ''}"${many ? ' role="group" aria-label="Your careers, one a mode"' : ''}>${
-  cards.map((card, i) => slideMarkup(card, view.who ?? null, i === 0, i === at)).join('')}</div>
-      ${view.careerKey ? keyCardMarkup(view.careerKey) : ''}
+  cards.map((card, i) => slideMarkup(card, view.who ?? null, i === 0, i === at, view.password ?? null)).join('')}</div>
       ${view.rivals && view.rivals.won + view.rivals.lost + view.rivals.drawn > 0 ? recordMarkup(view.rivals, 'RIVALS RECORD', 'is-stats') : ''}
+      ${view.careerKey ? keyCardMarkup(view.careerKey) : ''}
       ${view.offerRestore ? `<p class="stats-note">Played before? ${restoreLinkMarkup('stats-restore', 'Bring your record back')}</p>` : ''}
       <p id="stats-status" class="stats-status hidden" role="status" aria-live="polite"></p>
       <div id="stats-toast" class="stats-toast" role="status" aria-live="polite"></div>
@@ -103,11 +109,12 @@ function switchMarkup(cards: StatsSlide[], at: number): string {
 }
 
 /** One mode: the tier card, the road to the next tier, and six figures. */
-function slideMarkup(card: StatsSlide, who: { name: string; avatar: number } | null, first: boolean, live: boolean): string {
+function slideMarkup(card: StatsSlide, who: { name: string; avatar: number } | null, first: boolean, live: boolean, password: { runs: number } | null): string {
   const { facts } = card;
   return `
       <div class="stats-slide" data-mode="${escape(facts.mode)}" role="group" aria-label="${escape(facts.modeName)}"${live ? ' data-live="1"' : ''}>
         ${cardMarkup(facts, who, first)}
+        ${password ? passwordCardMarkup({ place: 'stats', runs: password.runs, first }) : ''}
         ${roadToHitman(facts.mode, facts.ladder)}
         ${tilesMarkup(card)}
       </div>`;

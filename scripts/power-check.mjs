@@ -47,7 +47,10 @@ async function saturation(page, png, box) {
   return page.evaluate(async ({ data, box }) => {
     const image = new Image(); image.src = data; await image.decode();
     const canvas = document.createElement('canvas'); canvas.width = box.w; canvas.height = box.h;
-    const ctx = canvas.getContext('2d'); ctx.drawImage(image, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+    // The box is in the page's pixels and the screenshot in the screen's: at a
+    // scale of 2 the box read unscaled was the stands, not the grass.
+    const k = devicePixelRatio, ctx = canvas.getContext('2d');
+    ctx.drawImage(image, box.x * k, box.y * k, box.w * k, box.h * k, 0, 0, box.w, box.h);
     const { data: px } = ctx.getImageData(0, 0, box.w, box.h);
     let total = 0;
     for (let i = 0; i < px.length; i += 4) {
@@ -109,7 +112,17 @@ for (const [name, options] of [
   const before = await saturation(page, await page.screenshot(), grass);
   check((await snap()).muted === 0, 'the ground in colour to begin with');
 
-  await page.evaluate(() => { window.__timerScale = 40; window.__cricket.power('teeth'); });
+  // Put up as a ball starts, never in the moment before one: a new ball
+  // clears the grey (`GameScene.reset`), as it should after a real one. In
+  // software that moment lasts long enough for the grey to be seen; on a GPU
+  // the bowler sets off within a tenth of a second and takes it with him.
+  await page.evaluate(() => new Promise(done => {
+    const go = () => {
+      if (window.__cricket.snapshot().phase !== 'BOWLER_RUNUP') return requestAnimationFrame(go);
+      window.__timerScale = 40; window.__cricket.power('teeth'); done();
+    };
+    go();
+  }));
   await page.waitForTimeout(300);
   const up = await page.evaluate(() => {
     const doodle = document.querySelector('.milestone.is-power');
@@ -213,7 +226,9 @@ for (const [name, options] of [
     const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
     try {
       localStorage.setItem('hitman-seen', day);
-      localStorage.setItem('hitman-whatsnew', 'dressing-room:9');
+      // Past the update's stories, and past the launch week's once a day: the day is the page's own.
+      localStorage.setItem('hitman-whatsnew', 'new-shots:9');
+      localStorage.setItem('hitman-whatsnew-day', (d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`)(new Date()));
     } catch { /* Then the notices stand. */ }
   });
   await page.route('**/api/board**', route => route.fulfill({

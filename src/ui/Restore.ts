@@ -14,6 +14,15 @@
  * hash and a hash is not a lookup. Together they are the only pair that means
  * "this is mine".
  *
+ * Two things are still asked for, but the second is a password now, and the
+ * first is picked rather than remembered: the name is typed, the store lists
+ * the players with a password whose names begin with it — a kit and an innings
+ * count each, so Gaurav Rana knows which Gaurav is him — and the one picked is
+ * the name sent. The name field and the password field are a username and a
+ * password to the phone, so a password it saved fills itself in. A career key
+ * still opens a record, one link away, and is how somebody who forgot their
+ * password gets back in.
+ *
  * The key gets one field rather than five. It was five — three words and two
  * digits, each in its own box, so that reading it off paper was a matter of
  * filling in blanks. That was solving the wrong problem: the key was saved to
@@ -23,6 +32,8 @@
 
 import { escape } from './Leaderboard';
 import { cta, icon } from './Kit';
+import { avatarSrc } from '../config/board';
+import type { FoundPlayer } from '../game/recovery-api';
 
 /** Innings sitting on this device that no record has counted yet. */
 export interface LocalCareer {
@@ -53,12 +64,26 @@ export interface RestoreView {
    * every other key shows its work immediately, and a form that simply closes
    * leaves somebody wondering whether their record came back or not.
    */
-  done?: { name: string } | null;
+  done?: { name: string; offerPassword?: boolean } | null;
+  /** Inside another app's browser (Instagram, Facebook): the phone's saved passwords are out of reach there. */
+  inApp?: boolean;
+  /** What it is brought back with: the password (the ordinary way) or a career key. */
+  by?: 'password' | 'key';
+  /** The players listed for what has been typed: null before a search has answered. */
+  found?: FoundPlayer[] | null;
+  /** The name tapped in the list, which is the one sent. */
+  picked?: string | null;
+  /** The list could not be fetched: said where the list would be. */
+  findError?: string | null;
 }
+
+/** The fewest letters the list is asked for: the store's own floor. */
+export const FIND_FROM = 3;
 
 export function restoreMarkup(view: RestoreView): string {
   const { name = '', local = null, sending = false, error = null, done = null } = view;
   if (done) return doneMarkup(done);
+  if ((view.by ?? 'password') === 'password') return passwordMarkup(view);
   // UI v1's sheet from the foot (133:6875, and 133:6901 for a key that does
   // not open the name): the two fields, what this phone would stop counting,
   // and the key that brings it back.
@@ -85,13 +110,96 @@ export function restoreMarkup(view: RestoreView): string {
           ${error ? `<p id="restore-error" class="claim-error rs-error" role="alert">${escape(error)}</p>` : ''}
           ${local ? losingMarkup(local) : ''}
           <button id="restore-send" type="submit" class="k-cta k-cta--primary is-wide"${sending ? ' disabled' : ''}><span class="k-cta-face"><span>${sending ? 'CHECKING…' : 'BRING IT BACK'}</span></span></button>
+          <button id="restore-by-password" class="rs-switch" type="button">Use your password instead</button>
         </form>
       </div>
     </div>`;
 }
 
-/** Back, and with it. The key underneath goes where the record is. */
-function doneMarkup(done: { name: string }): string {
+/**
+ * The ordinary way back: the name, the player picked from the list it brings
+ * up, and their password.
+ */
+function passwordMarkup(view: RestoreView): string {
+  const { name = '', local = null, sending = false, error = null } = view;
+  return `
+    <div class="key-modal" role="dialog" aria-modal="true" aria-labelledby="restore-title">
+      <div class="key-sheet restore-sheet ks-sheet">
+        <i class="ks-grab" aria-hidden="true"></i>
+        <form id="restore-form" class="rs-form" data-by="password">
+          <div class="ks-head">
+            <span class="ks-mark" aria-hidden="true">${icon('key')}</span>
+            <h2 id="restore-title" class="ks-title">BRING YOUR RECORD BACK</h2>
+            <button id="restore-close" class="ks-close" type="button" aria-label="Close">${icon('close')}</button>
+          </div>
+          <p class="ks-say">Type the name you bat under, tap yourself, and enter your password.</p>
+          <label class="restore-field rs-field"><span>The name you bat under</span>
+            <input id="restore-name" type="text" maxlength="14" autocomplete="username"
+              enterkeyhint="search" placeholder="Start typing your name" value="${escape(name)}" required>
+          </label>
+          <div id="restore-found" class="rs-found" role="listbox" aria-label="Players with that name">${foundMarkup(view)}</div>
+          ${view.inApp ? `<div class="restore-losing rs-inapp"><p class="restore-losing-say">Opened inside another app? Its browser can't use the passwords your phone saved. Type yours, or open hitmancricket.in in Safari or Chrome.</p></div>` : ''}
+          <div class="restore-field rs-field${error ? ' is-wrong' : ''}">
+            <div class="rs-field-head"><label for="restore-password">Your password</label>
+              <button id="restore-forgot" class="rs-forgot" type="button">Forgot password?</button></div>
+            <input id="restore-password" type="password" autocomplete="current-password" autocapitalize="none"
+              autocorrect="off" spellcheck="false" enterkeyhint="done" maxlength="64"
+              placeholder="The password you set" required${error ? ' aria-invalid="true" aria-describedby="restore-error"' : ''}>
+          </div>
+          ${error ? `<p id="restore-error" class="claim-error rs-error" role="alert">${escape(error)}</p>` : ''}
+          ${local ? losingMarkup(local) : ''}
+          <button id="restore-send" type="submit" class="k-cta k-cta--primary is-wide"${sending ? ' disabled' : ''}><span class="k-cta-face"><span>${sending ? 'CHECKING…' : 'BRING IT BACK'}</span></span></button>
+          <button id="restore-by-key" class="rs-switch" type="button">Saved a career key? Use it instead</button>
+        </form>
+      </div>
+    </div>`;
+}
+
+/**
+ * The list under the name: the players it could be, one row each, the one
+ * picked ringed. Drawn on its own as answers arrive, so the name field being
+ * typed into is never redrawn under the player's thumb.
+ */
+export function foundMarkup(view: Pick<RestoreView, 'name' | 'found' | 'picked' | 'findError'>): string {
+  const typed = (view.name ?? '').replace(/[^\p{L}\p{N}]/gu, '');
+  if (view.findError) return `<p class="rs-found-say">${escape(view.findError)}</p>`;
+  if (!view.found || [...typed].length < FIND_FROM) return '';
+  if (!view.found.length) {
+    return '<p class="rs-found-say">Nobody with a password goes by that. Check the spelling, or use a career key.</p>';
+  }
+  const fold = (name: string) => name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+  return view.found.map(one => {
+    const picked = !!view.picked && fold(view.picked) === fold(one.name);
+    return `
+            <button type="button" class="rs-found-row${picked ? ' is-picked' : ''}" role="option" aria-selected="${picked}" data-name="${escape(one.name)}">
+              <img src="${avatarSrc(one.avatar)}" alt="" draggable="false">
+              <span class="rs-found-name">${escape(one.name)}</span>
+              <span class="rs-found-innings">${one.innings ? `${one.innings} innings` : 'no innings yet'}</span>
+            </button>`;
+  }).join('');
+}
+
+/**
+ * Back, and with it. The key underneath goes where the record is. Brought back
+ * by a career key with no password behind it, it offers one, so next time the
+ * name is enough.
+ */
+function doneMarkup(done: { name: string; offerPassword?: boolean }): string {
+  if (done.offerPassword) {
+    return `
+    <div class="key-modal" role="dialog" aria-modal="true" aria-labelledby="restore-done-title">
+      <div class="key-sheet restore-sheet ks-sheet is-done">
+        <i class="ks-grab" aria-hidden="true"></i>
+        <div class="ks-head">
+          <span class="ks-mark" aria-hidden="true">${icon('key')}</span>
+          <h2 id="restore-done-title" class="ks-title">WELCOME BACK, ${escape(done.name.toUpperCase())}</h2>
+        </div>
+        <p class="ks-say is-lead">Your record is yours again. Next time, skip the key: set a password and come back with just your name.</p>
+        ${cta({ kind: 'solid', label: 'SET A PASSWORD', id: 'restore-set-password', icon: 'lock' })}
+        <button id="restore-done" class="rs-switch" type="button">Not now, see my record</button>
+      </div>
+    </div>`;
+  }
   return `
     <div class="key-modal" role="dialog" aria-modal="true" aria-labelledby="restore-done-title">
       <div class="key-sheet restore-sheet ks-sheet is-done">

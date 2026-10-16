@@ -18,6 +18,11 @@
  * needs a browser, so it is a unit test in `tests/stats-sheet.test.ts` where it
  * runs in milliseconds and cannot be flaky.
  *
+ * The screen asks for a password first — the name typed in part, the player
+ * picked from the list it brings up — and a career key one link below it. Both
+ * are walked: the key's refusals and the board's offer with a key, My Stats'
+ * with the password.
+ *
  * It needs no database: the dev server keeps names and keys in memory, running
  * the same `restore` and `keyOnClaim` the deployed endpoints run. So the key
  * this uses is not a fixture — it is minted by claiming a name, exactly as a
@@ -35,6 +40,9 @@ const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH });
 const page = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
 // Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
 await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
+// Past the update's stories too: they are 3D renders, seconds apiece in software,
+// and a tap on SKIP waits behind them. `whatsnew-check.mjs` is the one that reads them.
+await page.addInitScript(() => { try { const d = new Date(); localStorage.setItem('hitman-whatsnew', 'new-shots:9'); localStorage.setItem('hitman-whatsnew-day', `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`); } catch { /* Then they show. */ } });
 const errs = []; page.on('pageerror', e => errs.push(e.message));
 let bad = 0;
 const ok = (c, what, d) => { if (!c) bad++; console.log(`${c ? '  ok  ' : ' FAIL '} ${what}${c || d === undefined ? '' : `\n        ${d}`}`); };
@@ -50,10 +58,11 @@ if (await anyway.count()) { await anyway.first().click(); await wait(1500); }
 await page.evaluate(() => { const st = document.createElement('style'); st.textContent = '#debug{display:none!important}'; document.head.append(st); });
 await page.locator('#start').click({ force: true });
 await wait(900);
-for (let i = 0; i < 8; i++) {
+// The update's stories come up before the picker on a first visit: wait for the picker itself.
+for (let i = 0; i < 20 && !(await page.locator('#modes-cancel').isVisible()); i++) {
   const d = page.locator('#whatsnew-done');
-  if (!(await d.count()) || !(await d.isVisible())) break;
-  await d.click({ force: true }); await wait(500);
+  if (await d.isVisible().catch(() => false)) await d.click({ force: true, timeout: 3000 }).catch(() => {});
+  await wait(500);
 }
 await page.locator('#modes-cancel').click({ force: true });
 await wait(800);
@@ -105,6 +114,19 @@ const claimed = await fetch(`${base}/api/score`, {
 ok(typeof claimed?.key === 'string', 'claiming a name mints a key', JSON.stringify(claimed));
 const MINE = claimed?.key ?? '';
 ok(/^[a-z]+-[a-z]+-[a-z]+-\d{2}$/.test(MINE), 'in the shape the wordlist makes', MINE);
+// And a password, set the way My Stats sets one: proved by the player id.
+const PASS = `Square-Cut-${Math.random().toString(36).slice(2, 8)}`;
+const set = await fetch(`${base}/api/restore?password=1`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ name: WHO, playerId: CHECK_ID, password: PASS }),
+}).then(r => r.json()).catch(() => null);
+ok(set?.ok === true, 'the player sets a password', JSON.stringify(set));
+
+ok(await page.locator('#restore-password').count() === 1 && await page.locator('#restore-key').count() === 0,
+  'the screen asks for a password, not a key');
+await page.locator('#restore-by-key').click({ force: true });
+await wait(400);
+ok(await page.locator('#restore-key').count() === 1, 'and a career key is one link away');
 
 // 2. a key of the wrong shape is told apart from a wrong key
 await page.locator('#restore-name').fill(WHO);
@@ -151,6 +173,8 @@ await wait(2000);
 ok(await page.locator('#board-restore-go').count() === 1, 'the board offers it in its dock');
 await page.locator('#board-restore-go').click({ force: true });
 await wait(800);
+await page.locator('#restore-by-key').click({ force: true });
+await wait(400);
 await page.locator('#restore-name').fill(WHO);
 await page.locator('#restore-key').fill(MINE);
 await page.locator('#restore-send').click({ force: true });
@@ -161,7 +185,8 @@ await wait(1400);
 ok(await page.locator('#board-restore-go').count() === 0,
   'and the offer comes off the board without it being left and come back to');
 
-// 6. the key the store actually minted, from My Stats
+// 6. by the password, from My Stats: a few letters of the name, the player
+// picked from the list they bring up, and the password.
 await page.evaluate(() => { try { localStorage.removeItem('hitman-batter'); } catch { /* noop */ } });
 await page.locator('#board-close').click({ force: true }).catch(() => {});
 await wait(600);
@@ -171,11 +196,29 @@ await page.locator('.stats-sheet-inner').evaluate(el => { el.scrollTop = el.scro
 await wait(400);
 await page.locator('#stats-restore').click({ force: true });
 await wait(800);
-await page.locator('#restore-name').fill(WHO);
-await page.locator('#restore-key').fill(MINE);
+await page.locator('#restore-name').pressSequentially(WHO.slice(0, 7), { delay: 30 });
+await wait(1500);
+const row = page.locator(`.rs-found-row[data-name="${WHO}"]`);
+ok(await row.count() === 1, 'a few letters of the name list the player',
+  await page.locator('#restore-found').innerText().catch(() => '(no list)'));
+ok(/innings/.test(await row.innerText().catch(() => '')), 'with their innings, so they know it is them');
+if (S) await page.screenshot({ path: `${S}/restore-list.png` });
+await row.click({ force: true });
+await wait(300);
+ok(await page.locator('#restore-name').inputValue() === WHO, 'picking them fills in the whole name');
+ok(await row.getAttribute('aria-selected') === 'true', 'and marks them picked');
+await page.locator('#restore-password').fill('Square-Cut-wrong');
 await page.locator('#restore-send').click({ force: true });
 await wait(1400);
-ok(await page.locator('#restore-done').count() === 1, 'the right key brings the record back');
+ok(/name and password do not go together/.test(await page.locator('#restore-error').textContent().catch(() => '') ?? ''),
+  'a wrong password says so');
+ok(await page.locator('#restore-name').inputValue() === WHO
+  && await page.locator(`.rs-found-row[data-name="${WHO}"].is-picked`).count() === 1, 'and the pick survives the refusal');
+await page.locator('#restore-password').fill(PASS);
+await page.locator('#restore-send').click({ force: true });
+await wait(1400);
+ok(await page.locator('#restore-done').count() === 1, 'the right password brings the record back');
+ok(await page.evaluate(() => localStorage.getItem('hitman-password')) === '1', 'and this browser knows it has one');
 await page.locator('#restore-done').click({ force: true });
 await wait(1400);
 ok(await page.locator('#restore-form').count() === 0, 'and the way out leaves the screen');

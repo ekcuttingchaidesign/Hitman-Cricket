@@ -42,7 +42,10 @@ import {
   submitSurvive,
   type BoardPayload, type SurvivePayload, type MarathonPayload, type SubmitResult,
 } from './game/board-api';
-import { markProfileDone, onPlayerWritten, profileDone, readHand, readPlayer, writeHand, writePlayer, type Hand } from './game/player';
+import {
+  forgetPasswordKnown, markPasswordKnown, markProfileDone, onPlayerWritten, passwordKnown, profileDone,
+  readHand, readPlayer, writeHand, writePlayer, type Hand,
+} from './game/player';
 import { leaveTicket } from './game/return-ticket';
 import {
   offerRestoreHere, restoreOfferDismissed, restoreOfferDone, restoreOfferShown,
@@ -61,7 +64,13 @@ import {
 import { blastTally, emptyBlast, emptyMarathon, emptySurvive, type BlastTally, type CareerMode, type MarathonTally, type SurviveTally } from './game/career';
 import { demoBoard, demoCareers, demoMarathon, demoRivals, demoSurvive, demoWanted, fillMarathon, fillRivals } from './game/demo-board';
 import { forgetKey, keepKey, keyView, markKeySaved } from './game/recovery';
-import { firstCareerKey, newCareerKey, restoreRecord } from './game/recovery-api';
+import {
+  findPlayers, findQuestion, firstCareerKey, newCareerKey, passwordStatus, recoverByAnswer, restoreByPassword, restoreRecord,
+  setCareerPassword,
+} from './game/recovery-api';
+import { endCardDue, readIgnored, sheetDue, statsCardDue, writeIgnored, type PasswordState } from './game/password-nudge';
+import type { RestoreEntry } from './ui/HUD';
+import type { PasswordEntry, PasswordMode } from './ui/Password';
 import type { LocalCareer } from './ui/Restore';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import type { BatterKit } from './entities/Batter';
@@ -90,7 +99,7 @@ import {
 } from './game/rating';
 import { asSurvive, surviveOffer } from './ui/SurviveBoard';
 import type { SurviveRow } from './game/survive-board';
-import { playerId } from './game/identity';
+import { adoptPlayerId, playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
 import type { BoardRow } from './game/leaderboard';
 import {
@@ -567,6 +576,7 @@ export class Game {
       }
       void this.pullDressing();
       void this.catchUpOnKey();
+      void this.catchUpOnPassword();
       return this.openChallenges();
     }).catch(error => { if (import.meta.env.DEV) console.error('challenge startup', error); });
     this.countVisit();
@@ -739,6 +749,18 @@ export class Game {
     // IMAGE is not the thing that waits on a font.
     void prepareKeyAssets();
     this.hud.onRestore = entry => void this.sendRestore(entry);
+    this.hud.onRestoreFind = name => void this.findForRestore(name);
+    // The career password: every way into the one sheet, what it saves, and
+    // the forgot-password sheets off the restore sheet.
+    this.hud.passwordNow = () => (this.statsCardDue ? { runs: this.careerRuns() } : null);
+    this.hud.onPasswordOpen = from => this.openPasswordSheet(from);
+    this.hud.onPasswordSave = (entry, mode) => void this.savePassword(entry, mode);
+    this.hud.onPasswordClosed = kind => {
+      if (kind === 'nudge') track('password-nudge-later', 'Password nudge sheet put off');
+      else if (kind === 'set' || kind === 'change') track(`password-closed-${this.passwordFrom}`, 'Password sheet closed unsaved');
+    };
+    this.hud.onRestoreForgot = name => void this.forgotPassword(name);
+    this.hud.onAnswer = answer => void this.checkAnswer(answer);
     this.hud.onRestoreOpen = from => this.openRestore(from);
     this.hud.keyNow = () => this.careerKeyHeld();
     this.hud.whoNow = () => readPlayer();
@@ -1257,25 +1279,229 @@ export class Game {
    * often as they liked — and the store is also the only thing that can count
    * the attempts, which is most of what stands between a key and a keyspace.
    */
-  private async sendRestore(entry: { name: string; key: string }) {
+  private async sendRestore(entry: RestoreEntry) {
     // Opening the screen and filling it in are different acts, and the gap
     // between them is its own answer: somebody who opened this and never
     // pressed the key did not have one to try.
-    track('restore-sent', 'A name and key offered to the store');
+    const by = entry.key === undefined ? 'password' : 'key';
+    track(by === 'key' ? 'restore-sent' : 'restore-sent-password',
+      by === 'key' ? 'A name and key offered to the store' : 'A name and password offered to the store');
     this.hud.restoreSending(true);
-    const answer = await restoreRecord(entry.name, entry.key);
+    const answer = entry.key === undefined
+      ? await restoreByPassword(entry.name, entry.password)
+      : await restoreRecord(entry.name, entry.key);
     if (this.disposed) return;
     if (!answer.ok || !answer.playerId) {
       const why = restoreFailure(answer.reason);
       track(`restore-failed-${why}`, `Restore turned down: ${why}`);
       return this.hud.restoreFailed(answer.reason ?? 'That did not go through.');
     }
-    track('restore-done', 'Record brought back');
+    track(by === 'key' ? 'restore-done' : 'restore-done-password', 'Record brought back');
     this.becomeRestored(answer.playerId, entry.name);
     this.hud.closeRestore();
-    this.hud.restoreDone(entry.name);
+    if (by === 'password') {
+      // Brought back by a password, so it has one.
+      markPasswordKnown();
+      this.passwordState = 'set';
+      this.hud.restoreDone(entry.name);
+      void this.catchUpOnPassword(true);
+    } else {
+      // By a career key: the store is asked, and Welcome back offers a
+      // password where there is none, so next time the name is enough.
+      const state = await this.catchUpOnPassword(true);
+      if (this.disposed) return;
+      this.hud.restoreDone(entry.name, state === 'none');
+    }
     // Brought back from the details sheet: it is drawn again under the name
     // that came back, for the player to carry on with.
+    if (this.hud.profileOpen) this.askProfile(this.afterProfile !== null);
+  }
+
+  /**
+   * The list under the restore sheet's name field, for what has been typed.
+   * The HUD drops an answer that arrives after the name has moved on.
+   */
+  private async findForRestore(name: string) {
+    const answer = await findPlayers(name);
+    if (this.disposed) return;
+    if (!answer) return this.hud.restoreFound(name, null, 'The list could not be reached. Type your whole name instead.');
+    if ('reason' in answer) return this.hud.restoreFound(name, null, answer.reason);
+    this.hud.restoreFound(name, answer.players);
+  }
+
+  /* ── Career password ─────────────────────────────────────────────────────
+     When it is asked for is `game/password-nudge.ts`; the screens are
+     `ui/Password.ts`; the store is `server/recovery-store.ts`. */
+
+  /**
+   * What the store last said about this player's password. "set" from this
+   * browser's memory until the store is asked; "unknown" while it has not
+   * answered, which asks for nothing — a card offered over an outage would be
+   * offered to players who already have one.
+   */
+  private passwordState: PasswordState = passwordKnown() ? 'set' : 'unknown';
+  /** The question the player picked, for the change sheet, and when the password was set. */
+  private passwordQuestion: number | null = null;
+  private passwordAt: number | null = null;
+  private caughtUpOnPassword = false;
+  /** Which way into the sheet was taken, for the counts. */
+  private passwordFrom = 'stats';
+  /** A forgotten password being replaced: the name and the right answer. */
+  private recovering: { name: string; answer: string; avatar: number } | null = null;
+  /** The nudge sheet is asked once a visit at most. */
+  private nudgeShownThisVisit = false;
+
+  /** The store asked, quietly: once a load, and again after a claim or a restore. */
+  private async catchUpOnPassword(again = false): Promise<PasswordState> {
+    const player = readPlayer();
+    if (!player || !this.player || !this.canRegister) return this.passwordState;
+    if (this.caughtUpOnPassword && !again) return this.passwordState;
+    this.caughtUpOnPassword = true;
+    const status = await passwordStatus(player.name, this.player);
+    if (this.disposed || !status) return this.passwordState;
+    const was = this.passwordState;
+    this.passwordState = status.password ? 'set' : 'none';
+    this.passwordQuestion = status.question;
+    this.passwordAt = status.at;
+    if (status.password) markPasswordKnown(); else forgetPasswordKnown();
+    if (was !== this.passwordState) {
+      if (this.passwordState === 'set') this.hud.passwordCard(null);
+      this.redrawKeyPlacements();
+    }
+    return this.passwordState;
+  }
+
+  private get statsCardDue() {
+    return statsCardDue({ named: !!readPlayer(), canRegister: this.canRegister, state: this.passwordState });
+  }
+
+  /** Career runs, every mode added up, as this browser last heard them. */
+  private careerRuns() {
+    return (['classic', 'survive', 'marathon'] as const).reduce((sum, mode) => sum + (Number((heldCareer(mode) as { runs?: number }).runs) || 0), 0);
+  }
+
+  private careerInnings() {
+    return (['classic', 'survive', 'marathon'] as const).reduce((sum, mode) => sum + (Number((heldCareer(mode) as { innings?: number }).innings) || 0), 0);
+  }
+
+  /**
+   * The end card's password card, and after three end cards walked past the
+   * sheet that asks outright, then every five, once a visit. Counted per card
+   * shown: one it carried and the player did not answer is one ignored.
+   */
+  private offerPassword(best: number | null) {
+    const runs = this.careerRuns();
+    const due = endCardDue({
+      named: !!readPlayer(), canRegister: this.canRegister, practice: this.practising, rival: this.challenge.playing,
+      demo: this.demoing, state: this.passwordState, runs,
+    });
+    this.hud.passwordCard(due ? { runs, best } : null);
+    if (!due) return;
+    track('password-card-end', 'Password card on the end card');
+    const ignored = readIgnored();
+    writeIgnored(ignored + 1);
+    if (!sheetDue(ignored, this.nudgeShownThisVisit)) return;
+    const innings = this.innings;
+    window.setTimeout(() => {
+      if (this.disposed || this.innings !== innings || this.phase !== 'INNINGS_END' || this.passwordState === 'set') return;
+      // An unlock or the stars are this innings' moment; the sheet comes at the next one.
+      if (this.unlock || this.ratingPrompt?.open || this.hud.passwordOpen) return;
+      this.nudgeShownThisVisit = true;
+      track('password-nudge-shown', 'Password nudge sheet shown');
+      const ranks = (['classic', 'survive', 'marathon'] as const).map(mode => this.bestRank(mode)).filter((r): r is number => !!r);
+      this.hud.openNudge({ runs, innings: this.careerInnings(), rank: ranks.length ? Math.min(...ranks) : null });
+    }, RATING_DELAY_MS + 600);
+  }
+
+  /** Every way into the sheet: the cards, the nudge, Your details, Welcome back. */
+  private openPasswordSheet(from: string) {
+    const player = readPlayer();
+    if (!player || !this.player || !this.canRegister) return;
+    this.passwordFrom = from;
+    this.recovering = null;
+    const mode: PasswordMode = this.passwordState === 'set' ? 'change' : 'set';
+    track(`password-open-${from}`, `Password sheet opened from ${from}`);
+    this.hud.openPassword({
+      mode, name: player.name, avatar: player.avatar,
+      question: mode === 'change' ? this.passwordQuestion : null, answerKept: mode === 'change' && this.passwordQuestion !== null,
+    });
+  }
+
+  /**
+   * The sheet's answer, sent. A change that keeps the question and leaves the
+   * answer blank sends no question, so the answer the store holds is kept.
+   */
+  private async savePassword(entry: PasswordEntry, mode: PasswordMode) {
+    if (mode === 'recover') return this.finishRecovery(entry);
+    const player = readPlayer();
+    if (!player || !this.player) return;
+    this.hud.passwordSending(true);
+    const keepAnswer = mode === 'change' && entry.question === this.passwordQuestion && !entry.answer.trim();
+    const question = keepAnswer ? null : entry.question;
+    const result = await setCareerPassword(player.name, this.player, entry.password, question, entry.answer);
+    if (this.disposed) return;
+    if (!result.ok) {
+      track('password-save-failed', 'Password not saved');
+      return this.hud.passwordFailed(result.reason ?? 'That did not go through.');
+    }
+    const changed = mode === 'change';
+    this.passwordState = 'set';
+    markPasswordKnown();
+    if (question !== null) this.passwordQuestion = question;
+    if (entry.password.trim()) this.passwordAt = Date.now();
+    writeIgnored(0);
+    track(changed ? 'password-changed' : `password-set-${this.passwordFrom}`, changed ? 'Password changed' : `Password set from ${this.passwordFrom}`);
+    if (question !== null) track('password-question-set', 'Security question picked');
+    this.hud.passwordDone(player.name, player.avatar, changed);
+    this.hud.passwordCard(null);
+    this.redrawKeyPlacements();
+    if (this.hud.profileOpen) this.askProfile(this.afterProfile !== null);
+  }
+
+  /** Forgot password, off the restore sheet: the question, or the career key where there is none. */
+  private async forgotPassword(name: string) {
+    track('password-forgot', 'Forgot password opened');
+    const found = await findQuestion(name);
+    if (this.disposed) return;
+    if ('reason' in found) return this.hud.restoreFailed(found.reason);
+    if (found.question === null) { track('password-forgot-no-question', 'Forgot password, no question set'); return this.hud.openNoQuestion(); }
+    this.recovering = { name, answer: '', avatar: this.hud.restoreAvatarOf(name) };
+    this.hud.openAnswer({ name, avatar: this.recovering.avatar, question: found.question });
+  }
+
+  /** The answer, checked; right, and a new password is asked for. */
+  private async checkAnswer(answer: string) {
+    const r = this.recovering;
+    if (!r) return;
+    this.hud.answerSending(true);
+    const result = await recoverByAnswer(r.name, answer);
+    if (this.disposed) return;
+    if (!result.ok) {
+      track('password-answer-wrong', 'Security answer turned down');
+      return this.hud.answerFailed(result.reason ?? 'That did not go through.');
+    }
+    this.recovering = { ...r, answer };
+    this.hud.closePassword();
+    this.hud.openPassword({ mode: 'recover', name: r.name, avatar: r.avatar, question: null });
+  }
+
+  /** The new password, with the answer again; the store changes it and hands the player back. */
+  private async finishRecovery(entry: PasswordEntry) {
+    const r = this.recovering;
+    if (!r) return;
+    this.hud.passwordSending(true);
+    const result = await recoverByAnswer(r.name, r.answer, entry.password);
+    if (this.disposed) return;
+    if (!result.ok || !result.playerId) return this.hud.passwordFailed(result.reason ?? 'That did not go through.');
+    track('restore-done-question', 'Record brought back with the security question');
+    this.recovering = null;
+    this.becomeRestored(result.playerId, r.name);
+    markPasswordKnown();
+    this.passwordState = 'set';
+    this.hud.closePassword();
+    this.hud.closeRestore();
+    this.hud.restoreDone(r.name);
+    void this.catchUpOnPassword(true);
     if (this.hud.profileOpen) this.askProfile(this.afterProfile !== null);
   }
 
@@ -1496,6 +1722,11 @@ export class Game {
     this.hud.openProfile({
       name: mine?.name ?? '', avatar: mine?.avatar ?? deal.opening, hand: readHand(), order: deal.order,
       gate, fresh: !mine, tier: { key: tier.key, name: tier.name },
+      // Played before?, for a browser that forgot them; and from My Stats, the
+      // password row, where a password can be kept.
+      played: gate && !mine,
+      password: !gate && mine && this.canRegister && this.passwordState !== 'unknown'
+        ? { set: this.passwordState === 'set', at: this.passwordAt, question: this.passwordQuestion !== null } : null,
     });
   }
 
@@ -1542,6 +1773,8 @@ export class Game {
     }
     this.mark(changed ? 'profile-named' : 'profile-confirmed', changed ? 'Name claimed or changed' : 'Details confirmed');
     writePlayer({ name: result.name ?? name, avatar: entry.avatar });
+    // A new name has no password behind it yet; the store says so, quietly.
+    if (!mine) void this.catchUpOnPassword(true);
     if (result.key) {
       keepKey(result.key);
       track('key-issued', 'Career key issued');
@@ -1578,6 +1811,8 @@ export class Game {
       name: names[scenario], avatar: mine?.avatar ?? deal.opening, hand: readHand(), order: deal.order,
       gate: scenario !== 'edit' && scenario !== 'month',
       fresh: scenario === 'new' || scenario === 'taken' || scenario === 'sibling' || scenario === 'offline',
+      played: scenario === 'new' || scenario === 'taken' || scenario === 'sibling' || scenario === 'offline',
+      password: scenario === 'edit' || scenario === 'month' ? { set: true, at: Date.now() - 12 * 24 * 60 * 60 * 1000, question: true } : null,
     });
     this.welcomeScenario = scenario;
   }
@@ -1646,8 +1881,15 @@ export class Game {
    */
   private becomeRestored(playerId: string, name: string) {
     this.player = playerId;
+    // Written down, so the next visit is this player too and not the one this browser minted.
+    void adoptPlayerId(playerId);
     writePlayer({ name: name.trim(), avatar: readPlayer()?.avatar ?? 0 });
     forgetKey();
+    // What was known about the last player's password is not this one's.
+    forgetPasswordKnown();
+    this.passwordState = 'unknown';
+    this.passwordQuestion = null;
+    this.passwordAt = null;
     forgetCareer();
     this.careerBoards = {};
     this.myCareer = {};
@@ -2383,8 +2625,8 @@ export class Game {
       // Still on this innings' card. Played again, or gone to the picker, and
       // the moment has passed; it is asked at the next one instead.
       if (this.disposed || this.innings !== innings || this.phase !== 'INNINGS_END') return;
-      // An unlock is this innings' moment; the stars wait for another.
-      if (this.unlock) return;
+      // An unlock is this innings' moment; the stars wait for another, and for the password sheet.
+      if (this.unlock || this.hud.passwordOpen) return;
       this.showRating(ask.thing, ask.moment);
     }, RATING_DELAY_MS);
   }
@@ -3667,6 +3909,7 @@ export class Game {
     }
     this.mark('claim-done', 'Innings put on the board');
     writePlayer({ name: entry.name.trim(), avatar: entry.avatar });
+    void this.catchUpOnPassword(true);
     // Handed over once and kept nowhere else. If this browser does not write
     // it down now, nothing in the world can show it again — which is exactly
     // what makes it worth asking the player to put it somewhere safe.
@@ -3746,6 +3989,7 @@ export class Game {
     }
     this.mark('name-claimed', 'Name claimed without a board place');
     writePlayer({ name: result.name ?? name.trim(), avatar });
+    void this.catchUpOnPassword(true);
     if (result.key) {
       keepKey(result.key);
       track('key-issued', 'Career key issued');
@@ -4142,6 +4386,7 @@ export class Game {
       this.hud.career(this.canRegister, readPlayer()?.avatar ?? null);
       this.hud.offerRestorePanel = this.offerRestoreOnCard();
       this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });
+      this.offerPassword(null);
       this.offerMarathon();
       // Both ladders, fresh, and the offer asked again once they are here: an
       // innings this long outlives whatever was fetched before it.
@@ -4178,6 +4423,7 @@ export class Game {
       this.hud.career(this.canRegister, readPlayer()?.avatar ?? null);
       this.hud.offerRestorePanel = this.offerRestoreOnCard();
       this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });
+      this.offerPassword(null);
       this.offerSurvive();
       return;
     }
@@ -4213,6 +4459,7 @@ export class Game {
     // whatever the Test path last put in it.
     this.hud.offerRestorePanel = this.offerRestoreOnCard();
     this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });
+    this.offerPassword(record ? this.score.runs : null);
     // On every card, first innings included. It was held back for a second
     // innings on the theory that the first card belongs to the score and the
     // board — but a line nobody ever sees asks nothing at all, and most people

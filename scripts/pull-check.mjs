@@ -34,7 +34,7 @@ await mkdir('test-results', { recursive: true });
 const browser = await chromium.launch({ executablePath });
 
 /** A page past the notices, on a clock wound by hand, at the mode picker. */
-async function open(options) {
+async function open(options, query = '') {
   const page = await browser.newPage(options);
   // Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
   await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
@@ -45,7 +45,9 @@ async function open(options) {
     const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
     try {
       localStorage.setItem('hitman-seen', day);
-      localStorage.setItem('hitman-whatsnew', 'dressing-room:9');
+      // Past the update's stories, and past the launch week's once a day: the day is the page's own.
+      localStorage.setItem('hitman-whatsnew', 'new-shots:9');
+      localStorage.setItem('hitman-whatsnew-day', (d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`)(new Date()));
     } catch { /* Then the notices stand. */ }
   });
   await page.route('**/api/board**', route => route.fulfill({
@@ -54,7 +56,7 @@ async function open(options) {
   const advance = ms => page.clock.runFor(Math.max(16, Math.round(ms)));
   const snap = () => page.evaluate(() => window.__cricket.snapshot());
   await page.clock.install();
-  await page.goto(`${base}/?debug=1&seed=222`, { waitUntil: 'load' });
+  await page.goto(`${base}/?debug=1&seed=222${query}`, { waitUntil: 'load' });
   // Held still between steps. An installed clock otherwise goes on running at
   // the wall's pace, and software rendering spends long enough on a frame
   // after a wicket that the doodle's own 1.3-second timer went off between
@@ -147,10 +149,13 @@ function press(page, key) {
 // ── A real one, in each mode ─────────────────────────────────────────────
 // Every ball blocked until a bouncer comes, and that one pulled on time. The
 // block is there so a run of good balls cannot end the innings before the
-// bouncer turns up.
+// bouncer turns up. Every ball is a bouncer (`?bouncers=1`, as hook-check
+// bowls): one on off stump or wider is the hook's, and a seed's own innings
+// can go by without one on the body — the Blast's on 222 has three, all wide.
+// Whether one earns the flash is still the game's own rule, played.
 for (const mode of ['classic', 'survive']) {
   console.log(`a real pull, ${mode}`);
-  const { page, errors, advance, snap } = await open({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const { page, errors, advance, snap } = await open({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, '&bouncers=1');
   await page.locator(`#mode-${mode}`).click({ force: true, timeout: 15_000 });
   await advance(600);
   await page.addStyleTag({ content: '[class*=debug]{display:none!important}' });

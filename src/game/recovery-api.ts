@@ -84,3 +84,64 @@ export async function firstCareerKey(name: string, playerId: string): Promise<st
   );
   return answer && !answer.error && answer.key ? answer.key : null;
 }
+
+/** One name a restore can pick, as the store lists it. */
+export interface FoundPlayer {
+  name: string;
+  avatar: number;
+  innings: number;
+}
+
+/**
+ * The names that begin with what has been typed, for a player to pick
+ * themselves from. Null where the store could not be asked, which the sheet
+ * says differently from an empty list.
+ */
+export async function findPlayers(name: string): Promise<{ players: FoundPlayer[] } | { reason: string } | null> {
+  const answer = await ask<{ players?: FoundPlayer[]; error?: string }>(`${API}/api/restore?find=1`, { name });
+  if (!answer) return null;
+  if (answer.error || !Array.isArray(answer.players)) return { reason: answer.error ?? 'That could not be searched.' };
+  return { players: answer.players };
+}
+
+/** A name and a password, offered for the record they open. */
+export async function restoreByPassword(name: string, password: string): Promise<RestoreResult> {
+  const answer = await ask<{ playerId?: string; error?: string }>(`${API}/api/restore`, { name, password });
+  if (!answer) return { ok: false, reason: 'That could not be checked. Try again in a minute.' };
+  if (answer.error || !answer.playerId) return { ok: false, reason: answer.error ?? 'That did not go through.' };
+  return { ok: true, playerId: answer.playerId };
+}
+
+/** A password set or changed for a name this browser holds the player id for, with the question where one was picked. */
+export async function setCareerPassword(name: string, playerId: string, password: string, question: number | null = null, answer = ''): Promise<
+{ ok: boolean; reason?: string; question?: boolean }> {
+  const asked = question === null ? {} : { question, answer };
+  const reply = await ask<{ ok?: boolean; error?: string; question?: boolean }>(`${API}/api/restore?password=1`, { name, playerId, password, ...asked });
+  if (!reply) return { ok: false, reason: 'Couldn’t save. Check your connection and try again.' };
+  if (reply.error || !reply.ok) return { ok: false, reason: reply.error ?? 'That did not go through.' };
+  return { ok: true, question: reply.question };
+}
+
+/** What the store says about this player's password, or null where it could not say. */
+export interface PasswordStatus { password: boolean; question: number | null; at: number | null }
+export async function passwordStatus(name: string, playerId: string): Promise<PasswordStatus | null> {
+  const answer = await ask<{ password?: boolean; question?: number | null; at?: number | null; error?: string }>(`${API}/api/restore?status=1`, { name, playerId });
+  if (!answer || answer.error || typeof answer.password !== 'boolean') return null;
+  return { password: answer.password, question: typeof answer.question === 'number' ? answer.question : null, at: typeof answer.at === 'number' ? answer.at : null };
+}
+
+/** Forgot password: the question the player behind a name picked, null where none, or a reason the store could not say. */
+export async function findQuestion(name: string): Promise<{ question: number | null } | { reason: string }> {
+  const answer = await ask<{ question?: number | null; error?: string }>(`${API}/api/restore?question=1`, { name });
+  if (!answer) return { reason: 'That could not be checked. Try again in a minute.' };
+  if (answer.error) return { reason: answer.error };
+  return { question: typeof answer.question === 'number' ? answer.question : null };
+}
+
+/** Forgot password: the answer, and with it a new password, for the player it opens. */
+export async function recoverByAnswer(name: string, answer: string, password?: string): Promise<{ ok: boolean; playerId?: string | null; reason?: string }> {
+  const reply = await ask<{ ok?: boolean; playerId?: string | null; error?: string }>(`${API}/api/restore?recover=1`, password ? { name, answer, password } : { name, answer });
+  if (!reply) return { ok: false, reason: 'That could not be checked. Try again in a minute.' };
+  if (reply.error || !reply.ok) return { ok: false, reason: reply.error ?? 'That did not go through.' };
+  return { ok: true, playerId: reply.playerId ?? null };
+}

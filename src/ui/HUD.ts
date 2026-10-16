@@ -43,6 +43,10 @@ import { rivalsRecordMarkup, type RivalsRecord } from './Record';
 import { coverBoardLines, coverMarkup, profileChip, type CoverBoard } from './Cover';
 import { cta, icon as kitIcon } from './Kit';
 import {
+  answerSheetMarkup, entryProblem, insideAnApp, noQuestionMarkup, nudgeSheetMarkup, passwordCardMarkup, passwordDoneMarkup,
+  passwordSheetMarkup, ruleStates, type NudgeFigures, type PasswordEntry, type PasswordMode, type PasswordSheetView,
+} from './Password';
+import {
   BOARD_MODES, MODE_ORDER, NO_CONTEXT, blastBody, blurbOf, boardScreenMarkup, careerBody, ladderSheetMarkup, marathonBody, menuRank,
   modeMenuMarkup, rulesSheetMarkup, surviveBody, type BoardBody, type BoardContext, type BoardMode, type BoardScreen,
 } from './Board';
@@ -55,13 +59,14 @@ import { milestoneDoodle, powerDoodle, pullDoodle, type BatterOnScreen, type Pow
 import type { Moment } from '../game/milestone';
 import { STORIES, type Story } from '../game/whats-new';
 import {
-  keyAboutMarkup, keyBarMarkup, keyMissingPanelMarkup, keyModalMarkup, keyPanelMarkup, keyToastMarkup,
+  keyAboutMarkup, keyBarMarkup, keyModalMarkup, keyToastMarkup,
   type KeyView,
 } from './CareerKey';
 import {
-  RESTORE_TAKEN, restoreLinkMarkup, restoreMarkup, restorePanelMarkup,
+  FIND_FROM, RESTORE_TAKEN, foundMarkup, restoreLinkMarkup, restoreMarkup, restorePanelMarkup,
   type LocalCareer, type RestoreView,
 } from './Restore';
+import type { FoundPlayer } from '../game/recovery-api';
 import { handWord, named, plateName, profileMarkup, type ProfileView } from './Profile';
 import {
   statsExplain, statsStoryImage, type StatsFacts,
@@ -269,6 +274,10 @@ function swipeGuide() {
 /** The What's New film's own shape, 1080 by 1920. */
 const FILM_ASPECT = 1080 / 1920;
 
+/** What the restore sheet hands the game: a name, and a password or a key. */
+export type RestoreEntry = { name: string; password: string; key?: undefined } | { name: string; key: string; password?: undefined };
+
+
 export class HUD {
   readonly viewport: HTMLElement;
   /** The innings the card is showing, for whatever the share buttons draw. */
@@ -395,6 +404,7 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
         <div id="profile-overlay" class="hidden"></div>
         <div id="key-overlay" class="hidden"></div>
         <div id="restore-overlay" class="hidden"></div>
+        <div id="password-overlay" class="hidden"></div>
         <div id="pause-overlay" class="modal-overlay pause-screen hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
           <div id="pause-sheet" class="pause-sheet" data-tone="blast">
             <div class="pause-strip">
@@ -494,6 +504,7 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
                 </button>
               </div>
             </section>
+            <div id="card-password" class="card-password hidden"></div>
             <div id="card-key" class="card-key hidden"></div>
             <button id="feedback-card" class="ghost-link ec-feedback hidden" type="button">Tell me what you think</button>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
@@ -959,8 +970,10 @@ ${modeSelectMarkup()}
     this.holdStats(view);
     this.sheet(statsSheetMarkup({
       ...view, careerKey: this.keyView, who: this.whoNow?.() ?? null, at: this.statsAt, where: 'sheet', offerRestore: this.offerRestore,
+      password: this.passwordNow?.() ?? null,
     }), 'mine', 'best');
     this.wireRestoreLink();
+    this.wirePasswordCards();
     this.wireStatsKeys();
   }
 
@@ -973,8 +986,10 @@ ${modeSelectMarkup()}
     this.holdStats(view);
     overlay.innerHTML = statsSheetMarkup({
       ...view, careerKey: this.keyView, who: this.whoNow?.() ?? null, at: this.statsAt, where: 'page', offerRestore: this.offerRestore,
+      password: this.passwordNow?.() ?? null,
     });
     overlay.classList.remove('hidden');
+    this.wirePasswordCards();
     this.viewport.classList.add('modal-open');
     this.wireStatsKeys();
     // The page is the way to the card now that the board has no My Stats tab,
@@ -2472,17 +2487,70 @@ ${modeSelectMarkup()}
    * journey instead of a correction.
    */
   openRestore(name = '', local: LocalCareer | null = null) {
-    this.restoreView = { name, local, sending: false, error: null };
+    this.restoreView = { name, local, sending: false, error: null, by: 'password', found: null, picked: null, inApp: insideAnApp(navigator.userAgent) };
     this.drawRestore();
+    // Opened with a name — the one the gate was just told is taken — so the
+    // list is asked for at once, with that name already picked if it is there.
+    if (this.restoreFindable(name)) this.onRestoreFind?.(name);
   }
 
-  /** What the player is offering. */
-  get restoreEntry() {
-    return {
-      name: (this.$('restore-name') as HTMLInputElement).value,
-      key: (this.$('restore-key') as HTMLInputElement).value,
-    };
+  /** What the player is offering: the name, and the password or the key, whichever this sheet is asking for. */
+  get restoreEntry(): RestoreEntry {
+    const name = (this.$('restore-name') as HTMLInputElement).value;
+    const key = document.getElementById('restore-key') as HTMLInputElement | null;
+    if (key) return { name, key: key.value };
+    return { name, password: (this.$('restore-password') as HTMLInputElement).value };
   }
+
+  /** Whether what is typed is enough to ask the list for. */
+  private restoreFindable(name: string) {
+    return [...name.replace(/[^\p{L}\p{N}]/gu, '')].length >= FIND_FROM;
+  }
+
+  /**
+   * The list for a name, as the store answered it. Dropped if the name has
+   * been typed on since — a slow answer for "Gau" must not land over "Gaurav".
+   * Where one player is listed under exactly what was typed, they are picked.
+   */
+  restoreFound(name: string, found: FoundPlayer[] | null, reason: string | null = null) {
+    const view = this.restoreView;
+    const field = document.getElementById('restore-name') as HTMLInputElement | null;
+    if (!view || view.done || !field || field.value !== name) return;
+    const fold = (one: string) => one.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+    const exact = found?.find(one => fold(one.name) === fold(name));
+    const picked = view.picked && found?.some(one => fold(one.name) === fold(view.picked!)) ? view.picked : exact?.name ?? null;
+    this.restoreView = { ...view, name, found, picked, findError: reason };
+    this.drawFound();
+  }
+
+  /** The list redrawn on its own, and its rows wired: a tap picks the name and moves to the password. */
+  private drawFound() {
+    const view = this.restoreView;
+    const list = document.getElementById('restore-found');
+    if (!view || !list) return;
+    list.innerHTML = foundMarkup(view);
+    for (const img of list.querySelectorAll<HTMLImageElement>('img')) retryImage(img);
+    list.querySelectorAll<HTMLButtonElement>('.rs-found-row').forEach(row => {
+      row.onclick = () => {
+        const name = row.dataset.name ?? '';
+        const field = this.$('restore-name') as HTMLInputElement;
+        field.value = name;
+        if (this.restoreView) this.restoreView = { ...this.restoreView, name, picked: name };
+        this.drawFound();
+        (document.getElementById('restore-password') as HTMLInputElement | null)?.focus();
+      };
+    });
+  }
+
+  /** The kit of a player the list showed by this name, for the forgot-password sheets; the first kit where it did not. */
+  restoreAvatarOf(name: string): number {
+    const fold = (one: string) => one.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+    return this.restoreView?.found?.find(one => fold(one.name) === fold(name))?.avatar ?? 0;
+  }
+
+  /** The game asks the store for the list. Debounced here, so a name typed fast is one question. */
+  onRestoreFind: ((name: string) => void) | null = null;
+  private findTimer = 0;
 
   /** The form, while the store is thinking about it. */
   restoreSending(sending: boolean) {
@@ -2628,6 +2696,10 @@ ${modeSelectMarkup()}
     });
     const restore = document.getElementById('profile-restore');
     if (restore) restore.onclick = () => this.openRestore(view.held ?? this.profileEntry.name);
+    const played = document.getElementById('profile-played');
+    if (played) played.onclick = () => this.onRestoreOpen?.('profile');
+    const pass = document.getElementById('profile-password-go');
+    if (pass) pass.onclick = () => this.onPasswordOpen?.('details');
     const skip = document.getElementById('profile-skip');
     if (skip) skip.onclick = () => this.onProfileSkip?.(this.profileEntry);
     (this.$('profile-form') as HTMLFormElement).onsubmit = event => {
@@ -2640,8 +2712,216 @@ ${modeSelectMarkup()}
     if (!view.sending && view.fresh && matchMedia('(pointer: fine)').matches) field.focus();
   }
 
-  /** What the game does with a name and a key. The store is the game's. */
-  onRestore: ((entry: { name: string; key: string }) => void) | null = null;
+  /* ── Career password ─────────────────────────────────────────────────────
+     The one sheet every way in opens (Password.ts), the question list over
+     it, the nudge sheet, and the forgot-password sheets. One overlay holds
+     whichever is up; the game decides when and keeps what the store said. */
+
+  /** The My Stats card's figures, asked when the page is drawn: null where no card is due. */
+  passwordNow: (() => { runs: number } | null) | null = null;
+  /** A way into the sheet was taken: the card on My Stats or the end card, the nudge, Your details, Welcome back. */
+  onPasswordOpen: ((from: string) => void) | null = null;
+  /** The sheet's answer, already held to the rules. The store is the game's. */
+  onPasswordSave: ((entry: PasswordEntry, mode: PasswordMode) => void) | null = null;
+  /** Put away by hand, before anything was saved: which sheet it was. */
+  onPasswordClosed: ((kind: string) => void) | null = null;
+  /** Forgot password, from the restore sheet, for this name. */
+  onRestoreForgot: ((name: string) => void) | null = null;
+  /** The forgot sheet's answer to the security question. */
+  onAnswer: ((answer: string) => void) | null = null;
+
+  private passwordView: PasswordSheetView | null = null;
+  private passwordKind: string | null = null;
+  private passwordValues: PasswordEntry = { password: '', confirm: '', question: null, answer: '' };
+  private answerView: Parameters<typeof answerSheetMarkup>[0] | null = null;
+
+  get passwordOpen() { return !this.$('password-overlay').classList.contains('hidden'); }
+
+  private passwordLayer(kind: string, html: string) {
+    const overlay = this.$('password-overlay');
+    this.passwordKind = kind;
+    overlay.innerHTML = html;
+    overlay.classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    for (const img of overlay.querySelectorAll<HTMLImageElement>('img')) retryImage(img);
+    const scrim = overlay.firstElementChild as HTMLElement | null;
+    if (scrim) scrim.onclick = event => { if (event.target === scrim) this.closePassword(true); };
+    for (const x of overlay.querySelectorAll<HTMLElement>('.pw-close')) x.onclick = () => this.closePassword(true);
+  }
+
+  /** Down. `byHand` when the player put it away, which the game counts. */
+  closePassword(byHand = false) {
+    const kind = this.passwordKind;
+    this.passwordView = null;
+    this.passwordKind = null;
+    this.answerView = null;
+    const overlay = this.$('password-overlay');
+    overlay.classList.add('hidden');
+    overlay.innerHTML = '';
+    const stacked = ['board-overlay', 'stats-overlay', 'whatsnew-overlay', 'end', 'end-survive', 'modes', 'pause-overlay', 'profile-overlay', 'restore-overlay']
+      .some(id => !this.$(id).classList.contains('hidden'));
+    this.viewport.classList.toggle('modal-open', stacked);
+    if (byHand && kind) this.onPasswordClosed?.(kind);
+  }
+
+  /** The sheet, fresh: what was typed last time is not carried into a new one. */
+  openPassword(view: PasswordSheetView) {
+    this.passwordValues = { password: '', confirm: '', question: view.question, answer: '' };
+    this.passwordView = { ...view, picking: false, sending: false, error: null };
+    this.drawPassword();
+  }
+
+  passwordSending(sending: boolean) {
+    if (!this.passwordView) return;
+    this.capturePassword();
+    this.passwordView = { ...this.passwordView, sending, error: sending ? null : this.passwordView.error };
+    this.drawPassword();
+  }
+
+  passwordFailed(reason: string) {
+    if (!this.passwordView) return;
+    this.capturePassword();
+    this.passwordView = { ...this.passwordView, sending: false, error: reason };
+    this.drawPassword();
+  }
+
+  private capturePassword() {
+    const read = (id: string) => (document.getElementById(id) as HTMLInputElement | null)?.value;
+    this.passwordValues = {
+      ...this.passwordValues,
+      password: read('pw-new') ?? this.passwordValues.password,
+      confirm: read('pw-confirm') ?? this.passwordValues.confirm,
+      answer: read('pw-answer') ?? this.passwordValues.answer,
+    };
+  }
+
+  /** Drawn whole, like the other sheets, with what was typed written back. */
+  private drawPassword() {
+    const view = this.passwordView;
+    if (!view) return this.closePassword();
+    const values = this.passwordValues;
+    if (view.picking) {
+      this.passwordLayer(view.mode, passwordSheetMarkup(view));
+      const overlay = this.$('password-overlay');
+      overlay.querySelectorAll<HTMLButtonElement>('.pw-option').forEach(option => {
+        option.onclick = () => { this.passwordView = { ...view, question: Number(option.dataset.q) }; this.drawPassword(); };
+      });
+      const back = (question: number | null) => {
+        if (question !== values.question) this.passwordValues = { ...values, question, answer: '' };
+        this.passwordView = { ...view, picking: false, question };
+        this.drawPassword();
+      };
+      this.$('pw-q-use').onclick = () => back(view.question);
+      this.$('pw-q-none').onclick = () => back(null);
+      return;
+    }
+    this.passwordLayer(view.mode, passwordSheetMarkup({ ...view, question: values.question }));
+    const field = (id: string) => document.getElementById(id) as HTMLInputElement | null;
+    const pw = field('pw-new')!, confirm = field('pw-confirm')!, answer = field('pw-answer');
+    pw.value = values.password; confirm.value = values.confirm; if (answer) answer.value = values.answer;
+    const rules = () => {
+      const states = ruleStates(pw.value, confirm.value, view.name);
+      for (const li of this.$('pw-rules').querySelectorAll<HTMLElement>('li')) {
+        const state = states[li.dataset.rule as keyof typeof states];
+        li.className = `is-${state}`;
+        const mark = li.querySelector('i');
+        if (mark) mark.innerHTML = state === 'bad' ? kitIcon('alert') : kitIcon('check');
+      }
+    };
+    pw.oninput = rules; confirm.oninput = rules; rules();
+    for (const show of this.$('password-overlay').querySelectorAll<HTMLButtonElement>('.pw-show')) {
+      show.onclick = () => {
+        const input = field(show.dataset.for ?? '');
+        if (!input) return;
+        const shown = input.type === 'password';
+        input.type = shown ? 'text' : 'password';
+        show.textContent = shown ? 'HIDE' : 'SHOW';
+        show.setAttribute('aria-pressed', String(shown));
+      };
+    }
+    const pick = document.getElementById('pw-question');
+    if (pick) pick.onclick = () => { this.capturePassword(); this.passwordView = { ...view, picking: true, question: this.passwordValues.question }; this.drawPassword(); };
+    (this.$('pw-form') as HTMLFormElement).onsubmit = event => {
+      event.preventDefault();
+      if (this.passwordView?.sending) return;
+      this.capturePassword();
+      const entry = this.passwordValues;
+      const kept = !!view.answerKept && entry.question === view.question;
+      const problem = entryProblem(entry, view.name, view.mode, kept);
+      if (problem) return this.passwordFailed(problem);
+      this.onPasswordSave?.(entry, view.mode);
+    };
+    if (!view.sending) (view.error && answer && !answer.value && values.question !== null ? answer : pw).focus();
+  }
+
+  /** Saved: protected, or changed. */
+  passwordDone(name: string, avatar: number, changed = false) {
+    this.passwordView = null;
+    this.passwordLayer('done', passwordDoneMarkup(name, avatar, changed));
+    const done = this.$('pw-done');
+    done.onclick = () => this.closePassword();
+    done.focus();
+  }
+
+  /** The sheet that asks outright, after three end cards walked past. */
+  openNudge(figures: NudgeFigures) {
+    this.passwordLayer('nudge', nudgeSheetMarkup(figures));
+    this.$('pw-nudge-set').onclick = () => { this.closePassword(); this.onPasswordOpen?.('nudge'); };
+    this.$('pw-nudge-later').onclick = () => this.closePassword(true);
+  }
+
+  /** Forgot password, with a question to answer. */
+  openAnswer(view: Parameters<typeof answerSheetMarkup>[0]) {
+    const typed = (document.getElementById('rq-answer') as HTMLInputElement | null)?.value ?? '';
+    this.answerView = view;
+    this.passwordLayer('forgot', answerSheetMarkup(view));
+    const input = this.$('rq-answer') as HTMLInputElement;
+    if (view.sending || view.error) input.value = typed;
+    (this.$('rq-form') as HTMLFormElement).onsubmit = event => {
+      event.preventDefault();
+      if (this.answerView?.sending || !input.value.trim()) return;
+      this.onAnswer?.(input.value);
+    };
+    this.$('rq-key').onclick = () => { this.closePassword(); this.restoreByKey(); };
+    if (!view.sending) input.focus();
+  }
+
+  answerSending(sending: boolean) { if (this.answerView) this.openAnswer({ ...this.answerView, sending, error: null }); }
+  answerFailed(reason: string) { if (this.answerView) this.openAnswer({ ...this.answerView, sending: false, error: reason }); }
+
+  /** Forgot password, with no question: the career key, and what happens with no key either. */
+  openNoQuestion() {
+    this.passwordLayer('forgot', noQuestionMarkup());
+    this.$('rq-use-key').onclick = () => { this.closePassword(); this.restoreByKey(); };
+    this.$('rq-back').onclick = () => this.closePassword();
+  }
+
+  /** The restore sheet, turned to its career key face, keeping the name. */
+  restoreByKey() {
+    if (!this.restoreView) this.restoreView = { name: '', sending: false, error: null };
+    this.restoreView = { ...this.restoreView, by: 'key', error: null, name: this.restoreView.picked ?? this.restoreView.name };
+    this.drawRestore();
+  }
+
+  /**
+   * The end card's password card, in the slot above the career key's old
+   * place, or nothing. Emptied when not shown, for the reason the key slot is:
+   * the node is shared by every end card.
+   */
+  passwordCard(view: { runs: number; best: number | null } | null) {
+    const slot = this.$('card-password');
+    slot.classList.toggle('hidden', !view);
+    slot.innerHTML = view ? passwordCardMarkup({ place: 'end', runs: view.runs, best: view.best }) : '';
+    const go = document.getElementById('card-password-go');
+    if (go) go.onclick = () => this.onPasswordOpen?.('end');
+  }
+
+  private wirePasswordCards() {
+    for (const go of document.querySelectorAll<HTMLButtonElement>('.stats-slide .pw-card-go')) go.onclick = () => this.onPasswordOpen?.('stats');
+  }
+
+  /** What the game does with a name and a password, or a name and a key. The store is the game's. */
+  onRestore: ((entry: RestoreEntry) => void) | null = null;
 
   /**
    * Asking for a key to replace the one this browser does not have.
@@ -2660,8 +2940,8 @@ ${modeSelectMarkup()}
    * and the record is behind this — so the right thing to do is get out of the
    * way and let them see it, not stand in front of it with good news.
    */
-  restoreDone(name: string) {
-    this.restoreView = { done: { name } };
+  restoreDone(name: string, offerPassword = false) {
+    this.restoreView = { done: { name, offerPassword } };
     this.drawRestore();
   }
 
@@ -2709,10 +2989,11 @@ ${modeSelectMarkup()}
   private drawRestore() {
     const overlay = this.$('restore-overlay');
     if (!this.restoreView) return this.closeRestore();
+    const value = (id: string) => (document.getElementById(id) as HTMLInputElement | null)?.value ?? '';
     const held = this.restoreOpen && document.getElementById('restore-name')
-      ? { name: (this.$('restore-name') as HTMLInputElement).value,
-        key: (this.$('restore-key') as HTMLInputElement).value }
+      ? { name: value('restore-name'), key: value('restore-key'), password: value('restore-password') }
       : null;
+    if (held && !this.restoreView.done) this.restoreView = { ...this.restoreView, name: held.name };
     overlay.innerHTML = restoreMarkup(this.restoreView);
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
@@ -2721,22 +3002,56 @@ ${modeSelectMarkup()}
     if (this.restoreView.done) {
       const away = this.$('restore-done');
       away.onclick = () => this.closeRestore();
-      away.focus();
+      // Back by a career key with no password behind it: the offer of one.
+      const set = document.getElementById('restore-set-password');
+      if (set) set.onclick = () => { this.closeRestore(); this.onPasswordOpen?.('welcome'); };
+      (set ?? away).focus();
       return;
     }
     const name = this.$('restore-name') as HTMLInputElement;
-    const key = this.$('restore-key') as HTMLInputElement;
-    if (held) { name.value = held.name; key.value = held.key; }
+    // The key or the password, whichever this sheet is asking for.
+    const secret = (document.getElementById('restore-key') ?? this.$('restore-password')) as HTMLInputElement;
+    if (held) { name.value = held.name; secret.value = secret.id === 'restore-key' ? held.key : held.password; }
     this.$('restore-close').onclick = () => this.closeRestore();
     (this.$('restore-form') as HTMLFormElement).onsubmit = event => {
       event.preventDefault();
       if (this.restoreView?.sending) return;
       this.onRestore?.(this.restoreEntry);
     };
+    // Between the two ways back, carrying the name across.
+    const switchTo = (by: 'password' | 'key') => () => {
+      if (!this.restoreView) return;
+      this.restoreView = { ...this.restoreView, by, error: null };
+      this.drawRestore();
+    };
+    const byKey = document.getElementById('restore-by-key');
+    if (byKey) byKey.onclick = switchTo('key');
+    const byPassword = document.getElementById('restore-by-password');
+    if (byPassword) byPassword.onclick = switchTo('password');
+    // Forgot password: the name the sheet holds, picked or typed in whole.
+    const forgot = document.getElementById('restore-forgot');
+    if (forgot) forgot.onclick = () => {
+      const who = this.restoreView?.picked ?? name.value;
+      if (![...who.replace(/[^\p{L}\p{N}]/gu, '')].length) return this.restoreFailed('Type the name you bat under first, then tap Forgot password?');
+      this.onRestoreForgot?.(who);
+    };
+    if (document.getElementById('restore-found')) {
+      this.drawFound();
+      name.oninput = () => {
+        window.clearTimeout(this.findTimer);
+        const typed = name.value;
+        if (this.restoreView) this.restoreView = { ...this.restoreView, name: typed, picked: null };
+        if (!this.restoreFindable(typed)) {
+          if (this.restoreView) this.restoreView = { ...this.restoreView, found: null, findError: null };
+          return this.drawFound();
+        }
+        this.findTimer = window.setTimeout(() => this.onRestoreFind?.(typed), 350);
+      };
+    }
     if (this.restoreView.sending) return;
     // Back to whichever field still needs something: the name where it is
-    // empty, the key otherwise — which is also where a refused try belongs.
-    (name.value ? key : name).focus();
+    // empty, the key or password otherwise — which is also where a refused try belongs.
+    (name.value ? secret : name).focus();
   }
 
   /**
@@ -2968,18 +3283,15 @@ ${modeSelectMarkup()}
     // The middle one was missing, and the hole it left was the whole board:
     // every name claimed before keys existed has none, so every one of those
     // players finished an innings and was shown nothing.
-    const missing = !!view && view.state === 'lost' && where.panel;
-    const offering = !show && !missing && where.panel && this.offerRestorePanel;
-    panel.classList.toggle('hidden', !((show && where.panel) || missing || offering));
+    //
+    // The key itself no longer stands on the end card. It was walked past
+    // there; the password card has that place now (`passwordCard`) and the key
+    // lives last on My Stats. What the slot still carries is the way back for
+    // a player with no name.
+    const offering = !show && !(view && view.state === 'lost') && where.panel && this.offerRestorePanel;
+    panel.classList.toggle('hidden', !offering);
     bar.classList.toggle('hidden', !(show && where.bar));
-    if (show && where.panel) {
-      panel.innerHTML = keyPanelMarkup(view!);
-      this.$('key-panel-save').onclick = () => this.openKeySheet(false, 'card');
-    } else if (missing) {
-      panel.innerHTML = keyMissingPanelMarkup();
-      this.$('key-missing-go').onclick = () => this.onNewKey?.();
-      trackOnce('key-missing-card', 'Offered a key at the end of an innings');
-    } else if (offering) {
+    if (offering) {
       panel.innerHTML = restorePanelMarkup('restore-panel');
       this.$('restore-panel-go').onclick = () => this.onRestoreOpen?.('card');
       this.$('restore-panel-close').onclick = () => {
@@ -2997,7 +3309,7 @@ ${modeSelectMarkup()}
     // end cards and moved between them, so a slot left holding what it held
     // last time is a widget waiting to reappear on a screen that never asked
     // for it — which is exactly how the key ended up on the Blast card.
-    if (!((show && where.panel) || missing || offering)) panel.innerHTML = '';
+    if (!offering) panel.innerHTML = '';
     if (!(show && where.bar)) bar.innerHTML = '';
   }
 

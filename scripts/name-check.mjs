@@ -163,7 +163,8 @@ async function send(page, advance, name) {
   check(await page.locator('#end-survive').isVisible(), 'and the card stays, with no board opened over it');
   check(await page.evaluate(() => Boolean(localStorage.getItem('hitman-career-key'))),
     'the career key is kept in this browser');
-  check(await page.locator('#card-key').isVisible(), 'and the card carries it');
+  // The key lives on My Stats now, last; the end card's place is the password card's.
+  check(!(await page.locator('#card-key .k-ticket').count()), 'and the end card does not carry it');
 
   // — Changing it, from the head of My Stats.
   await page.locator('#card-career').click({ force: true });

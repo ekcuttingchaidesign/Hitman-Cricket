@@ -47,6 +47,70 @@ without an explicit flag, and both default to the harmless development keys
 unless `VERCEL_ENV` says otherwise. Keep that shape for anything new: a script
 that touches real players should have to be asked twice.
 
+## Career passwords: the way back players keep
+
+Players did not save their career keys, so a named player sets a password of
+their own. The design is Figma section 13, "Career password · user journeys"
+(node `303:9720`): five lanes, A to E, every screen coded (A5, D3a).
+
+Nothing about a password is asked before the first ball: the name screen asks
+for a name, a kit and a hand, and a new player's gate carries Played before?
+top right (`#profile-played`) for a browser that forgot them. When it is asked
+for is `src/game/password-nudge.ts`, in `tests/password-nudge.test.ts`:
+
+- **My Stats**, from the first visit, for any named player with none: the Set
+  a password card on every card of the rail, under the career card and above
+  Road to Hitman (`passwordCardMarkup`, `place: 'stats'`). The career key is
+  the last thing on the page.
+- **The end of an innings**, once the career passes 50 runs, every mode added
+  up (`NUDGE_RUNS`): the same card where the career key used to be, with a
+  solid orange CREATE A PASSWORD (`cta({ kind: 'solid' })`) so it is never
+  taken for PLAY AGAIN. Never on practice, a Rival Match, a demo or in a
+  private window. The career key no longer stands on the end card at all.
+- **The nudge sheet**, after three end cards walked past, then every five,
+  never twice a visit (`sheetDue`, counted in `hitman-password-nudge`), and not
+  over the stars or an unlock. No hard stop: a player can always bat.
+
+Every way in opens the one sheet (`src/ui/Password.ts`, the `#password-overlay`
+in the HUD): password and confirm with SHOW, the rules said live (`ruleStates`)
+and again by the store, and an optional security question from eight
+(`src/game/password-questions.ts`, kept by position: add on the end, never
+reword). A hidden username field holds the name, so Safari and Chrome offer to
+save it and the restore sheet's password field fills itself in. Your details,
+from the edit key on My Stats, has the password row (`passwordRowMarkup`) that
+opens it to change: a blank field keeps what is there.
+
+The rules (`passwordProblem`, `src/server/password-rules.ts`): six or more
+characters, not one character over and over, not the commonest few (123456,
+abcdef, password, cricket123…), and not the player's name exactly, in any
+case: Shashank is refused, Shashank123 is fine.
+
+Kept against the player id (`${SCOPE}passwords`, and the question and its
+answer in `${SCOPE}questions`), so every name they hold opens with it, as
+salted scrypt hashes (`src/server/career-password.ts`). Answers fold capitals,
+spaces and punctuation. Neither is sealed or ever read back. The store says
+whether a player has one (`?status=1`, with the question's place) once a load,
+after a claim and after a restore; until it answers nothing is asked, so an
+outage never nags a player who has one.
+
+Restoring (`src/ui/Restore.ts`): a few letters of the name list the players
+with a password (`${SCOPE}findable`, `ZRANGE BYLEX`; a name, a kit and an
+innings count, never an id), the player taps themselves and enters it. Forgot
+password? beside the field asks the store for the player's question
+(`?question=1`) and puts it (`answerSheetMarkup`); the right answer
+(`?recover=1`, the same tries as a password and a key) asks for a new password
+and brings them back. With no question, the career key is the way back
+(`noQuestionMarkup`); brought back by a key with no password, Welcome back
+offers one. A browser inside Instagram or Facebook is told its saved passwords
+are out of reach there (`insideAnApp`). A restored id is written to all three
+stores (`adoptPlayerId`): before it lived only in memory and was lost on the
+next visit.
+
+`tests/password.test.ts` holds the store's rules; `scripts/password-check.mjs`
+walks lanes A to E in a browser. The dev server's restore tries are real and
+shared by every check, ten an hour: restart it between runs of the restore and
+password checks.
+
 ## A friend who lost their career key
 
 A key is kept as a slow hash, which a restore is checked against, and — for
@@ -78,7 +142,8 @@ for the stories, `end-card-check.mjs` for the end of an innings and the keys
 that live only there, `career-count-check.mjs` for the rule that only a
 finished innings counts toward a career, `restore-check.mjs` for what a player
 with no name is offered and the screen that takes a key back, `key-check.mjs`
-for what a player who has one is shown.
+for what a player who has one is shown, `password-check.mjs` for the career
+password's journeys.
 
 `scripts/return-check.mjs` is the return ticket: the cookie `/api/me` sets so
 that Safari, which deletes everything a page's script wrote after a week away,
@@ -119,6 +184,21 @@ same one rather than at their own defaults.
 Reach the screen the way a player does. The checks that open the board from the
 cover missed two bugs on the end card, because nothing had ever finished an
 innings — which is how most players get to that card in the first place.
+
+A check has to pass on a GPU as well as in software. Most were written against
+software rendering, where the game runs in slow motion against the wall clock,
+and some leaned on it without saying so: two Blasts written a second apart
+were more than the store's ten seconds apart (`MIN_INNINGS_MS`), a flash put up
+in the moment before a ball outlived the next ball's reset, a doodle was still
+at its first frame when the grass under it was measured. On a machine with a
+GPU the game keeps real time and each of those failed, on production as on the
+branch. Wait on what the game says (`snapshot()`, its phase), not on how slow
+the machine is; and a box measured off a screenshot is in the page's pixels,
+so scale it by `devicePixelRatio`.
+
+A check that seeds `hitman-whatsnew` seeds the current update key
+(`new-shots`) and, through the launch week, `hitman-whatsnew-day` as the
+page's own day, or the stories stand in front of Choose a mode.
 
 `scripts/scene-check.mjs` is the ground itself: the sky and the painted turf
 are canvases and a shader no unit test runs, and it holds the draw-call budget

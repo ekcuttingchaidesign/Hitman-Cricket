@@ -10,6 +10,12 @@
  * From My Stats it is the same sheet with a way out, for changing any of the
  * three. The name changes once a month, which it says before anybody types; the
  * kit and the hand change whenever the player likes.
+ *
+ * Nothing about a password is asked here: a new player is asked for one once
+ * their career is worth keeping (`src/game/password-nudge.ts`). What this screen
+ * carries is the way back for a player the browser forgot — Played before?, top
+ * right on a new player's gate — and, from My Stats, the password row that sets
+ * or changes it.
  */
 
 import type { Hand } from '../game/player';
@@ -40,7 +46,42 @@ export interface ProfileView {
   offline?: boolean;
   /** The rung their Blast career is on, for the chip under the name. Debutant unless told. */
   tier?: { key: string; name: string };
+  /** Played before?, top right: on a new player's gate, for a browser that forgot them. */
+  played?: boolean;
+  /** The password row on the edit from My Stats, where a password can be kept. */
+  password?: PasswordRow | null;
 }
+
+/** What the store said about this player's password, for the row that sets or changes it. */
+export interface PasswordRow {
+  set: boolean;
+  at: number | null;
+  question: boolean;
+}
+
+/** "Set on 16 Oct": the day, in India's time like the rest of the store's dates. */
+export function setOn(at: number | null): string {
+  if (!at) return 'Set';
+  return `Set on ${new Date(at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' })}`;
+}
+
+/** The row itself: a lock, what is set, and the key that sets or changes it. */
+export function passwordRowMarkup(row: PasswordRow): string {
+  const head = row.set ? setOn(row.at) : 'Not set yet';
+  const sub = row.set ? (row.question ? 'Security question set too' : 'No security question') : 'Brings this career back on any phone';
+  return `
+        <div class="welcome-step welcome-password">
+          <p class="welcome-label">YOUR PASSWORD</p>
+          <div class="welcome-pass${row.set ? ' is-set' : ''}">
+            <span class="welcome-pass-mark" aria-hidden="true">${LOCK}</span>
+            <span class="welcome-pass-say"><b>${escape(head)}</b><small>${escape(sub)}</small></span>
+            ${cta({ kind: 'save', label: row.set ? 'CHANGE' : 'SET', id: 'profile-password-go' })}
+          </div>
+        </div>`;
+}
+
+const LOCK = '<svg viewBox="0 0 24 24" fill="none"><path d="M7.5 11V8a4.5 4.5 0 0 1 9 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="5" y="11" width="14" height="10" rx="2.5" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>';
+const KEY = '<svg viewBox="0 0 24 24" fill="none"><circle cx="8" cy="15.5" r="4" stroke="currentColor" stroke-width="2"/><path d="m11 12.5 8-8M15.5 8l2.5 2.5M13.5 10l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 
 const art = (file: string) => new URL(`../assets/entry/${file}`, import.meta.url).href;
 
@@ -94,7 +135,7 @@ export function profileMarkup(view: ProfileView): string {
       <img class="welcome-lights" src="${art('floodlights.svg')}" alt="" aria-hidden="true">
       <span class="welcome-grain" aria-hidden="true"></span>
       <form id="profile-form" class="welcome-body" novalidate>
-        <div class="welcome-top">${back}</div>
+        <div class="welcome-top">${back}${view.played ? `<button id="profile-played" class="welcome-played" type="button"><span aria-hidden="true">${KEY}</span>Played before?</button>` : ''}</div>
         <h2 id="profile-title" class="welcome-heading">${heading}</h2>
         <div class="welcome-walkout" aria-hidden="true">
           <img class="welcome-ring is-glow" src="${art('ring-220.svg')}" alt="">
@@ -118,6 +159,7 @@ export function profileMarkup(view: ProfileView): string {
           <div class="welcome-hands" role="radiogroup" aria-labelledby="profile-hand-label">${handKey('right')}${handKey('left')}
           </div>
         </div>
+        ${!gate && view.password ? passwordRowMarkup(view.password) : ''}
         ${error ? `<p id="profile-error" class="welcome-error" role="alert">${escape(error)}</p>` : ''}
         ${held ? `<p class="welcome-back-link">${restoreLinkMarkup('profile-restore', RESTORE_TAKEN)}</p>` : ''}
         <div class="welcome-foot">

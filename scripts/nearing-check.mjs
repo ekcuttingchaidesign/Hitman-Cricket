@@ -53,7 +53,9 @@ for (const [name, options] of [
     const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
     try {
       localStorage.setItem('hitman-seen', day);
-      localStorage.setItem('hitman-whatsnew', 'dressing-room:9');
+      // Past the update's stories, and past the launch week's once a day: the day is the page's own.
+      localStorage.setItem('hitman-whatsnew', 'new-shots:9');
+      localStorage.setItem('hitman-whatsnew-day', (d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`)(new Date()));
     } catch { /* Then the notices stand. */ }
     const later = window.setTimeout;
     window.__timerScale = 1;
@@ -128,6 +130,10 @@ for (const [name, options] of [
   check(!seen.hidden && seen.kind === 'is-fifty', 'ten short of fifty, the card goes up', JSON.stringify(seen));
   check(seen.runs === '40' && seen.need === '10' && seen.heat === '1', 'on 40, ten to get, running cool', JSON.stringify(seen));
   check(seen.say === 'Fifty in sight', 'fifty in sight', seen.say);
+  // Measured where it comes to rest: in software the way in can still be
+  // scaling and tilting it this long after, which moves its edges a pixel or more.
+  await settle();
+  seen = await card();
   const bar = await page.$eval('.score-bug', node => node.getBoundingClientRect().toJSON());
   const { height: H } = options.viewport;
   const share = (seen.box.width * seen.box.height) / (bar.width * bar.height);

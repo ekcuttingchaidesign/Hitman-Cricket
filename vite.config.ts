@@ -20,7 +20,10 @@ import { memoryRecap, recordInnings, recordUnlocks } from './src/server/recap-st
 import { lookOf } from './src/game/dressing-ids';
 import { memoryRecovery } from './src/server/memory-recovery';
 import { foldName } from './src/server/board-store';
-import { carryKey, firstKey, keyOnClaim, newKey, refusedRecovery, restore } from './src/server/recovery-store';
+import {
+  carryKey, describeFrom, findPlayers, firstKey, keyOnClaim, listOnClaim, newKey, passwordSet, questionFor, recoverByAnswer, refusedRecovery, restore,
+  restoreWithPassword, setPassword,
+} from './src/server/recovery-store';
 import {
   BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, readBlastTally, readMarathonTally, readSurviveTally,
   type BlastCareer, type MarathonCareer, type SurviveCareer,
@@ -227,6 +230,31 @@ function boardEndpoints(): Plugin {
                 ? send(made.status, { error: made.reason })
                 : send(200, { key: made.key });
             }
+            if ((req.url ?? '').includes('find=')) {
+              const found = await findPlayers(recovery, { name: asked.name, address: 'dev' },
+                describeFrom([careers.classic, careers.survive, careers.marathon]));
+              return refusedRecovery(found) ? send(found.status, { error: found.reason }) : send(200, { players: found.players });
+            }
+            if ((req.url ?? '').includes('password=')) {
+              const set = await setPassword(recovery, { name: asked.name, playerId: asked.playerId, password: asked.password, question: asked.question, answer: asked.answer });
+              return refusedRecovery(set) ? send(set.status, { error: set.reason }) : send(200, { ok: true, at: set.at, question: set.question });
+            }
+            if ((req.url ?? '').includes('status=')) {
+              const known = await passwordSet(recovery, { name: asked.name, playerId: asked.playerId });
+              return refusedRecovery(known) ? send(known.status, { error: known.reason }) : send(200, { password: known.password, question: known.question, at: known.at });
+            }
+            if ((req.url ?? '').includes('question=')) {
+              const q = await questionFor(recovery, { name: asked.name, address: 'dev' });
+              return refusedRecovery(q) ? send(q.status, { error: q.reason }) : send(200, { question: q.question });
+            }
+            if ((req.url ?? '').includes('recover=')) {
+              const back = await recoverByAnswer(recovery, { name: asked.name, answer: asked.answer, password: asked.password, address: 'dev' });
+              return refusedRecovery(back) ? send(back.status, { error: back.reason }) : send(200, { ok: true, playerId: back.playerId });
+            }
+            if (typeof asked.password === 'string') {
+              const back = await restoreWithPassword(recovery, { name: asked.name, password: asked.password, address: 'dev' });
+              return refusedRecovery(back) ? send(back.status, { error: back.reason }) : send(200, { playerId: back.playerId });
+            }
             if ((req.url ?? '').includes('new=')) {
               const made = await newKey(recovery, { name: asked.name, playerId: asked.playerId });
               return refusedRecovery(made)
@@ -261,6 +289,7 @@ function boardEndpoints(): Plugin {
             ]);
             await carryKey(recovery, { from: asked.previous, to: foldName(name), playerId: who.playerId });
             const key = await keyOnClaim(recovery, foldName(name));
+            await listOnClaim(recovery, { name, playerId: who.playerId });
             return send(200, key ? { ok: true, name, key } : { ok: true, name });
           }
           if (path === '/api/board') {
@@ -302,6 +331,7 @@ function boardEndpoints(): Plugin {
             await nameCareer(careers.marathon, MARATHON_CAREER, who.playerId, cleanName(who.name), who.avatar);
             await carryKey(recovery, { from: body.previous, to: foldName(cleanName(who.name)), playerId: who.playerId });
             const key = await keyOnClaim(recovery, foldName(cleanName(who.name)));
+            await listOnClaim(recovery, { name: who.name, playerId: who.playerId });
             return send(200, key ? { ...taken, key } : taken);
           }
           const asked = submitted === 'survive';
@@ -319,6 +349,7 @@ function boardEndpoints(): Plugin {
           // over once, exactly as the deployed endpoint does it.
           await carryKey(recovery, { from: body.previous, to: foldName(cleanName(who.name)), playerId: who.playerId });
           const key = await keyOnClaim(recovery, foldName(cleanName(who.name)));
+          await listOnClaim(recovery, { name: who.name, playerId: who.playerId });
           return send(200, key ? { ...outcome, key } : outcome);
         } catch (error) {
           send(400, { error: error instanceof Error ? error.message : 'Bad request.' });

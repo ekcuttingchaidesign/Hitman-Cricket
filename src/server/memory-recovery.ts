@@ -1,4 +1,5 @@
 import type { StoredKey } from './career-key.js';
+import type { StoredAnswer, StoredPassword } from './career-password.js';
 import type { RecoveryStore } from './recovery-store.js';
 
 /**
@@ -12,8 +13,15 @@ import type { RecoveryStore } from './recovery-store.js';
 export function memoryRecovery(names = new Map<string, string>()): RecoveryStore & {
   names: Map<string, string>;
   keys: Map<string, StoredKey>;
+  passwords: Map<string, StoredPassword>;
+  questions: Map<string, StoredAnswer>;
+  listed: Set<string>;
 } {
   const keys = new Map<string, StoredKey>();
+  const passwords = new Map<string, StoredPassword>();
+  const questions = new Map<string, StoredAnswer>();
+  const listed = new Set<string>();
+  const searches = new Map<string, { count: number; until: number }>();
   const from = new Map<string, { count: number; until: number }>();
   const at = new Map<string, { count: number; until: number }>();
   const count = (held: Map<string, { count: number; until: number }>, of: string, windowSeconds: number) => {
@@ -29,10 +37,23 @@ export function memoryRecovery(names = new Map<string, string>()): RecoveryStore
   return {
     names,
     keys,
+    passwords,
+    questions,
+    listed,
     async keyFor(folded) { return keys.get(folded) ?? null; },
     async putKey(folded, held) { keys.set(folded, held); },
     async holderOf(folded) { return names.get(folded) ?? null; },
     async triesFrom(address, windowSeconds) { return count(from, address, windowSeconds); },
     async triesAt(folded, windowSeconds) { return count(at, folded, windowSeconds); },
+    async passwordOf(playerId) { return passwords.get(playerId) ?? null; },
+    async putPassword(playerId, held) { passwords.set(playerId, held); },
+    async questionOf(playerId) { return questions.get(playerId) ?? null; },
+    async putQuestion(playerId, held) { questions.set(playerId, held); },
+    async listName(entry) { listed.add(entry); },
+    // Sorted the way Redis sorts a set by its members: byte by byte.
+    async namesFrom(prefix, limit) {
+      return [...listed].filter(entry => entry.startsWith(prefix)).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).slice(0, limit);
+    },
+    async searchesFrom(address, windowSeconds) { return count(searches, address, windowSeconds); },
   };
 }

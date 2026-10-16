@@ -81,9 +81,15 @@ async function reach(phase, tries = 40) {
 const SIXES = Array(30).fill(6);
 await crease(true);
 await page.evaluate(balls => window.__cricket.blast(balls), SIXES);
+const firstSent = Date.now();
 await page.waitForTimeout(3500);
 check((await snap()).phase === 'INNINGS_END' && await page.locator('#end').isVisible(), 'a first Blast of 180 ends on the card');
 check((await levelling()) === null && await overlay.count() === 0, 'with no Level Up: 180 is still a DEBUTANT');
+// The store counts no innings inside ten seconds of the last (`MIN_INNINGS_MS`
+// in career-store.ts), and on a GPU two written Blasts come closer than that:
+// sent too soon, the second is not counted and nothing is climbed. Waited out
+// on the card, not at the crease, where the balls would come on their own.
+await page.waitForTimeout(Math.max(0, firstSent + 11_000 - Date.now()));
 await crease(false);
 await page.evaluate(balls => window.__cricket.blast(balls), SIXES);
 let up = false;

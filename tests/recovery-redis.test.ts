@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Redis } from '@upstash/redis';
 import { keepKey } from '../src/server/career-key';
 import { upstashRecovery } from '../src/server/upstash';
-import { restore } from '../src/server/recovery-store';
+import { restore, restoreWithPassword, setPassword } from '../src/server/recovery-store';
 
 /**
  * The adapter the deployed game actually uses.
@@ -18,6 +18,7 @@ import { restore } from '../src/server/recovery-store';
 function fakeRedis() {
   const hashes = new Map<string, Map<string, string>>();
   const counters = new Map<string, number>();
+  const sets = new Map<string, Set<string>>();
   const hash = (key: string) => hashes.get(key) ?? hashes.set(key, new Map()).get(key)!;
   /** What Upstash does on the way out, and the whole reason for this file. */
   const asUpstashWouldReturn = (raw: string | undefined) => {
@@ -53,9 +54,45 @@ function fakeRedis() {
         return next;
       },
       async expire() { return 1; },
+      // A sorted set whose scores are all 0, read BYLEX as Redis reads one:
+      // byte by byte, between an inclusive '[' bound and another.
+      async zadd(key: string, { member }: { member: string }) {
+        const set = sets.get(key) ?? sets.set(key, new Set()).get(key)!;
+        set.add(member);
+        return 1;
+      },
+      async zrange(key: string, min: string, max: string, opts: { byLex: true; offset: number; count: number }) {
+        const bytes = (s: string) => Buffer.from(s, 'utf8');
+        const from = bytes(min.slice(1)), to = bytes(max.slice(1));
+        return [...(sets.get(key) ?? [])].map(bytes).sort(Buffer.compare)
+          .filter(one => Buffer.compare(one, from) >= 0 && Buffer.compare(one, to) <= 0)
+          .slice(opts.offset, opts.offset + opts.count).map(one => asUpstashWouldReturn(one.toString('utf8')));
+      },
     } as unknown as Redis,
   };
 }
+
+describe('passwords in Redis', () => {
+  it('reads back a password it wrote, through Upstash’s own JSON handling', async () => {
+    const fake = fakeRedis();
+    const store = upstashRecovery(fake.redis);
+    await store.putKey('seed', keepKey('yorker-sprint-cover-47'));
+    fake.holds({ gauravrana: 'p-gaurav' });
+    await setPassword(store, { name: 'Gaurav Rana', playerId: 'p-gaurav', password: 'square-cut-9' });
+    expect(await restoreWithPassword(store, { name: 'Gaurav Rana', password: 'square-cut-9', address: '10.0.0.1' }))
+      .toEqual({ ok: true, playerId: 'p-gaurav' });
+  });
+
+  /** The bound past the prefix has to sort after every name that begins with it, accents and all. */
+  it('finds every name that begins with what was typed, and none that does not', async () => {
+    const fake = fakeRedis();
+    const store = upstashRecovery(fake.redis);
+    for (const entry of ['gauravrana Gaurav Rana', 'gaurav Gaurav', 'gaurav7 Gaurav7', 'gauri Gauri', 'gauravz Gaurav Zé', 'gaurb Gaurb']) {
+      await store.listName(entry);
+    }
+    expect(await store.namesFrom('gaurav', 10)).toEqual(['gaurav Gaurav', 'gaurav7 Gaurav7', 'gauravrana Gaurav Rana', 'gauravz Gaurav Zé']);
+  });
+});
 
 describe('career keys in Redis', () => {
   const at = { address: '10.0.0.1' };

@@ -83,3 +83,21 @@ export function profileDone(): boolean {
 export function markProfileDone() {
   try { localStorage.setItem(PROFILE, '1'); } catch { /* Then it asks again, and is answered again. */ }
 }
+
+const PASSWORD = 'hitman-password';
+/**
+ * Whether this browser knows its player has a career password: set here, used
+ * to restore here, or said so by the store. Only a known yes is kept; a no is
+ * asked of the store again on the next load, since another phone can set one.
+ */
+export function passwordKnown(): boolean {
+  try { return localStorage.getItem(PASSWORD) === '1'; } catch { return false; }
+}
+
+export function markPasswordKnown() {
+  try { localStorage.setItem(PASSWORD, '1'); } catch { /* Then the store is asked again next time. */ }
+}
+
+export function forgetPasswordKnown() {
+  try { localStorage.removeItem(PASSWORD); } catch { /* Nothing kept, nothing to forget. */ }
+}

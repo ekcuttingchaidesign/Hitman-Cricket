@@ -2,7 +2,7 @@ import {
   CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SURVIVE_LADDER, claimOnly, foldName, nameRefused,
 } from '../src/server/board-store.js';
 import { nameCareer } from '../src/server/career-store.js';
-import { carryKey, keyOnClaim } from '../src/server/recovery-store.js';
+import { carryKey, keyOnClaim, listOnClaim } from '../src/server/recovery-store.js';
 import {
   NoDatabase, redisFromEnv, upstashCareer, upstashRecovery, upstashStore,
 } from '../src/server/upstash.js';
@@ -69,6 +69,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       const recovery = upstashRecovery(redisFromEnv());
       await carryKey(recovery, { from: body.previous, to: foldName(name), playerId: who.playerId });
       key = await keyOnClaim(recovery, foldName(name));
+      // A new name is one a restore can find, where there is a password to type.
+      await listOnClaim(recovery, { name, playerId: who.playerId });
     } catch (error) {
       console.error('No career key was minted for the name.', error);
     }
