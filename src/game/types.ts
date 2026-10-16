@@ -76,6 +76,8 @@ export interface ShotOutcome {
   defended?: boolean;
   /** Feathered off the face of the bat and taken by the keeper. */
   edged?: boolean;
+  /** Off the inside edge onto his own pad: it drops dead at his feet. */
+  padded?: boolean;
   /** Which side of the ball it was played, where a rule read the sign. */
   side?: TimingSide;
   /** A ball that missed the bat and hit the batter instead. Survive only. */

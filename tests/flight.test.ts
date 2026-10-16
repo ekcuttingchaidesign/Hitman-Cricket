@@ -134,6 +134,11 @@ describe('the strokes that are placed rather than struck', () => {
     expect(flightOf(outcome({ defended: true })).distance).toBeLessThan(2.5);
   });
 
+  it('drops a cramped cut off the inside edge dead at his pad', () => {
+    const padded = flightOf(outcome({ padded: true, runs: 0 }));
+    expect(padded.distance).toBeLessThan(1.5); expect(padded.height).toBeLessThan(.2);
+  });
+
   it('sends the charge out of the ground', () => {
     const flight = flightOf(outcome({ advance: true, runs: 6 }));
     expect(flight.distance).toBeGreaterThan(70);

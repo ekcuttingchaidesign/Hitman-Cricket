@@ -627,10 +627,16 @@ slowed with it), it comes off the way it went on and down into his guard; the
 way back over the top of his head went through the helmet.
 Which lines suit it is `SPIN_CUT.fit` in `gameplay.ts`, read through `fitOf`
 in both resolvers in place of the cut's own column, which wants width: off and
-middle as well as outside off, leg less, and outside leg — the off break
-pitched round leg and turning on down it — under `SOLID_SHOT`, so it is edged
-however well it is timed: otherwise the cut was one swipe for every ball the
-spinner bowls and the turn need never be read. `?spin=1` gives the spinner
+middle as well as outside off, leg less. Outside leg — the off break pitched
+round leg and turning on down it — he is cramped (`crampedCut`, `cramped`,
+`SPIN_CUT.cramped`): the bat still comes across him to off, so the ball goes
+that way, along the ground and without the arms behind it — squeezed to point
+for one or two middled (one in a Test), a single or straight to point a shade
+under, off the inside edge onto his pad (`padded`, dead at his feet) worse,
+gloved behind three times in four when poor, and missed it goes on down the
+leg side and bowls nobody. Never a boundary, and out only when misread and
+mistimed: edged every time, it was too harsh, and cut for six it made the cut
+one swipe for every ball the spinner bowls, the turn never read. `?spin=1` gives the spinner
 every over; `?spincut=1` (`spinCutsEvery`) gives him every ball in any mode,
 all of his on every line, the outside-leg ball included, and is practice. It is `spinCut` in the batter tests' `PLAYS`, and
 `cover-drive.html` has it beside the drives and the hook.

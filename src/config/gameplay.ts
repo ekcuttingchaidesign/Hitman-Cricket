@@ -217,15 +217,29 @@ export const HOOK = {
  * long way for it, and the further he goes the more of the stumps he shows:
  * missed, a straight one bowls him. A ball that finishes outside leg — the
  * off break pitched round leg and turning on down it — is one step too far:
- * reaching across for a ball going away behind him, he only edges it
- * (`OUTSIDE_LEG` under `SOLID_SHOT`), so the cut is not one swipe for every
- * ball the spinner bowls and the turn still has to be read.
+ * it keeps coming into him as he backs away, and he is cramped (`cramped`),
+ * so the cut is not one swipe for every ball the spinner bowls and the turn
+ * still has to be read.
  *
  * `fit` is how well each line suits it, read where the turn leaves the ball,
  * in place of the cut's own column, which wants width.
  */
 export const SPIN_CUT = {
   fit: { OUTSIDE_LEG: 0.5, LEG: 0.85, MIDDLE: 1, OFF: 1, OUTSIDE_OFF: 1 } as Record<BallLine, number>,
+  /**
+   * Cut at the ball finishing outside leg. The bat still comes down across him
+   * to off, so whatever it meets goes that way, along the ground and without
+   * the arms behind it: middled it is squeezed off the bottom of the bat to
+   * point for one, or two (`two`); a shade under it is a single or straight
+   * to the man there (`single`); worse it comes off the inside edge onto his
+   * pad, dead; poor and it is gloved through to the keeper more often than
+   * not (`caught`). Missed, it goes by down the leg side, where it can bowl
+   * nobody. It never beats the field for four.
+   */
+  cramped: {
+    two: 0.35, single: 0.5, caught: 0.75,
+    feedback: { fielded: 'STRAIGHT TO POINT', padded: 'INSIDE EDGE', caught: 'GLOVED — CAUGHT BEHIND!', missed: 'PLAYED AND MISSED' },
+  },
 } as const;
 /**
  * The square cut. It is the one stroke that answers a bouncer outside off: the

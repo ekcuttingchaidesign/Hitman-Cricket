@@ -97,6 +97,7 @@ export function flightOf(outcome: ShotOutcome): Flight {
   }
   if (struckBody) return shape(2.4, 0.42, 640, 0.1);
   if (outcome.defended) return shape(1.9, 0.05, 700, 0.1);
+  if (outcome.padded) return shape(1.2, 0.1, 560, 0.1);
   if (outcome.edged) return shape(1.6, 0.18, 460, 0.42);
   if (toAFielder) {
     // Far enough out to need a fielder, near enough that the take happens where

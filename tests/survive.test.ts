@@ -36,6 +36,27 @@ const at = (delta: number, shotType: Parameters<typeof resolveSurvive>[1] extend
   ({ shotType, inputTimeMs: 600 + delta });
 
 /**
+ * The cut off the spinner at a ball finishing outside leg: cramped, and in this
+ * mode a single at the very most.
+ */
+describe('the cramped cut off the spinner', () => {
+  const wide = (style: DeliveryStyle = 'OFF_SPIN') => ball(style, { line: 'LEG', baseTargetX: -.14, finalTargetX: -.42 });
+  it('is a single middled, never more, and gloved behind when poor', () => {
+    for (const style of ['OFF_SPIN', 'ARM_BALL'] as const) {
+      const middled = resolveSurvive(wide(style), at(0, 'SQUARE_CUT'), rolls(0));
+      expect(middled.runs, style).toBe(1); expect(middled.isWicket).toBe(false);
+      const grades = [0, 30, 60, 100, 140].flatMap(delta => [0, .99].map(roll => resolveSurvive(wide(style), at(delta, 'SQUARE_CUT'), rolls(roll))));
+      expect(Math.max(...grades.map(shot => shot.runs)), style).toBe(1);
+      expect(grades.some(shot => shot.padded), style).toBe(true);
+      const gloved = grades.find(shot => shot.isWicket);
+      expect(gloved?.wicketType, style).toBe('CAUGHT'); expect(gloved?.edged).toBe(true);
+      // Never bowled, stumped or hurt: it is going on down the leg side.
+      expect(grades.every(shot => !shot.hit && (!shot.isWicket || shot.wicketType === 'CAUGHT')), style).toBe(true);
+    }
+  });
+});
+
+/**
  * The hook in this mode: the cut's ladder at the cut's ball, and its own two
  * ways out — up off the top edge early, the glove late.
  */

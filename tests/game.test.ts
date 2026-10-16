@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, FLAT_SWEEP, GAME, HOOK, SPIN_CUT, LINES, LINE_X, QUICK_STYLES, SCOOP, SHOTS, SHOT_ANGLES, SOLID_SHOT, SPIN_BOWLING, SQUARE_DRIVE, STYLES, SWEEP } from '../src/config/gameplay';
+import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, FLAT_SWEEP, GAME, HOOK, SPIN_CUT, LINES, LINE_X, QUICK_STYLES, SCOOP, SHOTS, SHOT_ANGLES, SPIN_BOWLING, SQUARE_DRIVE, STYLES, SWEEP } from '../src/config/gameplay';
 import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
@@ -10,7 +10,7 @@ import { resolveSurvive } from '../src/game/Survive';
 import { mapKeys, mapSwipe } from '../src/game/InputManager';
 import { ScoreManager } from '../src/game/ScoreManager';
 import { SeededRandom } from '../src/game/SeededRandom';
-import { advanceShot, chargeable, cuttable, fitOf, gradeOf, gradeTiming, hookable, playedAs, spinCut, resolveShot, scoopLine, scoopShot, scoopable, slogSweep, squareDrivable, sweepable, sweeps, turningIn } from '../src/game/ShotResolver';
+import { advanceShot, chargeable, crampedCut, cuttable, fitOf, gradeOf, gradeTiming, hookable, playedAs, spinCut, resolveShot, scoopLine, scoopShot, scoopable, slogSweep, squareDrivable, sweepable, sweeps, turningIn } from '../src/game/ShotResolver';
 import type { Delivery, ShotOutcome, ShotType } from '../src/game/types';
 const delivery = (changes: Partial<Delivery> = {}): Delivery => ({ line: 'MIDDLE', style: 'NORMAL', speedKph: 125, baseTargetX: 0, finalTargetX: 0, bounceZ: GAME.bounceZ, rise: GAME.rise, durationMs: 1000, releaseTimeMs: 0, idealContactTimeMs: 1000, ...changes });
 const rng = (value: number) => ({ next: () => value });
@@ -989,14 +989,37 @@ describe('the cut off the spinner', () => {
     const missed = cutAt(spinner('OFF_SPIN', .42, .03), 400);
     expect(missed.isWicket).toBe(true); expect(missed.wicketType).toBe('BOWLED');
   });
-  it('edges the ball finishing outside leg however well it is timed: too far to go for it', () => {
+  it('is cramped at the ball finishing outside leg: squeezed to point at best, gloved behind when poor', () => {
     for (const style of ['OFF_SPIN', 'ARM_BALL'] as const) {
-      const wide = cutAt(spinner(style, -.14, LINE_X.OUTSIDE_LEG));
-      expect(wide.isWicket, style).toBe(true); expect(wide.edged, style).toBe(true);
+      const wide = spinner(style, -.14, LINE_X.OUTSIDE_LEG);
+      expect(crampedCut(wide, { shotType: 'SQUARE_CUT' }), style).toBe(true);
+      // Middled: one or two, never a boundary, along the ground the way the bat goes.
+      const middled = [0, .2, .5, .99].map(roll => cutAt(wide, 0, roll));
+      for (const shot of middled) {
+        expect(shot.isWicket, style).toBe(false); expect(shot.aerial).toBe(false);
+        expect([1, 2]).toContain(shot.runs);
+      }
+      expect(new Set(middled.map(shot => shot.runs))).toEqual(new Set([1, 2]));
+      // A shade under: a single, or straight to point.
+      expect([0, .99].map(roll => cutAt(wide, 60, roll).runs)).toEqual([1, 0]);
+      // Worse: off the inside edge onto the pad, dead.
+      const padded = cutAt(wide, 100);
+      expect(padded.padded).toBe(true); expect(padded.runs).toBe(0); expect(padded.isWicket).toBe(false);
+      // Poor: gloved through to the keeper more often than not.
+      const gloved = cutAt(wide, 170, 0), lucky = cutAt(wide, 170, .99);
+      expect(gloved.isWicket).toBe(true); expect(gloved.edged).toBe(true); expect(gloved.wicketType).toBe('CAUGHT');
+      expect(lucky.isWicket).toBe(false); expect(lucky.padded).toBe(true);
+      // Missed, it goes on down the leg side: it can bowl nobody.
+      const missed = cutAt(wide, 400);
+      expect(missed.isWicket).toBe(false); expect(missed.madeBatContact).toBe(false);
     }
-    expect(SPIN_CUT.fit.OUTSIDE_LEG).toBeLessThan(SOLID_SHOT);
     // Every other line the turn leaves him is his to cut for six.
-    for (const line of LINES.filter(line => line !== 'OUTSIDE_LEG')) expect(cutAt(spinner('OFF_SPIN', .42, LINE_X[line])).runs, line).toBe(6);
+    for (const line of LINES.filter(line => line !== 'OUTSIDE_LEG')) {
+      expect(crampedCut(spinner('OFF_SPIN', .42, LINE_X[line]), { shotType: 'SQUARE_CUT' }), line).toBe(false);
+      expect(cutAt(spinner('OFF_SPIN', .42, LINE_X[line])).runs, line).toBe(6);
+    }
+    // And the cut at a quick down the leg side is not this.
+    expect(crampedCut(delivery({ finalTargetX: LINE_X.OUTSIDE_LEG }), { shotType: 'SQUARE_CUT' })).toBe(false);
   });
   it('is every ball on `?spincut=1`, in every mode: all of the spinner\'s, on every line', () => {
     for (const plan of [CLASSIC_PLAN, SURVIVE_PLAN, MARATHON_PLAN]) {

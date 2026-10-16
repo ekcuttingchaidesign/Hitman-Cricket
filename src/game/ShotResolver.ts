@@ -42,6 +42,37 @@ export function spinCut(delivery: Delivery, attempt: Pick<ShotAttempt, 'shotType
   return attempt?.shotType === 'SQUARE_CUT' && spun(delivery);
 }
 /** How well this stroke suits the line this ball finishes on: the table's, but the spinner's cut its own. */
+/**
+ * The cut off the spinner at a ball finishing outside leg, which keeps coming
+ * into him as he backs away: see `SPIN_CUT.cramped`.
+ */
+export function crampedCut(delivery: Delivery, attempt: Pick<ShotAttempt, 'shotType'> | null) {
+  return spinCut(delivery, attempt) && effectiveLine(delivery) === 'OUTSIDE_LEG';
+}
+/**
+ * What a cramped cut comes to, off the grade of whichever mode is playing it.
+ * The most it is worth is `best`: one or two in the Blast, one in a Test.
+ */
+export function cramped(outcome: ShotOutcome, rng: { next(): number }, best: 1 | 2): ShotOutcome {
+  const { cramped: rules } = SPIN_CUT, said = rules.feedback;
+  const padded = { ...outcome, runs: 0 as const, madeBatContact: true, padded: true, feedback: said.padded };
+  switch (outcome.timingGrade) {
+    case 'PERFECT': {
+      const runs = best === 2 && rng.next() < rules.two ? 2 : 1;
+      return { ...outcome, runs, madeBatContact: true, feedback: award(runs) };
+    }
+    case 'GOOD':
+      return rng.next() < rules.single
+        ? { ...outcome, runs: 1, madeBatContact: true, feedback: award(1) }
+        : { ...outcome, runs: 0, madeBatContact: true, feedback: said.fielded };
+    case 'OK': return padded;
+    case 'POOR':
+      return rng.next() < rules.caught
+        ? { ...outcome, runs: 0, madeBatContact: true, edged: true, isWicket: true, wicketType: 'CAUGHT', feedback: said.caught }
+        : padded;
+    default: return { ...outcome, runs: 0, madeBatContact: false, feedback: said.missed };
+  }
+}
 export function fitOf(delivery: Delivery, shot: ShotType) {
   const line = effectiveLine(delivery);
   return shot === 'SQUARE_CUT' && spun(delivery) ? SPIN_CUT.fit[line] : COMPATIBILITY[line][shot];
@@ -375,6 +406,8 @@ export function resolveShot(
     const lbw = Math.abs(delivery.finalTargetX) < 0.12 && rng.next() < GAME.lbwChance;
     return { ...outcome, madeBatContact: false, isWicket: true, wicketType: lbw ? 'LBW' : 'BOWLED', feedback: lbw ? 'LBW!' : 'BOWLED!' };
   }
+  // Cut at the spinner's ball going on down the leg side: cramped.
+  if (crampedCut(delivery, attempt)) return cramped(outcome, rng, 2);
   // Wide of off and full: the half-volley. Until now this was the one ball in
   // the game with no stroke worth full value — the cut owns the wide line but
   // only answers a short ball, so a full one left the drive's 0.9 as the

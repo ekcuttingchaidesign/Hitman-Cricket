@@ -4,7 +4,7 @@ import {
 } from '../config/survive.js';
 import { ballPosition, stumpIntersection } from './DeliveryTrajectory.js';
 import { spun } from './DeliveryGenerator.js';
-import { fitOf, gradeTiming, hookable, squareDrive, sweeps } from './ShotResolver.js';
+import { cramped, crampedCut, fitOf, gradeTiming, hookable, squareDrive, sweeps } from './ShotResolver.js';
 
 export { spun };
 import type { BodyPart, Delivery, Ending, ShotAttempt, ShotOutcome, TimingSide } from './types.js';
@@ -408,6 +408,9 @@ export function surviveBall(
 
   if (attempt.shotType === 'DEFEND') return defended(base, delivery, contact, delta, rng, skill.bands.clean);
   if (delivery.style === 'SHORT') return shortBall(base, delivery, attempt.shotType, contact, rng);
+  // The cut at the spinner's ball going on down the leg side: cramped, and a
+  // single at the most off this mode's grade. See `SPIN_CUT.cramped`.
+  if (crampedCut(delivery, attempt)) return cramped(base, rng, 1);
 
   // Middled: bat on ball, and a stroke the line actually allowed. The grade
   // still names it, but only the top two grades are worth anything real —

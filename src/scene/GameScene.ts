@@ -1045,11 +1045,11 @@ export class GameScene {
     // happen directly behind the bowler where nothing can be seen of it.
     if ((caught || toAFielder) && Math.abs(angle) < 0.2) angle = 0.22;
     // A ball off the body drops away on the leg side, at his feet.
-    if (struckBody) angle = -0.85;
+    if (struckBody || outcome.padded) angle = -0.85;
     // Along the ground and into the field: never between a fielder's boots.
     // Turned the least it takes to pass him by a stride and a half, which is
     // close enough that he dives for it and it beats him.
-    const along = outcome.madeBatContact && !outcome.aerial && !caught && !outcome.edged && !playedOn && !outcome.defended
+    const along = outcome.madeBatContact && !outcome.aerial && !caught && !outcome.edged && !playedOn && !outcome.defended && !outcome.padded
       && !struckBody && !outcome.advance && flight.height < 1 && outcome.runs >= 1;
     if (along) angle = this.field.clear(this.hitStart, angle, flight.distance);
     this.gathered = false;
