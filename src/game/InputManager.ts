@@ -1,4 +1,4 @@
-import { GAME, HOOK, SCOOP } from '../config/gameplay';
+import { GAME, HOOK, LATE_CUT, SCOOP } from '../config/gameplay';
 import type { ShotType } from './types';
 /**
  * The three shot keys, with the arrow keys as the same three. Normalising here
@@ -27,9 +27,10 @@ export function mapKeys(keys: string[]): ShotType | null {
   // Defence beats anything it is pressed with: a player reaching for the block
   // has decided not to play a stroke.
   // The block, or with a side key inside the combo window, the scoop that side:
-  // the keyboard's two downward diagonals. Without the meter to spend they
-  // are played as the block they would have been — see `playedAs`. At a
-  // bouncer he can hook, the first of them is the hook, meter or none.
+  // the keyboard's two downward diagonals. Without the meter to spend the
+  // leg-side one is played as the block it would have been and the off-side
+  // one as the late cut — see `playedAs`. At a bouncer he can hook, the first
+  // of them is the hook, meter or none.
   if (normalized.includes('S')) return normalized.includes('A') ? 'SCOOP' : normalized.includes('D') ? 'REVERSE_SCOOP' : 'DEFEND';
   if (normalized.includes('A') && normalized.includes('W')) return 'LONG_ON';
   if (normalized.includes('W') && normalized.includes('D')) return 'COVER_LONG_OFF';
@@ -64,6 +65,9 @@ export function mapSwipe(dx: number, dy: number, coverLean = 0, scoops = false, 
   // and to leg the scoop, down and to off the reverse. Straight down is still
   // the block, and the fan above them is untouched.
   if (scoops && Math.abs(angle) >= SCOOP.sector.from && Math.abs(angle) <= SCOOP.sector.to) return angle < 0 ? 'SCOOP' : 'REVERSE_SCOOP';
+  // Without one, down and to off is the late cut, an ordinary stroke: the
+  // cut keeps the swipe above it and the block straight down.
+  if (angle >= LATE_CUT.sector.from && angle <= LATE_CUT.sector.to) return 'LATE_CUT';
   if (Math.abs(angle) >= 135) return 'DEFEND';
   // On a ball he can charge, the cover and long-on sectors each reach a few
   // degrees further towards vertical. Those two charges are asked for with a

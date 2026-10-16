@@ -4,7 +4,7 @@ import {
 } from '../config/survive.js';
 import { ballPosition, stumpIntersection } from './DeliveryTrajectory.js';
 import { spun } from './DeliveryGenerator.js';
-import { cramped, crampedCut, fitOf, gradeTiming, hookable, squareDrive, sweeps } from './ShotResolver.js';
+import { cramped, crampedCut, fitOf, gradeTiming, hookable, lateCut, lateCutMeets, squareDrive, sweeps } from './ShotResolver.js';
 
 export { spun };
 import type { BodyPart, Delivery, Ending, ShotAttempt, ShotOutcome, TimingSide } from './types.js';
@@ -411,6 +411,11 @@ export function surviveBall(
   // The cut at the spinner's ball going on down the leg side: cramped, and a
   // single at the most off this mode's grade. See `SPIN_CUT.cramped`.
   if (crampedCut(delivery, attempt)) return cramped(base, rng, 1);
+  // The late cut: this mode's grade on the stroke's own ladder. Missed, or
+  // across the stumps, he is beaten like any other stroke.
+  if (attempt.shotType === 'LATE_CUT') {
+    return lateCutMeets(base) ? lateCut(base, rng, true) : beaten({ ...base, feedback: 'PLAYED AND MISSED' }, delivery, rng);
+  }
 
   // Middled: bat on ball, and a stroke the line actually allowed. The grade
   // still names it, but only the top two grades are worth anything real —

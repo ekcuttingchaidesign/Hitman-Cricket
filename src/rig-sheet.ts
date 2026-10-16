@@ -1,7 +1,7 @@
 // Offline rig contact sheet: every stroke sampled across its own clock from a
 // chosen camera, tiled into one canvas for frame-by-frame review. Dev tool.
 import * as THREE from 'three';
-import { Batter, CHARGE_MEETS_AT, HOOK_MEETS_AT, ON_DRIVE_MEETS_AT, STROKE_DURATION_MS } from './entities/Batter';
+import { Batter, CHARGE_MEETS_AT, HOOK_MEETS_AT, LATE_CUT_MEETS_AT, ON_DRIVE_MEETS_AT, STROKE_DURATION_MS } from './entities/Batter';
 import { GAME } from './config/gameplay';
 
 const params = new URLSearchParams(location.search);
@@ -36,7 +36,7 @@ const eye = view === 'front' ? new THREE.Vector3(GAME.stanceX - .1, 1.25, GAME.s
   : new THREE.Vector3(GAME.stanceX + 4.4, 1.35, GAME.stanceZ + .3);
 camera.position.copy(eye); camera.lookAt(focus);
 
-const ballFor = (s: string): {shot: 'STRAIGHT'|'COVER_LONG_OFF'|'LEG'|'SQUARE_CUT'|'LONG_ON'|'SCOOP'|'REVERSE_SCOOP'|'HOOK'; x: number; y: number; lofted?: boolean; sweeping?: boolean; levelled?: boolean; spinCut?: boolean} => s === 'PULL' ? { shot: 'LEG' as const, x: -.30, y: 1.12 }
+const ballFor = (s: string): {shot: 'STRAIGHT'|'COVER_LONG_OFF'|'LEG'|'SQUARE_CUT'|'LONG_ON'|'SCOOP'|'REVERSE_SCOOP'|'HOOK'|'LATE_CUT'; x: number; y: number; lofted?: boolean; sweeping?: boolean; levelled?: boolean; spinCut?: boolean} => s === 'PULL' ? { shot: 'LEG' as const, x: -.30, y: 1.12 }
   : s === 'SLOG_SWEEP' ? { shot: 'LEG' as const, x: 0, y: .48, sweeping: true }
   : s === 'FLAT_SWEEP' ? { shot: 'LEG' as const, x: 0, y: .48, levelled: true }
   : s === 'SQUARE_DRIVE' ? { shot: 'COVER_LONG_OFF' as const, x: .42, y: .30 }
@@ -48,6 +48,8 @@ const ballFor = (s: string): {shot: 'STRAIGHT'|'COVER_LONG_OFF'|'LEG'|'SQUARE_CU
   : s === 'SPIN_CUT' ? { shot: 'SQUARE_CUT' as const, x: 0, y: .54, spinCut: true }
   : s === 'SPIN_CUT_LEG' ? { shot: 'SQUARE_CUT' as const, x: -.19, y: .54, spinCut: true }
   : s === 'HOOK' ? { shot: 'HOOK' as const, x: .42, y: 1.134 }
+  : s === 'LATE_CUT' ? { shot: 'LATE_CUT' as const, x: .30, y: .56 }
+  : s === 'LATE_CUT_OFF' ? { shot: 'LATE_CUT' as const, x: .14, y: .56 }
   : s === 'HOOK_OFF' ? { shot: 'HOOK' as const, x: .14, y: 1.134 }
   : s === 'LOFTED' ? { shot: 'STRAIGHT' as const, x: 0, y: .54, lofted: true }
   : s === 'ON_LOFT' ? { shot: 'LONG_ON' as const, x: -.2, y: .54, lofted: true }
@@ -68,7 +70,7 @@ for (let i = 0; i < frames; i++) {
   const age = times ? times[i] : shot.endsWith('CHARGE') || shot.endsWith('SCOOP') ? i / (frames - 1) * total
     : i / (frames - 1) <= .75 ? (i / (frames - 1)) / .75 * 620 : 620 + ((i / (frames - 1)) - .75) / .25 * (total - 620);
   batter.reset(); batter.prepare(1); batter.update(0);
-  batter.swing(spec.shot, 0, spec.x, spec.y, GAME.contactZ + (shot.endsWith('CHARGE') ? CHARGE_MEETS_AT : spec.shot === 'LONG_ON' ? ON_DRIVE_MEETS_AT : spec.shot === 'HOOK' ? HOOK_MEETS_AT : 0), shot.endsWith('CHARGE'), spec.lofted ?? false, spec.sweeping ?? false, spec.levelled ?? false, 2, spec.spinCut ?? false);
+  batter.swing(spec.shot, 0, spec.x, spec.y, GAME.contactZ + (shot.endsWith('CHARGE') ? CHARGE_MEETS_AT : spec.shot === 'LONG_ON' ? ON_DRIVE_MEETS_AT : spec.shot === 'HOOK' ? HOOK_MEETS_AT : spec.shot === 'LATE_CUT' ? LATE_CUT_MEETS_AT : 0), shot.endsWith('CHARGE'), spec.lofted ?? false, spec.sweeping ?? false, spec.levelled ?? false, 2, spec.spinCut ?? false);
   batter.update(age);
   batter.drape(); renderer.render(scene, camera);
   const col = i % COLS, row = Math.floor(i / COLS);

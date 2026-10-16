@@ -461,7 +461,8 @@ An innings played from a link carrying a switch that changes the game —
 `?nets=1`, `?settled=1`, `?swing=1`, `?express=1`, `?reverse=1`, `?round=1`,
 `?wear=fast`, `?spin=1`, `?charge=…`, `?slowmo=…`, `?bouncers=1`, `?hooks=1`
 (every ball a bouncer on off stump or wider, the hook's ball), `?spincut=1`
-(every ball the spinner's, for the cut off him), `?cover=1`
+(every ball the spinner's, for the cut off him), `?latecut=1` (every ball
+pace outside off, for the late cut), `?cover=1`
 (every ball the cover drive's own: a stock ball pitched up on off stump),
 `?coverv=1`, `2` or `3` (always that version of the cover strokes), or the
 preview builds' `VITE_SPIN_ONLY` and `VITE_CHARGE_ONLY` — is practice
@@ -542,8 +543,8 @@ keys' S and A — which is free at a bouncer because no special stroke is
 played at one: `mapSwipe` reads that swipe as the hook while such a ball is
 on its way (the input's `hooks`), S waits for its partner key there as it
 does with a meter, and `playedAs` turns the keys' scoop into the hook at that
-ball and a hook at any other into the block. Down and to off is still the cut
-and the block.
+ball and a hook at any other into the block. Down and to off is still the cut,
+the late cut and the block.
 
 He goes back and across first (`HOOK_LOAD_MS`), the back foot over towards
 off stump and the front one drawn back and opened, the bat high over the back
@@ -640,6 +641,44 @@ one swipe for every ball the spinner bowls, the turn never read. `?spin=1` gives
 every over; `?spincut=1` (`spinCutsEvery`) gives him every ball in any mode,
 all of his on every line, the outside-leg ball included, and is practice. It is `spinCut` in the batter tests' `PLAYS`, and
 `cover-drive.html` has it beside the drives and the hook.
+
+## The late cut
+
+The late cut (`'LATE_CUT'`, `LATE_CUT` in `src/entities/Batter.ts` and
+`src/config/gameplay.ts`) is an ordinary stroke, no meter, in every mode, at
+pace or spin: the swipe down and to off (`LATE_CUT.sector`, narrower than the
+reverse scoop's so that a cut swipe curling down as a thumb does is still the
+cut; straight down is still the block), or D and S together, D first — S
+alone commits the block at once. With a full meter, at a ball that can be
+scooped, that diagonal is still the reverse scoop; anywhere else `playedAs`
+turns the reverse scoop's input into the late cut where it used to be the
+block.
+
+Built from a coaching film shot from in front, square on the off side and
+from the bowler's end. The back foot goes a long way back towards the stumps
+and across towards off (`LATE_CUT_LOAD_MS`), and he sinks on it until the back
+knee is nearly on the turf, the front leg left where it was, bent, its knee
+sent forward over its foot rather than out to off as a standing knee is (it
+rose to his hips where the bat comes down). The bat is held high while he
+goes down and comes down late and steep, the hands out at his hip, the front
+elbow ridden up on `leadElbow` as the drives' is, to meet the ball beside the
+back pad at `LATE_CUT_CONTACT_MS`, `LATE_CUT_MEETS_AT` behind where every
+other stroke meets it, with the face open to third man (`riding`, turned once,
+on the way down). Not struck: the blade goes on down until the toe points at
+the turf behind him, held there with his head down over the hands
+(`LATE_CUT_CLOCK`), then lifted out towards point, clear of the back arm, as
+he gets up into his guard.
+
+It wants a ball going past off stump (`COMPATIBILITY`'s `LATE_CUT` column):
+across one on the stumps he misses it and is bowled. On its ball timing names
+it (`lateCut` in `ShotResolver.ts`, both resolvers): middled four along the
+ground to third man (`SHOT_ANGLES.LATE_CUT`), never six; a shade under two or
+three (a single or two in a Test, where nobody runs three); held back one or
+two (one); poor off the edge to the keeper three times in four, else a thick
+edge for a single. A bouncer goes through to the keeper. `?latecut=1`
+(`lateCutsEvery`) bowls nothing but pace aimed at off stump or wider, in any
+mode, and is practice. It is `lateCut` in the batter tests' `PLAYS`, and
+`cover-drive.html` has it beside the drives, the hook and the spinner's cut.
 
 ## A newcomer's first innings
 

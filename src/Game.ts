@@ -14,7 +14,7 @@ import { Health } from './game/Health';
 import { TAILENDER, endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { EASE, easeFor, easedSkill, easedWindows, notePlayed, playedIn, seedPlayed } from './game/newcomer';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SURVIVE_PLAN, bouncersEvery, spinCutsEvery, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SURVIVE_PLAN, bouncersEvery, lateCutsEvery, spinCutsEvery, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -24,7 +24,7 @@ import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
-import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, coverRoll, coverVersionOf, type Celebration, celebrationLength } from './entities/Batter';
+import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, LATE_CUT_MEETS_AT, coverRoll, coverVersionOf, type Celebration, celebrationLength } from './entities/Batter';
 import { advanceShot, gradeOf, hookable, loftedDrive, playedAs, spinCut, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
@@ -1924,6 +1924,8 @@ export class Game {
    * trying the cut off the spinner every ball. See `spinCutsEvery`.
    */
   private spinCutsOnly = new URLSearchParams(location.search).get('spincut') === '1';
+  /** `?latecut=1`: every ball the late cut's, pitched up outside off. See `lateCutsEvery`. */
+  private lateCutsOnly = new URLSearchParams(location.search).get('latecut') === '1';
   /**
    * `?swing=1` and `?express=1`, in a Marathon: the Level 2 swing bowler, the
    * Level 3 express bowler, or the two of them, from the first over — so each
@@ -1969,6 +1971,7 @@ export class Game {
     const plan = this.surviving ? SURVIVE_PLAN : this.marathoning ? MARATHON_PLAN : CLASSIC_PLAN;
     if (this.bouncersOnly || this.hooksOnly) return bouncersEvery(plan, this.hooksOnly);
     if (this.spinCutsOnly) return spinCutsEvery(plan);
+    if (this.lateCutsOnly) return lateCutsEvery(plan);
     if (!this.spinOnly || !plan.spin) return plan;
     // Every over his, from the first: `spinOvers` always gives him `notBefore`
     // and draws the rest from what follows, so asking for all of them from
@@ -2121,7 +2124,7 @@ export class Game {
     // The hook meets it out in front of him, arms long, so it climbs away over
     // him to fine leg rather than through him.
     const ahead = driven && version === 3 ? COVER_V3_MEETS_AT : shotType === 'LONG_ON' && !charging ? ON_DRIVE_MEETS_AT
-      : shotType === 'HOOK' ? HOOK_MEETS_AT : 0;
+      : shotType === 'HOOK' ? HOOK_MEETS_AT : shotType === 'LATE_CUT' ? LATE_CUT_MEETS_AT : 0;
     this.meetsAt = 1 - ahead / (GAME.releaseZ - GAME.contactZ);
     // Versions two and three keep it down: four, never six (`grounded`).
     if (driven && version >= 2) this.attempt = { ...this.attempt, grounded: true };

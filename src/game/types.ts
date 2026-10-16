@@ -5,7 +5,7 @@ export type DeliveryStyle = 'NORMAL' | 'FAST' | 'EXPRESS' | 'YORKER' | 'SHORT' |
  * special strokes that only a full meter buys, played off the two downward
  * diagonals and never chosen for you.
  */
-export type ShotType = 'LEG' | 'LONG_ON' | 'STRAIGHT' | 'COVER_LONG_OFF' | 'SQUARE_CUT' | 'DEFEND' | 'SCOOP' | 'REVERSE_SCOOP' | 'HOOK';
+export type ShotType = 'LEG' | 'LONG_ON' | 'STRAIGHT' | 'COVER_LONG_OFF' | 'SQUARE_CUT' | 'DEFEND' | 'SCOOP' | 'REVERSE_SCOOP' | 'HOOK' | 'LATE_CUT';
 export type TimingGrade = 'PERFECT' | 'GOOD' | 'OK' | 'POOR' | 'MISS';
 export type WicketType = 'BOWLED' | 'LBW' | 'CAUGHT' | 'STUMPED';
 /**
@@ -78,6 +78,8 @@ export interface ShotOutcome {
   edged?: boolean;
   /** Off the inside edge onto his own pad: it drops dead at his feet. */
   padded?: boolean;
+  /** Late cut and met: run down along the ground to third man, or edged behind. */
+  lateCut?: boolean;
   /** Which side of the ball it was played, where a rule read the sign. */
   side?: TimingSide;
   /** A ball that missed the bat and hit the batter instead. Survive only. */

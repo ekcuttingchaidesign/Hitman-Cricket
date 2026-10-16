@@ -6,7 +6,7 @@ describe('swipe directions', () => {
   it.each([
     [-80, 0, 'LEG'], [-60, -60, 'LONG_ON'], [0, -80, 'STRAIGHT'], [60, -60, 'COVER_LONG_OFF'], [80, 0, 'SQUARE_CUT'],
     // Down is the block, on a 90-degree fan so a hurried drag still finds it.
-    [0, 80, 'DEFEND'], [-60, 60, 'DEFEND'], [60, 60, 'DEFEND'], [-20, 75, 'DEFEND'],
+    [0, 80, 'DEFEND'], [-60, 60, 'DEFEND'], [60, 60, 'LATE_CUT'], [-20, 75, 'DEFEND'],
     // There is no dead ground between the outer sectors and the block's fan. A
     // thumb flicking sideways across a phone arcs downward as it goes, and these
     // two used to play nothing at all — which is what a player reported as the
@@ -39,8 +39,9 @@ describe('swipe directions', () => {
     expect(mapSwipe(0, 80, 0, true)).toBe('DEFEND'); expect(mapSwipe(-20, 80, 0, true)).toBe('DEFEND'); expect(mapSwipe(20, 80, 0, true)).toBe('DEFEND');
     expect(mapSwipe(-80, 25, 0, true)).toBe('LEG'); expect(mapSwipe(80, 25, 0, true)).toBe('SQUARE_CUT');
     expect(mapSwipe(0, -80, 0, true)).toBe('STRAIGHT');
-    // Without the meter the same gestures are what they always were.
-    expect(mapSwipe(-60, 60)).toBe('DEFEND'); expect(mapSwipe(60, 60)).toBe('DEFEND');
+    // Without the meter down and to leg is the block it always was, and down
+    // and to off the late cut.
+    expect(mapSwipe(-60, 60)).toBe('DEFEND'); expect(mapSwipe(60, 60)).toBe('LATE_CUT');
     expect(mapSwipe(-69, 40)).toBe('LEG'); expect(mapSwipe(69, 40)).toBe('SQUARE_CUT');
   });
   it('keeps a useful tolerance around the cardinal directions', () => {
@@ -56,11 +57,14 @@ describe('swipe directions', () => {
       expect(mapSwipe(x, y), `${angle} degrees`).not.toBeNull();
     }
   });
-  it('gives the cut the whole off-side sector, and the block its whole fan', () => {
-    // One flick out to the off is the cut, with the same tolerance as the rest.
-    for (const [x, y] of [[80, 0], [70, -25], [70, 25]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('SQUARE_CUT');
-    // And nothing has been taken out of the block's fan to pay for it.
-    for (const [x, y] of [[0, 80], [-40, 80], [40, 80], [-70, 70], [70, 70]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('DEFEND');
+  it('gives the cut the whole off-side sector, the late cut the diagonal under it, and the block the rest of its fan', () => {
+    // One flick out to the off is the cut, with the same tolerance as the rest,
+    // and one that curls down as a thumb does is still the cut.
+    for (const [x, y] of [[80, 0], [70, -25], [70, 25], [69, 40], [60, 30]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('SQUARE_CUT');
+    // Down and to off is the late cut, and only that diagonal.
+    for (const [x, y] of [[70, 70], [60, 60], [40, 80], [80, 60]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('LATE_CUT');
+    // Straight down and down to leg are the block's still.
+    for (const [x, y] of [[0, 80], [-40, 80], [20, 80], [-70, 70]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('DEFEND');
   });
 });
 

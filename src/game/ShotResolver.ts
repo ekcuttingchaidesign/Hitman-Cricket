@@ -1,4 +1,4 @@
-import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, GAME, GROUND_RUNS, HOOK, SCOOP, SOLID_SHOT, SPIN_CUT, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
+import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, GAME, GROUND_RUNS, HOOK, LATE_CUT, SCOOP, SOLID_SHOT, SPIN_CUT, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory';
 import { spun } from './DeliveryGenerator';
 import type { Delivery, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './types';
@@ -71,6 +71,30 @@ export function cramped(outcome: ShotOutcome, rng: { next(): number }, best: 1 |
         ? { ...outcome, runs: 0, madeBatContact: true, edged: true, isWicket: true, wicketType: 'CAUGHT', feedback: said.caught }
         : padded;
     default: return { ...outcome, runs: 0, madeBatContact: false, feedback: said.missed };
+  }
+}
+/**
+ * Whether a late cut gets bat on this ball: played in time, at a ball going
+ * past off stump. Across one on the stumps he is beaten, whatever the timing.
+ */
+export function lateCutMeets(outcome: Pick<ShotOutcome, 'timingGrade' | 'compatibility'>) {
+  return outcome.timingGrade !== 'MISS' && outcome.compatibility >= LATE_CUT.minFit;
+}
+/**
+ * What a late cut that met the ball comes to, off the grade of whichever mode
+ * is playing it: see `LATE_CUT`. In a Test nobody runs three.
+ */
+export function lateCut(outcome: ShotOutcome, rng: { next(): number }, test: boolean): ShotOutcome {
+  const met = { ...outcome, madeBatContact: true, lateCut: true };
+  const ran = (runs: ShotOutcome['runs']) => ({ ...met, runs, feedback: award(runs) });
+  switch (outcome.timingGrade) {
+    case 'PERFECT': return { ...met, runs: 4, quality: 1, feedback: LATE_CUT.feedback.four };
+    case 'GOOD': return test ? ran(rng.next() < .5 ? 2 : 1) : ran(rng.next() < LATE_CUT.good.three ? 3 : 2);
+    case 'OK': return test ? ran(1) : ran(rng.next() < LATE_CUT.ok.two ? 2 : 1);
+    default:
+      return rng.next() < LATE_CUT.caught
+        ? { ...met, runs: 0, edged: true, isWicket: true, wicketType: 'CAUGHT', feedback: LATE_CUT.feedback.caught }
+        : { ...met, runs: 1, feedback: LATE_CUT.feedback.edged };
   }
 }
 export function fitOf(delivery: Delivery, shot: ShotType) {
@@ -233,7 +257,10 @@ export function hookable(delivery: Delivery) {
 export function playedAs(delivery: Delivery, attempt: ShotAttempt, charged: boolean): ShotAttempt {
   if (attempt.shotType === 'SCOOP' && hookable(delivery)) return { ...attempt, shotType: 'HOOK' };
   if (attempt.shotType === 'HOOK' && !hookable(delivery)) return { ...attempt, shotType: 'DEFEND' };
-  return isScoop(attempt.shotType) && !scoopShot(delivery, attempt, charged) ? { ...attempt, shotType: 'DEFEND' } : attempt;
+  if (!isScoop(attempt.shotType) || scoopShot(delivery, attempt, charged)) return attempt;
+  // Down and to off with no reverse scoop to play is the late cut; down and to
+  // leg is still the block.
+  return { ...attempt, shotType: attempt.shotType === 'REVERSE_SCOOP' ? 'LATE_CUT' : 'DEFEND' };
 }
 /**
  * Whether there is room to cut: the ball has to be far enough outside off that
@@ -406,6 +433,9 @@ export function resolveShot(
     const lbw = Math.abs(delivery.finalTargetX) < 0.12 && rng.next() < GAME.lbwChance;
     return { ...outcome, madeBatContact: false, isWicket: true, wicketType: lbw ? 'LBW' : 'BOWLED', feedback: lbw ? 'LBW!' : 'BOWLED!' };
   }
+  // Run down to third man off the open face. Missed, or played across the
+  // stumps, it is beaten like any other stroke, below.
+  if (attempt?.shotType === 'LATE_CUT' && lateCutMeets(outcome)) return lateCut(outcome, rng, false);
   // Cut at the spinner's ball going on down the leg side: cramped.
   if (crampedCut(delivery, attempt)) return cramped(outcome, rng, 2);
   // Wide of off and full: the half-volley. Until now this was the one ball in

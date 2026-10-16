@@ -36,6 +36,27 @@ const at = (delta: number, shotType: Parameters<typeof resolveSurvive>[1] extend
   ({ shotType, inputTimeMs: 600 + delta });
 
 /**
+ * The late cut in this mode: four at the most, nobody runs three, and the
+ * edge behind when poor.
+ */
+describe('the late cut', () => {
+  const wide = () => ball('NORMAL', { line: 'OUTSIDE_OFF', baseTargetX: .42, finalTargetX: .42 });
+  const cut = (delta: number) => ({ shotType: 'LATE_CUT' as const, inputTimeMs: 600 + delta });
+  it('is four middled, never six, and ones and twos a shade under', () => {
+    for (const roll of [0, .5, .99]) expect(resolveSurvive(wide(), cut(0), rolls(roll)).runs).toBe(4);
+    const shaded = [10, 20, 30, 40, 50, 60].flatMap(delta => [0, .99].map(roll => resolveSurvive(wide(), cut(delta), rolls(roll))));
+    expect(Math.max(...shaded.filter(shot => !shot.isWicket && shot.runs < 4).map(shot => shot.runs))).toBeLessThanOrEqual(2);
+    expect(shaded.every(shot => shot.runs <= 4)).toBe(true);
+  });
+  it('is edged behind when poor, and beaten across the stumps', () => {
+    const poor = [70, 90, 110, 130].map(delta => resolveSurvive(wide(), cut(delta), rolls(0)));
+    expect(poor.some(shot => shot.isWicket && shot.edged && shot.wicketType === 'CAUGHT')).toBe(true);
+    const straight = resolveSurvive(ball('NORMAL'), cut(0), rolls(0));
+    expect(straight.madeBatContact).toBe(false);
+  });
+});
+
+/**
  * The cut off the spinner at a ball finishing outside leg: cramped, and in this
  * mode a single at the very most.
  */

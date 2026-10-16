@@ -3,7 +3,7 @@ import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN,
 import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
-import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN, SURVIVE_PLAN, bouncersEvery, spinCutsEvery } from '../src/game/DeliveryGenerator';
+import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN, SURVIVE_PLAN, bouncersEvery, lateCutsEvery, spinCutsEvery, spun } from '../src/game/DeliveryGenerator';
 import { ballPosition, effectiveLine, flightDrag, flightProgress, stumpIntersection } from '../src/game/DeliveryTrajectory';
 import { COVER_ODDS, coverRoll, coverVersionOf } from '../src/entities/Batter';
 import { resolveSurvive } from '../src/game/Survive';
@@ -895,7 +895,9 @@ describe('the scoops', () => {
     expect(scoop(ball, 0, 'SCOOP', .99, false).scooped).toBeUndefined();
     // And at a bouncer, the same: there is no getting under that one.
     const bouncer = at('OFF', { style: 'SHORT', bounceZ: STYLES.SHORT.bounce!, rise: STYLES.SHORT.rise! });
-    expect(playedAs(bouncer, { ...attempt, shotType: 'REVERSE_SCOOP' }, true).shotType).toBe('DEFEND');
+    // The reverse's diagonal there is the late cut, an ordinary stroke.
+    expect(playedAs(bouncer, { ...attempt, shotType: 'REVERSE_SCOOP' }, true).shotType).toBe('LATE_CUT');
+    expect(playedAs(ball, { ...attempt, shotType: 'REVERSE_SCOOP' }, false).shotType).toBe('LATE_CUT');
   });
   it('is paid by timing: six middled, four a shade under, singles held back', () => {
     for (const [shot, line] of [['SCOOP', 'LEG'], ['SCOOP', 'MIDDLE'], ['REVERSE_SCOOP', 'OFF'], ['REVERSE_SCOOP', 'OUTSIDE_OFF']] as const) {
@@ -957,6 +959,50 @@ describe('the scoops', () => {
  * into him and the leg-spinner's turning away from leg are both cuttable.
  * The same swipe as the cut; only the ball is different.
  */
+describe('the late cut', () => {
+  const wide = (x = LINE_X.OUTSIDE_OFF) => delivery({ baseTargetX: x, finalTargetX: x });
+  const lateCutAt = (d: Delivery, delta = 0, roll = .99) =>
+    resolveShot(d, playedAs(d, { shotType: 'LATE_CUT', inputTimeMs: d.idealContactTimeMs + delta }, false), rng(roll));
+  it('is the swipe down and to off, and the keys D and S, without a meter', () => {
+    expect(mapSwipe(60, 60)).toBe('LATE_CUT');
+    expect(mapKeys(['d', 's'])).toBe('REVERSE_SCOOP');
+    const d = wide(), keys = { shotType: 'REVERSE_SCOOP' as const, inputTimeMs: d.idealContactTimeMs };
+    expect(playedAs(d, keys, false).shotType).toBe('LATE_CUT');
+    // With the meter full it is still the reverse scoop.
+    expect(playedAs(d, keys, true).shotType).toBe('REVERSE_SCOOP');
+  });
+  it('is four at the most, middled, and never six', () => {
+    for (const x of [LINE_X.OFF, LINE_X.OUTSIDE_OFF]) for (const roll of [0, .5, .99]) {
+      const middled = lateCutAt(wide(x), 0, roll);
+      expect(middled.runs, `${x}`).toBe(4); expect(middled.lateCut).toBe(true); expect(middled.aerial).toBe(false);
+    }
+    expect(SHOT_ANGLES.LATE_CUT).toBeGreaterThan(SHOT_ANGLES.SQUARE_CUT);
+    expect(SHOT_ANGLES.LATE_CUT).toBeLessThan(SHOT_ANGLES.REVERSE_SCOOP);
+  });
+  it('runs two or three a shade under, one or two held back, and is edged behind when poor', () => {
+    expect([0, .99].map(roll => lateCutAt(wide(), 60, roll).runs)).toEqual([3, 2]);
+    expect([0, .99].map(roll => lateCutAt(wide(), 100, roll).runs)).toEqual([2, 1]);
+    const caught = lateCutAt(wide(), 170, 0);
+    expect(caught.isWicket).toBe(true); expect(caught.wicketType).toBe('CAUGHT'); expect(caught.edged).toBe(true);
+    const edged = lateCutAt(wide(), 170, .99);
+    expect(edged.isWicket).toBe(false); expect(edged.runs).toBe(1);
+  });
+  it('is bowled played across a ball on the stumps, and lets a missed one go by outside off', () => {
+    const straight = lateCutAt(delivery({ baseTargetX: 0, finalTargetX: 0 }), 0, 0);
+    expect(straight.isWicket).toBe(true); expect(straight.madeBatContact).toBe(false);
+    const missed = lateCutAt(wide(), 400);
+    expect(missed.isWicket).toBe(false); expect(missed.madeBatContact).toBe(false);
+  });
+  it('is every ball on `?latecut=1`, in every mode: pitched at off stump or wider, nothing short', () => {
+    for (const plan of [CLASSIC_PLAN, SURVIVE_PLAN, MARATHON_PLAN]) {
+      const generator = new DeliveryGenerator(new SeededRandom(5), lateCutsEvery(plan));
+      const dealt = Array.from({ length: 60 }, () => generator.next(0));
+      expect(dealt.every(ball => ball.line === 'OFF' || ball.line === 'OUTSIDE_OFF')).toBe(true);
+      expect(dealt.some(ball => ball.style === 'SHORT' || ball.style === 'RIB' || spun(ball))).toBe(false);
+    }
+  });
+});
+
 describe('the cut off the spinner', () => {
   const spinner = (style: 'OFF_SPIN' | 'LEG_SPIN' | 'ARM_BALL', base: number, final: number) =>
     delivery({ style, baseTargetX: base, finalTargetX: final, speedKph: 88 });
@@ -1056,9 +1102,10 @@ describe('the hook', () => {
     // Without the ball it is what it always was.
     expect(mapSwipe(-60, 60)).toBe('DEFEND');
     expect(mapSwipe(-60, 60, 0, true)).toBe('SCOOP');
-    // The other side and straight down are untouched by it.
+    // The other side and straight down are untouched by it: the cut, the
+    // late cut and the block.
     expect(mapSwipe(60, 25, 0, false, true)).toBe('SQUARE_CUT');
-    expect(mapSwipe(60, 60, 0, false, true)).toBe('DEFEND');
+    expect(mapSwipe(60, 60, 0, false, true)).toBe('LATE_CUT');
     expect(mapSwipe(0, 80, 0, false, true)).toBe('DEFEND');
     expect(mapSwipe(-80, 0, 0, false, true)).toBe('LEG');
   });

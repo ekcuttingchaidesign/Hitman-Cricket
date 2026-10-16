@@ -267,6 +267,19 @@ export function bouncersEvery(plan: BowlingPlan, hookable = false): BowlingPlan 
 }
 
 /**
+ * Every ball the late cut's, for `?latecut=1`: the pace bowler's, aimed at off
+ * stump or wider, in any mode — nothing short, no spinner, no blocks. Where
+ * it swings to after that is where it finishes, so the odd one comes back to
+ * the stumps, and is the ball not to late cut.
+ */
+export function lateCutsEvery(plan: BowlingPlan): BowlingPlan {
+  const styles = Object.fromEntries(Object.entries(plan.styles).map(([style, shape]) =>
+    [style, { ...shape, aimBody: 0, aimWide: 1, weight: style === 'SHORT' || style === 'RIB' ? 0 : shape.weight }])) as BowlingPlan['styles'];
+  return { ...plan, spin: undefined, short: undefined, blocks: undefined, aimed: true, styles,
+    specials: { ...plan.specials, shortChance: 0 } };
+}
+
+/**
  * Every ball the spinner's, for `?spincut=1`, for trying the cut off the
  * spinner every ball: every over his from the first, in any mode, and all of
  * his — the off break, the leg break and the arm ball, on every line as he

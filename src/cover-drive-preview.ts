@@ -15,7 +15,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, type CoverVersion, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
+import { Batter, type CoverVersion, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOT_ANGLES, STYLES } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 import type { ShotType } from './game/types';
@@ -73,6 +73,14 @@ const STROKES: Record<string, Stroke> = {
     out: { speed: .028, angle: THREE.MathUtils.degToRad(-22), climb: .014 },
     facts: ['full, leg stump', `${STROKE_DURATION_MS} ms`],
     note: 'The on drive lofted for six, played when the swipe is perfectly timed: the on drive\'s own stride and contact, then the arms carry the bat up through the line and over into a wrap, the elbows bent rather than reaching for the sky: the hands just over the front shoulder with the bat lying back over it behind his head, the front elbow up beside the helmet, the back arm across in front of his face, the chest open to long-on and the back foot up on its toe, held to 580 ms. The arms take the bat over, not the wrists: the one turn in his hands is the bottom hand rolling over the top one through the carry, evenly and one way, so that at the wrap the flat face looks out and the curved back of the blade lies against his shoulder; held, nothing turns it, and on the way home, back over his head and down the line, it settles into his guard a little at a time. The six it replaces turned the bat a full turn in his hands on the way home.',
+  },
+  latecut: {
+    label: 'Late cut', shot: 'LATE_CUT', charging: false, single: true, ball: { x: LINE_X.OUTSIDE_OFF, y: .56, z: GAME.contactZ + LATE_CUT_MEETS_AT },
+    contact: LATE_CUT_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: 3.8,
+    phases: [['Stance', -LEAD_MS], ['Back and across', LATE_CUT_LOAD_MS], ['Contact', LATE_CUT_CONTACT_MS], ['Down to the turf', 310], ['Held', 400], ['Up', 620]],
+    out: { speed: .026, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.LATE_CUT), climb: 0 },
+    facts: ['outside off', `${STROKE_DURATION_MS} ms`],
+    note: 'The late cut, off the swipe down and to off (or D and S) without a meter, at pace or spin, in every mode. The back foot goes a long way back towards the stumps and across towards off, and he sinks on it until the back knee is nearly on the turf, the front leg left where it was, bent at the knee. The bat is held up high while he goes down, then comes down late and steep, the hands out at his hip, to meet the ball beside the back pad at 230 ms, 40 cm behind where the other strokes meet it, with the face open to third man. It is not struck: the ball is shown the way, and the blade goes on down until the toe points at the turf behind him, held there with his head down over the hands, before he lifts the bat out towards point and gets up into his guard. Middled it runs away to third man for four, never six; a shade under two or three, held back one or two, poor off the edge to the keeper.',
   },
   spincut: {
     label: 'Cut off the spinner', shot: 'SQUARE_CUT', charging: false, single: true, spinCut: true, ball: { x: LINE_X.MIDDLE, y: .54, z: GAME.contactZ },
