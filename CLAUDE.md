@@ -63,9 +63,11 @@ for is `src/game/password-nudge.ts`, in `tests/password-nudge.test.ts`:
   Road to Hitman (`passwordCardMarkup`, `place: 'stats'`). The career key is
   the last thing on the page.
 - **The end of an innings**, once the career passes 50 runs, every mode added
-  up (`NUDGE_RUNS`): the same card where the career key used to be, with a
+  up (`NUDGE_RUNS`): the same card straight under the score card (and the
+  Marathon's batting card), above the board's place and Career stats, with a
   solid orange CREATE A PASSWORD (`cta({ kind: 'solid' })`) so it is never
-  taken for PLAY AGAIN. Never on practice, a Rival Match, a demo or in a
+  taken for PLAY AGAIN. Survival's card is a screen of its own, so the card
+  travels to it with the board's strip (`hostStrip`), first in it. Never on practice, a Rival Match, a demo or in a
   private window. The career key no longer stands on the end card at all.
 - **The nudge sheet**, after three end cards walked past, then every five,
   never twice a visit (`sheetDue`, counted in `hitman-password-nudge`), and not

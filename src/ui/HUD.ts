@@ -475,6 +475,7 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
               </div>
             </section>
             <div id="mcard-score" class="mcard-score"></div>
+            <div id="card-password" class="card-password hidden"></div>
             <section class="ec-player">
               <div id="card-board" class="card-board hidden">
                 <div class="ec-rank">
@@ -504,7 +505,6 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
                 </button>
               </div>
             </section>
-            <div id="card-password" class="card-password hidden"></div>
             <div id="card-key" class="card-key hidden"></div>
             <button id="feedback-card" class="ghost-link ec-feedback hidden" type="button">Tell me what you think</button>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
@@ -2379,9 +2379,11 @@ ${modeSelectMarkup()}
     // everything that reaches for `card-career` goes on working without knowing
     // which card it is standing in. The career key rides along for the same
     // reason — it was left behind on the Blast card at first, so a Test innings
-    // ended on a card with no key on it and nothing said why.
+    // ended on a card with no key on it and nothing said why. The password
+    // card goes first, straight under the score, for the same reason: left
+    // on the Blast card, a Survival innings never showed it.
     const player = this.viewport.querySelector('.ec-player')!;
-    const moving = [player, this.$('card-key')];
+    const moving = [this.$('card-password'), player, this.$('card-key')];
     if (surviving) this.$('survive-strip').append(...moving);
     else {
       const card = this.$('end').querySelector('.scorecard')!;
