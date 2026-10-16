@@ -1,6 +1,6 @@
 import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
-import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
+import { ADVANCE, CONFIDENCE_FULL, GAME, SWIPE_ZONES } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro, type IntroGame } from './ui/MarathonIntro';
 import { CONFIDENCE_STEP, SHOTS_STEP, howToDue, noteHowTo, playedBefore } from './ui/ShotsIntro';
@@ -598,8 +598,10 @@ export class Game {
       // A left-hander's swipes and side keys, read the way his mirrored
       // screen shows them. Asked of the scene, so the two cannot disagree.
       () => this.scene.mirrored,
-      // Down and to leg is the hook at a bouncer on or outside off.
-      () => !!this.delivery && hookable(this.delivery));
+      // The leg side is the hook at a bouncer on or outside off.
+      () => !!this.delivery && hookable(this.delivery),
+      // The block narrower in the Blast, where nobody blocks: see `SWIPE_ZONES`.
+      () => this.surviving || this.marathoning ? SWIPE_ZONES.test : SWIPE_ZONES.blast);
     // The play key opens the picker rather than an innings — unless a link has
     // already named the mode, in which case it is that mode's play key.
     this.hud.on('start', this.play);

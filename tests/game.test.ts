@@ -1095,27 +1095,32 @@ describe('the hook', () => {
     expect(LINES.map(line => hookable(bouncer(line)))).toEqual([false, false, false, true, true]);
     for (const line of LINES) expect(hookable(delivery({ line, baseTargetX: LINE_X[line], finalTargetX: LINE_X[line] })), line).toBe(false);
   });
-  it('is the swipe down and to leg at that ball, meter or none, and leaves the cut and the block where they were', () => {
-    // Down and to leg, half way between the leg-side swipe and the block.
+  it('is the whole leg side under the on drive at that ball, meter or none, and leaves the cut and the block where they were', () => {
+    // Down and to leg, and straight out to leg: the ball has picked the hook.
     expect(mapSwipe(-60, 60, 0, false, true)).toBe('HOOK');
     expect(mapSwipe(-60, 60, 0, true, true)).toBe('HOOK');
-    // Without the ball it is what it always was.
-    expect(mapSwipe(-60, 60)).toBe('DEFEND');
+    expect(mapSwipe(-80, 0, 0, false, true)).toBe('HOOK');
+    expect(mapSwipe(-60, -60, 0, false, true)).toBe('LONG_ON');
+    // Without the ball it is the leg-side stroke, or the scoop on a meter.
+    expect(mapSwipe(-60, 60)).toBe('LEG');
     expect(mapSwipe(-60, 60, 0, true)).toBe('SCOOP');
     // The other side and straight down are untouched by it: the cut, the
     // late cut and the block.
     expect(mapSwipe(60, 25, 0, false, true)).toBe('SQUARE_CUT');
     expect(mapSwipe(60, 60, 0, false, true)).toBe('LATE_CUT');
     expect(mapSwipe(0, 80, 0, false, true)).toBe('DEFEND');
-    expect(mapSwipe(-80, 0, 0, false, true)).toBe('LEG');
   });
-  it('is the keys’ S and A at that ball, and the block at any other', () => {
+  it('is whatever leg-side stroke is asked for at that ball, and the pull at a bouncer on the body: the line decides', () => {
     const attempt = { shotType: mapKeys(['S', 'A'])!, inputTimeMs: 1000 };
-    expect(playedAs(bouncer('OUTSIDE_OFF'), attempt, false).shotType).toBe('HOOK');
-    expect(playedAs(bouncer('OUTSIDE_OFF'), attempt, true).shotType).toBe('HOOK');
-    expect(playedAs(bouncer('MIDDLE'), attempt, false).shotType).toBe('DEFEND');
-    expect(playedAs(bouncer('MIDDLE'), { ...attempt, shotType: 'HOOK' }, false).shotType).toBe('DEFEND');
+    for (const shotType of ['SCOOP', 'LEG', 'HOOK'] as const) for (const charged of [false, true]) {
+      expect(playedAs(bouncer('OUTSIDE_OFF'), { ...attempt, shotType }, charged).shotType, shotType).toBe('HOOK');
+      expect(playedAs(bouncer('OFF'), { ...attempt, shotType }, charged).shotType, shotType).toBe('HOOK');
+      for (const line of ['MIDDLE', 'LEG', 'OUTSIDE_LEG'] as const)
+        expect(playedAs(bouncer(line), { ...attempt, shotType }, charged).shotType, `${shotType} ${line}`).toBe('LEG');
+    }
+    // Off a bouncer the hook is nothing, and the keyboard's diagonal the block.
     expect(playedAs(delivery(), { ...attempt, shotType: 'HOOK' }, true).shotType).toBe('DEFEND');
+    expect(playedAs(delivery(), attempt, false).shotType).toBe('DEFEND');
   });
   it('goes over fine leg for six middled, four a shade under, and is worked round held back', () => {
     for (const line of ['OFF', 'OUTSIDE_OFF'] as const) {

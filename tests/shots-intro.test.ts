@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONFIDENCE_STEP, howToDue, playedBefore, SHOTS_STEP, shotsCompass, SURVIVE_SHOTS_STEP } from '../src/ui/ShotsIntro';
+import { CONFIDENCE_STEP, howToDue, LANE_ORDER, laneFor, playedBefore, SHOTS_STEP, shotsCompass, SURVIVE_SHOTS_STEP } from '../src/ui/ShotsIntro';
 
 /** A browser's storage, as `read` sees it. */
 const held = (store: Record<string, string>) => (key: string) => store[key] ?? null;
@@ -55,10 +55,10 @@ describe('the swipes it draws', () => {
   const keys = (markup: string) => [...markup.matchAll(/<kbd class="keyboard-only">([^<]+)<\/kbd>/g)].map(m => m[1]);
   const lanes = (markup: string) => [...markup.matchAll(/class="hb-lane" data-i="\d" d="M0 0L(-?[\d.]+) /g)].map(m => Math.sign(Number(m[1])));
 
-  it('are five lanes from the bat, named, with their keys, and the block as a caption', () => {
+  it('are seven lanes from the bat, named, with their keys, and the block as a caption', () => {
     const right = shotsCompass(false);
-    expect(names(right)).toEqual(['Pull', 'On drive', 'Straight drive', 'Cover drive', 'Cut']);
-    expect(keys(right)).toEqual(['A', 'A+W', 'W', 'W+D', 'D']);
+    expect(names(right)).toEqual(['Pull', 'On drive', 'Straight drive', 'Cover drive', 'Cut', 'Late cut', 'Hook']);
+    expect(keys(right)).toEqual(['A', 'A+W', 'W', 'W+D', 'D', 'D+S', 'A+S']);
     expect(right).toMatch(/hb-caption is-block"><b class="touch-only">Swipe down<\/b><b class="keyboard-only">S<\/b>/);
     // Lit first, as drawn: the straight drive, a swipe up.
     expect(right).toContain('data-lit="2"');
@@ -71,6 +71,11 @@ describe('the swipes it draws', () => {
     // His pull goes off to the right, and the right-hand key plays it.
     expect(lanes(left)[0]).toBe(1);
     expect(lanes(shotsCompass(false))[0]).toBe(-1);
-    expect(keys(left)).toEqual(['D', 'W+D', 'W', 'A+W', 'A']);
+    expect(keys(left)).toEqual(['D', 'W+D', 'W', 'A+W', 'A', 'A+S', 'D+S']);
+  });
+  it('walks the light round all seven, and says when the hook is played', () => {
+    expect([...LANE_ORDER].sort()).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(laneFor(5).swipe).toBe('Swipe down-right'); expect(laneFor(5).caption).toBe('late cut');
+    expect(laneFor(6).swipe).toBe('Swipe down-left'); expect(laneFor(6).caption).toBe('hook at a bouncer');
   });
 });

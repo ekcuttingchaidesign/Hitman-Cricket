@@ -200,7 +200,9 @@ the innings through `__cricket.marathon` and bats the rest.
 
 `scripts/shots-check.mjs` is how to hit, the coachmarks before a browser's
 first innings (`src/ui/ShotsIntro.ts`), redrawn from the handover (Figma
-128:4759 on): five lanes of light fanned from the bat (`batterOnScreen`), lit
+128:4759 on): seven lanes of light fanned from the bat (`batterOnScreen`) —
+the five up the ground and square, and two short ones down past the bat for
+the late cut and the hook at a bouncer — lit
 in turn in the game's colour with a thumb swiping each and the block a caption,
 the strokes' names at their ends and the keys beside them on a keyboard, the
 words on one card at the foot (SKIP and NEXT, BACK and LET'S BAT on the last);
@@ -538,13 +540,16 @@ both arms for the sky and turned the bat a full turn in his hands coming home. `
 The hook (`'HOOK'`, `STROKES.HOOK` in `src/entities/Batter.ts`) is a bouncer on
 off stump or wider (`hookable`, `HOOK.lines`) hooked round to fine leg, built
 from Tendulkar's off Caddick in 2003, end on in slow motion. It is an ordinary
-stroke, no meter, played off the scoop's diagonal — down and to leg, or the
-keys' S and A — which is free at a bouncer because no special stroke is
-played at one: `mapSwipe` reads that swipe as the hook while such a ball is
-on its way (the input's `hooks`), S waits for its partner key there as it
-does with a meter, and `playedAs` turns the keys' scoop into the hook at that
-ball and a hook at any other into the block. Down and to off is still the cut,
-the late cut and the block.
+stroke, no meter, and the ball's line picks it, not the thumb: at a bouncer
+any leg-side swipe or key — left, down and to leg, A, or S and A — is the
+hook when the ball finishes on off stump or wider and the pull anywhere else
+(`playedAs`; `mapSwipe` reads the whole leg side under the on drive as the
+hook while such a ball is on its way, the input's `hooks`, and S waits for
+its partner key there as it does with a meter). Asked for by a narrow
+diagonal, the hook came out a third of the time: at a bouncer on the body
+there was none, and down-left sat on the line between the pull and the
+block. A hook at any other ball is the block. Down and to off is still the
+cut, the late cut and the block.
 
 He goes back and across first (`HOOK_LOAD_MS`), the back foot over towards
 off stump and the front one drawn back and opened, the bat high over the back
@@ -605,6 +610,20 @@ plays it in a browser on `?bouncers=1`, keys and a real swipe, in the Blast
 and in Survival;
 `cover-drive.html` has it beside the drives.
 
+## Swipe zones
+
+Where a swipe's direction splits between strokes is `mapSwipe` in
+`src/game/InputManager.ts`, measured off straight up, and two of its edges
+are the mode's (`SWIPE_ZONES` in `src/config/gameplay.ts`): the block's fan
+either side of straight down — fifteen degrees in the Blast, where nobody
+blocks, twenty-five in Survival and the Marathon, where it keeps a batter in
+— and where the cut gives way to the late cut, 117.5 and 120 degrees off
+vertical. Below that the late cut runs down to the block, and on the leg side
+the leg-side stroke runs all the way round to it, the pull or the hook at a
+bouncer (above). On a full meter the scoops take both diagonals from 110
+degrees to the block, as they always did. The numbers came out of a model of
+a thumb twelve to twenty degrees off what it meant; the cost was a careful cut landing 92% of the time in the Blast rather than 98%.
+
 ## The cut off the spinner
 
 The cut has a second build for a spinner's ball (`spinCut` in
@@ -646,10 +665,9 @@ all of his on every line, the outside-leg ball included, and is practice. It is 
 
 The late cut (`'LATE_CUT'`, `LATE_CUT` in `src/entities/Batter.ts` and
 `src/config/gameplay.ts`) is an ordinary stroke, no meter, in every mode, at
-pace or spin: the swipe down and to off (`LATE_CUT.sector`, narrower than the
-reverse scoop's so that a cut swipe curling down as a thumb does is still the
-cut; straight down is still the block), or D and S together, D first — S
-alone commits the block at once. With a full meter, at a ball that can be
+pace or spin: the swipe down and to off, between the cut and the block
+(`SWIPE_ZONES`), or D and S together, D first — S alone commits the block at
+once. With a full meter, at a ball that can be
 scooped, that diagonal is still the reverse scoop; anywhere else `playedAs`
 turns the reverse scoop's input into the late cut where it used to be the
 block.

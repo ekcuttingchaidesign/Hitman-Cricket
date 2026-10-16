@@ -1882,7 +1882,7 @@ body.start-screen #sound{pointer-events:auto}
 .mi-finish .k-cta{flex:1;min-width:0;width:auto}
 .mi-keys:has(.mi-finish) .mi-skip{display:none}
 
-/* How to hit: five lanes of light from the bat, in the design's own corners,
+/* How to hit: seven lanes of light from the bat, in the design's own corners,
    the lit one in the game's colour; their names at the far ends; the thumb
    below, its trail and the two ghosts it leaves; and the captions under it. */
 .hb-fan{position:absolute;inset:0;display:block}
@@ -1898,9 +1898,11 @@ body.start-screen #sound{pointer-events:auto}
 .hb-label b{font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em}
 .hb-label kbd{padding:0 calc(var(--u) * 4);border-radius:calc(var(--u) * 4);background:#ffffff2e;font:800 calc(var(--u) * 9)/1.4 var(--f-ui);color:inherit}
 .hb-fan[data-lit="0"] .is-lit[data-i="0"],.hb-fan[data-lit="1"] .is-lit[data-i="1"],.hb-fan[data-lit="2"] .is-lit[data-i="2"],
-.hb-fan[data-lit="3"] .is-lit[data-i="3"],.hb-fan[data-lit="4"] .is-lit[data-i="4"]{opacity:1}
+.hb-fan[data-lit="3"] .is-lit[data-i="3"],.hb-fan[data-lit="4"] .is-lit[data-i="4"],
+.hb-fan[data-lit="5"] .is-lit[data-i="5"],.hb-fan[data-lit="6"] .is-lit[data-i="6"]{opacity:1}
 .hb-fan[data-lit="0"] .hb-label[data-i="0"],.hb-fan[data-lit="1"] .hb-label[data-i="1"],.hb-fan[data-lit="2"] .hb-label[data-i="2"],
-.hb-fan[data-lit="3"] .hb-label[data-i="3"],.hb-fan[data-lit="4"] .hb-label[data-i="4"]{border-color:transparent;background:var(--mi-tone);color:#fff}
+.hb-fan[data-lit="3"] .hb-label[data-i="3"],.hb-fan[data-lit="4"] .hb-label[data-i="4"],
+.hb-fan[data-lit="5"] .hb-label[data-i="5"],.hb-fan[data-lit="6"] .hb-label[data-i="6"]{border-color:transparent;background:var(--mi-tone);color:#fff}
 /* The swipe, turned to the lit lane about where the thumb comes to rest
    eighty under the bat: in its own frame the thumb travels up, and the trail
    and the ghosts lie behind it. */

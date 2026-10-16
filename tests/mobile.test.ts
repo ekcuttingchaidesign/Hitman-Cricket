@@ -1,17 +1,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { InputManager, mapKeys, mapSwipe, shotKey } from '../src/game/InputManager';
+import { SWIPE_ZONES } from '../src/config/gameplay';
 import { outcomeSound } from '../src/game/Audio';
 
 describe('swipe directions', () => {
   it.each([
     [-80, 0, 'LEG'], [-60, -60, 'LONG_ON'], [0, -80, 'STRAIGHT'], [60, -60, 'COVER_LONG_OFF'], [80, 0, 'SQUARE_CUT'],
-    // Down is the block, on a 90-degree fan so a hurried drag still finds it.
-    [0, 80, 'DEFEND'], [-60, 60, 'DEFEND'], [60, 60, 'LATE_CUT'], [-20, 75, 'DEFEND'],
+    // Down is the block, on a fifty-degree fan in a Test (thirty in the Blast,
+    // below); the diagonals either side are the leg side and the late cut.
+    [0, 80, 'DEFEND'], [-60, 60, 'LEG'], [60, 60, 'LATE_CUT'], [-20, 75, 'DEFEND'],
     // There is no dead ground between the outer sectors and the block's fan. A
     // thumb flicking sideways across a phone arcs downward as it goes, and these
     // two used to play nothing at all — which is what a player reported as the
     // batter being unresponsive to a leg-side swipe.
-    [69, 40, 'SQUARE_CUT'], [-69, 40, 'LEG'],
+    [70, 35, 'SQUARE_CUT'], [-69, 40, 'LEG'],
     [60, 30, 'SQUARE_CUT'], [-60, 30, 'LEG'], [-40, 30, 'LEG'],
     [0, 0, null], [12, -12, null], [23, 0, null], [24, 0, 'SQUARE_CUT'],
     [NaN, 0, null], [Infinity, 0, null],
@@ -39,10 +41,10 @@ describe('swipe directions', () => {
     expect(mapSwipe(0, 80, 0, true)).toBe('DEFEND'); expect(mapSwipe(-20, 80, 0, true)).toBe('DEFEND'); expect(mapSwipe(20, 80, 0, true)).toBe('DEFEND');
     expect(mapSwipe(-80, 25, 0, true)).toBe('LEG'); expect(mapSwipe(80, 25, 0, true)).toBe('SQUARE_CUT');
     expect(mapSwipe(0, -80, 0, true)).toBe('STRAIGHT');
-    // Without the meter down and to leg is the block it always was, and down
-    // and to off the late cut.
-    expect(mapSwipe(-60, 60)).toBe('DEFEND'); expect(mapSwipe(60, 60)).toBe('LATE_CUT');
-    expect(mapSwipe(-69, 40)).toBe('LEG'); expect(mapSwipe(69, 40)).toBe('SQUARE_CUT');
+    // Without the meter down and to leg is the leg-side stroke, and down and
+    // to off the late cut.
+    expect(mapSwipe(-60, 60)).toBe('LEG'); expect(mapSwipe(60, 60)).toBe('LATE_CUT');
+    expect(mapSwipe(-69, 40)).toBe('LEG'); expect(mapSwipe(70, 35)).toBe('SQUARE_CUT');
   });
   it('keeps a useful tolerance around the cardinal directions', () => {
     expect(mapSwipe(70, 15)).toBe('SQUARE_CUT'); expect(mapSwipe(-70, 15)).toBe('LEG'); expect(mapSwipe(15, -70)).toBe('STRAIGHT');
@@ -57,14 +59,26 @@ describe('swipe directions', () => {
       expect(mapSwipe(x, y), `${angle} degrees`).not.toBeNull();
     }
   });
-  it('gives the cut the whole off-side sector, the late cut the diagonal under it, and the block the rest of its fan', () => {
+  it('gives the cut the off side, the late cut the diagonal under it, the leg side its own diagonal, and the block straight down', () => {
     // One flick out to the off is the cut, with the same tolerance as the rest,
-    // and one that curls down as a thumb does is still the cut.
-    for (const [x, y] of [[80, 0], [70, -25], [70, 25], [69, 40], [60, 30]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('SQUARE_CUT');
-    // Down and to off is the late cut, and only that diagonal.
+    // and one that curls down a little is still the cut.
+    for (const [x, y] of [[80, 0], [70, -25], [70, 25], [70, 35], [60, 30]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('SQUARE_CUT');
+    // Down and to off is the late cut.
     for (const [x, y] of [[70, 70], [60, 60], [40, 80], [80, 60]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('LATE_CUT');
-    // Straight down and down to leg are the block's still.
-    for (const [x, y] of [[0, 80], [-40, 80], [20, 80], [-70, 70]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('DEFEND');
+    // Down and to leg is the leg side's.
+    for (const [x, y] of [[-70, 70], [-40, 80]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('LEG');
+    // Straight down is the block, twenty-five degrees either side of it in a Test.
+    for (const [x, y] of [[0, 80], [20, 80], [-20, 80], [-35, 80]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('DEFEND');
+  });
+  it('narrows the block to fifteen degrees either side in the Blast, where nobody blocks', () => {
+    const blast = (x: number, y: number) => mapSwipe(x, y, 0, false, false, SWIPE_ZONES.blast);
+    expect(blast(0, 80)).toBe('DEFEND'); expect(blast(15, 80)).toBe('DEFEND'); expect(blast(-15, 80)).toBe('DEFEND');
+    // Twenty degrees off straight down: the block in a Test, the diagonals in the Blast.
+    expect(mapSwipe(29, 80)).toBe('DEFEND'); expect(blast(29, 80)).toBe('LATE_CUT');
+    expect(mapSwipe(-29, 80)).toBe('DEFEND'); expect(blast(-29, 80)).toBe('LEG');
+    // And the late cut starts a little higher.
+    expect(blast(70, 40)).toBe('LATE_CUT'); expect(blast(70, 30)).toBe('SQUARE_CUT');
+    expect(SWIPE_ZONES.blast.block * 2).toBe(30); expect(SWIPE_ZONES.test.block * 2).toBe(50);
   });
 });
 

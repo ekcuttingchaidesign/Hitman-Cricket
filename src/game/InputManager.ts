@@ -1,4 +1,4 @@
-import { GAME, HOOK, LATE_CUT, SCOOP } from '../config/gameplay';
+import { GAME, SCOOP, SWIPE_ZONES, type SwipeZones } from '../config/gameplay';
 import type { ShotType } from './types';
 /**
  * The three shot keys, with the arrow keys as the same three. Normalising here
@@ -54,21 +54,24 @@ const SWIPE_SHOTS = ['LEG', 'LONG_ON', 'STRAIGHT', 'COVER_LONG_OFF', 'SQUARE_CUT
  * the minimum distance plays something. The block is untouched — it is the one
  * stroke that has to be reliable, and its fan is exactly where it was.
  */
-export function mapSwipe(dx: number, dy: number, coverLean = 0, scoops = false, hook = false): ShotType | null {
+export function mapSwipe(dx: number, dy: number, coverLean = 0, scoops = false, hook = false, zones: SwipeZones = SWIPE_ZONES.test): ShotType | null {
   if (!Number.isFinite(dx) || !Number.isFinite(dy) || Math.hypot(dx, dy) < GAME.swipeDistance) return null;
   const angle = Math.atan2(dx, -dy) * 180 / Math.PI;
-  // At a bouncer he can hook, down and to leg is the hook, meter or none: no
-  // special stroke is played at a bouncer, so the diagonal is free. Only that
-  // one: down and to off is still the cut above it and the block below.
-  if (hook && angle < 0 && -angle >= HOOK.sector.from && -angle <= HOOK.sector.to) return 'HOOK';
+  // Where the block's fan starts, either side of straight down.
+  const block = 180 - zones.block;
+  if (Math.abs(angle) >= block) return 'DEFEND';
+  // At a bouncer he can hook, the whole leg side under the on drive is the
+  // hook, meter or none: the ball's line has already picked it over the pull,
+  // so the thumb need not find a narrow band at speed. At any other bouncer
+  // the same swipes are the pull, below.
+  if (hook && angle <= -67.5) return 'HOOK';
   // With a meter to spend, the two downward diagonals are the scoops: down
   // and to leg the scoop, down and to off the reverse. Straight down is still
   // the block, and the fan above them is untouched.
-  if (scoops && Math.abs(angle) >= SCOOP.sector.from && Math.abs(angle) <= SCOOP.sector.to) return angle < 0 ? 'SCOOP' : 'REVERSE_SCOOP';
+  if (scoops && Math.abs(angle) >= SCOOP.sector.from) return angle < 0 ? 'SCOOP' : 'REVERSE_SCOOP';
   // Without one, down and to off is the late cut, an ordinary stroke: the
-  // cut keeps the swipe above it and the block straight down.
-  if (angle >= LATE_CUT.sector.from && angle <= LATE_CUT.sector.to) return 'LATE_CUT';
-  if (Math.abs(angle) >= 135) return 'DEFEND';
+  // cut keeps the swipe above it, which a flick out to the off curls into.
+  if (angle >= zones.lateCut) return 'LATE_CUT';
   // On a ball he can charge, the cover and long-on sectors each reach a few
   // degrees further towards vertical. Those two charges are asked for with a
   // diagonal, and a thumb that starts straight up and curls was committing
@@ -77,6 +80,8 @@ export function mapSwipe(dx: number, dy: number, coverLean = 0, scoops = false, 
   // rest.
   if (coverLean > 0 && angle >= 22.5 - coverLean && angle < 22.5) return 'COVER_LONG_OFF';
   if (coverLean > 0 && angle <= coverLean - 22.5 && angle > -22.5) return 'LONG_ON';
+  // The leg side runs round to the block: down and to leg is the leg-side
+  // stroke too, the pull at a bouncer.
   return SWIPE_SHOTS[Math.min(4, Math.max(0, Math.round(angle / 45) + 2))];
 }
 export class InputManager {
@@ -104,7 +109,8 @@ export class InputManager {
    * swipe or a side key is read the other way round: his pull is a swipe to
    * the right, exactly where his leg side now is.
    */
-  constructor(private active: () => boolean, private now: (at?: number) => number, private shoot: (shot: ShotType, time: number) => void, private surface?: HTMLElement, private coverLean: () => number = () => 0, private scoops: () => boolean = () => false, private mirrored: () => boolean = () => false, private hooks: () => boolean = () => false) {
+  /** `zones` says where the swipes split in this mode: see `SWIPE_ZONES`. */
+  constructor(private active: () => boolean, private now: (at?: number) => number, private shoot: (shot: ShotType, time: number) => void, private surface?: HTMLElement, private coverLean: () => number = () => 0, private scoops: () => boolean = () => false, private mirrored: () => boolean = () => false, private hooks: () => boolean = () => false, private zones: () => SwipeZones = () => SWIPE_ZONES.test) {
     window.addEventListener('keydown', this.down);
     window.addEventListener('keyup', this.up);
     surface?.addEventListener('pointerdown', this.pointerDown);
@@ -126,7 +132,7 @@ export class InputManager {
     if (!this.active() || this.used) { this.cancelGesture(); return; }
     event.preventDefault();
     const across = (event.clientX - this.gesture.x) * (this.mirrored() ? -1 : 1);
-    const shot = mapSwipe(across, event.clientY - this.gesture.y, this.coverLean(), this.scoops(), this.hooks());
+    const shot = mapSwipe(across, event.clientY - this.gesture.y, this.coverLean(), this.scoops(), this.hooks(), this.zones());
     if (!shot) return;
     // Commit at recognition: resting a thumb cannot bank an earlier shot, and
     // a longer swipe adds no delay after its direction is already clear.

@@ -169,11 +169,11 @@ export const SCOOP = {
   /** Which lines each answers, read off where the ball finishes. */
   lines: { SCOOP: ['LEG', 'MIDDLE'], REVERSE_SCOOP: ['OFF', 'OUTSIDE_OFF'] } as Record<'SCOOP' | 'REVERSE_SCOOP', readonly BallLine[]>,
   /**
-   * The swipe: down and to one side. Measured off vertical, either side, so
-   * a block is still a block for twenty degrees around straight down and the
-   * leg-side and cut swipes keep everything above this.
+   * The swipe: down and to one side, from here, measured off vertical either
+   * side, round to the block's fan (`SWIPE_ZONES`). The leg-side and cut
+   * swipes keep everything above it.
    */
-  sector: { from: 110, to: 160 },
+  sector: { from: 110 },
   /**
    * A scooped-at ball that beats the bat has him crouched right in front of
    * the stumps with the bat out of the way, so it is given LBW about as often
@@ -206,18 +206,37 @@ export const SCOOP = {
 export const HOOK = {
   /** Which bouncers it answers, read off where the ball finishes. */
   lines: ['OFF', 'OUTSIDE_OFF'] as readonly BallLine[],
-  /** The swipe: the scoop's diagonal, down and to leg, measured off vertical. */
-  sector: { from: 110, to: 160 },
   feedback: { six: 'HOOKED FOR SIX!', four: 'HOOKED — FOUR!' },
   gloved: 'GLOVED — CAUGHT BEHIND!',
   skied: 'TOP EDGE — CAUGHT!',
 } as const;
 /**
+ * Where the swipes split, by mode: how far either side of straight down the
+ * block reaches (`block`, in degrees), and where down-and-to-off stops being
+ * the cut and starts being the late cut (`lateCut`, off vertical). Between
+ * them the late cut runs down to the block, and on the leg side the leg-side
+ * stroke runs all the way round to it — at a bouncer the pull or the hook,
+ * whichever the ball's line calls for (`playedAs`).
+ *
+ * Nobody blocks in the Blast, so its block is thirty degrees; in Survival and
+ * the Marathon, where it keeps a batter in, fifty. Modelled with a thumb
+ * twelve to twenty degrees off what it meant, a late cut landed 75% and 53%
+ * of the time in the old thirty-degree band, against 92% and 74% in the
+ * Blast's and 85% and 62% in the Tests', and a down-left swipe at a bouncer
+ * played the hook only a third of the time: at a bouncer on the body there
+ * was no hook, and down-left sat on the line between the pull and the block.
+ */
+export interface SwipeZones { block: number; lateCut: number }
+export const SWIPE_ZONES: { blast: SwipeZones; test: SwipeZones } = {
+  blast: { block: 15, lateCut: 117.5 },
+  test: { block: 25, lateCut: 120 },
+};
+/**
  * The late cut: off the back foot, the ball let come past him and run down
  * off an open face to third man. Not struck — guided — so its best is four,
- * never six. Down and to off without a meter (the reverse scoop's diagonal,
- * which it gives way to when the meter is full and the ball is one to
- * reverse), in every mode, at pace or spin.
+ * never six. Down and to off without a meter, between the cut and the block
+ * (`SWIPE_ZONES`); the reverse scoop takes it when the meter is full and the
+ * ball is one to reverse. In every mode, at pace or spin.
  *
  * It wants a ball going past off stump (`COMPATIBILITY`'s `LATE_CUT`):
  * across one on the stumps the bat comes down too late to save them. On its
@@ -227,13 +246,6 @@ export const HOOK = {
  * else a thick edge down for a single.
  */
 export const LATE_CUT = {
-  /**
-   * The swipe: down and to off, measured off vertical. Narrower than the
-   * reverse scoop's, which only takes it with a meter: a flick out to the off
-   * curls downward as it goes, and up to here it is still the cut. Straight
-   * down past it is still the block.
-   */
-  sector: { from: 125, to: 155 },
   /** Under this fit to the line he is across the ball, and misses it. */
   minFit: 0.25,
   good: { three: 0.4 },

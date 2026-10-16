@@ -255,11 +255,16 @@ export function hookable(delivery: Delivery) {
  * plays and what he is given are always the same stroke.
  */
 export function playedAs(delivery: Delivery, attempt: ShotAttempt, charged: boolean): ShotAttempt {
-  if (attempt.shotType === 'SCOOP' && hookable(delivery)) return { ...attempt, shotType: 'HOOK' };
-  if (attempt.shotType === 'HOOK' && !hookable(delivery)) return { ...attempt, shotType: 'DEFEND' };
+  // At a bouncer the ball's line picks the leg-side stroke, not the thumb: on
+  // off stump or wider it is the hook, anywhere else the pull, whichever way
+  // round the leg side it was asked for — the pull's key, the scoop's
+  // diagonal or the hook's.
+  const leg = attempt.shotType === 'LEG' || attempt.shotType === 'SCOOP' || attempt.shotType === 'HOOK';
+  if (leg && delivery.style === 'SHORT') return { ...attempt, shotType: hookable(delivery) ? 'HOOK' : 'LEG' };
+  if (attempt.shotType === 'HOOK') return { ...attempt, shotType: 'DEFEND' };
   if (!isScoop(attempt.shotType) || scoopShot(delivery, attempt, charged)) return attempt;
-  // Down and to off with no reverse scoop to play is the late cut; down and to
-  // leg is still the block.
+  // Down and to off with no reverse scoop to play is the late cut; the
+  // keyboard's down and to leg is still the block.
   return { ...attempt, shotType: attempt.shotType === 'REVERSE_SCOOP' ? 'LATE_CUT' : 'DEFEND' };
 }
 /**

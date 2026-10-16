@@ -1900,7 +1900,7 @@ ${modeSelectMarkup()}
     const shift = Math.max(0, frame.left + margin - box.left) - Math.max(0, box.right - (frame.right - margin));
     if (shift) node.style.translate = `${shift}px 0`;
   }
-  /** The lit lane walked round the five, the thumb swiping each, the caption saying which; still, as drawn, for anybody who asked for less motion. */
+  /** The lit lane walked round the seven, the thumb swiping each, the caption saying which; still, as drawn, for anybody who asked for less motion. */
   private walkLanes(left: boolean) {
     const fan = this.$('mi-stage').querySelector<HTMLElement>('.hb-fan');
     const swipe = fan?.querySelector<HTMLElement>('.hb-swipe');
@@ -1915,7 +1915,7 @@ ${modeSelectMarkup()}
       const lane = laneFor(LANE_ORDER[step], left);
       fan.dataset.lit = String(LANE_ORDER[step]);
       swipe.style.setProperty('--a', `${lane.angle}deg`);
-      caption.innerHTML = captionMarkup(lane.swipe, lane.keys, lane.name.toLowerCase());
+      caption.innerHTML = captionMarkup(lane.swipe, lane.keys, lane.caption);
       this.keepInside(caption);
       go();
     }, LANE_BEAT);

@@ -6,14 +6,18 @@ import { today } from '../game/visits';
  * before the first ball (Figma 128:4759) — the ground dimmed, the card at the
  * foot, and the bowler held at his mark until it is put away.
  *
- * The drawing is five lanes of light fanned out from the bat, one a stroke,
+ * The drawing is seven lanes of light fanned out from the bat, one a stroke,
  * each with its name at the far end, and a thumb swiping below: the lane it
  * plays lights up in the game's colour, then the next, so the eye is walked
  * round the lot. The block is the caption on the left — a swipe down — and the
  * lit lane's swipe is the one on the right. On a keyboard each carries its key
- * instead of leaving the thumb to be translated. The scoops are left off: they
- * exist only on a full meter, and the swipe guide over the pitch says where
- * they are when they do.
+ * instead of leaving the thumb to be translated. The five that point up the
+ * ground and square are the strokes every ball offers; the two short ones
+ * pointing down past the bat are the late cut, and the hook, which is what
+ * the leg side plays at a bouncer on off stump or wider (`playedAs`). They are
+ * drawn short so their names stand above the captions. The scoops are left
+ * off: they exist only on a full meter, and the swipe guide over the pitch
+ * says where they are when they do.
  *
  * In a Blast or a Rival Match a second card follows it, lighting the confidence
  * meter on the scoreboard; in a Test Survival, whose meter is the injury, it is
@@ -31,6 +35,8 @@ interface Lane {
   far: readonly [number, number, number, number];
   /** Where its name stands, in design pixels from the bat. */
   label: readonly [number, number];
+  /** What the caption calls it, where the name alone would not say when it is played. */
+  caption?: string;
 }
 
 // Leg side to off, as on the drawing. The corners are the design's own, its
@@ -41,9 +47,12 @@ const LANES: readonly Lane[] = [
   { name: 'Straight drive', angle: 0, far: [-34, -210, 34, -210], label: [0, -181] },
   { name: 'Cover drive', angle: 45, far: [184.6, -133.5, 155.4, -166.5], label: [136, -130] },
   { name: 'Cut', angle: 90, far: [221.6, 5.9, 218.4, -37.9], label: [157, -15] },
+  // Down past the bat, short: the late cut, and the hook at a bouncer.
+  { name: 'Late cut', angle: 135, far: [82.7, 64.6, 64.6, 82.7], label: [150, 46] },
+  { name: 'Hook', angle: -135, far: [-82.7, 64.6, -64.6, 82.7], label: [-150, 46], caption: 'hook at a bouncer' },
 ];
-/** The order the light goes round them: straight first, as drawn, then the off side, then the leg. */
-export const LANE_ORDER: readonly number[] = [2, 3, 4, 0, 1];
+/** The order the light goes round them: straight first, as drawn, then round the off side and down, then the leg. */
+export const LANE_ORDER: readonly number[] = [2, 3, 4, 5, 6, 0, 1];
 
 /**
  * The key for a direction on the screen. Keys go by the side of the screen
@@ -56,6 +65,8 @@ function keysFor(angle: number): string {
   if (a === 180 || a === -180) return 'S';
   if (a === 90) return 'D';
   if (a === -90) return 'A';
+  if (a === 135) return 'D+S';
+  if (a === -135) return 'A+S';
   return a > 0 ? 'W+D' : 'A+W';
 }
 
@@ -65,6 +76,8 @@ function swipeFor(angle: number): string {
   if (a === 0) return 'Swipe up';
   if (a === 90) return 'Swipe right';
   if (a === -90) return 'Swipe left';
+  if (a === 135) return 'Swipe down-right';
+  if (a === -135) return 'Swipe down-left';
   return a > 0 ? 'Swipe up-right' : 'Swipe up-left';
 }
 
@@ -75,6 +88,7 @@ export function laneFor(index: number, left = false) {
   const [x1, y1, x2, y2] = lane.far;
   return {
     name: lane.name,
+    caption: lane.caption ?? lane.name.toLowerCase(),
     angle: lane.angle * flip,
     far: [x1 * flip, y1, x2 * flip, y2] as const,
     label: [lane.label[0] * flip, lane.label[1]] as const,
@@ -90,7 +104,7 @@ export function captionMarkup(swipe: string, keys: string, stroke: string): stri
 
 /**
  * The drawing, set down at the bat: `--x` and `--y` on the overlay say where
- * that is. Five lanes, the names at their ends, the point of contact, the
+ * that is. Seven lanes, the names at their ends, the point of contact, the
  * thumb with its trail and the two ghosts it left, and the captions under it.
  * Which lane is lit is `data-lit` on the fan, walked round by the HUD.
  */
@@ -113,7 +127,7 @@ export function shotsCompass(left = false): string {
     + names
     + `<span class="hb-swipe" style="--a:${lit.angle}deg" aria-hidden="true"><i class="hb-trail"></i><i class="hb-ghost"></i><i class="hb-ghost is-near"></i><i class="hb-thumb"></i></span>`
     + `<span class="hb-caption is-block">${captionMarkup('Swipe down', 'S', 'block')}</span>`
-    + `<span class="hb-caption is-lane">${captionMarkup(lit.swipe, lit.keys, lit.name.toLowerCase())}</span>`
+    + `<span class="hb-caption is-lane">${captionMarkup(lit.swipe, lit.keys, lit.caption)}</span>`
     + `</span>`;
 }
 

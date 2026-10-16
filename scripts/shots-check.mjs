@@ -103,7 +103,7 @@ const DESK = { viewport: { width: 1440, height: 900 } };
   check(await upWithin(page), 'a first Blast opens with how to hit');
   check(await page.locator('#mi-title').textContent() === 'Swipe to hit', 'titled for it', await page.locator('#mi-title').textContent());
   const names = await page.locator('.hb-label b').allTextContents();
-  check(JSON.stringify(names) === JSON.stringify(['Pull', 'On drive', 'Straight drive', 'Cover drive', 'Cut']), 'five lanes, named', JSON.stringify(names));
+  check(JSON.stringify(names) === JSON.stringify(['Pull', 'On drive', 'Straight drive', 'Cover drive', 'Cut', 'Late cut', 'Hook']), 'seven lanes, named', JSON.stringify(names));
   check(await page.locator('.hb-caption.is-block .touch-only').textContent() === 'Swipe down', 'and the block a swipe down');
   check(!(await page.locator('.hb-label kbd').first().isVisible()), 'and no keys on a touch screen');
   check(await page.locator('.touch-only', { hasText: 'Swipe the way' }).isVisible(), 'told to swipe');
@@ -120,7 +120,7 @@ const DESK = { viewport: { width: 1440, height: 900 } };
   // under the thumb following it. Judged on the page's clock held still, so it
   // is one beat however long the renderer took to get here.
   const lit = () => page.evaluate(() => [document.querySelector('.hb-fan')?.dataset.lit, document.querySelector('.hb-caption.is-lane span')?.textContent]);
-  const ORDER = [2, 3, 4, 0, 1], NAMED = ['pull', 'on drive', 'straight drive', 'cover drive', 'cut'];
+  const ORDER = [2, 3, 4, 5, 6, 0, 1], NAMED = ['pull', 'on drive', 'straight drive', 'cover drive', 'cut', 'late cut', 'hook at a bouncer'];
   await freeze(page);
   const [a, aSays] = await lit();
   await advance(page, 1750);
@@ -177,7 +177,7 @@ const DESK = { viewport: { width: 1440, height: 900 } };
   await walkOut(page, 'survive');
   check(await upWithin(page), 'a first Test Survival opens with it too');
   const keys = await page.locator('.hb-label kbd').allTextContents();
-  check(JSON.stringify(keys) === JSON.stringify(['A', 'A+W', 'W', 'W+D', 'D']), 'a keyboard\'s card carries the keys', JSON.stringify(keys));
+  check(JSON.stringify(keys) === JSON.stringify(['A', 'A+W', 'W', 'W+D', 'D', 'D+S', 'A+S']), 'a keyboard\'s card carries the keys', JSON.stringify(keys));
   check(await page.locator('.hb-caption.is-block .keyboard-only').isVisible(), 'and the block is S');
   check(await page.locator('.hb-label kbd').first().isVisible() && await page.locator('.keyboard-only', { hasText: 'Press the way' }).isVisible(), 'and says press, not swipe');
   check(!(await page.locator('#mi-skip').count()) && !(await page.locator('#mi-back').isVisible()) && await page.locator('#mi-next').textContent() === 'LET’S BAT', 'and no confidence card after it: Survival\'s meter is the injury');
