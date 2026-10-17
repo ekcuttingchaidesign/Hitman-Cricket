@@ -866,6 +866,38 @@ edge for a single. A bouncer goes through to the keeper. `?latecut=1`
 mode, and is practice. It is `lateCut` in the batter tests' `PLAYS`, and
 `cover-drive.html` has it beside the drives, the hook and the spinner's cut.
 
+## The slog sweep
+
+The slog sweep (`SLOG_SWEEP`, its clock `SLOG_CLOCK`, in
+`src/entities/Batter.ts`) is the meter's stroke at the spinner, rebuilt from
+a broadcast recording in three angles. A long lunge down the pitch, the bat
+high behind the back shoulder, then down behind him and through flat out in
+front of the front pad, the arms long: it meets the ball `SLOG_MEETS_AT`
+further down the pitch than the drives (`meetsAt` in `src/Game.ts`), a long
+way from his body, his hips forward over a front shin held upright and the
+back knee on the turf (`tests/sweep-geometry.test.ts`), the body following
+the ball's line all the way across, the hands out in front of him from the
+backlift on (`down`, after `drop` brings them down by the back hip with the
+bat still cocked). After the ball it keeps going round: at the bowler at
+chest height, up over the leg side with the hands out that way, upright
+beside his head, then over the top and down behind it, his chest turned
+square to the leg side so the back arm comes up in front of his face; home
+down in front of it. The face rides the handle from the swipe (`riding`);
+after the ball the forearms roll it over once, evenly, through the climb, so
+behind his head the flat face looks at the sky and the curved back lies
+against him (it came down face first onto his shoulders riding the handle
+alone), and it unwinds once on the way home. The finish is held a good while
+and the way home unhurried: from the finish his clock runs slower, as the
+hook's does (`SLOG_HOLD_MS`). Kneeling, the back shoe's toes point down the
+pitch so its sole faces the keeper (`backFootYaw`); turned side on, the sole
+faced square. Sent straight up the pitch and over his head
+from the ball, it read as another stroke; and a backlift leaning over his
+head brought the bat down through the back arm, which nothing tested until
+the batter tests held the blade off both sleeves.
+The orthodox sweep (`FLAT_SWEEP`) is still built on the kneel the slog was
+before (`KNEELING_SWEEP`) and meets the ball where the drives do. It is
+`sweep` in the batter tests' `PLAYS`, with its `meets`.
+
 ## A newcomer's first innings
 
 The first three finished innings in each mode are batted a little easier

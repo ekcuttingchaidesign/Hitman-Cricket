@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, PULL_CONTACT_MS, PULL_LOAD_MS, REVERSE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CLOCK, SCOOP_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from './entities/Batter';
+import { Batter, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, PULL_CONTACT_MS, PULL_LOAD_MS, REVERSE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CLOCK, SCOOP_CONTACT_MS, SLOG_CLOCK, SLOG_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from './entities/Batter';
 import { ADVANCE, GAME } from './config/gameplay';
 import type { ShotType } from './game/types';
 
@@ -46,8 +46,8 @@ const PLAYS: Record<string, Play> = {
   },
   sweep: {
     label: 'Slog sweep (new)', shot: 'LEG', ballX: 0, ballY: .48, sweeping: true,
-    phases: [['Down on it', 130], ['Contact', SWEEP_CONTACT_MS], ['Through', 390], ['Climb', 470], ['Finish', 560], ['Up again', 750]],
-    note: 'The second special stroke, and the only one played off the knee — a spinner pitched up, the meter full, and a leg-side swipe. Watch 130–240 ms: he drops onto the back knee with the front leg planted across him before the bat moves, and the swing is flat and round rather than down and through. Perfect timing is six over midwicket; good is a four that pitches once before the rope.',
+    phases: [['Lunge', SLOG_CLOCK.lift], ['Down', SLOG_CLOCK.down], ['Contact', SWEEP_CONTACT_MS], ['Through', SLOG_CLOCK.through], ['To leg', SLOG_CLOCK.carry], ['Beside his head', SLOG_CLOCK.over], ['Finish', SLOG_CLOCK.finish], ['Up again', SLOG_CLOCK.up]],
+    note: 'Rebuilt from a broadcast recording in three angles. A long lunge down the pitch with the bat high behind the back shoulder, the back knee going down; the hands come down by the back hip, then out in front of him with the arms long, and the bat sweeps through flat out in front of the front pad, met further down the pitch than any drive, a long way from his body. Then it keeps going round: at the bowler at chest height, up and out over the leg side with the hands out that way, upright beside his head, over the top and down behind it, the chest turned square to the leg side. The swing turns the face, never his wrists. Perfect timing is six over midwicket; good is a four that pitches once before the rope.',
   },
   flat: {
     label: 'Flat sweep (new)', shot: 'LEG', ballX: 0, ballY: .48, levelled: true,
@@ -116,6 +116,8 @@ const contactOf = (play: Play) => play.sweeping || play.levelled ? SWEEP_CONTACT
   : play.charging ? CHARGE_CONTACT_MS
   : play.shot === 'COVER_LONG_OFF' && play.ballX >= .30 && play.ballY <= .70 ? SQUARE_DRIVE_CONTACT_MS
   : STROKE_CONTACT_MS;
+/** How far down the pitch from the drives' point the stroke meets the ball. */
+const meetsOf = (play: Play) => play.charging ? CHARGE_MEETS_AT : play.sweeping ? SLOG_MEETS_AT : 0;
 const ballHeight = (play: Play) => play.ballY > .85 && (play.shot === 'LEG' || play.shot === 'SQUARE_CUT')
   ? play.ballY : Math.min(play.ballY, .62);
 
@@ -185,7 +187,7 @@ function restart() {
   // back to the crease as well.
   scrub.max = String(play.charging ? STROKE_DURATION_MS + ADVANCE.walkBackMs : STROKE_DURATION_MS);
   batter.reset(); batter.prepare(1); batter.update(0);
-  batter.swing(play.shot, 0, play.ballX, play.ballY, GAME.contactZ + (play.charging ? CHARGE_MEETS_AT : 0), play.charging ?? false, play.lofted ?? false, play.sweeping ?? false, play.levelled ?? false);
+  batter.swing(play.shot, 0, play.ballX, play.ballY, GAME.contactZ + meetsOf(play), play.charging ?? false, play.lofted ?? false, play.sweeping ?? false, play.levelled ?? false);
   note.textContent = play.note;
   buildPhases();
 }
@@ -201,7 +203,7 @@ function frame(now: number) {
   const play = current();
   // Where the ball is, not where the blade is: a marker that rides the bat
   // proves nothing about whether the two ever met.
-  marker.position.set(play.ballX, ballHeight(play), GAME.contactZ + (play.charging ? CHARGE_MEETS_AT : 0));
+  marker.position.set(play.ballX, ballHeight(play), GAME.contactZ + meetsOf(play));
   marker.visible = shown <= contactOf(play) + 160;
 
   const pose = batter.inspect();

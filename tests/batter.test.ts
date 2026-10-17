@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
+import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -29,7 +29,7 @@ const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; rea
   cut: { shot: 'SQUARE_CUT', ballY: .92, impact: STROKE_CONTACT_MS, reach: [.11, .40, .62], settle: 410 },
   // The slog sweep: the second special stroke, off the knee at a spinner's
   // length. It runs on the shared rig and so it takes the shared checks.
-  sweep: { shot: 'LEG', ballY: .48, impact: SWEEP_CONTACT_MS, reach: [-.30, 0, .26], sweeping: true, settle: 600 },
+  sweep: { shot: 'LEG', ballY: .48, impact: SWEEP_CONTACT_MS, reach: [-.30, 0, .26], sweeping: true, settle: 600, meets: SLOG_MEETS_AT },
   // The orthodox sweep: the same ball and the same body, meterless, with the
   // blade held level. It runs the sweep's branch, so it takes the sweep's
   // checks — and it has to, because a flat blade travelling round him is the
@@ -1216,40 +1216,169 @@ describe('the slog sweep', () => {
     expect(tightest.splay, `${kind} ${JSON.stringify(tightest)}`).toBeGreaterThan(.20);
   });
   /**
-   * How far the blade turns about its own handle across the stroke. Wrists do
-   * roll through a cross-bat shot and the blade has to turn over; what it must
-   * not do is spin, and the first sweep rolled it a hundred degrees further
-   * than the drives while reversing direction twice on the way.
+   * Into the ball the swing turns the face, never his wrists. After it the
+   * forearms roll it over once, evenly, as the bat climbs out over the leg side
+   * and over his head, so that behind his head the flat face looks up at the
+   * sky and the curved back lies against him; riding the handle alone, it came
+   * down there face first onto his shoulders. Then nothing turns it while it
+   * is held, and it unwinds once on the way home.
    */
-  it('turns the blade over without spinning it', () => {
-    const batter = new Batter(); batter.prepare(1); batter.update(0);
-    play(batter, 'sweep', 0);
-    let previous = NaN, travelled = 0, worst = 0;
-    for (let time = 0; time <= 620; time += 4) {
-      batter.update(time);
-      const up = new Vector3(...batter.inspect().batUp).normalize();
-      const face = new Vector3(0, 0, 1).applyQuaternion(batter.bat.quaternion);
-      const bearing = new Vector3(Math.cos(Math.atan2(up.x, up.z)), 0, -Math.sin(Math.atan2(up.x, up.z)));
-      const roll = Math.atan2(up.dot(bearing.clone().cross(face)), bearing.dot(face)) * 180 / Math.PI;
-      if (!Number.isNaN(previous)) {
-        const step = ((roll - previous + 540) % 360) - 180;
-        travelled += Math.abs(step); worst = Math.max(worst, Math.abs(step));
+  it('rolls the face over once on the climb, and holds it there', () => {
+    for (const x of PLAYS.sweep.reach) {
+      const batter = swept(x);
+      let previous = batter.bat.quaternion.clone(), into = 0, rolled = 0, held = 0, home = 0, way = 0;
+      for (let time = 4; time <= STROKE_DURATION_MS + SLOG_HOLD_MS; time += 4) {
+        batter.update(time);
+        const step = previous.clone().invert().multiply(batter.bat.quaternion);
+        const signed = 2 * Math.atan2(step.y, step.w), turn = Math.abs(Math.atan2(Math.sin(signed), Math.cos(signed))) * 180 / Math.PI;
+        if (time <= SWEEP_CONTACT_MS) into += turn;
+        else if (time <= SLOG_CLOCK.through) held += turn;
+        else if (time <= SLOG_CLOCK.finish) {
+          rolled += turn;
+          if (turn > .5) { const sign = Math.sign(Math.atan2(Math.sin(signed), Math.cos(signed))); expect(way === 0 || sign === way, `x=${x} @${time}ms one way`).toBe(true); way = sign; }
+        }
+        else if (time <= SLOG_CLOCK.finish + 200) held += turn;
+        else home += turn;
+        expect(turn / .004, `x=${x} @${time}ms`).toBeLessThan(900);
+        previous = batter.bat.quaternion.clone();
       }
-      previous = roll;
+      expect(into, `x=${x} into the ball`).toBeLessThan(30);
+      expect(rolled, `x=${x} rolled over on the climb`).toBeGreaterThan(90);
+      expect(rolled, `x=${x} once`).toBeLessThan(180);
+      expect(held, `x=${x} after the ball and in the hold`).toBeLessThan(1);
+      expect(home, `x=${x} home`).toBeLessThan(200);
     }
-    // The pull, the other cross-bat stroke, travels about 120 degrees.
-    expect(travelled).toBeLessThan(175);
-    // And no frame turns it a tenth of a revolution on its own.
-    expect(worst).toBeLessThan(12);
   });
-  it('is over before the stroke clock is, and comes all the way home', () => {
+  it('lunges down the pitch and meets the ball out in front of the front pad, the arms long', () => {
+    const guard = new Batter().inspect();
+    for (const x of PLAYS.sweep.reach) {
+      const batter = swept(x);
+      batter.update(SWEEP_CONTACT_MS);
+      const pose = batter.inspect();
+      expect(pose.frontFoot[2] - guard.frontFoot[2], `x=${x} the stride`).toBeGreaterThan(.18);
+      const ball = new Vector3(...pose.bladeContact).sub(batter.root.position);
+      expect(ball.z - pose.frontFoot[2], `x=${x} in front of the pad`).toBeGreaterThan(.12);
+      expect(new Vector3(...pose.grip).distanceTo(new Vector3(...pose.chest)), `x=${x} away from his body`).toBeGreaterThan(.5);
+    }
+  });
+  /**
+   * After the ball the bat keeps going round: out at the bowler at chest
+   * height, then up and out over the leg side with the hands out that way at
+   * his shoulder, upright beside his head, and only then over the top and down
+   * behind it. The first rebuild sent it straight up the pitch from the ball
+   * and over his head, which is a different stroke.
+   */
+  it('swings round to the leg side and up beside his head before dropping the bat behind it', () => {
+    for (const x of PLAYS.sweep.reach) {
+      const batter = swept(x);
+      const root = () => batter.root.position;
+      const tip = () => new Vector3(...batter.inspect().bladeTip).sub(root());
+      for (let time = SLOG_CLOCK.through; time <= SLOG_CLOCK.over; time += 4) {
+        batter.update(time);
+        expect(batter.inspect().batFace[0], `x=${x} @${time}ms face to leg`).toBeLessThan(-.4);
+      }
+      batter.update(SLOG_CLOCK.through);
+      let pose = batter.inspect();
+      expect(tip().z, `x=${x} out at the bowler`).toBeGreaterThan(pose.grip[2] + .6);
+      expect(new Vector3(...pose.grip).distanceTo(new Vector3(...pose.chest)), `x=${x} an arm's length out`).toBeGreaterThan(.55);
+      batter.update(SLOG_CLOCK.carry);
+      pose = batter.inspect();
+      expect(tip().x, `x=${x} out over the leg side`).toBeLessThan(pose.grip[0] - .4);
+      expect(tip().y, `x=${x} climbing`).toBeGreaterThan(pose.grip[1] + .4);
+      expect(pose.grip[0], `x=${x} the hands out to leg`).toBeLessThan(pose.chest[0] - .3);
+      batter.update(SLOG_CLOCK.over);
+      pose = batter.inspect();
+      expect(tip().y, `x=${x} upright`).toBeGreaterThan(pose.grip[1] + .7);
+      batter.update(SLOG_CLOCK.finish);
+      const finish = batter.inspect();
+      const chest = new Vector3(...finish.chest);
+      const head = chest.clone().add(chest.clone().sub(new Vector3(...finish.hip)).normalize().multiplyScalar(.31));
+      expect(finish.grip[1] - head.y, `x=${x} hands over his head`).toBeGreaterThan(.25);
+      expect(tip().z, `x=${x} bat behind his head`).toBeLessThan(head.z - .3);
+      expect(tip().x, `x=${x} lying out towards the off`).toBeGreaterThan(finish.grip[0] + .2);
+      expect(finish.batFace[1], `x=${x} the flat face up, the curved back against him`).toBeGreaterThan(.8);
+      expect(finish.knees[1][1], `x=${x} still on the knee`).toBeLessThan(.15);
+    }
+  });
+  /**
+   * The blade against the sleeves, both halves of both arms. The rig's own
+   * checks hold the blade off the forearm's line and off the joints, and
+   * nothing held it off the upper arm: the bat came down out of the backlift
+   * straight through the back one, past a back elbow stuck out at shoulder
+   * height. A sleeve is .09 across at the shoulder and .046 at the cuff.
+   */
+  it('keeps the blade outside both sleeves, the whole way round', () => {
+    const geometry = bladeGeometry(), positions = geometry.getAttribute('position');
+    const samples = Array.from({ length: positions.count }, (_, i) => new Vector3().fromBufferAttribute(positions, i));
+    geometry.dispose();
+    const off = (p: Vector3, a: Vector3, b: Vector3) => {
+      const line = b.clone().sub(a), at = THREE_clamp(p.clone().sub(a).dot(line) / line.lengthSq());
+      return p.distanceTo(a.clone().addScaledVector(line, at));
+    };
+    for (const x of PLAYS.sweep.reach) {
+      const batter = swept(x);
+      let upper = { gap: Infinity, at: 0 }, lower = { gap: Infinity, at: 0 };
+      for (let time = 0; time <= STROKE_DURATION_MS + SLOG_HOLD_MS; time += 4) {
+        batter.update(time); batter.root.updateMatrixWorld(true);
+        const pose = batter.inspect();
+        for (const sample of samples) {
+          const local = batter.bat.localToWorld(sample.clone()).sub(batter.root.position);
+          for (let i = 0; i < 2; i++) {
+            const shoulder = new Vector3(...pose.shoulders[i]), elbow = new Vector3(...pose.elbows[i]), wrist = new Vector3(...pose.wrists[i]);
+            const u = off(local, shoulder, elbow), l = off(local, elbow, wrist);
+            if (u < upper.gap) upper = { gap: u, at: time };
+            if (l < lower.gap) lower = { gap: l, at: time };
+          }
+        }
+      }
+      expect(upper.gap, `x=${x} upper arm ${JSON.stringify(upper)}`).toBeGreaterThan(.08);
+      expect(lower.gap, `x=${x} forearm ${JSON.stringify(lower)}`).toBeGreaterThan(.055);
+    }
+  });
+  it('takes the hands out away from him as the bat comes down', () => {
+    for (const x of PLAYS.sweep.reach) {
+      const batter = swept(x);
+      for (const time of [SLOG_CLOCK.down, SWEEP_CONTACT_MS, SLOG_CLOCK.through, SLOG_CLOCK.carry]) {
+        batter.update(time);
+        const pose = batter.inspect();
+        expect(new Vector3(...pose.grip).distanceTo(new Vector3(...pose.chest)), `x=${x} @${time}ms`).toBeGreaterThan(.42);
+      }
+    }
+  });
+  /**
+   * Held behind his head a good while, then home unhurried (`SLOG_HOLD_MS`).
+   * At the strokes' own clock the hold was a twelfth of a second and the hands
+   * were back in the guard in a third of one.
+   */
+  it('holds the finish, then comes all the way home without hurrying', () => {
     const batter = swept();
     const guard = new Batter().inspect();
-    batter.update(STROKE_DURATION_MS);
+    batter.update(SLOG_CLOCK.finish);
+    const finish = batter.inspect().grip;
+    batter.update(SLOG_CLOCK.finish + 200);
+    for (let i = 0; i < 3; i++) expect(Math.abs(batter.inspect().grip[i] - finish[i]), 'held').toBeLessThan(.005);
+    let previous = new Vector3(...batter.inspect().grip), fastest = 0;
+    for (let time = SLOG_CLOCK.finish + 204; time <= STROKE_DURATION_MS + SLOG_HOLD_MS; time += 4) {
+      batter.update(time);
+      const grip = new Vector3(...batter.inspect().grip);
+      fastest = Math.max(fastest, grip.distanceTo(previous) / .004); previous = grip;
+    }
+    expect(fastest, 'hands, metres a second on the way home').toBeLessThan(4);
     const pose = batter.inspect();
     expect(pose.grip).toEqual(guard.grip);
     expect(pose.frontFoot).toEqual(guard.frontFoot);
     expect(pose.backFoot).toEqual(guard.backFoot);
+  });
+  it('kneels on the back foot with its sole to the keeper', () => {
+    for (const x of PLAYS.sweep.reach) {
+      const batter = swept(x);
+      const shoe = (batter as unknown as { legs: { shoe: Object3D }[] }).legs[1].shoe;
+      for (const time of [SWEEP_CONTACT_MS, SLOG_CLOCK.carry, SLOG_CLOCK.finish, SLOG_CLOCK.finish + 200]) {
+        batter.update(time); batter.root.updateMatrixWorld(true);
+        const sole = new Vector3(0, -1, 0).applyQuaternion(shoe.getWorldQuaternion(new Quaternion()));
+        expect(sole.z, `x=${x} @${time}ms`).toBeLessThan(-.9);
+      }
+    }
   });
 });
 

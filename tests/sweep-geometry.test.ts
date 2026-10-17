@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Batter, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from '../src/entities/Batter';
+import { Batter, SLOG_CLOCK, SLOG_MEETS_AT, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from '../src/entities/Batter';
 import { GAME } from '../src/config/gameplay';
 import { MathUtils, Vector3 } from 'three';
 
@@ -30,7 +30,7 @@ const clamp = (v: number) => MathUtils.clamp(v, -1, 1);
 const swept = (ballX = 0) => {
   const batter = new Batter();
   batter.prepare(1); batter.update(0);
-  batter.swing('LEG', 0, ballX, .48, GAME.contactZ, false, false, true);
+  batter.swing('LEG', 0, ballX, .48, GAME.contactZ + SLOG_MEETS_AT, false, false, true);
   return batter;
 };
 
@@ -146,33 +146,40 @@ describe('the shape of the slog sweep', () => {
   it('lifts the blade in one arc rather than dropping it and picking it up', () => {
     for (const x of [-.30, 0, .26]) {
       const batter = swept(x);
-      let peak = -Infinity, sag = { drop: 0, at: 0 }, start = 0, end = 0;
-      for (let time = SWEEP_CONTACT_MS; time <= 560; time += 4) {
+      // From the ball until the bat stands up in front of him, which is as
+      // high as the toe goes: over his head it lies back and drops behind it,
+      // which is the finish and not a sag.
+      const tips: { y: number; at: number }[] = [];
+      for (let time = SWEEP_CONTACT_MS; time <= SLOG_CLOCK.over; time += 4) {
         batter.update(time);
-        const tip = new Vector3(...batter.inspect().bladeTip).y;
-        if (time === SWEEP_CONTACT_MS) start = tip;
-        end = tip;
-        if (peak - tip > sag.drop) sag = { drop: peak - tip, at: time };
-        peak = Math.max(peak, tip);
+        tips.push({ y: new Vector3(...batter.inspect().bladeTip).y, at: time });
+      }
+      const top = tips.reduce((a, b) => b.y > a.y ? b : a);
+      let peak = -Infinity, sag = { drop: 0, at: 0 };
+      for (const { y, at } of tips.filter(t => t.at <= top.at)) {
+        if (peak - y > sag.drop) sag = { drop: peak - y, at };
+        peak = Math.max(peak, y);
       }
       // One movement, not two. The version this replaces sent the toe 0.24
       // BELOW the hands just after the ball, parked it there, and then hauled
       // it a metre back up for the finish — down at 430ms, up at 590ms, which
       // reads as two separate movements because it is.
       expect(sag.drop, `x=${x} toe sagging ${JSON.stringify(sag)}`).toBeLessThan(.08);
-      // And it genuinely finishes high, over the shoulder.
-      expect(end - start, `x=${x} total lift`).toBeGreaterThan(.9);
+      // And it genuinely goes high, up in front of him before it goes over.
+      expect(top.y - tips[0].y, `x=${x} total lift`).toBeGreaterThan(.9);
+      expect(top.at, `x=${x} standing up before it goes over`).toBeGreaterThan(SLOG_CLOCK.carry);
     }
   });
   it('keeps the follow-through from dragging back behind him', () => {
-    // The wrapped finish is allowed behind the foot — that is what wrapping
-    // means. Being most of a metre behind it is not. Measured from the ball to
-    // the finish, so the guard and the backlift, where the bat is behind him
-    // because that is where a bat lives before a shot, are not counted.
+    // On through towards the bowler and up the pitch in front of him: only
+    // over the top of his head does the bat go back behind him, and down behind
+    // it is the finish. Measured from the ball to the climb, so the guard and
+    // the backlift, where the bat is behind him because that is where a bat
+    // lives before a shot, are not counted, and nor is the finish.
     for (const x of [-.30, 0, .26]) {
       const batter = swept(x);
       let worst = { gap: Infinity, at: 0 };
-      for (let time = SWEEP_CONTACT_MS; time <= 560; time += 4) {
+      for (let time = SWEEP_CONTACT_MS; time <= SLOG_CLOCK.carry; time += 4) {
         batter.update(time);
         const gap = batAheadOfFoot(batter);
         if (gap < worst.gap) worst = { gap, at: time };
@@ -196,48 +203,43 @@ describe('the shape of the slog sweep', () => {
 });
 
 /**
- * The orthodox sweep, which is the slog sweep with one thing taken away.
+ * The orthodox sweep, which is the slog sweep as it was before the slog was
+ * rebuilt from a recording, with one thing taken away.
  *
  * The brief was exact: same body, same everything, and a blade that stays at
- * the height it met the ball at instead of climbing over the shoulder. So the
- * two tests below are the two halves of that sentence, and between them they
- * are the whole specification of the stroke.
+ * the height it met the ball at instead of climbing over the shoulder. The
+ * slog has since been rebuilt with a lunge and a finish over his head; the
+ * orthodox sweep keeps the kneel the two shared (`KNEELING_SWEEP`) and its
+ * level blade.
  */
 describe('the orthodox sweep', () => {
   const sweeping = (levelled: boolean, x = 0) => {
     const batter = new Batter(); batter.prepare(1); batter.update(0);
-    batter.swing('LEG', 0, x, .48, GAME.contactZ, false, false, !levelled, levelled);
+    batter.swing('LEG', 0, x, .48, GAME.contactZ + (levelled ? 0 : SLOG_MEETS_AT), false, false, !levelled, levelled);
     return batter;
   };
-  /** Everything that is the batter rather than the bat he is holding. */
-  const BODY = ['hip', 'chest', 'frontFoot', 'backFoot', 'knees', 'backToe', 'legLengths'] as const;
 
-  it('moves the body exactly as the slog sweep does, to the last digit', () => {
+  it('goes down on the back knee where he stands, rather than lunging', () => {
+    const guard = new Batter().inspect();
     for (const x of [-.30, 0, .26]) {
-      const slog = sweeping(false, x), flat = sweeping(true, x);
-      for (let time = 0; time <= STROKE_DURATION_MS; time += 4) {
-        slog.update(time); flat.update(time);
-        const a = slog.inspect() as unknown as Record<string, unknown>;
-        const b = flat.inspect() as unknown as Record<string, unknown>;
-        for (const part of BODY)
-          expect(b[part], `${part} at ${time}ms, ball ${x}`).toEqual(a[part]);
-        expect((flat.inspect() as { yaw: number }).yaw).toEqual((slog.inspect() as { yaw: number }).yaw);
-      }
+      const flat = sweeping(true, x);
+      flat.update(SWEEP_CONTACT_MS);
+      const pose = flat.inspect();
+      expect(pose.knees[1][1], `back knee, ball ${x}`).toBeLessThan(.12);
+      expect(guard.hip[1] - pose.hip[1], `hips down, ball ${x}`).toBeGreaterThan(.30);
+      // Across the line, not down the pitch: that is the slog's lunge.
+      expect(pose.frontFoot[2] - guard.frontFoot[2], `no lunge, ball ${x}`).toBeLessThan(.05);
     }
   });
 
-  it('keeps the blade level where the slog sweep climbs over the shoulder', () => {
+  it('keeps the blade level where the slog sweep climbs over his head', () => {
     for (const x of [-.30, 0, .26]) {
       const slog = sweeping(false, x), flat = sweeping(true, x);
       const tip = (b: Batter) => new Vector3(...b.inspect().bladeTip).sub(b.root.position).y;
       slog.update(SWEEP_CONTACT_MS); flat.update(SWEEP_CONTACT_MS);
-      // Indistinguishable up to the ball being hit: the difference is what he
-      // does after it, not how he arrives.
-      expect(tip(flat)).toBeCloseTo(tip(slog), 9);
-      const met = tip(flat);
+      const met = tip(flat), slogMet = tip(slog);
       let highFlat = -Infinity, highSlog = -Infinity;
-      // Contact to the end of the follow-through. The recovery afterwards is
-      // shared — both strokes stand up and bring the bat back to the guard.
+      // Contact to the end of the follow-through.
       for (let time = SWEEP_CONTACT_MS; time <= 620; time += 4) {
         slog.update(time); flat.update(time);
         highFlat = Math.max(highFlat, tip(flat));
@@ -247,7 +249,7 @@ describe('the orthodox sweep', () => {
       }
       // The slog climbs more than a metre out of the shot; this one stays
       // within a bat's width of the height it struck the ball at.
-      expect(highSlog - met, `slog climb, ball ${x}`).toBeGreaterThan(.90);
+      expect(highSlog - slogMet, `slog climb, ball ${x}`).toBeGreaterThan(.90);
       expect(highFlat - met, `flat climb, ball ${x}`).toBeLessThan(.25);
     }
   });
@@ -291,7 +293,7 @@ describe('getting up off the knee', () => {
   const played = (shot: 'LEG' | 'REVERSE_SCOOP', ballX: number, sweeping: boolean, levelled: boolean) => {
     const batter = new Batter();
     batter.prepare(1); batter.update(0);
-    batter.swing(shot, 0, ballX, .54, GAME.contactZ, false, false, sweeping, levelled);
+    batter.swing(shot, 0, ballX, .54, GAME.contactZ + (sweeping ? SLOG_MEETS_AT : 0), false, false, sweeping, levelled);
     return batter;
   };
   const farthest = (a: number[][], b: number[][]) =>
