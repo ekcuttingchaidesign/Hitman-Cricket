@@ -456,10 +456,12 @@ function yuvi(at: BatterOnScreen, s: number, pen: number, random: () => number):
 
 /**
  * The cut-out the moment wants, if any: outline rings round him, biggest
- * first, in CSS pixels, each optionally offset; and whether the stumps in
- * front of him are drawn back over the doodle's back layer with him.
+ * first, in CSS pixels, each optionally offset; whether the stumps in
+ * front of him are drawn back over the doodle's back layer with him; and
+ * whether the ball he hit is, with its tail — for a doodle that goes up while
+ * the ball is still in the air.
  */
-export interface Cutout { rings: { r: number; colour: string; dx?: number; dy?: number }[]; stumps: boolean }
+export interface Cutout { rings: { r: number; colour: string; dx?: number; dy?: number }[]; stumps: boolean; ball?: boolean }
 
 const INK = '#120b08';
 /** A plain stroke: no ink line, no shine. */
@@ -781,6 +783,24 @@ export function milestoneDoodle(moment: Moment, at: BatterOnScreen, lasts: numbe
  * that blows outwards and flickers, inked round, with shock-arcs sliding away
  * along the turf, specks of dirt thrown out and a few sparks thrown up.
  *
+ * All of it goes *behind* him. The drawing is the stage's back layer, and he
+ * is cut back out over it with the ball and its tail (see `Cutout` and
+ * GameScene's `cutout`), the way the Test innings' marks are, with a thin
+ * line of the pen's ink round him and a band of its bright colour outside
+ * that. It was drawn over him at first, and the bursts, the dirt and the
+ * sparks — sat at his boots and reaching his thighs — covered the stroke
+ * itself: the charge and the sweep got away with it standing up, but a scoop
+ * is played from a squat and a reverse scoop from a knee, with the bat laid
+ * flat at knee height, and the ink landed exactly where the shot was. Behind
+ * him, the burst frames the stroke instead of painting over it, and he stays
+ * the one thing in colour against the grey.
+ *
+ * `low` is the two scoops: the bursts move out from under him to either side
+ * of the squat, and sit lower and flatter, so the shape he makes — the ramp,
+ * the ball riding up off the face — stands against plain grey and not against
+ * a row of teeth; and the lines start from round the crouch rather than round
+ * a man standing.
+ *
  * The burst comes in five styles, each with its own pen, and the focus lines,
  * arcs and sparks are drawn in that pen too: see `POWER_STYLES`. Everything
  * but the burst is the same drawing in every style.
@@ -1023,18 +1043,23 @@ function focusLines(at: BatterOnScreen, c: Point, s: number, random: () => numbe
  */
 export const POWER_DOODLE_MS = 1400;
 
-export function powerDoodle(at: BatterOnScreen, lasts: number, style: PowerStyle = 'teeth') {
+/** The flash's drawing, the stage's back layer, and how he is cut back out over it. */
+export interface PowerDoodle { back: HTMLElement; cutout: Cutout }
+
+export function powerDoodle(at: BatterOnScreen, lasts: number, style: PowerStyle = 'teeth', low = false): PowerDoodle {
   const random = seeded(77);
-  const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
-  const c = { x: at.head.x, y: at.head.y + (at.feet.y - at.head.y) * .48 };
+  const s = Math.max(40, (at.feet.y - at.head.y) / 1.78), px = s / 94;
+  // The lines start from round him: his middle standing, lower in a squat.
+  const c = { x: at.head.x, y: at.head.y + (at.feet.y - at.head.y) * (low ? .62 : .48) };
   const out: string[] = [];
 
   out.push(focusLines(at, c, s, random));
 
   // The bursts either side of his boots: an ink outline, the body and a
   // brighter band inside it, each two hands flicked between. The dust puff
-  // has halftone dots over its band, the way a comic prints a cloud.
-  const w = s * .95, h = s * .55;
+  // has halftone dots over its band, the way a comic prints a cloud. For the
+  // scoops, out from under the squat and lower (see above).
+  const w = s * .95, h = s * (low ? .42 : .55), clear = s * (low ? .55 : .2);
   const { shape: drawn, band } = BURSTS[style];
   const defs = style === 'puff'
     ? `<defs><pattern id="pw-halftone" width="${f(s * .08)}" height="${f(s * .08)}" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">`
@@ -1043,7 +1068,7 @@ export function powerDoodle(at: BatterOnScreen, lasts: number, style: PowerStyle
   // Lightning strikes with a white flash over the whole picture, gone in a blink.
   if (style === 'bolt') out.unshift(`<rect class="pw-strike" width="${f(at.width)}" height="${f(at.height)}"/>`);
   for (const side of [-1, 1]) {
-    const base = { x: at.feet.x + side * s * .2, y: at.feet.y + s * .03 };
+    const base = { x: at.feet.x + side * clear, y: at.feet.y + s * .03 };
     const frames = [0, 1].map(k => {
       const seed = 900 + (side + 1) * 10 + k;
       const shape = (depth: number) => drawn(base, w, h, side, seed, depth);
@@ -1060,10 +1085,10 @@ export function powerDoodle(at: BatterOnScreen, lasts: number, style: PowerStyle
     }
   }
 
-  // Dirt thrown out along the ground, and sparks thrown up.
+  // Dirt thrown out along the ground, and sparks thrown up, from the bursts.
   for (let i = 0; i < 16; i++) {
     const side = i % 2 ? 1 : -1;
-    const x = at.feet.x + side * s * (.2 + random() * .9), y = at.feet.y - s * (random() * .5);
+    const x = at.feet.x + side * (clear + s * random() * .9), y = at.feet.y - s * (random() * .5);
     const size = s * (.02 + random() * .03);
     // Thrown by the group, tilted by the shape: an animated transform on the
     // shape itself would replace its tilt.
@@ -1073,7 +1098,7 @@ export function powerDoodle(at: BatterOnScreen, lasts: number, style: PowerStyle
   }
   for (let i = 0; i < 7; i++) {
     const side = i % 2 ? 1 : -1;
-    const x = at.feet.x + side * s * (.5 + random() * .6), y = at.feet.y - s * (.3 + random() * .5);
+    const x = at.feet.x + side * (clear + s * (.3 + random() * .6)), y = at.feet.y - s * (.3 + random() * .5);
     const len = s * (.14 + random() * .08), tilt = side * (30 + random() * 40);
     const d = `M${f(x)} ${f(y - len)}Q${f(x + len * .35)} ${f(y)} ${f(x)} ${f(y + len * .35)}Q${f(x - len * .35)} ${f(y)} ${f(x)} ${f(y - len)}Z`;
     out.push(`<g class="pw-thrown is-spark" style="--dx:${f(side * s * (.3 + random() * .5))}px;--dy:${f(-s * (.5 + random() * .6))}px;--delay:${Math.round(40 + random() * 200)}ms">`
@@ -1082,13 +1107,17 @@ export function powerDoodle(at: BatterOnScreen, lasts: number, style: PowerStyle
 
   const svg = `<svg class="cy-svg" viewBox="0 0 ${f(at.width)} ${f(at.height)}" width="${f(at.width)}" height="${f(at.height)}" aria-hidden="true">`
     + defs + out.join('') + '</svg>';
-  const element = document.createElement('div');
-  element.className = 'milestone is-power';
-  element.dataset.style = style;
-  for (const [name, value] of Object.entries(POWER[style])) element.style.setProperty(`--pw-${name}`, value);
-  element.style.setProperty('--out', `${lasts - 260}ms`);
-  element.innerHTML = svg;
-  return element;
+  const back = document.createElement('div');
+  back.className = `milestone milestone-under is-power${low ? ' is-low' : ''}`;
+  back.dataset.style = style;
+  for (const [name, value] of Object.entries(POWER[style])) back.style.setProperty(`--pw-${name}`, value);
+  back.style.setProperty('--out', `${lasts - 260}ms`);
+  back.innerHTML = svg;
+  // Him over it: a line of the pen's ink round him, a band of its bright
+  // colour outside that — thinner than a moment's, it is a flash, not a card
+  // — his stumps with him, and the ball with its tail.
+  const { a, ink } = POWER[style];
+  return { back, cutout: { rings: [{ r: 5.5 * px, colour: a }, { r: 2.5 * px, colour: ink }], stumps: true, ball: true } };
 }
 
 /**

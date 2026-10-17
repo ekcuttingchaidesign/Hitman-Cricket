@@ -3753,14 +3753,14 @@ ${modeSelectMarkup()}
   }
   /**
    * The flash for a special stroke: see `powerDoodle`. Not a moment, so the
-   * call for the ball is left where it is; and a moment arriving on top of it
-   * takes its place, since `milestone` clears whatever doodle is up.
+   * call for the ball is left where it is. It all goes behind him, so what
+   * comes back is the back layer and the cut-out for the scene, which owns
+   * the layers under the HUD, as `milestone` hands back its own; and a moment
+   * arriving on top of it takes its place there. `low` is a scoop.
    */
-  power(at: BatterOnScreen, lasts: number, style: PowerStyle) {
+  power(at: BatterOnScreen, lasts: number, style: PowerStyle, low = false) {
     this.viewport.querySelector('.milestone:not(.milestone-under)')?.remove();
-    const doodle = powerDoodle(at, lasts, style);
-    this.viewport.append(doodle);
-    window.setTimeout(() => doodle.remove(), lasts);
+    return powerDoodle(at, lasts, style, low);
   }
   /** The focus lines for a pulled bouncer: see `pullDoodle`. Not a moment either. */
   pull(at: BatterOnScreen, lasts: number, pen: PullPen) {

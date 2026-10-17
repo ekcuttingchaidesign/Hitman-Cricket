@@ -239,7 +239,15 @@ meter: the ground greyed round the batter and the ball, focus lines running
 out from him and off the screen, a burst either side of his boots, and the
 call for the ball left in place. The charge and the sweep get it whenever
 they find the bat and he is not out; the scoops only for six
-(`landedSpecial`). The burst comes in five styles, each in its
+(`landedSpecial`). All of it is drawn *behind* him: the doodle is the stage's
+back layer and he is cut back out over it with his stumps and the ball
+(`Cutout.ball`, GameScene's `cutout`), a thin line of the pen's ink round him.
+Drawn over him, the bursts, dirt and sparks at his boots painted over the
+stroke itself — a scoop is played from a squat and a reverse scoop from a
+knee, and the ink landed on the shot. A scoop's flash is `low`
+(`powerDoodle`'s last argument, `is-low` on the layer, `__cricket.power(style,
+true)`): the bursts stand out from under the squat, wider apart and lower, so
+the ramp reads against plain grey. The burst comes in five styles, each in its
 own pen and dealt from a shuffled bag; the check puts each up by name
 (`__cricket.power('flame')`), photographs it, and deals five to see all five.
 A new style goes in `POWER_STYLES` and in the check's `PENS`. The grey runs on the game's
