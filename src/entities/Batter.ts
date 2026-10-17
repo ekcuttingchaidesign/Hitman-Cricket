@@ -1283,13 +1283,15 @@ const STRAIGHT_LOFT: Stroke = {
  * A long stride first — the front foot down the line and planted before the
  * bat arrives (`LOFT_V2_CLOCK.plant`), the head over the front knee and the
  * back foot left where it was — then a straight bat met under his eyes. The
- * arms go out after the ball up the line, the blade climbing, and keep going
- * up: the hands finish above the helmet, the elbows bent and high, with the
- * bat laid flat behind his head pointing back at the keeper. He holds it there
- * a long while, tall on the braced front leg with the back foot up on its toe,
- * and watches it go; then the bat comes home back down its own swing. From the
- * ball on the face rides the handle (`riding`), so the bat never turns in his
- * hands. Version one (`STRAIGHT_LOFT`) finishes over the front shoulder.
+ * arms go out after the ball up the line and the stroke ends there: both arms
+ * long, the hands high in front of him over the front shoulder, the head
+ * leaning a little to the off side out of their way, and the blade carried on up
+ * the line after the ball, its toe to the sky over the bowler. No wrap over
+ * the shoulder or behind the head. He holds it a long while, low on the bent
+ * front leg with the back foot up on its toe, and watches it go; then the bat
+ * comes home down the line and up into his guard. From the ball on the face
+ * rides the handle (`riding`), so the bat never turns in his hands. Version
+ * one (`STRAIGHT_LOFT`) finishes over the front shoulder.
  */
 export type LoftVersion = 1 | 2;
 /** How often each version of the lofted straight drive is played: half and half. Both are the same six. */
@@ -1302,25 +1304,21 @@ export const LOFT_ODDS: Record<LoftVersion, number> = { 1: .5, 2: .5 };
 export function loftVersionOf(seed: number, ball: number): LoftVersion {
   return coverRoll(seed ^ 0x1f7d2b9, ball) < LOFT_ODDS[1] ? 1 : 2;
 }
-export const LOFT_V2_CLOCK = { plant: 70, through: 220, carry: 300, wrapped: 430, hold: 680, carry2: 780, under: 875 } as const;
+export const LOFT_V2_CLOCK = { plant: 70, through: 220, finish: 320, hold: 650, down: 760, under: 870 } as const;
 const STRAIGHT_LOFT_V2: Stroke = {
   // Down the line on a long stride, the weight over the front knee.
   contact: { ...STROKES.STRAIGHT.contact, hip: [-.13, .70, .08], chest: [.00, 1.03, .22],
     frontFoot: [.03, .08, .66], backFoot: [-.15, .08, -.34], heel: .22, yaw: 1.22, face: .02, look: .15 },
   // Out after the ball: both arms long up the line, the blade already rising.
-  through: { ...STROKES.STRAIGHT.through!, hip: [.02, .76, .20], chest: [.16, 1.10, .36],
+  through: { ...STROKES.STRAIGHT.through!, hip: [.02, .76, .20], chest: [.12, 1.10, .36],
     frontFoot: [.03, .08, .66], backFoot: [-.14, .08, -.30],
-    grip: [.44, 1.18, 1.02], batUp: [.06, .30, -.952], batFace: [0, .952, .30], heel: .34, armHinge: .65, shoulderLift: .05, look: .05 },
-  // Up in front of the face, the toe to the sky.
-  carry: { ...GUARD, hip: [.03, .79, .21], chest: [.15, 1.14, .35],
-    frontFoot: [.03, .08, .66], backFoot: [-.12, .08, -.27],
-    grip: [.38, 1.50, .74], batUp: [.04, -.80, -.60], batFace: [.05, .60, -.80], yaw: .30, face: .08, heel: .46,
-    backFootYaw: .90, leadElbow: .28, armHinge: 1.40, armDrive: 1, shoulderLift: .08, look: -.10 },
-  // Wrapped: the hands above the helmet, the bat flat behind his head pointing at the keeper.
-  finish: { ...GUARD, hip: [.03, .79, .21], chest: [.14, 1.15, .34],
-    frontFoot: [.03, .08, .66], backFoot: [-.10, .12, -.24],
-    grip: [.30, 1.76, .46], batUp: [.02, -.08, .997], batFace: [0, .997, .08], yaw: .14, face: .10, heel: .62,
-    backFootYaw: .72, leadElbow: .34, armHinge: 1.70, armDrive: 1, shoulderLift: .12, look: -.25 },
+    grip: [.32, 1.20, 1.00], batUp: [.06, .30, -.952], batFace: [0, .952, .30], heel: .34, armHinge: .65, shoulderLift: .05, look: .05 },
+  // The end of it, held: the arms long and high up the line, the hands over the
+  // front shoulder with the head leaning off out of their way, the toe up over the bowler.
+  finish: { ...STROKES.STRAIGHT.through!, hip: [.04, .78, .30], chest: [.22, 1.12, .25],
+    frontFoot: [.03, .08, .66], backFoot: [-.12, .10, -.28],
+    grip: [-.10, 1.60, 1.02], batUp: [.05, -.40, -.915], batFace: [0, .915, -.40], heel: .52,
+    backFootYaw: .80, yaw: .25, armHinge: 1.10, leadElbow: .28, armDrive: 1, shoulderLift: .10, look: -.10 },
   recover: STROKES.STRAIGHT.recover,
 };
 /**
@@ -3201,10 +3199,10 @@ export class Batter {
     }
     // The straight drive's six, version two: the front foot down first on a
     // long stride, the ball met under his eyes, out after it up the line and
-    // on up into the wrap above his head, held long, and home back down the
-    // way it went. From the ball on the face rides the handle (`riding`).
+    // held there, arms long and high, and home down the line into his guard.
+    // From the ball on the face rides the handle (`riding`).
     if (this.straightLoftV2) {
-      const { plant, through, carry, wrapped, hold, carry2, under } = LOFT_V2_CLOCK;
+      const { plant, through, finish: ended, hold, down, under } = LOFT_V2_CLOCK;
       const body = (pose: Pose, home: number): Pose => {
         const settled = mix(pose, GUARD, home);
         return { ...pose, hip: settled.hip, chest: settled.chest, frontFoot: settled.frontFoot, backFoot: settled.backFoot, heel: settled.heel,
@@ -3213,13 +3211,12 @@ export class Batter {
       const out = [{ time: 0, pose: this.swingFrom },
         { time: plant, pose: { ...mix(this.swingFrom, contact, COVER_PLANT.bat), frontFoot: contact.frontFoot, backFoot: contact.backFoot,
           hip: mix(this.swingFrom, contact, COVER_PLANT.hips).hip, chest: mix(this.swingFrom, contact, COVER_PLANT.chest).chest } },
-        { time: STROKE_CONTACT_MS, pose: contact }, { time: through, pose: reachPose(stroke.through!) },
-        { time: carry, pose: reachPose(stroke.carry!) }, { time: wrapped, pose: finish }];
+        { time: STROKE_CONTACT_MS, pose: contact }, { time: through, pose: reachPose(stroke.through!) }, { time: ended, pose: finish }];
       const home = [{ time: hold, pose: finish },
-        { time: carry2, pose: body(reachPose(stroke.carry!), .3) },
+        { time: down, pose: body(mix(finish, reachPose(stroke.through!), .6), .4) },
         { time: under, pose: body(mix(contact, GUARD, .4), .7) },
         { time: STROKE_DURATION_MS, pose: GUARD }];
-      const poseAt = (at: number): Pose => at < wrapped ? shoulderDriven(out, at, STROKE_CONTACT_MS)
+      const poseAt = (at: number): Pose => at < ended ? shoulderDriven(out, at, STROKE_CONTACT_MS)
         : at < hold ? finish : shoulderDriven(home, at, hold - 70);
       const pose = { ...poseAt(age) };
       if (age > STROKE_CONTACT_MS) {

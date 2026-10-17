@@ -147,28 +147,31 @@ describe('bat travel', () => {
     // The shoulders turn through it rather than the arms doing all the work.
     expect(finish.yaw).toBeLessThan(.80);
   });
-  it('wraps the second lofted straight drive flat behind his head off a long stride, and holds it', () => {
+  it('ends the second lofted straight drive with the arms long up the line off a long stride, and holds it', () => {
     const batter = new Batter(); batter.prepare(1); batter.update(0);
     batter.swing('STRAIGHT', 0, 0, .54, GAME.contactZ, false, true, false, false, 2);
     batter.update(LOFT_V2_CLOCK.plant); const planted = batter.inspect();
     batter.update(STROKE_CONTACT_MS); const contact = batter.inspect();
-    batter.update(LOFT_V2_CLOCK.wrapped + 20); const wrapped = batter.inspect();
+    batter.update(LOFT_V2_CLOCK.finish + 20); const ended = batter.inspect();
     batter.update(LOFT_V2_CLOCK.hold - 20); const held = batter.inspect();
     // The front foot is down the line and planted before the bat arrives, and stays there.
     expect(planted.frontFoot[2]).toBeGreaterThan(.6);
     expect(contact.frontFoot).toEqual(planted.frontFoot);
-    expect(wrapped.frontFoot).toEqual(planted.frontFoot);
+    expect(ended.frontFoot).toEqual(planted.frontFoot);
     // A straight bat at the ball, under his eyes.
     expect(contact.bladeTip[1]).toBeLessThan(contact.grip[1] - .6);
-    // The hands above his head; the bat flat behind it, its toe back at the keeper.
-    for (const pose of [wrapped, held]) {
-      expect(Math.min(...pose.hands.map(hand => hand[1]))).toBeGreaterThan(pose.chest[1] + .45);
-      expect(Math.abs(pose.bladeTip[1] - pose.grip[1])).toBeLessThan(.3);
-      expect(pose.bladeTip[2]).toBeLessThan((pose.hands[0][2] + pose.hands[1][2]) / 2 - .55);
+    for (const pose of [ended, held]) {
+      const hands = [0, 1, 2].map(i => (pose.hands[0][i] + pose.hands[1][i]) / 2);
+      // The hands high and out in front of him, over the front shoulder rather than the off side of his head.
+      expect(pose.grip[1]).toBeGreaterThan(pose.chest[1] + .35);
+      expect(pose.grip[2]).toBeGreaterThan(pose.chest[2] + .35);
+      expect(pose.grip[0]).toBeLessThan(pose.chest[0]);
+      // The blade carried on up the line after the ball, toe up and ahead of the hands: no wrap.
+      expect(pose.bladeTip[2]).toBeGreaterThan(hands[2] + .4);
+      expect(pose.bladeTip[1]).toBeGreaterThan(hands[1]);
     }
     // Held still.
-    expect(held.bladeTip.map((v, i) => Math.abs(v - wrapped.bladeTip[i])).every(d => d < .02)).toBe(true);
-    // Home in his guard by the end of the stroke.
+    expect(held.bladeTip.map((v, i) => Math.abs(v - ended.bladeTip[i])).every(d => d < .02)).toBe(true);
     batter.update(STROKE_DURATION_MS); const home = batter.inspect();
     // In the same guard as version one comes home to.
     const one = new Batter(); one.prepare(1); one.update(0);

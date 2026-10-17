@@ -663,10 +663,12 @@ always was. Version two (`STRAIGHT_LOFT_V2`, its clock `LOFT_V2_CLOCK`) is
 built from Kohli's six over the bowler's head at Adelaide, side on and from
 behind the bowler: a long stride, the front foot planted before the bat
 arrives with the head over the knee and the back foot left behind; a straight
-bat under his eyes; the arms out long up the line, and on up until the hands
-are above the helmet with the bat laid flat behind his head, pointing back at
-the keeper. He holds that a long while, low on the bent front leg with the back
-foot on its toe, then brings it home over his head into his guard. The face
+bat under his eyes; the arms out long up the line, and the stroke ends there
+(`LOFT_V2_CLOCK.finish`): the hands high in front of him over the front
+shoulder, the head leaning a little to the off side out of their way, the toe
+up over the bowler, with no wrap over the shoulder or behind the head. He
+holds that a long while, low on the bent front leg with the back foot on its
+toe, then brings the bat home down the line into his guard. The face
 rides the handle from the ball (`riding`). The swing's version argument is the
 cover strokes' for them and the loft's for this (`Game.shoot`); `?loftv=1` or
 `2` asks for one, and is not practice, since the six is the same. It is

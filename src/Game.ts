@@ -515,8 +515,8 @@ export class Game {
   private readonly loftAsked = Number(new URLSearchParams(location.search).get('loftv'));
   /**
    * Which of the lofted straight drive's two finishes this six is played
-   * with, by `LOFT_ODDS`: over the front shoulder, or wrapped flat behind his
-   * head (`STRAIGHT_LOFT_V2`). Only the picture changes, never the six.
+   * with, by `LOFT_ODDS`: over the front shoulder, or held with the arms long
+   * up the line (`STRAIGHT_LOFT_V2`). Only the picture changes, never the six.
    */
   private loftVersion(): LoftVersion {
     return this.loftAsked === 1 || this.loftAsked === 2 ? this.loftAsked : loftVersionOf(this.seed, this.score.balls);
