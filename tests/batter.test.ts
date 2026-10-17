@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, type AfterBall } from '../src/entities/Batter';
+import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, SCOOP_CLOCK, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -2159,66 +2159,61 @@ describe('the scoop', () => {
     play(batter, 'scoop', x);
     return batter;
   };
-  it('is already down before the ball, and ramps it off a face turned to the sky', () => {
+  it('steps across outside the line and squares up before the ball, and ramps it off a face turned to the sky', () => {
     for (const x of PLAYS.scoop.reach) {
       const batter = scoop(x);
-      // Set before the ball: the crouch and the low bat are there by the set
-      // key, well before contact.
-      batter.update(70);
+      const line = x - batter.root.position.x;
+      // Across and down before the ball: the crouch, the low bat, and his body
+      // off to the off side of where the ball is coming.
+      batter.update(SCOOP_CLOCK.set);
       const set = batter.inspect();
       expect(set.hip[1], `x=${x} set`).toBeLessThan(.80);
       expect(set.grip[1], `x=${x} set hands`).toBeLessThan(.90);
+      expect(set.hip[0], `x=${x} out of the line`).toBeGreaterThan(line + .12);
+      expect(set.backFoot[0] - set.frontFoot[0], `x=${x} feet across the crease`).toBeGreaterThan(.45);
       batter.update(SCOOP_CONTACT_MS);
       const contact = batter.inspect();
       expect(contact.bladeContact[0]).toBeCloseTo(x, 6);
       expect(contact.bladeContact[1]).toBeCloseTo(.54, 6);
       expect(contact.bladeContact[2]).toBeCloseTo(GAME.contactZ, 6);
-      // Crouched, square to the bowler, hands at the front hip.
+      // Crouched, square to the bowler, the hands low.
       expect(contact.hip[1], `x=${x} crouch`).toBeLessThan(.75);
-      expect(contact.yaw, `x=${x} square`).toBeLessThan(.6);
+      expect(Math.abs(contact.yaw), `x=${x} square`).toBeLessThan(.3);
       expect(contact.grip[1], `x=${x} hands low`).toBeLessThan(.90);
-      // The toe down and forward to the off side, the face up at the bowler.
+      expect(contact.hip[0], `x=${x} still out of the line`).toBeGreaterThan(line + .12);
+      // Laid back almost flat, pointing at the bowler, the face up.
       const tip = new Vector3(...contact.bladeTip).sub(batter.root.position);
-      expect(tip.y, `x=${x} toe down`).toBeLessThan(contact.grip[1] - .3);
-      expect(tip.x, `x=${x} toe to off`).toBeGreaterThan(contact.grip[0] + .5);
-      expect(tip.z, `x=${x} toe forward`).toBeGreaterThan(contact.grip[2] + .2);
+      expect(tip.z, `x=${x} toe at the bowler`).toBeGreaterThan(contact.grip[2] + .6);
+      expect(Math.abs(tip.y - contact.grip[1]), `x=${x} nearly flat`).toBeLessThan(.4);
       expect(contact.batFace[1], `x=${x} face up`).toBeGreaterThan(.75);
       expect(contact.batFace[2], `x=${x} face to the bowler`).toBeGreaterThan(0);
     }
   });
-  it('lifts the bat face first, toe up in front of him and over the front shoulder, without turning it in the hands', () => {
+  it('lifts the bat toe first to upright in front of the front shoulder, without turning it in the hands', () => {
     for (const x of PLAYS.scoop.reach) {
       const batter = scoop(x);
       const root = batter.root.position;
       batter.update(SCOOP_CONTACT_MS);
       const contact = batter.inspect();
       const toe0 = new Vector3(...contact.batUp).negate();
-      // A quarter of the way round the blade is level, out to the off side,
-      // the face still to the sky.
-      batter.update(250);
+      // Out in front and climbing, the face still mostly to the sky.
+      batter.update(SCOOP_CLOCK.through);
       const through = batter.inspect();
-      expect(Math.abs(through.batUp[1]), `x=${x} level through`).toBeLessThan(.5);
-      expect(through.batUp[0], `x=${x} toe to off`).toBeLessThan(-.7);
+      expect(through.bladeTip[2] - root.z, `x=${x} toe in front`).toBeGreaterThan(through.grip[2] + .5);
       expect(through.batFace[1], `x=${x} face up`).toBeGreaterThan(.8);
-      // Half way the toe is up past the head in front of him, and the face
-      // is where the toe was pointing at the ball: one turn, no roll.
-      batter.update(360);
-      const carry = batter.inspect();
-      expect(carry.bladeTip[1], `x=${x} toe up`).toBeGreaterThan(carry.grip[1] + .5);
-      expect(carry.bladeTip[2] - root.z, `x=${x} toe in front`).toBeGreaterThan(carry.grip[2]);
-      expect(new Vector3(...carry.batFace).dot(toe0), `x=${x} face led`).toBeLessThan(-.8);
-      // And at the top it curls back over the front shoulder, the back of
-      // the bat to the sky, the hands high beside that shoulder.
-      batter.update(470);
+      // One turn about the line of the shoulders: the face goes where the toe was.
+      batter.update(SCOOP_CLOCK.carry);
+      expect(new Vector3(...batter.inspect().batFace).dot(toe0), `x=${x} face led`).toBeLessThan(-.5);
+      // Upright in front of the front shoulder, the hands at his chin.
+      batter.update(SCOOP_CLOCK.finish + 40);
       const finish = batter.inspect();
-      expect(finish.grip[1], `x=${x} hands high`).toBeGreaterThan(1.35);
-      expect(finish.grip[0] - finish.chest[0], `x=${x} beside the front shoulder`).toBeLessThan(-.15);
-      expect(finish.batUp[1], `x=${x} bat up`).toBeLessThan(-.7);
-      expect(finish.bladeTip[0], `x=${x} toe over the leg shoulder`).toBeLessThan(finish.grip[0] - .25);
-      expect(finish.bladeTip[2] - root.z, `x=${x} toe curled back`).toBeLessThan(finish.grip[2]);
-      expect(finish.batFace[1], `x=${x} back of the bat to the sky`).toBeLessThan(-.3);
-      expect(finish.hip[1], `x=${x} up a little, not standing`).toBeLessThan(.90);
-      // Both hands in front of the shoulder line, never round it.
+      expect(finish.batUp[1], `x=${x} upright`).toBeLessThan(-.9);
+      expect(finish.bladeTip[1], `x=${x} toe up`).toBeGreaterThan(finish.grip[1] + .6);
+      expect(finish.grip[1] - finish.chest[1], `x=${x} hands at the chin`).toBeGreaterThan(0);
+      expect(finish.grip[1] - finish.chest[1], `x=${x} not over the head`).toBeLessThan(.3);
+      expect(finish.grip[2] - finish.chest[2], `x=${x} in front of him`).toBeGreaterThan(.2);
+      expect(finish.grip[0] - finish.chest[0], `x=${x} on the leg side`).toBeLessThan(-.1);
+      expect(finish.hip[1], `x=${x} still low`).toBeLessThan(.90);
       for (const forward of finish.handsForward) expect(forward, `x=${x}`).toBeGreaterThan(0);
       // And home to the guard.
       batter.update(STROKE_DURATION_MS);

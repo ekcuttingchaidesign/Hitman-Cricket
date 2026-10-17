@@ -1089,72 +1089,69 @@ const SWEEP_UNWRAP: Pose = { ...GUARD,
 const SWEEP_REACH: readonly [number, number] = [-.30, .26];
 /**
  * The scoop — the first of the two strokes played behind the wicket, from a
- * broadcast recording taken from the bowler's end.
+ * net session filmed from the off side and from behind the stumps.
  *
- * He is already down before the ball: a wide base, both knees bent, the weight
- * low and forward, square to the bowler. The bat is brought down early and
- * held out in front of the front hip with the toe angled down and forward to
- * the off side and the face turned up at the bowler — a ramp — and the ball is
- * met at knee height, in front of the pads, and ridden off the face up over
- * the keeper's shoulder. Then the bat follows the ball: it does not turn in
- * the hands, it lifts, face first — the toe swinging up in front of him from
- * down and forward, through level with the off side, on up past the head, and
- * curling back over the front shoulder at the top, the hands rising with it
- * to finish high beside that shoulder. One turn about one axis, so the face
- * that met the ball is the face that leads the whole way, and the back of
- * the bat is to the sky at the finish. He comes up a little onto the back
- * foot to watch it go.
+ * He gets out of the ball's way first: the back foot goes across to the off
+ * side and the front foot opens, so he stands square to the bowler on a wide
+ * base, knees bent and low, with his body outside the line of a ball on the
+ * stumps. The bat comes down early in front of him. At the ball it is laid
+ * back almost flat, pointing at the bowler with the face turned up — a ramp —
+ * the hands low beside the front thigh, and the ball is met at knee height and
+ * ridden up off the face over his leg-side shoulder to fine leg. Then the bat
+ * lifts toe first without turning in his hands, one turn about the line of
+ * his shoulders, until it stands upright in front of the front shoulder with
+ * the hands at his chin; he holds it there and turns his head to watch the
+ * ball go behind him.
  *
- * Clock: the crouch is set by `set`, the ball is met at `contact`, the lift
- * runs through `through` and `carry` to `finish`. Home is the straight
- * charge's way: over the top, down in front, into the pick-up — with the
- * face turned back round over those three keys, which is where a batter
- * re-grips anyway.
+ * The step across is what keeps the ball out of him: it goes back towards
+ * fine leg from in front of the stumps, and standing where he takes guard he
+ * was in its path (`tests/flight.test.ts` flies it against him now).
+ *
+ * Clock: across and down by `set` (any sooner and the front elbow outruns
+ * the frame), the ball at `contact`, the lift through
+ * `through` and `carry` to the upright `finish`, held to `hold`; then home in
+ * front of him and into the pick-up.
  */
 export const SCOOP_CONTACT_MS = 150;
-export const SCOOP_CLOCK = { set: 70, contact: SCOOP_CONTACT_MS, through: 250, carry: 360, finish: 470, hold: 580, unwrap: 670, across: 760, up: 855 } as const;
+export const SCOOP_CLOCK = { set: 95, contact: SCOOP_CONTACT_MS, through: 240, carry: 330, finish: 430, hold: 600, unwrap: 700, across: 790, up: 870 } as const;
 const SCOOP: Stroke & { set: Pose; unwrap: Pose; across: Pose } = {
-  // Down and ready, the bat brought low across the front.
-  set: { ...GUARD, hip: [-.02, .72, -.26], chest: [.03, 1.04, -.14],
-    frontFoot: [.06, .08, .22], backFoot: [-.10, .08, -.50],
-    grip: [.20, .80, .20], batUp: [-.70, .55, -.45], batFace: [.42, .86, .22],
-    yaw: .55, face: .05, heel: .15, backFootYaw: 1.20, leadElbow: -.05 },
-  // The ramp. Toe down and forward to the off side, face up at the bowler,
-  // hands in front of the front hip: the ball rides off it.
-  contact: { ...GUARD, hip: [-.02, .68, -.26], chest: [.03, 1.00, -.13],
-    frontFoot: [.06, .08, .22], backFoot: [-.10, .08, -.50],
-    grip: [.01, .75, .15], batUp: [-.80, .48, -.35], batFace: [.44, .876, .19],
-    yaw: .40, face: .00, heel: .15, backFootYaw: 1.20, leadElbow: -.05 },
-  // A quarter of the way round: the blade level, pointing out to the off
-  // side, the face still to the sky, the hands up at the chest in front.
-  through: { ...GUARD, hip: [-.03, .72, -.24], chest: [.02, 1.04, -.10],
-    frontFoot: [.06, .08, .22], backFoot: [-.10, .08, -.50],
-    grip: [-.06, 1.00, .22], batUp: [-.88, -.28, -.38], batFace: [-.25, .96, -.11],
-    yaw: .30, face: -.15, heel: .20, backFootYaw: 1.10, leadElbow: .30 },
-  // Half way: the toe up past the head in front of him, the face now turned
-  // up and back over his shoulder, the hands at the chest.
-  carry: { ...GUARD, hip: [-.04, .78, -.20], chest: [-.01, 1.10, -.06],
-    frontFoot: [.06, .08, .22], backFoot: [-.10, .08, -.50],
-    grip: [-.14, 1.24, .30], batUp: [-.44, -.88, -.19], batFace: [-.80, .48, -.35],
-    yaw: .15, face: -.40, heel: .30, backFootYaw: 1.00, leadElbow: .40 },
-  // The curl at the top: the toe back over the front shoulder, the back of
-  // the bat to the sky, the hands high beside the shoulder. Up a little out
-  // of the crouch onto the back foot, watching it over the shoulder.
-  finish: { ...GUARD, hip: [-.05, .84, -.16], chest: [-.03, 1.16, -.02],
-    frontFoot: [.06, .08, .22], backFoot: [-.10, .08, -.50],
-    grip: [-.28, 1.48, .24], batUp: [.47, -.86, .20], batFace: [-.78, -.52, -.34],
-    yaw: .05, face: -.65, heel: .40, backFootYaw: .90, leadElbow: .40 },
-  // Home, the straight charge's way: toe to the sky above the front shoulder,
-  // then down in front with the toe up and the hands at the chest, into the
-  // pick-up. The face comes back round across the three keys.
-  unwrap: { ...GUARD, hip: [-.05, .88, -.10], chest: [.01, 1.22, .00],
-    frontFoot: [.02, .08, .24], backFoot: [-.11, .08, -.44],
-    grip: [-.12, 1.62, .40], batUp: [.20, -.90, .38], batFace: [-.90, -.30, -.24],
-    yaw: .20, face: -.30, heel: .20, backFootYaw: 1.00, leadElbow: .22 },
-  across: { ...GUARD, hip: [-.05, .90, -.06], chest: [.02, 1.24, .02],
-    frontFoot: [-.02, .08, .27], backFoot: [-.12, .08, -.34],
-    grip: [.06, 1.34, .50], batUp: [.18, -.72, -.67], batFace: [-.55, .42, -.60],
-    yaw: .55, face: -.10, heel: .10, backFootYaw: 1.10, leadElbow: .05 },
+  // Across and down: square to the bowler on a wide base outside the line,
+  // the bat brought down upright in front of him, face to the bowler.
+  set: { ...GUARD, hip: [.55, .70, -.30], chest: [.57, 1.02, -.20],
+    frontFoot: [.23, .08, .00], backFoot: [.83, .08, -.12],
+    grip: [.36, .68, .04], batUp: [.00, .97, -.25], batFace: [.00, .25, .97],
+    yaw: .05, frontFootYaw: .10, backFootYaw: .25, face: .00, heel: .10, leadElbow: .00, look: .15 },
+  // The ramp: laid back almost flat, pointing at the bowler, face up, the
+  // hands low beside the front thigh. The ball rides off it over his shoulder.
+  contact: { ...GUARD, hip: [.55, .66, -.32], chest: [.57, .98, -.22],
+    frontFoot: [.23, .08, .00], backFoot: [.83, .08, -.12],
+    grip: [.43, .70, .02], batUp: [-.12, .35, -.93], batFace: [.00, .93, .35],
+    yaw: .00, frontFootYaw: .10, backFootYaw: .25, face: -.10, heel: .10, leadElbow: .05, look: .20 },
+  // Lifting toe first: the blade a little above level, out in front.
+  through: { ...GUARD, hip: [.55, .70, -.28], chest: [.56, 1.02, -.18],
+    frontFoot: [.23, .08, .00], backFoot: [.83, .08, -.12],
+    grip: [.43, .95, .26], batUp: [-.05, -.30, -.95], batFace: [.00, .95, -.30],
+    yaw: .00, frontFootYaw: .10, backFootYaw: .25, face: -.25, heel: .14, leadElbow: .15, look: .05 },
+  carry: { ...GUARD, hip: [.54, .74, -.18], chest: [.54, 1.08, -.10],
+    frontFoot: [.23, .08, .00], backFoot: [.83, .08, -.12],
+    grip: [.33, 1.10, .20], batUp: [-.03, -.80, -.60], batFace: [.00, .60, -.80],
+    yaw: .00, frontFootYaw: .10, backFootYaw: .25, face: -.45, heel: .18, leadElbow: .20, look: -.10 },
+  // Upright in front of the front shoulder, the hands at his chin, his head
+  // turned to watch it go behind him.
+  finish: { ...GUARD, hip: [.53, .78, -.16], chest: [.52, 1.12, -.10],
+    frontFoot: [.23, .08, .00], backFoot: [.83, .08, -.12],
+    grip: [.27, 1.24, .24], batUp: [.00, -.99, .10], batFace: [.00, -.10, -.99],
+    yaw: .00, frontFootYaw: .10, backFootYaw: .25, face: -.75, heel: .20, leadElbow: .20, look: -.30 },
+  // Home: back across into his crease with the bat lowered in front of him,
+  // then into the pick-up.
+  unwrap: { ...GUARD, hip: [.22, .84, -.12], chest: [.22, 1.16, -.05],
+    frontFoot: [.00, .08, .12], backFoot: [.38, .08, -.18],
+    grip: [.24, 1.16, .28], batUp: [.00, -.90, -.44], batFace: [.00, .44, -.90],
+    yaw: .45, frontFootYaw: .40, backFootYaw: .70, face: -.30, heel: .10, leadElbow: .10 },
+  across: { ...GUARD, hip: [.05, .90, -.08], chest: [.08, 1.22, .00],
+    frontFoot: [-.06, .08, .22], backFoot: [-.02, .08, -.22],
+    grip: [.30, 1.10, .40], batUp: [.10, -.75, -.65], batFace: [.10, .65, -.75],
+    yaw: .90, face: -.10, heel: .05, backFootYaw: 1.10, leadElbow: .05 },
   recover: { ...GUARD, grip: [.38, 1.12, .43], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17], yaw: 1.10 },
 };
 /** A ball on the stumps or the leg stump line: the scoop's reach. */
