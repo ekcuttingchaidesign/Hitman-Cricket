@@ -1,13 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { landedSpecial, pulledBouncer, specialStroke } from '../src/game/Confidence';
 
-const shot = (extra: object) => ({ madeBatContact: true, isWicket: false, ...extra });
+const shot = (extra: object) => ({ madeBatContact: true, isWicket: false, runs: 0 as 0 | 1 | 2 | 3 | 4 | 6, ...extra });
 
 describe('the flash for a special stroke', () => {
   it('is for the three strokes a full meter buys', () => {
     expect(landedSpecial(shot({ advance: true }))).toBe(true);
     expect(landedSpecial(shot({ swept: true }))).toBe(true);
-    expect(landedSpecial(shot({ scooped: true }))).toBe(true);
+    expect(landedSpecial(shot({ scooped: true, runs: 6 }))).toBe(true);
+  });
+
+  it('is for a scoop only when it goes for six', () => {
+    for (const runs of [0, 1, 2, 3, 4] as const) expect(landedSpecial(shot({ scooped: true, runs })), `${runs}`).toBe(false);
+    expect(landedSpecial(shot({ scooped: true, runs: 6 }))).toBe(true);
+    // The charge and the sweep keep theirs for whatever they land.
+    expect(landedSpecial(shot({ advance: true, runs: 1 }))).toBe(true);
+    expect(landedSpecial(shot({ swept: true, runs: 4 }))).toBe(true);
+    // A scoop for four still spent the meter.
+    expect(specialStroke({ scooped: true })).toBe(true);
   });
 
   it('is not for an ordinary shot, however big', () => {

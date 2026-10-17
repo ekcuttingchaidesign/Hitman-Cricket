@@ -237,7 +237,9 @@ for by name (`__cricket.milestone('triple')`); which ball earns it is
 `scripts/power-check.mjs` is the flash for a special stroke played on a full
 meter: the ground greyed round the batter and the ball, focus lines running
 out from him and off the screen, a burst either side of his boots, and the
-call for the ball left in place. The burst comes in five styles, each in its
+call for the ball left in place. The charge and the sweep get it whenever
+they find the bat and he is not out; the scoops only for six
+(`landedSpecial`). The burst comes in five styles, each in its
 own pen and dealt from a shuffled bag; the check puts each up by name
 (`__cricket.power('flame')`), photographs it, and deals five to see all five.
 A new style goes in `POWER_STYLES` and in the check's `PENS`. The grey runs on the game's

@@ -15,10 +15,12 @@ export function specialStroke(outcome: Pick<ShotOutcome, 'advance' | 'swept' | '
 /**
  * A special stroke that found the bat and did not get him out: the ones that
  * get the flash of grey and fire (see `powerDoodle`). One he was out to is
- * not a moment to set on fire.
+ * not a moment to set on fire. The scoops get it only for six: ramped for
+ * less it lands inside the rope or is helped round for runs, and the flash
+ * would be promising a shot it was not.
  */
-export function landedSpecial(outcome: Pick<ShotOutcome, 'advance' | 'swept' | 'scooped' | 'madeBatContact' | 'isWicket'>) {
-  return specialStroke(outcome) && outcome.madeBatContact && !outcome.isWicket;
+export function landedSpecial(outcome: Pick<ShotOutcome, 'advance' | 'swept' | 'scooped' | 'madeBatContact' | 'isWicket' | 'runs'>) {
+  return specialStroke(outcome) && outcome.madeBatContact && !outcome.isWicket && (!outcome.scooped || outcome.runs === 6);
 }
 
 /**
