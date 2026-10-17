@@ -1295,8 +1295,8 @@ const STRAIGHT_LOFT: Stroke = {
  * one (`STRAIGHT_LOFT`) finishes over the front shoulder.
  */
 export type LoftVersion = 1 | 2;
-/** How often each version of the lofted straight drive is played: half and half. Both are the same six. */
-export const LOFT_ODDS: Record<LoftVersion, number> = { 1: .5, 2: .5 };
+/** How often each version of the lofted straight drive is played: three in ten the old finish, seven in ten the new. Both are the same six. */
+export const LOFT_ODDS: Record<LoftVersion, number> = { 1: .3, 2: .7 };
 /**
  * The version a ball plays, off the innings' seed and the ball it has reached
  * as the cover strokes' is (`coverRoll`), mixed with a constant of its own so

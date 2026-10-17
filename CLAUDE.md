@@ -655,7 +655,7 @@ both arms for the sky and turned the bat a full turn in his hands coming home. `
 
 ## The straight six, version two
 
-The lofted straight drive comes in two versions, half and half
+The lofted straight drive comes in two versions, three in ten and seven in ten
 (`LOFT_ODDS`, `loftVersionOf` off the innings' seed and the ball, mixed apart
 from the cover strokes' roll), and both are the same six: only the picture
 changes. Version one (`STRAIGHT_LOFT`) is the finish over the front shoulder it
