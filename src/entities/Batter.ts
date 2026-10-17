@@ -1284,8 +1284,9 @@ const STRAIGHT_LOFT: Stroke = {
  * bat arrives (`LOFT_V2_CLOCK.plant`), the head over the front knee and the
  * back foot left where it was — then a straight bat met under his eyes. The
  * arms go out after the ball up the line and the stroke ends there: both arms
- * long, the hands high in front of him over the front shoulder, the head
- * leaning a little to the off side out of their way, and the blade carried on up
+ * long, the hands high in front of him over the front shoulder and clear of
+ * his face, the back arm crossing under his chin, the head upright and the chin
+ * up after the ball, and the blade carried on up
  * the line after the ball, its toe to the sky over the bowler. No wrap over
  * the shoulder or behind the head. He holds it a long while, low on the bent
  * front leg with the back foot up on its toe, and watches it go; then the bat
@@ -1314,11 +1315,12 @@ const STRAIGHT_LOFT_V2: Stroke = {
     frontFoot: [.03, .08, .66], backFoot: [-.14, .08, -.30],
     grip: [.32, 1.20, 1.00], batUp: [.06, .30, -.952], batFace: [0, .952, .30], heel: .34, armHinge: .65, shoulderLift: .05, look: .05 },
   // The end of it, held: the arms long and high up the line, the hands over the
-  // front shoulder with the head leaning off out of their way, the toe up over the bowler.
-  finish: { ...STROKES.STRAIGHT.through!, hip: [.04, .78, .30], chest: [.22, 1.12, .25],
+  // front shoulder and clear of his face, the back arm crossing under the chin
+  // rather than across the grille, the chin up after the ball, the toe up over the bowler.
+  finish: { ...STROKES.STRAIGHT.through!, hip: [.04, .78, .30], chest: [.04, 1.12, .22],
     frontFoot: [.03, .08, .66], backFoot: [-.12, .10, -.28],
-    grip: [-.10, 1.60, 1.02], batUp: [.05, -.40, -.915], batFace: [0, .915, -.40], heel: .52,
-    backFootYaw: .80, yaw: .25, armHinge: 1.10, leadElbow: .28, armDrive: 1, shoulderLift: .10, look: -.10 },
+    grip: [-.20, 1.53, 1.00], batUp: [.05, -.40, -.915], batFace: [0, .915, -.40], heel: .52,
+    backFootYaw: .80, yaw: -.25, armHinge: 1.10, leadElbow: .28, armDrive: 1, shoulderLift: .02, look: -.60 },
   recover: STROKES.STRAIGHT.recover,
 };
 /**

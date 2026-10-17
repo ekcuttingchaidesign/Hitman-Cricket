@@ -665,8 +665,11 @@ behind the bowler: a long stride, the front foot planted before the bat
 arrives with the head over the knee and the back foot left behind; a straight
 bat under his eyes; the arms out long up the line, and the stroke ends there
 (`LOFT_V2_CLOCK.finish`): the hands high in front of him over the front
-shoulder, the head leaning a little to the off side out of their way, the toe
-up over the bowler, with no wrap over the shoulder or behind the head. He
+shoulder and clear of his face, the back arm crossing under his chin, the toe
+up over the bowler, with no wrap over the shoulder or behind the head. Leaning
+his head off towards the back shoulder put that arm through the grille; the
+helmet check in the batter tests measures from the head's centre and missed
+it, so the grille was measured on its own while the pose was set. He
 holds that a long while, low on the bent front leg with the back foot on its
 toe, then brings the bat home down the line into his guard. The face
 rides the handle from the ball (`riding`). The swing's version argument is the
