@@ -887,8 +887,9 @@ export class Game {
       // hundred in a headless browser is thirty balls of perfect timing.
       milestone: (kind: Milestone = 'century', mark?: number) => this.celebrate({ kind, mark: mark ?? MARK_OF[kind] }),
       // The special stroke's flash, on demand, for the same reason — in the
-      // style named, so `power-check.mjs` can see each, or the next one dealt.
-      power: (style?: PowerStyle) => this.powerUp(style),
+      // style named, so `power-check.mjs` can see each, or the next one dealt;
+      // `low` for a scoop's, the bursts out from under the squat.
+      power: (style?: PowerStyle, low?: boolean) => this.powerUp(style, low),
       // And a pulled bouncer's, for `pull-check.mjs`.
       pull: () => this.pullUp(),
       // The wait for one, from an innings written out ball by ball — runs, or
@@ -3611,15 +3612,17 @@ export class Game {
   };
   /**
    * A special stroke, on the hit: the ground greys round him and the ball for
-   * a second and fire streaks out of him. See `powerDoodle`. The burst is
+   * a second and fire streaks out of him, and the doodle goes up behind him,
+   * he and the ball cut back out over it. See `powerDoodle`. The burst is
    * dealt from a shuffled bag of its five styles, off `Math.random` and never
-   * the innings' seed, so which one comes up leaves the bowling alone.
+   * the innings' seed, so which one comes up leaves the bowling alone. `low`
+   * is a scoop, whose bursts move out from under the squat.
    */
-  private powerUp(style: PowerStyle = this.powerStyles.next()) {
+  private powerUp(style: PowerStyle = this.powerStyles.next(), low = !!this.outcome?.scooped) {
     this.powerStyle = style;
     this.scene.power(this.elapsed);
-    this.scene.cutout();
-    this.hud.power(this.scene.batterOnScreen(), POWER_DOODLE_MS, style);
+    const { back, cutout } = this.hud.power(this.scene.batterOnScreen(), POWER_DOODLE_MS, style, low);
+    this.scene.cutout(back, cutout, POWER_DOODLE_MS);
     // The Blast's ground lets the fireworks off for one: see `FIREWORKS_MS`.
     if (this.mode === 'CLASSIC') this.scene.fireworks(this.elapsed, FIREWORKS_MS.special);
     track('special-shot', 'Played a special stroke on a full meter');

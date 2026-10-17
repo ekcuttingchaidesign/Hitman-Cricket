@@ -657,11 +657,13 @@ export class GameScene {
   /**
    * A moment's layers under the HUD, for `lasts` milliseconds: `back`, the
    * doodle's layer that goes behind him, and `spec`, how he is cut back out
-   * over it — outline rings stamped round his silhouette, and his stumps
-   * with him where they stand in front of him. Each frame he is rendered
-   * once more on his own, onto a clear background, and that picture is laid
-   * over the back layer, so the doodle goes behind him without a 3D card in
-   * the scene. Called with nothing, it takes them down.
+   * over it — outline rings stamped round his silhouette, his stumps with
+   * him where they stand in front of him, and the ball with its tail for a
+   * doodle that goes up while it is still in the air (the special stroke's
+   * flash). Each frame he is rendered once more on his own, onto a clear
+   * background, and that picture is laid over the back layer, so the doodle
+   * goes behind him without a 3D card in the scene. Called with nothing, it
+   * takes them down.
    */
   cutout(back?: HTMLElement, spec?: Cutout, lasts = 0) {
     this.underlay.replaceChildren(...(back ? [back] : []));
@@ -669,6 +671,7 @@ export class GameScene {
     if (!spec) { this.cut = null; this.cutCanvas.style.display = 'none'; return; }
     const him = new Set<THREE.Object3D>(), stumps = new Set<THREE.Object3D>(spec.stumps ? this.stumps : []);
     this.batter.root.traverse(o => him.add(o));
+    if (spec.ball) for (const o of [this.ball, ...this.trail, ...this.fire]) him.add(o);
     this.cut = { spec, until: performance.now() + lasts, him, stumps, sil: document.createElement('canvas'), ring: document.createElement('canvas') };
   }
   /** Him alone, then his stumps with him, into the cut-out's canvas, with the outline rings under. */

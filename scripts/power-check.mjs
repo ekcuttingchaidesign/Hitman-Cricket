@@ -4,6 +4,9 @@
  * the turf bursts either side of his boots, and all of it is gone again
  * without the call for the ball being moved aside. The burst is each of its
  * five styles in turn, photographed, and dealt five times to see all five.
+ * All of it is drawn behind him — the stage's back layer, with him cut back
+ * out over it (see GameScene's `cutout`) — and a scoop's bursts stand out from
+ * under the squat, wider apart and lower than a standing stroke's.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/power-check.mjs
@@ -141,9 +144,15 @@ for (const [name, options] of [
       arcs: document.querySelectorAll('.is-power .pw-arc').length,
       aside: !!document.querySelector('#viewport.milestone-on'),
       muted: window.__cricket.snapshot().muted,
+      // Behind him: the back layer under the HUD, nothing of it over the picture, and him cut back out.
+      under: document.querySelectorAll('.stage-underlay .milestone-under.is-power').length,
+      over: [...document.querySelectorAll('.is-power')].filter(layer => !layer.closest('.stage-underlay')).length,
+      cut: getComputedStyle(document.querySelector('.stage-cut')).display !== 'none',
+      low: !!doodle?.classList.contains('is-low'),
     };
   });
   check(up.doodle, 'the flash goes up');
+  check(up.under === 1 && up.over === 0 && up.cut && !up.low, 'drawn behind him, and he cut back out over it', JSON.stringify(up));
   check(up.rays >= 8 && up.rays <= 14 && up.travelling >= 4, 'a dozen focus lines, not a storm, travelling out from him', JSON.stringify(up));
   check(up.bursts === 2 && up.arcs >= 4 && up.thrown >= 16, 'a burst either side of his boots, with dirt and sparks thrown', JSON.stringify(up));
   check(!up.aside, 'and the call for the ball left where it is');
@@ -186,6 +195,26 @@ for (const [name, options] of [
   }
   // Pens that differ, or the five would be one burst in five shapes.
   check(new Set(Object.values(PENS)).size === STYLES.length, 'five pens, all different');
+  // A scoop's: the same drawing, the bursts moved out from under the squat
+  // and lower, so the gap between them is wider and neither stands as tall.
+  const bursts = async low => {
+    await page.evaluate(low => window.__cricket.power('teeth', low), low);
+    await page.waitForTimeout(300);
+    return page.evaluate(() => {
+      const doodle = document.querySelector('.milestone.is-power');
+      for (const animation of doodle?.getAnimations({ subtree: true }) ?? []) { animation.pause(); animation.currentTime = 400; }
+      // One body a burst: each burst is two flicker frames of the same shape.
+      const [left, right] = [...doodle.querySelectorAll('.pw-burst')].map(burst => burst.querySelector('.pw-burst-b').getBoundingClientRect())
+        .sort((a, b) => a.left - b.left);
+      return { low: doodle.classList.contains('is-low'), gap: right.left - left.right, tall: Math.max(left.height, right.height),
+        rays: doodle.querySelectorAll('.pw-ray').length, thrown: doodle.querySelectorAll('.pw-thrown').length };
+    });
+  };
+  const standing = await bursts(false), squat = await bursts(true);
+  await page.screenshot({ path: `test-results/power-${name}-scoop.png` });
+  check(!standing.low && squat.low, 'a scoop\'s flash is marked as one', JSON.stringify({ standing, squat }));
+  check(squat.gap > standing.gap + 20 && squat.tall < standing.tall * .9, 'its bursts out from under the squat, wider apart and lower', JSON.stringify({ standing, squat }));
+  check(squat.rays === standing.rays && squat.thrown === standing.thrown, 'round the same lines and throw', JSON.stringify({ standing, squat }));
   let muted = 1;
   for (let i = 0; i < 120 && muted > 0; i++) { await page.waitForTimeout(250); muted = (await snap()).muted; }
   check(muted === 0, 'and the grey goes by itself');
@@ -246,7 +275,7 @@ for (const [name, options] of [
   await advance(600);
   await page.addStyleTag({ content: '[class*=debug]{display:none!important}' });
   const KEYS = { CHARGE: ['w'], SWEEP: ['a'], SCOOP: ['s', 'a'], REVERSE: ['s', 'd'] };
-  let landed = null;
+  let landed = null, drawn = null;
   for (let ball = 0; ball < 10 && !landed; ball++) {
     // Full before the ball is chosen, which is when the cue is settled.
     for (let i = 0; i < 60 && !['READY', 'RESULT'].includes((await snap()).phase); i++) await advance(200);
@@ -263,13 +292,25 @@ for (const [name, options] of [
     for (let i = 0; i < 40; i++) {
       await advance(60);
       const now = await snap();
-      if (now.burning > 0) { landed = { ...now, primed: seen.primed }; break; }
+      if (now.burning > 0) {
+        // The doodle is read the moment the hit is seen: the page's clock is
+        // not held, and a screenshot in software outlives the flash.
+        drawn = await page.evaluate(() => ({
+          under: document.querySelectorAll('.stage-underlay .is-power').length,
+          over: [...document.querySelectorAll('.is-power')].filter(layer => !layer.closest('.stage-underlay')).length,
+          low: !!document.querySelector('.stage-underlay .is-power.is-low'), cut: getComputedStyle(document.querySelector('.stage-cut')).display !== 'none',
+        }));
+        landed = { ...now, primed: seen.primed }; break;
+      }
       if (now.phase === 'RESULT' || now.phase === 'READY') break;
     }
   }
   check(!!landed, 'a special stroke lands, and the ball burns behind it', JSON.stringify(landed));
   if (landed) {
     check(landed.special, `a ${landed.primed.toLowerCase()} that found the bat`, JSON.stringify(landed));
+    // The doodle behind him, and a scoop's the squat's.
+    const scooped = landed.primed === 'SCOOP' || landed.primed === 'REVERSE';
+    check(drawn.under === 1 && drawn.over === 0 && drawn.cut && drawn.low === scooped, `the flash up behind him${scooped ? ', out from under the squat' : ''}`, JSON.stringify(drawn));
     await advance(40);
     await page.screenshot({ path: 'test-results/power-trail.png' });
     check((await snap()).burning >= 10, 'a tail of it, not a spark');
