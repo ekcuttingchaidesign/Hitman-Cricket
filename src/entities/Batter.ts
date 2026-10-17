@@ -1112,7 +1112,7 @@ const SWEEP_REACH: readonly [number, number] = [-.30, .26];
  * re-grips anyway.
  */
 export const SCOOP_CONTACT_MS = 150;
-const SCOOP_CLOCK = { set: 70, contact: SCOOP_CONTACT_MS, through: 250, carry: 360, finish: 470, hold: 580, unwrap: 670, across: 760, up: 855 } as const;
+export const SCOOP_CLOCK = { set: 70, contact: SCOOP_CONTACT_MS, through: 250, carry: 360, finish: 470, hold: 580, unwrap: 670, across: 760, up: 855 } as const;
 const SCOOP: Stroke & { set: Pose; unwrap: Pose; across: Pose } = {
   // Down and ready, the bat brought low across the front.
   set: { ...GUARD, hip: [-.02, .72, -.26], chest: [.03, 1.04, -.14],
@@ -1176,7 +1176,7 @@ const SCOOP_REACH: readonly [number, number] = [-.30, .17];
  * the shoulders are this stroke's own.
  */
 export const REVERSE_CONTACT_MS = 240;
-const REVERSE_CLOCK = { down: 110, contact: REVERSE_CONTACT_MS, through: 340, carry: 400, beside: 460, apex: 520, finish: 640, hold: 700, across: 770, up: 885 } as const;
+export const REVERSE_CLOCK = { down: 110, contact: REVERSE_CONTACT_MS, through: 340, carry: 400, beside: 460, apex: 520, finish: 640, hold: 700, across: 770, up: 885 } as const;
 const REVERSE_SCOOP: Stroke & { down: Pose; beside: Pose; apex: Pose; across: Pose } = {
   // Down on the knee with the bat already dropped in front of him, toe to the
   // turf beside the front pad on the off side, about to be turned under.

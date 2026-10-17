@@ -15,7 +15,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, type CoverVersion, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
+import { Batter, type CoverVersion, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, REVERSE_CLOCK, SCOOP_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOT_ANGLES, STYLES } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 import type { ShotType } from './game/types';
@@ -106,6 +106,24 @@ const STROKES: Record<string, Stroke> = {
     out: { speed: .03, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.HOOK), climb: .032 },
     facts: ['bouncer, outside off', `${STROKE_DURATION_MS + HOOK_HOLD_MS} ms`],
     note: 'The hook, at a bouncer on off stump or wider, off the swipe down and to leg with or without a meter; from Tendulkar\'s off Caddick in 2003 and a net session in slow motion for the hands. He goes back and across, the back foot over towards off stump and the front one drawn back and opened, the bat taken high over the back shoulder. The hands come down and out, and the ball is met at 200 ms well away from him, out in front and towards off, both arms straight and the bat level with its face to the bowler. Then the arms swing it round flat like a baseball bat, still long: straight out in front at 255, out to leg at 315, round behind square at 395, the chest turning with them and the face going round with the body, never in his hands. Only then do the elbows fold, the bottom hand rolling over the top one, and by 520 the bat is wrapped behind his head with the hands up over the front shoulder, the curved back of the blade against it and his head turned after the ball. And the turn the swing began carries on through it, one movement slowing all the way, on his feet as well as his shoulders, the hands staying up over the front shoulder as the body turns under them: square to the leg side, then on round until his back is to the bowler and his hips to the stumps, the front foot come round on its toe to off stump and the back one turned to leg stump, the bat up behind his head pointing away to off and his head up after the ball; held there, he unwinds with the bat brought upright over his head and lets the hands down in front of him into his guard. It goes up over him to backward square leg: middled for six, a shade under for four; late it takes the glove through to the keeper, early it goes straight up.',
+  },
+  scoop: {
+    label: 'Scoop', shot: 'SCOOP', charging: false, single: true, ball: { x: LINE_X.MIDDLE, y: .54, z: GAME.contactZ },
+    contact: SCOOP_CLOCK.contact, end: STROKE_DURATION_MS, bounceZ: 2.6,
+    phases: [['Stance', -LEAD_MS], ['Down', SCOOP_CLOCK.set], ['Contact', SCOOP_CLOCK.contact], ['Through', SCOOP_CLOCK.through], ['Carry', SCOOP_CLOCK.carry],
+      ['Finish', SCOOP_CLOCK.finish], ['Over the top', SCOOP_CLOCK.unwrap], ['Across', SCOOP_CLOCK.across], ['Home', SCOOP_CLOCK.up]],
+    out: { speed: .026, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.SCOOP), climb: .022 },
+    facts: ['full, middle or leg', `${STROKE_DURATION_MS} ms`],
+    note: 'The scoop, with the meter full, off the swipe down and to leg (S and A). He is down before the ball by 70 ms: a wide base, both knees bent, square to the bowler, the bat brought down early in front of the front hip with the toe angled down and forward to the off side and the face turned up at the bowler, a ramp. The ball is met at 150 ms at knee height in front of the pads and ridden off the face up over the keeper\'s shoulder. Then the bat lifts face first without turning in his hands: level out to the off side at 250, the toe up past his head at 360, curling back over the front shoulder at 470 with the back of the bat to the sky, held to 580 as he comes up a little onto the back foot to watch it go. Home is the straight charge\'s way, over the top at 670, down in front at 760 and into his pick-up.',
+  },
+  reverse: {
+    label: 'Reverse scoop', shot: 'REVERSE_SCOOP', charging: false, single: true, ball: { x: LINE_X.OUTSIDE_OFF, y: .54, z: GAME.contactZ },
+    contact: REVERSE_CLOCK.contact, end: STROKE_DURATION_MS, bounceZ: 3.0,
+    phases: [['Stance', -LEAD_MS], ['Down on the knee', REVERSE_CLOCK.down], ['Contact', REVERSE_CLOCK.contact], ['Through', REVERSE_CLOCK.through], ['Carry', REVERSE_CLOCK.carry],
+      ['Beside', REVERSE_CLOCK.beside], ['Over the top', REVERSE_CLOCK.apex], ['Finish', REVERSE_CLOCK.finish], ['Round', REVERSE_CLOCK.across], ['Home', REVERSE_CLOCK.up]],
+    out: { speed: .026, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.REVERSE_SCOOP), climb: .022 },
+    facts: ['off stump or wider', `${STROKE_DURATION_MS} ms`],
+    note: 'The reverse scoop, with the meter full, off the swipe down and to off (S and D). He goes down the way the sweep does, onto the back knee by 110 ms with the front foot planted forward and to the off, the bat dropped beside the front pad. It comes out under the ball on the off side with the face turned up and meets it at 240 ms beside the front pad at waist height, the blade level and pointing at point. The arms extend out to the off at 340, then the bat climbs, up past the off ear at 460, across in front of his face with the blade laid back over the top of the helmet at 520, and down the leg side to finish at 640 with the hands wide beside the leg shoulder, the shoulders turned square to leg and his head round after the ball going over the slips, still on the knee. Held to 700, he gets up off the knee with the bat brought round and down in front of him into his guard.',
   },
 };
 let stroke = STROKES.cover;
