@@ -660,6 +660,31 @@ curved back of the blade lies against it; nothing turns it while it is held,
 and it settles into the guard on the way home. The six it replaced reached
 both arms for the sky and turned the bat a full turn in his hands coming home. `cover-drive.html` has both beside the cover strokes.
 
+## The straight six, version two
+
+The lofted straight drive comes in two versions, three in ten and seven in ten
+(`LOFT_ODDS`, `loftVersionOf` off the innings' seed and the ball, mixed apart
+from the cover strokes' roll), and both are the same six: only the picture
+changes. Version one (`STRAIGHT_LOFT`) is the finish over the front shoulder it
+always was. Version two (`STRAIGHT_LOFT_V2`, its clock `LOFT_V2_CLOCK`) is
+built from Kohli's six over the bowler's head at Adelaide, side on and from
+behind the bowler: a long stride, the front foot planted before the bat
+arrives with the head over the knee and the back foot left behind; a straight
+bat under his eyes; the arms out long up the line, and the stroke ends there
+(`LOFT_V2_CLOCK.finish`): the hands high in front of him over the front
+shoulder and clear of his face, the back arm crossing under his chin, the toe
+up over the bowler, with no wrap over the shoulder or behind the head. Leaning
+his head off towards the back shoulder put that arm through the grille; the
+helmet check in the batter tests measures from the head's centre and missed
+it, so the grille was measured on its own while the pose was set. He
+holds that a long while, low on the bent front leg with the back foot on its
+toe, then brings the bat home down the line into his guard. The face
+rides the handle from the ball (`riding`). The swing's version argument is the
+cover strokes' for them and the loft's for this (`Game.shoot`); `?loftv=1` or
+`2` asks for one, and is not practice, since the six is the same. It is
+`loftedV2` in the batter tests' `PLAYS` (`lofted` is version one), and
+`cover-drive.html` has it as Straight six.
+
 ## The hook
 
 The hook (`'HOOK'`, `STROKES.HOOK` in `src/entities/Batter.ts`) is a bouncer on
