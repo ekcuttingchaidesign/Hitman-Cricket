@@ -24,6 +24,15 @@ const FALL = .7;
  * one.
  */
 const SEAT_TUCK: readonly [number, number] = [15, 27];
+/**
+ * The columns of the seat that run down its middle, the same seam on each
+ * leg: leg one's 12 and 13 are leg two's 0 and 15, from the back of the
+ * waist and the back of the crotch. The second hangs below the first, and
+ * the strip between them, on the middle on both legs, hung under the seat as
+ * a fin seen edge on from behind as a line down it; so down the seat the
+ * second is laid on the first.
+ */
+const SEAM_PAIRS: readonly (readonly [number, number])[] = [[12, 0], [13, 15]];
 /** The two rings down the leg the thigh's direction is read between. */
 const THIGH_RINGS: readonly [number, number] = [SEAT_ROWS + 1, 10];
 
@@ -152,6 +161,27 @@ export class ConnectedTrousers {
         positions.setXYZ(this.offset(leg) + (row - 1) * 16 + i, this.p.x, this.p.y, this.p.z);
       }
     }
+    // The seam down the middle of the seat is one seam, but each leg has its
+    // own copy of it, led away to its own thigh: a centimetre apart and lit
+    // at an angle to each other from just under the waistband, a split up
+    // the seat. So the two are one, the same place and the same light, all
+    // the way down the seat: the halves part at the thighs, between the legs.
+    // Let go any higher, the parting opened a slit at the foot of the seat.
+    this.seam(positions);
     positions.needsUpdate = true; updateGarmentNormals(this.mesh.geometry);
+    this.seam(this.mesh.geometry.getAttribute('normal'), true);
+  }
+  /** Make each leg's copy of the seat's middle seam one: the same place, and the same light. */
+  private seam(attribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute, unit = false) {
+    for (let row = 1; row <= SEAT_ROWS; row++) {
+      const [a, b] = SEAM_PAIRS[0], one = this.offset(0) + (row - 1) * 16 + a, two = this.offset(1) + (row - 1) * 16 + b;
+      this.p.fromBufferAttribute(attribute, one).add(this.q.fromBufferAttribute(attribute, two));
+      if (unit) this.p.normalize(); else this.p.multiplyScalar(.5);
+      for (const [c, d] of SEAM_PAIRS) {
+        attribute.setXYZ(this.offset(0) + (row - 1) * 16 + c, this.p.x, this.p.y, this.p.z);
+        attribute.setXYZ(this.offset(1) + (row - 1) * 16 + d, this.p.x, this.p.y, this.p.z);
+      }
+    }
+    attribute.needsUpdate = true;
   }
 }
