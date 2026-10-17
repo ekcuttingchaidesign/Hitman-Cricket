@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
+import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -1216,30 +1216,37 @@ describe('the slog sweep', () => {
     expect(tightest.splay, `${kind} ${JSON.stringify(tightest)}`).toBeGreaterThan(.20);
   });
   /**
-   * The swing turns the face, never his wrists: from the swipe to the hold
-   * the blade rides its handle, so it faces the leg side through the climb and
-   * over his head because that is where the swing takes it. The one turn in
-   * his hands is the way home into the guard, once and evenly. The first
-   * rebuild rolled it off the azimuth as the drives do, and over the top of
-   * his head a roll about the azimuth has no meaning.
+   * Into the ball the swing turns the face, never his wrists. After it the
+   * forearms roll it over once, evenly, as the bat climbs out over the leg side
+   * and over his head, so that behind his head the flat face looks up at the
+   * sky and the curved back lies against him; riding the handle alone, it came
+   * down there face first onto his shoulders. Then nothing turns it while it
+   * is held, and it unwinds once on the way home.
    */
-  it('never turns the bat in his hands through the swing, and unwinds it once on the way home', () => {
+  it('rolls the face over once on the climb, and holds it there', () => {
     for (const x of PLAYS.sweep.reach) {
       const batter = swept(x);
-      let previous = batter.bat.quaternion.clone(), into = 0, through = 0, home = 0;
-      for (let time = 4; time <= STROKE_DURATION_MS; time += 4) {
+      let previous = batter.bat.quaternion.clone(), into = 0, rolled = 0, held = 0, home = 0, way = 0;
+      for (let time = 4; time <= STROKE_DURATION_MS + SLOG_HOLD_MS; time += 4) {
         batter.update(time);
         const step = previous.clone().invert().multiply(batter.bat.quaternion);
-        const twist = Math.abs(2 * Math.atan2(step.y, step.w));
-        const turn = Math.min(twist, Math.PI * 2 - twist) * 180 / Math.PI;
+        const signed = 2 * Math.atan2(step.y, step.w), turn = Math.abs(Math.atan2(Math.sin(signed), Math.cos(signed))) * 180 / Math.PI;
         if (time <= SWEEP_CONTACT_MS) into += turn;
-        else if (time <= SLOG_CLOCK.hold) through += turn;
-        else { home += turn; expect(turn / .004, `x=${x} @${time}ms`).toBeLessThan(900); }
+        else if (time <= SLOG_CLOCK.through) held += turn;
+        else if (time <= SLOG_CLOCK.finish) {
+          rolled += turn;
+          if (turn > .5) { const sign = Math.sign(Math.atan2(Math.sin(signed), Math.cos(signed))); expect(way === 0 || sign === way, `x=${x} @${time}ms one way`).toBe(true); way = sign; }
+        }
+        else if (time <= SLOG_CLOCK.finish + 200) held += turn;
+        else home += turn;
+        expect(turn / .004, `x=${x} @${time}ms`).toBeLessThan(900);
         previous = batter.bat.quaternion.clone();
       }
       expect(into, `x=${x} into the ball`).toBeLessThan(30);
-      expect(through, `x=${x} from the ball to the hold`).toBeLessThan(1);
-      expect(home, `x=${x} home`).toBeLessThan(180);
+      expect(rolled, `x=${x} rolled over on the climb`).toBeGreaterThan(90);
+      expect(rolled, `x=${x} once`).toBeLessThan(180);
+      expect(held, `x=${x} after the ball and in the hold`).toBeLessThan(1);
+      expect(home, `x=${x} home`).toBeLessThan(200);
     }
   });
   it('lunges down the pitch and meets the ball out in front of the front pad, the arms long', () => {
@@ -1289,7 +1296,7 @@ describe('the slog sweep', () => {
       expect(finish.grip[1] - head.y, `x=${x} hands over his head`).toBeGreaterThan(.25);
       expect(tip().z, `x=${x} bat behind his head`).toBeLessThan(head.z - .3);
       expect(tip().x, `x=${x} lying out towards the off`).toBeGreaterThan(finish.grip[0] + .2);
-      expect(finish.batFace[0], `x=${x} the face still to the leg side`).toBeLessThan(-.4);
+      expect(finish.batFace[1], `x=${x} the flat face up, the curved back against him`).toBeGreaterThan(.8);
       expect(finish.knees[1][1], `x=${x} still on the knee`).toBeLessThan(.15);
     }
   });
@@ -1311,7 +1318,7 @@ describe('the slog sweep', () => {
     for (const x of PLAYS.sweep.reach) {
       const batter = swept(x);
       let upper = { gap: Infinity, at: 0 }, lower = { gap: Infinity, at: 0 };
-      for (let time = 0; time <= STROKE_DURATION_MS; time += 4) {
+      for (let time = 0; time <= STROKE_DURATION_MS + SLOG_HOLD_MS; time += 4) {
         batter.update(time); batter.root.updateMatrixWorld(true);
         const pose = batter.inspect();
         for (const sample of samples) {
@@ -1338,14 +1345,40 @@ describe('the slog sweep', () => {
       }
     }
   });
-  it('is over before the stroke clock is, and comes all the way home', () => {
+  /**
+   * Held behind his head a good while, then home unhurried (`SLOG_HOLD_MS`).
+   * At the strokes' own clock the hold was a twelfth of a second and the hands
+   * were back in the guard in a third of one.
+   */
+  it('holds the finish, then comes all the way home without hurrying', () => {
     const batter = swept();
     const guard = new Batter().inspect();
-    batter.update(STROKE_DURATION_MS);
+    batter.update(SLOG_CLOCK.finish);
+    const finish = batter.inspect().grip;
+    batter.update(SLOG_CLOCK.finish + 200);
+    for (let i = 0; i < 3; i++) expect(Math.abs(batter.inspect().grip[i] - finish[i]), 'held').toBeLessThan(.005);
+    let previous = new Vector3(...batter.inspect().grip), fastest = 0;
+    for (let time = SLOG_CLOCK.finish + 204; time <= STROKE_DURATION_MS + SLOG_HOLD_MS; time += 4) {
+      batter.update(time);
+      const grip = new Vector3(...batter.inspect().grip);
+      fastest = Math.max(fastest, grip.distanceTo(previous) / .004); previous = grip;
+    }
+    expect(fastest, 'hands, metres a second on the way home').toBeLessThan(4);
     const pose = batter.inspect();
     expect(pose.grip).toEqual(guard.grip);
     expect(pose.frontFoot).toEqual(guard.frontFoot);
     expect(pose.backFoot).toEqual(guard.backFoot);
+  });
+  it('kneels on the back foot with its sole to the keeper', () => {
+    for (const x of PLAYS.sweep.reach) {
+      const batter = swept(x);
+      const shoe = (batter as unknown as { legs: { shoe: Object3D }[] }).legs[1].shoe;
+      for (const time of [SWEEP_CONTACT_MS, SLOG_CLOCK.carry, SLOG_CLOCK.finish, SLOG_CLOCK.finish + 200]) {
+        batter.update(time); batter.root.updateMatrixWorld(true);
+        const sole = new Vector3(0, -1, 0).applyQuaternion(shoe.getWorldQuaternion(new Quaternion()));
+        expect(sole.z, `x=${x} @${time}ms`).toBeLessThan(-.9);
+      }
+    }
   });
 });
 

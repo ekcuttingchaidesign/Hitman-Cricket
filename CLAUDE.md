@@ -882,8 +882,15 @@ bat still cocked). After the ball it keeps going round: at the bowler at
 chest height, up over the leg side with the hands out that way, upright
 beside his head, then over the top and down behind it, his chest turned
 square to the leg side so the back arm comes up in front of his face; home
-down in front of it. The face rides the handle from the swipe (`riding`) and
-turns only on the way home. Sent straight up the pitch and over his head
+down in front of it. The face rides the handle from the swipe (`riding`);
+after the ball the forearms roll it over once, evenly, through the climb, so
+behind his head the flat face looks at the sky and the curved back lies
+against him (it came down face first onto his shoulders riding the handle
+alone), and it unwinds once on the way home. The finish is held a good while
+and the way home unhurried: from the finish his clock runs slower, as the
+hook's does (`SLOG_HOLD_MS`). Kneeling, the back shoe's toes point down the
+pitch so its sole faces the keeper (`backFootYaw`); turned side on, the sole
+faced square. Sent straight up the pitch and over his head
 from the ball, it read as another stroke; and a backlift leaning over his
 head brought the bat down through the back arm, which nothing tested until
 the batter tests held the blade off both sleeves.
