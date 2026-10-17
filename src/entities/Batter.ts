@@ -1157,90 +1157,100 @@ const SCOOP: Stroke & { set: Pose; unwrap: Pose; across: Pose } = {
 /** A ball on the stumps or the leg stump line: the scoop's reach. */
 const SCOOP_REACH: readonly [number, number] = [-.30, .17];
 /**
- * The reverse scoop, from a broadcast recording taken from behind the bowler.
+ * The reverse scoop, from a net session filmed from the bowler's end. It is
+ * played as a left-hander would play it.
  *
- * He goes down the way the sweep does — onto the back knee, the front foot
- * planted forward and to the off — and the bat comes from low on the leg side
- * across the front of him and out under the ball on the off side, the face
- * turned up. Contact is out beside the front pad at waist height with the
- * blade level and pointing at point. Then the arms extend out to the off side,
- * and the bat keeps going: up past the vertical and over the top to the leg
- * side, the shoulders turning with it until he is looking back over them at
- * the ball going over the slips, still down on the knee.
+ * The bat comes down to hang toe down in front of the pads, then swings out
+ * to the leg side and up — outside him, the hands going out beside the front
+ * hip, never across him under the front arm — until it stands upright beside
+ * the front shoulder: a left-hander's backlift, the front arm long and the
+ * back one across his chest, his chest open to the bowler. Meanwhile the
+ * front foot strides a long way out to the off and forward and the front leg
+ * stretches nearly straight, and as the bat comes down past his legs the back
+ * knee goes down to the turf. The ball is met out beside the front knee with
+ * the arms long, the blade level and pointing out to the off, angled a little
+ * back towards third man, the face open to the sky. The bat follows it up and
+ * back over the slips until it stands upright out in front of him at chest
+ * height, the arms still long towards the off and the face to the keeper, and
+ * he holds it there on the knee with the leg stretched out, his head turned
+ * to watch the ball go.
  *
- * The body is the slog sweep's kneel, taken as it stands: the same knee on the
- * turf, the same front leg, the same back foot dragged round. Only the bat and
- * the shoulders are this stroke's own.
+ * The face rides the handle (`riding`). Into the ball it does not turn in his
+ * hands at all: the swing brings it round to the face he meets the ball with.
+ * The first build gave the backlift a face of its own and it rolled in his
+ * wrists one way and back again on the way down; it also tucked the bat under
+ * the front arm and played the ball with the hands in at his body. After the
+ * ball the forearms roll it over to the keeper, one way and evenly across the
+ * climb; then what it has to turn to be back in his guard it turns evenly over
+ * the whole way home.
+ *
+ * Clock: down in front by `drop`, out to the leg side by `flip`, up beside the
+ * front shoulder with the stride planted by `lift`, past his legs with the
+ * knee on the turf by `down`, the ball at `contact`, up and back through
+ * `through` and `carry` to the upright `finish`, held to `hold`; then up off
+ * the knee by `up` and into the guard.
  */
 export const REVERSE_CONTACT_MS = 240;
-export const REVERSE_CLOCK = { down: 110, contact: REVERSE_CONTACT_MS, through: 340, carry: 400, beside: 460, apex: 520, finish: 640, hold: 700, across: 770, up: 885 } as const;
-const REVERSE_SCOOP: Stroke & { down: Pose; beside: Pose; apex: Pose; across: Pose } = {
-  // Down on the knee with the bat already dropped in front of him, toe to the
-  // turf beside the front pad on the off side, about to be turned under.
-  down: { ...GUARD, hip: [-.05, .58, -.24], chest: [-.02, .92, -.12],
-    frontFoot: [.18, .08, -.12], backFoot: [-.155, .08, -.738],
-    grip: [.20, .98, .40], batUp: [-.55, .72, .42], batFace: [.78, .22, .58],
-    yaw: .80, face: .20, heel: .62, backFootYaw: 1.55, leadElbow: -.22,
-    armHinge: -.50, armDrive: 0, shoulderLift: 0 },
-  // Under it, out beside the front pad: the blade level and pointing at point,
-  // the face up.
-  contact: { ...GUARD, hip: [-.06, .565, -.24], chest: [-.03, .905, -.14],
-    frontFoot: [.18, .08, -.12], backFoot: [-.155, .08, -.738],
-    grip: [.08, .63, .20], batUp: [-.96, .20, -.22], batFace: [.20, .98, .04],
-    yaw: .55, face: .35, heel: .62, backFootYaw: 1.55, leadElbow: -.20,
-    armHinge: -.30, armDrive: 0, shoulderLift: 0 },
-  // Extended out to the off side, both arms straight, the blade still level.
-  through: { ...GUARD, hip: [-.08, .575, -.21], chest: [-.08, .925, -.09],
-    frontFoot: [.18, .08, -.12], backFoot: [-.169, .08, -.632],
-    grip: [.30, .72, .24], batUp: [-.97, .10, -.22], batFace: [.10, .99, .05],
-    yaw: .30, face: .45, heel: .66, backFootYaw: 1.30, leadElbow: -.16,
-    armHinge: -.10, armDrive: 1, shoulderLift: .03 },
-  // Climbing, toe up and out to the off, hands wide of the off shoulder.
-  carry: { ...GUARD, hip: [-.10, .585, -.17], chest: [-.12, .945, -.05],
-    frontFoot: [.18, .08, -.12], backFoot: [-.188, .08, -.539],
-    grip: [.30, 1.05, .26], batUp: [-.70, -.65, -.30], batFace: [.55, -.20, -.80],
-    yaw: -.10, face: .30, heel: .70, backFootYaw: 1.05, leadElbow: -.12,
-    armHinge: .55, armDrive: 1, shoulderLift: .05 },
-  // Over the top. A two-handed grip cannot be lifted straight over the head —
-  // both hands stay within an arm of both shoulders, which at that height
-  // puts the knob in the helmet — so the bat goes over it the way the
-  // recording reads from the front: the hands come up in front of the off
-  // ear with the toe up and forward, then across in front of the face with
-  // the blade leaning back over the top of the helmet, and down the leg side.
-  beside: { ...GUARD, hip: [-.08, .59, -.15], chest: [-.09, .955, -.03],
-    frontFoot: [.18, .08, -.12], backFoot: [-.17, .08, -.51],
-    grip: [.28, 1.30, .30], batUp: [.10, -.85, -.52], batFace: [.95, .20, -.15],
-    yaw: -.20, face: .10, heel: .70, backFootYaw: 1.00, leadElbow: -.12,
-    armHinge: .40, armDrive: 1, shoulderLift: .06 },
-  // In front of the face, the hands at the brow and the blade laid back over
-  // the top of the helmet, toe to leg, the shoulders turning under it.
-  apex: { ...GUARD, hip: [-.07, .60, -.14], chest: [-.06, .965, -.02],
-    frontFoot: [.18, .08, -.12], backFoot: [-.15, .08, -.49],
-    grip: [-.06, 1.42, .40], batUp: [.35, -.75, .55], batFace: [.85, .50, .15],
-    yaw: -.30, face: -.20, heel: .70, backFootYaw: .95, leadElbow: -.10,
-    armHinge: .30, armDrive: .3, shoulderLift: .08 },
-  // Down the leg side of the head into the finish: hands wide beside the leg
-  // shoulder, the shoulders turned square to leg and the head round further
-  // still, watching it over them. Still on the knee.
-  finish: { ...GUARD, hip: [-.06, .60, -.13], chest: [-.04, .965, -.01],
-    frontFoot: [.18, .08, -.12], backFoot: [-.134, .08, -.478],
-    grip: [-.42, 1.28, .14], batUp: [.55, -.80, .25], batFace: [.80, .50, -.20],
-    yaw: -1.05, face: -.65, heel: .70, backFootYaw: .95, leadElbow: -.10,
-    armHinge: .20, armDrive: 0, shoulderLift: .06 },
-  // Home: the hands come down and forward on the leg side with the toe up and
-  // forward, as he turns back to the bowler and gets up off the knee — round
-  // the face, never across it.
-  across: { ...GUARD, hip: [-.09, .74, -.08], chest: [-.06, 1.08, .02],
-    frontFoot: [.12, .08, .28], backFoot: [-.13, .08, -.36],
-    grip: [-.50, 1.06, .48], batUp: [.10, -.55, -.83], batFace: [.95, .25, -.05],
-    yaw: -.60, face: -.30, heel: .30, backFootYaw: 1.10, leadElbow: -.16,
-    armHinge: -.20, armDrive: 0, shoulderLift: .03 },
-  // The sweeps' way up as it was, half-risen, rather than the taller one they
-  // now use: the reverse's arms are still coming round over his head through
-  // this stage, and a body rising faster under them hurries them past what the
-  // rig allows. Its last stage is still a quick one; evening it out means
-  // re-timing the arms, not the legs.
-  recover: { ...SLOG_SWEEP.recover!, hip: [-.06, .78, -.02], chest: [-.02, 1.12, .04] },
+export const REVERSE_CLOCK = { drop: 48, flip: 90, lift: 140, down: 180, contact: REVERSE_CONTACT_MS, through: 310, carry: 400, finish: 520, hold: 650, up: 800 } as const;
+const REVERSE_SCOOP: Stroke & { drop: Pose; flip: Pose; lift: Pose; down: Pose } = {
+  // Out of the guard the bat comes down to hang toe down in front of the
+  // pads, out in front of the front knee, which is about to lift.
+  drop: { ...GUARD, hip: [-.03, .90, -.05], chest: [.00, 1.24, .00],
+    frontFoot: [-.04, .10, .30], backFoot: [-.13, .08, -.27],
+    grip: [.06, .92, .38], batUp: [.00, .96, -.26], batFace: [.00, .26, .96],
+    yaw: 1.00, face: .05, heel: .10, backFootYaw: 1.38, leadElbow: -.25, look: .15 },
+  // The toe swings up to the leg side outside him, the hands going out
+  // beside the front hip — not across him under the front arm — as the
+  // front foot goes out to the off.
+  flip: { ...GUARD, hip: [.02, .80, -.09], chest: [.02, 1.13, -.05],
+    frontFoot: [.22, .12, .38], backFoot: [-.12, .08, -.32],
+    grip: [-.10, .90, .50], batUp: [.96, .10, .10], batFace: [.00, .20, -.98],
+    yaw: .55, face: .10, heel: .20, backFootYaw: 1.35, frontFootYaw: .90, leadElbow: -.20, look: .15 },
+  // A left-hander's backlift: upright beside the front shoulder, the hands
+  // out in front of him, his chest open to the bowler and the front foot
+  // planted far out. Kept side-on here, the hands came in to the front
+  // shoulder to stay in front of both, and that arm folded shut and threw
+  // its elbow about.
+  lift: { ...GUARD, hip: [.12, .57, -.14], chest: [.09, .91, -.10],
+    frontFoot: [.48, .08, .47], backFoot: [-.11, .08, -.48],
+    grip: [-.12, .84, .42], batUp: [.25, -.95, .18], batFace: [.00, .18, -.98],
+    yaw: .45, face: .20, heel: .45, backFootYaw: 1.45, frontFootYaw: .90, leadElbow: -.20, look: .20 },
+  // Down past his legs with the knee on the turf, the toe low and forward
+  // under the hands, still on the leg side of them.
+  down: { ...GUARD, hip: [.10, .585, -.16], chest: [.08, .93, -.11],
+    frontFoot: [.48, .08, .47], backFoot: [-.10, .08, -.64],
+    grip: [.08, .77, .40], batUp: [.62, .45, -.64], batFace: [.31, .61, .73],
+    yaw: .70, face: .40, heel: .62, backFootYaw: 1.55, frontFootYaw: .90, leadElbow: -.20, look: .25 },
+  // Under it beside the front knee with the arms long: level, pointing out
+  // to the off and angled a little back towards third man, the face open to
+  // the sky.
+  contact: { ...GUARD, hip: [.07, .55, -.11], chest: [.02, .89, -.03],
+    frontFoot: [.48, .08, .47], backFoot: [-.10, .08, -.66],
+    grip: [.10, .64, .30], batUp: [-.95, .10, .28], batFace: [.08, .97, .07],
+    yaw: .55, face: .60, heel: .62, backFootYaw: 1.55, frontFootYaw: .90, leadElbow: -.18, look: .25 },
+  // After the ball, up and back the way it went, over the slips, the arms
+  // reaching out to the off.
+  through: { ...GUARD, hip: [.10, .57, -.17], chest: [.07, .91, -.13],
+    frontFoot: [.48, .08, .47], backFoot: [-.10, .08, -.66],
+    grip: [.30, .80, .36], batUp: [-.70, -.45, .55], batFace: [.10, .72, -.68],
+    yaw: .80, face: .90, heel: .62, backFootYaw: 1.55, frontFootYaw: .90, leadElbow: -.12, look: .15 },
+  carry: { ...GUARD, hip: [.09, .58, -.18], chest: [.05, .93, -.14],
+    frontFoot: [.48, .08, .47], backFoot: [-.10, .08, -.66],
+    grip: [.38, .94, .28], batUp: [-.40, -.85, .35], batFace: [.05, .38, -.92],
+    yaw: .95, face: 1.30, heel: .62, backFootYaw: 1.55, frontFootYaw: .90, leadElbow: -.08, look: .00 },
+  // Upright out in front of him at chest height, the arms long towards the
+  // off, the face to the keeper; held on the knee with the leg stretched
+  // out, his head turned to watch it go over the slips.
+  finish: { ...GUARD, hip: [.08, .59, -.20], chest: [.03, .95, -.16],
+    frontFoot: [.48, .08, .47], backFoot: [-.10, .08, -.66],
+    grip: [.46, 1.00, .22], batUp: [-.22, -.96, .10], batFace: [.00, -.10, -.99],
+    yaw: 1.05, face: 1.80, heel: .62, backFootYaw: 1.55, frontFootYaw: .90, leadElbow: -.05, look: -.05 },
+  // Up off the knee, the front foot drawn back under him and the bat lowered
+  // in front of him on its way into the guard.
+  recover: { ...GUARD, hip: [.00, .80, -.10], chest: [.03, 1.13, -.04],
+    frontFoot: [.10, .08, .32], backFoot: [-.13, .08, -.36],
+    grip: [.26, 1.00, .18], batUp: [-.35, -.80, .48], batFace: [.20, .50, .84],
+    yaw: 1.30, face: .40, heel: .30, backFootYaw: 1.30, leadElbow: -.25 },
 };
 /** Off stump and outside it: the reverse scoop's reach. */
 const REVERSE_REACH: readonly [number, number] = [.05, .62];
@@ -2989,21 +2999,34 @@ export class Batter {
       return;
     }
     if (this.shot === 'REVERSE_SCOOP') {
-      // Down onto the knee before the ball, under it, out to the off, up and
-      // over to leg; then up off the knee with the bat brought down in front.
-      const { down, through, carry, beside, apex, finish: end, hold, across, up } = REVERSE_CLOCK;
-      if (age < end) {
-        this.apply(flowing([{ time: 0, pose: this.swingFrom }, { time: down, pose: reachPose(REVERSE_SCOOP.down) },
+      // Over and up on the leg side, down across him onto the knee, under it
+      // on the off side and up the off side to upright, held; then up off the
+      // knee and home. The face rides the handle the whole way (`riding`),
+      // from the bat as his guard draws it. The swing alone brings it to
+      // within a few degrees of the face he meets the ball with, and that is
+      // all it turns before the ball: given a face of its own at the top of
+      // the backlift as well, it rolled in his wrists one way and back again
+      // on the way there. After the ball the forearms roll it over to face
+      // the keeper, evenly across the whole climb, and it goes back into the
+      // guard across the way home.
+      const { drop, flip, lift, down, through, carry, finish: end, hold, up } = REVERSE_CLOCK;
+      const recovery = reachPose(REVERSE_SCOOP.recover!);
+      const poseAt = (at: number): Pose => at < end
+        ? flowing([{ time: 0, pose: this.swingFrom }, { time: drop, pose: reachPose(REVERSE_SCOOP.drop) }, { time: flip, pose: reachPose(REVERSE_SCOOP.flip) },
+          { time: lift, pose: reachPose(REVERSE_SCOOP.lift) }, { time: down, pose: reachPose(REVERSE_SCOOP.down) },
           { time: REVERSE_CONTACT_MS, pose: contact }, { time: through, pose: reachPose(REVERSE_SCOOP.through!) },
-          { time: carry, pose: reachPose(REVERSE_SCOOP.carry!) }, { time: beside, pose: reachPose(REVERSE_SCOOP.beside) },
-          { time: apex, pose: reachPose(REVERSE_SCOOP.apex) }, { time: end, pose: finish }], age));
-      } else if (age < hold) this.apply(finish);
-      else {
-        const round = reachPose(REVERSE_SCOOP.across), recovery = reachPose(REVERSE_SCOOP.recover!);
-        this.apply(age < across ? mix(finish, round, (age - hold) / (across - hold))
-          : age < up ? mix(round, recovery, (age - across) / (up - across), leave)
-          : mix(recovery, GUARD, (age - up) / (STROKE_DURATION_MS - up), arrive));
-      }
+          { time: carry, pose: reachPose(REVERSE_SCOOP.carry!) }, { time: end, pose: finish }], at)
+        : at < hold ? finish
+        : at < up ? mix(finish, recovery, (at - hold) / (up - hold), leave)
+        : mix(recovery, GUARD, (at - up) / (STROKE_DURATION_MS - up), arrive);
+      const straight = batOrientation(STROKES.STRAIGHT.contact), from = batOrientation(this.swingFrom);
+      const drawn = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(straight), UP.clone().applyQuaternion(from)).multiply(straight);
+      if (this.swingFrom.ownFace) drawn.slerp(from, this.swingFrom.ownFace);
+      const own = (key: Pose) => V(key.batFace);
+      const pose = { ...poseAt(age) };
+      pose.bat = this.riding(0, poseAt, drawn, [hold, STROKE_DURATION_MS], age,
+        [{ window: [0, REVERSE_CONTACT_MS], away: own }, { window: [REVERSE_CONTACT_MS, end], away: own }]);
+      this.apply(pose);
       return;
     }
     if (this.sweeping) {
@@ -3379,7 +3402,7 @@ export class Batter {
         // Turned about the handle to the pose's own face, as far as it asks.
         if(idle && pose.ownFace) this.bat.quaternion.slerp(batOrientation(pose),pose.ownFace);
       }
-      else if((this.rebuiltDrive && (this.charging || this.poseAge>=COVER_PLANT.hold)) || this.onLoft || this.shot === 'HOOK' || this.spinCutting || this.shot === 'LATE_CUT') {
+      else if((this.rebuiltDrive && (this.charging || this.poseAge>=COVER_PLANT.hold)) || this.onLoft || this.shot === 'HOOK' || this.spinCutting || this.shot === 'LATE_CUT' || this.shot === 'REVERSE_SCOOP') {
         // The cover drive's way home, and the charge over cover from the ball
         // on, already hold their face (`riding`):
         // the roll the other strokes take into the guard is up to a full turn,

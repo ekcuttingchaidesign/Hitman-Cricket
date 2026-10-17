@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, SCOOP_CLOCK, type AfterBall } from '../src/entities/Batter';
+import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -2107,11 +2107,12 @@ describe('the lofted on drive', () => {
 });
 
 /**
- * The scoops: the two strokes played behind the wicket, each from a broadcast
- * recording. The scoop is a ramp — down early, face to the sky, the ball
- * ridden over the keeper's shoulder — and the reverse is the sweep's kneel
- * with the bat taken out under the ball on the off side and up over the
- * head to leg, the shoulders turning with it.
+ * The scoops: the two strokes played behind the wicket, each from a net
+ * session. The scoop is a ramp — across and down early, face to the sky, the
+ * ball ridden over the keeper's shoulder — and the reverse is played as a
+ * left-hander would: the bat up the leg side, a long stride out to the off,
+ * down on the back knee, the level blade out under the ball on the off side
+ * and up after it to upright, face to the keeper.
  */
 const deepestOf = (a: Vector3, b: Vector3, centre: Vector3, radii: Vector3, turn: Quaternion) => {
   const inverse = turn.clone().invert();
@@ -2263,20 +2264,73 @@ describe('the reverse scoop', () => {
       expect(batter.inspect().knees[1][1], `x=${x} knee at the finish`).toBeLessThan(.16);
     }
   });
-  it('carries the bat up over the head to leg and turns the shoulders under it, then gets up and comes home', () => {
+  /** How far a knee is bent, in degrees: nothing for a leg held straight. */
+  const bend = (batter: Batter, leg: number) => {
+    const { cap, knee, shoe } = (batter as unknown as { legs: { cap: Object3D; knee: Object3D; shoe: Object3D }[] }).legs[leg];
+    return 180 - cap.position.clone().sub(knee.position).angleTo(shoe.position.clone().sub(knee.position)) * 180 / Math.PI;
+  };
+  it('takes the bat up the leg side like a left-hander, the hands out in front of him, while the front foot strides out long to the off', () => {
+    const guard = new Batter().inspect();
     for (const x of PLAYS.reverse.reach) {
       const batter = reverse(x);
-      // Up past the vertical on the way.
+      const root = batter.root.position;
+      batter.update(REVERSE_CLOCK.lift);
+      const lift = batter.inspect();
+      // Upright, the toe up and leaning out over the leg side, the hands out in
+      // front of him on that side — not tucked in under the front arm.
+      expect(lift.bladeTip[1], `x=${x} toe up`).toBeGreaterThan(lift.grip[1] + .6);
+      expect(lift.bladeTip[0] - root.x, `x=${x} toe to leg`).toBeLessThan(lift.grip[0] - .15);
+      expect(lift.grip[0] - lift.chest[0], `x=${x} hands on the leg side`).toBeLessThan(-.1);
+      for (const forward of lift.handsForward) expect(forward, `x=${x} hands out in front`).toBeGreaterThan(.25);
+      // The stride is taken: out to the off and forward, and planted.
+      expect(lift.frontFoot[0] - guard.frontFoot[0], `x=${x} out to the off`).toBeGreaterThan(.55);
+      expect(lift.frontFoot[2] - guard.frontFoot[2], `x=${x} and forward`).toBeGreaterThan(.1);
+      // And the front leg stays long from the ball to the end of the hold.
+      for (let time = REVERSE_CONTACT_MS; time <= REVERSE_CLOCK.hold; time += 10) {
+        batter.update(time);
+        expect(bend(batter, 0), `x=${x} front knee @${time}ms`).toBeLessThan(38);
+        batter.inspect().frontFoot.forEach((v, i) => expect(v, `x=${x} planted @${time}ms`).toBeCloseTo(lift.frontFoot[i], 6));
+      }
+    }
+  });
+  it('climbs up the off side after the ball to stand upright out in front of him, face to the keeper, held on the knee, and comes home', () => {
+    for (const x of PLAYS.reverse.reach) {
+      const batter = reverse(x);
+      const root = batter.root.position;
+      // Out to the off and climbing the way it was going.
+      batter.update(REVERSE_CLOCK.through);
+      const through = batter.inspect();
+      expect(through.bladeTip[0] - root.x, `x=${x} toe out to the off`).toBeGreaterThan(through.grip[0] + .45);
+      expect(through.bladeTip[1], `x=${x} climbing`).toBeGreaterThan(through.grip[1] + .2);
+      // Upright out in front of him at chest height, the arms long towards the
+      // off and the face to the keeper, still down on the knee; and no
+      // higher, never over the top.
       let highest = 0;
-      for (let time = REVERSE_CONTACT_MS; time <= 600; time += 4) { batter.update(time); highest = Math.max(highest, batter.inspect().bladeTip[1]); }
-      expect(highest, `x=${x} over the top`).toBeGreaterThan(1.9);
-      batter.update(600);
+      for (let time = REVERSE_CONTACT_MS; time <= REVERSE_CLOCK.hold; time += 4) { batter.update(time); highest = Math.max(highest, batter.inspect().bladeTip[1]); }
+      expect(highest, `x=${x} never over the top`).toBeLessThan(1.95);
+      batter.update(REVERSE_CLOCK.finish + 40);
       const finish = batter.inspect();
-      expect(finish.yaw, `x=${x} turned to leg`).toBeLessThan(-.8);
-      expect(finish.grip[0] - finish.chest[0], `x=${x} hands on the leg side`).toBeLessThan(-.25);
-      expect(finish.grip[1], `x=${x} hands high`).toBeGreaterThan(1.15);
-      expect(finish.batUp[1], `x=${x} bat up`).toBeLessThan(-.6);
-      for (const forward of finish.handsForward) expect(forward, `x=${x}`).toBeGreaterThan(-.06);
+      expect(finish.batUp[1], `x=${x} upright`).toBeLessThan(-.9);
+      expect(finish.bladeTip[1], `x=${x} toe up`).toBeGreaterThan(finish.grip[1] + .7);
+      expect(finish.grip[1] - finish.chest[1], `x=${x} at chest height`).toBeGreaterThan(-.05);
+      expect(finish.grip[1] - finish.chest[1], `x=${x} not at the helmet`).toBeLessThan(.2);
+      expect(finish.grip[0] - finish.chest[0], `x=${x} out towards the off`).toBeGreaterThan(.35);
+      expect(finish.batFace[2], `x=${x} face to the keeper`).toBeLessThan(-.9);
+      expect(finish.knees[1][1], `x=${x} on the knee`).toBeLessThan(.16);
+      for (const forward of finish.handsForward) expect(forward, `x=${x} arms long`).toBeGreaterThan(.45);
+      // The bat swings into the ball without turning in his hands at all: the
+      // swing brings the face round. After the ball the forearms roll it over
+      // to the keeper, one way and evenly, never in a flick, and home again.
+      let previous = batter.bat.quaternion.clone();
+      batter.update(0); previous = batter.bat.quaternion.clone();
+      for (let time = 4; time <= STROKE_DURATION_MS; time += 4) {
+        batter.update(time);
+        const step = previous.clone().invert().multiply(batter.bat.quaternion);
+        const twist = Math.abs(2 * Math.atan2(step.y, step.w));
+        const turn = Math.min(twist, Math.PI * 2 - twist) / .004 * 180 / Math.PI;
+        expect(turn, `x=${x} @${time}ms`).toBeLessThan(time <= REVERSE_CONTACT_MS ? 100 : 800);
+        previous = batter.bat.quaternion.clone();
+      }
       batter.update(STROKE_DURATION_MS);
       expect(batter.inspect().grip).toEqual(new Batter().inspect().grip);
       expect(batter.inspect().yaw).toBeCloseTo(new Batter().inspect().yaw, 9);
