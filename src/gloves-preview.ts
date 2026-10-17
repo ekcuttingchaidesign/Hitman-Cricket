@@ -227,10 +227,19 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-view]')) {
     view = b.dataset.view!; aim(bodyCamera, bodyControls, view);
   };
 }
+/** The close-up from the bat's flat face, from its curved back, or edge on: the face is +z on the handle. */
+const SIDES: Record<string, [number, number, number]> = { face: [.12, .07, .78], back: [.34, .2, -.68], edge: [-.8, .07, .05] };
+function side(key: string) {
+  closeControls.autoRotate = false; spin.setAttribute('aria-pressed', 'false');
+  closeCamera.position.set(...SIDES[key]); closeControls.target.set(0, -.035, 0); closeControls.update();
+  for (const o of document.querySelectorAll('[data-side]')) o.setAttribute('aria-pressed', String((o as HTMLElement).dataset.side === key));
+}
+for (const b of document.querySelectorAll<HTMLButtonElement>('[data-side]')) b.onclick = () => side(b.dataset.side!);
 const spin = document.querySelector<HTMLButtonElement>('#spin')!;
 spin.onclick = () => {
   closeControls.autoRotate = !closeControls.autoRotate;
   spin.setAttribute('aria-pressed', String(closeControls.autoRotate));
+  if (closeControls.autoRotate) for (const o of document.querySelectorAll('[data-side]')) o.setAttribute('aria-pressed', 'false');
 };
 
 function resize() {
@@ -246,7 +255,7 @@ wear(GLOVES[1]);
 setPose('guard');
 lineUp();
 if (matchMedia('(prefers-reduced-motion: reduce)').matches) { closeControls.autoRotate = false; spin.setAttribute('aria-pressed', 'false'); }
-(window as unknown as { __gloves: object }).__gloves = { wear: (id: string) => wear(GLOVES.find(g => g.id === id)!), setPose, ready: true };
+(window as unknown as { __gloves: object }).__gloves = { wear: (id: string) => wear(GLOVES.find(g => g.id === id)!), setPose, side, ready: true };
 
 function frame() {
   closeControls.update(); bodyControls.update();

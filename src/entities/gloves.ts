@@ -5,9 +5,9 @@
  *
  * A glove is the closed fist on the handle and the gauntlet up the wrist, in
  * the frames `Batter` already gives them: the fist in the bat's frame, the
- * handle through it along y, the knuckles to +z on the bottom hand and to -z
- * on the top one (`back`); the gauntlet's y running from the wrist up the
- * forearm. Every piece of a new glove sits where the Classic's piece of the
+ * handle through it along y and the flat face to +z (which way round each
+ * hand goes is `buildGloveHand`'s); the gauntlet's y running from the wrist up
+ * the forearm. Every piece of a new glove sits where the Classic's piece of the
  * same name does, so a design changes how the glove looks and never where it
  * is: the grip, the wrist socket and the tests that measure them stay put.
  *
@@ -202,37 +202,55 @@ function piece(parent: THREE.Object3D, material: THREE.Material, scale: [number,
 }
 
 /**
- * The fist of one glove, in the glove group's frame. `back` is the side the
- * knuckles face: -1 for the top hand, 1 for the bottom. Also hands back the
- * padding's material, for the heel `Batter` re-aims at the wrist every frame.
+ * The fist of one glove, in the glove group's frame. Hands back the padding's
+ * material too, for the heel `Batter` re-aims at the wrist every frame.
+ *
+ * Which way round each hand goes is the point of it. The bat's flat face is
+ * +z. The back of the top hand is on the face, its fingers going round the
+ * edge and curling onto the curved back; the bottom hand is the other way
+ * round, its knuckles on the back and its fingers curling onto the face. Both
+ * hands' fingers go round the same edge (-x here, where the stage's mirror
+ * puts it), so the two fists are a left and a right hand, mirror images of
+ * each other across the face, with both thumbs pointing down the handle. The
+ * Classic pair is one hand turned round, so both curl the same way and the top
+ * hand's knuckles are on the back.
+ *
+ * The pieces are placed as for the bottom hand with its knuckles on the face
+ * (`at`), then turned onto the hand's own sides: x always, onto the edge the
+ * fingers go round, and z for the bottom hand, onto the back.
  */
-export function buildGloveHand(design: GloveDesign, back: number) {
+export function buildGloveHand(design: GloveDesign, top: boolean) {
   const paint = palette(), hand = new THREE.Group();
   hand.name = `${design.name} glove`;
+  const knuckles = top ? 1 : -1;
+  const at = (x: number, y: number, z: number) => new THREE.Vector3(-x, y, knuckles * z);
   const base = paint(design.base);
   piece(hand, base, [.112, .103, .110]).name = 'Closed padded glove';
-  piece(hand, paint(design.palm, .95), [.077, .087, .022]).position.z = -back * .049;
+  piece(hand, paint(design.palm, .95), [.077, .087, .022]).position.copy(at(0, 0, -.049));
   for (let finger = 0; finger < 4; finger++) {
     const index = finger === 3, y = .034 - finger * .023;
     const roll = design.rolls[finger];
     const [knuckleOf, cornerOf, fingerOf] = index && design.index ? design.index : [roll, roll, roll];
     // The side bar: the index roll fatter and standing a little proud, its
     // lower edge kept inside the fist so it never reaches the other glove.
-    const bar = index && design.sideBar, depth = bar ? .023 : .0198, lift = bar ? -.0015 : 0, proud = bar ? .004 : .001;
-    const knuckle = piece(hand, paint(knuckleOf), [.076, depth, .036 + proud]);
-    knuckle.position.set(-back * .004, y + lift, back * (.0505 + proud / 2));
-    const corner = piece(hand, paint(cornerOf), [.035 + proud, depth, .035 + proud]);
-    corner.position.set(back * (.043 + proud / 3), y + lift, back * (.041 + proud / 3)); corner.rotation.y = Math.PI / 4;
-    const length = piece(hand, paint(fingerOf), [.031 + proud, depth, .050]);
-    length.position.set(back * (.0555 + proud / 2), y + lift, -back * .004);
-    const tip = piece(hand, paint(design.tips?.[finger] ?? design.base), [.043, .022, .032]);
-    tip.position.set(back * .036, y + lift, -back * .042);
+    const bar = index && design.sideBar, depth = bar ? .023 : .0205, lift = bar ? -.0015 : 0, proud = bar ? .004 : .001;
+    // Each roll thins from the knuckle to the tip, and stops short of the next
+    // piece at each joint, so it reads as a finger going one way round.
+    const knuckle = piece(hand, paint(knuckleOf), [.072, depth, .036 + proud]);
+    knuckle.position.copy(at(-.006, y + lift, .0505 + proud / 2));
+    const corner = piece(hand, paint(cornerOf), [.033 + proud, depth * .95, .033 + proud]);
+    corner.position.copy(at(.043 + proud / 3, y + lift, .040 + proud / 3)); corner.rotation.y = Math.PI / 4;
+    const length = piece(hand, paint(fingerOf), [.030 + proud, depth * .9, .042]);
+    length.position.copy(at(.0555 + proud / 2, y + lift, -.001));
+    // The tip turned in towards the thumb, a little narrower than its roll.
+    const tip = piece(hand, paint(design.tips?.[finger] ?? design.base), [.034, depth * .85, .028]);
+    tip.position.copy(at(.040, y + lift, -.039)); tip.rotation.y = knuckles * Math.PI / 9;
     if (design.flash?.fingers.includes(finger)) {
       // Dashes across the roll where it goes over the knuckle, printed on its face.
       const ink = paint(design.flash.colour, .7), n = design.flash.count;
       for (let s = 0; s < n; s++) {
         const dash = piece(hand, ink, [.0045, depth * .62, .003], 'flat');
-        dash.position.set(-back * (.026 - s * .014), y + lift, back * (.0505 + (.036 + proud) / 2));
+        dash.position.copy(at(-.026 + s * .014, y + lift, .0505 + (.036 + proud) / 2));
       }
     }
   }
@@ -240,24 +258,27 @@ export function buildGloveHand(design: GloveDesign, back: number) {
     // Across the base of all four fingers, on the corner of the fist the back
     // of the hand comes round, with the badge on its face.
     const bar = piece(hand, paint(design.knuckleBar.colour), [.026, .094, .040]);
-    bar.position.set(-back * .047, -.0005, back * .043); bar.rotation.y = Math.PI / 4;
+    bar.position.copy(at(-.047, -.0005, .043)); bar.rotation.y = -knuckles * Math.PI / 4;
     if (design.knuckleBar.badge) {
       const badge = piece(hand, paint(design.knuckleBar.badge, .5), [.003, .05, .014], 'flat');
-      badge.position.copy(bar.position).add(new THREE.Vector3(-back, 0, back).normalize().multiplyScalar(.0205));
+      badge.position.copy(bar.position).add(at(-1, 0, 1).normalize().multiplyScalar(.0205));
       badge.rotation.y = bar.rotation.y;
     }
   }
-  const thumbFrom = new THREE.Vector3(-back * .045, .024, -back * .028), thumbTo = new THREE.Vector3(back * .007, -.018, -back * .061);
+  // The thumb comes off the heel of the hand on the edge the fingers do not go
+  // round, lies down the handle on the palm's side and points at the blade,
+  // the fingertips turned in towards it. It used to run across the tips.
+  const thumbFrom = at(-.044, .020, -.036), thumbTo = at(-.012, -.040, -.058);
   const thumb = piece(hand, paint(design.thumb), [1, 1, 1]);
   thumb.name = 'Thumb opposed to curled fingers';
-  segment(thumb, thumbFrom, thumbTo, .039);
+  segment(thumb, thumbFrom, thumbTo, .036);
   if (design.thumbTip) {
     const tip = piece(hand, paint(design.thumbTip), [1, 1, 1]);
-    segment(tip, thumbFrom.clone().lerp(thumbTo, .8), thumbTo.clone().lerp(thumbFrom, -.08), .041);
+    segment(tip, thumbFrom.clone().lerp(thumbTo, .78), thumbTo.clone().lerp(thumbFrom, -.06), .038);
   }
-  for (const at of [.38, .72]) {
-    const ridge = piece(hand, paint(design.ridges), [.047, .008, .047], 'tube');
-    ridge.position.copy(thumbFrom).lerp(thumbTo, at);
+  for (const along of [.3, .58]) {
+    const ridge = piece(hand, paint(design.ridges), [.0415, .006, .0415], 'tube');
+    ridge.position.copy(thumbFrom).lerp(thumbTo, along);
     ridge.quaternion.setFromUnitVectors(UP, thumbTo.clone().sub(thumbFrom).normalize());
   }
   return { hand, padding: base };

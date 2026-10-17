@@ -50,7 +50,7 @@ h2{font:400 26px/1 var(--f-display);margin:12px 0 0;letter-spacing:.01em}
 #line{color:var(--text-2);font-size:13px;max-width:44ch;text-shadow:0 1px 6px #000c}
 .corner{position:absolute;right:12px;bottom:10px;display:flex;gap:6px;align-items:center}
 .hint{font-size:12px;color:var(--text-2);pointer-events:none}
-.stage-label{position:absolute;left:14px;bottom:12px;font:600 11px/1 var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);pointer-events:none}
+.stage-label{position:absolute;left:14px;bottom:58px;font:600 11px/1 var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);pointer-events:none}
 .rows{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center}
 .seg{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
 .seg .lab{font:600 11px/1 var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);margin-right:4px}
@@ -58,7 +58,7 @@ button{font:600 14px/1 var(--f-ui);color:var(--text);background:var(--panel);bor
   border-radius:9px;padding:10px 12px;min-height:40px;cursor:pointer}
 button:hover{border-color:#ffffff38}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.seg button[aria-pressed=true],#spin[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#1a0d07}
+.seg button[aria-pressed=true],#spin[aria-pressed=true],.corner button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#1a0d07}
 #designs{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(150px,1fr);gap:10px;overflow-x:auto;padding-bottom:4px}
 .design{padding:0;display:grid;border-radius:12px;overflow:hidden;background:var(--studio);text-align:left}
 .design canvas{width:100%;height:auto;display:block;aspect-ratio:1}
@@ -102,7 +102,7 @@ code{font:500 13px var(--f-mono);color:var(--accent-soft)}
         <span id="line"></span>
       </div>
       <span class="stage-label">The pair on the handle</span>
-      <div class="corner"><span class="hint">Drag to turn</span><button id="spin" aria-pressed="true">Turn</button></div>
+      <div class="corner"><div class="seg" role="group" aria-label="Look at"><button data-side="face" aria-pressed="false">Face</button><button data-side="back" aria-pressed="false">Back</button><button data-side="edge" aria-pressed="false">Edge</button></div><button id="spin" aria-pressed="true">Turn</button></div>
     </div>
     <div class="stage" id="body">
       <span class="stage-label">On the batter</span>
@@ -139,17 +139,18 @@ code{font:500 13px var(--f-mono);color:var(--accent-soft)}
     <table>
       <thead><tr><th>Part</th><th>Classic, today</th><th>New designs</th><th>From the real gloves</th></tr></thead>
       <tbody>
+        <tr><td>Which way it closes</td><td><b>One hand turned round</b> for both: the top hand's knuckles on the curved back, its fingers curling onto the face, and the bottom hand the other way, both curling the same way round the handle</td><td><b>A left and a right hand.</b> Top hand: knuckles on the face, fingers round the edge and onto the curved back. Bottom hand: knuckles on the back, fingers onto the flat face. Both round the same edge, both thumbs down the handle</td><td>How a batter holds it: the back of the top glove to the bowler</td></tr>
         <tr><td>Fist</td><td><b>One padded shell</b> round the handle, 11 × 10 × 11 cm</td><td>Same shell, in the design's padding colour</td><td>All four</td></tr>
-        <tr><td>Finger rolls</td><td><b>Four rolls</b>, each in three pieces (over the knuckle, round the corner, down the finger) and a curled tip, all white</td><td>Each roll its own colour or print; tips coloured</td><td>The coloured first roll on all four; the charcoal contour roll; the gold pinstripe</td></tr>
+        <tr><td>Finger rolls</td><td><b>Four rolls</b>, each in three pieces (over the knuckle, round the corner, down the finger) and a curled tip, all white</td><td>Each roll thins from the knuckle to the tip, with a gap at each joint, so it reads one way round; its own colour or print; tips coloured</td><td>The coloured first roll on all four; the charcoal contour roll; the gold pinstripe</td></tr>
         <tr><td>Side bar</td><td>None</td><td><b>The index roll fatter</b> and standing proud, kept inside the fist's edge so it never reaches the other hand</td><td>The blue, lime and orange bars</td></tr>
         <tr><td>Knuckle bar</td><td>None</td><td><b>A bar across the base of all four fingers</b>, with a badge on its face</td><td>The blue and dark green blocks the maker's mark sits on</td></tr>
         <tr><td>Stripes</td><td>None</td><td><b>Dashes across each roll</b> over the knuckle (Blaze)</td><td>The black dashes on the fluoro orange rolls</td></tr>
-        <tr><td>Thumb</td><td><b>One padded roll</b> with two ridges across it</td><td>Coloured tip; ridges in a contrast colour</td><td>The coloured thumb tips</td></tr>
+        <tr><td>Thumb</td><td><b>One padded roll</b> with two ridges, lying across the fingertips</td><td>Off the heel of the hand, down the handle on the palm's side and pointing at the blade, clear of the fingertips, which turn in towards it; coloured tip, ridges in a contrast colour</td><td>The coloured thumb tips</td></tr>
         <tr><td>Palm</td><td>Grey leather pad inside the grip</td><td>Light leather in the design's tone</td><td>All four</td></tr>
         <tr><td>Gauntlet</td><td><b>White tube</b>, one band in the kit's trim at the wrist, a small patch, a padded rim</td><td>Knitted bands up the cuff, a strap over the wrist with its badge, the rim</td><td>The navy, green and black stripes; the strap and badge</td></tr>
       </tbody>
     </table>
   </div>
-  <p class="note">Every new piece sits where the Classic's piece of the same name does, inside the same groups on the handle and the wrist, so a design changes how the glove looks and never how he holds the bat. The Classic stays the glove he is built with; <code>Batter.wearGloves</code> puts another on. Nothing here is wired to the Dressing Room yet.</p>
+  <p class="note">The new fists sit in the same groups and the same space on the handle and the wrist as the Classic's, so the grip, the wrists and the arms do not move; what changes is which way round each hand closes. Use <b>Face</b> and <b>Back</b> on the close-up to see it: from the face, the top glove shows its knuckles and the bottom glove its fingertips; from the back, the other way round. The Classic stays the glove he is built with; <code>Batter.wearGloves</code> puts another on. Nothing here is wired to the Dressing Room yet.</p>
 </div>
 <script type="module" src="/src/gloves-preview.ts"></script>

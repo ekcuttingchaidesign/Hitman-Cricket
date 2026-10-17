@@ -2552,9 +2552,10 @@ export class Batter {
 
   /**
    * A pair of gloves from the catalogue (`gloves.ts`), or the Classic pair he
-   * was built with for null or `classic`. Only the look changes: each new
-   * piece sits where the Classic's piece of the same name does, inside the
-   * same groups, so the grip and the wrist are where they always were. The
+   * was built with for null or `classic`. Only the look changes: the new fists
+   * sit in the same groups and the same space on the handle, so the grip and
+   * the wrist are where they always were; what they change is which way round
+   * each hand closes (`buildGloveHand`). The
    * heel `update` re-aims at the wrist takes the new padding's colour.
    */
   wearGloves(design: GloveDesign | null) {
@@ -2567,7 +2568,7 @@ export class Batter {
       for (const part of this.classicGloves[i]) part.visible = classic;
       arm.palm[0].material = this.palette.pad;
       if (classic) return;
-      const { hand, padding } = buildGloveHand(design, arm.knuckles), cuff = buildGloveCuff(design);
+      const { hand, padding } = buildGloveHand(design, i === 0), cuff = buildGloveCuff(design);
       compactRigidParts(hand); compactRigidParts(cuff);
       arm.glove.add(hand); arm.cuff.add(cuff);
       arm.palm[0].material = padding;
