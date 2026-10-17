@@ -26,7 +26,7 @@ export type Track = 'cover' | 'result';
  * does not try to carry two megabytes of music as a data URI.
  */
 const TRACKS: Record<Track, string> = {
-  cover: 'cover_theme.aac',
+  cover: 'cover_theme.mp3',
   result: 'test_survival_glory.aac',
 };
 /**
@@ -36,13 +36,14 @@ const TRACKS: Record<Track, string> = {
 const MUSIC_GAIN = .5;
 /**
  * Each track's own level under that, so two files mastered differently play at
- * the loudness the game was tuned to. The cover's theme measures −10.4 LUFS,
- * 2.5 dB hotter than Shining Down (−12.9) before it, which was itself let
+ * the loudness the game was tuned to. The cover's theme measures −10.0 LUFS,
+ * 2.9 dB hotter than Shining Down (−12.9) before it, which was itself let
  * through at a fifth of the gain against the −26.0 track the game was tuned
- * on; so it is let through at three quarters of that: the cover is as loud as
- * it always has been.
+ * on; so it is let through at under three quarters of that: the cover is as
+ * loud as it always has been. An MP3 as it came rather than an AAC made from
+ * it, which would have been a second loss on a file already small.
  */
-const LEVEL: Record<Track, number> = { cover: .165, result: 1 };
+const LEVEL: Record<Track, number> = { cover: .16, result: 1 };
 const gainOf = (track: Track) => MUSIC_GAIN * LEVEL[track];
 /** How long a track started off a tap stays silent before it is let through. */
 const FADE_IN_MS = 220;

@@ -70,12 +70,12 @@ describe('the music a screen owns', () => {
   it('plays the cover track, looped, the moment the cover asks for it', () => {
     const audio = new GameAudio();
     audio.music('cover');
-    expect(cover()!.src).toBe('cover_theme.aac');
+    expect(cover()!.src).toBe('cover_theme.mp3');
     expect(cover()!.loop).toBe(true);
     expect(cover()!.calls).toEqual(['play']);
     expect(cover()!.muted).toBe(false);
     // Quieter than the card's: mastered louder, so let through at its own level.
-    expect(cover()!.volume).toBeCloseTo(.0825, 5);
+    expect(cover()!.volume).toBeCloseTo(.08, 5);
     audio.dispose();
   });
   it('leaves the card\'s music exactly where it is when the board goes up over it', () => {
@@ -382,9 +382,9 @@ describe('the music through the context', () => {
     expect(fetched.filter(url => url.includes('cover_theme'))).toHaveLength(1);
     expect(music()).toHaveLength(1);
     expect(music()[0].source.started).toEqual([0, 0]);
-    // At its own level: the theme is mastered 15.6 dB hotter than the track
+    // At its own level: the theme is mastered 16 dB hotter than the track
     // the game was tuned to, so it is let through at a sixth of the music's gain.
-    expect(music()[0].gain.value).toBeCloseTo(.0825, 5);
+    expect(music()[0].gain.value).toBeCloseTo(.08, 5);
     expect(FakeAudio.made).toHaveLength(0);
     audio.dispose();
   });
@@ -399,7 +399,7 @@ describe('the music through the context', () => {
     await land();
     expect(music()).toHaveLength(1);
     // Silent for the fade, then brought up to the music's level.
-    expect(music()[0].ramps.map(([kind, value, at]) => [kind, +value.toFixed(5), at])).toEqual([['set', 0, 0], ['set', 0, .22], ['ramp', .0825, .47]]);
+    expect(music()[0].ramps.map(([kind, value, at]) => [kind, +value.toFixed(5), at])).toEqual([['set', 0, 0], ['set', 0, .22], ['ramp', .08, .47]]);
     audio.dispose();
   });
   it('stays armed through a touch the browser does not count', async () => {
