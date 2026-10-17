@@ -9,6 +9,7 @@ import { ConnectedTrousers } from './ConnectedTrousers';
 import { clothMaterial, willowMaterial } from './characterMaterials';
 import { GRILLE_MOUNT, helmetGeometry, helmetGrilleGeometry, helmetPeakGeometry, helmetRimGeometry } from './helmetGeometry';
 import { compactRigidParts } from './compactParts';
+import { buildGloveCuff, buildGloveHand, type GloveDesign } from './gloves';
 import type { BodyPart, ShotType } from '../game/types';
 
 type Point = readonly [number, number, number];
@@ -2550,6 +2551,33 @@ export class Batter {
   }
 
   /**
+   * A pair of gloves from the catalogue (`gloves.ts`), or the Classic pair he
+   * was built with for null or `classic`. Only the look changes: each new
+   * piece sits where the Classic's piece of the same name does, inside the
+   * same groups, so the grip and the wrist are where they always were. The
+   * heel `update` re-aims at the wrist takes the new padding's colour.
+   */
+  wearGloves(design: GloveDesign | null) {
+    if (!this.classicGloves.length) this.classicGloves = this.arms.map(arm =>
+      [...arm.glove.children, ...arm.cuff.children].filter(part => !arm.palm.includes(part as THREE.Mesh)));
+    for (const part of this.wornGloves) part.removeFromParent();
+    this.wornGloves = [];
+    const classic = !design || design.id === 'classic';
+    this.arms.forEach((arm, i) => {
+      for (const part of this.classicGloves[i]) part.visible = classic;
+      arm.palm[0].material = this.palette.pad;
+      if (classic) return;
+      const { hand, padding } = buildGloveHand(design, arm.knuckles), cuff = buildGloveCuff(design);
+      compactRigidParts(hand); compactRigidParts(cuff);
+      arm.glove.add(hand); arm.cuff.add(cuff);
+      arm.palm[0].material = padding;
+      this.wornGloves.push(hand, cuff);
+    });
+  }
+  private classicGloves: THREE.Object3D[][] = [];
+  private wornGloves: THREE.Object3D[] = [];
+
+  /**
    * Turns the stickers the right way round when the stage is mirrored: a
    * right-hander's world is flipped side to side (GameScene's `world`), which
    * would print every word on the bat backwards. The blade is the same shape
@@ -2645,6 +2673,7 @@ export class Batter {
       }
       // The wrist is what turns: a gauntlet at the hand aimed back up the forearm.
       const cuff = new THREE.Group(); this.root.add(cuff);
+      cuff.name = i === 0 ? 'Left gauntlet' : 'Right gauntlet';
       this.mesh(cuff, this.palette.pad, [.113, .105, .113], 'tube').position.y = .052;
       this.mesh(cuff, this.palette.accent, [.121, .026, .121], 'tube').position.y = .014;
       this.mesh(cuff, this.palette.accent, [.038, .023, .005], 'flat').position.set(0, .069, .058);
