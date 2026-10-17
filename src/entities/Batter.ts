@@ -1277,6 +1277,53 @@ const STRAIGHT_LOFT: Stroke = {
   recover: STROKES.STRAIGHT.recover,
 };
 /**
+ * The straight drive lofted, version two: built from Kohli's six over the
+ * bowler's head at Adelaide, side on and from behind the bowler.
+ *
+ * A long stride first — the front foot down the line and planted before the
+ * bat arrives (`LOFT_V2_CLOCK.plant`), the head over the front knee and the
+ * back foot left where it was — then a straight bat met under his eyes. The
+ * arms go out after the ball up the line and the stroke ends there: both arms
+ * long, the hands high in front of him over the front shoulder and clear of
+ * his face, the back arm crossing under his chin, the head upright and the chin
+ * up after the ball, and the blade carried on up
+ * the line after the ball, its toe to the sky over the bowler. No wrap over
+ * the shoulder or behind the head. He holds it a long while, low on the bent
+ * front leg with the back foot up on its toe, and watches it go; then the bat
+ * comes home down the line and up into his guard. From the ball on the face
+ * rides the handle (`riding`), so the bat never turns in his hands. Version
+ * one (`STRAIGHT_LOFT`) finishes over the front shoulder.
+ */
+export type LoftVersion = 1 | 2;
+/** How often each version of the lofted straight drive is played: three in ten the old finish, seven in ten the new. Both are the same six. */
+export const LOFT_ODDS: Record<LoftVersion, number> = { 1: .3, 2: .7 };
+/**
+ * The version a ball plays, off the innings' seed and the ball it has reached
+ * as the cover strokes' is (`coverRoll`), mixed with a constant of its own so
+ * the two are not rolled together.
+ */
+export function loftVersionOf(seed: number, ball: number): LoftVersion {
+  return coverRoll(seed ^ 0x1f7d2b9, ball) < LOFT_ODDS[1] ? 1 : 2;
+}
+export const LOFT_V2_CLOCK = { plant: 70, through: 220, finish: 320, hold: 650, down: 760, under: 870 } as const;
+const STRAIGHT_LOFT_V2: Stroke = {
+  // Down the line on a long stride, the weight over the front knee.
+  contact: { ...STROKES.STRAIGHT.contact, hip: [-.13, .70, .08], chest: [.00, 1.03, .22],
+    frontFoot: [.03, .08, .66], backFoot: [-.15, .08, -.34], heel: .22, yaw: 1.22, face: .02, look: .15 },
+  // Out after the ball: both arms long up the line, the blade already rising.
+  through: { ...STROKES.STRAIGHT.through!, hip: [.02, .76, .20], chest: [.12, 1.10, .36],
+    frontFoot: [.03, .08, .66], backFoot: [-.14, .08, -.30],
+    grip: [.32, 1.20, 1.00], batUp: [.06, .30, -.952], batFace: [0, .952, .30], heel: .34, armHinge: .65, shoulderLift: .05, look: .05 },
+  // The end of it, held: the arms long and high up the line, the hands over the
+  // front shoulder and clear of his face, the back arm crossing under the chin
+  // rather than across the grille, the chin up after the ball, the toe up over the bowler.
+  finish: { ...STROKES.STRAIGHT.through!, hip: [.04, .78, .30], chest: [.04, 1.12, .22],
+    frontFoot: [.03, .08, .66], backFoot: [-.12, .10, -.28],
+    grip: [-.20, 1.53, 1.00], batUp: [.05, -.40, -.915], batFace: [0, .915, -.40], heel: .52,
+    backFootYaw: .80, yaw: -.25, armHinge: 1.10, leadElbow: .28, armDrive: 1, shoulderLift: .02, look: -.60 },
+  recover: STROKES.STRAIGHT.recover,
+};
+/**
  * The on drive, lofted: the six.
  *
  * The on drive's own ball and contact, and the lofted straight drive's
@@ -2689,6 +2736,12 @@ export class Batter {
   private get onDrive() { return this.shot === 'LONG_ON' && !this.charging && !this.lofted; }
   /** The on drive lofted for six, which wraps over the front shoulder with the face riding the handle. */
   private get onLoft() { return this.shot === 'LONG_ON' && this.lofted && !this.charging; }
+  /**
+   * The straight drive's six, version two (`STRAIGHT_LOFT_V2`): a lofted straight drive swung with a
+   * version of two or more. The swing's version is the cover strokes' for them and the loft's
+   * (`loftVersionOf`) for this.
+   */
+  private get straightLoftV2() { return this.shot === 'STRAIGHT' && this.lofted && !this.charging && this.coverVersion >= 2; }
   /** The rebuilt drives, which go home back along their own swing: the cover drive's versions two and three, and the on drive. */
   private get rebuiltDrive() { return this.coverV2 || this.onDrive; }
   get strikeAt() { return this.contactTime; }
@@ -2829,7 +2882,7 @@ export class Batter {
       : overLongOn ? { contact: ON_CHARGE_CONTACT, finish: ON_CHARGE_FINISH }
       : this.charging ? { contact: CHARGE_CONTACT, finish: CHARGE_FINISH }
       : this.sweeping ? (this.levelled ? FLAT_SWEEP : SLOG_SWEEP) : this.pulling ? PULL : this.cutting ? CUT_HIGH
-      : this.squaring ? SQUARE_DRIVE : this.lofted ? (this.shot === 'LONG_ON' ? ON_LOFT : STRAIGHT_LOFT)
+      : this.squaring ? SQUARE_DRIVE : this.lofted ? (this.shot === 'LONG_ON' ? ON_LOFT : this.straightLoftV2 ? STRAIGHT_LOFT_V2 : STRAIGHT_LOFT)
       : this.spinCutting ? SPIN_CUT
       : this.shot === 'SCOOP' ? SCOOP : this.shot === 'REVERSE_SCOOP' ? REVERSE_SCOOP : this.shot === 'HOOK' ? HOOK
       : this.shot === 'COVER_LONG_OFF' && this.coverVersion === 1 ? COVER_DRIVE_V1
@@ -3146,6 +3199,36 @@ export class Batter {
       this.apply(pose);
       return;
     }
+    // The straight drive's six, version two: the front foot down first on a
+    // long stride, the ball met under his eyes, out after it up the line and
+    // held there, arms long and high, and home down the line into his guard.
+    // From the ball on the face rides the handle (`riding`).
+    if (this.straightLoftV2) {
+      const { plant, through, finish: ended, hold, down, under } = LOFT_V2_CLOCK;
+      const body = (pose: Pose, home: number): Pose => {
+        const settled = mix(pose, GUARD, home);
+        return { ...pose, hip: settled.hip, chest: settled.chest, frontFoot: settled.frontFoot, backFoot: settled.backFoot, heel: settled.heel,
+          backFootYaw: settled.backFootYaw, look: settled.look };
+      };
+      const out = [{ time: 0, pose: this.swingFrom },
+        { time: plant, pose: { ...mix(this.swingFrom, contact, COVER_PLANT.bat), frontFoot: contact.frontFoot, backFoot: contact.backFoot,
+          hip: mix(this.swingFrom, contact, COVER_PLANT.hips).hip, chest: mix(this.swingFrom, contact, COVER_PLANT.chest).chest } },
+        { time: STROKE_CONTACT_MS, pose: contact }, { time: through, pose: reachPose(stroke.through!) }, { time: ended, pose: finish }];
+      const home = [{ time: hold, pose: finish },
+        { time: down, pose: body(mix(finish, reachPose(stroke.through!), .6), .4) },
+        { time: under, pose: body(mix(contact, GUARD, .4), .7) },
+        { time: STROKE_DURATION_MS, pose: GUARD }];
+      const poseAt = (at: number): Pose => at < ended ? shoulderDriven(out, at, STROKE_CONTACT_MS)
+        : at < hold ? finish : shoulderDriven(home, at, hold - 70);
+      const pose = { ...poseAt(age) };
+      if (age > STROKE_CONTACT_MS) {
+        const reference = batOrientation(STROKES.STRAIGHT.contact), up = UP.clone().applyQuaternion(batOrientation(poseAt(STROKE_CONTACT_MS)));
+        const met = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(reference), up).multiply(reference);
+        pose.bat = this.riding(STROKE_CONTACT_MS, poseAt, met, [hold, under], age);
+      }
+      this.apply(pose);
+      return;
+    }
     // The on drive runs the drives' clock, lofted or along the ground: it is
     // a drive.
     if (this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF' || this.shot === 'LONG_ON') {
@@ -3266,12 +3349,12 @@ export class Batter {
     // The on-drive's is the same, for the end of the handle: its finish held
     // the knob against the bottom of the grille, under his chin, so through
     // either drive's follow-through the bat is eased out from there too.
-    if ((this.shot === 'COVER_LONG_OFF' || this.shot === 'LONG_ON') && !this.charging && Number.isFinite(this.poseAge)) {
+    if ((this.shot === 'COVER_LONG_OFF' || this.shot === 'LONG_ON' || this.straightLoftV2) && !this.charging && Number.isFinite(this.poseAge)) {
       const clearing = THREE.MathUtils.smoothstep(this.poseAge, 260, 340) * (1 - THREE.MathUtils.smoothstep(this.poseAge, 760, STROKE_DURATION_MS));
       if (clearing > 0) {
         const helmet = this.head.position.clone().add(HELMET_CENTRE);
         const fromHelmet = this.bat.position.clone().sub(helmet), near = fromHelmet.length();
-        if ((this.shot === 'COVER_LONG_OFF' || this.onDrive || this.onLoft) && near < HANDS_CLEAR && near > 1e-6) this.bat.position.addScaledVector(fromHelmet, clearing * (HANDS_CLEAR - near) / near);
+        if ((this.shot === 'COVER_LONG_OFF' || this.onDrive || this.onLoft || this.straightLoftV2) && near < HANDS_CLEAR && near > 1e-6) this.bat.position.addScaledVector(fromHelmet, clearing * (HANDS_CLEAR - near) / near);
         const chin = CHIN_GUARD.clone().applyEuler(this.head.rotation).add(this.head.position);
         const fromChin = this.bat.position.clone().addScaledVector(UP.clone().applyQuaternion(batOrientation(pose)), KNOB).sub(chin), short = KNOB_CLEAR - fromChin.length();
         if (short > 0 && short < KNOB_CLEAR) this.bat.position.addScaledVector(fromChin.normalize(), clearing * short);

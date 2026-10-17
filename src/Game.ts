@@ -24,7 +24,7 @@ import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
-import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, LATE_CUT_MEETS_AT, coverRoll, coverVersionOf, type Celebration, celebrationLength } from './entities/Batter';
+import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, LATE_CUT_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, type LoftVersion, type Celebration, celebrationLength } from './entities/Batter';
 import { advanceShot, gradeOf, hookable, loftedDrive, playedAs, spinCut, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
@@ -510,6 +510,16 @@ export class Game {
    */
   private coverVersion(): CoverVersion {
     return this.coverAsked === 1 || this.coverAsked === 2 || this.coverAsked === 3 ? this.coverAsked : coverVersionOf(coverRoll(this.seed, this.score.balls));
+  }
+  /** `?loftv=1` or `2`: always that version of the lofted straight drive, for looking at one. */
+  private readonly loftAsked = Number(new URLSearchParams(location.search).get('loftv'));
+  /**
+   * Which of the lofted straight drive's two finishes this six is played
+   * with, by `LOFT_ODDS`: over the front shoulder, or held with the arms long
+   * up the line (`STRAIGHT_LOFT_V2`). Only the picture changes, never the six.
+   */
+  private loftVersion(): LoftVersion {
+    return this.loftAsked === 1 || this.loftAsked === 2 ? this.loftAsked : loftVersionOf(this.seed, this.score.balls);
   }
   private nets: { bowler: NetsBowler; round: boolean } = { bowler: 'PACE', round: true };
   /** Hand the nets' choice to the bowling and show it on the keys. */
@@ -2358,7 +2368,8 @@ export class Game {
     const levelled = !charging && !sweeping
       && sweeps(this.delivery!, this.attempt, gradeOf(this.delivery!, this.attempt, this.windows));
     this.primed = null;
-    const version = this.coverVersion();
+    // The lofted straight drive's version is its own; every other stroke's is the cover strokes'.
+    const version = shotType === 'STRAIGHT' && lofted ? this.loftVersion() : this.coverVersion();
     // Version three of the cover drive meets the ball beside the front pad, a
     // little before the crease, so the ball is struck there. The swipe is
     // judged as for the other two: the version is drawn after it, so nobody
