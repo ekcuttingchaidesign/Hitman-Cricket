@@ -15,7 +15,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, type CoverVersion, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
+import { Batter, type CoverVersion, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOT_ANGLES, STYLES } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 import type { ShotType } from './game/types';
@@ -73,6 +73,15 @@ const STROKES: Record<string, Stroke> = {
     out: { speed: .028, angle: THREE.MathUtils.degToRad(-22), climb: .014 },
     facts: ['full, leg stump', `${STROKE_DURATION_MS} ms`],
     note: 'The on drive lofted for six, played when the swipe is perfectly timed: the on drive\'s own stride and contact, then the arms carry the bat up through the line and over into a wrap, the elbows bent rather than reaching for the sky: the hands just over the front shoulder with the bat lying back over it behind his head, the front elbow up beside the helmet, the back arm across in front of his face, the chest open to long-on and the back foot up on its toe, held to 580 ms. The arms take the bat over, not the wrists: the one turn in his hands is the bottom hand rolling over the top one through the carry, evenly and one way, so that at the wrap the flat face looks out and the curved back of the blade lies against his shoulder; held, nothing turns it, and on the way home, back over his head and down the line, it settles into his guard a little at a time. The six it replaces turned the bat a full turn in his hands on the way home.',
+  },
+  loft: {
+    label: 'Straight six', shot: 'STRAIGHT', charging: false, lofted: true, ball: { x: LINE_X.MIDDLE, y: .54, z: GAME.contactZ },
+    contact: STROKE_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: 3.5,
+    phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Plant', LOFT_V2_CLOCK.plant], ['Contact', STROKE_CONTACT_MS], ['Through', LOFT_V2_CLOCK.through],
+      ['Carry', LOFT_V2_CLOCK.carry], ['Wrap', LOFT_V2_CLOCK.wrapped], ['Home', LOFT_V2_CLOCK.hold]],
+    out: { speed: .028, angle: 0, climb: .016 },
+    facts: ['full, middle stump', `${STROKE_DURATION_MS} ms`],
+    note: 'Version two, played half the time: the straight drive lofted for six, built from a six over the bowler\'s head filmed side on and from behind the bowler. A long stride first, the front foot down the line and planted at 70 ms with the head over the knee and the back foot left where it was; a straight bat meets the ball under his eyes at 110; the arms go out long up the line at 220, the blade climbing, and keep going up until at 430 the hands are above his helmet, the elbows bent, with the bat laid flat behind his head pointing back at the keeper. He holds it to 680, low on the bent front leg with the back foot up on its toe, watching it go, then brings it home over his head and down into his guard. From the ball the face rides the handle, so the bat never turns in his hands.',
   },
   latecut: {
     label: 'Late cut', shot: 'LATE_CUT', charging: false, single: true, ball: { x: LINE_X.OUTSIDE_OFF, y: .56, z: GAME.contactZ + LATE_CUT_MEETS_AT },
@@ -317,11 +326,13 @@ function frame(now: number) {
 /** What version one of each stroke is: the game's own, as it was. */
 const VERSION_ONE: Record<string, string> = {
   cover: 'Version one, played four times in ten and the only one middled for six: the cover drive the game has always played, kept beside the rebuilt one: a short step in, the ball met at 110 ms, the arms out through the line at 220 and the high finish at 410, with the bat pointing out square, held to 570, and home to his guard over the top.',
+  loft: 'Version one, played half the time: the lofted straight drive the game has always played: the classic drive\'s stride and contact, the blade climbing through the line, and the finish over the front shoulder with the hands above the helmet and the bat pointing to the sky, held to 410.',
   charge: 'Version one, the charge over cover the game has always played: the same run down the pitch, ball and finish as version two, with the bat turning in his hands on the way up into the finish and on the way home.',
 };
 /** What version three of each stroke is: the cover drive met beside the front pad. */
 const VERSION_THREE: Record<string, string> = {
   cover: 'Version three, played four times in ten: version two met beside the front pad, under his eyes, as the recording meets it, 28 cm further down the pitch than the game meets every other drive. The hips and chest are further forward, the front knee bent deeper over the foot, and the back foot slides back less. The swipe is timed as for the other two, and like version two it keeps the ball down: middled, it is four, never six.',
+  loft: 'The straight six has no version three: it is version two\'s.',
   charge: 'The charge over cover has no version three: it is version two\'s, down the pitch to the ball as it always was.',
 };
 const title = document.querySelector<HTMLHeadingElement>('h1')!;

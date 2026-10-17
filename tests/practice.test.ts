@@ -63,6 +63,7 @@ describe('every switch the game reads', () => {
     newcomer: 'lets a newcomer\'s help back in under ?debug=1, by the browser\'s own count: it gives nobody help they are not owed',
     welcome: 'the welcome in each way it can go, on demand, sending and keeping nothing',
     dressing: 'the Dressing Room and its unlocks over a made-up record, earning, wearing and keeping nothing',
+    loftv: 'which of the lofted straight drive\'s two finishes is drawn; the six is the same six either way',
     ui: 'the UI kit laid out as a page, instead of the game, reading and sending nothing',
   };
 
