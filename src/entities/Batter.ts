@@ -1119,7 +1119,7 @@ const SCOOP: Stroke & { set: Pose; unwrap: Pose; across: Pose } = {
   // the bat brought down upright in front of him, face to the bowler.
   set: { ...GUARD, hip: [.55, .70, -.30], chest: [.57, 1.02, -.20],
     frontFoot: [.23, .08, .00], backFoot: [.83, .08, -.12],
-    grip: [.36, .68, .04], batUp: [.00, .97, -.25], batFace: [.00, .25, .97],
+    grip: [.36, .68, .04], batUp: [.00, .88, -.47], batFace: [.00, .47, .88],
     yaw: .05, frontFootYaw: .10, backFootYaw: .25, face: .00, heel: .10, leadElbow: .00, look: .15 },
   // The ramp: laid back almost flat, pointing at the bowler, face up, the
   // hands low beside the front thigh. The ball rides off it over his shoulder.
@@ -2968,21 +2968,24 @@ export class Batter {
       return;
     }
     if (this.shot === 'SCOOP') {
-      // Set, ramp, lift, and watch it from the crouch; then stand up with the
-      // bat swung out in front before it drops into the pick-up.
+      // Across and down, ramp, lift to upright and hold it; then back across
+      // into the pick-up. From the ball on the face rides the handle
+      // (`riding`), and what it has to turn to be back in his guard it turns
+      // evenly over the whole of the way home, never in a flick at the end.
       const { set, through, carry, finish: end, hold, unwrap, across, up } = SCOOP_CLOCK;
-      if (age < end) {
-        this.apply(flowing([{ time: 0, pose: this.swingFrom }, { time: set, pose: reachPose(SCOOP.set) },
+      const over = reachPose(SCOOP.unwrap), front = reachPose(SCOOP.across), recovery = reachPose(SCOOP.recover!);
+      const poseAt = (at: number): Pose => at < end
+        ? flowing([{ time: 0, pose: this.swingFrom }, { time: set, pose: reachPose(SCOOP.set) },
           { time: SCOOP_CONTACT_MS, pose: contact }, { time: through, pose: reachPose(SCOOP.through!) },
-          { time: carry, pose: reachPose(SCOOP.carry!) }, { time: end, pose: finish }], age));
-      } else if (age < hold) this.apply(finish);
-      else {
-        const over = reachPose(SCOOP.unwrap), front = reachPose(SCOOP.across), recovery = reachPose(SCOOP.recover!);
-        this.apply(age < unwrap ? mix(finish, over, (age - hold) / (unwrap - hold))
-          : age < across ? mix(over, front, (age - unwrap) / (across - unwrap))
-          : age < up ? mix(front, recovery, (age - across) / (up - across), leave)
-          : mix(recovery, GUARD, (age - up) / (STROKE_DURATION_MS - up), arrive));
-      }
+          { time: carry, pose: reachPose(SCOOP.carry!) }, { time: end, pose: finish }], at)
+        : at < hold ? finish
+        : at < unwrap ? mix(finish, over, (at - hold) / (unwrap - hold))
+        : at < across ? mix(over, front, (at - unwrap) / (across - unwrap))
+        : at < up ? mix(front, recovery, (at - across) / (up - across), leave)
+        : mix(recovery, GUARD, (at - up) / (STROKE_DURATION_MS - up), arrive);
+      const pose = { ...poseAt(age) };
+      if (age > SCOOP_CONTACT_MS) pose.bat = this.riding(SCOOP_CONTACT_MS, poseAt, batOrientation(poseAt(SCOOP_CONTACT_MS)), [hold, STROKE_DURATION_MS], age);
+      this.apply(pose);
       return;
     }
     if (this.shot === 'REVERSE_SCOOP') {
@@ -3386,7 +3389,10 @@ export class Batter {
         // Return the same corrected guard without snapping the other strokes.
         const duration=STROKE_DURATION_MS;
         const returnSpan=260;
-        const returnWeight=ease(THREE.MathUtils.clamp((this.poseAge-(duration-returnSpan))/returnSpan,0,1));
+        // The scoop rides its face home (`riding`) and takes no roll here on the
+        // way back: this one turned the blade in his hands in its last quarter
+        // second.
+        const returnWeight=this.shot==='SCOOP'?0:ease(THREE.MathUtils.clamp((this.poseAge-(duration-returnSpan))/returnSpan,0,1));
         const entryWeight=driveShot?0:1-ease(THREE.MathUtils.clamp(this.poseAge/STROKE_CONTACT_MS,0,1));
         const guardPose=entryWeight>0?this.swingFrom:GUARD;
         const guardQ=batOrientation(guardPose), guardUp=UP.clone().applyQuaternion(guardQ);
@@ -3846,7 +3852,15 @@ export class Batter {
       // out where the bat comes down.
       if (this.shot === 'LATE_CUT' && !this.felled && Number.isFinite(this.poseAge)) {
         const weight = ease(THREE.MathUtils.clamp(this.poseAge / 120, 0, 1)) * ease(THREE.MathUtils.clamp((STROKE_DURATION_MS - this.poseAge) / 200, 0, 1));
-        kneePole.lerp(i === 0 ? new THREE.Vector3(.30, -.10, .70) : new THREE.Vector3(.60, -.45, .05), weight);
+        kneePole.lerp(i === 0 ? new THREE.Vector3(.30, -.10, .70) : new THREE.Vector3(.30, -.10, .65), weight);
+      }
+      // Squared up for the scoop the knees bend forward over the toes, each a
+      // little out to its own side. Left bending out to off as a side-on
+      // stance's do, the off-side knee bent along its own thigh and folded it.
+      if (this.shot === 'SCOOP' && !this.felled && Number.isFinite(this.poseAge)) {
+        const weight = ease(THREE.MathUtils.clamp(this.poseAge / SCOOP_CLOCK.set, 0, 1))
+          * ease(THREE.MathUtils.clamp((STROKE_DURATION_MS - this.poseAge) / (STROKE_DURATION_MS - SCOOP_CLOCK.hold), 0, 1));
+        kneePole.lerp(i === 0 ? new THREE.Vector3(-.65, -.15, .20) : new THREE.Vector3(.30, -.10, .65), weight);
       }
       // The hook turns him right round on his feet, and a knee bent out to off
       // whichever way he faces folds backwards once he faces leg: bent the way
