@@ -213,8 +213,10 @@ function arc(radius: number, tube: number, from: number, to: number, y: number, 
     .rotateZ(start).rotateX(Math.PI / 2).translate(0, y, 0);
 }
 
-/** The handle's radius under the glove, and how far out a finger's roll runs round it. */
+/** Where a finger's roll and the thumb lie from the handle's axis: on the grip, under the padding. */
 const CORE = .025;
+/** The padded hand under them, round the handle. */
+const BODY = .032;
 /**
  * The phalanges as arcs round the handle (degrees, 90 the middle of the
  * knuckles' side, 0 the edge the fingers go round), a few degrees apart so
@@ -239,9 +241,9 @@ const PHALANGES: [number, number][] = [[100, 40], [34, -16], [-22, -64]];
  * tip, so which way it curls is the shape itself. The thumb is a roll of its
  * own off the heel of the hand, round the other edge and down the handle, in
  * the part of the fist the fingers do not reach, so it lies on the glove
- * rather than in it. Under them, only a slim pad on the back of the hand with
- * the knuckle roll across it: no block for anything to sink into, and between
- * the rolls the bat's own grip.
+ * rather than in it. Under them a padded hand round the handle, slimmer than
+ * the rolls reach, so they and the thumb stand out from it, and a pad on the
+ * back of the hand with the knuckle roll across it.
  */
 export function buildGloveHand(design: GloveDesign, top: boolean) {
   const paint = palette(), hand = new THREE.Group();
@@ -253,11 +255,14 @@ export function buildGloveHand(design: GloveDesign, top: boolean) {
     mesh.castShadow = true; mesh.receiveShadow = true; hand.add(mesh);
     return mesh;
   };
+  // The padded hand the rolls and the thumb lie on: round, and slim enough
+  // that more than half of each roll and of the thumb stands clear of it.
+  add(new THREE.CapsuleGeometry(BODY, .034, 6, 20), base).name = 'Padded hand';
   for (let finger = 0; finger < 4; finger++) {
     const index = finger === 3, y = .034 - finger * .023;
     const bar = index && design.sideBar;
     // Thicker towards the index; the side bar thicker again and standing out.
-    const tube = bar ? .0136 : .0112 + finger * .0004, radius = CORE + tube;
+    const tube = bar ? .0148 : .0124 + finger * .0004, radius = CORE + tube;
     const roll = design.rolls[finger];
     const pieces: Paint[] = index && design.index ? design.index : [roll, roll, roll];
     const tip = design.tips?.[finger];
@@ -286,29 +291,29 @@ export function buildGloveHand(design: GloveDesign, top: boolean) {
   }
   // The back of the hand: a slim pad from the knuckles back towards the heel,
   // and the knuckle roll across the base of all four fingers.
-  const back = add(new RoundedBoxGeometry(.052, .102, .026, 3, .012), base);
-  back.position.set(-.027, -.0005, k * (CORE + .011));
+  const back = add(new RoundedBoxGeometry(.054, .104, .030, 3, .013), base);
+  back.position.set(-.027, -.0005, k * (CORE + .016));
   back.name = 'Back of the hand';
-  const knuckle = add(new THREE.CapsuleGeometry(.0125, .082, 6, 14), paint(design.knuckleBar?.colour ?? design.base));
-  knuckle.position.copy(round(CORE + .016, 106, -.0005, k));
+  const knuckle = add(new THREE.CapsuleGeometry(.014, .08, 6, 14), paint(design.knuckleBar?.colour ?? design.base));
+  knuckle.position.copy(round(CORE + .02, 106, -.0005, k));
   if (design.knuckleBar?.badge) {
     const badge = add(new RoundedBoxGeometry(.016, .046, .004, 2, .0015), paint(design.knuckleBar.badge, .5));
-    badge.position.set(-.031, -.0005, k * (CORE + .024));
+    badge.position.set(-.031, -.0005, k * (CORE + .0325));
   }
   // The thumb: off the heel, round the edge the fingers do not go round, and
   // down the handle at the blade, its tip short of theirs.
-  const thumbAt = (angle: number, y: number) => round(CORE + .013, angle, y, k);
+  const thumbAt = (angle: number, y: number) => round(CORE + .0145, angle, y, k);
   const first = new THREE.CatmullRomCurve3([thumbAt(150, .026), thumbAt(168, .016), thumbAt(186, .002)]);
   const second = new THREE.CatmullRomCurve3([thumbAt(190, -.002), thumbAt(204, -.016), thumbAt(214, -.028)]);
   const thumbPaint = paint(design.thumb), tipPaint = paint(design.thumbTip ?? design.thumb);
-  add(new THREE.TubeGeometry(first, 12, .0132, 10), thumbPaint).name = 'Thumb opposed to curled fingers';
-  add(new THREE.TubeGeometry(second, 10, .012, 10), tipPaint);
-  for (const [curve, paintOf, t] of [[first, thumbPaint, .0132], [second, tipPaint, .012]] as const) {
+  add(new THREE.TubeGeometry(first, 12, .0145, 10), thumbPaint).name = 'Thumb opposed to curled fingers';
+  add(new THREE.TubeGeometry(second, 10, .0132, 10), tipPaint);
+  for (const [curve, paintOf, t] of [[first, thumbPaint, .0145], [second, tipPaint, .0132]] as const) {
     for (const end of [0, 1]) add(new THREE.SphereGeometry(t * (end ? .96 : 1), 12, 8), paintOf).position.copy(curve.getPoint(end));
   }
   // The guard's ridges, rings round the first piece.
   for (const along of [.35, .7]) {
-    const ridge = add(new THREE.TorusGeometry(.0136, .0022, 6, 18), paint(design.ridges));
+    const ridge = add(new THREE.TorusGeometry(.0149, .0024, 6, 18), paint(design.ridges));
     ridge.position.copy(first.getPoint(along));
     ridge.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), first.getTangent(along));
   }

@@ -2398,13 +2398,13 @@ export const BATTER_KITS: Record<BatterKit, { shirt: number; helmet: number; tro
 
 /**
  * The heel between a fist and its wrist, re-aimed every frame: where it starts
- * as a share of the way out to the wrist, and how wide and deep it is. The
- * Classic's padded shell hides it from 0.4 out; a new glove (`gloves.ts`) has
- * no shell, so its heel starts outside the finger rolls and is slimmer, a
- * wrist rather than a block.
+ * as a share of the way out to the wrist, and how wide and deep it is. It
+ * starts inside the fist, so the hand runs on into the wrist whichever side
+ * of the handle the arm comes from. A new glove's (`gloves.ts`) is a little
+ * slimmer than the Classic's, as its fist is.
  */
 const CLASSIC_HEEL = { from: .40, width: .081, depth: .080 };
-const SLIM_HEEL = { from: .58, width: .062, depth: .054 };
+const GLOVE_HEEL = { from: .36, width: .072, depth: .066 };
 
 export class Batter {
   private poseAge = 0;
@@ -2577,7 +2577,7 @@ export class Batter {
     this.arms.forEach((arm, i) => {
       for (const part of this.classicGloves[i]) part.visible = classic;
       arm.palm[0].material = this.palette.pad;
-      this.heel = classic ? CLASSIC_HEEL : SLIM_HEEL;
+      this.heel = classic ? CLASSIC_HEEL : GLOVE_HEEL;
       if (classic) return;
       const { hand, padding } = buildGloveHand(design, i === 0), cuff = buildGloveCuff(design);
       compactRigidParts(hand); compactRigidParts(cuff);
