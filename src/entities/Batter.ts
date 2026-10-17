@@ -2396,6 +2396,16 @@ export const BATTER_KITS: Record<BatterKit, { shirt: number; helmet: number; tro
   blue: { shirt: 0x1f6fd6, helmet: 0x1a5fbd, trousers: 0xf1eee6, accent: 0x1657ad, number: 0xffffff },
 };
 
+/**
+ * The heel between a fist and its wrist, re-aimed every frame: where it starts
+ * as a share of the way out to the wrist, and how wide and deep it is. The
+ * Classic's padded shell hides it from 0.4 out; a new glove (`gloves.ts`) has
+ * no shell, so its heel starts outside the finger rolls and is slimmer, a
+ * wrist rather than a block.
+ */
+const CLASSIC_HEEL = { from: .40, width: .081, depth: .080 };
+const SLIM_HEEL = { from: .58, width: .062, depth: .054 };
+
 export class Batter {
   private poseAge = 0;
   /** The blade, for turning its stickers the right way round: see `mirrorStickers`. */
@@ -2554,8 +2564,8 @@ export class Batter {
    * A pair of gloves from the catalogue (`gloves.ts`), or the Classic pair he
    * was built with for null or `classic`. Only the look changes: the new fists
    * sit in the same groups and the same space on the handle, so the grip and
-   * the wrist are where they always were; what they change is which way round
-   * each hand closes (`buildGloveHand`). The
+   * the wrist are where they always were; what they change is the shape of the
+   * fist and which way round each hand closes (`buildGloveHand`). The
    * heel `update` re-aims at the wrist takes the new padding's colour.
    */
   wearGloves(design: GloveDesign | null) {
@@ -2567,6 +2577,7 @@ export class Batter {
     this.arms.forEach((arm, i) => {
       for (const part of this.classicGloves[i]) part.visible = classic;
       arm.palm[0].material = this.palette.pad;
+      this.heel = classic ? CLASSIC_HEEL : SLIM_HEEL;
       if (classic) return;
       const { hand, padding } = buildGloveHand(design, i === 0), cuff = buildGloveCuff(design);
       compactRigidParts(hand); compactRigidParts(cuff);
@@ -2576,6 +2587,8 @@ export class Batter {
     });
   }
   private classicGloves: THREE.Object3D[][] = [];
+  /** The heel joining the fist to the wrist: see `CLASSIC_HEEL`. */
+  private heel = CLASSIC_HEEL;
   private wornGloves: THREE.Object3D[] = [];
 
   /**
@@ -3960,7 +3973,7 @@ export class Batter {
         // inside the glove envelope, so wrist movement cannot turn the left
         // knuckles into an open palm or flip the visible grip during a shot.
         const palm = arm.socket.clone().applyAxisAngle(UP, pose.spin ?? 0);
-        this.segment(arm.palm[0],palm.clone().multiplyScalar(.40),palm,.081,.080);
+        this.segment(arm.palm[0],palm.clone().multiplyScalar(this.heel.from),palm,this.heel.width,this.heel.depth);
       }
       /**
        * The free hand, punching the air.
@@ -3994,7 +4007,7 @@ export class Batter {
         arm.glove.position.copy(gloveAt).sub(this.bat.position).applyQuaternion(inverse);
         arm.socket.copy(hand).sub(gloveAt).applyQuaternion(inverse);
         const palm = arm.socket.clone().applyAxisAngle(UP, pose.spin ?? 0);
-        this.segment(arm.palm[0], palm.clone().multiplyScalar(.40), palm, .081, .080);
+        this.segment(arm.palm[0], palm.clone().multiplyScalar(this.heel.from), palm, this.heel.width, this.heel.depth);
       }
       this.segment(arm.upper, arm.shoulder, elbow, .14, .145);
       this.segment(arm.lower, elbow, hand, .095);

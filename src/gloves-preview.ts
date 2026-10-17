@@ -103,7 +103,7 @@ const closeCamera = new THREE.PerspectiveCamera(30, 1, .01, 10);
 const closeControls = new OrbitControls(closeCamera, closeRenderer.domElement);
 closeControls.enableDamping = true; closeControls.autoRotate = true; closeControls.autoRotateSpeed = 1.6;
 closeControls.minDistance = .2; closeControls.maxDistance = 1.2;
-closeCamera.position.set(.12, .07, .78); closeControls.target.set(0, -.035, 0);
+closeCamera.position.set(.11, .05, .74); closeControls.target.set(0, -.02, 0);
 let shownPair: THREE.Object3D | null = null;
 
 // ── On the batter ────────────────────────────────────────────────────────────
@@ -166,7 +166,7 @@ const cards = document.querySelector<HTMLDivElement>('#designs')!;
 function pick() {
   const W = 220, H = 220, cam = new THREE.PerspectiveCamera(30, 1, .01, 10);
   closeRenderer.setPixelRatio(1); closeRenderer.setSize(W, H, false);
-  cam.position.set(.12, .07, .62); cam.lookAt(0, -.01, 0);
+  cam.position.set(.1, .05, .6); cam.lookAt(0, -.012, 0);
   for (const [i, glove] of GLOVES.entries()) {
     const pair = pairOf(glove); studio.add(pair);
     closeRenderer.render(studio, cam);
@@ -228,10 +228,10 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-view]')) {
   };
 }
 /** The close-up from the bat's flat face, from its curved back, or edge on: the face is +z on the handle. */
-const SIDES: Record<string, [number, number, number]> = { face: [.12, .07, .78], back: [.34, .2, -.68], edge: [-.8, .07, .05] };
+const SIDES: Record<string, [number, number, number]> = { face: [.11, .05, .74], back: [.3, .16, -.66], edge: [-.76, .05, .05] };
 function side(key: string) {
   closeControls.autoRotate = false; spin.setAttribute('aria-pressed', 'false');
-  closeCamera.position.set(...SIDES[key]); closeControls.target.set(0, -.035, 0); closeControls.update();
+  closeCamera.position.set(...SIDES[key]); closeControls.target.set(0, -.02, 0); closeControls.update();
   for (const o of document.querySelectorAll('[data-side]')) o.setAttribute('aria-pressed', String((o as HTMLElement).dataset.side === key));
 }
 for (const b of document.querySelectorAll<HTMLButtonElement>('[data-side]')) b.onclick = () => side(b.dataset.side!);
