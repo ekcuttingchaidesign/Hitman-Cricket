@@ -222,3 +222,65 @@ describe('a hooked ball', () => {
     }
   });
 });
+
+/**
+ * A scoop is met in front of the stumps and goes back over the keeper towards
+ * fine leg, through where he takes guard. He steps across outside its line
+ * first; standing where he took guard, the first build had it fly through
+ * his body. The reverse's goes back the other way, over the slips, from out
+ * beside his front knee.
+ */
+describe('a scooped ball', () => {
+  it('goes back past him on the leg side and over him, never through him', async () => {
+    const { Batter, SCOOP_CONTACT_MS } = await import('../src/entities/Batter');
+    const { SHOT_ANGLES } = await import('../src/config/gameplay');
+    const { Vector3 } = await import('three');
+    for (const x of [-.14, 0, .14]) for (const runs of [4, 6] as const) for (const swing of [-8, 0, 8]) {
+      const batter = new Batter(); batter.prepare(1); batter.update(0);
+      const origin = new Vector3(x, .54, GAME.contactZ);
+      batter.swing('SCOOP', 0, x, origin.y, origin.z);
+      const flight = flightOf(outcome({ scooped: true, runs, madeBatContact: true }));
+      const angle = (SHOT_ANGLES.SCOOP + swing) * Math.PI / 180;
+      const end = new Vector3(origin.x + Math.sin(angle) * flight.distance, flight.endY, origin.z + Math.cos(angle) * flight.distance);
+      for (let t = 0; t <= 400; t += 4) {
+        const flown = Math.min(1, t / flight.flightMs);
+        const ball = origin.clone().lerp(end, flown);
+        ball.y += flight.bounceAt > 0 ? Math.sin(Math.min(1, flown / flight.bounceAt) * Math.PI) * flight.height : Math.sin(flown * Math.PI) * flight.height;
+        batter.update(SCOOP_CONTACT_MS + t);
+        const pose = batter.inspect(), root = batter.root.position;
+        const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip), spine = chest.clone().sub(hip).normalize();
+        const head = chest.clone().addScaledVector(spine, .31).add(root);
+        const label = `x=${x} runs=${runs} swing=${swing} @${t}`;
+        expect(ball.distanceTo(head), label).toBeGreaterThan(.25);
+        expect(ball.distanceTo(chest.clone().add(root)), label).toBeGreaterThan(.32);
+        expect(ball.distanceTo(hip.clone().add(root)), label).toBeGreaterThan(.30);
+      }
+    }
+  });
+  it('goes back over the slips from the reverse, out on the off side and clear of him', async () => {
+    const { Batter, REVERSE_CONTACT_MS } = await import('../src/entities/Batter');
+    const { SHOT_ANGLES, LINE_X } = await import('../src/config/gameplay');
+    const { Vector3 } = await import('three');
+    for (const x of [LINE_X.OFF, LINE_X.OUTSIDE_OFF]) for (const runs of [4, 6] as const) for (const swing of [-8, 0, 8]) {
+      const batter = new Batter(); batter.prepare(1); batter.update(0);
+      const origin = new Vector3(x, .54, GAME.contactZ);
+      batter.swing('REVERSE_SCOOP', 0, x, origin.y, origin.z);
+      const flight = flightOf(outcome({ scooped: true, runs, madeBatContact: true }));
+      const angle = (SHOT_ANGLES.REVERSE_SCOOP + swing) * Math.PI / 180;
+      const end = new Vector3(origin.x + Math.sin(angle) * flight.distance, flight.endY, origin.z + Math.cos(angle) * flight.distance);
+      for (let t = 0; t <= 400; t += 4) {
+        const flown = Math.min(1, t / flight.flightMs);
+        const ball = origin.clone().lerp(end, flown);
+        ball.y += flight.bounceAt > 0 ? Math.sin(Math.min(1, flown / flight.bounceAt) * Math.PI) * flight.height : Math.sin(flown * Math.PI) * flight.height;
+        batter.update(REVERSE_CONTACT_MS + t);
+        const pose = batter.inspect(), root = batter.root.position;
+        const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip), spine = chest.clone().sub(hip).normalize();
+        const head = chest.clone().addScaledVector(spine, .31).add(root);
+        const label = `x=${x} runs=${runs} swing=${swing} @${t}`;
+        expect(ball.distanceTo(head), label).toBeGreaterThan(.25);
+        expect(ball.distanceTo(chest.clone().add(root)), label).toBeGreaterThan(.32);
+        expect(ball.distanceTo(hip.clone().add(root)), label).toBeGreaterThan(.30);
+      }
+    }
+  });
+});

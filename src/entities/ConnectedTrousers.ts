@@ -24,6 +24,15 @@ const FALL = .7;
  * one.
  */
 const SEAT_TUCK: readonly [number, number] = [15, 27];
+/**
+ * The columns of the seat that run down its middle, the same seam on each
+ * leg: leg one's 12 and 13 are leg two's 0 and 15, from the back of the
+ * waist and the back of the crotch. The second hangs below the first, and
+ * the strip between them, on the middle on both legs, hung under the seat as
+ * a fin seen edge on from behind as a line down it; so down the seat the
+ * second is laid on the first.
+ */
+const SEAM_PAIRS: readonly (readonly [number, number])[] = [[12, 0], [13, 15]];
 /** The two rings down the leg the thigh's direction is read between. */
 const THIGH_RINGS: readonly [number, number] = [SEAT_ROWS + 1, 10];
 
@@ -99,23 +108,31 @@ export class ConnectedTrousers {
         set(24 + i, Math.sin(angle) * .17, -.02, z * (z < 0 ? .15 : .122));
       }
     }
-    // The crotch seam: front, under, and behind, where it is set low and well
-    // back so the seat is whole at the top and parts only lower down.
-    set(48, 0, -.055, .085); set(49, 0, -.098, 0); set(50, 0, -.085, -.125);
     this.inverse.copy(hips.quaternion).invert();
+    // How far each seat is tucked away, from where the thigh points: once for
+    // the whole leg. Read off each column's own pair of points instead, the
+    // reading followed the hips turning over the thigh rather than the thigh
+    // lifting, so it tucked a thigh hanging behind him and threw the swell
+    // off and on in a frame while the leg hardly moved.
     for (let leg = 0; leg < 2; leg++) {
       const source = legs[leg].mesh.geometry.getAttribute('position');
-      const outside = leg === 0 ? -1 : 1;
-      // How far the seat is tucked away, from where the thigh points: once for
-      // the whole leg. Read off each column's own pair of points instead, the
-      // reading followed the hips turning over the thigh rather than the
-      // thigh lifting, so it tucked a thigh hanging behind him and threw the
-      // swell off and on in a frame while the leg hardly moved.
       this.ring(source, THIGH_RINGS[0], this.top, hips.position);
       this.ring(source, THIGH_RINGS[1], this.low, hips.position);
       const forward = THREE.MathUtils.radToDeg(Math.atan2(this.low.z - this.top.z, this.top.y - this.low.y));
       this.tucked[leg] = THREE.MathUtils.smoothstep(forward, SEAT_TUCK[0], SEAT_TUCK[1]);
-      const room = 1 - this.tucked[leg];
+    }
+    // The crotch seam: front, under, and behind, where it is set low and well
+    // back so the seat is whole at the top and parts only lower down.
+    set(48, 0, -.055, .085); set(49, 0, -.098, 0); set(50, 0, -.085, -.125);
+    // Both thighs out in front of him at once: down in a squat.
+    const squat = Math.min(this.tucked[0], this.tucked[1]);
+    for (let leg = 0; leg < 2; leg++) {
+      const source = legs[leg].mesh.geometry.getAttribute('position');
+      const outside = leg === 0 ? -1 : 1;
+      // A thigh out in front tucks the swell away, but not both at once: down
+      // in a squat the seat is fuller, not flatter. Tucked both sides, the two
+      // halves folded in on the seam behind and opened a split down the seat.
+      const room = 1 - this.tucked[leg] * (1 - squat);
       for (let row = 1; row <= 20; row++) for (let i = 0; i < 16; i++) {
         if (row <= SEAT_ROWS) {
           // From the opening to the leg, worked in the hips' own frame so that
@@ -144,6 +161,27 @@ export class ConnectedTrousers {
         positions.setXYZ(this.offset(leg) + (row - 1) * 16 + i, this.p.x, this.p.y, this.p.z);
       }
     }
+    // The seam down the middle of the seat is one seam, but each leg has its
+    // own copy of it, led away to its own thigh: a centimetre apart and lit
+    // at an angle to each other from just under the waistband, a split up
+    // the seat. So the two are one, the same place and the same light, all
+    // the way down the seat: the halves part at the thighs, between the legs.
+    // Let go any higher, the parting opened a slit at the foot of the seat.
+    this.seam(positions);
     positions.needsUpdate = true; updateGarmentNormals(this.mesh.geometry);
+    this.seam(this.mesh.geometry.getAttribute('normal'), true);
+  }
+  /** Make each leg's copy of the seat's middle seam one: the same place, and the same light. */
+  private seam(attribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute, unit = false) {
+    for (let row = 1; row <= SEAT_ROWS; row++) {
+      const [a, b] = SEAM_PAIRS[0], one = this.offset(0) + (row - 1) * 16 + a, two = this.offset(1) + (row - 1) * 16 + b;
+      this.p.fromBufferAttribute(attribute, one).add(this.q.fromBufferAttribute(attribute, two));
+      if (unit) this.p.normalize(); else this.p.multiplyScalar(.5);
+      for (const [c, d] of SEAM_PAIRS) {
+        attribute.setXYZ(this.offset(0) + (row - 1) * 16 + c, this.p.x, this.p.y, this.p.z);
+        attribute.setXYZ(this.offset(1) + (row - 1) * 16 + d, this.p.x, this.p.y, this.p.z);
+      }
+    }
+    attribute.needsUpdate = true;
   }
 }

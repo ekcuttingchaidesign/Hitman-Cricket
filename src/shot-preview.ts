@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, PULL_CONTACT_MS, PULL_LOAD_MS, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from './entities/Batter';
+import { Batter, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, PULL_CONTACT_MS, PULL_LOAD_MS, REVERSE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CLOCK, SCOOP_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from './entities/Batter';
 import { ADVANCE, GAME } from './config/gameplay';
 import type { ShotType } from './game/types';
 
@@ -21,13 +21,13 @@ const DRIVE_PHASES = [['Contact', STROKE_CONTACT_MS], ['Extension', 220], ['Carr
 const PLAYS: Record<string, Play> = {
   scoop: {
     label: 'Scoop (new)', shot: 'SCOOP', ballX: -.07, ballY: .54,
-    phases: [['Set', 70], ['Contact', SCOOP_CONTACT_MS], ['Level', 250], ['Up', 360], ['Finish', 470], ['Over', 670], ['Recovery', 760]],
-    note: 'From the broadcast recording, taken from the bowler\u2019s end. Watch 0\u2013150 ms: he is already down before the ball \u2014 a wide base, both knees bent, square to the bowler \u2014 with the bat brought down early and held out in front of the front hip, toe angled down and forward to the off side and the face turned up at the bowler. The ball is met at knee height in front of the pads and ridden off the face over the keeper\u2019s shoulder. Then the bat follows the ball without turning in the hands: it lifts face first, the toe swinging up in front of him from down and forward, through level with the off side, on up past the head, and curling back over the front shoulder at the top, the hands rising with it to finish high beside that shoulder with the back of the bat to the sky. Home is the straight charge\u2019s way: over the top and down in front. Played off the down-and-to-leg swipe with the meter full at a ball on middle or leg.',
+    phases: [['Across and down', SCOOP_CLOCK.set], ['Contact', SCOOP_CLOCK.contact], ['Through', SCOOP_CLOCK.through], ['Carry', SCOOP_CLOCK.carry], ['Upright', SCOOP_CLOCK.finish], ['Back across', SCOOP_CLOCK.hold], ['Recovery', SCOOP_CLOCK.across]],
+    note: 'From a net session filmed from the off side and from behind the stumps. He gets out of the ball\u2019s way first: the back foot across to the off side and the front foot opened, square to the bowler on a wide base outside the line, and the bat down early in front of him. At the ball it is laid back almost flat, pointing at the bowler with the face up \u2014 a ramp \u2014 and the ball is ridden off it over his leg-side shoulder to fine leg. Then the bat lifts toe first without turning in his hands until it stands upright in front of the front shoulder, the hands at his chin, held while he watches it go. Played off the down-and-to-leg swipe with the meter full at a ball on middle or leg.',
   },
   reverseScoop: {
     label: 'Reverse scoop (new)', shot: 'REVERSE_SCOOP', ballX: .28, ballY: .54,
-    phases: [['Down', 130], ['Contact', REVERSE_CONTACT_MS], ['Extension', 340], ['Carry', 400], ['Over', 520], ['Finish', 600], ['Recovery', 780]],
-    note: 'From the broadcast recording, taken from behind the bowler. He goes down the way the sweep does \u2014 onto the back knee, the front foot forward and to the off \u2014 and the bat comes down beside the front pad and out under the ball on the off side, the face turned up, met beside the pad at waist height with the blade level and pointing at point. The arms extend out to the off, and the bat keeps going: up in front of the off ear, across in front of the face with the blade laid back over the top of the helmet, and down the leg side, the shoulders turning with it until he is looking back over them at the ball going over the slips, still on the knee. Played off the down-and-to-off swipe with the meter full at a ball on or outside off.',
+    phases: [['Out to leg', REVERSE_CLOCK.flip], ['Backlift and stride', REVERSE_CLOCK.lift], ['Down on the knee', REVERSE_CLOCK.down], ['Contact', REVERSE_CONTACT_MS], ['Through', REVERSE_CLOCK.through], ['Up and back', REVERSE_CLOCK.carry], ['Upright', REVERSE_CLOCK.finish], ['Recovery', REVERSE_CLOCK.hold]],
+    note: 'From a net session filmed from the bowler\u2019s end, and played as a left-hander would play it. The bat swings out to the leg side outside him and up beside the front shoulder, the hands out in front and his chest open to the bowler, while the front foot strides a long way out to the off and the leg stretches. The back knee goes down as the bat comes past his legs, and the ball is met out beside the front knee with the arms long, the blade level and pointing out to the off, the face open to the sky. It follows the ball up and back over the slips to stand upright out in front of him with the face to the keeper, held on the knee with the leg stretched out. Played off the down-and-to-off swipe with the meter full at a ball on or outside off.',
   },
   charge: {
     label: 'Advance charge (new)', shot: 'STRAIGHT', ballX: 0, ballY: .54, charging: true,
