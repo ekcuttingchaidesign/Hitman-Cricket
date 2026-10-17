@@ -99,23 +99,31 @@ export class ConnectedTrousers {
         set(24 + i, Math.sin(angle) * .17, -.02, z * (z < 0 ? .15 : .122));
       }
     }
-    // The crotch seam: front, under, and behind, where it is set low and well
-    // back so the seat is whole at the top and parts only lower down.
-    set(48, 0, -.055, .085); set(49, 0, -.098, 0); set(50, 0, -.085, -.125);
     this.inverse.copy(hips.quaternion).invert();
+    // How far each seat is tucked away, from where the thigh points: once for
+    // the whole leg. Read off each column's own pair of points instead, the
+    // reading followed the hips turning over the thigh rather than the thigh
+    // lifting, so it tucked a thigh hanging behind him and threw the swell
+    // off and on in a frame while the leg hardly moved.
     for (let leg = 0; leg < 2; leg++) {
       const source = legs[leg].mesh.geometry.getAttribute('position');
-      const outside = leg === 0 ? -1 : 1;
-      // How far the seat is tucked away, from where the thigh points: once for
-      // the whole leg. Read off each column's own pair of points instead, the
-      // reading followed the hips turning over the thigh rather than the
-      // thigh lifting, so it tucked a thigh hanging behind him and threw the
-      // swell off and on in a frame while the leg hardly moved.
       this.ring(source, THIGH_RINGS[0], this.top, hips.position);
       this.ring(source, THIGH_RINGS[1], this.low, hips.position);
       const forward = THREE.MathUtils.radToDeg(Math.atan2(this.low.z - this.top.z, this.top.y - this.low.y));
       this.tucked[leg] = THREE.MathUtils.smoothstep(forward, SEAT_TUCK[0], SEAT_TUCK[1]);
-      const room = 1 - this.tucked[leg];
+    }
+    // The crotch seam: front, under, and behind, where it is set low and well
+    // back so the seat is whole at the top and parts only lower down.
+    set(48, 0, -.055, .085); set(49, 0, -.098, 0); set(50, 0, -.085, -.125);
+    // Both thighs out in front of him at once: down in a squat.
+    const squat = Math.min(this.tucked[0], this.tucked[1]);
+    for (let leg = 0; leg < 2; leg++) {
+      const source = legs[leg].mesh.geometry.getAttribute('position');
+      const outside = leg === 0 ? -1 : 1;
+      // A thigh out in front tucks the swell away, but not both at once: down
+      // in a squat the seat is fuller, not flatter. Tucked both sides, the two
+      // halves folded in on the seam behind and opened a split down the seat.
+      const room = 1 - this.tucked[leg] * (1 - squat);
       for (let row = 1; row <= 20; row++) for (let i = 0; i < 16; i++) {
         if (row <= SEAT_ROWS) {
           // From the opening to the leg, worked in the hips' own frame so that

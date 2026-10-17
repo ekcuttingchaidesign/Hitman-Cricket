@@ -1118,28 +1118,28 @@ const SCOOP: Stroke & { set: Pose; unwrap: Pose; across: Pose } = {
   // Across and down: square to the bowler on a wide base outside the line,
   // the bat brought down upright in front of him, face to the bowler.
   set: { ...GUARD, hip: [.55, .70, -.30], chest: [.57, 1.02, -.20],
-    frontFoot: [.23, .08, .00], backFoot: [.83, .08, -.12],
+    frontFoot: [.28, .08, .00], backFoot: [.78, .08, -.12],
     grip: [.36, .68, .04], batUp: [.00, .88, -.47], batFace: [.00, .47, .88],
     yaw: .05, frontFootYaw: .10, backFootYaw: .25, face: .00, heel: .10, leadElbow: .00, look: .15 },
   // The ramp: laid back almost flat, pointing at the bowler, face up, the
   // hands low beside the front thigh. The ball rides off it over his shoulder.
   contact: { ...GUARD, hip: [.55, .66, -.32], chest: [.57, .98, -.22],
-    frontFoot: [.23, .08, .00], backFoot: [.83, .08, -.12],
+    frontFoot: [.28, .08, .00], backFoot: [.78, .08, -.12],
     grip: [.43, .70, .02], batUp: [-.12, .35, -.93], batFace: [.00, .93, .35],
     yaw: .00, frontFootYaw: .10, backFootYaw: .25, face: -.10, heel: .10, leadElbow: .05, look: .20 },
   // Lifting toe first: the blade a little above level, out in front.
   through: { ...GUARD, hip: [.55, .70, -.28], chest: [.56, 1.02, -.18],
-    frontFoot: [.23, .08, .00], backFoot: [.83, .08, -.12],
+    frontFoot: [.28, .08, .00], backFoot: [.78, .08, -.12],
     grip: [.43, .95, .26], batUp: [-.05, -.30, -.95], batFace: [.00, .95, -.30],
     yaw: .00, frontFootYaw: .10, backFootYaw: .25, face: -.25, heel: .14, leadElbow: .15, look: .05 },
   carry: { ...GUARD, hip: [.54, .74, -.18], chest: [.54, 1.08, -.10],
-    frontFoot: [.23, .08, .00], backFoot: [.83, .08, -.12],
+    frontFoot: [.28, .08, .00], backFoot: [.78, .08, -.12],
     grip: [.33, 1.10, .20], batUp: [-.03, -.80, -.60], batFace: [.00, .60, -.80],
     yaw: .00, frontFootYaw: .10, backFootYaw: .25, face: -.45, heel: .18, leadElbow: .20, look: -.10 },
   // Upright in front of the front shoulder, the hands at his chin, his head
   // turned to watch it go behind him.
   finish: { ...GUARD, hip: [.53, .78, -.16], chest: [.52, 1.12, -.10],
-    frontFoot: [.23, .08, .00], backFoot: [.83, .08, -.12],
+    frontFoot: [.28, .08, .00], backFoot: [.78, .08, -.12],
     grip: [.27, 1.24, .24], batUp: [.00, -.99, .10], batFace: [.00, -.10, -.99],
     yaw: .00, frontFootYaw: .10, backFootYaw: .25, face: -.75, heel: .20, leadElbow: .20, look: -.30 },
   // Home: back across into his crease with the bat lowered in front of him,
@@ -3852,7 +3852,10 @@ export class Batter {
       // out where the bat comes down.
       if (this.shot === 'LATE_CUT' && !this.felled && Number.isFinite(this.poseAge)) {
         const weight = ease(THREE.MathUtils.clamp(this.poseAge / 120, 0, 1)) * ease(THREE.MathUtils.clamp((STROKE_DURATION_MS - this.poseAge) / 200, 0, 1));
-        kneePole.lerp(i === 0 ? new THREE.Vector3(.30, -.10, .70) : new THREE.Vector3(.30, -.10, .65), weight);
+        // The front one is turned out to leg until the ball is hit, clear of
+        // the bat laid flat beside it, and comes round over the toe for the hold.
+        const round = ease(THREE.MathUtils.clamp((this.poseAge - SCOOP_CONTACT_MS) / (SCOOP_CLOCK.carry - SCOOP_CONTACT_MS), 0, 1));
+        kneePole.lerp(i === 0 ? new THREE.Vector3(-.55, -.10, .35).lerp(new THREE.Vector3(-.25, -.10, .65), round) : new THREE.Vector3(.25, -.10, .65), weight);
       }
       // Squared up for the scoop the knees bend forward over the toes, each a
       // little out to its own side. Left bending out to off as a side-on
@@ -3860,7 +3863,10 @@ export class Batter {
       if (this.shot === 'SCOOP' && !this.felled && Number.isFinite(this.poseAge)) {
         const weight = ease(THREE.MathUtils.clamp(this.poseAge / SCOOP_CLOCK.set, 0, 1))
           * ease(THREE.MathUtils.clamp((STROKE_DURATION_MS - this.poseAge) / (STROKE_DURATION_MS - SCOOP_CLOCK.hold), 0, 1));
-        kneePole.lerp(i === 0 ? new THREE.Vector3(-.65, -.15, .20) : new THREE.Vector3(.30, -.10, .65), weight);
+        // The front one is turned out to leg until the ball is hit, clear of
+        // the bat laid flat beside it, and comes round over the toe for the hold.
+        const round = ease(THREE.MathUtils.clamp((this.poseAge - SCOOP_CONTACT_MS) / (SCOOP_CLOCK.carry - SCOOP_CONTACT_MS), 0, 1));
+        kneePole.lerp(i === 0 ? new THREE.Vector3(-.55, -.10, .35).lerp(new THREE.Vector3(-.25, -.10, .65), round) : new THREE.Vector3(.25, -.10, .65), weight);
       }
       // The hook turns him right round on his feet, and a knee bent out to off
       // whichever way he faces folds backwards once he faces leg: bent the way
