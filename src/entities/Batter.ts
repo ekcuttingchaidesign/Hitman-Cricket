@@ -961,7 +961,9 @@ const SQUARE_DRIVE: Stroke = {
  */
 const SQUARE_DRIVE_REACH: readonly [number, number] = [.16, .62];
 /**
- * The slog sweep, off the knee.
+ * The sweep's kneel, and the stroke the slog sweep was before it was rebuilt
+ * from a recording (see `SLOG_SWEEP`). The orthodox sweep is still built on
+ * it, its blade levelled (`FLAT_SWEEP`).
  *
  * He goes down to it rather than reaching for it: the back knee folds to the
  * turf with the shin flat along it, the front leg braces out towards the off
@@ -976,7 +978,7 @@ const SQUARE_DRIVE_REACH: readonly [number, number] = [.16, .62];
  * pull's pose list — a man on one knee has a different set of problems, chiefly
  * that his own front pad is now in the swing's way.
  */
-const SLOG_SWEEP: Stroke = {
+const KNEELING_SWEEP: Stroke = {
   // Down, and swinging. The blade is horizontal and the face is already aimed
   // at midwicket; the hands are inside the line with the toe trailing round.
   contact: { ...GUARD, hip: [-.053, .565, -.251], chest: [-.023, .905, -.151],
@@ -1062,16 +1064,115 @@ const FLAT_SWEEP: Stroke = {
   // Already level at the moment of contact — the slog's own contact key, taken
   // as it stands, which is what makes the two strokes indistinguishable up to
   // the instant the ball is hit.
-  contact: SLOG_SWEEP.contact,
-  through: { ...levelled(SLOG_SWEEP.through!), grip: [-.34, .48, .30], armHinge: -.12, shoulderLift: 0 },
-  carry: { ...levelled(SLOG_SWEEP.carry!), grip: [-.44, .49, .34], armHinge: .05, shoulderLift: 0 },
+  contact: KNEELING_SWEEP.contact,
+  through: { ...levelled(KNEELING_SWEEP.through!), grip: [-.34, .48, .30], armHinge: -.12, shoulderLift: 0 },
+  carry: { ...levelled(KNEELING_SWEEP.carry!), grip: [-.44, .49, .34], armHinge: .05, shoulderLift: 0 },
   // Round behind the front shoulder at the height it started, rather than high
   // and outside it. He is still down on the knee watching it run square.
-  finish: { ...levelled(SLOG_SWEEP.finish!), grip: [-.46, .50, .44], armHinge: .10, shoulderLift: 0 },
-  recover: SLOG_SWEEP.recover,
+  finish: { ...levelled(KNEELING_SWEEP.finish!), grip: [-.46, .50, .44], armHinge: .10, shoulderLift: 0 },
+  recover: KNEELING_SWEEP.recover,
 };
 /**
- * Halfway home from a slog sweep.
+ * The slog sweep, from a broadcast recording filmed side on from the leg side,
+ * from behind the bowler and from behind the stumps.
+ *
+ * A long lunge down the pitch: the front foot goes well out towards the
+ * bowler and across to the line of the ball, the front shin upright and the
+ * knee over the foot, while the back knee sinks to the turf far behind him
+ * and he leans out over the front knee. As he strides the bat goes up high,
+ * upright behind the back shoulder, and from there it comes down steeply and
+ * sweeps through flat, out in front of the front pad with the arms long — the
+ * ball met a long way from his body, further down the pitch than any drive
+ * (`SLOG_MEETS_AT`). The blade goes on through towards the bowler, climbs up
+ * the pitch in front of him, goes over the top of his head and drops behind
+ * it, the hands finishing high over his head, the front elbow up in front of
+ * his face and his chest turned to the leg side, still on the knee, watching
+ * it go.
+ *
+ * The face rides the handle (`riding`): the swing turns it, never his wrists,
+ * so through the climb and over his head it faces the leg side the whole way.
+ *
+ * Clock: the backlift up and the stride landing by `lift`, the knee going
+ * down and the bat coming down behind him by `down`, the ball at
+ * `SWEEP_CONTACT_MS`, on through `through`, climbing in front of him by
+ * `carry`, over his head by `over` and down behind it by `finish`, held to
+ * `hold`; then out round the leg side in front of his face by `back`, upright
+ * in front of him by `front`, up off the knee by `up` and into the guard.
+ */
+export const SLOG_CLOCK = { lift: 110, down: 180, through: 310, carry: 390, over: 470, finish: 560, hold: 640, back: 700, front: 770, up: 850 } as const;
+/**
+ * How much further down the pitch than the drives the slog sweep meets the
+ * ball: out in front of the front pad at the end of the lunge. Met where the
+ * drives meet it, the foot could not go forward at all — the ball would have
+ * been behind it — and he knelt where he stood.
+ */
+export const SLOG_MEETS_AT = .50;
+const SLOG_SWEEP: Stroke & { lift: Pose; down: Pose; over: Pose; back: Pose; front: Pose } = {
+  // The bat up high, upright behind the back shoulder, as the front foot goes
+  // out down the pitch.
+  lift: { ...GUARD, hip: [.00, .72, -.10], chest: [.02, 1.04, -.04],
+    frontFoot: [.16, .14, .32], backFoot: [-.13, .08, -.42],
+    grip: [.25, 1.20, -.08], batUp: [.30, -.88, .36], batFace: [.95, -.05, .30],
+    yaw: 1.15, face: .10, heel: .35, backFootYaw: 1.45, leadElbow: -.20, look: .15 },
+  // The stride landed and the knee going down, the bat come down behind
+  // him: the hands at his hip, out in front of the back thigh, and the blade
+  // pointing back at the keeper, ready to come round.
+  down: { ...GUARD, hip: [.02, .57, -.02], chest: [.06, .90, .14],
+    frontFoot: [.24, .08, .48], backFoot: [-.12, .08, -.71],
+    grip: [.26, .84, .28], batUp: [-.20, -.28, .94], batFace: [.95, .00, .22],
+    yaw: 1.10, face: .20, heel: .62, backFootYaw: 1.55, leadElbow: -.20, look: .25 },
+  // Out in front of the front pad with the arms long, the blade about level
+  // and reaching across to the ball, the face to midwicket.
+  contact: { ...GUARD, hip: [.02, .52, -.02], chest: [.08, .80, .16],
+    frontFoot: [.24, .08, .48], backFoot: [-.12, .08, -.67],
+    grip: [.00, .60, .55], batUp: [-.92, .25, -.30], batFace: [-.55, .25, .80],
+    yaw: .60, face: .30, heel: .62, backFootYaw: 1.55, leadElbow: -.18, look: .30 },
+  // On through towards the bowler, the toe rising, the arms still long.
+  through: { ...GUARD, hip: [.00, .54, .02], chest: [.04, .90, .20],
+    frontFoot: [.24, .08, .48], backFoot: [-.12, .08, -.65],
+    grip: [-.02, .80, .74], batUp: [.00, -.35, -.94], batFace: [-.95, .10, -.05],
+    yaw: .60, face: -.20, heel: .62, frontFootYaw: .46, backFootYaw: 1.55, leadElbow: -.12, look: .10 },
+  // Climbing up the pitch in front of him, the arms still long. Taken out
+  // towards midwicket after the ball, the swing carried the face round to
+  // the turf over his head, where it looks to the leg side.
+  carry: { ...GUARD, hip: [-.01, .54, .04], chest: [.02, .92, .20],
+    frontFoot: [.24, .08, .48], backFoot: [-.12, .08, -.48],
+    grip: [-.06, 1.10, .70], batUp: [.00, -.72, -.70], batFace: [-.95, .10, -.05],
+    yaw: .30, face: -.45, heel: .62, frontFootYaw: .46, backFootYaw: 1.55, leadElbow: -.05, look: -.10 },
+  // Over the top of his head, the blade pointing back and out over the leg
+  // side.
+  over: { ...GUARD, hip: [-.02, .55, .10], chest: [.00, .94, .24],
+    frontFoot: [.24, .08, .48], backFoot: [-.12, .08, -.42],
+    grip: [-.20, 1.38, .72], batUp: [.25, -.30, .92], batFace: [-.95, .10, -.05],
+    yaw: -.20, face: -.60, heel: .62, frontFootYaw: .46, backFootYaw: 1.55, leadElbow: .00, look: -.20 },
+  // Down behind his head, the hands high over it and the front elbow up in
+  // front of his face, his chest to the leg side, still on the knee and
+  // watching it go.
+  finish: { ...GUARD, hip: [-.02, .55, .16], chest: [-.01, .95, .29],
+    frontFoot: [.24, .08, .48], backFoot: [-.12, .08, -.36],
+    grip: [-.28, 1.56, .68], batUp: [.20, .53, .82], batFace: [-.95, .10, -.05],
+    yaw: -.50, face: -.70, heel: .62, frontFootYaw: .46, backFootYaw: 1.55, leadElbow: .00, look: -.25 },
+  // Home out round the leg side, the hands forward and down in front of his
+  // face and the bat swung up past the front elbow, then upright out in front
+  // of him. Straight back over the top the blade came down through the
+  // elbow and the hands past the helmet.
+  back: { ...GUARD, hip: [-.02, .57, .11], chest: [.00, .97, .24],
+    frontFoot: [.24, .08, .48], backFoot: [-.12, .08, -.42],
+    grip: [-.26, 1.26, .76], batUp: [.80, -.30, .52], batFace: [-.95, .10, -.05],
+    yaw: -.20, face: -.40, heel: .62, frontFootYaw: .46, backFootYaw: 1.55, leadElbow: .00, look: -.10 },
+  front: { ...GUARD, hip: [-.03, .70, -.06], chest: [.00, 1.05, .05],
+    frontFoot: [.16, .08, .40], backFoot: [-.12, .08, -.62],
+    grip: [-.04, 1.30, .55], batUp: [.00, -.98, -.20], batFace: [-.95, .10, -.05],
+    yaw: .40, face: -.20, heel: .50, backFootYaw: 1.45, leadElbow: -.05, look: .00 },
+  // Up off the knee, the front foot drawn back under him, the bat in front of
+  // him on its way into the guard.
+  recover: { ...GUARD, hip: [-.04, .84, -.02], chest: [.00, 1.18, .04],
+    frontFoot: [.06, .08, .30], backFoot: [-.14, .08, -.30],
+    grip: [.26, 1.06, .34], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17],
+    yaw: .92, face: -.10, heel: .24, leadElbow: -.20 },
+};
+/**
+ * Halfway home from the orthodox sweep.
  *
  * The finish holds the bat wrapped behind the front shoulder and the guard
  * holds it behind the back one, and the straight line between those two runs
@@ -2923,7 +3024,10 @@ export class Batter {
     // one further than the rest: its arms are already straight at impact, and a
     // body left behind a ball out at the edge of the reach stretches them past
     // their own length rather than extending them.
-    const step = this.spinCutting ? targetX - SPIN_CUT_ROOM : targetX * (this.squaring ? .86 : .65);
+    // The slog sweep goes all the way: the lunge takes the front foot to the
+    // ball's line, and a body left short of a ball on the pads brought the
+    // bat down onto the front knee.
+    const step = this.spinCutting ? targetX - SPIN_CUT_ROOM : targetX * (this.squaring ? .86 : this.sweeping && !this.levelled ? 1 : .65);
     const shift = (p: Point, amount: number): Point => [p[0] + amount, p[1], p[2]];
     const shiftsBackFoot = this.pulling || this.squaring || this.sweeping || this.charging || this.lofted || this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF'
       || this.shot === 'SCOOP' || this.shot === 'REVERSE_SCOOP' || this.shot === 'HOOK' || this.spinCutting || this.onDrive || this.shot === 'LATE_CUT';
@@ -3026,6 +3130,29 @@ export class Batter {
       const pose = { ...poseAt(age) };
       pose.bat = this.riding(0, poseAt, drawn, [hold, STROKE_DURATION_MS], age,
         [{ window: [0, REVERSE_CONTACT_MS], away: own }, { window: [REVERSE_CONTACT_MS, end], away: own }]);
+      this.apply(pose);
+      return;
+    }
+    if (this.sweeping && !this.levelled) {
+      // The lunge and the high backlift, down behind him and through flat out
+      // in front of the front pad, up the pitch, over his head and down
+      // behind it; held, then out round the leg side in front of his face, up
+      // off the knee and home. The face rides the handle from the swipe
+      // (`riding`).
+      const { lift, down, through, carry, over, finish: end, hold, back, front, up } = SLOG_CLOCK;
+      const swing = [{ time: 0, pose: this.swingFrom }, { time: lift, pose: reachPose(SLOG_SWEEP.lift) },
+        { time: down, pose: reachPose(SLOG_SWEEP.down) }, { time: SWEEP_CONTACT_MS, pose: contact },
+        { time: through, pose: reachPose(SLOG_SWEEP.through!) }, { time: carry, pose: reachPose(SLOG_SWEEP.carry!) },
+        { time: over, pose: reachPose(SLOG_SWEEP.over) }, { time: end, pose: finish }];
+      const home = [{ time: hold, pose: finish }, { time: back, pose: reachPose(SLOG_SWEEP.back) }, { time: front, pose: reachPose(SLOG_SWEEP.front) },
+        { time: up, pose: reachPose(SLOG_SWEEP.recover!) }, { time: STROKE_DURATION_MS, pose: GUARD }];
+      const poseAt = (at: number): Pose => at < end ? flowing(swing, at) : at < hold ? finish : flowing(home, at);
+      const straight = batOrientation(STROKES.STRAIGHT.contact), from = batOrientation(this.swingFrom);
+      const drawn = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(straight), UP.clone().applyQuaternion(from)).multiply(straight);
+      if (this.swingFrom.ownFace) drawn.slerp(from, this.swingFrom.ownFace);
+      const pose = { ...poseAt(age) };
+      pose.bat = this.riding(0, poseAt, drawn, [hold, STROKE_DURATION_MS], age,
+        { window: [0, SWEEP_CONTACT_MS], away: (key: Pose) => V(key.batFace) });
       this.apply(pose);
       return;
     }
@@ -3402,7 +3529,7 @@ export class Batter {
         // Turned about the handle to the pose's own face, as far as it asks.
         if(idle && pose.ownFace) this.bat.quaternion.slerp(batOrientation(pose),pose.ownFace);
       }
-      else if((this.rebuiltDrive && (this.charging || this.poseAge>=COVER_PLANT.hold)) || this.onLoft || this.shot === 'HOOK' || this.spinCutting || this.shot === 'LATE_CUT' || this.shot === 'REVERSE_SCOOP') {
+      else if((this.rebuiltDrive && (this.charging || this.poseAge>=COVER_PLANT.hold)) || this.onLoft || this.shot === 'HOOK' || this.spinCutting || this.shot === 'LATE_CUT' || this.shot === 'REVERSE_SCOOP' || (this.sweeping && !this.levelled)) {
         // The cover drive's way home, and the charge over cover from the ball
         // on, already hold their face (`riding`):
         // the roll the other strokes take into the guard is up to a full turn,
@@ -3682,34 +3809,15 @@ export class Batter {
           // the sideways lean is taken in opposite directions. Its sign comes
           // from which arm this is, which cannot change mid-stroke — not from a
           // dot product against the body, which can and did.
-          // Wide through the hitting zone, folded away after it. A sweep is
-          // hit with the elbows out and apart — pinch them in and the two
-          // forearms bunch onto one line and he reads as paddling a raft, not
-          // swinging a bat. But the same width at the finish leaves the front
-          // elbow exactly where the wrapped bat wants to be: the blade came out
-          // INSIDE it. So he opens them out to hit and folds them as the bat
-          // comes over the shoulder, which is what the arms do anyway.
-          //
-          // Folding means turning the hint, not shrinking it. Scaling `round`
-          // while `lift` stayed put only changed the RATIO of the two, and a
-          // normalised sum of a big vector and a small one is still pointing
-          // almost where the big one did — the elbow stayed out at x = -0.78
-          // and the rising blade went straight through it. `round` and `lift`
-          // are perpendicular by construction, so turning from one to the other
-          // is a quarter turn that cannot collapse on the way.
-          //
-          // The orthodox sweep does not get it. The fold is here to let the
-          // elbows collapse under a blade climbing over the shoulder, and that
-          // blade never climbs: applied anyway it closed the forearms to 0.059
-          // by the finish, where a forearm is 0.095 across — the two arms one
-          // inside the other, which is the paddle this rig was fixed once for
-          // already.
-          const fold = this.levelled ? 0
-            : ease(THREE.MathUtils.clamp((this.poseAge - 380) / 140, 0, 1));
+          // Wide, both of them. A sweep is hit with the elbows out and apart —
+          // pinch them in and the two forearms bunch onto one line and he reads
+          // as paddling a raft, not swinging a bat. They used to fold under the
+          // old slog's wrap as the bat came over the shoulder; the rebuilt one
+          // takes its bat over his head instead, and lifts the front elbow for
+          // it below.
           const lift = new THREE.Vector3().crossVectors(base, armAxis).normalize();
           const round = base.clone().multiplyScalar(i === 0 ? 1 : -1)
-            .addScaledVector(lift, .10).normalize()
-            .multiplyScalar(1 - fold * .70).addScaledVector(lift, -fold * .70);
+            .addScaledVector(lift, .10).normalize();
           // Eased in and out, because switching a bend plane on at the instant
           // of input moves the elbow without moving anything that holds it: the
           // pose at 0ms is still the guard, and the plane alone shifted the
@@ -3725,6 +3833,15 @@ export class Batter {
           turn(bend, round.normalize(),
             ease(THREE.MathUtils.clamp(this.poseAge/130,0,1))
                * ease(THREE.MathUtils.clamp((STROKE_DURATION_MS-this.poseAge)/200,0,1)));
+          // The slog's front elbow comes up in front of him as the bat goes
+          // over his head, pointing down the pitch, and the bat drops behind
+          // his head past it. Left out to the leg side, it stood where the
+          // blade comes down.
+          if (i === 0 && !this.levelled) {
+            const up = ease(THREE.MathUtils.clamp((this.poseAge - SLOG_CLOCK.carry) / (SLOG_CLOCK.over - SLOG_CLOCK.carry), 0, 1))
+              * ease(THREE.MathUtils.clamp((SLOG_CLOCK.up - this.poseAge) / (SLOG_CLOCK.up - SLOG_CLOCK.back), 0, 1));
+            turn(bend, bendTowards(forward.clone().multiplyScalar(.6).addScaledVector(spine, .8)), up);
+          }
         }
         if (this.cutting) {
           // Preserve the square cut's raised clearance plane, easing into it

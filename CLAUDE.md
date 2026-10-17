@@ -866,6 +866,26 @@ edge for a single. A bouncer goes through to the keeper. `?latecut=1`
 mode, and is practice. It is `lateCut` in the batter tests' `PLAYS`, and
 `cover-drive.html` has it beside the drives, the hook and the spinner's cut.
 
+## The slog sweep
+
+The slog sweep (`SLOG_SWEEP`, its clock `SLOG_CLOCK`, in
+`src/entities/Batter.ts`) is the meter's stroke at the spinner, rebuilt from
+a broadcast recording in three angles. A long lunge down the pitch, the bat
+high behind the back shoulder, then down behind him and through flat out in
+front of the front pad, the arms long: it meets the ball `SLOG_MEETS_AT`
+further down the pitch than the drives (`meetsAt` in `src/Game.ts`), a long
+way from his body, his hips forward over a front shin held upright and the
+back knee on the turf (`tests/sweep-geometry.test.ts`), the body following
+the ball's line all the way across. On towards the bowler, up the pitch, over his head and
+down behind it, the hands high over his head and still on the knee; home out
+round the leg side in front of his face. The face rides the handle from the
+swipe (`riding`) and turns only on the way home. The front elbow comes up in
+front of him as the bat goes over (the sweep's elbow plane in the arm solve):
+left out to the leg side, it stood where the blade drops behind his head.
+The orthodox sweep (`FLAT_SWEEP`) is still built on the kneel the slog was
+before (`KNEELING_SWEEP`) and meets the ball where the drives do. It is
+`sweep` in the batter tests' `PLAYS`, with its `meets`.
+
 ## A newcomer's first innings
 
 The first three finished innings in each mode are batted a little easier
