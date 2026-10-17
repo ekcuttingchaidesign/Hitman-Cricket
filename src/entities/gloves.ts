@@ -240,8 +240,8 @@ const PHALANGES: [number, number][] = [[100, 40], [34, -16], [-22, -64]];
  * own off the heel of the hand, round the other edge and down the handle, in
  * the part of the fist the fingers do not reach, so it lies on the glove
  * rather than in it. Under them, only a slim pad on the back of the hand with
- * the knuckle roll across it, and a lining over the handle where the fingers
- * part: no block for anything to sink into.
+ * the knuckle roll across it: no block for anything to sink into, and between
+ * the rolls the bat's own grip.
  */
 export function buildGloveHand(design: GloveDesign, top: boolean) {
   const paint = palette(), hand = new THREE.Group();
@@ -253,8 +253,6 @@ export function buildGloveHand(design: GloveDesign, top: boolean) {
     mesh.castShadow = true; mesh.receiveShadow = true; hand.add(mesh);
     return mesh;
   };
-  // The lining over the handle, seen only between the rolls.
-  add(new THREE.CylinderGeometry(CORE, CORE, .094, 20), paint(design.palm, .95)).name = 'Lining between the fingers';
   for (let finger = 0; finger < 4; finger++) {
     const index = finger === 3, y = .034 - finger * .023;
     const bar = index && design.sideBar;
