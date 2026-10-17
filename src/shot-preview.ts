@@ -46,8 +46,8 @@ const PLAYS: Record<string, Play> = {
   },
   sweep: {
     label: 'Slog sweep (new)', shot: 'LEG', ballX: 0, ballY: .48, sweeping: true,
-    phases: [['Lunge', SLOG_CLOCK.lift], ['Down', SLOG_CLOCK.down], ['Contact', SWEEP_CONTACT_MS], ['Through', SLOG_CLOCK.through], ['Climb', SLOG_CLOCK.carry], ['Over', SLOG_CLOCK.over], ['Finish', SLOG_CLOCK.finish], ['Up again', SLOG_CLOCK.up]],
-    note: 'Rebuilt from a broadcast recording in three angles. A long lunge down the pitch with the bat high behind the back shoulder, the back knee going down; the bat comes down behind him and sweeps through flat out in front of the front pad with the arms long \u2014 met further down the pitch than any drive, a long way from his body. Then on through towards the bowler, up the pitch, over the top of his head and down behind it, the hands high over his head and the face to the leg side the whole way: the swing turns it, never his wrists. Perfect timing is six over midwicket; good is a four that pitches once before the rope.',
+    phases: [['Lunge', SLOG_CLOCK.lift], ['Down', SLOG_CLOCK.down], ['Contact', SWEEP_CONTACT_MS], ['Through', SLOG_CLOCK.through], ['To leg', SLOG_CLOCK.carry], ['Beside his head', SLOG_CLOCK.over], ['Finish', SLOG_CLOCK.finish], ['Up again', SLOG_CLOCK.up]],
+    note: 'Rebuilt from a broadcast recording in three angles. A long lunge down the pitch with the bat high behind the back shoulder, the back knee going down; the hands come down by the back hip, then out in front of him with the arms long, and the bat sweeps through flat out in front of the front pad, met further down the pitch than any drive, a long way from his body. Then it keeps going round: at the bowler at chest height, up and out over the leg side with the hands out that way, upright beside his head, over the top and down behind it, the chest turned square to the leg side. The swing turns the face, never his wrists. Perfect timing is six over midwicket; good is a four that pitches once before the rope.',
   },
   flat: {
     label: 'Flat sweep (new)', shot: 'LEG', ballX: 0, ballY: .48, levelled: true,

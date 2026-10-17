@@ -1254,25 +1254,88 @@ describe('the slog sweep', () => {
       expect(new Vector3(...pose.grip).distanceTo(new Vector3(...pose.chest)), `x=${x} away from his body`).toBeGreaterThan(.5);
     }
   });
-  it('carries the face to the leg side over his head, and drops the bat behind it', () => {
+  /**
+   * After the ball the bat keeps going round: out at the bowler at chest
+   * height, then up and out over the leg side with the hands out that way at
+   * his shoulder, upright beside his head, and only then over the top and down
+   * behind it. The first rebuild sent it straight up the pitch from the ball
+   * and over his head, which is a different stroke.
+   */
+  it('swings round to the leg side and up beside his head before dropping the bat behind it', () => {
     for (const x of PLAYS.sweep.reach) {
       const batter = swept(x);
+      const root = () => batter.root.position;
+      const tip = () => new Vector3(...batter.inspect().bladeTip).sub(root());
       for (let time = SLOG_CLOCK.through; time <= SLOG_CLOCK.over; time += 4) {
         batter.update(time);
-        expect(batter.inspect().batFace[0], `x=${x} @${time}ms face to leg`).toBeLessThan(-.8);
+        expect(batter.inspect().batFace[0], `x=${x} @${time}ms face to leg`).toBeLessThan(-.4);
       }
+      batter.update(SLOG_CLOCK.through);
+      let pose = batter.inspect();
+      expect(tip().z, `x=${x} out at the bowler`).toBeGreaterThan(pose.grip[2] + .6);
+      expect(new Vector3(...pose.grip).distanceTo(new Vector3(...pose.chest)), `x=${x} an arm's length out`).toBeGreaterThan(.55);
+      batter.update(SLOG_CLOCK.carry);
+      pose = batter.inspect();
+      expect(tip().x, `x=${x} out over the leg side`).toBeLessThan(pose.grip[0] - .4);
+      expect(tip().y, `x=${x} climbing`).toBeGreaterThan(pose.grip[1] + .4);
+      expect(pose.grip[0], `x=${x} the hands out to leg`).toBeLessThan(pose.chest[0] - .3);
       batter.update(SLOG_CLOCK.over);
-      const over = batter.inspect();
-      expect(over.bladeTip[2] - batter.root.position.z, `x=${x} pointing back over his head`).toBeLessThan(over.grip[2] - .5);
+      pose = batter.inspect();
+      expect(tip().y, `x=${x} upright`).toBeGreaterThan(pose.grip[1] + .7);
       batter.update(SLOG_CLOCK.finish);
-      const finish = batter.inspect(), root = batter.root.position;
+      const finish = batter.inspect();
       const chest = new Vector3(...finish.chest);
       const head = chest.clone().add(chest.clone().sub(new Vector3(...finish.hip)).normalize().multiplyScalar(.31));
       expect(finish.grip[1] - head.y, `x=${x} hands over his head`).toBeGreaterThan(.25);
-      expect(finish.bladeTip[2] - root.z, `x=${x} bat behind his head`).toBeLessThan(head.z - .3);
-      expect(finish.bladeTip[1], `x=${x} hanging down`).toBeLessThan(finish.grip[1] - .4);
-      expect(finish.batFace[0], `x=${x} the face still to the leg side`).toBeLessThan(-.6);
+      expect(tip().z, `x=${x} bat behind his head`).toBeLessThan(head.z - .3);
+      expect(tip().x, `x=${x} lying out towards the off`).toBeGreaterThan(finish.grip[0] + .2);
+      expect(finish.batFace[0], `x=${x} the face still to the leg side`).toBeLessThan(-.4);
       expect(finish.knees[1][1], `x=${x} still on the knee`).toBeLessThan(.15);
+    }
+  });
+  /**
+   * The blade against the sleeves, both halves of both arms. The rig's own
+   * checks hold the blade off the forearm's line and off the joints, and
+   * nothing held it off the upper arm: the bat came down out of the backlift
+   * straight through the back one, past a back elbow stuck out at shoulder
+   * height. A sleeve is .09 across at the shoulder and .046 at the cuff.
+   */
+  it('keeps the blade outside both sleeves, the whole way round', () => {
+    const geometry = bladeGeometry(), positions = geometry.getAttribute('position');
+    const samples = Array.from({ length: positions.count }, (_, i) => new Vector3().fromBufferAttribute(positions, i));
+    geometry.dispose();
+    const off = (p: Vector3, a: Vector3, b: Vector3) => {
+      const line = b.clone().sub(a), at = THREE_clamp(p.clone().sub(a).dot(line) / line.lengthSq());
+      return p.distanceTo(a.clone().addScaledVector(line, at));
+    };
+    for (const x of PLAYS.sweep.reach) {
+      const batter = swept(x);
+      let upper = { gap: Infinity, at: 0 }, lower = { gap: Infinity, at: 0 };
+      for (let time = 0; time <= STROKE_DURATION_MS; time += 4) {
+        batter.update(time); batter.root.updateMatrixWorld(true);
+        const pose = batter.inspect();
+        for (const sample of samples) {
+          const local = batter.bat.localToWorld(sample.clone()).sub(batter.root.position);
+          for (let i = 0; i < 2; i++) {
+            const shoulder = new Vector3(...pose.shoulders[i]), elbow = new Vector3(...pose.elbows[i]), wrist = new Vector3(...pose.wrists[i]);
+            const u = off(local, shoulder, elbow), l = off(local, elbow, wrist);
+            if (u < upper.gap) upper = { gap: u, at: time };
+            if (l < lower.gap) lower = { gap: l, at: time };
+          }
+        }
+      }
+      expect(upper.gap, `x=${x} upper arm ${JSON.stringify(upper)}`).toBeGreaterThan(.08);
+      expect(lower.gap, `x=${x} forearm ${JSON.stringify(lower)}`).toBeGreaterThan(.055);
+    }
+  });
+  it('takes the hands out away from him as the bat comes down', () => {
+    for (const x of PLAYS.sweep.reach) {
+      const batter = swept(x);
+      for (const time of [SLOG_CLOCK.down, SWEEP_CONTACT_MS, SLOG_CLOCK.through, SLOG_CLOCK.carry]) {
+        batter.update(time);
+        const pose = batter.inspect();
+        expect(new Vector3(...pose.grip).distanceTo(new Vector3(...pose.chest)), `x=${x} @${time}ms`).toBeGreaterThan(.42);
+      }
     }
   });
   it('is over before the stroke clock is, and comes all the way home', () => {

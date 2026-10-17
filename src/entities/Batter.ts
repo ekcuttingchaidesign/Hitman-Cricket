@@ -1079,27 +1079,30 @@ const FLAT_SWEEP: Stroke = {
  * A long lunge down the pitch: the front foot goes well out towards the
  * bowler and across to the line of the ball, the front shin upright and the
  * knee over the foot, while the back knee sinks to the turf far behind him
- * and he leans out over the front knee. As he strides the bat goes up high,
- * upright behind the back shoulder, and from there it comes down steeply and
- * sweeps through flat, out in front of the front pad with the arms long — the
+ * and he leans out over the front knee. As he strides the bat goes up high
+ * behind the back shoulder; the hands come down by the back hip with the bat
+ * still cocked, then out in front of him with the arms long, and it comes
+ * down outside off and sweeps through flat, out in front of the front pad with the arms long — the
  * ball met a long way from his body, further down the pitch than any drive
- * (`SLOG_MEETS_AT`). The blade goes on through towards the bowler, climbs up
- * the pitch in front of him, goes over the top of his head and drops behind
- * it, the hands finishing high over his head, the front elbow up in front of
- * his face and his chest turned to the leg side, still on the knee, watching
- * it go.
+ * (`SLOG_MEETS_AT`). The blade keeps going round after it: out at the
+ * bowler at chest height an arm's length in front of him, then up and out
+ * over the leg side with the hands out that way at his shoulder, upright
+ * beside his head, and only then over the top and down behind it, the hands
+ * finishing high over his head and his chest turned square to the leg side,
+ * still on the knee, watching it go.
  *
  * The face rides the handle (`riding`): the swing turns it, never his wrists,
- * so through the climb and over his head it faces the leg side the whole way.
+ * so it leads the bat round to the leg side.
  *
- * Clock: the backlift up and the stride landing by `lift`, the knee going
- * down and the bat coming down behind him by `down`, the ball at
- * `SWEEP_CONTACT_MS`, on through `through`, climbing in front of him by
- * `carry`, over his head by `over` and down behind it by `finish`, held to
- * `hold`; then out round the leg side in front of his face by `back`, upright
- * in front of him by `front`, up off the knee by `up` and into the guard.
+ * Clock: the backlift up and the stride landing by `lift`, the hands down by
+ * the back hip with the bat still cocked by `drop`, out in front of him with
+ * the bat coming down by `down`, the ball at `SWEEP_CONTACT_MS`, at the bowler
+ * by `through`, up over the leg side by `carry`, upright beside his head by
+ * `over` and down behind it by `finish`, held to `hold`; then down in front of
+ * his face by `back`, upright in front of him by `front`, up off the knee by
+ * `up` and into the guard.
  */
-export const SLOG_CLOCK = { lift: 110, down: 180, through: 310, carry: 390, over: 470, finish: 560, hold: 640, back: 700, front: 770, up: 850 } as const;
+export const SLOG_CLOCK = { lift: 110, drop: 150, down: 190, through: 310, carry: 390, over: 470, finish: 560, hold: 640, back: 700, front: 770, up: 850 } as const;
 /**
  * How much further down the pitch than the drives the slog sweep meets the
  * ball: out in front of the front pad at the end of the lunge. Met where the
@@ -1107,58 +1110,65 @@ export const SLOG_CLOCK = { lift: 110, down: 180, through: 310, carry: 390, over
  * been behind it — and he knelt where he stood.
  */
 export const SLOG_MEETS_AT = .50;
-const SLOG_SWEEP: Stroke & { lift: Pose; down: Pose; over: Pose; back: Pose; front: Pose } = {
-  // The bat up high, upright behind the back shoulder, as the front foot goes
-  // out down the pitch.
+const SLOG_SWEEP: Stroke & { lift: Pose; drop: Pose; down: Pose; over: Pose; back: Pose; front: Pose } = {
+  // The bat up high behind the back shoulder, the toe out over the off side,
+  // as the front foot goes out down the pitch. Leaning back over his head,
+  // the bat came down through the back arm.
   lift: { ...GUARD, hip: [.00, .72, -.10], chest: [.02, 1.04, -.04],
     frontFoot: [.16, .14, .32], backFoot: [-.13, .08, -.42],
-    grip: [.25, 1.20, -.08], batUp: [.30, -.88, .36], batFace: [.95, -.05, .30],
+    grip: [.25, 1.20, -.08], batUp: [-.25, -.90, .35], batFace: [.70, -.05, .71],
     yaw: 1.15, face: .10, heel: .35, backFootYaw: 1.45, leadElbow: -.20, look: .15 },
-  // The stride landed and the knee going down, the bat come down behind
-  // him: the hands at his hip, out in front of the back thigh, and the blade
-  // pointing back at the keeper, ready to come round.
-  down: { ...GUARD, hip: [.02, .57, -.02], chest: [.06, .90, .14],
+  // The hands come down by the back hip with the bat still cocked up behind
+  // him, before they drive forward.
+  drop: { ...GUARD, hip: [.01, .64, -.06], chest: [.04, .96, .04],
+    frontFoot: [.20, .10, .42], backFoot: [-.12, .08, -.60],
+    grip: [.36, .92, .10], batUp: [-.40, -.40, .82], batFace: [.95, .05, .30],
+    yaw: 1.12, face: .15, heel: .50, backFootYaw: 1.50, leadElbow: -.20, look: .20 },
+  // The stride landed and the knee going down, the hands out in front of him
+  // at his hip with the arms long, and the bat coming down outside the off
+  // stump, the toe to the turf behind him, ready to come round. With the
+  // hands in at his chest here, it was swung from a quarter of a metre.
+  down: { ...GUARD, hip: [.02, .57, -.02], chest: [.06, .86, .12],
     frontFoot: [.24, .08, .48], backFoot: [-.12, .08, -.71],
-    grip: [.26, .84, .28], batUp: [-.20, -.28, .94], batFace: [.95, .00, .22],
+    grip: [.24, .70, .56], batUp: [-.45, .70, .55], batFace: [.80, .55, .00],
     yaw: 1.10, face: .20, heel: .62, backFootYaw: 1.55, leadElbow: -.20, look: .25 },
   // Out in front of the front pad with the arms long, the blade about level
   // and reaching across to the ball, the face to midwicket.
-  contact: { ...GUARD, hip: [.02, .52, -.02], chest: [.08, .80, .16],
+  contact: { ...GUARD, hip: [.02, .51, -.02], chest: [.08, .79, .16],
     frontFoot: [.24, .08, .48], backFoot: [-.12, .08, -.67],
     grip: [.00, .60, .55], batUp: [-.92, .25, -.30], batFace: [-.55, .25, .80],
     yaw: .60, face: .30, heel: .62, backFootYaw: 1.55, leadElbow: -.18, look: .30 },
-  // On through towards the bowler, the toe rising, the arms still long.
-  through: { ...GUARD, hip: [.00, .54, .02], chest: [.04, .90, .20],
+  // Round at the bowler at chest height, an arm's length out in front of
+  // him.
+  through: { ...GUARD, hip: [.00, .54, .02], chest: [.04, .88, .20],
     frontFoot: [.24, .08, .48], backFoot: [-.12, .08, -.65],
-    grip: [-.02, .80, .74], batUp: [.00, -.35, -.94], batFace: [-.95, .10, -.05],
+    grip: [-.02, .88, .80], batUp: [.15, -.15, -.98], batFace: [-.95, .10, -.05],
     yaw: .60, face: -.20, heel: .62, frontFootYaw: .46, backFootYaw: 1.55, leadElbow: -.12, look: .10 },
-  // Climbing up the pitch in front of him, the arms still long. Taken out
-  // towards midwicket after the ball, the swing carried the face round to
-  // the turf over his head, where it looks to the leg side.
-  carry: { ...GUARD, hip: [-.01, .54, .04], chest: [.02, .92, .20],
+  // On round and up over the leg side, at forty-five degrees, the hands out
+  // that way at his shoulder and the arms long, his chest turning after it.
+  // Taken straight up the pitch from here instead, it was another stroke.
+  carry: { ...GUARD, hip: [-.01, .54, .09], chest: [.02, .92, .25],
     frontFoot: [.24, .08, .48], backFoot: [-.12, .08, -.48],
-    grip: [-.06, 1.10, .70], batUp: [.00, -.72, -.70], batFace: [-.95, .10, -.05],
-    yaw: .30, face: -.45, heel: .62, frontFootYaw: .46, backFootYaw: 1.55, leadElbow: -.05, look: -.10 },
-  // Over the top of his head, the blade pointing back and out over the leg
-  // side.
-  over: { ...GUARD, hip: [-.02, .55, .10], chest: [.00, .94, .24],
+    grip: [-.38, 1.12, .62], batUp: [.62, -.68, -.38], batFace: [-.95, .10, -.05],
+    yaw: -.10, face: -.45, heel: .62, frontFootYaw: .46, backFootYaw: 1.55, leadElbow: -.05, look: -.10 },
+  // Upright beside his head on the leg side, his chest turned to it.
+  over: { ...GUARD, hip: [-.02, .55, .10], chest: [.00, .94, .20],
     frontFoot: [.24, .08, .48], backFoot: [-.12, .08, -.42],
-    grip: [-.20, 1.38, .72], batUp: [.25, -.30, .92], batFace: [-.95, .10, -.05],
-    yaw: -.20, face: -.60, heel: .62, frontFootYaw: .46, backFootYaw: 1.55, leadElbow: .00, look: -.20 },
-  // Down behind his head, the hands high over it and the front elbow up in
-  // front of his face, his chest to the leg side, still on the knee and
-  // watching it go.
+    grip: [-.32, 1.30, .66], batUp: [.25, -.95, .10], batFace: [-.95, .10, -.05],
+    yaw: -.50, face: -.60, heel: .62, frontFootYaw: .46, backFootYaw: 1.55, leadElbow: .00, look: -.20 },
+  // Over the top and down behind his head, the bat lying back out towards
+  // the off, the hands high over it, his chest turned square to the leg side
+  // so the back arm comes up in front of his face rather than past the
+  // helmet, still on the knee and watching it go.
   finish: { ...GUARD, hip: [-.02, .55, .16], chest: [-.01, .95, .29],
     frontFoot: [.24, .08, .48], backFoot: [-.12, .08, -.36],
-    grip: [-.28, 1.56, .68], batUp: [.20, .53, .82], batFace: [-.95, .10, -.05],
-    yaw: -.50, face: -.70, heel: .62, frontFootYaw: .46, backFootYaw: 1.55, leadElbow: .00, look: -.25 },
-  // Home out round the leg side, the hands forward and down in front of his
-  // face and the bat swung up past the front elbow, then upright out in front
-  // of him. Straight back over the top the blade came down through the
-  // elbow and the hands past the helmet.
+    grip: [-.30, 1.56, .62], batUp: [-.50, .30, .81], batFace: [-.95, .10, -.05],
+    yaw: -1.00, face: -.70, heel: .62, frontFootYaw: .46, backFootYaw: 1.55, leadElbow: .00, look: -.25 },
+  // Home with the hands brought forward and down in front of his face and
+  // the bat up, then upright out in front of him.
   back: { ...GUARD, hip: [-.02, .57, .11], chest: [.00, .97, .24],
     frontFoot: [.24, .08, .48], backFoot: [-.12, .08, -.42],
-    grip: [-.26, 1.26, .76], batUp: [.80, -.30, .52], batFace: [-.95, .10, -.05],
+    grip: [-.15, 1.25, .72], batUp: [.10, -.90, .42], batFace: [-.95, .10, -.05],
     yaw: -.20, face: -.40, heel: .62, frontFootYaw: .46, backFootYaw: 1.55, leadElbow: .00, look: -.10 },
   front: { ...GUARD, hip: [-.03, .70, -.06], chest: [.00, 1.05, .05],
     frontFoot: [.16, .08, .40], backFoot: [-.12, .08, -.62],
@@ -3134,14 +3144,14 @@ export class Batter {
       return;
     }
     if (this.sweeping && !this.levelled) {
-      // The lunge and the high backlift, down behind him and through flat out
-      // in front of the front pad, up the pitch, over his head and down
-      // behind it; held, then out round the leg side in front of his face, up
-      // off the knee and home. The face rides the handle from the swipe
-      // (`riding`).
-      const { lift, down, through, carry, over, finish: end, hold, back, front, up } = SLOG_CLOCK;
+      // The lunge and the high backlift, the hands down by the back hip and
+      // out in front, through flat out in front of the front pad, round at
+      // the bowler and up over the leg side, upright beside his head, over it
+      // and down behind it; held, then down in front of his face, up off the
+      // knee and home. The face rides the handle from the swipe (`riding`).
+      const { lift, drop, down, through, carry, over, finish: end, hold, back, front, up } = SLOG_CLOCK;
       const swing = [{ time: 0, pose: this.swingFrom }, { time: lift, pose: reachPose(SLOG_SWEEP.lift) },
-        { time: down, pose: reachPose(SLOG_SWEEP.down) }, { time: SWEEP_CONTACT_MS, pose: contact },
+        { time: drop, pose: reachPose(SLOG_SWEEP.drop) }, { time: down, pose: reachPose(SLOG_SWEEP.down) }, { time: SWEEP_CONTACT_MS, pose: contact },
         { time: through, pose: reachPose(SLOG_SWEEP.through!) }, { time: carry, pose: reachPose(SLOG_SWEEP.carry!) },
         { time: over, pose: reachPose(SLOG_SWEEP.over) }, { time: end, pose: finish }];
       const home = [{ time: hold, pose: finish }, { time: back, pose: reachPose(SLOG_SWEEP.back) }, { time: front, pose: reachPose(SLOG_SWEEP.front) },
@@ -3813,8 +3823,8 @@ export class Batter {
           // pinch them in and the two forearms bunch onto one line and he reads
           // as paddling a raft, not swinging a bat. They used to fold under the
           // old slog's wrap as the bat came over the shoulder; the rebuilt one
-          // takes its bat over his head instead, and lifts the front elbow for
-          // it below.
+          // swings round to the leg side and turns his chest after it, which
+          // takes the elbows clear without folding them.
           const lift = new THREE.Vector3().crossVectors(base, armAxis).normalize();
           const round = base.clone().multiplyScalar(i === 0 ? 1 : -1)
             .addScaledVector(lift, .10).normalize();
@@ -3833,15 +3843,6 @@ export class Batter {
           turn(bend, round.normalize(),
             ease(THREE.MathUtils.clamp(this.poseAge/130,0,1))
                * ease(THREE.MathUtils.clamp((STROKE_DURATION_MS-this.poseAge)/200,0,1)));
-          // The slog's front elbow comes up in front of him as the bat goes
-          // over his head, pointing down the pitch, and the bat drops behind
-          // his head past it. Left out to the leg side, it stood where the
-          // blade comes down.
-          if (i === 0 && !this.levelled) {
-            const up = ease(THREE.MathUtils.clamp((this.poseAge - SLOG_CLOCK.carry) / (SLOG_CLOCK.over - SLOG_CLOCK.carry), 0, 1))
-              * ease(THREE.MathUtils.clamp((SLOG_CLOCK.up - this.poseAge) / (SLOG_CLOCK.up - SLOG_CLOCK.back), 0, 1));
-            turn(bend, bendTowards(forward.clone().multiplyScalar(.6).addScaledVector(spine, .8)), up);
-          }
         }
         if (this.cutting) {
           // Preserve the square cut's raised clearance plane, easing into it

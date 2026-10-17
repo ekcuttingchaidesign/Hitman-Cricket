@@ -876,12 +876,17 @@ front of the front pad, the arms long: it meets the ball `SLOG_MEETS_AT`
 further down the pitch than the drives (`meetsAt` in `src/Game.ts`), a long
 way from his body, his hips forward over a front shin held upright and the
 back knee on the turf (`tests/sweep-geometry.test.ts`), the body following
-the ball's line all the way across. On towards the bowler, up the pitch, over his head and
-down behind it, the hands high over his head and still on the knee; home out
-round the leg side in front of his face. The face rides the handle from the
-swipe (`riding`) and turns only on the way home. The front elbow comes up in
-front of him as the bat goes over (the sweep's elbow plane in the arm solve):
-left out to the leg side, it stood where the blade drops behind his head.
+the ball's line all the way across, the hands out in front of him from the
+backlift on (`down`, after `drop` brings them down by the back hip with the
+bat still cocked). After the ball it keeps going round: at the bowler at
+chest height, up over the leg side with the hands out that way, upright
+beside his head, then over the top and down behind it, his chest turned
+square to the leg side so the back arm comes up in front of his face; home
+down in front of it. The face rides the handle from the swipe (`riding`) and
+turns only on the way home. Sent straight up the pitch and over his head
+from the ball, it read as another stroke; and a backlift leaning over his
+head brought the bat down through the back arm, which nothing tested until
+the batter tests held the blade off both sleeves.
 The orthodox sweep (`FLAT_SWEEP`) is still built on the kneel the slog was
 before (`KNEELING_SWEEP`) and meets the ball where the drives do. It is
 `sweep` in the batter tests' `PLAYS`, with its `meets`.
