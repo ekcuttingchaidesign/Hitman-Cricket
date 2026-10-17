@@ -988,6 +988,8 @@ ${modeSelectMarkup()}
       ...view, careerKey: this.keyView, who: this.whoNow?.() ?? null, at: this.statsAt, where: 'page', offerRestore: this.offerRestore,
       password: this.passwordNow?.() ?? null,
     });
+    // Seen, once an opening: against `password-open-stats`, how many tap it.
+    if (opening && overlay.querySelector('.pw-card')) track('password-card-stats', 'Password card on My Stats');
     overlay.classList.remove('hidden');
     this.wirePasswordCards();
     this.viewport.classList.add('modal-open');
@@ -2477,7 +2479,7 @@ ${modeSelectMarkup()}
     back.classList.toggle('hidden', !taken);
     back.innerHTML = taken ? restoreLinkMarkup('claim-restore', RESTORE_TAKEN) : '';
     // From the name that is held: for "Rohit 2" refused as a sibling, "Rohit".
-    if (taken) this.$('claim-restore').onclick = () => this.openRestore(held ?? this.claimEntry.name);
+    if (taken) this.$('claim-restore').onclick = () => { track('restore-open-taken', 'Restore opened from a name already held'); this.openRestore(held ?? this.claimEntry.name); };
   }
 
   /**
@@ -2522,6 +2524,9 @@ ${modeSelectMarkup()}
     const exact = found?.find(one => fold(one.name) === fold(name));
     const picked = view.picked && found?.some(one => fold(one.name) === fold(view.picked!)) ? view.picked : exact?.name ?? null;
     this.restoreView = { ...view, name, found, picked, findError: reason };
+    // Whether the name typed turned anybody up: none is a player with no
+    // password, or one who never had a name here.
+    if (found) trackOnce(found.length ? 'restore-find-listed' : 'restore-find-none', found.length ? 'Restore search listed players' : 'Restore search found nobody');
     this.drawFound();
   }
 
@@ -2538,6 +2543,7 @@ ${modeSelectMarkup()}
         const field = this.$('restore-name') as HTMLInputElement;
         field.value = name;
         if (this.restoreView) this.restoreView = { ...this.restoreView, name, picked: name };
+        trackOnce('restore-picked', 'Picked themselves off the restore list');
         this.drawFound();
         (document.getElementById('restore-password') as HTMLInputElement | null)?.focus();
       };
@@ -2697,7 +2703,7 @@ ${modeSelectMarkup()}
       };
     });
     const restore = document.getElementById('profile-restore');
-    if (restore) restore.onclick = () => this.openRestore(view.held ?? this.profileEntry.name);
+    if (restore) restore.onclick = () => { track('restore-open-taken', 'Restore opened from a name already held'); this.openRestore(view.held ?? this.profileEntry.name); };
     const played = document.getElementById('profile-played');
     if (played) played.onclick = () => this.onRestoreOpen?.('profile');
     const pass = document.getElementById('profile-password-go');
@@ -3007,6 +3013,7 @@ ${modeSelectMarkup()}
       // Back by a career key with no password behind it: the offer of one.
       const set = document.getElementById('restore-set-password');
       if (set) set.onclick = () => { this.closeRestore(); this.onPasswordOpen?.('welcome'); };
+      if (set) track('password-welcome-offered', 'Welcome back offered a password');
       (set ?? away).focus();
       return;
     }
@@ -3024,6 +3031,7 @@ ${modeSelectMarkup()}
     const switchTo = (by: 'password' | 'key') => () => {
       if (!this.restoreView) return;
       this.restoreView = { ...this.restoreView, by, error: null };
+      track(`restore-switch-${by}`, `Restore turned to the ${by}`);
       this.drawRestore();
     };
     const byKey = document.getElementById('restore-by-key');

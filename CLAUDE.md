@@ -108,6 +108,13 @@ are out of reach there (`insideAnApp`). A restored id is written to all three
 stores (`adoptPlayerId`): before it lived only in memory and was lost on the
 next visit.
 
+Every step is counted on GoatCounter (`restore-open-profile` is Played
+before?, `password-created`, `restore-done-password`; the README's table has
+them all), and what reaches the store is counted there too, exactly, by day
+(`src/server/tally.ts`, raised in `api/restore.ts`, never failing the request).
+`scripts/password-report.ts` prints those beside how many players hold a
+password now; it is read-only. A new tally goes on the end of `TALLIES`.
+
 `tests/password.test.ts` holds the store's rules; `scripts/password-check.mjs`
 walks lanes A to E in a browser. The dev server's restore tries are real and
 shared by every check, ten an hour: restart it between runs of the restore and

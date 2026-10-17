@@ -8,6 +8,7 @@ import type { DressingStore } from './dressing-save.js';
 import type { SavedDressing } from '../game/dressing-sync.js';
 import type { RecapStore } from './recap-store.js';
 import type { YearRecap } from '../game/recap.js';
+import { tallyFields, type Tally } from './tally.js';
 import { FEEDBACK_KEPT, type FeedbackStore, type StoredFeedback } from './feedback-store.js';
 import {
   packResult, unpackResult,
@@ -595,4 +596,16 @@ export function upstashRecap(redis: Redis): RecapStore {
       await pipe.exec();
     },
   };
+}
+
+/**
+ * One password or key event counted (`tally.ts`): its total and its day's, in
+ * one round trip. Never throws: a count is never worth a player's restore.
+ */
+export async function raiseTally(redis: Redis, event: Tally, now = Date.now()) {
+  try {
+    const pipe = redis.pipeline();
+    for (const field of tallyFields(event, now)) pipe.hincrby(`${SCOPE}tally`, field, 1);
+    await pipe.exec();
+  } catch { /* Counting never fails what it rides on. */ }
 }

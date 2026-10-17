@@ -36,7 +36,7 @@ let timers: (() => void)[] = [];
 /** Runs whatever the fade-in scheduled, the way a real 220 ms would. */
 const settle = () => { const due = timers; timers = []; due.forEach(fn => fn()); };
 
-const cover = () => FakeAudio.made.find(element => element.src.includes('Shining_Down'));
+const cover = () => FakeAudio.made.find(element => element.src.includes('cover_theme'));
 const result = () => FakeAudio.made.find(element => element.src.includes('survival_glory'));
 
 beforeEach(() => {
@@ -70,12 +70,12 @@ describe('the music a screen owns', () => {
   it('plays the cover track, looped, the moment the cover asks for it', () => {
     const audio = new GameAudio();
     audio.music('cover');
-    expect(cover()!.src).toBe('Shining_Down_Loop.aac');
+    expect(cover()!.src).toBe('cover_theme.mp3');
     expect(cover()!.loop).toBe(true);
     expect(cover()!.calls).toEqual(['play']);
     expect(cover()!.muted).toBe(false);
     // Quieter than the card's: mastered louder, so let through at its own level.
-    expect(cover()!.volume).toBeCloseTo(.11, 5);
+    expect(cover()!.volume).toBeCloseTo(.08, 5);
     audio.dispose();
   });
   it('leaves the card\'s music exactly where it is when the board goes up over it', () => {
@@ -379,12 +379,12 @@ describe('the music through the context', () => {
     const audio = new GameAudio();
     clock = null; audio.music('cover'); clock!.allow = true; clock!.state = 'running';
     await land();
-    expect(fetched.filter(url => url.includes('Shining_Down'))).toHaveLength(1);
+    expect(fetched.filter(url => url.includes('cover_theme'))).toHaveLength(1);
     expect(music()).toHaveLength(1);
     expect(music()[0].source.started).toEqual([0, 0]);
-    // At its own level: Shining Down is mastered 13 dB hotter than the track
-    // the game was tuned to, so it is let through at a fifth of the music's gain.
-    expect(music()[0].gain.value).toBeCloseTo(.11, 5);
+    // At its own level: the theme is mastered 16 dB hotter than the track
+    // the game was tuned to, so it is let through at a sixth of the music's gain.
+    expect(music()[0].gain.value).toBeCloseTo(.08, 5);
     expect(FakeAudio.made).toHaveLength(0);
     audio.dispose();
   });
@@ -399,7 +399,7 @@ describe('the music through the context', () => {
     await land();
     expect(music()).toHaveLength(1);
     // Silent for the fade, then brought up to the music's level.
-    expect(music()[0].ramps.map(([kind, value, at]) => [kind, +value.toFixed(5), at])).toEqual([['set', 0, 0], ['set', 0, .22], ['ramp', .11, .47]]);
+    expect(music()[0].ramps.map(([kind, value, at]) => [kind, +value.toFixed(5), at])).toEqual([['set', 0, 0], ['set', 0, .22], ['ramp', .08, .47]]);
     audio.dispose();
   });
   it('stays armed through a touch the browser does not count', async () => {
@@ -463,7 +463,7 @@ describe('the music through the context', () => {
     await land();
     // The music's files, by name: the sound effects are AAC too, and are fetched
     // for the innings whatever the music is doing.
-    expect(fetched.filter(url => /Shining_Down|test_survival_glory/.test(url))).toEqual([]);
+    expect(fetched.filter(url => /cover_theme|test_survival_glory/.test(url))).toEqual([]);
     audio.dispose();
   });
   it('falls back to an element for a track the context will not decode', async () => {

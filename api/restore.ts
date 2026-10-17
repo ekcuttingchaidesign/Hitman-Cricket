@@ -5,7 +5,7 @@ import {
   describeFrom, findPlayers, firstKey, newKey, passwordSet, questionFor, recoverByAnswer, refusedRecovery, restore,
   restoreWithPassword, setPassword,
 } from '../src/server/recovery-store.js';
-import { NoDatabase, redisFromEnv, upstashCareer, upstashRecovery } from '../src/server/upstash.js';
+import { NoDatabase, raiseTally, redisFromEnv, upstashCareer, upstashRecovery } from '../src/server/upstash.js';
 import { BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER } from '../src/game/career.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 
@@ -39,7 +39,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!body) return failed(res, 400, 'Send the name and the key as JSON.');
 
   try {
-    const store = upstashRecovery(redisFromEnv());
+    const redis = redisFromEnv();
+    const store = upstashRecovery(redis);
     // Never cached, by anyone, ever — not the refusals either. A cache in front
     // of this would answer the eleventh try from a rate-limited address with
     // the tenth try's answer.
@@ -55,7 +56,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     if (req.query?.find) {
-      const redis = redisFromEnv();
       const careers = [BLAST_CAREER, SURVIVE_CAREER, MARATHON_CAREER]
         .map(ladder => upstashCareer<{ innings: number }>(redis, ladder.scope));
       const found = await findPlayers(store, { name: body.name, address: addressOf(req) }, describeFrom(careers));
@@ -68,6 +68,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         name: body.name, playerId: body.playerId, password: body.password, question: body.question, answer: body.answer,
       });
       if (refusedRecovery(set)) return failed(res, set.status, set.reason);
+      // A blank password with a question is the change sheet changing only the question.
+      if (typeof body.password === 'string' && body.password.trim()) await raiseTally(redis, set.first ? 'password-created' : 'password-changed');
+      if (set.question && typeof body.answer === 'string' && body.answer.trim()) await raiseTally(redis, 'question-set');
       return res.status(200).json({ ok: true, at: set.at, question: set.question });
     }
 
@@ -80,18 +83,22 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (req.query?.question) {
       const asked = await questionFor(store, { name: body.name, address: addressOf(req) });
       if (refusedRecovery(asked)) return failed(res, asked.status, asked.reason);
+      await raiseTally(redis, 'forgot-asked');
       return res.status(200).json({ question: asked.question });
     }
 
     if (req.query?.recover) {
       const back = await recoverByAnswer(store, { name: body.name, answer: body.answer, password: body.password, address: addressOf(req) });
       if (refusedRecovery(back)) return failed(res, back.status, back.reason);
+      // Asked twice: the answer alone, then with the new password, which is the one that brings them back.
+      if (back.playerId) await raiseTally(redis, 'restore-question');
       return res.status(200).json({ ok: true, playerId: back.playerId });
     }
 
     if (typeof body.password === 'string') {
       const back = await restoreWithPassword(store, { name: body.name, password: body.password, address: addressOf(req) });
       if (refusedRecovery(back)) return failed(res, back.status, back.reason);
+      await raiseTally(redis, 'restore-password');
       return res.status(200).json({ playerId: back.playerId });
     }
 
@@ -107,6 +114,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       address: addressOf(req),
     });
     if (refusedRecovery(brought)) return failed(res, brought.status, brought.reason);
+    await raiseTally(redis, 'restore-key');
     res.status(200).json({ playerId: brought.playerId });
   } catch (error) {
     if (error instanceof NoDatabase) return failed(res, 503, 'Records are not set up yet.', error);

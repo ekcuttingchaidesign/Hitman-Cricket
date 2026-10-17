@@ -1461,6 +1461,8 @@ export class Game {
     if (entry.password.trim()) this.passwordAt = Date.now();
     writeIgnored(0);
     track(changed ? 'password-changed' : `password-set-${this.passwordFrom}`, changed ? 'Password changed' : `Password set from ${this.passwordFrom}`);
+    // Every first password, whichever way in it came, as one figure.
+    if (!changed) track('password-created', 'Password created');
     if (question !== null) track('password-question-set', 'Security question picked');
     this.hud.passwordDone(player.name, player.avatar, changed);
     this.hud.passwordCard(null);
