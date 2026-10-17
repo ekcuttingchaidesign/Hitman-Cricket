@@ -9,7 +9,7 @@ import { ConnectedTrousers } from './ConnectedTrousers';
 import { clothMaterial, willowMaterial } from './characterMaterials';
 import { GRILLE_MOUNT, helmetGeometry, helmetGrilleGeometry, helmetPeakGeometry, helmetRimGeometry } from './helmetGeometry';
 import { compactRigidParts } from './compactParts';
-import { buildGloveCuff, buildGloveHand, type GloveDesign } from './gloves';
+import { buildGloveCuff, buildGloveHand, gloveHeelGeometry, type GloveDesign } from './gloves';
 import type { BodyPart, ShotType } from '../game/types';
 
 type Point = readonly [number, number, number];
@@ -2400,11 +2400,13 @@ export const BATTER_KITS: Record<BatterKit, { shirt: number; helmet: number; tro
  * The heel between a fist and its wrist, re-aimed every frame: where it starts
  * as a share of the way out to the wrist, and how wide and deep it is. It
  * starts inside the fist, so the hand runs on into the wrist whichever side
- * of the handle the arm comes from. A new glove's (`gloves.ts`) is a little
- * slimmer than the Classic's, as its fist is.
+ * of the handle the arm comes from. The Classic's is a near-square block; a
+ * new glove's (`gloves.ts`) is the back of the hand, wide across the fingers
+ * and thin, tapering to the wrist, and turned so its thin way is the
+ * knuckles' (`rollToward`).
  */
 const CLASSIC_HEEL = { from: .40, width: .081, depth: .080 };
-const GLOVE_HEEL = { from: .36, width: .072, depth: .066 };
+const GLOVE_HEEL = { from: .30, width: .096, depth: .064 };
 
 export class Batter {
   private poseAge = 0;
@@ -2484,6 +2486,7 @@ export class Batter {
     tube: new THREE.CylinderGeometry(.5, .5, 1, 20, 1),
     flat: new THREE.BoxGeometry(1, 1, 1),
     blade: bladeGeometry(),
+    heel: gloveHeelGeometry(),
   };
   private palette = {
     shirt: clothMaterial(new THREE.MeshStandardMaterial({ color: 0x2f5a88, roughness: .88 })),
@@ -2577,6 +2580,7 @@ export class Batter {
     this.arms.forEach((arm, i) => {
       for (const part of this.classicGloves[i]) part.visible = classic;
       arm.palm[0].material = this.palette.pad;
+      arm.palm[0].geometry = classic ? this.shapes.soft : this.shapes.heel;
       this.heel = classic ? CLASSIC_HEEL : GLOVE_HEEL;
       if (classic) return;
       const { hand, padding } = buildGloveHand(design, i === 0), cuff = buildGloveCuff(design);
@@ -2735,6 +2739,22 @@ export class Batter {
   private mesh(parent: THREE.Object3D, material: THREE.Material, scale: Point, shape: keyof Batter['shapes'] = 'soft') {
     const mesh = new THREE.Mesh(this.shapes[shape], material);
     mesh.scale.set(...scale); mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
+  }
+  /**
+   * Turns `part` about its own `axis` (a unit vector, in its parent's frame)
+   * until its local +z lies as near `want` as it can: the heel and the
+   * gauntlet are aimed up the forearm by `segment` and `setFromUnitVectors`,
+   * which say nothing about which way round they sit, so this makes it the
+   * hand's way round. Left alone when the arm runs along the line asked for,
+   * where there is no side to pick.
+   */
+  private rollToward(part: THREE.Object3D, axis: THREE.Vector3, want: THREE.Vector3) {
+    const target = want.clone().addScaledVector(axis, -want.dot(axis));
+    if (target.lengthSq() < .01) return;
+    target.normalize();
+    const now = new THREE.Vector3(0, 0, 1).applyQuaternion(part.quaternion);
+    const angle = Math.atan2(now.clone().cross(target).dot(axis), now.dot(target));
+    part.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(axis, angle));
   }
   private segment(mesh: THREE.Mesh, start: THREE.Vector3, end: THREE.Vector3, width: number, depth = width) {
     const axis = end.clone().sub(start);
@@ -3974,6 +3994,7 @@ export class Batter {
         // knuckles into an open palm or flip the visible grip during a shot.
         const palm = arm.socket.clone().applyAxisAngle(UP, pose.spin ?? 0);
         this.segment(arm.palm[0],palm.clone().multiplyScalar(this.heel.from),palm,this.heel.width,this.heel.depth);
+        this.rollToward(arm.palm[0], palm.clone().normalize(), new THREE.Vector3(0, 0, arm.knuckles));
       }
       /**
        * The free hand, punching the air.
@@ -4008,6 +4029,7 @@ export class Batter {
         arm.socket.copy(hand).sub(gloveAt).applyQuaternion(inverse);
         const palm = arm.socket.clone().applyAxisAngle(UP, pose.spin ?? 0);
         this.segment(arm.palm[0], palm.clone().multiplyScalar(this.heel.from), palm, this.heel.width, this.heel.depth);
+        this.rollToward(arm.palm[0], palm.clone().normalize(), new THREE.Vector3(0, 0, arm.knuckles));
       }
       this.segment(arm.upper, arm.shoulder, elbow, .14, .145);
       this.segment(arm.lower, elbow, hand, .095);
@@ -4016,7 +4038,12 @@ export class Batter {
       // The gauntlet starts at the wrist socket, not inside the handle.
       const wrist = elbow.clone().sub(hand);
       arm.cuff.position.copy(hand);
-      if (wrist.lengthSq() > .000001) arm.cuff.quaternion.setFromUnitVectors(UP, wrist.normalize());
+      if (wrist.lengthSq() > .000001) {
+        arm.cuff.quaternion.setFromUnitVectors(UP, wrist.normalize());
+        // Turned so the back of the wrist is on the knuckles' side of the hand.
+        const knuckles = new THREE.Vector3(0, 0, arm.knuckles).applyQuaternion(arm.glove.quaternion).applyQuaternion(this.bat.quaternion);
+        this.rollToward(arm.cuff, wrist, knuckles);
+      }
       const leg = this.legs[i];
       const hipJoint = new THREE.Vector3(i === 0 ? -.135 : .135, -.045, 0).applyQuaternion(yaw).add(hip);
       const foot = V(i === 0 ? pose.frontFoot : pose.backFoot);

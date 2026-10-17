@@ -8,7 +8,8 @@
  * handle through it along y and the flat face to +z (which way round each
  * hand goes is `buildGloveHand`'s); the gauntlet's y running from the wrist up
  * the forearm. A new fist fits in the space the Classic's does, so the grip,
- * the wrist socket and the tests that measure them stay put.
+ * the wrist socket and the tests that measure them stay put; the heel to the
+ * wrist and the gauntlet are turned to the knuckles' side by `Batter`.
  *
  * What a real glove has that the Classic does not, and what a design colours:
  *  - the finger rolls, each its own colour, the index finger's (the lowest on
@@ -136,6 +137,7 @@ export const GLOVES: readonly GloveDesign[] = [
 
 export const gloveOf = (id: string | null | undefined): GloveDesign => GLOVES.find(g => g.id === id) ?? GLOVES[0];
 
+const UP = new THREE.Vector3(0, 1, 0);
 const shapes = {
   soft: new RoundedBoxGeometry(1, 1, 1, 2, .3),
   tube: new THREE.CylinderGeometry(.5, .5, 1, 20, 1),
@@ -199,31 +201,6 @@ function piece(parent: THREE.Object3D, material: THREE.Material, scale: [number,
   return mesh;
 }
 
-/** Round the handle: a point `radius` out from its axis at `angle` (degrees, 90 on the knuckles' side), `y` up it. */
-const round = (radius: number, angle: number, y: number, knuckles: number) =>
-  new THREE.Vector3(radius * Math.cos(angle * Math.PI / 180), y, knuckles * radius * Math.sin(angle * Math.PI / 180));
-
-/** A padded roll bent round the handle, from one angle to another, `y` up it. */
-function arc(radius: number, tube: number, from: number, to: number, y: number, knuckles: number) {
-  // Angles turned onto the hand's own side here, rather than the mesh scaled
-  // by -1, which would come out inside out once the glove is batched.
-  const [a, b] = knuckles > 0 ? [from, to] : [-from, -to];
-  const start = Math.min(a, b) * Math.PI / 180, sweep = Math.abs(b - a) * Math.PI / 180;
-  return new THREE.TorusGeometry(radius, tube, 10, Math.max(6, Math.round(sweep * 10)), sweep)
-    .rotateZ(start).rotateX(Math.PI / 2).translate(0, y, 0);
-}
-
-/** Where a finger's roll and the thumb lie from the handle's axis: on the grip, under the padding. */
-const CORE = .025;
-/** The padded hand under them, round the handle. */
-const BODY = .032;
-/**
- * The phalanges as arcs round the handle (degrees, 90 the middle of the
- * knuckles' side, 0 the edge the fingers go round), a few degrees apart so
- * each joint shows as a pinch in the roll.
- */
-const PHALANGES: [number, number][] = [[100, 40], [34, -16], [-22, -64]];
-
 /**
  * The fist of one glove, in the glove group's frame. Hands back the padding's
  * material too, for the heel `Batter` re-aims at the wrist every frame.
@@ -234,103 +211,121 @@ const PHALANGES: [number, number][] = [[100, 40], [34, -16], [-22, -64]];
  * onto the face, and the bottom hand is the other way round, its knuckles on
  * the face and its fingers curling onto the back. Both hands' fingers go round
  * the same edge of the handle (+x here, where the stage's mirror puts it) and
- * both thumbs point down it at the blade, so the two fists are a left and a
- * right hand, mirror images across the face.
+ * both thumbs lie down the other edge pointing at the blade, so the two fists
+ * are a left and a right hand, mirror images across the face, and the wrist
+ * comes off the thumb's edge.
  *
- * Each finger is a roll bent round the handle in three pieces with a capped
- * tip, so which way it curls is the shape itself. The thumb is a roll of its
- * own off the heel of the hand, round the other edge and down the handle, in
- * the part of the fist the fingers do not reach, so it lies on the glove
- * rather than in it. Under them a padded hand round the handle, slimmer than
- * the rolls reach, so they and the thumb stand out from it, and a pad on the
- * back of the hand with the knuckle roll across it.
+ * A closed padded hand round the handle, and on it each finger as a roll in
+ * three pieces — over the knuckle, round the corner, down the edge — with a
+ * tip curled in onto the palm's side, and the knuckle bar across the base of
+ * them on the back of the hand. The thumb is a roll in two pieces lying on
+ * the outside of the fist: down the thumb's edge from the heel, then round
+ * onto the palm's side, short of the fingertips, so it is on the hand rather
+ * than in it.
  */
 export function buildGloveHand(design: GloveDesign, top: boolean) {
   const paint = palette(), hand = new THREE.Group();
   hand.name = `${design.name} glove`;
   const k = top ? -1 : 1;
+  /** A point with its z given on the knuckles' side. */
+  const at = (x: number, y: number, z: number) => new THREE.Vector3(x, y, k * z);
+  /** A point with its z given on the palm's side. */
+  const palm = (x: number, y: number, z: number) => new THREE.Vector3(x, y, -k * z);
   const base = paint(design.base);
-  const add = (geometry: THREE.BufferGeometry, material: THREE.Material) => {
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.castShadow = true; mesh.receiveShadow = true; hand.add(mesh);
-    return mesh;
-  };
-  // The padded hand the rolls and the thumb lie on: round, and slim enough
-  // that more than half of each roll and of the thumb stands clear of it.
-  add(new THREE.CapsuleGeometry(BODY, .034, 6, 20), base).name = 'Padded hand';
+  piece(hand, base, [.108, .100, .104]).name = 'Closed padded hand';
   for (let finger = 0; finger < 4; finger++) {
     const index = finger === 3, y = .034 - finger * .023;
-    const bar = index && design.sideBar;
-    // Thicker towards the index; the side bar thicker again and standing out.
-    const tube = bar ? .0148 : .0124 + finger * .0004, radius = CORE + tube;
     const roll = design.rolls[finger];
-    const pieces: Paint[] = index && design.index ? design.index : [roll, roll, roll];
-    const tip = design.tips?.[finger];
-    PHALANGES.forEach(([from, to], at) => {
-      const paintOf = at === 2 && tip ? tip : pieces[at];
-      const material = paint(paintOf);
-      // Each piece a little thinner than the one before it, and capped at both
-      // ends a shade under its own thickness, so the joints pinch.
-      const t = tube * (1 - at * .06);
-      add(arc(radius, t, from, to, y, k), material);
-      for (const end of [from, to]) {
-        const cap = add(new THREE.SphereGeometry(t * (end === PHALANGES[2][1] ? 1 : .93), 12, 8), material);
-        cap.position.copy(round(radius, end, y, k));
-      }
-    });
+    const [knuckleOf, cornerOf, fingerOf] = index && design.index ? design.index : [roll, roll, roll];
+    // The side bar: the index roll fatter and standing a little proud, its
+    // lower edge kept inside the fist so it never reaches the other glove.
+    const bar = index && design.sideBar, depth = bar ? .023 : .0205, lift = bar ? -.0015 : 0, proud = bar ? .004 : .001;
+    const knuckle = piece(hand, paint(knuckleOf), [.074, depth, .036 + proud]);
+    knuckle.position.copy(at(-.004, y + lift, .0505 + proud / 2));
+    const corner = piece(hand, paint(cornerOf), [.035 + proud, depth, .035 + proud]);
+    corner.position.copy(at(.043 + proud / 3, y + lift, .041 + proud / 3)); corner.rotation.y = Math.PI / 4;
+    const length = piece(hand, paint(fingerOf), [.031 + proud, depth, .050]);
+    length.position.copy(at(.0555 + proud / 2, y + lift, -.004));
+    const tip = piece(hand, paint(design.tips?.[finger] ?? design.base), [.042, depth * 1.05, .031]);
+    tip.position.copy(at(.036, y + lift, -.043));
     if (design.flash?.fingers.includes(finger)) {
-      // Dashes printed across the roll over the first joint.
+      // Dashes printed across the roll where it goes over the knuckle.
       const ink = paint(design.flash.colour, .7);
       for (let s = 0; s < design.flash.count; s++) {
-        const angle = 88 - s * 16;
-        const dash = add(new THREE.BoxGeometry(.004, tube * 1.2, .003), ink);
-        dash.position.copy(round(radius + tube * .92, angle, y, k));
-        dash.rotation.y = -k * (angle - 90) * Math.PI / 180;
+        const dash = piece(hand, ink, [.0045, depth * .62, .003], 'flat');
+        dash.position.copy(at(-.026 + s * .014, y + lift, .0505 + (.036 + proud) / 2 + .0005));
       }
     }
   }
-  // The back of the hand: a slim pad from the knuckles back towards the heel,
-  // and the knuckle roll across the base of all four fingers.
-  const back = add(new RoundedBoxGeometry(.054, .104, .030, 3, .013), base);
-  back.position.set(-.027, -.0005, k * (CORE + .016));
-  back.name = 'Back of the hand';
-  const knuckle = add(new THREE.CapsuleGeometry(.014, .08, 6, 14), paint(design.knuckleBar?.colour ?? design.base));
-  knuckle.position.copy(round(CORE + .02, 106, -.0005, k));
-  if (design.knuckleBar?.badge) {
-    const badge = add(new RoundedBoxGeometry(.016, .046, .004, 2, .0015), paint(design.knuckleBar.badge, .5));
-    badge.position.set(-.031, -.0005, k * (CORE + .0325));
+  // The knuckle bar: across the base of all four rolls on the back of the
+  // hand, where the wrist comes off it, with the badge on its face.
+  const barOf = design.knuckleBar;
+  const knuckleBar = piece(hand, paint(barOf?.colour ?? design.base), [.024, .096, .030]);
+  knuckleBar.position.copy(at(-.046, -.0005, .046));
+  if (barOf?.badge) {
+    const badge = piece(hand, paint(barOf.badge, .5), [.013, .050, .003], 'flat');
+    badge.position.copy(at(-.046, -.0005, .0615));
   }
-  // The thumb: off the heel, round the edge the fingers do not go round, and
-  // down the handle at the blade, its tip short of theirs.
-  const thumbAt = (angle: number, y: number) => round(CORE + .0145, angle, y, k);
-  const first = new THREE.CatmullRomCurve3([thumbAt(150, .026), thumbAt(168, .016), thumbAt(186, .002)]);
-  const second = new THREE.CatmullRomCurve3([thumbAt(190, -.002), thumbAt(204, -.016), thumbAt(214, -.028)]);
-  const thumbPaint = paint(design.thumb), tipPaint = paint(design.thumbTip ?? design.thumb);
-  add(new THREE.TubeGeometry(first, 12, .0145, 10), thumbPaint).name = 'Thumb opposed to curled fingers';
-  add(new THREE.TubeGeometry(second, 10, .0132, 10), tipPaint);
-  for (const [curve, paintOf, t] of [[first, thumbPaint, .0145], [second, tipPaint, .0132]] as const) {
-    for (const end of [0, 1]) add(new THREE.SphereGeometry(t * (end ? .96 : 1), 12, 8), paintOf).position.copy(curve.getPoint(end));
-  }
-  // The guard's ridges, rings round the first piece.
-  for (const along of [.35, .7]) {
-    const ridge = add(new THREE.TorusGeometry(.0149, .0024, 6, 18), paint(design.ridges));
-    ridge.position.copy(first.getPoint(along));
-    ridge.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), first.getTangent(along));
+  // The thumb: down the edge the fingers do not go round, from the heel,
+  // then round onto the palm's side, in two pieces and in the part of the
+  // fist the fingers never reach.
+  const first = [palm(-.057, .020, -.004), palm(-.056, -.014, .024)] as const;
+  const second = [palm(-.052, -.016, .029), palm(-.026, -.044, .060)] as const;
+  const thumb = piece(hand, paint(design.thumb), [1, 1, 1]);
+  thumb.name = 'Thumb opposed to curled fingers';
+  segment(thumb, first[0], first[1], .034);
+  segment(piece(hand, paint(design.thumbTip ?? design.thumb), [1, 1, 1]), second[0], second[1], .031);
+  // The thumb guard: two ridges across the first piece.
+  for (const along of [.32, .68]) {
+    const ridge = piece(hand, paint(design.ridges), [.040, .007, .040], 'tube');
+    ridge.position.copy(first[0]).lerp(first[1], along);
+    ridge.quaternion.setFromUnitVectors(UP, first[1].clone().sub(first[0]).normalize());
   }
   return { hand, padding: base };
 }
 
-/** The gauntlet, in its own frame: y from the wrist up the forearm. */
+/**
+ * The gauntlet, in its own frame: y from the wrist up the forearm, +z the
+ * back of the wrist (`Batter` turns it to the knuckles' side every frame). A
+ * towelling cuff hugging the forearm — wider at the hand than up the arm —
+ * with the knitted bands round it, the strap closed over it with its badge on
+ * the back of the wrist, and a soft rim at the top. Not a tube: the Classic's
+ * is wider than the fist it stands beside.
+ */
 export function buildGloveCuff(design: GloveDesign) {
   const paint = palette(), cuff = new THREE.Group(), c = design.cuff;
   cuff.name = `${design.name} gauntlet`;
-  piece(cuff, paint(c.base, .8), [.113, .105, .113], 'tube').position.y = .052;
-  for (const band of c.bands) piece(cuff, paint(band.colour, .8), [.1165, band.depth, .1165], 'tube').position.y = band.at;
-  if (c.strap) {
-    // The strap closes over the wrist, the badge on it.
-    piece(cuff, paint(c.strap, .55), [.121, .030, .121], 'tube').position.y = .018;
-    if (c.badge) piece(cuff, paint(c.badge, .5), [.034, .018, .006], 'soft').position.set(0, .018, .061);
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(.051, .055, CUFF_HEIGHT, 24), paint(c.base, .9));
+  band.position.y = CUFF_HEIGHT / 2; band.castShadow = true; band.receiveShadow = true; cuff.add(band);
+  for (const stripe of c.bands) {
+    const y = Math.min(stripe.at * (CUFF_HEIGHT / .105), CUFF_HEIGHT - stripe.depth / 2);
+    const r = .0555 - .004 * (y / CUFF_HEIGHT);
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(r, r + .0004, stripe.depth, 24), paint(stripe.colour, .9));
+    ring.position.y = y; ring.castShadow = true; cuff.add(ring);
   }
-  piece(cuff, paint(c.rim, .7), [.122, .014, .122], 'tube').position.y = .104;
+  if (c.strap) {
+    piece(cuff, paint(c.strap, .55), [.118, .024, .118], 'tube').position.y = .026;
+    // The strap's end over the back of the wrist, the badge on it.
+    piece(cuff, paint(c.strap, .55), [.040, .024, .006]).position.set(0, .026, .059);
+    if (c.badge) piece(cuff, paint(c.badge, .5), [.028, .014, .004]).position.set(0, .026, .063);
+  }
+  piece(cuff, paint(c.rim, .75), [.108, .012, .108], 'tube').position.y = CUFF_HEIGHT;
   return cuff;
+}
+/** How far the cuff reaches up the forearm from the wrist. */
+const CUFF_HEIGHT = .074;
+
+/**
+ * The heel between a new glove's fist and its wrist, which `Batter` stretches
+ * from inside the fist to the wrist and turns to the knuckles' side every
+ * frame: the back of the hand running on into the cuff, wider across the
+ * fingers than it is thick, and tapering to the wrist.
+ */
+export function gloveHeelGeometry() { return new THREE.CylinderGeometry(.42, .5, 1, 20); }
+
+function segment(mesh: THREE.Mesh, start: THREE.Vector3, end: THREE.Vector3, width: number) {
+  const axis = end.clone().sub(start);
+  mesh.position.copy(start).add(end).multiplyScalar(.5);
+  mesh.quaternion.setFromUnitVectors(UP, axis.clone().normalize());
+  mesh.scale.set(width, axis.length(), width);
 }

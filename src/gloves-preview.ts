@@ -255,7 +255,17 @@ wear(GLOVES[1]);
 setPose('guard');
 lineUp();
 if (matchMedia('(prefers-reduced-motion: reduce)').matches) { closeControls.autoRotate = false; spin.setAttribute('aria-pressed', 'false'); }
-(window as unknown as { __gloves: object }).__gloves = { wear: (id: string) => wear(GLOVES.find(g => g.id === id)!), setPose, side, ready: true };
+(window as unknown as { __gloves: object }).__gloves = { wear: (id: string) => wear(GLOVES.find(g => g.id === id)!), setPose, side,
+  /** The close-up from anywhere, for the checks: eye and target in the pair's frame (y up the handle, +z the bat's face). */
+  look: (eye: [number, number, number], at: [number, number, number] = [0, 0, 0]) => {
+    closeControls.autoRotate = false; closeCamera.position.set(...eye); closeControls.target.set(...at); closeControls.update();
+  },
+  /** The batter's stage from anywhere: eye as an offset from his hands, in the rig's frame (off side +x). */
+  lookBody: (eye: [number, number, number]) => {
+    const hands = handsOf(batter);
+    bodyCamera.position.copy(hands).add(mirror(new THREE.Vector3(...eye))); bodyControls.target.copy(hands); bodyControls.update();
+  },
+  ready: true };
 
 function frame() {
   closeControls.update(); bodyControls.update();
