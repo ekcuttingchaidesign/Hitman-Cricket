@@ -9,7 +9,7 @@ import { ConnectedTrousers } from './ConnectedTrousers';
 import { clothMaterial, willowMaterial } from './characterMaterials';
 import { GRILLE_MOUNT, helmetGeometry, helmetGrilleGeometry, helmetPeakGeometry, helmetRimGeometry } from './helmetGeometry';
 import { compactRigidParts } from './compactParts';
-import { buildGloveCuff, buildGloveHand, gloveHeelGeometry, WRIST_HOME, type GloveDesign } from './gloves';
+import { buildGloveCuff, buildGloveHand, DEFAULT_GLOVE, gloveHeelGeometry, gloveOf, WRIST_HOME, type GloveDesign } from './gloves';
 import type { BodyPart, ShotType } from '../game/types';
 
 type Point = readonly [number, number, number];
@@ -2400,12 +2400,10 @@ export const BATTER_KITS: Record<BatterKit, { shirt: number; helmet: number; tro
  * The heel between a fist and its wrist, re-aimed every frame: where it starts
  * as a share of the way out to the wrist, and how wide and deep it is. It
  * starts inside the fist, so the hand runs on into the wrist whichever side
- * of the handle the arm comes from. The Classic's is a near-square block; a
- * new glove's (`gloves.ts`) is the back of the hand, wide across the fingers
- * and thin, tapering to the wrist, and turned so its thin way is the
+ * of the handle the arm comes from, and is the back of the hand, wide across
+ * the fingers and thin, tapering to the wrist, turned so its thin way is the
  * knuckles' (`rollToward`).
  */
-const CLASSIC_HEEL = { from: .40, width: .081, depth: .080 };
 const GLOVE_HEEL = { from: .30, width: .096, depth: .064 };
 
 export class Batter {
@@ -2501,10 +2499,9 @@ export class Batter {
     trousers: clothMaterial(new THREE.MeshStandardMaterial({ color: 0xf4f0e4, roughness: .82 })),
     pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .6 }),
     // The leg pads alone: a kit from the Dressing Room colours them, while
-    // the gloves and the shoes, which share `pad`, stay white.
+    // the shoes, which share `pad`, stay white.
     legPad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .6 }),
     grip: new THREE.MeshStandardMaterial({ color: 0x777e80, roughness: .94 }),
-    glovePalm: new THREE.MeshStandardMaterial({ color: 0xd9d9cf, roughness: .95 }),
     skin: new THREE.MeshStandardMaterial({ color: 0xb77950, roughness: .87 }),
     bat: willowMaterial(new THREE.MeshStandardMaterial({ color: 0xe0b77a, roughness: .62 })),
     accent: new THREE.MeshStandardMaterial({ color: 0xed7044, roughness: .7 }),
@@ -2564,26 +2561,19 @@ export class Batter {
   }
 
   /**
-   * A pair of gloves from the catalogue (`gloves.ts`), or the Classic pair he
-   * was built with for null or `classic`. Only the look changes: the new fists
-   * sit in the same groups and the same space on the handle, so the grip and
-   * the wrist are where they always were; what they change is the shape of the
-   * fist and which way round each hand closes (`buildGloveHand`). The
-   * heel `update` re-aims at the wrist takes the new padding's colour.
+   * A pair of gloves from the catalogue (`gloves.ts`): the default pair for
+   * null. Every fist sits in the same groups and the same space on the handle,
+   * so the grip and the wrist are where they always were; what a design
+   * changes is the look of the fist and the cuff (`buildGloveHand`,
+   * `buildGloveCuff`). The heel `update` re-aims at the wrist takes the
+   * padding's colour.
    */
   wearGloves(design: GloveDesign | null) {
-    if (!this.classicGloves.length) this.classicGloves = this.arms.map(arm =>
-      [...arm.glove.children, ...arm.cuff.children].filter(part => !arm.palm.includes(part as THREE.Mesh)));
     for (const part of this.wornGloves) part.removeFromParent();
-    this.wornGloves = []; this.fistTurn = [0, 0];
-    const classic = !design || design.id === 'classic';
+    this.wornGloves = [];
+    const worn = design ?? gloveOf(DEFAULT_GLOVE);
     this.arms.forEach((arm, i) => {
-      for (const part of this.classicGloves[i]) part.visible = classic;
-      arm.palm[0].material = this.palette.pad;
-      arm.palm[0].geometry = classic ? this.shapes.soft : this.shapes.heel;
-      this.heel = classic ? CLASSIC_HEEL : GLOVE_HEEL;
-      if (classic) return;
-      const { hand, padding } = buildGloveHand(design, i === 0), cuff = buildGloveCuff(design);
+      const { hand, padding } = buildGloveHand(worn, i === 0), cuff = buildGloveCuff(worn);
       compactRigidParts(hand); compactRigidParts(cuff);
       arm.glove.add(hand); arm.cuff.add(cuff);
       arm.palm[0].material = padding;
@@ -2593,11 +2583,8 @@ export class Batter {
       hand.rotation.y = this.fistTurn[i];
     });
   }
-  private classicGloves: THREE.Object3D[][] = [];
-  /** The heel joining the fist to the wrist: see `CLASSIC_HEEL`. */
-  private heel = CLASSIC_HEEL;
   private wornGloves: THREE.Object3D[] = [];
-  /** Each fist's turn on the handle: a new glove's faces its forearm (`WRIST_HOME`), the Classic's is as built. */
+  /** Each fist's turn on the handle, to face its forearm: see `WRIST_HOME`. */
   private fistTurn = [0, 0];
   /** Which way the knuckles face in the glove's frame, after the fist's turn: for the heel and the cuff. */
   private knucklesOf(i: number) { return new THREE.Vector3(0, 0, this.arms[i].knuckles).applyAxisAngle(UP, this.fistTurn[i]); }
@@ -2654,56 +2641,19 @@ export class Batter {
     this.batLabel.push(this.mesh(this.bat, this.palette.helmet, [.075, .12, .002], 'flat'), this.mesh(this.bat, this.palette.accent, [.054, .016, .003], 'flat'));
     this.batLabel[0].position.set(0, -.25, .0228); this.batLabel[1].position.set(0, -.28, .024);
     for (let i = 0; i < 2; i++) {
-      // Photo reference IMG_4073: the LEFT top hand closes OVER the handle;
-      // its padded knuckles face the spine. The RIGHT bottom hand wraps under
-      // it. Mirroring two palm-up hands produces the rejected paddle grip.
+      // The hands: a group on the handle for each fist, dressed by `wearGloves`
+      // below; the top hand's knuckles face the bat's back (`knuckles` -1), the
+      // bottom hand's its face. Only the heel to the wrist lives here: it is
+      // re-aimed every frame, so never merged into the glove.
       const glove = new THREE.Group(); this.bat.add(glove);
       glove.name = i === 0 ? 'Left top glove — overhand' : 'Right bottom glove — underhand';
       glove.position.set(0, i === 0 ? HAND.top : HAND.bottom, 0);
       const back = i === 0 ? -1 : 1;
-      // A closed, soft glove envelope restores the original puffy silhouette.
-      // The handle passes through the fist, rather than exposed finger hoops.
-      const shell=this.mesh(glove,this.palette.pad,[.112,.103,.110],'soft');
-      shell.name='Closed padded glove';
-      const palm=[this.mesh(glove,this.palette.pad,[1,1,1],'soft')];
-      // Re-aimed every frame at the wrist, so never merged into the glove.
+      const palm=[this.mesh(glove,this.palette.pad,[1,1,1],'heel')];
       palm[0].userData.moving=true;
-      const leather=this.mesh(glove,this.palette.glovePalm,[.077,.087,.022],'soft');
-      leather.position.z=-back*.049;
-      leather.name='Palm on inside of closed grip';
-      // Each finger a padded roll in three pieces — over the knuckle, round
-      // the corner of the fist and down the finger — with a groove to the
-      // next finger, which is what makes a batting glove read as one.
-      for(let finger=0;finger<4;finger++) {
-        const y=.034-finger*.023;
-        const knuckle=this.mesh(glove,this.palette.pad,[.074,.0195,.034],'soft');
-        knuckle.position.set(-back*.004,y,back*.050);
-        const corner=this.mesh(glove,this.palette.pad,[.034,.0195,.034],'soft');
-        corner.position.set(back*.043,y,back*.041); corner.rotation.y=Math.PI/4;
-        const finger_=this.mesh(glove,this.palette.pad,[.030,.0195,.050],'soft');
-        finger_.position.set(back*.055,y,-back*.004);
-        // Curled tips close against the palm; they do not splay away from it.
-        const tip=this.mesh(glove,this.palette.pad,[.043,.022,.032],'soft');
-        tip.position.set(back*.036,y,-back*.042);
-      }
-      const thumb=this.mesh(glove,this.palette.pad,[1,1,1],'soft');
-      thumb.name='Thumb opposed to curled fingers';
-      const thumbFrom=new THREE.Vector3(-back*.045,.024,-back*.028), thumbTo=new THREE.Vector3(back*.007,-.018,-back*.061);
-      this.segment(thumb,thumbFrom,thumbTo,.039,.039);
-      // The thumb guard: two ridges across it.
-      for (const at of [.38,.72]) {
-        const ridge=this.mesh(glove,this.palette.pad,[.047,.008,.047],'tube');
-        ridge.position.copy(thumbFrom).lerp(thumbTo,at);
-        ridge.quaternion.setFromUnitVectors(UP,thumbTo.clone().sub(thumbFrom).normalize());
-      }
-      // The wrist is what turns: a gauntlet at the hand aimed back up the forearm.
+      // The wrist is what turns: the gauntlet at the hand aimed back up the forearm.
       const cuff = new THREE.Group(); this.root.add(cuff);
       cuff.name = i === 0 ? 'Left gauntlet' : 'Right gauntlet';
-      this.mesh(cuff, this.palette.pad, [.113, .105, .113], 'tube').position.y = .052;
-      this.mesh(cuff, this.palette.accent, [.121, .026, .121], 'tube').position.y = .014;
-      this.mesh(cuff, this.palette.accent, [.038, .023, .005], 'flat').position.set(0, .069, .058);
-      // A padded rim rolled round the gauntlet's open end.
-      this.mesh(cuff, this.palette.pad, [.122, .014, .122], 'tube').position.y = .104;
       this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'tube'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'tube'),
         elbow: this.mesh(this.root, this.palette.shirt, [.073, .073, .073], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .078, .088], 'ball'),
         glove, palm, cuff, knuckles: back, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3(), socket:wristSocket(i) });
@@ -2741,6 +2691,7 @@ export class Batter {
     this.connectedJersey = new ConnectedJersey([this.palette.shirt, this.palette.skin]);
     this.connectedTrousers = new ConnectedTrousers(this.palette.trousers);
     this.root.add(this.connectedJersey.mesh, this.connectedTrousers.mesh);
+    this.wearGloves(null);
     this.reset();
   }
   private mesh(parent: THREE.Object3D, material: THREE.Material, scale: Point, shape: keyof Batter['shapes'] = 'soft') {
@@ -4000,7 +3951,7 @@ export class Batter {
         // inside the glove envelope, so wrist movement cannot turn the left
         // knuckles into an open palm or flip the visible grip during a shot.
         const palm = arm.socket.clone().applyAxisAngle(UP, pose.spin ?? 0);
-        this.segment(arm.palm[0],palm.clone().multiplyScalar(this.heel.from),palm,this.heel.width,this.heel.depth);
+        this.segment(arm.palm[0],palm.clone().multiplyScalar(GLOVE_HEEL.from),palm,GLOVE_HEEL.width,GLOVE_HEEL.depth);
         this.rollToward(arm.palm[0], palm.clone().normalize(), this.knucklesOf(i));
       }
       /**
@@ -4035,7 +3986,7 @@ export class Batter {
         arm.glove.position.copy(gloveAt).sub(this.bat.position).applyQuaternion(inverse);
         arm.socket.copy(hand).sub(gloveAt).applyQuaternion(inverse);
         const palm = arm.socket.clone().applyAxisAngle(UP, pose.spin ?? 0);
-        this.segment(arm.palm[0], palm.clone().multiplyScalar(this.heel.from), palm, this.heel.width, this.heel.depth);
+        this.segment(arm.palm[0], palm.clone().multiplyScalar(GLOVE_HEEL.from), palm, GLOVE_HEEL.width, GLOVE_HEEL.depth);
         this.rollToward(arm.palm[0], palm.clone().normalize(), this.knucklesOf(i));
       }
       this.segment(arm.upper, arm.shoulder, elbow, .14, .145);

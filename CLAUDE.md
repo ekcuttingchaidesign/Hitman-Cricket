@@ -475,6 +475,27 @@ path, not the title, so the item is in the name): `dressing-open-modes` and
 and left counts. They go through `dressingMark`, not `mark`, so the last mode
 played does not split them, and the `?dressing=1` preview counts nothing.
 
+## Batting gloves
+
+The batter's gloves are a catalogue (`src/entities/gloves.ts`): Glacier, the
+pair he is built wearing (`DEFAULT_GLOVE`, white so it goes with every kit and
+the Test match's whites), and Fern, Carbon, Blaze and Midnight for the Dressing
+Room to hand out, which is still to be wired. `Batter.wearGloves(design)` puts
+a pair on. The grip is a right-hander's from a photograph: the top hand's
+knuckles on the bat's curved back with its fingers curling onto the face, the
+bottom hand's the other way, both round the same edge, both thumbs down the
+handle; and each fist is turned on the handle to face where its forearm comes
+off in the guard (`WRIST_HOME`), which puts the back of the top hand to the
+bowler and the bottom hand's to the ground, and is then fixed to the handle
+through every stroke. The arm rig places the forearms from the shoulders and
+in the follow-throughs they come off a side a wrist could not reach; that was
+measured, judged invisible at speed, and left alone. Every piece's colour is
+baked into its vertices, so a fist merges into one mesh and a pair costs six
+draw calls (`scene-check`'s `BUDGET` was lowered for it). `gloves.html` shows
+every pair on the handle and on him in five poses; `cover-drive.html` has
+every stroke with a Gloves row, and `?gloves=<id>` picks the first. Both build
+into one file with their `scripts/*-artifact.mjs`.
+
 ## Who's batting: the gate before the first innings
 
 Before the first innings in a browser — a new player's or an old one's — the

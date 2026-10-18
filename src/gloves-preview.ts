@@ -1,7 +1,6 @@
 /**
  * The batting gloves, for choosing the Dressing Room's: every design in the
- * catalogue (`entities/gloves.ts`), the Classic pair the game has always had
- * first, each as a pair on a handle and on the game's own `Batter` in a pose.
+ * catalogue (`entities/gloves.ts`), the pair he wears by default first, each as a pair on a handle and on the game's own `Batter` in a pose.
  *
  * The pair on the handle is lifted off a batter standing in his guard, so it
  * is the grip he holds, not a picture of one. The stage is mirrored as the
@@ -11,7 +10,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Batter, HOOK_MEETS_AT } from './entities/Batter';
-import { GLOVES, type GloveDesign } from './entities/gloves';
+import { DEFAULT_GLOVE, GLOVES, type GloveDesign } from './entities/gloves';
 import { GAME, LINE_X } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 import type { ShotType } from './game/types';
@@ -187,8 +186,8 @@ function wear(glove: GloveDesign) {
   shownPair = pairOf(glove); studio.add(shownPair);
   title.textContent = glove.name;
   line.textContent = glove.line;
-  tag.textContent = glove.id === 'classic' ? 'Current' : 'New';
-  tag.dataset.kind = glove.id === 'classic' ? 'current' : 'new';
+  tag.textContent = glove.id === DEFAULT_GLOVE ? 'Default' : 'Dressing Room';
+  tag.dataset.kind = glove.id === DEFAULT_GLOVE ? 'current' : 'new';
   for (const b of cards.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.glove === glove.id));
 }
 
@@ -203,14 +202,14 @@ for (const glove of GLOVES) {
     const dot = document.createElement('i'); dot.style.background = c; swatch.append(dot);
   }
   const label = document.createElement('span'); label.className = 'label';
-  label.innerHTML = `<b>${glove.name}</b><em>${glove.id === 'classic' ? 'Current' : 'New'}</em>`;
+  label.innerHTML = `<b>${glove.name}</b><em>${glove.id === DEFAULT_GLOVE ? 'Default' : 'Dressing Room'}</em>`;
   button.append(canvas, label, swatch);
   button.onclick = () => wear(glove);
   cards.append(button);
   const figure = document.createElement('figure');
   const still = document.createElement('canvas'); still.width = still.height = 300;
   const caption = document.createElement('figcaption');
-  caption.innerHTML = `<b>${glove.name}</b><em>${glove.id === 'classic' ? 'Current' : 'New'}</em>`;
+  caption.innerHTML = `<b>${glove.name}</b><em>${glove.id === DEFAULT_GLOVE ? 'Default' : 'Dressing Room'}</em>`;
   figure.append(still, caption); figure.onclick = () => wear(glove);
   sheet.append(figure);
 }
@@ -251,7 +250,7 @@ function resize() {
 addEventListener('resize', resize);
 
 pick();
-wear(GLOVES[1]);
+wear(GLOVES[0]);
 setPose('guard');
 lineUp();
 if (matchMedia('(prefers-reduced-motion: reduce)').matches) { closeControls.autoRotate = false; spin.setAttribute('aria-pressed', 'false'); }

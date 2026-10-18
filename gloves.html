@@ -66,7 +66,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .design .swatches{display:flex;gap:4px;padding:2px 10px 10px;background:var(--panel)}
 .swatches i{width:14px;height:14px;border-radius:50%;border:1px solid #ffffff30}
 .design em,figcaption em{font:600 10px/1 var(--f-ui);font-style:normal;letter-spacing:.08em;text-transform:uppercase;color:var(--new)}
-.design[data-glove=classic] em,figure:first-child figcaption em{color:var(--accent-soft)}
+.design[data-glove=glacier] em,figure:first-child figcaption em{color:var(--accent-soft)}
 .design[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 #lineup{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 figure{margin:0;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--pitch);cursor:pointer}
@@ -90,7 +90,7 @@ code{font:500 13px var(--f-mono);color:var(--accent-soft)}
     <h1>Batting <span>Gloves</span></h1>
     <div class="facts">
       <span class="chip"><b>Right-handed</b></span>
-      <span class="chip">Designs <b>1 current · 5 new</b></span>
+      <span class="chip">Designs <b>5 · Glacier by default</b></span>
       <span class="chip">For <b>the Dressing Room</b></span>
     </div>
   </header>
@@ -98,7 +98,7 @@ code{font:500 13px var(--f-mono);color:var(--accent-soft)}
   <div class="stages">
     <div class="stage" id="close">
       <div class="hud">
-        <div class="row"><output id="name">Skyline</output><span class="tag" id="tag" data-kind="new">New</span></div>
+        <div class="row"><output id="name">Glacier</output><span class="tag" id="tag" data-kind="current">Default</span></div>
         <span id="line"></span>
       </div>
       <span class="stage-label">The pair on the handle</span>
@@ -137,7 +137,7 @@ code{font:500 13px var(--f-mono);color:var(--accent-soft)}
   <h2>What a glove is made of</h2>
   <div class="anatomy">
     <table>
-      <thead><tr><th>Part</th><th>Classic, today</th><th>New designs</th><th>From the real gloves</th></tr></thead>
+      <thead><tr><th>Part</th><th>The old glove, now gone</th><th>These designs</th><th>From the real gloves</th></tr></thead>
       <tbody>
         <tr><td>Which way it closes</td><td><b>One hand turned round</b> for both: the knuckles on the right sides, but both fists curling the same way round the handle, so the top hand's fingers go round the wrong edge</td><td><b>A left and a right hand.</b> Top hand: knuckles on the curved back, fingers round the edge and onto the flat face. Bottom hand: knuckles on the face, fingers onto the curved back. Both round the same edge, both thumbs down the handle at the blade. A left-hander's is the mirror of it</td><td>A right-hander's grip, photographed side on</td></tr>
         <tr><td>Fist</td><td><b>One padded block</b> round the handle, 11 × 10 × 11 cm, everything else stuck onto it</td><td><b>The same closed padded hand</b>, a shade smaller so the rolls stand proud of it; the back of the hand runs on into the cuff as a flat wedge turned to the knuckles' side</td><td>The padding is on the back of the fingers and the hand</td></tr>
@@ -151,6 +151,6 @@ code{font:500 13px var(--f-mono);color:var(--accent-soft)}
       </tbody>
     </table>
   </div>
-  <p class="note">The new fists sit in the same groups and the same space on the handle and the wrist as the Classic's, so the grip, the wrists and the arms do not move; what changes is the shape of the fist and which way round each hand closes. Use <b>Face</b>, <b>Back</b> and <b>Edge</b> on the close-up to see it: from the flat face, the top glove shows its fingertips and thumb and the bottom glove its knuckles; from the back, the other way round; edge on, the fingers curling round the handle. The Classic stays the glove he is built with; <code>Batter.wearGloves</code> puts another on. Nothing here is wired to the Dressing Room yet.</p>
+  <p class="note">Every fist sits in the same groups and the same space on the handle and the wrist as the old glove's did, so the grip, the wrists and the arms did not move; what changed is the shape of the fist and which way round each hand closes. Use <b>Face</b>, <b>Back</b> and <b>Edge</b> on the close-up to see it: from the flat face, the top glove shows its fingertips and thumb and the bottom glove its knuckles; from the back, the other way round; edge on, the fingers curling round the handle. Glacier is the glove he is built with; <code>Batter.wearGloves</code> puts another on. The Dressing Room shelf for the rest is still to come.</p>
 </div>
 <script type="module" src="/src/gloves-preview.ts"></script>

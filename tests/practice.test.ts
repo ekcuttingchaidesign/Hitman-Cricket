@@ -65,6 +65,7 @@ describe('every switch the game reads', () => {
     dressing: 'the Dressing Room and its unlocks over a made-up record, earning, wearing and keeping nothing',
     loftv: 'which of the lofted straight drive\'s two finishes is drawn; the six is the same six either way',
     ui: 'the UI kit laid out as a page, instead of the game, reading and sending nothing',
+    gloves: 'which pair of gloves the strokes viewer opens with, a dev page that bats nothing',
   };
 
   it('is either practice or named as not practice', () => {

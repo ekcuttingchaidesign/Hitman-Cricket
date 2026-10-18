@@ -19,7 +19,7 @@ import { Batter, type CoverVersion, COVER_V3_MEETS_AT, PULL_CONTACT_MS, SLOG_CLO
 import { ADVANCE, GAME, LINE_X, SHOT_ANGLES, STYLES } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 import type { ShotType } from './game/types';
-import { GLOVES, gloveOf } from './entities/gloves';
+import { DEFAULT_GLOVE, GLOVES, gloveOf } from './entities/gloves';
 
 /** Ball time before the swing starts, so the delivery can be seen arriving. */
 const LEAD_MS = 260;
@@ -330,7 +330,7 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-version]')) 
     choose(Object.keys(STROKES).find(key => STROKES[key] === stroke)!);
   };
 }
-// The gloves: the Classic pair he was built with, or one of the Dressing Room's (`entities/gloves.ts`).
+// The gloves: the pair he is built with, or one of the Dressing Room's (`entities/gloves.ts`).
 const gloveRow = document.querySelector<HTMLDivElement>('#gloves')!;
 function wear(id: string) {
   batter.wearGloves(gloveOf(id));
@@ -433,7 +433,7 @@ function choose(key: string) {
   t = -LEAD_MS; placeCamera(view); setPlaying(true);
 }
 
-const firstGlove = new URLSearchParams(location.search).get('gloves') ?? 'fern';
+const firstGlove = new URLSearchParams(location.search).get('gloves') ?? DEFAULT_GLOVE;
 batter.wearGloves(gloveOf(firstGlove));
 for (const o of gloveRow.querySelectorAll('button')) o.setAttribute('aria-pressed', String(o.dataset.glove === firstGlove));
 choose('cover');

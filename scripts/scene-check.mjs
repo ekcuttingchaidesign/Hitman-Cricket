@@ -41,10 +41,12 @@ const executablePath = process.env.CHROMIUM_PATH || undefined;
  * merged into one mesh a material, and the batter's limbs drawn as one
  * shirt and one pair of trousers rather than tubes and joint balls, brought
  * that to 494 by day and 518 by night, his gloves merged the same way to 458
- * and 482, and the bowler dressed as the batter is to 424 and 448. Lower this
+ * and 482, and the bowler dressed as the batter is to 424 and 448. The new
+ * gloves (`src/entities/gloves.ts`), every piece's colour baked into its
+ * vertices so a fist is one mesh, brought it to 419 and 438. Lower this
  * whenever a change brings it down, so the saving stays banked.
  */
-const BUDGET = 460;
+const BUDGET = 440;
 /**
  * The bowl, the ground before it, is kept and can still be asked for with
  * `?ground=bowl`, so it is still drawn here and held to the budget it shipped
