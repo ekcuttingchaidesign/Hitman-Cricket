@@ -15,10 +15,11 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, type CoverVersion, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, REVERSE_CLOCK, SCOOP_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
+import { Batter, type CoverVersion, COVER_V3_MEETS_AT, PULL_CONTACT_MS, SLOG_CLOCK, SLOG_HOLD_MS, SLOG_MEETS_AT, SWEEP_CONTACT_MS, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, REVERSE_CLOCK, SCOOP_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOT_ANGLES, STYLES } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 import type { ShotType } from './game/types';
+import { DEFAULT_GLOVE, GLOVES, gloveOf } from './entities/gloves';
 
 /** Ball time before the swing starts, so the delivery can be seen arriving. */
 const LEAD_MS = 260;
@@ -32,6 +33,8 @@ interface Stroke {
   single?: boolean;
   /** The cut at a spinner, room made by stepping away to leg. */
   spinCut?: boolean;
+  /** The slog sweep, on the knee. */
+  sweeping?: boolean;
   /** Where the ball is met, in the rig's frame. */
   ball: { x: number; y: number; z: number };
   contact: number; end: number; bounceZ: number;
@@ -41,6 +44,54 @@ interface Stroke {
   facts: [string, string]; note: string;
 }
 const STROKES: Record<string, Stroke> = {
+  block: {
+    label: 'Block', shot: 'DEFEND', charging: false, single: true, ball: { x: LINE_X.MIDDLE, y: .54, z: GAME.contactZ },
+    contact: STROKE_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: 3.5,
+    phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Forward', 55], ['Contact', STROKE_CONTACT_MS], ['Dead bat', 220], ['Home', 600]],
+    out: { speed: .006, angle: THREE.MathUtils.degToRad(20), climb: 0 },
+    facts: ['good length, on the stumps', `${STROKE_DURATION_MS} ms`],
+    note: 'The forward defensive, off the swipe straight down or S: a short step to the pitch of the ball, the bat brought down straight beside the front pad with the face turned down, the hands soft, and the ball dropped dead in front of him.',
+  },
+  straight: {
+    label: 'Straight drive', shot: 'STRAIGHT', charging: false, single: true, ball: { x: LINE_X.MIDDLE, y: .54, z: GAME.contactZ },
+    contact: STROKE_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: 3.5,
+    phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Plant', 55], ['Contact', STROKE_CONTACT_MS], ['Through', 220], ['Finish', 410], ['Home', 600]],
+    out: { speed: .024, angle: 0, climb: 0 },
+    facts: ['full, middle stump', `${STROKE_DURATION_MS} ms`],
+    note: 'The straight drive, off the swipe straight up or W: a stride down the line, the bat coming down straight under his eyes, the ball met beside the front pad and the arms out long back past the bowler, the finish high over the front shoulder.',
+  },
+  flick: {
+    label: 'Flick', shot: 'LEG', charging: false, single: true, ball: { x: LINE_X.LEG, y: .54, z: GAME.contactZ },
+    contact: STROKE_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: 3.5,
+    phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Across', 55], ['Contact', STROKE_CONTACT_MS], ['Whip', 220], ['Finish', 410], ['Home', 600]],
+    out: { speed: .024, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.LEG), climb: 0 },
+    facts: ['full, leg stump', `${STROKE_DURATION_MS} ms`],
+    note: 'The flick off the pads, off the swipe to leg or A at a full ball on the legs: the front foot across, the ball met in front of the pad and the wrists turned over it, whipping the bat round to midwicket.',
+  },
+  pull: {
+    label: 'Pull', shot: 'LEG', charging: false, single: true, ball: { x: LINE_X.MIDDLE, y: 1.0, z: GAME.contactZ },
+    contact: PULL_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: STYLES.SHORT.bounce!,
+    phases: [['Stance', -LEAD_MS], ['Back and across', 120], ['Contact', PULL_CONTACT_MS], ['Round', 330], ['Finish', 450], ['Home', 650]],
+    out: { speed: .028, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.LEG), climb: .012 },
+    facts: ['bouncer, on the stumps', `${STROKE_DURATION_MS} ms`],
+    note: 'The pull, off the swipe to leg or A at a bouncer on the stumps or the body: back and across, the bat swung flat across the line at chest height and the ball sent round in front of square.',
+  },
+  cut: {
+    label: 'Square cut', shot: 'SQUARE_CUT', charging: false, single: true, ball: { x: LINE_X.OUTSIDE_OFF, y: .90, z: GAME.contactZ },
+    contact: STROKE_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: 4.0,
+    phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Back', 55], ['Contact', STROKE_CONTACT_MS], ['Through', 220], ['Finish', 410], ['Home', 600]],
+    out: { speed: .028, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.SQUARE_CUT), climb: 0 },
+    facts: ['short, wide of off', `${STROKE_DURATION_MS} ms`],
+    note: 'The square cut, off the swipe to off or D at a short, wide ball: back and across onto the back foot, the bat brought down and across it with the arms out, sent square through point.',
+  },
+  slog: {
+    label: 'Slog sweep', shot: 'LEG', charging: false, single: true, sweeping: true, ball: { x: LINE_X.MIDDLE, y: .54, z: GAME.contactZ + SLOG_MEETS_AT },
+    contact: SWEEP_CONTACT_MS, end: STROKE_DURATION_MS + SLOG_HOLD_MS, bounceZ: 4.2,
+    phases: [['Stance', -LEAD_MS], ['Lunge', SLOG_CLOCK.lift], ['Down', SLOG_CLOCK.down], ['Contact', SWEEP_CONTACT_MS], ['Through', SLOG_CLOCK.through], ['Carry', SLOG_CLOCK.carry], ['Over', SLOG_CLOCK.over], ['Finish', SLOG_CLOCK.finish], ['Home', SLOG_CLOCK.up + SLOG_HOLD_MS]],
+    out: { speed: .028, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.LEG), climb: .016 },
+    facts: ['spinner, on the stumps', `${STROKE_DURATION_MS + SLOG_HOLD_MS} ms`],
+    note: 'The slog sweep, the meter\'s stroke at the spinner: a long lunge down the pitch onto the back knee, the bat high behind the back shoulder, then down and through flat out in front of the front pad, the arms long, and on round over the leg side and behind his head.',
+  },
   cover: {
     label: 'Cover drive', shot: 'COVER_LONG_OFF', charging: false, ball: { x: LINE_X.OFF, y: .54, z: GAME.contactZ },
     contact: STROKE_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: 3.5,
@@ -239,7 +290,7 @@ const metAt = () => ({ ...stroke.ball, z: stroke.ball.z + (version === 3 && !str
 function start() {
   batter.reset(); batter.prepare(1); batter.update(0);
   const at = metAt();
-  batter.swing(stroke.shot, 0, at.x, at.y, at.z, stroke.charging, !!stroke.lofted, false, false, version, !!stroke.spinCut);
+  batter.swing(stroke.shot, 0, at.x, at.y, at.z, stroke.charging, !!stroke.lofted, !!stroke.sweeping, false, version, !!stroke.spinCut);
   swinging = true;
 }
 
@@ -278,6 +329,19 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-version]')) 
     version = Number(b.dataset.version) as CoverVersion;
     choose(Object.keys(STROKES).find(key => STROKES[key] === stroke)!);
   };
+}
+// The gloves: the pair he is built with, or one of the Dressing Room's (`entities/gloves.ts`).
+const gloveRow = document.querySelector<HTMLDivElement>('#gloves')!;
+function wear(id: string) {
+  batter.wearGloves(gloveOf(id));
+  for (const o of gloveRow.querySelectorAll('button')) o.setAttribute('aria-pressed', String(o.dataset.glove === id));
+  swinging = false; contactSheet(); start();
+}
+for (const glove of GLOVES) {
+  const button = document.createElement('button');
+  button.dataset.glove = glove.id; button.textContent = glove.name; button.setAttribute('aria-pressed', 'false');
+  button.onclick = () => wear(glove.id);
+  gloveRow.append(button);
 }
 for (const b of document.querySelectorAll<HTMLButtonElement>('[data-view]')) {
   b.onclick = () => {
@@ -369,6 +433,9 @@ function choose(key: string) {
   t = -LEAD_MS; placeCamera(view); setPlaying(true);
 }
 
+const firstGlove = new URLSearchParams(location.search).get('gloves') ?? DEFAULT_GLOVE;
+batter.wearGloves(gloveOf(firstGlove));
+for (const o of gloveRow.querySelectorAll('button')) o.setAttribute('aria-pressed', String(o.dataset.glove === firstGlove));
 choose('cover');
 if (matchMedia('(prefers-reduced-motion: reduce)').matches) { setPlaying(false); t = stroke.contact; }
 requestAnimationFrame(frame);

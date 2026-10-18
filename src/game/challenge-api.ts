@@ -168,10 +168,10 @@ export async function fetchRivalsBoard(): Promise<RivalsRow[] | null> {
 async function post(body: Record<string, unknown>): Promise<ChallengeResult> {
   // What they wear and hold, with every write: the room keeps it with their
   // innings, and a pick changed between two balls goes with the next one.
-  const { outfit, bat } = readDressing();
+  const { outfit, bat, guard } = readDressing();
   return read(await ask<{ code: string; challenge: Challenge; error?: string; retry?: boolean; status?: number }>(
     `${API}/api/challenge`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, look: { kit: outfit, bat } }) },
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, look: { kit: outfit, bat, guard } }) },
   ));
 }
 

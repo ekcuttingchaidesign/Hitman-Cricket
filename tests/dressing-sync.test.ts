@@ -3,7 +3,7 @@ import { cleanDressing, mergeDressing, sameDressing, type SavedDressing } from '
 import { SAVE_LIMIT, memoryDressing, readSaved, saveDressing } from '../src/server/dressing-save';
 
 const copy = (patch: Partial<SavedDressing> = {}): SavedDressing => ({
-  outfit: 'home', bat: 'plain', pickedAt: 0, launch: null, seen: ['kit:home', 'bat:plain'], shown: ['kit:home', 'bat:plain'], visited: false, ...patch,
+  outfit: 'home', bat: 'plain', guard: 'sterling', pickedAt: 0, launch: null, seen: ['kit:home', 'bat:plain'], shown: ['kit:home', 'bat:plain'], visited: false, ...patch,
 });
 const PLAYER = 'abc1234-0123456789ab';
 
@@ -17,10 +17,10 @@ describe('a Dressing Room as it travels', () => {
   });
 
   it('keeps the later pick whole, never a kit from one device and a bat from another', () => {
-    const phone = copy({ outfit: 'crimson', bat: 'boom', pickedAt: 200 });
-    const laptop = copy({ outfit: 'forest', bat: 'savage', pickedAt: 100 });
-    expect(mergeDressing(phone, laptop)).toMatchObject({ outfit: 'crimson', bat: 'boom', pickedAt: 200 });
-    expect(mergeDressing(laptop, phone)).toMatchObject({ outfit: 'crimson', bat: 'boom', pickedAt: 200 });
+    const phone = copy({ outfit: 'crimson', bat: 'boom', guard: 'carbon', pickedAt: 200 });
+    const laptop = copy({ outfit: 'forest', bat: 'savage', guard: 'fern', pickedAt: 100 });
+    expect(mergeDressing(phone, laptop)).toMatchObject({ outfit: 'crimson', bat: 'boom', guard: 'carbon', pickedAt: 200 });
+    expect(mergeDressing(laptop, phone)).toMatchObject({ outfit: 'crimson', bat: 'boom', guard: 'carbon', pickedAt: 200 });
   });
 
   it('keeps every unlock either has shown, the room once opened, and the earlier launch figures', () => {
@@ -36,6 +36,14 @@ describe('a Dressing Room as it travels', () => {
   it('knows two copies that say the same thing, whatever order their unlocks are in', () => {
     expect(sameDressing(copy({ seen: ['kit:home', 'bat:plain'] }), copy({ seen: ['bat:plain', 'kit:home'] }))).toBe(true);
     expect(sameDressing(copy(), copy({ bat: 'boom' }))).toBe(false);
+    expect(sameDressing(copy(), copy({ guard: 'blaze' }))).toBe(false);
+  });
+
+  it('wears the free guard in a copy from before there were any, and refuses one that is not on the shelf', () => {
+    const { guard: _dropped, ...before } = copy();
+    expect(cleanDressing(before)?.guard).toBe('sterling');
+    expect(cleanDressing({ ...copy(), guard: 'gauntlets' })?.guard).toBe('sterling');
+    expect(cleanDressing({ ...copy(), guard: 'midnight' })?.guard).toBe('midnight');
     expect(sameDressing(copy(), null)).toBe(false);
   });
 });

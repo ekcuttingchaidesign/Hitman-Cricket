@@ -1,6 +1,6 @@
 import type { BlastTally, CareerMode, MarathonTally, SurviveTally } from './career.js';
 import { standingOf } from './survive-board.js';
-import { FREE_BAT, FREE_OUTFIT, type Look } from './dressing-ids.js';
+import { FREE_BAT, FREE_OUTFITS, type Look } from './dressing-ids.js';
 
 /**
  * A player's year, kept for the recap at the end of it.
@@ -48,6 +48,8 @@ export interface YearRecap {
   /** Innings played in each kit and with each bat, by id. */
   kits: Record<string, number>;
   bats: Record<string, number>;
+  /** The innings in each guard (gloves and pads); none in a record from before there were any to choose. */
+  guard: Record<string, number>;
   /** Innings on each day (`MM-DD`) and in each hour (`0`–`23`), in India's time. */
   days: Record<string, number>;
   hours: Record<string, number>;
@@ -96,7 +98,7 @@ export function factsOf(mode: CareerMode, tally: BlastTally | SurviveTally | Mar
 }
 
 export function emptyRecap(at: number): YearRecap {
-  return { innings: 0, first: at, last: at, modes: {}, kits: {}, bats: {}, days: {}, hours: {}, unlocked: {} };
+  return { innings: 0, first: at, last: at, modes: {}, kits: {}, bats: {}, guard: {}, days: {}, hours: {}, unlocked: {} };
 }
 
 const bump = (counts: Record<string, number>, key: string, by = 1) => ({ ...counts, [key]: (counts[key] ?? 0) + by });
@@ -121,13 +123,14 @@ export function foldInnings(held: YearRecap | null, mode: CareerMode, facts: Inn
     },
     kits: look ? bump(was.kits, look.kit) : was.kits,
     bats: look ? bump(was.bats, look.bat) : was.bats,
+    guard: look ? bump(was.guard, look.guard) : was.guard,
     days: bump(was.days, day),
     hours: bump(was.hours, String(hour)),
   };
 }
 
 /** What every player has from the start: in a seen list, never won. */
-const FREE = new Set([`kit:${FREE_OUTFIT}`, `bat:${FREE_BAT}`]);
+const FREE = new Set([...FREE_OUTFITS.map(id => `kit:${id}`), `bat:${FREE_BAT}`]);
 
 /**
  * Pieces of the Dressing Room newly won, dated. One already dated keeps its
@@ -154,7 +157,7 @@ export function totalsOf(mode: CareerMode, facts: InningsFacts, look: Look | nul
   if (facts.fifties) counts.fifties = facts.fifties;
   if (facts.hundreds) counts.hundreds = facts.hundreds;
   if (facts.won) counts[`wins:${mode}`] = 1;
-  if (look) { counts[`kit:${look.kit}`] = 1; counts[`bat:${look.bat}`] = 1; }
+  if (look) { counts[`kit:${look.kit}`] = 1; counts[`bat:${look.bat}`] = 1; counts[`guard:${look.guard}`] = 1; }
   if (firstOfYear) counts.players = 1;
   return counts;
 }
@@ -172,6 +175,6 @@ export function cleanRecap(raw: unknown): YearRecap | null {
   return {
     innings: r.innings, first: r.first, last: r.last,
     modes: counts(r.modes) as YearRecap['modes'],
-    kits: counts(r.kits), bats: counts(r.bats), days: counts(r.days), hours: counts(r.hours), unlocked: counts(r.unlocked),
+    kits: counts(r.kits), bats: counts(r.bats), guard: counts(r.guard), days: counts(r.days), hours: counts(r.hours), unlocked: counts(r.unlocked),
   };
 }

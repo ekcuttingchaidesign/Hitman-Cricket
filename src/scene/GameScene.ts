@@ -6,7 +6,7 @@ import { FIGURE_ASSETS } from '../entities/Cricketer';
 import { BLAST_FIELD, Field, TEST_FIELD } from './field';
 import { ADVANCE, FLAT_SWEEP, GAME, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
 import { ballPosition, drawnAt } from '../game/DeliveryTrajectory';
-import { KIT } from '../entities/Cricketer';
+import { KIT, type Kit } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
 import { flightOf } from './flight';
 import { OVERCAST, SKY, Sky, type SkyTime } from './sky';
@@ -23,7 +23,8 @@ import { grassDetail } from './grassDetail';
 import { Fireworks } from './fireworks';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 import type { Cutout } from '../ui/Milestone';
-import type { BatSkin, Outfit } from '../game/dressing';
+import { OUTFITS, type BatSkin, type Outfit } from '../game/dressing';
+import type { GloveDesign } from '../entities/gloves';
 import type { CameraPose } from '../game/ShotReel';
 import { batSheet } from '../entities/batSkins';
 
@@ -585,6 +586,10 @@ export class GameScene {
       if (!(object instanceof THREE.Mesh)) return;
       for (const material of [object.material].flat()) {
         if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+        // The gloves and pads carry their colours in their vertices and the
+        // material's own is white: lit in that they glowed grey, so they keep
+        // the day's glow (none) under the floodlights.
+        if (material.vertexColors) continue;
         const day = material.userData.dayGlow ??= { colour: material.emissive.getHex(), intensity: material.emissiveIntensity };
         if (night) { material.emissive.copy(material.color); material.emissiveIntensity = KIT_GLOW; }
         else { material.emissive.setHex(day.colour); material.emissiveIntensity = day.intensity; }
@@ -783,7 +788,7 @@ export class GameScene {
   }
 
   whites(on: boolean) {
-    const kit = on ? WHITES : KIT;
+    const kit = on ? WHITES : this.sideKit;
     this.testLook(on);
     this.inWhites = on;
     this.batter.dress(on ? 'whites' : 'home');
@@ -879,8 +884,10 @@ export class GameScene {
    * Test match he keeps his whites, as a Test is played, and takes the kit's
    * helmet and his own bat out with him.
    */
-  dressBatter(outfit: Outfit, bat: BatSkin) {
-    this.look = { outfit, bat };
+  dressBatter(outfit: Outfit, bat: BatSkin, guard: GloveDesign) {
+    this.look = { outfit, bat, guard };
+    this.pickSide(outfit.id);
+    this.batter.wearGloves(guard);
     this.wearLook();
     const asked = ++this.batAsked;
     this.batter.holdBat(bat.grip, null);
@@ -890,9 +897,9 @@ export class GameScene {
       this.kitsUnderLights();
     });
   }
-  private look: { outfit: Outfit; bat: BatSkin } | null = null;
-  /** What he went out in, `kit/bat`, for the checks. */
-  get wearing() { return this.look ? `${this.look.outfit.id}/${this.look.bat.id}` : null; }
+  private look: { outfit: Outfit; bat: BatSkin; guard: GloveDesign } | null = null;
+  /** What he went out in, `kit/bat/guard`, for the checks. */
+  get wearing() { return this.look ? `${this.look.outfit.id}/${this.look.bat.id}/${this.look.guard.id}` : null; }
   private inWhites = false;
   /** Which bat was asked for last, so a sheet arriving late cannot put back the one before. */
   private batAsked = 0;
@@ -900,7 +907,26 @@ export class GameScene {
     if (!this.look) return;
     const { outfit } = this.look;
     this.batter.wear(this.inWhites ? { helmet: outfit.helmet } : outfit);
+    if (!this.inWhites) { this.bowler.figure.dress(this.sideKit); this.field.dress(this.sideKit); }
     this.kitsUnderLights();
+  }
+  /**
+   * The fielding side's kit: one of the Dressing Room's, drawn afresh each
+   * time the batter is dressed for an innings, and never the one he is
+   * wearing, so the two sides are always told apart. They wore the game's
+   * orange whatever he had on, which put him in the same shirt as the men
+   * fielding against him whenever he wore Papaya. In whites both sides are
+   * in whites, as a Test is played.
+   */
+  private sideKit: Kit = KIT;
+  /** The fielding side's kit, as a Dressing Room id, for the checks. */
+  fieldingKit: string | null = null;
+  private pickSide(except: string) {
+    const choices = OUTFITS.filter(o => o.id !== except);
+    const outfit = choices[Math.floor(Math.random() * choices.length)];
+    const hex = (colour: string) => new THREE.Color(colour).getHex();
+    this.fieldingKit = outfit.id;
+    this.sideKit = { ...KIT, shirt: hex(outfit.shirt), trousers: hex(outfit.trousers), cap: hex(outfit.helmet), trim: hex(outfit.trim) };
   }
 
   /** A new ball. `carryOn`: see `Batter.reset`. */

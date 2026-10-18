@@ -475,6 +475,75 @@ path, not the title, so the item is in the name): `dressing-open-modes` and
 and left counts. They go through `dressingMark`, not `mark`, so the last mode
 played does not split them, and the `?dressing=1` preview counts nothing.
 
+## The guard: gloves and pads
+
+The batter's gloves and leg pads are one pick, a guard: seven colourways in
+`src/entities/gloves.ts`, their ids in `dressing-ids.ts` beside the kits' and
+bats' (`GUARD_IDS`). Sterling is the one he is built wearing (`FREE_GUARD`,
+white and silver so it goes with every kit and the Test match's whites); the
+rest are Glacier, Fern, Evergreen (Fern in British Racing Green), Ember (the
+carbon weave with red pads trimmed black; its id is still `carbon`, which
+saved picks and the checks hold), Blaze and Midnight. Each design is the
+gloves in full and the pads' two colours (`pads.body`, `pads.trim`: the pad,
+and its piping, knee roll and ankle flap), and `Batter.wearGloves(design)`
+puts both on, the straps round the back of each pad in the darker of its two
+colours (black on Ember, navy on Midnight, silver on Sterling); the kits no
+longer colour the pads or their straps (`Outfit.pads` is kept in the
+catalogue and read by nothing). The guard is the Dressing Room's third shelf
+(GUARD, `shelf: 'guard'`), and nothing on it is earned: every one is free to
+wear, so the shelf has no locks, no dot and no Next up, and the room's "N of
+20 earned" counts none of them. The pick is kept with the kit and bat
+(`guard` in `SavedDressing`), travels and merges with them (the later pick
+wins whole), goes with a Rival Match innings in `Look`, and is counted in the
+year recap (`guard` beside `kits` and `bats`); a copy or a look from before
+there were guards wears the free one. The stage's guard view (`StageView`
+`'guard'`) is the batter whole, framed nearer than the kit's — his helmet to
+his shoes rather than to the pedestal's edge, the headroom given up, and
+allowed `GUARD_NEARER` closer than the kit's nearest on a tall phone — held
+facing the camera as the bowler sees him so the backs of both gloves show
+over the pads against the kit; the shelf's pictures are him from the gloves
+down to his shoes in each, from the same side, so both gloves and both pads
+show (his hands on the handle alone, near to, cropped the pads to a corner). The pads are built anew on every pick, as the gloves are, not
+recoloured in place: an update to a buffer already on the GPU was lost on an
+iPhone and kept the pads in the guard before. `snapshot().look` is
+`kit/bat/guard`. `dressing-check` walks the shelf and bats in the guard it
+put on.
+
+The grip is a right-hander's from a photograph: the top hand's knuckles on the
+bat's curved back with its fingers curling onto the face, the bottom hand's
+the other way, both round the same edge, both thumbs down the handle; and each
+fist is turned on the handle to face where its forearm comes off in the guard
+(`WRIST_HOME`), which puts the back of the top hand to the bowler and the
+bottom hand's to the ground, and is then fixed to the handle through every
+stroke. The arm rig places the forearms from the shoulders and in the
+follow-throughs they come off a side a wrist could not reach; that was
+measured, judged invisible at speed, and left alone. Every piece of a glove's
+colour is baked into its vertices, so a fist merges into one mesh and a pair
+costs six draw calls, and a pad with its two colours stays one mesh: the lot
+costs nothing over the old glove, and `scene-check`'s `BUDGET` says what its
+figure means. Under the floodlights they keep the day's glow, none: the
+night's glow is a material's own colour, and theirs is white. `gloves.html` shows every pair on the handle and on him
+in five poses; `cover-drive.html` has every stroke with a Gloves row, and
+`?gloves=<id>` picks the first. Both build into one file with their
+`scripts/*-artifact.mjs`.
+
+## Papaya, and the fielding side's kit
+
+Two kits come free (`FREE_OUTFITS` in `dressing-ids.ts`): OG Navy, the one
+he is built in, and Papaya, orange with white trousers, second on the kit
+shelf. A free kit is never won and never celebrated: it is left out of the
+innings-end unlocks (`freshUnlocks`), the room's waiting list, the recap's
+`won` dates and the `?dressing=1` preview, and `cleanDressing` reads it as
+already shown. Add a free kit to `FREE_OUTFITS` and to `outfitSteps`'s
+`null` case, or an old record celebrates it as an unlock.
+
+The bowler and the fielders wear one of the Dressing Room's kits, drawn at
+random every time the batter is dressed for an innings and never the one he
+is wearing (`pickSide` in `GameScene.ts`, `snapshot().fieldingKit`). They
+used to wear the game's orange whatever he had on, which put a Papaya batter
+in the same shirt as the men fielding against him. In a Test both sides are
+in whites, as before.
+
 ## Who's batting: the gate before the first innings
 
 Before the first innings in a browser — a new player's or an old one's — the

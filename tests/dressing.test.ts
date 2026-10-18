@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptyBlast, emptyMarathon, emptySurvive } from '../src/game/career';
 import { BATS, OUTFITS, batOwned, batSteps, done, earned, nextUp, outfitOwned, outfitSteps, ready, shareOf, type DressingRecord } from '../src/game/dressing';
+import { lookOf } from '../src/game/dressing-ids';
 
 const record = (patch: {
   classic?: Partial<ReturnType<typeof emptyBlast>>; survive?: Partial<ReturnType<typeof emptySurvive>>; marathon?: Partial<ReturnType<typeof emptyMarathon>>;
@@ -12,16 +13,25 @@ const record = (patch: {
   welcomed: patch.welcomed ?? false,
 });
 
+describe('a look as it travels', () => {
+  it('wears the free guard when none is named, and refuses one that is not on the shelf', () => {
+    expect(lookOf({ kit: 'home', bat: 'plain' })).toEqual({ kit: 'home', bat: 'plain', guard: 'sterling' });
+    expect(lookOf({ kit: 'home', bat: 'plain', guard: 'blaze' })).toEqual({ kit: 'home', bat: 'plain', guard: 'blaze' });
+    expect(lookOf({ kit: 'home', bat: 'plain', guard: 'gauntlets' })).toBeNull();
+    expect(lookOf({ kit: 'tartan', bat: 'plain' })).toBeNull();
+  });
+});
+
 describe('the Dressing Room shelves', () => {
-  it('has seven kits and twelve bats, each named once, the bats from the easiest to Hitman', () => {
-    expect(OUTFITS.map(o => o.id)).toEqual(['home', 'crimson', 'forest', 'gold', 'violet', 'electric', 'lagoon']);
+  it('has eight kits and twelve bats, each named once, the bats from the easiest to Hitman', () => {
+    expect(OUTFITS.map(o => o.id)).toEqual(['home', 'papaya', 'crimson', 'forest', 'gold', 'violet', 'electric', 'lagoon']);
     expect(BATS.map(b => b.id)).toEqual(['plain', 'boom', 'rage', 'venom', 'lonewolf', 'meg', 'icecold', 'roar', 'savage', 'reign', 'inferno', 'hitman']);
     expect(new Set(BATS.map(b => b.name)).size).toBe(12);
-    expect(new Set(OUTFITS.map(o => o.name)).size).toBe(7);
+    expect(new Set(OUTFITS.map(o => o.name)).size).toBe(8);
   });
 
   it('gives a new player OG Navy and Plain and nothing else', () => {
-    expect(earned(record())).toEqual({ outfits: ['home'], bats: ['plain'] });
+    expect(earned(record())).toEqual({ outfits: ['home', 'papaya'], bats: ['plain'] });
   });
 
   it('keeps Boom waiting in the Dressing Room for its key, whatever has been played', () => {

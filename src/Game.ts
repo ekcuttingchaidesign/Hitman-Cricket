@@ -78,10 +78,11 @@ import { markWhatsNewShown, storiesFor, whatsNewDue, whatsNewRun, type Story } f
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, standingOf, tierMeasure, TIERS, type Granted } from './game/tier';
 import { LevelUp } from './ui/LevelUp';
-import { BATS, FREE_BAT, FREE_OUTFIT, OUTFITS, WELCOME_BAT, batOf, batOwned, earned, outfitOf, outfitOwned, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
+import { BATS, FREE_BAT, FREE_OUTFIT, FREE_OUTFITS, OUTFITS, WELCOME_BAT, batOf, batOwned, earned, outfitOf, outfitOwned, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
 import type { DressingRoom } from './ui/DressingRoom';
 import type { UnlockItem, UnlockMoment } from './ui/Unlock';
 import { onDressingWrite, readDressing, seenKey, writeDressing } from './game/dressing-store';
+import { gloveOf, type GloveDesign, type GuardId } from './entities/gloves';
 import { fetchSaved, sendSaved } from './game/dressing-api';
 import { mergeDressing, sameDressing, type SavedDressing } from './game/dressing-sync';
 import type { ModeSelectView } from './ui/ModeSelect';
@@ -901,13 +902,13 @@ export class Game {
       // without four friends.
       kit: (kit: BatterKit) => this.scene.kit(kit),
       /** Puts any kit and bat from the Dressing Room on him, earned or not: for looking at them in play. */
-      dress: (outfit: string, bat: string) => this.scene.dressBatter(outfitOf(outfit), batOf(bat)),
+      dress: (outfit: string, bat: string, gloves?: string) => this.scene.dressBatter(outfitOf(outfit), batOf(bat), gloveOf(gloves ?? this.myLook().guard.id)),
       /** Celebrates an unlock as if it had just been earned, by name: `unlock('bat', 'icecold')`. Nothing is put on or marked seen. */
       unlock: (shelf: 'kit' | 'bat', id: string) => {
         if (this.unlock) return;
         const look = this.myLook();
         const item: UnlockItem = shelf === 'bat' ? { moment: { kind: 'bat', bat: batOf(id) } }
-          : { moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat } };
+          : { moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat, guard: look.guard } };
         this.playUnlocks([item], true);
       },
       unlocking: () => this.unlock?.showing ? (this.unlock.showing.moment.kind === 'bat' ? `bat:${this.unlock.showing.moment.bat.id}` : `kit:${this.unlock.showing.moment.to.id}`) : null,
@@ -1008,14 +1009,14 @@ export class Game {
     void Promise.all([import('./ui/DressingRoom'), import('./scene/DressingStage')]).then(([{ DressingRoom }, { DressingStage }]) => {
       if (this.dressing || this.disposed) return;
       this.dressing = new DressingRoom(this.hud.viewport, {
-        shelf: 'kit', kit: look.outfit.id, bat: look.bat.id, wearing: look.outfit.id, holding: look.bat.id,
+        shelf: 'kit', kit: look.outfit.id, bat: look.bat.id, guard: look.guard.id, wearing: look.outfit.id, holding: look.bat.id, wearingGuard: look.guard.id,
         record: this.dressingRecord(), pictures: {},
       }, {
         wear: (shelf, id) => {
           if (this.dressingPreview) return;
           const now = readDressing();
-          writeDressing(shelf === 'kit' ? { ...now, outfit: id as OutfitId } : { ...now, bat: id as BatId });
-          const worn = this.myLook(); this.scene.dressBatter(worn.outfit, worn.bat);
+          writeDressing(shelf === 'kit' ? { ...now, outfit: id as OutfitId } : shelf === 'bat' ? { ...now, bat: id as BatId } : { ...now, guard: id as GuardId });
+          const worn = this.myLook(); this.scene.dressBatter(worn.outfit, worn.bat, worn.guard);
           this.dressingMark(`dressing-wear-${shelf}-${id}`, `Put on the ${shelf} ${id}`);
         },
         play: mode => {
@@ -1035,7 +1036,7 @@ export class Game {
           this.dressing?.update({ record: this.dressingRecord() });
           this.dressingMark(`dressing-claim-${shelf}-${id}`, `Unlocked the ${shelf} ${id} in the room`);
           const look = this.myLook();
-          this.playUnlocks([{ moment: shelf === 'bat' ? { kind: 'bat', bat: batOf(id) } : { kind: 'kit', from: look.outfit, to: outfitOf(id), bat: look.bat } }], !!this.dressingPreview);
+          this.playUnlocks([{ moment: shelf === 'bat' ? { kind: 'bat', bat: batOf(id) } : { kind: 'kit', from: look.outfit, to: outfitOf(id), bat: look.bat, guard: look.guard } }], !!this.dressingPreview);
         },
         close: () => this.closeDressing(),
       }, () => new DressingStage({ room: true }));
@@ -1045,12 +1046,12 @@ export class Game {
   /** One of `?dressing=1`'s keys. */
   private previewDressing(scenario: DressingScenario) {
     if (scenario === 'kit' || scenario === 'bat' || scenario === 'two') {
-      const kits = OUTFITS.filter(o => o.id !== FREE_OUTFIT), bats = BATS.filter(b => b.id !== FREE_BAT);
+      const kits = OUTFITS.filter(o => !FREE_OUTFITS.includes(o.id)), bats = BATS.filter(b => b.id !== FREE_BAT);
       const items: UnlockItem[] = [];
       const look = this.myLook();
       if (scenario !== 'bat') {
         const to = kits[this.previewTurn.kit++ % kits.length];
-        items.push({ moment: { kind: 'kit', from: look.outfit.id === to.id ? outfitOf(FREE_OUTFIT) : look.outfit, to, bat: look.bat } });
+        items.push({ moment: { kind: 'kit', from: look.outfit.id === to.id ? outfitOf(FREE_OUTFIT) : look.outfit, to, bat: look.bat, guard: look.guard } });
       }
       if (scenario !== 'kit') {
         items.push({ moment: { kind: 'bat', bat: bats[this.previewTurn.bat++ % bats.length] } });
@@ -1073,7 +1074,7 @@ export class Game {
           if (!preview) {
             const now = readDressing();
             writeDressing(shelf === 'kit' ? { ...now, outfit: id as OutfitId } : { ...now, bat: id as BatId });
-            const worn = this.myLook(); this.scene.dressBatter(worn.outfit, worn.bat);
+            const worn = this.myLook(); this.scene.dressBatter(worn.outfit, worn.bat, worn.guard);
             this.dressingMark(`dressing-wear-${shelf}-${id}`, `Put on the ${shelf} ${id}`);
           }
           // Over the room, the room puts it on too.
@@ -1115,8 +1116,9 @@ export class Game {
     if (!held.seen.length) { writeDressing({ ...held, seen: keys }); return []; }
     const look = this.myLook();
     const items: UnlockItem[] = [];
-    for (const id of got.outfits) if (!held.seen.includes(seenKey('kit', id)))
-      items.push({ moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat } });
+    // The free kits are nobody's prize: Papaya arriving on an old record is not an unlock.
+    for (const id of got.outfits) if (!FREE_OUTFITS.includes(id) && !held.seen.includes(seenKey('kit', id)))
+      items.push({ moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat, guard: look.guard } });
     for (const id of got.bats) if (!held.seen.includes(seenKey('bat', id)))
       items.push({ moment: { kind: 'bat', bat: batOf(id) } });
     return items;
@@ -1180,7 +1182,7 @@ export class Game {
     if (sameDressing(merged, mine)) return;
     writeDressing(merged, { quiet: true });
     const look = this.myLook();
-    this.dressing?.update({ record: this.dressingRecord(), wearing: look.outfit.id, holding: look.bat.id });
+    this.dressing?.update({ record: this.dressingRecord(), wearing: look.outfit.id, holding: look.bat.id, wearingGuard: look.guard.id });
     if (!this.hud.viewport.querySelector('#modes.hidden')) this.hud.modesFill(this.modeSelectView());
   }
 
@@ -2010,7 +2012,7 @@ export class Game {
     if (this.coverDrill && !this.challenge.playing) this.generator.drill('NORMAL', 'OFF');
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
     this.input.reset(); this.scene.reset();
-    const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat);
+    const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat, look.guard);
     this.scene.whites(this.test);
     // A Test by day; the Blast by the player's clock, or their own choice.
     this.scene.time(this.test ? 'day' : blastLights());
@@ -3657,7 +3659,7 @@ export class Game {
     }
     if (this.phase !== 'START' && this.phase !== 'INNINGS_END') return false;
     if (!this.reel) {
-      const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat);
+      const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat, look.guard);
       this.scene.leftHanded(readHand() === 'left');
       this.scene.cinematic((now, ball) => this.reel ? reelCamera(this.reel.shot, now - this.reel.start, ball) : reelCamera(shot, 0, null));
       // The stands murmur under it off the cover, where they are quiet; after an innings they are already there.
@@ -4998,17 +5000,18 @@ export class Game {
     // Earned and known, never shown: won before the room arrived, waiting there
     // for its key. One not yet seen is new, and goes up at the innings' end.
     const got = earned(record);
-    const free = new Set([seenKey('kit', FREE_OUTFIT), seenKey('bat', FREE_BAT), seenKey('bat', WELCOME_BAT)]);
+    const free = new Set([...FREE_OUTFITS.map(id => seenKey('kit', id)), seenKey('bat', FREE_BAT), seenKey('bat', WELCOME_BAT)]);
     const waiting = [...got.outfits.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))]
       .filter(key => !free.has(key) && held.seen.includes(key) && !held.shown.includes(key));
     return { ...record, waiting };
   }
-  /** What the batter goes out in: the player's pick, or the free one where the pick is not (or no longer) theirs. */
-  private myLook(): { outfit: Outfit; bat: BatSkin } {
+  /** What the batter goes out in: the player's pick, or the free one where the pick is not (or no longer) theirs; the guard is always theirs. */
+  private myLook(): { outfit: Outfit; bat: BatSkin; guard: GloveDesign } {
     const record = this.dressingRecord(), held = readDressing();
     return {
       outfit: outfitOf(outfitOwned(held.outfit, record) ? held.outfit : FREE_OUTFIT),
       bat: batOf(batOwned(held.bat, record) ? held.bat : FREE_BAT),
+      guard: gloveOf(held.guard),
     };
   }
   /**
@@ -5146,7 +5149,7 @@ export class Game {
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
       pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, pullPen: this.pullPen,
-      mirrored: this.scene.mirrored, look: this.scene.wearing, marathon: this.marathon ? this.marathonState() : null,
+      mirrored: this.scene.mirrored, look: this.scene.wearing, fieldingKit: this.scene.fieldingKit, marathon: this.marathon ? this.marathonState() : null,
       standing: this.standing, ease: this.ease };
   }
   /** Where a Marathon innings stands, for `marathon-check.mjs`. */
