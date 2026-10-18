@@ -493,10 +493,12 @@ wear, so the shelf has no locks, no dot and no Next up, and the room's "N of
 wins whole), goes with a Rival Match innings in `Look`, and is counted in the
 year recap (`guard` beside `kits` and `bats`); a copy or a look from before
 there were guards wears the free one. The stage's guard view (`StageView`
-`'guard'`) is the batter whole, as the kit's is, held facing the camera as the
-bowler sees him so the backs of both gloves show over the pads against the
-kit; the shelf's pictures are his hands on the handle over the front pad in
-each. The pads are built anew on every pick, as the gloves are, not
+`'guard'`) is the batter whole, framed nearer than the kit's — his helmet to
+his shoes rather than to the pedestal's edge, the headroom given up, and
+allowed `GUARD_NEARER` closer than the kit's nearest on a tall phone — held
+facing the camera as the bowler sees him so the backs of both gloves show
+over the pads against the kit; the shelf's pictures are his hands on the
+handle over the front pad in each. The pads are built anew on every pick, as the gloves are, not
 recoloured in place: an update to a buffer already on the GPU was lost on an
 iPhone and kept the pads in the guard before. `snapshot().look` is
 `kit/bat/guard`. `dressing-check` walks the shelf and bats in the guard it

@@ -37,6 +37,16 @@ const CAMERA = { distance: 8.1, eye: 1.3 };
 const ROOM_BACKDROP = new URL('../assets/dressing/room.webp', import.meta.url).href;
 /** The guard's view: him turned a shade off the bowler's view, so the backs of both gloves show over the pads, the whole of him in his kit. */
 const GUARD_FACE = .35;
+/**
+ * The guard's view is framed nearer than the kit's: from his helmet to his
+ * shoes rather than to the pedestal's front edge, with the headroom the kit's
+ * view leaves over him given up, and allowed this much nearer than the kit's
+ * nearest, so the gloves and the pads can be looked at while the kit still
+ * shows whole.
+ */
+const GUARD_NEARER = 1.35;
+/** The headroom the kit's view leaves over his helmet. */
+const CROWN_ROOM = .06;
 const NEAREST_FOCAL = 437 / Math.tan(THREE.MathUtils.degToRad(15));
 
 /**
@@ -193,6 +203,8 @@ export class DressingStage {
   private moment: { what: Moment; at: number; revealed: boolean; onReveal: () => void } | null = null;
   /** The top of the batter at his guard, with a little air over it: what the camera fits under the name. */
   private readonly crown: number;
+  /** The soles of his shoes, their toes towards the camera: the lowest thing in the guard's view. */
+  private readonly soles: THREE.Vector3;
   /** The bat on the stand, upright over the pedestal's middle and turning: from just over it to the batter's crown. */
   private readonly batShow: { y: number; scale: number };
 
@@ -294,7 +306,9 @@ export class DressingStage {
     this.batter.root.traverse(object => { if ((object as THREE.Mesh).isMesh) object.castShadow = object.receiveShadow = true; });
     this.batter.reset(); this.batter.update(0); this.batter.drape();
     this.scene.updateMatrixWorld(true);
-    this.crown = new THREE.Box3().setFromObject(this.holder).max.y + .06;
+    const stands = new THREE.Box3().setFromObject(this.holder);
+    this.crown = stands.max.y + CROWN_ROOM;
+    this.soles = new THREE.Vector3(0, stands.min.y, .2);
     this.showBat.root.rotation.order = 'ZYX'; this.showBat.root.updateMatrixWorld(true);
     const bat = new THREE.Box3().setFromObject(this.showBat.root), scale = (this.crown - .03 - BAT_TOE) / (bat.max.y - bat.min.y);
     this.batShow = { scale, y: BAT_TOE - bat.min.y * scale };
@@ -318,9 +332,9 @@ export class DressingStage {
   showcase(bat: BatSkin) { void this.showBat.hold(bat); }
   /**
    * Which of the three is on the pedestal, and the colour the room is lit in.
-   * The guard is the batter whole, as the kit is, held facing the camera as
-   * the bowler sees him so the backs of both gloves show over the pads
-   * against the kit; a drag still turns him.
+   * The guard is the batter whole, framed a little nearer than the kit (helmet
+   * to shoes), held facing the camera as the bowler sees him so the backs of
+   * both gloves show over the pads against the kit; a drag still turns him.
    */
   show(view: StageView, glow: string) {
     this.endMoment();
@@ -467,12 +481,14 @@ export class DressingStage {
     // Level, eye high, 8.1 m out: a point y high and z nearer falls (eye - y) / (distance - z)
     // of the focal length below the middle. The batter's crown to the pedestal's front edge
     // is the space between the name and the shelf.
+    // The guard's view is nearer: his helmet to his shoes, and the pedestal under the shelf.
+    const guard = this.view === 'guard', lowest = guard ? this.soles : PEDESTAL_FOOT, highest = guard ? this.crown - CROWN_ROOM : this.crown;
     const { distance, eye } = CAMERA, below = (y: number, z: number) => (eye - y) / (distance - z);
-    const focal = Math.min(NEAREST_FOCAL * w / 402 * nearer, Math.max(40, floor - top) / (below(PEDESTAL_FOOT.y, PEDESTAL_FOOT.z) - below(this.crown, 0)));
+    const focal = Math.min(NEAREST_FOCAL * w / 402 * nearer * (guard ? GUARD_NEARER : 1), Math.max(40, floor - top) / (below(lowest.y, lowest.z) - below(highest, 0)));
     this.camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(h / 2 / focal));
     this.camera.position.set(0, eye, distance); this.camera.lookAt(0, eye, 0);
-    // Where the pedestal's edge falls now, and how far to move the picture to stand it on the floor, in the middle of the span.
-    const falls = h / 2 + below(PEDESTAL_FOOT.y, PEDESTAL_FOOT.z) * focal;
+    // Where the lowest thing falls now, and how far to move the picture to stand it on the floor, in the middle of the span.
+    const falls = h / 2 + below(lowest.y, lowest.z) * focal;
     this.camera.setViewOffset(w, h, w / 2 - (left + right) / 2, falls - floor, w, h);
     this.camera.updateProjectionMatrix();
     this.fitMoment();
