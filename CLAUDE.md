@@ -54,6 +54,48 @@ the real id and lets the comparison hash it. A new answer that names other
 players sends handles, never ids; `tests/handle.test.ts` holds the hash to
 Node's own.
 
+## Player profiles, the chase, and My profile
+
+Figma section 14, "Player profiles" (node `333:11508`), four lanes; the
+README's "Player profiles" is the long version.
+
+- **A, another player**: any named row, podium step or chip on a board opens
+  `src/ui/PlayerSheet.ts` over it (`openPlayer` in the HUD), drawn first from
+  what the row knew (`PlayerSeed`) and then from `GET /api/profile?handle=`.
+  Stats only, the face free on the rung's ground (`groundMarkup`, the colours
+  in `src/profile.css`). Your own row opens My profile.
+- **B, the chase**: CHASE holds their best (`Chase` in `src/game/chase.ts`,
+  `this.chase` in `src/Game.ts`), and `chaseFor` in `board-api.ts` sends the
+  handle with the next post of that mode. The intro holds the first ball on
+  `bannerUntil`; the chip is `#chase-chip` under the scoreboard; PASSED waits
+  for the dead ball and holds on `celebrating`; the end strip is `#chase-strip`,
+  which stands in for the player card for a named player. A chase won is let go
+  at the next start; one fallen short makes the key CHASE N AGAIN. The store
+  judges it again, on runs, and that is what reaches the other player.
+- **C, My profile**: `statsSheetMarkup` is the page, still the rail it was (the
+  career cards keep `.stats-dot` and `data-slide`, so the rail's wiring is
+  unchanged); the hero and ground per mode switch with it. The activity comes
+  from `GET /api/profile?player=` when the page opens (`askActivity`), the
+  sheet is `src/ui/Activity.ts`, and WIN IT BACK chases the runs that took it.
+  The end card's `#card-around` and the cover's `beaten` line read the same.
+- **D, the bio**: `bioFieldMarkup` in Your details, on the edit only, held to
+  `bioProblem` (`src/server/bio-rules.ts`) in the browser and the store, and
+  saved only where it changed, so a field drawn before the store answered
+  never clears one.
+
+Looking is private and acting is public: a view is a count of handles a day
+(`seen:<id>:<day>`), never a name; a chase or a pass carries the name, as a
+score on a board does. Profiles open by handle; the store keeps handle → id
+(`handles`), written on every post, counted innings and name claim. Players
+named before it shipped need `scripts/handle-backfill.ts --write` once
+(`docs/LAUNCH.md`), or their rows open nothing.
+
+`scripts/profile-check.mjs` walks all four lanes in a browser against the dev
+server: a profile opened off a row, a chase fallen short and one won with the
+store putting the beat on the other player's profile, then that player's My
+profile, the sheet, the bio and WIN IT BACK in a second browser. It seeds its
+own players under new letters each run.
+
 ## Scripts that write are opt-in
 
 `scripts/career-seed.ts` and `scripts/board-fill.mjs` both refuse to write
