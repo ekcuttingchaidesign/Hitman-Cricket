@@ -320,14 +320,15 @@ export function buildGloveCuff(design: GloveDesign) {
  * degrees round the handle from +x, the fingers' edge (-46 for the top hand,
  * -139 for the bottom). A new glove's fist is turned on the handle so its
  * thumb's edge faces there, which puts the back of the top hand to the bowler
- * and the back of the bottom hand to the ground, as a batter's are; and it
- * stays there while the arm bends no further than a wrist can (`WRIST_FLEX`),
- * turning on the handle only past that rather than have the forearm come off
- * the fingers' side. The Classic pair is fixed to the handle, and its backs
- * face his legs in the stance.
+ * and the back of the bottom hand to the ground, as a batter's are, and it
+ * stays fixed to the handle through every stroke, as a real grip does: the
+ * arms come off it from wherever the pose puts them. Turned to follow the
+ * forearm instead, the backs of the hands swung in towards his body through
+ * every follow-through, which read worse than an arm coming off the wrong
+ * side under its cuff. The Classic pair is fixed too, with its backs to his
+ * legs in the stance.
  */
 export const WRIST_HOME = [-46, -139] as const;
-export const WRIST_FLEX = 80;
 
 /** How far the cuff reaches up the forearm from the wrist. */
 const CUFF_HEIGHT = .074;
