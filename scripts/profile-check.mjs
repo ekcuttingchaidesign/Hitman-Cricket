@@ -185,6 +185,45 @@ check(!(await page.locator('#again').textContent()).includes('CHASE'), 'and the 
 const events = await (await fetch(`${base}/api/profile?player=${encodeURIComponent(secondId)}`)).json();
 check(events.events?.[0]?.kind === 'beat' && events.events[0].runs === 174, 'and the store put the beat on their profile', JSON.stringify(events.events?.[0]));
 
+// Lane C: My profile, as the player who was beaten, in a browser of their own.
+{
+  const theirs = await browser.newContext({ viewport: { width: 402, height: 874 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  const them = await theirs.newPage();
+  them.on('pageerror', e => errors.push(`[beaten] ${e.message}`));
+  await them.addInitScript(({ id, name }) => {
+    try {
+      localStorage.setItem('hitman-seen', new Date(Date.now() - 172_800_000).toISOString().slice(0, 10));
+      localStorage.setItem('hitman-shots-intro', 'done');
+      localStorage.setItem('hitman-profile', '1');
+      localStorage.setItem('hitman-player', id);
+      localStorage.setItem('hitman-batter', JSON.stringify({ name, avatar: 1 }));
+    } catch { /* The screens it skips stand in the way. */ }
+  }, { id: secondId, name: second });
+  await them.goto(`${base}/?debug=1&private=0`, { waitUntil: 'load' });
+  await them.waitForTimeout(2500);
+  const coverLines = await them.locator('#cover-board').innerText().catch(() => '');
+  check(/BEAT YOUR BEST/.test(coverLines), 'the cover leads with the best that was taken', coverLines.replace(/\s+/g, ' ').slice(0, 120));
+  await them.click('#cover-profile');
+  await them.waitForSelector('.mp-hero.is-on', { timeout: 15_000 });
+  check((await them.locator('.st-title').textContent()).trim() === 'MY PROFILE', 'My Stats is My profile now');
+  await them.waitForSelector('.mp-news.is-taken', { timeout: 8000 });
+  await them.waitForTimeout(600);
+  await them.screenshot({ path: `${out}/c2-profile.png` });
+  const news = (await them.locator('.mp-news-text b').textContent()).trim();
+  check(news === `Plook${run} beat your 168`, 'the headline says who took the best', news);
+  check(await them.locator('[data-bio-add]').first().isVisible(), 'and with no bio, the hero offers a line about you');
+  await them.locator('#mp-activity-open').click();
+  await them.waitForSelector('#activity-sheet');
+  await them.waitForTimeout(500);
+  await them.screenshot({ path: `${out}/c4-sheet.png` });
+  check(await them.locator('#activity-sheet .mp-win').count() >= 1, 'the sheet offers WIN IT BACK');
+  check(/Who looked stays private/.test(await them.locator('#activity-sheet').innerText()), 'and keeps who looked private');
+  await them.locator('#activity-sheet .mp-win').first().click();
+  await them.waitForSelector('#chase-intro', { timeout: 8000 });
+  check((await them.locator('.ch-intro-target b').getAttribute('data-to')) === '174', 'WIN IT BACK chases the runs that took it');
+  await theirs.close();
+}
+
 check(errors.length === 0, 'no page errors', errors.join('\n'));
 await browser.close();
 console.log(failures ? `\n${failures} failed.` : '\nAll passed.');

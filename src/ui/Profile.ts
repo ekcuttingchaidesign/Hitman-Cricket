@@ -127,7 +127,7 @@ export function profileMarkup(view: ProfileView): string {
             </button>`).join('');
   const back = gate
     ? `<button id="profile-leave" class="k-icon-button welcome-back" type="button" aria-label="Back to the cover">${icon('arrow-left')}</button>`
-    : `<button id="profile-close" class="k-icon-button welcome-back" type="button" aria-label="Back to My Stats">${icon('arrow-left')}</button>`;
+    : `<button id="profile-close" class="k-icon-button welcome-back" type="button" aria-label="Back to My profile">${icon('arrow-left')}</button>`;
   const go = cta({ kind: 'primary', label: sending ? 'SAVING…' : gate ? 'LET’S BAT' : 'SAVE', id: 'profile-send', wide: true, disabled: sending || !named(name) });
   return `
     <section class="welcome ${gate ? 'is-gate' : 'is-edit'}" role="dialog" aria-modal="true" aria-labelledby="profile-title">

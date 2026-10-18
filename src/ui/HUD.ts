@@ -88,6 +88,8 @@ import { chaseStanding, chaseTarget, playedMode, playerSheetMarkup, type PlayerS
 import { cachedProfile, type ProfilePayload } from '../game/profile-api';
 import { chipLine, type Chase, type Mine } from '../game/chase';
 import { chaseChipMarkup, chaseIntroMarkup, passedMarkup } from './ChaseUi';
+import { activitySheetMarkup } from './Activity';
+import type { OwnActivity } from '../game/profile-api';
 import wifiOff from '../assets/board/wifi-off.svg?raw';
 /** OPENER to Opener and NO. 3 to No. 3: the batters' titles as a scorecard writes them. */
 const titleCase = (title: string) => title.charAt(0) + title.slice(1).toLowerCase();
@@ -494,6 +496,7 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
                     <div id="card-peek"></div>
                   </div>
                 </div>
+                <div id="card-around" class="card-around hidden"></div>
                 <p id="claim-why" class="claim-why">Registering is also how your career survives a new phone.</p>
                 <form id="card-claim" class="card-claim hidden">
                   <div id="claim-picker"></div>
@@ -507,7 +510,7 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
               <div class="k-actions ec-doors">
                 <button id="claim" class="k-action is-board claim-key" type="button">REGISTER SCORE ON LEADERBOARD</button>
                 <button id="card-career" class="k-action is-career career-widget hidden" type="button">
-                  ${kitIcon('user')}<span class="career-words">Career stats</span>${kitIcon('chevron-right', 'is-chevron')}
+                  ${kitIcon('user')}<span class="career-words">My profile</span>${kitIcon('chevron-right', 'is-chevron')}
                   <span id="career-kit" class="career-kit hidden"></span>
                 </button>
               </div>
@@ -1262,6 +1265,24 @@ ${modeSelectMarkup()}
     slot.classList.toggle('is-place', !!markup && standsInForPlace);
   }
 
+  /**
+   * Who the innings went past and who stands next (section 14, C3), under the
+   * place on the end card; nothing for an innings that moved nobody.
+   */
+  cardAround(around: { passed: { name: string; avatar: number }[]; passedCount: number; next: { name: string; avatar: number; runs: number; place: number } | null } | null) {
+    const slot = this.$('card-around');
+    const passed = around && around.passedCount > 0 ? around.passed : [];
+    const next = around?.next ?? null;
+    if (!passed.length && !next) { slot.innerHTML = ''; slot.classList.add('hidden'); return; }
+    const others = around!.passedCount - passed.length;
+    const names = passed.map(one => `<b>${escape(one.name)}</b>`);
+    const said = others > 0 ? `${names.join(', ')} and ${others} other${others === 1 ? '' : 's'}` : names.join(' and ');
+    slot.innerHTML = `${passed.length ? `<p class="ca-row is-passed"><span class="ca-faces">${passed.map(one => kitMarkup(one.avatar, one.name)).join('')}${others > 0 ? `<i>+${others}</i>` : ''}</span><span>You passed ${said}</span></p>` : ''}
+      ${next ? `<button id="card-next" type="button" class="ca-row is-next">${kitMarkup(next.avatar, next.name)}<span>Next: <b>${escape(next.name)}</b> · <em>beat ${next.runs.toLocaleString('en-US')}</em></span><small>#${next.place}</small>${kitIcon('chevron-right')}</button>` : ''}`;
+    slot.classList.remove('hidden');
+    document.getElementById('card-next')?.addEventListener('click', () => document.getElementById('claim')?.click());
+  }
+
   /** The end card's key: PLAY AGAIN, or CHASE 187 AGAIN while a chase is still to be won. */
   againLabel(label: string | null) {
     for (const id of ['again', 'survive-again']) {
@@ -1348,8 +1369,9 @@ ${modeSelectMarkup()}
     this.holdStats(view);
     overlay.innerHTML = statsSheetMarkup({
       ...view, careerKey: this.keyView, who: this.whoNow?.() ?? null, at: this.statsAt, where: 'page', offerRestore: this.offerRestore,
-      password: this.passwordNow?.() ?? null,
+      password: this.passwordNow?.() ?? null, activity: this.activity,
     });
+    this.wireActivity();
     // Seen, once an opening: against `password-open-stats`, how many tap it.
     if (opening && overlay.querySelector('.pw-card')) track('password-card-stats', 'Password card on My Stats');
     overlay.classList.remove('hidden');
@@ -1376,6 +1398,61 @@ ${modeSelectMarkup()}
     this.statsAt = Math.min(Math.max(0, this.statsAt), Math.max(0, view.cards.length - 1));
     this.statsCards = view.cards;
     this.statsShown = view.cards[this.statsAt]?.facts ?? null;
+    this.statsView = view;
+  }
+  /** The page's last view, drawn again when the activity arrives. */
+  private statsView: StatsSheetView | null = null;
+  /** What the player's profile has collected, once the store has said; null before, and for a player with no name. */
+  private activity: OwnActivity | null = null;
+
+  /** The activity, arrived: the page drawn again with it where it is up. */
+  statsActivity(activity: OwnActivity | null) {
+    this.activity = activity;
+    if (this.statsView && !this.$('stats-overlay').classList.contains('hidden')) this.stats(this.statsView);
+  }
+
+  /** WIN IT BACK on the Your profile sheet: chase what was taken. */
+  onWinBack: ((event: OwnActivity['events'][number]) => void) | null = null;
+
+  /** The headline, the bio's way in, and the Your profile sheet behind them. */
+  private wireActivity() {
+    const page = this.$('stats-overlay');
+    for (const add of page.querySelectorAll<HTMLElement>('[data-bio-add]')) add.onclick = () => this.onProfileEdit?.();
+    const open = document.getElementById('mp-activity-open');
+    if (!open || !this.activity) return;
+    open.onclick = () => {
+      const activity = this.activity;
+      if (!activity) return;
+      track('activity-open', 'Your profile sheet opened');
+      const layer = document.createElement('div');
+      layer.className = 'lb-pop mp-layer';
+      layer.innerHTML = activitySheetMarkup(activity);
+      page.append(layer);
+      const escapeKey = (event: KeyboardEvent) => {
+        if (event.key !== 'Escape') return;
+        event.stopPropagation();
+        event.preventDefault();
+        shut();
+      };
+      const shut = () => {
+        document.removeEventListener('keydown', escapeKey, true);
+        layer.remove();
+        open.focus({ preventScroll: true });
+      };
+      document.addEventListener('keydown', escapeKey, true);
+      layer.querySelector<HTMLElement>('[data-close]')!.onclick = shut;
+      layer.querySelector<HTMLElement>('#activity-close')!.onclick = shut;
+      layer.querySelector<HTMLElement>('#activity-bio')?.addEventListener('click', () => { shut(); this.onProfileEdit?.(); });
+      for (const win of layer.querySelectorAll<HTMLElement>('.mp-win')) {
+        win.onclick = () => {
+          const event = activity.events[Number(win.dataset.event)];
+          if (!event) return;
+          shut();
+          this.onWinBack?.(event);
+        };
+      }
+      layer.querySelector<HTMLElement>('#activity-close')!.focus({ preventScroll: true });
+    };
   }
 
   /**
@@ -1484,6 +1561,11 @@ ${modeSelectMarkup()}
       trackOnce('stats-swipe', 'Swiped to the other card');
       this.statsAt = at;
       this.statsShown = this.statsCards[at]?.facts ?? this.statsShown;
+      for (const one of document.querySelectorAll<HTMLElement>('.mp-stage, .mp-hero')) {
+        const on = Number(one.dataset.slide) === at;
+        one.classList.toggle('is-on', on);
+        if (one.classList.contains('mp-hero')) one.toggleAttribute('aria-hidden', !on);
+      }
       for (const dot of document.querySelectorAll<HTMLElement>('.stats-dot')) {
         const on = Number(dot.dataset.slide) === at;
         dot.classList.toggle('is-on', on);

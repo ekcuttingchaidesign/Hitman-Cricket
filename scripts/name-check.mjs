@@ -170,8 +170,8 @@ async function send(page, advance, name) {
   await page.locator('#card-career').click({ force: true });
   await advance(400);
   await page.waitForTimeout(2500);
-  const who = page.locator('#stats-overlay .st-card-name').first();
-  check(await who.isVisible(), 'My Stats is headed with the player\'s name');
+  const who = page.locator('#stats-overlay .mp-hero.is-on .ps-name').first();
+  check(await who.isVisible(), 'My profile is headed with the player\'s name');
   check((await who.innerText()).includes(fresh), 'which is the name just claimed', await who.innerText().catch(() => ''));
   check(!(await page.locator('#stats-overlay .key-pass #name-change').count()), 'and the key card no longer carries it');
   await page.locator('#stats-edit').click({ force: true });

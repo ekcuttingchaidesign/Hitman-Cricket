@@ -71,10 +71,10 @@ await page.click('#board-close');
 await page.waitForTimeout(500);
 await page.click('#cover-profile');
 
-// The card, drawn in the page in its tier's material (UI v1); the painted
-// picture of it is only what the share key sends now.
-const drew = await page.waitForSelector('.stats-slide .st-card, .stats-stage .st-card', { timeout: 20_000 }).then(() => true).catch(() => false);
-check(drew, 'the career card is drawn', await page.$eval('.stats-stage', n => n.textContent.trim().slice(0, 80)).catch(() => ''));
+// My profile: the face on the ground of the rung in front (section 14); the
+// painted card is only what the share key sends now.
+const drew = await page.waitForSelector('.mp-hero.is-on .ps-face', { timeout: 20_000 }).then(() => true).catch(() => false);
+check(drew, 'My profile is drawn, the face its hero', await page.$eval('.stats-stage', n => n.textContent.trim().slice(0, 80)).catch(() => ''));
 
 check(await page.locator('#stats-back').isVisible(), 'the card has its way back');
 
@@ -121,10 +121,10 @@ if (slides.length > 1) {
     check(await page.$eval('.stats-dot.is-on', dot => dot.getAttribute('aria-label')) === 'Test Marathon'
       && /Highest/.test(marathon) && /Best ind/.test(marathon) && /Hundreds/.test(marathon),
     'and shows the highest total, the best individual score and the hundreds', marathon.replace(/\s+/g, ' ').slice(0, 160));
-    // British Racing Green, with red rising from the foot, as the painted card is.
-    const ground = await page.$eval('.stats-slide[data-mode="marathon"] .st-card', card => getComputedStyle(card).backgroundImage);
-    check(/rgb\(11, 58, 36\)/.test(ground), 'on a green card', ground.slice(0, 120));
-    check(/rgba\(200, 16, 46/.test(ground), 'with red coming up through it at the foot', ground.slice(0, 120));
+    // The page's ground follows: the Test Marathon's own, not the Blast's.
+    const ground = await page.$eval('.mp-stage.is-on', stage => ({ marathon: stage.classList.contains('is-marathon'), paint: getComputedStyle(stage.querySelector('.ps-ground')).backgroundImage }));
+    const blastGround = await page.$eval('.mp-stage[data-slide="0"] .ps-ground', g => getComputedStyle(g).backgroundImage);
+    check(ground.marathon && ground.paint !== blastGround, "on the Marathon's own ground", ground.paint.slice(0, 120));
     await page.click('.stats-dot[data-slide="0"]');
     await page.waitForFunction(() => document.querySelector('.stats-dot.is-on')?.getAttribute('aria-label') === 'The Blast', null, { timeout: 10_000 }).catch(() => {});
   }

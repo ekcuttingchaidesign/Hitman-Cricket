@@ -134,7 +134,7 @@ const id = newId(); const name = `Pw${letters(6)}`;
     const after = [...document.querySelectorAll('.stats-sheet-inner > *')].filter(n => rail.compareDocumentPosition(n) & 4).map(n => n.className.split(' ')[0]);
     return { kids, keyAfterRail: !!key && !!(rail.compareDocumentPosition(key) & 4), after };
   });
-  check(order.kids[0] === 'st-card' && order.kids[1] === 'pw-card', 'B · right under the career card, above Road to Hitman', JSON.stringify(order.kids));
+  check(order.kids[0] === 'pw-card' && order.kids[1] === 'k-road', 'B · right under the career cards, above Road to Hitman', JSON.stringify(order.kids));
   check(order.keyAfterRail, 'B · with the career key below the cards', JSON.stringify(order.after));
   await page.locator('#stats-password').click({ force: true });
   check(await until(page, () => page.locator('#pw-form').isVisible()), 'B · SET A PASSWORD opens the sheet');

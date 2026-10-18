@@ -210,18 +210,27 @@ describe('the card\'s sheet', () => {
     expect(markup).not.toContain('id="stats-brag"');
   });
 
-  it('draws the career card in the tier’s material, with the career runs on it', () => {
-    const markup = statsSheetMarkup({ cards: [{ facts }], who });
-    expect(markup).toContain(`st-card tier-${facts.tier.key}`);
-    expect(markup).toContain(`>${facts.ladder.measure.toLocaleString('en-US')}</b><span>career runs<`);
-    expect(markup).toContain('THE BLAST &middot; CAREER');
+  it('is My profile: the face on the rung’s ground, with the career runs at a glance', () => {
+    const markup = statsSheetMarkup({ cards: [{ facts, place: 4, rank: 2 }], who });
+    expect(markup).toContain('MY PROFILE');
+    expect(markup).toContain(`mp-stage tier-${facts.tier.key}`);
+    expect(markup).toContain(`<b>${facts.ladder.measure.toLocaleString('en-US')}</b><span>career runs</span>`);
+    expect(markup).toContain('<b>#4</b><span>The Blast</span>');
     expect(markup).toContain('ROAD TO HITMAN');
+  });
+
+  it('offers a line about yourself until there is one, and then says it', () => {
+    expect(statsSheetMarkup({ cards: [{ facts }], who })).toContain('data-bio-add');
+    const said = statsSheetMarkup({ cards: [{ facts }], who, activity: { views: 3, events: [], bio: 'Six or nothing.' } });
+    expect(said).toContain('Six or nothing.');
+    expect(said).not.toContain('data-bio-add');
   });
 
   it('calls a player with no name a guest, with no way to edit a name they have not got', () => {
     const markup = statsSheetMarkup({ cards: [{ facts }] });
-    expect(markup).toContain('<b>Guest</b>');
+    expect(markup).toContain('>Guest</h3>');
     expect(markup).not.toContain('st-edit');
+    expect(markup).not.toContain('data-bio-add');
     expect(statsSheetMarkup({ cards: [{ facts }], who })).toContain('id="stats-edit"');
   });
 
@@ -261,8 +270,8 @@ describe('the card\'s sheet', () => {
 
   it('names every mode on the switch, and lights the one it opens on', () => {
     const both = statsSheetMarkup({ cards: [{ facts }, { facts: surviveCard }], at: 1 });
-    expect(both).toContain('<span>Blast</span>');
-    expect(both).toContain('<span>Survival</span>');
+    expect(both).toContain('BLAST</span>');
+    expect(both).toContain('SURVIVAL</span>');
     const dots = [...both.matchAll(/data-slide="(\d)" aria-selected="(\w+)"/g)];
     expect(dots.map(dot => [dot[1], dot[2]])).toEqual([['0', 'false'], ['1', 'true']]);
   });

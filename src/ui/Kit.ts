@@ -158,7 +158,7 @@ export function rankHeader(view: RankHeader): string {
 export function cardActions(ids: { board?: string; career?: string } = {}): string {
   const door = (cls: string, glyph: IconName, label: string, id?: string) =>
     `<button type="button" class="k-action ${cls}"${id ? ` id="${escape(id)}"` : ''}>${icon(glyph)}<span>${label}</span>${icon('chevron-right', 'is-chevron')}</button>`;
-  return `<div class="k-actions">${door('is-board', 'chart', 'Leaderboard', ids.board)}${door('is-career', 'user', 'Career stats', ids.career)}</div>`;
+  return `<div class="k-actions">${door('is-board', 'chart', 'Leaderboard', ids.board)}${door('is-career', 'user', 'My profile', ids.career)}</div>`;
 }
 
 /** The career key as a ticket stub: the key, the perforation, SAVE. */

@@ -5,7 +5,10 @@ import { escape, kitMarkup } from './Leaderboard';
 import { statsExplain, type StatsFacts } from '../game/StatsCard';
 import { measureName } from '../game/tier';
 import { recordMarkup, type RivalsRecord } from './Record';
-import { cta, icon, roadToHitman } from './Kit';
+import { cta, icon, roadToHitman, tierBadge } from './Kit';
+import { groundMarkup, rungLine, rungName } from './PlayerSheet';
+import { activityMarkup } from './Activity';
+import type { OwnActivity } from '../game/profile-api';
 
 /**
  * My Stats, as UI v1 draws it (the handover's section 07).
@@ -39,6 +42,8 @@ export interface StatsSlide {
   failed?: boolean;
   /** The best place this player holds on any of this mode's ladders. */
   rank?: number | null;
+  /** Their place on this mode's innings board, as the store last said. */
+  place?: number | null;
 }
 
 export interface StatsSheetView {
@@ -62,6 +67,8 @@ export interface StatsSheetView {
    * for a named player with none: the career's runs, every mode added up.
    */
   password?: { runs: number } | null;
+  /** What their profile has collected — views, who chased and passed them, their bio — once the store has said. */
+  activity?: OwnActivity | null;
 }
 
 /** The switch's words, shorter than the modes' names: the switch is narrow. */
@@ -80,15 +87,21 @@ export function statsSheetMarkup(view: StatsSheetView): string {
   const { cards, at = 0, where = 'page' } = view;
   const many = cards.length > 1;
   const played = cards.some(card => card.facts.played);
+  const who = view.who ?? null;
+  const bio = view.activity?.bio ?? null;
   return `
-    <div class="stats-sheet-inner st-page is-${where}" role="document">
+    <div class="stats-sheet-inner st-page mp-page is-${where}" role="document">
+      <div class="mp-stages" aria-hidden="true">${cards.map((card, i) => stageMarkup(card, i, i === at)).join('')}</div>
       <header class="st-head">${where === 'page' ? `
         <button id="stats-back" class="k-icon-button" type="button" aria-label="Back">${icon('arrow-left')}</button>` : ''}
-        <h2 class="st-title">MY STATS</h2>
-        ${many ? switchMarkup(cards, at) : ''}
+        <h2 class="st-title">MY PROFILE</h2>
+        ${who ? `<button id="stats-edit" class="k-icon-button st-edit" type="button" aria-label="Edit your name, kit, batting hand and bio">${PENCIL}</button>` : ''}
       </header>
+      <div class="mp-heroes">${cards.map((card, i) => heroMarkup(card, who, bio, i, i === at)).join('')}</div>
+      <div id="mp-activity" class="mp-activity">${who ? activityMarkup(view.activity ?? null) : ''}</div>
+      ${many ? switchMarkup(cards, at) : ''}
       <div id="stats-rail" class="stats-stage${many ? ' is-rail' : ''}"${many ? ' role="group" aria-label="Your careers, one a mode"' : ''}>${
-  cards.map((card, i) => slideMarkup(card, view.who ?? null, i === 0, i === at, view.password ?? null)).join('')}</div>
+  cards.map((card, i) => slideMarkup(card, i === 0, i === at, view.password ?? null)).join('')}</div>
       ${view.rivals && view.rivals.won + view.rivals.lost + view.rivals.drawn > 0 ? recordMarkup(view.rivals, 'RIVALS RECORD', 'is-stats') : ''}
       ${view.careerKey ? keyCardMarkup(view.careerKey) : ''}
       ${view.offerRestore ? `<p class="stats-note">Played before? ${restoreLinkMarkup('stats-restore', 'Bring your record back')}</p>` : ''}
@@ -100,20 +113,66 @@ export function statsSheetMarkup(view: StatsSheetView): string {
     </div>`;
 }
 
-/** The mode switch at the head: which card is in front, and the way to the others. */
+/** The rung's ground behind the page, one a mode; the one in front shows, and the others wait to crossfade in. */
+function stageMarkup(card: StatsSlide, i: number, on: boolean): string {
+  const { facts } = card;
+  return `<div class="mp-stage tier-${escape(facts.tier.key)} is-${escape(facts.mode)}${on ? ' is-on' : ''}" data-slide="${i}">${groundMarkup(facts.tier.key)}</div>`;
+}
+
+/**
+ * The hero, one a mode: their face free on the rung's ground with its badge,
+ * the name, the rung and what is left to the next, their line about
+ * themselves — or the way to write one — and three figures at a glance.
+ */
+function heroMarkup(card: StatsSlide, who: { name: string; avatar: number } | null, bio: string | null, i: number, on: boolean): string {
+  const { facts } = card;
+  const face = who ? kitMarkup(who.avatar, who.name) : '<span class="board-kit is-empty" aria-hidden="true"></span>';
+  const line = bio ? `<p class="ps-bio">“${escape(bio)}”</p>`
+    : who ? `<button type="button" class="mp-bio-add" data-bio-add><span aria-hidden="true">+</span><span>Add a line about you</span></button>` : '';
+  const place = (n: number | null | undefined) => (n ? `#${n}` : '—');
+  const glance = (value: string, label: string, tone = '') => `<div class="ps-glance-one${tone}"><b>${escape(value)}</b><span>${escape(label)}</span></div>`;
+  return `<header class="ps-hero mp-hero tier-${escape(facts.tier.key)} is-${escape(facts.mode)}${on ? ' is-on' : ''}" data-slide="${i}"${on ? '' : ' aria-hidden="true"'}>
+        <span class="ps-face">${face}<span class="ps-badge">${tierBadge(facts.tier.key, true, facts.tier.name)}</span></span>
+        <h3 class="ps-name">${escape(who?.name ?? 'Guest')}</h3>
+        <p class="ps-rung"><span class="ps-pill">${escape(rungName(facts.mode, facts))}</span><span>${escape(rungLine(facts.mode, facts))}</span></p>
+        ${line}
+        <div class="ps-glance">
+          ${glance(facts.ladder.measure.toLocaleString('en-US'), facts.mode === 'survive' ? 'balls faced' : `career ${measureName(facts.mode)}`)}
+          ${glance(place(card.place), BOARD_NAME[facts.mode] ?? facts.modeName, card.place ? ' is-place' : '')}
+          ${glance(place(card.rank), 'best rank')}
+        </div>
+      </header>`;
+}
+
+/** What the glance calls each mode's board. */
+const BOARD_NAME: Record<string, string> = { classic: 'The Blast', marathon: 'Marathon team', survive: 'Test Survival' };
+
+/**
+ * The career cards: the mode switch as three little cards, each the rung's
+ * badge and the career figure, so where the player stands in all three is
+ * seen before they tap. They keep the old dots' class and slide numbers, so
+ * the rail answers them as it always did.
+ */
 function switchMarkup(cards: StatsSlide[], at: number): string {
-  return `<div class="st-switch stats-dots" role="tablist" aria-label="Which mode">${cards.map((card, i) => `
-          <button class="stats-dot${i === at ? ' is-on' : ''}" type="button" role="tab" data-slide="${i}" aria-selected="${i === at}"
-            aria-label="${escape(card.facts.modeName)}"><span>${escape(SHORT[card.facts.mode] ?? card.facts.modeName)}</span></button>`).join('')}
+  return `<div class="st-switch stats-dots mp-modes" role="tablist" aria-label="Which mode">${cards.map((card, i) => {
+    const { facts } = card;
+    return `
+          <button class="stats-dot mp-mode${i === at ? ' is-on' : ''}" type="button" role="tab" data-slide="${i}" aria-selected="${i === at}"
+            aria-label="${escape(facts.modeName)}" style="--dot:${DOT[facts.mode] ?? DOT.classic}">
+            <span class="mp-mode-name"><i aria-hidden="true"></i>${escape((SHORT[facts.mode] ?? facts.modeName).toUpperCase())}</span>
+            <span class="mp-mode-figure">${tierBadge(facts.tier.key, true, facts.tier.name)}<span><b>${facts.ladder.measure.toLocaleString('en-US')}</b><small>${measureName(facts.mode)}</small></span></span>
+          </button>`;
+  }).join('')}
         </div>`;
 }
 
-/** One mode: the tier card, the road to the next tier, and six figures. */
-function slideMarkup(card: StatsSlide, who: { name: string; avatar: number } | null, first: boolean, live: boolean, password: { runs: number } | null): string {
+const DOT: Record<string, string> = { classic: '#3f88f2', marathon: '#1f8a55', survive: '#ff5a4e' };
+
+/** One mode: the password card where it is asked for, the road to the next tier, and six figures. */
+function slideMarkup(card: StatsSlide, first: boolean, live: boolean, password: { runs: number } | null): string {
   const { facts } = card;
   return `
       <div class="stats-slide" data-mode="${escape(facts.mode)}" role="group" aria-label="${escape(facts.modeName)}"${live ? ' data-live="1"' : ''}>
-        ${cardMarkup(facts, who, first)}
         ${password ? passwordCardMarkup({ place: 'stats', runs: password.runs, first }) : ''}
         ${roadToHitman(facts.mode, facts.ladder)}
         ${tilesMarkup(card)}

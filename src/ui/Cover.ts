@@ -39,8 +39,8 @@ export function profileChip(player: Player | null, id = 'cover-profile'): string
   const face = player
     ? `<img class="k-profile-face" src="${avatarSrc(player.avatar)}" alt="" width="36" height="36">`
     : `<span class="k-profile-face is-guest">${icon('user')}</span>`;
-  return `<button type="button" id="${id}" class="k-profile" aria-label="My stats${player ? `, ${escape(player.name)}` : ''}">
-    ${face}<span class="k-profile-text"><span class="k-profile-who">${player ? escape(player.name) : 'GUEST'}</span><span class="k-profile-what">My stats</span></span>
+  return `<button type="button" id="${id}" class="k-profile" aria-label="My profile${player ? `, ${escape(player.name)}` : ''}">
+    ${face}<span class="k-profile-text"><span class="k-profile-who">${player ? escape(player.name) : 'GUEST'}</span><span class="k-profile-what">My profile</span></span>
   </button>`;
 }
 
@@ -49,6 +49,7 @@ export type CoverBoard =
   | { kind: 'best'; runs: number; rank: number | null }
   | { kind: 'top'; runs: number; name: string }
   | { kind: 'recent'; runs: number; name: string; ago: number }
+  | { kind: 'beaten'; name: string; target: number; place: number | null; ago: number }
   | { kind: 'none' };
 
 /** Within this long a score is "just now"; within a day, "today". */
@@ -67,6 +68,12 @@ export function coverBoardLines(view: CoverBoard): string {
   if (view.kind === 'recent') {
     const now = view.ago < JUST_NOW_MS;
     return `<span id="best-label">${now ? 'JUST NOW' : 'TODAY'} · THE BLAST</span><strong id="best">${escape(view.name)} ${now ? 'just scored' : 'scored'} ${view.runs}${now ? '' : ' today'}</strong>`;
+  }
+  if (view.kind === 'beaten') {
+    const hours = Math.floor(view.ago / 3_600_000);
+    const ago = view.ago < JUST_NOW_MS ? 'JUST NOW' : hours < 24 ? `${Math.max(1, hours)}H AGO` : `${Math.floor(hours / 24)}D AGO`;
+    const place = view.place ? ` · you’re #${view.place}` : '';
+    return `<span id="best-label">BEAT YOUR BEST · ${ago}</span><strong id="best">${escape(view.name)} beat your ${view.target}${place}</strong>`;
   }
   return '<span id="best-label">LEADERBOARD · THE BLAST</span><strong id="best">Top 50 in every mode</strong>';
 }

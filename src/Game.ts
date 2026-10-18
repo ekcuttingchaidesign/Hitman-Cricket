@@ -1,5 +1,5 @@
 import { handleOf, ownsHandle } from './game/handle';
-import { fetchProfile } from './game/profile-api';
+import { fetchActivity, fetchProfile } from './game/profile-api';
 import { againLabel, beaten, close, placeOnPassing, verdict, type Chase, type Mine } from './game/chase';
 import { chaseStripMarkup } from './ui/ChaseUi';
 import { buzz } from './game/haptics';
@@ -761,6 +761,11 @@ export class Game {
     };
     // CHASE: their best is the target for the next innings of that mode, and
     // the store is told it was a chase when the innings is posted.
+    this.hud.onWinBack = event => {
+      this.mark('activity-win-back', 'Win it back from Your profile');
+      this.hud.closeStats();
+      this.hud.onPlayerChase?.({ handle: event.handle, name: event.name, avatar: event.avatar, mode: event.mode, target: event.runs, theirPlace: event.place ? event.place - 1 || 1 : null });
+    };
     this.hud.onPlayerChase = chase => {
       this.chase = chase;
       this.chaseFresh = true;
@@ -2537,9 +2542,27 @@ export class Game {
    * the fifty when they are on it, and asked of the store when they are below
    * it — or, with no best yet, the board's leader and their score to chase.
    */
+  /** A Blast best taken in the last day and not won back, from the player's activity, for the cover. */
+  private async takenLately(): Promise<CoverBoard | null> {
+    if (!this.player || !readPlayer()?.name) return null;
+    try {
+      const activity = await fetchActivity(this.player);
+      const now = Date.now();
+      const beat = activity.events.find(one => one.kind === 'beat' && one.mode === 'classic' && !one.wonBack && now - one.at < RECENT_MS);
+      return beat ? { kind: 'beaten', name: beat.name, target: beat.target, place: beat.place, ago: now - beat.at } : null;
+    } catch {
+      return null;
+    }
+  }
+
   private async quoteOnCover(rows: readonly BoardRow[]) {
     const top = rows[0];
     const lines: CoverBoard[] = [];
+    // Somebody who took the player's best in the last day leads: it is the
+    // one line on the cover that is about them, and it has a way to answer.
+    const taken = await this.takenLately();
+    if (this.disposed) return;
+    if (taken) lines.push(taken);
     if (this.best > 0) {
       const at = rows.findIndex(row => ownsHandle(row.handle, this.player));
       let rank: number | null = at >= 0 ? at + 1 : null;
@@ -2903,7 +2926,9 @@ export class Game {
         // rail is its full length from the first draw, which is what keeps the
         // player's place when the second one lands.
         draw({
-          cards: modes.map(one => ({ ...(this.mineSlides[one] ?? { facts, picture: null, failed: false }), rank: this.bestRank(one) })),
+          cards: modes.map(one => ({
+            ...(this.mineSlides[one] ?? { facts, picture: null, failed: false }), rank: this.bestRank(one), place: this.modeRanks[one] ?? null,
+          })),
           at,
           rivals: this.rooms?.record ?? null,
         });
@@ -3207,6 +3232,20 @@ export class Game {
    * widget leads. A place the player travelled to rather than a tab they
    * switched to, so it carries a way back and the board is not underneath it.
    */
+  /**
+   * What the player's profile has collected, asked for each time My profile
+   * opens: who looked, who chased and passed them, their bio. Only a named
+   * player has a profile, and a private window keeps nothing to show.
+   */
+  private async askActivity() {
+    const player = this.player;
+    if (!player || !readPlayer()?.name) { this.hud.statsActivity(null); return; }
+    try {
+      const activity = await fetchActivity(player);
+      if (!this.disposed && this.player === player) this.hud.statsActivity(activity);
+    } catch { /* My profile without its activity is still My profile. */ }
+  }
+
   private showStats = () => {
     this.mark('stats-open', 'Career card opened');
     const mode = this.careerMode;
@@ -3221,6 +3260,7 @@ export class Game {
       if (this.disposed || !this.statsPage) return;
       this.hud.stats(view);
     });
+    void this.askActivity();
     this.hud.onStatsBack = () => {
       this.statsPage = false;
       this.hud.onStatsBack = null;
@@ -4268,7 +4308,11 @@ export class Game {
     const improved = typeof result.improved === 'object' ? result.improved.team || result.improved.solo : !!result.improved;
     const by = typeof result.improved === 'object' ? { team: !!result.improved.team, solo: !!result.improved.solo } : null;
     if (result.standing) this.standing = { innings, mode: this.careerMode, standing: result.standing, improved, by };
-    if (innings === this.innings && this.phase === 'INNINGS_END') this.chaseCard(result);
+    if (innings === this.innings && this.phase === 'INNINGS_END') {
+      this.chaseCard(result);
+      // Who it went past and who is next, where no chase strip says it already.
+      this.hud.cardAround(this.chaseLive ? null : result.around ?? null);
+    }
   }
 
   /**
@@ -4539,6 +4583,7 @@ export class Game {
   private end() {
     this.setPhase('INNINGS_END');
     this.chaseCard();
+    this.hud.cardAround(null);
     this.countThisInnings();
     // Toward the end of a newcomer's help, by the same rule as the career: only
     // an innings finished counts, so walking out on one does not keep it going.

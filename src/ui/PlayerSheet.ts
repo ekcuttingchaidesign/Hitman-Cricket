@@ -85,13 +85,21 @@ export function playerSheetMarkup(view: PlayerSheetView): string {
 
 /** The rung's ground behind the face: its material, its light, and its mark. */
 export function playerStageMarkup(view: PlayerSheetView): string {
-  const tier = tierOf(view);
+  return `${groundMarkup(tierOf(view))}
+      <i class="lb-grab ps-grab" aria-hidden="true"></i>
+      <button id="player-close" type="button" class="k-icon-button ps-close" aria-label="Close">${icon('close')}</button>`;
+}
+
+/**
+ * A rung's ground: its material, its light and its mark, melting into the dark.
+ * The colours are the rung's, set on whatever holds it (`.ps-sheet` here, a
+ * stage of My profile there) by its `tier-` and mode classes.
+ */
+export function groundMarkup(tier: string): string {
   const art = tier === 'star' ? `<img class="ps-star" src="${STAR}" alt="" aria-hidden="true">`
     : tier === 'hitman' ? '<i class="ps-rings" aria-hidden="true"></i>'
     : tier === 'emerging' ? '<i class="ps-brush" aria-hidden="true"></i>' : '';
-  return `<div class="ps-stage" aria-hidden="true"><i class="ps-ground"></i>${art}<i class="ps-light"></i><i class="ps-sheen"></i><i class="ps-melt"></i></div>
-      <i class="lb-grab ps-grab" aria-hidden="true"></i>
-      <button id="player-close" type="button" class="k-icon-button ps-close" aria-label="Close">${icon('close')}</button>`;
+  return `<div class="ps-stage" aria-hidden="true"><i class="ps-ground"></i>${art}<i class="ps-light"></i><i class="ps-sheen"></i><i class="ps-melt"></i></div>`;
 }
 
 /** The career of the mode on show, as the stats card reads it, or null before the profile is in. */
@@ -113,12 +121,12 @@ function stageClass(view: PlayerSheetView): string {
 }
 
 /** The rung's name on the pill: the Marathon's carry TEST. */
-function rungName(mode: CareerMode, facts: StatsFacts): string {
+export function rungName(mode: CareerMode, facts: StatsFacts): string {
   return mode === 'marathon' ? `TEST ${facts.tier.short.toUpperCase()}` : facts.tier.name;
 }
 
 /** What is left to the next rung, in the mode's own figure. */
-function rungLine(mode: CareerMode, facts: StatsFacts): string {
+export function rungLine(mode: CareerMode, facts: StatsFacts): string {
   if (facts.ladder.granted) return facts.ladder.granted.reason;
   const { next, toNext } = facts.ladder;
   if (!next || toNext === null) return 'Top of the game';
