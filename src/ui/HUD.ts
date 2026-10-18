@@ -494,6 +494,7 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
                     <div class="k-rank-who k-t-overline"><span id="card-board-who"></span><span id="card-board-first" class="k-rank-first k-t-tag hidden">First innings</span></div>
                     <p class="card-board-head k-rank-line k-t-lead" id="card-board-head"></p>
                     <p id="card-board-sub" class="k-rank-best k-t-small hidden"></p>
+                    <p id="card-board-passed" class="k-rank-passed hidden"></p>
                     <div id="card-peek"></div>
                   </div>
                 </div>
@@ -1281,15 +1282,22 @@ ${modeSelectMarkup()}
    */
   cardAround(around: { passed: { name: string; avatar: number }[]; passedCount: number; next: { name: string; avatar: number; runs: number; place: number } | null } | null) {
     const slot = this.$('card-around');
+    const line = this.$('card-board-passed');
     const passed = around && around.passedCount > 0 ? around.passed : [];
     const next = around?.next ?? null;
-    if (!passed.length && !next) { slot.innerHTML = ''; slot.classList.add('hidden'); return; }
-    const others = around!.passedCount - passed.length;
+    // Who it went past is part of what changed, so it is a quiet line under
+    // the place rather than a row of its own.
+    const others = passed.length ? around!.passedCount - passed.length : 0;
     const names = passed.map(one => `<b>${escape(one.name)}</b>`);
-    const said = others > 0 ? `${names.join(', ')} and ${others} other${others === 1 ? '' : 's'}` : names.join(' and ');
-    slot.innerHTML = `${passed.length ? `<p class="ca-row is-passed"><span class="ca-faces">${passed.map(one => kitMarkup(one.avatar, one.name)).join('')}${others > 0 ? `<i>+${others}</i>` : ''}</span><span>You passed ${said}</span></p>` : ''}
-      ${next ? `<button id="card-next" type="button" class="ca-row is-next">${kitMarkup(next.avatar, next.name)}<span>Next: <b>${escape(next.name)}</b> · <em>beat ${next.runs.toLocaleString('en-US')}</em></span><small>#${next.place}</small>${kitIcon('chevron-right')}</button>` : ''}`;
-    slot.classList.remove('hidden');
+    line.innerHTML = !passed.length ? ''
+      : `Passed ${others > 0 ? `${names.join(', ')} and ${others} other${others === 1 ? '' : 's'}` : names.join(' and ')}`;
+    line.classList.toggle('hidden', !passed.length);
+    // Who is next is the one thing on the card to act on: a row of its own.
+    slot.innerHTML = next ? `<button id="card-next" type="button" class="ca-next">
+        <span class="ca-next-face">${kitMarkup(next.avatar, next.name)}</span>
+        <span class="ca-next-text"><small>NEXT UP · #${next.place}</small><b>${escape(next.name)}</b></span>
+        <span class="ca-next-goal"><small>BEAT</small><b>${next.runs.toLocaleString('en-US')}</b></span>${kitIcon('chevron-right')}</button>` : '';
+    slot.classList.toggle('hidden', !next);
     document.getElementById('card-next')?.addEventListener('click', () => document.getElementById('claim')?.click());
   }
 
@@ -2737,6 +2745,9 @@ ${modeSelectMarkup()}
       ? `<img class="k-rank-avatar" src="${avatarSrc(known.avatar)}" alt="" width="48" height="48">`
       : `<span class="k-rank-avatar is-guest">${kitIcon('user')}</span>`;
     this.$('card-board-who').textContent = known ? known.name : 'GUEST';
+    // A named player's card is about the place, not who they are: the name
+    // over it says nothing the face does not.
+    this.viewport.querySelector('.ec-player')?.classList.toggle('is-named', !!known);
     const note = this.cardNote;
     this.$('card-board-first').classList.toggle('hidden', !note?.first || offer.kind === 'standing');
     const sub = this.$('card-board-sub');

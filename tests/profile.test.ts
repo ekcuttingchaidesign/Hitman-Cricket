@@ -113,6 +113,14 @@ describe('afterPost', () => {
     expect((await on.players.events(A)).filter(one => one.kind === 'passed')).toEqual([]);
   });
 
+  it('judges a chase of a player whose handle was never noted', async () => {
+    const on = await board();
+    (on.players as ReturnType<typeof memoryPlayers>).clear();
+    const { extras } = await post(on, 'Esha', 101, handleOf(A));
+    expect(extras.chase).toMatchObject({ name: 'Arjun', beat: true });
+    expect((await on.players.events(A))[0]).toMatchObject({ kind: 'beat' });
+  });
+
   it('ignores a chase of nobody, and of yourself', async () => {
     const on = await board();
     expect((await post(on, 'Esha', 65, '0123456789abcdef')).extras.chase).toBeUndefined();
@@ -165,6 +173,14 @@ describe('readProfile', () => {
     await readProfile(on, handleOf(B), '0123456789abcdef');
     await readProfile(on, handleOf(B), undefined);
     expect((await readActivity(on.players, B))?.views).toBe(1);
+  });
+
+  it('finds a player on a board whose handle was never noted, and notes it', async () => {
+    const on = await board();
+    (on.players as ReturnType<typeof memoryPlayers>).clear();
+    expect(await on.players.idOf(handleOf(B))).toBeNull();
+    expect((await readProfile(on, handleOf(B), undefined))?.name).toBe('Bela');
+    expect(await on.players.idOf(handleOf(B))).toBe(B);
   });
 
   it('is nobody for a handle never seen', async () => {

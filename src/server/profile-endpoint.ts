@@ -137,7 +137,7 @@ export async function profileRequest(stores: ProfileStores, request: ProfileRequ
 export async function readProfile(
   stores: ProfileStores, handle: string, viewer: unknown, now = Date.now(),
 ): Promise<ProfilePayload | null> {
-  const id = await stores.players.idOf(handle);
+  const id = await stores.players.idOf(handle) ?? await findHandle(stores, handle);
   if (!id) return null;
   const { boards, careers } = stores;
   const [classic, survive, marathon, bio] = await Promise.all([
@@ -158,6 +158,39 @@ export async function readProfile(
     lastAt: at.length ? Math.max(...at) : null,
     modes: { classic: classic.view, survive: survive.view, marathon: marathon.view },
   };
+}
+
+/** How far down each board a handle is looked for: every row a board shows. */
+export const FIND_DEPTH = 50;
+
+/**
+ * The player behind a handle the store has not noted, found the long way and
+ * then noted. A row can only be tapped on a board that shows it, and a board
+ * shows its top fifty, so hashing the ids at the top of every innings board
+ * and every career ladder finds anybody who can be opened — players who last
+ * wrote before handles were kept included — at a few commands and a few
+ * hundred hashes, once. Null for a handle on none of them.
+ */
+export async function findHandle(stores: ProfileStores, handle: string): Promise<string | null> {
+  const { boards, careers } = stores;
+  const tops = await Promise.all([
+    ...[boards.classic, boards.survive, boards.team, boards.solo].map(board => (board as Pick<BoardStore<unknown>, 'top'>).top(FIND_DEPTH)),
+    ...BLAST_CAREER.boards.map(board => careers.classic.top(board.key, FIND_DEPTH)),
+    ...SURVIVE_CAREER.boards.map(board => careers.survive.top(board.key, FIND_DEPTH)),
+    ...MARATHON_CAREER.boards.map(board => careers.marathon.top(board.key, FIND_DEPTH)),
+  ]);
+  const seen = new Set<string>();
+  for (const top of tops) {
+    for (const { id } of top) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      if (handleOf(id) === handle) {
+        await stores.players.rememberHandle(handle, id).catch(() => undefined);
+        return id;
+      }
+    }
+  }
+  return null;
 }
 
 /** One mode: the career, the first board's best and place, and the best place on any of its ladders. */
@@ -274,7 +307,7 @@ export async function afterPost(stores: ProfileStores, posted: Posted, now = Dat
       const solo = marathon && posted.chaseLadder === 'solo' && Number.isFinite(posted.soloRuns);
       const ladder = (solo ? stores.boards.solo : board) as Pick<BoardStore<{ runs: number }>, 'rows' | 'standing'>;
       const runs = solo ? posted.soloRuns! : posted.runs;
-      const target = await stores.players.idOf(posted.chase);
+      const target = await stores.players.idOf(posted.chase) ?? await findHandle(stores, posted.chase);
       const [row] = target ? await ladder.rows([target]) : [null];
       if (target && row) {
         chased = target;

@@ -174,7 +174,7 @@ await page.waitForSelector('#chase-passed', { timeout: 4000 });
 await page.waitForTimeout(600);
 await page.screenshot({ path: `${out}/b3-passed.png` });
 check(await page.locator('#chase-passed .ch-stamp span').textContent() === second.toUpperCase(), 'going past it stamps PASSED with their name');
-check((await page.locator('.ch-chip.is-done').count()) === 1, 'and the chip turns to say so');
+check((await page.locator('.ch-chip').count()) === 0, 'and the chip under the scoreboard goes: the chase is done');
 await page.waitForTimeout(2000);
 await write(['W']);
 await page.waitForSelector('.ch-strip.is-beat', { timeout: 8000 });
@@ -249,6 +249,59 @@ check(events.events?.[0]?.kind === 'beat' && events.events[0].runs === 174, 'and
   await them.waitForSelector('#chase-intro', { timeout: 8000 });
   check((await them.locator('.ch-intro-target b').getAttribute('data-to')) === '174', 'WIN IT BACK chases the runs that took it');
   await theirs.close();
+}
+
+// C3: an ordinary innings's end card, for a named player who climbed: where
+// they are, who they passed under it, and who is next as one row.
+{
+  const own = await browser.newContext({ viewport: { width: 402, height: 874 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  const me = await own.newPage();
+  me.on('pageerror', e => errors.push(`[climber] ${e.message}`));
+  await me.addInitScript(name => {
+    try {
+      localStorage.setItem('hitman-seen', new Date(Date.now() - 172_800_000).toISOString().slice(0, 10));
+      localStorage.setItem('hitman-shots-intro', 'done');
+      localStorage.setItem('hitman-profile', '1');
+      localStorage.setItem('hitman-batter', JSON.stringify({ name, avatar: 2 }));
+    } catch { /* The screens it skips stand in the way. */ }
+  }, `Pclimb${run}`);
+  await me.goto(`${base}/?debug=1&private=0`, { waitUntil: 'load' });
+  await me.waitForTimeout(2000);
+  await me.addStyleTag({ content: '#debug{display:none!important}' });
+  const snap = () => me.evaluate(() => window.__cricket.snapshot());
+  await me.locator('#start').click({ force: true });
+  for (let i = 0; i < 40 && (await snap()).phase !== 'READY'; i++) {
+    const done = me.locator('#whatsnew-done');
+    if (await done.isVisible().catch(() => false)) await done.click({ force: true }).catch(() => {});
+    const pick = me.locator('#mode-classic');
+    if (await pick.isVisible().catch(() => false)) await pick.click({ force: true }).catch(() => {});
+    await me.waitForTimeout(300);
+  }
+  // A first innings of 66 for none, then a second of 170 that climbs past the both of them.
+  const writeHere = async balls => {
+    for (let i = 0; i < 60; i++) {
+      if (await me.evaluate(b => window.__cricket.snapshot().phase === 'READY' && window.__cricket.blast(b), balls)) return true;
+      await me.waitForTimeout(150);
+    }
+    return false;
+  };
+  await writeHere([...Array(11).fill(6), ...Array(19).fill(0)]);
+  await me.waitForSelector('#card-board-head', { timeout: 10_000 });
+  await me.waitForTimeout(11_000);
+  await me.locator('#again').click();
+  await me.waitForTimeout(800);
+  await writeHere([...Array(28).fill(6), 2, 0]);
+  for (let i = 0; i < 30 && !(await me.locator('#card-board-passed:not(.hidden)').count()); i++) await me.waitForTimeout(300);
+  await me.waitForTimeout(800);
+  await me.locator('.ec-player').scrollIntoViewIfNeeded();
+  await me.screenshot({ path: `${out}/c3-endcard.png` });
+  const passedLine = await me.locator('#card-board-passed').innerText().catch(() => '');
+  check(/^Passed /.test(passedLine), 'C3 · who the innings went past is a quiet line under the place', passedLine);
+  check(await me.locator('.ca-next').count() === 1, 'C3 · and who is next is one row of its own');
+  const round = await me.locator('.ca-next-face .board-kit').evaluate(n => { const r = n.getBoundingClientRect(); return Math.abs(r.width - r.height) < 1; });
+  check(round, 'C3 · with a round face, not an oval');
+  check(!(await me.locator('#card-board-who').isVisible()), 'C3 · and no name over the player’s own face');
+  await own.close();
 }
 
 check(errors.length === 0, 'no page errors', errors.join('\n'));

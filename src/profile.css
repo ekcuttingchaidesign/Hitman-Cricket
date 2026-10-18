@@ -309,3 +309,33 @@
 
 /* The Test Marathon's second target, under its six. */
 .ps-alt{display:block;margin:calc(var(--u) * 16) auto 0;padding:calc(var(--u) * 6);border:0;background:none;color:#ff9a6e;font:700 calc(var(--u) * 13)/1.3 var(--f-ui);text-decoration:underline;text-underline-offset:3px}
+
+/* The end card's player card, redrawn for one read: where you are, what
+   changed (and who you passed, as part of it), then who is next as the one
+   thing to act on, then the doors. A named player's name is not repeated
+   over their own face. */
+.ec-player.is-named #card-board-who{display:none}
+.ec-player.is-named .k-rank-who:not(:has(.k-rank-first:not(.hidden))){display:none}
+.ec-player.is-named .ec-rank{align-items:center}
+.k-rank-passed{margin:0;font:500 calc(var(--u) * 12.5)/1.35 var(--f-ui);color:var(--c-text-3);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.k-rank-passed b{color:var(--c-text-2);font-weight:700}
+.k-rank-passed.hidden{display:none}
+.card-around{margin:0 calc(var(--u) * -16);border-top:1px solid #ffffff12}
+.ca-next{display:flex;align-items:center;gap:calc(var(--u) * 12);width:100%;min-height:calc(var(--u) * 60);margin:0;padding:calc(var(--u) * 8) calc(var(--u) * 16);
+  border:0;background:none;color:var(--c-text);text-align:left;font:inherit}
+.ca-next:active{background:#ffffff08}
+.ca-next-face{flex:none;line-height:0}
+.ca-next-face .board-kit{width:calc(var(--u) * 36);height:calc(var(--u) * 36);box-shadow:0 0 0 2px #ffffff26}
+.ca-next-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ca-next-text small{font:700 calc(var(--u) * 10)/1.2 var(--f-ui);letter-spacing:.12em;color:var(--c-text-3)}
+.ca-next-text b{font:700 calc(var(--u) * 15)/1.25 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ca-next-goal{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.ca-next-goal small{font:700 calc(var(--u) * 10)/1.2 var(--f-ui);letter-spacing:.12em;color:var(--c-text-3)}
+.ca-next-goal b{font:900 calc(var(--u) * 18)/1.1 var(--f-ui);color:var(--c-accent)}
+.ca-next>.k-icon{flex:none;width:calc(var(--u) * 16);height:calc(var(--u) * 16);color:var(--c-text-3)}
+/* No light sweeping the doors on the end card: the card is read, not sold. */
+.ec-screen .career-widget::after{display:none}
+/* A face is a circle wherever a row stretches its words to fill the line. */
+.ch-strip-row .board-kit,.ca-row .board-kit,.mp-row .board-kit,.mp-news-face .board-kit{flex:none}
+.ch-strip-row>span:not(.board-kit){flex:1;min-width:0}
+.ch-strip-row span.board-kit{flex:none}

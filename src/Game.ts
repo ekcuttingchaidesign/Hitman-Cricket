@@ -3062,6 +3062,8 @@ export class Game {
   private chaseBall(outcome: ShotOutcome) {
     const chase = this.chaseLive;
     if (!chase) return;
+    // Passed and celebrated, the chase has nothing left to say in play.
+    if (this.chasePassed && !this.chasePassDue) { this.hud.chaseChip(null); return; }
     const runs = this.chaseRuns;
     const place = this.chasePassed || beaten(chase, runs) ? placeOnPassing(chase, this.chaseMine()) : null;
     const beat = outcome.runs >= 4 ? 'boundary' : outcome.runs > 0 || close(chase, runs) ? 'scored' : 'none';
@@ -3081,6 +3083,8 @@ export class Game {
     this.celebrating = Math.max(this.celebrating, lasts);
     const place = placeOnPassing(chase, this.chaseMine());
     this.hud.chasePassed(chase, this.chaseRuns, { avatar: readPlayer()?.avatar ?? null }, place, CHASE_MODE_NAMES[chase.mode], lasts);
+    // The moment says it; the chip under the scoreboard goes with it.
+    this.hud.chaseChip(null);
     buzz([0, 40, 30, 90]);
     this.audio.cheer(boundaryCheer(6, 1, this.test));
     this.mark('chase-passed', 'Chase: passed the target');
