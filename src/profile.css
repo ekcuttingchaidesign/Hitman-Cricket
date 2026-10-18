@@ -306,3 +306,6 @@
   color:var(--c-text);font:600 calc(var(--u) * 13)/1 var(--f-ui)}
 .bio-problem{display:flex;gap:calc(var(--u) * 8);margin:0;font:700 calc(var(--u) * 12.5)/1.4 var(--f-ui);color:#ff6a5e}
 .bio-problem.hidden{display:none}
+
+/* The Test Marathon's second target, under its six. */
+.ps-alt{display:block;margin:calc(var(--u) * 16) auto 0;padding:calc(var(--u) * 6);border:0;background:none;color:#ff9a6e;font:700 calc(var(--u) * 13)/1.3 var(--f-ui);text-decoration:underline;text-underline-offset:3px}

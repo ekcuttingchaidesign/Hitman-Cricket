@@ -21,6 +21,8 @@ export interface Chase {
   theirPlace?: number | null;
   /** Their rung, for the intro's line under their face. */
   theirRung?: string | null;
+  /** A Test Marathon chasing their best batter's innings rather than their side's total. */
+  ladder?: 'solo';
 }
 
 /** What the player brings to it: their own best and place in the mode, where they have them. */

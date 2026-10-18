@@ -85,7 +85,7 @@ import { BATTERS, type LevelBanner } from '../config/marathon';
 import { resultOf, type Result } from '../game/Survive';
 import type { SoundSetting } from '../game/Audio';
 import type { CareerMode } from '../game/career';
-import { chaseStanding, chaseTarget, playedMode, playerSheetMarkup, type PlayerSeed, type PlayerSheetView } from './PlayerSheet';
+import { chaseStanding, chaseTarget, playedMode, playerSheetMarkup, soloOf, type PlayerSeed, type PlayerSheetView } from './PlayerSheet';
 import { cachedProfile, type ProfilePayload } from '../game/profile-api';
 import { chipLine, type Chase, type Mine } from '../game/chase';
 import { chaseChipMarkup, chaseIntroMarkup, passedMarkup } from './ChaseUi';
@@ -1070,6 +1070,15 @@ ${modeSelectMarkup()}
       this.onPlayerChase?.({
         handle, name: open.view.profile?.name ?? name, avatar: open.view.profile?.avatar ?? avatar, mode: open.view.mode, target,
         ...chaseStanding(open.view),
+      });
+    });
+    sheet.querySelector<HTMLElement>('#player-chase-solo')?.addEventListener('click', () => {
+      const solo = soloOf(open.view);
+      if (!solo) return;
+      const { handle, name, avatar } = open.view.seed;
+      this.onPlayerChase?.({
+        handle, name: open.view.profile?.name ?? name, avatar: open.view.profile?.avatar ?? avatar, mode: 'marathon', target: solo.runs,
+        ladder: 'solo', theirPlace: open.view.profile?.modes.marathon.solo?.place ?? null, theirRung: chaseStanding(open.view).theirRung,
       });
     });
     // Swiped across, the next mode; pulled down by the top half, put away.

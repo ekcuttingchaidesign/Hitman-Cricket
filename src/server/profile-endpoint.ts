@@ -57,6 +57,8 @@ export interface ProfileModeView<C> {
   best: { runs: number; place: number; total: number } | null;
   /** The best place they hold on any of the mode's ladders. */
   bestRank: number | null;
+  /** The Test Marathon's other target: their best innings by one batter, and its place. */
+  solo?: { runs: number; out: boolean; place: number } | null;
 }
 
 /** What `GET /api/profile?handle=` answers with. */
@@ -171,18 +173,21 @@ async function modeView<C, T>(
   const first = standings[0];
   const [row] = first.rank !== null ? await innings[0].rows([id]) : [null];
   const all = [...places, ...standings.map(one => one.rank)].filter((place): place is number => !!place && place > 0);
+  const second = standings[1];
+  const [solo] = second && second.rank !== null ? await innings[1].rows([id]) as ({ runs: number; out?: boolean } | null)[] : [null];
   const view: ProfileModeView<C> = {
     career: held ? ladder.figures(held.career) : null,
     granted: held?.granted ?? null,
     best: row && first.rank !== null ? { runs: row.runs, place: first.rank, total: first.total } : null,
     bestRank: all.length ? Math.min(...all) : null,
+    ...(innings.length > 1 ? { solo: solo && second.rank !== null ? { runs: solo.runs, out: !!solo.out, place: second.rank } : null } : {}),
   };
   return { held, view };
 }
 
 /** A name and kit off the boards, for a player whose careers carry none. */
 async function firstRow(stores: ProfileStores, id: string) {
-  for (const board of [stores.boards.classic, stores.boards.survive, stores.boards.team] as Pick<BoardStore<unknown>, 'rows'>[]) {
+  for (const board of [stores.boards.classic, stores.boards.survive, stores.boards.team, stores.boards.solo] as Pick<BoardStore<unknown>, 'rows'>[]) {
     const [row] = await board.rows([id]);
     if (row) return row;
   }
@@ -229,6 +234,10 @@ export interface Posted {
   outcome: SubmitAccepted<unknown> | MarathonAccepted;
   /** The handle the innings was played to chase, if it was. */
   chase?: unknown;
+  /** `solo`: a Test Marathon chasing their best batter rather than their side. */
+  chaseLadder?: unknown;
+  /** The innings's best by one batter, for a chase of the Batters ladder. */
+  soloRuns?: number;
 }
 
 /** How many of those an innings went past are told so. */
@@ -255,20 +264,24 @@ export async function afterPost(stores: ProfileStores, posted: Posted, now = Dat
       around: { passed: around.passed.slice(0, 2).map(publicOf), passedCount: around.passedCount, next: around.next && publicOf(around.next) },
     };
 
-    const event = (kind: ActivityEvent['kind'], target: number, place: number | null): ActivityEvent => ({
+    const event = (kind: ActivityEvent['kind'], target: number, place: number | null, runs = posted.runs): ActivityEvent => ({
       kind, handle: handleOf(posted.playerId), name: cleanName(posted.name), avatar: posted.avatar,
-      mode: posted.mode, runs: posted.runs, target, place, at: now,
+      mode: posted.mode, runs, target, place, at: now,
     });
     let chased: string | null = null;
     if (isHandle(posted.chase) && posted.chase !== handleOf(posted.playerId)) {
+      // A Test Marathon can chase either ladder: the side's total, or the best batter's.
+      const solo = marathon && posted.chaseLadder === 'solo' && Number.isFinite(posted.soloRuns);
+      const ladder = (solo ? stores.boards.solo : board) as Pick<BoardStore<{ runs: number }>, 'rows' | 'standing'>;
+      const runs = solo ? posted.soloRuns! : posted.runs;
       const target = await stores.players.idOf(posted.chase);
-      const [row] = target ? await board.rows([target]) : [null];
+      const [row] = target ? await ladder.rows([target]) : [null];
       if (target && row) {
         chased = target;
-        const beat = posted.runs > row.runs;
-        const place = (await board.standing(target)).rank;
-        await noteEvent(stores.players, target, event(beat ? 'beat' : 'short', row.runs, place));
-        extras.chase = { handle: posted.chase, name: row.name, target: row.runs, runs: posted.runs, beat };
+        const beat = runs > row.runs;
+        const place = (await ladder.standing(target)).rank;
+        await noteEvent(stores.players, target, event(beat ? 'beat' : 'short', row.runs, place, runs));
+        extras.chase = { handle: posted.chase, name: row.name, target: row.runs, runs, beat };
       }
     }
     await Promise.all(around.passed.slice(0, PASSED_TOLD)

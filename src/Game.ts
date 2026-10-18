@@ -772,8 +772,8 @@ export class Game {
       this.chaseFresh = true;
       this.chaseWon = false;
       this.chaseNext = null;
-      chaseFor(chase.handle, chase.mode);
-      this.mark('chase-start', 'Chase: started from a profile');
+      chaseFor(chase.handle, chase.mode, chase.ladder);
+      this.mark(chase.ladder === 'solo' ? 'chase-start-batter' : 'chase-start', 'Chase: started from a profile');
       this.hud.closeBoard();
       this.choose(chase.mode === 'classic' ? 'CLASSIC' : chase.mode === 'marathon' ? 'MARATHON' : 'SURVIVE');
     };
@@ -3004,7 +3004,11 @@ export class Game {
   }
 
   /** The runs a chase is judged on: the innings's, the side's in a Marathon. */
-  private get chaseRuns() { return this.score.runs; }
+  private get chaseRuns() {
+    // Chasing their best batter, it is the best of this side's three that counts.
+    if (this.chase?.ladder === 'solo' && this.marathon) return Math.max(0, ...marathonFigures(this.marathon).batters.map(one => one.runs));
+    return this.score.runs;
+  }
 
   /** Balls left, where the innings is counted in them. */
   private get chaseBallsLeft() { return this.careerMode === 'classic' ? GAME.totalBalls - this.score.balls : null; }
@@ -3038,7 +3042,7 @@ export class Game {
     if (this.chase && (this.chase.mode !== this.careerMode || this.challenge.playing)) this.clearChase();
     const chase = this.chaseLive;
     if (!chase) { this.hud.chaseChip(null); return; }
-    chaseFor(chase.handle, chase.mode);
+    chaseFor(chase.handle, chase.mode, chase.ladder);
     this.hud.chaseChip(chase, 0, this.chaseBallsLeft);
     if (!this.chaseFresh) return;
     this.chaseFresh = false;

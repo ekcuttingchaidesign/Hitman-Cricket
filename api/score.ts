@@ -14,7 +14,7 @@ import {
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 import type { Innings } from '../src/game/leaderboard.js';
 import type { SurviveInnings } from '../src/game/survive-board.js';
-import { readMarathonFigures, teamOf, type MarathonFigures } from '../src/game/marathon-board.js';
+import { readMarathonFigures, soloOf, teamOf, type MarathonFigures } from '../src/game/marathon-board.js';
 import { afterPost } from '../src/server/profile-endpoint.js';
 import { modeAsked } from '../src/server/mode.js';
 
@@ -121,6 +121,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const runs = marathonInnings ? teamOf(marathonInnings).runs : (surviveInnings ?? blastInnings).runs;
     const extras = await afterPost(upstashProfiles(write), {
       playerId: who.playerId, name: who.name, avatar: who.avatar, mode, runs, outcome, chase: body.chase,
+      chaseLadder: body.chaseLadder, soloRuns: marathonInnings ? soloOf(marathonInnings).runs : undefined,
     });
     // A submission is never cached, by anyone, ever.
     res.setHeader('Cache-Control', 'no-store');

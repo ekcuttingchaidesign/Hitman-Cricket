@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GAME } from '../src/config/gameplay';
 import { plausible, type Innings } from '../src/game/leaderboard';
 import { handleOf } from '../src/game/handle';
-import { CLASSIC_LADDER, aroundAfter, submitScore, type SubmitAccepted } from '../src/server/board-store';
+import { CLASSIC_LADDER, aroundAfter, submitScore, type MarathonAccepted, type SubmitAccepted } from '../src/server/board-store';
 import { memoryStore } from '../src/server/memory-store';
 import { memoryCareer } from '../src/server/memory-career';
 import { memoryPlayers, readActivity, rememberHandle } from '../src/server/player-store';
@@ -10,7 +10,7 @@ import {
   afterPost, profileRefused, profileRequest, readOwnActivity, readProfile, type ProfileStores,
 } from '../src/server/profile-endpoint';
 import type { SurviveInnings } from '../src/game/survive-board';
-import type { SoloInnings, TeamInnings } from '../src/game/marathon-board';
+import { packSolo, type SoloInnings, type TeamInnings } from '../src/game/marathon-board';
 import type { BlastCareer, MarathonCareer, SurviveCareer } from '../src/game/career';
 
 /** An innings that adds up, as `board-store.test.ts` builds one: sixes, singles, a wicket, dots. */
@@ -201,5 +201,21 @@ describe('profileRequest', () => {
     expect(profileRefused(bad) && bad.status).toBe(400);
     const missing = await profileRequest(on, { method: 'GET', query: { handle: '0123456789abcdef' }, address: 'x' });
     expect(profileRefused(missing) && missing.status).toBe(404);
+  });
+});
+
+describe("the Test Marathon's best-batter chase", () => {
+  it("is judged on the innings's best batter against their best batter, and says so on the profile", async () => {
+    const on = stores();
+    const solo = (runs: number) => ({ runs, balls: runs, out: true, order: 1, left: false });
+    await on.boards.solo.record(A, packSolo(solo(141), Date.now()), { ...solo(141), name: 'Arjun', avatar: 1, at: Date.now() });
+    await rememberHandle(on.players, A);
+    const nothing = { rank: null, score: null, total: 0, was: null };
+    const outcome = { ok: true, improved: { team: false, solo: false }, score: { team: 0, solo: 0 }, at: Date.now(), board: {} as MarathonAccepted['board'], standing: { team: nothing, solo: nothing } } as MarathonAccepted;
+    const extras = await afterPost(on, { playerId: E, name: 'Esha', avatar: 1, mode: 'marathon', runs: 300, soloRuns: 150, outcome, chase: handleOf(A), chaseLadder: 'solo' });
+    expect(extras.chase).toEqual({ handle: handleOf(A), name: 'Arjun', target: 141, runs: 150, beat: true });
+    expect((await on.players.events(A))[0]).toMatchObject({ kind: 'beat', mode: 'marathon', runs: 150, target: 141 });
+    // And their profile offers it, under the Marathon's six.
+    expect((await readProfile(on, handleOf(A), undefined))?.modes.marathon.solo).toEqual({ runs: 141, out: true, place: 1 });
   });
 });

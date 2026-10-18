@@ -78,6 +78,7 @@ export function playerSheetMarkup(view: PlayerSheetView): string {
         ${heroMarkup(view)}
         ${view.modes.length > 1 ? switchMarkup(view) : ''}
         <div id="player-body" class="ps-body">${bodyMarkup(view)}</div>
+        ${soloLinkMarkup(view)}
       </div>
       <div class="ps-foot">${target !== null ? cta({ kind: 'primary', label: chaseLabel(view.seed.name, target), id: 'player-chase', wide: true, moving: true }) : ''}</div>
     </section>`;
@@ -227,6 +228,16 @@ function tileMarkup(value: string, label: string, target: boolean, i: number, ra
   const classes = ['ps-tile', target ? 'is-target' : '', rank ? 'is-rank' : ''].filter(Boolean).join(' ');
   return `<${tag} class="${classes}" style="--i:${i}"${said ? ` type="button" data-stat="${escape(label)}"` : ''}>
           ${target ? `<i class="ps-aim" aria-label="What a chase aims at">${AIM}</i>` : ''}<b>${escape(value)}</b><span>${escape(label)}</span></${tag}>`;
+}
+
+/** The Test Marathon's second target, under its six: their best by one batter. */
+export function soloOf(view: Pick<PlayerSheetView, 'mode' | 'state' | 'profile'>): { runs: number; out: boolean } | null {
+  return view.mode === 'marathon' && view.state === 'ready' ? view.profile?.modes.marathon.solo ?? null : null;
+}
+function soloLinkMarkup(view: PlayerSheetView): string {
+  const solo = soloOf(view);
+  if (!solo) return '';
+  return `<button id="player-chase-solo" type="button" class="ps-alt">or chase the best batter, ${grouped(solo.runs)}${solo.out ? '' : '*'}</button>`;
 }
 
 /** The crosshair on the figure a chase aims at. */

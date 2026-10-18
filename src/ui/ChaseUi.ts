@@ -25,7 +25,7 @@ export function chaseIntroMarkup(chase: Chase, mine: Mine, you: { avatar: number
       <div class="ch-intro-head">
         <i class="ch-chevrons" aria-hidden="true"></i>
         <p class="ch-intro-eyebrow"><span>CHASE · ${mode.name}</span><small>${mode.facts}</small></p>
-        <h2 id="chase-intro-title" class="ch-intro-target"><b class="ch-count" data-to="${chase.target}">${grouped(chase.target)}</b><span><em>TO BEAT</em><small>${escape(chase.name)}’s best innings</small></span></h2>
+        <h2 id="chase-intro-title" class="ch-intro-target"><b class="ch-count" data-to="${chase.target}">${grouped(chase.target)}</b><span><em>TO BEAT</em><small>${escape(chase.name)}’s ${chase.ladder === 'solo' ? 'best batter' : 'best innings'}</small></span></h2>
       </div>
       <div class="ch-intro-body">
         <div class="ch-versus">

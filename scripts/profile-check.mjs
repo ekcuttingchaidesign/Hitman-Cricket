@@ -201,7 +201,12 @@ check(events.events?.[0]?.kind === 'beat' && events.events[0].runs === 174, 'and
   }, { id: secondId, name: second });
   await them.goto(`${base}/?debug=1&private=0`, { waitUntil: 'load' });
   await them.waitForTimeout(2500);
-  const coverLines = await them.locator('#cover-board').innerText().catch(() => '');
+  // The widget turns its lines over every few seconds: watch it for one round.
+  let coverLines = '';
+  for (let i = 0; i < 40 && !/BEAT YOUR BEST/.test(coverLines); i++) {
+    coverLines = await them.locator('#cover-board').innerText().catch(() => '');
+    if (!/BEAT YOUR BEST/.test(coverLines)) await them.waitForTimeout(300);
+  }
   check(/BEAT YOUR BEST/.test(coverLines), 'the cover leads with the best that was taken', coverLines.replace(/\s+/g, ' ').slice(0, 120));
   await them.click('#cover-profile');
   await them.waitForSelector('.mp-hero.is-on', { timeout: 15_000 });

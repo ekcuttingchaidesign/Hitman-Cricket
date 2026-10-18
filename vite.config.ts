@@ -32,7 +32,7 @@ import { forgetHeader, ticketFrom, ticketHeader } from './src/server/return-tick
 import { modeAsked } from './src/server/mode';
 import { memoryPlayers, rememberHandle } from './src/server/player-store';
 import { afterPost, profileRefused, profileRequest, type ProfileStores } from './src/server/profile-endpoint';
-import { teamOf } from './src/game/marathon-board';
+import { soloOf, teamOf } from './src/game/marathon-board';
 
 /**
  * The board's endpoints, served by the dev server.
@@ -354,6 +354,7 @@ function boardEndpoints(): Plugin {
             if (refused(taken)) return turnedDown(taken);
             const marathonExtras = await afterPost(profiles, {
               playerId: who.playerId, name: who.name, avatar: who.avatar, mode: 'marathon', runs: teamOf(sides).runs, outcome: taken, chase: body.chase,
+              chaseLadder: body.chaseLadder, soloRuns: soloOf(sides).runs,
             });
             await nameCareer(careers.marathon, MARATHON_CAREER, who.playerId, cleanName(who.name), who.avatar);
             await carryKey(recovery, { from: body.previous, to: foldName(cleanName(who.name)), playerId: who.playerId });

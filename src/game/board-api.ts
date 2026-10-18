@@ -199,9 +199,9 @@ export function submitMarathon(
  * mode is posted with their handle, and the store judges it and tells them.
  * Set by CHASE on a profile, and cleared by whoever ends the chase.
  */
-let chasing: { handle: string; mode: BoardMode } | null = null;
-export function chaseFor(handle: string | null, mode: BoardMode = 'classic') {
-  chasing = handle ? { handle, mode } : null;
+let chasing: { handle: string; mode: BoardMode; ladder?: 'solo' } | null = null;
+export function chaseFor(handle: string | null, mode: BoardMode = 'classic', ladder?: 'solo') {
+  chasing = handle ? { handle, mode, ladder } : null;
 }
 
 async function offer(
@@ -220,7 +220,7 @@ async function offer(
       // it: the key already saved for that name comes across to this one.
       body: JSON.stringify({
         playerId, name, avatar, innings, mode, previous: readPlayer()?.name,
-        ...(chasing?.mode === mode ? { chase: chasing.handle } : {}),
+        ...(chasing?.mode === mode ? { chase: chasing.handle, ...(chasing.ladder ? { chaseLadder: chasing.ladder } : {}) } : {}),
       }),
     },
   );

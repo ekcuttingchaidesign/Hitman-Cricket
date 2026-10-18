@@ -60,6 +60,17 @@ describe('playerSheetMarkup', () => {
   });
 });
 
+describe('the Test Marathon', () => {
+  it('offers its second target under the six: their best batter, not out marked', () => {
+    const marathon = { career: null, granted: null, best: { runs: 312, place: 11, total: 90 }, bestRank: 7, solo: { runs: 141, out: false, place: 4 } };
+    const html = playerSheetMarkup(view({ mode: 'marathon', profile: profile({ marathon }) }));
+    expect(html).toContain('id="player-chase-solo"');
+    expect(html).toContain('or chase the best batter, 141*');
+    expect(html).toContain('CHASE KABIR’S 312');
+    expect(playerSheetMarkup(view())).not.toContain('player-chase-solo');
+  });
+});
+
 describe('playedMode', () => {
   it('opens on the board\u2019s mode, or the first they have batted', () => {
     expect(playedMode(profile(), { mode: 'classic', modes: ['classic', 'marathon', 'survive'] })).toBe('classic');
