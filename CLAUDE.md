@@ -477,24 +477,37 @@ played does not split them, and the `?dressing=1` preview counts nothing.
 
 ## Batting gloves
 
-The batter's gloves are a catalogue (`src/entities/gloves.ts`): Sterling, the
-pair he is built wearing (`DEFAULT_GLOVE`, white and silver so it goes with
-every kit and the Test match's whites), and Glacier, Fern, Carbon, Blaze and
-Midnight for the Dressing Room to hand out, which is still to be wired. `Batter.wearGloves(design)` puts
-a pair on. The grip is a right-hander's from a photograph: the top hand's
-knuckles on the bat's curved back with its fingers curling onto the face, the
-bottom hand's the other way, both round the same edge, both thumbs down the
-handle; and each fist is turned on the handle to face where its forearm comes
-off in the guard (`WRIST_HOME`), which puts the back of the top hand to the
-bowler and the bottom hand's to the ground, and is then fixed to the handle
-through every stroke. The arm rig places the forearms from the shoulders and
-in the follow-throughs they come off a side a wrist could not reach; that was
+The batter's gloves are a catalogue (`src/entities/gloves.ts`, their ids in
+`dressing-ids.ts` beside the kits' and bats'): Sterling, the pair he is built
+wearing (`FREE_GLOVES`, white and silver so it goes with every kit and the
+Test match's whites), and Glacier, Fern, Carbon, Blaze and Midnight. They are
+the Dressing Room's third shelf (GLOVES, `shelf: 'glove'`), and nothing on it
+is earned: every pair is free to wear, so the shelf has no locks, no dot and
+no Next up, and the room's "N of 19 earned" counts none of them. The pick is
+kept with the kit and bat (`gloves` in `SavedDressing`), travels and merges
+with them (the later pick wins whole), goes with a Rival Match innings in
+`Look`, and is counted in the year recap (`gloves` beside `kits` and `bats`);
+a copy or a look from before there were gloves wears the free pair. The
+stage's glove view (`StageView` `'glove'`) is the batter near to, held facing
+the camera as the bowler sees him so the backs of both hands show, and the
+shelf's pictures are his hands on the handle in each pair. `snapshot().look`
+is `kit/bat/gloves` now. `Batter.wearGloves(design)` puts a pair on.
+
+The grip is a right-hander's from a photograph: the top hand's knuckles on the
+bat's curved back with its fingers curling onto the face, the bottom hand's
+the other way, both round the same edge, both thumbs down the handle; and each
+fist is turned on the handle to face where its forearm comes off in the guard
+(`WRIST_HOME`), which puts the back of the top hand to the bowler and the
+bottom hand's to the ground, and is then fixed to the handle through every
+stroke. The arm rig places the forearms from the shoulders and in the
+follow-throughs they come off a side a wrist could not reach; that was
 measured, judged invisible at speed, and left alone. Every piece's colour is
 baked into its vertices, so a fist merges into one mesh and a pair costs six
 draw calls (`scene-check`'s `BUDGET` was lowered for it). `gloves.html` shows
 every pair on the handle and on him in five poses; `cover-drive.html` has
 every stroke with a Gloves row, and `?gloves=<id>` picks the first. Both build
-into one file with their `scripts/*-artifact.mjs`.
+into one file with their `scripts/*-artifact.mjs`. `dressing-check` walks the
+shelf and bats in the pair it put on.
 
 ## Who's batting: the gate before the first innings
 

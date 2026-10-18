@@ -24,6 +24,7 @@ import { Fireworks } from './fireworks';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 import type { Cutout } from '../ui/Milestone';
 import type { BatSkin, Outfit } from '../game/dressing';
+import type { GloveDesign } from '../entities/gloves';
 import type { CameraPose } from '../game/ShotReel';
 import { batSheet } from '../entities/batSkins';
 
@@ -879,8 +880,9 @@ export class GameScene {
    * Test match he keeps his whites, as a Test is played, and takes the kit's
    * helmet and his own bat out with him.
    */
-  dressBatter(outfit: Outfit, bat: BatSkin) {
-    this.look = { outfit, bat };
+  dressBatter(outfit: Outfit, bat: BatSkin, gloves: GloveDesign) {
+    this.look = { outfit, bat, gloves };
+    this.batter.wearGloves(gloves);
     this.wearLook();
     const asked = ++this.batAsked;
     this.batter.holdBat(bat.grip, null);
@@ -890,9 +892,9 @@ export class GameScene {
       this.kitsUnderLights();
     });
   }
-  private look: { outfit: Outfit; bat: BatSkin } | null = null;
-  /** What he went out in, `kit/bat`, for the checks. */
-  get wearing() { return this.look ? `${this.look.outfit.id}/${this.look.bat.id}` : null; }
+  private look: { outfit: Outfit; bat: BatSkin; gloves: GloveDesign } | null = null;
+  /** What he went out in, `kit/bat/gloves`, for the checks. */
+  get wearing() { return this.look ? `${this.look.outfit.id}/${this.look.bat.id}/${this.look.gloves.id}` : null; }
   private inWhites = false;
   /** Which bat was asked for last, so a sheet arriving late cannot put back the one before. */
   private batAsked = 0;

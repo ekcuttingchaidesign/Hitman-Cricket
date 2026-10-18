@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptyBlast, emptyMarathon, emptySurvive } from '../src/game/career';
 import { BATS, OUTFITS, batOwned, batSteps, done, earned, nextUp, outfitOwned, outfitSteps, ready, shareOf, type DressingRecord } from '../src/game/dressing';
+import { lookOf } from '../src/game/dressing-ids';
 
 const record = (patch: {
   classic?: Partial<ReturnType<typeof emptyBlast>>; survive?: Partial<ReturnType<typeof emptySurvive>>; marathon?: Partial<ReturnType<typeof emptyMarathon>>;
@@ -10,6 +11,15 @@ const record = (patch: {
   rivals: patch.rivals ?? { won: 0, beaten: 0 },
   launch: { classic: 0, survive: 0, marathon: 0, ...patch.launch },
   welcomed: patch.welcomed ?? false,
+});
+
+describe('a look as it travels', () => {
+  it('wears the free gloves when none are named, and refuses a pair that is not on the shelf', () => {
+    expect(lookOf({ kit: 'home', bat: 'plain' })).toEqual({ kit: 'home', bat: 'plain', gloves: 'sterling' });
+    expect(lookOf({ kit: 'home', bat: 'plain', gloves: 'blaze' })).toEqual({ kit: 'home', bat: 'plain', gloves: 'blaze' });
+    expect(lookOf({ kit: 'home', bat: 'plain', gloves: 'gauntlets' })).toBeNull();
+    expect(lookOf({ kit: 'tartan', bat: 'plain' })).toBeNull();
+  });
 });
 
 describe('the Dressing Room shelves', () => {

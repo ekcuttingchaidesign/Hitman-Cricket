@@ -277,12 +277,13 @@ describe('batting', () => {
 describe('what each player bats in', () => {
   it('keeps their Dressing Room kit and bat with their innings, and the one they last sent', async () => {
     const store = memoryChallenges();
-    const made = took(await createChallenge(store, { ...who(), look: { kit: 'forest', bat: 'savage' } }, T0));
-    expect(made.challenge.players[0].look).toEqual({ kit: 'forest', bat: 'savage' });
+    const made = took(await createChallenge(store, { ...who(), look: { kit: 'forest', bat: 'savage', gloves: 'carbon' } }, T0));
+    expect(made.challenge.players[0].look).toEqual({ kit: 'forest', bat: 'savage', gloves: 'carbon' });
+    // A look from before there were gloves to choose wears the free pair.
     const joined = took(await joinChallenge(store, made.code, friend({ look: { kit: 'gold', bat: 'boom' } }), T0));
-    expect(joined.challenge.players.find(p => p.playerId === FRIEND)?.look).toEqual({ kit: 'gold', bat: 'boom' });
-    const after = took(await recordBalls(store, made.code, { ...who(), card: '6', look: { kit: 'crimson', bat: 'hitman' } }, T0 + 1));
-    expect(after.challenge.players.find(p => p.playerId === HOST)?.look).toEqual({ kit: 'crimson', bat: 'hitman' });
+    expect(joined.challenge.players.find(p => p.playerId === FRIEND)?.look).toEqual({ kit: 'gold', bat: 'boom', gloves: 'sterling' });
+    const after = took(await recordBalls(store, made.code, { ...who(), card: '6', look: { kit: 'crimson', bat: 'hitman', gloves: 'blaze' } }, T0 + 1));
+    expect(after.challenge.players.find(p => p.playerId === HOST)?.look).toEqual({ kit: 'crimson', bat: 'hitman', gloves: 'blaze' });
   });
 
   it('drops a look that is not on the shelves rather than turning the innings away, and sends none for a room from before', async () => {

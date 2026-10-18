@@ -165,6 +165,24 @@ await page.waitForTimeout(500);
 check((await text(page, '#dressing-key')).includes('IN HAND'), 'and after its moment is in his hand');
 await shoot(page, '5-bat');
 
+console.log('The gloves');
+await page.locator('#dressing-tab-glove').click();
+await page.waitForTimeout(400);
+check(await text(page, '#dressing-name') === 'STERLING', 'the gloves open on the pair he wears', await text(page, '#dressing-name'));
+await page.waitForFunction(() => document.querySelectorAll('#dressing-items img').length === 6, null, { timeout: 30_000 }).catch(() => {});
+const gloves = await page.locator('#dressing-items img').evaluateAll(all => all.map(one => one.src.length));
+check(gloves.length === 6 && gloves.every(size => size > 4000), 'the shelf has a picture of every pair', JSON.stringify(gloves));
+check(await page.locator('#dressing-items .is-locked').count() === 0 && await page.locator('#dressing-tab-glove.has-dot').count() === 0, 'none of them locked, nothing waiting');
+check((await text(page, '#dressing-key')).includes('WEARING'), 'which is WEARING at the foot');
+await page.locator('.dr-item[data-id="carbon"]').click();
+await page.waitForTimeout(300);
+check(await text(page, '#dressing-name') === 'CARBON' && /free/i.test(await text(page, '#dressing-foot')), 'another pair is tried on, free', `${await text(page, '#dressing-name')} · ${await text(page, '#dressing-foot')}`);
+check((await text(page, '#dressing-key')).includes('WEAR THEM'), 'with WEAR THEM at the foot');
+await page.locator('#dressing-key').click();
+await page.waitForTimeout(300);
+check((await text(page, '#dressing-key')).includes('WEARING') && await page.locator('.dr-item[data-id="carbon"] .dr-badge.is-on').count() === 1, 'and puts them on, the tick moving with them');
+await shoot(page, '5b-gloves');
+
 await page.locator('#dressing-back').click();
 await page.waitForTimeout(400);
 check(await page.locator('#dressing-overlay').count() === 0, 'the back key goes back to Choose a mode');
@@ -173,18 +191,18 @@ check(await card.locator('.ms-tag').isVisible(), 'which keeps NEW on the card wh
 console.log('Out to bat');
 await page.locator('#mode-classic').click({ force: true });
 const ready = await until(page, 'READY');
-check(ready.look === 'forest/savage', 'he goes out in British Racing Green with Savage', ready.look);
+check(ready.look === 'forest/savage/carbon', 'he goes out in British Racing Green with Savage, in Carbon', ready.look);
 await shoot(page, '6-batting');
 check(page.errors.length === 0, 'with nothing in the console', page.errors.join(' | '));
 await page.close();
 
 console.log('A pick no longer earned');
 const shownAll = ['kit:home', 'kit:crimson', 'kit:forest', ...EARNED_BATS];
-const other = await open({ outfit: 'lagoon', bat: 'hitman', launch: null, seen: shownAll, shown: shownAll, visited: true });
+const other = await open({ outfit: 'lagoon', bat: 'hitman', gloves: 'midnight', launch: null, seen: shownAll, shown: shownAll, visited: true });
 check(!(await other.locator('#modes-dressing .ms-tag').isVisible()), 'a room already opened has no NEW');
 await other.locator('#mode-classic').click({ force: true });
 const fallback = await until(other, 'READY');
-check(fallback.look === 'home/plain', 'goes out in OG Navy with Plain instead', fallback.look);
+check(fallback.look === 'home/plain/midnight', 'goes out in OG Navy with Plain instead, the gloves still his', fallback.look);
 await other.close();
 
 console.log('An unlock');

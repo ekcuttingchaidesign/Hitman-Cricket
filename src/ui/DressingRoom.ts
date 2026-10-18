@@ -5,6 +5,7 @@ import {
   type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId, type Step, type StepMode,
 } from '../game/dressing';
 import type { DressingStage } from '../scene/DressingStage';
+import { GLOVES, gloveOf, type GloveDesign, type GloveId } from '../entities/gloves';
 
 /**
  * The Dressing Room: the batter on his pedestal, the shelf of kits or bats
@@ -14,16 +15,17 @@ import type { DressingStage } from '../scene/DressingStage';
  *
  * Picking anything puts it on him at once, earned or not, so a locked kit
  * is tried on rather than read about. Only an earned one can be worn out to
- * bat; a locked one's key plays the game its next line is won in.
+ * bat; a locked one's key plays the game its next line is won in. The gloves
+ * are a third shelf with nothing to earn: every pair is free to wear.
  */
-export type Shelf = 'kit' | 'bat';
+export type Shelf = 'kit' | 'bat' | 'glove';
 
 export interface DressingView {
   shelf: Shelf;
   /** What is picked on each shelf: on show, not necessarily worn. */
-  kit: OutfitId; bat: BatId;
+  kit: OutfitId; bat: BatId; gloves: GloveId;
   /** What the batter goes out in. */
-  wearing: OutfitId; holding: BatId;
+  wearing: OutfitId; holding: BatId; wearingGloves: GloveId;
   record: DressingRecord;
   /** The shelf's small pictures, `kit:home` to `bat:hitman`, once they are drawn. */
   pictures: Record<string, string>;
@@ -38,16 +40,23 @@ const OPEN = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" 
 const LOCK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 7V5.5a3 3 0 0 1 6 0V7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><rect x="3.5" y="7" width="9" height="6.5" rx="1.6" fill="currentColor"/></svg>';
 
 const stepsOf = (shelf: Shelf, id: string, record: DressingRecord) =>
-  shelf === 'kit' ? outfitSteps(id as OutfitId, record) : batSteps(id as BatId, record);
-const itemOf = (shelf: Shelf, id: string): Outfit | BatSkin => (shelf === 'kit' ? OUTFITS : BATS).find(one => one.id === id)!;
+  shelf === 'kit' ? outfitSteps(id as OutfitId, record) : shelf === 'bat' ? batSteps(id as BatId, record) : null;
+const itemOf = (shelf: Shelf, id: string): Outfit | BatSkin | GloveDesign =>
+  shelf === 'glove' ? gloveOf(id) : (shelf === 'kit' ? OUTFITS : BATS).find(one => one.id === id)!;
+const idsOf = (shelf: Shelf): readonly string[] => shelf === 'kit' ? OUTFITS.map(o => o.id) : shelf === 'bat' ? BATS.map(b => b.id) : GLOVES.map(g => g.id);
+const pickedOn = (view: DressingView) => view.shelf === 'kit' ? view.kit : view.shelf === 'bat' ? view.bat : view.gloves;
+const wornOn = (view: DressingView) => view.shelf === 'kit' ? view.wearing : view.shelf === 'bat' ? view.holding : view.wearingGloves;
+/** Something waits in the room only on the kit and bat shelves; nothing on the gloves' is earned. */
+const waits = (shelf: Shelf, id: string, record: DressingRecord) => shelf !== 'glove' && ready(shelf, id, record);
+const WEAR: Record<Shelf, [string, string]> = { kit: ['WEAR IT', 'WEARING'], bat: ['PICK IT UP', 'IN HAND'], glove: ['WEAR THEM', 'WEARING'] };
 
 /** The screen's frame, drawn once; its parts are filled by `DressingRoom.draw`. */
 export function dressingMarkup(): string {
   return `<div class="dr-screen" id="dressing-screen">
     <div class="dr-top">
       ${iconButton({ icon: 'arrow-left', label: 'Back', id: 'dressing-back' })}
-      <div class="dr-tabs" role="group" aria-label="Kits or bats">
-        <button type="button" id="dressing-tab-kit" aria-pressed="true">KIT</button><button type="button" id="dressing-tab-bat" aria-pressed="false">BAT</button>
+      <div class="dr-tabs" role="group" aria-label="Kits, bats or gloves">
+        <button type="button" id="dressing-tab-kit" aria-pressed="true">KIT</button><button type="button" id="dressing-tab-bat" aria-pressed="false">BAT</button><button type="button" id="dressing-tab-glove" aria-pressed="false">GLOVES</button>
       </div>
     </div>
     <h2 class="dr-name" id="dressing-name"></h2>
@@ -58,10 +67,9 @@ export function dressingMarkup(): string {
 
 /** The shelf: a tile a kit or bat, the picture and a lock or a tick, nothing else. */
 export function shelfMarkup(view: DressingView): string {
-  const ids = view.shelf === 'kit' ? OUTFITS.map(o => o.id) : BATS.map(b => b.id);
-  const picked = view.shelf === 'kit' ? view.kit : view.bat, worn = view.shelf === 'kit' ? view.wearing : view.holding;
+  const ids = idsOf(view.shelf), picked = pickedOn(view), worn = wornOn(view);
   return ids.map(id => {
-    const item = itemOf(view.shelf, id), owned = (stepsOf(view.shelf, id, view.record) ?? []).every(done), waiting = ready(view.shelf, id, view.record);
+    const item = itemOf(view.shelf, id), owned = (stepsOf(view.shelf, id, view.record) ?? []).every(done), waiting = waits(view.shelf, id, view.record);
     const picture = view.pictures[`${view.shelf}:${id}`];
     // One waiting to be unlocked has a dot where the lock would be, and a light round it: tap me.
     const badge = waiting ? '<span class="dr-badge is-ready" aria-hidden="true"></span>'
@@ -82,17 +90,17 @@ const valueOf = (step: Step) => done(step) ? 'Done' : step.best ? `Best ${fmt(st
  */
 export function footMarkup(view: DressingView): string {
   const { shelf, record } = view;
-  const id = shelf === 'kit' ? view.kit : view.bat, item = itemOf(shelf, id);
+  const id = pickedOn(view), item = itemOf(shelf, id);
   const steps = stepsOf(shelf, id, record);
   // Waiting in the room, earned or not: nothing to play for, only its key.
-  if (ready(shelf, id, record))
+  if (waits(shelf, id, record))
     return `<div class="dr-had"><span class="dr-eye dr-eye-ready">Ready to unlock</span><p>${escape(item.line)}</p></div>`
       + cta({ kind: 'primary', label: `UNLOCK ${item.name.toUpperCase()}`, id: 'dressing-key', wide: true, moving: true });
   if (!steps || steps.every(done)) {
-    const on = id === (shelf === 'kit' ? view.wearing : view.holding);
-    const ids = shelf === 'kit' ? OUTFITS.map(o => o.id) : BATS.map(b => b.id);
+    const on = id === wornOn(view);
+    const ids = idsOf(shelf);
     // One waiting to be unlocked comes before anything still to be played for.
-    const waiting = ids.find(one => ready(shelf, one, record));
+    const waiting = ids.find(one => waits(shelf, one, record));
     const next = waiting ?? nextUp<string>(ids, one => stepsOf(shelf, one, record));
     let card = '';
     if (next) {
@@ -104,8 +112,8 @@ export function footMarkup(view: DressingView): string {
         + `<span class="dr-next-value">${waiting ? '' : valueOf(line)}</span>${icon('chevron-right')}</button>`;
     }
     const key = on
-      ? `<button type="button" class="dr-worn" id="dressing-key" disabled>${shelf === 'kit' ? 'WEARING' : 'IN HAND'}</button>`
-      : cta({ kind: 'primary', label: shelf === 'kit' ? 'WEAR IT' : 'PICK IT UP', id: 'dressing-key', wide: true });
+      ? `<button type="button" class="dr-worn" id="dressing-key" disabled>${WEAR[shelf][1]}</button>`
+      : cta({ kind: 'primary', label: WEAR[shelf][0], id: 'dressing-key', wide: true });
     return `<div class="dr-had"><span class="dr-eye">${steps ? 'Earned' : 'Free'}</span><p>${escape(item.line)}</p></div>${card}${key}`;
   }
   const first = steps.find(step => !done(step))!;
@@ -128,8 +136,8 @@ export interface DressingHandlers {
   wear(shelf: Shelf, id: string): void;
   /** A locked item's key: go and play for it. */
   play(mode: StepMode | null): void;
-  /** The key of one waiting in the room (`ready`): its unlock goes up. */
-  claim(shelf: Shelf, id: string): void;
+  /** The key of one waiting in the room (`ready`): its unlock goes up. Never the gloves: nothing on that shelf is earned. */
+  claim(shelf: 'kit' | 'bat', id: string): void;
   close(): void;
 }
 
@@ -151,13 +159,13 @@ export class DressingRoom {
     host.appendChild(this.root);
     const stage = this.stage = makeStage();
     this.root.querySelector('.dr-screen')!.prepend(stage.canvas);
-    stage.dress(this.outfit(view.wearing), this.bat(view.holding));
+    stage.dress(this.outfit(view.wearing), this.bat(view.holding), gloveOf(view.wearingGloves));
     this.layout.observe(this.root);
     this.dragShelf();
     this.root.addEventListener('click', this.click);
     this.root.addEventListener('keydown', this.key);
     this.draw();
-    void stage.thumbnails(OUTFITS, BATS, this.bat(view.holding)).then(pictures => {
+    void stage.thumbnails(OUTFITS, BATS, this.bat(view.holding), GLOVES, gloveOf(view.wearingGloves)).then(pictures => {
       if (!this.stage) return;
       // Drawing them dressed him in every kit in turn: dressed again in the one on show.
       this.view = { ...this.view, pictures }; this.draw();
@@ -194,14 +202,13 @@ export class DressingRoom {
   /** Draws the parts; `stage` puts the pick on the pedestal too, which a new set of pictures does not. */
   private draw(stage = true) {
     const view = this.view, kit = view.shelf === 'kit';
-    this.root.querySelector('#dressing-tab-kit')!.setAttribute('aria-pressed', String(kit));
-    this.root.querySelector('#dressing-tab-bat')!.setAttribute('aria-pressed', String(!kit));
+    for (const shelf of ['kit', 'bat', 'glove'] as const) this.root.querySelector(`#dressing-tab-${shelf}`)!.setAttribute('aria-pressed', String(view.shelf === shelf));
     // A dot on a shelf's tab while something on it waits to be unlocked.
     for (const shelf of ['kit', 'bat'] as const) {
       const ids: readonly string[] = shelf === 'kit' ? OUTFITS.map(o => o.id) : BATS.map(b => b.id);
       this.root.querySelector(`#dressing-tab-${shelf}`)!.classList.toggle('has-dot', ids.some(one => ready(shelf, one, view.record)));
     }
-    const item = kit ? this.outfit(view.kit) : this.bat(view.bat);
+    const item = itemOf(view.shelf, pickedOn(view));
     const name = this.root.querySelector<HTMLElement>('#dressing-name')!;
     name.textContent = item.name.toUpperCase(); name.classList.toggle('is-long', item.name.length > 12);
     const shelf = this.root.querySelector<HTMLElement>('#dressing-items')!, scroll = shelf.scrollTop;
@@ -217,7 +224,8 @@ export class DressingRoom {
       this.ends();
     }
     if (!stage || !this.stage) return;
-    if (kit) this.stage.dress(this.outfit(view.kit), this.bat(view.holding));
+    if (kit) this.stage.dress(this.outfit(view.kit), this.bat(view.holding), gloveOf(view.wearingGloves));
+    else if (view.shelf === 'glove') this.stage.dress(this.outfit(view.wearing), this.bat(view.holding), gloveOf(view.gloves));
     else this.stage.showcase(this.bat(view.bat));
     this.stage.show(view.shelf, item.glow);
   }
@@ -267,7 +275,8 @@ export class DressingRoom {
   }
 
   private pick(id: string) {
-    this.view = this.view.shelf === 'kit' ? { ...this.view, kit: id as OutfitId } : { ...this.view, bat: id as BatId };
+    const view = this.view;
+    this.view = view.shelf === 'kit' ? { ...view, kit: id as OutfitId } : view.shelf === 'bat' ? { ...view, bat: id as BatId } : { ...view, gloves: id as GloveId };
     this.draw();
   }
 
@@ -276,16 +285,15 @@ export class DressingRoom {
     if (!target) return;
     const view = this.view;
     if (target.id === 'dressing-back') { this.handlers.close(); return; }
-    if (target.id === 'dressing-tab-kit' || target.id === 'dressing-tab-bat') {
-      this.view = { ...view, shelf: target.id === 'dressing-tab-kit' ? 'kit' : 'bat' }; this.draw(); return;
-    }
+    const tab = (['kit', 'bat', 'glove'] as const).find(shelf => target.id === `dressing-tab-${shelf}`);
+    if (tab) { this.view = { ...view, shelf: tab }; this.draw(); return; }
     if (target.classList.contains('dr-item') || target.id === 'dressing-next') { this.pick(target.dataset.id!); return; }
     if (target.id === 'dressing-key') {
-      const id = view.shelf === 'kit' ? view.kit : view.bat, steps = stepsOf(view.shelf, id, view.record);
-      if (ready(view.shelf, id, view.record)) { this.handlers.claim(view.shelf, id); return; }
+      const id = pickedOn(view), steps = stepsOf(view.shelf, id, view.record);
+      if (view.shelf !== 'glove' && ready(view.shelf, id, view.record)) { this.handlers.claim(view.shelf, id); return; }
       if (steps && !steps.every(done)) { this.handlers.play(steps.find(step => !done(step))?.mode ?? null); return; }
       this.handlers.wear(view.shelf, id);
-      this.view = view.shelf === 'kit' ? { ...view, wearing: id as OutfitId } : { ...view, holding: id as BatId };
+      this.view = view.shelf === 'kit' ? { ...view, wearing: id as OutfitId } : view.shelf === 'bat' ? { ...view, holding: id as BatId } : { ...view, wearingGloves: id as GloveId };
       this.draw();
     }
   };

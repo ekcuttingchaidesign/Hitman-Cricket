@@ -110,7 +110,7 @@ const taken = await held(second.page);
 check(taken?.outfit === 'crimson' && taken?.bat === 'boom', 'has the pick without being told', JSON.stringify(taken));
 check(taken?.seen.includes('bat:boom') && taken?.shown.includes('kit:crimson'), 'and Boom and Crimson already unlocked, so neither waits in the room again', JSON.stringify(taken?.shown));
 const look = await lookAtCrease(second.page);
-check(look === 'crimson/boom', 'and goes out to bat in Crimson with Boom', look);
+check(look === 'crimson/boom/sterling', 'and goes out to bat in Crimson with Boom', look);
 check(second.page.errors.length === 0, 'with nothing in the console', second.page.errors.join(' | '));
 await second.context.close();
 
@@ -118,7 +118,7 @@ console.log('Somebody else');
 const other = await device(idOf(), `Drs${letters(6)}`, null);
 await other.page.waitForTimeout(1500);
 const theirs = await lookAtCrease(other.page);
-check(theirs === 'home/plain', 'is untouched by it', theirs);
+check(theirs === 'home/plain/sterling', 'is untouched by it', theirs);
 await other.context.close();
 
 await browser.close();

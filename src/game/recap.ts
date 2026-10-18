@@ -48,6 +48,8 @@ export interface YearRecap {
   /** Innings played in each kit and with each bat, by id. */
   kits: Record<string, number>;
   bats: Record<string, number>;
+  /** The innings in each pair of gloves; none in a record from before there were any to choose. */
+  gloves: Record<string, number>;
   /** Innings on each day (`MM-DD`) and in each hour (`0`–`23`), in India's time. */
   days: Record<string, number>;
   hours: Record<string, number>;
@@ -96,7 +98,7 @@ export function factsOf(mode: CareerMode, tally: BlastTally | SurviveTally | Mar
 }
 
 export function emptyRecap(at: number): YearRecap {
-  return { innings: 0, first: at, last: at, modes: {}, kits: {}, bats: {}, days: {}, hours: {}, unlocked: {} };
+  return { innings: 0, first: at, last: at, modes: {}, kits: {}, bats: {}, gloves: {}, days: {}, hours: {}, unlocked: {} };
 }
 
 const bump = (counts: Record<string, number>, key: string, by = 1) => ({ ...counts, [key]: (counts[key] ?? 0) + by });
@@ -121,6 +123,7 @@ export function foldInnings(held: YearRecap | null, mode: CareerMode, facts: Inn
     },
     kits: look ? bump(was.kits, look.kit) : was.kits,
     bats: look ? bump(was.bats, look.bat) : was.bats,
+    gloves: look ? bump(was.gloves, look.gloves) : was.gloves,
     days: bump(was.days, day),
     hours: bump(was.hours, String(hour)),
   };
@@ -154,7 +157,7 @@ export function totalsOf(mode: CareerMode, facts: InningsFacts, look: Look | nul
   if (facts.fifties) counts.fifties = facts.fifties;
   if (facts.hundreds) counts.hundreds = facts.hundreds;
   if (facts.won) counts[`wins:${mode}`] = 1;
-  if (look) { counts[`kit:${look.kit}`] = 1; counts[`bat:${look.bat}`] = 1; }
+  if (look) { counts[`kit:${look.kit}`] = 1; counts[`bat:${look.bat}`] = 1; counts[`gloves:${look.gloves}`] = 1; }
   if (firstOfYear) counts.players = 1;
   return counts;
 }
@@ -172,6 +175,6 @@ export function cleanRecap(raw: unknown): YearRecap | null {
   return {
     innings: r.innings, first: r.first, last: r.last,
     modes: counts(r.modes) as YearRecap['modes'],
-    kits: counts(r.kits), bats: counts(r.bats), days: counts(r.days), hours: counts(r.hours), unlocked: counts(r.unlocked),
+    kits: counts(r.kits), bats: counts(r.bats), gloves: counts(r.gloves), days: counts(r.days), hours: counts(r.hours), unlocked: counts(r.unlocked),
   };
 }

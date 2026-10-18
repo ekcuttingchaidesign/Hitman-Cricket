@@ -6,6 +6,7 @@ import { batSheet } from '../entities/batSkins';
 import { GAME } from '../config/gameplay';
 import type { ShotType } from '../game/types';
 import type { BatSkin, Outfit } from '../game/dressing';
+import type { GloveDesign } from '../entities/gloves';
 
 /**
  * The Dressing Room's stage: the batter, or a bat on its own, turning on a
@@ -16,7 +17,8 @@ import type { BatSkin, Outfit } from '../game/dressing';
  * renderer, made when the room opens and thrown away when it closes, so the
  * ground behind it is never asked to share a frame.
  */
-export type StageView = 'kit' | 'bat';
+/** What is on the pedestal: the batter in a kit, a bat on the stand, or the batter's hands in their gloves, near to. */
+export type StageView = 'kit' | 'bat' | 'glove';
 
 /** The pedestal's front edge on the floor: the lowest thing on the stage as the camera sees it. */
 const PEDESTAL_FOOT = new THREE.Vector3(0, 0, .72);
@@ -33,6 +35,9 @@ const CAMERA = { distance: 8.1, eye: 1.3 };
  */
 /** The Dressing Room's corridor, already lifted, softened and faded by depth. */
 const ROOM_BACKDROP = new URL('../assets/dressing/room.webp', import.meta.url).href;
+/** The gloves' view: him turned a shade off the bowler's view, so the backs of both hands show, and the eye's offset from his hands. */
+const GLOVE_FACE = .35;
+const GLOVE_EYE = new THREE.Vector3(.5, .38, 1.5);
 const NEAREST_FOCAL = 437 / Math.tan(THREE.MathUtils.degToRad(15));
 
 /**
@@ -98,7 +103,7 @@ function raysTexture() {
  * behind; a kit is a ring of light that runs down the batter from helmet to
  * boots, the new kit above it and the old one below. Then the reveal.
  */
-export type Moment = { kind: 'bat'; bat: BatSkin } | { kind: 'kit'; from: Outfit; to: Outfit; bat: BatSkin };
+export type Moment = { kind: 'bat'; bat: BatSkin } | { kind: 'kit'; from: Outfit; to: Outfit; bat: BatSkin; gloves?: GloveDesign };
 /** When each moment's reveal comes, from its start. */
 export const REVEAL_MS = { bat: 1650, kit: 2280 } as const;
 /** The turn of the pedestal at which the celebration faces the camera. */
@@ -304,19 +309,32 @@ export class DressingStage {
     this.raf = requestAnimationFrame(this.tick);
   }
 
-  /** The batter in a kit, holding a bat. */
-  dress(outfit: Outfit, bat: BatSkin) {
+  /** The batter in a kit, holding a bat, in a pair of gloves (left as they are when none is given). */
+  dress(outfit: Outfit, bat: BatSkin, gloves?: GloveDesign) {
     this.batter.wear(outfit);
+    if (gloves) this.batter.wearGloves(gloves);
     void batSheet(bat.id).then(sheet => this.batter.holdBat(bat.grip, sheet));
   }
   /** A bat on its own, on the stand. */
   showcase(bat: BatSkin) { void this.showBat.hold(bat); }
-  /** Which of the two is on the pedestal, and the colour the room is lit in. */
+  /**
+   * Which of the three is on the pedestal, and the colour the room is lit in.
+   * The gloves are the batter near to, held facing the camera as the bowler
+   * sees him, so the backs of both hands show; a drag still turns him.
+   */
   show(view: StageView, glow: string) {
     this.endMoment();
+    if (view === 'glove' && this.view !== 'glove') { this.spin = 0; this.spinV = 0; this.idleAt = performance.now(); }
     this.view = view; this.glow.set(glow);
-    this.holder.visible = view === 'kit'; this.showBat.root.visible = view === 'bat';
+    this.holder.visible = view !== 'bat'; this.showBat.root.visible = view === 'bat';
     this.flashAt = performance.now();
+    this.fit();
+  }
+  /** Where his hands are now, in the world. */
+  private hands() {
+    const at = new THREE.Vector3();
+    for (const name of ['Left top glove — overhand', 'Right bottom glove — underhand']) at.add(this.batter.root.getObjectByName(name)!.getWorldPosition(new THREE.Vector3()));
+    return at.multiplyScalar(.5);
   }
 
   /**
@@ -336,6 +354,7 @@ export class DressingStage {
     } else {
       this.holder.visible = true; this.showBat.root.visible = false;
       this.batter.wear(what.to);
+      if (what.gloves) this.batter.wearGloves(what.gloves);
       void batSheet(what.bat.id).then(sheet => this.batter.holdBat(what.bat.grip, sheet));
       const [shirt, helmet, trousers, pads, trim, number] = this.batter.kitMaterials;
       const from = what.from;
@@ -362,7 +381,7 @@ export class DressingStage {
    * Small pictures of every kit and bat, off the same models, for the shelf.
    * Drawn by a renderer of its own, made for the job and let go after it.
    */
-  async thumbnails(outfits: readonly Outfit[], bats: readonly BatSkin[], holding: BatSkin): Promise<Record<string, string>> {
+  async thumbnails(outfits: readonly Outfit[], bats: readonly BatSkin[], holding: BatSkin, gloves: readonly GloveDesign[] = [], wearing?: GloveDesign): Promise<Record<string, string>> {
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setPixelRatio(2); renderer.setSize(84, 84); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping;
     const scene = new THREE.Scene(); scene.add(new THREE.HemisphereLight('#ffffff', '#30261c', 1.3));
@@ -381,6 +400,11 @@ export class DressingStage {
     await batSheet(holding.id).then(sheet => this.batter.holdBat(holding.grip, sheet));
     // The holder's offset stands him on the origin, a little off the ground: head and shoulders from there.
     for (const outfit of outfits) { this.batter.wear(outfit); out[`kit:${outfit.id}`] = shot(this.holder, new THREE.Vector3(.02, 1.28, 0), 2.1, .55); }
+    // The gloves: his hands on the handle, near to, from the bowler's side so the backs of both show.
+    this.scene.updateMatrixWorld(true);
+    const hands = this.hands();
+    for (const pair of gloves) { this.batter.wearGloves(pair); out[`glove:${pair.id}`] = shot(this.holder, hands, .62, .5); }
+    if (wearing) this.batter.wearGloves(wearing);
     // Every sheet loaded first, so the pictures are taken in one go: the stage
     // moves the bat every frame, and a wait between two pictures let it.
     await Promise.all(bats.map(bat => batSheet(bat.id)));
@@ -445,11 +469,17 @@ export class DressingStage {
     // is the space between the name and the shelf.
     const { distance, eye } = CAMERA, below = (y: number, z: number) => (eye - y) / (distance - z);
     const focal = Math.min(NEAREST_FOCAL * w / 402 * nearer, Math.max(40, floor - top) / (below(PEDESTAL_FOOT.y, PEDESTAL_FOOT.z) - below(this.crown, 0)));
-    this.camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(h / 2 / focal));
-    this.camera.position.set(0, eye, distance); this.camera.lookAt(0, eye, 0);
-    // Where the pedestal's edge falls now, and how far to move the picture to stand it on the floor, in the middle of the span.
-    const falls = h / 2 + below(PEDESTAL_FOOT.y, PEDESTAL_FOOT.z) * focal;
-    this.camera.setViewOffset(w, h, w / 2 - (left + right) / 2, falls - floor, w, h);
+    if (this.view === 'glove') {
+      // Near to on the hands, in the middle of the span between the name and the foot; aimed every frame (`tick`).
+      this.camera.fov = 26;
+      this.camera.setViewOffset(w, h, w / 2 - (left + right) / 2, h / 2 - (top + floor) / 2, w, h);
+    } else {
+      this.camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(h / 2 / focal));
+      this.camera.position.set(0, eye, distance); this.camera.lookAt(0, eye, 0);
+      // Where the pedestal's edge falls now, and how far to move the picture to stand it on the floor, in the middle of the span.
+      const falls = h / 2 + below(PEDESTAL_FOOT.y, PEDESTAL_FOOT.z) * focal;
+      this.camera.setViewOffset(w, h, w / 2 - (left + right) / 2, falls - floor, w, h);
+    }
     this.camera.updateProjectionMatrix();
     this.fitMoment();
   }
@@ -523,18 +553,24 @@ export class DressingStage {
     const dt = Math.min(50, now - (this.last || now)); this.last = now; this.clock += dt;
     if (!this.dragging) {
       // Turning slowly on its own, a while after a drag lets go.
-      const rest = this.reducedMotion ? 0 : .35;
+      const rest = this.reducedMotion || this.view === 'glove' ? 0 : .35;
       if (now - this.idleAt > 1600) this.spinV += (rest - this.spinV) * .03; else this.spinV *= .94;
       this.spin += this.spinV * dt / 1000;
     }
     if (this.moment) this.animate(now);
     else {
-      this.turntable.rotation.y = this.spin + (this.view === 'kit' ? -.9 : 0);
+      this.turntable.rotation.y = this.spin + (this.view === 'kit' ? -.9 : this.view === 'glove' ? GLOVE_FACE : 0);
       this.showBat.root.rotation.set(0, this.spin, 0);
       this.showBat.root.position.set(0, this.batShow.y + (this.reducedMotion ? 0 : Math.sin(now / 900) * .03), 0);
     }
     if (this.swingEnd && this.clock > this.swingEnd) { this.batter.reset(); this.swingEnd = 0; }
     this.batter.update(this.clock); this.batter.drape();
+    if (this.view === 'glove' && !this.moment) {
+      // Looking at his hands from a little above and to the off side, wherever a drag has turned them.
+      this.scene.updateMatrixWorld(true);
+      const hands = this.hands();
+      this.camera.position.copy(hands).add(GLOVE_EYE); this.camera.lookAt(hands);
+    }
     // The rim and the light ease to the colour on show; a pick flashes them.
     this.rimMaterial.color.lerp(this.glow, .12); this.ringMaterial.color.lerp(this.glow, .12); this.halo.material.color.lerp(this.glow, .08);
     const flash = Math.max(0, 1 - (now - this.flashAt) / 450);
