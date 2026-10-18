@@ -35,14 +35,8 @@ const CAMERA = { distance: 8.1, eye: 1.3 };
  */
 /** The Dressing Room's corridor, already lifted, softened and faded by depth. */
 const ROOM_BACKDROP = new URL('../assets/dressing/room.webp', import.meta.url).href;
-/**
- * The guard's view: him turned a shade off the bowler's view, so the backs
- * of both hands show; the eye's offset from where it looks, which is a
- * little under his hands so the pads are in the picture with the gloves.
- */
+/** The guard's view: him turned a shade off the bowler's view, so the backs of both gloves show over the pads, the whole of him in his kit. */
 const GUARD_FACE = .35;
-const GUARD_EYE = new THREE.Vector3(.55, .34, 1.8);
-const GUARD_BELOW_HANDS = .2;
 const NEAREST_FOCAL = 437 / Math.tan(THREE.MathUtils.degToRad(15));
 
 /**
@@ -324,9 +318,9 @@ export class DressingStage {
   showcase(bat: BatSkin) { void this.showBat.hold(bat); }
   /**
    * Which of the three is on the pedestal, and the colour the room is lit in.
-   * The guard is the batter near to, held facing the camera as the bowler
-   * sees him, so the backs of both hands show over the pads; a drag still
-   * turns him.
+   * The guard is the batter whole, as the kit is, held facing the camera as
+   * the bowler sees him so the backs of both gloves show over the pads
+   * against the kit; a drag still turns him.
    */
   show(view: StageView, glow: string) {
     this.endMoment();
@@ -475,17 +469,11 @@ export class DressingStage {
     // is the space between the name and the shelf.
     const { distance, eye } = CAMERA, below = (y: number, z: number) => (eye - y) / (distance - z);
     const focal = Math.min(NEAREST_FOCAL * w / 402 * nearer, Math.max(40, floor - top) / (below(PEDESTAL_FOOT.y, PEDESTAL_FOOT.z) - below(this.crown, 0)));
-    if (this.view === 'guard') {
-      // Near to on the hands and pads, in the middle of the span between the name and the foot; aimed every frame (`tick`).
-      this.camera.fov = 26;
-      this.camera.setViewOffset(w, h, w / 2 - (left + right) / 2, h / 2 - (top + floor) / 2, w, h);
-    } else {
-      this.camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(h / 2 / focal));
-      this.camera.position.set(0, eye, distance); this.camera.lookAt(0, eye, 0);
-      // Where the pedestal's edge falls now, and how far to move the picture to stand it on the floor, in the middle of the span.
-      const falls = h / 2 + below(PEDESTAL_FOOT.y, PEDESTAL_FOOT.z) * focal;
-      this.camera.setViewOffset(w, h, w / 2 - (left + right) / 2, falls - floor, w, h);
-    }
+    this.camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(h / 2 / focal));
+    this.camera.position.set(0, eye, distance); this.camera.lookAt(0, eye, 0);
+    // Where the pedestal's edge falls now, and how far to move the picture to stand it on the floor, in the middle of the span.
+    const falls = h / 2 + below(PEDESTAL_FOOT.y, PEDESTAL_FOOT.z) * focal;
+    this.camera.setViewOffset(w, h, w / 2 - (left + right) / 2, falls - floor, w, h);
     this.camera.updateProjectionMatrix();
     this.fitMoment();
   }
@@ -571,12 +559,6 @@ export class DressingStage {
     }
     if (this.swingEnd && this.clock > this.swingEnd) { this.batter.reset(); this.swingEnd = 0; }
     this.batter.update(this.clock); this.batter.drape();
-    if (this.view === 'guard' && !this.moment) {
-      // Looking at his hands and the pads under them from a little above and to the off side, wherever a drag has turned them.
-      this.scene.updateMatrixWorld(true);
-      const at = this.hands().add(new THREE.Vector3(0, -GUARD_BELOW_HANDS, 0));
-      this.camera.position.copy(at).add(GUARD_EYE); this.camera.lookAt(at);
-    }
     // The rim and the light ease to the colour on show; a pick flashes them.
     this.rimMaterial.color.lerp(this.glow, .12); this.ringMaterial.color.lerp(this.glow, .12); this.halo.material.color.lerp(this.glow, .08);
     const flash = Math.max(0, 1 - (now - this.flashAt) / 450);

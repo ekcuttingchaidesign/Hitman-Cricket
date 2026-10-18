@@ -2418,7 +2418,7 @@ export class Batter {
   private hips = new THREE.Group();
   private head = new THREE.Group();
   private arms: { upper: THREE.Mesh; lower: THREE.Mesh; elbow: THREE.Mesh; cap: THREE.Mesh; glove: THREE.Group; palm: THREE.Mesh[]; cuff: THREE.Group; knuckles: number; shoulder: THREE.Vector3; wrist: THREE.Vector3; socket: THREE.Vector3 }[] = [];
-  private legs: { thigh: THREE.Mesh; shin: THREE.Mesh; knee: THREE.Mesh; cap: THREE.Mesh; pad: THREE.Group; shoe: THREE.Group }[] = [];
+  private legs: { thigh: THREE.Mesh; shin: THREE.Mesh; knee: THREE.Mesh; cap: THREE.Mesh; pad: THREE.Group; padding: THREE.Group; shoe: THREE.Group }[] = [];
   private pose: Pose = GUARD;
   private swingFrom: Pose = GUARD;
   private shot: ShotType = 'STRAIGHT';
@@ -2573,7 +2573,7 @@ export class Batter {
     for (const part of this.wornGloves) part.removeFromParent();
     this.wornGloves = [];
     const worn = design ?? gloveOf(DEFAULT_GLOVE);
-    this.colourPads(worn.pads.body, worn.pads.trim);
+    for (const leg of this.legs) this.buildPadding(leg.padding, worn.pads.body, worn.pads.trim);
     this.arms.forEach((arm, i) => {
       const { hand, padding } = buildGloveHand(worn, i === 0), cuff = buildGloveCuff(worn);
       compactRigidParts(hand); compactRigidParts(cuff);
@@ -2587,27 +2587,28 @@ export class Batter {
   }
   private wornGloves: THREE.Object3D[] = [];
   /**
-   * Each pad's merged geometry and which of the two colours every vertex
-   * takes — red for the pad, green for its trim, as `padPiece` marked them
-   * before the merge — so a guard recolours a pad in place without
-   * rebuilding it.
+   * The padding of one leg pad, built anew in a guard's two colours: the pad
+   * and its rolls in the body colour, the knee roll, the piping, the knee
+   * stitching and the ankle flap in the trim's, every colour in the vertices
+   * so the lot merges into one mesh. Built anew rather than recoloured in
+   * place: a new mesh is uploaded whole, where an update to a buffer already
+   * on the GPU was lost on an iPhone, which kept the pads in the colours of
+   * the guard before. The straps are the kit's and stay where they are.
    */
-  private pads: { geometry: THREE.BufferGeometry; mask: Float32Array }[] = [];
-  private colourPads(body: string, trim: string) {
-    const a = new THREE.Color(body), b = new THREE.Color(trim);
-    for (const { geometry, mask } of this.pads) {
-      const colour = geometry.getAttribute('color') as THREE.BufferAttribute;
-      for (let i = 0; i < colour.count; i++) {
-        const r = mask[i * 3], g = mask[i * 3 + 1];
-        colour.setXYZ(i, a.r * r + b.r * g, a.g * r + b.g * g, a.b * r + b.b * g);
-      }
-      colour.needsUpdate = true;
-    }
+  private buildPadding(group: THREE.Group, body: string, trim: string) {
+    for (const part of [...group.children]) { part.removeFromParent(); (part as THREE.Mesh).geometry?.dispose?.(); }
+    this.padPiece(group, body, [.20, .38, .175], 'soft');
+    for (let roll = 0; roll < 5; roll++) this.padPiece(group, body, [.028, .34, .035], 'tube').position.set(-.064 + roll * .032, 0, .082);
+    this.padPiece(group, trim, [.205, .095, .135], 'soft').position.set(0, .20, .025);
+    for (const x of [-.085, .085]) this.padPiece(group, trim, [.009, .34, .012], 'soft').position.set(x, 0, .087);
+    for (const y of [.181, .207, .23]) this.padPiece(group, trim, [.13, .006, .01], 'flat').position.set(0, y, .093);
+    this.padPiece(group, trim, [.18, .042, .026], 'soft').position.set(0, -.179, .083);
+    compactRigidParts(group);
   }
-  /** A piece of a leg pad, marked as the pad itself or its trim for `colourPads`. */
-  private padPiece(parent: THREE.Object3D, trim: boolean, scale: Point, shape: keyof Batter['shapes'] = 'soft') {
-    const geometry = this.shapes[shape].clone(), count = geometry.attributes.position.count, colours = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) colours[i * 3 + (trim ? 1 : 0)] = 1;
+  /** A piece of a leg pad in one colour, carried in its vertices. */
+  private padPiece(parent: THREE.Object3D, colour: string, scale: Point, shape: keyof Batter['shapes'] = 'soft') {
+    const geometry = this.shapes[shape].clone(), count = geometry.attributes.position.count, colours = new Float32Array(count * 3), c = new THREE.Color(colour);
+    for (let i = 0; i < count; i++) { colours[i * 3] = c.r; colours[i * 3 + 1] = c.g; colours[i * 3 + 2] = c.b; }
     geometry.setAttribute('color', new THREE.BufferAttribute(colours, 3));
     const mesh = new THREE.Mesh(geometry, this.palette.legPad);
     mesh.scale.set(...scale); mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
@@ -2686,15 +2687,9 @@ export class Batter {
         elbow: this.mesh(this.root, this.palette.shirt, [.073, .073, .073], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .078, .088], 'ball'),
         glove, palm, cuff, knuckles: back, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3(), socket:wristSocket(i) });
       const pad = new THREE.Group(); this.root.add(pad);
-      this.padPiece(pad, false, [.20, .38, .175], 'soft');
-      for (let roll = 0; roll < 5; roll++) this.padPiece(pad, false, [.028, .34, .035], 'tube').position.set(-.064 + roll * .032, 0, .082);
+      // The padding is the guard's, built by `wearGloves` (`buildPadding`); the straps are the kit's.
+      const padding = new THREE.Group(); padding.name = 'Padding'; pad.add(padding);
       for (const y of [-.10, .06]) this.mesh(pad, this.palette.accent, [.185, .026, .17], 'soft').position.set(0, y, -.008);
-      // The knee roll, the raised piping, the knee stitching and the ankle
-      // flap are the pad's trim, the guard's second colour.
-      this.padPiece(pad, true, [.205, .095, .135], 'soft').position.set(0, .20, .025);
-      for (const x of [-.085, .085]) this.padPiece(pad, true, [.009, .34, .012], 'soft').position.set(x, 0, .087);
-      for (const y of [.181, .207, .23]) this.padPiece(pad, true, [.13, .006, .01], 'flat').position.set(0, y, .093);
-      this.padPiece(pad, true, [.18, .042, .026], 'soft').position.set(0, -.179, .083);
       const shoe = new THREE.Group(); this.root.add(shoe);
       this.mesh(shoe, this.palette.pad, [.185, .125, .33], 'soft').position.z = .055;
       this.mesh(shoe, this.palette.handle, [.185, .035, .33], 'soft').position.set(0, -.055, .055);
@@ -2702,17 +2697,13 @@ export class Batter {
       for (const z of [.065, .093, .121]) this.mesh(shoe, this.palette.pad, [.075, .009, .013], 'flat').position.set(0, .063, z);
       this.legs.push({ thigh: this.mesh(this.root, this.palette.trousers, [1, 1, 1], 'trouser'), shin: this.mesh(this.root, this.palette.trousers, [1, 1, 1], 'tube'),
         knee: this.mesh(this.root, this.palette.trousers, [.078, .078, .078], 'ball'), cap: this.mesh(this.root, this.palette.trousers, [.098, .10, .105], 'ball'),
-        pad, shoe });
+        pad, padding, shoe });
     }
     // These details move together. The glove palm and named knuckles remain
     // separate because the grip solver and its inspection hooks use them.
     for (const group of [this.torso, this.hips, this.head, this.bat,
       ...this.arms.map(a => a.glove), ...this.arms.map(a => a.cuff), ...this.legs.flatMap(l => [l.pad, l.shoe])]) compactRigidParts(group);
-    // The pads' pieces are one mesh each now; its colour attribute is the mask until a guard paints it.
-    this.pads = this.legs.map(leg => {
-      const merged = leg.pad.children.find(part => (part as THREE.Mesh).material === this.palette.legPad) as THREE.Mesh;
-      return { geometry: merged.geometry, mask: Float32Array.from((merged.geometry.getAttribute('color') as THREE.BufferAttribute).array) };
-    });
+
     for (let i = 0; i < 2; i++) {
       const arm = this.arms[i], leg = this.legs[i];
       // Keep the established IK controls and measurements, but do not draw
