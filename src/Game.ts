@@ -1,7 +1,9 @@
 import { handleOf, ownsHandle } from './game/handle';
 import { fetchActivity, fetchProfile, saveBio } from './game/profile-api';
 import { cleanBio } from './server/bio-rules';
-import { againLabel, beaten, close, placeOnPassing, verdict, type Chase, type Mine } from './game/chase';
+import {
+  againLabel, beaten, close, placeOnPassing, surviveGoal, surviveResultOf, surviveSurely, surviveVerdict, verdict, type Chase, type Mine,
+} from './game/chase';
 import { chaseStripMarkup } from './ui/ChaseUi';
 import { buzz } from './game/haptics';
 import { type GameMode, isTest } from './game/modes';
@@ -765,7 +767,10 @@ export class Game {
     this.hud.onWinBack = event => {
       this.mark('activity-win-back', 'Win it back from Your profile');
       this.hud.closeStats();
-      this.hud.onPlayerChase?.({ handle: event.handle, name: event.name, avatar: event.avatar, mode: event.mode, target: event.runs, theirPlace: event.place ? event.place - 1 || 1 : null });
+      this.hud.onPlayerChase?.({
+        handle: event.handle, name: event.name, avatar: event.avatar, mode: event.mode, target: event.runs,
+        theirPlace: event.place ? event.place - 1 || 1 : null, result: event.result?.mine ?? null,
+      });
     };
     this.hud.onPlayerChase = chase => {
       this.chase = chase;
@@ -3065,10 +3070,11 @@ export class Game {
     // Passed and celebrated, the chase has nothing left to say in play.
     if (this.chasePassed && !this.chasePassDue) { this.hud.chaseChip(null); return; }
     const runs = this.chaseRuns;
-    const place = this.chasePassed || beaten(chase, runs) ? placeOnPassing(chase, this.chaseMine()) : null;
-    const beat = outcome.runs >= 4 ? 'boundary' : outcome.runs > 0 || close(chase, runs) ? 'scored' : 'none';
-    this.hud.chaseChip(chase, runs, this.chaseBallsLeft, place, beat);
-    if (!this.chasePassed && beaten(chase, runs)) { this.chasePassed = true; this.chasePassDue = true; }
+    const passed = chase.result ? surviveSurely(chase.result, this.score.balls) : beaten(chase, runs);
+    const place = this.chasePassed || passed ? placeOnPassing(chase, this.chaseMine()) : null;
+    const beat = outcome.runs >= 4 ? 'boundary' : outcome.runs > 0 || (!chase.result && close(chase, runs)) ? 'scored' : 'none';
+    this.hud.chaseChip(chase, runs, this.chaseBallsLeft, place, beat, this.score.balls);
+    if (!this.chasePassed && passed) { this.chasePassed = true; this.chasePassDue = true; }
   }
 
   /**
@@ -3082,7 +3088,7 @@ export class Game {
     const lasts = 1700;
     this.celebrating = Math.max(this.celebrating, lasts);
     const place = placeOnPassing(chase, this.chaseMine());
-    this.hud.chasePassed(chase, this.chaseRuns, { avatar: readPlayer()?.avatar ?? null }, place, CHASE_MODE_NAMES[chase.mode], lasts);
+    this.hud.chasePassed(chase, chase.result ? this.score.balls : this.chaseRuns, { avatar: readPlayer()?.avatar ?? null }, place, CHASE_MODE_NAMES[chase.mode], lasts);
     // The moment says it; the chip under the scoreboard goes with it.
     this.hud.chaseChip(null);
     buzz([0, 40, 30, 90]);
@@ -3103,14 +3109,16 @@ export class Game {
     const now = this.placeNow() ?? null;
     const held = this.standing?.innings === this.innings ? this.standing.standing : null;
     const was = held ? ('team' in held ? held.team.was?.rank : held.was?.rank) ?? null : null;
-    const said = verdict(chase, runs, { now, was });
+    const said = chase.result
+      ? surviveVerdict(chase.name, chase.result, surviveResultOf(this.survived()), { now, was })
+      : verdict(chase, runs, { now, was });
     const next = result?.around?.next ?? this.chaseNext;
     if (result?.around) this.chaseNext = result.around.next;
     this.hud.chaseStrip(chaseStripMarkup({
       chase, runs, verdict: said, place: now, modeName: CHASE_MODE_NAMES[chase.mode],
       you: { avatar: readPlayer()?.avatar ?? null }, best: this.chaseBest, next,
     }), !!readPlayer()?.name);
-    this.hud.againLabel(said.beat ? null : againLabel(chase));
+    this.hud.againLabel(said.beat ? null : chase.result ? surviveGoal(chase.name, chase.result).again : againLabel(chase));
     if (!result) this.mark(said.beat ? 'chase-beat' : 'chase-short', said.beat ? 'Chase: beaten' : 'Chase: fell short');
     const board = () => { if (this.careerMode === 'marathon') this.openMarathon('team'); else this.openBoard(this.careerMode, 'best'); };
     document.getElementById('chase-board')?.addEventListener('click', board);

@@ -71,6 +71,16 @@ describe('the Test Marathon', () => {
   });
 });
 
+describe('Test Survival', () => {
+  it('keys the chase to their result, and offers none until the profile has said it', () => {
+    const survive = { career: null, granted: null, best: { runs: 30, place: 3, total: 20, result: { kind: 'lost' as const, balls: 40, runs: 30 } }, bestRank: 3 };
+    const html = playerSheetMarkup(view({ mode: 'survive', profile: profile({ survive }) }));
+    expect(html).toContain('OUTLAST KABIR');
+    expect(html).not.toContain('CHASE KABIR');
+    expect(chaseTarget(view({ mode: 'survive', state: 'loading', profile: null, seed: { ...seed, mode: 'survive' } }))).toBeNull();
+  });
+});
+
 describe('playedMode', () => {
   it('opens on the board\u2019s mode, or the first they have batted', () => {
     expect(playedMode(profile(), { mode: 'classic', modes: ['classic', 'marathon', 'survive'] })).toBe('classic');

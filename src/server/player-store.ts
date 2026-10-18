@@ -2,6 +2,7 @@ import { handleOf, isHandle } from '../game/handle.js';
 import { whenOf } from '../game/recap.js';
 import { isPlayerId } from './board-store.js';
 import { bioProblem, cleanBio } from './bio-rules.js';
+import type { SurviveResult } from '../game/chase.js';
 
 /**
  * What a player's profile collects about them that no board does: the handle
@@ -35,6 +36,8 @@ export interface ActivityEvent {
   /** Where this player stood once it happened, where it moved them. */
   place: number | null;
   at: number;
+  /** A Test Survival chase is of a result, not runs: the chaser's, and this player's that it went after. */
+  result?: { mine: SurviveResult; theirs: SurviveResult };
 }
 
 /** A bio as it is kept. */

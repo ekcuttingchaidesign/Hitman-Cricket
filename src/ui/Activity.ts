@@ -31,6 +31,12 @@ export function agoOf(at: number, now = Date.now()): string {
 
 /** What one event says, in a line. */
 export function eventTitle(event: Event): string {
+  // A Survival chase is of a result: said the way beating that result was asked.
+  if (event.result && event.kind === 'beat') {
+    const theirs = event.result.theirs.kind;
+    return theirs === 'won' ? `${event.name} won faster than you` : theirs === 'drawn' ? `${event.name} beat your draw` : `${event.name} outlasted you`;
+  }
+  if (event.result && event.kind === 'short') return `${event.name} chased your result`;
   if (event.kind === 'beat') return `${event.name} beat your ${event.target} with ${event.runs}`;
   if (event.kind === 'short') return `${event.name} chased your ${event.target}`;
   return `${event.name} passed you`;
@@ -38,6 +44,7 @@ export function eventTitle(event: Event): string {
 
 /** The line under it: where it left you, or how it fell short. */
 function eventSub(event: Event): string {
+  if (event.result && event.kind === 'short') return 'Fell short';
   if (event.kind === 'short') return `Fell ${Math.max(1, event.target - event.runs)} short`;
   return event.place ? `You’re #${event.place} now` : 'Off your place';
 }
@@ -62,7 +69,7 @@ export function activityMarkup(activity: OwnActivity | null, now = Date.now()): 
   const week = activity.events.filter(one => now - one.at < 7 * DAY);
   if (lead) {
     const more = week.filter(one => one !== lead).length;
-    const verb = lead.kind === 'beat' ? `${lead.name} beat your ${lead.target}` : `${lead.name} passed you`;
+    const verb = lead.kind === 'beat' ? (lead.result ? eventTitle(lead) : `${lead.name} beat your ${lead.target}`) : `${lead.name} passed you`;
     const sub = [lead.place ? `You’re #${lead.place} now` : null, more ? `and ${more} more this week` : null].filter(Boolean).join(' · ');
     return `<button id="mp-activity-open" type="button" class="mp-news is-taken" aria-haspopup="dialog">
         <span class="mp-news-face">${kitMarkup(lead.avatar, lead.name)}<i aria-hidden="true">${ARROW_UP}</i></span>

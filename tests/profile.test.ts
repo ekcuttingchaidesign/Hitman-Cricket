@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GAME } from '../src/config/gameplay';
 import { plausible, type Innings } from '../src/game/leaderboard';
 import { handleOf } from '../src/game/handle';
-import { CLASSIC_LADDER, aroundAfter, submitScore, type MarathonAccepted, type SubmitAccepted } from '../src/server/board-store';
+import { CLASSIC_LADDER, SURVIVE_LADDER, aroundAfter, submitScore, type MarathonAccepted, type SubmitAccepted } from '../src/server/board-store';
 import { memoryStore } from '../src/server/memory-store';
 import { memoryCareer } from '../src/server/memory-career';
 import { memoryPlayers, readActivity, rememberHandle } from '../src/server/player-store';
@@ -233,5 +233,34 @@ describe("the Test Marathon's best-batter chase", () => {
     expect((await on.players.events(A))[0]).toMatchObject({ kind: 'beat', mode: 'marathon', runs: 150, target: 141 });
     // And their profile offers it, under the Marathon's six.
     expect((await readProfile(on, handleOf(A), undefined))?.modes.marathon.solo).toEqual({ runs: 141, out: true, place: 1 });
+  });
+});
+
+describe("a Test Survival chase", () => {
+  /** A Survival innings bowled out after so many balls, posted the way api/score posts one. */
+  async function bat(on: ProfileStores, name: string, balls: number, runs: number, chase?: string) {
+    const playerId = idOf(name);
+    const innings: SurviveInnings = { runs, balls, wickets: 1, blows: 0, health: 100 };
+    const outcome = await submitScore(on.boards.survive, SURVIVE_LADDER, { playerId, name, avatar: 1, innings, address: `addr-${name}` });
+    if (!outcome.ok) throw new Error(outcome.reason);
+    return afterPost(on, { playerId, name, avatar: 1, mode: 'survive', runs, outcome, chase, surviveInnings: innings });
+  }
+
+  it("is judged on the result, as the board ranks it, not on runs", async () => {
+    const on = stores();
+    await bat(on, 'Arjun', 40, 30);
+    // Fewer runs, but lasted longer: outlasted.
+    const longer = await bat(on, 'Esha', 46, 20, handleOf(A));
+    expect(longer.chase).toMatchObject({ beat: true, result: { mine: { kind: 'lost', balls: 46 }, theirs: { kind: 'lost', balls: 40 } } });
+    expect((await on.players.events(A))[0]).toMatchObject({ kind: 'beat', mode: 'survive', result: { theirs: { balls: 40 } } });
+    // More runs, but out sooner: short.
+    const sooner = await bat(on, 'Farah', 36, 90, handleOf(A));
+    expect(sooner.chase?.beat).toBe(false);
+  });
+
+  it("carries their result on their profile, for the key", async () => {
+    const on = stores();
+    await bat(on, 'Arjun', 40, 30);
+    expect((await readProfile(on, handleOf(A), undefined))?.modes.survive.best?.result).toEqual({ kind: 'lost', balls: 40, runs: 30 });
   });
 });

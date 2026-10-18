@@ -87,7 +87,7 @@ import type { SoundSetting } from '../game/Audio';
 import type { CareerMode } from '../game/career';
 import { chaseStanding, chaseTarget, playedMode, playerSheetMarkup, soloOf, type PlayerSeed, type PlayerSheetView } from './PlayerSheet';
 import { cachedProfile, type ProfilePayload } from '../game/profile-api';
-import { chipLine, type Chase, type Mine } from '../game/chase';
+import { chipLine, surviveGoal, type Chase, type Mine } from '../game/chase';
 import { chaseChipMarkup, chaseIntroMarkup, passedMarkup } from './ChaseUi';
 import { activitySheetMarkup } from './Activity';
 import type { OwnActivity } from '../game/profile-api';
@@ -1071,6 +1071,8 @@ ${modeSelectMarkup()}
       this.onPlayerChase?.({
         handle, name: open.view.profile?.name ?? name, avatar: open.view.profile?.avatar ?? avatar, mode: open.view.mode, target,
         ...chaseStanding(open.view),
+        // Survival chases their result; everything else their runs.
+        result: open.view.mode === 'survive' ? open.view.profile?.modes.survive.best?.result ?? null : null,
       });
     });
     sheet.querySelector<HTMLElement>('#player-chase-solo')?.addEventListener('click', () => {
@@ -1200,16 +1202,17 @@ ${modeSelectMarkup()}
    * to its new value on a scoring ball, and the chip beats on a boundary and on
    * every ball inside ten to go.
    */
-  chaseChip(chase: Chase | null, runs = 0, ballsLeft: number | null = null, place: number | null = null, beat: 'none' | 'scored' | 'boundary' = 'none') {
+  chaseChip(chase: Chase | null, runs = 0, ballsLeft: number | null = null, place: number | null = null, beat: 'none' | 'scored' | 'boundary' = 'none', balls = 0) {
     const slot = this.$('chase-chip');
     if (!chase) { slot.innerHTML = ''; slot.classList.add('hidden'); this.pauseChase = null; return; }
-    slot.innerHTML = chaseChipMarkup(chase, runs, ballsLeft, place);
+    slot.innerHTML = chaseChipMarkup(chase, runs, ballsLeft, place, balls);
     slot.classList.remove('hidden');
     const chip = slot.querySelector<HTMLElement>('.ch-chip')!;
     if (beat !== 'none') chip.classList.add('is-rolled', 'is-beat');
     if (beat === 'boundary') chip.classList.add('is-boundary');
     const line = chipLine(chase, runs, ballsLeft);
-    this.pauseChase = line.done ? `Passed ${chase.name}` : `${line.need} to beat ${chase.name}`;
+    this.pauseChase = chase.result ? surviveGoal(chase.name, chase.result).key.toLowerCase().replace(/^./, c => c.toUpperCase())
+      : line.done ? `Passed ${chase.name}` : `${line.need} to beat ${chase.name}`;
   }
   /** The chase's word on the pause sheet, beside the score. */
   private pauseChase: string | null = null;
@@ -1230,7 +1233,7 @@ ${modeSelectMarkup()}
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const count = layer.querySelector<HTMLElement>('.ch-count');
     if (count && !still) {
-      const to = chase.target, began = performance.now() + 220;
+      const to = Number(count.dataset.to) || chase.target, began = performance.now() + 220;
       const step = (now: number) => {
         if (!count.isConnected) return;
         const t = Math.min(1, Math.max(0, (now - began) / 500));

@@ -12,6 +12,7 @@ import type { Innings } from '../game/leaderboard.js';
 import type { SurviveInnings } from '../game/survive-board.js';
 import type { SoloInnings, TeamInnings } from '../game/marathon-board.js';
 import { handleOf, isHandle } from '../game/handle.js';
+import { surviveResultOf, type SurviveResult } from '../game/chase.js';
 import {
   READ_LIMIT, WINDOW_SECONDS, countView, noteEvent, readActivity, refusedBio, rememberHandle, saveBio,
   type Activity, type ActivityEvent, type PlayerStore, type ProfileMode,
@@ -54,7 +55,7 @@ export interface ProfileModeView<C> {
   career: C | null;
   granted: Granted | null;
   /** Their best innings on the mode's board — the Marathon's side total — and its place. */
-  best: { runs: number; place: number; total: number } | null;
+  best: { runs: number; place: number; total: number; result?: SurviveResult } | null;
   /** The best place they hold on any of the mode's ladders. */
   bestRank: number | null;
   /** The Test Marathon's other target: their best innings by one batter, and its place. */
@@ -82,7 +83,7 @@ export interface PublicNeighbour { handle: string; name: string; avatar: number;
 /** What a score post's answer gains. */
 export interface PostExtras {
   around: { passed: PublicNeighbour[]; passedCount: number; next: PublicNeighbour | null };
-  chase?: { handle: string; name: string; target: number; runs: number; beat: boolean };
+  chase?: { handle: string; name: string; target: number; runs: number; beat: boolean; result?: { mine: SurviveResult; theirs: SurviveResult } };
 }
 
 /** Your own events, with whether a beat has been won back since. */
@@ -142,7 +143,7 @@ export async function readProfile(
   const { boards, careers } = stores;
   const [classic, survive, marathon, bio] = await Promise.all([
     modeView(careers.classic, BLAST_CAREER, [boards.classic], id),
-    modeView(careers.survive, SURVIVE_CAREER, [boards.survive], id),
+    modeView(careers.survive, SURVIVE_CAREER, [boards.survive], id, row => surviveResultOf(row as unknown as SurviveInnings)),
     modeView(careers.marathon, MARATHON_CAREER, [boards.team, boards.solo], id),
     stores.players.readBio(id),
   ]);
@@ -197,6 +198,7 @@ export async function findHandle(stores: ProfileStores, handle: string): Promise
 async function modeView<C, T>(
   store: CareerStore<C>, ladder: CareerLadder<C, T>,
   innings: readonly Pick<BoardStore<{ runs: number }>, 'standing' | 'rows'>[], id: string,
+  resultOf?: (row: { runs: number }) => SurviveResult,
 ) {
   const [held, places, standings] = await Promise.all([
     store.read(id),
@@ -211,7 +213,7 @@ async function modeView<C, T>(
   const view: ProfileModeView<C> = {
     career: held ? ladder.figures(held.career) : null,
     granted: held?.granted ?? null,
-    best: row && first.rank !== null ? { runs: row.runs, place: first.rank, total: first.total } : null,
+    best: row && first.rank !== null ? { runs: row.runs, place: first.rank, total: first.total, ...(resultOf ? { result: resultOf(row) } : {}) } : null,
     bestRank: all.length ? Math.min(...all) : null,
     ...(innings.length > 1 ? { solo: solo && second.rank !== null ? { runs: solo.runs, out: !!solo.out, place: second.rank } : null } : {}),
   };
@@ -271,6 +273,8 @@ export interface Posted {
   chaseLadder?: unknown;
   /** The innings's best by one batter, for a chase of the Batters ladder. */
   soloRuns?: number;
+  /** A Test Survival innings, whose result is what a chase there is judged on. */
+  surviveInnings?: SurviveInnings;
 }
 
 /** How many of those an innings went past are told so. */
@@ -311,10 +315,15 @@ export async function afterPost(stores: ProfileStores, posted: Posted, now = Dat
       const [row] = target ? await ladder.rows([target]) : [null];
       if (target && row) {
         chased = target;
-        const beat = runs > row.runs;
-        const place = (await ladder.standing(target)).rank;
-        await noteEvent(stores.players, target, event(beat ? 'beat' : 'short', row.runs, place, runs));
-        extras.chase = { handle: posted.chase, name: row.name, target: row.runs, runs, beat };
+        const theirs = await ladder.standing(target);
+        // Survival is judged on its result, by the board's own packed score:
+        // the innings's against the best they hold. Everywhere else, runs.
+        const survive = posted.mode === 'survive' && posted.surviveInnings;
+        const score = survive ? (posted.outcome as SubmitAccepted<unknown>).score : 0;
+        const beat = survive ? theirs.score !== null && score > theirs.score : runs > row.runs;
+        const result = survive ? { mine: surviveResultOf(posted.surviveInnings!), theirs: surviveResultOf(row as unknown as SurviveInnings) } : undefined;
+        await noteEvent(stores.players, target, { ...event(beat ? 'beat' : 'short', row.runs, theirs.rank, runs), ...(result ? { result } : {}) });
+        extras.chase = { handle: posted.chase, name: row.name, target: row.runs, runs, beat, ...(result ? { result } : {}) };
       }
     }
     await Promise.all(around.passed.slice(0, PASSED_TOLD)

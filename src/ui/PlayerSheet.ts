@@ -1,3 +1,4 @@
+import { surviveGoal } from '../game/chase';
 import type { BlastCareer, CareerMode, MarathonCareer, SurviveCareer } from '../game/career';
 import { emptyBlast, emptyMarathon, emptySurvive } from '../game/career';
 import { statsExplain, statsFacts, type StatsFacts } from '../game/StatsCard';
@@ -60,8 +61,19 @@ const grouped = (n: number) => n.toLocaleString('en-US');
 
 /** What CHASE aims at in a mode: the best on the profile, or the row's before it has come. */
 export function chaseTarget(view: Pick<PlayerSheetView, 'seed' | 'mode' | 'state' | 'profile'>): number | null {
-  if (view.state === 'ready' && view.profile) return view.profile.modes[view.mode].best?.runs ?? null;
-  return view.seed.mode === view.mode ? view.seed.best : null;
+  if (view.state === 'ready' && view.profile) {
+    const best = view.profile.modes[view.mode].best;
+    // Survival chases a result, which only the profile carries.
+    return best && (view.mode !== 'survive' || best.result) ? best.runs : null;
+  }
+  return view.seed.mode === view.mode && view.mode !== 'survive' ? view.seed.best : null;
+}
+
+/** The key: CHASE KABIR’S 187, or in Survival what beating their result asks — OUTLAST KABIR. */
+function keyLabel(view: PlayerSheetView, target: number): string {
+  const result = view.mode === 'survive' ? view.profile?.modes.survive.best?.result : null;
+  const name = view.profile?.name ?? view.seed.name;
+  return result ? surviveGoal(name, result).key : chaseLabel(name, target);
 }
 
 /** The key's words: CHASE KABIR’S 187. */
@@ -80,7 +92,7 @@ export function playerSheetMarkup(view: PlayerSheetView): string {
         <div id="player-body" class="ps-body">${bodyMarkup(view)}</div>
         ${soloLinkMarkup(view)}
       </div>
-      <div class="ps-foot">${target !== null ? cta({ kind: 'primary', label: chaseLabel(view.seed.name, target), id: 'player-chase', wide: true, moving: true }) : ''}</div>
+      <div class="ps-foot">${target !== null ? cta({ kind: 'primary', label: keyLabel(view, target), id: 'player-chase', wide: true, moving: true }) : ''}</div>
     </section>`;
 }
 

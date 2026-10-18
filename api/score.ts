@@ -122,6 +122,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const extras = await afterPost(upstashProfiles(write), {
       playerId: who.playerId, name: who.name, avatar: who.avatar, mode, runs, outcome, chase: body.chase,
       chaseLadder: body.chaseLadder, soloRuns: marathonInnings ? soloOf(marathonInnings).runs : undefined,
+      surviveInnings: surviveInnings ?? undefined,
     });
     // A submission is never cached, by anyone, ever.
     res.setHeader('Cache-Control', 'no-store');

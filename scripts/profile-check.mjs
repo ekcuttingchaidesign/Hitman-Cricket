@@ -304,6 +304,52 @@ check(events.events?.[0]?.kind === 'beat' && events.events[0].runs === 174, 'and
   await own.close();
 }
 
+// B in Test Survival: the chase is of their result — here, outlast a player
+// bowled out after forty balls — keyed, introduced and counted in balls.
+{
+  const surv = `Psurv${run}`;
+  const survId = idOf(surv);
+  const surviveInnings = { runs: 30, balls: 40, wickets: 1, blows: 0, health: 100 };
+  const posted = await post('/api/score', { playerId: survId, name: surv, avatar: 1, mode: 'survive', innings: surviveInnings });
+  check(posted.ok, 'S · a Survival innings is on its board', JSON.stringify(posted).slice(0, 120));
+  const ctx = await browser.newContext({ viewport: { width: 402, height: 874 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  const s = await ctx.newPage();
+  s.on('pageerror', e => errors.push(`[survival] ${e.message}`));
+  await s.addInitScript(name => {
+    try {
+      localStorage.setItem('hitman-seen', new Date(Date.now() - 172_800_000).toISOString().slice(0, 10));
+      localStorage.setItem('hitman-shots-intro', 'done');
+      localStorage.setItem('hitman-hurt-seen', '1');
+      localStorage.setItem('hitman-profile', '1');
+      localStorage.setItem('hitman-batter', JSON.stringify({ name, avatar: 2 }));
+    } catch { /* The screens it skips stand in the way. */ }
+  }, `Pouts${run}`);
+  await s.goto(`${base}/?debug=1&private=0`, { waitUntil: 'load' });
+  await s.waitForTimeout(2000);
+  await s.addStyleTag({ content: '#debug{display:none!important}' });
+  await s.evaluate(() => document.getElementById('cover-board')?.click());
+  await s.waitForSelector('#board-overlay .lb-screen');
+  await s.locator('#board-mode').click();
+  await s.locator('[data-mode="survive"]').click();
+  await s.waitForTimeout(1200);
+  await s.locator('.lb-step[data-handle], .lb-row[data-handle]').filter({ hasText: surv }).first().click();
+  await s.waitForSelector('#player-sheet.is-ready', { timeout: 6000 });
+  const key = (await s.locator('#player-chase').textContent()).trim();
+  check(key === `OUTLAST ${surv.toUpperCase()}`, 'S · the key asks to outlast them, not to chase their runs', key);
+  await s.locator('#player-chase').click();
+  await s.waitForSelector('#chase-intro', { timeout: 8000 });
+  await s.waitForTimeout(900);
+  await s.screenshot({ path: `${out}/s1-intro.png` });
+  check((await s.locator('.ch-intro-target b').getAttribute('data-to')) === '41', 'S · the intro is built round the balls it takes: 41');
+  check(/BALLS TO OUTLAST/.test(await s.locator('.ch-intro-target em').textContent()), 'S · to outlast them');
+  await s.locator('#chase-bat').click();
+  await s.waitForTimeout(500);
+  const chip = (await s.locator('.ch-chip .ch-need').textContent().catch(() => '')).trim();
+  check(chip === 'Survive 41 more', 'S · and the chip counts the balls still to survive', chip);
+  await s.screenshot({ path: `${out}/s2-chip.png` });
+  await ctx.close();
+}
+
 check(errors.length === 0, 'no page errors', errors.join('\n'));
 await browser.close();
 console.log(failures ? `\n${failures} failed.` : '\nAll passed.');

@@ -370,6 +370,7 @@ function boardEndpoints(): Plugin {
           if (refused(outcome)) return turnedDown(outcome);
           const extras = await afterPost(profiles, {
             playerId: who.playerId, name: who.name, avatar: who.avatar, mode: submitted, runs: played.runs, outcome, chase: body.chase,
+            surviveInnings: asked ? played as SurviveInnings : undefined,
           });
           // The same stamp the deployed endpoint makes: a name just claimed
           // puts the career already counted under it onto the career boards,

@@ -1,4 +1,6 @@
-import { chaseProgress, chipLine, close, introLine, mineLine, type Chase, type ChaseVerdict, type Mine } from '../game/chase';
+import {
+  chaseProgress, chipLine, close, introLine, mineLine, surviveChip, surviveGoal, surviveSaid, type Chase, type ChaseVerdict, type Mine,
+} from '../game/chase';
 import { cta, icon } from './Kit';
 import { escape, kitMarkup } from './Leaderboard';
 
@@ -25,7 +27,7 @@ export function chaseIntroMarkup(chase: Chase, mine: Mine, you: { avatar: number
       <div class="ch-intro-head">
         <i class="ch-chevrons" aria-hidden="true"></i>
         <p class="ch-intro-eyebrow"><span>CHASE · ${mode.name}</span><small>${mode.facts}</small></p>
-        <h2 id="chase-intro-title" class="ch-intro-target"><b class="ch-count" data-to="${chase.target}">${grouped(chase.target)}</b><span><em>TO BEAT</em><small>${escape(chase.name)}’s ${chase.ladder === 'solo' ? 'best batter' : 'best innings'}</small></span></h2>
+        ${chase.result ? surviveTargetMarkup(chase) : `<h2 id="chase-intro-title" class="ch-intro-target"><b class="ch-count" data-to="${chase.target}">${grouped(chase.target)}</b><span><em>TO BEAT</em><small>${escape(chase.name)}’s ${chase.ladder === 'solo' ? 'best batter' : 'best innings'}</small></span></h2>`}
       </div>
       <div class="ch-intro-body">
         <div class="ch-versus">
@@ -42,6 +44,12 @@ export function chaseIntroMarkup(chase: Chase, mine: Mine, you: { avatar: number
     </div>`;
 }
 
+/** Survival's intro figure: what beating their result asks, and their result under it. */
+function surviveTargetMarkup(chase: Chase): string {
+  const goal = surviveGoal(chase.name, chase.result!);
+  return `<h2 id="chase-intro-title" class="ch-intro-target"><b class="ch-count" data-to="${goal.figure}">${grouped(goal.figure)}</b><span><em>${goal.unit} ${goal.aim}</em><small>${escape(goal.theirs)}</small></span></h2>`;
+}
+
 /** The intro's line, with the name and place set bold as the design has them. */
 function introMarkup(chase: Chase, mine: Mine): string {
   return escape(introLine(chase, mine))
@@ -50,7 +58,17 @@ function introMarkup(chase: Chase, mine: Mine): string {
 }
 
 /** B2: the chip under the scoreboard. The scoreboard itself is never touched. */
-export function chaseChipMarkup(chase: Chase, runs: number, ballsLeft: number | null, place: number | null): string {
+export function chaseChipMarkup(chase: Chase, runs: number, ballsLeft: number | null, place: number | null, balls = 0): string {
+  if (chase.result) {
+    const said = surviveChip(chase.name, chase.result, { balls, runs });
+    if (said.done) {
+      return `<span class="ch-chip is-done" role="status">${face(chase.avatar, chase.name)}
+        <span class="ch-chip-text"><b>${escape(said.need)}${place ? ` \u00b7 now #${place}` : ''}</b><small>\u2713 ${balls} BALLS AND COUNTING</small></span></span>`;
+    }
+    return `<span class="ch-chip" role="status">${face(chase.avatar, chase.name)}
+      <span class="ch-chip-text"><b class="ch-need">${escape(said.need)}</b><small>${escape(said.small)}</small></span>
+      <i class="ch-bar" aria-hidden="true"><i style="width:${(said.progress * 100).toFixed(1)}%"></i></i></span>`;
+  }
   const line = chipLine(chase, runs, ballsLeft);
   const progress = chaseProgress(chase, runs);
   if (line.done) {
@@ -71,7 +89,7 @@ export function passedMarkup(chase: Chase, runs: number, you: { avatar: number |
         <span class="ch-place is-you">${face(you.avatar, 'You')}<span><b>${place ? `#${place}` : 'You'}</b><small>YOU · ${grouped(runs)}</small></span><i class="is-up" aria-hidden="true">↑</i></span>
         <span class="ch-place is-them">${face(chase.avatar, chase.name)}<span><b>${place ? `#${place + 1}` : escape(chase.name)}</b><small>${escape(chase.name.toUpperCase())} · ${grouped(chase.target)}</small></span><i aria-hidden="true">↓</i></span>
       </div>
-      <p class="ch-passed-line">${grouped(runs)} beats ${grouped(chase.target)}${place ? ` · <em>now #${place}</em> on ${escape(modeName)}` : ''}</p>
+      <p class="ch-passed-line">${chase.result ? `${grouped(runs)} balls and counting \u00b7 ${escape(chase.name)} ${surviveSaid(chase.result)}` : `${grouped(runs)} beats ${grouped(chase.target)}`}${place ? ` · <em>now #${place}</em> on ${escape(modeName)}` : ''}</p>
     </div>`;
 }
 
@@ -83,10 +101,10 @@ export function chaseStripMarkup(view: {
 }): string {
   const { chase, verdict } = view;
   const head = `<div class="ch-strip-head">${face(view.you.avatar, 'You')}
-        <span class="ch-strip-text"><small>CHASE · ${escape(chase.name.toUpperCase())}’S ${grouped(chase.target)}</small><b>${escape(verdict.title)}</b>
+        <span class="ch-strip-text"><small>${chase.result ? `${escape(surviveGoal(chase.name, chase.result).key)}` : `CHASE · ${escape(chase.name.toUpperCase())}’S ${grouped(chase.target)}`}</small><b>${escape(verdict.title)}</b>
         <span class="ch-strip-line">${icon('trophy')}${escape(verdict.line)}</span></span>
         ${verdict.beat && view.place ? `<span class="ch-strip-place"><b>#${view.place}</b><small>${escape(view.modeName.toUpperCase())}</small></span>` : ''}</div>`;
-  const bar = verdict.beat ? '' : barMarkup(view);
+  const bar = verdict.beat || chase.result ? '' : barMarkup(view);
   const next = verdict.beat && view.next
     ? `<button id="chase-next" type="button" class="ch-strip-row">${kitMarkup(view.next.avatar, view.next.name)}<span>Next: <b>${escape(view.next.name)}</b> · <em>beat ${grouped(view.next.runs)}</em></span><small>#${view.next.place}</small>${icon('chevron-right')}</button>`
     : '';
