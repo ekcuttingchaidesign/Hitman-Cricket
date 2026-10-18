@@ -22,10 +22,10 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
-export type GloveId = 'classic' | 'sky' | 'fern' | 'contour' | 'blaze' | 'midnight';
+export type GloveId = 'classic' | 'fern' | 'carbon' | 'blaze' | 'glacier' | 'midnight';
 
-/** A print on some of the padding: contour lines, or pinstripes. */
-export interface GlovePrint { kind: 'contour' | 'pinstripe'; ground: string; ink: string }
+/** A print on some of the padding: a carbon-fibre weave in two greys. */
+export interface GlovePrint { kind: 'carbon'; ground: string; ink: string }
 
 export interface GloveDesign {
   id: GloveId;
@@ -38,7 +38,9 @@ export interface GloveDesign {
   palm: string;
   /** Each finger's roll, little finger first and index last; a print in place of a colour prints it. */
   rolls: [Paint, Paint, Paint, Paint];
-  /** The index finger's roll in its three pieces — over the knuckle, round the corner, down the finger — where they differ. */
+  /** Every roll's three pieces — over the knuckle, round the corner, down the finger — where they differ: a fade along the finger. */
+  fade?: [Paint, Paint, Paint];
+  /** The index finger's roll in its three pieces, where they differ from the rest. */
   index?: [Paint, Paint, Paint];
   /** The index roll made a fatter side bar, as most gloves have it. */
   sideBar?: boolean;
@@ -68,22 +70,15 @@ type Paint = string | GlovePrint;
  * swatch: on the batter it is the glove `Batter` was built with, whose cuff
  * band follows the kit's trim.
  */
+/** The weave on Carbon's rolls. */
+const CARBON: GlovePrint = { kind: 'carbon', ground: '#232529', ink: '#4A5058' };
+
 export const GLOVES: readonly GloveDesign[] = [
   {
     id: 'classic', name: 'Classic', line: 'The pair from day one. Plain white padding, the cuff band in your kit\'s trim.',
     base: '#FDFCF4', palm: '#D9D9CF', rolls: ['#FDFCF4', '#FDFCF4', '#FDFCF4', '#FDFCF4'],
     thumb: '#FDFCF4', ridges: '#FDFCF4',
     cuff: { base: '#FDFCF4', bands: [{ at: .014, depth: .026, colour: '#ED7044' }], strap: '#ED7044', rim: '#FDFCF4' },
-  },
-  {
-    id: 'sky', name: 'Skyline', line: 'White with a sky-blue side bar and fingertip, a gold pinstripe flash, and a navy band round the cuff.',
-    base: '#FBFBF7', palm: '#ECEBE4',
-    rolls: ['#FBFBF7', '#FBFBF7', { kind: 'pinstripe', ground: '#F6E7C4', ink: '#E7A93A' }, '#1E9BE0'],
-    sideBar: true,
-    tips: ['#FBFBF7', '#FBFBF7', '#FBFBF7', '#1E9BE0'],
-    knuckleBar: { colour: '#1E9BE0', badge: '#FBFBF7' },
-    thumb: '#FBFBF7', thumbTip: '#1E9BE0', ridges: '#1E9BE0',
-    cuff: { base: '#FBFBF7', bands: [{ at: .072, depth: .014, colour: '#1B2A6B' }], strap: '#FBFBF7', badge: '#1B2A6B', rim: '#FBFBF7' },
   },
   {
     id: 'fern', name: 'Fern', line: 'A lime index roll fading into bottle green, a deep green knuckle bar, and the cuff ringed green and lime.',
@@ -100,14 +95,17 @@ export const GLOVES: readonly GloveDesign[] = [
     },
   },
   {
-    id: 'contour', name: 'Contour', line: 'An orange index roll beside a charcoal one printed with orange contour lines, and a black band round the cuff.',
-    base: '#FCFBF8', palm: '#EEEDE8',
-    rolls: ['#FCFBF8', '#FCFBF8', { kind: 'contour', ground: '#3A3D41', ink: '#F08A4B' }, '#F07C3C'],
+    id: 'carbon', name: 'Carbon', line: 'Black padding with a carbon-fibre weave across the rolls, a red index bar and tips, and a black cuff with a red strap.',
+    base: '#17181B', palm: '#2A2C30',
+    rolls: [CARBON, CARBON, CARBON, '#E0202A'],
     sideBar: true,
-    tips: ['#FCFBF8', '#FCFBF8', '#3A3D41', '#F07C3C'],
-    knuckleBar: { colour: '#FCFBF8', badge: '#17191B' },
-    thumb: '#FCFBF8', thumbTip: '#F07C3C', ridges: '#3A3D41',
-    cuff: { base: '#FCFBF8', bands: [{ at: .066, depth: .012, colour: '#17191B' }], strap: '#FCFBF8', badge: '#F07C3C', rim: '#FCFBF8' },
+    tips: ['#17181B', '#17181B', '#17181B', '#E0202A'],
+    knuckleBar: { colour: '#17181B', badge: '#E0202A' },
+    thumb: '#17181B', thumbTip: '#E0202A', ridges: '#E0202A',
+    cuff: {
+      base: '#17181B', bands: [{ at: .050, depth: .012, colour: '#E0202A' }, { at: .070, depth: .006, colour: '#5A5E66' }],
+      strap: '#E0202A', badge: '#17181B', rim: '#17181B',
+    },
   },
   {
     id: 'blaze', name: 'Blaze', line: 'Fluoro orange across every roll with black dashes, the piping in black, and a cuff knitted in orange and black stripes.',
@@ -120,6 +118,21 @@ export const GLOVES: readonly GloveDesign[] = [
     cuff: {
       base: '#FF4A1C', bands: [{ at: .022, depth: .012, colour: '#1A1A1A' }, { at: .046, depth: .010, colour: '#1A1A1A' }, { at: .068, depth: .010, colour: '#1A1A1A' }],
       strap: '#1A1A1A', badge: '#FF4A1C', rim: '#1A1A1A',
+    },
+  },
+  {
+    id: 'glacier', name: 'Glacier', line: 'Ice white, every roll fading from white at the knuckle to electric cyan at the tip, a silver knuckle bar and a cuff ringed cyan and silver.',
+    base: '#F7FBFD', palm: '#E8F1F5',
+    rolls: ['#F7FBFD', '#F7FBFD', '#F7FBFD', '#5FD2F5'],
+    fade: ['#F7FBFD', '#BDEBFA', '#5FD2F5'],
+    index: ['#5FD2F5', '#1FB6EA', '#0E9BD6'],
+    sideBar: true,
+    tips: ['#1FB6EA', '#1FB6EA', '#1FB6EA', '#0E9BD6'],
+    knuckleBar: { colour: '#D7DEE3', badge: '#1FB6EA' },
+    thumb: '#F7FBFD', thumbTip: '#1FB6EA', ridges: '#1FB6EA',
+    cuff: {
+      base: '#F7FBFD', bands: [{ at: .048, depth: .016, colour: '#1FB6EA' }, { at: .072, depth: .008, colour: '#C9D3DA' }],
+      strap: '#1FB6EA', badge: '#F7FBFD', rim: '#F7FBFD',
     },
   },
   {
@@ -154,26 +167,22 @@ function printOf(print: GlovePrint): THREE.Texture {
   canvas.width = canvas.height = size;
   const g = canvas.getContext('2d')!;
   g.fillStyle = print.ground; g.fillRect(0, 0, size, size);
-  if (print.kind === 'pinstripe') {
-    g.strokeStyle = print.ink; g.lineWidth = 2.2;
-    for (let x = -size; x < size * 2; x += 9) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + size * .45, size); g.stroke(); }
-  } else {
-    // Contour lines: a smooth hill, every level of it inked.
-    const image = g.getImageData(0, 0, size, size), ink = new THREE.Color(print.ink);
-    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-      const u = x / size * 6.3, v = y / size * 6.3;
-      const h = Math.sin(u * 1.1 + Math.sin(v * .9)) + Math.cos(v * 1.3 - Math.sin(u * .7) * 1.4) + .5 * Math.sin((u + v) * 1.7);
-      const level = h * 3.2 - Math.floor(h * 3.2);
-      if (Math.abs(level - .5) < .09) {
-        const at = (y * size + x) * 4;
-        image.data[at] = ink.r * 255; image.data[at + 1] = ink.g * 255; image.data[at + 2] = ink.b * 255;
-      }
-    }
-    g.putImageData(image, 0, 0);
+  // A carbon-fibre weave: squares of fibre lying across and along by turns,
+  // each shaded from the ink to the ground along the fibre, so it reads as
+  // woven rather than as a chequerboard.
+  const cell = 16;
+  for (let row = 0; row < size / cell; row++) for (let col = 0; col < size / cell; col++) {
+    const across = (row + col) % 2 === 0, x = col * cell, y = row * cell;
+    const shade = across ? g.createLinearGradient(x, y, x, y + cell) : g.createLinearGradient(x, y, x + cell, y);
+    shade.addColorStop(0, print.ink); shade.addColorStop(.5, print.ground); shade.addColorStop(1, print.ink);
+    g.fillStyle = shade; g.fillRect(x, y, cell, cell);
+    g.strokeStyle = print.ground; g.lineWidth = 1;
+    for (let n = 3; n < cell; n += 4) { g.beginPath(); if (across) { g.moveTo(x + n, y); g.lineTo(x + n, y + cell); } else { g.moveTo(x, y + n); g.lineTo(x + cell, y + n); } g.stroke(); }
   }
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(2, 2);
   prints.set(key, texture);
   return texture;
 }
@@ -236,7 +245,7 @@ export function buildGloveHand(design: GloveDesign, top: boolean) {
   for (let finger = 0; finger < 4; finger++) {
     const index = finger === 3, y = .034 - finger * .023;
     const roll = design.rolls[finger];
-    const [knuckleOf, cornerOf, fingerOf] = index && design.index ? design.index : [roll, roll, roll];
+    const [knuckleOf, cornerOf, fingerOf] = index && design.index ? design.index : design.fade ?? [roll, roll, roll];
     // The side bar: the index roll fatter and standing a little proud, its
     // lower edge kept inside the fist so it never reaches the other glove.
     const bar = index && design.sideBar, depth = bar ? .023 : .0205, lift = bar ? -.0015 : 0, proud = bar ? .004 : .001;

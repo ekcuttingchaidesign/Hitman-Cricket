@@ -433,7 +433,7 @@ function choose(key: string) {
   t = -LEAD_MS; placeCamera(view); setPlaying(true);
 }
 
-const firstGlove = new URLSearchParams(location.search).get('gloves') ?? 'sky';
+const firstGlove = new URLSearchParams(location.search).get('gloves') ?? 'fern';
 batter.wearGloves(gloveOf(firstGlove));
 for (const o of gloveRow.querySelectorAll('button')) o.setAttribute('aria-pressed', String(o.dataset.glove === firstGlove));
 choose('cover');
