@@ -1,6 +1,7 @@
 /* The parts the redrawn screens are built from (UI v1). First, as an import has to be. */
 @import './kit.css';
 @import './profile.css';
+@import './chase.css';
 /* Jaro, by Agyei Archer, Céline Hurka and Mirko Velimirović. SIL Open Font
    License 1.1 — the notice ships beside the file in src/assets/jaro-OFL.txt. */
 @font-face{

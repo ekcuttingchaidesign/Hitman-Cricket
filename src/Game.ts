@@ -1,5 +1,8 @@
 import { handleOf, ownsHandle } from './game/handle';
 import { fetchProfile } from './game/profile-api';
+import { againLabel, beaten, close, placeOnPassing, verdict, type Chase, type Mine } from './game/chase';
+import { chaseStripMarkup } from './ui/ChaseUi';
+import { buzz } from './game/haptics';
 import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME, SWIPE_ZONES } from './config/gameplay';
@@ -286,7 +289,7 @@ export class Game {
   /** The score he walked out to, nine down. Cosmetic, and drawn from the seed. */
   private chasing = 0;
   /** Another player's best being chased, from CHASE on their profile; null when nobody's is. */
-  private chase: { handle: string; name: string; avatar: number | null; mode: CareerMode; target: number } | null = null;
+  private chase: Chase | null = null;
   /** Three balls that went nowhere and the fielders have something to say. */
   private sledger = new Sledger();
   private sledgeDue = false;
@@ -760,7 +763,11 @@ export class Game {
     // the store is told it was a chase when the innings is posted.
     this.hud.onPlayerChase = chase => {
       this.chase = chase;
+      this.chaseFresh = true;
+      this.chaseWon = false;
+      this.chaseNext = null;
       chaseFor(chase.handle, chase.mode);
+      this.mark('chase-start', 'Chase: started from a profile');
       this.hud.closeBoard();
       this.choose(chase.mode === 'classic' ? 'CLASSIC' : chase.mode === 'marathon' ? 'MARATHON' : 'SURVIVE');
     };
@@ -1980,6 +1987,7 @@ export class Game {
    */
   private walkOut = () => this.start();
   start = () => {
+    if (this.chaseWon) { this.chaseWon = false; this.clearChase(); }
     // Who is batting, first: once, before the first innings there is.
     if (this.profileDue) {
       this.afterProfile = () => this.start();
@@ -2049,6 +2057,7 @@ export class Game {
     this.setPhase('READY');
     (document.activeElement as HTMLElement | null)?.blur();
     if (this.marathoning) this.introduce(); else this.teachShots();
+    this.startChase();
   };
   /**
    * The Marathon's rules, the first two times one starts: the bowler waits at
@@ -2941,6 +2950,133 @@ export class Game {
     this.openBoard(this.boardTab, this.boardLadder);
   }
 
+  // ── The chase (section 14, lane B) ────────────────────────────────────────
+
+  /** The intro is due: set by CHASE on a profile and by CHASE AGAIN, spent by the innings it stands before. */
+  private chaseFresh = false;
+  /** The target passed this innings, and whether its moment is waiting on a dead ball or has had it. */
+  private chasePassDue = false;
+  private chasePassed = false;
+
+  /** Whether the innings on now is the chase's: its mode, and no Rival Match. */
+  private get chaseLive(): Chase | null {
+    return this.chase && this.chase.mode === this.careerMode && !this.challenge.playing && this.lesson < 0 ? this.chase : null;
+  }
+
+  /** The runs a chase is judged on: the innings's, the side's in a Marathon. */
+  private get chaseRuns() { return this.score.runs; }
+
+  /** Balls left, where the innings is counted in them. */
+  private get chaseBallsLeft() { return this.careerMode === 'classic' ? GAME.totalBalls - this.score.balls : null; }
+
+  /** What the player brings to it: their best and place in the mode, as far as this browser knows. */
+  private chaseMine(): Mine {
+    const place = this.modeRanks[this.careerMode] ?? null;
+    return { best: this.careerMode === 'classic' && this.best > 0 ? this.best : null, place };
+  }
+
+  /** The chase let go: by BACK, by another mode, or once it is won and the card has said so. */
+  private clearChase() {
+    this.chase = null;
+    this.chaseFresh = false;
+    chaseFor(null);
+    this.hud.chaseChip(null);
+  }
+
+  /**
+   * An innings starting: the chase kept only for its own mode, the chip put up
+   * under the scoreboard, and — the first time — the intro held in front of
+   * the first ball. A browser in its coachmarks gets those first and the chip
+   * alone: two cards in a row before a ball is one too many.
+   */
+  private startChase() {
+    this.hud.chaseStrip(null);
+    this.hud.againLabel(null);
+    this.chasePassDue = false;
+    this.chasePassed = false;
+    this.chaseBest = this.chaseMine().best;
+    if (this.chase && (this.chase.mode !== this.careerMode || this.challenge.playing)) this.clearChase();
+    const chase = this.chaseLive;
+    if (!chase) { this.hud.chaseChip(null); return; }
+    chaseFor(chase.handle, chase.mode);
+    this.hud.chaseChip(chase, 0, this.chaseBallsLeft);
+    if (!this.chaseFresh) return;
+    this.chaseFresh = false;
+    if (this.bannerUntil === Number.POSITIVE_INFINITY) return;
+    this.bannerUntil = Number.POSITIVE_INFINITY;
+    this.hud.chaseIntro(chase, this.chaseMine(), { avatar: readPlayer()?.avatar ?? null }, bat => {
+      this.bannerUntil = this.elapsed;
+      if (bat) { this.mark('chase-bat', 'Chase: let’s bat'); return; }
+      this.mark('chase-back', 'Chase: back');
+      this.clearChase();
+      this.togglePause();
+      this.modes();
+    });
+  }
+
+  /** After each ball: the chip moved on, and the target, once passed, waiting on the dead ball for its moment. */
+  private chaseBall(outcome: ShotOutcome) {
+    const chase = this.chaseLive;
+    if (!chase) return;
+    const runs = this.chaseRuns;
+    const place = this.chasePassed || beaten(chase, runs) ? placeOnPassing(chase, this.chaseMine()) : null;
+    const beat = outcome.runs >= 4 ? 'boundary' : outcome.runs > 0 || close(chase, runs) ? 'scored' : 'none';
+    this.hud.chaseChip(chase, runs, this.chaseBallsLeft, place, beat);
+    if (!this.chasePassed && beaten(chase, runs)) { this.chasePassed = true; this.chasePassDue = true; }
+  }
+
+  /**
+   * The target passed, between balls, as a milestone is (B3): held on the
+   * game's own celebration clock, one hard knock in the hand, and the crowd.
+   */
+  private celebrateChase() {
+    const chase = this.chaseLive;
+    this.chasePassDue = false;
+    if (!chase) return;
+    const lasts = 1700;
+    this.celebrating = Math.max(this.celebrating, lasts);
+    const place = placeOnPassing(chase, this.chaseMine());
+    this.hud.chasePassed(chase, this.chaseRuns, { avatar: readPlayer()?.avatar ?? null }, place, CHASE_MODE_NAMES[chase.mode], lasts);
+    buzz([0, 40, 30, 90]);
+    this.audio.cheer(boundaryCheer(6, 1, this.test));
+    this.mark('chase-passed', 'Chase: passed the target');
+  }
+
+  /**
+   * The end card's strip (B4, B5) and its key, drawn when the card goes up and
+   * again when the store has said where the innings landed. A chase won is
+   * over once its card has said so; one fallen short stays, and the key says
+   * CHASE 187 AGAIN.
+   */
+  private chaseCard(result: SubmitResult<unknown> | null = null) {
+    const chase = this.chaseLive;
+    if (!chase) { this.hud.chaseStrip(null); this.hud.againLabel(null); return; }
+    const runs = this.chaseRuns;
+    const now = this.placeNow() ?? null;
+    const held = this.standing?.innings === this.innings ? this.standing.standing : null;
+    const was = held ? ('team' in held ? held.team.was?.rank : held.was?.rank) ?? null : null;
+    const said = verdict(chase, runs, { now, was });
+    const next = result?.around?.next ?? this.chaseNext;
+    if (result?.around) this.chaseNext = result.around.next;
+    this.hud.chaseStrip(chaseStripMarkup({
+      chase, runs, verdict: said, place: now, modeName: CHASE_MODE_NAMES[chase.mode],
+      you: { avatar: readPlayer()?.avatar ?? null }, best: this.chaseBest, next,
+    }), !!readPlayer()?.name);
+    this.hud.againLabel(said.beat ? null : againLabel(chase));
+    if (!result) this.mark(said.beat ? 'chase-beat' : 'chase-short', said.beat ? 'Chase: beaten' : 'Chase: fell short');
+    const board = () => { if (this.careerMode === 'marathon') this.openMarathon('team'); else this.openBoard(this.careerMode, 'best'); };
+    document.getElementById('chase-board')?.addEventListener('click', board);
+    document.getElementById('chase-next')?.addEventListener('click', board);
+    document.getElementById('chase-profile')?.addEventListener('click', () => this.showStats());
+    if (said.beat) this.chaseWon = true;
+  }
+  /** The player's best as the innings began, for the bar on a chase fallen short. */
+  private chaseBest: number | null = null;
+  /** Who stands next above, from the store's answer to the post. */
+  private chaseNext: { name: string; avatar: number; runs: number; place: number } | null = null;
+  /** Won: let go at the next start, after its card has said so. */
+  private chaseWon = false;
+
   /** Where the store has this player on each mode's whole board, as last asked. */
   private modeRanks: Partial<Record<CareerMode, number | null>> = {};
   private ranksAsked = 0;
@@ -3445,6 +3581,7 @@ export class Game {
         this.setPhase('RESULT');
         if (this.milestoneDue) { this.celebrate(this.milestoneDue); this.milestoneDue = null; }
         else if (this.momentAsked) { this.celebrate(this.momentAsked, true); this.momentAsked = null; }
+        else if (this.chasePassDue) this.celebrateChase();
         // After the call, not over it: the sledge is what comes back from the
         // field once the ball is dead.
         if (this.sledgeDue) { this.sledgeDue = false; this.audio.play('sledge'); }
@@ -3545,8 +3682,10 @@ export class Game {
         timingGrade: 'MISS', timingDeltaMs: null, compatibility: 0, madeBatContact: false, aerial: false,
       } as ShotOutcome;
       this.score.record(outcome); this.generator.record(outcome);
+      this.chaseBall(outcome);
     }
     this.hud.score(this.score);
+    if (this.chasePassDue && !this.score.ended) this.celebrateChase();
     if (this.score.ended) this.end(); else this.setPhase('READY');
     return true;
   }
@@ -3766,7 +3905,7 @@ export class Game {
   private presentResult() {
     this.resultPresented = true;
     const outcome = this.outcome!;
-    if (this.lesson < 0) { this.hud.score(this.score); this.showNearing(this.batterHistory); }
+    if (this.lesson < 0) { this.hud.score(this.score); this.showNearing(this.batterHistory); this.chaseBall(outcome); }
     this.hud.result(outcome, this.chargeMiss);
     if (outcome.hit) {
       // The blow lands with the call rather than before it, so the flash, the
@@ -4129,6 +4268,7 @@ export class Game {
     const improved = typeof result.improved === 'object' ? result.improved.team || result.improved.solo : !!result.improved;
     const by = typeof result.improved === 'object' ? { team: !!result.improved.team, solo: !!result.improved.solo } : null;
     if (result.standing) this.standing = { innings, mode: this.careerMode, standing: result.standing, improved, by };
+    if (innings === this.innings && this.phase === 'INNINGS_END') this.chaseCard(result);
   }
 
   /**
@@ -4398,6 +4538,7 @@ export class Game {
 
   private end() {
     this.setPhase('INNINGS_END');
+    this.chaseCard();
     this.countThisInnings();
     // Toward the end of a newcomer's help, by the same rule as the career: only
     // an innings finished counts, so walking out on one does not keep it going.
@@ -5271,6 +5412,9 @@ const FIREWORKS_MS = { special: 3000, milestone: 3600 } as const;
 /** The keys the star prompt answers itself: give a star, and walk between them. */
 const STAR_KEYS = new Set(['Enter', ' ', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
 /** The games by name, as the pause sheet's chip says them. */
+/** What a chase's moments and strip call each mode. */
+const CHASE_MODE_NAMES: Record<CareerMode, string> = { classic: 'The Blast', marathon: 'Test Marathon', survive: 'Test Survival' };
+
 const PAUSE_NAMES: Record<GameMode, string> = { CLASSIC: 'The Blast', SURVIVE: 'Test Survival', MARATHON: 'Test Marathon' };
 const CHEER: Record<Milestone, number> = { fifty: 2.3, raise: 2.3, century: 2.8, 'six-sixes': 2.8, double: 3.1, triple: 3.3, four: 3.5 };
 const MOMENT_SAID: Record<Milestone, string> = {

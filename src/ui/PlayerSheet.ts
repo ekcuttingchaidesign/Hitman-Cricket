@@ -233,3 +233,11 @@ export function playedMode(profile: ProfilePayload, view: Pick<PlayerSheetView, 
   const batted = (mode: CareerMode) => !!profile.modes[mode].best || (profile.modes[mode].career?.innings ?? 0) > 0;
   return batted(view.mode) ? view.mode : view.modes.find(batted) ?? view.mode;
 }
+
+/** Where the player being chased stands, for the intro: their place on the mode's board, and their rung. */
+export function chaseStanding(view: PlayerSheetView): { theirPlace: number | null; theirRung: string | null } {
+  const facts = factsOf(view);
+  const place = view.state === 'ready' && view.profile ? view.profile.modes[view.mode].best?.place ?? null
+    : view.seed.mode === view.mode ? view.seed.place : null;
+  return { theirPlace: place, theirRung: facts ? (view.mode === 'marathon' ? `Test ${facts.tier.short}` : facts.tier.short) : null };
+}

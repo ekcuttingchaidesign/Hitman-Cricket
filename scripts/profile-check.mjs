@@ -52,7 +52,7 @@ async function seed(name, runs, avatar, bio) {
 
 const top = `Ptop${run}`;
 await seed(top, 174, 3, 'Leg-side bully. Pulls everything short.');
-await seed(`Psec${run}`, 168, 1);
+const secondId = await seed(`Psec${run}`, 168, 1);
 
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ executablePath });
@@ -124,6 +124,66 @@ await page.waitForTimeout(1200);
 const snap = await page.evaluate(() => window.__cricket?.snapshot?.());
 check(snap?.chase?.target === 174 && snap?.chase?.mode === 'classic', 'CHASE holds their best as the target', JSON.stringify(snap?.chase));
 check(await page.locator('#board-overlay .lb-screen').count() === 0, 'and the board makes way for the innings');
+
+/** Writes balls once the bowler is at his mark: the debug hook writes only between balls. */
+const write = async balls => {
+  for (let i = 0; i < 60; i++) {
+    if (await page.evaluate(b => window.__cricket.snapshot().phase === 'READY' && window.__cricket.blast(b), balls)) return true;
+    await page.waitForTimeout(150);
+  }
+  return false;
+};
+
+// Lane B: the chase. The intro stands before the first ball and nothing is bowled under it.
+await page.waitForSelector('#chase-intro', { timeout: 6000 });
+await page.waitForTimeout(900);
+await page.screenshot({ path: `${out}/b1-intro.png` });
+check((await page.locator('.ch-intro-target b').textContent()) === '174', 'the intro counts up to their best');
+await page.waitForTimeout(1500);
+check((await page.evaluate(() => window.__cricket.snapshot().phase)) === 'READY', 'and nothing is bowled while it stands');
+// LET'S BAT, and ten singles written in the same moment, before the bowler sets off.
+await page.evaluate(() => { document.getElementById('chase-bat').click(); window.__cricket.blast(Array(10).fill(1)); });
+await page.waitForTimeout(400);
+const need = (await page.locator('.ch-chip .ch-need').textContent()).trim();
+check(need === '165', 'the chip under the scoreboard says what is wanted', need);
+await page.screenshot({ path: `${out}/b2-chip.png` });
+await write(['W', 'W', 'W', 'W', 'W']);
+await page.waitForSelector('.ch-strip.is-short', { timeout: 8000 });
+await page.waitForTimeout(1200);
+await page.screenshot({ path: `${out}/b5-short.png` });
+check((await page.locator('.ch-strip-text b').textContent()).startsWith('164 short of'), 'fallen short, the card says by how many');
+check((await page.locator('#again').textContent()).includes('CHASE 174 AGAIN'), 'and the key takes it on again');
+await page.locator('#again').click();
+await page.waitForTimeout(800);
+check(await page.locator('#chase-intro').count() === 0, 'again, it goes straight to the crease');
+check(await page.locator('.ch-chip').count() === 1, 'with the chip still up');
+
+// Passed: chase the second player's 168, and go past it with a ball to spare.
+const second = `Psec${run}`;
+await write(['W', 'W', 'W', 'W']);
+await page.waitForSelector('#chase-board', { timeout: 8000 });
+await page.locator('#chase-board').click();
+await page.waitForSelector('#board-overlay .lb-screen');
+await page.waitForTimeout(800);
+await page.locator('.lb-step[data-handle], .lb-row[data-handle]').filter({ hasText: second }).first().click();
+await page.waitForSelector('#player-sheet.is-ready', { timeout: 6000 });
+await page.locator('#player-chase').click();
+await page.waitForSelector('#chase-intro', { timeout: 6000 });
+await page.evaluate(() => { document.getElementById('chase-bat').click(); window.__cricket.blast([...Array(28).fill(6), 6]); });
+await page.waitForSelector('#chase-passed', { timeout: 4000 });
+await page.waitForTimeout(600);
+await page.screenshot({ path: `${out}/b3-passed.png` });
+check(await page.locator('#chase-passed .ch-stamp span').textContent() === second.toUpperCase(), 'going past it stamps PASSED with their name');
+check((await page.locator('.ch-chip.is-done').count()) === 1, 'and the chip turns to say so');
+await page.waitForTimeout(2000);
+await write(['W']);
+await page.waitForSelector('.ch-strip.is-beat', { timeout: 8000 });
+await page.waitForTimeout(1500);
+await page.screenshot({ path: `${out}/b4-beat.png` });
+check((await page.locator('.ch-strip-text b').textContent()) === `You beat ${second} by 6`, 'beaten, the card says by how many');
+check(!(await page.locator('#again').textContent()).includes('CHASE'), 'and the key is PLAY AGAIN: a chase won is over');
+const events = await (await fetch(`${base}/api/profile?player=${encodeURIComponent(secondId)}`)).json();
+check(events.events?.[0]?.kind === 'beat' && events.events[0].runs === 174, 'and the store put the beat on their profile', JSON.stringify(events.events?.[0]));
 
 check(errors.length === 0, 'no page errors', errors.join('\n'));
 await browser.close();

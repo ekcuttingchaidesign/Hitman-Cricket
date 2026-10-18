@@ -84,8 +84,10 @@ import { BATTERS, type LevelBanner } from '../config/marathon';
 import { resultOf, type Result } from '../game/Survive';
 import type { SoundSetting } from '../game/Audio';
 import type { CareerMode } from '../game/career';
-import { chaseTarget, playedMode, playerSheetMarkup, type PlayerSeed, type PlayerSheetView } from './PlayerSheet';
+import { chaseStanding, chaseTarget, playedMode, playerSheetMarkup, type PlayerSeed, type PlayerSheetView } from './PlayerSheet';
 import { cachedProfile, type ProfilePayload } from '../game/profile-api';
+import { chipLine, type Chase, type Mine } from '../game/chase';
+import { chaseChipMarkup, chaseIntroMarkup, passedMarkup } from './ChaseUi';
 import wifiOff from '../assets/board/wifi-off.svg?raw';
 /** OPENER to Opener and NO. 3 to No. 3: the batters' titles as a scorecard writes them. */
 const titleCase = (title: string) => title.charAt(0) + title.slice(1).toLowerCase();
@@ -381,6 +383,7 @@ export class HUD {
         </div>
         </div>
         <div id="nearing" class="nearing hidden" role="status" aria-live="polite"></div>
+          <div id="chase-chip" class="chase-chip-slot hidden"></div>
         </div>
         <div id="hit-burst" class="hit-burst" aria-hidden="true"><em id="hit-where"></em></div>
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
@@ -478,6 +481,7 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
               </div>
             </section>
             <div id="mcard-score" class="mcard-score"></div>
+            <div id="chase-strip" class="chase-strip-slot hidden"></div>
             <div id="card-password" class="card-password hidden"></div>
             <section class="ec-player">
               <div id="card-board" class="card-board hidden">
@@ -946,7 +950,7 @@ ${modeSelectMarkup()}
   /** Asks the store for a profile: the game knows who is looking. */
   onPlayerFetch: ((handle: string) => Promise<ProfilePayload | null>) | null = null;
   /** CHASE on a profile: bat this mode with their best as the target. */
-  onPlayerChase: ((chase: { handle: string; name: string; avatar: number | null; mode: CareerMode; target: number }) => void) | null = null;
+  onPlayerChase: ((chase: Chase) => void) | null = null;
   /** The profile over the board, while one is open. */
   private playerOpen: { layer: HTMLElement; view: PlayerSheetView; from: HTMLElement | null; shut: () => void } | null = null;
   /** Bumped at every open, so an answer for a sheet already put away draws nothing. */
@@ -1061,6 +1065,7 @@ ${modeSelectMarkup()}
       const { handle, name, avatar } = open.view.seed;
       this.onPlayerChase?.({
         handle, name: open.view.profile?.name ?? name, avatar: open.view.profile?.avatar ?? avatar, mode: open.view.mode, target,
+        ...chaseStanding(open.view),
       });
     });
     // Swiped across, the next mode; pulled down by the top half, put away.
@@ -1173,6 +1178,96 @@ ${modeSelectMarkup()}
     };
     flight.onfinish = land;
     flight.oncancel = land;
+  }
+
+  /**
+   * The chip under the scoreboard while a chase is on (section 14, lane B2),
+   * or nothing. `beat` is what the ball just did to it: the wanted figure rolls
+   * to its new value on a scoring ball, and the chip beats on a boundary and on
+   * every ball inside ten to go.
+   */
+  chaseChip(chase: Chase | null, runs = 0, ballsLeft: number | null = null, place: number | null = null, beat: 'none' | 'scored' | 'boundary' = 'none') {
+    const slot = this.$('chase-chip');
+    if (!chase) { slot.innerHTML = ''; slot.classList.add('hidden'); this.pauseChase = null; return; }
+    slot.innerHTML = chaseChipMarkup(chase, runs, ballsLeft, place);
+    slot.classList.remove('hidden');
+    const chip = slot.querySelector<HTMLElement>('.ch-chip')!;
+    if (beat !== 'none') chip.classList.add('is-rolled', 'is-beat');
+    if (beat === 'boundary') chip.classList.add('is-boundary');
+    const line = chipLine(chase, runs, ballsLeft);
+    this.pauseChase = line.done ? `Passed ${chase.name}` : `${line.need} to beat ${chase.name}`;
+  }
+  /** The chase's word on the pause sheet, beside the score. */
+  private pauseChase: string | null = null;
+
+  /**
+   * The card before the first ball of a chase (B1): it rises with an
+   * overshoot, the two faces come in from their sides, and the target counts
+   * up from nought. Nothing is bowled until it is put away: LET'S BAT drops
+   * it, BACK lets the chase go.
+   */
+  chaseIntro(chase: Chase, mine: Mine, you: { avatar: number | null }, done: (bat: boolean) => void) {
+    this.closeChaseIntro();
+    const layer = document.createElement('div');
+    layer.className = 'ch-layer';
+    layer.id = 'chase-intro';
+    layer.innerHTML = chaseIntroMarkup(chase, mine, you);
+    this.viewport.append(layer);
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const count = layer.querySelector<HTMLElement>('.ch-count');
+    if (count && !still) {
+      const to = chase.target, began = performance.now() + 220;
+      const step = (now: number) => {
+        if (!count.isConnected) return;
+        const t = Math.min(1, Math.max(0, (now - began) / 500));
+        count.textContent = Math.round(to * (1 - (1 - t) ** 3)).toLocaleString('en-US');
+        if (t < 1) requestAnimationFrame(step);
+      };
+      count.textContent = '0';
+      requestAnimationFrame(step);
+    }
+    const finish = (bat: boolean) => {
+      if (!layer.isConnected) return;
+      layer.classList.add('is-leaving');
+      setTimeout(() => layer.remove(), still ? 0 : 200);
+      done(bat);
+    };
+    layer.querySelector<HTMLElement>('#chase-bat')!.onclick = () => finish(true);
+    layer.querySelector<HTMLElement>('#chase-back')!.onclick = () => finish(false);
+    layer.querySelector<HTMLElement>('#chase-bat')!.focus({ preventScroll: true });
+  }
+  closeChaseIntro() { document.getElementById('chase-intro')?.remove(); }
+  get chaseIntroOpen() { return !!document.getElementById('chase-intro'); }
+
+  /** The target passed (B3), held between balls for `lasts` ms, as a milestone is. */
+  chasePassed(chase: Chase, runs: number, you: { avatar: number | null }, place: number | null, modeName: string, lasts: number) {
+    document.getElementById('chase-passed')?.remove();
+    const layer = document.createElement('div');
+    layer.id = 'chase-passed';
+    layer.innerHTML = passedMarkup(chase, runs, you, place, modeName);
+    const moment = layer.firstElementChild as HTMLElement;
+    moment.id = 'chase-passed';
+    this.viewport.append(moment);
+    setTimeout(() => moment.classList.add('is-leaving'), Math.max(0, lasts - 200));
+    setTimeout(() => moment.remove(), lasts);
+  }
+
+  /** The chase's strip on the end card (B4, B5), or nothing. */
+  chaseStrip(markup: string | null, standsInForPlace = false) {
+    const slot = this.$('chase-strip');
+    slot.innerHTML = markup ?? '';
+    slot.classList.toggle('hidden', !markup);
+    // For a named player the strip says the place and carries the doors, so
+    // the player card under it would only say them again.
+    slot.classList.toggle('is-place', !!markup && standsInForPlace);
+  }
+
+  /** The end card's key: PLAY AGAIN, or CHASE 187 AGAIN while a chase is still to be won. */
+  againLabel(label: string | null) {
+    for (const id of ['again', 'survive-again']) {
+      const face = this.$(id).querySelector<HTMLElement>('.k-cta-face>span');
+      if (face) face.textContent = label ?? 'PLAY AGAIN';
+    }
   }
 
   /**
@@ -2370,6 +2465,7 @@ ${modeSelectMarkup()}
     this.$('pause-state').textContent = chasing
       ? `${text('sc-score')} · ${text('sc-need')} to win · ${text('sc-balls')} balls left`
       : `${text('runs') || '0'}/${text('wickets') || '0'} · ${text('overs') || '0.0'} overs`;
+    if (this.pauseChase) this.$('pause-state').textContent += ` · ${this.pauseChase}`;
     this.$('resume').focus();
   }
   /**
@@ -2653,7 +2749,7 @@ ${modeSelectMarkup()}
     // card goes first, straight under the score, for the same reason: left
     // on the Blast card, a Survival innings never showed it.
     const player = this.viewport.querySelector('.ec-player')!;
-    const moving = [this.$('card-password'), player, this.$('card-key')];
+    const moving = [this.$('chase-strip'), this.$('card-password'), player, this.$('card-key')];
     if (surviving) this.$('survive-strip').append(...moving);
     else {
       const card = this.$('end').querySelector('.scorecard')!;
