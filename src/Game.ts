@@ -78,7 +78,7 @@ import { markWhatsNewShown, storiesFor, whatsNewDue, whatsNewRun, type Story } f
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, standingOf, tierMeasure, TIERS, type Granted } from './game/tier';
 import { LevelUp } from './ui/LevelUp';
-import { BATS, FREE_BAT, FREE_OUTFIT, OUTFITS, WELCOME_BAT, batOf, batOwned, earned, outfitOf, outfitOwned, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
+import { BATS, FREE_BAT, FREE_OUTFIT, FREE_OUTFITS, OUTFITS, WELCOME_BAT, batOf, batOwned, earned, outfitOf, outfitOwned, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
 import type { DressingRoom } from './ui/DressingRoom';
 import type { UnlockItem, UnlockMoment } from './ui/Unlock';
 import { onDressingWrite, readDressing, seenKey, writeDressing } from './game/dressing-store';
@@ -1046,7 +1046,7 @@ export class Game {
   /** One of `?dressing=1`'s keys. */
   private previewDressing(scenario: DressingScenario) {
     if (scenario === 'kit' || scenario === 'bat' || scenario === 'two') {
-      const kits = OUTFITS.filter(o => o.id !== FREE_OUTFIT), bats = BATS.filter(b => b.id !== FREE_BAT);
+      const kits = OUTFITS.filter(o => !FREE_OUTFITS.includes(o.id)), bats = BATS.filter(b => b.id !== FREE_BAT);
       const items: UnlockItem[] = [];
       const look = this.myLook();
       if (scenario !== 'bat') {
@@ -1116,7 +1116,8 @@ export class Game {
     if (!held.seen.length) { writeDressing({ ...held, seen: keys }); return []; }
     const look = this.myLook();
     const items: UnlockItem[] = [];
-    for (const id of got.outfits) if (!held.seen.includes(seenKey('kit', id)))
+    // The free kits are nobody's prize: Papaya arriving on an old record is not an unlock.
+    for (const id of got.outfits) if (!FREE_OUTFITS.includes(id) && !held.seen.includes(seenKey('kit', id)))
       items.push({ moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat, guard: look.guard } });
     for (const id of got.bats) if (!held.seen.includes(seenKey('bat', id)))
       items.push({ moment: { kind: 'bat', bat: batOf(id) } });
@@ -4999,7 +5000,7 @@ export class Game {
     // Earned and known, never shown: won before the room arrived, waiting there
     // for its key. One not yet seen is new, and goes up at the innings' end.
     const got = earned(record);
-    const free = new Set([seenKey('kit', FREE_OUTFIT), seenKey('bat', FREE_BAT), seenKey('bat', WELCOME_BAT)]);
+    const free = new Set([...FREE_OUTFITS.map(id => seenKey('kit', id)), seenKey('bat', FREE_BAT), seenKey('bat', WELCOME_BAT)]);
     const waiting = [...got.outfits.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))]
       .filter(key => !free.has(key) && held.seen.includes(key) && !held.shown.includes(key));
     return { ...record, waiting };
@@ -5148,7 +5149,7 @@ export class Game {
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
       pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, pullPen: this.pullPen,
-      mirrored: this.scene.mirrored, look: this.scene.wearing, marathon: this.marathon ? this.marathonState() : null,
+      mirrored: this.scene.mirrored, look: this.scene.wearing, fieldingKit: this.scene.fieldingKit, marathon: this.marathon ? this.marathonState() : null,
       standing: this.standing, ease: this.ease };
   }
   /** Where a Marathon innings stands, for `marathon-check.mjs`. */

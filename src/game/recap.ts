@@ -1,6 +1,6 @@
 import type { BlastTally, CareerMode, MarathonTally, SurviveTally } from './career.js';
 import { standingOf } from './survive-board.js';
-import { FREE_BAT, FREE_OUTFIT, type Look } from './dressing-ids.js';
+import { FREE_BAT, FREE_OUTFITS, type Look } from './dressing-ids.js';
 
 /**
  * A player's year, kept for the recap at the end of it.
@@ -130,7 +130,7 @@ export function foldInnings(held: YearRecap | null, mode: CareerMode, facts: Inn
 }
 
 /** What every player has from the start: in a seen list, never won. */
-const FREE = new Set([`kit:${FREE_OUTFIT}`, `bat:${FREE_BAT}`]);
+const FREE = new Set([...FREE_OUTFITS.map(id => `kit:${id}`), `bat:${FREE_BAT}`]);
 
 /**
  * Pieces of the Dressing Room newly won, dated. One already dated keeps its

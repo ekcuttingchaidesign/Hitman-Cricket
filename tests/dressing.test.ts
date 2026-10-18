@@ -23,15 +23,15 @@ describe('a look as it travels', () => {
 });
 
 describe('the Dressing Room shelves', () => {
-  it('has seven kits and twelve bats, each named once, the bats from the easiest to Hitman', () => {
-    expect(OUTFITS.map(o => o.id)).toEqual(['home', 'crimson', 'forest', 'gold', 'violet', 'electric', 'lagoon']);
+  it('has eight kits and twelve bats, each named once, the bats from the easiest to Hitman', () => {
+    expect(OUTFITS.map(o => o.id)).toEqual(['home', 'papaya', 'crimson', 'forest', 'gold', 'violet', 'electric', 'lagoon']);
     expect(BATS.map(b => b.id)).toEqual(['plain', 'boom', 'rage', 'venom', 'lonewolf', 'meg', 'icecold', 'roar', 'savage', 'reign', 'inferno', 'hitman']);
     expect(new Set(BATS.map(b => b.name)).size).toBe(12);
-    expect(new Set(OUTFITS.map(o => o.name)).size).toBe(7);
+    expect(new Set(OUTFITS.map(o => o.name)).size).toBe(8);
   });
 
   it('gives a new player OG Navy and Plain and nothing else', () => {
-    expect(earned(record())).toEqual({ outfits: ['home'], bats: ['plain'] });
+    expect(earned(record())).toEqual({ outfits: ['home', 'papaya'], bats: ['plain'] });
   });
 
   it('keeps Boom waiting in the Dressing Room for its key, whatever has been played', () => {

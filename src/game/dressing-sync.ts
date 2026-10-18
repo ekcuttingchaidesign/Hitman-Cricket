@@ -35,7 +35,7 @@ export interface SavedDressing {
 }
 
 /** Shown before there was a record of it: Boom's key and the free pair are the only moments the first release played for history. */
-const SHOWN_BEFORE = new Set(['bat:boom', 'kit:home', 'bat:plain']);
+const SHOWN_BEFORE = new Set(['bat:boom', 'kit:home', 'kit:papaya', 'bat:plain']);
 
 const KNOWN = new Set<string>([...OUTFIT_IDS.map(id => `kit:${id}`), ...BAT_IDS.map(id => `bat:${id}`)]);
 const figure = (value: unknown) => { const n = Number(value); return Number.isFinite(n) && n >= 0 ? n : 0; };

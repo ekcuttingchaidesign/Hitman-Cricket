@@ -3,7 +3,7 @@
  * check what a Rival Match player says they wear without pulling in the
  * catalogue and the careers behind it (`dressing.ts` has the rest).
  */
-export const OUTFIT_IDS = ['home', 'crimson', 'forest', 'gold', 'violet', 'electric', 'lagoon'] as const;
+export const OUTFIT_IDS = ['home', 'papaya', 'crimson', 'forest', 'gold', 'violet', 'electric', 'lagoon'] as const;
 export const BAT_IDS = ['plain', 'boom', 'rage', 'venom', 'lonewolf', 'meg', 'icecold', 'roar', 'savage', 'reign', 'inferno', 'hitman'] as const;
 /** The guards — gloves and pads in one colourway — the one he is built wearing first (`src/entities/gloves.ts` has the designs). None is earned: every one is free to wear. */
 export const GUARD_IDS = ['sterling', 'glacier', 'fern', 'evergreen', 'carbon', 'blaze', 'midnight'] as const;
@@ -13,6 +13,8 @@ export type GuardId = typeof GUARD_IDS[number];
 
 /** What every player has from the start, here so the server knows them without the catalogue. */
 export const FREE_OUTFIT: OutfitId = 'home';
+/** Every kit that comes free: the one he is built in, and Papaya. Never won, never celebrated. */
+export const FREE_OUTFITS: readonly OutfitId[] = ['home', 'papaya'];
 export const FREE_BAT: BatId = 'plain';
 export const FREE_GUARD: GuardId = 'sterling';
 

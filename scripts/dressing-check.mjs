@@ -84,7 +84,7 @@ await page.waitForTimeout(1500);
 check(await page.evaluate(() => window.__cricket.unlocking()) === null, 'a career arriving in the room is noted, not celebrated');
 const card = page.locator('#modes-dressing');
 check(await card.isVisible(), 'carries the Dressing Room card');
-check(await text(page, '#modes-dressing-line') === '9 of 19 earned', 'which says how much of the room is earned, Boom not yet among it', await text(page, '#modes-dressing-line'));
+check(await text(page, '#modes-dressing-line') === '10 of 20 earned', 'which says how much of the room is earned, Boom not yet among it', await text(page, '#modes-dressing-line'));
 check(await card.locator('.ms-tag').isVisible(), 'with NEW on it before the room is opened');
 const order = await page.locator('.ms-content > *').evaluateAll(all => all.map(one => one.id || one.className.split(' ')[0]));
 check(order.indexOf('mode-survive') < order.indexOf('ms-card') && order.indexOf('ms-card') < order.indexOf('modes-dressing') && order.indexOf('modes-dressing') < order.indexOf('ms-bento'),
@@ -121,9 +121,9 @@ check(await page.locator('.dr-item[data-id="boom"] .dr-badge.is-on').count() ===
 await page.locator('#dressing-tab-kit').click();
 await page.waitForTimeout(300);
 check(await text(page, '#dressing-name') === 'OG NAVY', 'the kits open on the one he wears', await text(page, '#dressing-name'));
-await page.waitForFunction(() => document.querySelectorAll('#dressing-items img').length === 7, null, { timeout: 30_000 }).catch(() => {});
+await page.waitForFunction(() => document.querySelectorAll('#dressing-items img').length === 8, null, { timeout: 30_000 }).catch(() => {});
 const pictures = await page.locator('#dressing-items img').evaluateAll(all => all.map(one => one.src.length));
-check(pictures.length === 7 && pictures.every(size => size > 4000), 'with a picture of every kit, drawn off the model', JSON.stringify(pictures));
+check(pictures.length === 8 && pictures.every(size => size > 4000), 'with a picture of every kit, drawn off the model', JSON.stringify(pictures));
 check(await page.locator('.dr-item[data-id="home"] .dr-badge.is-on').count() === 1, 'a tick on the one he wears');
 check(await page.locator('.dr-item.is-locked').count() === 4, 'and a lock on each of the four not earned');
 const rail = await page.locator('#dressing-items').evaluate(one => ({ shown: one.clientHeight, all: one.scrollHeight }));

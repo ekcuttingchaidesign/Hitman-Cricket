@@ -19,7 +19,7 @@ describe('the Dressing Room screen', () => {
 
   it('puts every kit on the shelf, a tick on the one worn and a lock on the ones not earned', () => {
     const shelf = shelfMarkup(view());
-    expect(shelf.match(/class="dr-item[ "]/g)).toHaveLength(7);
+    expect(shelf.match(/class="dr-item[ "]/g)).toHaveLength(8);
     expect(shelf).toMatch(/data-id="home"[^>]*aria-label="OG Navy, on"/);
     expect(shelf).toMatch(/data-id="lagoon"[^>]*aria-label="Lagoon, locked"/);
     expect(shelfMarkup(view({ shelf: 'bat' })).match(/class="dr-item[ "]/g)).toHaveLength(12);

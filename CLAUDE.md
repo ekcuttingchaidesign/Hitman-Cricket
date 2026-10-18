@@ -492,7 +492,7 @@ longer colour the pads or their straps (`Outfit.pads` is kept in the
 catalogue and read by nothing). The guard is the Dressing Room's third shelf
 (GUARD, `shelf: 'guard'`), and nothing on it is earned: every one is free to
 wear, so the shelf has no locks, no dot and no Next up, and the room's "N of
-19 earned" counts none of them. The pick is kept with the kit and bat
+20 earned" counts none of them. The pick is kept with the kit and bat
 (`guard` in `SavedDressing`), travels and merges with them (the later pick
 wins whole), goes with a Rival Match innings in `Look`, and is counted in the
 year recap (`guard` beside `kits` and `bats`); a copy or a look from before
@@ -526,6 +526,23 @@ night's glow is a material's own colour, and theirs is white. `gloves.html` show
 in five poses; `cover-drive.html` has every stroke with a Gloves row, and
 `?gloves=<id>` picks the first. Both build into one file with their
 `scripts/*-artifact.mjs`.
+
+## Papaya, and the fielding side's kit
+
+Two kits come free (`FREE_OUTFITS` in `dressing-ids.ts`): OG Navy, the one
+he is built in, and Papaya, orange with white trousers, second on the kit
+shelf. A free kit is never won and never celebrated: it is left out of the
+innings-end unlocks (`freshUnlocks`), the room's waiting list, the recap's
+`won` dates and the `?dressing=1` preview, and `cleanDressing` reads it as
+already shown. Add a free kit to `FREE_OUTFITS` and to `outfitSteps`'s
+`null` case, or an old record celebrates it as an unlock.
+
+The bowler and the fielders wear one of the Dressing Room's kits, drawn at
+random every time the batter is dressed for an innings and never the one he
+is wearing (`pickSide` in `GameScene.ts`, `snapshot().fieldingKit`). They
+used to wear the game's orange whatever he had on, which put a Papaya batter
+in the same shirt as the men fielding against him. In a Test both sides are
+in whites, as before.
 
 ## Who's batting: the gate before the first innings
 
