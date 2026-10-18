@@ -586,6 +586,10 @@ export class GameScene {
       if (!(object instanceof THREE.Mesh)) return;
       for (const material of [object.material].flat()) {
         if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+        // The gloves and pads carry their colours in their vertices and the
+        // material's own is white: lit in that they glowed grey, so they keep
+        // the day's glow (none) under the floodlights.
+        if (material.vertexColors) continue;
         const day = material.userData.dayGlow ??= { colour: material.emissive.getHex(), intensity: material.emissiveIntensity };
         if (night) { material.emissive.copy(material.color); material.emissiveIntensity = KIT_GLOW; }
         else { material.emissive.setHex(day.colour); material.emissiveIntensity = day.intensity; }
@@ -880,9 +884,9 @@ export class GameScene {
    * Test match he keeps his whites, as a Test is played, and takes the kit's
    * helmet and his own bat out with him.
    */
-  dressBatter(outfit: Outfit, bat: BatSkin, gloves: GloveDesign) {
-    this.look = { outfit, bat, gloves };
-    this.batter.wearGloves(gloves);
+  dressBatter(outfit: Outfit, bat: BatSkin, guard: GloveDesign) {
+    this.look = { outfit, bat, guard };
+    this.batter.wearGloves(guard);
     this.wearLook();
     const asked = ++this.batAsked;
     this.batter.holdBat(bat.grip, null);
@@ -892,9 +896,9 @@ export class GameScene {
       this.kitsUnderLights();
     });
   }
-  private look: { outfit: Outfit; bat: BatSkin; gloves: GloveDesign } | null = null;
-  /** What he went out in, `kit/bat/gloves`, for the checks. */
-  get wearing() { return this.look ? `${this.look.outfit.id}/${this.look.bat.id}/${this.look.gloves.id}` : null; }
+  private look: { outfit: Outfit; bat: BatSkin; guard: GloveDesign } | null = null;
+  /** What he went out in, `kit/bat/guard`, for the checks. */
+  get wearing() { return this.look ? `${this.look.outfit.id}/${this.look.bat.id}/${this.look.guard.id}` : null; }
   private inWhites = false;
   /** Which bat was asked for last, so a sheet arriving late cannot put back the one before. */
   private batAsked = 0;

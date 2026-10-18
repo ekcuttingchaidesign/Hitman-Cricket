@@ -14,10 +14,10 @@ const record = (patch: {
 });
 
 describe('a look as it travels', () => {
-  it('wears the free gloves when none are named, and refuses a pair that is not on the shelf', () => {
-    expect(lookOf({ kit: 'home', bat: 'plain' })).toEqual({ kit: 'home', bat: 'plain', gloves: 'sterling' });
-    expect(lookOf({ kit: 'home', bat: 'plain', gloves: 'blaze' })).toEqual({ kit: 'home', bat: 'plain', gloves: 'blaze' });
-    expect(lookOf({ kit: 'home', bat: 'plain', gloves: 'gauntlets' })).toBeNull();
+  it('wears the free guard when none is named, and refuses one that is not on the shelf', () => {
+    expect(lookOf({ kit: 'home', bat: 'plain' })).toEqual({ kit: 'home', bat: 'plain', guard: 'sterling' });
+    expect(lookOf({ kit: 'home', bat: 'plain', guard: 'blaze' })).toEqual({ kit: 'home', bat: 'plain', guard: 'blaze' });
+    expect(lookOf({ kit: 'home', bat: 'plain', guard: 'gauntlets' })).toBeNull();
     expect(lookOf({ kit: 'tartan', bat: 'plain' })).toBeNull();
   });
 });

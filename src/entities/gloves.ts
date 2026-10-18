@@ -1,7 +1,9 @@
 /**
  * Batting gloves: the designs the batter wears, drawn from real gloves, one of
  * them his by default (`DEFAULT_GLOVE`) and the rest for the Dressing Room to
- * hand out. `Batter.wearGloves` puts one on.
+ * hand out. Each is a guard — the gloves and the leg pads in one colourway,
+ * picked together on the room's GUARD shelf — and `Batter.wearGloves` puts
+ * both on.
  *
  * A glove is the closed fist on the handle and the gauntlet up the wrist, in
  * the frames `Batter` gives them: the fist in the bat's frame, the handle
@@ -23,22 +25,24 @@
  */
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { FREE_GLOVES, type GloveId } from '../game/dressing-ids';
+import { FREE_GUARD, type GuardId } from '../game/dressing-ids';
 
-export type { GloveId };
-/** The pair he is built wearing: white and silver, so it goes with every kit and with the Test match's whites. */
-export const DEFAULT_GLOVE: GloveId = FREE_GLOVES;
+export type { GuardId };
+/** The guard he is built wearing: white and silver, so it goes with every kit and with the Test match's whites. */
+export const DEFAULT_GLOVE: GuardId = FREE_GUARD;
 
 /** A print on some of the padding: a carbon-fibre weave in two greys. */
 export interface GlovePrint { kind: 'carbon'; ground: string; ink: string }
 
 export interface GloveDesign {
-  id: GloveId;
+  id: GuardId;
   name: string;
   /** What it is, in a line. */
   line: string;
   /** The light the Dressing Room is lit in while it is on show. */
   glow: string;
+  /** The leg pads that go with the gloves, the guard's other half: the pad itself, and the piping, knee roll and ankle flap on it. */
+  pads: { body: string; trim: string };
   /** The padding everywhere nothing else is said. */
   base: string;
   /** Each finger's roll, little finger first and index last; a print in place of a colour prints it. */
@@ -78,6 +82,7 @@ export const GLOVES: readonly GloveDesign[] = [
   {
     id: 'sterling', name: 'Sterling', line: 'White and silver: the rolls shading to silver down the fingers, a silver side bar, knuckle bar and thumb tip, and a white cuff with silver bands.',
     glow: '#C3CAD2',
+    pads: { body: '#F9FAFB', trim: '#C3CAD2' },
     base: '#F9FAFB',
     rolls: ['#F9FAFB', '#F9FAFB', '#F9FAFB', '#C3CAD2'],
     fade: ['#F9FAFB', '#EDF0F3', '#D6DCE2'],
@@ -94,6 +99,7 @@ export const GLOVES: readonly GloveDesign[] = [
   {
     id: 'glacier', name: 'Glacier', line: 'Ice white, every roll fading from white at the knuckle to electric cyan at the tip, a silver knuckle bar and a cuff ringed cyan and silver.',
     glow: '#1FB6EA',
+    pads: { body: '#F7FBFD', trim: '#1FB6EA' },
     base: '#F7FBFD',
     rolls: ['#F7FBFD', '#F7FBFD', '#F7FBFD', '#5FD2F5'],
     fade: ['#F7FBFD', '#BDEBFA', '#5FD2F5'],
@@ -110,6 +116,7 @@ export const GLOVES: readonly GloveDesign[] = [
   {
     id: 'fern', name: 'Fern', line: 'A lime index roll fading into bottle green, a deep green knuckle bar, and the cuff ringed green and lime.',
     glow: '#9AD22A',
+    pads: { body: '#FAFAF6', trim: '#9AD22A' },
     base: '#FAFAF6',
     rolls: ['#FAFAF6', '#FAFAF6', '#FAFAF6', '#9AD22A'],
     index: ['#9AD22A', '#3E9A3A', '#0E6B5C'],
@@ -125,6 +132,7 @@ export const GLOVES: readonly GloveDesign[] = [
   {
     id: 'carbon', name: 'Carbon', line: 'Black padding with a carbon-fibre weave across the rolls, a red index bar and tips, and a black cuff with a red strap.',
     glow: '#E0202A',
+    pads: { body: '#17181B', trim: '#E0202A' },
     base: '#17181B',
     rolls: [CARBON, CARBON, CARBON, '#E0202A'],
     sideBar: true,
@@ -139,6 +147,7 @@ export const GLOVES: readonly GloveDesign[] = [
   {
     id: 'blaze', name: 'Blaze', line: 'Fluoro orange across every roll with black dashes, the piping in black, and a cuff knitted in orange and black stripes.',
     glow: '#FF4A1C',
+    pads: { body: '#F5F4F1', trim: '#FF4A1C' },
     base: '#F5F4F1',
     rolls: ['#FF4A1C', '#FF4A1C', '#FF4A1C', '#FF4A1C'],
     index: ['#FF4A1C', '#F5F4F1', '#F5F4F1'],
@@ -153,6 +162,7 @@ export const GLOVES: readonly GloveDesign[] = [
   {
     id: 'midnight', name: 'Midnight', line: 'Coloured clothing gloves: navy padding, gold piping and fingertip, a gold band and a navy cuff.',
     glow: '#E3B341',
+    pads: { body: '#1C2742', trim: '#E3B341' },
     base: '#1C2742',
     rolls: ['#1C2742', '#1C2742', '#1C2742', '#E3B341'],
     index: ['#E3B341', '#1C2742', '#1C2742'],

@@ -42,16 +42,16 @@ describe('the year recap, folded', () => {
   });
 
   it('adds each innings to its mode, its kit and bat, its day and hour', () => {
-    const look = { kit: 'electric', bat: 'venom', gloves: 'carbon' } as const;
+    const look = { kit: 'electric', bat: 'venom', guard: 'carbon' } as const;
     let year = foldInnings(null, 'classic', facts({ runs: 40 }), look, MARCH);
     year = foldInnings(year, 'classic', facts({ runs: 71, fifties: 1 }), look, MARCH + 3_600_000);
-    year = foldInnings(year, 'marathon', facts({ runs: 210, hundreds: 1 }), { kit: 'home', bat: 'venom', gloves: 'sterling' }, MARCH + 86_400_000);
+    year = foldInnings(year, 'marathon', facts({ runs: 210, hundreds: 1 }), { kit: 'home', bat: 'venom', guard: 'sterling' }, MARCH + 86_400_000);
     expect(year.innings).toBe(3);
     expect(year.modes.classic).toMatchObject({ innings: 2, runs: 111, best: 71, fifties: 1 });
     expect(year.modes.marathon).toMatchObject({ innings: 1, best: 210, hundreds: 1 });
     expect(year.kits).toEqual({ electric: 2, home: 1 });
     expect(year.bats).toEqual({ venom: 3 });
-    expect(year.gloves).toEqual({ carbon: 2, sterling: 1 });
+    expect(year.guard).toEqual({ carbon: 2, sterling: 1 });
     expect(year.days).toEqual({ '03-04': 2, '03-05': 1 });
     expect(year.hours).toEqual({ 12: 2, 13: 1 });
     expect([year.first, year.last]).toEqual([MARCH, MARCH + 86_400_000]);
@@ -77,9 +77,9 @@ describe('the year recap, folded', () => {
   });
 
   it('raises the totals for everybody, and counts a player once a year', () => {
-    const look = { kit: 'gold', bat: 'rage', gloves: 'blaze' } as const;
+    const look = { kit: 'gold', bat: 'rage', guard: 'blaze' } as const;
     expect(totalsOf('survive', facts({ won: true, hundreds: 1 }), look, MARCH, true)).toMatchObject({
-      innings: 1, 'innings:survive': 1, 'wins:survive': 1, hundreds: 1, 'kit:gold': 1, 'bat:rage': 1, 'gloves:blaze': 1,
+      innings: 1, 'innings:survive': 1, 'wins:survive': 1, hundreds: 1, 'kit:gold': 1, 'bat:rage': 1, 'guard:blaze': 1,
       'day:03-04': 1, 'hour:12': 1, players: 1,
     });
     expect(totalsOf('classic', facts(), null, MARCH, false)).not.toHaveProperty('players');
@@ -95,9 +95,9 @@ describe('the year recap, folded', () => {
 describe('the year recap, kept', () => {
   it('folds each counted innings into the player and the year', async () => {
     const store = memoryRecap();
-    await recordInnings(store, { playerId: PLAYER, mode: 'classic', tally: blast(), look: { kit: 'electric', bat: 'venom', gloves: 'sterling' }, at: MARCH });
-    await recordInnings(store, { playerId: PLAYER, mode: 'classic', tally: blast({ runs: 12, individual: 12 }), look: { kit: 'electric', bat: 'boom', gloves: 'sterling' }, at: MARCH });
-    await recordInnings(store, { playerId: OTHER, mode: 'survive', tally: survive(), look: { kit: 'home', bat: 'plain', gloves: 'fern' }, at: MARCH });
+    await recordInnings(store, { playerId: PLAYER, mode: 'classic', tally: blast(), look: { kit: 'electric', bat: 'venom', guard: 'sterling' }, at: MARCH });
+    await recordInnings(store, { playerId: PLAYER, mode: 'classic', tally: blast({ runs: 12, individual: 12 }), look: { kit: 'electric', bat: 'boom', guard: 'sterling' }, at: MARCH });
+    await recordInnings(store, { playerId: OTHER, mode: 'survive', tally: survive(), look: { kit: 'home', bat: 'plain', guard: 'fern' }, at: MARCH });
     expect((await store.read(2026, PLAYER))?.modes.classic).toMatchObject({ innings: 2, runs: 75, best: 63, fifties: 1 });
     expect(store.totals(2026)).toMatchObject({
       players: 2, innings: 3, 'innings:classic': 2, 'kit:electric': 2, 'bat:venom': 1, 'bat:boom': 1, 'wins:survive': 1,
@@ -121,7 +121,7 @@ describe('the year recap, kept', () => {
 
   it('is told by a Dressing Room save which pieces it brought in for the first time', async () => {
     const dressing = memoryDressing();
-    const copy = (seen: string[]): SavedDressing => ({ outfit: 'home', bat: 'plain', gloves: 'sterling', pickedAt: 0, launch: null, seen, shown: [], visited: false });
+    const copy = (seen: string[]): SavedDressing => ({ outfit: 'home', bat: 'plain', guard: 'sterling', pickedAt: 0, launch: null, seen, shown: [], visited: false });
     const first = await saveDressing(dressing, { playerId: PLAYER, dressing: copy(['kit:home', 'bat:boom']), address: 'a' });
     expect(first.ok && first.won).toEqual(['kit:home', 'bat:boom']);
     const again = await saveDressing(dressing, { playerId: PLAYER, dressing: copy(['bat:boom', 'kit:crimson']), address: 'a' });

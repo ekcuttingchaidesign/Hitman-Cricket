@@ -475,23 +475,29 @@ path, not the title, so the item is in the name): `dressing-open-modes` and
 and left counts. They go through `dressingMark`, not `mark`, so the last mode
 played does not split them, and the `?dressing=1` preview counts nothing.
 
-## Batting gloves
+## The guard: gloves and pads
 
-The batter's gloves are a catalogue (`src/entities/gloves.ts`, their ids in
-`dressing-ids.ts` beside the kits' and bats'): Sterling, the pair he is built
-wearing (`FREE_GLOVES`, white and silver so it goes with every kit and the
-Test match's whites), and Glacier, Fern, Carbon, Blaze and Midnight. They are
-the Dressing Room's third shelf (GLOVES, `shelf: 'glove'`), and nothing on it
-is earned: every pair is free to wear, so the shelf has no locks, no dot and
-no Next up, and the room's "N of 19 earned" counts none of them. The pick is
-kept with the kit and bat (`gloves` in `SavedDressing`), travels and merges
-with them (the later pick wins whole), goes with a Rival Match innings in
-`Look`, and is counted in the year recap (`gloves` beside `kits` and `bats`);
-a copy or a look from before there were gloves wears the free pair. The
-stage's glove view (`StageView` `'glove'`) is the batter near to, held facing
-the camera as the bowler sees him so the backs of both hands show, and the
-shelf's pictures are his hands on the handle in each pair. `snapshot().look`
-is `kit/bat/gloves` now. `Batter.wearGloves(design)` puts a pair on.
+The batter's gloves and leg pads are one pick, a guard: six colourways in
+`src/entities/gloves.ts`, their ids in `dressing-ids.ts` beside the kits' and
+bats' (`GUARD_IDS`). Sterling is the one he is built wearing (`FREE_GUARD`,
+white and silver so it goes with every kit and the Test match's whites); the
+rest are Glacier, Fern, Carbon, Blaze and Midnight. Each design is the gloves
+in full and the pads' two colours (`pads.body`, `pads.trim`: the pad, and its
+piping, knee roll and ankle flap), and `Batter.wearGloves(design)` puts both
+on; the kits no longer colour the pads (`Outfit.pads` is kept in the
+catalogue and read by nothing). The guard is the Dressing Room's third shelf
+(GUARD, `shelf: 'guard'`), and nothing on it is earned: every one is free to
+wear, so the shelf has no locks, no dot and no Next up, and the room's "N of
+19 earned" counts none of them. The pick is kept with the kit and bat
+(`guard` in `SavedDressing`), travels and merges with them (the later pick
+wins whole), goes with a Rival Match innings in `Look`, and is counted in the
+year recap (`guard` beside `kits` and `bats`); a copy or a look from before
+there were guards wears the free one. The stage's guard view (`StageView`
+`'guard'`) is the batter near to, held facing the camera as the bowler sees
+him so the backs of both gloves show over the pads, and the shelf's pictures
+are his hands on the handle over the front pad in each. `snapshot().look` is
+`kit/bat/guard`. `dressing-check` walks the shelf and bats in the guard it
+put on.
 
 The grip is a right-hander's from a photograph: the top hand's knuckles on the
 bat's curved back with its fingers curling onto the face, the bottom hand's
@@ -501,13 +507,15 @@ fist is turned on the handle to face where its forearm comes off in the guard
 bottom hand's to the ground, and is then fixed to the handle through every
 stroke. The arm rig places the forearms from the shoulders and in the
 follow-throughs they come off a side a wrist could not reach; that was
-measured, judged invisible at speed, and left alone. Every piece's colour is
-baked into its vertices, so a fist merges into one mesh and a pair costs six
-draw calls (`scene-check`'s `BUDGET` was lowered for it). `gloves.html` shows
-every pair on the handle and on him in five poses; `cover-drive.html` has
-every stroke with a Gloves row, and `?gloves=<id>` picks the first. Both build
-into one file with their `scripts/*-artifact.mjs`. `dressing-check` walks the
-shelf and bats in the pair it put on.
+measured, judged invisible at speed, and left alone. Every piece of a glove's
+colour is baked into its vertices, so a fist merges into one mesh and a pair
+costs six draw calls, and a pad with its two colours stays one mesh: the lot
+costs nothing over the old glove, and `scene-check`'s `BUDGET` says what its
+figure means. Under the floodlights they keep the day's glow, none: the
+night's glow is a material's own colour, and theirs is white. `gloves.html` shows every pair on the handle and on him
+in five poses; `cover-drive.html` has every stroke with a Gloves row, and
+`?gloves=<id>` picks the first. Both build into one file with their
+`scripts/*-artifact.mjs`.
 
 ## Who's batting: the gate before the first innings
 

@@ -3,7 +3,7 @@ import { emptyBlast, emptyMarathon, emptySurvive } from '../src/game/career';
 import { dressingMarkup, footMarkup, shelfMarkup, type DressingView } from '../src/ui/DressingRoom';
 
 const view = (patch: Partial<DressingView> = {}): DressingView => ({
-  shelf: 'kit', kit: 'home', bat: 'boom', gloves: 'sterling', wearing: 'home', holding: 'boom', wearingGloves: 'sterling', pictures: {},
+  shelf: 'kit', kit: 'home', bat: 'boom', guard: 'sterling', wearing: 'home', holding: 'boom', wearingGuard: 'sterling', pictures: {},
   record: {
     careers: { classic: { ...emptyBlast(), sixes: 182, highest: 112 }, survive: { ...emptySurvive(), wins: 18 }, marathon: { ...emptyMarathon(), highest: 142 } },
     rivals: { won: 0, beaten: 0 }, launch: { classic: 0, survive: 0, marathon: 0 }, welcomed: true,
@@ -14,7 +14,7 @@ const view = (patch: Partial<DressingView> = {}): DressingView => ({
 describe('the Dressing Room screen', () => {
   it('keeps the ids the game and the checks bind', () => {
     const screen = dressingMarkup();
-    for (const id of ['dressing-back', 'dressing-tab-kit', 'dressing-tab-bat', 'dressing-tab-glove', 'dressing-name', 'dressing-items', 'dressing-foot']) expect(screen).toContain(`id="${id}"`);
+    for (const id of ['dressing-back', 'dressing-tab-kit', 'dressing-tab-bat', 'dressing-tab-guard', 'dressing-name', 'dressing-items', 'dressing-foot']) expect(screen).toContain(`id="${id}"`);
   });
 
   it('puts every kit on the shelf, a tick on the one worn and a lock on the ones not earned', () => {
@@ -25,18 +25,18 @@ describe('the Dressing Room screen', () => {
     expect(shelfMarkup(view({ shelf: 'bat' })).match(/class="dr-item[ "]/g)).toHaveLength(12);
   });
 
-  it('puts every pair of gloves on its shelf, none locked, the worn pair ticked, and WEAR THEM at the foot', () => {
-    const shelf = shelfMarkup(view({ shelf: 'glove', gloves: 'carbon' }));
+  it('puts every guard on its shelf, none locked, the worn one ticked, and WEAR IT at the foot', () => {
+    const shelf = shelfMarkup(view({ shelf: 'guard', guard: 'carbon' }));
     expect(shelf.match(/class="dr-item[ "]/g)).toHaveLength(6);
     expect(shelf).not.toContain('is-locked');
     expect(shelf).toMatch(/data-id="sterling"[^>]*aria-label="Sterling, on"/);
     expect(shelf).toMatch(/class="dr-item is-picked" data-id="carbon"[^>]*aria-label="Carbon"/);
-    const foot = footMarkup(view({ shelf: 'glove', gloves: 'carbon' }));
+    const foot = footMarkup(view({ shelf: 'guard', guard: 'carbon' }));
     expect(foot).toContain('Free');
     expect(foot).toContain('carbon-fibre weave');
-    expect(foot).toContain('WEAR THEM');
+    expect(foot).toContain('WEAR IT');
     expect(foot).not.toContain('dressing-next');
-    expect(footMarkup(view({ shelf: 'glove' }))).toContain('WEARING');
+    expect(footMarkup(view({ shelf: 'guard' }))).toContain('WEARING');
   });
 
   it('shows one goal large, and the key to the game it is won in', () => {
