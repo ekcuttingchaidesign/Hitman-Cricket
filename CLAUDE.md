@@ -477,10 +477,10 @@ played does not split them, and the `?dressing=1` preview counts nothing.
 
 ## Batting gloves
 
-The batter's gloves are a catalogue (`src/entities/gloves.ts`): Glacier, the
-pair he is built wearing (`DEFAULT_GLOVE`, white so it goes with every kit and
-the Test match's whites), and Fern, Carbon, Blaze and Midnight for the Dressing
-Room to hand out, which is still to be wired. `Batter.wearGloves(design)` puts
+The batter's gloves are a catalogue (`src/entities/gloves.ts`): Sterling, the
+pair he is built wearing (`DEFAULT_GLOVE`, white and silver so it goes with
+every kit and the Test match's whites), and Glacier, Fern, Carbon, Blaze and
+Midnight for the Dressing Room to hand out, which is still to be wired. `Batter.wearGloves(design)` puts
 a pair on. The grip is a right-hander's from a photograph: the top hand's
 knuckles on the bat's curved back with its fingers curling onto the face, the
 bottom hand's the other way, both round the same edge, both thumbs down the

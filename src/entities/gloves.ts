@@ -24,9 +24,9 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
-export type GloveId = 'glacier' | 'fern' | 'carbon' | 'blaze' | 'midnight';
-/** The pair he is built wearing: white, so it goes with every kit and with the Test match's whites. */
-export const DEFAULT_GLOVE: GloveId = 'glacier';
+export type GloveId = 'sterling' | 'glacier' | 'fern' | 'carbon' | 'blaze' | 'midnight';
+/** The pair he is built wearing: white and silver, so it goes with every kit and with the Test match's whites. */
+export const DEFAULT_GLOVE: GloveId = 'sterling';
 
 /** A print on some of the padding: a carbon-fibre weave in two greys. */
 export interface GlovePrint { kind: 'carbon'; ground: string; ink: string }
@@ -72,6 +72,21 @@ const CARBON: GlovePrint = { kind: 'carbon', ground: '#232529', ink: '#4A5058' }
 
 /** The catalogue, the default pair first. */
 export const GLOVES: readonly GloveDesign[] = [
+  {
+    id: 'sterling', name: 'Sterling', line: 'White and silver: the rolls shading to silver down the fingers, a silver side bar, knuckle bar and thumb tip, and a white cuff with silver bands.',
+    base: '#F9FAFB',
+    rolls: ['#F9FAFB', '#F9FAFB', '#F9FAFB', '#C3CAD2'],
+    fade: ['#F9FAFB', '#EDF0F3', '#D6DCE2'],
+    index: ['#D6DCE2', '#C3CAD2', '#AEB6BF'],
+    sideBar: true,
+    tips: ['#D6DCE2', '#D6DCE2', '#D6DCE2', '#AEB6BF'],
+    knuckleBar: { colour: '#C3CAD2', badge: '#F9FAFB' },
+    thumb: '#F9FAFB', thumbTip: '#C3CAD2', ridges: '#AEB6BF',
+    cuff: {
+      base: '#F9FAFB', bands: [{ at: .046, depth: .014, colour: '#C3CAD2' }, { at: .070, depth: .008, colour: '#AEB6BF' }],
+      strap: '#C3CAD2', badge: '#F9FAFB', rim: '#F9FAFB',
+    },
+  },
   {
     id: 'glacier', name: 'Glacier', line: 'Ice white, every roll fading from white at the knuckle to electric cyan at the tip, a silver knuckle bar and a cuff ringed cyan and silver.',
     base: '#F7FBFD',
