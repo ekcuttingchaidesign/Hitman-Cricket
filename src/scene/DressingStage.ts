@@ -414,10 +414,13 @@ export class DressingStage {
     await batSheet(holding.id).then(sheet => this.batter.holdBat(holding.grip, sheet));
     // The holder's offset stands him on the origin, a little off the ground: head and shoulders from there.
     for (const outfit of outfits) { this.batter.wear(outfit); out[`kit:${outfit.id}`] = shot(this.holder, new THREE.Vector3(.02, 1.28, 0), 2.1, .55); }
-    // The guards: his hands on the handle over the front pad, near to, from the bowler's side so the backs of both gloves show.
+    // The guards: him from the gloves down to his shoes, from the bowler's side
+    // so the backs of both gloves show over both pads. The hands on the handle
+    // alone, near to, cropped the pads to a corner and read as nothing much.
     this.scene.updateMatrixWorld(true);
-    const hands = this.hands().add(new THREE.Vector3(0, -.1, 0));
-    for (const guard of guards) { this.batter.wearGloves(guard); out[`guard:${guard.id}`] = shot(this.holder, hands, .9, .5); }
+    const hands = this.hands(), guardAt = new THREE.Vector3(hands.x, (hands.y + this.soles.y) / 2 + .04, 0);
+    const guardDistance = (hands.y - this.soles.y + .42) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+    for (const guard of guards) { this.batter.wearGloves(guard); out[`guard:${guard.id}`] = shot(this.holder, guardAt, guardDistance, .5); }
     if (wearing) this.batter.wearGloves(wearing);
     // Every sheet loaded first, so the pictures are taken in one go: the stage
     // moves the bat every frame, and a wait between two pictures let it.

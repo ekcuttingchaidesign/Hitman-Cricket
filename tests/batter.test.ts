@@ -480,7 +480,7 @@ describe('the bat and the body', () => {
       }
       expect(worst.value, `${shot} v${version} reaches ${worst.value.toFixed(2)} into the ${worst.part} at ${worst.where}`).toBeGreaterThan(1);
     }
-  });
+  }, 20_000); // Every stroke, every frame: six seconds and more on a slow host.
 
   // Once the ball is done with he may do something before he settles back:
   // tap the bat after a drive, watch a loft go, twirl the bat after a pull,

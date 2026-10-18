@@ -477,14 +477,16 @@ played does not split them, and the `?dressing=1` preview counts nothing.
 
 ## The guard: gloves and pads
 
-The batter's gloves and leg pads are one pick, a guard: six colourways in
+The batter's gloves and leg pads are one pick, a guard: seven colourways in
 `src/entities/gloves.ts`, their ids in `dressing-ids.ts` beside the kits' and
 bats' (`GUARD_IDS`). Sterling is the one he is built wearing (`FREE_GUARD`,
 white and silver so it goes with every kit and the Test match's whites); the
-rest are Glacier, Fern, Carbon, Blaze and Midnight. Each design is the gloves
-in full and the pads' two colours (`pads.body`, `pads.trim`: the pad, and its
-piping, knee roll and ankle flap), and `Batter.wearGloves(design)` puts both
-on; the kits no longer colour the pads (`Outfit.pads` is kept in the
+rest are Glacier, Fern, Evergreen (Fern in British Racing Green), Ember (the
+carbon weave with red pads trimmed black; its id is still `carbon`, which
+saved picks and the checks hold), Blaze and Midnight. Each design is the
+gloves in full and the pads' two colours (`pads.body`, `pads.trim`: the pad,
+and its piping, knee roll and ankle flap), and `Batter.wearGloves(design)`
+puts both on; the kits no longer colour the pads (`Outfit.pads` is kept in the
 catalogue and read by nothing). The guard is the Dressing Room's third shelf
 (GUARD, `shelf: 'guard'`), and nothing on it is earned: every one is free to
 wear, so the shelf has no locks, no dot and no Next up, and the room's "N of
@@ -497,8 +499,9 @@ there were guards wears the free one. The stage's guard view (`StageView`
 his shoes rather than to the pedestal's edge, the headroom given up, and
 allowed `GUARD_NEARER` closer than the kit's nearest on a tall phone — held
 facing the camera as the bowler sees him so the backs of both gloves show
-over the pads against the kit; the shelf's pictures are his hands on the
-handle over the front pad in each. The pads are built anew on every pick, as the gloves are, not
+over the pads against the kit; the shelf's pictures are him from the gloves
+down to his shoes in each, from the same side, so both gloves and both pads
+show (his hands on the handle alone, near to, cropped the pads to a corner). The pads are built anew on every pick, as the gloves are, not
 recoloured in place: an update to a buffer already on the GPU was lost on an
 iPhone and kept the pads in the guard before. `snapshot().look` is
 `kit/bat/guard`. `dressing-check` walks the shelf and bats in the guard it

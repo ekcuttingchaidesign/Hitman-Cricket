@@ -74,7 +74,7 @@ export interface GloveDesign {
 
 type Paint = string | GlovePrint;
 
-/** The weave on Carbon's rolls. */
+/** The weave on Ember's rolls. */
 const CARBON: GlovePrint = { kind: 'carbon', ground: '#232529', ink: '#4A5058' };
 
 /** The catalogue, the default pair first. */
@@ -130,9 +130,25 @@ export const GLOVES: readonly GloveDesign[] = [
     },
   },
   {
-    id: 'carbon', name: 'Carbon', line: 'Black padding with a carbon-fibre weave across the rolls, a red index bar and tips, and a black cuff with a red strap.',
+    id: 'evergreen', name: 'Evergreen', line: 'Fern in British Racing Green: the index roll deepening from racing green into bottle green, the knuckle bar to match, and the cuff ringed in both.',
+    glow: '#1F8A4C',
+    pads: { body: '#FAFAF6', trim: '#004225' },
+    base: '#FAFAF6',
+    rolls: ['#FAFAF6', '#FAFAF6', '#FAFAF6', '#004225'],
+    index: ['#004225', '#0B5A3C', '#0E6B5C'],
+    sideBar: true,
+    tips: ['#FAFAF6', '#FAFAF6', '#FAFAF6', '#004225'],
+    knuckleBar: { colour: '#0E6B5C', badge: '#FAFAF6' },
+    thumb: '#FAFAF6', thumbTip: '#004225', ridges: '#0E6B5C',
+    cuff: {
+      base: '#FAFAF6', bands: [{ at: .050, depth: .018, colour: '#0E6B5C' }, { at: .074, depth: .008, colour: '#004225' }],
+      strap: '#FAFAF6', badge: '#004225', rim: '#FAFAF6',
+    },
+  },
+  {
+    id: 'carbon', name: 'Ember', line: 'Black padding with a carbon-fibre weave across the rolls, a red index bar and tips, a black cuff with a red strap, and red pads trimmed in black.',
     glow: '#E0202A',
-    pads: { body: '#17181B', trim: '#E0202A' },
+    pads: { body: '#C4161F', trim: '#17181B' },
     base: '#17181B',
     rolls: [CARBON, CARBON, CARBON, '#E0202A'],
     sideBar: true,
