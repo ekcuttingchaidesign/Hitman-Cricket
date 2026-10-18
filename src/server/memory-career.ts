@@ -42,6 +42,11 @@ export function memoryCareer<C>(
         .sort((a, b) => b.score - a.score)
         .slice(0, n);
     },
+    async place(board, id) {
+      const held = ranking(board), score = held.get(id);
+      if (score === undefined) return null;
+      return [...held.values()].filter(other => other > score).length + 1;
+    },
     async many(ids) { return ids.map(id => records.get(id) ?? null); },
     async nameHolder(folded) { return names.get(folded) ?? null; },
     async hits(address, windowSeconds) {

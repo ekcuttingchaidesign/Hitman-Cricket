@@ -1,5 +1,8 @@
 import { Redis } from '@upstash/redis';
-import type { BoardStore, StoredRow } from './board-store.js';
+import {
+  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SURVIVE_LADDER, type BoardStore, type StoredRow,
+} from './board-store.js';
+import { BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER } from '../game/career.js';
 import type { CareerStore, StoredCareer } from './career-store.js';
 import type { StoredKey } from './career-key.js';
 import type { StoredAnswer, StoredPassword } from './career-password.js';
@@ -10,6 +13,8 @@ import type { RecapStore } from './recap-store.js';
 import type { YearRecap } from '../game/recap.js';
 import { tallyFields, type Tally } from './tally.js';
 import { FEEDBACK_KEPT, type FeedbackStore, type StoredFeedback } from './feedback-store.js';
+import type { ActivityEvent, PlayerStore, StoredBio } from './player-store.js';
+import type { ProfileStores } from './profile-endpoint.js';
 import {
   packResult, unpackResult,
   type ChallengeStore, type RivalsResult, type StoredPlayer, type StoredRivalsRow,
@@ -158,6 +163,15 @@ export function upstashStore<I>(redis: Redis, scope = ''): BoardStore<I> {
       return ranked;
     },
 
+    async slice(start, count) {
+      if (count <= 0) return [];
+      const from = Math.max(0, start);
+      const flat = await redis.zrange<(string | number)[]>(KEY.ranking, from, from + count - 1, { rev: true, withScores: true });
+      const ranked: { id: string; score: number }[] = [];
+      for (let i = 0; i + 1 < flat.length; i += 2) ranked.push({ id: String(flat[i]), score: Number(flat[i + 1]) });
+      return ranked;
+    },
+
     async rows(ids) {
       if (!ids.length) return [];
       // One command for the whole board. The answer is keyed by field rather
@@ -271,6 +285,11 @@ export function upstashCareer<C>(redis: Redis, scope: string): CareerStore<C> {
       const ranked: { id: string; score: number }[] = [];
       for (let i = 0; i + 1 < flat.length; i += 2) ranked.push({ id: String(flat[i]), score: Number(flat[i + 1]) });
       return ranked;
+    },
+
+    async place(board, id) {
+      const rank = await redis.zrevrank(KEY.ranking(board), id);
+      return rank === null || rank === undefined ? null : Number(rank) + 1;
     },
 
     async many(ids) {
@@ -594,6 +613,70 @@ export function upstashRecap(redis: Redis): RecapStore {
       const pipe = redis.pipeline();
       for (const [field, by] of raised) pipe.hincrby(`${key(year)}:all`, field, by);
       await pipe.exec();
+    },
+  };
+}
+
+/**
+ * What the profiles keep (`player-store.ts`): handle to id and the bios in a
+ * hash each, a day's viewers as a set that expires a little after the week it
+ * is counted in, and each player's events as a short list, trimmed and expired
+ * as it is pushed. Its own rate counter, as the Dressing Room has.
+ */
+export function upstashPlayers(redis: Redis): PlayerStore {
+  const handles = `${SCOPE}handles`, bios = `${SCOPE}bios`, rate = `${SCOPE}prate:`;
+  const seen = (id: string, day: string) => `${SCOPE}seen:${id}:${day}`;
+  const act = (id: string) => `${SCOPE}act:${id}`;
+  return {
+    async rememberHandle(handle, id) { await redis.hset(handles, { [handle]: id }); },
+    async idOf(handle) { return (await redis.hget<string>(handles, handle)) ?? null; },
+    async readBio(id) { return (await redis.hget<StoredBio>(bios, id)) ?? null; },
+    async writeBio(id, bio) {
+      if (bio) await redis.hset(bios, { [id]: bio });
+      else await redis.hdel(bios, id);
+    },
+    async addView(id, day, viewer) {
+      const pipe = redis.pipeline();
+      pipe.sadd(seen(id, day), viewer);
+      pipe.expire(seen(id, day), 8 * 86_400);
+      await pipe.exec();
+    },
+    async views(id, days) {
+      const pipe = redis.pipeline();
+      for (const day of days) pipe.scard(seen(id, day));
+      const counts = await pipe.exec<number[]>();
+      return counts.reduce((sum, n) => sum + (Number(n) || 0), 0);
+    },
+    async addEvent(id, event, keep, ttlSeconds) {
+      const pipe = redis.pipeline();
+      pipe.lpush(act(id), event);
+      pipe.ltrim(act(id), 0, keep - 1);
+      pipe.expire(act(id), ttlSeconds);
+      await pipe.exec();
+    },
+    async events(id) { return (await redis.lrange<ActivityEvent>(act(id), 0, -1)) ?? []; },
+    async hits(address, windowSeconds) {
+      const count = await redis.incr(rate + address);
+      if (count === 1) await redis.expire(rate + address, windowSeconds);
+      return count;
+    },
+  };
+}
+
+/** Every store a profile reads, over one connection. */
+export function upstashProfiles(redis: Redis): ProfileStores {
+  return {
+    players: upstashPlayers(redis),
+    boards: {
+      classic: upstashStore(redis, CLASSIC_LADDER.scope),
+      survive: upstashStore(redis, SURVIVE_LADDER.scope),
+      team: upstashStore(redis, MARATHON_TEAM_LADDER.scope),
+      solo: upstashStore(redis, MARATHON_SOLO_LADDER.scope),
+    },
+    careers: {
+      classic: upstashCareer(redis, BLAST_CAREER.scope),
+      survive: upstashCareer(redis, SURVIVE_CAREER.scope),
+      marathon: upstashCareer(redis, MARATHON_CAREER.scope),
     },
   };
 }

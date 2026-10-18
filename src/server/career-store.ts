@@ -90,6 +90,8 @@ export interface CareerStore<C> {
   rank(board: string, id: string, score: number): Promise<void>;
   /** The best `n` ids on one board with their packed scores, best first. */
   top(board: string, n: number): Promise<{ id: string; score: number }[]>;
+  /** One player's place on one board, from 1, or null where they are not on it. */
+  place(board: string, id: string): Promise<number | null>;
   /** The records for these ids, in the order asked; anything missing is null. */
   many(ids: string[]): Promise<(StoredCareer<C> | null)[]>;
   /** Who holds this folded name, or null. Read only: claiming is the board's. */

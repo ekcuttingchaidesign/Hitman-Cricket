@@ -173,3 +173,21 @@ the game, so the order matters.
 4. **Months later**, once the old link has stopped getting visits, the Domains
    redirect (308 to `hitmancricket.in`) can replace the in-page one. Anybody
    who has not come back by then can still restore with their career key.
+
+# Player profiles: handles for the players already on the boards
+
+A row opens its player's profile by the handle it carries, and the store finds
+the player behind a handle in `handles`, which is written whenever a player
+posts, counts an innings or claims a name. Until a player does one of those
+after the profiles ship, their rows open nothing. One run fills the map for
+everybody who already holds a name. It writes nothing but handles, the same
+value every time, so running it again is harmless.
+
+1. **Merge and deploy** the profiles.
+2. **Say what it would do**, in your own terminal, with your own token pasted
+   in place of `…`:
+
+       VERCEL_ENV=production KV_REST_API_URL=… KV_REST_API_TOKEN=… npx vite-node scripts/handle-backfill.ts
+
+   It prints how many named players it found and writes nothing.
+3. **Do it**: the same line with `--write` on the end.

@@ -4,8 +4,9 @@ import {
 import { nameCareer } from '../src/server/career-store.js';
 import { carryKey, keyOnClaim, listOnClaim } from '../src/server/recovery-store.js';
 import {
-  NoDatabase, redisFromEnv, upstashCareer, upstashRecovery, upstashStore,
+  NoDatabase, redisFromEnv, upstashCareer, upstashPlayers, upstashRecovery, upstashStore,
 } from '../src/server/upstash.js';
+import { rememberHandle } from '../src/server/player-store.js';
 import {
   BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, type BlastCareer, type MarathonCareer, type SurviveCareer,
 } from '../src/game/career.js';
@@ -74,6 +75,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     } catch (error) {
       console.error('No career key was minted for the name.', error);
     }
+    // The handle this player's rows will go by, so they open a profile.
+    await rememberHandle(upstashPlayers(redisFromEnv()), who.playerId);
     res.setHeader('Cache-Control', 'no-store');
     res.status(200).json(key ? { ok: true, name, key } : { ok: true, name });
   } catch (error) {

@@ -151,6 +151,11 @@ export interface BoardStore<I = Innings> {
   standing(id: string): Promise<Standing>;
   /** The best `n` player ids with their packed scores, best first. */
   top(n: number): Promise<{ id: string; score: number }[]>;
+  /**
+   * The ids and packed scores from place `start` (0 is the top) for `count`,
+   * best first: the players either side of somebody far below the fifty.
+   */
+  slice(start: number, count: number): Promise<{ id: string; score: number }[]>;
   /** The rows for these ids, in the order asked; anything missing comes back null. */
   rows(ids: string[]): Promise<(StoredRow<I> | null)[]>;
   /**
@@ -319,6 +324,59 @@ async function standingAfter(
 ): Promise<PostStanding> {
   const before = was.rank !== null && was.score !== null ? { rank: was.rank, score: was.score } : null;
   return { ...(improved ? await store.standing(id) : was), was: before };
+}
+
+/** A player either side of an innings on the board: who it went past, and who stands next above. */
+export interface Neighbour {
+  /** Kept in the store: the profile endpoint turns it into a handle before anything leaves. */
+  id: string;
+  name: string;
+  avatar: number;
+  /** Their best on this board. */
+  runs: number;
+  /** Where they stand now. */
+  place: number;
+}
+
+/** Who an innings went past, and who is next. */
+export interface Around {
+  /** The players it went past, best first, at most `AROUND_NAMED`. */
+  passed: Neighbour[];
+  /** How many it went past in all. */
+  passedCount: number;
+  /** The player standing one above, or null at the top. */
+  next: Neighbour | null;
+}
+
+/** How many of those passed are named back; the rest are a count. */
+export const AROUND_NAMED = 5;
+
+/**
+ * Who a post went past and who stands next, read from the standing it left.
+ *
+ * Only an innings that moved a player who already stood somewhere went past
+ * anybody: a first innings arriving at seventieth went past everybody below
+ * seventieth, and telling it so would be telling it nothing. The ones passed
+ * are those now at the places between the new one and the old, one below the
+ * other; the next is the place above. One `slice` and one `rows`.
+ */
+export async function aroundAfter<I extends { runs: number }>(
+  store: Pick<BoardStore<I>, 'slice' | 'rows'>, standing: PostStanding, improved: boolean,
+): Promise<Around> {
+  const rank = standing.rank;
+  if (rank === null) return { passed: [], passedCount: 0, next: null };
+  const passedCount = improved && standing.was && standing.was.rank > rank ? standing.was.rank - rank : 0;
+  const from = Math.max(0, rank - 2);
+  const want = (rank > 1 ? 1 : 0) + 1 + Math.min(passedCount, AROUND_NAMED);
+  const ranked = await store.slice(from, want);
+  const stored = ranked.length ? await store.rows(ranked.map(one => one.id)) : [];
+  const neighbours = ranked.map((one, i): Neighbour | null => {
+    const row = stored[i];
+    return row ? { id: one.id, name: row.name, avatar: row.avatar, runs: row.runs, place: from + i + 1 } : null;
+  });
+  const next = rank > 1 ? neighbours.find(one => one?.place === rank - 1) ?? null : null;
+  const passed = neighbours.filter((one): one is Neighbour => !!one && one.place > rank && one.place <= rank + passedCount);
+  return { passed, passedCount, next };
 }
 
 /** One player's place on a board, and the row that holds it, for a player who has not just batted. */
