@@ -3,6 +3,7 @@ import type { BoardRow, Innings } from './leaderboard';
 import { readPlayer } from './player';
 import type { SurviveInnings, SurviveRow } from './survive-board';
 import type { MarathonFigures, SoloRow, TeamRow } from './marathon-board';
+import type { PostExtras } from './profile-api';
 
 /**
  * The board, fetched.
@@ -87,6 +88,10 @@ export interface SubmitResult<P = BoardPayload> {
    * innings — however far below the fifty. For the Marathon, `{ team, solo }`.
    */
   standing?: PostStanding | { team: PostStanding; solo: PostStanding };
+  /** Who the innings went past on the board and who stands next, by handle. */
+  around?: PostExtras['around'];
+  /** The chase it was played as, judged: see `chaseFor`. */
+  chase?: PostExtras['chase'];
   /** Why it was turned down, in words the player can act on. */
   reason?: string;
   /**
@@ -189,12 +194,23 @@ export function submitMarathon(
   return offer(playerId, name, avatar, innings, 'marathon') as Promise<SubmitResult<MarathonPayload>>;
 }
 
+/**
+ * The player whose best is being chased, a mode at a time: an innings of that
+ * mode is posted with their handle, and the store judges it and tells them.
+ * Set by CHASE on a profile, and cleared by whoever ends the chase.
+ */
+let chasing: { handle: string; mode: BoardMode } | null = null;
+export function chaseFor(handle: string | null, mode: BoardMode = 'classic') {
+  chasing = handle ? { handle, mode } : null;
+}
+
 async function offer(
   playerId: string, name: string, avatar: number, innings: Innings | SurviveInnings | MarathonFigures, mode: BoardMode,
 ): Promise<SubmitResult<BoardPayload | SurvivePayload | MarathonPayload>> {
   const answer = await ask<{
     improved: SubmitResult['improved']; score: SubmitResult['score']; board: BoardPayload | SurvivePayload | MarathonPayload;
     standing?: SubmitResult['standing']; error?: string; retry?: boolean; status?: number; key?: string; held?: string;
+    around?: SubmitResult['around']; chase?: SubmitResult['chase'];
   }>(
     `${API}/api/score`,
     {
@@ -202,7 +218,10 @@ async function offer(
       headers: { 'Content-Type': 'application/json' },
       // The name this browser batted under before, for a claim that changes
       // it: the key already saved for that name comes across to this one.
-      body: JSON.stringify({ playerId, name, avatar, innings, mode, previous: readPlayer()?.name }),
+      body: JSON.stringify({
+        playerId, name, avatar, innings, mode, previous: readPlayer()?.name,
+        ...(chasing?.mode === mode ? { chase: chasing.handle } : {}),
+      }),
     },
   );
   // Nothing came back at all: a timeout, a dropped connection, or a crash with
@@ -224,7 +243,7 @@ async function offer(
   delete standings[mode];
   return {
     ok: true, improved: answer.improved, score: answer.score, board: answer.board, standing: answer.standing,
-    key: answer.key,
+    key: answer.key, around: answer.around, chase: answer.chase,
   };
 }
 

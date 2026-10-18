@@ -1,4 +1,5 @@
-import { ownsHandle } from './game/handle';
+import { handleOf, ownsHandle } from './game/handle';
+import { fetchProfile } from './game/profile-api';
 import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME, SWIPE_ZONES } from './config/gameplay';
@@ -39,7 +40,7 @@ import { boundaryCheer, boundaryStreak, GROAN, HUSH, milestoneCheer, MURMUR, nea
 import { afterBall, disappointment, HABITS, outNearMilestone, PACES } from './game/afterBall';
 import type { AfterBall, CoverVersion, Hurt } from './entities/Batter';
 import {
-  claimName, fetchBoard, fetchMarathonBoard, fetchStanding, fetchSurviveBoard, forgetBoard, submitInnings, submitMarathon,
+  chaseFor, claimName, fetchBoard, fetchMarathonBoard, fetchStanding, fetchSurviveBoard, forgetBoard, submitInnings, submitMarathon,
   submitSurvive,
   type BoardPayload, type SurvivePayload, type MarathonPayload, type SubmitResult,
 } from './game/board-api';
@@ -284,6 +285,8 @@ export class Game {
   private felled = false;
   /** The score he walked out to, nine down. Cosmetic, and drawn from the seed. */
   private chasing = 0;
+  /** Another player's best being chased, from CHASE on their profile; null when nobody's is. */
+  private chase: { handle: string; name: string; avatar: number | null; mode: CareerMode; target: number } | null = null;
   /** Three balls that went nowhere and the fielders have something to say. */
   private sledger = new Sledger();
   private sledgeDue = false;
@@ -747,6 +750,20 @@ export class Game {
       this.choose(mode === 'classic' ? 'CLASSIC' : mode === 'marathon' ? 'MARATHON' : 'SURVIVE');
     };
     this.hud.onBoardRetry = () => this.reopenBoard();
+    // Another player's profile, from a row: a look counted for them only when
+    // a named player is looking, and never their own.
+    this.hud.onPlayerFetch = handle => {
+      const looking = readPlayer()?.name && this.player ? handleOf(this.player) : null;
+      return fetchProfile(handle, looking);
+    };
+    // CHASE: their best is the target for the next innings of that mode, and
+    // the store is told it was a chase when the innings is posted.
+    this.hud.onPlayerChase = chase => {
+      this.chase = chase;
+      chaseFor(chase.handle, chase.mode);
+      this.hud.closeBoard();
+      this.choose(chase.mode === 'classic' ? 'CLASSIC' : chase.mode === 'marathon' ? 'MARATHON' : 'SURVIVE');
+    };
     this.hud.onBoardName = () => this.askProfile(false);
     this.hud.onStatsOpen = this.showStats;
     this.hud.onStatsPlay = mode => {
@@ -5150,7 +5167,7 @@ export class Game {
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
       pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, pullPen: this.pullPen,
-      mirrored: this.scene.mirrored, look: this.scene.wearing, fieldingKit: this.scene.fieldingKit, marathon: this.marathon ? this.marathonState() : null,
+      mirrored: this.scene.mirrored, look: this.scene.wearing, fieldingKit: this.scene.fieldingKit, chase: this.chase ? { handle: this.chase.handle, mode: this.chase.mode, target: this.chase.target } : null, marathon: this.marathon ? this.marathonState() : null,
       standing: this.standing, ease: this.ease };
   }
   /** Where a Marathon innings stands, for `marathon-check.mjs`. */

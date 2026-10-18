@@ -138,7 +138,7 @@ export function cardMarkup(facts: StatsFacts, who: { name: string; avatar: numbe
 }
 
 /** Which six figures each mode puts under its card, in the drawing's order. */
-const TILES: Record<string, readonly string[]> = {
+export const TILES: Record<string, readonly string[]> = {
   classic: ['Innings', 'Sixes', 'Highest', 'Fours', 'Balls', 'Best rank'],
   survive: ['Innings', 'Survived', 'Won', 'Runs', 'Blows', 'Best rank'],
   marathon: ['Innings', 'Highest', 'Best ind.', 'Hundreds', 'Fifties', 'Best rank'],

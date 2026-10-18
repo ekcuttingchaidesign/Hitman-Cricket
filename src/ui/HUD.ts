@@ -84,6 +84,8 @@ import { BATTERS, type LevelBanner } from '../config/marathon';
 import { resultOf, type Result } from '../game/Survive';
 import type { SoundSetting } from '../game/Audio';
 import type { CareerMode } from '../game/career';
+import { chaseTarget, playedMode, playerSheetMarkup, type PlayerSeed, type PlayerSheetView } from './PlayerSheet';
+import { cachedProfile, type ProfilePayload } from '../game/profile-api';
 import wifiOff from '../assets/board/wifi-off.svg?raw';
 /** OPENER to Opener and NO. 3 to No. 3: the batters' titles as a scorecard writes them. */
 const titleCase = (title: string) => title.charAt(0) + title.slice(1).toLowerCase();
@@ -753,6 +755,9 @@ ${modeSelectMarkup()}
     const kept = same ? document.getElementById('board-body')?.scrollTop ?? 0 : null;
     overlay.className = 'modal-overlay lb-overlay';
     overlay.innerHTML = boardScreenMarkup(screen);
+    // A profile open over the board stays open over it: the board redraws
+    // under it (its place, the store's answer) and the sheet is put back on top.
+    if (this.playerOpen) overlay.querySelector('.lb-screen')!.append(this.playerOpen.layer);
     this.viewport.classList.add('modal-open');
     this.boardShown = { mode, ladder };
     this.wireBoard(screen);
@@ -876,6 +881,35 @@ ${modeSelectMarkup()}
     body.onpointerup = end;
     body.onpointercancel = end;
     body.onscroll = () => this.foldBoard();
+    // A named row, a step of the podium or a folded chip opens that player's
+    // profile; the player's own opens My profile. Not at the end of a swipe
+    // sideways, which ends on whatever row the thumb happened to lift over.
+    const opener = (target: EventTarget | null) => (target as HTMLElement | null)?.closest<HTMLElement>('[data-handle],[data-mine]') ?? null;
+    const open = (from: HTMLElement) => {
+      if (from.dataset.mine) { this.onStatsOpen?.(); return; }
+      const entry = screen.rows.find(row => row.handle === from.dataset.handle);
+      if (!entry?.handle) return;
+      // Off an innings board the row's figure is their best, and what CHASE aims at.
+      const innings = screen.ladder === 'best' || screen.ladder === 'team';
+      const best = innings ? Number.parseInt(entry.score.replace(/,/g, ''), 10) : NaN;
+      this.openPlayer({
+        handle: entry.handle, name: entry.name, avatar: entry.avatar, mode: screen.mode,
+        place: innings ? entry.place : null, best: Number.isFinite(best) ? best : null,
+      }, from);
+    };
+    shell.onclick = event => {
+      const from = opener(event.target);
+      if (!from || sideways || shell.querySelector('.lb-pop')) return;
+      open(from);
+    };
+    shell.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const from = opener(event.target);
+      if (!from || event.target !== from || shell.querySelector('.lb-pop')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      open(from);
+    });
     shell.onkeydown = event => {
       if (shell.querySelector('.lb-pop') || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
       const at = modes.indexOf(screen.mode);
@@ -907,6 +941,238 @@ ${modeSelectMarkup()}
     if (!row || !dock) { shell.classList.remove('is-you-seen'); return; }
     const box = body.getBoundingClientRect(), mine = row.getBoundingClientRect(), foot = dock.getBoundingClientRect();
     shell.classList.toggle('is-you-seen', mine.top >= box.top && mine.bottom <= Math.min(box.bottom, foot.top + 60));
+  }
+
+  /** Asks the store for a profile: the game knows who is looking. */
+  onPlayerFetch: ((handle: string) => Promise<ProfilePayload | null>) | null = null;
+  /** CHASE on a profile: bat this mode with their best as the target. */
+  onPlayerChase: ((chase: { handle: string; name: string; avatar: number | null; mode: CareerMode; target: number }) => void) | null = null;
+  /** The profile over the board, while one is open. */
+  private playerOpen: { layer: HTMLElement; view: PlayerSheetView; from: HTMLElement | null; shut: () => void } | null = null;
+  /** Bumped at every open, so an answer for a sheet already put away draws nothing. */
+  private playerAsk = 0;
+
+  /**
+   * Another player's profile, risen over the board (section 14, lane A). The
+   * row's face flies up into the hero while the sheet rises on a soft spring
+   * and the board dims behind it; what the row knew is drawn at once and the
+   * rest arrives from the store. The face goes back to its row on the way out.
+   */
+  openPlayer(seed: PlayerSeed, from: HTMLElement | null) {
+    const shell = document.querySelector<HTMLElement>('#board-overlay .lb-screen');
+    if (!shell) return;
+    this.dropPlayer();
+    const held = cachedProfile(seed.handle);
+    const view: PlayerSheetView = {
+      seed, mode: seed.mode, modes: this.boardModes(seed.mode),
+      state: held ? 'ready' : 'loading', profile: held,
+    };
+    if (held) view.mode = playedMode(held, view);
+    const layer = document.createElement('div');
+    layer.className = 'lb-pop ps-layer';
+    shell.append(layer);
+    const escapeKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      event.preventDefault();
+      this.closePlayer();
+    };
+    document.addEventListener('keydown', escapeKey, true);
+    // The row's face stays hidden behind the sheet while its copy is the hero.
+    const rowFace = from?.querySelector<HTMLElement>('.board-kit') ?? null;
+    this.playerOpen = {
+      layer, view, from,
+      shut: () => { document.removeEventListener('keydown', escapeKey, true); if (rowFace) rowFace.style.visibility = ''; },
+    };
+    this.drawPlayer('open');
+    this.flyFace(from, layer.querySelector<HTMLElement>('.ps-face'), false);
+    this.askPlayer();
+  }
+
+  /** The profile, asked for; drawn in when it comes if the same sheet is still up. */
+  private askPlayer() {
+    const open = this.playerOpen;
+    if (!open || !this.onPlayerFetch) return;
+    const ask = ++this.playerAsk;
+    this.onPlayerFetch(open.view.seed.handle).then(profile => {
+      if (ask !== this.playerAsk || this.playerOpen !== open) return;
+      if (!profile) {
+        open.view.state = open.view.profile ? 'ready' : 'offline';
+        this.drawPlayer('data');
+        return;
+      }
+      const first = !open.view.profile;
+      open.view.profile = profile;
+      open.view.state = 'ready';
+      if (first) open.view.mode = playedMode(profile, open.view);
+      this.drawPlayer('data');
+    }, () => {
+      if (ask !== this.playerAsk || this.playerOpen !== open) return;
+      if (open.view.state !== 'ready') { open.view.state = 'offline'; this.drawPlayer('data'); }
+    });
+  }
+
+  /**
+   * The sheet drawn from its view. `open` rises it; `data` lets the figures
+   * that just arrived come in, the tiles thirty milliseconds apart; `next` and
+   * `prev` slide the mode's figures across. The rung's ground is crossfaded
+   * rather than cut whenever it changes: the old one is kept on top and faded.
+   */
+  private drawPlayer(how: 'open' | 'data' | 'next' | 'prev') {
+    const open = this.playerOpen;
+    if (!open) return;
+    const { layer, view } = open;
+    const before = layer.querySelector<HTMLElement>('#player-sheet');
+    const scrolled = before?.querySelector<HTMLElement>('.ps-scroll')?.scrollTop ?? 0;
+    const oldStage = before?.querySelector<HTMLElement>('.ps-stage') ?? null;
+    const oldTier = before ? [...before.classList].find(one => one.startsWith('tier-')) ?? null : null;
+    const oldMode = before ? [...before.classList].find(one => /^is-(classic|marathon|survive)$/.test(one)) ?? null : null;
+    layer.innerHTML = playerSheetMarkup(view);
+    const sheet = layer.querySelector<HTMLElement>('#player-sheet')!;
+    sheet.classList.add(how === 'open' ? 'is-rising' : how === 'data' ? 'is-arriving' : `is-${how}`);
+    sheet.querySelector<HTMLElement>('.ps-scroll')!.scrollTop = scrolled;
+    if (oldStage && oldTier && (!sheet.classList.contains(oldTier) || (oldMode && !sheet.classList.contains(oldMode)))) {
+      // The old ground, under its old classes, kept over the new and faded out.
+      const leaving = document.createElement('div');
+      leaving.className = `ps-was ${oldTier} ${oldMode ?? ''}`;
+      leaving.append(oldStage);
+      sheet.querySelector('.ps-stage')!.after(leaving);
+      leaving.addEventListener('animationend', () => leaving.remove(), { once: true });
+    }
+    this.wirePlayer(sheet);
+    if (how === 'open') sheet.querySelector<HTMLElement>('#player-close')?.focus({ preventScroll: true });
+  }
+
+  private wirePlayer(sheet: HTMLElement) {
+    const open = this.playerOpen!;
+    open.layer.querySelector<HTMLElement>('.ps-scrim')!.onclick = () => this.closePlayer();
+    sheet.querySelector<HTMLElement>('#player-close')!.onclick = () => this.closePlayer();
+    sheet.querySelector<HTMLElement>('#player-retry')?.addEventListener('click', () => {
+      open.view.state = 'loading';
+      this.drawPlayer('data');
+      this.askPlayer();
+    });
+    for (const tab of sheet.querySelectorAll<HTMLElement>('.ps-tab')) {
+      tab.onclick = () => this.playerMode(tab.dataset.mode as CareerMode);
+    }
+    sheet.querySelector<HTMLElement>('#player-chase')?.addEventListener('click', () => {
+      const target = chaseTarget(open.view);
+      if (target === null) return;
+      const { handle, name, avatar } = open.view.seed;
+      this.onPlayerChase?.({
+        handle, name: open.view.profile?.name ?? name, avatar: open.view.profile?.avatar ?? avatar, mode: open.view.mode, target,
+      });
+    });
+    // Swiped across, the next mode; pulled down by the top half, put away.
+    let from: { x: number; y: number; id: number; top: boolean } | null = null;
+    sheet.onpointerdown = event => {
+      const onTop = !!(event.target as HTMLElement).closest('.ps-grab,.ps-hero');
+      from = { x: event.clientX, y: event.clientY, id: event.pointerId, top: onTop && sheet.querySelector<HTMLElement>('.ps-scroll')!.scrollTop <= 0 };
+      event.stopPropagation();
+    };
+    sheet.onpointermove = event => {
+      if (!from || event.pointerId !== from.id) return;
+      const dy = event.clientY - from.y;
+      if (from.top && dy > 0 && dy > Math.abs(event.clientX - from.x)) sheet.style.setProperty('--pull', `${Math.round(dy)}px`);
+      event.stopPropagation();
+    };
+    const end = (event: PointerEvent) => {
+      if (!from || event.pointerId !== from.id) return;
+      const dx = event.clientX - from.x, dy = event.clientY - from.y;
+      const top = from.top;
+      from = null;
+      sheet.style.removeProperty('--pull');
+      event.stopPropagation();
+      if (top && dy > 90) { this.closePlayer(); return; }
+      if (Math.abs(dx) > 64 && Math.abs(dx) > Math.abs(dy) * 1.5) this.playerStep(dx < 0 ? 1 : -1);
+    };
+    sheet.onpointerup = end;
+    sheet.onpointercancel = end;
+    sheet.onclick = event => event.stopPropagation();
+    sheet.onkeydown = event => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      event.stopPropagation();
+      event.preventDefault();
+      this.playerStep(event.key === 'ArrowRight' ? 1 : -1);
+    };
+  }
+
+  /** The mode beside the one on show, either way. */
+  private playerStep(by: 1 | -1) {
+    const open = this.playerOpen;
+    if (!open) return;
+    const to = open.view.modes[open.view.modes.indexOf(open.view.mode) + by];
+    if (to) this.playerMode(to);
+  }
+
+  /** Another mode's figures, slid in from the side it lies on. */
+  private playerMode(mode: CareerMode) {
+    const open = this.playerOpen;
+    if (!open || mode === open.view.mode) return;
+    const dir = open.view.modes.indexOf(mode) > open.view.modes.indexOf(open.view.mode) ? 'next' : 'prev';
+    open.view.mode = mode;
+    this.drawPlayer(dir);
+    open.layer.querySelector<HTMLElement>(`.ps-tab[data-mode="${mode}"]`)?.focus({ preventScroll: true });
+  }
+
+  /** The sheet put away: it drops, the board comes back up, and the face goes home to its row. */
+  closePlayer() {
+    const open = this.playerOpen;
+    if (!open) return;
+    this.playerOpen = null;
+    this.playerAsk++;
+    open.shut();
+    const { layer, from } = open;
+    layer.classList.add('is-leaving');
+    if (from?.isConnected) {
+      this.flyFace(layer.querySelector<HTMLElement>('.ps-face'), from, true);
+      from.focus({ preventScroll: true });
+    }
+    setTimeout(() => layer.remove(), matchMedia('(prefers-reduced-motion: reduce)').matches ? 150 : 240);
+  }
+
+  /** Put away at once, with no motion: the board closing, or another profile opening. */
+  private dropPlayer() {
+    const open = this.playerOpen;
+    if (!open) return;
+    this.playerOpen = null;
+    this.playerAsk++;
+    open.shut();
+    open.layer.remove();
+  }
+
+  /**
+   * The shared element: a copy of the face flown from one place to the other
+   * on the sheet's spring, the real one hidden until it lands. Nothing flies
+   * under reduced motion, where the sheet only fades.
+   */
+  private flyFace(from: HTMLElement | null, to: HTMLElement | null, home: boolean) {
+    const shell = document.querySelector<HTMLElement>('#board-overlay .lb-screen');
+    const source = from?.querySelector<HTMLElement>('.board-kit') ?? null;
+    const target = to?.querySelector<HTMLElement>('.board-kit') ?? null;
+    if (!shell || !source || !target || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const a = source.getBoundingClientRect(), b = target.getBoundingClientRect(), box = shell.getBoundingClientRect();
+    if (!a.width || !b.width) return;
+    const copy = source.cloneNode(true) as HTMLElement;
+    copy.classList.add('ps-flyer');
+    // Laid where it lands, and flown from where it starts by a transform.
+    Object.assign(copy.style, { left: `${b.left - box.left}px`, top: `${b.top - box.top}px`, width: `${b.width}px`, height: `${b.height}px` });
+    shell.append(copy);
+    const hidden = [source, target];
+    for (const one of hidden) one.style.visibility = 'hidden';
+    const flight = copy.animate(
+      [{ transform: `translate(${a.left - b.left}px, ${a.top - b.top}px) scale(${a.width / b.width})` }, { transform: 'none' }],
+      { duration: home ? 220 : 420, easing: home ? 'cubic-bezier(.4,0,.2,1)' : 'cubic-bezier(.2,.9,.25,1.12)', fill: 'both' },
+    );
+    const land = () => {
+      // Home, the row's face shows again; out, the hero's does, and the row's
+      // stays hidden behind the sheet until the sheet goes.
+      target.style.visibility = '';
+      if (home) source.style.visibility = '';
+      copy.remove();
+    };
+    flight.onfinish = land;
+    flight.oncancel = land;
   }
 
   /**
@@ -1709,6 +1975,7 @@ ${modeSelectMarkup()}
   }
   /** Puts the sheet away and hands the screen back to whatever was under it. */
   closeBoard() {
+    this.dropPlayer();
     this.$('board-overlay').innerHTML = '';
     this.$('board-overlay').className = 'modal-overlay hidden';
     this.boardShown = null;

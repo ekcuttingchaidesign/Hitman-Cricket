@@ -64,6 +64,20 @@ export interface BoardEntry {
   ghost?: boolean;
   /** The podium's own line, where it says more than the row does. */
   podiumSub?: string;
+  /** The player's public handle, which opens their profile; absent for a guest's innings. */
+  handle?: string;
+}
+
+/**
+ * What a row, a step or a chip carries to be opened: another player's handle
+ * opens their profile, the player's own opens My profile, and a guest's innings
+ * has no profile and opens nothing.
+ */
+function opens(row: BoardEntry): string {
+  if (row.ghost) return '';
+  if (row.you) return ' data-mine="1" role="button" tabindex="0" aria-label="Open My profile"';
+  if (!row.handle) return '';
+  return ` data-handle="${escape(row.handle)}" role="button" tabindex="0" aria-label="${escape(`See ${row.name}’s profile`)}"`;
 }
 
 /** The line at the head of the list that says what just happened. */
@@ -192,7 +206,7 @@ function podiumMarkup(top: readonly BoardEntry[], mode: BoardMode, loading: bool
     const crownMark = place === 1 ? `<span class="lb-crown" aria-hidden="true">${crown}</span>` : '';
     const badge = row.chip ? `<i class="lb-badge is-${row.chip}" aria-hidden="true">${row.chip}</i>` : '';
     const you = row.you ? '<i class="lb-you" aria-hidden="true">YOU</i>' : '';
-    return `<div class="${cls}${row.you ? ' is-you' : ''}"${row.you ? ' aria-current="true"' : ''}>${beam}${crownMark}
+    return `<div class="${cls}${row.you ? ' is-you' : ''}"${row.you ? ' aria-current="true"' : ''}${opens(row)}>${beam}${crownMark}
             <span class="lb-face">${row.avatar === null ? '' : kitMarkup(row.avatar, row.name)}${badge}${you}</span>
             <span class="lb-name">${escape(row.you ? 'You' : row.name)}</span>
             <span class="lb-score">${escape(row.score)}</span>
@@ -204,7 +218,7 @@ function podiumMarkup(top: readonly BoardEntry[], mode: BoardMode, loading: bool
 
 /** The podium, folded to three chips once the list is scrolled under it. */
 function chipMarkup(row: BoardEntry): string {
-  return `<span class="lb-chip is-${row.place}"><span class="lb-chip-face">${row.avatar === null ? '' : kitMarkup(row.avatar, row.name)}</span>
+  return `<span class="lb-chip is-${row.place}"${opens(row)}><span class="lb-chip-face">${row.avatar === null ? '' : kitMarkup(row.avatar, row.name)}</span>
             <span class="lb-chip-text"><small>${row.place}&nbsp;&nbsp;${escape(row.you ? 'You' : row.name)}</small><b>${escape(row.score)}</b></span></span>`;
 }
 
@@ -214,12 +228,12 @@ export function rowMarkup(row: BoardEntry): string {
   const tag = row.tag ? `<i class="lb-tag is-${row.tag.tone}">${escape(row.tag.text)}</i>` : '';
   const name = row.ghost ? 'Your innings' : row.you ? 'You' : row.name;
   return `
-          <li class="${classes}"${row.you || row.ghost ? ' aria-current="true"' : ''}>
+          <li class="${classes}"${row.you || row.ghost ? ' aria-current="true"' : ''}${opens(row)}>
             <span class="lb-place">${row.place}</span>
             ${row.chip ? `<i class="lb-result is-${row.chip}" aria-label="${RESULT_WORD[row.chip]}">${row.chip}</i>` : ''}
             ${face}
             <span class="lb-who"><span class="lb-who-name"><b>${escape(name)}</b>${tag}</span><small>${escape(row.sub)}</small></span>
-            <span class="lb-figure">${escape(row.score)}</span>
+            <span class="lb-figure">${escape(row.score)}</span>${opens(row) ? `<i class="lb-go" aria-hidden="true">${icon('chevron-right')}</i>` : ''}
           </li>`;
 }
 
@@ -339,7 +353,7 @@ export function blastBody(
 ): BoardBody {
   const sixes = (n: number) => plural(n, 'six', 'sixes');
   const entries: BoardEntry[] = rows.map((row, i) => ({
-    place: i + 1, name: row.name, avatar: row.avatar, sub: sixes(row.sixes), score: String(row.runs), you: ownsHandle(row.handle, youId),
+    place: i + 1, name: row.name, avatar: row.avatar, sub: sixes(row.sixes), score: String(row.runs), you: ownsHandle(row.handle, youId), handle: row.handle,
   }));
   const mine = entries.findIndex(row => row.you);
   const edge = rows.length >= BOARD_SIZE ? rows[BOARD_SIZE - 1] : null;
@@ -363,7 +377,7 @@ export function surviveBody(
 ): BoardBody {
   const entries: BoardEntry[] = rows.map((row, i) => ({
     place: i + 1, name: row.name, avatar: row.avatar, chip: resultOf(row), sub: surviveSub(row),
-    score: `${row.runs}${row.wickets ? '' : '*'}`, you: ownsHandle(row.handle, youId),
+    score: `${row.runs}${row.wickets ? '' : '*'}`, you: ownsHandle(row.handle, youId), handle: row.handle,
   }));
   const mine = entries.findIndex(row => row.you);
   const wasRuns = ctx.posted?.was ? unpackSurvive(ctx.posted.was.score).runs : null;
@@ -407,7 +421,7 @@ export function marathonBody(
   if (ladder === 'team') {
     const entries: BoardEntry[] = team.map((row, i) => ({
       place: i + 1, name: row.name, avatar: row.avatar, sub: `${ENDED[row.ending] ?? 'All out'} · ${plural(row.balls, 'ball')}`,
-      podiumSub: sr(row.runs, row.balls), score: String(row.runs), you: ownsHandle(row.handle, youId),
+      podiumSub: sr(row.runs, row.balls), score: String(row.runs), you: ownsHandle(row.handle, youId), handle: row.handle,
     }));
     const mine = entries.findIndex(row => row.you);
     const edge = team.length >= MARATHON_BOARD_SIZE ? team[MARATHON_BOARD_SIZE - 1] : null;
@@ -428,7 +442,7 @@ export function marathonBody(
   }
   const entries: BoardEntry[] = solo.map((row, i) => ({
     place: i + 1, name: row.name, avatar: row.avatar, sub: `${titled(row.order)} · ${plural(row.balls, 'ball')}`,
-    podiumSub: `${titled(row.order)} · ${sr(row.runs, row.balls)}`, score: `${row.runs}${row.out ? '' : '*'}`, you: ownsHandle(row.handle, youId),
+    podiumSub: `${titled(row.order)} · ${sr(row.runs, row.balls)}`, score: `${row.runs}${row.out ? '' : '*'}`, you: ownsHandle(row.handle, youId), handle: row.handle,
   }));
   const mine = entries.findIndex(row => row.you);
   const wasRuns = ctx.posted?.was ? unpackSolo(ctx.posted.was.score).runs : null;
@@ -453,7 +467,7 @@ export function careerBody(
   const [lead, ...rest] = board.figures;
   const entries: BoardEntry[] = rows.map((row, i) => ({
     place: i + 1, name: row.name, avatar: row.avatar, score: grouped(lead.of(row.career)),
-    sub: rest.map(one => `${grouped(one.of(row.career))} ${one.label}`).join(' · '), you: ownsHandle(row.handle, youId),
+    sub: rest.map(one => `${grouped(one.of(row.career))} ${one.label}`).join(' · '), you: ownsHandle(row.handle, youId), handle: row.handle,
   }));
   const mine = entries.findIndex(row => row.you);
   return finish(entries, mine, {
