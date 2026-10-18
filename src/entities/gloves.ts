@@ -258,13 +258,16 @@ export function buildGloveHand(design: GloveDesign, top: boolean) {
     }
   }
   // The knuckle bar: across the base of all four rolls on the back of the
-  // hand, where the wrist comes off it, with the badge on its face.
+  // hand, where the wrist comes off it, with the badge on its face. It stands
+  // as high as the rolls and overhangs the wrist's edge, so it lies over the
+  // cuff the way the back pad does on a real glove: lower and shorter, the
+  // top hand's was swallowed by its cuff, which comes off the knuckles' side.
   const barOf = design.knuckleBar;
-  const knuckleBar = piece(hand, paint(barOf?.colour ?? design.base), [.024, .096, .030]);
-  knuckleBar.position.copy(at(-.046, -.0005, .046));
+  const knuckleBar = piece(hand, paint(barOf?.colour ?? design.base), [.036, .096, .030]);
+  knuckleBar.position.copy(at(-.048, -.0005, .054));
   if (barOf?.badge) {
-    const badge = piece(hand, paint(barOf.badge, .5), [.013, .050, .003], 'flat');
-    badge.position.copy(at(-.046, -.0005, .0615));
+    const badge = piece(hand, paint(barOf.badge, .5), [.014, .050, .003], 'flat');
+    badge.position.copy(at(-.048, -.0005, .0695));
   }
   // The thumb: down the edge the fingers do not go round, from the heel,
   // then round onto the palm's side, in two pieces and in the part of the
