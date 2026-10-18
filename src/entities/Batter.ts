@@ -2508,7 +2508,7 @@ export class Batter {
     bat: willowMaterial(new THREE.MeshStandardMaterial({ color: 0xe0b77a, roughness: .62 })),
     accent: new THREE.MeshStandardMaterial({ color: 0xed7044, roughness: .7 }),
     // The number on his back is its own colour: white on an away kit, where the
-    // accent that does the straps would vanish into the shirt.
+    // accent that does the shoe flashes would vanish into the shirt.
     number: new THREE.MeshStandardMaterial({ color: 0xed7044, roughness: .7 }),
     grille: new THREE.MeshStandardMaterial({ color: 0x8c9da0, metalness: .6, roughness: .4 }),
     handle: new THREE.MeshStandardMaterial({ color: 0x2a3238, roughness: .95 }),
@@ -2593,10 +2593,16 @@ export class Batter {
    * so the lot merges into one mesh. Built anew rather than recoloured in
    * place: a new mesh is uploaded whole, where an update to a buffer already
    * on the GPU was lost on an iPhone, which kept the pads in the colours of
-   * the guard before. The straps are the kit's and stay where they are.
+   * the guard before. The straps round the back are the darker of the two,
+   * whichever that is: black on Ember's red pads, navy on Midnight's, silver
+   * on Sterling's white. They used to be the kit's accent, which clashed with
+   * every guard but the one that happened to match.
    */
   private buildPadding(group: THREE.Group, body: string, trim: string) {
     for (const part of [...group.children]) { part.removeFromParent(); (part as THREE.Mesh).geometry?.dispose?.(); }
+    const light = (hex: string) => { const c = new THREE.Color(hex); return .2126 * c.r + .7152 * c.g + .0722 * c.b; };
+    const darker = light(body) <= light(trim) ? body : trim;
+    for (const y of [-.10, .06]) this.padPiece(group, darker, [.185, .026, .17], 'soft').position.set(0, y, -.008);
     this.padPiece(group, body, [.20, .38, .175], 'soft');
     for (let roll = 0; roll < 5; roll++) this.padPiece(group, body, [.028, .34, .035], 'tube').position.set(-.064 + roll * .032, 0, .082);
     this.padPiece(group, trim, [.205, .095, .135], 'soft').position.set(0, .20, .025);
@@ -2687,9 +2693,8 @@ export class Batter {
         elbow: this.mesh(this.root, this.palette.shirt, [.073, .073, .073], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .078, .088], 'ball'),
         glove, palm, cuff, knuckles: back, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3(), socket:wristSocket(i) });
       const pad = new THREE.Group(); this.root.add(pad);
-      // The padding is the guard's, built by `wearGloves` (`buildPadding`); the straps are the kit's.
+      // The padding and its straps are the guard's, built by `wearGloves` (`buildPadding`).
       const padding = new THREE.Group(); padding.name = 'Padding'; pad.add(padding);
-      for (const y of [-.10, .06]) this.mesh(pad, this.palette.accent, [.185, .026, .17], 'soft').position.set(0, y, -.008);
       const shoe = new THREE.Group(); this.root.add(shoe);
       this.mesh(shoe, this.palette.pad, [.185, .125, .33], 'soft').position.z = .055;
       this.mesh(shoe, this.palette.handle, [.185, .035, .33], 'soft').position.set(0, -.055, .055);

@@ -486,7 +486,9 @@ carbon weave with red pads trimmed black; its id is still `carbon`, which
 saved picks and the checks hold), Blaze and Midnight. Each design is the
 gloves in full and the pads' two colours (`pads.body`, `pads.trim`: the pad,
 and its piping, knee roll and ankle flap), and `Batter.wearGloves(design)`
-puts both on; the kits no longer colour the pads (`Outfit.pads` is kept in the
+puts both on, the straps round the back of each pad in the darker of its two
+colours (black on Ember, navy on Midnight, silver on Sterling); the kits no
+longer colour the pads or their straps (`Outfit.pads` is kept in the
 catalogue and read by nothing). The guard is the Dressing Room's third shelf
 (GUARD, `shelf: 'guard'`), and nothing on it is earned: every one is free to
 wear, so the shelf has no locks, no dot and no Next up, and the room's "N of
