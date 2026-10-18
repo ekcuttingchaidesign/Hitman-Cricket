@@ -212,6 +212,28 @@ check(events.events?.[0]?.kind === 'beat' && events.events[0].runs === 174, 'and
   const news = (await them.locator('.mp-news-text b').textContent()).trim();
   check(news === `Plook${run} beat your 168`, 'the headline says who took the best', news);
   check(await them.locator('[data-bio-add]').first().isVisible(), 'and with no bio, the hero offers a line about you');
+
+  // Lane D: the bio, from that offer into Your details.
+  await them.locator('[data-bio-add]').first().click();
+  await them.waitForSelector('#profile-bio', { timeout: 8000 });
+  check(await them.locator('.bio-idea').count() === 3, 'D · an empty bio offers three lines to start from');
+  await them.locator('#profile-bio').fill('DM me on insta @kabir_99 for nets');
+  await them.waitForTimeout(800);
+  check(/Keep contact details and links out of your bio/.test(await them.locator('#bio-problem').innerText()), 'D · a way to reach somebody is refused before a round trip');
+  await them.screenshot({ path: `${out}/d2-refused.png` });
+  await them.locator('#profile-bio').fill('Opener. Hits the first ball for four, then gets serious. Ask my last bowler.');
+  await them.waitForTimeout(700);
+  check((await them.locator('#bio-count').textContent()).trim() === '4 left', 'D · from seventy the count says what is left', await them.locator('#bio-count').textContent());
+  await them.locator('#profile-bio').fill('Six or nothing.');
+  await them.waitForTimeout(700);
+  await them.screenshot({ path: `${out}/d1-details.png` });
+  await them.locator('#profile-send').click();
+  await them.waitForSelector('#profile-overlay.hidden', { state: 'attached', timeout: 8000 }).catch(() => {});
+  await them.waitForTimeout(1200);
+  const kept = await (await fetch(`${base}/api/profile?player=${encodeURIComponent(secondId)}`)).json();
+  check(kept.bio === 'Six or nothing.', 'D · the store keeps the bio', JSON.stringify(kept.bio));
+  const shown = await them.locator('.mp-hero.is-on .ps-bio').textContent().catch(() => '');
+  check(/Six or nothing\./.test(shown ?? ''), 'D · and My profile says it under the name', shown);
   await them.locator('#mp-activity-open').click();
   await them.waitForSelector('#activity-sheet');
   await them.waitForTimeout(500);

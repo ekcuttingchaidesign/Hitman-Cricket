@@ -68,7 +68,8 @@ import {
   type LocalCareer, type RestoreView,
 } from './Restore';
 import type { FoundPlayer } from '../game/recovery-api';
-import { handWord, named, plateName, profileMarkup, type ProfileView } from './Profile';
+import { bioCount, handWord, named, plateName, profileMarkup, type ProfileView } from './Profile';
+import { BIO_MAX, bioChars, bioProblem } from '../server/bio-rules';
 import {
   statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
@@ -3073,11 +3074,15 @@ ${modeSelectMarkup()}
   get profileEntry() {
     const field = document.getElementById('profile-name') as HTMLInputElement | null;
     const view = this.profileView;
-    return { name: field?.value ?? view?.name ?? '', avatar: view?.avatar ?? 0, hand: view?.hand ?? 'right' as Hand };
+    const bio = document.getElementById('profile-bio') as HTMLTextAreaElement | null;
+    return {
+      name: field?.value ?? view?.name ?? '', avatar: view?.avatar ?? 0, hand: view?.hand ?? 'right' as Hand,
+      ...(bio ? { bio: bio.value, bioWas: view?.bio ?? '' } : {}),
+    };
   }
 
   /** What the game does with the answer, and with "bat now" when the board is away. The store is the game's. */
-  onProfile: ((entry: { name: string; avatar: number; hand: Hand }) => void) | null = null;
+  onProfile: ((entry: { name: string; avatar: number; hand: Hand; bio?: string; bioWas?: string }) => void) | null = null;
   onProfileSkip: ((entry: { name: string; avatar: number; hand: Hand }) => void) | null = null;
   /** The edit key on My Stats. The game knows who the player is. */
   onProfileEdit: (() => void) | null = null;
@@ -3156,14 +3161,75 @@ ${modeSelectMarkup()}
     if (pass) pass.onclick = () => this.onPasswordOpen?.('details');
     const skip = document.getElementById('profile-skip');
     if (skip) skip.onclick = () => this.onProfileSkip?.(this.profileEntry);
+    this.wireBio();
     (this.$('profile-form') as HTMLFormElement).onsubmit = event => {
       event.preventDefault();
       if (this.profileView?.sending || !named(field.value)) return;
+      const bio = document.getElementById('profile-bio') as HTMLTextAreaElement | null;
+      if (bio && bioProblem(bio.value)) { this.showBioProblem(bioProblem(bio.value)); bio.focus(); return; }
       this.onProfile?.(this.profileEntry);
     };
     // Not focused on a phone: the keyboard would come up over the card the
     // player has not seen yet. A fine pointer has no keyboard to raise.
     if (!view.sending && view.fresh && matchMedia('(pointer: fine)').matches) field.focus();
+  }
+
+  /**
+   * The bio field's life: past eighty it is cut, and the line under it says
+   * so; the count turns to what is left from seventy; the three ideas stand
+   * while it is empty and in use; and half a second after the typing stops
+   * it is held to the store's own rules, so a refusal costs no round trip.
+   */
+  private wireBio() {
+    const bio = document.getElementById('profile-bio') as HTMLTextAreaElement | null;
+    if (!bio) return;
+    const count = this.$('bio-count'), note = this.$('bio-note'), ideas = this.$('bio-ideas');
+    let timer = 0;
+    const said = () => {
+      const chars = bioChars(bio.value);
+      if (chars.length > BIO_MAX) {
+        bio.value = chars.slice(0, BIO_MAX).join('');
+        note.textContent = 'Cut to 80 characters';
+        note.classList.add('is-cut');
+      }
+      const n = Math.min(BIO_MAX, chars.length);
+      count.textContent = bioCount(n);
+      count.classList.toggle('is-near', n >= 70);
+      ideas.classList.toggle('hidden', !!bio.value.trim());
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => this.showBioProblem(bioProblem(bio.value)), 500);
+    };
+    bio.oninput = () => {
+      if (note.classList.contains('is-cut') && bioChars(bio.value).length < BIO_MAX) {
+        note.textContent = 'Shown on your profile to anyone who opens it.';
+        note.classList.remove('is-cut');
+      }
+      said();
+    };
+    // Enter is done, not a new line: a bio is one line.
+    bio.onkeydown = event => { if (event.key === 'Enter') { event.preventDefault(); bio.blur(); } };
+    for (const idea of ideas.querySelectorAll<HTMLElement>('.bio-idea')) {
+      idea.onclick = () => { bio.value = idea.dataset.idea ?? ''; said(); bio.focus(); };
+    }
+  }
+
+  /** A bio's refusal under the field, or none. */
+  private showBioProblem(problem: string | null) {
+    const line = document.getElementById('bio-problem');
+    const bio = document.getElementById('profile-bio');
+    if (!line || !bio) return;
+    const why = problem === 'Keep contact details and links out of your bio.'
+      ? `${problem} Many players are young, and a bio is never a way to reach someone.` : problem ?? '';
+    line.textContent = why;
+    line.classList.toggle('hidden', !problem);
+    bio.classList.toggle('is-wrong', !!problem);
+    bio.setAttribute('aria-invalid', String(!!problem));
+  }
+
+  /** The bio as the store now has it, onto My profile. */
+  statsBio(bio: string | null) {
+    if (!this.activity) return;
+    this.statsActivity({ ...this.activity, bio });
   }
 
   /* ── Career password ─────────────────────────────────────────────────────

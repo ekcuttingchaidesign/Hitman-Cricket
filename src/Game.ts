@@ -1,5 +1,6 @@
 import { handleOf, ownsHandle } from './game/handle';
-import { fetchActivity, fetchProfile } from './game/profile-api';
+import { fetchActivity, fetchProfile, saveBio } from './game/profile-api';
+import { cleanBio } from './server/bio-rules';
 import { againLabel, beaten, close, placeOnPassing, verdict, type Chase, type Mine } from './game/chase';
 import { chaseStripMarkup } from './ui/ChaseUi';
 import { buzz } from './game/haptics';
@@ -1772,8 +1773,12 @@ export class Game {
       played: gate && !mine,
       password: !gate && mine && this.canRegister && this.passwordState !== 'unknown'
         ? { set: this.passwordState === 'set', at: this.passwordAt, question: this.passwordQuestion !== null } : null,
+      // The bio, on the edit for a player with a name and a store to keep it.
+      ...(!gate && mine && this.canRegister ? { bio: this.bioKnown ?? '' } : {}),
     });
   }
+  /** The bio as the store last said, from the activity My profile asks for; undefined until it has. */
+  private bioKnown: string | null | undefined = undefined;
 
   /**
    * The answer. The name goes to the store whether or not it changed: a name
@@ -1782,7 +1787,7 @@ export class Game {
    * and a name the player already holds to nothing, so saying the same name
    * again costs nothing — and brings the key, where they have none.
    */
-  private async saveProfile(entry: { name: string; avatar: number; hand: Hand }) {
+  private async saveProfile(entry: { name: string; avatar: number; hand: Hand; bio?: string; bioWas?: string }) {
     const mine = readPlayer();
     const name = cleanName(entry.name), folded = foldName(name);
     if (!folded) return this.hud.profileFailed('Your name, up to 14 letters or numbers.');
@@ -1818,6 +1823,16 @@ export class Game {
     }
     this.mark(changed ? 'profile-named' : 'profile-confirmed', changed ? 'Name claimed or changed' : 'Details confirmed');
     writePlayer({ name: result.name ?? name, avatar: entry.avatar });
+    // The bio, only where it was changed: a field drawn before the store had
+    // said what it was must not send an empty one over a bio that exists.
+    if (entry.bio !== undefined && cleanBio(entry.bio) !== cleanBio(entry.bioWas ?? '')) {
+      const saved = await saveBio(this.player, result.name ?? name, entry.bio).catch(() => ({ ok: false as const, reason: 'Your bio could not be saved. Try again in a moment.' }));
+      if (this.disposed) return;
+      if (!saved.ok) { this.hud.profileSending(false); return this.hud.profileFailed(saved.reason); }
+      this.bioKnown = saved.bio;
+      this.hud.statsBio(saved.bio);
+      this.mark(saved.bio ? 'bio-saved' : 'bio-cleared', saved.bio ? 'Bio saved' : 'Bio cleared');
+    }
     // A new name has no password behind it yet; the store says so, quietly.
     if (!mine) void this.catchUpOnPassword(true);
     if (result.key) {
@@ -3242,6 +3257,7 @@ export class Game {
     if (!player || !readPlayer()?.name) { this.hud.statsActivity(null); return; }
     try {
       const activity = await fetchActivity(player);
+      this.bioKnown = activity.bio;
       if (!this.disposed && this.player === player) this.hud.statsActivity(activity);
     } catch { /* My profile without its activity is still My profile. */ }
   }
