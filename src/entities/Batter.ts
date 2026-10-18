@@ -9,7 +9,7 @@ import { ConnectedTrousers } from './ConnectedTrousers';
 import { clothMaterial, willowMaterial } from './characterMaterials';
 import { GRILLE_MOUNT, helmetGeometry, helmetGrilleGeometry, helmetPeakGeometry, helmetRimGeometry } from './helmetGeometry';
 import { compactRigidParts } from './compactParts';
-import { buildGloveCuff, buildGloveHand, gloveHeelGeometry, type GloveDesign } from './gloves';
+import { buildGloveCuff, buildGloveHand, gloveHeelGeometry, WRIST_FLEX, WRIST_HOME, type GloveDesign } from './gloves';
 import type { BodyPart, ShotType } from '../game/types';
 
 type Point = readonly [number, number, number];
@@ -2575,7 +2575,7 @@ export class Batter {
     if (!this.classicGloves.length) this.classicGloves = this.arms.map(arm =>
       [...arm.glove.children, ...arm.cuff.children].filter(part => !arm.palm.includes(part as THREE.Mesh)));
     for (const part of this.wornGloves) part.removeFromParent();
-    this.wornGloves = [];
+    this.wornGloves = []; this.fists = [null, null];
     const classic = !design || design.id === 'classic';
     this.arms.forEach((arm, i) => {
       for (const part of this.classicGloves[i]) part.visible = classic;
@@ -2588,12 +2588,38 @@ export class Batter {
       arm.glove.add(hand); arm.cuff.add(cuff);
       arm.palm[0].material = padding;
       this.wornGloves.push(hand, cuff);
+      this.fists[i] = hand;
     });
   }
   private classicGloves: THREE.Object3D[][] = [];
   /** The heel joining the fist to the wrist: see `CLASSIC_HEEL`. */
   private heel = CLASSIC_HEEL;
   private wornGloves: THREE.Object3D[] = [];
+  /** A new glove's fist, turned on the handle by `turnFist`; none for the Classic. */
+  private fists: (THREE.Object3D | null)[] = [null, null];
+  /** Each fist's turn on the handle, kept for a frame the forearm gives no bearing. */
+  private fistTurn = [0, 0];
+
+  /**
+   * Sits a new glove's fist on the handle facing its forearm: see
+   * `WRIST_HOME`. `palm` is the way to the wrist in the glove's frame. The
+   * fist is left where it was while the forearm is within `WRIST_FLEX` of the
+   * thumb's edge, and turned the least that brings it back inside when not.
+   * Answers which way the knuckles face now, for the heel and the cuff.
+   */
+  private turnFist(i: number, palm: THREE.Vector3) {
+    const fist = this.fists[i];
+    if (fist && palm.x * palm.x + palm.z * palm.z > 1e-4) {
+      const bearing = Math.atan2(palm.z, palm.x) * 180 / Math.PI;
+      // The thumb's edge is built at 180° and turned by `fistTurn` to 180° - turn.
+      const home = WRIST_HOME[i];
+      let off = ((bearing - home) % 360 + 540) % 360 - 180;
+      off = off > WRIST_FLEX ? off - WRIST_FLEX : off < -WRIST_FLEX ? off + WRIST_FLEX : 0;
+      this.fistTurn[i] = (180 - (home + off)) * Math.PI / 180;
+    }
+    if (fist) fist.rotation.y = this.fistTurn[i];
+    return new THREE.Vector3(0, 0, this.arms[i].knuckles).applyAxisAngle(UP, this.fistTurn[i]);
+  }
 
   /**
    * Turns the stickers the right way round when the stage is mirrored: a
@@ -3994,7 +4020,7 @@ export class Batter {
         // knuckles into an open palm or flip the visible grip during a shot.
         const palm = arm.socket.clone().applyAxisAngle(UP, pose.spin ?? 0);
         this.segment(arm.palm[0],palm.clone().multiplyScalar(this.heel.from),palm,this.heel.width,this.heel.depth);
-        this.rollToward(arm.palm[0], palm.clone().normalize(), new THREE.Vector3(0, 0, arm.knuckles));
+        this.rollToward(arm.palm[0], palm.clone().normalize(), this.turnFist(i, palm));
       }
       /**
        * The free hand, punching the air.
@@ -4029,7 +4055,7 @@ export class Batter {
         arm.socket.copy(hand).sub(gloveAt).applyQuaternion(inverse);
         const palm = arm.socket.clone().applyAxisAngle(UP, pose.spin ?? 0);
         this.segment(arm.palm[0], palm.clone().multiplyScalar(this.heel.from), palm, this.heel.width, this.heel.depth);
-        this.rollToward(arm.palm[0], palm.clone().normalize(), new THREE.Vector3(0, 0, arm.knuckles));
+        this.rollToward(arm.palm[0], palm.clone().normalize(), this.turnFist(i, palm));
       }
       this.segment(arm.upper, arm.shoulder, elbow, .14, .145);
       this.segment(arm.lower, elbow, hand, .095);
@@ -4041,7 +4067,7 @@ export class Batter {
       if (wrist.lengthSq() > .000001) {
         arm.cuff.quaternion.setFromUnitVectors(UP, wrist.normalize());
         // Turned so the back of the wrist is on the knuckles' side of the hand.
-        const knuckles = new THREE.Vector3(0, 0, arm.knuckles).applyQuaternion(arm.glove.quaternion).applyQuaternion(this.bat.quaternion);
+        const knuckles = new THREE.Vector3(0, 0, arm.knuckles).applyAxisAngle(UP, this.fistTurn[i]).applyQuaternion(arm.glove.quaternion).applyQuaternion(this.bat.quaternion);
         this.rollToward(arm.cuff, wrist, knuckles);
       }
       const leg = this.legs[i];
