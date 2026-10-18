@@ -1,3 +1,4 @@
+import { ownsHandle } from './game/handle';
 import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME, SWIPE_ZONES } from './config/gameplay';
@@ -975,7 +976,7 @@ export class Game {
     const blast = heldCareer('classic') as BlastCareer;
     const marathon = heldCareer('marathon') as MarathonCareer;
     const survive = heldCareer('survive') as SurviveCareer;
-    const at = this.board.findIndex(row => row.playerId === this.player);
+    const at = this.board.findIndex(row => ownsHandle(row.handle, this.player));
     const tier = standingOf('classic', blast).tier;
     // Survival's best is a result, not a score: the best the career has had.
     const surviveBest = survive.wins > 0 ? 'Won a chase' : survive.draws > 0 ? SURVIVED : survive.innings > 0 ? 'Bowled out' : null;
@@ -2514,17 +2515,17 @@ export class Game {
     const top = rows[0];
     const lines: CoverBoard[] = [];
     if (this.best > 0) {
-      const at = rows.findIndex(row => row.playerId === this.player);
+      const at = rows.findIndex(row => ownsHandle(row.handle, this.player));
       let rank: number | null = at >= 0 ? at + 1 : null;
       if (rank === null && readPlayer()) rank = (await fetchStanding(this.player, 'classic'))?.rank ?? null;
       if (this.disposed) return;
       lines.push({ kind: 'best', runs: this.best, rank });
     }
-    if (top && top.playerId !== this.player) lines.push({ kind: 'top', runs: top.runs, name: top.name });
+    if (top && !ownsHandle(top.handle, this.player)) lines.push({ kind: 'top', runs: top.runs, name: top.name });
     // The latest score on the board made in the last day, by somebody else:
     // the line that says the board is alive.
     const now = Date.now();
-    const recent = rows.filter(row => row.at && now - row.at < RECENT_MS && row.playerId !== this.player)
+    const recent = rows.filter(row => row.at && now - row.at < RECENT_MS && !ownsHandle(row.handle, this.player))
       .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))[0];
     if (recent) lines.push({ kind: 'recent', runs: recent.runs, name: recent.name, ago: now - (recent.at ?? now) });
     if (lines.length) this.hud.coverBoard(lines);
@@ -4154,11 +4155,11 @@ export class Game {
     }
     this.mark('auto-posted', 'Innings put on the board by itself');
     this.tookPost(innings, result);
-    let rows: readonly { playerId: string }[] = [];
+    let rows: readonly { handle: string }[] = [];
     if (this.marathoning) {
       if (result.board) this.marathonRows = result.board as MarathonPayload;
       const team = this.marathonShown?.team ?? [];
-      rows = team.some(row => row.playerId === this.player) ? team : this.marathonShown?.solo ?? [];
+      rows = team.some(row => ownsHandle(row.handle, this.player)) ? team : this.marathonShown?.solo ?? [];
     } else if (this.surviving) {
       if (result.board) {
         this.surviveEpoch++;
@@ -4178,7 +4179,7 @@ export class Game {
     delete this.careerBoards[this.careerMode];
     delete this.myCareer[this.careerMode];
     forgetCareer();
-    const at = rows.findIndex(row => row.playerId === this.player);
+    const at = rows.findIndex(row => ownsHandle(row.handle, this.player));
     this.posted = { innings, place: at >= 0 ? at + 1 : guess, posting: false };
     this.reoffer();
     this.redrawKeyPlacements();
@@ -4720,7 +4721,7 @@ export class Game {
         return;
       case 'rematch': {
         const them = view?.result?.them;
-        const tally = them ? rivalryView(them.playerId, them)?.tally ?? null : null;
+        const tally = them ? rivalryView(them.handle, them)?.tally ?? null : null;
         this.rematchLine = them && tally ? { them: them.name, tally } : null;
         this.challenge.stopWatching();
         await this.createRoom({ rematchOf: code });
@@ -4993,7 +4994,7 @@ export class Game {
     const held = readDressing();
     const record: DressingRecord = {
       careers,
-      rivals: { won: Math.max(wins.length, this.rooms?.record?.won ?? 0), beaten: new Set(wins.map(one => one.them.playerId)).size },
+      rivals: { won: Math.max(wins.length, this.rooms?.record?.won ?? 0), beaten: new Set(wins.map(one => one.them.handle)).size },
       launch: held.launch ?? now,
       welcomed: held.seen.includes(seenKey('bat', WELCOME_BAT)),
     };
@@ -5113,7 +5114,7 @@ export class Game {
     const room = [...(this.rooms?.yourMove ?? []), ...(this.rooms?.waitingOnThem ?? []), ...(this.rooms?.done ?? [])]
       .find(one => one.code === code) ?? null;
     if (act === 'rival' && playerId) {
-      const row = room?.players.find(one => one.playerId === playerId) ?? null;
+      const row = room?.players.find(one => one.handle === playerId) ?? null;
       const view = rivalryView(playerId, row ? { name: row.name, avatar: row.avatar } : undefined);
       if (!view) return;
       this.rival = view.them;
@@ -5127,13 +5128,13 @@ export class Game {
     this.pinRoom(code);
     this.showRoom();
   }
-  private rival: { playerId: string; name: string; avatar: number } | null = null;
+  private rival: { handle: string; name: string; avatar: number } | null = null;
 
   /** A fresh room aimed at the same person, with the message pre-addressed. */
   private async challengeRival() {
     const them = this.rival;
     if (!them) return;
-    const tally = rivalryView(them.playerId, them)?.tally ?? 'Fresh start';
+    const tally = rivalryView(them.handle, them)?.tally ?? 'Fresh start';
     this.rematchLine = { them: them.name, tally };
     await this.createRoom();
   }
@@ -5270,13 +5271,13 @@ const MOMENT_SAID: Record<Milestone, string> = {
 function listSections(list: ListView, me: string): ListSections {
   const row = (room: Challenge): ListRowView => {
     const view = roomView(room, me, false);
-    const others = room.players.filter(one => one.playerId !== me);
+    const others = room.players.filter(one => !ownsHandle(one.handle, me));
     const lead = view.result?.them ?? others.find(one => one.status === 'done' || one.status === 'batting') ?? others[0] ?? null;
-    const them = lead ? { playerId: lead.playerId, name: lead.name, avatar: lead.avatar } : null;
+    const them = lead ? { handle: lead.handle, name: lead.name, avatar: lead.avatar } : null;
     const moved = Math.max(room.at, ...room.players.map(one => one.at ?? 0));
     const base = { code: room.code, them, others: others.length, age: ageOf(moved) };
     const host = room.players.find(one => one.host);
-    const fromThem = !!host && host.playerId !== me;
+    const fromThem = !!host && !ownsHandle(host.handle, me);
     switch (view.kind) {
       case 'chase': {
         const batting = others.find(one => one.status === 'batting');

@@ -1,3 +1,4 @@
+import { ownsHandle } from '../game/handle';
 import { MarathonInnings } from '../game/Marathon';
 import { GAME } from '../config/gameplay';
 import { ScoreManager } from '../game/ScoreManager';
@@ -4475,7 +4476,7 @@ function roomWords(
   view: RoomView, extra: { interstitial?: { index: number; total: number }; sent?: boolean },
 ): { title: string; tag: string | null; lead: string; sub: string; note: string | null; keys: RoomKey[] } {
   const you = view.mine;
-  const others = view.players.filter(row => row.playerId !== you?.playerId);
+  const others = view.players.filter(row => row.handle !== you?.handle);
   const other = others[0] ?? null;
   const first = (row: ChallengeRow | null) => row?.name ?? 'your friend';
   const key = (kind: RoomKey['kind'], act: RoomKey['act'], label: string, href?: string): RoomKey => ({ kind, act, label, href });
@@ -4626,7 +4627,7 @@ function roomKey(key: RoomKey): string {
  */
 function roomGrid(view: RoomView): string {
   const you = view.mine;
-  const ordered = [...view.players].sort((a, b) => Number(b.playerId === you?.playerId) - Number(a.playerId === you?.playerId) || a.joined - b.joined);
+  const ordered = [...view.players].sort((a, b) => Number(b.handle === you?.handle) - Number(a.handle === you?.handle) || a.joined - b.joined);
   const seats = ordered.map(row => roomSeat(row, view));
   const showEmpty = ordered.length < 2 && (view.kind === 'lobby' || view.kind === 'waiting');
   if (showEmpty) {
@@ -4640,7 +4641,7 @@ const RING_R = 52;
 const RING_LENGTH = Math.round(2 * Math.PI * RING_R * 100) / 100;
 
 function roomSeat(row: ChallengeRow, view: RoomView): string {
-  const you = row.playerId === view.mine?.playerId;
+  const you = row.handle === view.mine?.handle;
   const hide = view.blind && !you;
   const name = you ? 'You' : escapeName(row.name);
   let under: string;
@@ -4667,9 +4668,9 @@ function roomSeat(row: ChallengeRow, view: RoomView): string {
         : `<span class="room-pill is-batted">BATTED</span><span class="room-score">${row.runs}<em>/${row.wickets}</em></span>`;
   }
   const ring = row.status === 'batting'
-    ? `<svg class="room-ring" viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="ring-${row.playerId}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6fd3ff"/><stop offset=".55" stop-color="#ffb347"/><stop offset="1" stop-color="#ff7a2a"/></linearGradient></defs><circle class="room-ring-track" cx="60" cy="60" r="${RING_R}"/><circle class="room-ring-arc" cx="60" cy="60" r="${RING_R}" stroke="url(#ring-${row.playerId})" data-length="${RING_LENGTH}" stroke-dasharray="${RING_LENGTH}" stroke-dashoffset="${RING_LENGTH}"/></svg>`
+    ? `<svg class="room-ring" viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="ring-${row.handle}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6fd3ff"/><stop offset=".55" stop-color="#ffb347"/><stop offset="1" stop-color="#ff7a2a"/></linearGradient></defs><circle class="room-ring-track" cx="60" cy="60" r="${RING_R}"/><circle class="room-ring-arc" cx="60" cy="60" r="${RING_R}" stroke="url(#ring-${row.handle})" data-length="${RING_LENGTH}" stroke-dasharray="${RING_LENGTH}" stroke-dashoffset="${RING_LENGTH}"/></svg>`
     : '';
-  return `<div class="room-seat is-${row.status}${you ? ' is-you' : ''}" data-player="${row.playerId}"${progress ? ` data-progress="${progress}"` : ''}>
+  return `<div class="room-seat is-${row.status}${you ? ' is-you' : ''}" data-player="${row.handle}"${progress ? ` data-progress="${progress}"` : ''}>
     <span class="room-face">${kitMarkup(row.avatar, row.name)}${ring}</span>
     <b class="room-name">${name}</b>
     ${under}
@@ -4682,10 +4683,10 @@ function roomSeat(row: ChallengeRow, view: RoomView): string {
  * tracks: the result is a verdict, not a scorecard.
  */
 function resultRow(row: ChallengeRow, result: ResultView): string {
-  const mine = row.playerId === result.you;
+  const mine = ownsHandle(row.handle, result.you);
   const top = result.players[0]?.score ?? 0;
   const draw = !result.winner && row.score === top;
-  const won = !!result.winner && row.playerId === result.winner.playerId;
+  const won = !!result.winner && row.handle === result.winner.handle;
   const tone = draw ? 'is-draw' : won ? 'is-won' : 'is-lost';
   const pill = draw ? 'DRAW' : won ? 'WINNER' : row.status === 'declined' ? 'DECLINED' : row.status === 'forfeit' ? 'WALKED' : '';
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -4718,7 +4719,7 @@ export interface ListSections {
 export interface ListRowView {
   code: string;
   /** Who it is against: the other person, or the leader of a group, or nobody yet. */
-  them: { playerId: string; name: string; avatar: number } | null;
+  them: { handle: string; name: string; avatar: number } | null;
   /** How many others are in it, for a group. */
   others: number;
   /** The line under the name. */
@@ -4741,7 +4742,7 @@ function listRow(row: ListRowView, me: number | null = null): string {
   // Two faces, yours under theirs, as drawn; theirs is the key to the head-to-head.
   const mine = me === null ? '<span class="board-kit is-empty" aria-hidden="true"></span>' : kitMarkup(me, '');
   const theirs = row.them
-    ? `<button class="rival-row-kit" type="button" data-rival="${row.them.playerId}" data-code="${row.code}" aria-label="Head to head with ${escapeName(row.them.name)}">${kitMarkup(row.them.avatar, row.them.name)}</button>`
+    ? `<button class="rival-row-kit" type="button" data-rival="${row.them.handle}" data-code="${row.code}" aria-label="Head to head with ${escapeName(row.them.name)}">${kitMarkup(row.them.avatar, row.them.name)}</button>`
     : '<span class="rival-row-kit"><span class="board-kit is-empty" aria-hidden="true">?</span></span>';
   const name = row.them ? `You vs ${escapeName(row.them.name)}${row.others > 1 ? ` <i>+${row.others - 1}</i>` : ''}` : 'Nobody yet';
   const line = [row.outcome ? row.verdict ?? '' : row.note, row.age].filter(Boolean).join(' \u00b7 ');

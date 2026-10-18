@@ -1,3 +1,4 @@
+import { ownsHandle } from '../game/handle';
 import { kitColour } from '../config/board';
 import { HEALTH, SURVIVE } from '../config/survive';
 import {
@@ -166,7 +167,7 @@ export function surviveCutLabel(edge: SurviveRow): string {
 export function surviveBoardMarkup(view: SurviveBoardView): string {
   const { rows, youId = null, yours = null, state = 'ready', atMs = Date.now() } = view;
   const edge = surviveCutoff(rows);
-  const yourPlace = rows.findIndex(row => row.playerId === youId);
+  const yourPlace = rows.findIndex(row => ownsHandle(row.handle, youId));
   const waiting = yourPlace < 0 && yours ? surviveQualifies(yours, atMs, rows) : false;
   return `
     <div class="board-sheet survive-sheet" role="document">
@@ -186,7 +187,7 @@ export function surviveBoardMarkup(view: SurviveBoardView): string {
           rows.map((row, i) => {
             const above = rows[i - 1] ?? null;
             const band = !above || standingOf(above) !== standingOf(row) ? bandMarkup(standingOf(row)) : '';
-            return band + surviveRowMarkup(row, i, row.playerId === youId, above);
+            return band + surviveRowMarkup(row, i, ownsHandle(row.handle, youId), above);
           }).join('')}
         </ol>
         ${edge ? `<p class="board-cut">${surviveCutLabel(edge)}</p>` : ''}
@@ -339,7 +340,7 @@ export function surviveOffer(
   reached: boolean, rows: readonly SurviveRow[], yours: SurviveInnings, atMs: number, youId: string | null = null,
 ): CardOffer {
   if (!reached) return { kind: 'silent' };
-  const mine = youId ? rows.findIndex(row => row.playerId === youId) : -1;
+  const mine = youId ? rows.findIndex(row => ownsHandle(row.handle, youId)) : -1;
   if (mine >= 0 && !surviveImprovesOn(yours, atMs, rows[mine])) {
     return { kind: 'standing', runs: rows[mine].runs, place: mine + 1 };
   }

@@ -1,3 +1,4 @@
+import { handleOf } from '../src/game/handle';
 import { describe, expect, it } from 'vitest';
 import { DEMO_ROWS, demoBoard, demoCareers, demoRivals, demoSurvive } from '../src/game/demo-board';
 import { rivalsScore } from '../src/server/challenge-store';
@@ -18,13 +19,13 @@ describe('a board with fifty made-up people on it', () => {
   it('puts one of them in the middle and makes it yours', () => {
     // The lit row is the point of looking at a full board, and a lit row at
     // the top or the bottom says nothing about what it looks like among rows.
-    const mine = demoBoard(ME).filter(row => row.playerId === ME);
+    const mine = demoBoard(ME).filter(row => row.handle === handleOf(ME));
     expect(mine).toHaveLength(1);
-    const place = demoBoard(ME).findIndex(row => row.playerId === ME);
+    const place = demoBoard(ME).findIndex(row => row.handle === handleOf(ME));
     expect(place).toBeGreaterThan(2);
     expect(place).toBeLessThan(DEMO_ROWS - 3);
     // And nobody at all where this browser has no id yet.
-    expect(demoBoard(null).some(row => row.playerId === ME)).toBe(false);
+    expect(demoBoard(null).some(row => row.handle === handleOf(ME))).toBe(false);
   });
 
   it('is in the order its own ladder would have put it', () => {
@@ -52,7 +53,7 @@ describe('a board with fifty made-up people on it', () => {
         const rows = payload.boards[board.key];
         expect(rows.length, board.key).toBeGreaterThan(20);
         expect(falling(rows.map(row => row.score)), board.key).toBe(true);
-        expect(rows.some(row => row.playerId === ME), board.key).toBe(true);
+        expect(rows.some(row => row.handle === handleOf(ME)), board.key).toBe(true);
       }
     }
   });
@@ -63,7 +64,7 @@ describe('a made-up Rivals board', () => {
     const rows = demoRivals(ME);
     expect(rows).toHaveLength(DEMO_ROWS);
     expect(falling(rows.map(row => rivalsScore(row)))).toBe(true);
-    expect(rows.filter(row => row.playerId === ME)).toHaveLength(1);
-    expect(demoRivals(null).some(row => row.playerId === ME)).toBe(false);
+    expect(rows.filter(row => row.handle === handleOf(ME))).toHaveLength(1);
+    expect(demoRivals(null).some(row => row.handle === handleOf(ME))).toBe(false);
   });
 });

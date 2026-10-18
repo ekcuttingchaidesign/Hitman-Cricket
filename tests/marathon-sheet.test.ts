@@ -1,3 +1,4 @@
+import { handleOf } from '../src/game/handle';
 import { describe, expect, it } from 'vitest';
 import { LAUNCH_MS } from '../src/game/leaderboard';
 import { MARATHON_BOARD_SIZE, packSolo, packTeam, type SoloRow, type TeamRow } from '../src/game/marathon-board';
@@ -15,11 +16,11 @@ import { demoCareers } from '../src/game/demo-board';
 const ME = 'mfj2k1-abcdefghijkl';
 const AT = LAUNCH_MS + 10 * 86_400_000;
 const team = (over: Partial<TeamRow> = {}): TeamRow => {
-  const row = { runs: 412, balls: 377, boundaries: 58, ending: 'ALL_OUT' as const, playerId: 'aaaaaa-bbbbbbbbbbbb', name: 'Rohit', avatar: 1, score: 0, ...over };
+  const row = { runs: 412, balls: 377, boundaries: 58, ending: 'ALL_OUT' as const, handle: handleOf('aaaaaa-bbbbbbbbbbbb'), name: 'Rohit', avatar: 1, score: 0, ...over };
   return { ...row, score: over.score ?? packTeam(row, AT) };
 };
 const solo = (over: Partial<SoloRow> = {}): SoloRow => {
-  const row = { runs: 143, balls: 210, out: false, order: 1, left: false, playerId: 'aaaaaa-bbbbbbbbbbbb', name: 'Rohit', avatar: 1, score: 0, ...over };
+  const row = { runs: 143, balls: 210, out: false, order: 1, left: false, handle: handleOf('aaaaaa-bbbbbbbbbbbb'), name: 'Rohit', avatar: 1, score: 0, ...over };
   return { ...row, score: over.score ?? packSolo(row, AT) };
 };
 
@@ -76,7 +77,7 @@ describe('the team ladder', () => {
   });
 
   it('lights your row and says where you stand, or who leads, or that nobody has batted', () => {
-    const rows = [team(), team({ playerId: ME, name: 'Virat', runs: 300 })];
+    const rows = [team(), team({ handle: handleOf(ME), name: 'Virat', runs: 300 })];
     const html = marathonBoardMarkup({ ladder: 'team', team: rows, solo: [], youId: ME });
     expect(html).toContain('You are <b>2nd</b> &mdash; 300 all out.');
     expect(html.match(/is-you/g)).toHaveLength(1);
@@ -93,7 +94,7 @@ describe('the team ladder', () => {
   });
 
   it('says what it takes to get on once the fifty are full', () => {
-    const rows = Array.from({ length: MARATHON_BOARD_SIZE }, (_, i) => team({ runs: 600 - i, playerId: `p${i}aaaa-bbbbbbbbbbbb` }));
+    const rows = Array.from({ length: MARATHON_BOARD_SIZE }, (_, i) => team({ runs: 600 - i, handle: handleOf(`p${i}aaaa-bbbbbbbbbbbb`) }));
     const yours = { team: { runs: 100, balls: 400, boundaries: 6, ending: 'ALL_OUT' as const }, solo: { runs: 40, balls: 90, out: true, order: 1, left: false } };
     const html = marathonBoardMarkup({ ladder: 'team', team: rows, solo: [], yours, atMs: AT });
     expect(html).toContain('Beat 551 to get on the board');
@@ -126,7 +127,7 @@ describe('the made-up fifty', () => {
     const { team: t, solo: s } = demoMarathon(ME, AT);
     for (const rows of [t, s]) {
       expect(rows).toHaveLength(MARATHON_BOARD_SIZE);
-      expect(rows.filter(row => row.playerId === ME)).toHaveLength(1);
+      expect(rows.filter(row => row.handle === handleOf(ME))).toHaveLength(1);
       expect(rows.every((row, i) => i === 0 || rows[i - 1].score >= row.score)).toBe(true);
     }
     expect(new Set(t.map(row => row.ending)).size).toBe(4);
@@ -141,8 +142,8 @@ describe('what the card offers', () => {
     solo: { runs: best, balls: 200, out: true, order: 1, left: false },
   });
   const full = (from: number) => ({
-    team: Array.from({ length: MARATHON_BOARD_SIZE }, (_, i) => team({ runs: from - i, playerId: `p${i}aaaa-bbbbbbbbbbbb` })),
-    solo: Array.from({ length: MARATHON_BOARD_SIZE }, (_, i) => solo({ runs: from - i, playerId: `p${i}aaaa-bbbbbbbbbbbb` })),
+    team: Array.from({ length: MARATHON_BOARD_SIZE }, (_, i) => team({ runs: from - i, handle: handleOf(`p${i}aaaa-bbbbbbbbbbbb`) })),
+    solo: Array.from({ length: MARATHON_BOARD_SIZE }, (_, i) => solo({ runs: from - i, handle: handleOf(`p${i}aaaa-bbbbbbbbbbbb`) })),
   });
 
   it('says nothing before the boards have been seen', () => {
@@ -161,7 +162,7 @@ describe('what the card offers', () => {
 
   it('says the player\'s best stands where this did not beat it, and nothing where it makes neither', () => {
     const rows = full(500);
-    rows.team[4] = team({ runs: 496, playerId: ME });
+    rows.team[4] = team({ runs: 496, handle: handleOf(ME) });
     expect(marathonOffer(true, rows, yours(300, 10), AT, ME)).toEqual({ kind: 'standing', runs: 496, place: 5 });
     expect(marathonOffer(true, full(500), yours(300, 10), AT, ME)).toEqual({ kind: 'silent' });
   });
@@ -170,16 +171,16 @@ describe('what the card offers', () => {
 describe('the preview filler', () => {
   it('puts made-up rows among the real ones, the real ones in their true places and never pushed off', async () => {
     const { fillMarathon, fillRivals } = await import('../src/game/demo-board');
-    const real = { team: [team({ playerId: ME, name: 'Virat', runs: 280 })], solo: [solo({ playerId: ME, name: 'Virat', runs: 200 })] };
+    const real = { team: [team({ handle: handleOf(ME), name: 'Virat', runs: 280 })], solo: [solo({ handle: handleOf(ME), name: 'Virat', runs: 200 })] };
     const shown = fillMarathon(real);
     expect(shown.team.length).toBeGreaterThan(20);
-    expect(shown.team.filter(row => row.playerId === ME)).toHaveLength(1);
+    expect(shown.team.filter(row => row.handle === handleOf(ME))).toHaveLength(1);
     expect(shown.team.every((row, i) => i === 0 || shown.team[i - 1].score >= row.score)).toBe(true);
     // A board already full of real rows keeps every one of them.
-    const full = Array.from({ length: MARATHON_BOARD_SIZE }, (_, i) => team({ runs: 600 - i, playerId: `p${i}aaaa-bbbbbbbbbbbb`, name: `Real${i}` }));
-    expect(fillMarathon({ team: full, solo: [] }).team.map(row => row.playerId)).toEqual(full.map(row => row.playerId));
-    const rivals = fillRivals([{ playerId: ME, name: 'Virat', avatar: 0, won: 40, lost: 1, runs: 900 }]);
-    expect(rivals[0].playerId).toBe(ME);
+    const full = Array.from({ length: MARATHON_BOARD_SIZE }, (_, i) => team({ runs: 600 - i, handle: handleOf(`p${i}aaaa-bbbbbbbbbbbb`), name: `Real${i}` }));
+    expect(fillMarathon({ team: full, solo: [] }).team.map(row => row.handle)).toEqual(full.map(row => row.handle));
+    const rivals = fillRivals([{ handle: handleOf(ME), name: 'Virat', avatar: 0, won: 40, lost: 1, runs: 900 }]);
+    expect(rivals[0].handle).toBe(handleOf(ME));
     expect(rivals.length).toBeGreaterThan(20);
   });
 });

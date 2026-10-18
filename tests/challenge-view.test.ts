@@ -1,3 +1,4 @@
+import { handleOf } from '../src/game/handle';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Challenge, ChallengeRow } from '../src/game/challenge-api';
 import type { PlayerStatus } from '../src/server/challenge-store';
@@ -18,11 +19,11 @@ function row(playerId: string, name: string, card: string, status: PlayerStatus,
   const figures = figuresOf(card);
   const played = figures.runs * 10_000 + figures.sixes * 100 + figures.fours;
   const score = status === 'done' ? 2_000_000_000 + played : status === 'batting' ? 500_000_000 + figures.balls : 0;
-  return { ...figures, playerId, name, avatar: 1, card, host: false, status, joined, at: joined + HOUR, seen: false, score };
+  return { ...figures, handle: handleOf(playerId), name, avatar: 1, card, host: false, status, joined, at: joined + HOUR, seen: false, score };
 }
 
 function room(players: ChallengeRow[], state: Challenge['state'] = 'done'): Challenge {
-  return { code: 'ABCDEF', state, host: players[0].playerId, at: 0, expiresAt: 7 * 24 * HOUR, v: 1, rematchOf: null, size: 20, players };
+  return { code: 'ABCDEF', state, host: players[0].handle, at: 0, expiresAt: 7 * 24 * HOUR, v: 1, rematchOf: null, size: 20, players };
 }
 
 const thirty = (runs: string) => runs.padEnd(30, '0');
@@ -41,7 +42,7 @@ describe('a group result', () => {
   it('names whoever finished top, not the nearest rival', () => {
     const view = resultView(room([p1(), p2(), p3()]), me)!;
     expect(view.title).toBe('Long user name Wins');
-    expect(view.winner?.playerId).toBe(p3().playerId);
+    expect(view.winner?.handle).toBe(p3().handle);
     expect(view.players.map(one => one.name)).toEqual(['Long user name', 'Shashank', 'Me']);
     expect(view.outcome).toBe('L');
     expect(view.them?.name).toBe('Long user name');
@@ -51,7 +52,7 @@ describe('a group result', () => {
     const mine = { ...p2(), ...figuresOf(thirty('666666666666')), score: 2_000_000_000 + 72 * 10_000 + 12 * 100 };
     const view = resultView(room([p1(), mine, p3()]), me)!;
     expect(view.title).toBe('You Win');
-    expect(view.winner?.playerId).toBe(me);
+    expect(view.winner?.handle).toBe(handleOf(me));
     expect(view.them?.name).toBe('Long user name');
   });
 
@@ -81,7 +82,7 @@ describe('the room while a third person is still batting', () => {
 });
 
 describe('the list', () => {
-  const room2 = (code: string, players: ChallengeRow[], state: Challenge['state']) => ({ ...room(players, state), code, host: players[0].playerId });
+  const room2 = (code: string, players: ChallengeRow[], state: Challenge['state']) => ({ ...room(players, state), code, host: players[0].handle });
 
   it('leaves off a room nobody joined and this person never batted in', () => {
     const empty = room2('EMPTY1', [row(me, 'Me', '', 'joined', 1)], 'open');

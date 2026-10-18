@@ -1,3 +1,4 @@
+import { handleOf } from '../src/game/handle';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GAME } from '../src/config/gameplay';
 import { BOARD_SIZE, LAUNCH_MS, packScore, plausible, unpackScore, type Innings } from '../src/game/leaderboard';
@@ -96,7 +97,7 @@ describe('reading the board', () => {
     // interrupted between its two writes leaves behind.
     await store.record('ghost0-aaaaaaaaaaaa', packScore(innings(99), LAUNCH_MS), null as never);
     const board = await readBoard(store, CLASSIC_LADDER);
-    expect(board.rows.map(r => r.playerId)).toEqual([ID]);
+    expect(board.rows.map(r => r.handle)).toEqual([handleOf(ID)]);
   });
 });
 
@@ -107,7 +108,7 @@ describe('submitting an innings', () => {
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
     expect(outcome.improved).toBe(true);
-    expect(outcome.board.rows[0]).toMatchObject({ playerId: ID, name: 'Rohit', runs: 50 });
+    expect(outcome.board.rows[0]).toMatchObject({ handle: handleOf(ID), name: 'Rohit', runs: 50 });
   });
 
   it('stamps the submission from the store, never from the browser', async () => {
@@ -170,7 +171,7 @@ describe('submitting an innings', () => {
     expect(better.ok).toBe(true);
     if (!better.ok) return;
     expect(better.board.rows).toHaveLength(1);
-    expect(better.board.rows[0]).toMatchObject({ playerId: ID, name: 'Sharma', avatar: 3, runs: 141 });
+    expect(better.board.rows[0]).toMatchObject({ handle: handleOf(ID), name: 'Sharma', avatar: 3, runs: 141 });
   });
 
   it('leaves the name they had free for nobody but themselves', async () => {
@@ -453,7 +454,7 @@ describe('a new name once a month', () => {
     await store.rename(OTHER, 'Nobody');
     const board = await readBoard(store, CLASSIC_LADDER);
     expect(board.rows).toHaveLength(1);
-    expect(board.rows[0]).toMatchObject({ playerId: ID, name: 'Sharma', runs: 140 });
+    expect(board.rows[0]).toMatchObject({ handle: handleOf(ID), name: 'Sharma', runs: 140 });
   });
 });
 
@@ -470,7 +471,7 @@ describe('where a player stands', () => {
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
     expect(outcome.board.rows).toHaveLength(BOARD_SIZE);
-    expect(outcome.board.rows.some(row => row.playerId === ID)).toBe(false);
+    expect(outcome.board.rows.some(row => row.handle === handleOf(ID))).toBe(false);
     expect(outcome.standing).toMatchObject({ rank: 61, total: 61, score: outcome.score, was: null });
   });
 

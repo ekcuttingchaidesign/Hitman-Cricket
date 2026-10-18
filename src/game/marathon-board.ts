@@ -71,8 +71,8 @@ export interface SoloInnings {
   left: boolean;
 }
 
-export interface TeamRow extends TeamInnings { playerId: string; name: string; avatar: number; score: number }
-export interface SoloRow extends SoloInnings { playerId: string; name: string; avatar: number; score: number }
+export interface TeamRow extends TeamInnings { handle: string; name: string; avatar: number; score: number }
+export interface SoloRow extends SoloInnings { handle: string; name: string; avatar: number; score: number }
 
 /** How many rows each ladder holds. The same fifty as the others. */
 export const MARATHON_BOARD_SIZE = 50;

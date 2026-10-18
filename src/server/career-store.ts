@@ -3,6 +3,7 @@ import {
 } from './board-store.js';
 import { rankCareer, type CareerLadder } from '../game/career.js';
 import type { Granted } from '../game/tier.js';
+import { handleOf } from '../game/handle.js';
 
 /**
  * Careers, on the store's side of the wire.
@@ -99,7 +100,8 @@ export interface CareerStore<C> {
 
 /** A row on a career board. */
 export interface CareerRow<C> {
-  playerId: string;
+  /** The player's public handle (`game/handle.ts`); the id itself never leaves the store. */
+  handle: string;
   name: string;
   avatar: number;
   career: C;
@@ -138,7 +140,7 @@ export async function readCareerBoards<C, T>(
       // a player, and a blank row is worse than a missing one.
       if (!record || !record.name) return [];
       return [{
-        playerId: entry.id,
+        handle: handleOf(entry.id),
         name: record.name,
         avatar: record.avatar,
         career: ladder.figures(record.career),

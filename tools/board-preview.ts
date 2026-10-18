@@ -1,3 +1,4 @@
+import { ownsHandle } from '../src/game/handle';
 /**
  * The leaderboard, on its own, full.
  *
@@ -57,7 +58,7 @@ function cards() {
   const modes: BoardTab[] = ['classic', 'survive'];
   for (const mode of modes) {
     const payload = demoCareers(mode, ME);
-    const mine = payload.boards[mode === 'survive' ? 'balls' : 'runs'].find(row => row.playerId === ME);
+    const mine = payload.boards[mode === 'survive' ? 'balls' : 'runs'].find(row => ownsHandle(row.handle, ME));
     const standing = bestStanding(mode, placesOf(payload.boards, ME));
     const facts = statsFacts(mode, mine!.career, { name: mine!.name, avatar: mine!.avatar }, standing);
     show(mode, modes, { facts });

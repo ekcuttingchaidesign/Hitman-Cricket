@@ -1,3 +1,4 @@
+import { handleOf } from '../src/game/handle';
 import { describe, expect, it } from 'vitest';
 import { emptyBlast } from '../src/game/career';
 import {
@@ -7,7 +8,7 @@ import {
 import type { CareerRow } from '../src/game/career-api';
 
 const row = (name: string, career: Partial<AnyCareer>, playerId = name): CareerRow<AnyCareer> => ({
-  playerId, name, avatar: 0, score: 1, career: { ...emptyBlast(), ...career } as AnyCareer,
+  handle: handleOf(playerId), name, avatar: 0, score: 1, career: { ...emptyBlast(), ...career } as AnyCareer,
 });
 
 describe('the ladder tabs', () => {

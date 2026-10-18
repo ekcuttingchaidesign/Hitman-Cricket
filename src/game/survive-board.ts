@@ -62,7 +62,8 @@ export interface SurviveInnings {
 
 /** A Test row, once it has a place and an owner. */
 export interface SurviveRow extends SurviveInnings {
-  playerId: string;
+  /** The player's public handle (`game/handle.ts`). The id itself is a secret and never comes back from the store. */
+  handle: string;
   name: string;
   avatar: number;
   score: number;

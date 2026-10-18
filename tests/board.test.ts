@@ -1,3 +1,5 @@
+import { inventedIdOf } from '../src/game/board-fixture';
+import { handleOf } from '../src/game/handle';
 import { describe, expect, it } from 'vitest';
 import { GAME } from '../src/config/gameplay';
 import { SeededRandom } from '../src/game/SeededRandom';
@@ -14,7 +16,7 @@ import { readdirSync } from 'node:fs';
 const board = inventedBoard();
 const row = (over: Partial<BoardRow> = {}): BoardRow => ({
   runs: 50, sixes: 2, fours: 3, wickets: 1, dots: 6, balls: GAME.totalBalls,
-  playerId: 'p', name: 'Rohit', avatar: 0, score: 1, ...over,
+  handle: handleOf('p'), name: 'Rohit', avatar: 0, score: 1, ...over,
 });
 /** Every row of a board, with the one above it, the way the screen reads them. */
 const pairs = (rows: readonly BoardRow[]) => rows.slice(1).map((r, i) => [rows[i], r] as const);
@@ -47,7 +49,7 @@ describe('fifty innings nobody played', () => {
   });
 
   it('gives every row its own player and nobody two rows', () => {
-    expect(new Set(board.map(r => r.playerId)).size).toBe(BOARD_SIZE);
+    expect(new Set(board.map(r => r.handle)).size).toBe(BOARD_SIZE);
     expect(new Set(board.map(r => r.name)).size).toBe(BOARD_SIZE);
   });
 
@@ -133,7 +135,7 @@ describe('what a row says about where it sits', () => {
 });
 
 describe('the sheet', () => {
-  const markup = boardMarkup({ rows: board, youId: board[11].playerId });
+  const markup = boardMarkup({ rows: board, youId: inventedIdOf(board[11].handle) });
 
   it('draws every row it was handed, in the order it was handed them', () => {
     expect(markup.match(/class="board-row/g)).toHaveLength(BOARD_SIZE);
@@ -163,7 +165,7 @@ describe('the sheet', () => {
   });
 
   it('lights the figure a tie turned on', () => {
-    const tied = boardMarkup({ rows: [row({ playerId: 'a', name: 'A', sixes: 4, score: 2 }), row({ playerId: 'b', name: 'B', score: 1 })] });
+    const tied = boardMarkup({ rows: [row({ handle: handleOf('a'), name: 'A', sixes: 4, score: 2 }), row({ handle: handleOf('b'), name: 'B', score: 1 })] });
     expect(tied).toContain('level · fewer 6s');
     expect(tied.match(/is-split/g)).toHaveLength(1);
   });
@@ -414,7 +416,7 @@ describe('an innings beaten by your own row', () => {
     ({ ...leader, runs: leader.runs - 20, ...over });
 
   it('says what still stands instead of offering a place it cannot take', () => {
-    expect(cardOffer(true, board, lesser(), at, leader.playerId))
+    expect(cardOffer(true, board, lesser(), at, inventedIdOf(leader.handle)))
       .toEqual({ kind: 'standing', runs: leader.runs, place: 1 });
   });
 
@@ -427,13 +429,13 @@ describe('an innings beaten by your own row', () => {
 
   it('names the place the standing row holds, not the place this innings would', () => {
     const seventh = board[6];
-    expect(cardOffer(true, board, { ...seventh, runs: seventh.runs - 5 }, at, seventh.playerId))
+    expect(cardOffer(true, board, { ...seventh, runs: seventh.runs - 5 }, at, inventedIdOf(seventh.handle)))
       .toEqual({ kind: 'standing', runs: seventh.runs, place: 7 });
   });
 
   it('offers a place again the moment the innings beats that row', () => {
     const better = { ...leader, runs: leader.runs + 1 };
-    expect(cardOffer(true, board, better, at, leader.playerId)).toEqual({ kind: 'claim', place: 1 });
+    expect(cardOffer(true, board, better, at, inventedIdOf(leader.handle))).toEqual({ kind: 'claim', place: 1 });
   });
 
   /**
@@ -443,20 +445,20 @@ describe('an innings beaten by your own row', () => {
    */
   it('counts a level score with one more six as beating it', () => {
     const sharper = { ...leader, sixes: leader.sixes + 1, fours: Math.max(0, leader.fours - 2) };
-    expect(cardOffer(true, board, sharper, at, leader.playerId).kind).toBe('claim');
+    expect(cardOffer(true, board, sharper, at, inventedIdOf(leader.handle)).kind).toBe('claim');
   });
 
   it('does not count the same innings played again, because it got there later', () => {
     // Identical on every playing key, so the clock splits them — and the row
     // already up there got there first. The store would refuse it too.
-    expect(cardOffer(true, board, { ...leader }, at, leader.playerId).kind).toBe('standing');
+    expect(cardOffer(true, board, { ...leader }, at, inventedIdOf(leader.handle)).kind).toBe('standing');
   });
 
   it('still says what stands after an innings that was going nowhere', () => {
     // A duck is silent for everybody else. For a player who is on the board it
     // is the moment their best is worth quoting back.
     const duck: Innings = { runs: 0, sixes: 0, fours: 0, wickets: 3, dots: 5, balls: 8 };
-    expect(cardOffer(true, board, duck, at, leader.playerId))
+    expect(cardOffer(true, board, duck, at, inventedIdOf(leader.handle)))
       .toEqual({ kind: 'standing', runs: leader.runs, place: 1 });
   });
 

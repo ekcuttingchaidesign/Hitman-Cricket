@@ -1,3 +1,4 @@
+import { ownsHandle } from '../game/handle';
 import { kitColour } from '../config/board';
 import { BATTERS, type MarathonEnding } from '../config/marathon';
 import {
@@ -66,7 +67,7 @@ export function marathonBoardMarkup(view: MarathonBoardView): string {
   const { ladder, youId = null, yours = null, state = 'ready', atMs = Date.now() } = view;
   const team = ladder === 'team';
   const rows: readonly (TeamRow | SoloRow)[] = team ? view.team : view.solo;
-  const place = rows.findIndex(row => row.playerId === youId);
+  const place = rows.findIndex(row => ownsHandle(row.handle, youId));
   const edge = rows.length >= MARATHON_BOARD_SIZE ? rows[MARATHON_BOARD_SIZE - 1] : null;
   const mine = yours ? (team ? packTeam(yours.team, atMs) : packSolo(yours.solo, atMs)) : null;
   const waiting = place < 0 && mine !== null && marathonQualifies(mine, rows);
@@ -86,7 +87,7 @@ export function marathonBoardMarkup(view: MarathonBoardView): string {
         : standing(rows, place, team, !!yours, edge)}</p>
       <div class="board-scroll">${state === 'offline' ? '<p class="board-offline">Try again in a moment.</p>' : ''}
         <ol class="board-list marathon-list">${
-          rows.map((row, i) => (team ? teamRow(row as TeamRow, i, row.playerId === youId) : soloRow(row as SoloRow, i, row.playerId === youId))).join('')}
+          rows.map((row, i) => (team ? teamRow(row as TeamRow, i, ownsHandle(row.handle, youId)) : soloRow(row as SoloRow, i, ownsHandle(row.handle, youId)))).join('')}
         </ol>
         ${edge ? `<p class="board-cut">${cutLabel(edge, team)}</p>` : ''}
         ${place < 0 && yours
@@ -183,8 +184,8 @@ export function marathonOffer(
 ): CardOffer {
   if (!reached) return { kind: 'silent' };
   const team = packTeam(yours.team, atMs), solo = packSolo(yours.solo, atMs);
-  const heldTeam = youId ? rows.team.findIndex(row => row.playerId === youId) : -1;
-  const heldSolo = youId ? rows.solo.findIndex(row => row.playerId === youId) : -1;
+  const heldTeam = youId ? rows.team.findIndex(row => ownsHandle(row.handle, youId)) : -1;
+  const heldSolo = youId ? rows.solo.findIndex(row => ownsHandle(row.handle, youId)) : -1;
   const takesTeam = marathonQualifies(team, rows.team) && (heldTeam < 0 || team > rows.team[heldTeam].score);
   const takesSolo = marathonQualifies(solo, rows.solo) && (heldSolo < 0 || solo > rows.solo[heldSolo].score);
   if (takesTeam) return { kind: 'claim', place: rows.team.filter(row => row.score > team).length + 1 };

@@ -4,6 +4,7 @@ import { AVATARS, NAME_MAX, cleanName, foldName } from './board-store.js';
 import { NAME_BLOCKED_REASON, nameBlocked } from './name-filter.js';
 import { RIVALS_NEED_REGISTERED_RIVAL } from '../config/rivals.js';
 import { lookOf, type Look } from '../game/dressing-ids.js';
+import { handleOf } from '../game/handle.js';
 
 /**
  * A match room: one link, and everybody who bats under it.
@@ -169,9 +170,14 @@ export interface StoredRivalsRow extends RivalsLine {
   avatar: number;
 }
 
-/** A row on the Rivals board, as `GET ?board=rivals` sends it. */
-export interface RivalsRow extends StoredRivalsRow {
+/** A row on the Rivals board as the store hands it back: still keyed by the player id. */
+export interface RankedRivals extends StoredRivalsRow {
   playerId: string;
+}
+
+/** A row on the Rivals board, as `GET ?board=rivals` sends it: the id stays here, a handle goes out. */
+export interface RivalsRow extends StoredRivalsRow {
+  handle: string;
 }
 
 /** How many rows the Rivals board holds. The same fifty as every other board. */
@@ -240,12 +246,13 @@ export interface ChallengeStore {
   /** Takes this player off the Rivals board. Nothing happens if they were not on it. */
   unrank(playerId: string): Promise<void>;
   /** The top of the Rivals board, best first. */
-  topRivals(n: number): Promise<RivalsRow[]>;
+  topRivals(n: number): Promise<RankedRivals[]>;
 }
 
 /** One innings in the room, as the endpoint sends it. */
 export interface ChallengeRow extends Innings {
-  playerId: string;
+  /** The player's public handle. Room answers sit in the edge cache for anybody with the link, so no id goes in them. */
+  handle: string;
   name: string;
   avatar: number;
   /** Their Dressing Room kit and bat, if they batted in one. */
@@ -275,6 +282,7 @@ export interface ChallengeRow extends Innings {
 export interface ChallengePayload {
   code: string;
   state: ChallengeState;
+  /** The handle of whoever made the room. */
   host: string;
   at: number;
   /** When the room stops taking innings. */
@@ -819,7 +827,8 @@ export function rivalsScore(line: RivalsLine): number {
 
 /** The Rivals board, top fifty. The same answer for everybody. */
 export async function readRivalsBoard(store: ChallengeStore): Promise<RivalsBoardOutcome> {
-  return { ok: true, rows: await store.topRivals(RIVALS_BOARD_SIZE) };
+  const ranked = await store.topRivals(RIVALS_BOARD_SIZE);
+  return { ok: true, rows: ranked.map(({ playerId, ...row }) => ({ ...row, handle: handleOf(playerId) })) };
 }
 
 /** What a player is told when the room has no seat left for them. */
@@ -907,7 +916,7 @@ export function challengePayload(code: string, challenge: StoredChallenge, now =
       const status = statusOf(player, now);
       return {
         ...figures,
-        playerId,
+        handle: handleOf(playerId),
         name: player.name,
         avatar: player.avatar,
         look: player.look ?? null,
@@ -924,7 +933,7 @@ export function challengePayload(code: string, challenge: StoredChallenge, now =
   return {
     code,
     state: stateOf(challenge, now),
-    host: challenge.host,
+    host: handleOf(challenge.host),
     at: challenge.at,
     expiresAt: challenge.at + CHALLENGE_LIFE_MS,
     v: challenge.v,

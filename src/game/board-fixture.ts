@@ -1,3 +1,4 @@
+import { handleOf } from './handle';
 import { GAME } from '../config/gameplay';
 import { SeededRandom } from './SeededRandom';
 import { BOARD_SIZE, LAUNCH_MS, compareRows, packScore, rankKey, type BoardRow, type Innings } from './leaderboard';
@@ -108,7 +109,7 @@ export function inventedBoard(seed = 0x1CC, size = BOARD_SIZE): BoardRow[] {
   const names = random.shuffle(NAMES).slice(0, size);
   const rows = kept.map((figures, i) => ({
     ...figures,
-    playerId: `demo-${i.toString(36).padStart(3, '0')}`,
+    handle: handleOf(inventedId(i)),
     name: names[i] ?? `Player ${i + 1}`,
     avatar: Math.floor(random.next() * AVATARS),
     score: packScore(figures, atMs(i)),
@@ -129,6 +130,17 @@ export function inventedBoard(seed = 0x1CC, size = BOARD_SIZE): BoardRow[] {
     }
   }
   return rows.sort(compareRows);
+}
+
+/** The made-up player id behind an invented row, so a test can say "this row is you". */
+export function inventedId(i: number): string {
+  return `demo${i.toString(36).padStart(2, '0')}-aaaaaaaaaaaa`;
+}
+
+/** Which invented id a row's handle belongs to. */
+export function inventedIdOf(handle: string): string {
+  for (let i = 0; i < 400; i++) if (handleOf(inventedId(i)) === handle) return inventedId(i);
+  throw new Error(`no invented player has the handle ${handle}`);
 }
 
 /**

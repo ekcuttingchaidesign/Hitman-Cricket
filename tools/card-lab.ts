@@ -7,7 +7,7 @@ import '../src/styles.css';
 import { HUD } from '../src/ui/HUD';
 import { ScoreManager } from '../src/game/ScoreManager';
 import type { ShotOutcome } from '../src/game/types';
-import { inventedBoard } from '../src/game/board-fixture';
+import { inventedBoard, inventedIdOf } from '../src/game/board-fixture';
 import type { Innings } from '../src/game/leaderboard';
 import { placeOf, type CardOffer } from '../src/ui/Leaderboard';
 
@@ -71,7 +71,7 @@ const states: Record<string, () => void> = {
   form: () => { states.offer(); hud.openClaim(); },
   'form-error': () => { states.form(); hud.claimFailed('Somebody already bats under that name.'); },
   sending: () => { states.form(); hud.claimSending(true); },
-  board: () => { states.offer(); hud.claimDone(); hud.board({ rows: fullBoard, youId: fullBoard[place - 1].playerId, state: 'ready', actions: true }); },
+  board: () => { states.offer(); hud.claimDone(); hud.board({ rows: fullBoard, youId: inventedIdOf(fullBoard[place - 1].handle), state: 'ready', actions: true }); },
 };
 const show = (name: string) => {
   // The board sheet sits over the card, so it has to come down before the next

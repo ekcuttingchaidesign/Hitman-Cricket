@@ -40,6 +40,20 @@ one in your own terminal and paste it straight into Vercel:
 Changing it later means every key sealed before can no longer be read back
 (they still restore: a restore checks the hash, never the seal), so set it once.
 
+## A player id never leaves the store
+
+The player id is the only proof of who is writing — a score, a name, a
+Dressing Room save, a password — so it is a secret between a browser and the
+store. Anything the store answers about other players carries a handle instead
+(`handleOf` in `src/game/handle.ts`: the first sixteen hex digits of a SHA-256
+of the id, which cannot be turned back into it): every board row, the career
+ladders, the Rivals ranking, and a challenge room, whose answer sits in the
+edge cache for anybody holding the link. A browser finds its own row by
+hashing its own id (`ownsHandle`), so code that says "is this row you" passes
+the real id and lets the comparison hash it. A new answer that names other
+players sends handles, never ids; `tests/handle.test.ts` holds the hash to
+Node's own.
+
 ## Scripts that write are opt-in
 
 `scripts/career-seed.ts` and `scripts/board-fill.mjs` both refuse to write

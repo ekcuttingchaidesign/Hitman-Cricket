@@ -1,3 +1,4 @@
+import { ownsHandle } from '../game/handle';
 import { BATTERS } from '../config/marathon';
 import { SURVIVE } from '../config/survive';
 import type { CareerBoard } from '../game/career';
@@ -338,7 +339,7 @@ export function blastBody(
 ): BoardBody {
   const sixes = (n: number) => plural(n, 'six', 'sixes');
   const entries: BoardEntry[] = rows.map((row, i) => ({
-    place: i + 1, name: row.name, avatar: row.avatar, sub: sixes(row.sixes), score: String(row.runs), you: row.playerId === youId,
+    place: i + 1, name: row.name, avatar: row.avatar, sub: sixes(row.sixes), score: String(row.runs), you: ownsHandle(row.handle, youId),
   }));
   const mine = entries.findIndex(row => row.you);
   const edge = rows.length >= BOARD_SIZE ? rows[BOARD_SIZE - 1] : null;
@@ -362,7 +363,7 @@ export function surviveBody(
 ): BoardBody {
   const entries: BoardEntry[] = rows.map((row, i) => ({
     place: i + 1, name: row.name, avatar: row.avatar, chip: resultOf(row), sub: surviveSub(row),
-    score: `${row.runs}${row.wickets ? '' : '*'}`, you: row.playerId === youId,
+    score: `${row.runs}${row.wickets ? '' : '*'}`, you: ownsHandle(row.handle, youId),
   }));
   const mine = entries.findIndex(row => row.you);
   const wasRuns = ctx.posted?.was ? unpackSurvive(ctx.posted.was.score).runs : null;
@@ -406,7 +407,7 @@ export function marathonBody(
   if (ladder === 'team') {
     const entries: BoardEntry[] = team.map((row, i) => ({
       place: i + 1, name: row.name, avatar: row.avatar, sub: `${ENDED[row.ending] ?? 'All out'} · ${plural(row.balls, 'ball')}`,
-      podiumSub: sr(row.runs, row.balls), score: String(row.runs), you: row.playerId === youId,
+      podiumSub: sr(row.runs, row.balls), score: String(row.runs), you: ownsHandle(row.handle, youId),
     }));
     const mine = entries.findIndex(row => row.you);
     const edge = team.length >= MARATHON_BOARD_SIZE ? team[MARATHON_BOARD_SIZE - 1] : null;
@@ -427,7 +428,7 @@ export function marathonBody(
   }
   const entries: BoardEntry[] = solo.map((row, i) => ({
     place: i + 1, name: row.name, avatar: row.avatar, sub: `${titled(row.order)} · ${plural(row.balls, 'ball')}`,
-    podiumSub: `${titled(row.order)} · ${sr(row.runs, row.balls)}`, score: `${row.runs}${row.out ? '' : '*'}`, you: row.playerId === youId,
+    podiumSub: `${titled(row.order)} · ${sr(row.runs, row.balls)}`, score: `${row.runs}${row.out ? '' : '*'}`, you: ownsHandle(row.handle, youId),
   }));
   const mine = entries.findIndex(row => row.you);
   const wasRuns = ctx.posted?.was ? unpackSolo(ctx.posted.was.score).runs : null;
@@ -452,7 +453,7 @@ export function careerBody(
   const [lead, ...rest] = board.figures;
   const entries: BoardEntry[] = rows.map((row, i) => ({
     place: i + 1, name: row.name, avatar: row.avatar, score: grouped(lead.of(row.career)),
-    sub: rest.map(one => `${grouped(one.of(row.career))} ${one.label}`).join(' · '), you: row.playerId === youId,
+    sub: rest.map(one => `${grouped(one.of(row.career))} ${one.label}`).join(' · '), you: ownsHandle(row.handle, youId),
   }));
   const mine = entries.findIndex(row => row.you);
   return finish(entries, mine, {

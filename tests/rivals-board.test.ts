@@ -1,10 +1,11 @@
+import { handleOf } from '../src/game/handle';
 import { describe, expect, it } from 'vitest';
 import { rivalsRankingMarkup, rivalsRowMarkup } from '../src/ui/RivalsBoard';
 import type { RivalsRow } from '../src/game/challenge-api';
 
 const ME = 'abc123-defghijklmno';
 const row = (over: Partial<RivalsRow> = {}): RivalsRow =>
-  ({ playerId: 'abc124-zzzzzzzzzzzz', name: 'Rohit', avatar: 1, won: 3, lost: 1, runs: 1204, ...over });
+  ({ handle: handleOf('abc124-zzzzzzzzzzzz'), name: 'Rohit', avatar: 1, won: 3, lost: 1, runs: 1204, ...over });
 
 describe('the Rivals board', () => {
   it('shows wins, losses and runs a row, in the table columns', () => {
@@ -15,7 +16,7 @@ describe('the Rivals board', () => {
   });
 
   it('lights your row, and calls it You', () => {
-    const html = rivalsRankingMarkup({ rows: [row(), row({ playerId: ME, name: 'Virat', won: 1 })], youId: ME });
+    const html = rivalsRankingMarkup({ rows: [row(), row({ handle: handleOf(ME), name: 'Virat', won: 1 })], youId: ME });
     expect(html.match(/is-you/g)).toHaveLength(1);
     expect(html).toContain('<b>You</b>');
     expect(html).toContain('Top 50 by matches won, then fewest lost, then runs.');

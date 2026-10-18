@@ -1,3 +1,4 @@
+import { handleOf } from '../src/game/handle';
 import { describe, expect, it } from 'vitest';
 import { GAME } from '../src/config/gameplay';
 import { ScoreManager } from '../src/game/ScoreManager';
@@ -24,7 +25,7 @@ const played = (balls: ShotOutcome[]) => {
 };
 const row = (over: Partial<Innings>, atMs = LAUNCH_MS + 5_000): BoardRow => {
   const figures = innings(over);
-  return { ...figures, playerId: 'p', name: 'n', avatar: 0, score: packScore(figures, atMs) };
+  return { ...figures, handle: handleOf('p'), name: 'n', avatar: 0, score: packScore(figures, atMs) };
 };
 
 describe('the ladder, one rung at a time', () => {

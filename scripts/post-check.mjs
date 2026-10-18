@@ -111,8 +111,8 @@ const askStanding = (page, id) => page.evaluate(async player => {
  * ranks it for real, and nothing is written there to get in a later run's way.
  */
 const FULL = {
-  team: { rows: Array.from({ length: 50 }, (_, i) => ({ playerId: `full${String(i).padStart(4, '0')}-xxxxxxxxxxxx`, name: `Side ${i + 1}`, avatar: i % 5, score: Number.MAX_SAFE_INTEGER - i, runs: 400 - i, balls: 300, boundaries: 40, ending: 'ALL_OUT' })), cutoff: Number.MAX_SAFE_INTEGER - 49, size: 50 },
-  solo: { rows: Array.from({ length: 50 }, (_, i) => ({ playerId: `full${String(i).padStart(4, '0')}-xxxxxxxxxxxx`, name: `Bat ${i + 1}`, avatar: i % 5, score: Number.MAX_SAFE_INTEGER - i, runs: 200 - i, balls: 200, out: true, order: 1 })), cutoff: Number.MAX_SAFE_INTEGER - 49, size: 50 },
+  team: { rows: Array.from({ length: 50 }, (_, i) => ({ handle: `f011${String(i).padStart(12, '0')}`, name: `Side ${i + 1}`, avatar: i % 5, score: Number.MAX_SAFE_INTEGER - i, runs: 400 - i, balls: 300, boundaries: 40, ending: 'ALL_OUT' })), cutoff: Number.MAX_SAFE_INTEGER - 49, size: 50 },
+  solo: { rows: Array.from({ length: 50 }, (_, i) => ({ handle: `f011${String(i).padStart(12, '0')}`, name: `Bat ${i + 1}`, avatar: i % 5, score: Number.MAX_SAFE_INTEGER - i, runs: 200 - i, balls: 200, out: true, order: 1 })), cutoff: Number.MAX_SAFE_INTEGER - 49, size: 50 },
 };
 
 // — A player with a name, batting left-handed.
