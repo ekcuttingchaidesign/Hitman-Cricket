@@ -465,11 +465,13 @@ otherwise keep nothing.
 
 The update's What's new is one story, the player profiles, as a Lottie film
 (`public/lotties/player-profiles.json`, `Story.film`): a Blast board and a tap
-on Kabir's row, his face lifting out of it into his profile, CHASE THEIR 187
-pressed, the runs climbing past it and PASSED stamped with his name, then
-Kabir's own My profile leading with Rank down and WIN IT BACK. It plays down
-the sheet on the page's black with the one way out under it, holds a beat past
-its nine and a half seconds and moves on by itself out of the stories. It is
+on Kabir's row, his face lifting out of it into his profile, CHASE THEIR 157
+pressed, the runs rolling up past it like an odometer and PASSED slammed down
+with his name under a wave of paper, then Kabir's own My profile, his place
+rolling from #2 to #3 on Rank down, and WIN IT BACK. The scenes change under
+the game's chevrons rushing up the screen, Level Up's move. Scores stay in the
+150s. It plays down the sheet on the page's black with the one way out under
+it, holds a beat past its ten seconds and moves on by itself out of the stories. It is
 drawn in code, every shape and word a vector from the game's own faces, with
 the five board faces its only pictures. What writes it is not committed, as
 the Dressing Room film's was not: `wip/profiles-film/build.mjs` on the machine
