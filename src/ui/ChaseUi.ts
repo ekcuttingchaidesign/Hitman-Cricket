@@ -27,7 +27,7 @@ export function chaseIntroMarkup(chase: Chase, mine: Mine, you: { avatar: number
       <div class="ch-intro-head">
         <i class="ch-chevrons" aria-hidden="true"></i>
         <p class="ch-intro-eyebrow"><span>CHASE · ${mode.name}</span><small>${mode.facts}</small></p>
-        ${chase.result ? surviveTargetMarkup(chase) : `<h2 id="chase-intro-title" class="ch-intro-target"><b class="ch-count" data-to="${chase.target}">${grouped(chase.target)}</b><span><em>TO BEAT</em><small>${escape(chase.name)}’s ${chase.ladder === 'solo' ? 'best batter' : 'best innings'}</small></span></h2>`}
+        ${chase.result ? surviveTargetMarkup(chase) : `<h2 id="chase-intro-title" class="ch-intro-target"><b class="ch-count" data-to="${chase.target}">${grouped(chase.target)}</b><span><em>TO BEAT</em><small${short(`Their ${chase.ladder === 'solo' ? 'best batter' : 'best innings'}`)}>${escape(chase.name)}’s ${chase.ladder === 'solo' ? 'best batter' : 'best innings'}</small></span></h2>`}
       </div>
       <div class="ch-intro-body">
         <div class="ch-versus">
@@ -47,7 +47,7 @@ export function chaseIntroMarkup(chase: Chase, mine: Mine, you: { avatar: number
 /** Survival's intro figure: what beating their result asks, and their result under it. */
 function surviveTargetMarkup(chase: Chase): string {
   const goal = surviveGoal(chase.name, chase.result!);
-  return `<h2 id="chase-intro-title" class="ch-intro-target"><b class="ch-count" data-to="${goal.figure}">${grouped(goal.figure)}</b><span><em>${goal.unit} ${goal.aim}</em><small>${escape(goal.theirs)}</small></span></h2>`;
+  return `<h2 id="chase-intro-title" class="ch-intro-target"><b class="ch-count" data-to="${goal.figure}">${grouped(goal.figure)}</b><span><em>${goal.unit} ${goal.aim}</em><small${short(goal.theirsShort)}>${escape(goal.theirs)}</small></span></h2>`;
 }
 
 /** The intro's line, with the name and place set bold as the design has them. */
@@ -57,26 +57,29 @@ function introMarkup(chase: Chase, mine: Mine): string {
     .replace(/#\d+/, place => `<b class="is-place">${place}</b>`);
 }
 
+/** A line's form without the name, put in when the name will not fit (`fitLabels`). */
+const short = (words: string) => ` data-short="${escape(words)}"`;
+
 /** B2: the chip under the scoreboard. The scoreboard itself is never touched. */
 export function chaseChipMarkup(chase: Chase, runs: number, ballsLeft: number | null, place: number | null, balls = 0): string {
   if (chase.result) {
     const said = surviveChip(chase.name, chase.result, { balls, runs });
     if (said.done) {
       return `<span class="ch-chip is-done" role="status">${face(chase.avatar, chase.name)}
-        <span class="ch-chip-text"><b>${escape(said.need)}${place ? ` \u00b7 now #${place}` : ''}</b><small>\u2713 ${balls} BALLS AND COUNTING</small></span></span>`;
+        <span class="ch-chip-text"><b${short(`${said.needShort}${place ? ` \u00b7 now #${place}` : ''}`)}>${escape(said.need)}${place ? ` \u00b7 now #${place}` : ''}</b><small>\u2713 ${balls} BALLS AND COUNTING</small></span></span>`;
     }
     return `<span class="ch-chip" role="status">${face(chase.avatar, chase.name)}
-      <span class="ch-chip-text"><b class="ch-need">${escape(said.need)}</b><small>${escape(said.small)}</small></span>
+      <span class="ch-chip-text"><b class="ch-need">${escape(said.need)}</b><small${short(said.smallShort)}>${escape(said.small)}</small></span>
       <i class="ch-bar" aria-hidden="true"><i style="width:${(said.progress * 100).toFixed(1)}%"></i></i></span>`;
   }
   const line = chipLine(chase, runs, ballsLeft);
   const progress = chaseProgress(chase, runs);
   if (line.done) {
     return `<span class="ch-chip is-done" role="status">${face(chase.avatar, chase.name)}
-        <span class="ch-chip-text"><b>Passed ${escape(chase.name)}${place ? ` · now #${place}` : ''}</b><small>✓ ${grouped(runs)} BEATS ${grouped(chase.target)}</small></span></span>`;
+        <span class="ch-chip-text"><b${short(`Passed them${place ? ` · now #${place}` : ''}`)}>Passed ${escape(chase.name)}${place ? ` · now #${place}` : ''}</b><small>✓ ${grouped(runs)} BEATS ${grouped(chase.target)}</small></span></span>`;
   }
   return `<span class="ch-chip${close(chase, runs) ? ' is-close' : ''}" role="status">${face(chase.avatar, chase.name)}
-      <span class="ch-chip-text"><b>Need <em class="ch-need">${line.need}</em>${line.off !== null ? ` off ${line.off}` : ''}</b><small>TO BEAT ${escape(chase.name.toUpperCase())}’S ${grouped(chase.target)}</small></span>
+      <span class="ch-chip-text"><b>Need <em class="ch-need">${line.need}</em>${line.off !== null ? ` off ${line.off}` : ''}</b><small${short(`TO BEAT THEIR ${grouped(chase.target)}`)}>TO BEAT ${escape(chase.name.toUpperCase())}’S ${grouped(chase.target)}</small></span>
       <i class="ch-bar" aria-hidden="true"><i style="width:${(progress * 100).toFixed(1)}%"></i></i></span>`;
 }
 

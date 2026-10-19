@@ -159,37 +159,61 @@ export interface SurviveGoal {
   aim: string;
   /** Their result, said: Kabir lasted 40 balls. */
   theirs: string;
+  /** The same without the name: They lasted 40 balls. */
+  theirsShort: string;
   /** The verb on the keys: OUTLAST KABIR, and again. */
   key: string;
+  /** The key without the name, for a name too long for it: OUTLAST THEM. */
+  short: string;
   again: string;
 }
 
 export function surviveGoal(name: string, theirs: SurviveResult): SurviveGoal {
   const upper = name.toUpperCase();
   if (theirs.kind === 'won') {
-    return { figure: Math.max(1, theirs.balls - 1), unit: 'BALLS', aim: 'TO WIN IN', theirs: `${name} won in ${theirs.balls} balls`, key: `WIN FASTER THAN ${upper}`, again: 'WIN FASTER AGAIN' };
+    return { figure: Math.max(1, theirs.balls - 1), unit: 'BALLS', aim: 'TO WIN IN', theirs: `${name} won in ${theirs.balls} balls`, theirsShort: `They won in ${theirs.balls} balls`, key: `WIN FASTER THAN ${upper}`, short: 'WIN FASTER THAN THEM', again: 'WIN FASTER AGAIN' };
   }
   if (theirs.kind === 'drawn') {
-    return { figure: theirs.runs + 1, unit: 'RUNS', aim: 'AND SURVIVE', theirs: `${name} drew with ${theirs.runs}`, key: `OUTSCORE ${upper}’S DRAW`, again: 'OUTSCORE AGAIN' };
+    return { figure: theirs.runs + 1, unit: 'RUNS', aim: 'AND SURVIVE', theirs: `${name} drew with ${theirs.runs}`, theirsShort: `They drew with ${theirs.runs}`, key: `OUTSCORE ${upper}’S DRAW`, short: 'OUTSCORE THEIR DRAW', again: 'OUTSCORE AGAIN' };
   }
-  return { figure: theirs.balls + 1, unit: 'BALLS', aim: 'TO OUTLAST', theirs: `${name} lasted ${theirs.balls} balls`, key: `OUTLAST ${upper}`, again: 'OUTLAST AGAIN' };
+  return { figure: theirs.balls + 1, unit: 'BALLS', aim: 'TO OUTLAST', theirs: `${name} lasted ${theirs.balls} balls`, theirsShort: `They lasted ${theirs.balls} balls`, key: `OUTLAST ${upper}`, short: 'OUTLAST THEM', again: 'OUTLAST AGAIN' };
 }
 
-/** The chip's line in Survival: what is still wanted, and the goal under it. */
-export function surviveChip(name: string, theirs: SurviveResult, now: { balls: number; runs: number }, target = SURVIVE.target): { need: string; off: string | null; small: string; done: boolean; progress: number } {
+/**
+ * The chip's line in Survival: what is still wanted, and the goal under it.
+ * Each line that names them has a short form without the name (`needShort`,
+ * `smallShort`), for a name too long for the chip; their face is beside it.
+ */
+export function surviveChip(name: string, theirs: SurviveResult, now: { balls: number; runs: number }, target = SURVIVE.target): {
+  need: string; needShort: string; off: string | null; small: string; smallShort: string; done: boolean; progress: number;
+} {
   const upper = name.toUpperCase();
-  if (surviveSurely(theirs, now.balls)) return { need: `Outlasted ${name}`, off: null, small: '', done: true, progress: 1 };
+  if (surviveSurely(theirs, now.balls)) {
+    return { need: `Outlasted ${name}`, needShort: 'Outlasted them', off: null, small: '', smallShort: '', done: true, progress: 1 };
+  }
   if (theirs.kind === 'lost') {
     const more = theirs.balls + 1 - now.balls;
-    return { need: `Survive ${more} more`, off: null, small: `TO OUTLAST ${upper} · ${theirs.balls} BALLS`, done: false, progress: now.balls / (theirs.balls + 1) };
+    const need = `Survive ${more} more`;
+    return {
+      need, needShort: need, off: null, small: `TO OUTLAST ${upper} · ${theirs.balls} BALLS`, smallShort: `TO OUTLAST THEM · ${theirs.balls} BALLS`,
+      done: false, progress: now.balls / (theirs.balls + 1),
+    };
   }
   if (theirs.kind === 'drawn') {
-    const need = Math.max(0, theirs.runs + 1 - now.runs);
-    return { need: need ? `Need ${need}` : 'Now survive', off: null, small: `TO OUTSCORE ${upper}’S DRAW OF ${theirs.runs}`, done: false, progress: Math.min(1, now.runs / (theirs.runs + 1)) };
+    const runs = Math.max(0, theirs.runs + 1 - now.runs);
+    const need = runs ? `Need ${runs}` : 'Now survive';
+    return {
+      need, needShort: need, off: null, small: `TO OUTSCORE ${upper}’S DRAW OF ${theirs.runs}`, smallShort: `TO OUTSCORE THEIR DRAW OF ${theirs.runs}`,
+      done: false, progress: Math.min(1, now.runs / (theirs.runs + 1)),
+    };
   }
   const left = theirs.balls - 1 - now.balls;
-  const need = Math.max(0, target - now.runs);
-  return { need: left > 0 ? `${need} off ${left}` : 'Too late to win faster', off: null, small: `TO WIN FASTER THAN ${upper} · ${theirs.balls} BALLS`, done: false, progress: Math.min(1, now.runs / target) };
+  const runs = Math.max(0, target - now.runs);
+  const need = left > 0 ? `${runs} off ${left}` : 'Too late to win faster';
+  return {
+    need, needShort: need, off: null, small: `TO BEAT ${upper}’S ${theirs.balls}-BALL WIN`, smallShort: `TO BEAT THEIR ${theirs.balls}-BALL WIN`,
+    done: false, progress: Math.min(1, now.runs / target),
+  };
 }
 
 /** A result in a few words: won in 48 balls, drew with 96, lasted 40 balls. */

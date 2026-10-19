@@ -42,7 +42,7 @@ import { MARATHON_LADDERS, marathonBest, marathonLaddersMarkup, type MarathonBoa
 import type { TeamRow } from '../game/marathon-board';
 import { rivalsRecordMarkup, type RivalsRecord } from './Record';
 import { coverBoardLines, coverMarkup, profileChip, type CoverBoard } from './Cover';
-import { cta, icon as kitIcon } from './Kit';
+import { cta, fitLabels, icon as kitIcon } from './Kit';
 import {
   answerSheetMarkup, entryProblem, insideAnApp, noQuestionMarkup, nudgeSheetMarkup, passwordCardMarkup, passwordDoneMarkup,
   passwordSheetMarkup, ruleStates, type NudgeFigures, type PasswordEntry, type PasswordMode, type PasswordSheetView,
@@ -1049,6 +1049,10 @@ ${modeSelectMarkup()}
       leaving.addEventListener('animationend', () => leaving.remove(), { once: true });
     }
     this.wirePlayer(sheet);
+    // A long name would run the key off its face: then it says CHASE THEIR 187.
+    // Again once the display face is in, which is what it is measured in.
+    fitLabels(sheet);
+    void document.fonts?.ready.then(() => fitLabels(sheet));
     if (how === 'open') sheet.querySelector<HTMLElement>('#player-close')?.focus({ preventScroll: true });
   }
 
@@ -1207,6 +1211,7 @@ ${modeSelectMarkup()}
     if (!chase) { slot.innerHTML = ''; slot.classList.add('hidden'); this.pauseChase = null; return; }
     slot.innerHTML = chaseChipMarkup(chase, runs, ballsLeft, place, balls);
     slot.classList.remove('hidden');
+    fitLabels(slot);
     const chip = slot.querySelector<HTMLElement>('.ch-chip')!;
     if (beat !== 'none') chip.classList.add('is-rolled', 'is-beat');
     if (beat === 'boundary') chip.classList.add('is-boundary');
@@ -1230,6 +1235,8 @@ ${modeSelectMarkup()}
     layer.id = 'chase-intro';
     layer.innerHTML = chaseIntroMarkup(chase, mine, you);
     this.viewport.append(layer);
+    // Measured with the figure whole, before it counts up to it.
+    fitLabels(layer);
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const count = layer.querySelector<HTMLElement>('.ch-count');
     if (count && !still) {

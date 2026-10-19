@@ -350,6 +350,52 @@ check(events.events?.[0]?.kind === 'beat' && events.events[0].runs === 174, 'and
   await ctx.close();
 }
 
+// The key under a name as wide as a name can be (fourteen letters, Ms and Ws):
+// the name drops out of it rather than running it off its face, and a short
+// name keeps it.
+{
+  const wide = `Mwmw${run}Mwmwmw`.slice(0, 14);
+  await seed(wide, 162, 4);
+  const ctx = await browser.newContext({ viewport: { width: 402, height: 874 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  const k = await ctx.newPage();
+  k.on('pageerror', e => errors.push(`[key] ${e.message}`));
+  await k.addInitScript(name => {
+    try {
+      localStorage.setItem('hitman-seen', new Date(Date.now() - 172_800_000).toISOString().slice(0, 10));
+      localStorage.setItem('hitman-shots-intro', 'done');
+      localStorage.setItem('hitman-profile', '1');
+      localStorage.setItem('hitman-batter', JSON.stringify({ name, avatar: 2 }));
+    } catch { /* The screens it skips stand in the way. */ }
+  }, `Pkey${run}`);
+  await k.goto(`${base}/?debug=1`, { waitUntil: 'load' });
+  await k.waitForTimeout(1800);
+  await k.addStyleTag({ content: '#debug{display:none!important}' });
+  await k.evaluate(() => document.getElementById('cover-board')?.click());
+  await k.waitForSelector('#board-overlay .lb-screen');
+  await k.waitForTimeout(900);
+  const keyOf = async name => {
+    await k.locator('.lb-step[data-handle], .lb-row[data-handle], .lb-chip[data-handle]').filter({ hasText: name }).first().click();
+    await k.waitForSelector('#player-sheet.is-ready', { timeout: 6000 });
+    await k.evaluate(() => document.fonts.ready);
+    await k.waitForTimeout(500);
+    const said = await k.locator('#player-chase .k-cta-face>span').evaluate(label => {
+      const face = label.parentElement, style = getComputedStyle(face);
+      const room = face.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      return { text: label.textContent.trim(), fits: label.offsetWidth <= room + 0.5 };
+    });
+    return said;
+  };
+  const long = await keyOf(wide);
+  await k.screenshot({ path: `${out}/k1-long-name.png` });
+  check(long.text === 'CHASE THEIR 162', 'K · a name too long for the key drops out of it', long.text);
+  check(long.fits, 'K · and the short key fits its face');
+  await k.keyboard.press('Escape');
+  await k.waitForTimeout(500);
+  const short = await keyOf(top);
+  check(short.text === `CHASE ${top.toUpperCase()}’S 174` && short.fits, 'K · a name that fits stays on the key', short.text);
+  await ctx.close();
+}
+
 check(errors.length === 0, 'no page errors', errors.join('\n'));
 await browser.close();
 console.log(failures ? `\n${failures} failed.` : '\nAll passed.');

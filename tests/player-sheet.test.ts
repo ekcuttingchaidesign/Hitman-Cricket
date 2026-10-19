@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptyBlast } from '../src/game/career';
 import type { ProfilePayload } from '../src/game/profile-api';
-import { chaseLabel, chaseTarget, playedMode, playerSheetMarkup, type PlayerSheetView } from '../src/ui/PlayerSheet';
+import { chaseLabel, chaseShort, chaseTarget, playedMode, playerSheetMarkup, type PlayerSheetView } from '../src/ui/PlayerSheet';
 
 const none = { career: null, granted: null, best: null, bestRank: null };
 const profile = (over: Partial<ProfilePayload['modes']> = {}): ProfilePayload => ({
@@ -25,6 +25,11 @@ describe('the chase', () => {
   it('has nothing to aim at in a mode never batted, or a mode the row was not on', () => {
     expect(chaseTarget(view({ mode: 'survive' }))).toBeNull();
     expect(chaseTarget(view({ state: 'loading', profile: null, mode: 'marathon' }))).toBeNull();
+  });
+
+  it('has a short form without the name, for a name too long for the key', () => {
+    expect(chaseShort(1187)).toBe('CHASE THEIR 1,187');
+    expect(playerSheetMarkup(view())).toMatch(/id="player-chase"[^]*data-short="CHASE THEIR /);
   });
 
   it('names them and the figure', () => {

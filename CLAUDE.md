@@ -83,6 +83,12 @@ README's "Player profiles" is the long version.
   saved only where it changed, so a field drawn before the store answered
   never clears one.
 
+A name runs to fourteen letters, too long for a key or the chip's lines, so
+everything that puts their name on one line carries a form without it
+(`data-short`: CHASE THEIR 187, OUTLAST THEM, TO BEAT THEIR 48-BALL WIN).
+`fitLabels` in `src/ui/Kit.ts` measures the drawn line and swaps it in only
+where the name does not fit; their face or name always stands beside it.
+
 Looking is private and acting is public: a view is a count of handles a day
 (`seen:<id>:<day>`), never a name; a chase or a pass carries the name, as a
 score on a board does. Profiles open by handle; the store keeps handle → id

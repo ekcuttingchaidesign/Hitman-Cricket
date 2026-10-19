@@ -72,6 +72,8 @@ export interface Cta {
   disabled?: boolean;
   /** The primary's moving face: two faint chevrons crossing it, end to end. */
   moving?: boolean;
+  /** The label to fall back on when `label` is too long for the face (`fitLabels`). */
+  short?: string;
 }
 
 /** The square keys show only their icon, and say what they are to a screen reader. */
@@ -91,8 +93,39 @@ export function cta(view: Cta): string {
     disabled ? 'disabled' : '',
   ].filter(Boolean).join(' ');
   const chevrons = view.moving ? '<i class="k-cta-chevrons" aria-hidden="true"></i>' : '';
-  const face = `${chevrons}${glyph ? icon(glyph) : ''}${square ? '' : `<span>${escape(label)}</span>`}`;
+  const said = view.short ? `<span data-short="${escape(view.short)}">` : '<span>';
+  const face = `${chevrons}${glyph ? icon(glyph) : ''}${square ? '' : `${said}${escape(label)}</span>`}`;
   return `<button ${attrs}><span class="k-cta-face">${face}</span></button>`;
+}
+
+/**
+ * Every key label under `root` with a short form (`data-short`) put back to
+ * its full words, then swapped for the short form where they do not fit on
+ * the face on one line. Measured, not counted: the display face's letters run
+ * from an I to an M twice its width. A label not laid out yet is left whole.
+ */
+export function fitLabels(root: ParentNode): void {
+  for (const label of root.querySelectorAll<HTMLElement>('[data-short]')) {
+    label.dataset.full ??= label.textContent ?? '';
+    label.textContent = label.dataset.full;
+    const face = label.parentElement;
+    if (!face?.clientWidth) continue;
+    // A line in a narrow box, clipped inside its own width (the chase chip's).
+    if (label.scrollWidth > label.clientWidth + 0.5) { label.textContent = label.dataset.short!; continue; }
+    const style = getComputedStyle(face);
+    // A label standing in a row with others, which overflows the row instead (a key's face).
+    if (!/flex/.test(style.display) || style.flexDirection !== 'row') continue;
+    const gap = parseFloat(style.columnGap) || 0;
+    // The face's width inside its padding, less whatever else stands in it (the
+    // moving chevrons are laid over it, so they take no room).
+    let room = face.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    for (const other of face.children) {
+      if (other === label || !(other instanceof HTMLElement || other instanceof SVGElement)) continue;
+      if (/absolute|fixed/.test(getComputedStyle(other).position)) continue;
+      room -= other.getBoundingClientRect().width + gap;
+    }
+    if (label.offsetWidth > room + 0.5) label.textContent = label.dataset.short!;
+  }
 }
 
 /** The 44-square key on every top bar: back, sound, how ranking works. */

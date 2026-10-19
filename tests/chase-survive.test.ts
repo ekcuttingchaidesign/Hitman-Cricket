@@ -24,6 +24,7 @@ describe('a Survival chase is of their result', () => {
     expect(surviveGoal('Kabir', won(48))).toMatchObject({ figure: 47, unit: 'BALLS', aim: 'TO WIN IN', key: 'WIN FASTER THAN KABIR' });
     expect(surviveGoal('Kabir', drawn(96))).toMatchObject({ figure: 97, unit: 'RUNS', aim: 'AND SURVIVE', key: 'OUTSCORE KABIR’S DRAW' });
     expect(surviveGoal('Kabir', lost(40))).toMatchObject({ figure: 41, unit: 'BALLS', aim: 'TO OUTLAST', key: 'OUTLAST KABIR' });
+    expect([won(48), drawn(96), lost(40)].map(r => surviveGoal('Kabir', r).short)).toEqual(['WIN FASTER THAN THEM', 'OUTSCORE THEIR DRAW', 'OUTLAST THEM']);
   });
 
   it('judges it the way the board ranks it, every time', () => {

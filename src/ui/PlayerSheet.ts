@@ -70,13 +70,22 @@ export function chaseTarget(view: Pick<PlayerSheetView, 'seed' | 'mode' | 'state
 }
 
 /** The key: CHASE KABIR’S 187, or in Survival what beating their result asks — OUTLAST KABIR. */
-function keyLabel(view: PlayerSheetView, target: number): string {
+function keyLabel(view: PlayerSheetView, target: number): { label: string; short: string } {
   const result = view.mode === 'survive' ? view.profile?.modes.survive.best?.result : null;
   const name = view.profile?.name ?? view.seed.name;
-  return result ? surviveGoal(name, result).key : chaseLabel(name, target);
+  if (result) {
+    const goal = surviveGoal(name, result);
+    return { label: goal.key, short: goal.short };
+  }
+  return { label: chaseLabel(name, target), short: chaseShort(target) };
 }
 
 /** The key's words: CHASE KABIR’S 187. */
+/** The same without the name, which stands big over it: CHASE THEIR 187. */
+export function chaseShort(target: number): string {
+  return `CHASE THEIR ${grouped(target)}`;
+}
+
 export function chaseLabel(name: string, target: number): string {
   return `CHASE ${name.toUpperCase()}’S ${grouped(target)}`;
 }
@@ -92,7 +101,7 @@ export function playerSheetMarkup(view: PlayerSheetView): string {
         <div id="player-body" class="ps-body">${bodyMarkup(view)}</div>
         ${soloLinkMarkup(view)}
       </div>
-      <div class="ps-foot">${target !== null ? cta({ kind: 'primary', label: keyLabel(view, target), id: 'player-chase', wide: true, moving: true }) : ''}</div>
+      <div class="ps-foot">${target !== null ? cta({ kind: 'primary', ...keyLabel(view, target), id: 'player-chase', wide: true, moving: true }) : ''}</div>
     </section>`;
 }
 
