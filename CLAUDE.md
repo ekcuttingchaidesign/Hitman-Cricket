@@ -1056,6 +1056,34 @@ read there a cut swipe came out pointing at the late cut. Reading later
 without timing earlier would have made every swipe up to sixteen
 milliseconds late, which is a grade.
 
+## The two defences
+
+The block (`'DEFEND'`, the swipe straight down or S) is two strokes, and the
+ball's length picks one, not the thumb: a ball arriving at the crease below
+`DEFENCE_BACK_HEIGHT` (70cm: every full and good-length ball, at 54) gets the
+front-foot defence (`DEFENCE_FRONT`), anything above it (back of a length at
+81, the bouncer at 113) the back-foot defence (`DEFENCE_BACK`); `backDefence`
+in `swing`, and `Game.shoot` meets each where it is played. Built from two net
+sessions filmed in slow motion. The front one strides long to the pitch of
+the ball, the front knee bent with the head over it, the back leg long on its
+toe, and meets it at `DEFENCE_FRONT_CONTACT_MS`, `DEFENCE_FRONT_MEETS_AT`
+further down the pitch than a drive, beside the front pad: the bat straight,
+the handle ahead of the blade so the face looks down, the top elbow up on
+`leadElbow`. The back one goes back and across to off stump with the front
+foot drawn back, tall, and meets it late at `DEFENCE_BACK_CONTACT_MS`,
+`DEFENCE_BACK_MEETS_AT` back towards the stumps, at the ball's own height (the
+height clamp other strokes take is let off for it), the bat straight up in
+front of him and the top hand high. Both give a touch, hold (`DEFENCE_CLOCK`),
+let the top elbow down before the bat comes up — lifted past it, the handle
+went through it — and go home. The face rides the handle (`riding`). The old
+block took a short step and met everything at the waist, so a bouncer went
+through his chest: the Blast called it through to the keeper and Survival
+DUCKED. In time it is now DEFENDED off the bat in every mode (the SHORT branch
+of `resolveShot`, `defended` in `Survive.ts`); late is what it was. They are
+`defend`, `defendBack` and `defendBouncer` in the batter tests' `PLAYS`, with
+`describe('the block')` holding the stride, the height and the pick, and
+`cover-drive.html` has both.
+
 ## The square cut
 
 The cut at pace (`CUT_STROKE`, `CUT_HIGH` and the `paceCut` branch in

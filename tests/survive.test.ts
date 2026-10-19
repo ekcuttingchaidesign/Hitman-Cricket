@@ -216,17 +216,18 @@ describe('the block', () => {
 });
 
 describe('the bouncer', () => {
-  it('is safe to duck on time', () => {
+  it('is defended off the back foot on time', () => {
     const played = resolveSurvive(ball('SHORT'), at(0, 'DEFEND'), rolls(0.5));
     expect(played.isWicket).toBe(false);
     expect(played.hit).toBeUndefined();
-    expect(played.feedback).toBe('DUCKED');
+    expect(played.madeBatContact).toBe(true);
+    expect(played.feedback).toBe('DEFENDED');
   });
 
-  it('hits him if he ducks late', () => {
-    // Ducking used to be unconditionally safe, which made the fastest ball in
-    // the mode the one a player could answer without thinking. Get under it
-    // late and you are still standing up when it arrives.
+  it('hits him if he is late with it', () => {
+    // Ducking it used to be unconditionally safe, which made the fastest ball
+    // in the mode the one a player could answer without thinking. Late with
+    // the bat, he is still getting it up when the ball arrives.
     const played = resolveSurvive(ball('SHORT'), at(BANDS.clean + 40, 'DEFEND'), rolls(0.5));
     expect(played.hit?.where).toBe('HELMET');
   });

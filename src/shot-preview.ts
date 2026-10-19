@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_HOLD_MS, PULL_CONTACT_MS, PULL_HEIGHT, PULL_LOAD_MS, PULL_MEETS_AT, REVERSE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CLOCK, SCOOP_CONTACT_MS, SLOG_CLOCK, SLOG_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from './entities/Batter';
+import { Batter, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_FRONT_MEETS_AT, HOOK_HOLD_MS, PULL_CONTACT_MS, PULL_HEIGHT, PULL_LOAD_MS, PULL_MEETS_AT, REVERSE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CLOCK, SCOOP_CONTACT_MS, SLOG_CLOCK, SLOG_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from './entities/Batter';
 import { ADVANCE, GAME } from './config/gameplay';
 import type { ShotType } from './game/types';
 
@@ -94,8 +94,8 @@ const PLAYS: Record<string, Play> = {
     phases: [['Contact', STROKE_CONTACT_MS], ['Finish', 410], ['Recovery', 700]], note: 'Unchanged: the on drive for anything short of perfect timing — four, three, two, one.',
   },
   defend: {
-    label: 'Forward defensive', shot: 'DEFEND', ballX: 0, ballY: .54,
-    phases: [['Contact', STROKE_CONTACT_MS], ['Finish', 410]], note: 'Unchanged.',
+    label: 'Front-foot defence', shot: 'DEFEND', ballX: 0, ballY: .54,
+    phases: [['Contact', DEFENCE_FRONT_CONTACT_MS], ['Held', 400]], note: 'A long stride to the pitch of the ball, the bat straight beside the front pad, face down, top elbow up. The back-foot defence is in cover-drive.html.',
   },
 };
 // Square of the wicket on the off side is the angle both reference recordings
@@ -114,10 +114,11 @@ const contactOf = (play: Play) => play.sweeping || play.levelled ? SWEEP_CONTACT
   : play.shot === 'SCOOP' ? SCOOP_CONTACT_MS : play.shot === 'REVERSE_SCOOP' ? REVERSE_CONTACT_MS
   : play.shot === 'LEG' && play.ballY > PULL_HEIGHT ? PULL_CONTACT_MS
   : play.charging ? CHARGE_CONTACT_MS
+  : play.shot === 'DEFEND' ? DEFENCE_FRONT_CONTACT_MS
   : play.shot === 'COVER_LONG_OFF' && play.ballX >= .30 && play.ballY <= .70 ? SQUARE_DRIVE_CONTACT_MS
   : STROKE_CONTACT_MS;
 /** How far down the pitch from the drives' point the stroke meets the ball. */
-const meetsOf = (play: Play) => play.charging ? CHARGE_MEETS_AT : play.sweeping ? SLOG_MEETS_AT : play.shot === 'LEG' && play.ballY > PULL_HEIGHT ? PULL_MEETS_AT : 0;
+const meetsOf = (play: Play) => play.charging ? CHARGE_MEETS_AT : play.sweeping ? SLOG_MEETS_AT : play.shot === 'LEG' && play.ballY > PULL_HEIGHT ? PULL_MEETS_AT : play.shot === 'DEFEND' ? DEFENCE_FRONT_MEETS_AT : 0;
 const ballHeight = (play: Play) => play.ballY > .85 && (play.shot === 'LEG' || play.shot === 'SQUARE_CUT')
   ? play.ballY : Math.min(play.ballY, .62);
 
