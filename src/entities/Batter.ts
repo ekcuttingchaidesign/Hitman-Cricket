@@ -733,6 +733,8 @@ function batOrientation(pose: Pose) {
  */
 export const PULL_V1_LOAD_MS = 120;
 export const PULL_V1_CONTACT_MS = 230;
+/** How long version one holds the wrap past the stroke's own clock before it comes home, at its own pace. */
+export const PULL_V1_HOLD_MS = 250;
 const PULL_V1_CLOCK = { load: PULL_V1_LOAD_MS, down: 180, contact: PULL_V1_CONTACT_MS, front: 285, through: 340, rise: 420, finish: 500, hold: 570 } as const;
 const PULL_V1: Stroke & { load: Pose; down: Pose; front: Pose; rise: Pose } = {
   load: { ...BACKLIFT, hip: [-.09, .86, -.20], chest: [0, 1.20, -.15],
@@ -2893,7 +2895,7 @@ export class Batter {
     // A ball left alone: the bat lowered out of the leave as he goes.
     if (!Number.isFinite(this.swingStart)) this.anticipation = 0;
     if ((kind === 'admire' || kind === 'lean') && now - this.swingStart <= ADMIRE_AT) this.admiring = true;
-    const home = this.swingStart + STROKE_DURATION_MS + (this.admiring ? ADMIRE_MS : this.turning ? HOOK_HOLD_MS : this.spinCutting ? SPIN_CUT_HOLD_MS
+    const home = this.swingStart + STROKE_DURATION_MS + (this.admiring ? ADMIRE_MS : this.turning ? HOOK_HOLD_MS : this.pulling ? PULL_V1_HOLD_MS : this.spinCutting ? SPIN_CUT_HOLD_MS
       : this.sweeping && !this.levelled ? SLOG_HOLD_MS : 0);
     // The keys are drawn up when he starts, not now: asked for before the
     // stroke has met the ball, there is no stroke yet for `shadow` to rehearse.
@@ -3102,6 +3104,8 @@ export class Batter {
     // the ball, the helmet's round shell showed nothing of it from behind, and
     // only the peak came out past it and went back, as if the helmet stretched.
     if (this.admiring && age > ADMIRE_AT) age = Math.max(ADMIRE_AT, age - ADMIRE_MS);
+    // Pull version one holds the wrap a moment longer, then comes home at its own pace: see `PULL_V1_HOLD_MS`.
+    else if (this.pulling && !this.pullV2 && age > PULL_V1_CLOCK.hold) age = Math.max(PULL_V1_CLOCK.hold, age - PULL_V1_HOLD_MS);
     // The hook, once he has turned round, holds and goes home the slower: see `HOOK_HOLD_MS`.
     else if (this.turning && age > HOOK_CLOCK.faced) {
       const { faced } = HOOK_CLOCK;

@@ -15,7 +15,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, type CoverVersion, COVER_V3_MEETS_AT, PULL_CONTACT_MS, PULL_LOAD_MS, PULL_MEETS_AT, PULL_V1_CONTACT_MS, PULL_V1_LOAD_MS, SLOG_CLOCK, SLOG_HOLD_MS, SLOG_MEETS_AT, SWEEP_CONTACT_MS, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, REVERSE_CLOCK, SCOOP_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
+import { Batter, type CoverVersion, COVER_V3_MEETS_AT, PULL_CONTACT_MS, PULL_LOAD_MS, PULL_MEETS_AT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, SLOG_CLOCK, SLOG_HOLD_MS, SLOG_MEETS_AT, SWEEP_CONTACT_MS, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, REVERSE_CLOCK, SCOOP_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOT_ANGLES, STYLES } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 import type { ShotType } from './game/types';
@@ -72,11 +72,11 @@ const STROKES: Record<string, Stroke> = {
   },
   pullV1: {
     label: 'Pull v1', shot: 'LEG', charging: false, single: true, pullVersion: 1, ball: { x: LINE_X.MIDDLE, y: 1.12, z: GAME.contactZ },
-    contact: PULL_V1_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: STYLES.SHORT.bounce!,
-    phases: [['Stance', -LEAD_MS], ['Bat up', PULL_V1_LOAD_MS], ['Down', 180], ['Contact', PULL_V1_CONTACT_MS], ['Out front', 285], ['To leg', 340], ['Rising', 420], ['Wrap', 500], ['Home', 670]],
+    contact: PULL_V1_CONTACT_MS, end: STROKE_DURATION_MS + PULL_V1_HOLD_MS, bounceZ: STYLES.SHORT.bounce!,
+    phases: [['Stance', -LEAD_MS], ['Bat up', PULL_V1_LOAD_MS], ['Down', 180], ['Contact', PULL_V1_CONTACT_MS], ['Out front', 285], ['To leg', 340], ['Rising', 420], ['Wrap', 500], ['Home', 570 + PULL_V1_HOLD_MS]],
     out: { speed: .028, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.LEG), climb: .012 },
     facts: ['bouncer, on the stumps', `${STROKE_DURATION_MS} ms`],
-    note: 'Pull version one, played four times in ten: off the back foot, side on and opening only as far as square, standing where he hit it. The bat goes up high behind the back shoulder, comes down in front of his chest and meets the ball at 230 ms beside him with the flat face to the bowler and the hands out in front, then goes on round flat, out in front at 285 and out to leg at 340 with the back arm straight, and wraps over the front shoulder at 500, the curved back of the blade on it. No turn after it: version two is the one that turns his back to the bowler.',
+    note: 'Pull version one, played four times in ten: off the back foot, side on and opening only as far as square, standing where he hit it. The bat goes up high behind the back shoulder, comes down in front of his chest and meets the ball at 230 ms beside him with the flat face to the bowler and the hands out in front, then goes on round flat, out in front at 285 and out to leg at 340 with the back arm straight, and wraps over the front shoulder at 500, the curved back of the blade on it, held there to 820 before he comes home. No turn after it: version two is the one that turns his back to the bowler.',
   },
   pull: {
     label: 'Pull v2', shot: 'LEG', charging: false, single: true, pullVersion: 2, ball: { x: LINE_X.MIDDLE, y: 1.12, z: GAME.contactZ + PULL_MEETS_AT },

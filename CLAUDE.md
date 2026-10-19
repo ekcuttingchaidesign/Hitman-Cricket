@@ -1025,7 +1025,8 @@ front of his chest (`down`: from the backlift straight to a ball on leg stump
 the hands crossed in front of his face), level at the ball with the face to
 the bowler and the hands out in front, round flat out to leg with the back arm
 long, and wrapped over the front shoulder with the back of the blade on it.
-No turn: he holds it standing where he hit it. Its body follows the ball
+No turn: he holds it standing where he hit it, `PULL_V1_HOLD_MS` past the
+stroke's own clock, and comes home at its own pace. Its body follows the ball
 across all the way, as the slog sweep's does: by the drives' share a ball
 outside leg was met with the hands across his chest. The first build met the
 ball with the face to square leg and the hands at his chest, from a backlift
