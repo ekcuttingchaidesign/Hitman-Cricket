@@ -53,6 +53,12 @@ export function memoryStore<I = Innings>(
         .sort((a, b) => b.score - a.score)
         .slice(0, n);
     },
+    async slice(start, count) {
+      return [...ranking.entries()]
+        .map(([id, score]) => ({ id, score }))
+        .sort((a, b) => b.score - a.score || (b.id < a.id ? -1 : 1))
+        .slice(Math.max(0, start), Math.max(0, start) + Math.max(0, count));
+    },
     async rows(ids) { return ids.map(id => rows.get(id) ?? null); },
     async standing(id) {
       // ZREVRANK: one more than the scores above this one. Ties go the way

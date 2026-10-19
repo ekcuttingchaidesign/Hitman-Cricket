@@ -30,6 +30,9 @@ import {
 } from './src/game/career';
 import { forgetHeader, ticketFrom, ticketHeader } from './src/server/return-ticket';
 import { modeAsked } from './src/server/mode';
+import { memoryPlayers, rememberHandle } from './src/server/player-store';
+import { afterPost, profileRefused, profileRequest, type ProfileStores } from './src/server/profile-endpoint';
+import { soloOf, teamOf } from './src/game/marathon-board';
 
 /**
  * The board's endpoints, served by the dev server.
@@ -79,6 +82,12 @@ function boardEndpoints(): Plugin {
   const challenges = memoryChallenges(names);
   const dressing = memoryDressing();
   const recap = memoryRecap();
+  // The profiles, over the same boards and careers the endpoints above write.
+  const profiles: ProfileStores = {
+    players: memoryPlayers(),
+    boards: { classic: boards[''], survive: boards['survive:'], team: marathon.team, solo: marathon.solo },
+    careers,
+  };
   return {
     name: 'hitman-board-dev',
     apply: 'serve',
@@ -86,7 +95,7 @@ function boardEndpoints(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         const path = (req.url ?? '').split('?')[0];
         const known = ['/api/board', '/api/score', '/api/feedback', '/api/career', '/api/innings',
-          '/api/restore', '/api/challenge', '/api/name', '/api/dressing', '/api/recap', '/api/me'];
+          '/api/restore', '/api/challenge', '/api/name', '/api/dressing', '/api/recap', '/api/me', '/api/profile'];
         if (!known.includes(path)) return next();
         // A refusal as the deployed endpoints write one, carrying the name
         // that is held when it is not the one typed.
@@ -125,6 +134,18 @@ function boardEndpoints(): Plugin {
             // The same header the deployed endpoint sends on a read, so a check
             // behaves here the way it will behind the edge cache.
             return send(200, outcome, cacheable(request) ? 'public, s-maxage=2, stale-while-revalidate=4' : 'no-store');
+          }
+          if (path === '/api/profile') {
+            // What `api/profile.ts` does, over memory: the same router.
+            const request = {
+              method: req.method,
+              query: Object.fromEntries(new URLSearchParams((req.url ?? '').split('?')[1] ?? '')),
+              body: req.method === 'POST' ? await read(req) : undefined,
+              address: 'dev',
+            };
+            const outcome = await profileRequest(profiles, request);
+            if (profileRefused(outcome)) return send(outcome.status, { error: outcome.reason, status: outcome.status, retry: outcome.status >= 500 });
+            return send(200, outcome.body, outcome.cache);
           }
           if (path === '/api/recap') {
             // The dev server's alone, for the checks: what the year recap holds
@@ -213,6 +234,7 @@ function boardEndpoints(): Plugin {
             if (counted.counted && tally) {
               await recordInnings(recap, { playerId: counting.playerId, mode: countingMode, tally, look: lookOf(sent.look), at: Date.now() });
             }
+            if (counted.name) await rememberHandle(profiles.players, counting.playerId);
             return send(200, counted);
           }
           if (path === '/api/restore') {
@@ -290,6 +312,7 @@ function boardEndpoints(): Plugin {
             await carryKey(recovery, { from: asked.previous, to: foldName(name), playerId: who.playerId });
             const key = await keyOnClaim(recovery, foldName(name));
             await listOnClaim(recovery, { name, playerId: who.playerId });
+            await rememberHandle(profiles.players, who.playerId);
             return send(200, key ? { ok: true, name, key } : { ok: true, name });
           }
           if (path === '/api/board') {
@@ -326,19 +349,29 @@ function boardEndpoints(): Plugin {
           if (submitted === 'marathon') {
             // Both Marathon rows from one innings, and the career it has been
             // building onto the boards under the name, as the deployed one does.
-            const taken = await submitMarathon(marathon, { ...who, innings: readMarathonFigures(body.innings) });
+            const sides = readMarathonFigures(body.innings);
+            const taken = await submitMarathon(marathon, { ...who, innings: sides });
             if (refused(taken)) return turnedDown(taken);
+            const marathonExtras = await afterPost(profiles, {
+              playerId: who.playerId, name: who.name, avatar: who.avatar, mode: 'marathon', runs: teamOf(sides).runs, outcome: taken, chase: body.chase,
+              chaseLadder: body.chaseLadder, soloRuns: soloOf(sides).runs,
+            });
             await nameCareer(careers.marathon, MARATHON_CAREER, who.playerId, cleanName(who.name), who.avatar);
             await carryKey(recovery, { from: body.previous, to: foldName(cleanName(who.name)), playerId: who.playerId });
             const key = await keyOnClaim(recovery, foldName(cleanName(who.name)));
             await listOnClaim(recovery, { name: who.name, playerId: who.playerId });
-            return send(200, key ? { ...taken, key } : taken);
+            return send(200, key ? { ...taken, ...marathonExtras, key } : { ...taken, ...marathonExtras });
           }
           const asked = submitted === 'survive';
+          const played = asked ? surviveFigures(body.innings) : figures(body.innings);
           const outcome = asked
             ? await submitScore(boards['survive:'], SURVIVE_LADDER, { ...who, innings: surviveFigures(body.innings) })
             : await submitScore(boards[''], CLASSIC_LADDER, { ...who, innings: figures(body.innings) });
           if (refused(outcome)) return turnedDown(outcome);
+          const extras = await afterPost(profiles, {
+            playerId: who.playerId, name: who.name, avatar: who.avatar, mode: submitted, runs: played.runs, outcome, chase: body.chase,
+            surviveInnings: asked ? played as SurviveInnings : undefined,
+          });
           // The same stamp the deployed endpoint makes: a name just claimed
           // puts the career already counted under it onto the career boards,
           // rather than waiting for an innings the player has not played yet.
@@ -350,7 +383,7 @@ function boardEndpoints(): Plugin {
           await carryKey(recovery, { from: body.previous, to: foldName(cleanName(who.name)), playerId: who.playerId });
           const key = await keyOnClaim(recovery, foldName(cleanName(who.name)));
           await listOnClaim(recovery, { name: who.name, playerId: who.playerId });
-          return send(200, key ? { ...outcome, key } : outcome);
+          return send(200, key ? { ...outcome, ...extras, key } : { ...outcome, ...extras });
         } catch (error) {
           send(400, { error: error instanceof Error ? error.message : 'Bad request.' });
         }

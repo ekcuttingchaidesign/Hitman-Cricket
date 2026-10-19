@@ -18,6 +18,7 @@
  * or changes it.
  */
 
+import { BIO_MAX, BIO_NEAR, bioChars } from '../server/bio-rules';
 import type { Hand } from '../game/player';
 import { avatarSrc, kitName } from '../config/board';
 import { escape } from './Leaderboard';
@@ -50,6 +51,37 @@ export interface ProfileView {
   played?: boolean;
   /** The password row on the edit from My Stats, where a password can be kept. */
   password?: PasswordRow | null;
+  /**
+   * The bio, on the edit from My profile for a player with a name: what it says
+   * now, empty for none. Absent on the gate, which asks nothing it need not.
+   */
+  bio?: string;
+}
+
+/** Lines to start from, for a bio left empty: the design's three. */
+export const BIO_IDEAS = ['Six or nothing.', 'Here for the long haul.', 'Hooks everything short.'] as const;
+
+/**
+ * The bio field (section 14, lane D): eighty characters, said as a count until
+ * seventy and then as what is left, held to `bioProblem` half a second after
+ * the typing stops, with three lines to start from while it is empty.
+ */
+export function bioFieldMarkup(bio: string): string {
+  const count = bioChars(bio).length;
+  return `<div class="welcome-field bio-field">
+          <label class="welcome-label" for="profile-bio">BIO · OPTIONAL</label>
+          <textarea id="profile-bio" rows="2" enterkeyhint="done" autocapitalize="sentences" placeholder="e.g. Leg-side bully. Never blocks."
+            aria-describedby="bio-under bio-problem">${escape(bio)}</textarea>
+          <p id="bio-under" class="bio-under"><span id="bio-note">Shown on your profile to anyone who opens it.</span><span id="bio-count" class="bio-count">${bioCount(count)}</span></p>
+          <div id="bio-ideas" class="bio-ideas${bio ? ' hidden' : ''}"><p>Need an idea?</p>${BIO_IDEAS.map(idea =>
+            `<button type="button" class="bio-idea" data-idea="${escape(idea)}">${escape(idea)}</button>`).join('')}</div>
+          <p id="bio-problem" class="bio-problem hidden" role="alert"></p>
+        </div>`;
+}
+
+/** The counter under the field: so many of eighty, and from seventy, what is left. */
+export function bioCount(count: number): string {
+  return count >= BIO_NEAR ? `${Math.max(0, BIO_MAX - count)} left` : `${count}/${BIO_MAX}`;
 }
 
 /** What the store said about this player's password, for the row that sets or changes it. */
@@ -127,7 +159,7 @@ export function profileMarkup(view: ProfileView): string {
             </button>`).join('');
   const back = gate
     ? `<button id="profile-leave" class="k-icon-button welcome-back" type="button" aria-label="Back to the cover">${icon('arrow-left')}</button>`
-    : `<button id="profile-close" class="k-icon-button welcome-back" type="button" aria-label="Back to My Stats">${icon('arrow-left')}</button>`;
+    : `<button id="profile-close" class="k-icon-button welcome-back" type="button" aria-label="Back to My profile">${icon('arrow-left')}</button>`;
   const go = cta({ kind: 'primary', label: sending ? 'SAVING…' : gate ? 'LET’S BAT' : 'SAVE', id: 'profile-send', wide: true, disabled: sending || !named(name) });
   return `
     <section class="welcome ${gate ? 'is-gate' : 'is-edit'}" role="dialog" aria-modal="true" aria-labelledby="profile-title">
@@ -154,6 +186,7 @@ export function profileMarkup(view: ProfileView): string {
           <input id="profile-name" type="text" maxlength="14" autocomplete="nickname" autocapitalize="words"
             enterkeyhint="done" placeholder="Enter your name" value="${escape(name)}" required>
         </label>
+        ${!gate && view.bio !== undefined ? bioFieldMarkup(view.bio) : ''}
         <div class="welcome-step">
           <p class="welcome-label" id="profile-hand-label">HOW DO YOU BAT?</p>
           <div class="welcome-hands" role="radiogroup" aria-labelledby="profile-hand-label">${handKey('right')}${handKey('left')}

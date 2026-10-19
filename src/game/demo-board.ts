@@ -1,3 +1,4 @@
+import { handleOf } from './handle';
 import { packSolo, packTeam, type SoloInnings, type SoloRow, type TeamInnings, type TeamRow } from './marathon-board';
 import { AVATARS } from '../config/board';
 import { LAUNCH_MS, rankKey, type BoardRow, type Innings } from './leaderboard';
@@ -70,7 +71,7 @@ export function demoBoard(youId: string | null): BoardRow[] {
     const figures = innings(i);
     return {
       ...figures,
-      playerId: i === MINE && youId ? youId : idOf(i),
+      handle: i === MINE && youId ? handleOf(youId) : idOf(i),
       name,
       avatar: i % AVATARS,
       score: rankKey(figures),
@@ -86,7 +87,7 @@ export function demoBoard(youId: string | null): BoardRow[] {
  */
 export function demoMarathon(youId: string | null, atMs = LAUNCH_MS): { team: TeamRow[]; solo: SoloRow[] } {
   const endings = ['ALL_OUT', 'DECLARED', 'RETIRED', 'ALL_OUT', 'BALLS'] as const;
-  const owner = (name: string, i: number) => ({ playerId: i === MINE && youId ? youId : idOf(i), name, avatar: i % AVATARS });
+  const owner = (name: string, i: number) => ({ handle: i === MINE && youId ? handleOf(youId) : idOf(i), name, avatar: i % AVATARS });
   const team: TeamRow[] = NAMES.slice(0, DEMO_ROWS).map((name, i) => {
     const ending = endings[i % endings.length];
     // Test scoring: about sixty off every hundred balls, a little either side.
@@ -110,7 +111,7 @@ export function demoSurvive(youId: string | null, atMs = LAUNCH_MS): SurviveRow[
     const figures = survived(i);
     return {
       ...figures,
-      playerId: i === MINE && youId ? youId : idOf(i),
+      handle: i === MINE && youId ? handleOf(youId) : idOf(i),
       name,
       avatar: i % AVATARS,
       score: packSurvive(figures, atMs),
@@ -181,7 +182,7 @@ export function demoCareers(mode: CareerMode, youId: string | null, atMs = Date.
       .map((name, i) => {
         const career = mode === 'survive' ? surviveCareer(i) : mode === 'marathon' ? marathonCareer(i) : blastCareer(i);
         return {
-          playerId: i === MINE && youId ? youId : idOf(i),
+          handle: i === MINE && youId ? handleOf(youId) : idOf(i),
           name,
           avatar: i % AVATARS,
           career,
@@ -208,7 +209,7 @@ export function demoRivals(youId: string | null): RivalsRow[] {
       const lost = 3 + (i * 7) % 11;
       const played = won + lost;
       return {
-        playerId: i === MINE && youId ? youId : idOf(i),
+        handle: i === MINE && youId ? handleOf(youId) : idOf(i),
         name, avatar: i % AVATARS, won, lost,
         runs: played * (58 + (i * 13) % 40),
       };
@@ -233,9 +234,9 @@ export function fillMarathon(real: { team: readonly TeamRow[]; solo: readonly So
 export function fillRivals(real: readonly RivalsRow[]): RivalsRow[] {
   return among(real, demoRivals(null), (a, b) => b.won - a.won || a.lost - b.lost || b.runs - a.runs);
 }
-function among<R extends { playerId: string; name: string }>(real: readonly R[], faux: readonly R[], order: (a: R, b: R) => number): R[] {
-  const taken = new Set(real.flatMap(row => [row.playerId, row.name.toLowerCase()]));
-  const filler = faux.filter((row, i) => i % 2 === 0 && !taken.has(row.playerId) && !taken.has(row.name.toLowerCase()));
+function among<R extends { handle: string; name: string }>(real: readonly R[], faux: readonly R[], order: (a: R, b: R) => number): R[] {
+  const taken = new Set(real.flatMap(row => [row.handle, row.name.toLowerCase()]));
+  const filler = faux.filter((row, i) => i % 2 === 0 && !taken.has(row.handle) && !taken.has(row.name.toLowerCase()));
   const rows = [...real, ...filler].sort(order);
   // Never a real row lost to make room: filler goes first when the fifty fill.
   for (let i = rows.length - 1; rows.length > DEMO_ROWS && i >= 0; i--) if (filler.includes(rows[i])) rows.splice(i, 1);

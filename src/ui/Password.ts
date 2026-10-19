@@ -248,7 +248,7 @@ export function noQuestionMarkup(): string {
         <p class="ks-say">You didn’t pick a security question, so your career key is the way back.</p>
         <button id="rq-use-key" class="pw-way" type="button">
           <span class="pw-way-mark" aria-hidden="true">${icon('key')}</span>
-          <span class="pw-way-say"><b>Use your career key</b><small>The three words and two numbers on your My Stats page.</small></span>${icon('chevron-right')}
+          <span class="pw-way-say"><b>Use your career key</b><small>The three words and two numbers on your My profile page.</small></span>${icon('chevron-right')}
         </button>
         <div class="pw-nokey"><small>NO KEY EITHER?</small><p>There’s no way back to this career in the game. Your old name stays held, so pick a new one to start again.</p></div>
         <button id="rq-back" class="rs-switch is-quiet" type="button">Back</button>`;

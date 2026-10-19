@@ -1,3 +1,4 @@
+import { handleOf } from '../src/game/handle';
 import { describe, expect, it } from 'vitest';
 import { GAME } from '../src/config/gameplay';
 import {
@@ -103,13 +104,13 @@ describe('making a room', () => {
     const store = memoryChallenges();
     const made = took(await createChallenge(store, who(), T0));
     expect(made.challenge.state).toBe('open');
-    expect(made.challenge.host).toBe(HOST);
+    expect(made.challenge.host).toBe(handleOf(HOST));
     expect(made.challenge.size).toBe(PLAYERS_MAX);
     expect(made.challenge.expiresAt).toBe(T0 + CHALLENGE_LIFE_MS);
     expect(made.challenge.v).toBe(SCORING_VERSION);
     expect(made.challenge.rematchOf).toBeNull();
     expect(made.challenge.players).toHaveLength(1);
-    expect(made.challenge.players[0]).toMatchObject({ playerId: HOST, name: 'VK', host: true, status: 'joined', card: '' });
+    expect(made.challenge.players[0]).toMatchObject({ handle: handleOf(HOST), name: 'VK', host: true, status: 'joined', card: '' });
   });
 
   it('can be made from an innings that has just ended, with the score worked out from the balls', async () => {
@@ -165,7 +166,7 @@ describe('joining', () => {
     const store = memoryChallenges();
     const code = await room(store);
     const joined = took(await joinChallenge(store, code, friend(), T0 + 1000));
-    expect(joined.challenge.players.map(row => row.playerId)).toEqual([HOST, FRIEND]);
+    expect(joined.challenge.players.map(row => row.handle)).toEqual([HOST, FRIEND].map(handleOf));
     const again = took(await joinChallenge(store, code, friend(), T0 + 2000));
     expect(again.challenge.players).toHaveLength(2);
     expect(again.challenge.players[1].joined).toBe(T0 + 1000);
@@ -265,10 +266,10 @@ describe('batting', () => {
     took(await recordBalls(store, code, { ...who(), card: '666666' }, T0));
     await bat(store, code, friend(), card(20), T0);
     const soon = took(await readChallenge(store, code, T0 + 3600_000)).challenge;
-    expect(soon.players.find(row => row.playerId === HOST)?.status).toBe('batting');
+    expect(soon.players.find(row => row.handle === handleOf(HOST))?.status).toBe('batting');
     expect(soon.state).toBe('live');
     const later = took(await readChallenge(store, code, T0 + FORFEIT_AFTER_MS + 1)).challenge;
-    expect(later.players.map(row => [row.playerId, row.status])).toEqual([[FRIEND, 'done'], [HOST, 'forfeit']]);
+    expect(later.players.map(row => [row.handle, row.status])).toEqual([[handleOf(FRIEND), 'done'], [handleOf(HOST), 'forfeit']]);
     expect(later.state).toBe('done');
     expect(refused(await recordBalls(store, code, { ...who(), card: '6666666' }, T0 + FORFEIT_AFTER_MS + 1))).toBe(409);
   });
@@ -281,9 +282,9 @@ describe('what each player bats in', () => {
     expect(made.challenge.players[0].look).toEqual({ kit: 'forest', bat: 'savage', guard: 'carbon' });
     // A look from before there were guards to choose wears the free one.
     const joined = took(await joinChallenge(store, made.code, friend({ look: { kit: 'gold', bat: 'boom' } }), T0));
-    expect(joined.challenge.players.find(p => p.playerId === FRIEND)?.look).toEqual({ kit: 'gold', bat: 'boom', guard: 'sterling' });
+    expect(joined.challenge.players.find(p => p.handle === handleOf(FRIEND))?.look).toEqual({ kit: 'gold', bat: 'boom', guard: 'sterling' });
     const after = took(await recordBalls(store, made.code, { ...who(), card: '6', look: { kit: 'crimson', bat: 'hitman', guard: 'blaze' } }, T0 + 1));
-    expect(after.challenge.players.find(p => p.playerId === HOST)?.look).toEqual({ kit: 'crimson', bat: 'hitman', guard: 'blaze' });
+    expect(after.challenge.players.find(p => p.handle === handleOf(HOST))?.look).toEqual({ kit: 'crimson', bat: 'hitman', guard: 'blaze' });
   });
 
   it('drops a look that is not on the shelves rather than turning the innings away, and sends none for a room from before', async () => {
@@ -352,7 +353,7 @@ describe('the result', () => {
     await bat(store, code, who(), card(47));
     await bat(store, code, friend(), card(40));
     const seen = took(await markSeen(store, code, friend(), T0)).challenge;
-    expect(seen.players.map(row => [row.playerId, row.seen])).toEqual([[HOST, false], [FRIEND, true]]);
+    expect(seen.players.map(row => [row.handle, row.seen])).toEqual([[handleOf(HOST), false], [handleOf(FRIEND), true]]);
   });
 });
 
@@ -663,7 +664,7 @@ describe('the Rivals board', () => {
     await match(store, 40, 24);
     const request = { method: 'GET', query: { board: 'rivals' }, body: undefined, address: 'test' };
     const read = took(await challengeRequest(store, request));
-    expect('rows' in read && read.rows.map(row => [row.playerId, row.won])).toEqual([[HOST, 1], [FRIEND, 0]]);
+    expect('rows' in read && read.rows.map(row => [row.handle, row.won])).toEqual([[handleOf(HOST), 1], [handleOf(FRIEND), 0]]);
     expect(cacheable(request)).toBe(true);
   });
 });

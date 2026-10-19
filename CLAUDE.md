@@ -40,6 +40,146 @@ one in your own terminal and paste it straight into Vercel:
 Changing it later means every key sealed before can no longer be read back
 (they still restore: a restore checks the hash, never the seal), so set it once.
 
+## A player id never leaves the store
+
+The player id is the only proof of who is writing — a score, a name, a
+Dressing Room save, a password — so it is a secret between a browser and the
+store. Anything the store answers about other players carries a handle instead
+(`handleOf` in `src/game/handle.ts`: the first sixteen hex digits of a SHA-256
+of the id, which cannot be turned back into it): every board row, the career
+ladders, the Rivals ranking, and a challenge room, whose answer sits in the
+edge cache for anybody holding the link. A browser finds its own row by
+hashing its own id (`ownsHandle`), so code that says "is this row you" passes
+the real id and lets the comparison hash it. A new answer that names other
+players sends handles, never ids; `tests/handle.test.ts` holds the hash to
+Node's own.
+
+## Player profiles, the chase, and My profile
+
+Figma section 14, "Player profiles" (node `333:11508`), four lanes; the
+README's "Player profiles" is the long version.
+
+- **A, another player**: any named row, podium step or chip on a board opens
+  `src/ui/PlayerSheet.ts` over it (`openPlayer` in the HUD), drawn first from
+  what the row knew (`PlayerSeed`) and then from `GET /api/profile?handle=`.
+  Stats only, the face free on the rung's ground (`groundMarkup`, the colours
+  in `src/profile.css`). Your own row opens My profile.
+- **B, the chase**: CHASE holds their best (`Chase` in `src/game/chase.ts`,
+  `this.chase` in `src/Game.ts`), and `chaseFor` in `board-api.ts` sends the
+  handle with the next post of that mode. The intro holds the first ball on
+  `bannerUntil`; the chip is `#chase-chip` under the scoreboard; PASSED waits
+  for the dead ball and holds on `celebrating`; the end strip is `#chase-strip`,
+  which stands in for the player card for a named player. A chase won is let go
+  at the next start; one fallen short makes the key CHASE N AGAIN. The store
+  judges it again, on runs, and that is what reaches the other player.
+- **C, My profile**: `statsSheetMarkup` is the page, still the rail it was (the
+  career cards keep `.stats-dot` and `data-slide`, so the rail's wiring is
+  unchanged); the hero and ground per mode switch with it. The activity comes
+  from `GET /api/profile?player=` when the page opens (`askActivity`), the
+  sheet is `src/ui/Activity.ts`, and WIN IT BACK chases the runs that took it.
+  The headline is Rank down, about the player and never who did it, and it
+  stands two days at most (`HEADLINE_MS`): a WIN IT BACK innings played to
+  its end card takes it down sooner, won or not (`src/game/answered.ts`, kept
+  in the browser by handle and mode), and the cover's line goes with it. The
+  mode switch is quiet tabs, the badge and the name with the pick underlined
+  in its colour (Figma `367:12950`); no figures on them.
+  The cover's `beaten` line reads the same.
+- **D, the bio**: `bioFieldMarkup` in Your details, on the edit only, held to
+  `bioProblem` (`src/server/bio-rules.ts`) in the browser and the store, and
+  saved only where it changed, so a field drawn before the store answered
+  never clears one.
+
+A name runs to fourteen letters, too long for a key or the chip's lines, so
+everything that puts their name on one line carries a form without it
+(`data-short`: CHASE THEIR 187, OUTLAST THEM, TO BEAT THEIR 48-BALL WIN).
+`fitLabels` in `src/ui/Kit.ts` measures the drawn line and swaps it in only
+where the name does not fit; their face or name always stands beside it.
+
+Looking is private and acting is public: a view is a count of handles a day
+(`seen:<id>:<day>`), never a name; a chase or a pass carries the name, as a
+score on a board does. Profiles open by handle; the store keeps handle → id
+(`handles`), written on every post, counted innings and name claim. Players
+named before it shipped need `scripts/handle-backfill.ts --write` once
+(`docs/LAUNCH.md`), or their rows open nothing.
+
+`scripts/profile-check.mjs` walks all four lanes in a browser against the dev
+server: a profile opened off a row, a chase fallen short and one won with the
+store putting the beat on the other player's profile, then that player's My
+profile, the sheet, the bio and WIN IT BACK in a second browser. It seeds its
+own players under new letters each run.
+
+An innings that passed somebody before profiles were live noted nothing, so
+their My profile never led with Rank down. `scripts/note-pass.ts "Who went
+past" "Who was passed"` writes the one event the store would have (`--mode`
+for Survival or the Marathon, `--write` and the passed name typed again to
+do it), dated when the innings was posted if that is inside the card's two
+days and now otherwise, so the card shows. Run it after the merge: before,
+the live site has no profile to show it on.
+
+## The rank hero: the end card's player card
+
+For a named player, once the store has said where the innings left them, the
+end card's player card is the rank hero (Figma section 14E, V1): the place
+big with a chip under it (UP and how far, NEW for a first row on the board,
+or a grey HOLDS), the name and board over a headline (New best 181, Best 181
+stands, or a chase's verdict with their name in gold) and a line under it,
+then two answers side by side: who the innings surpassed, faces and names,
+or the innings itself where it moved nobody; and who is next with what it
+takes ("3 runs to surpass"), or Nobody ahead at #1. A chase fallen short has
+its near miss the whole width instead (`chaseBarMarkup`). What it says is
+`heroView` (`src/game/rank-hero.ts`, every case in `tests/rank-hero.test.ts`),
+drawn by `rankHeroMarkup` (`src/ui/RankHero.ts`) into `#card-hero` at the top
+of `.ec-player`, and `drawHero` in `src/Game.ts` draws it whenever the card is
+offered again or the store answers. While it is up the old rank header, its
+line of who was surpassed, the Next row and the chase's strip step aside
+(`.has-hero`); they are still written, so guests, private windows, practice
+and a Rival Match keep the card as it was, and so does the moment before the
+store answers. Its first draw an innings arrives: the place counting from
+where it was, the chip popping, the faces sliding in, and for a chase won one
+wave of paper from the card's top corners. Player-facing copy says surpassed,
+never passed; the store's event kind is still `'passed'`.
+
+## New #1: the top of a board taken
+
+When the store's answer to a post says the innings took the top of a board it
+was not the top of before (`tookTheTop`: place 1, was not 1) and somebody was
+there to take it from, New #1 plays over the end card before handing back
+(Figma section 15, `src/ui/TopSpot.ts`, its view `topSpotView` in
+`src/game/top-spot.ts`). Four acts on one clock, about four and a half
+seconds: the card steps back and the board's top rows rise in with yours
+below them, winding up; your row climbs past every row that stood above it,
+flicking each down a place, and takes the top (one soft flash, gold rings, a
+shake, the crowd); your face lifts out, a crown drops on, paper fountains up
+from both bottom corners under turning rays and crossing spotlights; then the
+lockup, #1 in gold foil, TOP OF THE BLAST and by how much, the podium rising
+under you. Then #1 flies down on an arc into the rank hero's place figure,
+which pops as it lands. A tap, Escape or Enter skips to that last move; under
+reduced motion the lockup stands still for a moment. Haptics through the climb,
+at the takeover and as the crown lands. A named player's real innings only:
+never practice, a Rival Match or a demo, and once an innings. One innings
+ends on one celebration at a time, New #1 first: a Level Up the same innings
+earned waits for the store's answer to the post and then for New #1
+(`levelUpAfter`; one already up has New #1 follow it, `topAfter`), and an
+unlock the innings earned never goes up at all: it is noted as seen and
+waits in the Dressing Room with its dot and its own UNLOCK key
+(`celebrateUnlocks`, which also waits for the answer, a few tries). Every frame is drawn from
+the clock, so the motion is the prototype's exactly (claude.ai artifact "New
+#1 Celebration").
+
+`?topspot=1` is a row of keys, BLAST, MARATHON and SURVIVAL, putting it up
+over a made-up board, counting and sending nothing (`tests/practice.test.ts`
+names it), and `__cricket.topSpot('marathon')` does the same for the checks,
+with `__cricket.topSpotOpen()` to wait it out. A check that finishes an
+innings on a dev server where it may take the top waits for that before it
+clicks, or its click is a skip. `scripts/topspot-check.mjs` seeds three rivals
+on the Blast board and bats past them with ninety career sixes counted
+beforehand, so the innings earns Rage and a Level Up too (the ladder, the
+lockup, the hand back to a #1 hero, Level Up after it, no unlock and Rage
+waiting in the room, a tap to skip), then an innings under them (the hero, no New
+#1), then the preview keys. Start the dev server fresh for it: its player
+makes 180, the most a Blast can, so a board that already has one leaves
+nobody to take the top from.
+
 ## Scripts that write are opt-in
 
 `scripts/career-seed.ts` and `scripts/board-fill.mjs` both refuse to write
@@ -206,8 +346,7 @@ the machine is; and a box measured off a screenshot is in the page's pixels,
 so scale it by `devicePixelRatio`.
 
 A check that seeds `hitman-whatsnew` seeds the current update key
-(`new-shots`) and, through the launch week, `hitman-whatsnew-day` as the
-page's own day, or the stories stand in front of Choose a mode.
+(`player-profiles`), or the stories stand in front of Choose a mode.
 
 `scripts/scene-check.mjs` is the ground itself: the sky and the painted turf
 are canvases and a shader no unit test runs, and it holds the draw-call budget
@@ -396,8 +535,28 @@ plays two devices for one player against the dev server's store; it passes
 `?private=0`, because headless Chromium looks like a private window and would
 otherwise keep nothing.
 
-The update's What's new stories open on the two new strokes, "New shots in
-the house": HOOK IT FOR SIX and SHOW IT THE WAY. Each is filmed in the game
+The update's What's new is one story, the player profiles, as a Lottie film
+(`public/lotties/player-profiles.json`, `Story.film`): a Blast board and a tap
+on Kabir's row, his face lifting out of it into his profile, CHASE THEIR 157
+pressed, the runs rolling up past it like an odometer and PASSED slammed down
+with his name under a wave of paper, then Kabir's own My profile, his place
+rolling from #2 to #3 on Rank down, and WIN IT BACK. The scenes change under
+the game's chevrons rushing up the screen, Level Up's move. Scores stay in the
+150s. It plays down the sheet on the page's black with the one way out under
+it, holds a beat past its ten seconds and moves on by itself out of the stories. It is
+drawn in code, every shape and word a vector from the game's own faces, with
+the five board faces its only pictures. What writes it is not committed, as
+the Dressing Room film's was not: `wip/profiles-film/build.mjs` on the machine
+that made it (assembled from its `head.part`, the Dressing Room film's helpers
+and `scenes.part`), held to Lottie's rules by `wip/dressing-film/lint.mjs`,
+with `stills.mjs` to photograph any frame. The update key is `player-profiles`, so
+everybody is shown it twice and then never (`whatsNewDue`); the strokes'
+launch week and its once a day went with their cards. `whatsnew-check` walks
+it: the film drawn above the way out, its hold, the twice and the never, and
+the board's key that opens it for ever.
+
+The other ways a story is told are kept for the next update, and the unit
+tests hold them on made-up stories. A new stroke is filmed in the game
 itself (`src/game/ShotReel.ts`, `Story.reel`): the game's own ground and
 renderer, the player's own batter in their kit and hand, the bowler running in
 and bowling the ball the stroke answers through the scene's own calls, the
@@ -419,17 +578,9 @@ and the card's name is the display face in gold, slammed in. A card holds for
 one go of its film, the hold for the swipe with it (`reelSeconds`). Nothing is scored, counted or sent, and the innings's state is
 never touched, which is why it films only off the cover or after an innings
 (`playReel`); opened from the board mid-innings, the card's words stand on its
-own dark. The update key is `new-shots`, so everybody is shown the four cards
-twice, the Dressing Room's two again among them. Through the strokes' launch
-week, to the close of 23 October, India's time (`LAUNCH_WEEK_ENDS`), the play
-key stops for the stories once a day for everybody (`whatsNewRun`, the day in
-`hitman-whatsnew-day`, the browser's own midnight): the first two showings are
-the four cards, every one after them the strokes' two alone (`storiesFor`).
-After the week only the two showings are left to whoever has not had them.
-`whatsnew-check` walks the twice-and-never rule on a clock set after the week,
-and the week's once a day at its end.
+own dark.
 
-Then the Dressing Room's stories play full screen on the room's own stage
+A story on the room's stage plays full screen
 (`src/ui/StoryStage.ts`, `Story.stage`): every kit on the batter, then every
 bat on the stand, with the title over the top, the words over the foot, and
 the batter framed into the room left between them (`#whatsnew-room`), allowed
@@ -439,12 +590,10 @@ and there is no picture to download. Each line under them is two lines at
 most and counts nothing — the shelves only grow — and both cards end on a
 short blue SKIP beside GO TO DRESSING ROOM. Only the last holds still
 (`storyHolds`): the first moves on as any story does, its keys standing where
-the next card's are. `whatsnew-check` refuses the stage's
-module for its clocked walk — every frame is a 3D render, seconds apiece in
-software — and lets it in at the way in to see it play. It holds the strokes'
-cards to the film: the ground under them, the card edge to edge, the film held
-for the swipe and the call put up by the stroke, and nothing left running once
-they are put away.
+the next card's are. The stage is warmed on the cover only when an update
+has a story on it (`warmStories`). Every frame of it is a 3D render, seconds
+apiece in software, so a check that walks it on a wound clock refuses the
+stage's module until the moment it means to watch it play.
 
 ## The year recap: kept now for December
 

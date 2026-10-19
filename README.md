@@ -523,6 +523,102 @@ Rate limiting is by address and the address is **never** used as identity, becau
 
 `plausible()` is not an anti-cheat measure and should not be mistaken for one. The game is a static page, so a determined person can post any innings that passes it. It turns down the ones that could not have happened, which is the floor. Replay verification is the ceiling, and nothing built here is thrown away by it.
 
+## Player profiles
+
+Every named row on a board is a player you can open and chase. The design is
+Figma section 14, "Player profiles" (node `333:11508`): four lanes, A to D.
+
+### Another player (lane A)
+
+A named row, a podium step or a folded chip, on any board, opens that
+player's profile over the board (`src/ui/PlayerSheet.ts`, opened from
+`openPlayer` in the HUD). Stats only, and the face is the hero: no card round
+it, the top half of the sheet in the metal of their rung — matte navy, brushed
+bronze, graphite with the Star card's star, black and gold with the Hitman
+rings, the Dukes ball's red for a Test Marathon EMERGING — under a soft
+spotlight in the rung's own colour. Under the face: the rung and what is left
+to the next, their bio, three figures at a glance (the career's measure, their
+place on the mode's board, their best rank), a switch between the modes, the
+mode's six with the figure a chase aims at lit, and CHASE. A Test Marathon
+offers a second target under its six: their best batter. A mode they have
+never batted says so and offers nothing to chase.
+
+What the row already knew — the name, the kit, the place, the best — is drawn
+at once, so the sheet is never empty while the rest comes, and CHASE works off
+the row even when the store cannot be reached. The face flies up from its row
+into the hero and back down on the way out, the tiles arrive thirty
+milliseconds apart, a mode slides in from the side it lies on, and the ground
+crossfades; under reduced motion it all fades in 150ms. Your own row opens My
+profile. A guest's innings has no profile and opens nothing.
+
+### Chasing their best (lane B)
+
+CHASE starts that mode with their best as the target, a normal innings in
+every way. Before the first ball a card says what is to beat, counting up to
+it, with both faces and what passing them is worth; nothing is bowled until
+LET'S BAT, and BACK lets the chase go. In play the scoreboard is left alone: a
+chip under it says what is wanted, off how many in the Blast. Going past the
+target is a moment between balls, held on the celebration clock as a
+milestone is — PASSED and their name, the two places swapping, a knock in the
+hand. The end card says how it went where the place card stood: beaten by how
+many and where it took you, with who is next; or how far short on a bar, with
+CHASE 187 AGAIN in place of PLAY AGAIN. A chase won is over once its card has
+said so. What it says is `src/game/chase.ts`; the screens are
+`src/ui/ChaseUi.ts`.
+
+The chase rides the ordinary score post (`chase`, and `chaseLadder: 'solo'`
+for the Marathon's best batter). The store judges it again, on runs — beat
+Kabir's 187 with 188 — against the best they hold now, and puts it on their
+profile either way.
+
+### Your own profile (lane C)
+
+My Stats is My profile: the same free face on the ground of the rung in
+front, then what the profile has collected, the career cards as the mode
+switch (each the rung's badge and the career figure), Road to Hitman, the six,
+and the key. What it collected leads as one card: the newest thing taken from
+you and not won back ("Kabir beat your 187 · You're #5 now"), or a quiet line
+of who looked and chased when nothing was taken. Tapped, the Your profile
+sheet lists the last ten from the last thirty days, by day, with WIN IT BACK
+on anything taken — a chase of the runs that took it — and "You won it back"
+once you have, worked out from where you both stand now rather than stored.
+Who looked is only ever a count, a viewer once a day, never named.
+
+The end card says who an innings went past and who stands next, from the
+store's answer to the post (`around`), and the cover leads with a Blast best
+taken in the last day.
+
+### A line about yourself (lane D)
+
+The edit from My profile has a bio under the name, never on the gate: eighty
+characters as they look, the count turning to what is left from seventy, cut
+past eighty, three lines to start from while it is empty. Many players are
+young, so a bio must never be a way to reach somebody: no links, emails,
+@handles or phone numbers, and the names' word filter a word at a time and
+over spelled-out letters (`src/server/bio-rules.ts`, run in the browser half a
+second after the typing stops and again by the store). It is saved only where
+it changed.
+
+### The store side
+
+One endpoint, `/api/profile` (`src/server/profile-endpoint.ts`, shared by
+`api/profile.ts` and the dev server): `GET ?handle=&viewer=` is somebody's
+profile, `GET ?player=` your own activity, `POST { playerId, name, bio }` your
+bio, held to the name the player holds. A score post's answer gains `around`
+(who it went past, two named and a count, and who is next) and `chase`.
+Profiles are opened by handle, never id: the store keeps handle → id, written
+on every post, counted innings and name claim, and filled for players named
+before the profiles by `scripts/handle-backfill.ts` (opt-in, `--write`; see
+`docs/LAUNCH.md`).
+
+| Key | Type | Holds |
+| --- | --- | --- |
+| `handles` | hash | handle → player id. |
+| `bios` | hash | player id → the bio and when. |
+| `seen:<id>:<day>` | set | the handles that looked on one of India's days; expires after eight. A count, never read back as names. |
+| `act:<id>` | list | the newest ten events (beat, short, passed), trimmed and expired at thirty days as they are pushed. |
+| `prate:` | counter | profile reads and bio saves from one address, apart from the boards'. |
+
 ## The career boards, and the card
 
 The board above answers one question — what is the best innings anybody has played — and answers it by keeping exactly one row per player and only writing when it improves. Seven more ladders answer a different one: what has a player done over *every* innings. A maximum and a sum are not the same arithmetic, so none of that shape could be reused, and this is a second record rather than a second column.
@@ -907,6 +1003,11 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `password-closed-<from>`, `password-nudge-later`, `password-save-failed` | The sheet left unsaved, the nudge put off, and a save the store refused. |
 | `password-welcome-offered` | Welcome back, after a career key, offering a password. |
 | `password-forgot`, `password-forgot-no-question`, `password-answer-wrong` | Forgot password? tapped, with no question to answer, and a wrong answer. |
+| `stats-open`, `activity-open` | My profile opened, and the Your profile sheet opened from its headline. |
+| `chase-start`, `chase-start-batter`, `chase-bat`, `chase-back` | CHASE on a profile (the Marathon's best batter apart), and the intro's two keys. Each mode under its own prefix. |
+| `chase-passed`, `chase-beat`, `chase-short` | The target passed in play, and how chases end. Against `chase-start`, how often a chase is won. |
+| `activity-win-back` | WIN IT BACK on the Your profile sheet: what was taken, chased. |
+| `bio-saved`, `bio-cleared` | A bio written or changed from Your details, and one taken away. |
 | `help-open` | The controls did not explain themselves. |
 | `feedback-open`, `feedback-open-link` | The questionnaire opened, and whether from inside the game or from the shared link. |
 | `feedback-cover`, `feedback-card`, `feedback-pause` | Which of the three lines into it is the one people actually use. |

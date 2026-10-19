@@ -1,0 +1,66 @@
+/* New #1 (src/ui/TopSpot.ts, Figma section 15): over the end card, under nothing. Every piece is placed by the clock in stage pixels. */
+.ts{--ts-mode:var(--c-blast);position:absolute;inset:0;z-index:47;overflow:hidden;color:var(--c-text);font-family:var(--f-ui);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ts-scrim,.ts-flash{position:absolute;inset:0;pointer-events:none}
+.ts-scrim{background:var(--c-page)}
+.ts-flash{background:#fff1dc}
+.ts-stage{position:absolute;left:0;top:0;width:402px;height:874px;transform-origin:0 0}
+.ts-stage>*{position:absolute;left:0;top:0;box-sizing:border-box}
+.ts-bloom{border-radius:50%}
+.ts-bloom.is-mode{left:-180px;top:-150px;width:700px;height:560px;background:radial-gradient(closest-side,color-mix(in srgb,var(--ts-mode) 40%,transparent),transparent)}
+.ts-bloom.is-gold{left:-140px;top:20px;width:680px;height:620px;background:radial-gradient(closest-side,#f5b83d73,#f5b83d00)}
+.ts-rays{width:640px;height:640px;border-radius:50%;background:repeating-conic-gradient(from 0deg,#ffe1a32e 0deg 7deg,transparent 7deg 20deg);
+  -webkit-mask:radial-gradient(closest-side,#000 18%,transparent 100%);mask:radial-gradient(closest-side,#000 18%,transparent 100%)}
+.ts-spot{width:200px;height:620px;transform-origin:100px 0;background:linear-gradient(180deg,#fff6e0aa,#ffe1a300 92%);clip-path:polygon(42% 0,58% 0,100% 100%,0 100%);filter:blur(2px)}
+.ts-dust,.ts-paper{width:402px;height:874px;pointer-events:none}
+.ts-ladder{width:402px;height:874px;transform-origin:201px 300px}
+.ts-ladder>*{position:absolute;box-sizing:border-box}
+.ts-head{left:36px;top:214px;font:700 11px/1 var(--f-ui);letter-spacing:.14em;color:var(--c-text-3)}
+.ts-gap{left:0;width:402px;text-align:center;font:700 16px/1 var(--f-ui);color:var(--c-text-3)}
+.ts-row{left:20px;top:0;width:362px;height:62px;border-radius:18px;background:#1c2026;border:1px solid #ffffff14;transform-origin:50% 50%}
+.ts-row>*{position:absolute}
+.ts-p{left:16px;top:21px;font:700 15px/1 var(--f-ui);color:var(--c-text-3)}
+.ts-row img{left:58px;top:12px;width:38px;height:38px;border-radius:50%;box-shadow:0 0 0 2px #15191e;object-fit:cover;background:#2a3039}
+.ts-n{left:110px;top:19px;max-width:170px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font:700 17px/1.2 var(--f-ui)}
+.ts-r{right:16px;top:19px;font:700 18px/1.2 var(--f-ui);font-variant-numeric:tabular-nums}
+.ts-row.is-top{background:#f5b83d1f;border:2px solid #f5b83d99;box-shadow:0 0 24px #f5b83d73}
+.ts-row.is-top .ts-p,.ts-row.is-top .ts-r{color:var(--c-gold)}
+.ts-row.is-top img{box-shadow:0 0 0 2px var(--c-gold)}
+.ts-row.is-you{background:#ed704429;border:2px solid #ed7044a6;box-shadow:0 0 24px #ed704473}
+.ts-row.is-you .ts-p{color:var(--c-accent)}
+.ts-row.is-you img{box-shadow:0 0 0 2px var(--c-accent)}
+.ts-streaks{width:402px;height:874px;pointer-events:none}
+.ts-streaks i{position:absolute;top:0;width:4px;height:130px;border-radius:2px;background:linear-gradient(180deg,#ffb08f99,#ffb08f00)}
+.ts-ring{border-radius:50%;border:6px solid var(--c-gold)}
+.ts-ring.is-one{width:420px;height:420px}
+.ts-ring.is-two{width:300px;height:300px;border-width:3px}
+.ts-slam{width:402px;text-align:center;font:400 120px/1 var(--f-display);color:var(--c-gold);text-shadow:0 7px 0 #c77d16}
+.ts-chip{left:286px;top:204px;font:700 13px/1 var(--f-ui);letter-spacing:.08em;color:var(--c-gold);background:#f5b83d2e;border-radius:99px;padding:7px 12px;white-space:nowrap}
+.ts-podium{width:402px;height:274px}
+.ts-podium>*{position:absolute;margin:0}
+.ts-beam{bottom:0;clip-path:polygon(30% 0,70% 0,100% 100%,0 100%)}
+.ts-beam.is-2{left:4px;width:130px;height:156px;background:linear-gradient(180deg,#cfd6dd40,#cfd6dd00)}
+.ts-beam.is-1{left:134px;width:134px;height:184px;background:linear-gradient(180deg,color-mix(in srgb,var(--ts-mode) 50%,transparent),transparent)}
+.ts-beam.is-3{left:268px;width:130px;height:146px;background:linear-gradient(180deg,#e5a56f40,#e5a56f00)}
+.ts-pf{border-radius:50%;object-fit:cover;background:#2a3039}
+.ts-pf.is-2{left:38px;top:54px;width:62px;height:62px;box-shadow:0 0 0 3px #cfd6dd}
+.ts-pf.is-1{left:163px;top:22px;width:76px;height:76px;box-shadow:0 0 0 4px var(--c-gold),0 0 30px #f5b83d80}
+.ts-pf.is-3{left:302px;top:64px;width:62px;height:62px;box-shadow:0 0 0 3px #e5a56f}
+.ts-pn{text-align:center;font:700 14px/1.1 var(--f-ui);color:var(--c-text);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.ts-pn b{display:block;font:900 18px/1.2 var(--f-ui)}
+.ts-pn.is-2{left:4px;width:130px;top:124px}
+.ts-pn.is-1{left:134px;width:134px;top:106px;color:var(--c-gold)}
+.ts-pn.is-3{left:268px;width:130px;top:134px}
+.ts-num{text-align:center;font:400 52px/1 var(--f-display)}
+.ts-num.is-2{left:4px;width:130px;top:212px;color:#cfd6dd}
+.ts-num.is-1{left:134px;width:134px;top:198px;color:var(--ts-mode)}
+.ts-num.is-3{left:268px;width:130px;top:212px;color:#e5a56f}
+.ts-hero{border-radius:50%;object-fit:cover;box-shadow:0 0 0 5px var(--c-gold),0 0 46px #f5b83d8c;background:#2a3039}
+.ts-crown{filter:drop-shadow(0 0 12px #f5b83db3)}
+.ts-glint{width:30px;height:30px}
+.ts-foil{width:402px;text-align:center;font:400 150px/1 var(--f-display);
+  background-image:linear-gradient(105deg,transparent 40%,#ffffffd9 50%,transparent 60%),linear-gradient(180deg,#fff3c4 0%,#f5b83d 46%,#c77d16 100%);
+  background-size:300% 100%,100% 100%;background-repeat:no-repeat;-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 8px 0 #7a4a0a) drop-shadow(0 0 28px #f5b83d66);transform-origin:50% 55%}
+.ts-top{width:402px;text-align:center;font:400 26px/1 var(--f-display);white-space:nowrap}
+.ts-sub{width:402px;text-align:center;font:500 16px/1.2 var(--f-ui);color:var(--c-text-2)}
+.ts-skip{left:auto;right:16px;top:calc(16px + env(safe-area-inset-top,0px));font:700 11px/1 var(--f-ui);letter-spacing:.1em;color:#ffffff99}

@@ -3,6 +3,7 @@ import {
 } from './board-store.js';
 import { rankCareer, type CareerLadder } from '../game/career.js';
 import type { Granted } from '../game/tier.js';
+import { handleOf } from '../game/handle.js';
 
 /**
  * Careers, on the store's side of the wire.
@@ -89,6 +90,8 @@ export interface CareerStore<C> {
   rank(board: string, id: string, score: number): Promise<void>;
   /** The best `n` ids on one board with their packed scores, best first. */
   top(board: string, n: number): Promise<{ id: string; score: number }[]>;
+  /** One player's place on one board, from 1, or null where they are not on it. */
+  place(board: string, id: string): Promise<number | null>;
   /** The records for these ids, in the order asked; anything missing is null. */
   many(ids: string[]): Promise<(StoredCareer<C> | null)[]>;
   /** Who holds this folded name, or null. Read only: claiming is the board's. */
@@ -99,7 +102,8 @@ export interface CareerStore<C> {
 
 /** A row on a career board. */
 export interface CareerRow<C> {
-  playerId: string;
+  /** The player's public handle (`game/handle.ts`); the id itself never leaves the store. */
+  handle: string;
   name: string;
   avatar: number;
   career: C;
@@ -138,7 +142,7 @@ export async function readCareerBoards<C, T>(
       // a player, and a blank row is worse than a missing one.
       if (!record || !record.name) return [];
       return [{
-        playerId: entry.id,
+        handle: handleOf(entry.id),
         name: record.name,
         avatar: record.avatar,
         career: ladder.figures(record.career),

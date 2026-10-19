@@ -1,3 +1,4 @@
+import { handleOf } from '../src/game/handle';
 import { describe, expect, it } from 'vitest';
 import { LAUNCH_MS, packScore, type BoardRow, type Innings } from '../src/game/leaderboard';
 import { packSurvive, type SurviveRow } from '../src/game/survive-board';
@@ -8,7 +9,7 @@ import {
 const AT = LAUNCH_MS + 60_000;
 const innings = (runs: number, sixes = 4): Innings => ({ runs, sixes, fours: 3, wickets: 1, dots: 6, balls: 30 });
 const blastRow = (i: number, runs: number): BoardRow => ({
-  ...innings(runs, 10 - (i % 5)), playerId: `p${i}`, name: `Player${i}`, avatar: i % 5, score: packScore(innings(runs, 10 - (i % 5)), AT),
+  ...innings(runs, 10 - (i % 5)), handle: handleOf(`p${i}`), name: `Player${i}`, avatar: i % 5, score: packScore(innings(runs, 10 - (i % 5)), AT),
 });
 /** A full Blast board: fifty rows from 150 down. */
 const fifty = Array.from({ length: 50 }, (_, i) => blastRow(i, 150 - i * 2));
@@ -29,8 +30,8 @@ describe('the board’s rows', () => {
   });
 
   it('marks a Survival row with its result, and a not-out score with a star', () => {
-    const won: SurviveRow = { runs: 100, balls: 30, wickets: 0, blows: 1, health: 60, playerId: 'a', name: 'Rohit', avatar: 1, score: 0 };
-    const lost: SurviveRow = { runs: 71, balls: 44, wickets: 1, blows: 3, health: 20, playerId: 'b', name: 'Hardik', avatar: 2, score: 0 };
+    const won: SurviveRow = { runs: 100, balls: 30, wickets: 0, blows: 1, health: 60, handle: handleOf('a'), name: 'Rohit', avatar: 1, score: 0 };
+    const lost: SurviveRow = { runs: 71, balls: 44, wickets: 1, blows: 3, health: 20, handle: handleOf('b'), name: 'Hardik', avatar: 2, score: 0 };
     won.score = packSurvive(won, AT); lost.score = packSurvive(lost, AT);
     const body = surviveBody([won, lost], null, null, NO_CONTEXT, AT);
     expect(body.rows.map(row => [row.chip, row.score])).toEqual([['W', '100*'], ['L', '71']]);
@@ -38,7 +39,7 @@ describe('the board’s rows', () => {
   });
 
   it('says which of the three batters made a Marathon innings, and the strike rate on the podium', () => {
-    const solo = [{ runs: 168, balls: 235, out: true, order: 1, left: false, playerId: 'a', name: 'Wasim', avatar: 0, score: 3 }];
+    const solo = [{ runs: 168, balls: 235, out: true, order: 1, left: false, handle: handleOf('a'), name: 'Wasim', avatar: 0, score: 3 }];
     const body = marathonBody('solo', [], solo, null, null, NO_CONTEXT, AT);
     expect(body.rows[0].sub).toBe('Opener · 235 balls');
     expect(body.rows[0].podiumSub).toBe('Opener · SR 71.5');

@@ -43,9 +43,8 @@ async function device(id, name, dressing) {
     localStorage.setItem('hitman-batter', JSON.stringify({ name, avatar: 0 }));
     localStorage.setItem('hitman-profile', '1');
     localStorage.setItem('hitman-shots-intro', 'done');
-    // Past the update's stories, and past the launch week's once a day: the day is the page's own.
-    localStorage.setItem('hitman-whatsnew', 'new-shots:9');
-    localStorage.setItem('hitman-whatsnew-day', (d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`)(new Date()));
+    // Past the update's stories.
+    localStorage.setItem('hitman-whatsnew', 'player-profiles:9');
     localStorage.setItem('hitman-career', JSON.stringify(career));
     if (dressing) localStorage.setItem('hitman-dressing', JSON.stringify(dressing));
   }, [id, name, CAREER, dressing]);

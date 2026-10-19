@@ -86,7 +86,7 @@ const words = (page, selector) => page.locator(selector).innerText().then(t => t
 {
   const { context, page, errors } = await open(NEW);
   check(await page.locator('#intro').isVisible(), 'a first visit opens on the cover');
-  check((await page.locator('#cover-profile').innerText()).replace(/\s+/g, ' ').trim() === 'GUEST My stats', 'whose chip says GUEST, My stats',
+  check((await page.locator('#cover-profile').innerText()).replace(/\s+/g, ' ').trim() === 'GUEST My profile', 'whose chip says GUEST, My profile',
     await page.locator('#cover-profile').textContent());
   check(await page.locator('.cover-motion').isVisible(), 'and whose poster moves: it is a motion poster for everybody');
   const widget = await page.locator('#cover-board').textContent();
@@ -104,7 +104,7 @@ const words = (page, selector) => page.locator(selector).innerText().then(t => t
 {
   const { context, page, errors } = await open(BACK);
   const chip = (await page.locator('#cover-profile').innerText()).replace(/\s+/g, ' ').trim();
-  check(chip === 'SHASHANK My stats', 'a returning player\'s chip carries their name', chip);
+  check(chip === 'SHASHANK My profile', 'a returning player\'s chip carries their name', chip);
   check(await page.locator('#cover-profile img').count() === 1, 'and their kit');
   check(await page.locator('.cover-motion').isVisible(), 'and their poster moves');
   check(await page.locator('#start').evaluate(el => getComputedStyle(el).animationName) === 'cover-halo', 'with a halo breathing behind PLAY');

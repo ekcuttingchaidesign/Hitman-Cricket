@@ -1,3 +1,4 @@
+import { ownsHandle } from '../game/handle';
 import { AVATARS, avatarSrc, kitColour, kitName } from '../config/board';
 import { GAME } from '../config/gameplay';
 import {
@@ -231,7 +232,7 @@ export function sheetKeys(): string {
 export function boardMarkup(view: BoardView): string {
   const { rows, youId = null, yours = null, state = 'ready', atMs = Date.now() } = view;
   const edge = cutoff(rows);
-  const yourPlace = rows.findIndex(row => row.playerId === youId);
+  const yourPlace = rows.findIndex(row => ownsHandle(row.handle, youId));
   // An innings that is not a row yet is one of two things, and they are not the
   // same news. On a board with room on it, it is a place waiting to be taken; on
   // a full board it has missed. Showing the first as the second tells a player
@@ -250,7 +251,7 @@ export function boardMarkup(view: BoardView): string {
         : state === 'offline' ? 'The board could not be reached.'
         : standing(rows, yourPlace, yours, edge)}</p>
       <div class="board-scroll">${state === 'offline' ? offlineMarkup(yours) : ''}
-        <ol class="board-list">${rows.map((row, i) => rowMarkup(row, i, rows[i - 1] ?? null, row.playerId === youId)).join('')}
+        <ol class="board-list">${rows.map((row, i) => rowMarkup(row, i, rows[i - 1] ?? null, ownsHandle(row.handle, youId))).join('')}
         </ol>
         ${edge ? `<p class="board-cut">${cutLabel(edge)}</p>` : ''}
         ${yourPlace < 0 && yours
@@ -494,7 +495,7 @@ export function cardOffer(
   reached: boolean, rows: readonly BoardRow[], yours: Innings, atMs: number, youId: string | null = null,
 ): CardOffer {
   if (!reached) return { kind: 'silent' };
-  const mine = youId ? rows.findIndex(row => row.playerId === youId) : -1;
+  const mine = youId ? rows.findIndex(row => ownsHandle(row.handle, youId)) : -1;
   if (mine >= 0 && !improvesOn(yours, atMs, rows[mine])) {
     return { kind: 'standing', runs: rows[mine].runs, place: mine + 1 };
   }

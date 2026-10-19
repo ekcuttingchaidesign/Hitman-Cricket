@@ -1,3 +1,15 @@
+import { handleOf, ownsHandle } from './game/handle';
+import { fetchActivity, fetchProfile, saveBio } from './game/profile-api';
+import { cleanBio } from './server/bio-rules';
+import {
+  againLabel, beaten, close, placeOnPassing, surviveGoal, surviveResultOf, surviveSurely, surviveVerdict, verdict, type Chase, type Mine,
+} from './game/chase';
+import { chaseBarMarkup, chaseStripMarkup } from './ui/ChaseUi';
+import { heroView } from './game/rank-hero';
+import { rankHeroMarkup } from './ui/RankHero';
+import { tookTheTop, topSpotView, type TopSpotView } from './game/top-spot';
+import { TopSpot } from './ui/TopSpot';
+import { buzz } from './game/haptics';
 import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME, SWIPE_ZONES } from './config/gameplay';
@@ -38,7 +50,7 @@ import { boundaryCheer, boundaryStreak, GROAN, HUSH, milestoneCheer, MURMUR, nea
 import { afterBall, disappointment, HABITS, outNearMilestone, PACES } from './game/afterBall';
 import type { AfterBall, CoverVersion, Hurt } from './entities/Batter';
 import {
-  claimName, fetchBoard, fetchMarathonBoard, fetchStanding, fetchSurviveBoard, forgetBoard, submitInnings, submitMarathon,
+  chaseFor, claimName, fetchBoard, fetchMarathonBoard, fetchStanding, fetchSurviveBoard, forgetBoard, submitInnings, submitMarathon,
   submitSurvive,
   type BoardPayload, type SurvivePayload, type MarathonPayload, type SubmitResult,
 } from './game/board-api';
@@ -74,7 +86,7 @@ import type { PasswordEntry, PasswordMode } from './ui/Password';
 import type { LocalCareer } from './ui/Restore';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import type { BatterKit } from './entities/Batter';
-import { markWhatsNewShown, storiesFor, whatsNewDue, whatsNewRun, type Story } from './game/whats-new';
+import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, standingOf, tierMeasure, TIERS, type Granted } from './game/tier';
 import { LevelUp } from './ui/LevelUp';
@@ -87,6 +99,7 @@ import { fetchSaved, sendSaved } from './game/dressing-api';
 import { mergeDressing, sameDressing, type SavedDressing } from './game/dressing-sync';
 import type { ModeSelectView } from './ui/ModeSelect';
 import { RECENT_MS, coverParallax, type CoverBoard } from './ui/Cover';
+import { HEADLINE_MS, answeredBy, noteAnswered, readAnswered } from './game/answered';
 import { surviveLine as surviveResult } from './ui/SurviveBoard';
 import type { BlastCareer, MarathonCareer, SurviveCareer } from './game/career';
 import type { SurviveInnings } from './game/survive-board';
@@ -283,6 +296,8 @@ export class Game {
   private felled = false;
   /** The score he walked out to, nine down. Cosmetic, and drawn from the seed. */
   private chasing = 0;
+  /** Another player's best being chased, from CHASE on their profile; null when nobody's is. */
+  private chase: Chase | null = null;
   /** Three balls that went nowhere and the fielders have something to say. */
   private sledger = new Sledger();
   private sledgeDue = false;
@@ -471,6 +486,12 @@ export class Game {
    * is counted, shared on the player's behalf, or followed by unlocks.
    */
   private readonly levelUpKeys = new URLSearchParams(location.search).get('levelup') === '1';
+  /**
+   * `?topspot=1`: a row of keys, one a board, putting New #1 up over whatever
+   * is on screen as an innings that took the top would, over a made-up board.
+   * Nothing is counted or sent.
+   */
+  private readonly topSpotKeys = new URLSearchParams(location.search).get('topspot') === '1';
   /** The way `?welcome=1` has the welcome up, or null when it is the real one. */
   private welcomeScenario: WelcomeScenario | null = null;
   /**
@@ -605,6 +626,7 @@ export class Game {
     // and can be lifted clear of them when both are asked for.
     if (this.rateKeys) this.hud.rateKeys(RATE_KEYS, thing => this.previewRating(thing));
     if (this.levelUpKeys) this.hud.levelUpKeys(LEVEL_UP_KEYS, (tier, mode) => this.previewLevelUp(tier, mode));
+    if (this.topSpotKeys) this.hud.topSpotKeys(TOP_SPOT_KEYS, mode => this.previewTopSpot(mode));
     if (this.welcomeKeys) this.hud.welcomeKeys(WELCOME_KEYS, scenario => this.previewWelcome(scenario));
     if (this.dressingKeys) this.hud.dressingKeys(DRESSING_KEYS, scenario => this.previewDressing(scenario));
     if (this.momentKeys) this.hud.momentKeys(MOMENT_KEYS, moment => this.askMoment(moment));
@@ -746,6 +768,32 @@ export class Game {
       this.choose(mode === 'classic' ? 'CLASSIC' : mode === 'marathon' ? 'MARATHON' : 'SURVIVE');
     };
     this.hud.onBoardRetry = () => this.reopenBoard();
+    // Another player's profile, from a row: a look counted for them only when
+    // a named player is looking, and never their own.
+    this.hud.onPlayerFetch = handle => {
+      const looking = readPlayer()?.name && this.player ? handleOf(this.player) : null;
+      return fetchProfile(handle, looking);
+    };
+    // CHASE: their best is the target for the next innings of that mode, and
+    // the store is told it was a chase when the innings is posted.
+    this.hud.onWinBack = event => {
+      this.mark('activity-win-back', 'Win it back from Your profile');
+      this.hud.closeStats();
+      this.hud.onPlayerChase?.({
+        handle: event.handle, name: event.name, avatar: event.avatar, mode: event.mode, target: event.runs,
+        theirPlace: event.place ? event.place - 1 || 1 : null, result: event.result?.mine ?? null, answers: true,
+      });
+    };
+    this.hud.onPlayerChase = chase => {
+      this.chase = chase;
+      this.chaseFresh = true;
+      this.chaseWon = false;
+      this.chaseNext = null;
+      chaseFor(chase.handle, chase.mode, chase.ladder);
+      this.mark(chase.ladder === 'solo' ? 'chase-start-batter' : 'chase-start', 'Chase: started from a profile');
+      this.hud.closeBoard();
+      this.choose(chase.mode === 'classic' ? 'CLASSIC' : chase.mode === 'marathon' ? 'MARATHON' : 'SURVIVE');
+    };
     this.hud.onBoardName = () => this.askProfile(false);
     this.hud.onStatsOpen = this.showStats;
     this.hud.onStatsPlay = mode => {
@@ -929,6 +977,10 @@ export class Game {
       ratingOpen: () => !!this.ratingPrompt?.open,
       // Level Up by rung, for `levelup-check.mjs`: `levelUp('star', 'marathon')`.
       levelUp: (tier = 'star', mode?: CareerMode) => this.previewLevelUp(tier, mode),
+      // New #1 by board, over a made-up board, for `topspot-check.mjs`: `topSpot('marathon')`.
+      topSpot: (mode?: CareerMode) => this.previewTopSpot(mode),
+      // Whether it is playing.
+      topSpotOpen: () => !!this.topSpot,
       // Where it has got to — 'rush' to 'ready' — or null when it is not up.
       levelingUp: () => this.levelUp?.at ?? null,
     } });
@@ -975,7 +1027,7 @@ export class Game {
     const blast = heldCareer('classic') as BlastCareer;
     const marathon = heldCareer('marathon') as MarathonCareer;
     const survive = heldCareer('survive') as SurviveCareer;
-    const at = this.board.findIndex(row => row.playerId === this.player);
+    const at = this.board.findIndex(row => ownsHandle(row.handle, this.player));
     const tier = standingOf('classic', blast).tier;
     // Survival's best is a result, not a score: the best the career has had.
     const surviveBest = survive.wins > 0 ? 'Won a chase' : survive.draws > 0 ? SURVIVED : survive.innings > 0 ? 'Bowled out' : null;
@@ -1069,6 +1121,13 @@ export class Game {
   private playUnlocks(items: UnlockItem[], preview = false) {
     void Promise.all([import('./ui/Unlock'), import('./scene/DressingStage')]).then(([{ UnlockMoment }, { DressingStage }]) => {
       if (this.unlock || this.disposed) return;
+      // New #1 went up while the room's pieces loaded: these wait in the room for their keys instead.
+      if (this.topSpot && !preview) {
+        const keys = items.map(one => one.moment.kind === 'bat' ? seenKey('bat', one.moment.bat.id) : seenKey('kit', one.moment.to.id));
+        const held = readDressing();
+        writeDressing({ ...held, shown: held.shown.filter(key => !keys.includes(key)) });
+        return;
+      }
       this.unlock = new UnlockMoment(this.hud.viewport, items, new DressingStage(), {
         wear: (shelf, id) => {
           if (!preview) {
@@ -1123,13 +1182,32 @@ export class Game {
       items.push({ moment: { kind: 'bat', bat: batOf(id) } });
     return items;
   }
-  /** Plays whatever has been earned and not celebrated; each is marked seen as it goes up, so none is played twice. */
-  private celebrateUnlocks() {
+  /**
+   * Plays whatever has been earned and not celebrated; each is marked seen as
+   * it goes up, so none is played twice.
+   *
+   * An innings that took the top of a board has New #1 for its moment, and
+   * one celebration is the end of an innings, not two: what it also earned
+   * is noted as seen and left waiting in the Dressing Room with its dot and
+   * its own UNLOCK key. So it waits for the store's answer to say which
+   * innings this was, a few tries, before playing anything.
+   */
+  private celebrateUnlocks(tries = 0) {
     if (this.unlock || this.levelUp || this.dressing || this.practising || this.demoing) return;
+    const answering = this.phase === 'INNINGS_END' && this.postFor?.innings === this.innings && this.standing?.innings !== this.innings;
+    if (answering && tries < 10) {
+      const innings = this.innings;
+      window.setTimeout(() => { if (!this.disposed && this.innings === innings && this.phase === 'INNINGS_END') this.celebrateUnlocks(tries + 1); }, 500);
+      return;
+    }
     const items = this.freshUnlocks();
     if (!items.length) return;
     const held = readDressing();
     const keys = items.map(one => one.moment.kind === 'bat' ? seenKey('bat', one.moment.bat.id) : seenKey('kit', one.moment.to.id));
+    if (this.topSpot || (this.phase === 'INNINGS_END' && this.topTaken === this.innings)) {
+      writeDressing({ ...held, seen: [...new Set([...held.seen, ...keys])] });
+      return;
+    }
     writeDressing({ ...held, seen: [...new Set([...held.seen, ...keys])], shown: [...new Set([...held.shown, ...keys])] });
     this.putRatingAway();
     for (const one of items) {
@@ -1742,8 +1820,12 @@ export class Game {
       played: gate && !mine,
       password: !gate && mine && this.canRegister && this.passwordState !== 'unknown'
         ? { set: this.passwordState === 'set', at: this.passwordAt, question: this.passwordQuestion !== null } : null,
+      // The bio, on the edit for a player with a name and a store to keep it.
+      ...(!gate && mine && this.canRegister ? { bio: this.bioKnown ?? '' } : {}),
     });
   }
+  /** The bio as the store last said, from the activity My profile asks for; undefined until it has. */
+  private bioKnown: string | null | undefined = undefined;
 
   /**
    * The answer. The name goes to the store whether or not it changed: a name
@@ -1752,7 +1834,7 @@ export class Game {
    * and a name the player already holds to nothing, so saying the same name
    * again costs nothing — and brings the key, where they have none.
    */
-  private async saveProfile(entry: { name: string; avatar: number; hand: Hand }) {
+  private async saveProfile(entry: { name: string; avatar: number; hand: Hand; bio?: string; bioWas?: string }) {
     const mine = readPlayer();
     const name = cleanName(entry.name), folded = foldName(name);
     if (!folded) return this.hud.profileFailed('Your name, up to 14 letters or numbers.');
@@ -1788,6 +1870,16 @@ export class Game {
     }
     this.mark(changed ? 'profile-named' : 'profile-confirmed', changed ? 'Name claimed or changed' : 'Details confirmed');
     writePlayer({ name: result.name ?? name, avatar: entry.avatar });
+    // The bio, only where it was changed: a field drawn before the store had
+    // said what it was must not send an empty one over a bio that exists.
+    if (entry.bio !== undefined && cleanBio(entry.bio) !== cleanBio(entry.bioWas ?? '')) {
+      const saved = await saveBio(this.player, result.name ?? name, entry.bio).catch(() => ({ ok: false as const, reason: 'Your bio could not be saved. Try again in a moment.' }));
+      if (this.disposed) return;
+      if (!saved.ok) { this.hud.profileSending(false); return this.hud.profileFailed(saved.reason); }
+      this.bioKnown = saved.bio;
+      this.hud.statsBio(saved.bio);
+      this.mark(saved.bio ? 'bio-saved' : 'bio-cleared', saved.bio ? 'Bio saved' : 'Bio cleared');
+    }
     // A new name has no password behind it yet; the store says so, quietly.
     if (!mine) void this.catchUpOnPassword(true);
     if (result.key) {
@@ -1962,6 +2054,7 @@ export class Game {
    */
   private walkOut = () => this.start();
   start = () => {
+    if (this.chaseWon) { this.chaseWon = false; this.clearChase(); }
     // Who is batting, first: once, before the first innings there is.
     if (this.profileDue) {
       this.afterProfile = () => this.start();
@@ -2031,6 +2124,7 @@ export class Game {
     this.setPhase('READY');
     (document.activeElement as HTMLElement | null)?.blur();
     if (this.marathoning) this.introduce(); else this.teachShots();
+    this.startChase();
   };
   /**
    * The Marathon's rules, the first two times one starts: the bowler waits at
@@ -2510,21 +2604,41 @@ export class Game {
    * the fifty when they are on it, and asked of the store when they are below
    * it — or, with no best yet, the board's leader and their score to chase.
    */
+  /** A Blast best taken in the last two days and neither won back nor gone after, from the player's activity, for the cover. */
+  private async takenLately(): Promise<CoverBoard | null> {
+    if (!this.player || !readPlayer()?.name) return null;
+    try {
+      const activity = await fetchActivity(this.player);
+      const now = Date.now();
+      const answered = readAnswered();
+      const beat = activity.events.find(one => one.kind === 'beat' && one.dropped !== false && one.mode === 'classic' && !one.wonBack
+        && now - one.at < HEADLINE_MS && !answeredBy(one, answered));
+      return beat ? { kind: 'beaten', name: beat.name, target: beat.target, place: beat.place, ago: now - beat.at } : null;
+    } catch {
+      return null;
+    }
+  }
+
   private async quoteOnCover(rows: readonly BoardRow[]) {
     const top = rows[0];
     const lines: CoverBoard[] = [];
+    // Somebody who took the player's best in the last day leads: it is the
+    // one line on the cover that is about them, and it has a way to answer.
+    const taken = await this.takenLately();
+    if (this.disposed) return;
+    if (taken) lines.push(taken);
     if (this.best > 0) {
-      const at = rows.findIndex(row => row.playerId === this.player);
+      const at = rows.findIndex(row => ownsHandle(row.handle, this.player));
       let rank: number | null = at >= 0 ? at + 1 : null;
       if (rank === null && readPlayer()) rank = (await fetchStanding(this.player, 'classic'))?.rank ?? null;
       if (this.disposed) return;
       lines.push({ kind: 'best', runs: this.best, rank });
     }
-    if (top && top.playerId !== this.player) lines.push({ kind: 'top', runs: top.runs, name: top.name });
+    if (top && !ownsHandle(top.handle, this.player)) lines.push({ kind: 'top', runs: top.runs, name: top.name });
     // The latest score on the board made in the last day, by somebody else:
     // the line that says the board is alive.
     const now = Date.now();
-    const recent = rows.filter(row => row.at && now - row.at < RECENT_MS && row.playerId !== this.player)
+    const recent = rows.filter(row => row.at && now - row.at < RECENT_MS && !ownsHandle(row.handle, this.player))
       .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))[0];
     if (recent) lines.push({ kind: 'recent', runs: recent.runs, name: recent.name, ago: now - (recent.at ?? now) });
     if (lines.length) this.hud.coverBoard(lines);
@@ -2549,8 +2663,7 @@ export class Game {
    * The play key.
    *
    * What it does is start the game, except when the stories are due
-   * (`whatsNewRun`: the first two visits after the update, and in a launch week
-   * the first press of each day), where it stops for them. The stories are counted here rather
+   * (`whatsNewDue`: the first two visits after the update), where it stops for them. The stories are counted here rather
    * than when they are closed, because a player who skips on the first card has
    * still been shown them — counting on the way out would show the same cards
    * to the same person for ever.
@@ -2560,18 +2673,16 @@ export class Game {
    */
   private play = () => {
     const go = () => (this.locked ? this.walkOut() : this.modes());
-    // Once a day in the strokes' launch week, twice otherwise (`whatsNewRun`).
-    const run = whatsNewRun();
-    if (!run) return go();
+    if (!whatsNewDue()) return go();
     markWhatsNewShown();
-    this.showStories('intro', go, storiesFor(run));
+    this.showStories('intro', go);
   };
 
   /** The update's stories, and whatever happens when they are done with. */
-  private showStories(where: StoriesWhere, then: (() => void) | null = null, run?: readonly Story[]) {
+  private showStories(where: StoriesWhere, then: (() => void) | null = null) {
     this.mark(`whatsnew-${where}`, 'What\'s new opened');
     this.hud.onStoriesDone = then;
-    this.hud.stories(where, where === 'intro' && this.locked, run);
+    this.hud.stories(where, where === 'intro' && this.locked);
   }
 
   private showBoard = () => {
@@ -2876,7 +2987,9 @@ export class Game {
         // rail is its full length from the first draw, which is what keeps the
         // player's place when the second one lands.
         draw({
-          cards: modes.map(one => ({ ...(this.mineSlides[one] ?? { facts, picture: null, failed: false }), rank: this.bestRank(one) })),
+          cards: modes.map(one => ({
+            ...(this.mineSlides[one] ?? { facts, picture: null, failed: false }), rank: this.bestRank(one), place: this.modeRanks[one] ?? null,
+          })),
           at,
           rivals: this.rooms?.record ?? null,
         });
@@ -2922,6 +3035,147 @@ export class Game {
     if (this.sheetTab === 'marathon') return this.openMarathon(this.marathonLadder);
     this.openBoard(this.boardTab, this.boardLadder);
   }
+
+  // ── The chase (section 14, lane B) ────────────────────────────────────────
+
+  /** The intro is due: set by CHASE on a profile and by CHASE AGAIN, spent by the innings it stands before. */
+  private chaseFresh = false;
+  /** The target passed this innings, and whether its moment is waiting on a dead ball or has had it. */
+  private chasePassDue = false;
+  private chasePassed = false;
+
+  /** Whether the innings on now is the chase's: its mode, and no Rival Match. */
+  private get chaseLive(): Chase | null {
+    return this.chase && this.chase.mode === this.careerMode && !this.challenge.playing && this.lesson < 0 ? this.chase : null;
+  }
+
+  /** The runs a chase is judged on: the innings's, the side's in a Marathon. */
+  private get chaseRuns() {
+    // Chasing their best batter, it is the best of this side's three that counts.
+    if (this.chase?.ladder === 'solo' && this.marathon) return Math.max(0, ...marathonFigures(this.marathon).batters.map(one => one.runs));
+    return this.score.runs;
+  }
+
+  /** Balls left, where the innings is counted in them. */
+  private get chaseBallsLeft() { return this.careerMode === 'classic' ? GAME.totalBalls - this.score.balls : null; }
+
+  /** What the player brings to it: their best and place in the mode, as far as this browser knows. */
+  private chaseMine(): Mine {
+    const place = this.modeRanks[this.careerMode] ?? null;
+    return { best: this.careerMode === 'classic' && this.best > 0 ? this.best : null, place };
+  }
+
+  /** The chase let go: by BACK, by another mode, or once it is won and the card has said so. */
+  private clearChase() {
+    this.chase = null;
+    this.chaseFresh = false;
+    chaseFor(null);
+    this.hud.chaseChip(null);
+  }
+
+  /**
+   * An innings starting: the chase kept only for its own mode, the chip put up
+   * under the scoreboard, and — the first time — the intro held in front of
+   * the first ball. A browser in its coachmarks gets those first and the chip
+   * alone: two cards in a row before a ball is one too many.
+   */
+  private startChase() {
+    this.hud.chaseStrip(null);
+    this.hud.againLabel(null);
+    this.chasePassDue = false;
+    this.chasePassed = false;
+    this.chaseBest = this.chaseMine().best;
+    if (this.chase && (this.chase.mode !== this.careerMode || this.challenge.playing)) this.clearChase();
+    const chase = this.chaseLive;
+    if (!chase) { this.hud.chaseChip(null); return; }
+    chaseFor(chase.handle, chase.mode, chase.ladder);
+    this.hud.chaseChip(chase, 0, this.chaseBallsLeft);
+    if (!this.chaseFresh) return;
+    this.chaseFresh = false;
+    if (this.bannerUntil === Number.POSITIVE_INFINITY) return;
+    this.bannerUntil = Number.POSITIVE_INFINITY;
+    this.hud.chaseIntro(chase, this.chaseMine(), { avatar: readPlayer()?.avatar ?? null }, bat => {
+      this.bannerUntil = this.elapsed;
+      if (bat) { this.mark('chase-bat', 'Chase: let’s bat'); return; }
+      this.mark('chase-back', 'Chase: back');
+      this.clearChase();
+      this.togglePause();
+      this.modes();
+    });
+  }
+
+  /** After each ball: the chip moved on, and the target, once passed, waiting on the dead ball for its moment. */
+  private chaseBall(outcome: ShotOutcome) {
+    const chase = this.chaseLive;
+    if (!chase) return;
+    // Passed and celebrated, the chase has nothing left to say in play.
+    if (this.chasePassed && !this.chasePassDue) { this.hud.chaseChip(null); return; }
+    const runs = this.chaseRuns;
+    const passed = chase.result ? surviveSurely(chase.result, this.score.balls) : beaten(chase, runs);
+    const place = this.chasePassed || passed ? placeOnPassing(chase, this.chaseMine()) : null;
+    const beat = outcome.runs >= 4 ? 'boundary' : outcome.runs > 0 || (!chase.result && close(chase, runs)) ? 'scored' : 'none';
+    this.hud.chaseChip(chase, runs, this.chaseBallsLeft, place, beat, this.score.balls);
+    if (!this.chasePassed && passed) { this.chasePassed = true; this.chasePassDue = true; }
+  }
+
+  /**
+   * The target passed, between balls, as a milestone is (B3): held on the
+   * game's own celebration clock, one hard knock in the hand, and the crowd.
+   */
+  private celebrateChase() {
+    const chase = this.chaseLive;
+    this.chasePassDue = false;
+    if (!chase) return;
+    const lasts = 1700;
+    this.celebrating = Math.max(this.celebrating, lasts);
+    const place = placeOnPassing(chase, this.chaseMine());
+    this.hud.chasePassed(chase, chase.result ? this.score.balls : this.chaseRuns, { avatar: readPlayer()?.avatar ?? null }, place, CHASE_MODE_NAMES[chase.mode], lasts);
+    // The moment says it; the chip under the scoreboard goes with it.
+    this.hud.chaseChip(null);
+    buzz([0, 40, 30, 90]);
+    this.audio.cheer(boundaryCheer(6, 1, this.test));
+    this.mark('chase-passed', 'Chase: passed the target');
+  }
+
+  /**
+   * The end card's strip (B4, B5) and its key, drawn when the card goes up and
+   * again when the store has said where the innings landed. A chase won is
+   * over once its card has said so; one fallen short stays, and the key says
+   * CHASE 187 AGAIN.
+   */
+  private chaseCard(result: SubmitResult<unknown> | null = null) {
+    const chase = this.chaseLive;
+    if (!chase) { this.hud.chaseStrip(null); this.hud.againLabel(null); return; }
+    const runs = this.chaseRuns;
+    const now = this.placeNow() ?? null;
+    const held = this.standing?.innings === this.innings ? this.standing.standing : null;
+    const was = held ? ('team' in held ? held.team.was?.rank : held.was?.rank) ?? null : null;
+    const said = chase.result
+      ? surviveVerdict(chase.name, chase.result, surviveResultOf(this.survived()), { now, was })
+      : verdict(chase, runs, { now, was });
+    const next = result?.around?.next ?? this.chaseNext;
+    if (result?.around) this.chaseNext = result.around.next;
+    this.hud.chaseStrip(chaseStripMarkup({
+      chase, runs, verdict: said, place: now, modeName: CHASE_MODE_NAMES[chase.mode],
+      you: { avatar: readPlayer()?.avatar ?? null }, best: this.chaseBest, next,
+    }), !!readPlayer()?.name);
+    this.hud.againLabel(said.beat ? null : chase.result ? surviveGoal(chase.name, chase.result).again : againLabel(chase));
+    if (!result) this.mark(said.beat ? 'chase-beat' : 'chase-short', said.beat ? 'Chase: beaten' : 'Chase: fell short');
+    // Gone after from the Rank down card and played to the end: the card comes down, won or not.
+    if (!result && chase.answers) noteAnswered(chase.handle, chase.mode);
+    const board = () => { if (this.careerMode === 'marathon') this.openMarathon('team'); else this.openBoard(this.careerMode, 'best'); };
+    document.getElementById('chase-board')?.addEventListener('click', board);
+    document.getElementById('chase-next')?.addEventListener('click', board);
+    document.getElementById('chase-profile')?.addEventListener('click', () => this.showStats());
+    if (said.beat) this.chaseWon = true;
+    this.drawHero();
+  }
+  /** The player's best as the innings began, for the bar on a chase fallen short. */
+  private chaseBest: number | null = null;
+  /** Who stands next above, from the store's answer to the post. */
+  private chaseNext: { name: string; avatar: number; runs: number; place: number } | null = null;
+  /** Won: let go at the next start, after its card has said so. */
+  private chaseWon = false;
 
   /** Where the store has this player on each mode's whole board, as last asked. */
   private modeRanks: Partial<Record<CareerMode, number | null>> = {};
@@ -3053,6 +3307,21 @@ export class Game {
    * widget leads. A place the player travelled to rather than a tab they
    * switched to, so it carries a way back and the board is not underneath it.
    */
+  /**
+   * What the player's profile has collected, asked for each time My profile
+   * opens: who looked, who chased and passed them, their bio. Only a named
+   * player has a profile, and a private window keeps nothing to show.
+   */
+  private async askActivity() {
+    const player = this.player;
+    if (!player || !readPlayer()?.name) { this.hud.statsActivity(null); return; }
+    try {
+      const activity = await fetchActivity(player);
+      this.bioKnown = activity.bio;
+      if (!this.disposed && this.player === player) this.hud.statsActivity(activity);
+    } catch { /* My profile without its activity is still My profile. */ }
+  }
+
   private showStats = () => {
     this.mark('stats-open', 'Career card opened');
     const mode = this.careerMode;
@@ -3067,6 +3336,7 @@ export class Game {
       if (this.disposed || !this.statsPage) return;
       this.hud.stats(view);
     });
+    void this.askActivity();
     this.hud.onStatsBack = () => {
       this.statsPage = false;
       this.hud.onStatsBack = null;
@@ -3427,6 +3697,7 @@ export class Game {
         this.setPhase('RESULT');
         if (this.milestoneDue) { this.celebrate(this.milestoneDue); this.milestoneDue = null; }
         else if (this.momentAsked) { this.celebrate(this.momentAsked, true); this.momentAsked = null; }
+        else if (this.chasePassDue) this.celebrateChase();
         // After the call, not over it: the sledge is what comes back from the
         // field once the ball is dead.
         if (this.sledgeDue) { this.sledgeDue = false; this.audio.play('sledge'); }
@@ -3527,8 +3798,10 @@ export class Game {
         timingGrade: 'MISS', timingDeltaMs: null, compatibility: 0, madeBatContact: false, aerial: false,
       } as ShotOutcome;
       this.score.record(outcome); this.generator.record(outcome);
+      this.chaseBall(outcome);
     }
     this.hud.score(this.score);
+    if (this.chasePassDue && !this.score.ended) this.celebrateChase();
     if (this.score.ended) this.end(); else this.setPhase('READY');
     return true;
   }
@@ -3748,7 +4021,7 @@ export class Game {
   private presentResult() {
     this.resultPresented = true;
     const outcome = this.outcome!;
-    if (this.lesson < 0) { this.hud.score(this.score); this.showNearing(this.batterHistory); }
+    if (this.lesson < 0) { this.hud.score(this.score); this.showNearing(this.batterHistory); this.chaseBall(outcome); }
     this.hud.result(outcome, this.chargeMiss);
     if (outcome.hit) {
       // The blow lands with the call rather than before it, so the flash, the
@@ -3853,6 +4126,7 @@ export class Game {
     // the strip is there to say what is being missed, and a two-run innings was
     // missing nothing.
     this.hud.offerClaim(this.postedOffer(offer), readPlayer(), this.board, played, this.player);
+    this.drawHero();
   }
 
   /** The same, asked of both Marathon ladders and answered on the Marathon's card. */
@@ -3862,6 +4136,7 @@ export class Game {
     const offer = marathonOffer(!!this.marathonRows, rows, { team: teamOf(played), solo: soloOf(played) }, Date.now(), this.player);
     this.hud.cardNote = this.cardNoteFor(rows.team, played.runs);
     this.hud.offerMarathonClaim(this.postedOffer(offer), readPlayer(), rows.team, this.player);
+    this.drawHero();
   }
 
   /** The same, asked of the Test ladder and answered on the Test card. */
@@ -3870,6 +4145,7 @@ export class Game {
     const offer = surviveOffer(this.surviveSeen, this.surviveRows, played, Date.now(), this.player);
     this.hud.cardNote = this.cardNoteFor(this.surviveRows, played.runs);
     this.hud.offerSurviveClaim(this.postedOffer(offer), readPlayer(), this.surviveRows, played, this.player);
+    this.drawHero();
   }
 
   /**
@@ -4111,6 +4387,59 @@ export class Game {
     const improved = typeof result.improved === 'object' ? result.improved.team || result.improved.solo : !!result.improved;
     const by = typeof result.improved === 'object' ? { team: !!result.improved.team, solo: !!result.improved.solo } : null;
     if (result.standing) this.standing = { innings, mode: this.careerMode, standing: result.standing, improved, by };
+    if (result.around) this.aroundOf = { innings, around: result.around };
+    if (innings === this.innings && this.phase === 'INNINGS_END') {
+      this.chaseCard(result);
+      // Who it went past and who is next, where no chase strip says it already.
+      this.hud.cardAround(this.chaseLive ? null : result.around ?? null);
+      this.drawHero();
+      this.topOfTheBoard(result);
+    }
+  }
+
+  /** Who the last post went past and who stands next, for the rank hero. */
+  private aroundOf: { innings: number; around: NonNullable<SubmitResult['around']> } | null = null;
+
+  /**
+   * The end card's player card as the rank hero (Figma 14E): for a named
+   * player, once the store has said where the innings left them. Everybody
+   * else, and the moment before the store answers, keeps the card as it was.
+   */
+  private drawHero() {
+    const mine = readPlayer();
+    const held = this.standing?.innings === this.innings ? this.standing.standing : null;
+    const standing = held ? ('team' in held ? held.team : held) : null;
+    if (this.phase !== 'INNINGS_END' || !mine?.name || !standing?.rank || this.practising || this.challenge.playing || this.demoing) {
+      this.hud.rankHero(null, null);
+      return;
+    }
+    const rows: readonly (BoardRow | TeamRow | SurviveRow)[] = this.marathoning ? this.marathonShown?.team ?? [] : this.surviving ? this.surviveRows : this.board;
+    const own = rows.find(row => ownsHandle(row.handle, this.player)) ?? null;
+    const survive = this.surviving ? this.survived() : null;
+    const runs = this.marathoning && this.marathon ? marathonFigures(this.marathon).runs : survive ? survive.runs : asInnings(this.score).runs;
+    const improved = this.standing!.by ? this.standing!.by.team : this.standing!.improved;
+    const chase = this.chaseLive;
+    let judged: Parameters<typeof heroView>[0]['chase'] = null;
+    let bar = '';
+    if (chase) {
+      const now = standing.rank, was = standing.was?.rank ?? null;
+      const said = chase.result
+        ? surviveVerdict(chase.name, chase.result, surviveResultOf(this.survived()), { now, was })
+        : verdict(chase, this.chaseRuns, { now, was });
+      judged = { name: chase.name, target: chase.target, key: chase.result ? surviveGoal(chase.name, chase.result).key : undefined, beat: said.beat, title: said.title, line: said.line };
+      if (!said.beat && !chase.result) bar = chaseBarMarkup({ chase, runs: this.chaseRuns, best: this.chaseBest });
+    }
+    const view = heroView({
+      name: mine.name, modeName: HERO_MODE[this.careerMode], place: standing.rank, was: standing.was?.rank ?? null, total: standing.total, improved,
+      measure: survive ? 'result' : 'runs',
+      innings: { runs, line: survive ? surviveResult(survive) : undefined },
+      best: own ? { runs: own.runs, line: survive ? surviveResult(own as SurviveRow) : undefined } : null,
+      chase: judged,
+      around: this.aroundOf?.innings === this.innings ? this.aroundOf.around : null,
+    });
+    // The hero says the chase now, so its strip makes way.
+    if (chase) this.hud.chaseStrip(null);
+    this.hud.rankHero(rankHeroMarkup(view, bar), { innings: this.innings, from: standing.was?.rank ?? null, confetti: !!judged?.beat });
   }
 
   /**
@@ -4154,11 +4483,11 @@ export class Game {
     }
     this.mark('auto-posted', 'Innings put on the board by itself');
     this.tookPost(innings, result);
-    let rows: readonly { playerId: string }[] = [];
+    let rows: readonly { handle: string }[] = [];
     if (this.marathoning) {
       if (result.board) this.marathonRows = result.board as MarathonPayload;
       const team = this.marathonShown?.team ?? [];
-      rows = team.some(row => row.playerId === this.player) ? team : this.marathonShown?.solo ?? [];
+      rows = team.some(row => ownsHandle(row.handle, this.player)) ? team : this.marathonShown?.solo ?? [];
     } else if (this.surviving) {
       if (result.board) {
         this.surviveEpoch++;
@@ -4178,7 +4507,7 @@ export class Game {
     delete this.careerBoards[this.careerMode];
     delete this.myCareer[this.careerMode];
     forgetCareer();
-    const at = rows.findIndex(row => row.playerId === this.player);
+    const at = rows.findIndex(row => ownsHandle(row.handle, this.player));
     this.posted = { innings, place: at >= 0 ? at + 1 : guess, posting: false };
     this.reoffer();
     this.redrawKeyPlacements();
@@ -4336,8 +4665,17 @@ export class Game {
    * and follow it. A preview (`?levelup=1`, `__cricket.levelUp`) counts and
    * shares nothing of its own and is followed by nothing.
    */
-  private showLevelUp(mode: CareerMode, was: AnyCareer, now: AnyCareer, granted: Granted | null, preview = false) {
+  private showLevelUp(mode: CareerMode, was: AnyCareer, now: AnyCareer, granted: Granted | null, preview = false, tries = 0) {
     if (this.levelUp || this.disposed) return;
+    // New #1 goes first: a climb the same innings earned waits for it, and for
+    // the store's answer to the post to say whether there is one, a few tries.
+    if (this.topSpot) { this.levelUpAfter = () => this.showLevelUp(mode, was, now, granted, preview); return; }
+    const answering = !preview && this.phase === 'INNINGS_END' && this.postFor?.innings === this.innings && this.standing?.innings !== this.innings;
+    if (answering && tries < 10) {
+      const innings = this.innings;
+      window.setTimeout(() => { if (!this.disposed && this.innings === innings && this.phase === 'INNINGS_END') this.showLevelUp(mode, was, now, granted, preview, tries + 1); }, 500);
+      return;
+    }
     const batting = readPlayer();
     const who = batting?.name ? { name: batting.name, avatar: batting.avatar ?? 0 } : null;
     const standing = bestStanding(mode, placesOf(this.careerBoards[mode]?.boards ?? {}, this.player));
@@ -4362,8 +4700,90 @@ export class Game {
     this.levelUp.close();
     this.levelUp = null;
     document.querySelector<HTMLElement>('#end:not(.hidden) .k-cta')?.focus({ preventScroll: true });
+    // New #1 decided while Level Up was up plays now, and the unlocks wait in the room behind it.
+    const top = this.topAfter;
+    this.topAfter = null;
+    if (top && this.phase === 'INNINGS_END') this.showTopSpot(top);
     if (thenUnlocks && this.phase === 'INNINGS_END') this.celebrateUnlocks();
   }
+  /** New #1 decided while Level Up was already up: it follows Level Up rather than being lost. */
+  private topAfter: TopSpotView | null = null;
+  /** New #1, while it plays. */
+  private topSpot: TopSpot | null = null;
+  /** A Level Up the same innings earned, waiting for New #1 to finish. */
+  private levelUpAfter: (() => void) | null = null;
+  /** The innings New #1 has played for: once an innings, however many times the store is asked. */
+  private topTaken = -1;
+
+  /**
+   * New #1 (Figma section 15, `src/ui/TopSpot.ts`): when the store's answer
+   * to the post says this innings took the top of a board it was not the top
+   * of before. A named player's real innings only: never practice, a Rival
+   * Match or a demo, and a private window or a guest posts nothing to answer.
+   */
+  private topOfTheBoard(result: SubmitResult<unknown>) {
+    const mine = readPlayer();
+    const held = result.standing;
+    if (!held || !mine?.name || this.topTaken === this.innings || this.practising || this.challenge.playing || this.demoing) return;
+    const standing = 'team' in held ? held.team : held;
+    if (!tookTheTop(standing.rank, standing.was?.rank ?? null)) return;
+    const survive = this.surviving ? this.survived() : null;
+    const board: readonly (BoardRow | TeamRow | SurviveRow)[] = this.marathoning
+      ? (result.board as MarathonPayload | undefined)?.team.rows ?? this.marathonShown?.team ?? []
+      : this.surviving ? (result.board as SurvivePayload | undefined)?.rows ?? this.surviveRows
+      : (result.board as BoardPayload | undefined)?.rows ?? this.board;
+    const runs = this.marathoning && this.marathon ? marathonFigures(this.marathon).runs : survive ? survive.runs : asInnings(this.score).runs;
+    // The player first, as the store has them now, then everybody else in order.
+    const rows = [
+      { name: mine.name, avatar: mine.avatar ?? 0, runs, you: true, line: survive ? surviveResult(survive) : undefined },
+      ...board.filter(row => !ownsHandle(row.handle, this.player)).map(row => ({
+        name: row.name, avatar: row.avatar, runs: row.runs, you: false, line: this.surviving ? surviveResult(row as SurviveRow) : undefined,
+      })),
+    ];
+    const view = topSpotView({ mode: this.careerMode, you: { name: mine.name, avatar: mine.avatar ?? 0 }, rows, was: standing.was?.rank ?? null, measure: survive ? 'result' : 'runs' });
+    // The top of an empty board is not taken from anybody.
+    if (!view?.second) return;
+    this.topTaken = this.innings;
+    this.mark(`top-${this.careerMode}`, 'Took the top of a board');
+    this.showTopSpot(view);
+  }
+
+  private showTopSpot(view: TopSpotView) {
+    if (this.topSpot || this.disposed) return;
+    if (this.levelUp) { this.topAfter = view; return; }
+    // An unlock already up gives way: one celebration is the end of an innings.
+    if (this.unlock) { this.unlock.close(); this.unlock = null; }
+    this.putRatingAway();
+    this.topSpot = new TopSpot(this.hud.viewport, view, {
+      card: () => document.querySelector<HTMLElement>('#end:not(.hidden)') ?? document.querySelector<HTMLElement>('#end-survive:not(.hidden)'),
+      target: () => document.querySelector<HTMLElement>('#card-hero:not(.hidden) .rh-place'),
+      cheer: () => this.audio.cheer({ size: 'big', peak: .8, decay: 2.6, swell: .3 }),
+      done: () => {
+        this.topSpot = null;
+        const next = this.levelUpAfter;
+        this.levelUpAfter = null;
+        if (next) next();
+        else document.querySelector<HTMLElement>('#end:not(.hidden) .k-cta')?.focus({ preventScroll: true });
+      },
+    });
+  }
+
+  /** New #1 by board over a made-up board: the preview's keys and the checks'. */
+  private previewTopSpot(mode: CareerMode = this.careerMode) {
+    this.topSpot?.close();
+    const result = mode === 'survive';
+    const made = (name: string, avatar: number, runs: number, balls: number) => ({ name, avatar, runs, you: false, line: result ? `Won off ${balls} balls` : undefined });
+    const runsOf = mode === 'marathon' ? [412, 403, 398, 390, 385] : mode === 'survive' ? [96, 91, 88, 84, 80] : [154, 150, 148, 145, 141];
+    const mine = readPlayer();
+    const you = { name: mine?.name || 'You', avatar: mine?.avatar ?? 1 };
+    const rows = [
+      { ...you, runs: runsOf[0], you: true, line: result ? 'Won off 38 balls' : undefined },
+      made('Riya', 0, runsOf[1], 41), made('Kabir', 3, runsOf[2], 44), made('Meera', 4, runsOf[3], 47), made('Arjun', 2, runsOf[4], 52),
+    ];
+    const view = topSpotView({ mode, you, rows, was: 6, measure: result ? 'result' : 'runs' });
+    if (view) this.showTopSpot(view);
+  }
+
   /** Level Up for a rung, by name, over whatever is on screen: the preview's keys and the checks'. */
   private previewLevelUp(key: string, mode: CareerMode = this.careerMode) {
     const rung = Math.max(1, TIERS.findIndex(one => one.key === key));
@@ -4380,6 +4800,9 @@ export class Game {
 
   private end() {
     this.setPhase('INNINGS_END');
+    this.hud.rankHero(null, null);
+    this.chaseCard();
+    this.hud.cardAround(null);
     this.countThisInnings();
     // Toward the end of a newcomer's help, by the same rule as the career: only
     // an innings finished counts, so walking out on one does not keep it going.
@@ -4720,7 +5143,7 @@ export class Game {
         return;
       case 'rematch': {
         const them = view?.result?.them;
-        const tally = them ? rivalryView(them.playerId, them)?.tally ?? null : null;
+        const tally = them ? rivalryView(them.handle, them)?.tally ?? null : null;
         this.rematchLine = them && tally ? { them: them.name, tally } : null;
         this.challenge.stopWatching();
         await this.createRoom({ rematchOf: code });
@@ -4993,7 +5416,7 @@ export class Game {
     const held = readDressing();
     const record: DressingRecord = {
       careers,
-      rivals: { won: Math.max(wins.length, this.rooms?.record?.won ?? 0), beaten: new Set(wins.map(one => one.them.playerId)).size },
+      rivals: { won: Math.max(wins.length, this.rooms?.record?.won ?? 0), beaten: new Set(wins.map(one => one.them.handle)).size },
       launch: held.launch ?? now,
       welcomed: held.seen.includes(seenKey('bat', WELCOME_BAT)),
     };
@@ -5113,7 +5536,7 @@ export class Game {
     const room = [...(this.rooms?.yourMove ?? []), ...(this.rooms?.waitingOnThem ?? []), ...(this.rooms?.done ?? [])]
       .find(one => one.code === code) ?? null;
     if (act === 'rival' && playerId) {
-      const row = room?.players.find(one => one.playerId === playerId) ?? null;
+      const row = room?.players.find(one => one.handle === playerId) ?? null;
       const view = rivalryView(playerId, row ? { name: row.name, avatar: row.avatar } : undefined);
       if (!view) return;
       this.rival = view.them;
@@ -5127,13 +5550,13 @@ export class Game {
     this.pinRoom(code);
     this.showRoom();
   }
-  private rival: { playerId: string; name: string; avatar: number } | null = null;
+  private rival: { handle: string; name: string; avatar: number } | null = null;
 
   /** A fresh room aimed at the same person, with the message pre-addressed. */
   private async challengeRival() {
     const them = this.rival;
     if (!them) return;
-    const tally = rivalryView(them.playerId, them)?.tally ?? 'Fresh start';
+    const tally = rivalryView(them.handle, them)?.tally ?? 'Fresh start';
     this.rematchLine = { them: them.name, tally };
     await this.createRoom();
   }
@@ -5149,7 +5572,7 @@ export class Game {
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
       pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, pullPen: this.pullPen,
-      mirrored: this.scene.mirrored, look: this.scene.wearing, fieldingKit: this.scene.fieldingKit, marathon: this.marathon ? this.marathonState() : null,
+      mirrored: this.scene.mirrored, look: this.scene.wearing, fieldingKit: this.scene.fieldingKit, chase: this.chase ? { handle: this.chase.handle, mode: this.chase.mode, target: this.chase.target } : null, marathon: this.marathon ? this.marathonState() : null,
       standing: this.standing, ease: this.ease };
   }
   /** Where a Marathon innings stands, for `marathon-check.mjs`. */
@@ -5253,6 +5676,15 @@ const FIREWORKS_MS = { special: 3000, milestone: 3600 } as const;
 /** The keys the star prompt answers itself: give a star, and walk between them. */
 const STAR_KEYS = new Set(['Enter', ' ', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
 /** The games by name, as the pause sheet's chip says them. */
+/** What a chase's moments and strip call each mode. */
+const CHASE_MODE_NAMES: Record<CareerMode, string> = { classic: 'The Blast', marathon: 'Test Marathon', survive: 'Test Survival' };
+/** The board's name as the rank hero's eyebrow says it. */
+const HERO_MODE: Record<CareerMode, string> = { classic: 'THE BLAST', marathon: 'TEST MARATHON', survive: 'TEST SURVIVAL' };
+/** `?topspot=1`'s keys: New #1 in each board's colours. */
+const TOP_SPOT_KEYS: readonly { label: string; mode: CareerMode }[] = [
+  { label: 'BLAST', mode: 'classic' }, { label: 'MARATHON', mode: 'marathon' }, { label: 'SURVIVAL', mode: 'survive' },
+];
+
 const PAUSE_NAMES: Record<GameMode, string> = { CLASSIC: 'The Blast', SURVIVE: 'Test Survival', MARATHON: 'Test Marathon' };
 const CHEER: Record<Milestone, number> = { fifty: 2.3, raise: 2.3, century: 2.8, 'six-sixes': 2.8, double: 3.1, triple: 3.3, four: 3.5 };
 const MOMENT_SAID: Record<Milestone, string> = {
@@ -5270,13 +5702,13 @@ const MOMENT_SAID: Record<Milestone, string> = {
 function listSections(list: ListView, me: string): ListSections {
   const row = (room: Challenge): ListRowView => {
     const view = roomView(room, me, false);
-    const others = room.players.filter(one => one.playerId !== me);
+    const others = room.players.filter(one => !ownsHandle(one.handle, me));
     const lead = view.result?.them ?? others.find(one => one.status === 'done' || one.status === 'batting') ?? others[0] ?? null;
-    const them = lead ? { playerId: lead.playerId, name: lead.name, avatar: lead.avatar } : null;
+    const them = lead ? { handle: lead.handle, name: lead.name, avatar: lead.avatar } : null;
     const moved = Math.max(room.at, ...room.players.map(one => one.at ?? 0));
     const base = { code: room.code, them, others: others.length, age: ageOf(moved) };
     const host = room.players.find(one => one.host);
-    const fromThem = !!host && host.playerId !== me;
+    const fromThem = !!host && !ownsHandle(host.handle, me);
     switch (view.kind) {
       case 'chase': {
         const batting = others.find(one => one.status === 'batting');

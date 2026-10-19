@@ -1,3 +1,4 @@
+import { ownsHandle } from './handle';
 import { GAME } from '../config/gameplay';
 import { decodeInnings, encodeInnings, ended, figuresOf, type Ball } from './ball-string';
 import type { RivalsRecord } from './challenge-api';
@@ -97,7 +98,7 @@ export interface ResultView {
 
 /** The tally against one person. */
 export interface RivalryView {
-  them: { playerId: string; name: string; avatar: number };
+  them: { handle: string; name: string; avatar: number };
   wins: number;
   losses: number;
   draws: number;
@@ -169,7 +170,7 @@ export class ChallengeRun {
   isIn(playerId: string): boolean { return !!this.row(playerId); }
 
   row(playerId: string): ChallengeRow | null {
-    return this.room?.players.find(one => one.playerId === playerId) ?? null;
+    return this.room?.players.find(one => ownsHandle(one.handle, playerId)) ?? null;
   }
 
   /** Lets go of the room. */
@@ -227,7 +228,7 @@ export class ChallengeRun {
 
   /** The other innings, furthest along first, for the flash between balls. */
   get ghosts(): ChallengeRow[] {
-    const others = (this.room?.players ?? []).filter(row => row.playerId !== this.batting && row.card);
+    const others = (this.room?.players ?? []).filter(row => !ownsHandle(row.handle, this.batting) && row.card);
     return others.sort((a, b) => b.card.length - a.card.length || a.joined - b.joined);
   }
 
@@ -362,7 +363,7 @@ export function sortList(rooms: readonly Challenge[], me: string, now = Date.now
     // either, is a tap on PLAY that went nowhere: every tap makes a room on
     // the spot. It is not a challenge received and there is nothing in it to
     // show, so it is left off until somebody joins it or they bat.
-    if (!room.players.some(one => one.playerId !== me) && view.mine?.status === 'joined') continue;
+    if (!room.players.some(one => !ownsHandle(one.handle, me)) && view.mine?.status === 'joined') continue;
     if (view.kind === 'declined') { list.done.push(room); continue; }
     if (view.kind === 'chase' || view.kind === 'resume' || (view.kind === 'lobby' && !settled)) list.yourMove.push(room);
     else if (view.kind === 'waiting' || view.kind === 'spectate') list.waitingOnThem.push(room);
@@ -383,8 +384,8 @@ export function sortList(rooms: readonly Challenge[], me: string, now = Date.now
  */
 export function roomView(room: Challenge, me: string, sent: boolean, now = Date.now()): RoomView {
   void sent;
-  const mine = room.players.find(row => row.playerId === me) ?? null;
-  const others = room.players.filter(row => row.playerId !== me);
+  const mine = room.players.find(row => ownsHandle(row.handle, me)) ?? null;
+  const others = room.players.filter(row => !ownsHandle(row.handle, me));
   const settled = (row: ChallengeRow) => row.status === 'done' || row.status === 'forfeit' || row.status === 'declined';
   const iAmSettled = !!mine && settled(mine);
   const othersSettled = others.filter(settled);
@@ -458,8 +459,8 @@ export function resultView(room: Challenge, me: string): ResultView | null {
   const settled = room.players
     .filter(row => row.status === 'done' || row.status === 'forfeit' || row.status === 'declined')
     .sort((a, b) => b.score - a.score || a.joined - b.joined);
-  const mine = settled.find(row => row.playerId === me) ?? null;
-  const others = settled.filter(row => row.playerId !== me);
+  const mine = settled.find(row => ownsHandle(row.handle, me)) ?? null;
+  const others = settled.filter(row => !ownsHandle(row.handle, me));
   if (!mine || !others.length) return null;
   const above = others.filter(row => row.score > mine.score);
   const level = others.filter(row => row.score === mine.score);
@@ -487,7 +488,7 @@ export function resultView(room: Challenge, me: string): ResultView | null {
       : room.rematchOf ? 'REMATCH'
         : iBattedFirst ? 'YOU SET IT' : `${name.toUpperCase()} SET IT`;
   const winner = settled.length > 1 && settled[0].score === settled[1].score ? null : settled[0];
-  const title = !winner ? 'Dead Heat' : winner.playerId === me ? 'You Win' : `${winner.name} Wins`;
+  const title = !winner ? 'Dead Heat' : ownsHandle(winner.handle, me) ? 'You Win' : `${winner.name} Wins`;
 
   let sub: string;
   if (them.status === 'declined') {
@@ -534,12 +535,12 @@ export function resultView(room: Challenge, me: string): ResultView | null {
 
 /** A result, noted against the friend it was against, the first time it is seen. */
 export function noteResult(view: ResultView) {
-  const mine = view.players.find(row => row.playerId === view.you);
+  const mine = view.players.find(row => ownsHandle(row.handle, view.you));
   const them = view.them;
   if (!mine || !them) return;
   recordResult({
     code: view.code,
-    them: { playerId: them.playerId, name: them.name, avatar: them.avatar },
+    them: { handle: them.handle, name: them.name, avatar: them.avatar },
     mine: { runs: mine.runs, sixes: mine.sixes, fours: mine.fours },
     theirs: { runs: them.runs, sixes: them.sixes, fours: them.fours },
     outcome: view.outcome,
@@ -548,10 +549,10 @@ export function noteResult(view: ResultView) {
 }
 
 /** The tally against one person, from what this browser has seen. */
-export function rivalryView(playerId: string, fallback?: { name: string; avatar: number }): RivalryView | null {
-  const entries: RivalryEntry[] = rivalryWith(playerId);
+export function rivalryView(handle: string, fallback?: { name: string; avatar: number }): RivalryView | null {
+  const entries: RivalryEntry[] = rivalryWith(handle);
   const latest = entries[0];
-  const them = latest ? latest.them : fallback ? { playerId, ...fallback } : null;
+  const them = latest ? latest.them : fallback ? { handle, ...fallback } : null;
   if (!them) return null;
   const wins = entries.filter(one => one.outcome === 'W').length;
   const losses = entries.filter(one => one.outcome === 'L').length;

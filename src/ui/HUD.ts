@@ -1,3 +1,4 @@
+import { ownsHandle } from '../game/handle';
 import { MarathonInnings } from '../game/Marathon';
 import { GAME } from '../config/gameplay';
 import { ScoreManager } from '../game/ScoreManager';
@@ -41,7 +42,7 @@ import { MARATHON_LADDERS, marathonBest, marathonLaddersMarkup, type MarathonBoa
 import type { TeamRow } from '../game/marathon-board';
 import { rivalsRecordMarkup, type RivalsRecord } from './Record';
 import { coverBoardLines, coverMarkup, profileChip, type CoverBoard } from './Cover';
-import { cta, icon as kitIcon } from './Kit';
+import { cta, fitLabels, icon as kitIcon } from './Kit';
 import {
   answerSheetMarkup, entryProblem, insideAnApp, noQuestionMarkup, nudgeSheetMarkup, passwordCardMarkup, passwordDoneMarkup,
   passwordSheetMarkup, ruleStates, type NudgeFigures, type PasswordEntry, type PasswordMode, type PasswordSheetView,
@@ -67,7 +68,8 @@ import {
   type LocalCareer, type RestoreView,
 } from './Restore';
 import type { FoundPlayer } from '../game/recovery-api';
-import { handWord, named, plateName, profileMarkup, type ProfileView } from './Profile';
+import { bioCount, handWord, named, plateName, profileMarkup, type ProfileView } from './Profile';
+import { BIO_MAX, bioChars, bioProblem } from '../server/bio-rules';
 import {
   statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
@@ -83,6 +85,12 @@ import { BATTERS, type LevelBanner } from '../config/marathon';
 import { resultOf, type Result } from '../game/Survive';
 import type { SoundSetting } from '../game/Audio';
 import type { CareerMode } from '../game/career';
+import { chaseStanding, chaseTarget, playedMode, playerSheetMarkup, soloOf, type PlayerSeed, type PlayerSheetView } from './PlayerSheet';
+import { cachedProfile, type ProfilePayload } from '../game/profile-api';
+import { chipLine, surviveGoal, type Chase, type Mine } from '../game/chase';
+import { chaseChipMarkup, chaseIntroMarkup, passedMarkup } from './ChaseUi';
+import { activitySheetMarkup } from './Activity';
+import type { OwnActivity } from '../game/profile-api';
 import wifiOff from '../assets/board/wifi-off.svg?raw';
 /** OPENER to Opener and NO. 3 to No. 3: the batters' titles as a scorecard writes them. */
 const titleCase = (title: string) => title.charAt(0) + title.slice(1).toLowerCase();
@@ -378,6 +386,7 @@ export class HUD {
         </div>
         </div>
         <div id="nearing" class="nearing hidden" role="status" aria-live="polite"></div>
+          <div id="chase-chip" class="chase-chip-slot hidden"></div>
         </div>
         <div id="hit-burst" class="hit-burst" aria-hidden="true"><em id="hit-where"></em></div>
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
@@ -475,8 +484,10 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
               </div>
             </section>
             <div id="mcard-score" class="mcard-score"></div>
+            <div id="chase-strip" class="chase-strip-slot hidden"></div>
             <div id="card-password" class="card-password hidden"></div>
             <section class="ec-player">
+              <div id="card-hero" class="card-hero hidden"></div>
               <div id="card-board" class="card-board hidden">
                 <div class="ec-rank">
                   <span id="card-board-face" class="ec-face"></span>
@@ -484,9 +495,11 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
                     <div class="k-rank-who k-t-overline"><span id="card-board-who"></span><span id="card-board-first" class="k-rank-first k-t-tag hidden">First innings</span></div>
                     <p class="card-board-head k-rank-line k-t-lead" id="card-board-head"></p>
                     <p id="card-board-sub" class="k-rank-best k-t-small hidden"></p>
+                    <p id="card-board-passed" class="k-rank-passed hidden"></p>
                     <div id="card-peek"></div>
                   </div>
                 </div>
+                <div id="card-around" class="card-around hidden"></div>
                 <p id="claim-why" class="claim-why">Registering is also how your career survives a new phone.</p>
                 <form id="card-claim" class="card-claim hidden">
                   <div id="claim-picker"></div>
@@ -500,7 +513,7 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
               <div class="k-actions ec-doors">
                 <button id="claim" class="k-action is-board claim-key" type="button">REGISTER SCORE ON LEADERBOARD</button>
                 <button id="card-career" class="k-action is-career career-widget hidden" type="button">
-                  ${kitIcon('user')}<span class="career-words">Career stats</span>${kitIcon('chevron-right', 'is-chevron')}
+                  ${kitIcon('user')}<span class="career-words">My profile</span>${kitIcon('chevron-right', 'is-chevron')}
                   <span id="career-kit" class="career-kit hidden"></span>
                 </button>
               </div>
@@ -752,6 +765,9 @@ ${modeSelectMarkup()}
     const kept = same ? document.getElementById('board-body')?.scrollTop ?? 0 : null;
     overlay.className = 'modal-overlay lb-overlay';
     overlay.innerHTML = boardScreenMarkup(screen);
+    // A profile open over the board stays open over it: the board redraws
+    // under it (its place, the store's answer) and the sheet is put back on top.
+    if (this.playerOpen) overlay.querySelector('.lb-screen')!.append(this.playerOpen.layer);
     this.viewport.classList.add('modal-open');
     this.boardShown = { mode, ladder };
     this.wireBoard(screen);
@@ -875,6 +891,35 @@ ${modeSelectMarkup()}
     body.onpointerup = end;
     body.onpointercancel = end;
     body.onscroll = () => this.foldBoard();
+    // A named row, a step of the podium or a folded chip opens that player's
+    // profile; the player's own opens My profile. Not at the end of a swipe
+    // sideways, which ends on whatever row the thumb happened to lift over.
+    const opener = (target: EventTarget | null) => (target as HTMLElement | null)?.closest<HTMLElement>('[data-handle],[data-mine]') ?? null;
+    const open = (from: HTMLElement) => {
+      if (from.dataset.mine) { this.onStatsOpen?.(); return; }
+      const entry = screen.rows.find(row => row.handle === from.dataset.handle);
+      if (!entry?.handle) return;
+      // Off an innings board the row's figure is their best, and what CHASE aims at.
+      const innings = screen.ladder === 'best' || screen.ladder === 'team';
+      const best = innings ? Number.parseInt(entry.score.replace(/,/g, ''), 10) : NaN;
+      this.openPlayer({
+        handle: entry.handle, name: entry.name, avatar: entry.avatar, mode: screen.mode,
+        place: innings ? entry.place : null, best: Number.isFinite(best) ? best : null,
+      }, from);
+    };
+    shell.onclick = event => {
+      const from = opener(event.target);
+      if (!from || sideways || shell.querySelector('.lb-pop')) return;
+      open(from);
+    };
+    shell.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const from = opener(event.target);
+      if (!from || event.target !== from || shell.querySelector('.lb-pop')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      open(from);
+    });
     shell.onkeydown = event => {
       if (shell.querySelector('.lb-pop') || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
       const at = modes.indexOf(screen.mode);
@@ -906,6 +951,415 @@ ${modeSelectMarkup()}
     if (!row || !dock) { shell.classList.remove('is-you-seen'); return; }
     const box = body.getBoundingClientRect(), mine = row.getBoundingClientRect(), foot = dock.getBoundingClientRect();
     shell.classList.toggle('is-you-seen', mine.top >= box.top && mine.bottom <= Math.min(box.bottom, foot.top + 60));
+  }
+
+  /** Asks the store for a profile: the game knows who is looking. */
+  onPlayerFetch: ((handle: string) => Promise<ProfilePayload | null>) | null = null;
+  /** CHASE on a profile: bat this mode with their best as the target. */
+  onPlayerChase: ((chase: Chase) => void) | null = null;
+  /** The profile over the board, while one is open. */
+  private playerOpen: { layer: HTMLElement; view: PlayerSheetView; from: HTMLElement | null; shut: () => void } | null = null;
+  /** Bumped at every open, so an answer for a sheet already put away draws nothing. */
+  private playerAsk = 0;
+
+  /**
+   * Another player's profile, risen over the board (section 14, lane A). The
+   * row's face flies up into the hero while the sheet rises on a soft spring
+   * and the board dims behind it; what the row knew is drawn at once and the
+   * rest arrives from the store. The face goes back to its row on the way out.
+   */
+  openPlayer(seed: PlayerSeed, from: HTMLElement | null) {
+    const shell = document.querySelector<HTMLElement>('#board-overlay .lb-screen');
+    if (!shell) return;
+    this.dropPlayer();
+    const held = cachedProfile(seed.handle);
+    const view: PlayerSheetView = {
+      seed, mode: seed.mode, modes: this.boardModes(seed.mode),
+      state: held ? 'ready' : 'loading', profile: held,
+    };
+    if (held) view.mode = playedMode(held, view);
+    const layer = document.createElement('div');
+    layer.className = 'lb-pop ps-layer';
+    shell.append(layer);
+    const escapeKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      event.preventDefault();
+      this.closePlayer();
+    };
+    document.addEventListener('keydown', escapeKey, true);
+    // The row's face stays hidden behind the sheet while its copy is the hero.
+    const rowFace = from?.querySelector<HTMLElement>('.board-kit') ?? null;
+    this.playerOpen = {
+      layer, view, from,
+      shut: () => { document.removeEventListener('keydown', escapeKey, true); if (rowFace) rowFace.style.visibility = ''; },
+    };
+    this.drawPlayer('open');
+    this.flyFace(from, layer.querySelector<HTMLElement>('.ps-face'), false);
+    this.askPlayer();
+  }
+
+  /** The profile, asked for; drawn in when it comes if the same sheet is still up. */
+  private askPlayer() {
+    const open = this.playerOpen;
+    if (!open || !this.onPlayerFetch) return;
+    const ask = ++this.playerAsk;
+    this.onPlayerFetch(open.view.seed.handle).then(profile => {
+      if (ask !== this.playerAsk || this.playerOpen !== open) return;
+      if (!profile) {
+        open.view.state = open.view.profile ? 'ready' : 'offline';
+        this.drawPlayer('data');
+        return;
+      }
+      const first = !open.view.profile;
+      open.view.profile = profile;
+      open.view.state = 'ready';
+      if (first) open.view.mode = playedMode(profile, open.view);
+      this.drawPlayer('data');
+    }, () => {
+      if (ask !== this.playerAsk || this.playerOpen !== open) return;
+      if (open.view.state !== 'ready') { open.view.state = 'offline'; this.drawPlayer('data'); }
+    });
+  }
+
+  /**
+   * The sheet drawn from its view. `open` rises it; `data` lets the figures
+   * that just arrived come in, the tiles thirty milliseconds apart; `next` and
+   * `prev` slide the mode's figures across. The rung's ground is crossfaded
+   * rather than cut whenever it changes: the old one is kept on top and faded.
+   */
+  private drawPlayer(how: 'open' | 'data' | 'next' | 'prev') {
+    const open = this.playerOpen;
+    if (!open) return;
+    const { layer, view } = open;
+    const before = layer.querySelector<HTMLElement>('#player-sheet');
+    const scrolled = before?.querySelector<HTMLElement>('.ps-scroll')?.scrollTop ?? 0;
+    const oldStage = before?.querySelector<HTMLElement>('.ps-stage') ?? null;
+    const oldTier = before ? [...before.classList].find(one => one.startsWith('tier-')) ?? null : null;
+    const oldMode = before ? [...before.classList].find(one => /^is-(classic|marathon|survive)$/.test(one)) ?? null : null;
+    layer.innerHTML = playerSheetMarkup(view);
+    const sheet = layer.querySelector<HTMLElement>('#player-sheet')!;
+    sheet.classList.add(how === 'open' ? 'is-rising' : how === 'data' ? 'is-arriving' : `is-${how}`);
+    sheet.querySelector<HTMLElement>('.ps-scroll')!.scrollTop = scrolled;
+    if (oldStage && oldTier && (!sheet.classList.contains(oldTier) || (oldMode && !sheet.classList.contains(oldMode)))) {
+      // The old ground, under its old classes, kept over the new and faded out.
+      const leaving = document.createElement('div');
+      leaving.className = `ps-was ${oldTier} ${oldMode ?? ''}`;
+      leaving.append(oldStage);
+      sheet.querySelector('.ps-stage')!.after(leaving);
+      leaving.addEventListener('animationend', () => leaving.remove(), { once: true });
+    }
+    this.wirePlayer(sheet);
+    // A long name would run the key off its face: then it says CHASE THEIR 187.
+    // Again once the display face is in, which is what it is measured in.
+    fitLabels(sheet);
+    void document.fonts?.ready.then(() => fitLabels(sheet));
+    if (how === 'open') sheet.querySelector<HTMLElement>('#player-close')?.focus({ preventScroll: true });
+  }
+
+  private wirePlayer(sheet: HTMLElement) {
+    const open = this.playerOpen!;
+    open.layer.querySelector<HTMLElement>('.ps-scrim')!.onclick = () => this.closePlayer();
+    sheet.querySelector<HTMLElement>('#player-close')!.onclick = () => this.closePlayer();
+    sheet.querySelector<HTMLElement>('#player-retry')?.addEventListener('click', () => {
+      open.view.state = 'loading';
+      this.drawPlayer('data');
+      this.askPlayer();
+    });
+    for (const tab of sheet.querySelectorAll<HTMLElement>('.ps-tab')) {
+      tab.onclick = () => this.playerMode(tab.dataset.mode as CareerMode);
+    }
+    sheet.querySelector<HTMLElement>('#player-chase')?.addEventListener('click', () => {
+      const target = chaseTarget(open.view);
+      if (target === null) return;
+      const { handle, name, avatar } = open.view.seed;
+      this.onPlayerChase?.({
+        handle, name: open.view.profile?.name ?? name, avatar: open.view.profile?.avatar ?? avatar, mode: open.view.mode, target,
+        ...chaseStanding(open.view),
+        // Survival chases their result; everything else their runs.
+        result: open.view.mode === 'survive' ? open.view.profile?.modes.survive.best?.result ?? null : null,
+      });
+    });
+    sheet.querySelector<HTMLElement>('#player-chase-solo')?.addEventListener('click', () => {
+      const solo = soloOf(open.view);
+      if (!solo) return;
+      const { handle, name, avatar } = open.view.seed;
+      this.onPlayerChase?.({
+        handle, name: open.view.profile?.name ?? name, avatar: open.view.profile?.avatar ?? avatar, mode: 'marathon', target: solo.runs,
+        ladder: 'solo', theirPlace: open.view.profile?.modes.marathon.solo?.place ?? null, theirRung: chaseStanding(open.view).theirRung,
+      });
+    });
+    // Swiped across, the next mode; pulled down by the top half, put away.
+    let from: { x: number; y: number; id: number; top: boolean } | null = null;
+    sheet.onpointerdown = event => {
+      const onTop = !!(event.target as HTMLElement).closest('.ps-grab,.ps-hero');
+      from = { x: event.clientX, y: event.clientY, id: event.pointerId, top: onTop && sheet.querySelector<HTMLElement>('.ps-scroll')!.scrollTop <= 0 };
+      event.stopPropagation();
+    };
+    sheet.onpointermove = event => {
+      if (!from || event.pointerId !== from.id) return;
+      const dy = event.clientY - from.y;
+      if (from.top && dy > 0 && dy > Math.abs(event.clientX - from.x)) sheet.style.setProperty('--pull', `${Math.round(dy)}px`);
+      event.stopPropagation();
+    };
+    const end = (event: PointerEvent) => {
+      if (!from || event.pointerId !== from.id) return;
+      const dx = event.clientX - from.x, dy = event.clientY - from.y;
+      const top = from.top;
+      from = null;
+      sheet.style.removeProperty('--pull');
+      event.stopPropagation();
+      if (top && dy > 90) { this.closePlayer(); return; }
+      if (Math.abs(dx) > 64 && Math.abs(dx) > Math.abs(dy) * 1.5) this.playerStep(dx < 0 ? 1 : -1);
+    };
+    sheet.onpointerup = end;
+    sheet.onpointercancel = end;
+    sheet.onclick = event => event.stopPropagation();
+    sheet.onkeydown = event => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      event.stopPropagation();
+      event.preventDefault();
+      this.playerStep(event.key === 'ArrowRight' ? 1 : -1);
+    };
+  }
+
+  /** The mode beside the one on show, either way. */
+  private playerStep(by: 1 | -1) {
+    const open = this.playerOpen;
+    if (!open) return;
+    const to = open.view.modes[open.view.modes.indexOf(open.view.mode) + by];
+    if (to) this.playerMode(to);
+  }
+
+  /** Another mode's figures, slid in from the side it lies on. */
+  private playerMode(mode: CareerMode) {
+    const open = this.playerOpen;
+    if (!open || mode === open.view.mode) return;
+    const dir = open.view.modes.indexOf(mode) > open.view.modes.indexOf(open.view.mode) ? 'next' : 'prev';
+    open.view.mode = mode;
+    this.drawPlayer(dir);
+    open.layer.querySelector<HTMLElement>(`.ps-tab[data-mode="${mode}"]`)?.focus({ preventScroll: true });
+  }
+
+  /** The sheet put away: it drops, the board comes back up, and the face goes home to its row. */
+  closePlayer() {
+    const open = this.playerOpen;
+    if (!open) return;
+    this.playerOpen = null;
+    this.playerAsk++;
+    open.shut();
+    const { layer, from } = open;
+    layer.classList.add('is-leaving');
+    if (from?.isConnected) {
+      this.flyFace(layer.querySelector<HTMLElement>('.ps-face'), from, true);
+      from.focus({ preventScroll: true });
+    }
+    setTimeout(() => layer.remove(), matchMedia('(prefers-reduced-motion: reduce)').matches ? 150 : 240);
+  }
+
+  /** Put away at once, with no motion: the board closing, or another profile opening. */
+  private dropPlayer() {
+    const open = this.playerOpen;
+    if (!open) return;
+    this.playerOpen = null;
+    this.playerAsk++;
+    open.shut();
+    open.layer.remove();
+  }
+
+  /**
+   * The shared element: a copy of the face flown from one place to the other
+   * on the sheet's spring, the real one hidden until it lands. Nothing flies
+   * under reduced motion, where the sheet only fades.
+   */
+  private flyFace(from: HTMLElement | null, to: HTMLElement | null, home: boolean) {
+    const shell = document.querySelector<HTMLElement>('#board-overlay .lb-screen');
+    const source = from?.querySelector<HTMLElement>('.board-kit') ?? null;
+    const target = to?.querySelector<HTMLElement>('.board-kit') ?? null;
+    if (!shell || !source || !target || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const a = source.getBoundingClientRect(), b = target.getBoundingClientRect(), box = shell.getBoundingClientRect();
+    if (!a.width || !b.width) return;
+    const copy = source.cloneNode(true) as HTMLElement;
+    copy.classList.add('ps-flyer');
+    // Laid where it lands, and flown from where it starts by a transform.
+    Object.assign(copy.style, { left: `${b.left - box.left}px`, top: `${b.top - box.top}px`, width: `${b.width}px`, height: `${b.height}px` });
+    shell.append(copy);
+    const hidden = [source, target];
+    for (const one of hidden) one.style.visibility = 'hidden';
+    const flight = copy.animate(
+      [{ transform: `translate(${a.left - b.left}px, ${a.top - b.top}px) scale(${a.width / b.width})` }, { transform: 'none' }],
+      { duration: home ? 220 : 420, easing: home ? 'cubic-bezier(.4,0,.2,1)' : 'cubic-bezier(.2,.9,.25,1.12)', fill: 'both' },
+    );
+    const land = () => {
+      // Home, the row's face shows again; out, the hero's does, and the row's
+      // stays hidden behind the sheet until the sheet goes.
+      target.style.visibility = '';
+      if (home) source.style.visibility = '';
+      copy.remove();
+    };
+    flight.onfinish = land;
+    flight.oncancel = land;
+  }
+
+  /**
+   * The chip under the scoreboard while a chase is on (section 14, lane B2),
+   * or nothing. `beat` is what the ball just did to it: the wanted figure rolls
+   * to its new value on a scoring ball, and the chip beats on a boundary and on
+   * every ball inside ten to go.
+   */
+  chaseChip(chase: Chase | null, runs = 0, ballsLeft: number | null = null, place: number | null = null, beat: 'none' | 'scored' | 'boundary' = 'none', balls = 0) {
+    const slot = this.$('chase-chip');
+    if (!chase) { slot.innerHTML = ''; slot.classList.add('hidden'); this.pauseChase = null; return; }
+    slot.innerHTML = chaseChipMarkup(chase, runs, ballsLeft, place, balls);
+    slot.classList.remove('hidden');
+    fitLabels(slot);
+    const chip = slot.querySelector<HTMLElement>('.ch-chip')!;
+    if (beat !== 'none') chip.classList.add('is-rolled', 'is-beat');
+    if (beat === 'boundary') chip.classList.add('is-boundary');
+    const line = chipLine(chase, runs, ballsLeft);
+    this.pauseChase = chase.result ? surviveGoal(chase.name, chase.result).key.toLowerCase().replace(/^./, c => c.toUpperCase())
+      : line.done ? `Surpassed ${chase.name}` : `${line.need} to beat ${chase.name}`;
+  }
+  /** The chase's word on the pause sheet, beside the score. */
+  private pauseChase: string | null = null;
+
+  /**
+   * The card before the first ball of a chase (B1): it rises with an
+   * overshoot, the two faces come in from their sides, and the target counts
+   * up from nought. Nothing is bowled until it is put away: LET'S BAT drops
+   * it, BACK lets the chase go.
+   */
+  chaseIntro(chase: Chase, mine: Mine, you: { avatar: number | null }, done: (bat: boolean) => void) {
+    this.closeChaseIntro();
+    const layer = document.createElement('div');
+    layer.className = 'ch-layer';
+    layer.id = 'chase-intro';
+    layer.innerHTML = chaseIntroMarkup(chase, mine, you);
+    this.viewport.append(layer);
+    // Measured with the figure whole, before it counts up to it.
+    fitLabels(layer);
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const count = layer.querySelector<HTMLElement>('.ch-count');
+    if (count && !still) {
+      const to = Number(count.dataset.to) || chase.target, began = performance.now() + 220;
+      const step = (now: number) => {
+        if (!count.isConnected) return;
+        const t = Math.min(1, Math.max(0, (now - began) / 500));
+        count.textContent = Math.round(to * (1 - (1 - t) ** 3)).toLocaleString('en-US');
+        if (t < 1) requestAnimationFrame(step);
+      };
+      count.textContent = '0';
+      requestAnimationFrame(step);
+    }
+    const finish = (bat: boolean) => {
+      if (!layer.isConnected) return;
+      layer.classList.add('is-leaving');
+      setTimeout(() => layer.remove(), still ? 0 : 200);
+      done(bat);
+    };
+    layer.querySelector<HTMLElement>('#chase-bat')!.onclick = () => finish(true);
+    layer.querySelector<HTMLElement>('#chase-back')!.onclick = () => finish(false);
+    layer.querySelector<HTMLElement>('#chase-bat')!.focus({ preventScroll: true });
+  }
+  closeChaseIntro() { document.getElementById('chase-intro')?.remove(); }
+  get chaseIntroOpen() { return !!document.getElementById('chase-intro'); }
+
+  /** The target passed (B3), held between balls for `lasts` ms, as a milestone is. */
+  chasePassed(chase: Chase, runs: number, you: { avatar: number | null }, place: number | null, modeName: string, lasts: number) {
+    document.getElementById('chase-passed')?.remove();
+    const layer = document.createElement('div');
+    layer.id = 'chase-passed';
+    layer.innerHTML = passedMarkup(chase, runs, you, place, modeName);
+    const moment = layer.firstElementChild as HTMLElement;
+    moment.id = 'chase-passed';
+    this.viewport.append(moment);
+    setTimeout(() => moment.classList.add('is-leaving'), Math.max(0, lasts - 200));
+    setTimeout(() => moment.remove(), lasts);
+  }
+
+  /** The chase's strip on the end card (B4, B5), or nothing. */
+  chaseStrip(markup: string | null, standsInForPlace = false) {
+    const slot = this.$('chase-strip');
+    slot.innerHTML = markup ?? '';
+    slot.classList.toggle('hidden', !markup);
+    // For a named player the strip says the place and carries the doors, so
+    // the player card under it would only say them again.
+    slot.classList.toggle('is-place', !!markup && standsInForPlace);
+  }
+
+  /**
+   * Who the innings went past and who stands next (section 14, C3), under the
+   * place on the end card; nothing for an innings that moved nobody.
+   */
+  cardAround(around: { passed: { name: string; avatar: number }[]; passedCount: number; next: { name: string; avatar: number; runs: number; place: number } | null } | null) {
+    const slot = this.$('card-around');
+    const line = this.$('card-board-passed');
+    const passed = around && around.passedCount > 0 ? around.passed : [];
+    const next = around?.next ?? null;
+    // Who it went past is part of what changed, so it is a quiet line under
+    // the place rather than a row of its own.
+    const others = passed.length ? around!.passedCount - passed.length : 0;
+    const names = passed.map(one => `<b>${escape(one.name)}</b>`);
+    line.innerHTML = !passed.length ? ''
+      : `Surpassed ${others > 0 ? `${names.join(', ')} and ${others} other${others === 1 ? '' : 's'}` : names.join(' and ')}`;
+    line.classList.toggle('hidden', !passed.length);
+    // Who is next is the one thing on the card to act on: a row of its own.
+    slot.innerHTML = next ? `<button id="card-next" type="button" class="ca-next">
+        <span class="ca-next-face">${kitMarkup(next.avatar, next.name)}</span>
+        <span class="ca-next-text"><small>NEXT UP · #${next.place}</small><b>${escape(next.name)}</b></span>
+        <span class="ca-next-goal"><small>BEAT</small><b>${next.runs.toLocaleString('en-US')}</b></span>${kitIcon('chevron-right')}</button>` : '';
+    slot.classList.toggle('hidden', !next);
+    document.getElementById('card-next')?.addEventListener('click', () => document.getElementById('claim')?.click());
+  }
+
+  /** The innings the rank hero last arrived for, and what it last drew: it arrives once, and a redraw that changes nothing is left alone. */
+  private heroFor = -1;
+  private heroDrawn = '';
+  /**
+   * The rank hero (Figma 14E, `src/ui/RankHero.ts`): the player card for a
+   * named player once the store has placed them, standing in for the rank
+   * header, the line of who it surpassed, the Next row and the chase's strip.
+   * The first draw of an innings arrives — the place counting down from where
+   * it was, the chip, the faces, and a chase won's paper — and later redraws
+   * only change what changed.
+   */
+  rankHero(markup: string | null, arrive: { innings: number; from: number | null; confetti: boolean } | null) {
+    const slot = this.$('card-hero');
+    this.viewport.querySelectorAll('.ec-player').forEach(one => one.classList.toggle('has-hero', !!markup));
+    if (!markup) { slot.innerHTML = ''; slot.classList.add('hidden'); this.heroDrawn = ''; return; }
+    if (markup === this.heroDrawn) return;
+    this.heroDrawn = markup;
+    slot.innerHTML = markup;
+    slot.classList.remove('hidden');
+    document.getElementById('rh-next')?.addEventListener('click', () => document.getElementById('claim')?.click());
+    if (!arrive || this.heroFor === arrive.innings) return;
+    this.heroFor = arrive.innings;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const hero = slot.querySelector<HTMLElement>('.rh');
+    hero?.classList.add('is-arriving');
+    if (arrive.confetti) hero?.classList.add('is-confetti');
+    // The place counts from where it was, a tick a place.
+    const place = slot.querySelector<HTMLElement>('.rh-place');
+    const to = Number(place?.dataset.place);
+    if (!place || arrive.from === null || !(arrive.from > to) || arrive.from - to > 60) return;
+    const from = arrive.from, step = Math.max(30, Math.min(90, 700 / (from - to)));
+    let at = from;
+    place.textContent = `#${at}`;
+    const tick = () => {
+      if (!place.isConnected) return;
+      at -= 1;
+      place.textContent = `#${at}`;
+      if (at > to) setTimeout(tick, step);
+    };
+    setTimeout(tick, 260);
+  }
+
+  /** The end card's key: PLAY AGAIN, or CHASE 187 AGAIN while a chase is still to be won. */
+  againLabel(label: string | null) {
+    for (const id of ['again', 'survive-again']) {
+      const face = this.$(id).querySelector<HTMLElement>('.k-cta-face>span');
+      if (face) face.textContent = label ?? 'PLAY AGAIN';
+    }
   }
 
   /**
@@ -986,8 +1440,9 @@ ${modeSelectMarkup()}
     this.holdStats(view);
     overlay.innerHTML = statsSheetMarkup({
       ...view, careerKey: this.keyView, who: this.whoNow?.() ?? null, at: this.statsAt, where: 'page', offerRestore: this.offerRestore,
-      password: this.passwordNow?.() ?? null,
+      password: this.passwordNow?.() ?? null, activity: this.activity,
     });
+    this.wireActivity();
     // Seen, once an opening: against `password-open-stats`, how many tap it.
     if (opening && overlay.querySelector('.pw-card')) track('password-card-stats', 'Password card on My Stats');
     overlay.classList.remove('hidden');
@@ -1014,6 +1469,61 @@ ${modeSelectMarkup()}
     this.statsAt = Math.min(Math.max(0, this.statsAt), Math.max(0, view.cards.length - 1));
     this.statsCards = view.cards;
     this.statsShown = view.cards[this.statsAt]?.facts ?? null;
+    this.statsView = view;
+  }
+  /** The page's last view, drawn again when the activity arrives. */
+  private statsView: StatsSheetView | null = null;
+  /** What the player's profile has collected, once the store has said; null before, and for a player with no name. */
+  private activity: OwnActivity | null = null;
+
+  /** The activity, arrived: the page drawn again with it where it is up. */
+  statsActivity(activity: OwnActivity | null) {
+    this.activity = activity;
+    if (this.statsView && !this.$('stats-overlay').classList.contains('hidden')) this.stats(this.statsView);
+  }
+
+  /** WIN IT BACK on the Your profile sheet: chase what was taken. */
+  onWinBack: ((event: OwnActivity['events'][number]) => void) | null = null;
+
+  /** The headline, the bio's way in, and the Your profile sheet behind them. */
+  private wireActivity() {
+    const page = this.$('stats-overlay');
+    for (const add of page.querySelectorAll<HTMLElement>('[data-bio-add]')) add.onclick = () => this.onProfileEdit?.();
+    const open = document.getElementById('mp-activity-open');
+    if (!open || !this.activity) return;
+    open.onclick = () => {
+      const activity = this.activity;
+      if (!activity) return;
+      track('activity-open', 'Your profile sheet opened');
+      const layer = document.createElement('div');
+      layer.className = 'lb-pop mp-layer';
+      layer.innerHTML = activitySheetMarkup(activity);
+      page.append(layer);
+      const escapeKey = (event: KeyboardEvent) => {
+        if (event.key !== 'Escape') return;
+        event.stopPropagation();
+        event.preventDefault();
+        shut();
+      };
+      const shut = () => {
+        document.removeEventListener('keydown', escapeKey, true);
+        layer.remove();
+        open.focus({ preventScroll: true });
+      };
+      document.addEventListener('keydown', escapeKey, true);
+      layer.querySelector<HTMLElement>('[data-close]')!.onclick = shut;
+      layer.querySelector<HTMLElement>('#activity-close')!.onclick = shut;
+      layer.querySelector<HTMLElement>('#activity-bio')?.addEventListener('click', () => { shut(); this.onProfileEdit?.(); });
+      for (const win of layer.querySelectorAll<HTMLElement>('.mp-win')) {
+        win.onclick = () => {
+          const event = activity.events[Number(win.dataset.event)];
+          if (!event) return;
+          shut();
+          this.onWinBack?.(event);
+        };
+      }
+      layer.querySelector<HTMLElement>('#activity-close')!.focus({ preventScroll: true });
+    };
   }
 
   /**
@@ -1122,6 +1632,11 @@ ${modeSelectMarkup()}
       trackOnce('stats-swipe', 'Swiped to the other card');
       this.statsAt = at;
       this.statsShown = this.statsCards[at]?.facts ?? this.statsShown;
+      for (const one of document.querySelectorAll<HTMLElement>('.mp-stage, .mp-hero')) {
+        const on = Number(one.dataset.slide) === at;
+        one.classList.toggle('is-on', on);
+        if (one.classList.contains('mp-hero')) one.toggleAttribute('aria-hidden', !on);
+      }
       for (const dot of document.querySelectorAll<HTMLElement>('.stats-dot')) {
         const on = Number(dot.dataset.slide) === at;
         dot.classList.toggle('is-on', on);
@@ -1222,7 +1737,7 @@ ${modeSelectMarkup()}
 
   private storyLocked = false;
 
-  /** The cards this run plays (`storiesFor`): the whole update unless the game says otherwise. */
+  /** The cards this run plays: the whole update unless the caller says otherwise. */
   private storyRun: readonly Story[] = STORIES;
 
   stories(where: StoriesWhere, locked = false, run: readonly Story[] = STORIES) {
@@ -1369,7 +1884,8 @@ ${modeSelectMarkup()}
 
 
   /** The stories' stage made ahead, while the cover is up, so the first story does not open on an empty room. */
-  warmStories() { (this.storyStage ??= new StoryStage()).warm(); }
+  /** Only for an update told on the room's stage: building it for nothing costs a phone its first seconds. */
+  warmStories() { if (STORIES.some(one => one.stage)) (this.storyStage ??= new StoryStage()).warm(); }
 
   /** `open` when the way in put them away, which is counted apart from leaving. */
   closeStories(how: 'leave' | 'open' = 'leave') {
@@ -1708,6 +2224,7 @@ ${modeSelectMarkup()}
   }
   /** Puts the sheet away and hands the screen back to whatever was under it. */
   closeBoard() {
+    this.dropPlayer();
     this.$('board-overlay').innerHTML = '';
     this.$('board-overlay').className = 'modal-overlay hidden';
     this.boardShown = null;
@@ -2102,6 +2619,7 @@ ${modeSelectMarkup()}
     this.$('pause-state').textContent = chasing
       ? `${text('sc-score')} · ${text('sc-need')} to win · ${text('sc-balls')} balls left`
       : `${text('runs') || '0'}/${text('wickets') || '0'} · ${text('overs') || '0.0'} overs`;
+    if (this.pauseChase) this.$('pause-state').textContent += ` · ${this.pauseChase}`;
     this.$('resume').focus();
   }
   /**
@@ -2281,6 +2799,9 @@ ${modeSelectMarkup()}
       ? `<img class="k-rank-avatar" src="${avatarSrc(known.avatar)}" alt="" width="48" height="48">`
       : `<span class="k-rank-avatar is-guest">${kitIcon('user')}</span>`;
     this.$('card-board-who').textContent = known ? known.name : 'GUEST';
+    // A named player's card is about the place, not who they are: the name
+    // over it says nothing the face does not.
+    this.viewport.querySelector('.ec-player')?.classList.toggle('is-named', !!known);
     const note = this.cardNote;
     this.$('card-board-first').classList.toggle('hidden', !note?.first || offer.kind === 'standing');
     const sub = this.$('card-board-sub');
@@ -2385,7 +2906,7 @@ ${modeSelectMarkup()}
     // card goes first, straight under the score, for the same reason: left
     // on the Blast card, a Survival innings never showed it.
     const player = this.viewport.querySelector('.ec-player')!;
-    const moving = [this.$('card-password'), player, this.$('card-key')];
+    const moving = [this.$('chase-strip'), this.$('card-password'), player, this.$('card-key')];
     if (surviving) this.$('survive-strip').append(...moving);
     else {
       const card = this.$('end').querySelector('.scorecard')!;
@@ -2627,11 +3148,15 @@ ${modeSelectMarkup()}
   get profileEntry() {
     const field = document.getElementById('profile-name') as HTMLInputElement | null;
     const view = this.profileView;
-    return { name: field?.value ?? view?.name ?? '', avatar: view?.avatar ?? 0, hand: view?.hand ?? 'right' as Hand };
+    const bio = document.getElementById('profile-bio') as HTMLTextAreaElement | null;
+    return {
+      name: field?.value ?? view?.name ?? '', avatar: view?.avatar ?? 0, hand: view?.hand ?? 'right' as Hand,
+      ...(bio ? { bio: bio.value, bioWas: view?.bio ?? '' } : {}),
+    };
   }
 
   /** What the game does with the answer, and with "bat now" when the board is away. The store is the game's. */
-  onProfile: ((entry: { name: string; avatar: number; hand: Hand }) => void) | null = null;
+  onProfile: ((entry: { name: string; avatar: number; hand: Hand; bio?: string; bioWas?: string }) => void) | null = null;
   onProfileSkip: ((entry: { name: string; avatar: number; hand: Hand }) => void) | null = null;
   /** The edit key on My Stats. The game knows who the player is. */
   onProfileEdit: (() => void) | null = null;
@@ -2710,14 +3235,75 @@ ${modeSelectMarkup()}
     if (pass) pass.onclick = () => this.onPasswordOpen?.('details');
     const skip = document.getElementById('profile-skip');
     if (skip) skip.onclick = () => this.onProfileSkip?.(this.profileEntry);
+    this.wireBio();
     (this.$('profile-form') as HTMLFormElement).onsubmit = event => {
       event.preventDefault();
       if (this.profileView?.sending || !named(field.value)) return;
+      const bio = document.getElementById('profile-bio') as HTMLTextAreaElement | null;
+      if (bio && bioProblem(bio.value)) { this.showBioProblem(bioProblem(bio.value)); bio.focus(); return; }
       this.onProfile?.(this.profileEntry);
     };
     // Not focused on a phone: the keyboard would come up over the card the
     // player has not seen yet. A fine pointer has no keyboard to raise.
     if (!view.sending && view.fresh && matchMedia('(pointer: fine)').matches) field.focus();
+  }
+
+  /**
+   * The bio field's life: past eighty it is cut, and the line under it says
+   * so; the count turns to what is left from seventy; the three ideas stand
+   * while it is empty and in use; and half a second after the typing stops
+   * it is held to the store's own rules, so a refusal costs no round trip.
+   */
+  private wireBio() {
+    const bio = document.getElementById('profile-bio') as HTMLTextAreaElement | null;
+    if (!bio) return;
+    const count = this.$('bio-count'), note = this.$('bio-note'), ideas = this.$('bio-ideas');
+    let timer = 0;
+    const said = () => {
+      const chars = bioChars(bio.value);
+      if (chars.length > BIO_MAX) {
+        bio.value = chars.slice(0, BIO_MAX).join('');
+        note.textContent = 'Cut to 80 characters';
+        note.classList.add('is-cut');
+      }
+      const n = Math.min(BIO_MAX, chars.length);
+      count.textContent = bioCount(n);
+      count.classList.toggle('is-near', n >= 70);
+      ideas.classList.toggle('hidden', !!bio.value.trim());
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => this.showBioProblem(bioProblem(bio.value)), 500);
+    };
+    bio.oninput = () => {
+      if (note.classList.contains('is-cut') && bioChars(bio.value).length < BIO_MAX) {
+        note.textContent = 'Shown on your profile to anyone who opens it.';
+        note.classList.remove('is-cut');
+      }
+      said();
+    };
+    // Enter is done, not a new line: a bio is one line.
+    bio.onkeydown = event => { if (event.key === 'Enter') { event.preventDefault(); bio.blur(); } };
+    for (const idea of ideas.querySelectorAll<HTMLElement>('.bio-idea')) {
+      idea.onclick = () => { bio.value = idea.dataset.idea ?? ''; said(); bio.focus(); };
+    }
+  }
+
+  /** A bio's refusal under the field, or none. */
+  private showBioProblem(problem: string | null) {
+    const line = document.getElementById('bio-problem');
+    const bio = document.getElementById('profile-bio');
+    if (!line || !bio) return;
+    const why = problem === 'Keep contact details and links out of your bio.'
+      ? `${problem} Many players are young, and a bio is never a way to reach someone.` : problem ?? '';
+    line.textContent = why;
+    line.classList.toggle('hidden', !problem);
+    bio.classList.toggle('is-wrong', !!problem);
+    bio.setAttribute('aria-invalid', String(!!problem));
+  }
+
+  /** The bio as the store now has it, onto My profile. */
+  statsBio(bio: string | null) {
+    if (!this.activity) return;
+    this.statsActivity({ ...this.activity, bio });
   }
 
   /* ── Career password ─────────────────────────────────────────────────────
@@ -3673,6 +4259,22 @@ ${modeSelectMarkup()}
     for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
     this.viewport.append(row);
   }
+  /** `?topspot=1`'s keys: one a board, in the same row as Level Up's preview. New #1 goes over them. */
+  topSpotKeys(keys: readonly { label: string; mode: CareerMode }[], pick: (mode: CareerMode) => void) {
+    const row = document.createElement('div');
+    row.className = 'rate-preview levelup-preview topspot-preview';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Preview New number one');
+    for (const { label, mode } of keys) {
+      const key = document.createElement('button');
+      key.type = 'button'; key.className = 'rate-preview-key'; key.dataset.mode = mode; key.textContent = label;
+      key.setAttribute('aria-label', `Preview New number one on ${label.toLowerCase()}`);
+      key.addEventListener('click', () => pick(mode));
+      row.append(key);
+    }
+    for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
+    this.viewport.append(row);
+  }
   /**
    * `?welcome=1`'s keys: one a way the welcome can go, along the top of the
    * picture and over the welcome itself, so one scenario can follow another.
@@ -4475,7 +5077,7 @@ function roomWords(
   view: RoomView, extra: { interstitial?: { index: number; total: number }; sent?: boolean },
 ): { title: string; tag: string | null; lead: string; sub: string; note: string | null; keys: RoomKey[] } {
   const you = view.mine;
-  const others = view.players.filter(row => row.playerId !== you?.playerId);
+  const others = view.players.filter(row => row.handle !== you?.handle);
   const other = others[0] ?? null;
   const first = (row: ChallengeRow | null) => row?.name ?? 'your friend';
   const key = (kind: RoomKey['kind'], act: RoomKey['act'], label: string, href?: string): RoomKey => ({ kind, act, label, href });
@@ -4626,7 +5228,7 @@ function roomKey(key: RoomKey): string {
  */
 function roomGrid(view: RoomView): string {
   const you = view.mine;
-  const ordered = [...view.players].sort((a, b) => Number(b.playerId === you?.playerId) - Number(a.playerId === you?.playerId) || a.joined - b.joined);
+  const ordered = [...view.players].sort((a, b) => Number(b.handle === you?.handle) - Number(a.handle === you?.handle) || a.joined - b.joined);
   const seats = ordered.map(row => roomSeat(row, view));
   const showEmpty = ordered.length < 2 && (view.kind === 'lobby' || view.kind === 'waiting');
   if (showEmpty) {
@@ -4640,7 +5242,7 @@ const RING_R = 52;
 const RING_LENGTH = Math.round(2 * Math.PI * RING_R * 100) / 100;
 
 function roomSeat(row: ChallengeRow, view: RoomView): string {
-  const you = row.playerId === view.mine?.playerId;
+  const you = row.handle === view.mine?.handle;
   const hide = view.blind && !you;
   const name = you ? 'You' : escapeName(row.name);
   let under: string;
@@ -4667,9 +5269,9 @@ function roomSeat(row: ChallengeRow, view: RoomView): string {
         : `<span class="room-pill is-batted">BATTED</span><span class="room-score">${row.runs}<em>/${row.wickets}</em></span>`;
   }
   const ring = row.status === 'batting'
-    ? `<svg class="room-ring" viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="ring-${row.playerId}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6fd3ff"/><stop offset=".55" stop-color="#ffb347"/><stop offset="1" stop-color="#ff7a2a"/></linearGradient></defs><circle class="room-ring-track" cx="60" cy="60" r="${RING_R}"/><circle class="room-ring-arc" cx="60" cy="60" r="${RING_R}" stroke="url(#ring-${row.playerId})" data-length="${RING_LENGTH}" stroke-dasharray="${RING_LENGTH}" stroke-dashoffset="${RING_LENGTH}"/></svg>`
+    ? `<svg class="room-ring" viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="ring-${row.handle}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6fd3ff"/><stop offset=".55" stop-color="#ffb347"/><stop offset="1" stop-color="#ff7a2a"/></linearGradient></defs><circle class="room-ring-track" cx="60" cy="60" r="${RING_R}"/><circle class="room-ring-arc" cx="60" cy="60" r="${RING_R}" stroke="url(#ring-${row.handle})" data-length="${RING_LENGTH}" stroke-dasharray="${RING_LENGTH}" stroke-dashoffset="${RING_LENGTH}"/></svg>`
     : '';
-  return `<div class="room-seat is-${row.status}${you ? ' is-you' : ''}" data-player="${row.playerId}"${progress ? ` data-progress="${progress}"` : ''}>
+  return `<div class="room-seat is-${row.status}${you ? ' is-you' : ''}" data-player="${row.handle}"${progress ? ` data-progress="${progress}"` : ''}>
     <span class="room-face">${kitMarkup(row.avatar, row.name)}${ring}</span>
     <b class="room-name">${name}</b>
     ${under}
@@ -4682,10 +5284,10 @@ function roomSeat(row: ChallengeRow, view: RoomView): string {
  * tracks: the result is a verdict, not a scorecard.
  */
 function resultRow(row: ChallengeRow, result: ResultView): string {
-  const mine = row.playerId === result.you;
+  const mine = ownsHandle(row.handle, result.you);
   const top = result.players[0]?.score ?? 0;
   const draw = !result.winner && row.score === top;
-  const won = !!result.winner && row.playerId === result.winner.playerId;
+  const won = !!result.winner && row.handle === result.winner.handle;
   const tone = draw ? 'is-draw' : won ? 'is-won' : 'is-lost';
   const pill = draw ? 'DRAW' : won ? 'WINNER' : row.status === 'declined' ? 'DECLINED' : row.status === 'forfeit' ? 'WALKED' : '';
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -4718,7 +5320,7 @@ export interface ListSections {
 export interface ListRowView {
   code: string;
   /** Who it is against: the other person, or the leader of a group, or nobody yet. */
-  them: { playerId: string; name: string; avatar: number } | null;
+  them: { handle: string; name: string; avatar: number } | null;
   /** How many others are in it, for a group. */
   others: number;
   /** The line under the name. */
@@ -4741,7 +5343,7 @@ function listRow(row: ListRowView, me: number | null = null): string {
   // Two faces, yours under theirs, as drawn; theirs is the key to the head-to-head.
   const mine = me === null ? '<span class="board-kit is-empty" aria-hidden="true"></span>' : kitMarkup(me, '');
   const theirs = row.them
-    ? `<button class="rival-row-kit" type="button" data-rival="${row.them.playerId}" data-code="${row.code}" aria-label="Head to head with ${escapeName(row.them.name)}">${kitMarkup(row.them.avatar, row.them.name)}</button>`
+    ? `<button class="rival-row-kit" type="button" data-rival="${row.them.handle}" data-code="${row.code}" aria-label="Head to head with ${escapeName(row.them.name)}">${kitMarkup(row.them.avatar, row.them.name)}</button>`
     : '<span class="rival-row-kit"><span class="board-kit is-empty" aria-hidden="true">?</span></span>';
   const name = row.them ? `You vs ${escapeName(row.them.name)}${row.others > 1 ? ` <i>+${row.others - 1}</i>` : ''}` : 'Nobody yet';
   const line = [row.outcome ? row.verdict ?? '' : row.note, row.age].filter(Boolean).join(' \u00b7 ');

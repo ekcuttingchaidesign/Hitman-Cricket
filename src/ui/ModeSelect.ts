@@ -122,7 +122,7 @@ export function modeSelectMarkup(): string {
             <div class="ms-top">
               <button id="modes-cancel" class="k-icon-button" aria-label="Back" title="Back">${icon('arrow-left')}</button>
               <h2 id="modes-title" class="ms-title">CHOOSE A MODE</h2>
-              <button id="modes-profile" class="ms-profile" type="button" aria-label="My stats"></button>
+              <button id="modes-profile" class="ms-profile" type="button" aria-label="My profile"></button>
             </div>
             <div class="ms-posters">
               <button id="mode-marathon" class="ms-poster is-marathon" type="button">
@@ -173,7 +173,7 @@ export function modeSelectMarkup(): string {
                 <span id="modes-board-note" class="ms-note">Top 50 in every mode</span>
               </button>
               <button id="modes-stats" class="ms-card ms-stats tier-debutant" type="button">
-                <span class="ms-card-head"><span>MY STATS</span>${icon('chevron-right')}</span>
+                <span class="ms-card-head"><span>MY PROFILE</span>${icon('chevron-right')}</span>
                 <span class="ms-stats-body"><b id="modes-stats-runs">0</b><span>career runs</span></span>
                 <span id="modes-stats-tier" class="ms-stats-tier">DEBUTANT</span>
               </button>

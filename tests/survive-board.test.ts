@@ -1,3 +1,4 @@
+import { handleOf } from '../src/game/handle';
 import { describe, expect, it } from 'vitest';
 import { HEALTH, SURVIVE } from '../src/config/survive';
 import {
@@ -13,7 +14,7 @@ const innings = (over: Partial<SurviveInnings> = {}): SurviveInnings =>
 const AT = Date.UTC(2026, 5, 1);
 const row = (over: Partial<SurviveInnings>, atMs = AT): SurviveRow => {
   const i = innings(over);
-  return { ...i, playerId: 'p', name: 'n', avatar: 0, score: packSurvive(i, atMs) };
+  return { ...i, handle: handleOf('p'), name: 'n', avatar: 0, score: packSurvive(i, atMs) };
 };
 /** Best first, the way the board is read. */
 const order = (...rows: SurviveRow[]) => [...rows].sort(compareSurviveRows);

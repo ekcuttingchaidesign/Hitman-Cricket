@@ -77,7 +77,8 @@ export interface Innings {
 
 /** Everything the board needs about a row, once it has a place and an owner. */
 export interface BoardRow extends Innings {
-  playerId: string;
+  /** The player's public handle (`game/handle.ts`). The id itself is a secret and never comes back from the store. */
+  handle: string;
   name: string;
   avatar: number;
   /** The packed number this row is sorted on. */

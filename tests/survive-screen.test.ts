@@ -1,3 +1,4 @@
+import { handleOf } from '../src/game/handle';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HEALTH, SURVIVE } from '../src/config/survive';
 import {
@@ -19,7 +20,7 @@ const innings = (over: Partial<SurviveInnings> = {}): SurviveInnings =>
   ({ runs: 0, balls: 0, wickets: 0, blows: 0, health: HEALTH.full, ...over });
 const row = (over: Partial<SurviveRow> = {}): SurviveRow => {
   const figures = innings(over);
-  return { ...figures, playerId: 'p', name: 'Rohit', avatar: 0, score: packSurvive(figures, AT), ...over };
+  return { ...figures, handle: handleOf('p'), name: 'Rohit', avatar: 0, score: packSurvive(figures, AT), ...over };
 };
 
 describe('what a row says happened', () => {
@@ -98,7 +99,7 @@ describe('a row, drawn', () => {
 
 describe('the sheet', () => {
   const full = Array.from({ length: SURVIVE_BOARD_SIZE }, (_, i) =>
-    row({ playerId: `p${i}`, name: `P${i}`, runs: 80 - i, balls: SURVIVE.totalBalls }));
+    row({ handle: handleOf(`p${i}`), name: `P${i}`, runs: 80 - i, balls: SURVIVE.totalBalls }));
 
   it('names no cutoff while the board is filling', () => {
     expect(surviveCutoff(full.slice(0, 10))).toBeNull();
@@ -164,7 +165,7 @@ describe('the sheet', () => {
 
 describe('the peek on the card', () => {
   const rows = Array.from({ length: 6 }, (_, i) =>
-    row({ playerId: `p${i}`, name: `P${i}`, runs: 60 - i, balls: SURVIVE.totalBalls }));
+    row({ handle: handleOf(`p${i}`), name: `P${i}`, runs: 60 - i, balls: SURVIVE.totalBalls }));
 
   it('shows the row above and the row below, which is what makes a place mean anything', () => {
     const drawn = survivePeekMarkup(rows, 3, innings({ runs: 58, balls: SURVIVE.totalBalls }), 2);
@@ -197,7 +198,7 @@ describe('the peek on the card', () => {
 
 describe('whether the card says anything about the board', () => {
   const full = Array.from({ length: SURVIVE_BOARD_SIZE }, (_, i) =>
-    row({ playerId: `p${i}`, runs: 80 - i, balls: SURVIVE.totalBalls }));
+    row({ handle: handleOf(`p${i}`), runs: 80 - i, balls: SURVIVE.totalBalls }));
 
   it('stays quiet when the board has never answered', () => {
     expect(surviveOffer(false, [], innings({ runs: SURVIVE.target, balls: 20 }), AT).kind).toBe('silent');
@@ -269,7 +270,7 @@ describe('the two ladders, through the store the endpoints run', () => {
     // Nothing the browser sent beyond the five gets written down. `at` is the
     // store's own stamp, never the browser's.
     expect(Object.keys(board.rows[0]).sort())
-      .toEqual(['at', 'avatar', 'balls', 'blows', 'health', 'name', 'playerId', 'runs', 'score', 'wickets']);
+      .toEqual(['at', 'avatar', 'balls', 'blows', 'handle', 'health', 'name', 'runs', 'score', 'wickets']);
   });
 
   it('puts a win above a draw above a loss, whatever the runs say', async () => {
@@ -382,7 +383,7 @@ describe('the figures, in three fixed columns', () => {
   it('puts the longer rearguard above the bigger score, under one letter', () => {
     // The pair that started this. Both bowled out, so both read L, and what
     // orders them is the balls column running down the block.
-    const rows = [row({ playerId: 'a', runs: 72, balls: 47, wickets: 1 }), row({ playerId: 'b', runs: 86, balls: 35, wickets: 1 })]
+    const rows = [row({ handle: handleOf('a'), runs: 72, balls: 47, wickets: 1 }), row({ handle: handleOf('b'), runs: 86, balls: 35, wickets: 1 })]
       .sort((x, y) => y.score - x.score);
     expect(rows[0].runs).toBe(72);
     expect(outcomeOf(rows[0]).letter).toBe('L');
@@ -391,7 +392,7 @@ describe('the figures, in three fixed columns', () => {
 
   it('names the block the rows below it belong to, and what it is judged on', () => {
     const sheet = surviveBoardMarkup({
-      rows: [row({ playerId: 'a', runs: SURVIVE.target, balls: 30 }), row({ playerId: 'b', runs: 20, balls: 30, wickets: 1 })],
+      rows: [row({ handle: handleOf('a'), runs: SURVIVE.target, balls: 30 }), row({ handle: handleOf('b'), runs: 20, balls: 30, wickets: 1 })],
       atMs: AT,
     });
     expect(sheet).toContain('Wins &middot; fewest balls used');

@@ -1,4 +1,5 @@
 import type { Innings } from './leaderboard';
+import { handleOf, isHandle } from './handle';
 import type { ChallengeState, PlayerStatus, RivalsRecord, RivalsRow } from '../server/challenge-store';
 import type { Look } from './dressing-ids';
 import { readDressing } from './dressing-store';
@@ -42,7 +43,8 @@ const RIVALRY_MAX = 200;
 
 /** One innings in the room, as the endpoint sends it. */
 export interface ChallengeRow extends Innings {
-  playerId: string;
+  /** The player's public handle (`game/handle.ts`). The id itself is a secret and never comes back from the store. */
+  handle: string;
   name: string;
   avatar: number;
   /** Their Dressing Room kit and bat; null for an innings from before the room. */
@@ -104,7 +106,8 @@ export interface Unsent {
 /** One result against one friend, as this browser saw it land. */
 export interface RivalryEntry {
   code: string;
-  them: { playerId: string; name: string; avatar: number };
+  /** Who it was against, by public handle. Entries noted before handles carried the id, and are read as its handle. */
+  them: { handle: string; name: string; avatar: number };
   mine: { runs: number; sixes: number; fours: number };
   theirs: { runs: number; sixes: number; fours: number };
   outcome: 'W' | 'L' | 'D';
@@ -307,13 +310,19 @@ export function rivalryEntries(): RivalryEntry[] {
     if (!Array.isArray(held)) return [];
     return held.filter((one): one is RivalryEntry =>
       !!one && typeof one === 'object' && typeof (one as RivalryEntry).code === 'string'
-      && !!(one as RivalryEntry).them && ['W', 'L', 'D'].includes((one as RivalryEntry).outcome));
+      && !!(one as RivalryEntry).them && ['W', 'L', 'D'].includes((one as RivalryEntry).outcome))
+      .map(one => {
+        const them = one.them as RivalryEntry['them'] & { playerId?: string };
+        if (isHandle(them.handle) || typeof them.playerId !== 'string') return one;
+        const { playerId, ...rest } = them;
+        return { ...one, them: { ...rest, handle: isHandle(playerId) ? playerId : handleOf(playerId) } };
+      });
   } catch { return []; }
 }
 
 /** Everything noted against one person, newest first. */
-export function rivalryWith(playerId: string): RivalryEntry[] {
-  return rivalryEntries().filter(one => one.them.playerId === playerId);
+export function rivalryWith(handle: string): RivalryEntry[] {
+  return rivalryEntries().filter(one => one.them.handle === handle);
 }
 
 function strings(key: string): string[] {

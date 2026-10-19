@@ -36,3 +36,15 @@ export function nameBlocked(name: string): boolean {
 
 /** What the screen says, in one line, when it is. */
 export const NAME_BLOCKED_REASON = "That name isn't allowed here. Pick something your friend will recognise.";
+
+/**
+ * Whether one word of running text is a refused word: the word itself, or one
+ * built on it at either end (`bullshit`, `fucking`). Not one buried in the
+ * middle, which is where Scunthorpe and `peacock` live and where a name check
+ * can afford to be strict and a sentence cannot. The bio's filter.
+ */
+export function wordBlocked(word: string): boolean {
+  const folded = fold(word);
+  if (!folded) return false;
+  return BLOCKED.some(blocked => folded === blocked || folded.startsWith(blocked) || folded.endsWith(blocked));
+}

@@ -2,7 +2,8 @@
 // note at the top of `api/board.ts`, and `scripts/function-check.mjs`, which is
 // what keeps it honest.
 import { countInnings, refusedCareer } from '../src/server/career-store.js';
-import { NoDatabase, redisFromEnv, upstashCareer, upstashRecap } from '../src/server/upstash.js';
+import { NoDatabase, redisFromEnv, upstashCareer, upstashPlayers, upstashRecap } from '../src/server/upstash.js';
+import { rememberHandle } from '../src/server/player-store.js';
 import { recordInnings } from '../src/server/recap-store.js';
 import { lookOf } from '../src/game/dressing-ids.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
@@ -81,6 +82,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         playerId: who.playerId, mode, tally, look: lookOf(body.look), at: Date.now(),
       }).catch(error => console.error('The year recap could not take an innings.', error));
     }
+    // The handle a named career's rows go by, so they open its profile.
+    if (outcome.name) await rememberHandle(upstashPlayers(redisFromEnv()), who.playerId);
     // A career is one player's own figures. Nobody else's cache may hold it.
     res.setHeader('Cache-Control', 'no-store');
     res.status(200).json(outcome);

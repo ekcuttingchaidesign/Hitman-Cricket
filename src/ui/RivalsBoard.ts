@@ -1,3 +1,4 @@
+import { ownsHandle } from '../game/handle';
 import type { RivalsRow } from '../game/challenge-api';
 import { escape, kitMarkup } from './Leaderboard';
 import { cta, icon } from './Kit';
@@ -44,7 +45,7 @@ export function rivalsRankingMarkup(view: RivalsBoardView): string {
         : `Top ${size} by matches won, then fewest lost, then runs.`}</p>
       <div class="rival-ranking-scroll rv-table">
         <div class="rv-table-head" aria-hidden="true"><span>#</span><span>PLAYER</span><span>W</span><span>L</span><span>RUNS</span></div>
-      ${rows.length ? `<ol class="board-list rival-ranking-list">${rows.map((row, i) => rivalsRowMarkup(row, i, row.playerId === youId)).join('')}
+      ${rows.length ? `<ol class="board-list rival-ranking-list">${rows.map((row, i) => rivalsRowMarkup(row, i, ownsHandle(row.handle, youId))).join('')}
       </ol>` : ''}
       ${state === 'ready' && !rows.length
         ? '<p class="board-cut rv-empty">Nobody is on it yet. Win a Rivals match and the top is yours.</p>' : ''}

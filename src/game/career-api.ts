@@ -28,7 +28,8 @@ const MIRROR_KEY = 'hitman-career';
 
 /** A row on a career board, as the endpoint sends it. */
 export interface CareerRow<C> {
-  playerId: string;
+  /** The player's public handle (`game/handle.ts`). The id itself is a secret and never comes back from the store. */
+  handle: string;
   name: string;
   avatar: number;
   career: C;

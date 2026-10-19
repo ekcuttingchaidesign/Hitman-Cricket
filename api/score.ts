@@ -6,7 +6,7 @@ import { nameCareer } from '../src/server/career-store.js';
 import { foldName } from '../src/server/board-store.js';
 import { carryKey, keyOnClaim, listOnClaim } from '../src/server/recovery-store.js';
 import {
-  NoDatabase, redisFromEnv, upstashCareer, upstashRecovery, upstashStore,
+  NoDatabase, redisFromEnv, upstashCareer, upstashProfiles, upstashRecovery, upstashStore,
 } from '../src/server/upstash.js';
 import {
   BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, type BlastCareer, type MarathonCareer, type SurviveCareer,
@@ -14,7 +14,8 @@ import {
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 import type { Innings } from '../src/game/leaderboard.js';
 import type { SurviveInnings } from '../src/game/survive-board.js';
-import { readMarathonFigures, type MarathonFigures } from '../src/game/marathon-board.js';
+import { readMarathonFigures, soloOf, teamOf, type MarathonFigures } from '../src/game/marathon-board.js';
+import { afterPost } from '../src/server/profile-endpoint.js';
 import { modeAsked } from '../src/server/mode.js';
 
 /**
@@ -47,21 +48,24 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   try {
     const write = redisFromEnv();
-    const outcome = marathon
+    const marathonInnings = marathon ? readMarathonFigures(body.innings) : null;
+    const surviveInnings = survive ? surviveFigures(body.innings) : null;
+    const blastInnings = figures(body.innings);
+    const outcome = marathonInnings
       ? await submitMarathon(
         { team: upstashStore(write, MARATHON_TEAM_LADDER.scope), solo: upstashStore(write, MARATHON_SOLO_LADDER.scope) },
-        { ...who, innings: readMarathonFigures(body.innings) } satisfies Submission<MarathonFigures>,
+        { ...who, innings: marathonInnings } satisfies Submission<MarathonFigures>,
       )
-      : survive
+      : surviveInnings
       ? await submitScore(
         upstashStore<SurviveInnings>(redisFromEnv(), SURVIVE_LADDER.scope),
         SURVIVE_LADDER,
-        { ...who, innings: surviveFigures(body.innings) } satisfies Submission<SurviveInnings>,
+        { ...who, innings: surviveInnings } satisfies Submission<SurviveInnings>,
       )
       : await submitScore(
         upstashStore(redisFromEnv()),
         CLASSIC_LADDER,
-        { ...who, innings: figures(body.innings) } satisfies Submission<Innings>,
+        { ...who, innings: blastInnings } satisfies Submission<Innings>,
       );
     if (refused(outcome)) {
       // A name refused as somebody else's says which name is held, so the
@@ -111,9 +115,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     } catch (error) {
       console.error('No career key was minted for the name.', error);
     }
+    // Who the innings went past and who is next, and the chase it was played
+    // as, which leave their marks on other players' profiles. `afterPost`
+    // never throws: the innings is on the board whatever happens here.
+    const runs = marathonInnings ? teamOf(marathonInnings).runs : (surviveInnings ?? blastInnings).runs;
+    const extras = await afterPost(upstashProfiles(write), {
+      playerId: who.playerId, name: who.name, avatar: who.avatar, mode, runs, outcome, chase: body.chase,
+      chaseLadder: body.chaseLadder, soloRuns: marathonInnings ? soloOf(marathonInnings).runs : undefined,
+      surviveInnings: surviveInnings ?? undefined,
+    });
     // A submission is never cached, by anyone, ever.
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json(key ? { ...outcome, key } : outcome);
+    res.status(200).json(key ? { ...outcome, ...extras, key } : { ...outcome, ...extras });
   } catch (error) {
     if (error instanceof NoDatabase) return failed(res, 503, 'The board is not set up yet.', error);
     failed(res, 503, 'The board could not be reached.', error);

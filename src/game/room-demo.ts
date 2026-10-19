@@ -1,3 +1,4 @@
+import { handleOf } from './handle';
 import { GAME } from '../config/gameplay';
 import type { Challenge, ChallengeRow } from './challenge-api';
 import type { PlayerStatus } from '../server/challenge-store';
@@ -61,19 +62,19 @@ function row(
   const played = figures.runs * 10_000 + figures.sixes * 100 + figures.fours;
   const score = status === 'done' ? 2_000_000_000 + played : status === 'forfeit' ? 1_000_000_000 + played : status === 'declined' ? 900_000_000 : status === 'batting' ? 500_000_000 + figures.balls : 0;
   return {
-    ...figures, playerId, name, avatar, card, host: false, status,
+    ...figures, handle: playerId, name, avatar, card, host: false, status,
     joined: now - 2 * HOUR, at: now - HOUR, seen: false, score, ...over,
   };
 }
 
 /** The room for one state, seen by `me`. */
 export function demoRoom(kind: DemoKind, me: string, now = Date.now()): { room: Challenge; interstitial?: { index: number; total: number }; sent?: boolean } {
-  const you = (card: string, status: PlayerStatus, over: Partial<ChallengeRow> = {}) => row(me, 'You', 3, card, status, { host: true, ...over }, now);
+  const you = (card: string, status: PlayerStatus, over: Partial<ChallengeRow> = {}) => row(handleOf(me), 'You', 3, card, status, { host: true, ...over }, now);
   const rahul = (card: string, status: PlayerStatus, over: Partial<ChallengeRow> = {}) => row('demo01-rahulrahulrahul', 'Virat', 1, card, status, over, now);
   const priya = (card: string, status: PlayerStatus, over: Partial<ChallengeRow> = {}) => row('demo02-priyapriyapriya', 'Rohit', 0, card, status, over, now);
   const amit = (card: string, status: PlayerStatus, over: Partial<ChallengeRow> = {}) => row('demo03-amitamitamitam', 'Amit', 4, card, status, over, now);
   const base = (players: ChallengeRow[], state: Challenge['state'], over: Partial<Challenge> = {}): Challenge => ({
-    code: 'DEMO42', state, host: players.find(one => one.host)?.playerId ?? me,
+    code: 'DEMO42', state, host: players.find(one => one.host)?.handle ?? handleOf(me),
     at: now - 6 * HOUR, expiresAt: now + 7 * DAY - 6 * HOUR, v: 1, rematchOf: null, size: 4,
     players: [...players].sort((a, b) => b.score - a.score || a.joined - b.joined), ...over,
   });

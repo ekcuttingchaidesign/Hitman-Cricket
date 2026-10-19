@@ -255,9 +255,8 @@ for (const [name, options] of [
     const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
     try {
       localStorage.setItem('hitman-seen', day);
-      // Past the update's stories, and past the launch week's once a day: the day is the page's own.
-      localStorage.setItem('hitman-whatsnew', 'new-shots:9');
-      localStorage.setItem('hitman-whatsnew-day', (d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`)(new Date()));
+      // Past the update's stories.
+      localStorage.setItem('hitman-whatsnew', 'player-profiles:9');
     } catch { /* Then the notices stand. */ }
   });
   await page.route('**/api/board**', route => route.fulfill({

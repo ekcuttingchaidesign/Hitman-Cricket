@@ -1,0 +1,94 @@
+import { describe, expect, it } from 'vitest';
+import { emptyBlast } from '../src/game/career';
+import type { ProfilePayload } from '../src/game/profile-api';
+import { chaseLabel, chaseShort, chaseTarget, playedMode, playerSheetMarkup, type PlayerSheetView } from '../src/ui/PlayerSheet';
+
+const none = { career: null, granted: null, best: null, bestRank: null };
+const profile = (over: Partial<ProfilePayload['modes']> = {}): ProfilePayload => ({
+  handle: '0123456789abcdef', name: 'Kabir', avatar: 1, bio: 'Leg-side bully.', lastAt: null,
+  modes: {
+    classic: { career: { ...emptyBlast(), innings: 64, runs: 6210, highest: 187 }, granted: null, best: { runs: 187, place: 4, total: 900 }, bestRank: 3 },
+    survive: none, marathon: none, ...over,
+  },
+});
+const seed = { handle: '0123456789abcdef', name: 'Kabir', avatar: 1, mode: 'classic' as const, place: 4, best: 180 };
+const view = (over: Partial<PlayerSheetView> = {}): PlayerSheetView =>
+  ({ seed, mode: 'classic', modes: ['classic', 'marathon', 'survive'], state: 'ready', profile: profile(), ...over });
+
+describe('the chase', () => {
+  it('aims at the best on the profile once it is in, and at the row before', () => {
+    expect(chaseTarget(view())).toBe(187);
+    expect(chaseTarget(view({ state: 'loading', profile: null }))).toBe(180);
+    expect(chaseTarget(view({ state: 'offline', profile: null }))).toBe(180);
+  });
+
+  it('has nothing to aim at in a mode never batted, or a mode the row was not on', () => {
+    expect(chaseTarget(view({ mode: 'survive' }))).toBeNull();
+    expect(chaseTarget(view({ state: 'loading', profile: null, mode: 'marathon' }))).toBeNull();
+  });
+
+  it('has a short form without the name, for a name too long for the key', () => {
+    expect(chaseShort(1187)).toBe('CHASE THEIR 1,187');
+    expect(playerSheetMarkup(view())).toMatch(/id="player-chase"[^]*data-short="CHASE THEIR /);
+  });
+
+  it('names them and the figure', () => {
+    expect(chaseLabel('Kabir', 1187)).toBe('CHASE KABIR\u2019S 1,187');
+  });
+});
+
+describe('playerSheetMarkup', () => {
+  it('draws the rung, their line, the place and the key', () => {
+    const html = playerSheetMarkup(view());
+    expect(html).toContain('tier-star');
+    expect(html).toContain('Leg-side bully.');
+    expect(html).toContain('#4');
+    expect(html).toContain('id="player-chase"');
+  });
+
+  it('says a mode is empty and offers no chase there', () => {
+    const html = playerSheetMarkup(view({ mode: 'survive' }));
+    expect(html).toContain('No Survival innings yet');
+    expect(html).not.toContain('id="player-chase"');
+  });
+
+  it('keeps the chase when the store cannot be reached, and says so', () => {
+    const html = playerSheetMarkup(view({ state: 'offline', profile: null }));
+    expect(html).toContain('id="player-retry"');
+    expect(html).toContain('The chase still works');
+    expect(html).toContain('id="player-chase"');
+  });
+
+  it('escapes what a player wrote', () => {
+    const html = playerSheetMarkup(view({ profile: { ...profile(), bio: '<img src=x onerror=alert(1)>' } }));
+    expect(html).not.toContain('<img src=x');
+  });
+});
+
+describe('the Test Marathon', () => {
+  it('offers its second target under the six: their best batter, not out marked', () => {
+    const marathon = { career: null, granted: null, best: { runs: 312, place: 11, total: 90 }, bestRank: 7, solo: { runs: 141, out: false, place: 4 } };
+    const html = playerSheetMarkup(view({ mode: 'marathon', profile: profile({ marathon }) }));
+    expect(html).toContain('id="player-chase-solo"');
+    expect(html).toContain('or chase the best batter, 141*');
+    expect(html).toContain('CHASE KABIR’S 312');
+    expect(playerSheetMarkup(view())).not.toContain('player-chase-solo');
+  });
+});
+
+describe('Test Survival', () => {
+  it('keys the chase to their result, and offers none until the profile has said it', () => {
+    const survive = { career: null, granted: null, best: { runs: 30, place: 3, total: 20, result: { kind: 'lost' as const, balls: 40, runs: 30 } }, bestRank: 3 };
+    const html = playerSheetMarkup(view({ mode: 'survive', profile: profile({ survive }) }));
+    expect(html).toContain('OUTLAST KABIR');
+    expect(html).not.toContain('CHASE KABIR');
+    expect(chaseTarget(view({ mode: 'survive', state: 'loading', profile: null, seed: { ...seed, mode: 'survive' } }))).toBeNull();
+  });
+});
+
+describe('playedMode', () => {
+  it('opens on the board\u2019s mode, or the first they have batted', () => {
+    expect(playedMode(profile(), { mode: 'classic', modes: ['classic', 'marathon', 'survive'] })).toBe('classic');
+    expect(playedMode(profile(), { mode: 'survive', modes: ['classic', 'marathon', 'survive'] })).toBe('classic');
+  });
+});

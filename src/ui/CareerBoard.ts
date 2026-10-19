@@ -1,3 +1,4 @@
+import { ownsHandle } from '../game/handle';
 import {
   BLAST_BOARDS, MARATHON_BOARDS, SURVIVE_BOARDS,
   type BlastCareer, type CareerBoard, type CareerMode, type MarathonCareer, type SurviveCareer,
@@ -124,7 +125,7 @@ export function careerBoardMarkup(view: CareerBoardView): string {
   // saying the same thing twice — and at two lines on a narrow phone, saying it
   // twice in the space the title wanted.
   const { board, rows, youId = null, state = 'ready', size = 50 } = view;
-  const place = rows.findIndex(row => row.playerId === youId);
+  const place = rows.findIndex(row => ownsHandle(row.handle, youId));
   return `
     <div class="board-sheet" role="document">
       <div class="sheet-head">
@@ -139,7 +140,7 @@ export function careerBoardMarkup(view: CareerBoardView): string {
         : state === 'offline' ? 'The board could not be reached.'
         : careerStanding(board, rows, place)}</p>
       <div class="board-scroll">
-        <ol class="board-list">${rows.map((row, i) => careerRowMarkup(board, row, i, row.playerId === youId)).join('')}
+        <ol class="board-list">${rows.map((row, i) => careerRowMarkup(board, row, i, ownsHandle(row.handle, youId))).join('')}
         </ol>
         ${state === 'ready' && !rows.length ? '<p class="board-cut">Nobody has a career here yet. Play an innings and it starts.</p>' : ''}
       </div>
@@ -210,7 +211,7 @@ export function placesOf(
   if (!youId) return {};
   const places: Record<string, number> = {};
   for (const [key, rows] of Object.entries(boards)) {
-    const at = rows.findIndex(row => row.playerId === youId);
+    const at = rows.findIndex(row => ownsHandle(row.handle, youId));
     if (at >= 0) places[key] = at + 1;
   }
   return places;

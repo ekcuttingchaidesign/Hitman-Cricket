@@ -48,14 +48,12 @@ async function open({ id = null, name = null, query = '', nudged = 0 } = {}) {
   page.on('pageerror', e => errors.push(e.message));
   await page.addInitScript(({ id, name, nudged }) => {
     try {
-      const d = new Date();
       localStorage.setItem('hitman-seen', new Date(Date.now() - 172_800_000).toISOString().slice(0, 10));
       localStorage.setItem('hitman-shots-intro', 'done');
       localStorage.setItem('hitman-marathon-intro', 'done');
       localStorage.setItem('hitman-hurt-seen', '1');
-      // Past the update's stories: shown twice, and once a day through the launch week.
-      localStorage.setItem('hitman-whatsnew', 'new-shots:9');
-      localStorage.setItem('hitman-whatsnew-day', `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`);
+      // Past the update's stories.
+      localStorage.setItem('hitman-whatsnew', 'player-profiles:9');
       // The stars put away for good, so they never take the moment the nudge sheet wants.
       localStorage.setItem('hitman-rating', JSON.stringify({ rated: {}, finished: 0, played: {}, dismissals: 3, dismissedAt: Date.now() }));
       if (nudged && !localStorage.getItem('hitman-password-nudge')) localStorage.setItem('hitman-password-nudge', String(nudged));
@@ -134,7 +132,7 @@ const id = newId(); const name = `Pw${letters(6)}`;
     const after = [...document.querySelectorAll('.stats-sheet-inner > *')].filter(n => rail.compareDocumentPosition(n) & 4).map(n => n.className.split(' ')[0]);
     return { kids, keyAfterRail: !!key && !!(rail.compareDocumentPosition(key) & 4), after };
   });
-  check(order.kids[0] === 'st-card' && order.kids[1] === 'pw-card', 'B · right under the career card, above Road to Hitman', JSON.stringify(order.kids));
+  check(order.kids[0] === 'pw-card' && order.kids[1] === 'k-road', 'B · right under the career cards, above Road to Hitman', JSON.stringify(order.kids));
   check(order.keyAfterRail, 'B · with the career key below the cards', JSON.stringify(order.after));
   await page.locator('#stats-password').click({ force: true });
   check(await until(page, () => page.locator('#pw-form').isVisible()), 'B · SET A PASSWORD opens the sheet');

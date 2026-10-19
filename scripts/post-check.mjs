@@ -111,8 +111,8 @@ const askStanding = (page, id) => page.evaluate(async player => {
  * ranks it for real, and nothing is written there to get in a later run's way.
  */
 const FULL = {
-  team: { rows: Array.from({ length: 50 }, (_, i) => ({ playerId: `full${String(i).padStart(4, '0')}-xxxxxxxxxxxx`, name: `Side ${i + 1}`, avatar: i % 5, score: Number.MAX_SAFE_INTEGER - i, runs: 400 - i, balls: 300, boundaries: 40, ending: 'ALL_OUT' })), cutoff: Number.MAX_SAFE_INTEGER - 49, size: 50 },
-  solo: { rows: Array.from({ length: 50 }, (_, i) => ({ playerId: `full${String(i).padStart(4, '0')}-xxxxxxxxxxxx`, name: `Bat ${i + 1}`, avatar: i % 5, score: Number.MAX_SAFE_INTEGER - i, runs: 200 - i, balls: 200, out: true, order: 1 })), cutoff: Number.MAX_SAFE_INTEGER - 49, size: 50 },
+  team: { rows: Array.from({ length: 50 }, (_, i) => ({ handle: `f011${String(i).padStart(12, '0')}`, name: `Side ${i + 1}`, avatar: i % 5, score: Number.MAX_SAFE_INTEGER - i, runs: 400 - i, balls: 300, boundaries: 40, ending: 'ALL_OUT' })), cutoff: Number.MAX_SAFE_INTEGER - 49, size: 50 },
+  solo: { rows: Array.from({ length: 50 }, (_, i) => ({ handle: `f011${String(i).padStart(12, '0')}`, name: `Bat ${i + 1}`, avatar: i % 5, score: Number.MAX_SAFE_INTEGER - i, runs: 200 - i, balls: 200, out: true, order: 1 })), cutoff: Number.MAX_SAFE_INTEGER - 49, size: 50 },
 };
 
 // — A player with a name, batting left-handed.
@@ -130,6 +130,8 @@ const FULL = {
   const standing = (await snap()).standing?.standing;
   check(standing?.team?.rank >= 1 && standing.team.total >= standing.team.rank && standing.team.was === null,
     'the store says where the innings put them, out of how many, from nowhere', JSON.stringify(standing));
+  // New #1 plays first when the innings took the top of this dev server's board; a tap on it is a skip.
+  for (let i = 0; i < 40 && await page.evaluate(() => window.__cricket.topSpotOpen()); i++) await page.waitForTimeout(200);
   await page.locator('#claim').click({ force: true });
   await page.waitForTimeout(1500);
   check(await page.locator('#board-overlay').isVisible(), 'which opens the board');

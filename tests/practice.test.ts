@@ -46,6 +46,7 @@ describe('every switch the game reads', () => {
     moments: 'celebrations on demand, adding no runs and counting nothing',
     rate: 'the star rating on demand, sending and remembering nothing',
     levelup: 'the Level Up screen on demand, over a made-up climb, counting and remembering nothing',
+    topspot: 'New #1 on demand, over a made-up board, counting and sending nothing',
     actions: 'what the batter does after a ball, on demand, at no ball and counting nothing',
     demo: 'made-up rows on the boards, in this browser only',
     feedback: 'the feedback sheet',
