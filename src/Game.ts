@@ -85,6 +85,7 @@ import type { RestoreEntry } from './ui/HUD';
 import type { PasswordEntry, PasswordMode } from './ui/Password';
 import type { LocalCareer } from './ui/Restore';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
+import { headline } from './ui/Activity';
 import type { BatterKit } from './entities/Batter';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
@@ -3161,6 +3162,8 @@ export class Game {
     }), !!readPlayer()?.name);
     this.hud.againLabel(said.beat ? null : chase.result ? surviveGoal(chase.name, chase.result).again : againLabel(chase));
     if (!result) this.mark(said.beat ? 'chase-beat' : 'chase-short', said.beat ? 'Chase: beaten' : 'Chase: fell short');
+    // The same again for WIN IT BACK alone, which `chase-` counts among the rest.
+    if (!result && chase.answers) this.mark(said.beat ? 'winback-beat' : 'winback-short', said.beat ? 'Win it back: won' : 'Win it back: fell short');
     // Gone after from the Rank down card and played to the end: the card comes down, won or not.
     if (!result && chase.answers) noteAnswered(chase.handle, chase.mode);
     const board = () => { if (this.careerMode === 'marathon') this.openMarathon('team'); else this.openBoard(this.careerMode, 'best'); };
@@ -3318,7 +3321,10 @@ export class Game {
     try {
       const activity = await fetchActivity(player);
       this.bioKnown = activity.bio;
-      if (!this.disposed && this.player === player) this.hud.statsActivity(activity);
+      if (this.disposed || this.player !== player) return;
+      // My profile led with Rank down: against `activity-open` and `activity-win-back`, how often being passed brings a player back.
+      if (headline(activity)) track('activity-headline', 'My profile led with Rank down');
+      this.hud.statsActivity(activity);
     } catch { /* My profile without its activity is still My profile. */ }
   }
 

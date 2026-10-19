@@ -137,6 +137,21 @@ describe('afterPost', () => {
     expect((await post(on, 'Esha', 67, 'not a handle')).extras.chase).toBeUndefined();
   });
 
+  it('tallies each chase by how it ended and each player passed, for the report', async () => {
+    const on = await board();
+    const { tallied } = on.players as ReturnType<typeof memoryPlayers>;
+    expect([...tallied]).toEqual([]);
+    await post(on, 'Esha', 85);
+    expect(tallied.get('passed')).toBe(2);
+    await post(on, 'Esha', 95, handleOf(A));
+    expect(tallied.get('chase-short')).toBe(1);
+    expect(tallied.get('passed')).toBe(3);
+    await post(on, 'Esha', 101, handleOf(A));
+    expect(tallied.get('chase-beat')).toBe(1);
+    // The one chased is told of the chase, and tallied for it, not as a pass besides.
+    expect(tallied.get('passed')).toBe(3);
+  });
+
   it('leaves no player id in what it answers', async () => {
     const on = await board();
     const { extras } = await post(on, 'Esha', 101, handleOf(A));
@@ -182,6 +197,8 @@ describe('readProfile', () => {
     await readProfile(on, handleOf(B), '0123456789abcdef');
     await readProfile(on, handleOf(B), undefined);
     expect((await readActivity(on.players, B))?.views).toBe(1);
+    // The store's tally counts the look as the profile does: once.
+    expect((on.players as ReturnType<typeof memoryPlayers>).tallied.get('profile-view')).toBe(1);
   });
 
   it('finds a player on a board whose handle was never noted, and notes it', async () => {
