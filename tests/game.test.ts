@@ -169,6 +169,16 @@ describe('special deliveries', () => {
     // This one is at the body, so there is no room to cut it either.
     expect(cuttable(bouncer)).toBe(false);
   });
+  it('lets the bouncer be blocked off the back foot, in time, for a dot off the bat', () => {
+    // It used to go through him whatever he did with the block.
+    const bouncer = delivery({ style: 'SHORT', bounceZ: STYLES.SHORT.bounce, rise: STYLES.SHORT.rise });
+    const blocked = resolveShot(bouncer, { shotType: 'DEFEND', inputTimeMs: 1000 }, rng(0));
+    expect(blocked.defended).toBe(true); expect(blocked.madeBatContact).toBe(true);
+    expect(blocked.runs).toBe(0); expect(blocked.isWicket).toBe(false);
+    // Too late with it, the ball is past him, and still cannot bowl him.
+    const late = resolveShot(bouncer, { shotType: 'DEFEND', inputTimeMs: 1300 }, rng(0));
+    expect(late.madeBatContact).toBe(false); expect(late.isWicket).toBe(false);
+  });
 });
 
 describe('the square cut', () => {

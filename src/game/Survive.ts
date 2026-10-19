@@ -276,14 +276,15 @@ function nudged(base: ShotOutcome, rng: { next(): number }): ShotOutcome {
 function defended(
   base: ShotOutcome, delivery: Delivery, contact: Contact, delta: number | null, rng: { next(): number }, clean: number,
 ): ShotOutcome {
-  // A bouncer is ducked — but it has to be ducked in time. Ducking used to be
-  // unconditionally safe, which made the fastest, nastiest ball in the mode the
-  // one delivery a player could answer without thinking: press the block key
-  // and nothing could happen to him. Get under it late and you are still
-  // standing up when it arrives.
+  // A bouncer is met with the back-foot defence, the bat up in front of his
+  // chest — but it has to be in time. It used to be ducked, the ball going
+  // through where he stood; before that ducking was unconditionally safe, which
+  // made the fastest, nastiest ball in the mode the one delivery a player could
+  // answer without thinking. Late, he is still getting the bat up when it
+  // arrives.
   if (delivery.style === 'SHORT') {
     if (delta === null || delta > clean) return blow(base, delivery, blowSpot(delivery));
-    return { ...base, defended: true, madeBatContact: false, feedback: 'DUCKED' };
+    return { ...base, defended: true, madeBatContact: true, feedback: 'DEFENDED' };
   }
   if (contact === 'CLEAN') return { ...base, defended: true, madeBatContact: true, feedback: 'DEFENDED' };
   if (contact === 'BEATEN') return beaten({ ...base, feedback: 'PLAYED AND MISSED' }, delivery, rng);

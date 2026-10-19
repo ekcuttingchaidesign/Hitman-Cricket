@@ -413,8 +413,11 @@ export function resolveShot(
       isWicket: true, wicketType: 'CAUGHT', feedback: FLAT_SWEEP.topEdge };
   }
   // A bouncer is over the stumps, so it can never bowl you — but it can only be
-  // pulled, and only if it is middled. Anything else and it flies through.
+  // pulled, and only if it is middled, or blocked, off the back foot with the
+  // bat up in front of his chest. Anything else and it flies through.
   if (delivery.style === 'SHORT') {
+    if (attempt?.shotType === 'DEFEND' && DEFENCE.timing.includes(timingGrade))
+      return { ...outcome, defended: true, madeBatContact: true, feedback: DEFENCE.feedback };
     if (attempt?.shotType === 'LEG' && timingGrade === 'PERFECT')
       return { ...outcome, runs: 6, feedback: award(6), compatibility: 1, quality: 1, madeBatContact: true };
     // On off stump or wider, round to fine leg off the diagonal. `playedAs`
