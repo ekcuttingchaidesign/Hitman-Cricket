@@ -1,5 +1,5 @@
 import type { Film } from '../ui/Lottie';
-import { reelSeconds, type ReelShot } from './ShotReel';
+import type { ReelShot } from './ShotReel';
 
 /**
  * What changed, told the way a story is told.
@@ -8,15 +8,15 @@ import { reelSeconds, type ReelShot } from './ShotReel';
  * player once, in the shape every phone already knows how to read: a card, a
  * bar across the top, a tap to move on.
  *
- * This update is two new strokes, then the Dressing Room. The hook and the
- * late cut are each filmed in the game itself, full screen: the player's own
- * batter on the ground, the bowler running in and the stroke played to the
- * ball it answers (`ShotReel.ts`). Then the kits and the bats, each played full
- * screen on the room's own stage, with the way out and the way in under both,
- * the last card holding still.
- * (The Dressing Room's two cards were told on their own first, and the Test
- * Marathon's film and the career key before that, each twice to everybody who
- * played then.)
+ * This update is the player profiles, told in one film: a board, a tap on a
+ * name, that player's profile and the chase of their best, then their own My
+ * profile leading with Rank down and WIN IT BACK
+ * (`public/lotties/player-profiles.json`, built by `wip/profiles-film/`).
+ * (The two new strokes and the Dressing Room were told before it, the
+ * Dressing Room's cards on their own first, and the Test Marathon's film and
+ * the career key before that, each twice to everybody who played then. The
+ * ways a story can be told — a picture, a film, the room's stage, a stroke
+ * filmed in the game — are all kept for the next update.)
  */
 export interface Story {
   key: string;
@@ -98,45 +98,15 @@ export const SHOT_CALLS: Record<ReelShot, { way: 'leg' | 'off'; key: string; cal
 
 export type StoryStageKind = 'kits' | 'bats';
 
-/** A stroke's card holds for the whole of one go of its film and a beat over, so it moves on as the ball reaches the stands. */
-function holdFor(shot: ReelShot) { return Math.ceil(reelSeconds(shot) / 100) * 100 + 300; }
-
 export const STORIES: readonly Story[] = [
   {
-    key: 'hook-it',
-    eyebrow: 'NEW SHOTS IN THE HOUSE · THE HOOK',
-    title: 'HOOK IT FOR SIX',
-    body: 'Bouncer outside off? Swipe to leg and hook it into the stands.',
-    alt: 'Your batter rocks back and across to a bouncer outside off and hooks it high over backward square leg for six.',
-    reel: 'hook',
-    holdMs: holdFor('hook'),
-  },
-  {
-    key: 'show-it-the-way',
-    eyebrow: 'NEW SHOTS IN THE HOUSE · THE LATE CUT',
-    title: 'SHOW IT THE WAY',
-    body: 'Let it come, swipe down to off and steer it past slip for four.',
-    alt: 'Your batter goes back and down on one knee and runs the ball off an open face, fine past the slips to third man for four.',
-    reel: 'latecut',
-    holdMs: holdFor('latecut'),
-  },
-  {
-    key: 'suit-up',
-    eyebrow: 'WHAT’S NEW · DRESSING ROOM',
-    title: 'SUIT UP',
-    body: 'Explore different kits, each one earned out in the middle.',
-    alt: 'Your batter on a pedestal under a spotlight, changing from one kit to the next.',
-    stage: 'kits',
-    opens: 'dressing',
-  },
-  {
-    key: 'earn-your-willow',
-    eyebrow: 'WHAT’S NEW · DRESSING ROOM',
-    title: 'EARN YOUR WILLOW',
-    body: 'Every bat in its own stickers, earned as you climb to Hitman.',
-    alt: 'A bat on a stand under a spotlight, turning into the next bat and the next, each in its own stickers.',
-    stage: 'bats',
-    opens: 'dressing',
+    key: 'player-profiles',
+    eyebrow: 'WHAT’S NEW · PLAYER PROFILES',
+    title: 'PLAYER PROFILES AND MY PROFILE',
+    alt: 'A Blast board. A tap on Kabir opens his profile: his face, his rung and his best. CHASE THEIR 187 is pressed, the runs climb past it and PASSED is stamped with his name. Then Kabir’s own My profile, leading with Rank down, You’re #3 now, and a key to win it back.',
+    film: 'player-profiles',
+    // The film runs nine and a half seconds, and the story holds a beat past its end.
+    holdMs: 10200,
   },
 ];
 
@@ -148,7 +118,7 @@ export const STORIES: readonly Story[] = [
  * "seen" flag would mean the second update in this game's life could never be
  * announced at all.
  */
-export const UPDATE = 'new-shots';
+export const UPDATE = 'player-profiles';
 
 /**
  * How many times one browser is shown it unasked.
@@ -177,51 +147,13 @@ export function whatsNewShown(): number {
   }
 }
 
-/**
- * The new strokes' launch week: until the end of 23 October, India's time, a
- * week from the day they went live, the stories are shown once a day — on the
- * first press of the play key each day — to everybody, however many times they
- * have seen them. The first two showings are the whole update, as ever; the
- * rest are the strokes' two cards alone, the Dressing Room's having been told.
- * After the week only the two showings are left to anybody who has not had them.
- */
-export const LAUNCH_WEEK_ENDS = Date.parse('2026-10-24T00:00:00+05:30');
-
-const DAY = 'hitman-whatsnew-day';
-
-/** The browser's own day, so "once a day" turns over at the player's midnight. */
-export function dayOf(now: number) {
-  const date = new Date(now);
-  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+/** Whether it is shown on its own this time: the first two visits after the update. */
+export function whatsNewDue(): boolean {
+  return whatsNewShown() < TIMES;
 }
 
-/** Which stories are shown on their own this time: the whole update, the strokes' alone, or none. */
-export type StoriesRun = 'all' | 'shots';
-export function whatsNewRun(now = Date.now()): StoriesRun | null {
-  const shown = whatsNewShown();
-  if (now < LAUNCH_WEEK_ENDS) {
-    let today = false;
-    // No storage: every visit is the first one, as it always was.
-    try { today = localStorage.getItem(DAY) === dayOf(now); } catch { /* Not shown today, then. */ }
-    if (today) return null;
-    return shown < TIMES ? 'all' : 'shots';
-  }
-  return shown < TIMES ? 'all' : null;
-}
-
-/** The cards a run plays. */
-export function storiesFor(run: StoriesRun): readonly Story[] {
-  return run === 'all' ? STORIES : STORIES.filter(story => story.reel);
-}
-
-/** Whether it is shown on its own this time. */
-export function whatsNewDue(now = Date.now()): boolean {
-  return !!whatsNewRun(now);
-}
-
-export function markWhatsNewShown(now = Date.now()) {
+export function markWhatsNewShown() {
   try {
     localStorage.setItem(KEY, `${UPDATE}:${whatsNewShown() + 1}`);
-    localStorage.setItem(DAY, dayOf(now));
   } catch { /* Then it asks again. */ }
 }

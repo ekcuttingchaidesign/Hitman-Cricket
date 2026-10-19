@@ -48,14 +48,12 @@ async function open({ id = null, name = null, query = '', nudged = 0 } = {}) {
   page.on('pageerror', e => errors.push(e.message));
   await page.addInitScript(({ id, name, nudged }) => {
     try {
-      const d = new Date();
       localStorage.setItem('hitman-seen', new Date(Date.now() - 172_800_000).toISOString().slice(0, 10));
       localStorage.setItem('hitman-shots-intro', 'done');
       localStorage.setItem('hitman-marathon-intro', 'done');
       localStorage.setItem('hitman-hurt-seen', '1');
-      // Past the update's stories: shown twice, and once a day through the launch week.
-      localStorage.setItem('hitman-whatsnew', 'new-shots:9');
-      localStorage.setItem('hitman-whatsnew-day', `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`);
+      // Past the update's stories.
+      localStorage.setItem('hitman-whatsnew', 'player-profiles:9');
       // The stars put away for good, so they never take the moment the nudge sheet wants.
       localStorage.setItem('hitman-rating', JSON.stringify({ rated: {}, finished: 0, played: {}, dismissals: 3, dismissedAt: Date.now() }));
       if (nudged && !localStorage.getItem('hitman-password-nudge')) localStorage.setItem('hitman-password-nudge', String(nudged));

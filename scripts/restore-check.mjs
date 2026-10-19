@@ -42,7 +42,6 @@ const page = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScal
 await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
 // Past the update's stories too: they are 3D renders, seconds apiece in software,
 // and a tap on SKIP waits behind them. `whatsnew-check.mjs` is the one that reads them.
-await page.addInitScript(() => { try { const d = new Date(); localStorage.setItem('hitman-whatsnew', 'new-shots:9'); localStorage.setItem('hitman-whatsnew-day', `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`); } catch { /* Then they show. */ } });
 const errs = []; page.on('pageerror', e => errs.push(e.message));
 let bad = 0;
 const ok = (c, what, d) => { if (!c) bad++; console.log(`${c ? '  ok  ' : ' FAIL '} ${what}${c || d === undefined ? '' : `\n        ${d}`}`); };

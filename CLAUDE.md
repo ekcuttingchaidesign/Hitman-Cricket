@@ -274,8 +274,7 @@ the machine is; and a box measured off a screenshot is in the page's pixels,
 so scale it by `devicePixelRatio`.
 
 A check that seeds `hitman-whatsnew` seeds the current update key
-(`new-shots`) and, through the launch week, `hitman-whatsnew-day` as the
-page's own day, or the stories stand in front of Choose a mode.
+(`player-profiles`), or the stories stand in front of Choose a mode.
 
 `scripts/scene-check.mjs` is the ground itself: the sky and the painted turf
 are canvases and a shader no unit test runs, and it holds the draw-call budget
@@ -464,8 +463,26 @@ plays two devices for one player against the dev server's store; it passes
 `?private=0`, because headless Chromium looks like a private window and would
 otherwise keep nothing.
 
-The update's What's new stories open on the two new strokes, "New shots in
-the house": HOOK IT FOR SIX and SHOW IT THE WAY. Each is filmed in the game
+The update's What's new is one story, the player profiles, as a Lottie film
+(`public/lotties/player-profiles.json`, `Story.film`): a Blast board and a tap
+on Kabir's row, his face lifting out of it into his profile, CHASE THEIR 187
+pressed, the runs climbing past it and PASSED stamped with his name, then
+Kabir's own My profile leading with Rank down and WIN IT BACK. It plays down
+the sheet on the page's black with the one way out under it, holds a beat past
+its nine and a half seconds and moves on by itself out of the stories. It is
+drawn in code, every shape and word a vector from the game's own faces, with
+the five board faces its only pictures. What writes it is not committed, as
+the Dressing Room film's was not: `wip/profiles-film/build.mjs` on the machine
+that made it (assembled from its `head.part`, the Dressing Room film's helpers
+and `scenes.part`), held to Lottie's rules by `wip/dressing-film/lint.mjs`,
+with `stills.mjs` to photograph any frame. The update key is `player-profiles`, so
+everybody is shown it twice and then never (`whatsNewDue`); the strokes'
+launch week and its once a day went with their cards. `whatsnew-check` walks
+it: the film drawn above the way out, its hold, the twice and the never, and
+the board's key that opens it for ever.
+
+The other ways a story is told are kept for the next update, and the unit
+tests hold them on made-up stories. A new stroke is filmed in the game
 itself (`src/game/ShotReel.ts`, `Story.reel`): the game's own ground and
 renderer, the player's own batter in their kit and hand, the bowler running in
 and bowling the ball the stroke answers through the scene's own calls, the
@@ -487,17 +504,9 @@ and the card's name is the display face in gold, slammed in. A card holds for
 one go of its film, the hold for the swipe with it (`reelSeconds`). Nothing is scored, counted or sent, and the innings's state is
 never touched, which is why it films only off the cover or after an innings
 (`playReel`); opened from the board mid-innings, the card's words stand on its
-own dark. The update key is `new-shots`, so everybody is shown the four cards
-twice, the Dressing Room's two again among them. Through the strokes' launch
-week, to the close of 23 October, India's time (`LAUNCH_WEEK_ENDS`), the play
-key stops for the stories once a day for everybody (`whatsNewRun`, the day in
-`hitman-whatsnew-day`, the browser's own midnight): the first two showings are
-the four cards, every one after them the strokes' two alone (`storiesFor`).
-After the week only the two showings are left to whoever has not had them.
-`whatsnew-check` walks the twice-and-never rule on a clock set after the week,
-and the week's once a day at its end.
+own dark.
 
-Then the Dressing Room's stories play full screen on the room's own stage
+A story on the room's stage plays full screen
 (`src/ui/StoryStage.ts`, `Story.stage`): every kit on the batter, then every
 bat on the stand, with the title over the top, the words over the foot, and
 the batter framed into the room left between them (`#whatsnew-room`), allowed
@@ -507,12 +516,10 @@ and there is no picture to download. Each line under them is two lines at
 most and counts nothing — the shelves only grow — and both cards end on a
 short blue SKIP beside GO TO DRESSING ROOM. Only the last holds still
 (`storyHolds`): the first moves on as any story does, its keys standing where
-the next card's are. `whatsnew-check` refuses the stage's
-module for its clocked walk — every frame is a 3D render, seconds apiece in
-software — and lets it in at the way in to see it play. It holds the strokes'
-cards to the film: the ground under them, the card edge to edge, the film held
-for the swipe and the call put up by the stroke, and nothing left running once
-they are put away.
+the next card's are. The stage is warmed on the cover only when an update
+has a story on it (`warmStories`). Every frame of it is a 3D render, seconds
+apiece in software, so a check that walks it on a wound clock refuses the
+stage's module until the moment it means to watch it play.
 
 ## The year recap: kept now for December
 

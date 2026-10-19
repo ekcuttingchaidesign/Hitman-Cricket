@@ -1694,7 +1694,7 @@ ${modeSelectMarkup()}
 
   private storyLocked = false;
 
-  /** The cards this run plays (`storiesFor`): the whole update unless the game says otherwise. */
+  /** The cards this run plays: the whole update unless the caller says otherwise. */
   private storyRun: readonly Story[] = STORIES;
 
   stories(where: StoriesWhere, locked = false, run: readonly Story[] = STORIES) {
@@ -1841,7 +1841,8 @@ ${modeSelectMarkup()}
 
 
   /** The stories' stage made ahead, while the cover is up, so the first story does not open on an empty room. */
-  warmStories() { (this.storyStage ??= new StoryStage()).warm(); }
+  /** Only for an update told on the room's stage: building it for nothing costs a phone its first seconds. */
+  warmStories() { if (STORIES.some(one => one.stage)) (this.storyStage ??= new StoryStage()).warm(); }
 
   /** `open` when the way in put them away, which is counted apart from leaving. */
   closeStories(how: 'leave' | 'open' = 'leave') {

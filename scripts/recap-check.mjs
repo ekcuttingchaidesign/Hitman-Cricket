@@ -42,9 +42,8 @@ await context.addInitScript(([id, name, career, dressing]) => {
   localStorage.setItem('hitman-shots-intro', 'done');
   localStorage.setItem('hitman-marathon-intro', 'done');
   localStorage.setItem('hitman-hurt-seen', '1');
-  // Past the update's stories, and past the launch week's once a day: the day is the page's own.
-  localStorage.setItem('hitman-whatsnew', 'new-shots:9');
-  localStorage.setItem('hitman-whatsnew-day', (d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`)(new Date()));
+  // Past the update's stories.
+  localStorage.setItem('hitman-whatsnew', 'player-profiles:9');
   localStorage.setItem('hitman-career', JSON.stringify(career));
   localStorage.setItem('hitman-dressing', JSON.stringify(dressing));
 }, [id, `Recap${letters(6)}`, CAREER, DRESSING]);

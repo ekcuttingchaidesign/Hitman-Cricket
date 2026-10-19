@@ -82,7 +82,7 @@ import type { PasswordEntry, PasswordMode } from './ui/Password';
 import type { LocalCareer } from './ui/Restore';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import type { BatterKit } from './entities/Batter';
-import { markWhatsNewShown, storiesFor, whatsNewDue, whatsNewRun, type Story } from './game/whats-new';
+import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, standingOf, tierMeasure, TIERS, type Granted } from './game/tier';
 import { LevelUp } from './ui/LevelUp';
@@ -2622,8 +2622,7 @@ export class Game {
    * The play key.
    *
    * What it does is start the game, except when the stories are due
-   * (`whatsNewRun`: the first two visits after the update, and in a launch week
-   * the first press of each day), where it stops for them. The stories are counted here rather
+   * (`whatsNewDue`: the first two visits after the update), where it stops for them. The stories are counted here rather
    * than when they are closed, because a player who skips on the first card has
    * still been shown them — counting on the way out would show the same cards
    * to the same person for ever.
@@ -2633,18 +2632,16 @@ export class Game {
    */
   private play = () => {
     const go = () => (this.locked ? this.walkOut() : this.modes());
-    // Once a day in the strokes' launch week, twice otherwise (`whatsNewRun`).
-    const run = whatsNewRun();
-    if (!run) return go();
+    if (!whatsNewDue()) return go();
     markWhatsNewShown();
-    this.showStories('intro', go, storiesFor(run));
+    this.showStories('intro', go);
   };
 
   /** The update's stories, and whatever happens when they are done with. */
-  private showStories(where: StoriesWhere, then: (() => void) | null = null, run?: readonly Story[]) {
+  private showStories(where: StoriesWhere, then: (() => void) | null = null) {
     this.mark(`whatsnew-${where}`, 'What\'s new opened');
     this.hud.onStoriesDone = then;
-    this.hud.stories(where, where === 'intro' && this.locked, run);
+    this.hud.stories(where, where === 'intro' && this.locked);
   }
 
   private showBoard = () => {

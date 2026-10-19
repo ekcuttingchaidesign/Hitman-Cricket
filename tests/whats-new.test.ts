@@ -1,7 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  LAUNCH_WEEK_ENDS, SHOT_CALLS, STORIES, TIMES, UPDATE, dayOf, markWhatsNewShown, storiesFor, whatsNewDue, whatsNewRun,
-  whatsNewShown, type Story,
+  SHOT_CALLS, STORIES, TIMES, UPDATE, markWhatsNewShown, whatsNewDue, whatsNewShown, type Story,
 } from '../src/game/whats-new';
 import { shotCallMarkup, shotCueMarkup, storiesAlt, storiesMarkup, storyHolds, storyKeyMarkup } from '../src/ui/WhatsNew';
 import { CUE, reelSeconds } from '../src/game/ShotReel';
@@ -18,57 +18,81 @@ function fakeStorage(seed: Record<string, string> = {}) {
 
 afterEach(() => vi.unstubAllGlobals());
 
-/** The last card, which holds still with the way into the room. */
-const LAST = STORIES.length - 1;
-/** The new strokes' films first, then the Dressing Room's cards, which carry the way in. */
-const REELS = STORIES.flatMap((one, at) => one.reel ? [at] : []);
-const ROOM = STORIES.flatMap((one, at) => one.opens ? [at] : []);
+/** A story made up for the machinery: the update itself is one film, and the other ways a story is told are kept for the next. */
+const story = (over: Partial<Story>): Story => ({ key: 'x', eyebrow: 'X', title: 'XXXXXXX', alt: 'x'.repeat(30), ...over });
+/** The last update's shape, made up: two strokes filmed in the game, then two cards on the room's stage with the way in. */
+const KEPT: readonly Story[] = [
+  story({ key: 'hook', title: 'HOOK IT FOR SIX', body: 'b'.repeat(40), alt: 'a'.repeat(50), reel: 'hook', holdMs: 7000 }),
+  story({ key: 'latecut', title: 'SHOW IT THE WAY', body: 'b'.repeat(40), alt: 'a'.repeat(50), reel: 'latecut', holdMs: 7000 }),
+  story({ key: 'kits', title: 'SUIT UP', body: 'b'.repeat(40), stage: 'kits', opens: 'dressing' }),
+  story({ key: 'bats', title: 'EARN YOUR WILLOW', body: 'b'.repeat(40), stage: 'bats', opens: 'dressing' }),
+];
+const LAST = KEPT.length - 1;
+const REELS = [0, 1];
+const ROOM = [2, 3];
+const kept = (at: number, over: { where?: 'intro' | 'board'; locked?: boolean; holdMs?: number } = {}) =>
+  storiesMarkup({ at, where: over.where ?? 'intro', holdMs: over.holdMs ?? 1, locked: over.locked, stories: KEPT });
 
 describe('what the update says it did', () => {
-  it('tells the two new strokes first, then the Dressing Room in two, each of those with the way in', () => {
-    expect(STORIES.map(one => one.key)).toEqual(['hook-it', 'show-it-the-way', 'suit-up', 'earn-your-willow']);
-    expect(STORIES.map(one => one.reel)).toEqual(['hook', 'latecut', undefined, undefined]);
-    expect(ROOM).toEqual([2, 3]);
-    for (const at of ROOM) expect(STORIES[at].opens).toBe('dressing');
-    for (const at of REELS) expect(STORIES[at].opens, STORIES[at].key).toBeUndefined();
+  it('is the player profiles, one film', () => {
+    expect(STORIES.map(one => one.key)).toEqual(['player-profiles']);
+    expect(STORIES[0].film).toBe('player-profiles');
   });
 
-  it('is a new update, so everybody is shown it, the room\'s cards again among it', () => {
-    expect(UPDATE).toBe('new-shots');
+  it('is a new update, so everybody is shown it', () => {
+    expect(UPDATE).toBe('player-profiles');
   });
 
-  it('gives every card something to show, a name for it and a line under it', () => {
-    for (const story of STORIES) {
-      expect(story.title.length, story.key).toBeGreaterThan(6);
-      // A picture, a film, the Dressing Room's stage, or the game's own ground.
-      expect(!!(story.art || story.film || story.stage || story.reel), story.key).toBe(true);
-      expect(story.body?.length ?? 0, story.key).toBeGreaterThan(30);
-      // A picture says nothing to a screen reader on its own.
-      expect(story.alt.length, story.key).toBeGreaterThan(20);
+  it('ships the film it plays, a Lottie inside ten seconds, and holds a beat past its end', () => {
+    const film = JSON.parse(readFileSync('public/lotties/player-profiles.json', 'utf8')) as { fr: number; op: number; w: number; h: number };
+    expect([film.w, film.h]).toEqual([1080, 1920]);
+    const ms = film.op / film.fr * 1000;
+    expect(ms).toBeLessThanOrEqual(10_000);
+    expect(STORIES[0].holdMs).toBeGreaterThan(ms);
+    expect(STORIES[0].holdMs!).toBeLessThan(ms + 1000);
+  });
+
+  it('gives every card something to show, a name for it, and words for whoever cannot see it', () => {
+    for (const one of STORIES) {
+      expect(one.title.length, one.key).toBeGreaterThan(6);
+      expect(!!(one.art || one.film || one.stage || one.reel), one.key).toBe(true);
+      // A film says its own words; anything else needs a line under it.
+      if (!one.film) expect(one.body?.length ?? 0, one.key).toBeGreaterThan(30);
+      expect(one.alt.length, one.key).toBeGreaterThan(20);
     }
   });
 
+  it('plays the film down the sheet with the one way out, its title read out rather than shown', () => {
+    const markup = storiesMarkup({ at: 0, where: 'intro', holdMs: 7000 });
+    expect(markup).toContain('whatsnew-sheet is-film');
+    expect(markup).toMatch(/id="whatsnew-film"[^>]*role="img"[^>]*aria-label="[^"]{40,}"/);
+    expect(markup).toContain('whatsnew-title is-unseen');
+    expect(markup).not.toContain('whatsnew-eyebrow');
+    expect(markup).not.toContain('whatsnew-open');
+    expect(markup).toContain(`--hold:${STORIES[0].holdMs}ms`);
+    expect(markup.match(/class="whatsnew-bar(?: is-\w+)*"/g)).toHaveLength(1);
+  });
+
   it('says each in two lines at most, and never counts kits or bats, which only grow', () => {
-    for (const story of STORIES) {
+    for (const one of STORIES.filter(it => it.body)) {
       // Two lines of a phone's width, at the story's size, is about sixty-four letters.
-      expect(story.body!.length, story.key).toBeLessThanOrEqual(64);
-      expect(story.body, story.key).not.toMatch(/\d|\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b (kits?|bats?)/i);
-      expect(story.body, story.key).not.toMatch(/\b(seven|six|eleven|twelve)\b/i);
+      expect(one.body!.length, one.key).toBeLessThanOrEqual(64);
+      expect(one.body, one.key).not.toMatch(/\d|\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b (kits?|bats?)/i);
     }
   });
 
   it('reads out as one sentence for somebody who cannot see the pictures', () => {
     const alt = storiesAlt();
     expect(alt).toContain(String(STORIES.length));
-    for (const story of STORIES) expect(alt).toContain(story.title);
+    for (const one of STORIES) expect(alt).toContain(one.title);
   });
 });
 
 describe('the story screen', () => {
   it('draws a bar a story, and holds still on the last, with the way in', () => {
-    expect(storyHolds(LAST)).toBe(true);
-    const markup = storiesMarkup({ at: LAST, where: 'intro', holdMs: 7000 });
-    expect(markup.match(/class="whatsnew-bar(?: is-\w+)*"/g)).toHaveLength(STORIES.length);
+    expect(storyHolds(LAST, KEPT)).toBe(true);
+    const markup = kept(LAST, { holdMs: 7000 });
+    expect(markup.match(/class="whatsnew-bar(?: is-\w+)*"/g)).toHaveLength(KEPT.length);
     expect(markup.match(/is-live/g)).toHaveLength(1);
     // A card that moved on by itself would take the key from under a thumb.
     expect(markup).toContain('is-held');
@@ -76,15 +100,14 @@ describe('the story screen', () => {
   });
 
   it('moves on by itself from an earlier card, its keys standing where the next card has them', () => {
-    expect(storyHolds(ROOM[0])).toBe(false);
-    const markup = storiesMarkup({ at: ROOM[0], where: 'intro', holdMs: 7000 });
+    expect(storyHolds(ROOM[0], KEPT)).toBe(false);
+    const markup = kept(ROOM[0], { holdMs: 7000 });
     expect(markup).toContain('--hold:');
     expect(markup).not.toContain('is-held');
     expect(markup).toContain('id="whatsnew-open"');
   });
 
   it('holds a card with the key on it wherever it stands, and an earlier way in nowhere', () => {
-    const story = (over: Partial<Story>): Story => ({ key: 'x', eyebrow: 'X', title: 'XXXXXXX', alt: 'x'.repeat(30), ...over });
     expect(storyHolds(0, [story({ withKey: true }), story({})])).toBe(true);
     expect(storyHolds(0, [story({ opens: 'dressing' }), story({})])).toBe(false);
     expect(storyHolds(1, [story({}), story({ opens: 'dressing' })])).toBe(true);
@@ -93,18 +116,18 @@ describe('the story screen', () => {
 
   it('puts SKIP and GO TO DRESSING ROOM side by side under every card of the room', () => {
     for (const at of ROOM) {
-      const markup = storiesMarkup({ at, where: 'intro', holdMs: 1 });
+      const markup = kept(at);
       expect(markup).toMatch(/whatsnew-foot is-pair[\s\S]*k-cta--secondary[^>]*id="whatsnew-done"[\s\S]*>SKIP<[\s\S]*k-cta--primary[^>]*id="whatsnew-open"[\s\S]*>GO TO DRESSING ROOM</);
       expect(markup.indexOf('whatsnew-room')).toBeLessThan(markup.indexOf('whatsnew-done'));
       // Opened from the board, the way out goes back there.
-      expect(storiesMarkup({ at, where: 'board', holdMs: 1 })).toMatch(/id="whatsnew-done"[\s\S]*?>CLOSE</);
+      expect(kept(at, { where: 'board' })).toMatch(/id="whatsnew-done"[\s\S]*?>CLOSE</);
     }
   });
 
   it('plays the Dressing Room full screen on its stage, with no picture to download', () => {
-    expect(ROOM.map(at => STORIES[at].stage)).toEqual(['kits', 'bats']);
+    expect(ROOM.map(at => KEPT[at].stage)).toEqual(['kits', 'bats']);
     for (const at of ROOM) {
-      const markup = storiesMarkup({ at, where: 'intro', holdMs: 1 });
+      const markup = kept(at);
       expect(markup).toContain('whatsnew-sheet is-stage');
       expect(markup).toMatch(/id="whatsnew-stage"[^>]*role="img"[^>]*aria-label="[^"]{20,}"/);
       // The room is between the title and the words: where the batter stands.
@@ -132,9 +155,9 @@ describe('the story screen', () => {
     // build, or CLOSE back to the board it was opened from.
     const out = (markup: string) => markup.match(/id="whatsnew-done"[\s\S]*?<span>([^<]+)<\/span>/)?.[1];
     const at = ROOM[0];
-    expect(out(storiesMarkup({ at, where: 'intro', holdMs: 1 }))).toBe('SKIP');
-    expect(out(storiesMarkup({ at, where: 'intro', holdMs: 1, locked: true }))).toBe('SKIP');
-    expect(out(storiesMarkup({ at, where: 'board', holdMs: 1, locked: true }))).toBe('CLOSE');
+    expect(out(kept(at))).toBe('SKIP');
+    expect(out(kept(at, { locked: true }))).toBe('SKIP');
+    expect(out(kept(at, { where: 'board', locked: true }))).toBe('CLOSE');
   });
 
   it('carries both halves of the page, so a tap means back or on', () => {
@@ -149,10 +172,10 @@ describe('the story screen', () => {
   });
 });
 
-describe('the new strokes, filmed in the game', () => {
+describe('a stroke filmed in the game', () => {
   it('is the whole screen, the game\'s ground under it, with no stage or picture of its own', () => {
     for (const at of REELS) {
-      const markup = storiesMarkup({ at, where: 'intro', holdMs: 1 });
+      const markup = kept(at);
       expect(markup).toContain('whatsnew-sheet is-reel');
       expect(markup).not.toContain('whatsnew-stage');
       expect(markup).not.toContain('<img');
@@ -170,7 +193,7 @@ describe('the new strokes, filmed in the game', () => {
       latecut: { way: 'off', key: 'D + S', call: 'FOUR', where: 'DOWN TO OFF, LATE' },
     });
     for (const at of REELS) {
-      const shot = STORIES[at].reel!, markup = storiesMarkup({ at, where: 'intro', holdMs: 1 });
+      const shot = KEPT[at].reel!, markup = kept(at);
       // The swipe on the sheet itself, over everything but the bars and the way out, for as long as the film holds.
       expect(markup).toContain(shotCueMarkup(shot));
       expect(markup).toMatch(new RegExp(`class="whatsnew-cue" data-way="${SHOT_CALLS[shot].way}" style="--cue:${CUE.ms}ms" aria-hidden="true"`));
@@ -186,87 +209,41 @@ describe('the new strokes, filmed in the game', () => {
   it('has the one way out, saying where it lands, and moves on by itself', () => {
     const out = (markup: string) => markup.match(/id="whatsnew-done"[^>]*>([^<]+)</)?.[1];
     for (const at of REELS) {
-      expect(storyHolds(at)).toBe(false);
-      expect(storiesMarkup({ at, where: 'intro', holdMs: 1 })).not.toContain('whatsnew-open');
-      expect(out(storiesMarkup({ at, where: 'intro', holdMs: 1 }))).toBe('SKIP TO MODE SELECTION');
-      expect(out(storiesMarkup({ at, where: 'intro', holdMs: 1, locked: true }))).toBe('SKIP AND START BATTING');
-      expect(out(storiesMarkup({ at, where: 'board', holdMs: 1 }))).toBe('CLOSE');
+      expect(storyHolds(at, KEPT)).toBe(false);
+      expect(kept(at)).not.toContain('whatsnew-open');
+      expect(out(kept(at))).toBe('SKIP TO MODE SELECTION');
+      expect(out(kept(at, { locked: true }))).toBe('SKIP AND START BATTING');
+      expect(out(kept(at, { where: 'board' }))).toBe('CLOSE');
     }
   });
 
-  it('holds each for the whole of one go of its film, the hold for the swipe in it, and not a second', () => {
+  it('keeps the hold for the swipe long enough to read, inside one go of the film', () => {
     expect(CUE.ms).toBeGreaterThanOrEqual(1500);
-    for (const at of REELS) {
-      const story = STORIES[at], film = reelSeconds(story.reel!);
-      expect(story.holdMs, story.key).toBeGreaterThanOrEqual(film);
-      expect(story.holdMs!, story.key).toBeLessThan(film + 1000);
-      expect(storiesMarkup({ at, where: 'intro', holdMs: 7000 })).toContain(`--hold:${story.holdMs}ms`);
-    }
+    expect(reelSeconds('hook')).toBeGreaterThan(CUE.ms);
   });
 });
 
-/** A moment after the launch week, and moments inside it, a day apart. */
-const AFTER = LAUNCH_WEEK_ENDS + 3 * 86_400_000;
-const DAY_MS = 86_400_000;
-const WEEK = Date.parse('2026-10-17T10:00:00+05:30');
-
 describe('how often it puts itself in front of somebody', () => {
-  it('shows itself twice and then stops, once the launch week is over', () => {
+  it('shows itself twice and then stops', () => {
     fakeStorage();
-    expect(whatsNewDue(AFTER)).toBe(true);
-    markWhatsNewShown(AFTER);
+    expect(whatsNewDue()).toBe(true);
+    markWhatsNewShown();
     expect(whatsNewShown()).toBe(1);
-    expect(whatsNewDue(AFTER)).toBe(true);
-    markWhatsNewShown(AFTER);
+    expect(whatsNewDue()).toBe(true);
+    markWhatsNewShown();
     expect(whatsNewShown()).toBe(TIMES);
-    expect(whatsNewDue(AFTER)).toBe(false);
+    expect(whatsNewDue()).toBe(false);
     // And no amount of further opening turns it back on.
-    markWhatsNewShown(AFTER);
-    expect(whatsNewDue(AFTER + DAY_MS)).toBe(false);
-  });
-
-  it('in the launch week, shows itself once a day to everybody, the strokes alone after the first two', () => {
-    fakeStorage();
-    const runs: (string | null)[] = [];
-    for (let day = 0; day < 6; day++) {
-      const morning = WEEK + day * DAY_MS, later = morning + 3 * 3_600_000;
-      const run = whatsNewRun(morning);
-      runs.push(run);
-      if (run) markWhatsNewShown(morning);
-      // Not a second time the same day, however often play is pressed.
-      expect(whatsNewRun(later), `day ${day}`).toBeNull();
-    }
-    expect(runs).toEqual(['all', 'all', 'shots', 'shots', 'shots', 'shots']);
-    expect(whatsNewShown()).toBe(6);
-    // And once the week is out, nothing more for somebody who has had theirs.
-    expect(whatsNewRun(AFTER)).toBeNull();
-  });
-
-  it('turns the day over at the player\'s own midnight', () => {
-    const at = new Date(2026, 9, 18, 23, 50).getTime();
-    expect(dayOf(at)).not.toBe(dayOf(at + 20 * 60_000));
-    expect(dayOf(at)).toBe(dayOf(at - 20 * 3_600_000));
-  });
-
-  it('ends the launch week at the close of 23 October, India\'s time', () => {
-    expect(new Date(LAUNCH_WEEK_ENDS).toISOString()).toBe('2026-10-23T18:30:00.000Z');
-  });
-
-  it('plays the whole update on a run of it, and the strokes\' two cards alone on a repeat', () => {
-    expect(storiesFor('all')).toBe(STORIES);
-    expect(storiesFor('shots').map(one => one.key)).toEqual(['hook-it', 'show-it-the-way']);
-    // A repeat is the two cards' own bars, and its last card moves on by itself into the game.
-    const shots = storiesFor('shots'), markup = storiesMarkup({ at: 1, where: 'intro', holdMs: 7000, stories: shots });
-    expect(markup.match(/class="whatsnew-bar(?: is-\w+)*"/g)).toHaveLength(2);
-    expect(markup).toContain('SHOW IT THE WAY');
-    expect(storyHolds(1, shots)).toBe(false);
+    markWhatsNewShown();
+    expect(whatsNewDue()).toBe(false);
   });
 
   it('starts again for the next update rather than being spent for ever', () => {
-    fakeStorage({ 'hitman-whatsnew': 'something-older:2' });
+    // The strokes' update, shown every day of its launch week, does not stand in the way of this one.
+    fakeStorage({ 'hitman-whatsnew': 'new-shots:6' });
     expect(whatsNewShown()).toBe(0);
-    expect(whatsNewDue(AFTER)).toBe(true);
-    markWhatsNewShown(AFTER);
+    expect(whatsNewDue()).toBe(true);
+    markWhatsNewShown();
     expect(localStorage.getItem('hitman-whatsnew')).toBe(`${UPDATE}:1`);
   });
 
@@ -280,8 +257,7 @@ describe('how often it puts itself in front of somebody', () => {
       getItem: () => { throw new Error('off'); },
       setItem: () => { throw new Error('off'); },
     });
-    expect(whatsNewDue(AFTER)).toBe(true);
-    expect(whatsNewRun(WEEK)).toBe('all');
+    expect(whatsNewDue()).toBe(true);
     // And saying so must not throw, or a private window never gets to play.
     expect(() => markWhatsNewShown()).not.toThrow();
   });

@@ -39,7 +39,7 @@ export interface StoriesView {
    * name, who has no key to save and is shown no card.
    */
   careerKey?: KeyView | null;
-  /** The cards this run plays: the whole update, or the strokes' alone on a launch-week repeat (`storiesFor`). */
+  /** The cards this run plays: the whole update unless the caller says otherwise. */
   stories?: readonly Story[];
 }
 
