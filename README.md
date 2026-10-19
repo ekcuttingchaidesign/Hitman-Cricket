@@ -49,7 +49,7 @@ The first three innings a player finishes in each mode are a little kinder, and 
 
 ## The square cut
 
-The off side's scoring stroke, played off the back foot and square of the wicket: **swipe right**, or press <kbd>D</kbd>. He rocks back and across, frees his arms at the ball, strikes it square with a horizontal bat, and the arc keeps going — the wrists roll, the body unwinds on the back foot, and the blade wraps up over the front shoulder. It replaces the off-side punch that used to sit on this input; the cover drive on <kbd>W</kbd>+<kbd>D</kbd> is untouched.
+The off side's scoring stroke, played off the back foot and square of the wicket: **swipe right**, or press <kbd>D</kbd>. He rocks back and across, leaves the ball out from his body and leans away from it so the arms reach it straight, strikes it square with a horizontal bat and the flat face to the bowler, and the arc keeps going — the wrists roll, the body unwinds on the back foot, and the blade wraps up over the front shoulder with the curved back of it against the shoulder. It replaces the off-side punch that used to sit on this input; the cover drive on <kbd>W</kbd>+<kbd>D</kbd> is untouched.
 
 It wants width. Compatibility runs 1 outside off, 0.85 on off, 0.4 on middle and nothing worth having down the leg side. The bat reaches from the off stump out to the boundary side of the crease, and never back inside it: swung at a ball on middle or leg it plays square of the stumps anyway and the ball passes it, which is what cutting at a straight one deserves — close enough to nick, never square enough to hit.
 

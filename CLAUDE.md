@@ -1016,6 +1016,23 @@ read there a cut swipe came out pointing at the late cut. Reading later
 without timing earlier would have made every swipe up to sixteen
 milliseconds late, which is a grade.
 
+## The square cut
+
+The cut at pace (`CUT_STROKE`, `CUT_HIGH` and the `paceCut` branch in
+`src/entities/Batter.ts`) keeps its crouch, its clock and its wrap over the
+front shoulder, and fixes three things. The face rides the handle (`riding`)
+and is turned to the bowler as the bat comes down, a little over the ball:
+drawn from the keys it looked at the keeper, and the back of the blade met the
+ball. His body follows the ball across by its width less `CUT_ROOM`, not by
+the drives' share of it, and his trunk leans away from it, so the arms reach
+it out straight: by the share, the ball was under him and the elbows were at
+60 degrees off a length and 25 at the waist. And the bottom hand rolls over the
+top one as the elbows fold, so the curved back of the blade lies on the front
+shoulder at the wrap. On the way there the bat goes up in front of his face
+(`carry` in the branch): with the hands out at the ball, the straight way from
+there to the wrap went through his helmet. It is `cut` and `cutLow` in the
+batter tests' `PLAYS` and in their shared checks.
+
 ## The cut off the spinner
 
 The cut has a second build for a spinner's ball (`spinCut` in
