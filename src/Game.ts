@@ -36,8 +36,8 @@ import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
-import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
-import { advanceShot, gradeOf, hookable, loftedDrive, playedAs, spinCut, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
+import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
+import { advanceShot, gradeOf, hookable, loftedDrive, playedAs, punch, spinCut, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
@@ -2486,7 +2486,10 @@ export class Game {
     // judged as for the other two: the version is drawn after it, so nobody
     // can time for it. Not the square drive's wide ball, which is met where
     // it always was.
-    const driven = shotType === 'COVER_LONG_OFF' && !charging && !squareDrivable(this.delivery!);
+    // The same swipe at a ball short of a length is the back-foot punch, met
+    // late beside the back hip and kept along the ground (PUNCH).
+    const punching = !charging && punch(this.delivery!, this.attempt);
+    const driven = shotType === 'COVER_LONG_OFF' && !charging && !punching && !squareDrivable(this.delivery!);
     // The on drive, lofted or along the ground, meets it beside the front pad
     // too, at the end of its stride, and is judged the same.
     // The hook meets it out in front of him, arms long, so it climbs away over
@@ -2504,10 +2507,10 @@ export class Game {
     const blocked = shotType === 'DEFEND'
       ? ballPosition(this.delivery!, 1).y > DEFENCE_BACK_HEIGHT ? DEFENCE_BACK_MEETS_AT : DEFENCE_FRONT_MEETS_AT : 0;
     const ahead = driven && version === 3 ? COVER_V3_MEETS_AT : shotType === 'LONG_ON' && !charging ? ON_DRIVE_MEETS_AT
-      : shotType === 'HOOK' ? HOOK_MEETS_AT : pulled ? PULL_MEETS_AT : shotType === 'LATE_CUT' ? LATE_CUT_MEETS_AT : sweeping ? SLOG_MEETS_AT : blocked;
+      : shotType === 'HOOK' ? HOOK_MEETS_AT : pulled ? PULL_MEETS_AT : shotType === 'LATE_CUT' ? LATE_CUT_MEETS_AT : sweeping ? SLOG_MEETS_AT : punching ? PUNCH_MEETS_AT : blocked;
     this.meetsAt = 1 - ahead / (GAME.releaseZ - GAME.contactZ);
     // Versions two and three keep it down: four, never six (`grounded`).
-    if (driven && version >= 2) this.attempt = { ...this.attempt, grounded: true };
+    if ((driven && version >= 2) || punching) this.attempt = { ...this.attempt, grounded: true };
     // At the spinner the cut is played making room for it: see `SPIN_CUT`.
     this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, version, this.meetsAt,
       !charging && spinCut(this.delivery!, this.attempt));

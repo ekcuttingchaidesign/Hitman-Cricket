@@ -258,6 +258,29 @@ export const LATE_CUT = {
   feedback: { four: 'LATE CUT — FOUR!', caught: 'EDGED — CAUGHT BEHIND!', edged: 'THICK EDGE — 1 RUN' },
 } as const;
 /**
+ * The back-foot punch: the cover drive's swipe at a ball short of a length.
+ * Back and across, tall on the back foot, the bat brought down straight and the
+ * ball punched off it through cover, along the ground: never six. Which ball
+ * is the height it reaches him at (`minBallY`, the back-foot defence's line,
+ * `DEFENCE_BACK_HEIGHT`): back of a length and the bouncer, never one pitched
+ * up, which is driven off the front foot as it always was.
+ *
+ * Its line is the cover drive's (`COMPATIBILITY`'s `COVER_LONG_OFF`): at one on
+ * the legs he is reaching across the line, and it is the edge. On its ball
+ * timing names it: middled four through cover, a shade under two or three
+ * (`good.three`; a single or two in a Test), held back one or two, poor off
+ * the edge to the keeper (`caught`) or a thick edge for a single. A bouncer
+ * missed goes through to the keeper; one back of a length missed can bowl him.
+ */
+export const PUNCH = {
+  minBallY: 0.7,
+  /** Where the ball leaves the bat, degrees off straight: through cover, squarer than the drive. */
+  angle: 52,
+  good: { three: 0.45 },
+  caught: 0.6,
+  feedback: { four: 'PUNCHED — FOUR!', caught: 'EDGED — CAUGHT BEHIND!', edged: 'THICK EDGE — 1 RUN' },
+} as const;
+/**
  * The cut off the spinner. A slow ball gives a batter time to make room, so
  * the cut is not only for the one wide of off: he steps away to leg as he
  * picks the bat up, far enough to leave the ball out on his off side whatever

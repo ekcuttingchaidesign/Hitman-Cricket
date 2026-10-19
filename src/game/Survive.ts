@@ -1,10 +1,10 @@
-import { CUT, HOOK, SOLID_SHOT } from '../config/gameplay.js';
+import { CUT, HOOK, PUNCH, SOLID_SHOT } from '../config/gameplay.js';
 import {
   BANDS, BODY_ZONE, CLOSE, OFF_WIDTH, PITCH, RISK, SAFE_MISHIT, SIX, SPIN, STYLES, SURVIVE, SURVIVE_TIMING, damageFor,
 } from '../config/survive.js';
 import { ballPosition, stumpIntersection } from './DeliveryTrajectory.js';
 import { spun } from './DeliveryGenerator.js';
-import { cramped, crampedCut, fitOf, gradeTiming, hookable, lateCut, lateCutMeets, squareDrive, sweeps } from './ShotResolver.js';
+import { cramped, crampedCut, fitOf, gradeTiming, hookable, lateCut, lateCutMeets, punch, squareDrive, sweeps } from './ShotResolver.js';
 
 export { spun };
 import type { BodyPart, Delivery, Ending, ShotAttempt, ShotOutcome, TimingSide } from './types.js';
@@ -334,6 +334,17 @@ function shortBall(base: ShotOutcome, delivery: Delivery, shot: string, contact:
     }
     return { ...base, madeBatContact: false, feedback: 'THROUGH TO THE KEEPER' };
   }
+  // The back-foot punch, through cover off a bouncer on a line it suits:
+  // never six. Through the stroke early it goes up off the top of the bat;
+  // late, it finds the edge.
+  if (shot === 'COVER_LONG_OFF' && base.compatibility >= SOLID_SHOT && base.timingGrade !== 'MISS') {
+    const middled = { ...base, compatibility: 1, quality: SURVIVE_TIMING[base.timingGrade], madeBatContact: true };
+    if (base.timingGrade === 'PERFECT') return { ...middled, quality: 1, runs: 4, feedback: PUNCH.feedback.four };
+    if (base.timingGrade === 'GOOD') return { ...middled, runs: 4, feedback: award(4) };
+    if (base.timingGrade === 'OK') return nudged(middled, rng);
+    if (contact === 'EDGED_EARLY') return skied(base, rng);
+    return nick(middled, rng);
+  }
   if (shot === 'SQUARE_CUT' && delivery.finalTargetX >= CUT.minWidth && base.timingGrade !== 'MISS') {
     const middled = { ...base, compatibility: 1, quality: SURVIVE_TIMING[base.timingGrade], madeBatContact: true };
     if (base.timingGrade === 'PERFECT') return { ...middled, quality: 1, runs: 6, feedback: award(6) };
@@ -375,6 +386,8 @@ export function resolveSurvive(
   // one ladder and paid by the other would send the ball somewhere the batter
   // was not.
   if (attempt && sweeps(delivery, attempt, outcome.timingGrade)) return { ...outcome, sweptFlat: true };
+  // The punch is tagged for the same reason: it leaves through cover, squarer than the drive.
+  if (punch(delivery, attempt)) return { ...outcome, punched: true };
   return squareDrive(delivery, attempt) ? { ...outcome, squared: true } : outcome;
 }
 
@@ -439,7 +452,8 @@ export function surviveBall(
     // absolutely middles beats them.
     const spin = spun(delivery);
     if (timingGrade === 'PERFECT') {
-      const runs = inTheSlot(delivery, compatibility) && !attempt.grounded ? 6 : 4;
+      // The punch, like the drives kept down, goes along the ground: four.
+      const runs = inTheSlot(delivery, compatibility) && !attempt.grounded && !punch(delivery, attempt) ? 6 : 4;
       return { ...base, runs, madeBatContact: true, feedback: award(runs) };
     }
     if (timingGrade === 'GOOD' && !spin) return { ...base, runs: 4, madeBatContact: true, feedback: award(4) };
