@@ -27,6 +27,8 @@ const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; rea
   loftedV2: { shot: 'STRAIGHT', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.17, 0, .17], lofted: true, settle: 430, version: 2 },
   // The standing cut, at the chest-high ball it answers.
   cut: { shot: 'SQUARE_CUT', ballY: .92, impact: STROKE_CONTACT_MS, reach: [.11, .40, .62], settle: 410 },
+  // And off a length, crouched.
+  cutLow: { shot: 'SQUARE_CUT', ballY: .55, impact: STROKE_CONTACT_MS, reach: [.11, .40, .62], settle: 410 },
   // The slog sweep: the second special stroke, off the knee at a spinner's
   // length. It runs on the shared rig and so it takes the shared checks.
   sweep: { shot: 'LEG', ballY: .48, impact: SWEEP_CONTACT_MS, reach: [-.30, 0, .26], sweeping: true, settle: 600, meets: SLOG_MEETS_AT },
@@ -821,6 +823,37 @@ describe('the square cut', () => {
     }
   });
 
+  it('meets the ball with the flat face, the arms out straight', () => {
+    /** The angle at the elbow, in degrees: 180 is a straight arm. */
+    const elbow = (pose: ReturnType<typeof at>, arm: number) => {
+      const joint = new Vector3(...pose.elbows[arm]);
+      return MathUtils.radToDeg(new Vector3(...pose.shoulders[arm]).sub(joint).angleTo(new Vector3(...pose.wrists[arm]).sub(joint)));
+    };
+    for (const ballY of [.54, 1.12]) for (const ballX of [.11, .28, .46, .62]) {
+      const contact = at(110, ballX, ballY), where = `x ${ballX} y ${ballY}`;
+      // The face looks back up the pitch at the ball, a little over it. Drawn
+      // from the keys, it looked at the keeper: the back of the blade hit it.
+      expect(contact.batFace[2], where).toBeGreaterThan(.85);
+      expect(contact.batFace[1], where).toBeLessThan(0);
+      // Played away from the body: the bottom arm out straight, the top one
+      // well open. Following the ball by the drives' share of its width put
+      // the hands under his chin, at 60 and 25 degrees. At the chest the
+      // hands are up by the shoulders and the bottom arm has less to unfold.
+      expect(elbow(contact, 1), where).toBeGreaterThan(ballY > 1 ? 115 : 135);
+      expect(elbow(contact, 0), where).toBeGreaterThan(ballY > 1 ? 65 : 70);
+    }
+  });
+
+  it('wraps the bat onto the front shoulder with the back of the blade against it', () => {
+    for (const ballY of [.54, 1.12]) for (const time of [410, 500]) {
+      const pose = at(time, .46, ballY), where = `y ${ballY} ${time}ms`;
+      const middle = new Vector3(...pose.grip).lerp(new Vector3(...pose.bladeTip).sub(root), .5);
+      const toShoulder = new Vector3(...pose.shoulders[0]).sub(middle).normalize();
+      // The flat face looks out, away from the shoulder the blade lies on.
+      expect(new Vector3(...pose.batFace).dot(toShoulder), where).toBeLessThan(-.7);
+    }
+  });
+
   it('unwinds the body onto the back foot instead of standing still', () => {
     const contact = at(110), finish = at(470);
     // The chest opens up through the stroke, the way a cross-bat stroke does.
@@ -844,7 +877,7 @@ describe('the grip', () => {
   // Every stroke frame by frame: a second or two alone, near the default five
   // seconds when the whole suite runs at once, so it is given room.
   it('does not flip an elbow or wrist between frames, including entering and leaving guard', () => {
-    for (const kind of ['pull','hook','spinCut','lateCut','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse']) for (const x of PLAYS[kind].reach) {
+    for (const kind of ['pull','hook','spinCut','lateCut','cut','cutLow','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse']) for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       let previous = batter.inspect();
       play(batter, kind, x);
@@ -1009,7 +1042,7 @@ describe('every stroke, across its reach', () => {
       else expect(face[2]).toBeGreaterThan(.8);
     }
   });
-  it.each(['pull','hook','spinCut','lateCut','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','loftedV2','scoop','reverse'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
+  it.each(['pull','hook','spinCut','lateCut','cut','cutLow','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','loftedV2','scoop','reverse'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
     const geometry=bladeGeometry(), positions=geometry.getAttribute('position'), index=geometry.getIndex()!;
     const samples=Array.from({length:positions.count},(_,i)=>new Vector3().fromBufferAttribute(positions,i));
     for(let i=0;i<index.count;i+=3) samples.push(
@@ -1069,7 +1102,7 @@ describe('every stroke, across its reach', () => {
  */
 describe('the front pad', () => {
   const flat = (v: Vector3) => new Vector3(v.x, 0, v.z).normalize();
-  it.each(['pull', 'hook','spinCut','lateCut', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('faces where the %s shoe faces', kind => {
+  it.each(['pull', 'hook','spinCut','lateCut','cut','cutLow', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('faces where the %s shoe faces', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -1178,7 +1211,7 @@ describe('the slog sweep', () => {
    * onto one line — 0.04m between the forearms where the other strokes keep
    * 0.13m and up — and read as a man paddling rather than swinging.
    */
-  it.each(['pull', 'hook','spinCut','lateCut', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('keeps the %s forearms apart and the elbows unswapped', kind => {
+  it.each(['pull', 'hook','spinCut','lateCut','cut','cutLow', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('keeps the %s forearms apart and the elbows unswapped', kind => {
     /** Closest approach of the elbow halves, which is the half that can cross. */
     const between = (a: Vector3, b: Vector3, c: Vector3, d: Vector3) => {
       const u = b.clone().sub(a), v = d.clone().sub(c), w = a.clone().sub(c);
@@ -1394,7 +1427,7 @@ describe('the arms', () => {
    * came within 0.09 m of the centre of the helmet on the square drive, which
    * is well inside it.
    */
-  it.each(['pull','hook','spinCut','lateCut','square','straight','lofted','loftedV2','cover','cover3','on','cut','sweep'])('keeps the %s arms out of the helmet', kind => {
+  it.each(['pull','hook','spinCut','lateCut','square','straight','lofted','loftedV2','cover','cover3','on','cut','cutLow','sweep'])('keeps the %s arms out of the helmet', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -1454,7 +1487,7 @@ describe('the arms', () => {
     }
   });
   /** An arm past its own length is a stretched limb, not a straight one. */
-  it.each(['pull','hook','spinCut','lateCut','square','straight','lofted','loftedV2','cover','cover3','on','cut','sweep'])('never reaches the %s arms past their own length', kind => {
+  it.each(['pull','hook','spinCut','lateCut','square','straight','lofted','loftedV2','cover','cover3','on','cut','cutLow','sweep'])('never reaches the %s arms past their own length', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);

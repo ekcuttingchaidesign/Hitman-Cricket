@@ -83,7 +83,7 @@ const PLAYS: Record<string, Play> = {
   cut: {
     label: 'Square cut', shot: 'SQUARE_CUT', ballX: .42, ballY: .92,
     phases: [['Contact', STROKE_CONTACT_MS], ['Finish', 410], ['Recovery', 700]],
-    note: 'Unchanged. The back-foot answer to a short, wide ball — the square drive is its front-foot counterpart.',
+    note: 'The back-foot answer to a short, wide ball — the square drive is its front-foot counterpart. The flat face meets the ball, the arms out straight, and the back of the blade lies on the front shoulder at the wrap.',
   },
   glance: {
     label: 'Leg-side flick', shot: 'LEG', ballX: -.30, ballY: .54,

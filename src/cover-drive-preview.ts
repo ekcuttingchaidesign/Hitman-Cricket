@@ -82,7 +82,7 @@ const STROKES: Record<string, Stroke> = {
     phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Back', 55], ['Contact', STROKE_CONTACT_MS], ['Through', 220], ['Finish', 410], ['Home', 600]],
     out: { speed: .028, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.SQUARE_CUT), climb: 0 },
     facts: ['short, wide of off', `${STROKE_DURATION_MS} ms`],
-    note: 'The square cut, off the swipe to off or D at a short, wide ball: back and across onto the back foot, the bat brought down and across it with the arms out, sent square through point.',
+    note: 'The square cut, off the swipe to off or D at a short, wide ball: back and across onto the back foot, leaning away from the ball, the bat brought down and across it with the arms out straight and the flat face to the bowler, sent square through point; then up in front of his face and wrapped over the front shoulder, the curved back of the blade against it.',
   },
   slog: {
     label: 'Slog sweep', shot: 'LEG', charging: false, single: true, sweeping: true, ball: { x: LINE_X.MIDDLE, y: .54, z: GAME.contactZ + SLOG_MEETS_AT },
