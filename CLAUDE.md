@@ -156,8 +156,13 @@ under you. Then #1 flies down on an arc into the rank hero's place figure,
 which pops as it lands. A tap, Escape or Enter skips to that last move; under
 reduced motion the lockup stands still for a moment. Haptics through the climb,
 at the takeover and as the crown lands. A named player's real innings only:
-never practice, a Rival Match or a demo, and once an innings. A Level Up the
-same innings earned waits for it (`levelUpAfter`). Every frame is drawn from
+never practice, a Rival Match or a demo, and once an innings. One innings
+ends on one celebration at a time, New #1 first: a Level Up the same innings
+earned waits for the store's answer to the post and then for New #1
+(`levelUpAfter`; one already up has New #1 follow it, `topAfter`), and an
+unlock the innings earned never goes up at all: it is noted as seen and
+waits in the Dressing Room with its dot and its own UNLOCK key
+(`celebrateUnlocks`, which also waits for the answer, a few tries). Every frame is drawn from
 the clock, so the motion is the prototype's exactly (claude.ai artifact "New
 #1 Celebration").
 
@@ -167,8 +172,10 @@ names it), and `__cricket.topSpot('marathon')` does the same for the checks,
 with `__cricket.topSpotOpen()` to wait it out. A check that finishes an
 innings on a dev server where it may take the top waits for that before it
 clicks, or its click is a skip. `scripts/topspot-check.mjs` seeds three rivals
-on the Blast board and bats past them (the ladder, the lockup, the hand back
-to a #1 hero, a tap to skip), then an innings under them (the hero, no New
+on the Blast board and bats past them with ninety career sixes counted
+beforehand, so the innings earns Rage and a Level Up too (the ladder, the
+lockup, the hand back to a #1 hero, Level Up after it, no unlock and Rage
+waiting in the room, a tap to skip), then an innings under them (the hero, no New
 #1), then the preview keys. Start the dev server fresh for it: its player
 makes 180, the most a Blast can, so a board that already has one leaves
 nobody to take the top from.

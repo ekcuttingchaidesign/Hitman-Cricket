@@ -1121,6 +1121,13 @@ export class Game {
   private playUnlocks(items: UnlockItem[], preview = false) {
     void Promise.all([import('./ui/Unlock'), import('./scene/DressingStage')]).then(([{ UnlockMoment }, { DressingStage }]) => {
       if (this.unlock || this.disposed) return;
+      // New #1 went up while the room's pieces loaded: these wait in the room for their keys instead.
+      if (this.topSpot && !preview) {
+        const keys = items.map(one => one.moment.kind === 'bat' ? seenKey('bat', one.moment.bat.id) : seenKey('kit', one.moment.to.id));
+        const held = readDressing();
+        writeDressing({ ...held, shown: held.shown.filter(key => !keys.includes(key)) });
+        return;
+      }
       this.unlock = new UnlockMoment(this.hud.viewport, items, new DressingStage(), {
         wear: (shelf, id) => {
           if (!preview) {
@@ -1175,13 +1182,32 @@ export class Game {
       items.push({ moment: { kind: 'bat', bat: batOf(id) } });
     return items;
   }
-  /** Plays whatever has been earned and not celebrated; each is marked seen as it goes up, so none is played twice. */
-  private celebrateUnlocks() {
+  /**
+   * Plays whatever has been earned and not celebrated; each is marked seen as
+   * it goes up, so none is played twice.
+   *
+   * An innings that took the top of a board has New #1 for its moment, and
+   * one celebration is the end of an innings, not two: what it also earned
+   * is noted as seen and left waiting in the Dressing Room with its dot and
+   * its own UNLOCK key. So it waits for the store's answer to say which
+   * innings this was, a few tries, before playing anything.
+   */
+  private celebrateUnlocks(tries = 0) {
     if (this.unlock || this.levelUp || this.dressing || this.practising || this.demoing) return;
+    const answering = this.phase === 'INNINGS_END' && this.postFor?.innings === this.innings && this.standing?.innings !== this.innings;
+    if (answering && tries < 10) {
+      const innings = this.innings;
+      window.setTimeout(() => { if (!this.disposed && this.innings === innings && this.phase === 'INNINGS_END') this.celebrateUnlocks(tries + 1); }, 500);
+      return;
+    }
     const items = this.freshUnlocks();
     if (!items.length) return;
     const held = readDressing();
     const keys = items.map(one => one.moment.kind === 'bat' ? seenKey('bat', one.moment.bat.id) : seenKey('kit', one.moment.to.id));
+    if (this.topSpot || (this.phase === 'INNINGS_END' && this.topTaken === this.innings)) {
+      writeDressing({ ...held, seen: [...new Set([...held.seen, ...keys])] });
+      return;
+    }
     writeDressing({ ...held, seen: [...new Set([...held.seen, ...keys])], shown: [...new Set([...held.shown, ...keys])] });
     this.putRatingAway();
     for (const one of items) {
@@ -4639,10 +4665,17 @@ export class Game {
    * and follow it. A preview (`?levelup=1`, `__cricket.levelUp`) counts and
    * shares nothing of its own and is followed by nothing.
    */
-  private showLevelUp(mode: CareerMode, was: AnyCareer, now: AnyCareer, granted: Granted | null, preview = false) {
+  private showLevelUp(mode: CareerMode, was: AnyCareer, now: AnyCareer, granted: Granted | null, preview = false, tries = 0) {
     if (this.levelUp || this.disposed) return;
-    // New #1 goes first: a climb the same innings earned waits for it.
+    // New #1 goes first: a climb the same innings earned waits for it, and for
+    // the store's answer to the post to say whether there is one, a few tries.
     if (this.topSpot) { this.levelUpAfter = () => this.showLevelUp(mode, was, now, granted, preview); return; }
+    const answering = !preview && this.phase === 'INNINGS_END' && this.postFor?.innings === this.innings && this.standing?.innings !== this.innings;
+    if (answering && tries < 10) {
+      const innings = this.innings;
+      window.setTimeout(() => { if (!this.disposed && this.innings === innings && this.phase === 'INNINGS_END') this.showLevelUp(mode, was, now, granted, preview, tries + 1); }, 500);
+      return;
+    }
     const batting = readPlayer();
     const who = batting?.name ? { name: batting.name, avatar: batting.avatar ?? 0 } : null;
     const standing = bestStanding(mode, placesOf(this.careerBoards[mode]?.boards ?? {}, this.player));
@@ -4667,8 +4700,14 @@ export class Game {
     this.levelUp.close();
     this.levelUp = null;
     document.querySelector<HTMLElement>('#end:not(.hidden) .k-cta')?.focus({ preventScroll: true });
+    // New #1 decided while Level Up was up plays now, and the unlocks wait in the room behind it.
+    const top = this.topAfter;
+    this.topAfter = null;
+    if (top && this.phase === 'INNINGS_END') this.showTopSpot(top);
     if (thenUnlocks && this.phase === 'INNINGS_END') this.celebrateUnlocks();
   }
+  /** New #1 decided while Level Up was already up: it follows Level Up rather than being lost. */
+  private topAfter: TopSpotView | null = null;
   /** New #1, while it plays. */
   private topSpot: TopSpot | null = null;
   /** A Level Up the same innings earned, waiting for New #1 to finish. */
@@ -4710,7 +4749,10 @@ export class Game {
   }
 
   private showTopSpot(view: TopSpotView) {
-    if (this.topSpot || this.levelUp || this.disposed) return;
+    if (this.topSpot || this.disposed) return;
+    if (this.levelUp) { this.topAfter = view; return; }
+    // An unlock already up gives way: one celebration is the end of an innings.
+    if (this.unlock) { this.unlock.close(); this.unlock = null; }
     this.putRatingAway();
     this.topSpot = new TopSpot(this.hud.viewport, view, {
       card: () => document.querySelector<HTMLElement>('#end:not(.hidden)') ?? document.querySelector<HTMLElement>('#end-survive:not(.hidden)'),

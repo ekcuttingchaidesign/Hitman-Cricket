@@ -35,13 +35,14 @@ const run = letters();
 const browser = await chromium.launch({ executablePath });
 
 /** A page at the crease for a named player, past every first-visit screen. */
-async function crease(name, query = '') {
+async function crease(name, query = '', seed = {}) {
   const context = await browser.newContext({ viewport: { width: 402, height: 874 }, isMobile: true, hasTouch: true });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.addInitScript(who => {
+  await page.addInitScript(({ who, seed }) => {
     try {
+      for (const [key, value] of Object.entries(seed)) if (!localStorage.getItem(key)) localStorage.setItem(key, value);
       localStorage.setItem('hitman-seen', new Date(Date.now() - 172_800_000).toISOString().slice(0, 10));
       localStorage.setItem('hitman-shots-intro', 'done');
       localStorage.setItem('hitman-marathon-intro', 'done');
@@ -50,7 +51,11 @@ async function crease(name, query = '') {
       localStorage.setItem('hitman-rating', JSON.stringify({ rated: {}, finished: 0, played: {}, dismissals: 3, dismissedAt: Date.now() }));
       if (who && !localStorage.getItem('hitman-batter')) localStorage.setItem('hitman-batter', JSON.stringify({ name: who, avatar: 1 }));
     } catch { /* The screens it skips stand in the way, and the check says so. */ }
-  }, name);
+    // Whether the unlock ever went up, however briefly: watched once the page has a body.
+    const watch = () => new MutationObserver(() => { if (document.getElementById('unlock-overlay')) window.__unlockSeen = true; })
+      .observe(document.body, { childList: true, subtree: true });
+    if (document.body) watch(); else document.addEventListener('DOMContentLoaded', watch);
+  }, { who: name, seed });
   await page.goto(`${base}/?debug=1&private=0${query}`, { waitUntil: 'load' });
   await page.waitForTimeout(2500);
   // The debug readout `?debug=1` brings stands over the card; it is not the card.
@@ -96,14 +101,31 @@ async function blast(page, snap, balls) {
   await context.close();
 }
 
-// A named player bats past all three: New #1, then the card.
+/** A player id as the store wants one: the moment, then a random half. */
+const newId = () => `${Date.now().toString(36)}-${Array.from({ length: 16 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('')}`;
+
+// A named player bats past all three: New #1, then the card. Ninety career
+// sixes already counted, so this innings's thirty earn Rage at a hundred as
+// well: the unlock must not go up over New #1, and Rage waits in the room.
 {
-  const { context, page, errors, snap } = await crease(`Top${run}`);
+  const topId = newId();
+  for (let i = 0; i < 3; i++) {
+    if (i) await new Promise(done => setTimeout(done, 10_500));
+    const counted = await fetch(`${base}/api/innings`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      playerId: topId, mode: 'classic', nonce: `count-${run}-${i}`, look: null, name: `Top${run}`, avatar: 1,
+      innings: { runs: 180, sixes: 30, fours: 0, wickets: 0, dots: 0, balls: 30, individual: 180, hundreds: 1 },
+    }) });
+    if (!counted.ok) check(false, 'ninety career sixes counted beforehand', `${counted.status} ${await counted.text()}`);
+  }
+  await new Promise(done => setTimeout(done, 10_500));
+  const room = JSON.stringify({ outfit: 'home', bat: 'plain', seen: ['kit:home', 'kit:papaya', 'bat:plain', 'bat:boom'], shown: ['kit:home', 'kit:papaya', 'bat:plain', 'bat:boom'] });
+  const { context, page, errors, snap } = await crease(`Top${run}`, '', { 'hitman-player': topId, 'hitman-dressing': room });
   await blast(page, snap, Array(30).fill(6));
   check((await snap()).phase === 'INNINGS_END', 'a Blast of sixes ends');
   await page.waitForSelector('.ts', { timeout: 15_000 }).catch(() => {});
   const up = await page.locator('.ts').count();
   check(up === 1, 'New #1 goes up over the end card');
+  check(!(await page.locator('.lu-overlay').count()), 'before the Level Up the same innings earned, not behind it');
   if (up) {
     await page.waitForTimeout(300);
     await page.screenshot({ path: `${SHOTS}/1-gather.png` });
@@ -123,6 +145,11 @@ async function blast(page, snap, balls) {
     for (let i = 0; i < 40 && !gone; i++) { await page.waitForTimeout(150); gone = !(await page.locator('.ts').count()); }
     check(gone, 'and hands back to the end card by itself');
     check(!(await page.evaluate(() => window.__cricket.topSpotOpen())), 'with nothing left playing');
+    await page.waitForTimeout(3000);
+    check(await page.locator('.lu-overlay').count() === 1, 'then that Level Up follows it');
+    check(!(await page.evaluate(() => window.__unlockSeen ?? false)), 'and the bat the innings also earned does not go up over it or after it');
+    const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('hitman-dressing') ?? '{}'));
+    check(kept.seen?.includes('bat:rage') && !kept.shown?.includes('bat:rage'), 'Rage is known, and waits in the Dressing Room for its key', JSON.stringify({ seen: kept.seen, shown: kept.shown }));
   }
   await page.waitForTimeout(500);
   const hero = await page.evaluate(() => ({
@@ -135,6 +162,10 @@ async function blast(page, snap, balls) {
   check(/Nobody ahead/.test(hero.next ?? ''), 'and nobody ahead', hero.next);
   check(hero.old === 'none', 'standing in for the old rank header');
   await page.screenshot({ path: `${SHOTS}/5-card.png` });
+  // A Level Up the same innings earned followed New #1: put it away, as GO TO SCORECARD would.
+  // The first Escape jumps it to its keys; the next is GO TO SCORECARD.
+  for (let i = 0; i < 4 && await page.locator('.lu-overlay').count(); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(900); }
+  check(!(await page.evaluate(() => window.__unlockSeen ?? false)), 'nor after Level Up hands back');
   // Again, skipped by a tap.
   await page.evaluate(() => window.__cricket.topSpot('classic'));
   await page.waitForSelector('.ts', { timeout: 5000 });
