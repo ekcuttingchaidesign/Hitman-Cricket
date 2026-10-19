@@ -1,8 +1,8 @@
 import { whenOf } from '../game/recap.js';
 
 /**
- * What players do with passwords and career keys, counted by the store as it
- * happens.
+ * What players do with passwords and career keys, and with each other's
+ * profiles, counted by the store as it happens.
  *
  * GoatCounter counts the same moments from the browser (`password-created`,
  * `restore-done-password` and the rest), and for the taps — Played before?,
@@ -24,6 +24,12 @@ export const TALLIES = [
   'restore-question',
   'restore-key',
   'forgot-asked',
+  // The profiles: a viewer counted once a day on somebody's profile, as the
+  // profile's own count is, and the events innings leave on other players'.
+  'profile-view',
+  'chase-beat',
+  'chase-short',
+  'passed',
 ] as const;
 
 export type Tally = typeof TALLIES[number];

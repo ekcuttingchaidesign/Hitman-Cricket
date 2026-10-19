@@ -902,6 +902,9 @@ ${modeSelectMarkup()}
       // Off an innings board the row's figure is their best, and what CHASE aims at.
       const innings = screen.ladder === 'best' || screen.ladder === 'team';
       const best = innings ? Number.parseInt(entry.score.replace(/,/g, ''), 10) : NaN;
+      // Which of the three ways in: against `chase-start`, how often a look becomes a chase.
+      const where = from.closest('.lb-podium') ? 'podium' : from.closest('.lb-chips') ? 'chip' : 'row';
+      track(`profile-open-${where}`, 'A player’s profile opened');
       this.openPlayer({
         handle: entry.handle, name: entry.name, avatar: entry.avatar, mode: screen.mode,
         place: innings ? entry.place : null, best: Number.isFinite(best) ? best : null,
@@ -1008,6 +1011,7 @@ ${modeSelectMarkup()}
       if (ask !== this.playerAsk || this.playerOpen !== open) return;
       if (!profile) {
         open.view.state = open.view.profile ? 'ready' : 'offline';
+        if (open.view.state === 'offline') track('profile-failed', 'A profile the store did not answer for');
         this.drawPlayer('data');
         return;
       }
@@ -1018,7 +1022,11 @@ ${modeSelectMarkup()}
       this.drawPlayer('data');
     }, () => {
       if (ask !== this.playerAsk || this.playerOpen !== open) return;
-      if (open.view.state !== 'ready') { open.view.state = 'offline'; this.drawPlayer('data'); }
+      if (open.view.state !== 'ready') {
+        open.view.state = 'offline';
+        track('profile-failed', 'A profile the store did not answer for');
+        this.drawPlayer('data');
+      }
     });
   }
 

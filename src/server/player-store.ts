@@ -3,6 +3,7 @@ import { whenOf } from '../game/recap.js';
 import { isPlayerId } from './board-store.js';
 import { bioProblem, cleanBio } from './bio-rules.js';
 import type { SurviveResult } from '../game/chase.js';
+import type { Tally } from './tally.js';
 
 /**
  * What a player's profile collects about them that no board does: the handle
@@ -57,8 +58,8 @@ export interface PlayerStore {
   readBio(id: string): Promise<StoredBio | null>;
   /** Writes a bio, or takes it away with null. */
   writeBio(id: string, bio: StoredBio | null): Promise<void>;
-  /** Counts a viewer once on one of this player's days; kept a little over a week, then forgotten. */
-  addView(id: string, day: string, viewer: string): Promise<void>;
+  /** Counts a viewer once on one of this player's days; kept a little over a week, then forgotten. Answers whether they were new that day. */
+  addView(id: string, day: string, viewer: string): Promise<boolean>;
   /** How many viewers this player had over these days, a viewer counted once a day. */
   views(id: string, days: readonly string[]): Promise<number>;
   /** Puts an event at the front of this player's list, keeping the newest `keep`. */
@@ -67,6 +68,8 @@ export interface PlayerStore {
   events(id: string): Promise<ActivityEvent[]>;
   /** Calls from one address inside the window, counting this one. */
   hits(address: string, windowSeconds: number): Promise<number>;
+  /** One event raised on the store's tally (`tally.ts`). Never throws. */
+  tally(event: Tally): Promise<void>;
 }
 
 /** The days a view count covers. */
@@ -109,7 +112,7 @@ export async function countView(
   const viewer = input.viewer;
   if (!isHandle(viewer) || viewer === handleOf(input.playerId)) return false;
   if (!(await store.idOf(viewer))) return false;
-  await store.addView(input.playerId, dayKey(now), viewer);
+  if (await store.addView(input.playerId, dayKey(now), viewer)) await store.tally('profile-view');
   return true;
 }
 
@@ -161,13 +164,15 @@ export async function saveBio(
 }
 
 /** In memory, for the dev server and the tests. */
-export function memoryPlayers(): PlayerStore & { clear(): void } {
+export function memoryPlayers(): PlayerStore & { clear(): void; tallied: Map<Tally, number> } {
   const handles = new Map<string, string>();
   const bios = new Map<string, StoredBio>();
   const seen = new Map<string, Set<string>>();
   const events = new Map<string, ActivityEvent[]>();
   const rate = new Map<string, { count: number; until: number }>();
+  const tallied = new Map<Tally, number>();
   return {
+    tallied,
     async rememberHandle(handle, id) { handles.set(handle, id); },
     async idOf(handle) { return handles.get(handle) ?? null; },
     async readBio(id) { return bios.get(id) ?? null; },
@@ -175,7 +180,9 @@ export function memoryPlayers(): PlayerStore & { clear(): void } {
     async addView(id, day, viewer) {
       const key = `${id}:${day}`;
       if (!seen.has(key)) seen.set(key, new Set());
+      const fresh = !seen.get(key)!.has(viewer);
       seen.get(key)!.add(viewer);
+      return fresh;
     },
     async views(id, days) { return days.reduce((sum, day) => sum + (seen.get(`${id}:${day}`)?.size ?? 0), 0); },
     async addEvent(id, event, keep) { events.set(id, [event, ...(events.get(id) ?? [])].slice(0, keep)); },
@@ -186,6 +193,7 @@ export function memoryPlayers(): PlayerStore & { clear(): void } {
       rate.set(address, next);
       return next.count;
     },
-    clear() { handles.clear(); bios.clear(); seen.clear(); events.clear(); rate.clear(); },
+    async tally(event) { tallied.set(event, (tallied.get(event) ?? 0) + 1); },
+    clear() { handles.clear(); bios.clear(); seen.clear(); events.clear(); rate.clear(); tallied.clear(); },
   };
 }

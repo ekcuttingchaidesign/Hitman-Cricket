@@ -102,6 +102,12 @@ score on a board does. Profiles open by handle; the store keeps handle → id
 named before it shipped need `scripts/handle-backfill.ts --write` once
 (`docs/LAUNCH.md`), or their rows open nothing.
 
+What the profiles are used for is `scripts/profile-report.ts`, read-only:
+the store's tally (`profile-view`, `chase-beat`, `chase-short`, `passed`,
+raised in `countView` and `afterPost`) beside the looks and events it holds.
+The taps are GoatCounter's (`profile-open-…`, `activity-headline`,
+`winback-…`), in the README's table.
+
 `scripts/profile-check.mjs` walks all four lanes in a browser against the dev
 server: a profile opened off a row, a chase fallen short and one won with the
 store putting the beat on the other player's profile, then that player's My

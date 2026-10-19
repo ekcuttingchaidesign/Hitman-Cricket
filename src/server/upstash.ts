@@ -639,7 +639,8 @@ export function upstashPlayers(redis: Redis): PlayerStore {
       const pipe = redis.pipeline();
       pipe.sadd(seen(id, day), viewer);
       pipe.expire(seen(id, day), 8 * 86_400);
-      await pipe.exec();
+      const [added] = await pipe.exec<[number, number]>();
+      return Number(added) > 0;
     },
     async views(id, days) {
       const pipe = redis.pipeline();
@@ -655,6 +656,7 @@ export function upstashPlayers(redis: Redis): PlayerStore {
       await pipe.exec();
     },
     async events(id) { return (await redis.lrange<ActivityEvent>(act(id), 0, -1)) ?? []; },
+    async tally(event) { await raiseTally(redis, event); },
     async hits(address, windowSeconds) {
       const count = await redis.incr(rate + address);
       if (count === 1) await redis.expire(rate + address, windowSeconds);

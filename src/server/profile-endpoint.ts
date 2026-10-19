@@ -328,12 +328,16 @@ export async function afterPost(stores: ProfileStores, posted: Posted, now = Dat
         await noteEvent(stores.players, target, {
           ...event(beat ? 'beat' : 'short', row.runs, theirs.rank, runs), ...(result ? { result } : {}), ...(beat ? { dropped } : {}),
         });
+        await stores.players.tally(beat ? 'chase-beat' : 'chase-short');
         extras.chase = { handle: posted.chase, name: row.name, target: row.runs, runs, beat, ...(result ? { result } : {}) };
       }
     }
     await Promise.all(around.passed.slice(0, PASSED_TOLD)
       .filter(one => one.id !== chased && one.id !== posted.playerId)
-      .map(one => noteEvent(stores.players, one.id, event('passed', one.runs, one.place))));
+      .map(async one => {
+        await noteEvent(stores.players, one.id, event('passed', one.runs, one.place));
+        await stores.players.tally('passed');
+      }));
     return extras;
   } catch (error) {
     console.error('The profile side of a post did not land.', error);

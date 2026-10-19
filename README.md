@@ -1003,10 +1003,14 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `password-closed-<from>`, `password-nudge-later`, `password-save-failed` | The sheet left unsaved, the nudge put off, and a save the store refused. |
 | `password-welcome-offered` | Welcome back, after a career key, offering a password. |
 | `password-forgot`, `password-forgot-no-question`, `password-answer-wrong` | Forgot password? tapped, with no question to answer, and a wrong answer. |
+| `profile-open-row`, `-podium`, `-chip` | Another player's profile opened off a board, and by which of the three. Against `chase-start`, how often a look becomes a chase. Not under a mode's prefix: it is the board's, not the last innings'. |
+| `profile-failed` | A profile the store did not answer for, so the sheet stood on what the row knew. |
 | `stats-open`, `activity-open` | My profile opened, and the Your profile sheet opened from its headline. |
+| `activity-headline` | My profile led with Rank down, once an opening. Against `activity-open` and `activity-win-back`, how often being passed brings a player back. |
 | `chase-start`, `chase-start-batter`, `chase-bat`, `chase-back` | CHASE on a profile (the Marathon's best batter apart), and the intro's two keys. Each mode under its own prefix. |
 | `chase-passed`, `chase-beat`, `chase-short` | The target passed in play, and how chases end. Against `chase-start`, how often a chase is won. |
 | `activity-win-back` | WIN IT BACK on the Your profile sheet: what was taken, chased. |
+| `winback-beat`, `winback-short` | How a WIN IT BACK innings ended, under its mode's prefix. `chase-beat` and `chase-short` count these among every other chase. |
 | `bio-saved`, `bio-cleared` | A bio written or changed from Your details, and one taken away. |
 | `help-open` | The controls did not explain themselves. |
 | `feedback-open`, `feedback-open-link` | The questionnaire opened, and whether from inside the game or from the shared link. |
@@ -1028,6 +1032,10 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 The password and restore events are also counted by the store itself, because an ad blocker takes a player off GoatCounter and its export is visitor-days rather than events: `/api/restore` raises a total and a day's figure for each password created or changed, security question set, Forgot password? asked, and player brought back by password, question or key (`src/server/tally.ts`, one hash, `tally`). `scripts/password-report.ts` reads those beside the exact number of players holding a password right now, read-only:
 
     VERCEL_ENV=production npx vite-node scripts/password-report.ts
+
+The profiles are counted the same way: `/api/profile` raises `profile-view` for a viewer new on a profile that day (the same count the profile shows), and every post raises `chase-beat`, `chase-short` and `passed` for the events it leaves on other players' profiles. `scripts/profile-report.ts` reads those beside what the store holds now — players with a profile and a bio, the last eight days' looks, the events of the last thirty — read-only, and prints figures only, never an id or a name:
+
+    VERCEL_ENV=production npx vite-node scripts/profile-report.ts
 
 The taps — Played before?, the cards, the sheets opened — never reach the store, so they are GoatCounter's alone.
 
