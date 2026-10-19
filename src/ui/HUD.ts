@@ -4884,7 +4884,11 @@ ${modeSelectMarkup()}
     sections: ListSections, record?: RivalsRecord, ranking?: RivalsBoardView,
     extra: { form?: readonly ('W' | 'L' | 'D')[]; me?: number | null } = {},
   ) {
-    this.shutSheets();
+    // Coming to the list, every sheet goes. Redrawing it in place — the
+    // ranking or a fresh list landing behind it — leaves a sheet the player
+    // has opened over it alone: closing it there shut a head-to-head under a
+    // thumb that had tapped a face before the data arrived.
+    if (!this.listOpen) this.shutSheets();
     if (this.roomOpen) this.closeRoom();
     this.$('intro').classList.add('hidden');
     const total = sections.received.length + sections.waiting.length + sections.past.length;
