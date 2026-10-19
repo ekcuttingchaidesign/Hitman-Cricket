@@ -76,7 +76,7 @@ export function chaseChipMarkup(chase: Chase, runs: number, ballsLeft: number | 
   const progress = chaseProgress(chase, runs);
   if (line.done) {
     return `<span class="ch-chip is-done" role="status">${face(chase.avatar, chase.name)}
-        <span class="ch-chip-text"><b${short(`Passed them${place ? ` · now #${place}` : ''}`)}>Passed ${escape(chase.name)}${place ? ` · now #${place}` : ''}</b><small>✓ ${grouped(runs)} BEATS ${grouped(chase.target)}</small></span></span>`;
+        <span class="ch-chip-text"><b${short(`Surpassed them${place ? ` · now #${place}` : ''}`)}>Surpassed ${escape(chase.name)}${place ? ` · now #${place}` : ''}</b><small>✓ ${grouped(runs)} BEATS ${grouped(chase.target)}</small></span></span>`;
   }
   return `<span class="ch-chip${close(chase, runs) ? ' is-close' : ''}" role="status">${face(chase.avatar, chase.name)}
       <span class="ch-chip-text"><b>Need <em class="ch-need">${line.need}</em>${line.off !== null ? ` off ${line.off}` : ''}</b><small${short(`TO BEAT THEIR ${grouped(chase.target)}`)}>TO BEAT ${escape(chase.name.toUpperCase())}’S ${grouped(chase.target)}</small></span>
@@ -85,9 +85,9 @@ export function chaseChipMarkup(chase: Chase, runs: number, ballsLeft: number | 
 
 /** B3: the target passed, between balls, as a milestone is. */
 export function passedMarkup(chase: Chase, runs: number, you: { avatar: number | null }, place: number | null, modeName: string): string {
-  return `<div class="ch-passed" role="status" aria-label="${escape(`Passed ${chase.name}`)}">
+  return `<div class="ch-passed" role="status" aria-label="${escape(`Surpassed ${chase.name}`)}">
       <i class="ch-rays" aria-hidden="true"></i><i class="ch-wave" aria-hidden="true"></i>
-      <div class="ch-stamp"><b>PASSED</b><span>${escape(chase.name.toUpperCase())}</span></div>
+      <div class="ch-stamp"><b>SURPASSED</b><span>${escape(chase.name.toUpperCase())}</span></div>
       <div class="ch-swap">
         <span class="ch-place is-you">${face(you.avatar, 'You')}<span><b>${place ? `#${place}` : 'You'}</b><small>YOU · ${grouped(runs)}</small></span><i class="is-up" aria-hidden="true">↑</i></span>
         <span class="ch-place is-them">${face(chase.avatar, chase.name)}<span><b>${place ? `#${place + 1}` : escape(chase.name)}</b><small>${escape(chase.name.toUpperCase())} · ${grouped(chase.target)}</small></span><i aria-hidden="true">↓</i></span>

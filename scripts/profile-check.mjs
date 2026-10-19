@@ -176,7 +176,7 @@ await page.evaluate(() => { document.getElementById('chase-bat').click(); window
 await page.waitForSelector('#chase-passed', { timeout: 4000 });
 await page.waitForTimeout(600);
 await page.screenshot({ path: `${out}/b3-passed.png` });
-check(await page.locator('#chase-passed .ch-stamp span').textContent() === second.toUpperCase(), 'going past it stamps PASSED with their name');
+check(await page.locator('#chase-passed .ch-stamp span').textContent() === second.toUpperCase(), 'going past it stamps SURPASSED with their name');
 check((await page.locator('.ch-chip').count()) === 0, 'and the chip under the scoreboard goes: the chase is done');
 await page.waitForTimeout(2000);
 await write(['W']);
@@ -319,7 +319,7 @@ check(events.events?.[0]?.kind === 'beat' && events.events[0].runs === 174, 'and
   await me.locator('.ec-player').scrollIntoViewIfNeeded();
   await me.screenshot({ path: `${out}/c3-endcard.png` });
   const passedLine = await me.locator('#card-board-passed').innerText().catch(() => '');
-  check(/^Passed /.test(passedLine), 'C3 · who the innings went past is a quiet line under the place', passedLine);
+  check(/^Surpassed /.test(passedLine), 'C3 · who the innings went past is a quiet line under the place', passedLine);
   check(await me.locator('.ca-next').count() === 1, 'C3 · and who is next is one row of its own');
   const round = await me.locator('.ca-next-face .board-kit').evaluate(n => { const r = n.getBoundingClientRect(); return Math.abs(r.width - r.height) < 1; });
   check(round, 'C3 · with a round face, not an oval');

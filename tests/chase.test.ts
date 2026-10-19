@@ -17,7 +17,7 @@ describe('the chase', () => {
   it('says what is wanted off how many in the Blast, and only what is wanted elsewhere', () => {
     expect(chipLine(kabir, 122, 18)).toEqual({ need: '66', off: '18', done: false });
     expect(chipLine({ ...kabir, mode: 'survive' }, 40, 50)).toEqual({ need: '148', off: null, done: false });
-    expect(chipLine(kabir, 188, 6)).toEqual({ need: 'Passed Kabir', off: null, done: true });
+    expect(chipLine(kabir, 188, 6)).toEqual({ need: 'Surpassed Kabir', off: null, done: true });
   });
 
   it('fills the bar toward one more than the target, and beats inside ten', () => {

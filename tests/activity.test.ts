@@ -13,7 +13,7 @@ describe('what the profile collected', () => {
   it('says each thing in a line', () => {
     expect(eventTitle(event({}))).toBe('Kabir beat your 187 with 196');
     expect(eventTitle(event({ kind: 'short', name: 'Meera', runs: 181 }))).toBe('Meera chased your 187');
-    expect(eventTitle(event({ kind: 'passed', name: 'Arjun' }))).toBe('Arjun passed you');
+    expect(eventTitle(event({ kind: 'passed', name: 'Arjun' }))).toBe('Arjun surpassed you');
   });
 
   it('offers WIN IT BACK on what was taken and not yet answered', () => {
@@ -81,7 +81,7 @@ describe('the headline and the quiet line', () => {
 
   it('says what happened without the name, in every mode', () => {
     expect(takenLine(event({}))).toBe('Someone beat your 187');
-    expect(takenLine(event({ kind: 'passed' }))).toBe('Someone passed your 187');
+    expect(takenLine(event({ kind: 'passed' }))).toBe('Someone surpassed your 187');
     expect(takenLine(event({ mode: 'survive', result: { mine: { kind: 'lost', balls: 46, runs: 30 }, theirs: { kind: 'lost', balls: 40, runs: 30 } } }))).toBe('Someone outlasted you');
     expect(droppedBy(event({}))).toBe(true);
     expect(droppedBy(event({ dropped: false }))).toBe(false);

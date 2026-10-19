@@ -40,7 +40,7 @@ export function eventTitle(event: Event): string {
   if (event.result && event.kind === 'short') return `${event.name} chased your result`;
   if (event.kind === 'beat') return `${event.name} beat your ${event.target} with ${event.runs}`;
   if (event.kind === 'short') return `${event.name} chased your ${event.target}`;
-  return `${event.name} passed you`;
+  return `${event.name} surpassed you`;
 }
 
 /** The line under it: where it left you, or how it fell short. */
@@ -74,7 +74,7 @@ export function takenLine(event: Event): string {
     const theirs = event.result.theirs.kind;
     return theirs === 'won' ? 'Someone won faster than you' : theirs === 'drawn' ? 'Someone beat your draw' : 'Someone outlasted you';
   }
-  return event.kind === 'passed' ? `Someone passed your ${event.target}` : `Someone beat your ${event.target}`;
+  return event.kind === 'passed' ? `Someone surpassed your ${event.target}` : `Someone beat your ${event.target}`;
 }
 
 const MODE_IN: Record<Event['mode'], string> = { classic: 'the Blast', marathon: 'the Marathon', survive: 'Survival' };
@@ -145,7 +145,7 @@ export function activitySheetMarkup(activity: OwnActivity, now = Date.now()): st
       <div class="mp-views"><span class="mp-eye" aria-hidden="true">${EYE}</span><b>${activity.views.toLocaleString('en-US')}</b>
         <span><span>view${activity.views === 1 ? '' : 's'} in the last 7 days</span><small>${icon('lock')}Who looked stays private</small></span></div>
       <div class="mp-rows">${groups.length ? groups.map(group => `<h4>${group.title}</h4><ul>${rows(group.events)}</ul>`).join('')
-        : '<p class="mp-none">Nobody has chased or passed you yet. When they do, it lands here.</p>'}</div>
+        : '<p class="mp-none">Nobody has chased or surpassed you yet. When they do, it lands here.</p>'}</div>
       ${activity.bio ? '' : `<button id="activity-bio" type="button" class="mp-bio-nudge">${icon('user')}<span>Add a bio.${activity.views ? ` ${activity.views} ${activity.views === 1 ? 'person' : 'people'} looked this week.` : ''}</span>${icon('chevron-right')}</button>`}
       <p class="mp-foot">The last 10, from the last 30 days</p>
     </section>`;

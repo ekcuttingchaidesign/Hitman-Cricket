@@ -52,7 +52,7 @@ export function beaten(chase: Pick<Chase, 'target'>, runs: number): boolean {
  * Marathon end on wickets and say only what is wanted.
  */
 export function chipLine(chase: Chase, runs: number, ballsLeft: number | null): { need: string; off: string | null; done: boolean } {
-  if (beaten(chase, runs)) return { need: `Passed ${chase.name}`, off: null, done: true };
+  if (beaten(chase, runs)) return { need: `Surpassed ${chase.name}`, off: null, done: true };
   const need = wanted(chase, runs);
   return { need: String(need), off: ballsLeft !== null && chase.mode === 'classic' ? String(Math.max(0, ballsLeft)) : null, done: false };
 }

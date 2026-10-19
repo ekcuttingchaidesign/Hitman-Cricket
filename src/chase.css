@@ -66,7 +66,7 @@
 .ch-wave{position:absolute;left:50%;top:44%;width:calc(var(--u) * 220);height:calc(var(--u) * 220);margin:calc(var(--u) * -110) 0 0 calc(var(--u) * -110);border:2px solid #ffd9a680;border-radius:50%;
   animation:ch-wave 600ms cubic-bezier(.2,.8,.3,1) 120ms both}
 .ch-stamp{position:relative;display:flex;flex-direction:column;align-items:center;transform:rotate(-4deg);animation:ch-slam 350ms cubic-bezier(.2,1.4,.4,1) both}
-.ch-stamp b{font:400 calc(var(--u) * 84)/.9 var(--f-display);letter-spacing:.02em;text-shadow:0 5px 0 #7a2410,0 10px 24px #000000a6;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.ch-stamp b{font:400 calc(var(--u) * 62)/.9 var(--f-display);letter-spacing:.02em;text-shadow:0 5px 0 #7a2410,0 10px 24px #000000a6;font-optical-sizing:none;font-variation-settings:'opsz' 6}
 .ch-stamp span{margin-top:calc(var(--u) * 6);padding:calc(var(--u) * 8) calc(var(--u) * 20);border-radius:12px;background:linear-gradient(180deg,#ff764b,#c74821);box-shadow:0 5px 0 #7a2410;
   font:400 calc(var(--u) * 30)/1 var(--f-display);letter-spacing:.04em;font-optical-sizing:none;font-variation-settings:'opsz' 6}
 .ch-swap{position:relative;display:flex;gap:calc(var(--u) * 14)}

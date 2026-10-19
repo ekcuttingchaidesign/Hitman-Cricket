@@ -1217,7 +1217,7 @@ ${modeSelectMarkup()}
     if (beat === 'boundary') chip.classList.add('is-boundary');
     const line = chipLine(chase, runs, ballsLeft);
     this.pauseChase = chase.result ? surviveGoal(chase.name, chase.result).key.toLowerCase().replace(/^./, c => c.toUpperCase())
-      : line.done ? `Passed ${chase.name}` : `${line.need} to beat ${chase.name}`;
+      : line.done ? `Surpassed ${chase.name}` : `${line.need} to beat ${chase.name}`;
   }
   /** The chase's word on the pause sheet, beside the score. */
   private pauseChase: string | null = null;
@@ -1300,7 +1300,7 @@ ${modeSelectMarkup()}
     const others = passed.length ? around!.passedCount - passed.length : 0;
     const names = passed.map(one => `<b>${escape(one.name)}</b>`);
     line.innerHTML = !passed.length ? ''
-      : `Passed ${others > 0 ? `${names.join(', ')} and ${others} other${others === 1 ? '' : 's'}` : names.join(' and ')}`;
+      : `Surpassed ${others > 0 ? `${names.join(', ')} and ${others} other${others === 1 ? '' : 's'}` : names.join(' and ')}`;
     line.classList.toggle('hidden', !passed.length);
     // Who is next is the one thing on the card to act on: a row of its own.
     slot.innerHTML = next ? `<button id="card-next" type="button" class="ca-next">

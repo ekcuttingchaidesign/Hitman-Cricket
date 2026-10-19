@@ -103,7 +103,7 @@ export const STORIES: readonly Story[] = [
     key: 'player-profiles',
     eyebrow: 'WHAT’S NEW · PLAYER PROFILES',
     title: 'PLAYER PROFILES AND MY PROFILE',
-    alt: 'A Blast board. A tap on Kabir opens his profile: his face, his rung and his best. CHASE THEIR 157 is pressed, the runs roll up past it and PASSED is stamped with his name. Then Kabir’s own My profile, leading with Rank down, his place rolling from #2 to #3, and a key to win it back.',
+    alt: 'A Blast board. A tap on Kabir opens his profile: his face, his rung and his best. CHASE THEIR 157 is pressed, the runs roll up past it and SURPASSED is stamped with his name. Then Kabir’s own My profile, leading with Rank down, his place rolling from #2 to #3, and a key to win it back.',
     film: 'player-profiles',
     // The film runs ten seconds, and the story holds a beat past its end.
     holdMs: 10200,
