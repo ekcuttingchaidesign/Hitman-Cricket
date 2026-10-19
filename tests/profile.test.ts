@@ -113,6 +113,15 @@ describe('afterPost', () => {
     expect((await on.players.events(A)).filter(one => one.kind === 'passed')).toEqual([]);
   });
 
+  it('keeps whether a beat moved them down: not when the chaser stood above them already', async () => {
+    const on = await board();
+    const D = idOf('Dev');
+    await post(on, 'Bela', 95, handleOf(D));
+    expect((await on.players.events(D))[0]).toMatchObject({ kind: 'beat', place: 4, dropped: false });
+    await post(on, 'Esha', 75, handleOf(D));
+    expect((await on.players.events(D))[0]).toMatchObject({ kind: 'beat', place: 5, dropped: true });
+  });
+
   it('judges a chase of a player whose handle was never noted', async () => {
     const on = await board();
     (on.players as ReturnType<typeof memoryPlayers>).clear();

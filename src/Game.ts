@@ -2568,7 +2568,7 @@ export class Game {
     try {
       const activity = await fetchActivity(this.player);
       const now = Date.now();
-      const beat = activity.events.find(one => one.kind === 'beat' && one.mode === 'classic' && !one.wonBack && now - one.at < RECENT_MS);
+      const beat = activity.events.find(one => one.kind === 'beat' && one.dropped !== false && one.mode === 'classic' && !one.wonBack && now - one.at < RECENT_MS);
       return beat ? { kind: 'beaten', name: beat.name, target: beat.target, place: beat.place, ago: now - beat.at } : null;
     } catch {
       return null;

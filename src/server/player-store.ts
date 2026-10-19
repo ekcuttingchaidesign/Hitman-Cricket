@@ -35,6 +35,12 @@ export interface ActivityEvent {
   target: number;
   /** Where this player stood once it happened, where it moved them. */
   place: number | null;
+  /**
+   * On a beat, whether it moved them down a place: a chaser already above them
+   * beats their best without passing them. Missing on a pass, which always
+   * does, and on beats noted before it was kept, which are taken to have.
+   */
+  dropped?: boolean;
   at: number;
   /** A Test Survival chase is of a result, not runs: the chaser's, and this player's that it went after. */
   result?: { mine: SurviveResult; theirs: SurviveResult };

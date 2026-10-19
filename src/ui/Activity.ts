@@ -49,6 +49,35 @@ function eventSub(event: Event): string {
   return event.place ? `You’re #${event.place} now` : 'Off your place';
 }
 
+/** Whether it moved the player down a place: every pass, and a beat that went past them. */
+export function droppedBy(event: Event): boolean {
+  return event.kind === 'passed' || (event.kind === 'beat' && event.dropped !== false);
+}
+
+/**
+ * Where it left the player, said by the line it crossed: no longer #1, out
+ * of the top 3 or the top 10, or simply the place. Each event moved them one.
+ */
+export function rankLine(place: number | null): string {
+  if (!place) return 'You lost a place';
+  const was = place - 1;
+  if (was === 1) return 'You’re no longer #1';
+  if (was <= 3 && place > 3) return 'You’re out of the top 3';
+  if (was <= 10 && place > 10) return 'You’re out of the top 10';
+  return `You’re #${place} now`;
+}
+
+/** What happened, without who: the card says it, and the sheet behind it names them. */
+export function takenLine(event: Event): string {
+  if (event.result) {
+    const theirs = event.result.theirs.kind;
+    return theirs === 'won' ? 'Someone won faster than you' : theirs === 'drawn' ? 'Someone beat your draw' : 'Someone outlasted you';
+  }
+  return event.kind === 'passed' ? `Someone passed your ${event.target}` : `Someone beat your ${event.target}`;
+}
+
+const MODE_IN: Record<Event['mode'], string> = { classic: 'the Blast', marathon: 'the Marathon', survive: 'Survival' };
+
 /** Whether WIN IT BACK is offered: a beat or a pass not yet answered. */
 export function winnable(event: Event): boolean {
   return (event.kind === 'beat' || event.kind === 'passed') && !event.wonBack;
@@ -68,12 +97,16 @@ export function activityMarkup(activity: OwnActivity | null, now = Date.now()): 
   const lead = headline(activity);
   const week = activity.events.filter(one => now - one.at < 7 * DAY);
   if (lead) {
-    const more = week.filter(one => one !== lead).length;
-    const verb = lead.kind === 'beat' ? (lead.result ? eventTitle(lead) : `${lead.name} beat your ${lead.target}`) : `${lead.name} passed you`;
-    const sub = [lead.place ? `You’re #${lead.place} now` : null, more ? `and ${more} more this week` : null].filter(Boolean).join(' · ');
+    // About the player, not the other one: their place went down. Who did it,
+    // and the key to win it back, are in the sheet behind it.
+    const more = week.filter(one => one !== lead && winnable(one)).length;
+    const dropped = droppedBy(lead);
+    const what = `${takenLine(lead)} in ${MODE_IN[lead.mode]}${more ? ` · ${more} more this week` : ''}`;
     return `<button id="mp-activity-open" type="button" class="mp-news is-taken" aria-haspopup="dialog">
-        <span class="mp-news-face">${kitMarkup(lead.avatar, lead.name)}<i aria-hidden="true">${ARROW_UP}</i></span>
-        <span class="mp-news-text"><b>${escape(verb)}</b><small>${escape(sub)}</small></span>
+        <span class="mp-news-down" aria-hidden="true">${ARROW_DOWN}</span>
+        <span class="mp-news-text"><b>${dropped ? 'Rank down' : 'Best beaten'}</b>
+          <span class="mp-news-where">${escape(dropped ? rankLine(lead.place) : lead.place ? `You’re still #${lead.place}` : 'Your place holds')}</span>
+          <small>${escape(what)}</small></span>
         <i class="mp-news-dot" aria-hidden="true"></i>${icon('chevron-right')}</button>`;
   }
   const chased = week.filter(one => one.kind === 'short').length;
@@ -117,4 +150,4 @@ export function activitySheetMarkup(activity: OwnActivity, now = Date.now()): st
 }
 
 const EYE = '<svg viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg>';
-const ARROW_UP = '<svg viewBox="0 0 12 12" fill="none"><path d="M6 10V2M2.5 5.5 6 2l3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ARROW_DOWN = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M6 13l6 6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';

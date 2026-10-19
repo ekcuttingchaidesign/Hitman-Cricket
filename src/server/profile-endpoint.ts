@@ -322,7 +322,12 @@ export async function afterPost(stores: ProfileStores, posted: Posted, now = Dat
         const score = survive ? (posted.outcome as SubmitAccepted<unknown>).score : 0;
         const beat = survive ? theirs.score !== null && score > theirs.score : runs > row.runs;
         const result = survive ? { mine: surviveResultOf(posted.surviveInnings!), theirs: surviveResultOf(row as unknown as SurviveInnings) } : undefined;
-        await noteEvent(stores.players, target, { ...event(beat ? 'beat' : 'short', row.runs, theirs.rank, runs), ...(result ? { result } : {}) });
+        // Passed them, not only beat their best: the chaser is above them now and was not before.
+        const mine = solo ? (posted.outcome as MarathonAccepted).standing.solo : standing;
+        const dropped = beat && theirs.rank !== null && mine.rank !== null && mine.rank < theirs.rank && (!mine.was || mine.was.rank >= theirs.rank);
+        await noteEvent(stores.players, target, {
+          ...event(beat ? 'beat' : 'short', row.runs, theirs.rank, runs), ...(result ? { result } : {}), ...(beat ? { dropped } : {}),
+        });
         extras.chase = { handle: posted.chase, name: row.name, target: row.runs, runs, beat, ...(result ? { result } : {}) };
       }
     }

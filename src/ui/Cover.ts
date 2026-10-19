@@ -73,7 +73,7 @@ export function coverBoardLines(view: CoverBoard): string {
     const hours = Math.floor(view.ago / 3_600_000);
     const ago = view.ago < JUST_NOW_MS ? 'JUST NOW' : hours < 24 ? `${Math.max(1, hours)}H AGO` : `${Math.floor(hours / 24)}D AGO`;
     const place = view.place ? ` · you’re #${view.place}` : '';
-    return `<span id="best-label">BEAT YOUR BEST · ${ago}</span><strong id="best">${escape(view.name)} beat your ${view.target}${place}</strong>`;
+    return `<span id="best-label">RANK DOWN · ${ago}</span><strong id="best">Someone beat your ${view.target}${place}</strong>`;
   }
   return '<span id="best-label">LEADERBOARD · THE BLAST</span><strong id="best">Top 50 in every mode</strong>';
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activityMarkup, activitySheetMarkup, agoOf, eventTitle, headline, winnable } from '../src/ui/Activity';
+import { activityMarkup, activitySheetMarkup, agoOf, droppedBy, eventTitle, headline, rankLine, takenLine, winnable } from '../src/ui/Activity';
 import type { OwnActivity } from '../src/game/profile-api';
 
 const NOW = Date.UTC(2026, 9, 18, 12);
@@ -38,11 +38,38 @@ describe('what the profile collected', () => {
 });
 
 describe('the headline and the quiet line', () => {
-  it('puts the beat first, with the place and how many more', () => {
-    const html = activityMarkup({ views: 14, bio: null, events: [event({}), event({ kind: 'short', at: NOW - 2 * HOUR })] }, NOW);
+  it('leads with the rank going down, not who took it', () => {
+    const html = activityMarkup({ views: 14, bio: null, events: [event({}), event({ kind: 'passed', at: NOW - 2 * HOUR }), event({ kind: 'short', at: NOW - 3 * HOUR })] }, NOW);
     expect(html).toContain('is-taken');
-    expect(html).toContain('Kabir beat your 187');
-    expect(html).toContain('You’re #5 now · and 1 more this week');
+    expect(html).toContain('Rank down');
+    expect(html).toContain('You’re #5 now');
+    expect(html).toContain('Someone beat your 187 in the Blast · 1 more this week');
+    expect(html).not.toContain('Kabir');
+    expect(html).not.toContain('board-kit');
+  });
+
+  it('says a beat that left the place alone as a best beaten', () => {
+    const html = activityMarkup({ views: 0, bio: null, events: [event({ dropped: false, place: 2 })] }, NOW);
+    expect(html).toContain('Best beaten');
+    expect(html).toContain('You’re still #2');
+  });
+
+  it('names the line the place fell across', () => {
+    expect(rankLine(2)).toBe('You’re no longer #1');
+    expect(rankLine(3)).toBe('You’re #3 now');
+    expect(rankLine(4)).toBe('You’re out of the top 3');
+    expect(rankLine(11)).toBe('You’re out of the top 10');
+    expect(rankLine(14)).toBe('You’re #14 now');
+    expect(rankLine(null)).toBe('You lost a place');
+  });
+
+  it('says what happened without the name, in every mode', () => {
+    expect(takenLine(event({}))).toBe('Someone beat your 187');
+    expect(takenLine(event({ kind: 'passed' }))).toBe('Someone passed your 187');
+    expect(takenLine(event({ mode: 'survive', result: { mine: { kind: 'lost', balls: 46, runs: 30 }, theirs: { kind: 'lost', balls: 40, runs: 30 } } }))).toBe('Someone outlasted you');
+    expect(droppedBy(event({}))).toBe(true);
+    expect(droppedBy(event({ dropped: false }))).toBe(false);
+    expect(droppedBy(event({ kind: 'passed' }))).toBe(true);
   });
 
   it('says who looked and chased when nothing was taken', () => {

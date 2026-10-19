@@ -53,6 +53,9 @@ async function seed(name, runs, avatar, bio) {
 const top = `Ptop${run}`;
 await seed(top, 174, 3, 'Leg-side bully. Pulls everything short.');
 const secondId = await seed(`Psec${run}`, 168, 1);
+// Below the podium, so a fresh server's list has named rows too.
+await seed(`Plow${run}`, 6, 2);
+await seed(`Pend${run}`, 4, 3);
 
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ executablePath });
@@ -203,19 +206,22 @@ check(events.events?.[0]?.kind === 'beat' && events.events[0].runs === 174, 'and
   await them.waitForTimeout(2500);
   // The widget turns its lines over every few seconds: watch it for one round.
   let coverLines = '';
-  for (let i = 0; i < 40 && !/BEAT YOUR BEST/.test(coverLines); i++) {
+  for (let i = 0; i < 40 && !/RANK DOWN/.test(coverLines); i++) {
     coverLines = await them.locator('#cover-board').innerText().catch(() => '');
-    if (!/BEAT YOUR BEST/.test(coverLines)) await them.waitForTimeout(300);
+    if (!/RANK DOWN/.test(coverLines)) await them.waitForTimeout(300);
   }
-  check(/BEAT YOUR BEST/.test(coverLines), 'the cover leads with the best that was taken', coverLines.replace(/\s+/g, ' ').slice(0, 120));
+  check(/RANK DOWN/.test(coverLines) && /Someone beat your 168/.test(coverLines), 'the cover leads with the place that went down', coverLines.replace(/\s+/g, ' ').slice(0, 120));
   await them.click('#cover-profile');
   await them.waitForSelector('.mp-hero.is-on', { timeout: 15_000 });
   check((await them.locator('.st-title').textContent()).trim() === 'MY PROFILE', 'My Stats is My profile now');
   await them.waitForSelector('.mp-news.is-taken', { timeout: 8000 });
   await them.waitForTimeout(600);
   await them.screenshot({ path: `${out}/c2-profile.png` });
-  const news = (await them.locator('.mp-news-text b').textContent()).trim();
-  check(news === `Plook${run} beat your 168`, 'the headline says who took the best', news);
+  const news = (await them.locator('.mp-news').textContent()).replace(/\s+/g, ' ').trim();
+  check((await them.locator('.mp-news-text b').textContent()).trim() === 'Rank down', 'the headline says the rank went down', news);
+  check(/You’re (#\d+ now|out of the top (3|10)|no longer #1)/.test(news), 'and where it left them', news);
+  check(news.includes('Someone beat your 168 in the Blast') && !news.includes(`Plook${run}`), 'and what happened, without who: the sheet names them', news);
+  check(await them.locator('.mp-news-down').isVisible() && !(await them.locator('.mp-news .board-kit').count()), 'a red arrow down, not their face');
   check(await them.locator('[data-bio-add]').first().isVisible(), 'and with no bio, the hero offers a line about you');
 
   // Lane D: the bio, from that offer into Your details.
