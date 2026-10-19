@@ -216,20 +216,16 @@
 .mp-eye{display:grid;place-items:center;flex:none;width:calc(var(--u) * 36);height:calc(var(--u) * 36);border-radius:12px;background:#ffffff12;color:var(--c-text-2)}
 .mp-eye svg{width:calc(var(--u) * 20);height:calc(var(--u) * 20)}
 
-/* The career cards: the mode switch, each the rung's badge and the career figure. */
-.st-switch.mp-modes{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(var(--u) * 8);padding:0;border:0;background:none}
-.st-switch.mp-modes .stats-dot.mp-mode{display:flex;flex-direction:column;align-items:stretch;gap:calc(var(--u) * 6);height:auto;min-height:calc(var(--u) * 74);
-  padding:calc(var(--u) * 10);border:1px solid #ffffff14;border-radius:16px;background:linear-gradient(180deg,#1c2026,#121519);
-  color:var(--c-text);letter-spacing:0;text-align:left;transition:border-color 220ms,background-color 220ms}
-.st-switch.mp-modes .stats-dot.mp-mode.is-on{border-color:color-mix(in srgb,var(--dot) 85%,#fff);background:linear-gradient(180deg,color-mix(in srgb,var(--dot) 30%,#14171b),#14171b);color:var(--c-text);
-  box-shadow:0 0 0 1px color-mix(in srgb,var(--dot) 50%,transparent),0 8px 20px #00000059}
-.mp-mode-name{display:flex;align-items:center;gap:calc(var(--u) * 5);font:700 calc(var(--u) * 9)/1 var(--f-ui);letter-spacing:.12em;color:var(--c-text-2)}
-.mp-mode-name i{width:calc(var(--u) * 6);height:calc(var(--u) * 6);border-radius:50%;background:var(--dot)}
-.mp-mode-figure{display:flex;align-items:center;gap:calc(var(--u) * 6)}
-.mp-mode-figure .k-badge{--size:calc(var(--u) * 28)}
-.mp-mode-figure>span{display:flex;flex-direction:column;min-width:0}
-.mp-mode-figure b{font:900 calc(var(--u) * 17)/1.1 var(--f-ui)}
-.mp-mode-figure small{font:500 calc(var(--u) * 10)/1.2 var(--f-ui);color:var(--c-text-3)}
+/* The mode switch, quiet tabs: the rung's badge and the name, the one picked underlined in its colour. */
+.st-switch.mp-modes{display:grid;grid-template-columns:repeat(3,1fr);gap:0;padding:0;border:0;border-bottom:1px solid #ffffff14;border-radius:0;background:none}
+.st-switch.mp-modes .stats-dot.mp-mode{position:relative;display:flex;justify-content:center;align-items:flex-start;width:auto;height:calc(var(--u) * 41);min-height:0;
+  padding:calc(var(--u) * 10) 0 0;border:0;border-radius:0;background:none;box-shadow:none;color:var(--c-text-3);letter-spacing:0}
+.st-switch.mp-modes .stats-dot.mp-mode.is-on{background:none;box-shadow:none;color:#fff}
+.st-switch.mp-modes .stats-dot.mp-mode::after{content:'';position:absolute;left:50%;bottom:-1px;width:calc(var(--u) * 84);height:3px;margin-left:calc(var(--u) * -42);border-radius:2px;
+  background:var(--dot);box-shadow:0 -2px 20px 3px var(--dot);opacity:0;transform:scaleX(.4);transition:opacity 220ms ease-out,transform 220ms ease-out}
+.st-switch.mp-modes .stats-dot.mp-mode.is-on::after{opacity:1;transform:none}
+.mp-mode-name{display:flex;align-items:center;gap:calc(var(--u) * 6);font:400 calc(var(--u) * 15)/1 var(--f-display);letter-spacing:.12em;color:inherit;white-space:nowrap;transition:color 220ms}
+.mp-mode-name .k-badge{--size:calc(var(--u) * 18)}
 
 /* The Your profile sheet. */
 .mp-layer{position:absolute;inset:0;z-index:20}
@@ -283,10 +279,8 @@
 .ca-faces>*+*{margin-left:calc(var(--u) * -9)}
 .ca-faces i{display:grid;place-items:center;width:calc(var(--u) * 28);height:calc(var(--u) * 28);border-radius:50%;background:#2a2f37;box-shadow:0 0 0 2px #171a1f;
   font:700 calc(var(--u) * 11)/1 var(--f-ui);font-style:normal;color:var(--c-text)}
-/* The old switch set every span in a dot to a block; the cards lay theirs out. */
+/* The old switch set every span in a dot to a block; the tabs lay theirs out. */
 .st-switch.mp-modes .stats-dot .mp-mode-name{display:flex}
-.st-switch.mp-modes .stats-dot .mp-mode-figure{display:flex}
-.st-switch.mp-modes .stats-dot .mp-mode-figure>span:not(.k-badge){display:flex;flex-direction:column}
 .st-switch.mp-modes .stats-dot .k-badge{display:inline-block}
 .mp-layer{color:var(--c-text);font-family:var(--f-ui)}
 

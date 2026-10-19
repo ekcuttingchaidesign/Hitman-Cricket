@@ -1,3 +1,4 @@
+import { answeredBy, HEADLINE_MS, readAnswered, type Answered } from '../game/answered';
 import type { OwnActivity } from '../game/profile-api';
 import { icon } from './Kit';
 import { escape, kitMarkup } from './Leaderboard';
@@ -85,16 +86,17 @@ export function winnable(event: Event): boolean {
 
 /**
  * The one thing My profile leads with: the newest thing taken from the player
- * that they have not won back. Null when nothing was taken.
+ * in the last two days that they have neither won back nor gone after with
+ * WIN IT BACK. Null when nothing was taken, and the card comes down.
  */
-export function headline(activity: OwnActivity): Event | null {
-  return activity.events.find(winnable) ?? null;
+export function headline(activity: OwnActivity, now = Date.now(), answered: Answered = readAnswered()): Event | null {
+  return activity.events.find(one => winnable(one) && now - one.at < HEADLINE_MS && !answeredBy(one, answered)) ?? null;
 }
 
 /** The headline card or the quiet line, or nothing at all for a profile nobody has touched. */
-export function activityMarkup(activity: OwnActivity | null, now = Date.now()): string {
+export function activityMarkup(activity: OwnActivity | null, now = Date.now(), answered: Answered = readAnswered()): string {
   if (!activity) return '';
-  const lead = headline(activity);
+  const lead = headline(activity, now, answered);
   const week = activity.events.filter(one => now - one.at < 7 * DAY);
   if (lead) {
     // About the player, not the other one: their place went down. Who did it,

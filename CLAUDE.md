@@ -77,6 +77,12 @@ README's "Player profiles" is the long version.
   unchanged); the hero and ground per mode switch with it. The activity comes
   from `GET /api/profile?player=` when the page opens (`askActivity`), the
   sheet is `src/ui/Activity.ts`, and WIN IT BACK chases the runs that took it.
+  The headline is Rank down, about the player and never who did it, and it
+  stands two days at most (`HEADLINE_MS`): a WIN IT BACK innings played to
+  its end card takes it down sooner, won or not (`src/game/answered.ts`, kept
+  in the browser by handle and mode), and the cover's line goes with it. The
+  mode switch is quiet tabs, the badge and the name with the pick underlined
+  in its colour (Figma `367:12950`); no figures on them.
   The end card's `#card-around` and the cover's `beaten` line read the same.
 - **D, the bio**: `bioFieldMarkup` in Your details, on the edit only, held to
   `bioProblem` (`src/server/bio-rules.ts`) in the browser and the store, and

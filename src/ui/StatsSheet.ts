@@ -148,10 +148,10 @@ function heroMarkup(card: StatsSlide, who: { name: string; avatar: number } | nu
 const BOARD_NAME: Record<string, string> = { classic: 'The Blast', marathon: 'Marathon team', survive: 'Test Survival' };
 
 /**
- * The career cards: the mode switch as three little cards, each the rung's
- * badge and the career figure, so where the player stands in all three is
- * seen before they tap. They keep the old dots' class and slide numbers, so
- * the rail answers them as it always did.
+ * The mode switch as quiet tabs: the rung's badge and the mode's name, the
+ * one picked underlined in its colour. No figures: the hero and the six under
+ * it carry them, and a big one only crowded a tab. They keep the old dots'
+ * class and slide numbers, so the rail answers them as it always did.
  */
 function switchMarkup(cards: StatsSlide[], at: number): string {
   return `<div class="st-switch stats-dots mp-modes" role="tablist" aria-label="Which mode">${cards.map((card, i) => {
@@ -159,8 +159,7 @@ function switchMarkup(cards: StatsSlide[], at: number): string {
     return `
           <button class="stats-dot mp-mode${i === at ? ' is-on' : ''}" type="button" role="tab" data-slide="${i}" aria-selected="${i === at}"
             aria-label="${escape(facts.modeName)}" style="--dot:${DOT[facts.mode] ?? DOT.classic}">
-            <span class="mp-mode-name"><i aria-hidden="true"></i>${escape((SHORT[facts.mode] ?? facts.modeName).toUpperCase())}</span>
-            <span class="mp-mode-figure">${tierBadge(facts.tier.key, true, facts.tier.name)}<span><b>${facts.ladder.measure.toLocaleString('en-US')}</b><small>${measureName(facts.mode)}</small></span></span>
+            <span class="mp-mode-name">${tierBadge(facts.tier.key, true, facts.tier.name)}${escape((SHORT[facts.mode] ?? facts.modeName).toUpperCase())}</span>
           </button>`;
   }).join('')}
         </div>`;

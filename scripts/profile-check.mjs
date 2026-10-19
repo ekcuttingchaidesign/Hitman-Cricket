@@ -223,6 +223,11 @@ check(events.events?.[0]?.kind === 'beat' && events.events[0].runs === 174, 'and
   check(news.includes('Someone beat your 168 in the Blast') && !news.includes(`Plook${run}`), 'and what happened, without who: the sheet names them', news);
   check(await them.locator('.mp-news-down').isVisible() && !(await them.locator('.mp-news .board-kit').count()), 'a red arrow down, not their face');
   check(await them.locator('[data-bio-add]').first().isVisible(), 'and with no bio, the hero offers a line about you');
+  const tabs = await them.evaluate(() => [...document.querySelectorAll('.mp-mode')].map(one => ({
+    on: one.classList.contains('is-on'), text: one.textContent.replace(/\s+/g, ' ').trim(), line: getComputedStyle(one, '::after').opacity,
+  })));
+  check(tabs.length === 3 && tabs.every(one => /^[A-Z]+$/.test(one.text)), 'the mode tabs are names and badges, no figures', JSON.stringify(tabs));
+  check(tabs.filter(one => one.on).length === 1 && tabs.every(one => (one.line === '1') === one.on), 'and only the one picked is underlined', JSON.stringify(tabs));
 
   // Lane D: the bio, from that offer into Your details.
   await them.locator('[data-bio-add]').first().click();
@@ -254,6 +259,18 @@ check(events.events?.[0]?.kind === 'beat' && events.events[0].runs === 174, 'and
   await them.locator('#activity-sheet .mp-win').first().click();
   await them.waitForSelector('#chase-intro', { timeout: 8000 });
   check((await them.locator('.ch-intro-target b').getAttribute('data-to')) === '174', 'WIN IT BACK chases the runs that took it');
+  // Played to the end and fallen short, the Rank down card still comes down.
+  await them.evaluate(() => { document.getElementById('chase-bat').click(); window.__cricket.blast(['W', 'W', 'W', 'W', 'W']); });
+  await them.waitForSelector('.ch-strip.is-short', { timeout: 10_000 });
+  const answered = await them.evaluate(() => localStorage.getItem('hitman-answered') ?? '');
+  check(/:classic"/.test(answered), 'C · the innings WIN IT BACK started is noted as answered', answered);
+  await them.goto(`${base}/?debug=1&private=0`, { waitUntil: 'load' });
+  await them.waitForTimeout(2000);
+  await them.click('#cover-profile');
+  await them.waitForSelector('.mp-hero.is-on', { timeout: 15_000 });
+  await them.waitForFunction(() => !!document.querySelector('#mp-activity')?.innerHTML.trim(), null, { timeout: 8000 }).catch(() => {});
+  await them.waitForTimeout(600);
+  check(await them.locator('.mp-news.is-taken').count() === 0, 'C · and My profile no longer leads with Rank down', await them.locator('#mp-activity').innerText().catch(() => ''));
   await theirs.close();
 }
 

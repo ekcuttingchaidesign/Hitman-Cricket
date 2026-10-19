@@ -25,8 +25,24 @@ describe('what the profile collected', () => {
 
   it('leads with the newest thing taken, and nothing when all is answered', () => {
     const activity: OwnActivity = { views: 14, bio: null, events: [event({ kind: 'short' }), event({ name: 'Zoya' }), event({ name: 'Tara' })] };
-    expect(headline(activity)?.name).toBe('Zoya');
-    expect(headline({ ...activity, events: [event({ wonBack: true })] })).toBeNull();
+    expect(headline(activity, NOW, {})?.name).toBe('Zoya');
+    expect(headline({ ...activity, events: [event({ wonBack: true })] }, NOW, {})).toBeNull();
+  });
+
+  it('stands two days at most', () => {
+    const activity: OwnActivity = { views: 0, bio: null, events: [event({ at: NOW - 47 * HOUR })] };
+    expect(headline(activity, NOW, {})).not.toBeNull();
+    expect(headline(activity, NOW + 2 * HOUR, {})).toBeNull();
+    expect(activityMarkup(activity, NOW + 2 * HOUR, {})).not.toContain('Rank down');
+  });
+
+  it('comes down once WIN IT BACK is played, won or not, and only for that player and mode', () => {
+    const activity: OwnActivity = { views: 0, bio: null, events: [event({})] };
+    const key = `${event({}).handle}:classic`;
+    expect(headline(activity, NOW, { [key]: NOW - 30 * 60_000 })).toBeNull();
+    expect(headline(activity, NOW, { [key]: NOW - 2 * HOUR })?.name).toBe('Kabir');
+    expect(headline(activity, NOW, { [`${event({}).handle}:marathon`]: NOW })?.name).toBe('Kabir');
+    expect(headline(activity, NOW, { [`fedcba9876543210:classic`]: NOW })?.name).toBe('Kabir');
   });
 
   it('counts the time as a row says it', () => {

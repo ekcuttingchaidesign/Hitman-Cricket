@@ -95,6 +95,7 @@ import { fetchSaved, sendSaved } from './game/dressing-api';
 import { mergeDressing, sameDressing, type SavedDressing } from './game/dressing-sync';
 import type { ModeSelectView } from './ui/ModeSelect';
 import { RECENT_MS, coverParallax, type CoverBoard } from './ui/Cover';
+import { HEADLINE_MS, answeredBy, noteAnswered, readAnswered } from './game/answered';
 import { surviveLine as surviveResult } from './ui/SurviveBoard';
 import type { BlastCareer, MarathonCareer, SurviveCareer } from './game/career';
 import type { SurviveInnings } from './game/survive-board';
@@ -769,7 +770,7 @@ export class Game {
       this.hud.closeStats();
       this.hud.onPlayerChase?.({
         handle: event.handle, name: event.name, avatar: event.avatar, mode: event.mode, target: event.runs,
-        theirPlace: event.place ? event.place - 1 || 1 : null, result: event.result?.mine ?? null,
+        theirPlace: event.place ? event.place - 1 || 1 : null, result: event.result?.mine ?? null, answers: true,
       });
     };
     this.hud.onPlayerChase = chase => {
@@ -2562,13 +2563,15 @@ export class Game {
    * the fifty when they are on it, and asked of the store when they are below
    * it — or, with no best yet, the board's leader and their score to chase.
    */
-  /** A Blast best taken in the last day and not won back, from the player's activity, for the cover. */
+  /** A Blast best taken in the last two days and neither won back nor gone after, from the player's activity, for the cover. */
   private async takenLately(): Promise<CoverBoard | null> {
     if (!this.player || !readPlayer()?.name) return null;
     try {
       const activity = await fetchActivity(this.player);
       const now = Date.now();
-      const beat = activity.events.find(one => one.kind === 'beat' && one.dropped !== false && one.mode === 'classic' && !one.wonBack && now - one.at < RECENT_MS);
+      const answered = readAnswered();
+      const beat = activity.events.find(one => one.kind === 'beat' && one.dropped !== false && one.mode === 'classic' && !one.wonBack
+        && now - one.at < HEADLINE_MS && !answeredBy(one, answered));
       return beat ? { kind: 'beaten', name: beat.name, target: beat.target, place: beat.place, ago: now - beat.at } : null;
     } catch {
       return null;
@@ -3120,6 +3123,8 @@ export class Game {
     }), !!readPlayer()?.name);
     this.hud.againLabel(said.beat ? null : chase.result ? surviveGoal(chase.name, chase.result).again : againLabel(chase));
     if (!result) this.mark(said.beat ? 'chase-beat' : 'chase-short', said.beat ? 'Chase: beaten' : 'Chase: fell short');
+    // Gone after from the Rank down card and played to the end: the card comes down, won or not.
+    if (!result && chase.answers) noteAnswered(chase.handle, chase.mode);
     const board = () => { if (this.careerMode === 'marathon') this.openMarathon('team'); else this.openBoard(this.careerMode, 'best'); };
     document.getElementById('chase-board')?.addEventListener('click', board);
     document.getElementById('chase-next')?.addEventListener('click', board);

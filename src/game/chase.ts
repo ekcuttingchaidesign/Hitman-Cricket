@@ -27,6 +27,8 @@ export interface Chase {
   ladder?: 'solo';
   /** Test Survival: their result, which is what is chased there, not their runs. */
   result?: SurviveResult | null;
+  /** Started by WIN IT BACK: played to the end, it answers the Rank down card. */
+  answers?: boolean;
 }
 
 /** What the player brings to it: their own best and place in the mode, where they have them. */
