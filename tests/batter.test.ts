@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, PUNCH_CONTACT_MS, PUNCH_HIGHEST, PUNCH_HOLD_MS, PUNCH_MEETS_AT, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, DEFENCE_FRONT_MEETS_AT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_HEIGHT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, pullVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
+import { Batter, PUNCH_CLOCK, PUNCH_CONTACT_MS, PUNCH_HIGHEST, PUNCH_HOLD_MS, PUNCH_MEETS_AT, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, DEFENCE_FRONT_MEETS_AT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_HEIGHT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, pullVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -984,20 +984,21 @@ describe('the back-foot punch', () => {
     }
   });
 
-  it('finishes with the hands up at the helmet close to his face, the bat leant out towards cover, the feet together', () => {
+  it('finishes with the hands up by his face, the bat leant out towards cover, the feet together, and stops there', () => {
     for (const ballY of [.81, 1.13]) {
       const batter = swung(ballY); batter.update(500);
       const pose = batter.inspect(), helmet = (batter as unknown as { head: Object3D }).head.getWorldPosition(new Vector3()), where = `y ${ballY}`;
-      // The top hand over the helmet and the bottom one level with its crown:
-      // out in front of his face, clear of it, the arms are at their full length.
-      expect(Math.max(...pose.hands.map(hand => hand[1])), where).toBeGreaterThan(helmet.y + .15);
-      expect(Math.min(...pose.hands.map(hand => hand[1])), where).toBeGreaterThan(helmet.y + .05);
+      // The hands up by his face, and no higher: driven on up over the helmet it read as forced.
+      expect(Math.max(...pose.hands.map(hand => hand[1])), where).toBeGreaterThan(helmet.y - .1);
+      expect(Math.max(...pose.hands.map(hand => hand[1])), where).toBeLessThan(helmet.y + .12);
       // The bat leant out towards cover, toe down and out to the off and forward, as both clips have it.
-      expect(pose.batUp[1], where).toBeGreaterThan(.75);
+      expect(pose.batUp[1], where).toBeGreaterThan(.6);
       expect(pose.batUp[0], where).toBeLessThan(-.3);
       expect(pose.batUp[2], where).toBeLessThan(-.2);
       expect(pose.bladeTip[1], where).toBeLessThan(pose.hands[0][1] - .5);
-      expect(pose.batFace[0], where).toBeGreaterThan(.45);
+      // The face still out towards cover: to the off side and up the pitch.
+      expect(pose.batFace[0], where).toBeGreaterThan(.3);
+      expect(pose.batFace[2], where).toBeGreaterThan(.3);
       // The hands close to him, up at the helmet just in front of his face, not out at arm's length;
       // the front foot drawn back to the back one.
       const head = new Vector3(...pose.chest).add(new Vector3(...pose.chest).sub(new Vector3(...pose.hip)).normalize().multiplyScalar(.31));
@@ -1032,12 +1033,13 @@ describe('the back-foot punch', () => {
 
   it('holds the finish, then goes home in one movement', () => {
     for (const ballY of [.81, 1.13]) {
-      const held = at(450, ballY), later = at(600 + PUNCH_HOLD_MS, ballY), where = `y ${ballY}`;
+      // Stopped where the stroke ends and held, not carried on up.
+      const held = at(PUNCH_CLOCK.finish, ballY), later = at(PUNCH_CLOCK.hold + PUNCH_HOLD_MS, ballY), where = `y ${ballY}`;
       expect(new Vector3(...held.grip).distanceTo(new Vector3(...later.grip)), where).toBeLessThan(.001);
       expect(new Vector3(...at(STROKE_DURATION_MS + PUNCH_HOLD_MS, ballY).grip).distanceTo(new Vector3(...guard.grip)), where).toBeLessThan(.01);
       // The blade's speed home rises once and falls once.
       const batter = swung(ballY), speeds: number[] = []; let tip: Vector3 | null = null;
-      for (let time = 600 + PUNCH_HOLD_MS; time <= STROKE_DURATION_MS + PUNCH_HOLD_MS; time += 10) {
+      for (let time = PUNCH_CLOCK.hold + PUNCH_HOLD_MS; time <= STROKE_DURATION_MS + PUNCH_HOLD_MS; time += 10) {
         batter.update(time); const now = new Vector3(...batter.inspect().bladeTip);
         if (tip) speeds.push(now.distanceTo(tip)); tip = now;
       }

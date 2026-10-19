@@ -1535,9 +1535,10 @@ STROKES.DEFEND = DEFENCE_FRONT;
  * little ahead of the blade so it stays down; a bouncer is met up the face
  * (`PUNCH_HIGHEST`), the body a little further from it (`PUNCH_HIGH_ROOM`).
  * Then it is driven: the toe swings out towards cover, the hands coming up close
- * to him, by his chest and then up at the helmet just in front of his face with
- * the top elbow high, and the front foot slides back to close the gap with the
- * back one, so the feet finish together. The bat finishes leant out towards
+ * to him, by his chest and then up by his face with the top elbow high, where it
+ * stops (`PUNCH_CLOCK.finish`): carried on up over the helmet it read as forced.
+ * The front foot slides back to close the gap with the back one, so the feet
+ * finish together. The bat finishes leant out towards
  * cover, toe down. The wrists never roll it (`riding`): the arms take it through
  * and up. Held there (`PUNCH_HOLD_MS`), it comes home in one movement through the
  * bat hanging from his hands (`PUNCH_HOME_VIA`).
@@ -1545,7 +1546,7 @@ STROKES.DEFEND = DEFENCE_FRONT;
 export const PUNCH_MEETS_AT = -.05;
 export const PUNCH_CONTACT_MS = 150;
 /** How much longer than the stroke's own clock he holds the punch's high finish. */
-export const PUNCH_HOLD_MS = 200;
+export const PUNCH_HOLD_MS = 120;
 /**
  * The highest the middle of the blade goes to meet the ball. A bouncer, at his
  * chest, is met higher up the face with the hands by his chest rather than up
@@ -1567,8 +1568,8 @@ const PUNCH_HOME_LAG = .35;
 const PUNCH_THROUGH_TOP = 1.6;
 /** The pick-up's hands no further below where the ball is met than this. */
 const PUNCH_PICKUP_BELOW = 9;
-const PUNCH_CLOCK = { load: 80, met: PUNCH_CONTACT_MS, through: 240, rise: 330, finish: 430, hold: 600 } as const;
-const PUNCH_STROKE: Stroke & { load: Pose; through: Pose; rise: Pose } = {
+export const PUNCH_CLOCK = { load: 80, met: PUNCH_CONTACT_MS, through: 240, finish: 330, hold: 520 } as const;
+const PUNCH_STROKE: Stroke & { load: Pose; through: Pose } = {
   // A step straight back with the back foot, the front foot left where it is for now, tall, the bat up high.
   load: { ...BACKLIFT, hip: [.04, .97, -.14], chest: [.11, 1.33, -.09],
     frontFoot: [-.06, .09, .22], backFoot: [.12, .08, -.45],
@@ -1584,15 +1585,12 @@ const PUNCH_STROKE: Stroke & { load: Pose; through: Pose; rise: Pose } = {
     frontFoot: [.05, .10, -.05], backFoot: [.14, .08, -.45],
     grip: [.44, 1.35, .28], batUp: [-.45, .72, -.50], batFace: [.62, .62, .40],
     yaw: .98, face: 0, heel: .04, toe: .10, backFootYaw: 1.25, leadElbow: .50, look: .30 },
-  rise: { ...GUARD, hip: [.11, .99, -.16], chest: [.19, 1.35, -.07],
+  // The stroke ends here, the hands up by his face, the bat leant out towards cover, the
+  // feet together: going on up to over the helmet read as forced.
+  finish: { ...GUARD, hip: [.11, .99, -.16], chest: [.19, 1.35, -.07],
     frontFoot: [.07, .09, -.15], backFoot: [.14, .08, -.45],
-    grip: [.46, 1.64, .20], batUp: [-.45, .68, -.55], batFace: [.62, .62, .40],
+    grip: [.46, 1.65, .29], batUp: [-.46, .69, -.56], batFace: [.43, .72, .55],
     yaw: .94, face: 0, heel: .04, toe: .06, backFootYaw: 1.25, leadElbow: .60, look: .25 },
-  // The hands up at the helmet, just in front of his face, the top elbow high; the feet together; the bat leant out towards cover.
-  finish: { ...GUARD, hip: [.11, .98, -.17], chest: [.17, 1.35, -.08],
-    frontFoot: [.08, .09, -.18], backFoot: [.14, .08, -.45],
-    grip: [.52, 1.84, .18], batUp: [-.41, .86, -.31], batFace: [.62, .52, .30],
-    yaw: .90, face: 0, heel: .04, toe: .02, backFootYaw: 1.25, leadElbow: .60, look: .20 },
 };
 /** A turn of the face about the handle inside `window`, so that at `at` (the window's end if not given) it looks `away`: see `riding`. */
 type Roll = { window: readonly [number, number]; away: (pose: Pose, up: THREE.Vector3) => THREE.Vector3; at?: number };
@@ -3676,18 +3674,19 @@ export class Batter {
     // turned to cover only as the bat comes down: after the ball the arms take
     // the bat up and the wrists never roll it. See `PUNCH_STROKE`.
     if (this.punching) {
-      const { load, met, through: pushed, rise: rising, finish: end, hold } = PUNCH_CLOCK, keys = PUNCH_STROKE;
+      const { load, met, through: pushed, finish: end, hold } = PUNCH_CLOCK, keys = PUNCH_STROKE;
       // The punch out and up goes on from wherever the ball was met: a bouncer's
       // is met with the hands up by his chin, one back of a length's at his chest.
       const along = (key: Pose): Point => V(contact.grip).add(V(key.grip).sub(V(keys.contact.grip))).toArray() as unknown as Point;
       // Punched on and up from there, though never past his chin on the way: a bouncer, met by it, is driven out rather than up.
       const out = along(keys.through), driven: Point = [out[0], Math.min(out[1], PUNCH_THROUGH_TOP), out[2]];
-      const through = { ...reachPose(keys.through), grip: driven }, finish = reachPose(keys.finish);
-      const rise = { ...reachPose(keys.rise), grip: V(through.grip).add(V(finish.grip)).multiplyScalar(.5).add(new THREE.Vector3(0, .04, 0)).toArray() as unknown as Point };
+      const through = { ...reachPose(keys.through), grip: driven };
+      // And it stops where the hands are up by his face, a little above where they were punched through to.
+      const ends = reachPose(keys.finish), finish = { ...ends, grip: [ends.grip[0], Math.max(ends.grip[1], driven[1] + .05), ends.grip[2]] as Point };
       // At a ball up at his chest the bat is picked up higher, so the downswing is not climbing to it.
       const lifted = reachPose(keys.load), picked = { ...lifted, grip: [lifted.grip[0], Math.max(lifted.grip[1], contact.grip[1] - PUNCH_PICKUP_BELOW), lifted.grip[2]] as Point };
       const swing = [{ time: 0, pose: this.swingFrom }, { time: load, pose: picked }, { time: met, pose: contact },
-        { time: pushed, pose: through }, { time: rising, pose: rise }, { time: end, pose: finish }];
+        { time: pushed, pose: through }, { time: end, pose: finish }];
       const homeAt = liftedHome(finish, hold, PUNCH_HOME_VIA, PUNCH_HOME_LAG);
       const poseAt = (at: number): Pose => at < end ? flowing(swing, at) : at < hold ? finish : homeAt(at);
       const pose = { ...poseAt(age) };

@@ -1107,13 +1107,15 @@ height up to `PUNCH_HIGHEST` (a bouncer is met up the face, the hands by his
 chest, and the body a little further from it, `PUNCH_HIGH_ROOM`: closer, the
 top arm folded shut and its elbow flipped), the face to cover and the handle a
 little ahead; then driven, the toe swinging out towards cover as the hands come
-up close to him, by his chest and then at the helmet just in front of his face,
-the top elbow high, and the front foot sliding back to the back one, so the
-feet finish together and the bat leant out towards cover. Built first as a
+up close to him, by his chest and then up by his face, the top elbow high,
+where it stops at `PUNCH_CLOCK.finish` and holds (carried on up over the
+helmet, it read as forced), and the front foot sliding back to the back one,
+so the feet finish together and the bat leant out towards cover. Built first as a
 vertical bat lifted straight up, which read as no drive at all; then driven but
 with the hands at arm's length, 60cm out in front of his face at the finish,
 which is not how it is played: the batter tests hold the hands to a quarter of
-a metre from his hips at contact and near his head at the finish. The face turns to cover once, in the pick-up (`riding`'s
+a metre from his hips at contact and near his head at the finish, and no
+higher than his face. The face turns to cover once, in the pick-up (`riding`'s
 `at`: a roll made earlier is carried along unchanged, so the downswing turns
 nothing), and never again: the batter tests hold the downswing to the guard to
 under five degrees of turn in the hands. It holds the finish (`PUNCH_HOLD_MS`)
