@@ -3,7 +3,8 @@
  * short of a length. Every ball a bouncer (`?bouncers=1`), played on a clock
  * wound by hand as hook-check winds it; the ones on the legs are blocked, and
  * the first three on a line the punch suits are punched: one on time off the
- * keys, which goes through cover for four; one off a real swipe of the thumb
+ * keys, pushed into the off side for a single or two (a bouncer is never four);
+ * one off a real swipe of the thumb
  * up and to the off, to show the swipe is read as the punch at that ball and
  * not as the drive; and last one late, which takes the edge or goes through.
  *
@@ -160,7 +161,7 @@ for (const [mode, late] of [['classic', 170], ['survive', 120]]) {
   check(blocked > 0, 'and the rest are blocked', blocked);
   if (onTime) {
     check(onTime.shot === 'COVER_LONG_OFF', 'the cover drive\'s keys at that ball play the punch', JSON.stringify({ shot: onTime.shot }));
-    check(/PUNCHED|FOUR/.test(onTime.outcome ?? ''), 'on time it goes through cover for four', onTime.outcome);
+    check(/^[12] RUNS?$/.test(onTime.outcome ?? ''), 'on time it is pushed for a single or two, never four off a bouncer', onTime.outcome);
   }
   if (swiped) check(swiped.shot === 'COVER_LONG_OFF', 'a thumb up and to the off at that ball plays it too', JSON.stringify({ shot: swiped.shot, outcome: swiped.outcome }));
   if (edged) check(!/SIX/.test(edged.outcome ?? ''), 'late, it is never six', edged.outcome);

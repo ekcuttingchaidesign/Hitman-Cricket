@@ -1528,59 +1528,75 @@ STROKES.DEFEND = DEFENCE_FRONT;
  * The back-foot punch (`PUNCH` in the config): the cover drive's swipe at a ball
  * short of a length, from a net session filmed from the bowler's end and from
  * behind on the off side. The back foot goes back and across towards off stump
- * and the front foot is drawn back beside it, and he stands up tall with the
- * weight on the back leg and the bat taken up high. It comes down straight, the
- * hands out in front of him, and meets the ball late beside the back hip
- * (`PUNCH_MEETS_AT`) at whatever height it arrives, the face to cover and the
- * handle a little ahead of the blade so it stays down, the front foot light on
- * its toe. Then the arms punch on through towards cover and up, and the hands
- * keep rising until they are above the peak of the helmet, out in front of his
- * face, the top elbow high, with the bat hanging from them toe down and its
- * face still to cover: the wrists never roll it (`riding`), the arms take it
- * up. Held there (`PUNCH_HOLD_MS`), it comes home in one movement, as the
- * defences do (`PUNCH_HOME_OUT`).
+ * and the front foot is drawn back beside it, across to the line of the ball so
+ * it is met close to him, and he stands up tall with the weight on the back leg
+ * and the bat taken up high. It comes down straight and meets the ball late
+ * (`PUNCH_MEETS_AT`) beside the front pad, the hands by his chest, the face to
+ * cover and the handle a little ahead of the blade so it stays down, the front
+ * foot light on its toe; a bouncer is met up the face (`PUNCH_HIGHEST`). Then
+ * it is driven: the toe swings on out in front, down the line towards the
+ * bowler and cover, and the hands rise with it until they are above the peak
+ * of the helmet, out in front of his face, the bat still pointing out down the
+ * line. The wrists never roll it (`riding`): the arms take it through and up.
+ * Held there (`PUNCH_HOLD_MS`), it comes home in one movement through the bat
+ * hanging from his hands (`PUNCH_HOME_VIA`).
  */
 export const PUNCH_MEETS_AT = -.05;
 export const PUNCH_CONTACT_MS = 150;
 /** How much longer than the stroke's own clock he holds the punch's high finish. */
 export const PUNCH_HOLD_MS = 200;
-/** The way home's bend, as `DEFENCE_HOME_OUT` is the defences': the one that turns nothing in his hands. */
-const PUNCH_HOME_OUT = .72;
+/**
+ * The highest the middle of the blade goes to meet the ball. A bouncer, at his
+ * chest, is met higher up the face with the hands by his chest rather than up
+ * at his chin, where the bat came down from behind him through the back elbow.
+ */
+export const PUNCH_HIGHEST = 1.0;
+/**
+ * Where the punch's bat points halfway home: hanging from his hands, the toe a
+ * little back towards the keeper, as he lets them down from over his head and
+ * before it goes back up into the guard. Through here the face carried along with
+ * the handle arrives at the guard's own, so the way home turns nothing in his hands.
+ */
+const PUNCH_HOME_VIA: Point = [.13, .93, .35];
 /** How far the punch's hands come down from over his head before the bat starts back into the guard, as a share of the way home. */
 const PUNCH_HOME_LAG = .35;
+/** The highest the hands go as he punches through, before they rise to the finish. */
+const PUNCH_THROUGH_TOP = 1.6;
+/** The pick-up's hands no further below where the ball is met than this. */
+const PUNCH_PICKUP_BELOW = 9;
 const PUNCH_CLOCK = { load: 80, met: PUNCH_CONTACT_MS, through: 240, rise: 330, finish: 430, hold: 600 } as const;
 const PUNCH_STROKE: Stroke & { load: Pose; through: Pose; rise: Pose } = {
   // Back and across, the front foot drawn back to it, tall, the bat up high.
-  load: { ...BACKLIFT, hip: [-.03, .97, -.13], chest: [.04, 1.33, -.08],
-    frontFoot: [-.08, .09, .14], backFoot: [.04, .08, -.42],
-    grip: [.26, 1.20, .00], batUp: [-.32, -.76, .56], batFace: [.28, .86, .30],
-    yaw: 1.18, heel: .04, backFootYaw: 1.25, leadElbow: .10 },
-  contact: { ...GUARD, hip: [-.02, .99, -.12], chest: [.07, 1.34, -.03],
-    frontFoot: [-.09, .11, .12], backFoot: [.04, .08, -.42],
+  load: { ...BACKLIFT, hip: [-.01, .97, -.13], chest: [.06, 1.33, -.08],
+    frontFoot: [-.08, .09, .14], backFoot: [.08, .08, -.42],
+    grip: [.32, 1.20, .00], batUp: [-.32, -.76, .56], batFace: [.28, .86, .30],
+    yaw: 1.18, heel: .04, backFootYaw: 1.25, leadElbow: .30 },
+  // Across to the line of the ball, so it is met close to him, the hands by his chest.
+  contact: { ...GUARD, hip: [.04, .99, -.12], chest: [.13, 1.34, -.03],
+    frontFoot: [-.03, .11, .12], backFoot: [.10, .08, -.42],
     grip: [.38, 1.20, .25], batUp: [-.05, .96, .27], batFace: [.62, -.22, .75],
     yaw: 1.05, face: 0, heel: .04, toe: .12, backFootYaw: 1.25, leadElbow: .40, look: .35 },
-  // Punched on out towards cover, the arms long.
-  through: { ...GUARD, hip: [-.01, .99, -.11], chest: [.09, 1.35, -.01],
-    frontFoot: [-.09, .11, .12], backFoot: [.04, .08, -.42],
-    grip: [.50, 1.36, .30], batUp: [-.04, .97, .24], batFace: [.62, -.20, .76],
+  // Driven on through the line: the toe swung out in front, towards the bowler and cover.
+  through: { ...GUARD, hip: [.05, .99, -.11], chest: [.15, 1.35, -.01],
+    frontFoot: [-.03, .11, .12], backFoot: [.10, .08, -.42],
+    grip: [.50, 1.40, .40], batUp: [-.12, .72, -.68], batFace: [.70, .45, .35],
     yaw: 1.00, face: 0, heel: .04, toe: .12, backFootYaw: 1.25, leadElbow: .50, look: .30 },
-  rise: { ...GUARD, hip: [-.01, .99, -.11], chest: [.08, 1.35, -.02],
-    frontFoot: [-.09, .10, .12], backFoot: [.04, .08, -.42],
-    grip: [.44, 1.62, .18], batUp: [-.16, .97, .18], batFace: [.62, -.04, .77],
+  rise: { ...GUARD, hip: [.05, .99, -.11], chest: [.14, 1.35, -.02],
+    frontFoot: [-.03, .10, .12], backFoot: [.10, .08, -.42],
+    grip: [.56, 1.62, .34], batUp: [-.12, .62, -.77], batFace: [.70, .50, .30],
     yaw: 1.00, face: 0, heel: .04, toe: .08, backFootYaw: 1.25, leadElbow: .60, look: .25 },
-  // The hands above the peak of the helmet, out in front of his face, the bat hanging from them.
-  finish: { ...GUARD, hip: [-.01, .98, -.11], chest: [.07, 1.35, -.03],
-    frontFoot: [-.09, .09, .12], backFoot: [.04, .08, -.42],
-    grip: [.62, 1.92, .30], batUp: [-.30, .94, .14], batFace: [.62, .10, .78],
+  // The hands above the peak of the helmet, out in front of his face, the bat still pointing out down the line.
+  finish: { ...GUARD, hip: [.05, .98, -.11], chest: [.13, 1.35, -.03],
+    frontFoot: [-.03, .09, .12], backFoot: [.10, .08, -.42],
+    grip: [.74, 1.92, .30], batUp: [-.15, .80, -.58], batFace: [.70, .38, .25],
     yaw: 1.00, face: 0, heel: .04, toe: .04, backFootYaw: 1.25, leadElbow: -.10, look: .20 },
 };
-
 /** A turn of the face about the handle inside `window`, so that at `at` (the window's end if not given) it looks `away`: see `riding`. */
 type Roll = { window: readonly [number, number]; away: (pose: Pose, up: THREE.Vector3) => THREE.Vector3; at?: number };
 /**
  * Home from a held stroke in one movement, eased out of it and into the guard
  * with nothing between: the bat swung back into the guard on a curve through
- * the point halfway along the shortest way, bent off it by `out`. The bend is
+ * the point halfway along the shortest way, bent off it by `out` (or through\n * `out` itself, where it is the bat's direction there). The bend is
  * what brings the face, carried along with the handle (`riding`), round to the
  * guard's own, so nothing turns the bat in his hands on the way. Read by time,
  * from `hold` to the end of the stroke's clock. `lag` holds the bat back on
@@ -1588,9 +1604,9 @@ type Roll = { window: readonly [number, number]; away: (pose: Pose, up: THREE.Ve
  * hands come down from over his head first, the bat hanging from them, and it
  * is swung back into the guard as they arrive, low and clear of the back elbow.
  */
-function liftedHome(held: Pose, hold: number, out: number, lag = 0): (at: number) => Pose {
+function liftedHome(held: Pose, hold: number, out: number | Point, lag = 0): (at: number) => Pose {
   const from = V(held.batUp).normalize(), to = V(GUARD.batUp).normalize();
-  const half = from.clone().add(to).normalize().addScaledVector(from.clone().cross(to).normalize(), out).normalize();
+  const half = typeof out === 'number' ? from.clone().add(to).normalize().addScaledVector(from.clone().cross(to).normalize(), out).normalize() : V(out).normalize();
   // A curve on the sphere through `half` at its middle, so the blade's way round has no corner.
   const bend = half.clone().multiplyScalar(2).addScaledVector(from.clone().add(to), -.5).normalize();
   const slerp = (a: THREE.Vector3, b: THREE.Vector3, s: number) => {
@@ -3097,7 +3113,7 @@ export class Batter {
     // side, the hook round behind it and the cut to the off. Every other stroke plays at its own height and
     // the ball passes over the bat, rather than the arms stretching to chase a
     // ball that stroke was never going to reach.
-    this.ballY = this.crossBat || this.cutting || this.backDefence || this.punching ? ballY : Math.min(ballY, .62);
+    this.ballY = this.crossBat || this.cutting || this.backDefence ? ballY : this.punching ? Math.min(ballY, PUNCH_HIGHEST) : Math.min(ballY, .62);
   }
   /**
    * The bat from `from` to the guard, the face carried along with the handle
@@ -3659,11 +3675,15 @@ export class Batter {
       // The punch out and up goes on from wherever the ball was met: a bouncer's
       // is met with the hands up by his chin, one back of a length's at his chest.
       const along = (key: Pose): Point => V(contact.grip).add(V(key.grip).sub(V(keys.contact.grip))).toArray() as unknown as Point;
-      const through = { ...reachPose(keys.through), grip: along(keys.through) }, finish = reachPose(keys.finish);
+      // Punched on and up from there, though never past his chin on the way: a bouncer, met by it, is driven out rather than up.
+      const out = along(keys.through), driven: Point = [out[0], Math.min(out[1], PUNCH_THROUGH_TOP), out[2]];
+      const through = { ...reachPose(keys.through), grip: driven }, finish = reachPose(keys.finish);
       const rise = { ...reachPose(keys.rise), grip: V(through.grip).add(V(finish.grip)).multiplyScalar(.5).add(new THREE.Vector3(0, .04, 0)).toArray() as unknown as Point };
-      const swing = [{ time: 0, pose: this.swingFrom }, { time: load, pose: reachPose(keys.load) }, { time: met, pose: contact },
+      // At a ball up at his chest the bat is picked up higher, so the downswing is not climbing to it.
+      const lifted = reachPose(keys.load), picked = { ...lifted, grip: [lifted.grip[0], Math.max(lifted.grip[1], contact.grip[1] - PUNCH_PICKUP_BELOW), lifted.grip[2]] as Point };
+      const swing = [{ time: 0, pose: this.swingFrom }, { time: load, pose: picked }, { time: met, pose: contact },
         { time: pushed, pose: through }, { time: rising, pose: rise }, { time: end, pose: finish }];
-      const homeAt = liftedHome(finish, hold, PUNCH_HOME_OUT, PUNCH_HOME_LAG);
+      const homeAt = liftedHome(finish, hold, PUNCH_HOME_VIA, PUNCH_HOME_LAG);
       const poseAt = (at: number): Pose => at < end ? flowing(swing, at) : at < hold ? finish : homeAt(at);
       const pose = { ...poseAt(age) };
       const straight = batOrientation(STROKES.STRAIGHT.contact);

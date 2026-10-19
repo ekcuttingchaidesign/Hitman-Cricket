@@ -1099,28 +1099,33 @@ picked by the height the ball reaches him at, as the defences are
 bouncer), so the thumb never chooses between it and the drive; `punch` in
 `ShotResolver.ts` is the one rule the rig, `Game.shoot` and both resolvers
 read. Built from a net clip from the bowler's end and from behind: back and
-across with the front foot drawn back, tall, a high pick-up; down straight onto
-the ball late beside the back hip at `PUNCH_CONTACT_MS`, `PUNCH_MEETS_AT` back
-towards the stumps, at the ball's own height (the height clamp is let off for
-it), the face to cover and the handle a little ahead; then the arms punch on
-through and up until the hands are over the helmet out in front of his face,
-the bat hanging from them toe down and leant to the off side. The face turns to
-cover once, in the pick-up (`riding`'s `at`: a roll made earlier is carried
-along unchanged, so the downswing turns nothing), and never again: the batter
-tests hold the downswing to the guard to under five degrees of turn in the
-hands. It holds the finish (`PUNCH_HOLD_MS`) and goes home in one movement
-(`liftedHome`, shared with the defences), the hands leading down with the bat
-hanging before it is swung back into the guard (`PUNCH_HOME_LAG`): swung back
-from over his head, the blade went through the back elbow. Its bend
-(`PUNCH_HOME_OUT`) is the one that brings the carried face round to the
-guard's. Out of the drives' handling in `apply` (`driveShot`, the helmet
-clearing, `driving`), which would re-turn its face before the ball.
+across to the line of the ball with the front foot drawn back, tall, a high
+pick-up; down straight onto the ball late beside the front pad, close to him,
+at `PUNCH_CONTACT_MS`, `PUNCH_MEETS_AT` back towards the stumps, at the ball's
+height up to `PUNCH_HIGHEST` (a bouncer is met up the face, the hands by his
+chest: up at his chin the arm folded and the elbow flipped, and the bat came
+down through the back elbow), the face to cover and the handle a little ahead;
+then driven, the toe swinging out in front down the line towards the bowler and
+cover as the hands rise over the helmet, the bat still pointing out there at
+the finish. Built first as a vertical bat lifted straight up, which read as no
+drive at all, met 40cm out from his hips; stepped further across than now, the
+top arm folded shut. The face turns to cover once, in the pick-up (`riding`'s
+`at`: a roll made earlier is carried along unchanged, so the downswing turns
+nothing), and never again: the batter tests hold the downswing to the guard to
+under five degrees of turn in the hands. It holds the finish (`PUNCH_HOLD_MS`)
+and goes home in one movement (`liftedHome`, shared with the defences, here
+through a given direction, `PUNCH_HOME_VIA`: the bat hanging from his hands as
+they come down, `PUNCH_HOME_LAG`, before it goes back up into the guard), the
+one route that turns nothing in his hands. Out of the drives' handling in
+`apply` (`driveShot`, the helmet clearing, `driving`), which would re-turn its
+face before the ball.
 
 It goes along the ground through cover (`punched` on the outcome,
 `PUNCH.angle`), never six, and the attempt is `grounded`: middled four, a
 shade under two or three (one or two in a Test), held back ones and twos, poor
 (or across a ball on the legs, under `SOLID_SHOT`) the edge behind or a thick
-edge for one (`punched` in `ShotResolver.ts`). Survival and the Marathon pay
+edge for one (`punched` in `ShotResolver.ts`). A bouncer is pushed for ones and
+twos at best and poor is caught behind three times in four (`PUNCH.bouncer`). Survival and the Marathon pay
 it off their own ladder, with the bouncer's in `shortBall`; the wrapper only
 tags it, as it does the square drive. Missed, a bouncer goes through to the
 keeper. It is `punch` and `punchBouncer` in the batter tests' `PLAYS`, with

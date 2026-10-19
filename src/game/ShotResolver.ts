@@ -366,13 +366,23 @@ export function punch(delivery: Delivery, attempt: Pick<ShotAttempt, 'shotType'>
 }
 /**
  * A punch that met the ball, off the grade of whichever mode is playing it:
- * see `PUNCH`. Played across a ball on the legs (a fit under `SOLID_SHOT`) it
+ * see `PUNCH`. At a bouncer (`bouncer`) only ones and twos. Played across a ball on the legs (a fit under `SOLID_SHOT`) it
  * is as good as poor. In a Test nobody runs three.
  */
-export function punched(outcome: ShotOutcome, rng: { next(): number }, test: boolean): ShotOutcome {
+export function punched(outcome: ShotOutcome, rng: { next(): number }, test: boolean, bouncer = false): ShotOutcome {
   const met = { ...outcome, madeBatContact: true, punched: true };
   const ran = (runs: ShotOutcome['runs']) => ({ ...met, runs, feedback: award(runs) });
   const grade = outcome.compatibility < SOLID_SHOT ? 'POOR' : outcome.timingGrade;
+  // Up at his chest it is pushed for ones and twos, and poor it is taken behind: see `PUNCH.bouncer`.
+  if (bouncer) switch (grade) {
+    case 'PERFECT': return ran(rng.next() < PUNCH.bouncer.two ? 2 : 1);
+    case 'GOOD': return ran(!test && rng.next() < PUNCH.bouncer.goodTwo ? 2 : 1);
+    case 'OK': return ran(1);
+    default:
+      return rng.next() < PUNCH.bouncer.caught
+        ? { ...met, runs: 0, edged: true, isWicket: true, wicketType: 'CAUGHT', feedback: PUNCH.feedback.caught }
+        : { ...met, runs: 1, feedback: PUNCH.feedback.edged };
+  }
   switch (grade) {
     case 'PERFECT': return { ...met, runs: 4, quality: 1, feedback: PUNCH.feedback.four };
     case 'GOOD': return test ? ran(rng.next() < .5 ? 2 : 1) : ran(rng.next() < PUNCH.good.three ? 3 : 2);
@@ -447,7 +457,7 @@ export function resolveShot(
   // The cover drive's swipe at a ball short of a length: punched off the back
   // foot through cover, along the ground. Missed, a bouncer goes on through
   // to the keeper and one back of a length is beaten like any other stroke.
-  if (punch(delivery, attempt) && timingGrade !== 'MISS') return punched(outcome, rng, false);
+  if (punch(delivery, attempt) && timingGrade !== 'MISS') return punched(outcome, rng, false, delivery.style === 'SHORT');
   // A bouncer is over the stumps, so it can never bowl you — but it can only be
   // pulled, and only if it is middled, or blocked, off the back foot with the
   // bat up in front of his chest. Anything else and it flies through.

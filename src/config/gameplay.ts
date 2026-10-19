@@ -269,8 +269,9 @@ export const LATE_CUT = {
  * the legs he is reaching across the line, and it is the edge. On its ball
  * timing names it: middled four through cover, a shade under two or three
  * (`good.three`; a single or two in a Test), held back one or two, poor off
- * the edge to the keeper (`caught`) or a thick edge for a single. A bouncer
- * missed goes through to the keeper; one back of a length missed can bowl him.
+ * the edge to the keeper (`caught`) or a thick edge for a single. A bouncer,
+ * up at his chest, is pushed for ones and twos at best (`bouncer`), and missed
+ * goes through to the keeper; one back of a length missed can bowl him.
  */
 export const PUNCH = {
   minBallY: 0.7,
@@ -278,6 +279,14 @@ export const PUNCH = {
   angle: 52,
   good: { three: 0.45 },
   caught: 0.6,
+  /**
+   * At a bouncer it is only ever ones and twos: up at his chest there is no
+   * getting over it to drive it, only to push it into the off side. Middled two
+   * more often than one (`two`), a shade under one more often than two
+   * (`goodTwo`), held back a single, and poor it is gloved or edged behind far
+   * more often than not (`caught`).
+   */
+  bouncer: { two: 0.6, goodTwo: 0.35, caught: 0.75 },
   feedback: { four: 'PUNCHED — FOUR!', caught: 'EDGED — CAUGHT BEHIND!', edged: 'THICK EDGE — 1 RUN' },
 } as const;
 /**

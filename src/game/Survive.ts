@@ -334,14 +334,15 @@ function shortBall(base: ShotOutcome, delivery: Delivery, shot: string, contact:
     }
     return { ...base, madeBatContact: false, feedback: 'THROUGH TO THE KEEPER' };
   }
-  // The back-foot punch, through cover off a bouncer on a line it suits:
-  // never six. Through the stroke early it goes up off the top of the bat;
-  // late, it finds the edge.
+  // The back-foot punch off a bouncer on a line it suits: up at his chest it
+  // is only pushed into the off side, for ones and twos (`PUNCH.bouncer`).
+  // Through the stroke early it goes up off the top of the bat; late, it finds
+  // the edge and is taken behind.
   if (shot === 'COVER_LONG_OFF' && base.compatibility >= SOLID_SHOT && base.timingGrade !== 'MISS') {
     const middled = { ...base, compatibility: 1, quality: SURVIVE_TIMING[base.timingGrade], madeBatContact: true };
-    if (base.timingGrade === 'PERFECT') return { ...middled, quality: 1, runs: 4, feedback: PUNCH.feedback.four };
-    if (base.timingGrade === 'GOOD') return { ...middled, runs: 4, feedback: award(4) };
-    if (base.timingGrade === 'OK') return nudged(middled, rng);
+    if (base.timingGrade === 'PERFECT') { const runs = rng.next() < PUNCH.bouncer.two ? 2 : 1; return { ...middled, quality: 1, runs, feedback: award(runs) }; }
+    if (base.timingGrade === 'GOOD') return nudged(middled, rng);
+    if (base.timingGrade === 'OK') return { ...middled, runs: 1, feedback: award(1) };
     if (contact === 'EDGED_EARLY') return skied(base, rng);
     return nick(middled, rng);
   }

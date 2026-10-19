@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, PUNCH_CONTACT_MS, PUNCH_HOLD_MS, PUNCH_MEETS_AT, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, DEFENCE_FRONT_MEETS_AT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_HEIGHT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, pullVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
+import { Batter, PUNCH_CONTACT_MS, PUNCH_HIGHEST, PUNCH_HOLD_MS, PUNCH_MEETS_AT, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, DEFENCE_FRONT_MEETS_AT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_HEIGHT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, pullVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -974,13 +974,14 @@ describe('the back-foot punch', () => {
       expect(pose.batUp[2], where).toBeGreaterThan(.1);
       expect(pose.batFace[0], where).toBeGreaterThan(.45);
       expect(pose.batFace[2], where).toBeGreaterThan(.5);
-      // Met at the ball's own height, where the game meets it.
-      expect(pose.bladeContact[1], where).toBeCloseTo(ballY, 2);
+      // Met on the face at the ball's height: a bouncer higher up the blade, the hands by his chest.
+      expect(pose.bladeContact[1], where).toBeCloseTo(Math.min(ballY, PUNCH_HIGHEST), 2);
+      expect(ballY - pose.bladeContact[1], where).toBeLessThan(.15);
       expect(pose.bladeContact[2], where).toBeCloseTo(GAME.contactZ + PUNCH_MEETS_AT, 2);
     }
   });
 
-  it('finishes with the hands over the helmet and the bat hanging from them, still facing cover', () => {
+  it('finishes with the hands over the helmet and the bat still out down the line, facing cover', () => {
     for (const ballY of [.81, 1.13]) {
       const batter = swung(ballY); batter.update(500);
       const pose = batter.inspect(), helmet = (batter as unknown as { head: Object3D }).head.getWorldPosition(new Vector3()), where = `y ${ballY}`;
@@ -988,9 +989,10 @@ describe('the back-foot punch', () => {
       // out in front of his face, clear of it, the arms are at their full length.
       expect(Math.max(...pose.hands.map(hand => hand[1])), where).toBeGreaterThan(helmet.y + .15);
       expect(Math.min(...pose.hands.map(hand => hand[1])), where).toBeGreaterThan(helmet.y + .05);
-      // Hanging toe down, leant out a little towards the off side as the clip has it.
-      expect(pose.batUp[1], where).toBeGreaterThan(.9);
-      expect(pose.bladeTip[1], where).toBeLessThan(pose.hands[0][1] - .6);
+      // The bat still out down the line it was driven along, toe forward and down, as the clip has it from behind.
+      expect(pose.batUp[1], where).toBeGreaterThan(.6);
+      expect(pose.batUp[2], where).toBeLessThan(-.4);
+      expect(pose.bladeTip[1], where).toBeLessThan(pose.hands[0][1] - .4);
       expect(pose.batFace[0], where).toBeGreaterThan(.45);
     }
   });

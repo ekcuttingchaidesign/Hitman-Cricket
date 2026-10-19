@@ -193,8 +193,8 @@ describe('the back-foot punch', () => {
     // Pitched up, the same swipe is the cover drive it always was.
     expect(punched(delivery({ line: 'OFF', baseTargetX: LINE_X.OFF, finalTargetX: LINE_X.OFF }), 0).punched).toBeUndefined();
   });
-  it('goes through cover along the ground: four middled, never six', () => {
-    for (const ball of [bouncer(), rib()]) {
+  it('goes through cover along the ground off a length: four middled, never six', () => {
+    for (const ball of [rib()]) {
       const four = punched(ball, 0);
       expect(four.runs).toBe(4); expect(four.punched).toBe(true); expect(four.madeBatContact).toBe(true);
       expect(four.feedback).toBe(PUNCH.feedback.four); expect(four.aerial).toBe(false);
@@ -202,6 +202,15 @@ describe('the back-foot punch', () => {
       expect([1, 2]).toContain(punched(ball, 100).runs);
       for (const delta of [0, 60, 100, 170]) for (const roll of [0, .5, .99]) expect(punched(ball, delta, roll).runs).not.toBe(6);
     }
+  });
+  it('is only pushed for ones and twos at a bouncer, never four', () => {
+    const ball = bouncer();
+    expect(punched(ball, 0, .5).runs).toBe(2); expect(punched(ball, 0, .9).runs).toBe(1);
+    expect(punched(ball, 0, .5).punched).toBe(true);
+    for (const delta of [0, 60, 100]) for (const roll of [0, .5, .99]) expect([1, 2]).toContain(punched(ball, delta, roll).runs);
+    expect(punched(ball, 100, .5).runs).toBe(1);
+    // Poor, it is taken behind three times in four.
+    expect(punched(ball, 170, .5).wicketType).toBe('CAUGHT');
   });
   it('takes the edge when it is poor, or played across a ball on the legs', () => {
     const edged = punched(bouncer(), 170, 0);
@@ -216,10 +225,11 @@ describe('the back-foot punch', () => {
     expect(missed.madeBatContact).toBe(false); expect(missed.isWicket).toBe(false); expect(missed.punched).toBeUndefined();
   });
   it('is played in Survival and the Marathon too, and kept down there as well', () => {
-    for (const ball of [bouncer(), rib()]) {
-      const middled = resolveSurvive(ball, { shotType: 'COVER_LONG_OFF', inputTimeMs: ball.idealContactTimeMs }, rng(.5));
-      expect(middled.runs).toBe(4); expect(middled.punched).toBe(true);
-    }
+    const middled = resolveSurvive(rib(), { shotType: 'COVER_LONG_OFF', inputTimeMs: rib().idealContactTimeMs }, rng(.5));
+    expect(middled.runs).toBe(4); expect(middled.punched).toBe(true);
+    // A bouncer only ones and twos there too.
+    const pushed = resolveSurvive(bouncer(), { shotType: 'COVER_LONG_OFF', inputTimeMs: 1000 }, rng(.5));
+    expect([1, 2]).toContain(pushed.runs); expect(pushed.punched).toBe(true);
     const missed = resolveSurvive(bouncer(), { shotType: 'COVER_LONG_OFF', inputTimeMs: 1300 }, rng(.5));
     expect(missed.runs).toBe(0); expect(missed.isWicket).toBe(false);
   });
