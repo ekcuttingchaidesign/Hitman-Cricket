@@ -1074,8 +1074,14 @@ foot drawn back, tall, and meets it late at `DEFENCE_BACK_CONTACT_MS`,
 `DEFENCE_BACK_MEETS_AT` back towards the stumps, at the ball's own height (the
 height clamp other strokes take is let off for it), the bat straight up in
 front of him and the top hand high. Both give a touch, hold (`DEFENCE_CLOCK`),
-let the top elbow down before the bat comes up — lifted past it, the handle
-went through it — and go home. The face rides the handle (`riding`). The old
+and go home in one eased movement, the bat lifted straight back past the off
+side into the guard as a backlift is, on a curve bent out by
+`DEFENCE_HOME_OUT`: that bend is what brings the face, carried along with the
+handle (`riding`), round to the guard's own, so nothing turns the bat in his
+hands. Home was first taken up and over in front of his face after a stop for
+the elbow, which read as the wrists twirling it; the batter tests hold the
+way home to under five degrees of turn in the hands and to one rise and fall
+of the blade's speed. The old
 block took a short step and met everything at the waist, so a bouncer went
 through his chest: the Blast called it through to the keeper and Survival
 DUCKED. In time it is now DEFENDED off the bat in every mode (the SHORT branch

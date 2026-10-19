@@ -1479,7 +1479,14 @@ export const DEFENCE_FRONT_MEETS_AT = .26;
 export const DEFENCE_BACK_MEETS_AT = -.12;
 export const DEFENCE_FRONT_CONTACT_MS = 130;
 export const DEFENCE_BACK_CONTACT_MS = 150;
-const DEFENCE_CLOCK = { front: { press: 60, met: DEFENCE_FRONT_CONTACT_MS, give: 240, hold: 560, up: 780 }, back: { press: 75, met: DEFENCE_BACK_CONTACT_MS, give: 260, hold: 560, up: 780 } } as const;
+/**
+ * How far off the shortest way home the defences' bat is swung, out towards
+ * the off side: at this the face carried along with the handle arrives at the
+ * guard's own, so the way home turns nothing in his hands (the batter tests
+ * hold it to a few degrees).
+ */
+const DEFENCE_HOME_OUT = -.42;
+const DEFENCE_CLOCK = { front: { press: 60, met: DEFENCE_FRONT_CONTACT_MS, give: 240, hold: 560 }, back: { press: 75, met: DEFENCE_BACK_CONTACT_MS, give: 260, hold: 560 } } as const;
 const DEFENCE_FRONT: Stroke & { press: Pose; give: Pose } = {
   // Weight forward as the front foot lifts, the bat up out of the guard.
   press: { ...BACKLIFT, hip: [-.07, .91, .05], chest: [.04, 1.25, .12],
@@ -1496,11 +1503,6 @@ const DEFENCE_FRONT: Stroke & { press: Pose; give: Pose } = {
     grip: [.36, .93, .66], batUp: [0, .95, .30], batFace: [0, -.30, .95],
     yaw: 1.20, face: 0, heel: .34, backFootYaw: 1.10, leadElbow: .58, look: .30 },
   finish: null as unknown as Pose,
-  // Up out of the stride with the bat coming back up into the guard.
-  recover: { ...GUARD, hip: [-.07, .90, .05], chest: [.04, 1.25, .12],
-    frontFoot: [-.06, .08, .40], backFoot: [-.13, .08, -.26],
-    grip: [.32, 1.10, .38], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17],
-    yaw: 1.25, heel: .08, leadElbow: -.10 },
 };
 DEFENCE_FRONT.finish = DEFENCE_FRONT.give;
 const DEFENCE_BACK: Stroke & { press: Pose; give: Pose } = {
@@ -1518,10 +1520,6 @@ const DEFENCE_BACK: Stroke & { press: Pose; give: Pose } = {
     grip: [.36, 1.25, .27], batUp: [0, .96, .27], batFace: [0, -.27, .96],
     yaw: 1.05, face: 0, heel: .10, backFootYaw: 1.25, leadElbow: .28, look: .35, toe: .10 },
   finish: null as unknown as Pose,
-  recover: { ...GUARD, hip: [-.04, .95, -.08], chest: [.03, 1.29, -.02],
-    frontFoot: [-.10, .08, .20], backFoot: [-.06, .08, -.32],
-    grip: [.32, 1.12, .36], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17],
-    yaw: 1.22, heel: .04, backFootYaw: 1.10, leadElbow: -.12 },
 };
 DEFENCE_BACK.finish = DEFENCE_BACK.give;
 STROKES.DEFEND = DEFENCE_FRONT;
@@ -3543,9 +3541,29 @@ export class Batter {
       const clock = this.backDefence ? DEFENCE_CLOCK.back : DEFENCE_CLOCK.front, keys = this.backDefence ? DEFENCE_BACK : DEFENCE_FRONT;
       const give = reachPose(keys.give);
       const out = [{ time: 0, pose: this.swingFrom }, { time: clock.press, pose: reachPose(keys.press) }, { time: clock.met, pose: contact }, { time: clock.give, pose: give }];
-      // The top elbow is let down before the bat comes up: lifted past it, the handle went through it.
-      const home = [{ time: clock.hold, pose: give }, { time: (clock.hold + clock.up) / 2, pose: { ...give, leadElbow: -.10 } }, { time: clock.up, pose: reachPose(keys.recover!) }, { time: STROKE_DURATION_MS, pose: GUARD }];
-      const poseAt = (at: number): Pose => at < clock.give ? flowing(out, at) : at < clock.hold ? give : flowing(home, at);
+      // Home in one movement from the hold, eased out of it and into the guard
+      // with nothing between, the bat lifted straight back into the guard as a
+      // backlift is: halfway, the toe points back past him on the off side, a
+      // little wider than the shortest way (`DEFENCE_HOME_OUT`), which is the
+      // way that brings the face carried along with the handle round to the
+      // guard's own, so nothing turns it in his hands. Taken up and over in
+      // front of him first, after a stop for the elbow, it read as the wrists
+      // twirling it.
+      const from = V(give.batUp).normalize(), to = V(GUARD.batUp).normalize(), half = from.clone().add(to).normalize().addScaledVector(from.clone().cross(to).normalize(), DEFENCE_HOME_OUT).normalize();
+      // A curve on the sphere through `half` at its middle, so the blade's way round has no corner.
+      const bend = half.clone().multiplyScalar(2).addScaledVector(from.clone().add(to), -.5).normalize();
+      const slerp = (a: THREE.Vector3, b: THREE.Vector3, s: number) => {
+        const angle = a.angleTo(b); if (angle < 1e-6) return a.clone();
+        return a.clone().multiplyScalar(Math.sin((1 - s) * angle)).addScaledVector(b, Math.sin(s * angle)).divideScalar(Math.sin(angle));
+      };
+      const home = [{ time: clock.hold, pose: give }, { time: STROKE_DURATION_MS, pose: GUARD }];
+      const homeAt = (at: number): Pose => {
+        const s = ease(THREE.MathUtils.clamp((at - clock.hold) / (STROKE_DURATION_MS - clock.hold), 0, 1));
+        const up = slerp(slerp(from, bend, s), slerp(bend, to, s), s).normalize();
+        const bat = new THREE.Quaternion().setFromUnitVectors(from, up).multiply(batOrientation(give));
+        return { ...flowing(home, at), bat, batUp: up.toArray() as unknown as Point };
+      };
+      const poseAt = (at: number): Pose => at < clock.give ? flowing(out, at) : at < clock.hold ? give : homeAt(at);
       const pose = { ...poseAt(age) };
       const straight = batOrientation(STROKES.STRAIGHT.contact);
       const start = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(straight), UP.clone().applyQuaternion(batOrientation(this.swingFrom))).multiply(straight);

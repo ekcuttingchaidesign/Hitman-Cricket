@@ -913,6 +913,37 @@ describe('the block', () => {
       expect(new Vector3(...home.grip).distanceTo(new Vector3(...guard.grip)), `y ${ballY}`).toBeLessThan(.01);
     }
   });
+
+  it('goes home in one movement without turning the bat in his hands', () => {
+    // Taken up and over in front of him after a stop for the elbow, the bat
+    // read as twirled by the wrists on the way back into the guard.
+    for (const ballY of [.54, .81, 1.13]) for (const ballX of [-.3, 0, .3]) {
+      const where = `y ${ballY} x ${ballX}`;
+      const batter = new Batter(); batter.prepare(1); batter.update(0);
+      batter.swing('DEFEND', 0, ballX, ballY, GAME.contactZ + (ballY > DEFENCE_BACK_HEIGHT ? DEFENCE_BACK_MEETS_AT : DEFENCE_FRONT_MEETS_AT));
+      let turned = 0, previous: { up: Vector3; face: Vector3 } | null = null;
+      const speeds: number[] = []; let tip: Vector3 | null = null;
+      for (let time = 560; time <= STROKE_DURATION_MS; time += 10) {
+        batter.update(time); const pose = batter.inspect();
+        const up = new Vector3(...pose.batUp).normalize(), face = new Vector3(...pose.batFace);
+        // The face carried along with the handle from the last step, against where it is now.
+        if (previous) {
+          const carried = previous.face.clone().applyQuaternion(new Quaternion().setFromUnitVectors(previous.up, up));
+          turned += Math.abs(Math.atan2(up.dot(carried.clone().cross(face)), carried.dot(face)));
+        }
+        previous = { up, face };
+        const now = new Vector3(...pose.bladeTip);
+        if (tip) speeds.push(now.distanceTo(tip)); tip = now;
+      }
+      expect(MathUtils.radToDeg(turned), where).toBeLessThan(5);
+      // One rise and one fall: never slowing and then speeding up again.
+      const peak = speeds.indexOf(Math.max(...speeds));
+      speeds.forEach((speed, n) => {
+        if (n > 0 && n <= peak) expect(speed, `${where} at ${560 + n * 10}`).toBeGreaterThan(speeds[n - 1] - .002);
+        if (n > peak) expect(speed, `${where} at ${560 + n * 10}`).toBeLessThan(speeds[n - 1] + .002);
+      });
+    }
+  });
 });
 
 describe('the square cut', () => {
