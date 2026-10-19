@@ -994,6 +994,27 @@ plays it in a browser on `?bouncers=1`, keys and a real swipe, in the Blast
 and in Survival;
 `cover-drive.html` has it beside the drives.
 
+## The pull
+
+The pull (`this.pulling`: the leg-side input at a ball met above
+`PULL_HEIGHT`) is the hook's stroke at a ball on the body, rebuilt from a net
+session filmed from the bowler's end, square on the off side and close on the
+arms: it runs the hook's branch and clock (`turning` in `Batter.ts`,
+`HOOK_CLOCK`, `HOOK_HOLD_MS`) on its own keys (`PULL`, `PULL_SWUNG`). Back and
+across with the bat high, square to the bowler; the ball met `PULL_MEETS_AT`
+out in front of him (`meetsAt` in `src/Game.ts`, `pulled`, decided off the
+ball's height there so the game and the batter agree on which stroke it is),
+both arms long and the flat face to the bowler; swung round flat, out in
+front and out to leg, then wrapped behind his head with the curved back of
+the blade on the front shoulder, and turned on round until his back is to the
+bowler. Its round key keeps the hands out wider than the hook's, which brought
+the back elbow within a forearm of the handle, and its last key lets the hands
+down further out, which the hook's way home took past the side of his helmet.
+The first build met the ball beside him at 230ms with the elbows at 57 and 66
+degrees and the face to square leg, from a backlift at his hip, and stopped
+with the bat upright beside his shoulder. It is `pull` in the batter tests'
+`PLAYS`, with its `meets`.
+
 ## Swipe zones
 
 Where a swipe's direction splits between strokes is `mapSwipe` in

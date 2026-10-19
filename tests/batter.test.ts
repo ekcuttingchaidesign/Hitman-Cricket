@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
+import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -15,7 +15,7 @@ const STROKES: ShotType[] = [...SHOTS, 'DEFEND'];
  * own below.
  */
 const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; reach: number[]; lofted?: boolean; sweeping?: boolean; levelled?: boolean; charging?: boolean; settle: number; version?: 1 | 2 | 3; meets?: number; spinCut?: boolean }> = {
-  pull: { shot: 'LEG', ballY: 1.12, impact: PULL_CONTACT_MS, reach: [-.55, 0, .32], settle: 500 },
+  pull: { shot: 'LEG', ballY: 1.12, impact: PULL_CONTACT_MS, reach: [-.55, 0, .32], settle: 500, meets: PULL_MEETS_AT },
   straight: { shot: 'STRAIGHT', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.17, 0, .17], settle: 410 },
   cover: { shot: 'COVER_LONG_OFF', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.08, .10, .28], settle: 410 },
   // Version three of it: the same ball, met beside the front pad.
@@ -86,7 +86,8 @@ describe('two-handed cricket animation', () => {
     // Both heights, so the pull is held to the same grip and reach as the rest.
     for (const [shot, ballY] of STROKES.flatMap(s => [[s, .54], [s, 1.12]] as const)) {
       for (const ballX of [-.55, -.14, 0, .14, .55]) {
-        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY);
+        // Met where the game meets it: a pull out in front of him.
+        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY, GAME.contactZ + (shot === 'LEG' && ballY > PULL_HEIGHT ? PULL_MEETS_AT : 0));
         for (let time = 0; time <= STROKE_DURATION_MS; time += 16) {
           batter.update(time);
           const pose = batter.inspect();
@@ -661,7 +662,8 @@ describe('arm placement', () => {
     for (const [shot, ballY] of STROKES.flatMap(s => [[s, .54], [s, 1.12]] as const)) {
       for (const ballX of [-.55, -.14, 0, .14, .55]) {
         const batter = new Batter();
-        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY);
+        // Met where the game meets it: a pull out in front of him.
+        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY, GAME.contactZ + (shot === 'LEG' && ballY > PULL_HEIGHT ? PULL_MEETS_AT : 0));
         for (let time = 0; time <= STROKE_DURATION_MS; time += 16) {
           batter.update(time);
           const pose = batter.inspect();
@@ -696,23 +698,51 @@ describe('the pull', () => {
       }
     }
   });
-  it('loads the back leg, extends square, then wraps behind the lead shoulder', () => {
-    const batter = new Batter();
-    batter.prepare(1); batter.update(0); batter.swing('LEG', 0, 0, 1.12);
-    batter.update(PULL_LOAD_MS); const load = batter.inspect();
+  it('goes back and across with the bat high, meets it out in front with the arms long, swings round flat and wraps', () => {
+    // From a net session filmed from the bowler's end, square on the off side
+    // and close on the arms: the pull is the hook's stroke at a ball on the body.
+    const at = (time: number, ballX = 0) => {
+      const batter = new Batter();
+      batter.prepare(1); batter.update(0); batter.swing('LEG', 0, ballX, 1.12, GAME.contactZ + PULL_MEETS_AT); batter.update(time);
+      return { pose: batter.inspect(), strikeAt: batter.strikeAt };
+    };
+    /** The angle at the elbow, in degrees: 180 is a straight arm. */
+    const elbow = (pose: ReturnType<typeof at>['pose'], arm: number) => {
+      const joint = new Vector3(...pose.elbows[arm]);
+      return MathUtils.radToDeg(new Vector3(...pose.shoulders[arm]).sub(joint).angleTo(new Vector3(...pose.wrists[arm]).sub(joint)));
+    };
+    const guard = new Batter().inspect();
+    // Back and across, the bat taken high: the hands above his shoulders and
+    // the blade up behind them. The first build's backlift was at his hip.
+    const load = at(PULL_LOAD_MS).pose;
+    expect(load.grip[1]).toBeGreaterThan(load.chest[1] + .2);
     expect(load.batUp[1]).toBeLessThan(-.75);
-    expect(load.grip[2]).toBeLessThan(0);
-    expect(load.yaw).toBeGreaterThan(1.3);
-    expect(batter.strikeAt).toBe(PULL_CONTACT_MS);
-    batter.update(PULL_CONTACT_MS); const contact = batter.inspect();
-    expect(contact.hip[2]).toBeLessThan(-.18);
-    expect(contact.frontFoot[2]).toBeLessThan(.30);
-    batter.update(340); const through = batter.inspect();
-    expect(through.grip[0]).toBeLessThan(-.25);
-    expect(Math.abs(through.batUp[1])).toBeLessThan(.2);
-    batter.update(500); const finish = batter.inspect();
-    expect(finish.yaw).toBeLessThan(through.yaw);
-    expect(finish.bladeTip[2]).toBeLessThan(GAME.stanceZ);
+    expect(load.backFoot[2]).toBeLessThan(guard.backFoot[2] - .1);
+    expect(load.backFoot[0]).toBeGreaterThan(guard.backFoot[0] + .15);
+    for (const ballX of [-.4, 0, .3]) {
+      const { pose: contact, strikeAt } = at(PULL_CONTACT_MS, ballX);
+      expect(strikeAt).toBe(PULL_CONTACT_MS);
+      // Met out in front of his chest with the bat level and the arms opened
+      // out. The first build met it at his chest, the elbows at 57 and 66.
+      expect(contact.grip[2], `x ${ballX}`).toBeGreaterThan(contact.chest[2] + .4);
+      expect(Math.abs(contact.batUp[1]), `x ${ballX}`).toBeLessThan(.15);
+      for (const arm of [0, 1]) expect(elbow(contact, arm), `x ${ballX} arm ${arm}`).toBeGreaterThan(80);
+      // The flat face meets it, looking back up the pitch at the ball. The
+      // first build's looked at square leg, and the ball took it side on.
+      expect(contact.batFace[2], `x ${ballX}`).toBeGreaterThan(.85);
+    }
+    // Swung round flat with the arms still long, out past him to leg,
+    const leg = at(315).pose;
+    expect(leg.grip[0]).toBeLessThan(leg.chest[0] - .5);
+    expect(elbow(leg, 1)).toBeGreaterThan(150);
+    // then wrapped behind his head with the hands above it,
+    const wrap = at(520).pose;
+    expect(wrap.grip[1]).toBeGreaterThan(wrap.chest[1] + .5);
+    // the curved back of the blade against the front shoulder, the face out,
+    const middle = new Vector3(...wrap.grip).lerp(new Vector3(...wrap.bladeTip).sub(new Vector3(GAME.stanceX, 0, GAME.stanceZ)), .5);
+    expect(new Vector3(...wrap.batFace).dot(new Vector3(...wrap.shoulders[0]).sub(middle).normalize())).toBeLessThan(-.7);
+    // and turned on round until his back is to the bowler.
+    expect(at(720).pose.yaw).toBeLessThan(-2.5);
   });
   it('keeps the high pull continuous through extension and recovery', () => {
     for (const x of [-.55, 0, .32]) {

@@ -15,7 +15,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, type CoverVersion, COVER_V3_MEETS_AT, PULL_CONTACT_MS, SLOG_CLOCK, SLOG_HOLD_MS, SLOG_MEETS_AT, SWEEP_CONTACT_MS, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, REVERSE_CLOCK, SCOOP_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
+import { Batter, type CoverVersion, COVER_V3_MEETS_AT, PULL_CONTACT_MS, PULL_LOAD_MS, PULL_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, SLOG_MEETS_AT, SWEEP_CONTACT_MS, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, REVERSE_CLOCK, SCOOP_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOT_ANGLES, STYLES } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 import type { ShotType } from './game/types';
@@ -69,12 +69,12 @@ const STROKES: Record<string, Stroke> = {
     note: 'The flick off the pads, off the swipe to leg or A at a full ball on the legs: the front foot across, the ball met in front of the pad and the wrists turned over it, whipping the bat round to midwicket.',
   },
   pull: {
-    label: 'Pull', shot: 'LEG', charging: false, single: true, ball: { x: LINE_X.MIDDLE, y: 1.0, z: GAME.contactZ },
-    contact: PULL_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: STYLES.SHORT.bounce!,
-    phases: [['Stance', -LEAD_MS], ['Back and across', 120], ['Contact', PULL_CONTACT_MS], ['Round', 330], ['Finish', 450], ['Home', 650]],
+    label: 'Pull', shot: 'LEG', charging: false, single: true, ball: { x: LINE_X.MIDDLE, y: 1.12, z: GAME.contactZ + PULL_MEETS_AT },
+    contact: PULL_CONTACT_MS, end: STROKE_DURATION_MS + HOOK_HOLD_MS, bounceZ: STYLES.SHORT.bounce!,
+    phases: [['Stance', -LEAD_MS], ['Back and across', PULL_LOAD_MS], ['Down', 160], ['Contact', PULL_CONTACT_MS], ['Out front', 255], ['To leg', 315], ['Round', 395], ['Wrap', 520], ['Turning', 600], ['Back to the bowler', 720], ['Home', 860]],
     out: { speed: .028, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.LEG), climb: .012 },
-    facts: ['bouncer, on the stumps', `${STROKE_DURATION_MS} ms`],
-    note: 'The pull, off the swipe to leg or A at a bouncer on the stumps or the body: back and across, the bat swung flat across the line at chest height and the ball sent round in front of square.',
+    facts: ['bouncer, on the stumps', `${STROKE_DURATION_MS + HOOK_HOLD_MS} ms`],
+    note: 'The pull, off the swipe to leg or A at a bouncer on the stumps or the body, from a net session filmed from the bowler\'s end, square on the off side and close on the arms. Back and across with the bat taken high, square to the bowler, and the ball met at 200 ms 35 cm out in front of him with both arms long and the bat level, its flat face to the bowler. The arms swing it round flat, out in front at 255 and out to leg at 315, and only then fold: the bat wraps behind his head with the hands over the front shoulder, the curved back of the blade against it, and he turns on round on his feet until his back is to the bowler, held, then home. It is the hook\'s stroke, met in front of the body rather than outside off.',
   },
   cut: {
     label: 'Square cut', shot: 'SQUARE_CUT', charging: false, single: true, ball: { x: LINE_X.OUTSIDE_OFF, y: .90, z: GAME.contactZ },
