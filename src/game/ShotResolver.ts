@@ -1,4 +1,4 @@
-import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, GAME, GROUND_RUNS, HOOK, LATE_CUT, SCOOP, SOLID_SHOT, SPIN_CUT, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
+import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, GAME, GROUND_RUNS, HOOK, LATE_CUT, PUNCH, SCOOP, SOLID_SHOT, SPIN_CUT, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory';
 import { spun } from './DeliveryGenerator';
 import type { Delivery, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './types';
@@ -352,6 +352,48 @@ export function squareDrive(delivery: Delivery, attempt: ShotAttempt | null) {
   return !!attempt && attempt.shotType === 'COVER_LONG_OFF' && squareDrivable(delivery);
 }
 /**
+ * Whether this is the ball the back-foot punch answers: up above `PUNCH.minBallY`
+ * when it reaches him, which every ball short of a length is and none pitched
+ * up is. Read off the contact point, as the rig reads it, so the stroke he
+ * plays and the one he is scored for are the same.
+ */
+export function punchable(delivery: Delivery) {
+  return ballPosition(delivery, 1).y > PUNCH.minBallY;
+}
+/** The cover drive's swipe at that ball: the punch. */
+export function punch(delivery: Delivery, attempt: Pick<ShotAttempt, 'shotType'> | null) {
+  return attempt?.shotType === 'COVER_LONG_OFF' && punchable(delivery);
+}
+/**
+ * A punch that met the ball, off the grade of whichever mode is playing it:
+ * see `PUNCH`. At a bouncer (`bouncer`) only ones and twos. Played across a ball on the legs (a fit under `SOLID_SHOT`) it
+ * is as good as poor. In a Test nobody runs three.
+ */
+export function punched(outcome: ShotOutcome, rng: { next(): number }, test: boolean, bouncer = false): ShotOutcome {
+  const met = { ...outcome, madeBatContact: true, punched: true };
+  const ran = (runs: ShotOutcome['runs']) => ({ ...met, runs, feedback: award(runs) });
+  const grade = outcome.compatibility < SOLID_SHOT ? 'POOR' : outcome.timingGrade;
+  // Up at his chest it is pushed for ones and twos, and poor it is taken behind: see `PUNCH.bouncer`.
+  if (bouncer) switch (grade) {
+    case 'PERFECT': return ran(rng.next() < PUNCH.bouncer.two ? 2 : 1);
+    case 'GOOD': return ran(!test && rng.next() < PUNCH.bouncer.goodTwo ? 2 : 1);
+    case 'OK': return ran(1);
+    default:
+      return rng.next() < PUNCH.bouncer.caught
+        ? { ...met, runs: 0, edged: true, isWicket: true, wicketType: 'CAUGHT', feedback: PUNCH.feedback.caught }
+        : { ...met, runs: 1, feedback: PUNCH.feedback.edged };
+  }
+  switch (grade) {
+    case 'PERFECT': return { ...met, runs: 4, quality: 1, feedback: PUNCH.feedback.four };
+    case 'GOOD': return test ? ran(rng.next() < .5 ? 2 : 1) : ran(rng.next() < PUNCH.good.three ? 3 : 2);
+    case 'OK': return test ? ran(1) : ran(rng.next() < .35 ? 2 : 1);
+    default:
+      return rng.next() < PUNCH.caught
+        ? { ...met, runs: 0, edged: true, isWicket: true, wicketType: 'CAUGHT', feedback: PUNCH.feedback.caught }
+        : { ...met, runs: 1, feedback: PUNCH.feedback.edged };
+  }
+}
+/**
  * `charged` is the batter's confidence being full — the shot still has to be
  * played. `windows` are the classic ones unless a newcomer is being helped,
  * which only ever widens OK: the special strokes and the boundaries are graded
@@ -412,6 +454,10 @@ export function resolveShot(
     return { ...outcome, sweptFlat: true, aerial: true, madeBatContact: true, compatibility: 1,
       isWicket: true, wicketType: 'CAUGHT', feedback: FLAT_SWEEP.topEdge };
   }
+  // The cover drive's swipe at a ball short of a length: punched off the back
+  // foot through cover, along the ground. Missed, a bouncer goes on through
+  // to the keeper and one back of a length is beaten like any other stroke.
+  if (punch(delivery, attempt) && timingGrade !== 'MISS') return punched(outcome, rng, false, delivery.style === 'SHORT');
   // A bouncer is over the stumps, so it can never bowl you — but it can only be
   // pulled, and only if it is middled, or blocked, off the back foot with the
   // bat up in front of his chest. Anything else and it flies through.

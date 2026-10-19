@@ -1090,6 +1090,55 @@ of `resolveShot`, `defended` in `Survive.ts`); late is what it was. They are
 `describe('the block')` holding the stride, the height and the pick, and
 `cover-drive.html` has both.
 
+## The back-foot punch
+
+The cover drive's swipe at a ball short of a length is the back-foot punch
+(`PUNCH` in `gameplay.ts`, `PUNCH_STROKE` and `this.punching` in `Batter.ts`):
+picked by the height the ball reaches him at, as the defences are
+(`PUNCH.minBallY`, the back-foot defence's line: back of a length and the
+bouncer), so the thumb never chooses between it and the drive; `punch` in
+`ShotResolver.ts` is the one rule the rig, `Game.shoot` and both resolvers
+read. Built from two net clips, the first from the bowler's end and from
+behind, the second from the bowler's end: a step straight back with the back
+foot, the front foot left where it is, tall, a high pick-up; down straight, the
+hands close in front of the front hip, onto the ball late by the front thigh at
+`PUNCH_CONTACT_MS`, `PUNCH_MEETS_AT` back towards the stumps, at the ball's
+height up to `PUNCH_HIGHEST` (a bouncer is met up the face, the hands by his
+chest, and the body a little further from it, `PUNCH_HIGH_ROOM`: closer, the
+top arm folded shut and its elbow flipped), the face to cover and the handle a
+little ahead; then driven, the toe swinging out towards cover as the hands come
+up close to him, by his chest and then up by his face, the top elbow high,
+where it stops at `PUNCH_CLOCK.finish` and holds (carried on up over the
+helmet, it read as forced), and the front foot sliding back to the back one,
+so the feet finish together and the bat leant out towards cover. Built first as a
+vertical bat lifted straight up, which read as no drive at all; then driven but
+with the hands at arm's length, 60cm out in front of his face at the finish,
+which is not how it is played: the batter tests hold the hands to a quarter of
+a metre from his hips at contact and near his head at the finish, and no
+higher than his face. The face turns to cover once, in the pick-up (`riding`'s
+`at`: a roll made earlier is carried along unchanged, so the downswing turns
+nothing), and never again: the batter tests hold the downswing to the guard to
+under five degrees of turn in the hands. It holds the finish (`PUNCH_HOLD_MS`)
+and goes home in one movement (`liftedHome`, shared with the defences, here
+through a given direction, `PUNCH_HOME_VIA`: the bat hanging from his hands as
+they come down, `PUNCH_HOME_LAG`, before it goes back up into the guard), the
+one route that turns nothing in his hands. Out of the drives' handling in
+`apply` (`driveShot`, the helmet clearing, `driving`), which would re-turn its
+face before the ball.
+
+It goes along the ground through cover (`punched` on the outcome,
+`PUNCH.angle`), never six, and the attempt is `grounded`: middled four, a
+shade under two or three (one or two in a Test), held back ones and twos, poor
+(or across a ball on the legs, under `SOLID_SHOT`) the edge behind or a thick
+edge for one (`punched` in `ShotResolver.ts`). A bouncer is pushed for ones and
+twos at best and poor is caught behind three times in four (`PUNCH.bouncer`). Survival and the Marathon pay
+it off their own ladder, with the bouncer's in `shortBall`; the wrapper only
+tags it, as it does the square drive. Missed, a bouncer goes through to the
+keeper. It is `punch` and `punchBouncer` in the batter tests' `PLAYS`, with
+`describe('the back-foot punch')`, and `cover-drive.html` has it.
+`scripts/punch-check.mjs` plays it in a browser on `?bouncers=1`, keys and a
+real swipe up and to the off, in the Blast and in Survival.
+
 ## The square cut
 
 The cut at pace (`CUT_STROKE`, `CUT_HIGH` and the `paceCut` branch in

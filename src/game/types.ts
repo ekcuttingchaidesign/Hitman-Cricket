@@ -70,6 +70,8 @@ export interface ShotOutcome {
   hooked?: boolean;
   /** Driven square of the wicket off the front foot, rather than through cover. */
   squared?: boolean;
+  /** Punched off the back foot at a ball short of a length: through cover, along the ground. */
+  punched?: boolean;
   /** Swept along the ground, square of the wicket: the orthodox sweep. */
   sweptFlat?: boolean;
   /** Killed under the eyes: it goes nowhere, and it cannot be caught. */

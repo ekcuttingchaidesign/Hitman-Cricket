@@ -4,7 +4,7 @@ import { ACTION_MS, Bowler, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowl
 import { bodyOf, showBody } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
 import { BLAST_FIELD, Field, TEST_FIELD } from './field';
-import { ADVANCE, FLAT_SWEEP, GAME, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
+import { ADVANCE, FLAT_SWEEP, GAME, PUNCH, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
 import { ballPosition, drawnAt } from '../game/DeliveryTrajectory';
 import { KIT, type Kit } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
@@ -1045,13 +1045,14 @@ export class GameScene {
     // The orthodox sweep goes squarer than the slog does: the blade is level and
     // going across the line, so the ball leaves square of the wicket rather than
     // in front of it.
+    // The back-foot punch goes through cover, squarer than the drive's sector.
     // The charge over cover goes over extra cover, where the stroke sends it,
     // rather than out along the long-off sector the cover input names.
     const sector = outcome.swept ? SWEEP.angle
       : outcome.sweptFlat ? FLAT_SWEEP.angle
       : outcome.advance && shot === 'COVER_LONG_OFF' ? ADVANCE.coverAngle
       : outcome.advance && shot === 'LONG_ON' ? ADVANCE.onAngle
-      : outcome.squared ? SQUARE_DRIVE.angle : SHOT_ANGLES[shot ?? 'STRAIGHT'];
+      : outcome.squared ? SQUARE_DRIVE.angle : outcome.punched ? PUNCH.angle : SHOT_ANGLES[shot ?? 'STRAIGHT'];
     let angle = (sector + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28))) * Math.PI / 180;
     const caught = outcome.wicketType === 'CAUGHT';
     /**

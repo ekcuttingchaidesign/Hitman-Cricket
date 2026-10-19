@@ -15,8 +15,8 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, type CoverVersion, COVER_V3_MEETS_AT, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_FRONT_MEETS_AT,PULL_CONTACT_MS, PULL_LOAD_MS, PULL_MEETS_AT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, SLOG_CLOCK, SLOG_HOLD_MS, SLOG_MEETS_AT, SWEEP_CONTACT_MS, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, REVERSE_CLOCK, SCOOP_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
-import { ADVANCE, GAME, LINE_X, SHOT_ANGLES, STYLES } from './config/gameplay';
+import { Batter, type CoverVersion, COVER_V3_MEETS_AT, PUNCH_CONTACT_MS, PUNCH_HOLD_MS, PUNCH_MEETS_AT, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_FRONT_MEETS_AT,PULL_CONTACT_MS, PULL_LOAD_MS, PULL_MEETS_AT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, SLOG_CLOCK, SLOG_HOLD_MS, SLOG_MEETS_AT, SWEEP_CONTACT_MS, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, REVERSE_CLOCK, SCOOP_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
+import { ADVANCE, GAME, LINE_X, PUNCH, SHOT_ANGLES, STYLES } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 import type { ShotType } from './game/types';
 import { DEFAULT_GLOVE, GLOVES, gloveOf } from './entities/gloves';
@@ -62,7 +62,14 @@ const STROKES: Record<string, Stroke> = {
     facts: ['back of a length or a bouncer', `${STROKE_DURATION_MS} ms`],
     note: 'The back-foot defence, off the same swipe at a ball short of a length or a bouncer: from a net session filmed from behind on the off side and from the bowler\'s end. The back foot goes back and across towards off stump and the front foot is drawn back beside it, and he stands up tall, chest half open to the bowler. The bat comes down straight in front of him, the top hand up by his chest and its elbow high, the face angled down, and the ball is met late at 150 ms, 12 cm back towards the stumps, at whatever height it arrives: off a length at his hip, a bouncer at his chest, the bat lifted with the hands to meet it. Dropped dead at his feet, held to 560, then home. A bouncer used to go through him; it is blocked now.',
   },
-  straight: {
+  punch: {
+    label: 'Back-foot punch', shot: 'COVER_LONG_OFF', charging: false, single: true, ball: { x: LINE_X.OFF, y: .81, z: GAME.contactZ + PUNCH_MEETS_AT },
+    contact: PUNCH_CONTACT_MS, end: STROKE_DURATION_MS + PUNCH_HOLD_MS, bounceZ: STYLES.RIB.bounce!,
+    phases: [['Stance', -LEAD_MS], ['Step back', 80], ['Contact', PUNCH_CONTACT_MS], ['Through', 240], ['Finish', 330], ['Home', 520 + PUNCH_HOLD_MS]],
+    out: { speed: .026, angle: THREE.MathUtils.degToRad(PUNCH.angle), climb: 0 },
+    facts: ['back of a length or a bouncer', ` ms`],
+    note: 'The back-foot punch, off the cover drive\'s swipe (or W and D) at a ball short of a length, from two net sessions filmed in slow motion. The back foot takes a step straight back towards the stumps and he stands up tall on it, the bat taken up high. It comes down straight, the hands close in front of the front hip, and meets the ball at 150 ms by the front thigh, the face to cover and the handle a little ahead so it stays down. Then it is driven: the toe swings out towards cover, the hands come up close to him, by his chest and then up by his face with the top elbow high, where the stroke stops at 330 ms, and the front foot slides back to close the gap with the back one, so he finishes with his feet together and the bat leant out towards cover. The face is turned to cover in the pick-up and never again: the wrists never roll it. Held, then home in one movement. Back of a length it goes through cover along the ground, four middled and never six; a bouncer, met up the face at his chest, is only pushed for a single or two, and caught behind when it is poor.',
+  },  straight: {
     label: 'Straight drive', shot: 'STRAIGHT', charging: false, single: true, ball: { x: LINE_X.MIDDLE, y: .54, z: GAME.contactZ },
     contact: STROKE_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: 3.5,
     phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Plant', 55], ['Contact', STROKE_CONTACT_MS], ['Through', 220], ['Finish', 410], ['Home', 600]],
