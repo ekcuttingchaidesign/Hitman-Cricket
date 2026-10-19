@@ -151,10 +151,11 @@ const need = (await page.locator('.ch-chip .ch-need').textContent()).trim();
 check(need === '165', 'the chip under the scoreboard says what is wanted', need);
 await page.screenshot({ path: `${out}/b2-chip.png` });
 await write(['W', 'W', 'W', 'W', 'W']);
-await page.waitForSelector('.ch-strip.is-short', { timeout: 8000 });
+// The rank hero says the chase once the store has placed the innings, its near miss under the place.
+await page.waitForSelector('#card-hero .rh-bar', { timeout: 10_000 });
 await page.waitForTimeout(1200);
 await page.screenshot({ path: `${out}/b5-short.png` });
-check((await page.locator('.ch-strip-text b').textContent()).startsWith('164 short of'), 'fallen short, the card says by how many');
+check((await page.locator('#card-hero .rh-head').textContent()).trim().startsWith('164 short of'), 'fallen short, the card says by how many');
 check((await page.locator('#again').textContent()).includes('CHASE 174 AGAIN'), 'and the key takes it on again');
 await page.locator('#again').click();
 await page.waitForTimeout(800);
@@ -164,8 +165,8 @@ check(await page.locator('.ch-chip').count() === 1, 'with the chip still up');
 // Passed: chase the second player's 168, and go past it with a ball to spare.
 const second = `Psec${run}`;
 await write(['W', 'W', 'W', 'W']);
-await page.waitForSelector('#chase-board', { timeout: 8000 });
-await page.locator('#chase-board').click();
+await page.waitForSelector('#card-hero .rh', { timeout: 10_000 });
+await page.locator('#claim').click();
 await page.waitForSelector('#board-overlay .lb-screen');
 await page.waitForTimeout(800);
 await page.locator('.lb-step[data-handle], .lb-row[data-handle]').filter({ hasText: second }).first().click();
@@ -180,10 +181,11 @@ check(await page.locator('#chase-passed .ch-stamp span').textContent() === secon
 check((await page.locator('.ch-chip').count()) === 0, 'and the chip under the scoreboard goes: the chase is done');
 await page.waitForTimeout(2000);
 await write(['W']);
-await page.waitForSelector('.ch-strip.is-beat', { timeout: 8000 });
+for (let i = 0; i < 40 && !/You beat/.test(await page.locator('#card-hero .rh-head').textContent().catch(() => '')); i++) await page.waitForTimeout(300);
 await page.waitForTimeout(1500);
 await page.screenshot({ path: `${out}/b4-beat.png` });
-check((await page.locator('.ch-strip-text b').textContent()) === `You beat ${second} by 6`, 'beaten, the card says by how many');
+check((await page.locator('#card-hero .rh-head').textContent()).trim() === `You beat ${second} by 6`, 'beaten, the card says by how many');
+check((await page.locator('#card-hero .rh-eyebrow').textContent()).startsWith('CHASE · '), 'with the chase over the place');
 check(!(await page.locator('#again').textContent()).includes('CHASE'), 'and the key is PLAY AGAIN: a chase won is over');
 const events = await (await fetch(`${base}/api/profile?player=${encodeURIComponent(secondId)}`)).json();
 check(events.events?.[0]?.kind === 'beat' && events.events[0].runs === 174, 'and the store put the beat on their profile', JSON.stringify(events.events?.[0]));
@@ -261,7 +263,7 @@ check(events.events?.[0]?.kind === 'beat' && events.events[0].runs === 174, 'and
   check((await them.locator('.ch-intro-target b').getAttribute('data-to')) === '174', 'WIN IT BACK chases the runs that took it');
   // Played to the end and fallen short, the Rank down card still comes down.
   await them.evaluate(() => { document.getElementById('chase-bat').click(); window.__cricket.blast(['W', 'W', 'W', 'W', 'W']); });
-  await them.waitForSelector('.ch-strip.is-short', { timeout: 10_000 });
+  await them.waitForSelector('#card-hero .rh-bar', { timeout: 12_000 });
   const answered = await them.evaluate(() => localStorage.getItem('hitman-answered') ?? '');
   check(/:classic"/.test(answered), 'C · the innings WIN IT BACK started is noted as answered', answered);
   await them.goto(`${base}/?debug=1&private=0`, { waitUntil: 'load' });
@@ -314,15 +316,19 @@ check(events.events?.[0]?.kind === 'beat' && events.events[0].runs === 174, 'and
   await me.locator('#again').click();
   await me.waitForTimeout(800);
   await writeHere([...Array(28).fill(6), 2, 0]);
-  for (let i = 0; i < 30 && !(await me.locator('#card-board-passed:not(.hidden)').count()); i++) await me.waitForTimeout(300);
-  await me.waitForTimeout(800);
+  for (let i = 0; i < 30 && !(await me.locator('#card-hero .rh-names').count()); i++) await me.waitForTimeout(300);
+  // New #1, if this climb took the top of this dev server's board, plays first and hands back.
+  for (let i = 0; i < 40 && await me.locator('.ts').count(); i++) await me.waitForTimeout(200);
+  await me.waitForTimeout(1200);
   await me.locator('.ec-player').scrollIntoViewIfNeeded();
   await me.screenshot({ path: `${out}/c3-endcard.png` });
-  const passedLine = await me.locator('#card-board-passed').innerText().catch(() => '');
-  check(/^Surpassed /.test(passedLine), 'C3 · who the innings went past is a quiet line under the place', passedLine);
-  check(await me.locator('.ca-next').count() === 1, 'C3 · and who is next is one row of its own');
-  const round = await me.locator('.ca-next-face .board-kit').evaluate(n => { const r = n.getBoundingClientRect(); return Math.abs(r.width - r.height) < 1; });
-  check(round, 'C3 · with a round face, not an oval');
+  const surpassed = await me.locator('#card-hero .rh-cell small').first().textContent().catch(() => '');
+  const names = await me.locator('#card-hero .rh-names').innerText().catch(() => '');
+  check(surpassed === 'YOU SURPASSED' && names.length > 0, 'C3 · who the innings went past, on the rank hero', `${surpassed} ${names}`);
+  const nextKind = await me.evaluate(() => document.querySelector('#card-hero .rh-next')?.textContent.replace(/\s+/g, ' ').trim() ?? '');
+  check(/^NEXT/.test(nextKind), 'C3 · and who is next, beside it', nextKind);
+  const round = await me.locator('#card-hero .rh-faces .board-kit').first().evaluate(n => { const r = n.getBoundingClientRect(); return Math.abs(r.width - r.height) < 1; });
+  check(round, 'C3 · with round faces, not ovals');
   check(!(await me.locator('#card-board-who').isVisible()), 'C3 · and no name over the player’s own face');
   await own.close();
 }

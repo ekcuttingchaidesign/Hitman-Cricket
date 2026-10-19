@@ -130,6 +130,8 @@ const FULL = {
   const standing = (await snap()).standing?.standing;
   check(standing?.team?.rank >= 1 && standing.team.total >= standing.team.rank && standing.team.was === null,
     'the store says where the innings put them, out of how many, from nowhere', JSON.stringify(standing));
+  // New #1 plays first when the innings took the top of this dev server's board; a tap on it is a skip.
+  for (let i = 0; i < 40 && await page.evaluate(() => window.__cricket.topSpotOpen()); i++) await page.waitForTimeout(200);
   await page.locator('#claim').click({ force: true });
   await page.waitForTimeout(1500);
   check(await page.locator('#board-overlay').isVisible(), 'which opens the board');

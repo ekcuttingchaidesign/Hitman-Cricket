@@ -487,6 +487,7 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
             <div id="chase-strip" class="chase-strip-slot hidden"></div>
             <div id="card-password" class="card-password hidden"></div>
             <section class="ec-player">
+              <div id="card-hero" class="card-hero hidden"></div>
               <div id="card-board" class="card-board hidden">
                 <div class="ec-rank">
                   <span id="card-board-face" class="ec-face"></span>
@@ -1309,6 +1310,48 @@ ${modeSelectMarkup()}
         <span class="ca-next-goal"><small>BEAT</small><b>${next.runs.toLocaleString('en-US')}</b></span>${kitIcon('chevron-right')}</button>` : '';
     slot.classList.toggle('hidden', !next);
     document.getElementById('card-next')?.addEventListener('click', () => document.getElementById('claim')?.click());
+  }
+
+  /** The innings the rank hero last arrived for, and what it last drew: it arrives once, and a redraw that changes nothing is left alone. */
+  private heroFor = -1;
+  private heroDrawn = '';
+  /**
+   * The rank hero (Figma 14E, `src/ui/RankHero.ts`): the player card for a
+   * named player once the store has placed them, standing in for the rank
+   * header, the line of who it surpassed, the Next row and the chase's strip.
+   * The first draw of an innings arrives — the place counting down from where
+   * it was, the chip, the faces, and a chase won's paper — and later redraws
+   * only change what changed.
+   */
+  rankHero(markup: string | null, arrive: { innings: number; from: number | null; confetti: boolean } | null) {
+    const slot = this.$('card-hero');
+    this.viewport.querySelectorAll('.ec-player').forEach(one => one.classList.toggle('has-hero', !!markup));
+    if (!markup) { slot.innerHTML = ''; slot.classList.add('hidden'); this.heroDrawn = ''; return; }
+    if (markup === this.heroDrawn) return;
+    this.heroDrawn = markup;
+    slot.innerHTML = markup;
+    slot.classList.remove('hidden');
+    document.getElementById('rh-next')?.addEventListener('click', () => document.getElementById('claim')?.click());
+    if (!arrive || this.heroFor === arrive.innings) return;
+    this.heroFor = arrive.innings;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const hero = slot.querySelector<HTMLElement>('.rh');
+    hero?.classList.add('is-arriving');
+    if (arrive.confetti) hero?.classList.add('is-confetti');
+    // The place counts from where it was, a tick a place.
+    const place = slot.querySelector<HTMLElement>('.rh-place');
+    const to = Number(place?.dataset.place);
+    if (!place || arrive.from === null || !(arrive.from > to) || arrive.from - to > 60) return;
+    const from = arrive.from, step = Math.max(30, Math.min(90, 700 / (from - to)));
+    let at = from;
+    place.textContent = `#${at}`;
+    const tick = () => {
+      if (!place.isConnected) return;
+      at -= 1;
+      place.textContent = `#${at}`;
+      if (at > to) setTimeout(tick, step);
+    };
+    setTimeout(tick, 260);
   }
 
   /** The end card's key: PLAY AGAIN, or CHASE 187 AGAIN while a chase is still to be won. */
@@ -4211,6 +4254,22 @@ ${modeSelectMarkup()}
       key.type = 'button'; key.className = 'rate-preview-key'; key.dataset.tier = tier; key.dataset.mode = mode; key.textContent = label;
       key.setAttribute('aria-label', `Preview Level up to ${label.toLowerCase()}`);
       key.addEventListener('click', () => pick(tier, mode));
+      row.append(key);
+    }
+    for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
+    this.viewport.append(row);
+  }
+  /** `?topspot=1`'s keys: one a board, in the same row as Level Up's preview. New #1 goes over them. */
+  topSpotKeys(keys: readonly { label: string; mode: CareerMode }[], pick: (mode: CareerMode) => void) {
+    const row = document.createElement('div');
+    row.className = 'rate-preview levelup-preview topspot-preview';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Preview New number one');
+    for (const { label, mode } of keys) {
+      const key = document.createElement('button');
+      key.type = 'button'; key.className = 'rate-preview-key'; key.dataset.mode = mode; key.textContent = label;
+      key.setAttribute('aria-label', `Preview New number one on ${label.toLowerCase()}`);
+      key.addEventListener('click', () => pick(mode));
       row.append(key);
     }
     for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());

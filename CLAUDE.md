@@ -83,7 +83,7 @@ README's "Player profiles" is the long version.
   in the browser by handle and mode), and the cover's line goes with it. The
   mode switch is quiet tabs, the badge and the name with the pick underlined
   in its colour (Figma `367:12950`); no figures on them.
-  The end card's `#card-around` and the cover's `beaten` line read the same.
+  The cover's `beaten` line reads the same.
 - **D, the bio**: `bioFieldMarkup` in Your details, on the edit only, held to
   `bioProblem` (`src/server/bio-rules.ts`) in the browser and the store, and
   saved only where it changed, so a field drawn before the store answered
@@ -107,6 +107,71 @@ server: a profile opened off a row, a chase fallen short and one won with the
 store putting the beat on the other player's profile, then that player's My
 profile, the sheet, the bio and WIN IT BACK in a second browser. It seeds its
 own players under new letters each run.
+
+An innings that passed somebody before profiles were live noted nothing, so
+their My profile never led with Rank down. `scripts/note-pass.ts "Who went
+past" "Who was passed"` writes the one event the store would have (`--mode`
+for Survival or the Marathon, `--write` and the passed name typed again to
+do it), dated when the innings was posted if that is inside the card's two
+days and now otherwise, so the card shows. Run it after the merge: before,
+the live site has no profile to show it on.
+
+## The rank hero: the end card's player card
+
+For a named player, once the store has said where the innings left them, the
+end card's player card is the rank hero (Figma section 14E, V1): the place
+big with a chip under it (UP and how far, NEW for a first row on the board,
+or a grey HOLDS), the name and board over a headline (New best 181, Best 181
+stands, or a chase's verdict with their name in gold) and a line under it,
+then two answers side by side: who the innings surpassed, faces and names,
+or the innings itself where it moved nobody; and who is next with what it
+takes ("3 runs to surpass"), or Nobody ahead at #1. A chase fallen short has
+its near miss the whole width instead (`chaseBarMarkup`). What it says is
+`heroView` (`src/game/rank-hero.ts`, every case in `tests/rank-hero.test.ts`),
+drawn by `rankHeroMarkup` (`src/ui/RankHero.ts`) into `#card-hero` at the top
+of `.ec-player`, and `drawHero` in `src/Game.ts` draws it whenever the card is
+offered again or the store answers. While it is up the old rank header, its
+line of who was surpassed, the Next row and the chase's strip step aside
+(`.has-hero`); they are still written, so guests, private windows, practice
+and a Rival Match keep the card as it was, and so does the moment before the
+store answers. Its first draw an innings arrives: the place counting from
+where it was, the chip popping, the faces sliding in, and for a chase won one
+wave of paper from the card's top corners. Player-facing copy says surpassed,
+never passed; the store's event kind is still `'passed'`.
+
+## New #1: the top of a board taken
+
+When the store's answer to a post says the innings took the top of a board it
+was not the top of before (`tookTheTop`: place 1, was not 1) and somebody was
+there to take it from, New #1 plays over the end card before handing back
+(Figma section 15, `src/ui/TopSpot.ts`, its view `topSpotView` in
+`src/game/top-spot.ts`). Four acts on one clock, about four and a half
+seconds: the card steps back and the board's top rows rise in with yours
+below them, winding up; your row climbs past every row that stood above it,
+flicking each down a place, and takes the top (one soft flash, gold rings, a
+shake, the crowd); your face lifts out, a crown drops on, paper fountains up
+from both bottom corners under turning rays and crossing spotlights; then the
+lockup, #1 in gold foil, TOP OF THE BLAST and by how much, the podium rising
+under you. Then #1 flies down on an arc into the rank hero's place figure,
+which pops as it lands. A tap, Escape or Enter skips to that last move; under
+reduced motion the lockup stands still for a moment. Haptics through the climb,
+at the takeover and as the crown lands. A named player's real innings only:
+never practice, a Rival Match or a demo, and once an innings. A Level Up the
+same innings earned waits for it (`levelUpAfter`). Every frame is drawn from
+the clock, so the motion is the prototype's exactly (claude.ai artifact "New
+#1 Celebration").
+
+`?topspot=1` is a row of keys, BLAST, MARATHON and SURVIVAL, putting it up
+over a made-up board, counting and sending nothing (`tests/practice.test.ts`
+names it), and `__cricket.topSpot('marathon')` does the same for the checks,
+with `__cricket.topSpotOpen()` to wait it out. A check that finishes an
+innings on a dev server where it may take the top waits for that before it
+clicks, or its click is a skip. `scripts/topspot-check.mjs` seeds three rivals
+on the Blast board and bats past them (the ladder, the lockup, the hand back
+to a #1 hero, a tap to skip), then an innings under them (the hero, no New
+#1), then the preview keys. Start the dev server fresh for it: its player
+makes 180, the most a Blast can, so a board that already has one leaves
+nobody to take the top from.
 
 ## Scripts that write are opt-in
 

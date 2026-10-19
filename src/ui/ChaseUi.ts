@@ -107,7 +107,7 @@ export function chaseStripMarkup(view: {
         <span class="ch-strip-text"><small>${chase.result ? `${escape(surviveGoal(chase.name, chase.result).key)}` : `CHASE · ${escape(chase.name.toUpperCase())}’S ${grouped(chase.target)}`}</small><b>${escape(verdict.title)}</b>
         <span class="ch-strip-line">${icon('trophy')}${escape(verdict.line)}</span></span>
         ${verdict.beat && view.place ? `<span class="ch-strip-place"><b>#${view.place}</b><small>${escape(view.modeName.toUpperCase())}</small></span>` : ''}</div>`;
-  const bar = verdict.beat || chase.result ? '' : barMarkup(view);
+  const bar = verdict.beat || chase.result ? '' : chaseBarMarkup(view);
   const next = verdict.beat && view.next
     ? `<button id="chase-next" type="button" class="ch-strip-row">${kitMarkup(view.next.avatar, view.next.name)}<span>Next: <b>${escape(view.next.name)}</b> · <em>beat ${grouped(view.next.runs)}</em></span><small>#${view.next.place}</small>${icon('chevron-right')}</button>`
     : '';
@@ -121,7 +121,7 @@ export function chaseStripMarkup(view: {
 }
 
 /** B5's bar: nought to their best, the innings filled along it, the player's own best marked. */
-function barMarkup(view: { chase: Chase; runs: number; best: number | null }): string {
+export function chaseBarMarkup(view: { chase: Chase; runs: number; best: number | null }): string {
   const { chase, runs, best } = view;
   const at = (n: number) => `${Math.min(100, Math.max(0, (n / chase.target) * 100)).toFixed(1)}%`;
   return `<div class="ch-strip-bar">

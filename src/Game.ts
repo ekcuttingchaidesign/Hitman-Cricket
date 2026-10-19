@@ -4,7 +4,11 @@ import { cleanBio } from './server/bio-rules';
 import {
   againLabel, beaten, close, placeOnPassing, surviveGoal, surviveResultOf, surviveSurely, surviveVerdict, verdict, type Chase, type Mine,
 } from './game/chase';
-import { chaseStripMarkup } from './ui/ChaseUi';
+import { chaseBarMarkup, chaseStripMarkup } from './ui/ChaseUi';
+import { heroView } from './game/rank-hero';
+import { rankHeroMarkup } from './ui/RankHero';
+import { tookTheTop, topSpotView, type TopSpotView } from './game/top-spot';
+import { TopSpot } from './ui/TopSpot';
 import { buzz } from './game/haptics';
 import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
@@ -482,6 +486,12 @@ export class Game {
    * is counted, shared on the player's behalf, or followed by unlocks.
    */
   private readonly levelUpKeys = new URLSearchParams(location.search).get('levelup') === '1';
+  /**
+   * `?topspot=1`: a row of keys, one a board, putting New #1 up over whatever
+   * is on screen as an innings that took the top would, over a made-up board.
+   * Nothing is counted or sent.
+   */
+  private readonly topSpotKeys = new URLSearchParams(location.search).get('topspot') === '1';
   /** The way `?welcome=1` has the welcome up, or null when it is the real one. */
   private welcomeScenario: WelcomeScenario | null = null;
   /**
@@ -616,6 +626,7 @@ export class Game {
     // and can be lifted clear of them when both are asked for.
     if (this.rateKeys) this.hud.rateKeys(RATE_KEYS, thing => this.previewRating(thing));
     if (this.levelUpKeys) this.hud.levelUpKeys(LEVEL_UP_KEYS, (tier, mode) => this.previewLevelUp(tier, mode));
+    if (this.topSpotKeys) this.hud.topSpotKeys(TOP_SPOT_KEYS, mode => this.previewTopSpot(mode));
     if (this.welcomeKeys) this.hud.welcomeKeys(WELCOME_KEYS, scenario => this.previewWelcome(scenario));
     if (this.dressingKeys) this.hud.dressingKeys(DRESSING_KEYS, scenario => this.previewDressing(scenario));
     if (this.momentKeys) this.hud.momentKeys(MOMENT_KEYS, moment => this.askMoment(moment));
@@ -966,6 +977,10 @@ export class Game {
       ratingOpen: () => !!this.ratingPrompt?.open,
       // Level Up by rung, for `levelup-check.mjs`: `levelUp('star', 'marathon')`.
       levelUp: (tier = 'star', mode?: CareerMode) => this.previewLevelUp(tier, mode),
+      // New #1 by board, over a made-up board, for `topspot-check.mjs`: `topSpot('marathon')`.
+      topSpot: (mode?: CareerMode) => this.previewTopSpot(mode),
+      // Whether it is playing.
+      topSpotOpen: () => !!this.topSpot,
       // Where it has got to — 'rush' to 'ready' — or null when it is not up.
       levelingUp: () => this.levelUp?.at ?? null,
     } });
@@ -3127,6 +3142,7 @@ export class Game {
     document.getElementById('chase-next')?.addEventListener('click', board);
     document.getElementById('chase-profile')?.addEventListener('click', () => this.showStats());
     if (said.beat) this.chaseWon = true;
+    this.drawHero();
   }
   /** The player's best as the innings began, for the bar on a chase fallen short. */
   private chaseBest: number | null = null;
@@ -4084,6 +4100,7 @@ export class Game {
     // the strip is there to say what is being missed, and a two-run innings was
     // missing nothing.
     this.hud.offerClaim(this.postedOffer(offer), readPlayer(), this.board, played, this.player);
+    this.drawHero();
   }
 
   /** The same, asked of both Marathon ladders and answered on the Marathon's card. */
@@ -4093,6 +4110,7 @@ export class Game {
     const offer = marathonOffer(!!this.marathonRows, rows, { team: teamOf(played), solo: soloOf(played) }, Date.now(), this.player);
     this.hud.cardNote = this.cardNoteFor(rows.team, played.runs);
     this.hud.offerMarathonClaim(this.postedOffer(offer), readPlayer(), rows.team, this.player);
+    this.drawHero();
   }
 
   /** The same, asked of the Test ladder and answered on the Test card. */
@@ -4101,6 +4119,7 @@ export class Game {
     const offer = surviveOffer(this.surviveSeen, this.surviveRows, played, Date.now(), this.player);
     this.hud.cardNote = this.cardNoteFor(this.surviveRows, played.runs);
     this.hud.offerSurviveClaim(this.postedOffer(offer), readPlayer(), this.surviveRows, played, this.player);
+    this.drawHero();
   }
 
   /**
@@ -4342,11 +4361,59 @@ export class Game {
     const improved = typeof result.improved === 'object' ? result.improved.team || result.improved.solo : !!result.improved;
     const by = typeof result.improved === 'object' ? { team: !!result.improved.team, solo: !!result.improved.solo } : null;
     if (result.standing) this.standing = { innings, mode: this.careerMode, standing: result.standing, improved, by };
+    if (result.around) this.aroundOf = { innings, around: result.around };
     if (innings === this.innings && this.phase === 'INNINGS_END') {
       this.chaseCard(result);
       // Who it went past and who is next, where no chase strip says it already.
       this.hud.cardAround(this.chaseLive ? null : result.around ?? null);
+      this.drawHero();
+      this.topOfTheBoard(result);
     }
+  }
+
+  /** Who the last post went past and who stands next, for the rank hero. */
+  private aroundOf: { innings: number; around: NonNullable<SubmitResult['around']> } | null = null;
+
+  /**
+   * The end card's player card as the rank hero (Figma 14E): for a named
+   * player, once the store has said where the innings left them. Everybody
+   * else, and the moment before the store answers, keeps the card as it was.
+   */
+  private drawHero() {
+    const mine = readPlayer();
+    const held = this.standing?.innings === this.innings ? this.standing.standing : null;
+    const standing = held ? ('team' in held ? held.team : held) : null;
+    if (this.phase !== 'INNINGS_END' || !mine?.name || !standing?.rank || this.practising || this.challenge.playing || this.demoing) {
+      this.hud.rankHero(null, null);
+      return;
+    }
+    const rows: readonly (BoardRow | TeamRow | SurviveRow)[] = this.marathoning ? this.marathonShown?.team ?? [] : this.surviving ? this.surviveRows : this.board;
+    const own = rows.find(row => ownsHandle(row.handle, this.player)) ?? null;
+    const survive = this.surviving ? this.survived() : null;
+    const runs = this.marathoning && this.marathon ? marathonFigures(this.marathon).runs : survive ? survive.runs : asInnings(this.score).runs;
+    const improved = this.standing!.by ? this.standing!.by.team : this.standing!.improved;
+    const chase = this.chaseLive;
+    let judged: Parameters<typeof heroView>[0]['chase'] = null;
+    let bar = '';
+    if (chase) {
+      const now = standing.rank, was = standing.was?.rank ?? null;
+      const said = chase.result
+        ? surviveVerdict(chase.name, chase.result, surviveResultOf(this.survived()), { now, was })
+        : verdict(chase, this.chaseRuns, { now, was });
+      judged = { name: chase.name, target: chase.target, key: chase.result ? surviveGoal(chase.name, chase.result).key : undefined, beat: said.beat, title: said.title, line: said.line };
+      if (!said.beat && !chase.result) bar = chaseBarMarkup({ chase, runs: this.chaseRuns, best: this.chaseBest });
+    }
+    const view = heroView({
+      name: mine.name, modeName: HERO_MODE[this.careerMode], place: standing.rank, was: standing.was?.rank ?? null, total: standing.total, improved,
+      measure: survive ? 'result' : 'runs',
+      innings: { runs, line: survive ? surviveResult(survive) : undefined },
+      best: own ? { runs: own.runs, line: survive ? surviveResult(own as SurviveRow) : undefined } : null,
+      chase: judged,
+      around: this.aroundOf?.innings === this.innings ? this.aroundOf.around : null,
+    });
+    // The hero says the chase now, so its strip makes way.
+    if (chase) this.hud.chaseStrip(null);
+    this.hud.rankHero(rankHeroMarkup(view, bar), { innings: this.innings, from: standing.was?.rank ?? null, confetti: !!judged?.beat });
   }
 
   /**
@@ -4574,6 +4641,8 @@ export class Game {
    */
   private showLevelUp(mode: CareerMode, was: AnyCareer, now: AnyCareer, granted: Granted | null, preview = false) {
     if (this.levelUp || this.disposed) return;
+    // New #1 goes first: a climb the same innings earned waits for it.
+    if (this.topSpot) { this.levelUpAfter = () => this.showLevelUp(mode, was, now, granted, preview); return; }
     const batting = readPlayer();
     const who = batting?.name ? { name: batting.name, avatar: batting.avatar ?? 0 } : null;
     const standing = bestStanding(mode, placesOf(this.careerBoards[mode]?.boards ?? {}, this.player));
@@ -4600,6 +4669,79 @@ export class Game {
     document.querySelector<HTMLElement>('#end:not(.hidden) .k-cta')?.focus({ preventScroll: true });
     if (thenUnlocks && this.phase === 'INNINGS_END') this.celebrateUnlocks();
   }
+  /** New #1, while it plays. */
+  private topSpot: TopSpot | null = null;
+  /** A Level Up the same innings earned, waiting for New #1 to finish. */
+  private levelUpAfter: (() => void) | null = null;
+  /** The innings New #1 has played for: once an innings, however many times the store is asked. */
+  private topTaken = -1;
+
+  /**
+   * New #1 (Figma section 15, `src/ui/TopSpot.ts`): when the store's answer
+   * to the post says this innings took the top of a board it was not the top
+   * of before. A named player's real innings only: never practice, a Rival
+   * Match or a demo, and a private window or a guest posts nothing to answer.
+   */
+  private topOfTheBoard(result: SubmitResult<unknown>) {
+    const mine = readPlayer();
+    const held = result.standing;
+    if (!held || !mine?.name || this.topTaken === this.innings || this.practising || this.challenge.playing || this.demoing) return;
+    const standing = 'team' in held ? held.team : held;
+    if (!tookTheTop(standing.rank, standing.was?.rank ?? null)) return;
+    const survive = this.surviving ? this.survived() : null;
+    const board: readonly (BoardRow | TeamRow | SurviveRow)[] = this.marathoning
+      ? (result.board as MarathonPayload | undefined)?.team.rows ?? this.marathonShown?.team ?? []
+      : this.surviving ? (result.board as SurvivePayload | undefined)?.rows ?? this.surviveRows
+      : (result.board as BoardPayload | undefined)?.rows ?? this.board;
+    const runs = this.marathoning && this.marathon ? marathonFigures(this.marathon).runs : survive ? survive.runs : asInnings(this.score).runs;
+    // The player first, as the store has them now, then everybody else in order.
+    const rows = [
+      { name: mine.name, avatar: mine.avatar ?? 0, runs, you: true, line: survive ? surviveResult(survive) : undefined },
+      ...board.filter(row => !ownsHandle(row.handle, this.player)).map(row => ({
+        name: row.name, avatar: row.avatar, runs: row.runs, you: false, line: this.surviving ? surviveResult(row as SurviveRow) : undefined,
+      })),
+    ];
+    const view = topSpotView({ mode: this.careerMode, you: { name: mine.name, avatar: mine.avatar ?? 0 }, rows, was: standing.was?.rank ?? null, measure: survive ? 'result' : 'runs' });
+    // The top of an empty board is not taken from anybody.
+    if (!view?.second) return;
+    this.topTaken = this.innings;
+    this.mark(`top-${this.careerMode}`, 'Took the top of a board');
+    this.showTopSpot(view);
+  }
+
+  private showTopSpot(view: TopSpotView) {
+    if (this.topSpot || this.levelUp || this.disposed) return;
+    this.putRatingAway();
+    this.topSpot = new TopSpot(this.hud.viewport, view, {
+      card: () => document.querySelector<HTMLElement>('#end:not(.hidden)') ?? document.querySelector<HTMLElement>('#end-survive:not(.hidden)'),
+      target: () => document.querySelector<HTMLElement>('#card-hero:not(.hidden) .rh-place'),
+      cheer: () => this.audio.cheer({ size: 'big', peak: .8, decay: 2.6, swell: .3 }),
+      done: () => {
+        this.topSpot = null;
+        const next = this.levelUpAfter;
+        this.levelUpAfter = null;
+        if (next) next();
+        else document.querySelector<HTMLElement>('#end:not(.hidden) .k-cta')?.focus({ preventScroll: true });
+      },
+    });
+  }
+
+  /** New #1 by board over a made-up board: the preview's keys and the checks'. */
+  private previewTopSpot(mode: CareerMode = this.careerMode) {
+    this.topSpot?.close();
+    const result = mode === 'survive';
+    const made = (name: string, avatar: number, runs: number, balls: number) => ({ name, avatar, runs, you: false, line: result ? `Won off ${balls} balls` : undefined });
+    const runsOf = mode === 'marathon' ? [412, 403, 398, 390, 385] : mode === 'survive' ? [96, 91, 88, 84, 80] : [154, 150, 148, 145, 141];
+    const mine = readPlayer();
+    const you = { name: mine?.name || 'You', avatar: mine?.avatar ?? 1 };
+    const rows = [
+      { ...you, runs: runsOf[0], you: true, line: result ? 'Won off 38 balls' : undefined },
+      made('Riya', 0, runsOf[1], 41), made('Kabir', 3, runsOf[2], 44), made('Meera', 4, runsOf[3], 47), made('Arjun', 2, runsOf[4], 52),
+    ];
+    const view = topSpotView({ mode, you, rows, was: 6, measure: result ? 'result' : 'runs' });
+    if (view) this.showTopSpot(view);
+  }
+
   /** Level Up for a rung, by name, over whatever is on screen: the preview's keys and the checks'. */
   private previewLevelUp(key: string, mode: CareerMode = this.careerMode) {
     const rung = Math.max(1, TIERS.findIndex(one => one.key === key));
@@ -4616,6 +4758,7 @@ export class Game {
 
   private end() {
     this.setPhase('INNINGS_END');
+    this.hud.rankHero(null, null);
     this.chaseCard();
     this.hud.cardAround(null);
     this.countThisInnings();
@@ -5493,6 +5636,12 @@ const STAR_KEYS = new Set(['Enter', ' ', 'Escape', 'ArrowLeft', 'ArrowRight', 'A
 /** The games by name, as the pause sheet's chip says them. */
 /** What a chase's moments and strip call each mode. */
 const CHASE_MODE_NAMES: Record<CareerMode, string> = { classic: 'The Blast', marathon: 'Test Marathon', survive: 'Test Survival' };
+/** The board's name as the rank hero's eyebrow says it. */
+const HERO_MODE: Record<CareerMode, string> = { classic: 'THE BLAST', marathon: 'TEST MARATHON', survive: 'TEST SURVIVAL' };
+/** `?topspot=1`'s keys: New #1 in each board's colours. */
+const TOP_SPOT_KEYS: readonly { label: string; mode: CareerMode }[] = [
+  { label: 'BLAST', mode: 'classic' }, { label: 'MARATHON', mode: 'marathon' }, { label: 'SURVIVAL', mode: 'survive' },
+];
 
 const PAUSE_NAMES: Record<GameMode, string> = { CLASSIC: 'The Blast', SURVIVE: 'Test Survival', MARATHON: 'Test Marathon' };
 const CHEER: Record<Milestone, number> = { fifty: 2.3, raise: 2.3, century: 2.8, 'six-sixes': 2.8, double: 3.1, triple: 3.3, four: 3.5 };
