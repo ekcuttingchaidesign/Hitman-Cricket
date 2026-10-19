@@ -1098,18 +1098,22 @@ picked by the height the ball reaches him at, as the defences are
 (`PUNCH.minBallY`, the back-foot defence's line: back of a length and the
 bouncer), so the thumb never chooses between it and the drive; `punch` in
 `ShotResolver.ts` is the one rule the rig, `Game.shoot` and both resolvers
-read. Built from a net clip from the bowler's end and from behind: back and
-across to the line of the ball with the front foot drawn back, tall, a high
-pick-up; down straight onto the ball late beside the front pad, close to him,
-at `PUNCH_CONTACT_MS`, `PUNCH_MEETS_AT` back towards the stumps, at the ball's
+read. Built from two net clips, the first from the bowler's end and from
+behind, the second from the bowler's end: a step straight back with the back
+foot, the front foot left where it is, tall, a high pick-up; down straight, the
+hands close in front of the front hip, onto the ball late by the front thigh at
+`PUNCH_CONTACT_MS`, `PUNCH_MEETS_AT` back towards the stumps, at the ball's
 height up to `PUNCH_HIGHEST` (a bouncer is met up the face, the hands by his
-chest: up at his chin the arm folded and the elbow flipped, and the bat came
-down through the back elbow), the face to cover and the handle a little ahead;
-then driven, the toe swinging out in front down the line towards the bowler and
-cover as the hands rise over the helmet, the bat still pointing out there at
-the finish. Built first as a vertical bat lifted straight up, which read as no
-drive at all, met 40cm out from his hips; stepped further across than now, the
-top arm folded shut. The face turns to cover once, in the pick-up (`riding`'s
+chest, and the body a little further from it, `PUNCH_HIGH_ROOM`: closer, the
+top arm folded shut and its elbow flipped), the face to cover and the handle a
+little ahead; then driven, the toe swinging out towards cover as the hands come
+up close to him, by his chest and then at the helmet just in front of his face,
+the top elbow high, and the front foot sliding back to the back one, so the
+feet finish together and the bat leant out towards cover. Built first as a
+vertical bat lifted straight up, which read as no drive at all; then driven but
+with the hands at arm's length, 60cm out in front of his face at the finish,
+which is not how it is played: the batter tests hold the hands to a quarter of
+a metre from his hips at contact and near his head at the finish. The face turns to cover once, in the pick-up (`riding`'s
 `at`: a roll made earlier is carried along unchanged, so the downswing turns
 nothing), and never again: the batter tests hold the downswing to the guard to
 under five degrees of turn in the hands. It holds the finish (`PUNCH_HOLD_MS`)

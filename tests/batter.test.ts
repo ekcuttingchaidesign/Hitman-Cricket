@@ -969,6 +969,9 @@ describe('the back-foot punch', () => {
       expect(pose.backFoot[2], where).toBeLessThan(guard.backFoot[2] - .12);
       expect(pose.frontFoot[2], where).toBeLessThan(guard.frontFoot[2]);
       expect(pose.hip[1], where).toBeGreaterThan(guard.hip[1]);
+      // The hands close in front of him, as the clips have them: back of a length a quarter of a metre
+      // from his hips, and a little more at a bouncer, whose hands are up by his chest.
+      expect(pose.grip[0] - pose.hip[0], where).toBeLessThan(ballY < 1 ? .27 : .35);
       // A straight bat, the handle a little ahead, the face turned to cover.
       expect(pose.batUp[1], where).toBeGreaterThan(.9);
       expect(pose.batUp[2], where).toBeGreaterThan(.1);
@@ -981,7 +984,7 @@ describe('the back-foot punch', () => {
     }
   });
 
-  it('finishes with the hands over the helmet and the bat still out down the line, facing cover', () => {
+  it('finishes with the hands up at the helmet close to his face, the bat leant out towards cover, the feet together', () => {
     for (const ballY of [.81, 1.13]) {
       const batter = swung(ballY); batter.update(500);
       const pose = batter.inspect(), helmet = (batter as unknown as { head: Object3D }).head.getWorldPosition(new Vector3()), where = `y ${ballY}`;
@@ -989,11 +992,17 @@ describe('the back-foot punch', () => {
       // out in front of his face, clear of it, the arms are at their full length.
       expect(Math.max(...pose.hands.map(hand => hand[1])), where).toBeGreaterThan(helmet.y + .15);
       expect(Math.min(...pose.hands.map(hand => hand[1])), where).toBeGreaterThan(helmet.y + .05);
-      // The bat still out down the line it was driven along, toe forward and down, as the clip has it from behind.
-      expect(pose.batUp[1], where).toBeGreaterThan(.6);
-      expect(pose.batUp[2], where).toBeLessThan(-.4);
-      expect(pose.bladeTip[1], where).toBeLessThan(pose.hands[0][1] - .4);
+      // The bat leant out towards cover, toe down and out to the off and forward, as both clips have it.
+      expect(pose.batUp[1], where).toBeGreaterThan(.75);
+      expect(pose.batUp[0], where).toBeLessThan(-.3);
+      expect(pose.batUp[2], where).toBeLessThan(-.2);
+      expect(pose.bladeTip[1], where).toBeLessThan(pose.hands[0][1] - .5);
       expect(pose.batFace[0], where).toBeGreaterThan(.45);
+      // The hands close to him, up at the helmet just in front of his face, not out at arm's length;
+      // the front foot drawn back to the back one.
+      const head = new Vector3(...pose.chest).add(new Vector3(...pose.chest).sub(new Vector3(...pose.hip)).normalize().multiplyScalar(.31));
+      expect(new Vector3(...pose.grip).distanceTo(head), where).toBeLessThan(.45);
+      expect(new Vector3(...pose.frontFoot).distanceTo(new Vector3(...pose.backFoot)), where).toBeLessThan(.35);
     }
   });
 

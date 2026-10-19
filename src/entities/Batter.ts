@@ -1526,20 +1526,21 @@ STROKES.DEFEND = DEFENCE_FRONT;
 
 /**
  * The back-foot punch (`PUNCH` in the config): the cover drive's swipe at a ball
- * short of a length, from a net session filmed from the bowler's end and from
- * behind on the off side. The back foot goes back and across towards off stump
- * and the front foot is drawn back beside it, across to the line of the ball so
- * it is met close to him, and he stands up tall with the weight on the back leg
- * and the bat taken up high. It comes down straight and meets the ball late
- * (`PUNCH_MEETS_AT`) beside the front pad, the hands by his chest, the face to
- * cover and the handle a little ahead of the blade so it stays down, the front
- * foot light on its toe; a bouncer is met up the face (`PUNCH_HIGHEST`). Then
- * it is driven: the toe swings on out in front, down the line towards the
- * bowler and cover, and the hands rise with it until they are above the peak
- * of the helmet, out in front of his face, the bat still pointing out down the
- * line. The wrists never roll it (`riding`): the arms take it through and up.
- * Held there (`PUNCH_HOLD_MS`), it comes home in one movement through the bat
- * hanging from his hands (`PUNCH_HOME_VIA`).
+ * short of a length, from two net sessions, one filmed from the bowler's end and
+ * from behind, one from the bowler's end. The back foot takes a step straight
+ * back towards the stumps and the front foot is left where it is; he stands up
+ * tall with the weight on the back leg and the bat taken up high. It comes down
+ * straight, the hands close in front of the front hip, and meets the ball late
+ * (`PUNCH_MEETS_AT`) by the front thigh, the face to cover and the handle a
+ * little ahead of the blade so it stays down; a bouncer is met up the face
+ * (`PUNCH_HIGHEST`), the body a little further from it (`PUNCH_HIGH_ROOM`).
+ * Then it is driven: the toe swings out towards cover, the hands coming up close
+ * to him, by his chest and then up at the helmet just in front of his face with
+ * the top elbow high, and the front foot slides back to close the gap with the
+ * back one, so the feet finish together. The bat finishes leant out towards
+ * cover, toe down. The wrists never roll it (`riding`): the arms take it through
+ * and up. Held there (`PUNCH_HOLD_MS`), it comes home in one movement through the
+ * bat hanging from his hands (`PUNCH_HOME_VIA`).
  */
 export const PUNCH_MEETS_AT = -.05;
 export const PUNCH_CONTACT_MS = 150;
@@ -1551,6 +1552,8 @@ export const PUNCH_HOLD_MS = 200;
  * at his chin, where the bat came down from behind him through the back elbow.
  */
 export const PUNCH_HIGHEST = 1.0;
+/** How much less far across he steps to a ball met that high: up by his chest, closer still, the top arm folded shut and its elbow flipped. */
+const PUNCH_HIGH_ROOM = .08;
 /**
  * Where the punch's bat points halfway home: hanging from his hands, the toe a
  * little back towards the keeper, as he lets them down from over his head and
@@ -1566,30 +1569,30 @@ const PUNCH_THROUGH_TOP = 1.6;
 const PUNCH_PICKUP_BELOW = 9;
 const PUNCH_CLOCK = { load: 80, met: PUNCH_CONTACT_MS, through: 240, rise: 330, finish: 430, hold: 600 } as const;
 const PUNCH_STROKE: Stroke & { load: Pose; through: Pose; rise: Pose } = {
-  // Back and across, the front foot drawn back to it, tall, the bat up high.
-  load: { ...BACKLIFT, hip: [-.01, .97, -.13], chest: [.06, 1.33, -.08],
-    frontFoot: [-.08, .09, .14], backFoot: [.08, .08, -.42],
-    grip: [.32, 1.20, .00], batUp: [-.32, -.76, .56], batFace: [.28, .86, .30],
+  // A step straight back with the back foot, the front foot left where it is for now, tall, the bat up high.
+  load: { ...BACKLIFT, hip: [.04, .97, -.14], chest: [.11, 1.33, -.09],
+    frontFoot: [-.06, .09, .22], backFoot: [.12, .08, -.45],
+    grip: [.30, 1.20, -.02], batUp: [-.32, -.76, .56], batFace: [.28, .86, .30],
     yaw: 1.18, heel: .04, backFootYaw: 1.25, leadElbow: .30 },
-  // Across to the line of the ball, so it is met close to him, the hands by his chest.
-  contact: { ...GUARD, hip: [.04, .99, -.12], chest: [.13, 1.34, -.03],
-    frontFoot: [-.03, .11, .12], backFoot: [.10, .08, -.42],
+  // The hands come down close in front of the front hip, the ball met by the front thigh.
+  contact: { ...GUARD, hip: [.10, .99, -.13], chest: [.19, 1.34, -.05],
+    frontFoot: [.02, .11, .16], backFoot: [.14, .08, -.45],
     grip: [.38, 1.20, .25], batUp: [-.05, .96, .27], batFace: [.62, -.22, .75],
     yaw: 1.05, face: 0, heel: .04, toe: .12, backFootYaw: 1.25, leadElbow: .40, look: .35 },
-  // Driven on through the line: the toe swung out in front, towards the bowler and cover.
-  through: { ...GUARD, hip: [.05, .99, -.11], chest: [.15, 1.35, -.01],
-    frontFoot: [-.03, .11, .12], backFoot: [.10, .08, -.42],
-    grip: [.50, 1.40, .40], batUp: [-.12, .72, -.68], batFace: [.70, .45, .35],
-    yaw: 1.00, face: 0, heel: .04, toe: .12, backFootYaw: 1.25, leadElbow: .50, look: .30 },
-  rise: { ...GUARD, hip: [.05, .99, -.11], chest: [.14, 1.35, -.02],
-    frontFoot: [-.03, .10, .12], backFoot: [.10, .08, -.42],
-    grip: [.56, 1.62, .34], batUp: [-.12, .62, -.77], batFace: [.70, .50, .30],
-    yaw: 1.00, face: 0, heel: .04, toe: .08, backFootYaw: 1.25, leadElbow: .60, look: .25 },
-  // The hands above the peak of the helmet, out in front of his face, the bat still pointing out down the line.
-  finish: { ...GUARD, hip: [.05, .98, -.11], chest: [.13, 1.35, -.03],
-    frontFoot: [-.03, .09, .12], backFoot: [.10, .08, -.42],
-    grip: [.74, 1.92, .30], batUp: [-.15, .80, -.58], batFace: [.70, .38, .25],
-    yaw: 1.00, face: 0, heel: .04, toe: .04, backFootYaw: 1.25, leadElbow: -.10, look: .20 },
+  // Driven: the toe swung out towards cover, the hands coming up close to him, and the front foot sliding back to the back one.
+  through: { ...GUARD, hip: [.11, .99, -.15], chest: [.20, 1.35, -.06],
+    frontFoot: [.05, .10, -.05], backFoot: [.14, .08, -.45],
+    grip: [.44, 1.35, .28], batUp: [-.45, .72, -.50], batFace: [.62, .62, .40],
+    yaw: .98, face: 0, heel: .04, toe: .10, backFootYaw: 1.25, leadElbow: .50, look: .30 },
+  rise: { ...GUARD, hip: [.11, .99, -.16], chest: [.19, 1.35, -.07],
+    frontFoot: [.07, .09, -.15], backFoot: [.14, .08, -.45],
+    grip: [.46, 1.64, .20], batUp: [-.45, .68, -.55], batFace: [.62, .62, .40],
+    yaw: .94, face: 0, heel: .04, toe: .06, backFootYaw: 1.25, leadElbow: .60, look: .25 },
+  // The hands up at the helmet, just in front of his face, the top elbow high; the feet together; the bat leant out towards cover.
+  finish: { ...GUARD, hip: [.11, .98, -.17], chest: [.17, 1.35, -.08],
+    frontFoot: [.08, .09, -.18], backFoot: [.14, .08, -.45],
+    grip: [.52, 1.84, .18], batUp: [-.41, .86, -.31], batFace: [.62, .52, .30],
+    yaw: .90, face: 0, heel: .04, toe: .02, backFootYaw: 1.25, leadElbow: .60, look: .20 },
 };
 /** A turn of the face about the handle inside `window`, so that at `at` (the window's end if not given) it looks `away`: see `riding`. */
 type Roll = { window: readonly [number, number]; away: (pose: Pose, up: THREE.Vector3) => THREE.Vector3; at?: number };
@@ -3380,7 +3383,9 @@ export class Batter {
     // bat down onto the front knee. Pull version one goes all the way too: by
     // the drives' share, a ball outside leg was met with the hands across his
     // chest and the front elbow swung over the top of it.
-    const step = this.spinCutting ? targetX - SPIN_CUT_ROOM : this.paceCut ? targetX - CUT_ROOM : targetX * (this.squaring ? .86 : this.sweeping && !this.levelled ? 1 : this.pulling && !this.pullV2 ? 1 : this.shot === 'DEFEND' || this.punching ? 1 : .65);
+    // The punch steps across to the ball's line, but a little less across to one up at his chest (`PUNCH_HIGH_ROOM`).
+    const step = this.spinCutting ? targetX - SPIN_CUT_ROOM : this.paceCut ? targetX - CUT_ROOM
+      : this.punching ? targetX - PUNCH_HIGH_ROOM * THREE.MathUtils.clamp((this.ballY - .81) / (PUNCH_HIGHEST - .81), 0, 1) : targetX * (this.squaring ? .86 : this.sweeping && !this.levelled ? 1 : this.pulling && !this.pullV2 ? 1 : this.shot === 'DEFEND' ? 1 : .65);
     const shift = (p: Point, amount: number): Point => [p[0] + amount, p[1], p[2]];
     const shiftsBackFoot = this.pulling || this.squaring || this.sweeping || this.charging || this.lofted || this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF'
       || this.shot === 'SCOOP' || this.shot === 'REVERSE_SCOOP' || this.turning || this.spinCutting || this.onDrive || this.shot === 'LATE_CUT' || this.shot === 'DEFEND';
