@@ -1511,8 +1511,8 @@ export function loftVersionOf(seed: number, ball: number): LoftVersion {
 }
 /** The pull's two versions: one standing where he hit it (`PULL_V1`), two the hook's stroke with the turn (`PULL`). */
 export type PullVersion = 1 | 2;
-/** How often each is played: four in ten version one, six in ten version two. Both score the same. */
-export const PULL_ODDS: Record<PullVersion, number> = { 1: .4, 2: .6 };
+/** How often each is played: half the pulls version one, half version two. Both score the same. */
+export const PULL_ODDS: Record<PullVersion, number> = { 1: .5, 2: .5 };
 /** The version a ball plays, off the seed and the ball as the lofted drive's is, with a constant of its own. */
 export function pullVersionOf(seed: number, ball: number): PullVersion {
   return coverRoll(seed ^ 0x2c9e4a7, ball) < PULL_ODDS[1] ? 1 : 2;

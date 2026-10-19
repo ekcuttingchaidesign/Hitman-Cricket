@@ -997,8 +997,8 @@ and in Survival;
 ## The pull
 
 The pull (`this.pulling`: the leg-side input at a ball met above
-`PULL_HEIGHT`) comes in two versions (`PullVersion`), four in ten and six in
-ten (`PULL_ODDS`, `pullVersionOf` off the innings' seed and the ball, mixed
+`PULL_HEIGHT`) comes in two versions (`PullVersion`), each played half the
+time (`PULL_ODDS`, `pullVersionOf` off the innings' seed and the ball, mixed
 apart from the cover strokes' and the loft's rolls), both scored the same;
 `?pullv=1` or `2` asks for one and is not practice. The swing's version
 argument is the pull's for the leg-side input (`Game.shoot`). Both were built
