@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, PULL_CONTACT_MS, PULL_LOAD_MS, REVERSE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CLOCK, SCOOP_CONTACT_MS, SLOG_CLOCK, SLOG_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from './entities/Batter';
+import { Batter, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_HOLD_MS, PULL_CONTACT_MS, PULL_HEIGHT, PULL_LOAD_MS, PULL_MEETS_AT, REVERSE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CLOCK, SCOOP_CONTACT_MS, SLOG_CLOCK, SLOG_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from './entities/Batter';
 import { ADVANCE, GAME } from './config/gameplay';
 import type { ShotType } from './game/types';
 
@@ -77,8 +77,8 @@ const PLAYS: Record<string, Play> = {
   },
   pull: {
     label: 'Pull', shot: 'LEG', ballX: -.30, ballY: 1.12,
-    phases: [['Load', PULL_LOAD_MS], ['Contact', PULL_CONTACT_MS], ['Extension', 340], ['Wrap', 500], ['Recovery', 720]],
-    note: 'Reworked: the elbows fold so the blade lifts out of the sweep and wraps behind the front shoulder, instead of finishing flat across the chest.',
+    phases: [['Load', PULL_LOAD_MS], ['Contact', PULL_CONTACT_MS], ['Out front', 255], ['To leg', 315], ['Wrap', 520], ['Turned', 720], ['Recovery', 1100]],
+    note: 'Rebuilt from a net clip as the hook is: the bat high, the ball met out in front with the arms long and the face to the bowler, swung round flat to leg, wrapped behind his head and turned on round until his back is to the bowler.',
   },
   cut: {
     label: 'Square cut', shot: 'SQUARE_CUT', ballX: .42, ballY: .92,
@@ -112,12 +112,12 @@ const VIEWS: Record<string, { label: string; eye: [number, number, number]; at: 
  *  everything but the two cross-bat strokes lets a high ball go over the bat. */
 const contactOf = (play: Play) => play.sweeping || play.levelled ? SWEEP_CONTACT_MS
   : play.shot === 'SCOOP' ? SCOOP_CONTACT_MS : play.shot === 'REVERSE_SCOOP' ? REVERSE_CONTACT_MS
-  : play.shot === 'LEG' && play.ballY > .85 ? PULL_CONTACT_MS
+  : play.shot === 'LEG' && play.ballY > PULL_HEIGHT ? PULL_CONTACT_MS
   : play.charging ? CHARGE_CONTACT_MS
   : play.shot === 'COVER_LONG_OFF' && play.ballX >= .30 && play.ballY <= .70 ? SQUARE_DRIVE_CONTACT_MS
   : STROKE_CONTACT_MS;
 /** How far down the pitch from the drives' point the stroke meets the ball. */
-const meetsOf = (play: Play) => play.charging ? CHARGE_MEETS_AT : play.sweeping ? SLOG_MEETS_AT : 0;
+const meetsOf = (play: Play) => play.charging ? CHARGE_MEETS_AT : play.sweeping ? SLOG_MEETS_AT : play.shot === 'LEG' && play.ballY > PULL_HEIGHT ? PULL_MEETS_AT : 0;
 const ballHeight = (play: Play) => play.ballY > .85 && (play.shot === 'LEG' || play.shot === 'SQUARE_CUT')
   ? play.ballY : Math.min(play.ballY, .62);
 
@@ -185,7 +185,7 @@ function restart() {
   const play = current();
   // The charge keeps travelling after the stroke, so its scrub covers the walk
   // back to the crease as well.
-  scrub.max = String(play.charging ? STROKE_DURATION_MS + ADVANCE.walkBackMs : STROKE_DURATION_MS);
+  scrub.max = String(play.charging ? STROKE_DURATION_MS + ADVANCE.walkBackMs : play.shot === 'LEG' && play.ballY > PULL_HEIGHT ? STROKE_DURATION_MS + HOOK_HOLD_MS : STROKE_DURATION_MS);
   batter.reset(); batter.prepare(1); batter.update(0);
   batter.swing(play.shot, 0, play.ballX, play.ballY, GAME.contactZ + meetsOf(play), play.charging ?? false, play.lofted ?? false, play.sweeping ?? false, play.levelled ?? false);
   note.textContent = play.note;

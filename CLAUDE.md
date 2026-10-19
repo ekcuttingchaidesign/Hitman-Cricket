@@ -994,6 +994,46 @@ plays it in a browser on `?bouncers=1`, keys and a real swipe, in the Blast
 and in Survival;
 `cover-drive.html` has it beside the drives.
 
+## The pull
+
+The pull (`this.pulling`: the leg-side input at a ball met above
+`PULL_HEIGHT`) comes in two versions (`PullVersion`), each played half the
+time (`PULL_ODDS`, `pullVersionOf` off the innings' seed and the ball, mixed
+apart from the cover strokes' and the loft's rolls), both scored the same;
+`?pullv=1` or `2` asks for one and is not practice. The swing's version
+argument is the pull's for the leg-side input (`Game.shoot`). Both were built
+from a net session filmed from the bowler's end, square on the off side and
+close on the arms.
+
+Version two (`PULL`, `PULL_SWUNG`, `pullV2`) is the hook's stroke at a ball on
+the body: it runs the hook's branch and clock (`turning` in `Batter.ts`,
+`HOOK_CLOCK`, `HOOK_HOLD_MS`). Back and across with the bat high, square to
+the bowler; the ball met `PULL_MEETS_AT` out in front of him (`meetsAt` in
+`src/Game.ts`, `pulled`, decided off the ball's height there so the game and
+the batter agree on which stroke it is), both arms long and the flat face to
+the bowler; swung round flat, out in front and out to leg, then wrapped behind
+his head with the curved back of the blade on the front shoulder, and turned
+on round until his back is to the bowler. Its round key keeps the hands out
+wider than the hook's, which brought the back elbow within a forearm of the
+handle, and its last key lets the hands down further out, which the hook's way
+home took past the side of his helmet.
+
+Version one (`PULL_V1`, `PULL_V1_CLOCK`) keeps the first build's body, side on
+and opening only as far as square, and its clock, met beside him at
+`PULL_V1_CONTACT_MS`, with the bat swung as version two's is: up high, down in
+front of his chest (`down`: from the backlift straight to a ball on leg stump
+the hands crossed in front of his face), level at the ball with the face to
+the bowler and the hands out in front, round flat out to leg with the back arm
+long, and wrapped over the front shoulder with the back of the blade on it.
+No turn: he holds it standing where he hit it, `PULL_V1_HOLD_MS` past the
+stroke's own clock, and comes home at its own pace. Its body follows the ball
+across all the way, as the slog sweep's does: by the drives' share a ball
+outside leg was met with the hands across his chest. The first build met the
+ball with the face to square leg and the hands at his chest, from a backlift
+at his hip, and stopped with the bat upright beside his shoulder.
+
+They are `pull` and `pullV1` in the batter tests' `PLAYS`, and
+`cover-drive.html` has both.
 ## Swipe zones
 
 Where a swipe's direction splits between strokes is `mapSwipe` in

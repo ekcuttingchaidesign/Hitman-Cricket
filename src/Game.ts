@@ -30,13 +30,13 @@ import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SURVIVE_PLAN, bouncersEvery,
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
-import { effectiveLine, flightProgress } from './game/DeliveryTrajectory';
+import { ballPosition, effectiveLine, flightProgress } from './game/DeliveryTrajectory';
 import { InputManager } from './game/InputManager';
 import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
-import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, type LoftVersion, type Celebration, celebrationLength } from './entities/Batter';
+import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
 import { advanceShot, gradeOf, hookable, loftedDrive, playedAs, spinCut, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
@@ -543,6 +543,16 @@ export class Game {
    */
   private loftVersion(): LoftVersion {
     return this.loftAsked === 1 || this.loftAsked === 2 ? this.loftAsked : loftVersionOf(this.seed, this.score.balls);
+  }
+  /** ?pullv=1 or 2: always that version of the pull, for looking at one. */
+  private readonly pullAsked = Number(new URLSearchParams(location.search).get('pullv'));
+  /**
+   * Which of the pull's two versions this bouncer is pulled with, by
+   * PULL_ODDS: standing where he hit it, or the hook's stroke with the turn
+   * (PULL). Only the picture changes, and where the ball is met.
+   */
+  private pullVersion(): PullVersion {
+    return this.pullAsked === 1 || this.pullAsked === 2 ? this.pullAsked : pullVersionOf(this.seed, this.score.balls);
   }
   private nets: { bowler: NetsBowler; round: boolean } = { bowler: 'PACE', round: true };
   /** Hand the nets' choice to the bowling and show it on the keys. */
@@ -2469,7 +2479,8 @@ export class Game {
       && sweeps(this.delivery!, this.attempt, gradeOf(this.delivery!, this.attempt, this.windows));
     this.primed = null;
     // The lofted straight drive's version is its own; every other stroke's is the cover strokes'.
-    const version = shotType === 'STRAIGHT' && lofted ? this.loftVersion() : this.coverVersion();
+    // The pull's version is its own, as the lofted straight drive's is.
+    const version = shotType === 'STRAIGHT' && lofted ? this.loftVersion() : shotType === 'LEG' && !sweeping ? this.pullVersion() : this.coverVersion();
     // Version three of the cover drive meets the ball beside the front pad, a
     // little before the crease, so the ball is struck there. The swipe is
     // judged as for the other two: the version is drawn after it, so nobody
@@ -2481,8 +2492,13 @@ export class Game {
     // The hook meets it out in front of him, arms long, so it climbs away over
     // him to fine leg rather than through him. The slog sweep meets it out in
     // front of the front pad, at the end of its lunge down the pitch.
+    // Version two of the pull meets it out in front of him too, the arms
+    // straight: when the ball is up at pull height there, which is what makes
+    // the stroke a pull. Version one meets it beside him.
+    const pulled = shotType === 'LEG' && !charging && !sweeping && version === 2
+      && ballPosition(this.delivery!, 1 - PULL_MEETS_AT / (GAME.releaseZ - GAME.contactZ)).y > PULL_HEIGHT;
     const ahead = driven && version === 3 ? COVER_V3_MEETS_AT : shotType === 'LONG_ON' && !charging ? ON_DRIVE_MEETS_AT
-      : shotType === 'HOOK' ? HOOK_MEETS_AT : shotType === 'LATE_CUT' ? LATE_CUT_MEETS_AT : sweeping ? SLOG_MEETS_AT : 0;
+      : shotType === 'HOOK' ? HOOK_MEETS_AT : pulled ? PULL_MEETS_AT : shotType === 'LATE_CUT' ? LATE_CUT_MEETS_AT : sweeping ? SLOG_MEETS_AT : 0;
     this.meetsAt = 1 - ahead / (GAME.releaseZ - GAME.contactZ);
     // Versions two and three keep it down: four, never six (`grounded`).
     if (driven && version >= 2) this.attempt = { ...this.attempt, grounded: true };

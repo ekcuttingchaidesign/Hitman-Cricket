@@ -65,6 +65,7 @@ describe('every switch the game reads', () => {
     welcome: 'the welcome in each way it can go, on demand, sending and keeping nothing',
     dressing: 'the Dressing Room and its unlocks over a made-up record, earning, wearing and keeping nothing',
     loftv: 'which of the lofted straight drive\'s two finishes is drawn; the six is the same six either way',
+    pullv: 'which of the pull\'s two versions is drawn; the swipe is judged and the ball scored the same either way',
     ui: 'the UI kit laid out as a page, instead of the game, reading and sending nothing',
     gloves: 'which pair of gloves the strokes viewer opens with, a dev page that bats nothing',
   };
