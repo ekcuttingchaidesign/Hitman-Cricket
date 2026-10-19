@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
+import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, PULL_V1_CONTACT_MS, PULL_V1_LOAD_MS, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -15,7 +15,9 @@ const STROKES: ShotType[] = [...SHOTS, 'DEFEND'];
  * own below.
  */
 const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; reach: number[]; lofted?: boolean; sweeping?: boolean; levelled?: boolean; charging?: boolean; settle: number; version?: 1 | 2 | 3; meets?: number; spinCut?: boolean }> = {
-  pull: { shot: 'LEG', ballY: 1.12, impact: PULL_CONTACT_MS, reach: [-.55, 0, .32], settle: 500, meets: PULL_MEETS_AT },
+  pull: { shot: 'LEG', ballY: 1.12, impact: PULL_CONTACT_MS, reach: [-.55, 0, .32], settle: 500, meets: PULL_MEETS_AT, version: 2 },
+  // Pull version one: met beside him, standing where he hit it.
+  pullV1: { shot: 'LEG', ballY: 1.12, impact: PULL_V1_CONTACT_MS, reach: [-.55, 0, .32], settle: 500, version: 1 },
   straight: { shot: 'STRAIGHT', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.17, 0, .17], settle: 410 },
   cover: { shot: 'COVER_LONG_OFF', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.08, .10, .28], settle: 410 },
   // Version three of it: the same ball, met beside the front pad.
@@ -685,7 +687,7 @@ describe('arm placement', () => {
 
 describe('the pull', () => {
   it('carries nonzero, continuous blade velocity through contact and extension', () => {
-    for (const kind of ['pull', 'square'] as const) {
+    for (const kind of ['pull','pullV1', 'square'] as const) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind);
       for (const time of kind === 'square' ? [SQUARE_DRIVE_CONTACT_MS, 240] : [PULL_CONTACT_MS, 340]) {
@@ -743,6 +745,48 @@ describe('the pull', () => {
     expect(new Vector3(...wrap.batFace).dot(new Vector3(...wrap.shoulders[0]).sub(middle).normalize())).toBeLessThan(-.7);
     // and turned on round until his back is to the bowler.
     expect(at(720).pose.yaw).toBeLessThan(-2.5);
+  });
+  it('swings version one\'s bat as version two does, without the turn', () => {
+    // The first build's body, standing where he hit it, with the bat swung
+    // as the clip swings it: up high, the flat face to the ball with the arms
+    // out at it, round flat to leg with the back arm long, and wrapped over
+    // the front shoulder with the back of the blade on it.
+    const at = (time: number, ballX = 0) => {
+      const batter = new Batter();
+      batter.prepare(1); batter.update(0); batter.swing('LEG', 0, ballX, 1.12, GAME.contactZ, false, false, false, false, 1); batter.update(time);
+      return { pose: batter.inspect(), strikeAt: batter.strikeAt };
+    };
+    const elbow = (pose: ReturnType<typeof at>['pose'], arm: number) => {
+      const joint = new Vector3(...pose.elbows[arm]);
+      return MathUtils.radToDeg(new Vector3(...pose.shoulders[arm]).sub(joint).angleTo(new Vector3(...pose.wrists[arm]).sub(joint)));
+    };
+    const root = new Vector3(GAME.stanceX, 0, GAME.stanceZ);
+    // Up high behind the back shoulder: the first build's backlift stopped at his hip.
+    const load = at(PULL_V1_LOAD_MS).pose;
+    expect(load.grip[1]).toBeGreaterThan(load.chest[1] + .1);
+    for (const ballX of [-.4, 0, .3]) {
+      const { pose: contact, strikeAt } = at(PULL_V1_CONTACT_MS, ballX), where = `x ${ballX}`;
+      expect(strikeAt).toBe(PULL_V1_CONTACT_MS);
+      // The face to the ball, which the first build met looking at square leg,
+      expect(contact.batFace[2], where).toBeGreaterThan(.85);
+      // with the bat level and the hands out in front of his chest, not at it.
+      expect(Math.abs(contact.batUp[1]), where).toBeLessThan(.15);
+      expect(contact.grip[2], where).toBeGreaterThan(contact.chest[2] + .35);
+      // Round flat to leg with the back arm straight,
+      const through = at(340, ballX).pose;
+      expect(through.grip[0], where).toBeLessThan(through.chest[0] - .3);
+      expect(elbow(through, 1), where).toBeGreaterThan(150);
+      expect(Math.abs(through.batUp[1]), where).toBeLessThan(.2);
+      // and wrapped over the front shoulder with the back of the blade on it,
+      // the hands up by his head rather than at his chest.
+      const finish = at(500, ballX).pose;
+      const middle = new Vector3(...finish.grip).lerp(new Vector3(...finish.bladeTip).sub(root), .5);
+      expect(new Vector3(...finish.batFace).dot(new Vector3(...finish.shoulders[0]).sub(middle).normalize()), where).toBeLessThan(-.7);
+      expect(finish.grip[1], where).toBeGreaterThan(finish.chest[1] + .3);
+      // No turn: he never gets round past square, where version two turns
+      // his back to the bowler.
+      expect(finish.yaw, where).toBeGreaterThan(-.6);
+    }
   });
   it('keeps the high pull continuous through extension and recovery', () => {
     for (const x of [-.55, 0, .32]) {
@@ -907,7 +951,7 @@ describe('the grip', () => {
   // Every stroke frame by frame: a second or two alone, near the default five
   // seconds when the whole suite runs at once, so it is given room.
   it('does not flip an elbow or wrist between frames, including entering and leaving guard', () => {
-    for (const kind of ['pull','hook','spinCut','lateCut','cut','cutLow','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse']) for (const x of PLAYS[kind].reach) {
+    for (const kind of ['pull','pullV1','hook','spinCut','lateCut','cut','cutLow','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse']) for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       let previous = batter.inspect();
       play(batter, kind, x);
@@ -1072,7 +1116,7 @@ describe('every stroke, across its reach', () => {
       else expect(face[2]).toBeGreaterThan(.8);
     }
   });
-  it.each(['pull','hook','spinCut','lateCut','cut','cutLow','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','loftedV2','scoop','reverse'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
+  it.each(['pull','pullV1','hook','spinCut','lateCut','cut','cutLow','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','loftedV2','scoop','reverse'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
     const geometry=bladeGeometry(), positions=geometry.getAttribute('position'), index=geometry.getIndex()!;
     const samples=Array.from({length:positions.count},(_,i)=>new Vector3().fromBufferAttribute(positions,i));
     for(let i=0;i<index.count;i+=3) samples.push(
@@ -1132,7 +1176,7 @@ describe('every stroke, across its reach', () => {
  */
 describe('the front pad', () => {
   const flat = (v: Vector3) => new Vector3(v.x, 0, v.z).normalize();
-  it.each(['pull', 'hook','spinCut','lateCut','cut','cutLow', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('faces where the %s shoe faces', kind => {
+  it.each(['pull','pullV1', 'hook','spinCut','lateCut','cut','cutLow', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('faces where the %s shoe faces', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -1241,7 +1285,7 @@ describe('the slog sweep', () => {
    * onto one line — 0.04m between the forearms where the other strokes keep
    * 0.13m and up — and read as a man paddling rather than swinging.
    */
-  it.each(['pull', 'hook','spinCut','lateCut','cut','cutLow', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('keeps the %s forearms apart and the elbows unswapped', kind => {
+  it.each(['pull','pullV1', 'hook','spinCut','lateCut','cut','cutLow', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('keeps the %s forearms apart and the elbows unswapped', kind => {
     /** Closest approach of the elbow halves, which is the half that can cross. */
     const between = (a: Vector3, b: Vector3, c: Vector3, d: Vector3) => {
       const u = b.clone().sub(a), v = d.clone().sub(c), w = a.clone().sub(c);
@@ -1457,7 +1501,7 @@ describe('the arms', () => {
    * came within 0.09 m of the centre of the helmet on the square drive, which
    * is well inside it.
    */
-  it.each(['pull','hook','spinCut','lateCut','square','straight','lofted','loftedV2','cover','cover3','on','cut','cutLow','sweep'])('keeps the %s arms out of the helmet', kind => {
+  it.each(['pull','pullV1','hook','spinCut','lateCut','square','straight','lofted','loftedV2','cover','cover3','on','cut','cutLow','sweep'])('keeps the %s arms out of the helmet', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -1517,7 +1561,7 @@ describe('the arms', () => {
     }
   });
   /** An arm past its own length is a stretched limb, not a straight one. */
-  it.each(['pull','hook','spinCut','lateCut','square','straight','lofted','loftedV2','cover','cover3','on','cut','cutLow','sweep'])('never reaches the %s arms past their own length', kind => {
+  it.each(['pull','pullV1','hook','spinCut','lateCut','square','straight','lofted','loftedV2','cover','cover3','on','cut','cutLow','sweep'])('never reaches the %s arms past their own length', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
