@@ -37,6 +37,7 @@ import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
 import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
+import { countSpinPull, freshSpinPulls, spinPullMarks } from './game/spin-pull-tally';
 import { advanceShot, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './game/types';
@@ -335,6 +336,8 @@ export class Game {
   private playedMs = 0;
   /** What that clock read when this innings began. */
   private inningsFrom = 0;
+  /** What this innings did with the spinner's short ball and the pull off him, counted at its end. */
+  private spinPulls = freshSpinPulls();
   /** The fifty as last fetched, and who the board thinks you are. */
   private board: BoardRow[] = [];
   /**
@@ -2077,6 +2080,7 @@ export class Game {
     this.innings++;
     this.putRatingAway();
     this.inningsFrom = this.playedMs;
+    this.spinPulls = freshSpinPulls();
     this.mark('innings-start', 'Innings started');
     if (this.innings > 1) this.mark('innings-replay', 'Innings replayed');
     this.lesson = -1;
@@ -3779,6 +3783,10 @@ export class Game {
     if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);
     else {
       this.score.record(this.outcome); this.generator.record(this.outcome);
+      const delivery = this.delivery!, attempt = this.attempt;
+      this.spinPulls = countSpinPull(this.spinPulls, { dragged: !!delivery.dragged, armBall: delivery.style === 'ARM_BALL',
+        pulled: !!attempt && spinPull(delivery, attempt, this.gradeFor(delivery, attempt)), swung: !!attempt,
+        runs: this.outcome.runs, out: this.outcome.isWicket, missed: !this.outcome.madeBatContact });
       // His own fifty, not the side's: a Marathon's history is three innings
       // end to end, and the No. 3 has not made the opener's runs.
       this.milestoneDue = milestoneOf(this.batterHistory);
@@ -4866,6 +4874,7 @@ export class Game {
     // below: the innings that just ended is a different innings in each of
     // them, but the screen it ends on is the same screen.
     this.audio.music('result');
+    spinPullMarks(this.spinPulls).forEach(([name, title]) => this.mark(name, title));
     if (this.marathon) {
       // The Blast's card with the worm and the batting card under the total,
       // the boards' strip on it, and the way to the career it has just added to.
@@ -5619,7 +5628,7 @@ export class Game {
     return { phase: this.phase, lesson: this.lesson, seed: this.seed, elapsed: Math.round(this.elapsed),
       // A stroke's film under its story: which, and how far into a go of it, on its own clock.
       reel: this.reel ? { shot: this.reel.shot, at: Math.round(this.elapsed - this.reel.start), struck: this.reel.struck } : null, balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
-      line: this.delivery?.line ?? '—', dragged: !!this.delivery?.dragged, spinPulled: !!this.outcome?.spinPulled, effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
+      line: this.delivery?.line ?? '—', dragged: !!this.delivery?.dragged, spinPulled: !!this.outcome?.spinPulled, spinPulls: this.spinPulls, effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
       baseX: this.delivery?.baseTargetX.toFixed(3) ?? '—', finalX: this.delivery?.finalTargetX.toFixed(3) ?? '—',
       contactAt: Math.round(this.delivery?.idealContactTimeMs ?? 0), timingDelta: this.outcome?.timingDeltaMs?.toFixed(0) ?? '—', timingGrade: this.outcome?.timingGrade ?? '—',
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',
