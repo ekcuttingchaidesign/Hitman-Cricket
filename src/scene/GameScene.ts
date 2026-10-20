@@ -139,7 +139,7 @@ export class GameScene {
   private world = new THREE.Group();
   /** Fireworks in the sky behind the far stand: see `fireworks`. */
   private bursts = new Fireworks(this.world);
-  private batter = new Batter();
+  private batter = Object.assign(new Batter(), { alive: true });
   private bowler = new Bowler();
   /**
    * What the bowler stands in: nothing, while he bowls — his action places
@@ -953,6 +953,7 @@ export class GameScene {
     // The bowler sets off and the field walks in with him.
     if (!this.bowling) this.field.walkIn(this.clock);
     this.bowling = true; this.runupProgress = t;
+    this.batter.runup(t);
   }
   /**
    * Which bowler is at the top of the mark. Set after `reset` and before the
@@ -999,7 +1000,7 @@ export class GameScene {
     return 1 + Math.min(1, (progress - 1) / window) * (BEATEN_STOP - 1);
   }
   delivery(delivery: Delivery, progress: number) {
-    this.batter.prepare(progress);
+    this.batter.prepare(progress); this.batter.runup(1);
     // Out of his hand: the field times its split step to the ball reaching the bat.
     if (!this.released) { this.released = true; this.field.set(this.clock, this.clock + Math.max(0, 1 - progress) * delivery.durationMs); }
     this.ball.visible = this.shadow.visible = true;
@@ -1324,6 +1325,8 @@ export class GameScene {
 
   /** Whether the field is back on its marks, so the next ball can be bowled. */
   get fieldSettled() { return this.field.settled(this.clock); }
+  /** The batter tapping his bat down between balls, which the bowler waits out. */
+  get batterTapping() { return this.batter.tapping; }
   /** The field as of the last frame, for `field-check.mjs`. */
   get fieldState() {
     const state = this.field.state(this.clock);

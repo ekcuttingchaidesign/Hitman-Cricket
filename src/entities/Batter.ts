@@ -189,6 +189,80 @@ const BACKLIFT: Pose = {
 };
 
 /**
+ * Alive in his guard: between balls he is not a statue. Built from a net clip
+ * filmed from in front. In the raised stance the bat is rocked up and down
+ * from the wrists (`WAGGLE`), the toe tipping up and back down, and the rest
+ * of him goes with it a little (`STIRS`): the knees give with each rock, the
+ * weight rolls slowly between his feet, and the shoulders ease round and back,
+ * his head staying on the bowler. Before some balls (`TAP.share`) he lets it
+ * down until the toe is on the turf behind his back foot, sinking a little
+ * over it (`TAPPED`), taps it twice, and lifts it back into the guard. A long
+ * wait, before an innings's first ball, has him tap again every so often.
+ * The wait between balls is a second or two once a stroke is home, so a tap
+ * fits after most balls, though not after the longest things he does then.
+ *
+ * The bowler waits for a tap he has begun (`tapping`), as a bowler waits for
+ * a batter to settle, so it is seen whole rather than cut to a dip.
+ *
+ * Still by the delivery stride: a tap is not begun once the bowler has set
+ * off and is put away by a third of the run-up, the waggle by two-thirds
+ * (`still`), so every stroke starts from the guard it always did.
+ * Only in the game (`alive`): the previews and the Dressing Room stand still.
+ */
+const WAGGLE = {
+  /** The toe tipped either way, about the hands. */
+  tip: .15,
+  /** The hands with it, up as the toe goes up. */
+  lift: .010,
+  /** One rock up and down, drawn afresh each wait. */
+  period: [640, 820],
+  /** In over this long once he is back in his guard. */
+  settle: 600,
+  /** Out between these points of the run-up. */
+  still: [.50, .68],
+} as const;
+/**
+ * The body with the waggle, so it is not the wrists alone: the hips sink and
+ * the chest and hands with them, a little less, once each rock; the weight
+ * rolls back and forward between his feet and the shoulders turn with it,
+ * over a few rocks. The head's own turn is the world's, not the shoulders',
+ * so his eyes stay on the bowler through it.
+ */
+const STIRS = {
+  /** How far the hips, chest and hands sink with each rock. */
+  sink: { hip: .012, chest: .009, grip: .007 },
+  /** The weight's roll, hips and chest, across and along the crease; and the shoulders' turn with it. */
+  roll: { x: .010, z: .014, chest: .7, turn: .035 },
+  /** One roll of the weight, in rocks. */
+  rocks: 3.3,
+} as const;
+const TAP = {
+  /** The share of balls he taps before. */
+  share: .55,
+  /** From back in his guard to the bat going down; then down, each tap, and up again. */
+  at: 300, down: 380, beat: 240, taps: 2, up: 420,
+  /** How high each tap lifts the toe off the turf, and for how much of its beat it is off it. */
+  lift: .035, air: .55,
+  /** And again every so long, in a long wait. */
+  every: 4200,
+  /** Put away between these points of the run-up; and never begun once he has set off. */
+  still: [.22, .42],
+} as const;
+/** From the bat's origin, where the hands hold it, to its toe: the blade's own length (`bladeGeometry`). */
+const BLADE_TOE = .834;
+const TAPPED: Pose = (() => {
+  const grip = new THREE.Vector3(.22, .65, .08);
+  // On the turf behind his back foot, the blade sloping back to it from the hands.
+  const back = new THREE.Vector3(.04, 0, -1).normalize(), drop = grip.y - .015;
+  const toe = grip.clone().setY(.015).addScaledVector(back, Math.sqrt(BLADE_TOE ** 2 - drop ** 2));
+  const up = grip.clone().sub(toe).normalize();
+  const turn = new THREE.Quaternion().setFromUnitVectors(V(GUARD.batUp).normalize(), up);
+  // Sunk a little more on his knees and over the bat, the head with it.
+  return { ...GUARD, hip: [-.06, .87, -.04], chest: [.05, 1.15, .09], grip: grip.toArray() as Point,
+    batUp: up.toArray() as Point, batFace: V(GUARD.batFace).applyQuaternion(turn).normalize().toArray() as Point, leadElbow: -.2, headDown: .06 };
+})();
+
+/**
  * Stood up out of his stance with the bat let down to hang from the same grip,
  * turned upright: the guard's own bat brought down off his shoulder rather
  * than a new way of holding it. Watching a loft go, and scrubbing the pitch,
@@ -2806,6 +2880,16 @@ export class Batter {
   /** Which celebration is on: see `ROUTINES`. */
   private celebration: Celebration = 'hundred';
   private anticipation = 0;
+  /** Alive in his guard between balls: the game's batter is. See `WAGGLE`. */
+  alive = false;
+  /** What draws each wait's rhythm and whether it taps: the tests fix it. */
+  idleRandom = Math.random;
+  /** This wait in his guard: from when, its rhythm, and the tap under way or due. */
+  private idle: { from: number; period: number; phase: number; tapFrom: number; nextTap: number } | null = null;
+  /** Where the bowler is in his run-up, as the scene last said, and when it last did: see `runup`. */
+  private runupAt = 0; private runupFresh = false; private runupSeen = -Infinity;
+  /** The clock of the last `update`, for asking about the wait between frames. */
+  private lastNow = -Infinity;
   private contactTime = -Infinity;
   private ballX = 0;
   private ballY = .54;
@@ -3109,6 +3193,7 @@ export class Batter {
    * innings.
    */
   fall(now: number, where: Hurt = 'RIBS') {
+    this.idle = null;
     this.felledFrom = this.pose;
     this.felledAt = now;
     this.felledBy = where; this.fallKeys = fallPoses(where);
@@ -3119,7 +3204,7 @@ export class Batter {
   celebrate(now: number, kind: Celebration = 'hundred') {
     // A celebration takes him from wherever he is; what he was doing after the
     // ball is not resumed.
-    this.afterward = null;
+    this.afterward = null; this.idle = null;
     this.celebratedFrom = this.pose;
     this.celebratedAt = now;
     this.celebration = kind;
@@ -3136,6 +3221,8 @@ export class Batter {
    * once he is done, and he comes back into the guard he is by then waiting in.
    */
   reset(carryOn = false) {
+    // A new ball's run-up keeps the wait he is in; anything else begins one.
+    if (!carryOn) this.idle = null;
     if (carryOn && this.afterward && !this.felled) { this.resetDue = true; return; }
     this.clear(); this.anticipation = 0;
     this.apply(GUARD);
@@ -3152,6 +3239,16 @@ export class Batter {
     return { shot: this.shot, charging: this.charging, lofted: this.lofted, swept: this.sweeping || this.levelled, pulled: this.crossBat };
   }
   prepare(progress: number) { this.anticipation = THREE.MathUtils.smoothstep(progress, .05, .72); }
+  /**
+   * Where the bowler is, from nought at his mark to one at the release and
+   * after it, said each frame he is coming: it is what stills the guard by
+   * his delivery stride. Not said for a few frames, he is not coming.
+   */
+  runup(progress: number) { this.runupAt = progress; this.runupFresh = true; }
+  /** Down tapping the turf, or on the way down or back up: the bowler waits for it. */
+  get tapping() {
+    return !!this.idle && this.lastNow - this.idle.tapFrom < TAP.down + TAP.taps * TAP.beat + TAP.up;
+  }
   /**
    * Once the stroke is home, do `kind` (see `AfterBall`) and come back to the
    * guard, rather than stand frozen in it until the next ball. Not after a
@@ -3175,7 +3272,7 @@ export class Batter {
     // Three charges, one per drive input: straight, over cover, over long-on.
     // Each is one stroke on one line whichever way the ball was actually going.
     this.shot = charging ? (shot === 'COVER_LONG_OFF' || shot === 'LONG_ON' ? shot : 'STRAIGHT') : shot;
-    this.afterward = null; this.resetDue = false; this.admiring = false; this.struck = null; this.followed = null;
+    this.afterward = null; this.resetDue = false; this.admiring = false; this.struck = null; this.followed = null; this.idle = null;
     this.charging = charging; this.pulling = !charging && shot === 'LEG' && ballY > PULL_HEIGHT;
     this.backDefence = !charging && shot === 'DEFEND' && ballY > DEFENCE_BACK_HEIGHT;
     // The cover drive's swipe at a ball short of a length: the back-foot punch (`PUNCH`).
@@ -3367,15 +3464,61 @@ export class Batter {
     const sinceStroke = Number.isFinite(age) ? age - STROKE_DURATION_MS - (this.charging ? ADVANCE.walkBackMs : 0) : Infinity;
     const sinceSettle = this.afterward ? now - this.afterward.from - lengthOf(this.afterward.kind, this.shot) : Infinity;
     const sinceCelebration = now - this.celebratedAt - CELEBRATION_LENGTHS[this.celebration];
-    const weight = ease(THREE.MathUtils.clamp(Math.min(sinceStroke, sinceCelebration, sinceSettle) / 450, 0, 1)) * (1 - this.anticipation);
+    // Readied for a ball only while that ball is coming: once he has played
+    // at it, what `prepare` left behind is the last ball's, as the guard's own
+    // mix in `update` takes it. Read after a stroke, it held him still for the
+    // whole wait that followed.
+    const readied = Number.isFinite(age) ? 0 : this.anticipation;
+    const weight = ease(THREE.MathUtils.clamp(Math.min(sinceStroke, sinceCelebration, sinceSettle) / 450, 0, 1)) * (1 - readied);
     const breath = Math.sin(now * Math.PI * 2 / 3700) * weight;
     const drift = Math.sin(now * Math.PI * 2 / 7300) * weight;
-    return { ...pose, hip: [pose.hip[0] + drift * .004, pose.hip[1], pose.hip[2]],
+    const waiting: Pose = { ...pose, hip: [pose.hip[0] + drift * .004, pose.hip[1], pose.hip[2]],
       chest: [pose.chest[0] + drift * .003, pose.chest[1] + breath * .003, pose.chest[2]],
       grip: [pose.grip[0], pose.grip[1] + breath * .0015, pose.grip[2]],
       face: pose.face + drift * .012 };
+    return this.alive ? this.lively(waiting, now, weight) : waiting;
+  }
+  /** The waggle and the taps, over the guard he waits in, by `weight`: see `WAGGLE`. */
+  private lively(pose: Pose, now: number, weight: number): Pose {
+    if (!this.idle) {
+      const [shortest, longest] = WAGGLE.period, random = this.idleRandom;
+      this.idle = { from: now, period: THREE.MathUtils.lerp(shortest, longest, random()), phase: random() * Math.PI * 2,
+        tapFrom: -Infinity, nextTap: now + TAP.at + (random() < TAP.share ? 0 : TAP.every) };
+    }
+    const idle = this.idle;
+    // Where the bowler is: nought while nobody has said for a few frames.
+    const running = now - this.runupSeen < 200 ? this.runupAt : 0;
+    if (now >= idle.nextTap) {
+      if (running === 0) idle.tapFrom = now;
+      idle.nextTap = now + TAP.every;
+    }
+    const s = now - idle.tapFrom, tapping = TAP.down + TAP.taps * TAP.beat;
+    const down = s < 0 ? 0 : s < TAP.down ? ease(s / TAP.down) : s < tapping ? 1 : ease(THREE.MathUtils.clamp(1 - (s - tapping) / TAP.up, 0, 1));
+    // Each tap a quick lift and drop, then a rest on the turf: a sine the whole beat read as a slow bob.
+    const beat = ((s - TAP.down) / TAP.beat) % 1;
+    const lift = s > TAP.down && s < tapping && beat < TAP.air ? Math.sin(Math.PI * beat / TAP.air) * TAP.lift : 0;
+    const tap = down * (1 - THREE.MathUtils.smoothstep(running, ...TAP.still)) * weight;
+    const alive = THREE.MathUtils.smoothstep(now - idle.from, 0, WAGGLE.settle) * (1 - tap) * weight
+      * (1 - THREE.MathUtils.smoothstep(running, ...WAGGLE.still));
+    const turn = Math.PI * 2 * (now - idle.from) / idle.period + idle.phase;
+    const rock = alive * Math.sin(turn);
+    // The knees giving once a rock, down as the toe comes down; and the weight's slower roll.
+    const sink = alive * (.5 - .5 * Math.sin(turn)), roll = alive * Math.sin(turn / STIRS.rocks + idle.phase * .7);
+    const { sink: by, roll: rolled } = STIRS;
+    const hip: Point = [pose.hip[0] + roll * rolled.x, pose.hip[1] - sink * by.hip, pose.hip[2] - roll * rolled.z];
+    const chest: Point = [pose.chest[0] + roll * rolled.x * rolled.chest, pose.chest[1] - sink * by.chest, pose.chest[2] - roll * rolled.z * rolled.chest];
+    // The toe tipped towards the sky about the hands, and the hands a touch up with it.
+    const toe = V(pose.batUp).negate().normalize(), about = toe.clone().cross(UP).normalize();
+    const rocked: Pose = { ...pose, hip, chest, yaw: pose.yaw + roll * rolled.turn,
+      grip: [pose.grip[0], pose.grip[1] + rock * WAGGLE.lift - sink * by.grip, pose.grip[2]],
+      bat: new THREE.Quaternion().setFromAxisAngle(about, rock * WAGGLE.tip).multiply(batOrientation(pose)) };
+    if (tap <= 0) return rocked;
+    const tapped = mix(rocked, TAPPED, tap);
+    return { ...tapped, grip: [tapped.grip[0], tapped.grip[1] + lift * tap, tapped.grip[2]] };
   }
   update(now: number) {
+    this.lastNow = now;
+    if (this.runupFresh) { this.runupSeen = now; this.runupFresh = false; }
     if (Number.isFinite(this.felledAt)) return this.applyFall(now - this.felledAt);
     let age = now - this.swingStart;
     // A drive admired holds its finish the longer, and everything after the
@@ -3418,6 +3561,7 @@ export class Batter {
     }
     const after = this.afterward, since = after ? now - after.from : -1;
     if (after && since >= 0 && since < lengthOf(after.kind, this.shot) && !this.charging && age >= STROKE_DURATION_MS) {
+      this.idle = null;
       // From where he is: still up in the leave, for a ball left alone.
       const keys = after.keys ??= [[0, this.pose], ...keysFor(after.kind, this.shot, this.struck, this.followed).slice(1)];
       let k = 1; while (k < keys.length - 1 && since >= keys[k][0]) k++;

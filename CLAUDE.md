@@ -1036,6 +1036,40 @@ at his hip, and stopped with the bat upright beside his shoulder.
 
 They are `pull` and `pullV1` in the batter tests' `PLAYS`, and
 `cover-drive.html` has both.
+
+## Alive in his guard
+
+Between balls the batter is not a statue (`WAGGLE`, `TAP`, `TAPPED` and
+`lively` in `src/entities/Batter.ts`), built from a net clip filmed from in
+front on the off side. In his raised stance he rocks the bat up and down from
+the wrists, the toe tipping about ten degrees either way about the hands while
+the hands hardly move, its rhythm drawn afresh each wait (`idleRandom`); and
+his body goes with it a little (`STIRS`), so it is not the wrists alone: the
+knees give with each rock, the weight rolls back and forward between his feet
+every few rocks with the shoulders turning a couple of degrees, and his head
+stays on the bowler, its turn being the world's. Before more than half the
+balls (`TAP.share`) he lets the bat down until its toe is
+on the turf behind his back foot, sinking a little over it with the hands by
+his knees, taps it twice, and lifts it back through level into the guard; a
+long wait, before an innings's first ball, has him tap again every four
+seconds or so. A wait begins when he is back in his guard after a stroke, a
+celebration or what he does after the ball. The bowler waits for a tap he has
+begun (`tapping`, `batterTapping` on the scene, `TAP_WAIT_MS` in
+`src/Game.ts`), as a bowler waits for a batter to settle: cut short by the
+run-up it was a dip of the bat and back. That holds him back a tenth of a
+second or so on those balls, and never more than `TAP_WAIT_MS` past
+`readyMs`. A tap is never begun once the bowler has set off (`runup`, which
+the scene says every frame of the run-up and flight), and the waggle has
+faded by two-thirds of the run-up, so he is still for the delivery stride and
+every stroke starts from the guard it always did; the timing windows are
+untouched. What `prepare` leaves after a ball is not read once he has played
+at it: it held him still for every wait that followed a stroke, and only the
+first ball and a ball left alone had any of this.
+Only the game's batter is `alive`: the Dressing Room, the stroke previews,
+the shelf pictures and the batter tests keep the still guard.
+`tests/stance.test.ts` holds the waggle and the body with it, the taps, the
+stillness and the previews' still guard. The artifact "Alive in His Guard" shows it against the
+clip.
 ## Swipe zones
 
 Where a swipe's direction splits between strokes is `mapSwipe` in
