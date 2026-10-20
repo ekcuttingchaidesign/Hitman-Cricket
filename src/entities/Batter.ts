@@ -1903,7 +1903,9 @@ export const FLICK_HOLD_MS = 160;
  * head down where he met the ball, and holds it (`FLICK_HOLD_MS`). From the
  * stance on the face rides the handle (`riding`): turned to the bowler on the
  * way down, and the one roll after the ball, closing the face, as the bat goes
- * out to midwicket.
+ * out to midwicket, carried on the same way as it comes up, so it stops with
+ * the flat face to the bowler and the curved back to his helmet: left to ride,
+ * it stopped with its edge to him.
  *
  * Keyed for the ball on leg stump: the reach moves him from there.
  */
@@ -4215,10 +4217,12 @@ export class Batter {
       const start = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(straight), UP.clone().applyQuaternion(batOrientation(this.swingFrom))).multiply(straight);
       // Square to the bowler on the way down; then the roll, the bottom hand
       // over the top, closing the face onto the leg side and down as the bat
-      // goes out after the ball. Nothing turns it after that until he goes home.
+      // goes out after the ball, carried on the same way as it comes up until
+      // the flat face looks at the bowler. Nothing turns it after that until he goes home.
       pose.bat = this.riding(0, poseAt, start, [hold, STROKE_DURATION_MS], age, [
         { window: [plant, STROKE_CONTACT_MS], away: () => V(keys.contact.batFace) },
         { window: [STROKE_CONTACT_MS, through], away: () => V(keys.through.batFace) },
+        { window: [through, up], away: () => new THREE.Vector3(0, 0, 1) },
       ]);
       this.apply(pose);
       return;
