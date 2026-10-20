@@ -1061,16 +1061,18 @@ all the way, the front foot down first (`plant`) and the head over the knee;
 the bat down straight to meet the ball beside the front pad, `FLICK_MEETS_AT`
 further down the pitch than a drive (`meetsAt`), the face to the bowler. The
 face rides the handle (`riding`) with one roll, the bottom hand over the top,
-from the ball to the wrap: closing the face as the bat goes out low to
-midwicket (`through`), and on over as it comes up upright in front of his face
-(`rise`) and wraps over the front shoulder, the bat lying back towards the
-keeper with the flat face away from him. He holds the wrap `FLICK_HOLD_MS`
-past the stroke's clock, still bent over, and comes home as the hook does,
-stood up with the hands over the front shoulder and the bat upright
-(`FLICK_UNWRAP`), then down in front with the bat tipping back over the back
-shoulder (`FLICK_LOWERED`). Taken home bent over, by any route, the blade went
-through his head; the bat laid flatter at the wrap went through the front
-elbow, which sits above the hands there.
+closing the face as the bat goes out low to midwicket (`through`); then it
+comes up and stops (`up`), the bat upright in front of him and the hands out
+ahead of his chest, below his chin, nothing turning it. Taken on over the
+front shoulder into a wrap, the bat went into the shoulder and the bottom hand
+into the grille, which the batter tests' helmet check, measured from the
+head's centre, did not see; the shape test in `describe('the flick, version
+two')` holds the hands out in front of his face and under the chin. He holds it
+`FLICK_HOLD_MS` past the stroke's clock, still bent over, and comes home as
+the hook does, stood up with the hands over the front shoulder and the bat
+upright (`FLICK_UNWRAP`), then down in front with the bat tipping back over
+the back shoulder (`FLICK_LOWERED`). Taken home bent over, by any route, the
+blade went through his head.
 
 It is scored on its own ladder in every mode (`flicked` in `ShotResolver.ts`,
 `FLICK` in `gameplay.ts`, the attempt tagged `flicked`): middled or a shade

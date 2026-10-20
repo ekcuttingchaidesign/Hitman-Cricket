@@ -1878,12 +1878,11 @@ export function flickVersionOf(seed: number, ball: number): FlickVersion {
 export const FLICK_MEETS_AT = .18;
 /**
  * The flick's clock: the front foot down before the bat (`plant`), the ball,
- * the bat out low after it to midwicket (`through`), the hands up in front of
- * his face with the bat upright (`rise`), wrapped over the front shoulder
- * (`wrapped`), held, and home back up over his head and down the line.
+ * the bat out low after it to midwicket (`through`), up in front of him with
+ * the bat upright, where it stops (`up`), held, and home as the hook goes home.
  */
-export const FLICK_CLOCK = { plant: 55, through: 200, rise: 300, wrapped: 420, hold: 560, rising: 660, down: 760, under: 860 } as const;
-/** How much longer than the stroke's own clock the flick's wrap is held, before he comes home. */
+export const FLICK_CLOCK = { plant: 55, through: 200, up: 320, hold: 560, rising: 660, down: 760 } as const;
+/** How much longer than the stroke's own clock the flick's finish is held, before he comes home. */
 export const FLICK_HOLD_MS = 160;
 /**
  * The flick off the pads, version two, from a coaching film shot side on from
@@ -1897,29 +1896,27 @@ export const FLICK_HOLD_MS = 160;
  * ahead of the blade and the face to the bowler. Then the wrists do it: the
  * ball's own pace sends it, and the bottom hand rolls over the top one, closing
  * the face, as the hands push the bat out low after the ball to midwicket.
- * Only then does it come up, upright in front of his face, and over the front
- * shoulder, the hands up by the front of the helmet and the bat behind his
- * head with the flat face looking out away from him. He stays down through
- * all of it, bent over the front leg with his head down where he met the ball,
- * and holds it (`FLICK_HOLD_MS`). From the stance on the face rides the handle
- * (`riding`): turned to the bowler on the way down, and the one roll after the
- * ball, evenly from the ball to the wrap.
+ * Only then does it come up, and it stops there, the bat upright in front of
+ * him with the hands out ahead of his chest, below his chin: taken on over the
+ * front shoulder, the bat went into the shoulder and the bottom hand into the
+ * grille. He stays down through all of it, bent over the front leg with his
+ * head down where he met the ball, and holds it (`FLICK_HOLD_MS`). From the
+ * stance on the face rides the handle (`riding`): turned to the bowler on the
+ * way down, and the one roll after the ball, closing the face, as the bat goes
+ * out to midwicket.
  *
  * Keyed for the ball on leg stump: the reach moves him from there.
  */
-const FLICK_V2: Stroke & { through: Pose; rise: Pose } = {
-  contact: { ...GUARD, hip: [-.02, .79, .16], chest: [.17, 1.05, .33], frontFoot: [.00, .08, .58], backFoot: [-.15, .08, -.38],
+const FLICK_V2: Stroke & { through: Pose } = {
+  contact: { ...GUARD, hip: [-.02, .79, .16], chest: [.12, 1.09, .30], frontFoot: [.00, .08, .58], backFoot: [-.15, .08, -.38],
     grip: [.33, .97, .58], batUp: [.05, .97, .22], batFace: [-.25, -.20, .95], yaw: 1.30, face: .20, heel: .30,
     backFootYaw: 1.15, leadElbow: .18, look: .30, armHinge: .90, armDrive: .80, shoulderLift: 0 },
-  through: { ...GUARD, hip: [.04, .77, .19], chest: [.18, 1.06, .37], frontFoot: [.00, .08, .58], backFoot: [-.15, .08, -.36],
+  through: { ...GUARD, hip: [.04, .78, .19], chest: [.14, 1.09, .34], frontFoot: [.00, .08, .58], backFoot: [-.15, .08, -.36],
     grip: [.14, 1.00, .80], batUp: [.58, .44, -.63], batFace: [-.70, -.50, .50], yaw: .90, face: .10, heel: .40,
     backFootYaw: 1.00, leadElbow: .22, look: .30, armHinge: .70, armDrive: 1, shoulderLift: .03 },
-  rise: { ...GUARD, hip: [.05, .78, .20], chest: [.18, 1.07, .39], frontFoot: [.00, .08, .58], backFoot: [-.14, .08, -.34],
-    grip: [.08, 1.30, .84], batUp: [.15, -.95, .25], batFace: [-.80, -.05, .55], yaw: .60, face: .05, heel: .46,
-    backFootYaw: .90, leadElbow: .26, look: .30, armHinge: 1.00, armDrive: 1, shoulderLift: .06 },
-  finish: { ...GUARD, hip: [.05, .80, .20], chest: [.14, 1.12, .36], frontFoot: [.00, .08, .58], backFoot: [-.13, .08, -.33],
-    grip: [-.12, 1.30, .72], batUp: [-.30, -.45, .84], batFace: [.55, -.10, .80], yaw: .30, face: -.10, heel: .50,
-    backFootYaw: .85, leadElbow: .10, look: .45, armHinge: .90, armDrive: 1, shoulderLift: .08 },
+  finish: { ...GUARD, hip: [.05, .79, .20], chest: [.15, 1.10, .36], frontFoot: [.00, .08, .58], backFoot: [-.14, .08, -.34],
+    grip: [.04, 1.20, .88], batUp: [-.22, -.92, .33], batFace: [-.85, 0, .50], yaw: .55, face: .05, heel: .46,
+    backFootYaw: .90, leadElbow: .22, look: .30, armHinge: .40, armDrive: 1, shoulderLift: .04 },
 };
 /**
  * The flick's way home, as the hook goes home: stood up out of the stoop with
@@ -4197,34 +4194,31 @@ export class Batter {
     }
     // The flick, version two: the front foot down first, the ball met beside
     // the front pad, the bat out low after it to midwicket as the wrists roll,
-    // up in front of his face and over the front shoulder, held, and home back
-    // up over his head and down the line. See `FLICK_V2`.
+    // up in front of him and stopped there, held, and home. See `FLICK_V2`.
     if (this.flickV2) {
-      const { plant, through, rise, wrapped, hold, rising, down } = FLICK_CLOCK, keys = FLICK_V2;
+      const { plant, through, up, hold, rising, down } = FLICK_CLOCK, keys = FLICK_V2;
       const out = [{ time: 0, pose: this.swingFrom },
         { time: plant, pose: { ...mix(this.swingFrom, contact, COVER_PLANT.bat), frontFoot: contact.frontFoot, backFoot: contact.backFoot,
           hip: mix(this.swingFrom, contact, COVER_PLANT.hips).hip, chest: mix(this.swingFrom, contact, COVER_PLANT.chest).chest } },
         { time: STROKE_CONTACT_MS, pose: contact }, { time: through, pose: reachPose(keys.through) },
-        { time: rise, pose: reachPose(keys.rise) }, { time: wrapped, pose: finish }];
+        { time: up, pose: finish }];
       // Home, as the hook goes home: up out of his stoop with the hands up
       // over the front shoulder and the bat upright over them, then the hands
       // let down in front of him into his guard, the bat tipping back over the
       // back shoulder as it goes. See `FLICK_UNWRAP`.
       const home = [{ time: hold, pose: finish }, { time: rising, pose: reachPose(FLICK_UNWRAP) },
         { time: down, pose: reachPose(FLICK_LOWERED) }, { time: STROKE_DURATION_MS, pose: GUARD }];
-      const poseAt = (at: number): Pose => at < wrapped ? shoulderDriven(out, at, STROKE_CONTACT_MS)
+      const poseAt = (at: number): Pose => at < up ? shoulderDriven(out, at, STROKE_CONTACT_MS)
         : at < hold ? finish : shoulderDriven(home, at, hold - 70);
       const pose = { ...poseAt(age) };
       const straight = batOrientation(STROKES.STRAIGHT.contact);
       const start = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(straight), UP.clone().applyQuaternion(batOrientation(this.swingFrom))).multiply(straight);
       // Square to the bowler on the way down; then the roll, the bottom hand
       // over the top, closing the face onto the leg side and down as the bat
-      // goes out after the ball, and on over as it climbs into the wrap, so
-      // the flat face looks out away from the front shoulder.
+      // goes out after the ball. Nothing turns it after that until he goes home.
       pose.bat = this.riding(0, poseAt, start, [hold, STROKE_DURATION_MS], age, [
         { window: [plant, STROKE_CONTACT_MS], away: () => V(keys.contact.batFace) },
         { window: [STROKE_CONTACT_MS, through], away: () => V(keys.through.batFace) },
-        { window: [through, wrapped], away: (wrap, up) => V(wrap.grip).addScaledVector(up, -.45).sub(shoulderOf(wrap, 0)) },
       ]);
       this.apply(pose);
       return;

@@ -2201,11 +2201,11 @@ describe('the flick, version two', () => {
       expect(pose.batFace[2], `x=${x}`).toBeGreaterThan(.85);
     }
   });
-  it('rolls the bat over once in his hands after the ball, one way, and then holds it', () => {
+  it('rolls the bat over once in his hands after the ball, one way, and then holds it still', () => {
     for (const x of PLAYS.flick2.reach) {
       const batter = flick(x);
       batter.update(STROKE_CONTACT_MS); let previous = frame(batter.inspect()), rolled = 0, back = 0;
-      for (let time = STROKE_CONTACT_MS + 4; time <= FLICK_CLOCK.wrapped; time += 4) {
+      for (let time = STROKE_CONTACT_MS + 4; time <= FLICK_CLOCK.up; time += 4) {
         batter.update(time); const now = frame(batter.inspect()), step = twist(previous, now);
         rolled += step; back = Math.max(back, -Math.sign(rolled) * step); previous = now;
       }
@@ -2213,21 +2213,23 @@ describe('the flick, version two', () => {
       expect(Math.abs(rolled), `x=${x}`).toBeLessThan(270);
       expect(back, `x=${x}: turned back`).toBeLessThan(1);
       // Held: nothing turns it, and nothing moves, until the hold is over.
-      batter.update(FLICK_CLOCK.wrapped); const wrap = batter.inspect();
-      for (let time = FLICK_CLOCK.wrapped; time <= FLICK_CLOCK.hold + FLICK_HOLD_MS; time += 20) {
-        batter.update(time); expect(batter.inspect().grip, `x=${x} @${time}`).toEqual(wrap.grip);
+      batter.update(FLICK_CLOCK.up); const wrap = batter.inspect();
+      for (let time = FLICK_CLOCK.up; time <= FLICK_CLOCK.hold + FLICK_HOLD_MS; time += 20) {
+        batter.update(time); expect(new Vector3(...batter.inspect().grip).distanceTo(new Vector3(...wrap.grip)), `x=${x} @${time}`).toBeLessThan(1e-6);
       }
     }
   });
-  it('wraps the bat over the front shoulder, the hands up by his face, and comes home', () => {
+  it('stops with the bat upright in front of him, the hands out ahead of his chest and below his chin, and comes home', () => {
     for (const x of PLAYS.flick2.reach) {
-      const batter = flick(x); batter.update(FLICK_CLOCK.wrapped); const pose = batter.inspect();
-      const chest = new Vector3(...pose.chest);
-      // The hands up at his chin, on the leg side of his chest; the bat lying back, its toe up behind him.
-      expect(pose.grip[1] - chest.y, `x=${x}`).toBeGreaterThan(.12);
-      expect(pose.grip[0] - chest.x, `x=${x}`).toBeLessThan(-.15);
-      expect(pose.bladeTip[1], `x=${x}`).toBeGreaterThan(pose.hands[0][1]);
-      expect(pose.bladeTip[2] - GAME.stanceZ, `x=${x}`).toBeLessThan(pose.grip[2]);
+      const batter = flick(x); batter.update(FLICK_CLOCK.up); const pose = batter.inspect();
+      const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip), head = chest.clone().addScaledVector(chest.clone().sub(hip).normalize(), .31);
+      // Out in front of him, under the chin: taken on over the front shoulder,
+      // the bat went into the shoulder and the bottom hand into the grille.
+      expect(pose.grip[2] - head.z, `x=${x}`).toBeGreaterThan(.25);
+      expect(pose.grip[1], `x=${x}`).toBeLessThan(head.y - .05);
+      // Upright: the toe well above the hands, not laid back behind him.
+      const up = new Vector3(...pose.bladeTip).sub(new Vector3(...pose.grip).add(new Vector3(GAME.stanceX, 0, GAME.stanceZ))).normalize();
+      expect(up.y, `x=${x}`).toBeGreaterThan(.85);
       batter.update(STROKE_DURATION_MS + FLICK_HOLD_MS);
       expect(batter.inspect().grip).toEqual(new Batter().inspect().grip);
     }
