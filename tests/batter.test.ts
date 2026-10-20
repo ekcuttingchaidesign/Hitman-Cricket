@@ -2230,6 +2230,11 @@ describe('the flick, version two', () => {
       // Upright: the toe well above the hands, not laid back behind him.
       const up = new Vector3(...pose.bladeTip).sub(new Vector3(...pose.grip).add(new Vector3(GAME.stanceX, 0, GAME.stanceZ))).normalize();
       expect(up.y, `x=${x}`).toBeGreaterThan(.85);
+      // The flat face to the bowler and the curved back to his helmet, held:
+      // left to ride the handle, it stopped with its edge to him.
+      for (let time = FLICK_CLOCK.up; time <= FLICK_CLOCK.hold + FLICK_HOLD_MS; time += 40) {
+        batter.update(time); expect(batter.inspect().batFace[2], `x=${x} @${time}`).toBeGreaterThan(.85);
+      }
       batter.update(STROKE_DURATION_MS + FLICK_HOLD_MS);
       expect(batter.inspect().grip).toEqual(new Batter().inspect().grip);
     }
