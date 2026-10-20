@@ -44,6 +44,8 @@ export interface Delivery {
    * `drawnAt`.
    */
   round?: boolean;
+  /** The spinner's ball dropped short, up at the waist: see `DRAGGED`. */
+  dragged?: boolean;
 }
 export interface ShotAttempt {
   shotType: ShotType; inputTimeMs: number;
@@ -74,6 +76,8 @@ export interface ShotOutcome {
   punched?: boolean;
   /** Swept along the ground, square of the wicket: the orthodox sweep. */
   sweptFlat?: boolean;
+  /** Pulled off the spinner, between midwicket and square leg: see `SPIN_PULL`. */
+  spinPulled?: boolean;
   /** Killed under the eyes: it goes nowhere, and it cannot be caught. */
   defended?: boolean;
   /** Feathered off the face of the bat and taken by the keeper. */

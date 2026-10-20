@@ -15,8 +15,8 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, type CoverVersion, COVER_V3_MEETS_AT, PUNCH_CONTACT_MS, PUNCH_HOLD_MS, PUNCH_MEETS_AT, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_FRONT_MEETS_AT,PULL_CONTACT_MS, PULL_LOAD_MS, PULL_MEETS_AT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, SLOG_CLOCK, SLOG_HOLD_MS, SLOG_MEETS_AT, SWEEP_CONTACT_MS, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, REVERSE_CLOCK, SCOOP_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
-import { ADVANCE, GAME, LINE_X, PUNCH, SHOT_ANGLES, STYLES } from './config/gameplay';
+import { Batter, type CoverVersion, COVER_V3_MEETS_AT, PUNCH_CONTACT_MS, PUNCH_HOLD_MS, PUNCH_MEETS_AT, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_FRONT_MEETS_AT,PULL_CONTACT_MS, PULL_LOAD_MS, PULL_MEETS_AT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, SLOG_CLOCK, SLOG_HOLD_MS, SLOG_MEETS_AT, SWEEP_CONTACT_MS, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, REVERSE_CLOCK, SCOOP_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_HOLD_MS, SPIN_PULL_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
+import { ADVANCE, GAME, LINE_X, PUNCH, SHOT_ANGLES, STYLES, DRAGGED, SPIN_PULL } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 import type { ShotType } from './game/types';
 import { DEFAULT_GLOVE, GLOVES, gloveOf } from './entities/gloves';
@@ -33,6 +33,8 @@ interface Stroke {
   single?: boolean;
   /** The cut at a spinner, room made by stepping away to leg. */
   spinCut?: boolean;
+  /** The pull off the spinner, at his ball dropped short. */
+  spinPull?: boolean;
   /** The slog sweep, on the knee. */
   sweeping?: boolean;
   /** Which version of the pull, whatever the version buttons say. */
@@ -175,6 +177,14 @@ const STROKES: Record<string, Stroke> = {
     facts: ['off-spinner turning in', `${STROKE_DURATION_MS + SPIN_CUT_HOLD_MS} ms`],
     note: 'The cut at a spinner, off the same swipe as the cut: an off-spinner pitched outside off and turning in at him, or a leg-spinner pitched on leg and turning away. He makes the room himself: the back foot goes back and away towards leg, the front foot is drawn back with it and the stance opens wide, the weight on the back foot, the bat taken up high. The ball is met at 190 ms out in front of the off stump on the back foot, the bat coming down on it with the arms out straight and the face over the ball, and the hands go on through level towards point at 260, then up at 350 with the blade upright in front of his face. The hands never go over his head: they stop at the peak of the helmet, the elbows down either side of his face, while the bat tips out past his leg-side ear and lands at 520 across the opposite shoulder, the back of the blade to it, the face riding his hands all the way. Held there, as the hook is, it comes off the shoulder the way it went on, stands up in front of him and goes down into his guard.',
   },
+  spinpull: {
+    label: 'Pull off the spinner', shot: 'LEG', charging: false, single: true, spinPull: true, ball: { x: LINE_X.MIDDLE, y: .81, z: GAME.contactZ + SPIN_PULL_MEETS_AT },
+    contact: SPIN_PULL_CONTACT_MS, end: STROKE_DURATION_MS + SPIN_PULL_HOLD_MS, bounceZ: DRAGGED.bounce,
+    phases: [['Stance', -LEAD_MS], ['Back and across', 100], ['Down', 160], ['Contact', SPIN_PULL_CONTACT_MS], ['Out front', 255], ['To leg', 315], ['Round', 395], ['Wrap', 520], ['Home', 780]],
+    out: { speed: .03, angle: THREE.MathUtils.degToRad(SPIN_PULL.angle), climb: .02 },
+    facts: ['spinner, dropped short', `${STROKE_DURATION_MS + SPIN_PULL_HOLD_MS} ms`],
+    note: 'The pull at the spinner, off the swipe to leg or A with no meter: his ball dropped short, which sits up at the waist and is too short to sweep, and the arm ball when it is timed good or better (timed worse, the arm ball is still flicked). From a net session filmed from the bowler\'s end. By 100 ms the back foot has stepped back and across towards off stump and taken his weight, the bat high; the front foot stays where it stood, and the ball is met on it at 200 ms out in front of him with both arms long and the flat face to the bowler. Then the arms swing it round flat, out in front at 255 and out to leg at 315, nothing turning in his hands, and on up over the front shoulder in one even climb until by 520 it is wrapped behind his head, the bottom hand rolled over the top one so the curved back of the blade lies on the shoulder. The front foot goes with the swing: up on its toe as the bat comes through, then lifted and carried round on the leg side to land behind the back foot, on a line 45 cm in front of the stumps, by 520. He stands tall all the way and turns only as far as square to the leg side. Held there, the bat comes upright over his head and down into his guard. Middled six over midwicket, a shade under four, held back one or two; poor off the top edge, caught three times in four.',
+  },
   hook: {
     label: 'Hook shot', shot: 'HOOK', charging: false, single: true, ball: { x: LINE_X.OUTSIDE_OFF, y: 1.134, z: GAME.contactZ + HOOK_MEETS_AT },
     contact: HOOK_CONTACT_MS, end: STROKE_DURATION_MS + HOOK_HOLD_MS, bounceZ: STYLES.SHORT.bounce!,
@@ -315,7 +325,7 @@ const metAt = () => ({ ...stroke.ball, z: stroke.ball.z + (version === 3 && !str
 function start() {
   batter.reset(); batter.prepare(1); batter.update(0);
   const at = metAt();
-  batter.swing(stroke.shot, 0, at.x, at.y, at.z, stroke.charging, !!stroke.lofted, !!stroke.sweeping, false, stroke.pullVersion ?? version, !!stroke.spinCut);
+  batter.swing(stroke.shot, 0, at.x, at.y, at.z, stroke.charging, !!stroke.lofted, !!stroke.sweeping, false, stroke.pullVersion ?? version, !!stroke.spinCut, !!stroke.spinPull);
   swinging = true;
 }
 
