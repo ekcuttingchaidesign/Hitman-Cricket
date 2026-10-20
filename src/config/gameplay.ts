@@ -94,6 +94,39 @@ export const SPIN_BOWLING = {
   /** Placed in the over rather than rolled for, so it is never absent from it. */
   armBallsPerOver: 1,
   secondArmBallChance: 0.25,
+  /** And how many he drops short (`DRAGGED`): one, never the arm ball. */
+  draggedPerOver: 1,
+} as const;
+/**
+ * The spinner's ball dropped short: an off break or a leg break pitched well
+ * short of where he lands the rest (`GAME.bounceZ`), too short to sweep
+ * (`SWEEP.minBounceZ`), climbing off the pitch to reach the batter at the
+ * waist rather than the knee, which is the ball the pull off the spinner is for
+ * (`SPIN_PULL`). Where it falls in his over is drawn off a stream of its own,
+ * forked off the seed, so no other ball of any innings moved when it arrived.
+ */
+export const DRAGGED = { bounce: 7.0, rise: 2.0, salt: 0x64726167 } as const;
+/**
+ * The pull off the spinner, from a net session filmed from the bowler's end:
+ * the leg-side input at the spinner's short ball, and at the arm ball timed
+ * well enough to be in position for it (`spinPull`). Off the back foot, the
+ * front foot opened to leg; met out in front with the arms long, the bat level
+ * and the face to the bowler; swung up past the front shoulder and over his
+ * head, and never turned in his hands.
+ *
+ * Timing names it, the hook's ladder: middled six over midwicket, a shade
+ * under four, held back one or two; poor off the top edge, taken at short fine
+ * leg three times in four (`caught`) and otherwise a single off the bottom of
+ * the bat. Missed, the ball goes on. In a Test it is paid off the mode's own
+ * ladder, as every stroke at the spinner is.
+ */
+export const SPIN_PULL = {
+  /** Where it goes, degrees off straight: between midwicket and square leg. */
+  angle: -66,
+  /** Held back: the chance of a second run. */
+  two: 0.4,
+  caught: 0.75,
+  feedback: { topEdge: 'TOP EDGE — CAUGHT!', bottomEdge: 'BOTTOM EDGE — ONE' },
 } as const;
 
 /**

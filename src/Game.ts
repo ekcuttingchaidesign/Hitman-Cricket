@@ -12,7 +12,7 @@ import { TopSpot } from './ui/TopSpot';
 import { buzz } from './game/haptics';
 import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
-import { ADVANCE, CONFIDENCE_FULL, GAME, SWIPE_ZONES } from './config/gameplay';
+import { ADVANCE, CONFIDENCE_FULL, GAME, STYLES, SWIPE_ZONES } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro, type IntroGame } from './ui/MarathonIntro';
 import { CONFIDENCE_STEP, SHOTS_STEP, howToDue, noteHowTo, playedBefore } from './ui/ShotsIntro';
@@ -26,7 +26,7 @@ import { Health } from './game/Health';
 import { TAILENDER, endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { EASE, easeFor, easedSkill, easedWindows, notePlayed, playedIn, seedPlayed } from './game/newcomer';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SURVIVE_PLAN, bouncersEvery, lateCutsEvery, spinCutsEvery, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SURVIVE_PLAN, bouncersEvery, lateCutsEvery, spinCutsEvery, spinPullsEvery, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -36,10 +36,10 @@ import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
-import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
-import { advanceShot, gradeOf, hookable, loftedDrive, playedAs, punch, spinCut, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
+import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
+import { advanceShot, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
-import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
+import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './game/types';
 import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
 import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
@@ -2290,6 +2290,11 @@ export class Game {
    * trying the cut off the spinner every ball. See `spinCutsEvery`.
    */
   private spinCutsOnly = new URLSearchParams(location.search).get('spincut') === '1';
+  /**
+   * `?spinpull=1`: every ball the spinner's and every one but the arm ball
+   * dropped short, for trying the pull off the spinner. See `spinPullsEvery`.
+   */
+  private spinPullsOnly = new URLSearchParams(location.search).get('spinpull') === '1';
   /** `?latecut=1`: every ball the late cut's, pitched up outside off. See `lateCutsEvery`. */
   private lateCutsOnly = new URLSearchParams(location.search).get('latecut') === '1';
   /**
@@ -2329,6 +2334,19 @@ export class Game {
   }
   /** The Blast's windows for this innings, a newcomer's if it is helped. */
   private get windows() { return easedWindows(GAME.timing, this.ease); }
+  /**
+   * The grade the mode that pays for this swing gives it: the Blast's windows,
+   * or Survival's and the Marathon batter's own, so a stroke picked by its
+   * timing (the pull off the spinner, at the arm ball) is the one the score
+   * is worked out for. A Marathon's special strokes are the Blast's, but none
+   * of them is picked this way.
+   */
+  private gradeFor(delivery: Delivery, attempt: ShotAttempt): TimingGrade {
+    const skill = this.marathon ? this.marathon.current.batter : this.surviving ? TAILENDER : null;
+    if (!skill) return gradeOf(delivery, attempt, this.windows);
+    return gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, !!STYLES[delivery.style].tight,
+      easedSkill(skill, this.ease).timing, SURVIVE.fastTimingScale);
+  }
   private get basePlan() {
     if (this.marathoning && (this.swingOnly || this.expressOnly || this.reverseOnly)) {
       return marathonOnly({ swing: this.swingOnly, express: this.expressOnly, reverse: this.reverseOnly });
@@ -2337,6 +2355,7 @@ export class Game {
     const plan = this.surviving ? SURVIVE_PLAN : this.marathoning ? MARATHON_PLAN : CLASSIC_PLAN;
     if (this.bouncersOnly || this.hooksOnly) return bouncersEvery(plan, this.hooksOnly);
     if (this.spinCutsOnly) return spinCutsEvery(plan);
+    if (this.spinPullsOnly) return spinPullsEvery(plan);
     if (this.lateCutsOnly) return lateCutsEvery(plan);
     if (!this.spinOnly || !plan.spin) return plan;
     // Every over his, from the first: `spinOvers` always gives him `notBefore`
@@ -2477,6 +2496,10 @@ export class Game {
     // costs nothing, so unlike the two special strokes it needs no meter read.
     const levelled = !charging && !sweeping
       && sweeps(this.delivery!, this.attempt, gradeOf(this.delivery!, this.attempt, this.windows));
+    // The pull off the spinner: his ball dropped short, or the arm ball timed
+    // well enough to be in position for it, on the grade the mode will pay.
+    const spinPulling = !charging && !sweeping && !levelled
+      && spinPull(this.delivery!, this.attempt, this.gradeFor(this.delivery!, this.attempt));
     this.primed = null;
     // The lofted straight drive's version is its own; every other stroke's is the cover strokes'.
     // The pull's version is its own, as the lofted straight drive's is.
@@ -2498,7 +2521,7 @@ export class Game {
     // Version two of the pull meets it out in front of him too, the arms
     // straight: when the ball is up at pull height there, which is what makes
     // the stroke a pull. Version one meets it beside him.
-    const pulled = shotType === 'LEG' && !charging && !sweeping && version === 2
+    const pulled = shotType === 'LEG' && !charging && !sweeping && !spinPulling && version === 2
       && ballPosition(this.delivery!, 1 - PULL_MEETS_AT / (GAME.releaseZ - GAME.contactZ)).y > PULL_HEIGHT;
     // The block meets it at the end of the forward defence's stride, beside
     // the front pad, or late under his eyes off the back foot: back if the
@@ -2507,13 +2530,13 @@ export class Game {
     const blocked = shotType === 'DEFEND'
       ? ballPosition(this.delivery!, 1).y > DEFENCE_BACK_HEIGHT ? DEFENCE_BACK_MEETS_AT : DEFENCE_FRONT_MEETS_AT : 0;
     const ahead = driven && version === 3 ? COVER_V3_MEETS_AT : shotType === 'LONG_ON' && !charging ? ON_DRIVE_MEETS_AT
-      : shotType === 'HOOK' ? HOOK_MEETS_AT : pulled ? PULL_MEETS_AT : shotType === 'LATE_CUT' ? LATE_CUT_MEETS_AT : sweeping ? SLOG_MEETS_AT : punching ? PUNCH_MEETS_AT : blocked;
+      : shotType === 'HOOK' ? HOOK_MEETS_AT : pulled ? PULL_MEETS_AT : spinPulling ? SPIN_PULL_MEETS_AT : shotType === 'LATE_CUT' ? LATE_CUT_MEETS_AT : sweeping ? SLOG_MEETS_AT : punching ? PUNCH_MEETS_AT : blocked;
     this.meetsAt = 1 - ahead / (GAME.releaseZ - GAME.contactZ);
     // Versions two and three keep it down: four, never six (`grounded`).
     if ((driven && version >= 2) || punching) this.attempt = { ...this.attempt, grounded: true };
     // At the spinner the cut is played making room for it: see `SPIN_CUT`.
     this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, version, this.meetsAt,
-      !charging && spinCut(this.delivery!, this.attempt));
+      !charging && spinCut(this.delivery!, this.attempt), spinPulling);
     this.hud.select(shotType, charging);
     // The charge is judged now rather than when the ball arrives, because the
     // ball is not going to arrive: he is going down the pitch to meet it, and
@@ -5596,7 +5619,7 @@ export class Game {
     return { phase: this.phase, lesson: this.lesson, seed: this.seed, elapsed: Math.round(this.elapsed),
       // A stroke's film under its story: which, and how far into a go of it, on its own clock.
       reel: this.reel ? { shot: this.reel.shot, at: Math.round(this.elapsed - this.reel.start), struck: this.reel.struck } : null, balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
-      line: this.delivery?.line ?? '—', effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
+      line: this.delivery?.line ?? '—', dragged: !!this.delivery?.dragged, spinPulled: !!this.outcome?.spinPulled, effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
       baseX: this.delivery?.baseTargetX.toFixed(3) ?? '—', finalX: this.delivery?.finalTargetX.toFixed(3) ?? '—',
       contactAt: Math.round(this.delivery?.idealContactTimeMs ?? 0), timingDelta: this.outcome?.timingDeltaMs?.toFixed(0) ?? '—', timingGrade: this.outcome?.timingGrade ?? '—',
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',

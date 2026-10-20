@@ -4,7 +4,7 @@ import {
 } from '../config/survive.js';
 import { ballPosition, stumpIntersection } from './DeliveryTrajectory.js';
 import { spun } from './DeliveryGenerator.js';
-import { cramped, crampedCut, fitOf, gradeTiming, hookable, lateCut, lateCutMeets, punch, squareDrive, sweeps } from './ShotResolver.js';
+import { cramped, crampedCut, droveShort, fitOf, gradeTiming, hookable, lateCut, lateCutMeets, punch, spinPull, squareDrive, sweeps } from './ShotResolver.js';
 
 export { spun };
 import type { BodyPart, Delivery, Ending, ShotAttempt, ShotOutcome, TimingSide } from './types.js';
@@ -387,6 +387,9 @@ export function resolveSurvive(
   // one ladder and paid by the other would send the ball somewhere the batter
   // was not.
   if (attempt && sweeps(delivery, attempt, outcome.timingGrade)) return { ...outcome, sweptFlat: true };
+  // The pull off the spinner is tagged the same way, with this mode's grade:
+  // it leaves between midwicket and square leg.
+  if (spinPull(delivery, attempt, outcome.timingGrade)) return { ...outcome, spinPulled: true };
   // The punch is tagged for the same reason: it leaves through cover, squarer than the drive.
   if (punch(delivery, attempt)) return { ...outcome, punched: true };
   return squareDrive(delivery, attempt) ? { ...outcome, squared: true } : outcome;
@@ -407,7 +410,9 @@ export function surviveBall(
   const timingGrade = delta === null ? 'MISS'
     : gradeTiming(delta, tight, skill.timing, SURVIVE.fastTimingScale);
   const contact = contactOf(delta, tight, skill.bands);
-  const compatibility = attempt ? fitOf(delivery, attempt.shotType) : 0;
+  // The pull off the spinner is played at the ball it is for whatever its
+  // line, so the line is not held against it, as it is not in the Blast.
+  const compatibility = !attempt ? 0 : spinPull(delivery, attempt, timingGrade) ? 1 : fitOf(delivery, attempt.shotType);
   const base: ShotOutcome = {
     runs: 0, isWicket: false, quality: SURVIVE_TIMING[timingGrade] * compatibility, feedback: 'DOT BALL',
     timingGrade, timingDeltaMs: delta, compatibility, madeBatContact: false, aerial: false,
@@ -453,8 +458,9 @@ export function surviveBall(
     // absolutely middles beats them.
     const spin = spun(delivery);
     if (timingGrade === 'PERFECT') {
-      // The punch, like the drives kept down, goes along the ground: four.
-      const runs = inTheSlot(delivery, compatibility) && !attempt.grounded && !punch(delivery, attempt) ? 6 : 4;
+      // The punch, like the drives kept down, goes along the ground: four. So
+      // does a drive at the spinner's ball dropped short.
+      const runs = inTheSlot(delivery, compatibility) && !attempt.grounded && !punch(delivery, attempt) && !droveShort(delivery, attempt) ? 6 : 4;
       return { ...base, runs, madeBatContact: true, feedback: award(runs) };
     }
     if (timingGrade === 'GOOD' && !spin) return { ...base, runs: 4, madeBatContact: true, feedback: award(4) };

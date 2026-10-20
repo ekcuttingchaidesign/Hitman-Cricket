@@ -4,7 +4,7 @@ import { ACTION_MS, Bowler, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowl
 import { bodyOf, showBody } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
 import { BLAST_FIELD, Field, TEST_FIELD } from './field';
-import { ADVANCE, FLAT_SWEEP, GAME, PUNCH, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
+import { ADVANCE, FLAT_SWEEP, GAME, PUNCH, SHOT_ANGLES, SPIN_PULL, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
 import { ballPosition, drawnAt } from '../game/DeliveryTrajectory';
 import { KIT, type Kit } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
@@ -1028,10 +1028,10 @@ export class GameScene {
   }
   /** How far along its flight the ball the bat was swung at is met, when that is short of the crease without a charge. */
   private meeting = 1;
-  swing(shot: ShotType, now: number, delivery: Delivery, charging = false, lofted = false, sweeping = false, levelled = false, version: CoverVersion = 2, meets = 1, spinCut = false) {
+  swing(shot: ShotType, now: number, delivery: Delivery, charging = false, lofted = false, sweeping = false, levelled = false, version: CoverVersion = 2, meets = 1, spinCut = false, spinPull = false) {
     this.meeting = charging ? 1 : meets;
     const contact = this.flight(delivery, charging ? GameScene.meetsAt(true) : meets);
-    this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging, lofted, sweeping, levelled, version, spinCut);
+    this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging, lofted, sweeping, levelled, version, spinCut, spinPull);
   }
   hit(outcome: ShotOutcome, shot: ShotType | undefined, delivery: Delivery, now: number) {
     this.hitStart = outcome.madeBatContact ? Math.max(now, this.batter.strikeAt) : now;
@@ -1046,13 +1046,14 @@ export class GameScene {
     // going across the line, so the ball leaves square of the wicket rather than
     // in front of it.
     // The back-foot punch goes through cover, squarer than the drive's sector.
+    // The pull off the spinner goes between midwicket and square leg.
     // The charge over cover goes over extra cover, where the stroke sends it,
     // rather than out along the long-off sector the cover input names.
     const sector = outcome.swept ? SWEEP.angle
       : outcome.sweptFlat ? FLAT_SWEEP.angle
       : outcome.advance && shot === 'COVER_LONG_OFF' ? ADVANCE.coverAngle
       : outcome.advance && shot === 'LONG_ON' ? ADVANCE.onAngle
-      : outcome.squared ? SQUARE_DRIVE.angle : outcome.punched ? PUNCH.angle : SHOT_ANGLES[shot ?? 'STRAIGHT'];
+      : outcome.squared ? SQUARE_DRIVE.angle : outcome.punched ? PUNCH.angle : outcome.spinPulled ? SPIN_PULL.angle : SHOT_ANGLES[shot ?? 'STRAIGHT'];
     let angle = (sector + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28))) * Math.PI / 180;
     const caught = outcome.wicketType === 'CAUGHT';
     /**

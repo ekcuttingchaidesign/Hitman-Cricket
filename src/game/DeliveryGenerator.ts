@@ -1,4 +1,4 @@
-import { CLASSIC_SPIN, GAME, LINES, LINE_X, QUICK_STYLES, SPECIALS, STYLES } from '../config/gameplay';
+import { CLASSIC_SPIN, DRAGGED, GAME, LINES, LINE_X, QUICK_STYLES, SPECIALS, STYLES } from '../config/gameplay';
 import {
   BOUNCERS, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES as SURVIVE_STYLES, SURVIVE,
 } from '../config/survive';
@@ -107,6 +107,8 @@ export interface SpinSpell {
   /** How many of the six go straight on, and the chance of one more. */
   armBallsPerOver: number;
   secondArmBallChance: number;
+  /** How many of the rest he drops short (`DRAGGED`). */
+  draggedPerOver: number;
 }
 
 /** The two that turn. The arm ball is his too, and does neither. */
@@ -293,6 +295,17 @@ export function spinCutsEvery(plan: BowlingPlan): BowlingPlan {
 }
 
 /**
+ * Every ball the spinner's and every one but the arm ball dropped short, for
+ * `?spinpull=1`, for trying the pull off the spinner every ball: his overs
+ * from the first, as `spinCutsEvery` gives them, with the arm ball left in its
+ * place, since a well-timed one is pulled too and a mistimed one flicked.
+ */
+export function spinPullsEvery(plan: BowlingPlan): BowlingPlan {
+  const every = spinCutsEvery(plan);
+  return every.spin ? { ...every, spin: { ...every.spin, draggedPerOver: every.spin.ballsPerOver } } : every;
+}
+
+/**
  * The Marathon with every over bowled round the wicket, from the first, for
  * `?round=1`: the side is otherwise drawn, from the sixth over, so seeing it
  * the honest way takes some batting.
@@ -381,6 +394,14 @@ export class DeliveryGenerator {
   private bowled = 0;
   /** Which balls of the over now in progress go straight on. Drawn at its top. */
   private armBalls = new Set<number>();
+  /**
+   * Which of the spinner's are dropped short (`DRAGGED`), drawn at the top of
+   * his over off a stream of their own (`drags`), and whether the ball being
+   * chosen is one.
+   */
+  private draggedBalls = new Set<number>();
+  private dragging = false;
+  private readonly drags: SeededRandom;
   /** Which balls of the over now in progress are short. Drawn at its top. */
   private shortBalls = new Set<number>();
   /** The over those were drawn for, so they are drawn once and not per ball. */
@@ -400,6 +421,10 @@ export class DeliveryGenerator {
   /** One ball bowled every time, for working on the stroke it is bowled for: `drill`. */
   private drilled: { style: DeliveryStyle; line: BallLine } | null = null;
   constructor(private rng: SeededRandom, private plan: BowlingPlan = CLASSIC_PLAN) {
+    // The short ball came after everything else, so it is placed off a stream
+    // forked from the seed rather than drawn from it, as the side is: taken
+    // from the seed it would have moved every ball bowled after it.
+    this.drags = rng.fork(DRAGGED.salt);
     const blocks = plan.blocks;
     if (blocks) {
       // Every block now rather than each as it comes, so the draw sits at the
@@ -491,6 +516,12 @@ export class DeliveryGenerator {
     const wanted = spell.armBallsPerOver + (this.rng.next() < spell.secondArmBallChance ? 1 : 0);
     return new Set(this.rng.shuffle(positions).slice(0, Math.min(wanted, spell.ballsPerOver)));
   }
+  /** Which of the balls left once the arm balls are placed he drops short: off `drags`, never the seed. */
+  private placeDragged(spell: SpinSpell): Set<number> {
+    const free = [];
+    for (let ball = 0; ball < spell.ballsPerOver; ball++) if (!this.armBalls.has(ball)) free.push(ball);
+    return new Set(this.drags.shuffle(free).slice(0, spell.draggedPerOver));
+  }
   /**
    * Which balls of this over are short. The arm ball's idiom exactly: a count
    * placed at positions drawn fresh, so the over always has its quota and never
@@ -536,6 +567,7 @@ export class DeliveryGenerator {
   }
   private chooseStyle(): DeliveryStyle {
     const { specials, styles } = this.plan;
+    this.dragging = false;
     // His over is all his. The owed yorker and the owed change-up wait for the
     // next bowler: he bowls his own of each, and only those.
     if (this.expressOn) {
@@ -552,8 +584,9 @@ export class DeliveryGenerator {
       const ballInOver = this.bowled % spell.ballsPerOver;
       // The over is planned at the top of it rather than ball by ball, which is
       // the only way to promise the quicker one is in there somewhere.
-      if (ballInOver === 0) this.armBalls = this.placeArmBalls(spell);
+      if (ballInOver === 0) { this.armBalls = this.placeArmBalls(spell); this.draggedBalls = this.placeDragged(spell); }
       if (this.armBalls.has(ballInOver)) return 'ARM_BALL';
+      this.dragging = this.draggedBalls.has(ballInOver);
       // And which way it turns is a coin, every ball. Nothing carries over from
       // the last one: two off breaks say nothing about the third.
       return this.rng.next() < 0.5 ? 'OFF_SPIN' : 'LEG_SPIN';
@@ -605,6 +638,7 @@ export class DeliveryGenerator {
     const style = this.drilled?.style ?? this.chooseStyle();
     const spell = this.plan.spin;
     const turning = !!spell && TURNING.includes(style);
+    const dragged = !this.drilled && turning && this.dragging;
     const sign = style === 'SWING_IN' || style === 'OFF_SPIN' || style === 'REVERSE_IN' ? -1
       : style === 'SWING_OUT' || style === 'LEG_SPIN' || style === 'REVERSE_OUT' ? 1 : 0;
     // A turning ball picks its line from the ones with somewhere to turn *to*,
@@ -654,10 +688,11 @@ export class DeliveryGenerator {
     const durationMs = (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * this.plan.travelScale * (shape.rush ?? 1);
     this.bowled++;
     return { line, style, speedKph, baseTargetX: LINE_X[line], finalTargetX,
-      bounceZ: shape.bounce ?? GAME.bounceZ, rise: shape.rise ?? GAME.rise,
+      bounceZ: dragged ? DRAGGED.bounce : shape.bounce ?? GAME.bounceZ, rise: dragged ? DRAGGED.rise : shape.rise ?? GAME.rise,
       durationMs, releaseTimeMs, idealContactTimeMs: releaseTimeMs + durationMs,
       ...(swung && level!.late ? { late: level!.late } : {}),
       ...(express ? { express: true } : {}),
-      ...(round ? { round: true } : {}) };
+      ...(round ? { round: true } : {}),
+      ...(dragged ? { dragged: true } : {}) };
   }
 }

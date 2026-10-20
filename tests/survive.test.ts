@@ -1072,7 +1072,7 @@ describe('the square drive in Survive', () => {
                 balls++;
                 if (outcome.squared) tagged++;
                 // Everything the mode is scored and judged on, untouched.
-                const { squared, sweptFlat, punched, ...rest } = outcome;
+                const { squared, sweptFlat, punched, spinPulled, ...rest } = outcome;
                 expect(rest).toEqual(surviveBall(delivery, at(delta, shot), rolls(seed)));
               }
     // The sweep is meter-gated and this mode has no meter, so it never appears.

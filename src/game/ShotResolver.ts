@@ -1,4 +1,4 @@
-import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, GAME, GROUND_RUNS, HOOK, LATE_CUT, PUNCH, SCOOP, SOLID_SHOT, SPIN_CUT, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
+import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, GAME, GROUND_RUNS, HOOK, LATE_CUT, PUNCH, SCOOP, SOLID_SHOT, SPIN_CUT, SPIN_PULL, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory';
 import { spun } from './DeliveryGenerator';
 import type { Delivery, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './types';
@@ -40,6 +40,63 @@ function groundRuns(rng: { next(): number }): ShotOutcome['runs'] {
  */
 export function spinCut(delivery: Delivery, attempt: Pick<ShotAttempt, 'shotType'> | null) {
   return attempt?.shotType === 'SQUARE_CUT' && spun(delivery);
+}
+/**
+ * The pull off the spinner (`SPIN_PULL`): the leg-side input at his ball
+ * dropped short, which sits up at the waist and is too short to sweep, and at
+ * the arm ball timed well enough to be in position for it. The arm ball timed
+ * worse is still worked off the pads, the flick. `grade` is the mode's own, so
+ * the stroke he plays and the one he is paid for are the same. Read by the rig
+ * and by every mode's score.
+ */
+export function spinPull(delivery: Delivery, attempt: Pick<ShotAttempt, 'shotType'> | null, grade: TimingGrade) {
+  if (attempt?.shotType !== 'LEG' || !spun(delivery)) return false;
+  if (delivery.dragged) return true;
+  return delivery.style === 'ARM_BALL' && (grade === 'PERFECT' || grade === 'GOOD');
+}
+/**
+ * The pull off the spinner once he is playing it, off the grade of whichever
+ * mode is playing it: middled six, a shade under four, held back one or two;
+ * poor off the top edge, caught three times in four and otherwise a single off
+ * the bottom of the bat. Missed is not read here: the ball goes on, and is
+ * judged as any ball that beat the bat.
+ */
+export function spinPulled(outcome: ShotOutcome, rng: { next(): number }): ShotOutcome {
+  const met = { ...outcome, spinPulled: true, compatibility: 1, quality: TIMING_SCORE[outcome.timingGrade], madeBatContact: true };
+  switch (outcome.timingGrade) {
+    case 'PERFECT': return { ...met, quality: 1, runs: 6, feedback: award(6) };
+    case 'GOOD': return { ...met, runs: 4, feedback: award(4) };
+    case 'OK': { const runs = rng.next() < SPIN_PULL.two ? 2 : 1; return { ...met, runs, feedback: award(runs) }; }
+    default:
+      return rng.next() < SPIN_PULL.caught
+        ? { ...met, runs: 0, aerial: true, isWicket: true, wicketType: 'CAUGHT', feedback: SPIN_PULL.feedback.topEdge }
+        : { ...met, runs: 1, feedback: SPIN_PULL.feedback.bottomEdge };
+  }
+}
+/**
+ * The straight drive or the on drive at the spinner's ball dropped short: up
+ * at the waist, it is driven for four at the most and never over the top.
+ */
+export function droveShort(delivery: Delivery, attempt: Pick<ShotAttempt, 'shotType'> | null) {
+  return !!delivery.dragged && (attempt?.shotType === 'STRAIGHT' || attempt?.shotType === 'LONG_ON');
+}
+/**
+ * What that drive comes to, once the bat is on it: middled four, a shade under
+ * two, held back one or two, and poor up in the air and caught three times in
+ * four, a single off the edge otherwise.
+ */
+function droveShortBall(outcome: ShotOutcome, rng: { next(): number }): ShotOutcome {
+  const met = { ...outcome, madeBatContact: true };
+  // Driven across a line it does not suit, it is as good as poor, as the punch is.
+  switch (outcome.compatibility < SOLID_SHOT ? 'POOR' : outcome.timingGrade) {
+    case 'PERFECT': return { ...met, runs: 4, feedback: award(4) };
+    case 'GOOD': return { ...met, runs: 2, feedback: award(2) };
+    case 'OK': { const runs = rng.next() < SPIN_PULL.two ? 2 : 1; return { ...met, runs, feedback: award(runs) }; }
+    default:
+      return rng.next() < GAME.mishitCaught
+        ? { ...met, runs: 0, aerial: true, isWicket: true, wicketType: 'CAUGHT', feedback: 'CAUGHT!' }
+        : { ...met, runs: 1, feedback: award(1) };
+  }
 }
 /** How well this stroke suits the line this ball finishes on: the table's, but the spinner's cut its own. */
 /**
@@ -211,8 +268,9 @@ function sweptPast(outcome: ShotOutcome, delivery: Delivery, rng: { next(): numb
  * classic drive, which is also everything that is not worth six.
  */
 export function loftedDrive(delivery: Delivery, attempt: ShotAttempt | null) {
-  // The on drive has a six of its own now, on the same rule.
-  if (!attempt || (attempt.shotType !== 'STRAIGHT' && attempt.shotType !== 'LONG_ON') || delivery.style === 'SHORT') return false;
+  // The on drive has a six of its own now, on the same rule. Not at the
+  // spinner's ball dropped short, which is driven for four at the most.
+  if (!attempt || (attempt.shotType !== 'STRAIGHT' && attempt.shotType !== 'LONG_ON') || delivery.style === 'SHORT' || delivery.dragged) return false;
   if (COMPATIBILITY[effectiveLine(delivery)][attempt.shotType] < SOLID_SHOT) return false;
   return gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight) === 'PERFECT';
 }
@@ -454,6 +512,11 @@ export function resolveShot(
     return { ...outcome, sweptFlat: true, aerial: true, madeBatContact: true, compatibility: 1,
       isWicket: true, wicketType: 'CAUGHT', feedback: FLAT_SWEEP.topEdge };
   }
+  // Pulled off the spinner: his ball dropped short, or the arm ball read early.
+  // Missed, it goes on and is judged below as any ball that beat the bat.
+  if (spinPull(delivery, attempt, timingGrade) && timingGrade !== 'MISS') return spinPulled(outcome, rng);
+  // Driven at his ball dropped short: four at the most, never six.
+  if (droveShort(delivery, attempt) && madeBatContact) return droveShortBall(outcome, rng);
   // The cover drive's swipe at a ball short of a length: punched off the back
   // foot through cover, along the ground. Missed, a bouncer goes on through
   // to the keeper and one back of a length is beaten like any other stroke.

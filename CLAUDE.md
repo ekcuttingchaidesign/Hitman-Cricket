@@ -822,7 +822,9 @@ An innings played from a link carrying a switch that changes the game —
 `?nets=1`, `?settled=1`, `?swing=1`, `?express=1`, `?reverse=1`, `?round=1`,
 `?wear=fast`, `?spin=1`, `?charge=…`, `?slowmo=…`, `?bouncers=1`, `?hooks=1`
 (every ball a bouncer on off stump or wider, the hook's ball), `?spincut=1`
-(every ball the spinner's, for the cut off him), `?latecut=1` (every ball
+(every ball the spinner's, for the cut off him), `?spinpull=1` (every ball
+the spinner's and all but the arm ball dropped short, for the pull off him),
+`?latecut=1` (every ball
 pace outside off, for the late cut), `?cover=1`
 (every ball the cover drive's own: a stock ball pitched up on off stump),
 `?coverv=1`, `2` or `3` (always that version of the cover strokes), or the
@@ -1192,6 +1194,63 @@ one swipe for every ball the spinner bowls, the turn never read. `?spin=1` gives
 every over; `?spincut=1` (`spinCutsEvery`) gives him every ball in any mode,
 all of his on every line, the outside-leg ball included, and is practice. It is `spinCut` in the batter tests' `PLAYS`, and
 `cover-drive.html` has it beside the drives and the hook.
+
+## The pull off the spinner
+
+The spinner drops one ball short every over (`DRAGGED`, `draggedPerOver` in
+`SPIN_BOWLING`): an off break or a leg break, never the arm ball, pitched at
+7 metres where the rest land at 8.3 and climbing to reach the batter at the
+waist rather than the knee. Its place in the over is drawn off a stream
+forked from the seed (`drags`, `placeDragged`), as the round-the-wicket overs
+are, so no other ball of any innings moved when it arrived; a Rival Match
+begun before it shipped and finished after would see the spinner differently.
+It is too short for either sweep (`SWEEP.minBounceZ`), and the strokes the
+other swipes play at it are the ones its height already picks: the cut off
+the spinner, the back-foot punch and the back-foot defence. The straight and
+on drives at it (`droveShort`) are four at the most, never six and never
+lofted: middled four, a shade under two, held back one or two, poor up and
+caught three times in four (`droveShortBall`; in a Test, four off the mode's
+own ladder).
+
+The leg-side swipe at it is the pull off the spinner (`spinPull` in
+`ShotResolver.ts`, read by the rig and every mode's score), and so is the
+leg-side swipe at the arm ball timed good or better; timed OK or worse, the
+arm ball is still the flick. Picked by timing, it is picked on the grade of
+the mode that pays it (`gradeFor` in `src/Game.ts`): Survival's and the
+Marathon batter's windows are narrower than the Blast's. The full ball is
+swept or flicked as it always was. A normal stroke, no meter. In the Blast
+timing names it (`spinPulled`, the hook's ladder): middled six, a shade under
+four, held back one or two, poor off the top edge and caught at short fine
+leg three times in four, a single off the bottom of the bat otherwise;
+missed, it goes on and is judged as any ball that beat the bat. The line is
+not held against it (`fitOf` stands aside for it in Survival too). In a Test
+it is paid off the mode's own ladder, as every stroke at the spinner is, and
+only tagged (`spinPulled`) so the ball leaves where it was hit,
+`SPIN_PULL.angle`, between midwicket and square leg.
+
+The stroke (`SPIN_PULL`, `SPIN_PULL_CLOCK` in `src/entities/Batter.ts`) is
+built from a net session filmed from the bowler's end. Back and opened: the
+back foot back to his stumps, the front one out to leg, square on a wide, low
+base with the bat high behind the back shoulder. Met at
+`SPIN_PULL_CONTACT_MS` out in front by `SPIN_PULL_MEETS_AT`, the arms long,
+the bat sloping down to off and the flat face to the bowler, at the ball's
+own height (the short ball's waist and the arm ball's knee: `crossBat` lets
+it off the height clamp). Then the bat goes round in the one plane facing
+the bowler: toe down past the front pad, up the leg side past the front
+shoulder, upright over it, and over to lie behind his head with the toe back
+towards off and the hands high over the front shoulder, as the back knee
+goes down to the turf (the back shoe turned to point down the pitch,
+`backFootYaw`, or the knee stays up). No wrist roll: the face rides the
+handle (`riding`, turned only on the way down to the ball), and the swing's
+plane is what keeps it to the bowler; the batter tests hold the turn in his
+hands from the ball to the finish under two degrees. Held there
+(`SPIN_PULL_HOLD_MS`), then home over the top, level in front of him with the
+toe to off as the clip goes home, and down into his guard. The hands were
+first taken straight up over his head, and the back elbow folded up in front
+of his face; they are carried out to leg and forward instead, through the
+climb and on the way home. It is `spinPull` and `spinPullLow` in the batter
+tests' `PLAYS`, `tests/spin-pull.test.ts` holds the ball and the rules, and
+`cover-drive.html` has it.
 
 ## The late cut
 
