@@ -160,9 +160,9 @@ for (const [mode, ok, six] of [['classic', 100, 6], ['survive', 55, 4]]) {
     check(late.timingGrade === 'OK', 'a touch late is OK', late.timingGrade);
     check(!late.pulling && !late.spinPulled, 'and the arm ball timed OK is still the flick', JSON.stringify({ pulling: late.pulling, spinPulled: late.spinPulled }));
   }
-  // What GoatCounter is sent at the innings' end (`spinPullMarks`), tallied off the real balls.
+  // What GoatCounter is sent at the innings' end (`strokeMarks`), tallied off the real balls.
   const tally = (await snap()).spinPulls;
-  check(tally.faced >= 2 && tally.pulled >= 3 && tally.arm >= 1, 'the tally counts the short balls faced and the pulls played, the arm ball among them', JSON.stringify(tally));
+  check(tally.faced >= 2 && tally.played >= 3 && tally.arm >= 1, 'the tally counts the short balls faced and the pulls played, the arm ball among them', JSON.stringify(tally));
   check(tally.sixes + tally.fours >= 1, 'and what the pull came to', JSON.stringify(tally));
   check(errors.length === 0, 'with nothing in the console', errors.join('\n        '));
   await page.close();
