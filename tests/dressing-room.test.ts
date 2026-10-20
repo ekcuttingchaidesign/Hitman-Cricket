@@ -40,10 +40,10 @@ describe('the Dressing Room screen', () => {
   });
 
   it('shows one goal large, and the key to the game it is won in', () => {
-    const foot = footMarkup(view({ kit: 'electric' }));
-    expect(foot).toContain('Win 50 Test Survivals');
-    expect(foot).toMatch(/18<span> \/ 50<\/span>/);
-    expect(foot).toContain('32 to go');
+    const foot = footMarkup(view({ shelf: 'bat', bat: 'lonewolf', record: { ...view().record, careers: { ...view().record.careers, survive: { ...emptySurvive(), wins: 4 } } } }));
+    expect(foot).toContain('Win 10 Test Survivals');
+    expect(foot).toMatch(/4<span> \/ 10<\/span>/);
+    expect(foot).toContain('6 to go');
     expect(foot).toContain('PLAY TEST SURVIVAL');
   });
 

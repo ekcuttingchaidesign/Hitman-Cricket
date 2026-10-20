@@ -48,7 +48,7 @@ export const OUTFITS: readonly Outfit[] = [
   { id: 'forest', name: 'British Racing Green', shirt: '#0A4A3E', helmet: '#135045', trousers: '#F1E5D5', pads: '#ECE0CC', trim: '#0A4A3E', number: '#FFFFFF', glow: '#25C28A', line: 'Emerging Player in all three modes.', short: 'Emerging in every mode' },
   { id: 'gold', name: 'Bumblebee', shirt: '#F2A31B', helmet: '#F2A31B', trousers: '#13284A', pads: '#1E3560', trim: '#F2A31B', number: '#13284A', glow: '#FFB52E', line: '10 Rival wins against 5 different players.', short: '10 Rival wins' },
   { id: 'violet', name: 'Thanos Eclipse', shirt: '#5232A6', helmet: '#5435A8', trousers: '#ECE8E3', pads: '#E9E4DE', trim: '#5232A6', number: '#FFFFFF', glow: '#8B5CFF', line: 'A double hundred in a Test Marathon.', short: 'A Test double hundred' },
-  { id: 'electric', name: 'Electric', shirt: '#0A64D6', helmet: '#176DD3', trousers: '#0B56C0', pads: '#1A4A95', trim: '#F08A2C', number: '#FFFFFF', glow: '#2F8BFF', line: '50 Test Survival wins.', short: '50 Survival wins' },
+  { id: 'electric', name: 'Electric', shirt: '#0A64D6', helmet: '#176DD3', trousers: '#0B56C0', pads: '#1A4A95', trim: '#F08A2C', number: '#FFFFFF', glow: '#2F8BFF', line: '150 in a Blast, and 5,000 Blast runs.', short: '150 and 5,000 Blast runs' },
   { id: 'lagoon', name: 'Lagoon', shirt: '#0597B0', helmet: '#0197B0', trousers: '#0F2A52', pads: '#183868', trim: '#2B4F86', number: '#FFFFFF', glow: '#1FD1E6', line: '500 finished innings.', short: '500 innings' },
 ];
 
@@ -144,7 +144,10 @@ export function outfitSteps(id: OutfitId, r: DressingRecord): Step[] | null {
       { text: 'Beat 5 different players', now: r.rivals.beaten, of: 5, mode: 'rivals' },
     ];
     case 'violet': return [{ text: 'Make 200 in a Test Marathon', now: r.careers.marathon.highest, of: 200, best: true, mode: 'marathon' }];
-    case 'electric': return [{ text: 'Win 50 Test Survivals', now: r.careers.survive.wins, of: 50, mode: 'survival' }];
+    case 'electric': return [
+      { text: 'Make 150 in the Blast', now: r.careers.classic.highest, of: 150, best: true, mode: 'blast' },
+      { text: 'Score 5,000 runs in the Blast', now: r.careers.classic.runs, of: 5000, mode: 'blast' },
+    ];
     case 'lagoon': return [{ text: 'Play 500 finished innings', now: innings(r), of: 500 }];
   }
 }
