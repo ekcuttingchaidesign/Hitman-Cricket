@@ -15,7 +15,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, type CoverVersion, COVER_V3_MEETS_AT, PUNCH_CONTACT_MS, PUNCH_HOLD_MS, PUNCH_MEETS_AT, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_FRONT_MEETS_AT,PULL_CONTACT_MS, PULL_LOAD_MS, PULL_MEETS_AT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, SLOG_CLOCK, SLOG_HOLD_MS, SLOG_MEETS_AT, SWEEP_CONTACT_MS, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, REVERSE_CLOCK, SCOOP_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_HOLD_MS, SPIN_PULL_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS, FLICK_CLOCK, FLICK_HOLD_MS, FLICK_MEETS_AT } from './entities/Batter';
+import { Batter, type CoverVersion, COVER_V3_MEETS_AT, PUNCH_CONTACT_MS, PUNCH_HOLD_MS, PUNCH_MEETS_AT, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_FRONT_MEETS_AT,PULL_CONTACT_MS, PULL_LOAD_MS, PULL_MEETS_AT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, SLOG_CLOCK, SLOG_HOLD_MS, SLOG_MEETS_AT, SWEEP_CONTACT_MS, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, REVERSE_CLOCK, SCOOP_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_HOLD_MS, SPIN_PULL_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS, FLICK_CLOCK, FLICK_HOLD_MS, FLICK_MEETS_AT, FLICK_V3_CLOCK, FLICK_V3_CONTACT_MS, FLICK_V3_HOLD_MS, FLICK_V3_MEETS_AT } from './entities/Batter';
 import { ADVANCE, GAME, LINE_X, PUNCH, SHOT_ANGLES, STYLES, DRAGGED, SPIN_PULL } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 import type { ShotType } from './game/types';
@@ -40,7 +40,7 @@ interface Stroke {
   /** Which version of the pull, whatever the version buttons say. */
   pullVersion?: 1 | 2;
   /** And of the flick. */
-  flickVersion?: 1 | 2;
+  flickVersion?: 1 | 2 | 3;
   /** Where the ball is met, in the rig's frame. */
   ball: { x: number; y: number; z: number };
   contact: number; end: number; bounceZ: number;
@@ -80,6 +80,15 @@ const STROKES: Record<string, Stroke> = {
     out: { speed: .024, angle: 0, climb: 0 },
     facts: ['full, middle stump', `${STROKE_DURATION_MS} ms`],
     note: 'The straight drive, off the swipe straight up or W: a stride down the line, the bat coming down straight under his eyes, the ball met beside the front pad and the arms out long back past the bowler, the finish high over the front shoulder.',
+  },
+  flick3: {
+    label: 'Flick v3', shot: 'LEG', charging: false, single: true, flickVersion: 3, ball: { x: LINE_X.LEG, y: .81, z: GAME.contactZ + FLICK_V3_MEETS_AT },
+    contact: FLICK_V3_CONTACT_MS, end: STROKE_DURATION_MS + FLICK_V3_HOLD_MS, bounceZ: STYLES.RIB.bounce!,
+    phases: [['Stance', -LEAD_MS], ['Back and across', FLICK_V3_CLOCK.load], ['Contact', FLICK_V3_CONTACT_MS], ['Lift', FLICK_V3_CLOCK.lift], ['Across', FLICK_V3_CLOCK.across],
+      ['Finish', FLICK_V3_CLOCK.finish], ['Home', FLICK_V3_CLOCK.hold + FLICK_V3_HOLD_MS]],
+    out: { speed: .026, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.LEG), climb: 0 },
+    facts: ['back of a length, on the hip', `${STROKE_DURATION_MS + FLICK_V3_HOLD_MS} ms`],
+    note: 'Version three of the flick, off the back foot, at every ball short of a length that reaches him below pull height: from a net clip filmed from the bowler\'s end. By 85 ms the back foot has gone back and across towards off stump with the bat up, and the front foot is drawn back beside it, so the feet are side by side and his hips and chest open to the bowler; he stands tall on the back leg. The bat comes down straight, the top elbow up, and meets the ball late at 150, just in front of the front pad and under his eyes, with the flat face to the bowler, the wrists sending it square on the leg side. Then the hands lift the bat straight up, still upright, by 240; the toe tips over to the off side until it lies across the front of his helmet at 340; and on up until at 430 it stands diagonally in front of his helmet, the toe up over the back shoulder and the flat face still to the bowler. The front heel comes up as he holds it to 760, then home. Middled or a shade under it is four along the ground; held back or mistimed, ones, twos and threes, or chipped up and caught.',
   },
   flick2: {
     label: 'Flick v2', shot: 'LEG', charging: false, single: true, flickVersion: 2, ball: { x: LINE_X.LEG, y: .54, z: GAME.contactZ + FLICK_MEETS_AT },
