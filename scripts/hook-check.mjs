@@ -170,6 +170,11 @@ for (const [mode, late] of [['classic', 170], ['survive', 120]]) {
     check(/CAUGHT BEHIND|OFF THE GLOVES/.test(gloved.outcome), 'and it is on the glove', gloved.outcome);
   }
   if (swiped) check(swiped.shot === 'HOOK', 'a thumb down and to leg at that ball plays it too', JSON.stringify({ shot: swiped.shot, outcome: swiped.outcome }));
+  // What GoatCounter is sent at the innings' end (`strokeMarks`), tallied off the real balls:
+  // the ducked ones were not the hook's ball, so they are no other stroke at it.
+  const tally = (await snap()).hooks;
+  check(tally.faced === plays.length && tally.played === plays.length && tally.other === 0 && tally.sixes >= 1,
+    'the tally counts the bouncers to hook faced, the hooks played and the six', JSON.stringify(tally));
   check(errors.length === 0, 'with nothing in the console', errors.join('\n        '));
   await page.close();
 }
