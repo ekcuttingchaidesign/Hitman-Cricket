@@ -632,13 +632,13 @@ played does not split them, and the `?dressing=1` preview counts nothing.
 
 ## The guard: gloves and pads
 
-The batter's gloves and leg pads are one pick, a guard: seven colourways in
+The batter's gloves and leg pads are one pick, a guard: eight colourways in
 `src/entities/gloves.ts`, their ids in `dressing-ids.ts` beside the kits' and
 bats' (`GUARD_IDS`). Sterling is the one he is built wearing (`FREE_GUARD`,
 white and silver so it goes with every kit and the Test match's whites); the
 rest are Glacier, Fern, Evergreen (Fern in British Racing Green), Ember (the
 carbon weave with red pads trimmed black; its id is still `carbon`, which
-saved picks and the checks hold), Blaze and Midnight. Each design is the
+saved picks and the checks hold), Blaze, Midnight and Volt (Electric's blue with a volt-yellow accent). Each design is the
 gloves in full and the pads' two colours (`pads.body`, `pads.trim`: the pad,
 and its piping, knee roll and ankle flap), and `Batter.wearGloves(design)`
 puts both on, the straps round the back of each pad in the darker of its two

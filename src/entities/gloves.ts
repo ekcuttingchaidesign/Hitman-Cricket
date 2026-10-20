@@ -188,6 +188,20 @@ export const GLOVES: readonly GloveDesign[] = [
     thumb: '#1C2742', thumbTip: '#E3B341', ridges: '#E3B341',
     cuff: { base: '#1C2742', bands: [{ at: .062, depth: .010, colour: '#E3B341' }], strap: '#24325A', badge: '#E3B341', rim: '#1C2742' },
   },
+  {
+    // Electric's blue (`OUTFITS` electric, shirt) with a volt-yellow accent: the guard for that kit, and a loud one with any other.
+    id: 'volt', name: 'Volt', line: 'Electric blue padding with a volt-yellow index roll, tips and piping, a yellow band and a blue cuff.',
+    glow: '#CCFF00',
+    pads: { body: '#0A64D6', trim: '#CCFF00' },
+    base: '#0A64D6',
+    rolls: ['#0A64D6', '#0A64D6', '#0A64D6', '#CCFF00'],
+    index: ['#CCFF00', '#0A64D6', '#0A64D6'],
+    sideBar: true,
+    tips: ['#0A64D6', '#0A64D6', '#0A64D6', '#CCFF00'],
+    knuckleBar: { colour: '#0B56C0', badge: '#CCFF00' },
+    thumb: '#0A64D6', thumbTip: '#CCFF00', ridges: '#CCFF00',
+    cuff: { base: '#0A64D6', bands: [{ at: .062, depth: .010, colour: '#CCFF00' }], strap: '#0B56C0', badge: '#CCFF00', rim: '#0A64D6' },
+  },
 ];
 
 export const gloveOf = (id: string | null | undefined): GloveDesign => GLOVES.find(g => g.id === id) ?? GLOVES.find(g => g.id === DEFAULT_GLOVE)!;
