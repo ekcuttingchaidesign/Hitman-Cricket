@@ -1921,6 +1921,15 @@ const ON_LOFT: Stroke = {
  */
 export const CHARGE_CLOCK = { skip: 110, plant: 190, drop: 228, under: 266, contact: CHARGE_CONTACT_MS, through: 400, carry: 495,
   over: 565, finish: 615, hold: 690, unwrap: 775, across: 835, recover: 890 } as const;
+/**
+ * The straight charge's wrap, held: `held` milliseconds still at the hold, the
+ * bat laid back on his shoulder, then `home` to come back to his guard, where
+ * the clock gives it 250. The walk back to the crease starts that much later,
+ * at its own pace: he is back in his crease well before the next run-up, which
+ * waits on the six's flight and the result. Quickened to make up the time, the
+ * walk moved a foot further a frame than the walk's own test allows.
+ */
+export const STRAIGHT_CHARGE_HOLD = { held: 220, home: 380 } as const;
 /** How far down the pitch the root has travelled at each key, in metres. */
 const CHARGE_TRAVEL = { skip: .06, plant: .20, drop: .26, under: .31, contact: .34, through: .60, carry: .85, over: .96, finish: 1.05 } as const;
 /**
@@ -3533,6 +3542,11 @@ export class Batter {
     if (this.admiring && age > ADMIRE_AT) age = Math.max(ADMIRE_AT, age - ADMIRE_MS);
     // Pull version one holds the wrap a moment longer, then comes home at its own pace: see `PULL_V1_HOLD_MS`.
     else if (this.pulling && !this.pullV2 && age > PULL_V1_CLOCK.hold) age = Math.max(PULL_V1_CLOCK.hold, age - PULL_V1_HOLD_MS);
+    // The straight charge holds its wrap a moment longer, then comes home the slower: see `STRAIGHT_CHARGE_HOLD`.
+    else if (this.charging && this.shot === 'STRAIGHT' && age > CHARGE_CLOCK.hold) {
+      const { hold } = CHARGE_CLOCK, { held, home } = STRAIGHT_CHARGE_HOLD, drawn = STROKE_DURATION_MS - hold;
+      age = age < hold + held ? hold : age < hold + held + home ? hold + (age - hold - held) * drawn / home : age - held - home + drawn;
+    }
     // The punch holds its high finish a moment longer: see `PUNCH_HOLD_MS`.
     else if (this.punching && age > PUNCH_CLOCK.hold) age = Math.max(PUNCH_CLOCK.hold, age - PUNCH_HOLD_MS);
     // The hook, once he has turned round, holds and goes home the slower: see `HOOK_HOLD_MS`.
@@ -3667,6 +3681,17 @@ export class Batter {
         if (at < settle) return shoulderDriven([{ time: 0, pose: this.swingFrom },
           ...keys.map(({ time, pose }) => ({ time, pose: time === CHARGE_CLOCK.contact ? contact : reachPose(pose) }))], at, CHARGE_CONTACT_MS);
         if (at < hold) return finish;
+        // The straight charge comes home on one smooth curve through its keys,
+        // easing out of the hold and into the guard, each key placed by how
+        // far the hands go to reach it: on the keys' own times it changed
+        // speed at every one, and came into the guard fastest and stopped dead.
+        if (!overCover && !overLongOn) {
+          const path = [finish, ...home.map(([, pose]) => reachPose(pose)), GUARD];
+          const along = path.map((_, n) => path.slice(1, n + 1).reduce((sum, pose, m) => sum + V(pose.grip).distanceTo(V(path[m].grip)), 0));
+          const span = STROKE_DURATION_MS - hold, total = along[along.length - 1];
+          return flowing(path.map((pose, n) => ({ time: hold + span * along[n] / total, pose })),
+            hold + span * ease(THREE.MathUtils.clamp((at - hold) / span, 0, 1)));
+        }
         let from: Pose = finish, since: number = hold;
         for (const [until, pose] of home) {
           if (at < until) return mix(from, reachPose(pose), (at - since) / (until - since));

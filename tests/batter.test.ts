@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, PUNCH_CLOCK, PUNCH_CONTACT_MS, PUNCH_HIGHEST, PUNCH_HOLD_MS, PUNCH_MEETS_AT, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, DEFENCE_FRONT_MEETS_AT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_HEIGHT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_MEETS_AT, SPIN_PULL_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, pullVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
+import { Batter, STRAIGHT_CHARGE_HOLD, PUNCH_CLOCK, PUNCH_CONTACT_MS, PUNCH_HIGHEST, PUNCH_HOLD_MS, PUNCH_MEETS_AT, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, DEFENCE_FRONT_MEETS_AT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_HEIGHT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_MEETS_AT, SPIN_PULL_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, pullVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -83,6 +83,14 @@ const play = (batter: Batter, kind: string, x = 0) => {
   const spec = PLAYS[kind];
   batter.swing(spec.shot, 0, x, spec.ballY, GAME.contactZ + (spec.charging ? CHARGE_MEETS_AT : spec.version === 3 ? COVER_V3_MEETS_AT : spec.meets ?? 0),
     spec.charging ?? false, spec.lofted ?? false, spec.sweeping ?? false, spec.levelled ?? false, spec.version ?? 2, spec.spinCut ?? false, spec.spinPull ?? false);
+};
+/**
+ * When the straight charge reaches a moment of its own clock: it holds its
+ * wrap `STRAIGHT_CHARGE_HOLD.held` and takes `home` to come back from there.
+ */
+const chargeTime = (t: number) => {
+  const { hold } = CHARGE_CLOCK, { held, home } = STRAIGHT_CHARGE_HOLD, drawn = STROKE_DURATION_MS - hold;
+  return t <= hold ? t : t <= STROKE_DURATION_MS ? hold + held + (t - hold) * home / drawn : t + held + home - drawn;
 };
 /** The charge, played at the ball the game plays it at. */
 const charge = (x = 0) => {
@@ -2068,16 +2076,16 @@ describe('the charge', () => {
     // The body follows the ball sideways by the drives' fraction of its line,
     // and the blade meets it on the line itself; by the guard the shift is gone.
     for (const time of [CHARGE_CLOCK.skip, CHARGE_CLOCK.plant, CHARGE_CONTACT_MS, 400, CHARGE_CLOCK.finish, 800]) {
-      middle.update(time); leg.update(time);
+      middle.update(chargeTime(time)); leg.update(chargeTime(time));
       expect(leg.inspect().grip[0] - middle.inspect().grip[0], `at ${time}ms`).toBeCloseTo(-.17 * (time === CHARGE_CONTACT_MS ? 1 : .65), 1);
     }
-    middle.update(940); leg.update(940);
+    middle.update(chargeTime(940)); leg.update(chargeTime(940));
     expect(leg.inspect().grip).toEqual(middle.inspect().grip);
   });
   it('runs down the pitch, stops at the finish, and walks back', () => {
     const batter = charge();
     let furthest = 0;
-    for (let time = 0; time <= STROKE_DURATION_MS; time += 20) {
+    for (let time = 0; time <= chargeTime(STROKE_DURATION_MS); time += 10) {
       batter.update(time);
       const down = batter.inspect().downPitch;
       // Forwards only, until he turns for home.
@@ -2087,8 +2095,9 @@ describe('the charge', () => {
     expect(furthest).toBeCloseTo(ADVANCE.stride, 6);
     // Most of it is covered by the finish; the rest is momentum dying.
     batter.update(CHARGE_CLOCK.finish); expect(batter.inspect().downPitch).toBeGreaterThan(ADVANCE.stride * .85);
-    // And he is back in his crease before the next ball.
-    batter.update(STROKE_DURATION_MS + ADVANCE.walkBackMs);
+    // And he is back in his crease before the next ball, once he has held
+    // the wrap and come home.
+    batter.update(chargeTime(STROKE_DURATION_MS + ADVANCE.walkBackMs));
     expect(batter.inspect().downPitch).toBeCloseTo(0, 6);
     batter.reset();
     expect(batter.inspect().downPitch).toBeCloseTo(0, 6);
@@ -2114,9 +2123,11 @@ describe('the charge', () => {
       const pose = batter.inspect();
       return [pose.frontFoot, pose.backFoot].map(foot => foot[2] + GAME.stanceZ + pose.downPitch);
     };
-    batter.update(STROKE_DURATION_MS);
+    // From when he sets off: the straight charge holds its wrap the longer.
+    const off = chargeTime(STROKE_DURATION_MS);
+    batter.update(off);
     let previous = feet(), planted = 0, frames = 0;
-    for (let time = STROKE_DURATION_MS + 8; time <= STROKE_DURATION_MS + ADVANCE.walkBackMs; time += 8) {
+    for (let time = off + 8; time <= chargeTime(STROKE_DURATION_MS + ADVANCE.walkBackMs); time += 8) {
       batter.update(time);
       const now = feet();
       const moved = now.map((z, i) => Math.abs(z - previous[i]));
@@ -2441,28 +2452,29 @@ describe('the charge over long-on', () => {
       expect(elbow.clearance, `x=${x} ${JSON.stringify(elbow)}`).toBeGreaterThan(.15);
     }
   });
-  it.each([['straight', charge], ['long-on', onCharge]])('the %s charge comes home back over the top, on the arc it went over on', (_, make) => {
+  it.each([['straight', charge, chargeTime], ['long-on', onCharge, (t: number) => t]] as const)('the %s charge comes home back over the top, on the arc it went over on', (_, make, at) => {
     for (const x of PLAYS.onCharge.reach) {
       const batter = make(x);
-      // Up out of the wrap the way it went in: by the unwrap key the toe is
-      // back up above the hands and behind him, as it was over the top on
-      // the way in; by the across key it is up and in front of him, and the
-      // hands have come down towards the chest.
-      batter.update(CHARGE_CLOCK.unwrap);
-      let pose = batter.inspect();
-      expect(pose.bladeTip[1], `x=${x} unwrap toe up`).toBeGreaterThan(pose.grip[1] + .25);
-      expect(pose.bladeTip[2] - batter.root.position.z, `x=${x} unwrap toe behind`).toBeLessThan(pose.grip[2]);
-      batter.update(CHARGE_CLOCK.across);
-      pose = batter.inspect();
-      expect(pose.bladeTip[1], `x=${x} across toe up`).toBeGreaterThan(pose.grip[1] + .35);
-      expect(pose.bladeTip[2] - batter.root.position.z, `x=${x} across toe in front`).toBeGreaterThan(pose.grip[2] + .3);
-      expect(pose.grip[1], `x=${x} across hands down`).toBeLessThan(1.45);
+      // Up out of the wrap the way it went in: first the toe back up above
+      // the hands and behind him, as it was over the top on the way in; then
+      // up and in front of him, the hands come down towards the chest. In
+      // that order, whenever the way home reaches them: the straight charge
+      // spaces its keys by how far the hands go, not by the clock's times.
+      let unwrapped = -1, across = -1;
+      for (let time = at(CHARGE_CLOCK.hold); time <= at(STROKE_DURATION_MS); time += 2) {
+        batter.update(time);
+        const pose = batter.inspect(), toe = pose.bladeTip[2] - batter.root.position.z;
+        if (unwrapped < 0 && pose.bladeTip[1] > pose.grip[1] + .25 && toe < pose.grip[2]) unwrapped = time;
+        if (unwrapped >= 0 && across < 0 && pose.bladeTip[1] > pose.grip[1] + .35 && toe > pose.grip[2] + .3 && pose.grip[1] < 1.45) across = time;
+      }
+      expect(unwrapped, `x=${x} toe up and behind on the way out of the wrap`).toBeGreaterThan(0);
+      expect(across, `x=${x} then up and in front, the hands down`).toBeGreaterThan(unwrapped);
       // And it never hangs the blade down beside the hip on the way, which
       // was the first route home and the one that slid down the shoulder: the
       // toe stays above the waist all the way, where the hang had it at the
       // knee. (The straight charge's wrap itself hangs the toe down behind
       // the back, at the hip — that is the finish, not the way home.)
-      for (let time = CHARGE_CLOCK.hold; time <= CHARGE_CLOCK.recover; time += 4) {
+      for (let time = at(CHARGE_CLOCK.hold); time <= at(CHARGE_CLOCK.recover); time += 4) {
         batter.update(time);
         expect(batter.inspect().bladeTip[1], `x=${x} toe dropped at ${time}ms`).toBeGreaterThan(.8);
       }
