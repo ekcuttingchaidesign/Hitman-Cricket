@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import * as THREE from 'three';
-import { Batter, CELEBRATION_LENGTHS, type Celebration, STROKE_DURATION_MS } from '../src/entities/Batter';
+import { Batter, CELEBRATION_LENGTHS, type Celebration, FLICK_MEETS_AT, STROKE_DURATION_MS } from '../src/entities/Batter';
 import { Cricketer, KIT } from '../src/entities/Cricketer';
 import { Bowler } from '../src/entities/Bowler';
 import { ADVANCE, GAME } from '../src/config/gameplay';
@@ -61,10 +61,16 @@ it('tucks the seat by where the thigh points: whole in the guard, away in a driv
   // Strokes whose front thigh hardly lifts take no more than half of it away
   // (the flick a third, at 240 ms), where every one of them used to lose the
   // lot.
+  // Version one of the flick, that is: version two strides out to the ball, below.
   for (const [shot, x, y] of [['LEG', 0, .54], ['SQUARE_CUT', .4, .92]] as const) {
-    batter.reset(); batter.update(0); batter.swing(shot, 0, x, y, GAME.contactZ);
+    batter.reset(); batter.update(0); batter.swing(shot, 0, x, y, GAME.contactZ, false, false, false, false, 1);
     for (let t = 0; t <= STROKE_DURATION_MS; t += 20) { batter.update(t); expect(Math.max(...tucked())).toBeLessThan(.5); }
   }
+  // The flick's version two strides out to the ball as a drive does, and the seat holds still through the held wrap.
+  batter.reset(); batter.update(0); batter.swing('LEG', 0, -.14, .54, GAME.contactZ + FLICK_MEETS_AT, false, false, false, false, 2);
+  const held: number[] = [];
+  for (let t = 420; t <= 700; t += 40) { batter.update(t); held.push(tucked()[0]); }
+  expect(Math.max(...held) - Math.min(...held)).toBeLessThan(.05);
   // And home again in his guard, whole.
   batter.update(STROKE_DURATION_MS + 400);
   expect(tucked()).toEqual([0, 0]);

@@ -36,7 +36,7 @@ import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
-import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
+import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, flickVersionOf, FLICK_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
 import { COUNTED, countStroke, freshTally, strokeMarks } from './game/stroke-tally';
 import { advanceShot, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
@@ -561,6 +561,18 @@ export class Game {
    */
   private pullVersion(): PullVersion {
     return this.pullAsked === 1 || this.pullAsked === 2 ? this.pullAsked : pullVersionOf(this.seed, this.score.balls);
+  }
+  /** `?flickv=1` or `2`: always that version of the flick, for looking at one. Practice, since version two is scored its own way. */
+  private readonly flickAsked = Number(new URLSearchParams(location.search).get('flickv'));
+  /**
+   * Which of the flick's two versions this ball is flicked with, by
+   * `FLICK_ODDS`: the flick as it always was, or worked off the pads with the
+   * wrists (`FLICK_V2`), four at the most (`FLICK`). Rolled off the innings'
+   * seed and the ball, as the cover strokes' is, so the same ball plays the
+   * same version for everybody on that seed, rivals included.
+   */
+  private flickVersion(): FlickVersion {
+    return this.flickAsked === 1 || this.flickAsked === 2 ? this.flickAsked : flickVersionOf(this.seed, this.score.balls);
   }
   private nets: { bowler: NetsBowler; round: boolean } = { bowler: 'PACE', round: true };
   /** Hand the nets' choice to the bowling and show it on the keys. */
@@ -2510,9 +2522,14 @@ export class Game {
     const spinPulling = !charging && !sweeping && !levelled
       && spinPull(this.delivery!, this.attempt, this.gradeFor(this.delivery!, this.attempt));
     this.primed = null;
+    // The flick: the leg-side input at a ball below pull height, neither swept
+    // nor pulled off the spinner. Its version is its own (`flickVersion`).
+    const flicking = shotType === 'LEG' && !charging && !sweeping && !levelled && !spinPulling
+      && ballPosition(this.delivery!, 1).y <= PULL_HEIGHT;
     // The lofted straight drive's version is its own; every other stroke's is the cover strokes'.
-    // The pull's version is its own, as the lofted straight drive's is.
-    const version = shotType === 'STRAIGHT' && lofted ? this.loftVersion() : shotType === 'LEG' && !sweeping ? this.pullVersion() : this.coverVersion();
+    // The pull's version is its own, as the lofted straight drive's is, and so is the flick's.
+    const version = shotType === 'STRAIGHT' && lofted ? this.loftVersion() : flicking ? this.flickVersion()
+      : shotType === 'LEG' && !sweeping ? this.pullVersion() : this.coverVersion();
     // Version three of the cover drive meets the ball beside the front pad, a
     // little before the crease, so the ball is struck there. The swipe is
     // judged as for the other two: the version is drawn after it, so nobody
@@ -2530,7 +2547,7 @@ export class Game {
     // Version two of the pull meets it out in front of him too, the arms
     // straight: when the ball is up at pull height there, which is what makes
     // the stroke a pull. Version one meets it beside him.
-    const pulled = shotType === 'LEG' && !charging && !sweeping && !spinPulling && version === 2
+    const pulled = shotType === 'LEG' && !charging && !sweeping && !spinPulling && !flicking && version === 2
       && ballPosition(this.delivery!, 1 - PULL_MEETS_AT / (GAME.releaseZ - GAME.contactZ)).y > PULL_HEIGHT;
     // The block meets it at the end of the forward defence's stride, beside
     // the front pad, or late under his eyes off the back foot: back if the
@@ -2539,10 +2556,12 @@ export class Game {
     const blocked = shotType === 'DEFEND'
       ? ballPosition(this.delivery!, 1).y > DEFENCE_BACK_HEIGHT ? DEFENCE_BACK_MEETS_AT : DEFENCE_FRONT_MEETS_AT : 0;
     const ahead = driven && version === 3 ? COVER_V3_MEETS_AT : shotType === 'LONG_ON' && !charging ? ON_DRIVE_MEETS_AT
-      : shotType === 'HOOK' ? HOOK_MEETS_AT : pulled ? PULL_MEETS_AT : spinPulling ? SPIN_PULL_MEETS_AT : shotType === 'LATE_CUT' ? LATE_CUT_MEETS_AT : sweeping ? SLOG_MEETS_AT : punching ? PUNCH_MEETS_AT : blocked;
+      : shotType === 'HOOK' ? HOOK_MEETS_AT : pulled ? PULL_MEETS_AT : flicking && version === 2 ? FLICK_MEETS_AT : spinPulling ? SPIN_PULL_MEETS_AT : shotType === 'LATE_CUT' ? LATE_CUT_MEETS_AT : sweeping ? SLOG_MEETS_AT : punching ? PUNCH_MEETS_AT : blocked;
     this.meetsAt = 1 - ahead / (GAME.releaseZ - GAME.contactZ);
     // Versions two and three keep it down: four, never six (`grounded`).
     if ((driven && version >= 2) || punching) this.attempt = { ...this.attempt, grounded: true };
+    // Version two of the flick, worked off the pads beside the front pad: four at the most (`FLICK`).
+    if (flicking && version === 2) this.attempt = { ...this.attempt, flicked: true };
     // At the spinner the cut is played making room for it: see `SPIN_CUT`.
     this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, version, this.meetsAt,
       !charging && spinCut(this.delivery!, this.attempt), spinPulling);

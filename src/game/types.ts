@@ -55,6 +55,11 @@ export interface ShotAttempt {
    * three (`CoverVersion`).
    */
   grounded?: boolean;
+  /**
+   * The flick's version two, worked off the pads: four or nothing like it,
+   * scored on its own ladder (`FLICK`) in every mode.
+   */
+  flicked?: boolean;
 }
 export interface ShotOutcome {
   runs: 0 | 1 | 2 | 3 | 4 | 6; isWicket: boolean; wicketType?: WicketType;

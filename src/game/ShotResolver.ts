@@ -1,4 +1,4 @@
-import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, GAME, GROUND_RUNS, HOOK, LATE_CUT, PUNCH, SCOOP, SOLID_SHOT, SPIN_CUT, SPIN_PULL, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
+import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, FLICK, GAME, GROUND_RUNS, HOOK, LATE_CUT, PUNCH, SCOOP, SOLID_SHOT, SPIN_CUT, SPIN_PULL, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory';
 import { spun } from './DeliveryGenerator';
 import type { Delivery, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './types';
@@ -452,6 +452,24 @@ export function punched(outcome: ShotOutcome, rng: { next(): number }, test: boo
   }
 }
 /**
+ * The flick off the pads, version two, once the bat is on the ball, off the
+ * grade of whichever mode is playing it: see `FLICK`. Middled or a shade under
+ * it is four along the ground; held back or mistimed, ones, twos and threes,
+ * or chipped up and caught. Played across a ball it does not suit it is as
+ * good as mistimed. In a Test nobody runs three.
+ */
+export function flicked(outcome: ShotOutcome, rng: { next(): number }, test: boolean): ShotOutcome {
+  const met = { ...outcome, madeBatContact: true };
+  const grade = outcome.compatibility < SOLID_SHOT ? 'POOR' : outcome.timingGrade;
+  if (grade === 'PERFECT' || grade === 'GOOD') return { ...met, runs: 4, feedback: FLICK.feedback.four };
+  const rules = grade === 'OK' ? FLICK.ok : FLICK.poor;
+  if (rng.next() < rules.caught) return { ...met, runs: 0, aerial: true, isWicket: true, wicketType: 'CAUGHT', feedback: FLICK.feedback.caught };
+  let roll = rng.next(), runs: 1 | 2 | 3 = rules.runs[rules.runs.length - 1][0];
+  for (const [value, weight] of rules.runs) { roll -= weight; if (roll <= 0) { runs = value; break; } }
+  if (test && runs === 3) runs = 2;
+  return { ...met, runs, feedback: award(runs) };
+}
+/**
  * `charged` is the batter's confidence being full — the shot still has to be
  * played. `windows` are the classic ones unless a newcomer is being helped,
  * which only ever widens OK: the special strokes and the boundaries are graded
@@ -562,6 +580,8 @@ export function resolveShot(
   // same bargain the cut offers, edge and all.
   if (squareDrive(delivery, attempt) && timingGrade !== 'MISS')
     return { ...squareStroke(outcome, rng, SQUARE_DRIVE), squared: true };
+  // Worked off the pads with the wrists: four or less, on its own ladder.
+  if (attempt?.flicked && madeBatContact) return flicked(outcome, rng, false);
   if (!madeBatContact) {
     if (!stumpIntersection(delivery)) return outcome;
     const lbw = attempt && Math.abs(delivery.finalTargetX) < 0.12 && rng.next() < GAME.lbwChance;

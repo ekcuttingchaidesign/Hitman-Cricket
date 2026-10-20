@@ -827,7 +827,8 @@ the spinner's and all but the arm ball dropped short, for the pull off him),
 `?latecut=1` (every ball
 pace outside off, for the late cut), `?cover=1`
 (every ball the cover drive's own: a stock ball pitched up on off stump),
-`?coverv=1`, `2` or `3` (always that version of the cover strokes), or the
+`?coverv=1`, `2` or `3` (always that version of the cover strokes),
+`?flickv=1` or `2` (always that version of the flick), or the
 preview builds' `VITE_SPIN_ONLY` and `VITE_CHARGE_ONLY` — is practice
 (`src/game/practice.ts`). The card says so in place of an offer, the career
 does not count it, and the browser's own best does not move; in a Rival Match
@@ -1042,6 +1043,48 @@ at his hip, and stopped with the bat upright beside his shoulder.
 
 They are `pull` and `pullV1` in the batter tests' `PLAYS`, and
 `cover-drive.html` has both.
+
+## The flick, version two
+
+The leg-side input at a ball below pull height is the flick, in two versions
+(`FlickVersion`), half and half (`FLICK_ODDS`, `flickVersionOf` off the
+innings' seed and the ball, mixed apart from the other strokes' rolls). The
+swing's version argument is the flick's for it (`flicking` in `Game.shoot`,
+`flickV2` in `Batter.ts`), and since the default version is two, every test
+that swings `LEG` at a full ball without one gets version two. Version one is
+the flick as it always was (`STROKES.LEG`, the old default branch of
+`update`), scored as every other stroke.
+
+Version two (`FLICK_V2`, `FLICK_CLOCK`) is built from a coaching film in four
+angles: a stride straight down the line, the body following the ball across
+all the way, the front foot down first (`plant`) and the head over the knee;
+the bat down straight to meet the ball beside the front pad, `FLICK_MEETS_AT`
+further down the pitch than a drive (`meetsAt`), the face to the bowler. The
+face rides the handle (`riding`) with one roll, the bottom hand over the top,
+closing the face as the bat goes out low to midwicket (`through`); then it
+comes up and stops (`up`), the bat upright in front of him and the hands out
+ahead of his chest, below his chin, nothing turning it. Taken on over the
+front shoulder into a wrap, the bat went into the shoulder and the bottom hand
+into the grille, which the batter tests' helmet check, measured from the
+head's centre, did not see; the shape test in `describe('the flick, version
+two')` holds the hands out in front of his face and under the chin. He holds it
+`FLICK_HOLD_MS` past the stroke's clock, still bent over, and comes home as
+the hook does, stood up with the hands over the front shoulder and the bat
+upright (`FLICK_UNWRAP`), then down in front with the bat tipping back over
+the back shoulder (`FLICK_LOWERED`). Taken home bent over, by any route, the
+blade went through his head.
+
+It is scored on its own ladder in every mode (`flicked` in `ShotResolver.ts`,
+`FLICK` in `gameplay.ts`, the attempt tagged `flicked`): middled or a shade
+under four along the ground, held back or mistimed one, two or three (two at
+most in a Test) or chipped up and caught, `ok.caught` and `poor.caught`; across
+a ball it does not suit (under `SOLID_SHOT`) as good as mistimed; never six.
+Missed, or under `FLICK.minFit`, he is beaten as any stroke is. Since the
+version moves the score, `?flickv=1` or `2` is practice. It is `flick2` in the
+batter tests' `PLAYS` and shared checks, with `describe('the flick, version
+two')`; `tests/flick.test.ts` holds the scoring; `scripts/flick-check.mjs`
+plays it in a browser on `?flickv=2`, in the Blast and in Survival; and
+`cover-drive.html` has both versions (`?stroke=flick2` opens on it).
 
 ## Alive in his guard
 

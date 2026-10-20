@@ -68,6 +68,7 @@ describe('every switch the game reads', () => {
     pullv: 'which of the pull\'s two versions is drawn; the swipe is judged and the ball scored the same either way',
     ui: 'the UI kit laid out as a page, instead of the game, reading and sending nothing',
     gloves: 'which pair of gloves the strokes viewer opens with, a dev page that bats nothing',
+    stroke: 'which stroke the strokes viewer opens on, a dev page that bats nothing',
   };
 
   it('is either practice or named as not practice', () => {

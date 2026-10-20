@@ -15,7 +15,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, type CoverVersion, COVER_V3_MEETS_AT, PUNCH_CONTACT_MS, PUNCH_HOLD_MS, PUNCH_MEETS_AT, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_FRONT_MEETS_AT,PULL_CONTACT_MS, PULL_LOAD_MS, PULL_MEETS_AT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, SLOG_CLOCK, SLOG_HOLD_MS, SLOG_MEETS_AT, SWEEP_CONTACT_MS, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, REVERSE_CLOCK, SCOOP_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_HOLD_MS, SPIN_PULL_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
+import { Batter, type CoverVersion, COVER_V3_MEETS_AT, PUNCH_CONTACT_MS, PUNCH_HOLD_MS, PUNCH_MEETS_AT, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_FRONT_MEETS_AT,PULL_CONTACT_MS, PULL_LOAD_MS, PULL_MEETS_AT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, SLOG_CLOCK, SLOG_HOLD_MS, SLOG_MEETS_AT, SWEEP_CONTACT_MS, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, REVERSE_CLOCK, SCOOP_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_HOLD_MS, SPIN_PULL_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS, FLICK_CLOCK, FLICK_HOLD_MS, FLICK_MEETS_AT } from './entities/Batter';
 import { ADVANCE, GAME, LINE_X, PUNCH, SHOT_ANGLES, STYLES, DRAGGED, SPIN_PULL } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 import type { ShotType } from './game/types';
@@ -39,6 +39,8 @@ interface Stroke {
   sweeping?: boolean;
   /** Which version of the pull, whatever the version buttons say. */
   pullVersion?: 1 | 2;
+  /** And of the flick. */
+  flickVersion?: 1 | 2;
   /** Where the ball is met, in the rig's frame. */
   ball: { x: number; y: number; z: number };
   contact: number; end: number; bounceZ: number;
@@ -79,8 +81,17 @@ const STROKES: Record<string, Stroke> = {
     facts: ['full, middle stump', `${STROKE_DURATION_MS} ms`],
     note: 'The straight drive, off the swipe straight up or W: a stride down the line, the bat coming down straight under his eyes, the ball met beside the front pad and the arms out long back past the bowler, the finish high over the front shoulder.',
   },
+  flick2: {
+    label: 'Flick v2', shot: 'LEG', charging: false, single: true, flickVersion: 2, ball: { x: LINE_X.LEG, y: .54, z: GAME.contactZ + FLICK_MEETS_AT },
+    contact: STROKE_CONTACT_MS, end: STROKE_DURATION_MS + FLICK_HOLD_MS, bounceZ: 3.5,
+    phases: [['Stance', -LEAD_MS], ['Stride', FLICK_CLOCK.plant], ['Contact', STROKE_CONTACT_MS], ['Wrists', FLICK_CLOCK.through], ['Up', FLICK_CLOCK.up],
+      ['Home', FLICK_CLOCK.hold + FLICK_HOLD_MS]],
+    out: { speed: .026, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.LEG), climb: 0 },
+    facts: ['full, on the pads', `${STROKE_DURATION_MS + FLICK_HOLD_MS} ms`],
+    note: 'Version two of the flick, played half the time, from a coaching film in four angles. The front foot strides straight down the line of the ball and is down by 55 ms, the knee bent over it and his head over the knee; the bat comes down straight and meets the ball at 110 beside the front pad, under his eyes, with the face to the bowler. Then the wrists: the bottom hand rolls over the top one as the hands push the bat out low after the ball to midwicket by 200, and only then does it come up, and it stops at 320 with the bat upright in front of him and the hands out ahead of his chest, below his chin. He stays down over the front leg with his head down, holds it to 720, and comes home. Middled or a shade under it is four along the ground; held back or mistimed, ones, twos and threes, or chipped up and caught.',
+  },
   flick: {
-    label: 'Flick', shot: 'LEG', charging: false, single: true, ball: { x: LINE_X.LEG, y: .54, z: GAME.contactZ },
+    label: 'Flick v1', shot: 'LEG', charging: false, single: true, flickVersion: 1, ball: { x: LINE_X.LEG, y: .54, z: GAME.contactZ },
     contact: STROKE_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: 3.5,
     phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Across', 55], ['Contact', STROKE_CONTACT_MS], ['Whip', 220], ['Finish', 410], ['Home', 600]],
     out: { speed: .024, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.LEG), climb: 0 },
@@ -226,6 +237,8 @@ const VIEWS: Record<string, { eye: [number, number, number]; at: [number, number
   behind: { eye: [.36, 2.3, -4.6], at: [.1, 1.0, 1.4] },
   leg: { eye: [-4.3, 1.5, .4], at: [.05, 1.0, .25] },
   high: { eye: [3.0, 3.6, 3.4], at: [0, .9, .3] },
+  // Near him, from in front on the off side: which way the face of the bat looks.
+  close: { eye: [1.5, 1.45, 2.4], at: [.1, 1.05, .45] },
 };
 
 const stage = document.querySelector<HTMLDivElement>('#stage')!;
@@ -325,7 +338,7 @@ const metAt = () => ({ ...stroke.ball, z: stroke.ball.z + (version === 3 && !str
 function start() {
   batter.reset(); batter.prepare(1); batter.update(0);
   const at = metAt();
-  batter.swing(stroke.shot, 0, at.x, at.y, at.z, stroke.charging, !!stroke.lofted, !!stroke.sweeping, false, stroke.pullVersion ?? version, !!stroke.spinCut, !!stroke.spinPull);
+  batter.swing(stroke.shot, 0, at.x, at.y, at.z, stroke.charging, !!stroke.lofted, !!stroke.sweeping, false, stroke.pullVersion ?? stroke.flickVersion ?? version, !!stroke.spinCut, !!stroke.spinPull);
   swinging = true;
 }
 
@@ -469,6 +482,9 @@ function choose(key: string) {
 const firstGlove = new URLSearchParams(location.search).get('gloves') ?? DEFAULT_GLOVE;
 batter.wearGloves(gloveOf(firstGlove));
 for (const o of gloveRow.querySelectorAll('button')) o.setAttribute('aria-pressed', String(o.dataset.glove === firstGlove));
-choose('cover');
+// `?stroke=flick2` opens on that stroke; otherwise the page's pressed key does, the cover drive.
+const asked = new URLSearchParams(location.search).get('stroke');
+const pressed = document.querySelector<HTMLButtonElement>('[data-stroke][aria-pressed="true"]')?.dataset.stroke;
+choose(asked && asked in STROKES ? asked : pressed && pressed in STROKES ? pressed : 'cover');
 if (matchMedia('(prefers-reduced-motion: reduce)').matches) { setPlaying(false); t = stroke.contact; }
 requestAnimationFrame(frame);

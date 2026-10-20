@@ -1,10 +1,10 @@
-import { CUT, HOOK, PUNCH, SOLID_SHOT } from '../config/gameplay.js';
+import { CUT, FLICK, HOOK, PUNCH, SOLID_SHOT } from '../config/gameplay.js';
 import {
   BANDS, BODY_ZONE, CLOSE, OFF_WIDTH, PITCH, RISK, SAFE_MISHIT, SIX, SPIN, STYLES, SURVIVE, SURVIVE_TIMING, damageFor,
 } from '../config/survive.js';
 import { ballPosition, stumpIntersection } from './DeliveryTrajectory.js';
 import { spun } from './DeliveryGenerator.js';
-import { cramped, crampedCut, droveShort, fitOf, gradeTiming, hookable, lateCut, lateCutMeets, punch, spinPull, squareDrive, sweeps } from './ShotResolver.js';
+import { cramped, crampedCut, droveShort, fitOf, flicked, gradeTiming, hookable, lateCut, lateCutMeets, punch, spinPull, squareDrive, sweeps } from './ShotResolver.js';
 
 export { spun };
 import type { BodyPart, Delivery, Ending, ShotAttempt, ShotOutcome, TimingSide } from './types.js';
@@ -436,6 +436,10 @@ export function surviveBall(
   if (attempt.shotType === 'LATE_CUT') {
     return lateCutMeets(base) ? lateCut(base, rng, true) : beaten({ ...base, feedback: 'PLAYED AND MISSED' }, delivery, rng);
   }
+  // The flick off the pads, version two: four or less on its own ladder, as in
+  // the Blast, off this mode's grade. Missed, or across a ball it never
+  // reaches, he is beaten like any other stroke.
+  if (attempt.flicked && timingGrade !== 'MISS' && compatibility >= FLICK.minFit) return flicked(base, rng, true);
 
   // Middled: bat on ball, and a stroke the line actually allowed. The grade
   // still names it, but only the top two grades are worth anything real —

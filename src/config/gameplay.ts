@@ -323,6 +323,24 @@ export const PUNCH = {
   feedback: { four: 'PUNCHED — FOUR!', caught: 'EDGED — CAUGHT BEHIND!', edged: 'THICK EDGE — 1 RUN' },
 } as const;
 /**
+ * The flick, version two (`FLICK_V2` in `Batter.ts`): worked off the pads with
+ * the wrists, the ball's own pace doing the work, so it is never a six. On its
+ * ball timing names it, in every mode: middled or a shade under, four along
+ * the ground through midwicket; held back or mistimed, a one, two or three
+ * (`runs`; in a Test nobody runs three), or chipped in the air to midwicket
+ * and caught (`caught`), rarely held back and half the time mistimed. Played
+ * across a ball it does not suit (a fit under `SOLID_SHOT`), it is as good as
+ * mistimed. Missed, or across a ball outside off it never reaches (`minFit`,
+ * the Blast's bat contact), he is beaten like any other stroke. Version one
+ * is the flick as it always was, scored as every other stroke.
+ */
+export const FLICK = {
+  minFit: 0.25,
+  ok: { caught: 0.1, runs: [[1, 0.45], [2, 0.35], [3, 0.20]] },
+  poor: { caught: 0.5, runs: [[1, 0.6], [2, 0.3], [3, 0.1]] },
+  feedback: { four: 'FLICKED — FOUR!', caught: 'CHIPPED — CAUGHT!' },
+} as const;
+/**
  * The cut off the spinner. A slow ball gives a batter time to make room, so
  * the cut is not only for the one wide of off: he steps away to leg as he
  * picks the bat up, far enough to leave the ball out on his off side whatever

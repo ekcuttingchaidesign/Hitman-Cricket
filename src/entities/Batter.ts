@@ -1853,6 +1853,87 @@ export const PULL_ODDS: Record<PullVersion, number> = { 1: .5, 2: .5 };
 export function pullVersionOf(seed: number, ball: number): PullVersion {
   return coverRoll(seed ^ 0x2c9e4a7, ball) < PULL_ODDS[1] ? 1 : 2;
 }
+/**
+ * The flick's two versions: one the flick as it always was, the front foot
+ * opened to leg and the bat whipped round level (`STROKES.LEG`); two the flick
+ * off the pads rebuilt from a coaching film in four angles (`FLICK_V2`).
+ */
+export type FlickVersion = 1 | 2;
+/** How often each is played: half the flicks version one, half version two. */
+export const FLICK_ODDS: Record<FlickVersion, number> = { 1: .5, 2: .5 };
+/**
+ * The version a ball plays, off the seed and the ball as the pull's is, with a
+ * constant of its own. Version two is scored its own way (`FLICK`), so like
+ * the cover strokes' the same ball plays the same version for everybody on
+ * that seed, rivals included.
+ */
+export function flickVersionOf(seed: number, ball: number): FlickVersion {
+  return coverRoll(seed ^ 0x3b8f1d5, ball) < FLICK_ODDS[1] ? 1 : 2;
+}
+/**
+ * Version two of the flick meets the ball this much further down the pitch
+ * than the drives: beside the front pad, at the end of the stride, under his
+ * eyes, as the film meets it.
+ */
+export const FLICK_MEETS_AT = .18;
+/**
+ * The flick's clock: the front foot down before the bat (`plant`), the ball,
+ * the bat out low after it to midwicket (`through`), up in front of him with
+ * the bat upright, where it stops (`up`), held, and home as the hook goes home.
+ */
+export const FLICK_CLOCK = { plant: 55, through: 200, up: 320, hold: 560, rising: 660, down: 760 } as const;
+/** How much longer than the stroke's own clock the flick's finish is held, before he comes home. */
+export const FLICK_HOLD_MS = 160;
+/**
+ * The flick off the pads, version two, from a coaching film shot side on from
+ * the off side, from the bowler's end, from behind the bowler and from square
+ * leg, in slow motion.
+ *
+ * A long stride straight down the line of a ball on his pads, the front foot
+ * down before the bat comes and the knee bent over it, the back leg long with
+ * its heel up, and his head over the front knee. The bat comes down straight
+ * and meets the ball beside the front pad, under his eyes, the hands a little
+ * ahead of the blade and the face to the bowler. Then the wrists do it: the
+ * ball's own pace sends it, and the bottom hand rolls over the top one, closing
+ * the face, as the hands push the bat out low after the ball to midwicket.
+ * Only then does it come up, and it stops there, the bat upright in front of
+ * him with the hands out ahead of his chest, below his chin: taken on over the
+ * front shoulder, the bat went into the shoulder and the bottom hand into the
+ * grille. He stays down through all of it, bent over the front leg with his
+ * head down where he met the ball, and holds it (`FLICK_HOLD_MS`). From the
+ * stance on the face rides the handle (`riding`): turned to the bowler on the
+ * way down, and the one roll after the ball, closing the face, as the bat goes
+ * out to midwicket.
+ *
+ * Keyed for the ball on leg stump: the reach moves him from there.
+ */
+const FLICK_V2: Stroke & { through: Pose } = {
+  contact: { ...GUARD, hip: [-.10, .86, .16], chest: [-.05, 1.25, .27], frontFoot: [-.08, .08, .58], backFoot: [-.23, .08, -.38],
+    grip: [.33, .97, .58], batUp: [.05, .97, .22], batFace: [-.25, -.20, .95], yaw: 1.30, face: .20, heel: .30,
+    backFootYaw: 1.15, leadElbow: -.10, look: .55, armHinge: -.85, armDrive: 1, shoulderLift: 0 },
+  through: { ...GUARD, hip: [-.06, .82, .19], chest: [.00, 1.18, .32], frontFoot: [-.08, .08, .58], backFoot: [-.23, .08, -.36],
+    grip: [.18, .92, .86], batUp: [.58, .44, -.63], batFace: [-.70, -.50, .50], yaw: .90, face: .10, heel: .40,
+    backFootYaw: 1.00, leadElbow: 0, look: .40, armHinge: -.45, armDrive: 1, shoulderLift: .03 },
+  finish: { ...GUARD, hip: [-.03, .79, .20], chest: [.07, 1.10, .36], frontFoot: [-.08, .08, .58], backFoot: [-.22, .08, -.34],
+    grip: [.04, 1.20, .88], batUp: [-.22, -.92, .33], batFace: [-.85, 0, .50], yaw: .55, face: .05, heel: .46,
+    backFootYaw: .90, leadElbow: .22, look: .30, armHinge: .40, armDrive: 1, shoulderLift: .04 },
+};
+/**
+ * The flick's way home, as the hook goes home: stood up out of the stoop with
+ * the hands up over the front shoulder and the bat upright over them
+ * (`FLICK_UNWRAP`), then the hands let down in front of his chest with the bat
+ * tipping back over the back shoulder (`FLICK_LOWERED`), and into the guard.
+ * Taken home still bent over, the blade went through his head whichever way
+ * it was swung.
+ */
+const FLICK_UNWRAP: Pose = { ...GUARD, hip: [-.06, .92, .08], chest: [-.08, 1.28, .12],
+  frontFoot: [-.06, .08, .36], backFoot: [-.14, .08, -.30],
+  grip: [-.20, 1.74, .50], batUp: [0, -1, .10], batFace: [0, .10, 1],
+  yaw: -.40, face: -.40, heel: .20, backFootYaw: .80, leadElbow: -.10, armHinge: .90, armDrive: 1, shoulderLift: .06 };
+const FLICK_LOWERED: Pose = { ...GUARD, hip: [-.06, .93, .02], chest: [-.02, 1.28, .06],
+  frontFoot: [-.08, .08, .30], backFoot: [-.13, .08, -.27],
+  grip: [.10, 1.22, .36], batUp: [-.40, -.80, .45], batFace: [.20, .45, .87],
+  yaw: .75, face: 0, heel: .06, backFootYaw: 1.10, leadElbow: -.20, armHinge: .20, armDrive: .5, shoulderLift: .02 };
 export const LOFT_V2_CLOCK = { plant: 70, through: 220, finish: 320, hold: 650, down: 760, under: 870 } as const;
 const STRAIGHT_LOFT_V2: Stroke = {
   // Down the line on a long stride, the weight over the front knee.
@@ -3389,6 +3470,14 @@ export class Batter {
   private get crossBat() { return this.pulling || this.shot === 'HOOK' || this.spinPulling; }
   /** Version two of the pull: the hook's stroke at a ball on the body. The swing's version argument is the pull's for it (Game.shoot). */
   private get pullV2() { return this.pulling && this.coverVersion >= 2; }
+  /**
+   * Version two of the flick (`FLICK_V2`): the leg-side input at a ball below
+   * pull height, swung with a version of two or more. The swing's version is
+   * the flick's for it (`flickVersionOf`, in Game.shoot).
+   */
+  private get flickV2() {
+    return this.shot === 'LEG' && !this.charging && !this.pulling && !this.sweeping && !this.spinPulling && this.coverVersion >= 2;
+  }
   /** The hook and the pull's version two: swung round flat, wrapped, and turned on round after it, on the hook's clock. */
   private get turning() { return this.pullV2 || this.shot === 'HOOK'; }
   /** The on drive along the ground: not the six, and not the charge over long-on, which have their own. */
@@ -3549,6 +3638,8 @@ export class Batter {
     }
     // The punch holds its high finish a moment longer: see `PUNCH_HOLD_MS`.
     else if (this.punching && age > PUNCH_CLOCK.hold) age = Math.max(PUNCH_CLOCK.hold, age - PUNCH_HOLD_MS);
+    // And the flick its wrap: see `FLICK_HOLD_MS`.
+    else if (this.flickV2 && age > FLICK_CLOCK.hold) age = Math.max(FLICK_CLOCK.hold, age - FLICK_HOLD_MS);
     // The hook, once he has turned round, holds and goes home the slower: see `HOOK_HOLD_MS`.
     else if (this.turning && age > HOOK_CLOCK.faced) {
       const { faced } = HOOK_CLOCK;
@@ -3611,7 +3702,7 @@ export class Batter {
       : this.spinCutting ? SPIN_CUT : this.spinPulling ? (this.ballY < SPIN_PULL_LOW_BALL ? SPIN_PULL_LOW : SPIN_PULL)
       : this.shot === 'SCOOP' ? SCOOP : this.shot === 'REVERSE_SCOOP' ? REVERSE_SCOOP : this.shot === 'HOOK' ? HOOK : this.punching ? PUNCH_STROKE
       : this.shot === 'COVER_LONG_OFF' && this.coverVersion === 1 ? COVER_DRIVE_V1
-      : this.shot === 'COVER_LONG_OFF' && this.coverVersion === 3 ? COVER_DRIVE_V3 : this.backDefence ? DEFENCE_BACK : STROKES[this.shot];
+      : this.shot === 'COVER_LONG_OFF' && this.coverVersion === 3 ? COVER_DRIVE_V3 : this.backDefence ? DEFENCE_BACK : this.flickV2 ? FLICK_V2 : STROKES[this.shot];
     // Place the middle of the blade at the ball's contact plane, not merely
     // somewhere along the selected sector. Wrong shots stay in their own reach.
     const zones: Record<ShotType, readonly [number, number]> = {
@@ -3648,9 +3739,9 @@ export class Batter {
     // chest and the front elbow swung over the top of it.
     // The punch steps across to the ball's line, but a little less across to one up at his chest (`PUNCH_HIGH_ROOM`).
     const step = this.spinCutting ? targetX - SPIN_CUT_ROOM : this.spinPulling ? targetX : this.paceCut ? targetX - CUT_ROOM
-      : this.punching ? targetX - PUNCH_HIGH_ROOM * THREE.MathUtils.clamp((this.ballY - .81) / (PUNCH_HIGHEST - .81), 0, 1) : targetX * (this.squaring ? .86 : this.sweeping && !this.levelled ? 1 : this.pulling && !this.pullV2 ? 1 : this.shot === 'DEFEND' ? 1 : .65);
+      : this.punching ? targetX - PUNCH_HIGH_ROOM * THREE.MathUtils.clamp((this.ballY - .81) / (PUNCH_HIGHEST - .81), 0, 1) : targetX * (this.squaring ? .86 : this.sweeping && !this.levelled ? 1 : this.pulling && !this.pullV2 ? 1 : this.shot === 'DEFEND' || this.flickV2 ? 1 : .65);
     const shift = (p: Point, amount: number): Point => [p[0] + amount, p[1], p[2]];
-    const shiftsBackFoot = this.pulling || this.squaring || this.sweeping || this.charging || this.lofted || this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF'
+    const shiftsBackFoot = this.pulling || this.flickV2 || this.squaring || this.sweeping || this.charging || this.lofted || this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF'
       || this.shot === 'SCOOP' || this.shot === 'REVERSE_SCOOP' || this.turning || this.spinCutting || this.spinPulling || this.onDrive || this.shot === 'LATE_CUT' || this.shot === 'DEFEND';
     const reachPose = (p: Pose): Pose => ({ ...p, hip: shift(p.hip, step), chest: shift(p.chest, step),
       frontFoot: shift(p.frontFoot, step), backFoot: shiftsBackFoot ? shift(p.backFoot, step) : p.backFoot,
@@ -4101,6 +4192,37 @@ export class Batter {
       this.apply(pose);
       return;
     }
+    // The flick, version two: the front foot down first, the ball met beside
+    // the front pad, the bat out low after it to midwicket as the wrists roll,
+    // up in front of him and stopped there, held, and home. See `FLICK_V2`.
+    if (this.flickV2) {
+      const { plant, through, up, hold, rising, down } = FLICK_CLOCK, keys = FLICK_V2;
+      const out = [{ time: 0, pose: this.swingFrom },
+        { time: plant, pose: { ...mix(this.swingFrom, contact, COVER_PLANT.bat), frontFoot: contact.frontFoot, backFoot: contact.backFoot,
+          hip: mix(this.swingFrom, contact, COVER_PLANT.hips).hip, chest: mix(this.swingFrom, contact, COVER_PLANT.chest).chest } },
+        { time: STROKE_CONTACT_MS, pose: contact }, { time: through, pose: reachPose(keys.through) },
+        { time: up, pose: finish }];
+      // Home, as the hook goes home: up out of his stoop with the hands up
+      // over the front shoulder and the bat upright over them, then the hands
+      // let down in front of him into his guard, the bat tipping back over the
+      // back shoulder as it goes. See `FLICK_UNWRAP`.
+      const home = [{ time: hold, pose: finish }, { time: rising, pose: reachPose(FLICK_UNWRAP) },
+        { time: down, pose: reachPose(FLICK_LOWERED) }, { time: STROKE_DURATION_MS, pose: GUARD }];
+      const poseAt = (at: number): Pose => at < up ? shoulderDriven(out, at, STROKE_CONTACT_MS)
+        : at < hold ? finish : shoulderDriven(home, at, hold - 70);
+      const pose = { ...poseAt(age) };
+      const straight = batOrientation(STROKES.STRAIGHT.contact);
+      const start = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(straight), UP.clone().applyQuaternion(batOrientation(this.swingFrom))).multiply(straight);
+      // Square to the bowler on the way down; then the roll, the bottom hand
+      // over the top, closing the face onto the leg side and down as the bat
+      // goes out after the ball. Nothing turns it after that until he goes home.
+      pose.bat = this.riding(0, poseAt, start, [hold, STROKE_DURATION_MS], age, [
+        { window: [plant, STROKE_CONTACT_MS], away: () => V(keys.contact.batFace) },
+        { window: [STROKE_CONTACT_MS, through], away: () => V(keys.through.batFace) },
+      ]);
+      this.apply(pose);
+      return;
+    }
     // The straight drive's six, version two: the front foot down first on a
     // long stride, the ball met under his eyes, out after it up the line and
     // held there, arms long and high, and home down the line into his guard.
@@ -4281,7 +4403,7 @@ export class Batter {
         // Turned about the handle to the pose's own face, as far as it asks.
         if(idle && pose.ownFace) this.bat.quaternion.slerp(batOrientation(pose),pose.ownFace);
       }
-      else if((this.rebuiltDrive && (this.charging || this.poseAge>=COVER_PLANT.hold)) || (this.charging && (this.shot === 'COVER_LONG_OFF' || this.shot === 'STRAIGHT')) || this.onLoft || this.turning || this.pulling || this.shot === 'DEFEND' || this.punching || this.spinCutting || this.spinPulling || this.shot === 'LATE_CUT' || this.shot === 'REVERSE_SCOOP' || (this.sweeping && !this.levelled) || this.paceCut) {
+      else if((this.rebuiltDrive && (this.charging || this.poseAge>=COVER_PLANT.hold)) || (this.charging && (this.shot === 'COVER_LONG_OFF' || this.shot === 'STRAIGHT')) || this.onLoft || this.flickV2 || this.turning || this.pulling || this.shot === 'DEFEND' || this.punching || this.spinCutting || this.spinPulling || this.shot === 'LATE_CUT' || this.shot === 'REVERSE_SCOOP' || (this.sweeping && !this.levelled) || this.paceCut) {
         // The cover drive's way home, and the charge over cover from the ball
         // on, already hold their face (`riding`):
         // the roll the other strokes take into the guard is up to a full turn,
@@ -4529,8 +4651,10 @@ export class Batter {
         // with the elbow hanging the blade swept through the forearm. So does
         // the late cut, whose hands come down to his hip with the bat behind
         // them: hanging, the front elbow closed onto the back one. And so does
-        // the block, whose top hand leads with its elbow up in both clips.
-        if (!this.pulling && i===0 && (this.charging||this.squaring||this.lofted||this.shot==='STRAIGHT'||this.shot==='COVER_LONG_OFF'||this.shot==='SCOOP'||this.shot==='LATE_CUT'||this.shot==='DEFEND'))
+        // the block, whose top hand leads with its elbow up in both clips. And
+        // the flick's version two, whose top elbow rides up over the hands and
+        // leads towards the bowler from the ball to the finish.
+        if (!this.pulling && i===0 && (this.charging||this.squaring||this.lofted||this.shot==='STRAIGHT'||this.shot==='COVER_LONG_OFF'||this.shot==='SCOOP'||this.shot==='LATE_CUT'||this.shot==='DEFEND'||this.flickV2))
           anatomical.addScaledVector(spine,Math.max(0,pose.leadElbow)*1.1);
         const bend = bendTowards(anatomical);
         if (drive>0 && i===0) {
