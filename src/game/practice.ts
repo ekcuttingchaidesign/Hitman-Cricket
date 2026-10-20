@@ -36,6 +36,8 @@ const ON: Record<string, (value: string) => boolean> = {
   settled: v => v === '1',
   cover: v => v === '1',
   coverv: v => v === '1' || v === '2' || v === '3',
+  // The flick's version two is four at the most, so asking for one moves the score.
+  flickv: v => v === '1' || v === '2',
 };
 
 /** Every switch the game reads that changes how an innings plays, by its name in the link. */
