@@ -84,9 +84,13 @@ describe('what each kit takes', () => {
     expect(outfitOwned('violet', record({ marathon: { highest: 200 } }))).toBe(true);
   });
 
-  it('counts Survival wins for Electric', () => {
-    expect(outfitOwned('electric', record({ survive: { wins: 49, draws: 30 } }))).toBe(false);
-    expect(outfitOwned('electric', record({ survive: { wins: 50 } }))).toBe(true);
+  it('wants a Blast of 150 and 5,000 Blast runs for Electric, and nothing from the other modes', () => {
+    const steps = outfitSteps('electric', record({ classic: { highest: 142, runs: 3200 } }))!;
+    expect(steps).toMatchObject([{ now: 142, of: 150, best: true, mode: 'blast' }, { now: 3200, of: 5000, mode: 'blast' }]);
+    expect(outfitOwned('electric', record({ classic: { highest: 150, runs: 4999 } }))).toBe(false);
+    expect(outfitOwned('electric', record({ classic: { highest: 149, runs: 5000 } }))).toBe(false);
+    expect(outfitOwned('electric', record({ classic: { highest: 120, runs: 4000 }, survive: { wins: 50, runs: 2000 }, marathon: { highest: 300 } }))).toBe(false);
+    expect(outfitOwned('electric', record({ classic: { highest: 150, runs: 5000 } }))).toBe(true);
   });
 });
 

@@ -134,8 +134,8 @@ await shoot(page, '3-room');
 await page.locator('.dr-item[data-id="electric"]').click();
 await page.waitForTimeout(300);
 check(await text(page, '#dressing-name') === 'ELECTRIC', 'a locked kit is tried on');
-check((await text(page, '#dressing-foot')).includes('Win 50 Test Survivals'), 'and says what it takes');
-check((await text(page, '#dressing-key')).includes('PLAY TEST SURVIVAL'), 'with the key to the game it is won in');
+check((await text(page, '#dressing-foot')).includes('Make 150 in the Blast'), 'and says what it takes');
+check((await text(page, '#dressing-key')).includes('PLAY THE BLAST'), 'with the key to the game it is won in');
 await shoot(page, '4-locked');
 
 // Earned before the room arrived: its key plays its moment, and that puts it on.
