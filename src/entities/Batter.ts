@@ -2015,13 +2015,14 @@ const CHARGE_KEYS: readonly { time: number; pose: Pose }[] = [
     armHinge: .60, armDrive: 0, shoulderLift: .07 } },
   // The finish. Square to the bowler, the back foot planted through in front
   // of the other one, the hands high and wide beside the front shoulder and
-  // the blade wrapped over it with the toe hanging down behind his back. Both
+  // the blade laid back across it, resting on the shoulder and pointing back
+  // at the keeper. Hanging straight down his back, it lay on its edge. Both
   // hands stay in front of the shoulder line: a two-handed grip cannot be
   // taken round behind it, and the hands go out wide rather than tight beside
   // the ear, where the shaft would come down across the grille.
   { time: CHARGE_CLOCK.finish, pose: { ...GUARD, hip: [.02, .86, .05], chest: [.02, 1.22, .08],
     frontFoot: [-.02, .08, -.10], backFoot: [-.20, .08, .20],
-    grip: [-.28, 1.63, .34], batUp: [.11, .67, .72], batFace: [.96, -.02, -.14],
+    grip: [-.22, 1.62, .36], batUp: [.08, .35, .93], batFace: [.96, -.02, -.14],
     yaw: .10, face: 0, heel: 0, backFootYaw: .30, leadElbow: .20,
     shoulderLift: .08 } },
 ];
@@ -3686,13 +3687,13 @@ export class Batter {
       }
       // The straight charge rides it too, from the face the keys meet the ball
       // with, and turns it once: the bottom hand rolling over the top one as
-      // the bat goes over him, so that wrapped, the curved back of the blade
-      // lies on the front shoulder, as the hook's and the on drive's six's do.
-      // Drawn from the keys it turned more than a turn and a quarter in his
-      // hands between the ball and the hold, and wrapped with the face on him.
+      // the bat goes over him, so that laid back on the front shoulder the
+      // flat face looks at the sky and the curved back rests on him. Drawn from
+      // the keys it turned more than a turn and a quarter in his hands between
+      // the ball and the hold, and wrapped with the face on him.
       else if (!overCover && !overLongOn && age > CHARGE_CONTACT_MS)
         pose.bat = this.riding(CHARGE_CONTACT_MS, poseAt, batOrientation(poseAt(CHARGE_CONTACT_MS)), [hold, recover], age,
-          { window: [CHARGE_CLOCK.through, CHARGE_CLOCK.finish], away: (wrap, up) => V(wrap.grip).addScaledVector(up, -.45).sub(shoulderOf(wrap, 0)) });
+          { window: [CHARGE_CLOCK.through, CHARGE_CLOCK.finish], away: () => new THREE.Vector3(0, 1, 0) });
       this.apply(pose);
       return;
     }

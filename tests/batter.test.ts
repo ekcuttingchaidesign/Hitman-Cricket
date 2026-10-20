@@ -1983,7 +1983,7 @@ describe('the charge', () => {
       batter.update(CHARGE_CLOCK.finish); expect(at - batter.inspect().yaw).toBeGreaterThan(.9);
     }
   });
-  it('finishes wrapped over the front shoulder, toe down behind his back', () => {
+  it('finishes wrapped over the front shoulder, the bat laid back on it', () => {
     for (const x of PLAYS.charge.reach) {
       const batter = charge(x);
       batter.update(CHARGE_CLOCK.finish);
@@ -1993,9 +1993,11 @@ describe('the charge', () => {
       expect(finish.grip[1], `x=${x}`).toBeGreaterThan(1.5);
       expect(finish.grip[0] - finish.chest[0], `x=${x}`).toBeLessThan(-.2);
       for (const forward of finish.handsForward) expect(forward, `x=${x}`).toBeGreaterThan(0);
-      // The blade behind him and hanging down: the toe is below the hands, and
-      // behind the chest.
-      expect(finish.bladeTip[1], `x=${x}`).toBeLessThan(finish.grip[1] - .45);
+      // The blade laid back over the shoulder, behind him: the toe below the
+      // hands and behind the chest, but not hanging straight down his back,
+      // where it rested on its edge.
+      expect(finish.bladeTip[1], `x=${x}`).toBeLessThan(finish.grip[1] - .2);
+      expect(finish.bladeTip[1], `x=${x}`).toBeGreaterThan(finish.grip[1] - .45);
       expect(finish.bladeTip[2] - root.z, `x=${x}`).toBeLessThan(finish.chest[2] - .15);
       // Square to the bowler, and standing up out of the lunge.
       expect(finish.yaw, `x=${x}`).toBeLessThan(.3);
@@ -2159,7 +2161,7 @@ describe('the charge', () => {
  * the shape — and that the approach really is shared.
  */
 describe('the straight charge wrap', () => {
-  it('wraps with the curved back of the blade on the front shoulder, the bat turned once in his hands', () => {
+  it('lays the bat back on the front shoulder, face to the sky, turned once in his hands', () => {
     for (const x of PLAYS.charge.reach) {
       const batter = charge(x);
       batter.update(CHARGE_CONTACT_MS);
@@ -2170,16 +2172,14 @@ describe('the straight charge wrap', () => {
         twist += Math.abs(2 * Math.atan2(turn.y, turn.w));
         previous = batter.bat.quaternion.clone();
         if (time < CHARGE_CLOCK.finish) continue;
-        // On the shoulder the flat face looks away from it. Drawn from its
-        // keys the face lay on him, after the bat had turned more than a turn
-        // and a quarter in his hands since the ball.
-        const pose = batter.inspect();
-        const middle = new Vector3(...pose.grip).lerp(new Vector3(...pose.bladeTip).sub(batter.root.position), .5);
-        const toShoulder = new Vector3(...pose.shoulders[0]).sub(middle).normalize();
-        expect(new Vector3(...pose.batFace).dot(toShoulder), `x=${x} @${time}`).toBeLessThan(-.7);
+        // Laid back on the shoulder, the flat face looks at the sky and the
+        // curved back lies on him. Drawn from its keys the face lay on him,
+        // after the bat had turned more than a turn and a quarter in his hands
+        // since the ball; then it hung down his back on its edge.
+        expect(batter.inspect().batFace[1], `x=${x} @${time}`).toBeGreaterThan(.8);
       }
       // One roll, the bottom hand over the top, and nothing else.
-      expect(MathUtils.radToDeg(twist), `x=${x}`).toBeLessThan(150);
+      expect(MathUtils.radToDeg(twist), `x=${x}`).toBeLessThan(160);
     }
   });
 });
