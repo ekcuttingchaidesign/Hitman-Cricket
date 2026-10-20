@@ -128,13 +128,13 @@ const STROKES: Record<string, Stroke> = {
     note: 'Version two, played twice in ten and four at most: the cover drive rebuilt from a side-on slow-motion recording of the shot: the front foot is down at 55 ms with the bat still coming, the ball is met at 110, the hands go out towards cover at 220 and up to the chin at 310 with the blade still hanging under them, and the checked finish at 410 is held until 600. Then the bat goes home back along its own swing, down through the carry and under him, and up into his stance.',
   },
   charge: {
-    label: 'Charge over cover', shot: 'COVER_LONG_OFF', charging: true, ball: { x: 0, y: .54, z: GAME.contactZ + CHARGE_MEETS_AT },
+    label: 'Charge over cover', shot: 'COVER_LONG_OFF', charging: true, single: true, ball: { x: 0, y: .54, z: GAME.contactZ + CHARGE_MEETS_AT },
     contact: CHARGE_CONTACT_MS, end: STROKE_DURATION_MS + ADVANCE.walkBackMs, bounceZ: 4.6,
     phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Skip', CHARGE_CLOCK.skip], ['Plant', CHARGE_CLOCK.plant], ['Contact', CHARGE_CONTACT_MS],
       ['Extension', CHARGE_CLOCK.through], ['Carry', CHARGE_CLOCK.carry], ['High finish', 580], ['Down', 760], ['Walking back', 1000]],
     out: { speed: .028, angle: THREE.MathUtils.degToRad(40), climb: .013 },
     facts: ['length, on the stumps', `${STROKE_DURATION_MS + ADVANCE.walkBackMs} ms`],
-    note: 'The charge over cover: the back foot skips up to the front one, the front foot strides out down the pitch with the bat up to the sky, and the ball is met at 300 ms on the full, three quarters of a metre out of his ground. The face is opened to cover with the body still closed, the arms extend out towards extra cover, and the finish is held with the hands together above the helmet, the face of the blade to the sky: from the ball on the bat rides his hands without turning in them, until it unwinds into his guard on the way down. Then he walks back to his crease. In the game it is played off the cover swipe with the meter full, and its clock runs at two thirds speed.',
+    note: 'The charge over cover: the back foot skips up to the front one, the front foot strides out down the pitch with the bat up to the sky, and the ball is met at 300 ms on the full, three quarters of a metre out of his ground. The face is opened to cover with the body still closed, the arms extend out towards extra cover, and the hands lift the bat level, never upright, to a finish held just above the helmet with the toe pointing up the pitch over extra cover and the head left leaning to the off side: from the ball on the bat rides his hands without turning in them, until it unwinds into his guard on the way down. The same in every version. Then he walks back to his crease. In the game it is played off the cover swipe with the meter full, and its clock runs at two thirds speed.',
   },
   on: {
     label: 'On drive', shot: 'LONG_ON', charging: false, single: true, ball: { x: LINE_X.LEG, y: .54, z: GAME.contactZ + ON_DRIVE_MEETS_AT },
@@ -444,13 +444,11 @@ function frame(now: number) {
 const VERSION_ONE: Record<string, string> = {
   cover: 'Version one, played four times in ten and the only one middled for six: the cover drive the game has always played, kept beside the rebuilt one: a short step in, the ball met at 110 ms, the arms out through the line at 220 and the high finish at 410, with the bat pointing out square, held to 570, and home to his guard over the top.',
   loft: 'Version one, played three times in ten: the lofted straight drive the game has always played: the classic drive\'s stride and contact, the blade climbing through the line, and the finish over the front shoulder with the hands above the helmet and the bat pointing to the sky, held to 410.',
-  charge: 'Version one, the charge over cover the game has always played: the same run down the pitch, ball and finish as version two, with the bat turning in his hands on the way up into the finish and on the way home.',
 };
 /** What version three of each stroke is: the cover drive met beside the front pad. */
 const VERSION_THREE: Record<string, string> = {
   cover: 'Version three, played four times in ten: version two met beside the front pad, under his eyes, as the recording meets it, 28 cm further down the pitch than the game meets every other drive. The hips and chest are further forward, the front knee bent deeper over the foot, and the back foot slides back less. The swipe is timed as for the other two, and like version two it keeps the ball down: middled, it is four, never six.',
   loft: 'The straight six has no version three: it is version two\'s.',
-  charge: 'The charge over cover has no version three: it is version two\'s, down the pitch to the ball as it always was.',
 };
 const title = document.querySelector<HTMLHeadingElement>('h1')!;
 const facts = document.querySelectorAll<HTMLElement>('[data-fact]');

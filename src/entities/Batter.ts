@@ -2066,10 +2066,13 @@ const CHARGE_RECOVER: Pose = { ...GUARD, hip: [-.04, .92, -.02], chest: [.02, 1.
  * The face is opened to cover at contact and the body stays closed — he is
  * hitting inside out, across the line of a ball on the stumps, so the
  * shoulders turn far less than the straight charge's. The arms extend out
- * towards extra cover rather than up the ground, the blade climbs with them,
- * and the finish is the one both recordings hold: hands together above the
- * helmet, both arms straight up, the bat pointing to the sky over the off
- * shoulder. No wrap. He watches it from under his own hands.
+ * towards extra cover rather than up the ground, and the hands lift the bat
+ * level, as a net clip filmed from the bowler's end has it: parallel to the
+ * ground from the extension to the finish, never upright, the hands just
+ * above the helmet at the end with the toe pointing up the pitch over extra
+ * cover, the chest and head left leaning to the off side. No wrap. The first
+ * build took the arms straight up and stood the bat on end over the off
+ * shoulder.
  *
  * The front foot lands a little to the off side of where the straight charge
  * puts it, which is what opens the hips enough to get the arms out that way.
@@ -2098,34 +2101,35 @@ const COVER_CHARGE_KEYS: readonly { time: number; pose: Pose }[] = [
   // climbing, the shoulders only part-way round.
   { time: CHARGE_CLOCK.through, pose: { ...GUARD, hip: [.02, .78, .16], chest: [.16, 1.14, .28],
     frontFoot: [.06, .08, .35], backFoot: [-.16, .13, -.30],
-    grip: [.58, 1.06, .68], batUp: [-.42, .48, -.77], batFace: [.55, .72, -.42],
+    grip: [.58, 1.06, .68], batUp: [-.55, .30, -.78], batFace: [.55, .72, -.42],
     yaw: .80, face: .10, heel: .60, backFootYaw: 1.00, leadElbow: .24,
     armHinge: .55, armDrive: 1, shoulderLift: .04 } },
-  // The hands go up and out, and the blade with them, high to the off side.
-  { time: CHARGE_CLOCK.carry, pose: { ...GUARD, hip: [.04, .84, .10], chest: [.16, 1.20, .16],
+  // The hands go up and out, the bat lifted level in them, out in front.
+  { time: CHARGE_CLOCK.carry, pose: { ...GUARD, hip: [.04, .84, .10], chest: [.20, 1.18, .16],
     frontFoot: [.06, .08, .10], backFoot: [-.20, .16, .00],
-    grip: [.54, 1.48, .62], batUp: [-.45, -.35, -.82], batFace: [.62, .52, -.57],
+    grip: [.56, 1.42, .66], batUp: [-.55, .05, -.83], batFace: [.62, .52, -.57],
     yaw: .60, face: .12, heel: .30, backFootYaw: .90, leadElbow: .26,
-    armHinge: .90, armDrive: .80, shoulderLift: .06 } },
-  // The finish. Hands together above the helmet, arms straight, the bat
-  // pointing to the sky over the off shoulder — held, and watched from under.
-  { time: COVER_CHARGE_CLOCK.finish, pose: { ...GUARD, hip: [.04, .88, .06], chest: [.10, 1.24, .10],
+    armHinge: .70, armDrive: .80, shoulderLift: .06 } },
+  // The finish. Hands just above the helmet and out in front of it, the bat
+  // level and pointing up the pitch over extra cover, the head still over to
+  // the off side — held.
+  { time: COVER_CHARGE_CLOCK.finish, pose: { ...GUARD, hip: [.04, .88, .06], chest: [.18, 1.20, .12],
     frontFoot: [.06, .08, -.04], backFoot: [-.20, .08, .18],
-    grip: [.30, 2.02, .34], batUp: [-.62, -.68, -.39], batFace: [.70, -.20, -.68],
+    grip: [.40, 1.78, .52], batUp: [-.28, .02, -.96], batFace: [.70, -.20, -.68],
     yaw: .55, face: .15, heel: 0, backFootYaw: .40, leadElbow: .30,
-    // The aim stays on here, pointed straight up: it is what holds both arms
-    // straight above the helmet rather than letting the front elbow bow
-    // forward. It is let go on the way down.
-    armHinge: 1.50, armDrive: .80, shoulderLift: .10 } },
+    // The aim stays on here: it is what carries the upper arms up with the
+    // hands rather than letting the front elbow bow forward. It is let go on
+    // the way down.
+    armHinge: 1.20, armDrive: .60, shoulderLift: .08 } },
 ];
 /**
- * Down from the high finish, out in front of the face. Straight from above
- * the helmet to the pick-up, the knob — which points down at him from a bat
- * held up to the sky — came down through the grille.
+ * Down from the high finish, out in front of the face with the bat still
+ * level. Straight from above the helmet to the pick-up, the knob came down
+ * through the grille.
  */
 const COVER_CHARGE_DOWN: Pose = { ...GUARD, hip: [.02, .90, .04], chest: [.08, 1.25, .08],
   frontFoot: [.04, .08, .02], backFoot: [-.19, .08, .06],
-  grip: [.46, 1.42, .72], batUp: [-.30, -.75, -.59], batFace: [.80, -.20, -.15],
+  grip: [.46, 1.42, .72], batUp: [-.45, -.25, -.86], batFace: [.80, -.20, -.15],
   yaw: .75, face: .08, heel: 0, backFootYaw: .80, leadElbow: .05,
   // Half let go, with the hinge coming down with the hands. Let go all at
   // once between the finish and here the front elbow moved too fast.
@@ -3670,12 +3674,12 @@ export class Batter {
         return mix(from, GUARD, (at - since) / (STROKE_DURATION_MS - since));
       };
       const pose = { ...poseAt(age) };
-      // Over cover, from the ball on, the face rides the handle: up into the
-      // high finish it turned a quarter of a turn in his hands and showed the
-      // sky the blade's edge rather than its face, and coming home it spun
-      // more than a full turn. What it has to turn to be back in his guard it
-      // turns on the way down from the hold.
-      if (overCover && this.coverV2 && age > CHARGE_CONTACT_MS) {
+      // Over cover, from the ball on, the face rides the handle, in every
+      // version: there is no wrist roll after the ball. Version one used to
+      // turn it in his hands, a quarter of a turn up into the finish and more
+      // than a full turn coming home. What it has to turn to be back in his
+      // guard it turns on the way down from the hold.
+      if (overCover && age > CHARGE_CONTACT_MS) {
         const reference = batOrientation(COVER_DRIVE_V1.contact), up = UP.clone().applyQuaternion(batOrientation(poseAt(CHARGE_CONTACT_MS)));
         const met = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(reference), up).multiply(reference);
         pose.bat = this.riding(CHARGE_CONTACT_MS, poseAt, met, [hold, COVER_CHARGE_CLOCK.recover], age);
@@ -4242,7 +4246,7 @@ export class Batter {
         // Turned about the handle to the pose's own face, as far as it asks.
         if(idle && pose.ownFace) this.bat.quaternion.slerp(batOrientation(pose),pose.ownFace);
       }
-      else if((this.rebuiltDrive && (this.charging || this.poseAge>=COVER_PLANT.hold)) || this.onLoft || this.turning || this.pulling || this.shot === 'DEFEND' || this.punching || this.spinCutting || this.spinPulling || this.shot === 'LATE_CUT' || this.shot === 'REVERSE_SCOOP' || (this.sweeping && !this.levelled) || this.paceCut) {
+      else if((this.rebuiltDrive && (this.charging || this.poseAge>=COVER_PLANT.hold)) || (this.charging && this.shot === 'COVER_LONG_OFF') || this.onLoft || this.turning || this.pulling || this.shot === 'DEFEND' || this.punching || this.spinCutting || this.spinPulling || this.shot === 'LATE_CUT' || this.shot === 'REVERSE_SCOOP' || (this.sweeping && !this.levelled) || this.paceCut) {
         // The cover drive's way home, and the charge over cover from the ball
         // on, already hold their face (`riding`):
         // the roll the other strokes take into the guard is up to a full turn,

@@ -840,17 +840,23 @@ parameter the game reads that is in neither.
 The strokes off the cover swipe come in three versions (`CoverVersion` in
 `src/entities/Batter.ts`), and the game picks one at each cover swipe, four
 in ten, two in ten and four in ten (`COVER_ODDS`, `coverVersionOf`): version
-one is the cover drive and charge over cover as they always were
-(`COVER_DRIVE_V1`); version two the cover drive rebuilt from a side-on
-slow-motion recording (`STROKES.COVER_LONG_OFF`, the front foot planted first
-and a long lunge, `COVER_PLANT`, home back along the swing, `COVER_HOME`) and
-the charge over cover carrying its bat into the finish without turning it in
-his hands (`riding`); version three version two's drive met beside the front
-pad rather than out in front of it (`COVER_DRIVE_V3`, `COVER_V3_MEETS_AT`
-further down the pitch), the hips, chest and hands carried forward over the
-planted foot and the ball resolved at that point of its flight (`meetsAt` in
-`src/Game.ts`, the scene's `meeting`). Its square drive and charge are
-version two's.
+one is the cover drive as it always was (`COVER_DRIVE_V1`); version two the
+cover drive rebuilt from a side-on slow-motion recording
+(`STROKES.COVER_LONG_OFF`, the front foot planted first and a long lunge,
+`COVER_PLANT`, home back along the swing, `COVER_HOME`); version three version
+two's drive met beside the front pad rather than out in front of it
+(`COVER_DRIVE_V3`, `COVER_V3_MEETS_AT` further down the pitch), the hips,
+chest and hands carried forward over the planted foot and the ball resolved at
+that point of its flight (`meetsAt` in `src/Game.ts`, the scene's `meeting`).
+Its square drive is version two's. The charge over cover is one stroke in every
+version: from the ball the face rides the handle (`riding`), with no wrist roll
+(version one's turned the bat in his hands, more than a full turn by the time
+it was home), and the hands lift the bat level to a finish just above the
+helmet, the toe up the pitch over extra cover and the head left over to the off
+side (`COVER_CHARGE_KEYS`, rebuilt from a net clip from the bowler's end; the
+first build stood the bat on end over the off shoulder). The batter tests hold
+it level from the extension to the hold and hold the face from turning in his
+hands in both versions.
 
 Versions two and three keep the ball down: middled, the drive goes along the
 ground for four, never over the top for six (`grounded` on the attempt, read
