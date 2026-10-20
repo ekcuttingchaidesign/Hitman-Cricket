@@ -101,6 +101,29 @@ describe('alive in his guard', () => {
     run(batter, 1800, () => tips.push(tip(batter).y), 282);
     expect(Math.min(...tips)).toBeGreaterThan(1);
   });
+  it('waggles and taps after a stroke, as between balls in the game, not only before the first', () => {
+    const batter = waiting(true);
+    // Readied as the ball comes, and a block played at it.
+    batter.prepare(1); batter.update(0); batter.swing('DEFEND', 0, 0, .54);
+    const tips: number[] = [];
+    for (let time = 0; time <= 3200; time += 16) { batter.update(time); if (time > 1000) tips.push(tip(batter).y); }
+    expect(Math.min(...tips), 'down to the turf').toBeLessThan(.05);
+    const after = tips.slice(-60);
+    expect(Math.max(...after) - Math.min(...after), 'and waggling once back up').toBeGreaterThan(.1);
+  });
+  it('says when he is tapping, which the bowler waits out', () => {
+    const batter = waiting(true);
+    const said: [number, boolean][] = [];
+    run(batter, 2400, time => said.push([time, batter.tapping]));
+    const on = said.filter(([, tapping]) => tapping).map(([time]) => time);
+    // From the bat going down to its being back up, about a second and a quarter.
+    expect(on[on.length - 1] - on[0]).toBeGreaterThan(1100);
+    expect(on[on.length - 1] - on[0]).toBeLessThan(1400);
+    expect(said[said.length - 1][1]).toBe(false);
+    // And never on a wait that only waggles.
+    const still = waiting(false);
+    run(still, 2400, () => expect(still.tapping).toBe(false));
+  });
   it('waits afresh after each stroke, and a new ball does not interrupt it', () => {
     const batter = waiting(false);
     run(batter, 1200);

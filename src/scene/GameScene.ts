@@ -1325,6 +1325,8 @@ export class GameScene {
 
   /** Whether the field is back on its marks, so the next ball can be bowled. */
   get fieldSettled() { return this.field.settled(this.clock); }
+  /** The batter tapping his bat down between balls, which the bowler waits out. */
+  get batterTapping() { return this.batter.tapping; }
   /** The field as of the last frame, for `field-check.mjs`. */
   get fieldState() {
     const state = this.field.state(this.clock);

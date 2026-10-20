@@ -1053,13 +1053,18 @@ on the turf behind his back foot, sinking a little over it with the hands by
 his knees, taps it twice, and lifts it back through level into the guard; a
 long wait, before an innings's first ball, has him tap again every four
 seconds or so. A wait begins when he is back in his guard after a stroke, a
-celebration or what he does after the ball, and it is about two seconds
-before the bowler sets off, so a tap fits after a plain ball and seldom after
-one he admired or brushed his pad over. A tap is never begun once the bowler
-has set off (`runup`, which the scene says every frame of the run-up and
-flight), one under way is lifted out by a third of the run-up, and the waggle
-has faded by two-thirds, so he is still for the delivery stride and every
-stroke starts from the guard it always did; the timing windows are untouched.
+celebration or what he does after the ball. The bowler waits for a tap he has
+begun (`tapping`, `batterTapping` on the scene, `TAP_WAIT_MS` in
+`src/Game.ts`), as a bowler waits for a batter to settle: cut short by the
+run-up it was a dip of the bat and back. That holds him back a tenth of a
+second or so on those balls, and never more than `TAP_WAIT_MS` past
+`readyMs`. A tap is never begun once the bowler has set off (`runup`, which
+the scene says every frame of the run-up and flight), and the waggle has
+faded by two-thirds of the run-up, so he is still for the delivery stride and
+every stroke starts from the guard it always did; the timing windows are
+untouched. What `prepare` leaves after a ball is not read once he has played
+at it: it held him still for every wait that followed a stroke, and only the
+first ball and a ball left alone had any of this.
 Only the game's batter is `alive`: the Dressing Room, the stroke previews,
 the shelf pictures and the batter tests keep the still guard.
 `tests/stance.test.ts` holds the waggle and the body with it, the taps, the

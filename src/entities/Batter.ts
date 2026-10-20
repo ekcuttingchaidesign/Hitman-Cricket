@@ -199,7 +199,10 @@ const BACKLIFT: Pose = {
  * over it (`TAPPED`), taps it twice, and lifts it back into the guard. A long
  * wait, before an innings's first ball, has him tap again every so often.
  * The wait between balls is a second or two once a stroke is home, so a tap
- * fits after a ball he did nothing more about, and seldom after one he did.
+ * fits after most balls, though not after the longest things he does then.
+ *
+ * The bowler waits for a tap he has begun (`tapping`), as a bowler waits for
+ * a batter to settle, so it is seen whole rather than cut to a dip.
  *
  * Still by the delivery stride: a tap is not begun once the bowler has set
  * off and is put away by a third of the run-up, the waggle by two-thirds
@@ -2885,6 +2888,8 @@ export class Batter {
   private idle: { from: number; period: number; phase: number; tapFrom: number; nextTap: number } | null = null;
   /** Where the bowler is in his run-up, as the scene last said, and when it last did: see `runup`. */
   private runupAt = 0; private runupFresh = false; private runupSeen = -Infinity;
+  /** The clock of the last `update`, for asking about the wait between frames. */
+  private lastNow = -Infinity;
   private contactTime = -Infinity;
   private ballX = 0;
   private ballY = .54;
@@ -3240,6 +3245,10 @@ export class Batter {
    * his delivery stride. Not said for a few frames, he is not coming.
    */
   runup(progress: number) { this.runupAt = progress; this.runupFresh = true; }
+  /** Down tapping the turf, or on the way down or back up: the bowler waits for it. */
+  get tapping() {
+    return !!this.idle && this.lastNow - this.idle.tapFrom < TAP.down + TAP.taps * TAP.beat + TAP.up;
+  }
   /**
    * Once the stroke is home, do `kind` (see `AfterBall`) and come back to the
    * guard, rather than stand frozen in it until the next ball. Not after a
@@ -3455,7 +3464,12 @@ export class Batter {
     const sinceStroke = Number.isFinite(age) ? age - STROKE_DURATION_MS - (this.charging ? ADVANCE.walkBackMs : 0) : Infinity;
     const sinceSettle = this.afterward ? now - this.afterward.from - lengthOf(this.afterward.kind, this.shot) : Infinity;
     const sinceCelebration = now - this.celebratedAt - CELEBRATION_LENGTHS[this.celebration];
-    const weight = ease(THREE.MathUtils.clamp(Math.min(sinceStroke, sinceCelebration, sinceSettle) / 450, 0, 1)) * (1 - this.anticipation);
+    // Readied for a ball only while that ball is coming: once he has played
+    // at it, what `prepare` left behind is the last ball's, as the guard's own
+    // mix in `update` takes it. Read after a stroke, it held him still for the
+    // whole wait that followed.
+    const readied = Number.isFinite(age) ? 0 : this.anticipation;
+    const weight = ease(THREE.MathUtils.clamp(Math.min(sinceStroke, sinceCelebration, sinceSettle) / 450, 0, 1)) * (1 - readied);
     const breath = Math.sin(now * Math.PI * 2 / 3700) * weight;
     const drift = Math.sin(now * Math.PI * 2 / 7300) * weight;
     const waiting: Pose = { ...pose, hip: [pose.hip[0] + drift * .004, pose.hip[1], pose.hip[2]],
@@ -3503,6 +3517,7 @@ export class Batter {
     return { ...tapped, grip: [tapped.grip[0], tapped.grip[1] + lift * tap, tapped.grip[2]] };
   }
   update(now: number) {
+    this.lastNow = now;
     if (this.runupFresh) { this.runupSeen = now; this.runupFresh = false; }
     if (Number.isFinite(this.felledAt)) return this.applyFall(now - this.felledAt);
     let age = now - this.swingStart;
