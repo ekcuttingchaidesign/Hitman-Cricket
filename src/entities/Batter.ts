@@ -1908,13 +1908,13 @@ export const FLICK_HOLD_MS = 160;
  * Keyed for the ball on leg stump: the reach moves him from there.
  */
 const FLICK_V2: Stroke & { through: Pose } = {
-  contact: { ...GUARD, hip: [-.02, .79, .16], chest: [.12, 1.09, .30], frontFoot: [.00, .08, .58], backFoot: [-.15, .08, -.38],
+  contact: { ...GUARD, hip: [-.10, .86, .16], chest: [-.05, 1.25, .27], frontFoot: [-.08, .08, .58], backFoot: [-.23, .08, -.38],
     grip: [.33, .97, .58], batUp: [.05, .97, .22], batFace: [-.25, -.20, .95], yaw: 1.30, face: .20, heel: .30,
-    backFootYaw: 1.15, leadElbow: .18, look: .30, armHinge: .90, armDrive: .80, shoulderLift: 0 },
-  through: { ...GUARD, hip: [.04, .78, .19], chest: [.14, 1.09, .34], frontFoot: [.00, .08, .58], backFoot: [-.15, .08, -.36],
-    grip: [.14, 1.00, .80], batUp: [.58, .44, -.63], batFace: [-.70, -.50, .50], yaw: .90, face: .10, heel: .40,
-    backFootYaw: 1.00, leadElbow: .22, look: .30, armHinge: .70, armDrive: 1, shoulderLift: .03 },
-  finish: { ...GUARD, hip: [.05, .79, .20], chest: [.15, 1.10, .36], frontFoot: [.00, .08, .58], backFoot: [-.14, .08, -.34],
+    backFootYaw: 1.15, leadElbow: -.10, look: .55, armHinge: -.85, armDrive: 1, shoulderLift: 0 },
+  through: { ...GUARD, hip: [-.06, .82, .19], chest: [.00, 1.18, .32], frontFoot: [-.08, .08, .58], backFoot: [-.23, .08, -.36],
+    grip: [.18, .92, .86], batUp: [.58, .44, -.63], batFace: [-.70, -.50, .50], yaw: .90, face: .10, heel: .40,
+    backFootYaw: 1.00, leadElbow: 0, look: .40, armHinge: -.45, armDrive: 1, shoulderLift: .03 },
+  finish: { ...GUARD, hip: [-.03, .79, .20], chest: [.07, 1.10, .36], frontFoot: [-.08, .08, .58], backFoot: [-.22, .08, -.34],
     grip: [.04, 1.20, .88], batUp: [-.22, -.92, .33], batFace: [-.85, 0, .50], yaw: .55, face: .05, heel: .46,
     backFootYaw: .90, leadElbow: .22, look: .30, armHinge: .40, armDrive: 1, shoulderLift: .04 },
 };
@@ -4651,8 +4651,10 @@ export class Batter {
         // with the elbow hanging the blade swept through the forearm. So does
         // the late cut, whose hands come down to his hip with the bat behind
         // them: hanging, the front elbow closed onto the back one. And so does
-        // the block, whose top hand leads with its elbow up in both clips.
-        if (!this.pulling && i===0 && (this.charging||this.squaring||this.lofted||this.shot==='STRAIGHT'||this.shot==='COVER_LONG_OFF'||this.shot==='SCOOP'||this.shot==='LATE_CUT'||this.shot==='DEFEND'))
+        // the block, whose top hand leads with its elbow up in both clips. And
+        // the flick's version two, whose top elbow rides up over the hands and
+        // leads towards the bowler from the ball to the finish.
+        if (!this.pulling && i===0 && (this.charging||this.squaring||this.lofted||this.shot==='STRAIGHT'||this.shot==='COVER_LONG_OFF'||this.shot==='SCOOP'||this.shot==='LATE_CUT'||this.shot==='DEFEND'||this.flickV2))
           anatomical.addScaledVector(spine,Math.max(0,pose.leadElbow)*1.1);
         const bend = bendTowards(anatomical);
         if (drive>0 && i===0) {
