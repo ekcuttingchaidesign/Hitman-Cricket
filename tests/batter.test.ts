@@ -2158,6 +2158,32 @@ describe('the charge', () => {
  * The shared checks hold it to the same grip, reach and clearances; this is
  * the shape — and that the approach really is shared.
  */
+describe('the straight charge wrap', () => {
+  it('wraps with the curved back of the blade on the front shoulder, the bat turned once in his hands', () => {
+    for (const x of PLAYS.charge.reach) {
+      const batter = charge(x);
+      batter.update(CHARGE_CONTACT_MS);
+      let previous = batter.bat.quaternion.clone(), twist = 0;
+      for (let time = CHARGE_CONTACT_MS + 2; time <= CHARGE_CLOCK.hold; time += 2) {
+        batter.update(time);
+        const turn = previous.clone().invert().multiply(batter.bat.quaternion);
+        twist += Math.abs(2 * Math.atan2(turn.y, turn.w));
+        previous = batter.bat.quaternion.clone();
+        if (time < CHARGE_CLOCK.finish) continue;
+        // On the shoulder the flat face looks away from it. Drawn from its
+        // keys the face lay on him, after the bat had turned more than a turn
+        // and a quarter in his hands since the ball.
+        const pose = batter.inspect();
+        const middle = new Vector3(...pose.grip).lerp(new Vector3(...pose.bladeTip).sub(batter.root.position), .5);
+        const toShoulder = new Vector3(...pose.shoulders[0]).sub(middle).normalize();
+        expect(new Vector3(...pose.batFace).dot(toShoulder), `x=${x} @${time}`).toBeLessThan(-.7);
+      }
+      // One roll, the bottom hand over the top, and nothing else.
+      expect(MathUtils.radToDeg(twist), `x=${x}`).toBeLessThan(150);
+    }
+  });
+});
+
 describe('the charge over cover', () => {
   const coverCharge = (x = 0) => {
     const batter = new Batter(); batter.reset(); batter.prepare(1); batter.update(0);

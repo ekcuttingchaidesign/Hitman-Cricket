@@ -3684,6 +3684,15 @@ export class Batter {
         const met = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(reference), up).multiply(reference);
         pose.bat = this.riding(CHARGE_CONTACT_MS, poseAt, met, [hold, COVER_CHARGE_CLOCK.recover], age);
       }
+      // The straight charge rides it too, from the face the keys meet the ball
+      // with, and turns it once: the bottom hand rolling over the top one as
+      // the bat goes over him, so that wrapped, the curved back of the blade
+      // lies on the front shoulder, as the hook's and the on drive's six's do.
+      // Drawn from the keys it turned more than a turn and a quarter in his
+      // hands between the ball and the hold, and wrapped with the face on him.
+      else if (!overCover && !overLongOn && age > CHARGE_CONTACT_MS)
+        pose.bat = this.riding(CHARGE_CONTACT_MS, poseAt, batOrientation(poseAt(CHARGE_CONTACT_MS)), [hold, recover], age,
+          { window: [CHARGE_CLOCK.through, CHARGE_CLOCK.finish], away: (wrap, up) => V(wrap.grip).addScaledVector(up, -.45).sub(shoulderOf(wrap, 0)) });
       this.apply(pose);
       return;
     }
@@ -4246,7 +4255,7 @@ export class Batter {
         // Turned about the handle to the pose's own face, as far as it asks.
         if(idle && pose.ownFace) this.bat.quaternion.slerp(batOrientation(pose),pose.ownFace);
       }
-      else if((this.rebuiltDrive && (this.charging || this.poseAge>=COVER_PLANT.hold)) || (this.charging && this.shot === 'COVER_LONG_OFF') || this.onLoft || this.turning || this.pulling || this.shot === 'DEFEND' || this.punching || this.spinCutting || this.spinPulling || this.shot === 'LATE_CUT' || this.shot === 'REVERSE_SCOOP' || (this.sweeping && !this.levelled) || this.paceCut) {
+      else if((this.rebuiltDrive && (this.charging || this.poseAge>=COVER_PLANT.hold)) || (this.charging && (this.shot === 'COVER_LONG_OFF' || this.shot === 'STRAIGHT')) || this.onLoft || this.turning || this.pulling || this.shot === 'DEFEND' || this.punching || this.spinCutting || this.spinPulling || this.shot === 'LATE_CUT' || this.shot === 'REVERSE_SCOOP' || (this.sweeping && !this.levelled) || this.paceCut) {
         // The cover drive's way home, and the charge over cover from the ball
         // on, already hold their face (`riding`):
         // the roll the other strokes take into the guard is up to a full turn,
