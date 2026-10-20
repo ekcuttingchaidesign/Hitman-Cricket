@@ -1921,6 +1921,15 @@ const ON_LOFT: Stroke = {
  */
 export const CHARGE_CLOCK = { skip: 110, plant: 190, drop: 228, under: 266, contact: CHARGE_CONTACT_MS, through: 400, carry: 495,
   over: 565, finish: 615, hold: 690, unwrap: 775, across: 835, recover: 890 } as const;
+/**
+ * The straight charge's wrap, held: `held` milliseconds still at the hold, the
+ * bat laid back on his shoulder, then `home` to come back to his guard, where
+ * the clock gives it 250. The walk back to the crease starts that much later,
+ * at its own pace: he is back in his crease well before the next run-up, which
+ * waits on the six's flight and the result. Quickened to make up the time, the
+ * walk moved a foot further a frame than the walk's own test allows.
+ */
+export const STRAIGHT_CHARGE_HOLD = { held: 220, home: 380 } as const;
 /** How far down the pitch the root has travelled at each key, in metres. */
 const CHARGE_TRAVEL = { skip: .06, plant: .20, drop: .26, under: .31, contact: .34, through: .60, carry: .85, over: .96, finish: 1.05 } as const;
 /**
@@ -2015,13 +2024,14 @@ const CHARGE_KEYS: readonly { time: number; pose: Pose }[] = [
     armHinge: .60, armDrive: 0, shoulderLift: .07 } },
   // The finish. Square to the bowler, the back foot planted through in front
   // of the other one, the hands high and wide beside the front shoulder and
-  // the blade wrapped over it with the toe hanging down behind his back. Both
+  // the blade laid back across it, resting on the shoulder and pointing back
+  // at the keeper. Hanging straight down his back, it lay on its edge. Both
   // hands stay in front of the shoulder line: a two-handed grip cannot be
   // taken round behind it, and the hands go out wide rather than tight beside
   // the ear, where the shaft would come down across the grille.
   { time: CHARGE_CLOCK.finish, pose: { ...GUARD, hip: [.02, .86, .05], chest: [.02, 1.22, .08],
     frontFoot: [-.02, .08, -.10], backFoot: [-.20, .08, .20],
-    grip: [-.28, 1.63, .34], batUp: [.11, .67, .72], batFace: [.96, -.02, -.14],
+    grip: [-.22, 1.62, .36], batUp: [.08, .35, .93], batFace: [.96, -.02, -.14],
     yaw: .10, face: 0, heel: 0, backFootYaw: .30, leadElbow: .20,
     shoulderLift: .08 } },
 ];
@@ -3532,6 +3542,11 @@ export class Batter {
     if (this.admiring && age > ADMIRE_AT) age = Math.max(ADMIRE_AT, age - ADMIRE_MS);
     // Pull version one holds the wrap a moment longer, then comes home at its own pace: see `PULL_V1_HOLD_MS`.
     else if (this.pulling && !this.pullV2 && age > PULL_V1_CLOCK.hold) age = Math.max(PULL_V1_CLOCK.hold, age - PULL_V1_HOLD_MS);
+    // The straight charge holds its wrap a moment longer, then comes home the slower: see `STRAIGHT_CHARGE_HOLD`.
+    else if (this.charging && this.shot === 'STRAIGHT' && age > CHARGE_CLOCK.hold) {
+      const { hold } = CHARGE_CLOCK, { held, home } = STRAIGHT_CHARGE_HOLD, drawn = STROKE_DURATION_MS - hold;
+      age = age < hold + held ? hold : age < hold + held + home ? hold + (age - hold - held) * drawn / home : age - held - home + drawn;
+    }
     // The punch holds its high finish a moment longer: see `PUNCH_HOLD_MS`.
     else if (this.punching && age > PUNCH_CLOCK.hold) age = Math.max(PUNCH_CLOCK.hold, age - PUNCH_HOLD_MS);
     // The hook, once he has turned round, holds and goes home the slower: see `HOOK_HOLD_MS`.
@@ -3666,6 +3681,17 @@ export class Batter {
         if (at < settle) return shoulderDriven([{ time: 0, pose: this.swingFrom },
           ...keys.map(({ time, pose }) => ({ time, pose: time === CHARGE_CLOCK.contact ? contact : reachPose(pose) }))], at, CHARGE_CONTACT_MS);
         if (at < hold) return finish;
+        // The straight charge comes home on one smooth curve through its keys,
+        // easing out of the hold and into the guard, each key placed by how
+        // far the hands go to reach it: on the keys' own times it changed
+        // speed at every one, and came into the guard fastest and stopped dead.
+        if (!overCover && !overLongOn) {
+          const path = [finish, ...home.map(([, pose]) => reachPose(pose)), GUARD];
+          const along = path.map((_, n) => path.slice(1, n + 1).reduce((sum, pose, m) => sum + V(pose.grip).distanceTo(V(path[m].grip)), 0));
+          const span = STROKE_DURATION_MS - hold, total = along[along.length - 1];
+          return flowing(path.map((pose, n) => ({ time: hold + span * along[n] / total, pose })),
+            hold + span * ease(THREE.MathUtils.clamp((at - hold) / span, 0, 1)));
+        }
         let from: Pose = finish, since: number = hold;
         for (const [until, pose] of home) {
           if (at < until) return mix(from, reachPose(pose), (at - since) / (until - since));
@@ -3684,6 +3710,15 @@ export class Batter {
         const met = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(reference), up).multiply(reference);
         pose.bat = this.riding(CHARGE_CONTACT_MS, poseAt, met, [hold, COVER_CHARGE_CLOCK.recover], age);
       }
+      // The straight charge rides it too, from the face the keys meet the ball
+      // with, and turns it once: the bottom hand rolling over the top one as
+      // the bat goes over him, so that laid back on the front shoulder the
+      // flat face looks at the sky and the curved back rests on him. Drawn from
+      // the keys it turned more than a turn and a quarter in his hands between
+      // the ball and the hold, and wrapped with the face on him.
+      else if (!overCover && !overLongOn && age > CHARGE_CONTACT_MS)
+        pose.bat = this.riding(CHARGE_CONTACT_MS, poseAt, batOrientation(poseAt(CHARGE_CONTACT_MS)), [hold, recover], age,
+          { window: [CHARGE_CLOCK.through, CHARGE_CLOCK.finish], away: () => new THREE.Vector3(0, 1, 0) });
       this.apply(pose);
       return;
     }
@@ -4246,7 +4281,7 @@ export class Batter {
         // Turned about the handle to the pose's own face, as far as it asks.
         if(idle && pose.ownFace) this.bat.quaternion.slerp(batOrientation(pose),pose.ownFace);
       }
-      else if((this.rebuiltDrive && (this.charging || this.poseAge>=COVER_PLANT.hold)) || (this.charging && this.shot === 'COVER_LONG_OFF') || this.onLoft || this.turning || this.pulling || this.shot === 'DEFEND' || this.punching || this.spinCutting || this.spinPulling || this.shot === 'LATE_CUT' || this.shot === 'REVERSE_SCOOP' || (this.sweeping && !this.levelled) || this.paceCut) {
+      else if((this.rebuiltDrive && (this.charging || this.poseAge>=COVER_PLANT.hold)) || (this.charging && (this.shot === 'COVER_LONG_OFF' || this.shot === 'STRAIGHT')) || this.onLoft || this.turning || this.pulling || this.shot === 'DEFEND' || this.punching || this.spinCutting || this.spinPulling || this.shot === 'LATE_CUT' || this.shot === 'REVERSE_SCOOP' || (this.sweeping && !this.levelled) || this.paceCut) {
         // The cover drive's way home, and the charge over cover from the ball
         // on, already hold their face (`riding`):
         // the roll the other strokes take into the guard is up to a full turn,
