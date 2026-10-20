@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Vector3 } from 'three';
+import { Object3D, Vector3 } from 'three';
 import { Batter } from '../src/entities/Batter';
 
 /** A batter alive in his guard, whose waits tap (`tap`) or only waggle. */
@@ -28,19 +28,27 @@ describe('alive in his guard', () => {
     run(batter, 3000, () => heights.push(tip(batter).y));
     expect(Math.max(...heights) - Math.min(...heights)).toBeLessThan(.01);
   });
-  it('rocks the bat up and down from the wrists, the hands and the head hardly moving', () => {
+  it('rocks the bat up and down from the wrists, the body stirring with it and the head steady', () => {
     const batter = waiting(false);
-    const tips: number[] = [], grips: Vector3[] = [], chests: Vector3[] = [];
+    const head = (batter as unknown as { head: Object3D }).head;
+    const tips: number[] = [], grips: Vector3[] = [], hips: Vector3[] = [], heads: Vector3[] = [], looks: Vector3[] = [];
     run(batter, 3000, time => {
       if (time < 700) return;
       const pose = batter.inspect();
-      tips.push(tip(batter).y); grips.push(new Vector3(...pose.grip)); chests.push(new Vector3(...pose.chest));
+      tips.push(tip(batter).y); grips.push(new Vector3(...pose.grip)); hips.push(new Vector3(...pose.hip));
+      heads.push(head.getWorldPosition(new Vector3())); looks.push(head.getWorldDirection(new Vector3()));
+      for (const [, shin] of pose.legLengths) expect(shin, `shin @${time}`).toBeLessThan(.445);
     });
     // The toe tips up and down by a hand's breadth or more each way.
     expect(Math.max(...tips) - Math.min(...tips)).toBeGreaterThan(.12);
     const spread = (points: Vector3[]) => Math.max(...points.map(p => p.distanceTo(points[0])));
-    expect(spread(grips)).toBeLessThan(.03);
-    expect(spread(chests)).toBeLessThan(.012);
+    expect(spread(grips)).toBeLessThan(.035);
+    // Not the wrists alone: the hips move, a couple of centimetres.
+    expect(spread(hips)).toBeGreaterThan(.012);
+    expect(spread(hips)).toBeLessThan(.045);
+    // And his head goes with his body a little but keeps looking where it was.
+    expect(spread(heads)).toBeLessThan(.04);
+    expect(Math.max(...looks.map(look => look.angleTo(looks[0])))).toBeLessThan(.03);
     // Never down to the turf on a wait that only waggles.
     expect(Math.min(...tips)).toBeGreaterThan(1);
   });
@@ -90,7 +98,7 @@ describe('alive in his guard', () => {
     const batter = waiting(true);
     const tips: number[] = [];
     // The bowler sets off just before the tap falls due.
-    run(batter, 1800, () => tips.push(tip(batter).y), 432);
+    run(batter, 1800, () => tips.push(tip(batter).y), 282);
     expect(Math.min(...tips)).toBeGreaterThan(1);
   });
   it('waits afresh after each stroke, and a new ball does not interrupt it', () => {

@@ -191,8 +191,10 @@ const BACKLIFT: Pose = {
 /**
  * Alive in his guard: between balls he is not a statue. Built from a net clip
  * filmed from in front. In the raised stance the bat is rocked up and down
- * from the wrists (`WAGGLE`), the toe tipping up and back down while the hands
- * and the head hardly move; and before some balls (`TAP.share`) he lets it
+ * from the wrists (`WAGGLE`), the toe tipping up and back down, and the rest
+ * of him goes with it a little (`STIRS`): the knees give with each rock, the
+ * weight rolls slowly between his feet, and the shoulders ease round and back,
+ * his head staying on the bowler. Before some balls (`TAP.share`) he lets it
  * down until the toe is on the turf behind his back foot, sinking a little
  * over it (`TAPPED`), taps it twice, and lifts it back into the guard. A long
  * wait, before an innings's first ball, has him tap again every so often.
@@ -216,11 +218,26 @@ const WAGGLE = {
   /** Out between these points of the run-up. */
   still: [.50, .68],
 } as const;
+/**
+ * The body with the waggle, so it is not the wrists alone: the hips sink and
+ * the chest and hands with them, a little less, once each rock; the weight
+ * rolls back and forward between his feet and the shoulders turn with it,
+ * over a few rocks. The head's own turn is the world's, not the shoulders',
+ * so his eyes stay on the bowler through it.
+ */
+const STIRS = {
+  /** How far the hips, chest and hands sink with each rock. */
+  sink: { hip: .012, chest: .009, grip: .007 },
+  /** The weight's roll, hips and chest, across and along the crease; and the shoulders' turn with it. */
+  roll: { x: .010, z: .014, chest: .7, turn: .035 },
+  /** One roll of the weight, in rocks. */
+  rocks: 3.3,
+} as const;
 const TAP = {
   /** The share of balls he taps before. */
-  share: .4,
+  share: .55,
   /** From back in his guard to the bat going down; then down, each tap, and up again. */
-  at: 450, down: 380, beat: 240, taps: 2, up: 420,
+  at: 300, down: 380, beat: 240, taps: 2, up: 420,
   /** How high each tap lifts the toe off the turf, and for how much of its beat it is off it. */
   lift: .035, air: .55,
   /** And again every so long, in a long wait. */
@@ -3467,11 +3484,19 @@ export class Batter {
     const beat = ((s - TAP.down) / TAP.beat) % 1;
     const lift = s > TAP.down && s < tapping && beat < TAP.air ? Math.sin(Math.PI * beat / TAP.air) * TAP.lift : 0;
     const tap = down * (1 - THREE.MathUtils.smoothstep(running, ...TAP.still)) * weight;
-    const rock = THREE.MathUtils.smoothstep(now - idle.from, 0, WAGGLE.settle) * (1 - tap) * weight
-      * (1 - THREE.MathUtils.smoothstep(running, ...WAGGLE.still)) * Math.sin(Math.PI * 2 * (now - idle.from) / idle.period + idle.phase);
+    const alive = THREE.MathUtils.smoothstep(now - idle.from, 0, WAGGLE.settle) * (1 - tap) * weight
+      * (1 - THREE.MathUtils.smoothstep(running, ...WAGGLE.still));
+    const turn = Math.PI * 2 * (now - idle.from) / idle.period + idle.phase;
+    const rock = alive * Math.sin(turn);
+    // The knees giving once a rock, down as the toe comes down; and the weight's slower roll.
+    const sink = alive * (.5 - .5 * Math.sin(turn)), roll = alive * Math.sin(turn / STIRS.rocks + idle.phase * .7);
+    const { sink: by, roll: rolled } = STIRS;
+    const hip: Point = [pose.hip[0] + roll * rolled.x, pose.hip[1] - sink * by.hip, pose.hip[2] - roll * rolled.z];
+    const chest: Point = [pose.chest[0] + roll * rolled.x * rolled.chest, pose.chest[1] - sink * by.chest, pose.chest[2] - roll * rolled.z * rolled.chest];
     // The toe tipped towards the sky about the hands, and the hands a touch up with it.
     const toe = V(pose.batUp).negate().normalize(), about = toe.clone().cross(UP).normalize();
-    const rocked: Pose = { ...pose, grip: [pose.grip[0], pose.grip[1] + rock * WAGGLE.lift, pose.grip[2]],
+    const rocked: Pose = { ...pose, hip, chest, yaw: pose.yaw + roll * rolled.turn,
+      grip: [pose.grip[0], pose.grip[1] + rock * WAGGLE.lift - sink * by.grip, pose.grip[2]],
       bat: new THREE.Quaternion().setFromAxisAngle(about, rock * WAGGLE.tip).multiply(batOrientation(pose)) };
     if (tap <= 0) return rocked;
     const tapped = mix(rocked, TAPPED, tap);
