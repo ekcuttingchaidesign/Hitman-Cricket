@@ -27,7 +27,7 @@ describe('the Dressing Room screen', () => {
 
   it('puts every guard on its shelf, none locked, the worn one ticked, and WEAR IT at the foot', () => {
     const shelf = shelfMarkup(view({ shelf: 'guard', guard: 'carbon' }));
-    expect(shelf.match(/class="dr-item[ "]/g)).toHaveLength(7);
+    expect(shelf.match(/class="dr-item[ "]/g)).toHaveLength(8);
     expect(shelf).not.toContain('is-locked');
     expect(shelf).toMatch(/data-id="sterling"[^>]*aria-label="Sterling, on"/);
     expect(shelf).toMatch(/class="dr-item is-picked" data-id="carbon"[^>]*aria-label="Ember"/);

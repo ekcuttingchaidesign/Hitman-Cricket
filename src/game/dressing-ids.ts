@@ -6,7 +6,7 @@
 export const OUTFIT_IDS = ['home', 'papaya', 'crimson', 'forest', 'gold', 'violet', 'electric', 'lagoon'] as const;
 export const BAT_IDS = ['plain', 'boom', 'rage', 'venom', 'lonewolf', 'meg', 'icecold', 'roar', 'savage', 'reign', 'inferno', 'hitman'] as const;
 /** The guards — gloves and pads in one colourway — the one he is built wearing first (`src/entities/gloves.ts` has the designs). None is earned: every one is free to wear. */
-export const GUARD_IDS = ['sterling', 'glacier', 'fern', 'evergreen', 'carbon', 'blaze', 'midnight'] as const;
+export const GUARD_IDS = ['sterling', 'glacier', 'fern', 'evergreen', 'carbon', 'blaze', 'midnight', 'volt'] as const;
 export type OutfitId = typeof OUTFIT_IDS[number];
 export type BatId = typeof BAT_IDS[number];
 export type GuardId = typeof GUARD_IDS[number];
