@@ -2187,7 +2187,7 @@ describe('the charge over cover', () => {
       expect(contact.yaw, `x=${x} closed`).toBeGreaterThan(straight.inspect().yaw + .1);
     }
   });
-  it('extends out towards extra cover and finishes high, not wrapped', () => {
+  it('extends out towards extra cover and lifts the bat level, never upright', () => {
     for (const x of PLAYS.coverCharge.reach) {
       const batter = coverCharge(x);
       batter.update(CHARGE_CLOCK.through);
@@ -2195,19 +2195,50 @@ describe('the charge over cover', () => {
       // The hands go out to the off side of the chest, a full reach away.
       expect(through.grip[0] - through.chest[0], `x=${x} out`).toBeGreaterThan(.3);
       expect(through.grip[2] - through.chest[2], `x=${x} forward`).toBeGreaterThan(.3);
+      const root = batter.root.position;
+      // From the extension to the end of the hold the bat stays near level:
+      // the hands lift it, the toe never goes up to the sky. The first build
+      // finished with the hands straight up over the helmet and the bat upright.
+      for (let time = CHARGE_CLOCK.through; time <= CHARGE_CLOCK.hold; time += 10) {
+        batter.update(time);
+        const pose = batter.inspect();
+        const tip = new Vector3(...pose.bladeTip).sub(root), grip = new Vector3(...pose.grip);
+        const toe = tip.clone().sub(grip).normalize();
+        expect(Math.abs(toe.y), `x=${x} @${time} level`).toBeLessThan(.35);
+        // Out in front of him, not close to the body.
+        expect(grip.distanceTo(new Vector3(...pose.chest)), `x=${x} @${time} reach`).toBeGreaterThan(.55);
+      }
       batter.update(580);
       const finish = batter.inspect();
-      const root = batter.root.position;
-      // Hands together above the helmet, the bat pointing to the sky over the
-      // off shoulder: the toe is above the hands and off side of them, and
-      // nothing is behind him.
-      expect(finish.grip[1], `x=${x}`).toBeGreaterThan(1.75);
-      expect(finish.bladeTip[1], `x=${x}`).toBeGreaterThan(finish.grip[1] + .4);
-      expect(finish.bladeTip[0] - root.x, `x=${x}`).toBeGreaterThan(finish.grip[0] + .3);
-      expect(finish.bladeTip[2] - root.z, `x=${x}`).toBeGreaterThan(finish.chest[2]);
+      const tip = new Vector3(...finish.bladeTip).sub(root);
+      // The finish: the hands just above the helmet, the bat level and
+      // pointing up the pitch over extra cover, the chest still leaning off.
+      expect(finish.grip[1], `x=${x}`).toBeGreaterThan(1.7);
+      expect(finish.grip[1], `x=${x}`).toBeLessThan(1.9);
+      expect(tip.z, `x=${x}`).toBeGreaterThan(finish.grip[2] + .6);
+      expect(finish.chest[0] - finish.hip[0], `x=${x} leaning off`).toBeGreaterThan(.1);
       for (const forward of finish.handsForward) expect(forward, `x=${x}`).toBeGreaterThan(0);
       // Still closer to side-on than the straight charge's square finish.
       expect(finish.yaw, `x=${x}`).toBeGreaterThan(.4);
+    }
+  });
+  it('never turns the bat in his hands after the ball, in either version', () => {
+    // No wrist roll: from the ball to the end of the hold the face rides the
+    // handle, so the bat turns only as the handle swings, never about it. An
+    // earlier build rolled the wrists after the ball and the blade spun round
+    // the handle like a fan.
+    for (const version of [1, 2] as const) for (const x of PLAYS.coverCharge.reach) {
+      const batter = new Batter(); batter.reset(); batter.prepare(1); batter.update(0);
+      batter.swing('COVER_LONG_OFF', 0, x, .54, GAME.contactZ + CHARGE_MEETS_AT, true, false, false, false, version);
+      batter.update(CHARGE_CONTACT_MS);
+      let previous = batter.bat.quaternion.clone(), twist = 0;
+      for (let time = CHARGE_CONTACT_MS + 2; time <= CHARGE_CLOCK.hold; time += 2) {
+        batter.update(time);
+        const turn = previous.clone().invert().multiply(batter.bat.quaternion);
+        twist += Math.abs(2 * Math.atan2(turn.y, turn.w));
+        previous = batter.bat.quaternion.clone();
+      }
+      expect(MathUtils.radToDeg(twist), `v${version} x=${x}`).toBeLessThan(2);
     }
   });
   it('never passes the bat through him, and keeps the elbows off the trunk', () => {
