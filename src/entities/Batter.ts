@@ -941,21 +941,24 @@ const PULL_SWUNG = {
 };
 /**
  * The pull off the spinner (`SPIN_PULL` in the config): the leg-side input at
- * his ball dropped short, and at the arm ball timed well enough for it. Two
- * strokes the game already plays, put together. The feet are the cut off the
- * spinner's (`SPIN_CUT`): the back foot back towards his stumps and the front
- * one out wide to leg, the weight back, standing up rather than squatting,
- * and they stay planted. The bat's swing is pull version two's (`PULL`, on the
- * hook's clock): back and across with the bat high, down and out, met out in
- * front with both arms long, the bat level and the flat face to the bowler,
- * swung round flat out in front, out to leg and round behind square, and only
- * then do the elbows fold and it wraps behind his head with the curved back
- * of the blade on the front shoulder. He does not turn on round after it as
- * pull v2 does: the feet stay where the cut put them. The spinner's ball
- * arrives at the waist and the arm ball at the knee, not a bouncer's chest,
- * so the swing round is carried down to it (`SPIN_PULL_SUNK`) and climbs back
- * to pull v2's own wrap. Held there (`SPIN_PULL_HOLD_MS`), then home as pull
- * v2 goes home, the bat upright over his head and let down into his guard.
+ * his ball dropped short, and at the arm ball timed well enough for it. Built
+ * from a net session filmed from the bowler's end. The back foot steps back
+ * and across towards off stump and takes his weight, as pull v2's does, and
+ * the front foot stays where it stood in his guard: he meets the ball on it.
+ * The bat is pull v2's (`PULL`, on the hook's clock): high, down and out, met
+ * out in front with both arms long and the flat face to the bowler, swung
+ * round flat out to leg, then up over the front shoulder and wrapped behind
+ * his head with the curved back of the blade on it. The front foot goes with
+ * the swing: up on its toe as the bat comes through, then lifted and carried
+ * round on the leg side about the back foot, to land behind it on a line
+ * across the pitch about 45cm in front of the stumps (`SPIN_PULL_LANDS`), his
+ * hips going back over the back foot as it does. He turns as far as square to
+ * the leg side, and no further: pull v2 goes on round until his back is to
+ * the bowler. He stands up through all of it. The spinner's ball arrives at
+ * the waist and the arm ball at the knee, not a bouncer's chest, so the swing
+ * is drawn lower than pull v2's (`SPIN_PULL_GRIP`), and climbs to its wrap in
+ * one even curve. Held there (`SPIN_PULL_HOLD_MS`), then home as pull v2 goes
+ * home, the bat upright over his head and let down into his guard.
  */
 export const SPIN_PULL_CONTACT_MS = HOOK_CONTACT_MS;
 /**
@@ -963,24 +966,49 @@ export const SPIN_PULL_CONTACT_MS = HOOK_CONTACT_MS;
  * bouncer, which is met at the chest, as a ball at the waist or the knee is
  * reached with the arms going down to it as well as out.
  */
-export const SPIN_PULL_MEETS_AT = .18;
+export const SPIN_PULL_MEETS_AT = .21;
 /** The time the wrap is held past the stroke's own clock, the way home slowed with it, as the cut off the spinner's is. */
 export const SPIN_PULL_HOLD_MS = 300;
 const SPIN_PULL_CLOCK = { load: HOOK_LOAD_MS, down: 160, contact: SPIN_PULL_CONTACT_MS, front: 255, leg: 315, round: 395, rise: 450, finish: 520, hold: 680, unwrap: 780, lowered: 860 } as const;
+/** Where the front foot lands, from where he stands: on a line across the pitch about 45cm in front of the stumps, behind the back foot and a little to leg of it. */
+export const SPIN_PULL_LANDS: Point = [-.02, .08, -.55];
+/** The back foot, stepped back and across towards off stump: pull v2's. */
+const SPIN_PULL_BACK: Point = [.10, .08, -.38];
+/** The front foot in his guard's place, where he meets the ball on it, turned out a little as the back foot goes. */
+const SPIN_PULL_FRONT: Point = [-.13, .08, .22];
 /**
- * The cut off the spinner's feet, set under pull v2's hips: where they stand
- * from his hips at the ball, front and back, as the cut's stand from its own.
+ * The hands' way from the ball to the wrap at the short ball, before the step
+ * back carries them: out in front, out to leg, round, up, and over the front
+ * shoulder, the last three climbing evenly. Pull v2's own climb from round
+ * came forward and up in one surge and then back again, which at the waist
+ * read as the hands jerked up past the bat.
  */
-const SPIN_PULL_FEET = {
-  front: [PULL.contact.hip[0] + SPIN_CUT.contact.frontFoot[0] - SPIN_CUT.contact.hip[0] + .23, .08, SPIN_CUT.contact.frontFoot[2]] as Point,
-  back: [PULL.contact.hip[0] + SPIN_CUT.contact.backFoot[0] - SPIN_CUT.contact.hip[0], .08, SPIN_CUT.contact.backFoot[2]] as Point,
-};
-const planted = (pose: Pose): Pose => ({ ...pose, hip: [pose.hip[0], Math.min(pose.hip[1], .93), pose.hip[2]],
-  frontFoot: SPIN_PULL_FEET.front, backFoot: SPIN_PULL_FEET.back, backFootYaw: SPIN_CUT.contact.backFootYaw, toe: 0, frontFootYaw: undefined });
+const SPIN_PULL_GRIP = { front: [-.22, .90, .70], leg: [-.66, 1.02, .60], round: [-.72, 1.28, .20], rise: [-.62, 1.60, .05] } as const;
+/**
+ * One key of the stroke: pull v2's shape, its hands drawn where `grip` says,
+ * carried back and across by `by` (his hips going back over the back foot)
+ * and stood on the feet given.
+ */
+function spinPullKey(pose: Pose, by: readonly [number, number], front: Point,
+  feet: { toe: number; frontFootYaw: number }, grip: readonly number[] = pose.grip): Pose {
+  const carried = (p: readonly number[]) => [p[0] + by[0], p[1], p[2] + by[1]] as unknown as Point;
+  return { ...pose, hip: [pose.hip[0] + by[0], Math.min(pose.hip[1], .93), pose.hip[2] + by[1]], chest: carried(pose.chest), grip: carried(grip),
+    frontFoot: front, backFoot: SPIN_PULL_BACK, heel: Math.min(pose.heel, .25), toe: feet.toe, frontFootYaw: feet.frontFootYaw };
+}
 const SPIN_PULL: Stroke & { load: Pose; down: Pose; front: Pose; leg: Pose; round: Pose; rise: Pose; unwrap: Pose; lowered: Pose } = {
-  load: planted(PULL.load), down: planted(PULL.down), contact: planted(PULL.contact),
-  front: planted(PULL.front), leg: planted(PULL.leg), round: planted(PULL.round), rise: planted(PULL.rise),
-  finish: planted(PULL.finish), unwrap: planted(PULL.unwrap), lowered: PULL.lowered, recover: PULL.recover,
+  load: spinPullKey(PULL.load, [.05, 0], SPIN_PULL_FRONT, { toe: 0, frontFootYaw: .30 }),
+  down: spinPullKey(PULL.down, [.05, 0], SPIN_PULL_FRONT, { toe: 0, frontFootYaw: .25 }, [.09, 1.20, .36]),
+  contact: spinPullKey(PULL.contact, [.05, 0], SPIN_PULL_FRONT, { toe: 0, frontFootYaw: .15 }),
+  // Up on its toe as the bat comes through,
+  front: spinPullKey(PULL.front, [.10, -.04], SPIN_PULL_FRONT, { toe: .14, frontFootYaw: -.10 }, SPIN_PULL_GRIP.front),
+  // then lifted and carried round on the leg side, back towards the stumps,
+  leg: spinPullKey(PULL.leg, [.13, -.12], [-.22, .12, .04], { toe: .10, frontFootYaw: -.60 }, SPIN_PULL_GRIP.leg),
+  round: spinPullKey(PULL.round, [.16, -.22], [-.17, .12, -.30], { toe: .06, frontFootYaw: -1.05 }, SPIN_PULL_GRIP.round),
+  rise: spinPullKey(PULL.rise, [.19, -.28], [-.07, .10, -.50], { toe: .02, frontFootYaw: -1.35 }, SPIN_PULL_GRIP.rise),
+  // and down behind the back foot as the bat wraps.
+  finish: spinPullKey(PULL.finish, [.20, -.30], SPIN_PULL_LANDS, { toe: 0, frontFootYaw: -1.45 }),
+  unwrap: spinPullKey(PULL.unwrap, [.14, -.22], SPIN_PULL_LANDS, { toe: 0, frontFootYaw: -1.20 }),
+  lowered: PULL.lowered, recover: PULL.recover,
 };
 /**
  * The same at the arm ball, which arrives at the knee: met with the bat
@@ -989,16 +1017,18 @@ const SPIN_PULL: Stroke & { load: Pose; down: Pose; front: Pose; leg: Pose; roun
  * elbow down after them faster than an arm moves; the chest leans out over it
  * a little so the arms reach it long, the hips still standing.
  */
-const SPIN_PULL_LOW: typeof SPIN_PULL = { ...SPIN_PULL, contact: { ...SPIN_PULL.contact, chest: [-.20, 1.22, .06], batUp: [-.80, .48, -.36] },
-  front: { ...SPIN_PULL.front, chest: [-.20, 1.24, .03] } };
+const SPIN_PULL_LOW: typeof SPIN_PULL = { ...SPIN_PULL, contact: { ...SPIN_PULL.contact, chest: [SPIN_PULL.contact.chest[0] + .02, 1.22, .06], batUp: [-.80, .48, -.36] },
+  front: { ...SPIN_PULL.front, chest: [SPIN_PULL.front.chest[0] + .01, 1.24, SPIN_PULL.front.chest[2] + .04] } };
 /** Below this the ball is the arm ball's, at the knee, and met with the bat sloping down to it. */
 const SPIN_PULL_LOW_BALL = .7;
 /**
- * How much of the way from pull v2's bouncer down to the ball each key of the
- * swing is carried: all of it straight out in front, less as it goes round,
- * none by the wrap.
+ * How much of the way down from the short ball to the one this is each key
+ * of the swing after the ball is carried: all of it straight out in front,
+ * less as it goes round, none from the climb on.
  */
-const SPIN_PULL_SUNK = { down: .6, front: 1, leg: .85, round: .5, rise: .2 } as const;
+const SPIN_PULL_SUNK = { down: .15, front: 1, leg: .6, round: .12 } as const;
+/** The height his ball dropped short reaches him at, which the keys are drawn for. */
+const SPIN_PULL_BALL = .81;
 /** How far the pull off the spinner will go for a ball: every line he bowls. */
 const SPIN_PULL_REACH: readonly [number, number] = [-.42, .45];
 /**
@@ -3666,13 +3696,13 @@ export class Batter {
     }
     if (this.spinPulling) {
       const { load, down, contact: met, front, leg, round, rise, finish: end, hold, unwrap, lowered } = SPIN_PULL_CLOCK;
-      const low = this.ballY < SPIN_PULL_LOW_BALL, S = low ? SPIN_PULL_LOW : SPIN_PULL;
-      // Down from pull v2's bouncer to the ball this one is.
-      const below = contact.grip[1] - (PULL.contact.grip[1]);
+      const S = this.ballY < SPIN_PULL_LOW_BALL ? SPIN_PULL_LOW : SPIN_PULL;
+      // Down from his ball dropped short to the ball this one is.
+      const below = this.ballY - SPIN_PULL_BALL;
       const sunk = (pose: Pose, by: number): Pose => { const p = reachPose(pose); return { ...p, grip: [p.grip[0], p.grip[1] + below * by, p.grip[2]] }; };
-      const out = [{ time: 0, pose: this.swingFrom }, { time: load, pose: reachPose(S.load) }, { time: low ? down - 10 : down, pose: sunk(S.down, SPIN_PULL_SUNK.down) },
+      const out = [{ time: 0, pose: this.swingFrom }, { time: load, pose: reachPose(S.load) }, { time: down, pose: sunk(S.down, SPIN_PULL_SUNK.down) },
         { time: met, pose: contact }, { time: front, pose: sunk(S.front, SPIN_PULL_SUNK.front) }, { time: leg, pose: sunk(S.leg, SPIN_PULL_SUNK.leg) },
-        { time: round, pose: sunk(S.round, SPIN_PULL_SUNK.round) }, { time: rise, pose: sunk(S.rise, SPIN_PULL_SUNK.rise) }, { time: end, pose: finish }];
+        { time: round, pose: sunk(S.round, SPIN_PULL_SUNK.round) }, { time: rise, pose: reachPose(S.rise) }, { time: end, pose: finish }];
       // Home as pull v2 goes home: up over his head with the bat upright, then down.
       const home = [{ time: hold, pose: finish }, { time: unwrap, pose: reachPose(S.unwrap) }, { time: lowered, pose: reachPose(S.lowered) },
         { time: STROKE_DURATION_MS, pose: GUARD }];
@@ -4549,7 +4579,8 @@ export class Batter {
       // The hook turns him right round on his feet, and a knee bent out to off
       // whichever way he faces folds backwards once he faces leg: bent the way
       // he faces, from the guard's own bend.
-      if (this.turning && Number.isFinite(this.poseAge) && this.poseAge < STROKE_DURATION_MS) kneePole.applyAxisAngle(UP, pose.yaw - GUARD.yaw);
+      // The pull off the spinner turns him to the leg side on his back foot, and the same holds.
+      if ((this.turning || this.spinPulling) && Number.isFinite(this.poseAge) && this.poseAge < STROKE_DURATION_MS) kneePole.applyAxisAngle(UP, pose.yaw - GUARD.yaw);
       // On both knees: forward of him and down to the turf.
       if (pose.kneel) kneePole.lerp(new THREE.Vector3(Math.sin(pose.yaw) * .55, -.35, Math.cos(pose.yaw) * .55), pose.kneel);
       const knee = solveJoint(hipJoint, foot, .43, .44, hipJoint.clone().add(kneePole));

@@ -3304,22 +3304,55 @@ describe('the pull off the spinner', () => {
     }
     return Math.abs(turned);
   };
-  it('has the cut off the spinner\'s feet, standing: the front foot drawn back and out to leg, the back one back, and planted', () => {
+  it('steps the back foot back and across to off stump, and meets the ball on the front foot where it stood, standing', () => {
     for (const y of [.81, .54]) for (const x of [-.42, 0, .42]) {
       const batter = pull(x, y); batter.update(SPIN_PULL_CONTACT_MS);
       const pose = batter.inspect();
-      expect(pose.frontFoot[2], `x=${x} y=${y} front foot drawn back`).toBeLessThan(guard.frontFoot[2] - .15);
-      expect(pose.frontFoot[0] - pose.hip[0], `x=${x} y=${y} front foot out to leg`).toBeLessThan(guard.frontFoot[0] - guard.hip[0] - .12);
-      expect(pose.backFoot[2], `x=${x} y=${y} back foot back`).toBeLessThan(guard.backFoot[2] - .03);
-      // Standing up, no squat: the hips as high as in his guard.
-      expect(pose.hip[1], `x=${x} y=${y} standing`).toBeGreaterThan(guard.hip[1] - .03);
-      // And the feet stay where they went, through the wrap and the hold: he does not turn round on them as pull v2 does.
-      const { frontFoot, backFoot } = pose;
-      for (const time of [315, 450, 520, 680]) {
-        batter.update(time); const later = batter.inspect();
-        expect(new Vector3(...later.frontFoot).distanceTo(new Vector3(...frontFoot)), `x=${x} y=${y} front @${time}`).toBeLessThan(.01);
-        expect(new Vector3(...later.backFoot).distanceTo(new Vector3(...backFoot)), `x=${x} y=${y} back @${time}`).toBeLessThan(.01);
-        expect(later.hip[1], `x=${x} y=${y} standing @${time}`).toBeGreaterThan(guard.hip[1] - .03);
+      expect(pose.backFoot[2], `x=${x} y=${y} back foot back`).toBeLessThan(guard.backFoot[2] - .10);
+      expect(pose.backFoot[0] - pose.frontFoot[0], `x=${x} y=${y} back foot across to off`).toBeGreaterThan(guard.backFoot[0] - guard.frontFoot[0] + .15);
+      expect(pose.frontFoot[2], `x=${x} y=${y} front foot where it stood`).toBeGreaterThan(guard.frontFoot[2] - .08);
+      expect(pose.frontFoot[1], `x=${x} y=${y} and down`).toBeLessThan(.09);
+      for (const time of [100, SPIN_PULL_CONTACT_MS, 315, 395, 450, 520, 680]) {
+        batter.update(time);
+        expect(batter.inspect().hip[1], `x=${x} y=${y} standing @${time}`).toBeGreaterThan(guard.hip[1] - .03);
+      }
+    }
+  });
+  it('carries the front foot round with the swing, to land behind the back foot on a line 45cm in front of the stumps', () => {
+    for (const y of [.81, .54]) for (const x of [-.42, 0, .42]) {
+      const batter = pull(x, y);
+      batter.update(395);
+      expect(batter.inspect().frontFoot[1], `x=${x} y=${y} lifted`).toBeGreaterThan(.1);
+      batter.update(520); const landed = batter.inspect();
+      const fromStumps = batter.root.position.z + landed.frontFoot[2];
+      expect(fromStumps, `x=${x} y=${y} on the line`).toBeGreaterThan(.40);
+      expect(fromStumps, `x=${x} y=${y} on the line`).toBeLessThan(.50);
+      expect(landed.frontFoot[2], `x=${x} y=${y} behind the back foot`).toBeLessThan(landed.backFoot[2] - .1);
+      expect(landed.frontFoot[1], `x=${x} y=${y} down`).toBeLessThan(.09);
+      // And it stays there through the hold.
+      batter.update(680);
+      expect(new Vector3(...batter.inspect().frontFoot).distanceTo(new Vector3(...landed.frontFoot)), `x=${x} y=${y} held`).toBeLessThan(.01);
+    }
+  });
+  it('turns him less than pull v2 does: square to the leg side, not round until his back is to the bowler', () => {
+    const spin = pull(); spin.update(520);
+    const v2 = new Batter(); v2.prepare(1); v2.update(0);
+    v2.swing('LEG', 0, 0, 1.12, GAME.contactZ + PULL_MEETS_AT, false, false, false, false, 2); v2.update(520);
+    expect(spin.inspect().yaw).toBeGreaterThan(v2.inspect().yaw + .5);
+  });
+  it('takes the hands from the ball to the wrap on one curve: out, round and up, never back the way they came', () => {
+    for (const y of [.81, .54]) {
+      const batter = pull(0, y);
+      const at = (time: number) => { batter.update(time); return new Vector3(...batter.inspect().grip); };
+      let previous = at(270);
+      for (let time = 280; time <= 520; time += 10) {
+        const grip = at(time);
+        // Back towards him all the way round, and from out to leg on, up all the way to the wrap.
+        expect(grip.z, `y=${y} @${time} back`).toBeLessThan(previous.z + .002);
+        if (time > 320) expect(grip.y, `y=${y} @${time} up`).toBeGreaterThan(previous.y - .002);
+        // And no surge up past the bat: drawn from pull v2's keys, the climb from round to the wrap jumped to nine and a half metres a second.
+        if (time > 320) expect(grip.distanceTo(previous) / .01, `y=${y} @${time} pace`).toBeLessThan(8.5);
+        previous = grip;
       }
     }
   });
