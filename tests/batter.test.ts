@@ -3288,14 +3288,39 @@ describe('the pull off the spinner', () => {
     return batter;
   };
   const guard = new Batter().inspect();
-  it('goes back and opens up: the back foot back to his stumps, the front one out to leg, low on a wide base', () => {
-    for (const x of [-.42, 0, .42]) {
-      const batter = pull(x); batter.update(SPIN_PULL_CONTACT_MS);
+  // How far the bat turns in his hands, about its own handle, between two times.
+  const rolled = (batter: Batter, from: number, to: number) => {
+    let previous: Quaternion | null = null, turned = 0;
+    for (let time = from; time <= to; time += 2) {
+      batter.update(time); batter.root.updateMatrixWorld(true);
+      const q = batter.bat.getWorldQuaternion(new Quaternion());
+      if (previous) {
+        const up = new Vector3(0, 1, 0).applyQuaternion(q), was = new Vector3(0, 1, 0).applyQuaternion(previous);
+        const left = new Quaternion().setFromUnitVectors(was, up).multiply(previous).invert().multiply(q);
+        const step = 2 * Math.atan2(left.y, left.w) * 180 / Math.PI;
+        turned += ((step + 540) % 360) - 180;
+      }
+      previous = q;
+    }
+    return Math.abs(turned);
+  };
+  it('has the cut off the spinner\'s feet, standing: the front foot drawn back and out to leg, the back one back, and planted', () => {
+    for (const y of [.81, .54]) for (const x of [-.42, 0, .42]) {
+      const batter = pull(x, y); batter.update(SPIN_PULL_CONTACT_MS);
       const pose = batter.inspect();
-      expect(pose.backFoot[2], `x=${x}`).toBeLessThan(guard.backFoot[2] - .08);
-      expect(pose.frontFoot[0] - pose.hip[0], `x=${x} front foot out to leg`).toBeLessThan(-.25);
-      expect(pose.backFoot[0] - pose.frontFoot[0], `x=${x} wide`).toBeGreaterThan(.35);
-      expect(pose.hip[1], `x=${x} low`).toBeLessThan(guard.hip[1] - .1);
+      expect(pose.frontFoot[2], `x=${x} y=${y} front foot drawn back`).toBeLessThan(guard.frontFoot[2] - .15);
+      expect(pose.frontFoot[0] - pose.hip[0], `x=${x} y=${y} front foot out to leg`).toBeLessThan(guard.frontFoot[0] - guard.hip[0] - .12);
+      expect(pose.backFoot[2], `x=${x} y=${y} back foot back`).toBeLessThan(guard.backFoot[2] - .03);
+      // Standing up, no squat: the hips as high as in his guard.
+      expect(pose.hip[1], `x=${x} y=${y} standing`).toBeGreaterThan(guard.hip[1] - .03);
+      // And the feet stay where they went, through the wrap and the hold: he does not turn round on them as pull v2 does.
+      const { frontFoot, backFoot } = pose;
+      for (const time of [315, 450, 520, 680]) {
+        batter.update(time); const later = batter.inspect();
+        expect(new Vector3(...later.frontFoot).distanceTo(new Vector3(...frontFoot)), `x=${x} y=${y} front @${time}`).toBeLessThan(.01);
+        expect(new Vector3(...later.backFoot).distanceTo(new Vector3(...backFoot)), `x=${x} y=${y} back @${time}`).toBeLessThan(.01);
+        expect(later.hip[1], `x=${x} y=${y} standing @${time}`).toBeGreaterThan(guard.hip[1] - .03);
+      }
     }
   });
   it('meets it out in front on the middle of the bat, the arms long and the flat face to the bowler', () => {
@@ -3305,57 +3330,41 @@ describe('the pull off the spinner', () => {
       expect(middle.distanceTo(new Vector3(x, y, GAME.contactZ + SPIN_PULL_MEETS_AT)), `x=${x} y=${y}`).toBeLessThan(.02);
       const pose = batter.inspect();
       const reach = [0, 1].map(i => new Vector3(...pose.shoulders[i]).distanceTo(new Vector3(...pose.wrists[i])));
-      expect(Math.max(...reach), `x=${x} y=${y} arms long`).toBeGreaterThan(.5);
+      expect(Math.min(...reach), `x=${x} y=${y} arms long`).toBeGreaterThan(.55);
       expect(pose.batFace[2], `x=${x} y=${y} face to the bowler`).toBeGreaterThan(.85);
     }
   });
-  it('never turns the bat in his hands from the ball to the end of the hold: no wrist roll', () => {
+  it('turns nothing in his hands from the ball through the swing round, and rolls it once, as pull v2 does, into the wrap', () => {
     for (const y of [.81, .54]) {
-      const batter = pull(0, y);
-      let previous: Quaternion | null = null, turned = 0;
-      for (let time = SPIN_PULL_CONTACT_MS; time <= STROKE_DURATION_MS + SPIN_PULL_HOLD_MS; time += 2) {
-        batter.update(time); batter.root.updateMatrixWorld(true);
-        const q = batter.bat.getWorldQuaternion(new Quaternion());
-        if (previous) {
-          const up = new Vector3(0, 1, 0).applyQuaternion(q), was = new Vector3(0, 1, 0).applyQuaternion(previous);
-          const left = new Quaternion().setFromUnitVectors(was, up).multiply(previous).invert().multiply(q);
-          const step = 2 * Math.atan2(left.y, left.w) * 180 / Math.PI;
-          turned += ((step + 540) % 360) - 180;
-        }
-        previous = q;
-        // From the ball to the finish, nothing at all; home, only the guard's own face to settle into.
-        if (time === 450) expect(Math.abs(turned), `y=${y} ball to finish`).toBeLessThan(2);
-      }
+      expect(rolled(pull(0, y), SPIN_PULL_CONTACT_MS, 314), `y=${y} ball to out to leg`).toBeLessThan(3);
+      expect(rolled(pull(0, y), 315, 520), `y=${y} the wrap`).toBeGreaterThan(60);
+      expect(rolled(pull(0, y), 520, 680), `y=${y} the hold`).toBeLessThan(1);
     }
   });
-  it('swings it round in the one plane: down past the front pad, up the leg side, upright, and over behind his head, the face to the bowler', () => {
+  it('swings it round flat as pull v2 does, out to leg and round behind square, and wraps it behind his head over the front shoulder', () => {
     const batter = pull();
     const at = (time: number) => {
       batter.update(time); batter.root.updateMatrixWorld(true);
       const root = batter.root.position, pose = batter.inspect();
-      return { pose, toe: batter.bat.localToWorld(new Vector3(0, -.8, 0)).sub(root), hands: new Vector3(...pose.hands[0]).sub(root),
-        face: new Vector3(...pose.batFace) };
+      return { pose, toe: batter.bat.localToWorld(new Vector3(0, -.8, 0)).sub(root), hands: new Vector3(...pose.hands[0]).sub(root) };
     };
-    const down = at(245), leg = at(300), up = at(370), end = at(450);
-    expect(down.toe.y, 'toe to the turf').toBeLessThan(down.hands.y - .5);
-    expect(leg.toe.x, 'toe out to leg').toBeLessThan(leg.hands.x - .2);
-    expect(leg.toe.y, 'and up').toBeGreaterThan(leg.hands.y);
-    expect(up.toe.y, 'upright').toBeGreaterThan(up.hands.y + .7);
-    for (const [name, { face }] of [['down', down], ['leg', leg], ['up', up]] as const) expect(face.z, `${name}: face to the bowler`).toBeGreaterThan(.85);
-    // Behind his head with the toe back towards off, the hands over the front shoulder.
-    const head = new Vector3(...end.pose.chest).add(new Vector3(0, .31, 0));
-    expect(end.toe.x, 'toe to off').toBeGreaterThan(end.pose.chest[0] + .3);
-    expect(end.toe.z, 'behind his head').toBeLessThan(head.z);
-    expect(end.toe.y, 'over his head').toBeGreaterThan(head.y + .15);
-    expect(end.hands.x, 'hands over the front shoulder').toBeLessThan(end.pose.chest[0] - .25);
-    // And the back knee down towards the turf.
-    expect(end.pose.knees[1][1], 'back knee down').toBeLessThan(.3);
+    const met = at(SPIN_PULL_CONTACT_MS), leg = at(315), wrap = at(520);
+    // Level through the ball, the toe out to off of the hands.
+    expect(Math.abs(met.toe.y - met.hands.y), 'level at the ball').toBeLessThan(.15);
+    expect(met.toe.x, 'toe to off at the ball').toBeGreaterThan(met.hands.x + .5);
+    // Round out to leg, still flat.
+    expect(leg.toe.x, 'toe out to leg').toBeLessThan(leg.hands.x - .3);
+    // Wrapped: the hands up over the front shoulder, the bat behind his head.
+    const head = new Vector3(...wrap.pose.chest).add(new Vector3(0, .31, 0));
+    expect(wrap.hands.x, 'hands over the front shoulder').toBeLessThan(wrap.pose.chest[0] - .25);
+    expect(wrap.hands.y, 'hands high').toBeGreaterThan(head.y);
+    expect(wrap.toe.z, 'behind his head').toBeLessThan(head.z - .3);
   });
   it('holds the finish before it goes home, and is back in his guard at the end of the hold', () => {
     const batter = pull();
     const toeAt = (time: number) => { batter.update(time); batter.root.updateMatrixWorld(true); return batter.bat.localToWorld(new Vector3(0, -.8, 0)); };
-    expect(toeAt(470).distanceTo(toeAt(700))).toBeLessThan(.03);
-    expect(toeAt(STROKE_DURATION_MS).distanceTo(toeAt(470))).toBeGreaterThan(.2);
+    expect(toeAt(540).distanceTo(toeAt(680))).toBeLessThan(.01);
+    expect(toeAt(STROKE_DURATION_MS).distanceTo(toeAt(540))).toBeGreaterThan(.2);
     batter.update(STROKE_DURATION_MS + SPIN_PULL_HOLD_MS);
     expect(new Vector3(...batter.inspect().grip).distanceTo(new Vector3(...guard.grip))).toBeLessThan(.01);
   });

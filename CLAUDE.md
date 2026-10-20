@@ -1229,27 +1229,33 @@ only tagged (`spinPulled`) so the ball leaves where it was hit,
 `SPIN_PULL.angle`, between midwicket and square leg.
 
 The stroke (`SPIN_PULL`, `SPIN_PULL_CLOCK` in `src/entities/Batter.ts`) is
-built from a net session filmed from the bowler's end. Back and opened: the
-back foot back to his stumps, the front one out to leg, square on a wide, low
-base with the bat high behind the back shoulder. Met at
-`SPIN_PULL_CONTACT_MS` out in front by `SPIN_PULL_MEETS_AT`, the arms long,
-the bat sloping down to off and the flat face to the bowler, at the ball's
-own height (the short ball's waist and the arm ball's knee: `crossBat` lets
-it off the height clamp). Then the bat goes round in the one plane facing
-the bowler: toe down past the front pad, up the leg side past the front
-shoulder, upright over it, and over to lie behind his head with the toe back
-towards off and the hands high over the front shoulder, as the back knee
-goes down to the turf (the back shoe turned to point down the pitch,
-`backFootYaw`, or the knee stays up). No wrist roll: the face rides the
-handle (`riding`, turned only on the way down to the ball), and the swing's
-plane is what keeps it to the bowler; the batter tests hold the turn in his
-hands from the ball to the finish under two degrees. Held there
-(`SPIN_PULL_HOLD_MS`), then home over the top, level in front of him with the
-toe to off as the clip goes home, and down into his guard. The hands were
-first taken straight up over his head, and the back elbow folded up in front
-of his face; they are carried out to leg and forward instead, through the
-climb and on the way home. It is `spinPull` and `spinPullLow` in the batter
-tests' `PLAYS`, `tests/spin-pull.test.ts` holds the ball and the rules, and
+two strokes the game already plays, put together: the feet of the cut off the
+spinner and the swing of pull version two. The feet (`SPIN_PULL_FEET`,
+`planted`) are the spin cut's, set under pull v2's hips as the cut's stand
+from its own: the front foot drawn back and opened out to leg, the back foot
+back towards his stumps with the shoe turned as the cut's is, and there they
+stay, through the wrap and the hold. He stands up through all of it, the hips
+no lower than in his guard: built first squatting on a wide base with the
+back knee going down to the turf and the bat swung round in one plane, it was
+nothing like the clip. The bat is pull v2's, on the hook's clock: back and
+across with the bat high, down and out, met at `SPIN_PULL_CONTACT_MS` out in
+front by `SPIN_PULL_MEETS_AT` (nearer than pull v2's, which meets a bouncer at
+the chest) with both arms long and the flat face to the bowler, swung round
+flat out in front and out to leg, and only then do the elbows fold and it
+wraps behind his head with the curved back of the blade on the front
+shoulder. He does not turn on round after it as pull v2 does. The spinner's
+ball arrives at the waist and the arm ball at the knee, so the swing round is
+carried down to it (`SPIN_PULL_SUNK`) and climbs back to pull v2's wrap; at
+the arm ball (`SPIN_PULL_LOW`, below `SPIN_PULL_LOW_BALL`) the bat slopes down
+to it from the hands, as the spin cut meets that ball, and the chest leans out
+over it a little, the hips still standing. The face rides the handle
+(`riding`) with pull v2's two turns: square to the bowler on the way down, and
+the bottom hand rolling over the top one as the elbows fold; from the ball to
+out to leg nothing turns in his hands, and the batter tests hold that under
+three degrees. Held at the wrap (`SPIN_PULL_HOLD_MS`), then home as pull v2
+goes home, the bat upright over his head and let down into his guard. It is
+`spinPull` and `spinPullLow` in the batter tests' `PLAYS`,
+`tests/spin-pull.test.ts` holds the ball and the rules, and
 `cover-drive.html` has it.
 
 ## The late cut
