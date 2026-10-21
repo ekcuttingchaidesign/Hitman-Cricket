@@ -1964,21 +1964,22 @@ export const FLICK_V3_HOLD_MS = 120;
  * width apart, and his hips and chest are opened towards the bowler. He stands
  * up tall on the back leg; nothing goes down the pitch. The bat comes down
  * straight from a high pick-up, the top elbow up, and meets the ball late,
- * just in front of the front pad and under his eyes, with the flat face to the
- * bowler; the wrists turn it away square on the leg side. Then the hands lift
- * the bat straight up, still upright and the face still to the bowler; the toe
+ * just in front of the front pad and under his eyes, the wrists having turned
+ * the flat face to square leg to send it there. Then the hands lift the bat
+ * straight up, still upright, the face turned back to the bowler; the toe
  * tips over to the off side until the bat lies across the front of his helmet
  * with the hands by the front shoulder, and goes on up until it stands
  * diagonally in front of his helmet, the toe up over the back shoulder, the
  * flat face to the bowler and the curved back to him. The front heel comes up
  * and the knee turns in as he holds it, the weight left on the back foot.
- * The face rides the handle (`riding`) and is kept to the bowler at every key.
+ * The face rides the handle (`riding`): to square leg at the ball, and to
+ * the bowler at every key after it.
  *
  * Keyed for the ball on leg stump: the reach moves him from there.
  */
 const FLICK_V3: Stroke & { load: Pose; lift: Pose; across: Pose } = {
   load: { ...BACKLIFT, hip: [.08, .96, -.18], chest: [.12, 1.31, -.12], frontFoot: [-.04, .10, -.04], backFoot: [.26, .08, -.40],
-    grip: [.28, 1.14, .06], batUp: [-.30, -.70, .65], batFace: [.28, .70, .66],
+    grip: [.30, 1.14, .08], batUp: [-.30, -.70, .65], batFace: [.28, .70, .66],
     yaw: .95, heel: .04, backFootYaw: .90, leadElbow: .10 },
   contact: { ...GUARD, hip: [.14, .95, -.30], chest: [.20, 1.26, -.08], frontFoot: [.00, .08, -.22], backFoot: [.30, .08, -.40],
     grip: [.22, 1.12, .38], batUp: [-.05, .95, .30], batFace: [0, -.30, .95],
@@ -4314,9 +4315,14 @@ export class Batter {
       const pose = { ...poseAt(age) };
       const straight = batOrientation(STROKES.STRAIGHT.contact);
       const start = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(straight), UP.clone().applyQuaternion(batOrientation(this.swingFrom))).multiply(straight);
-      const bowler = () => new THREE.Vector3(0, 0, 1);
+      const bowler = () => new THREE.Vector3(0, 0, 1), squareLeg = () => new THREE.Vector3(-1, 0, 0);
+      // The face turned to square leg by the wrists on the way down, to send
+      // the ball square; back to the bowler as the hands lift it. The contact
+      // key's own face is left to the bowler, since the keys' faces still
+      // shape the way down: given square leg's, the blade came down through
+      // the back shoulder and the hip.
       pose.bat = this.riding(0, poseAt, start, [hold, STROKE_DURATION_MS], age, [
-        { window: [load, FLICK_V3_CONTACT_MS], away: bowler }, { window: [FLICK_V3_CONTACT_MS, lift], away: bowler },
+        { window: [load, FLICK_V3_CONTACT_MS], away: squareLeg }, { window: [FLICK_V3_CONTACT_MS, lift], away: bowler },
         { window: [lift, across], away: bowler }, { window: [across, up], away: bowler },
       ]);
       this.apply(pose);

@@ -1105,13 +1105,13 @@ feet are side by side across the crease and the hips and chest open to the
 bowler, tall on the back leg; the bat straight down, the top elbow up
 (`wristFlick` shares v2's elbow and riding), meeting the ball late at
 `FLICK_V3_CONTACT_MS`, `FLICK_V3_MEETS_AT`, just in front of the front pad
-and under his eyes. Then the hands lift the bat straight up (`lift`), the toe
+and under his eyes, the flat face turned to square leg. Then the hands lift the bat straight up (`lift`), the toe
 tips over to the off side until it lies across the front of his helmet
 (`across`), and on up to stand diagonally in front of it (`finish`), the toe
 up over the back shoulder; held `FLICK_V3_HOLD_MS` past the stroke's clock,
-the front heel up, and home. The face rides the handle and is turned to the
-bowler at every key, so from the ball to the finish the flat face looks at
-the bowler and the curved back at his helmet. The hands are carried out in
+the front heel up, and home. The face rides the handle: to square leg at the
+ball, then back to the bowler by `lift` and kept there at every key, so to the
+finish the flat face looks at the bowler and the curved back at his helmet. The hands are carried out in
 front through the tip-over: closer, the blade went through the back elbow.
 Scored as version two is (`flicked`, `FLICK`): four at the most. It is
 `flick3` in the batter tests' `PLAYS` and shared checks, with

@@ -2254,7 +2254,7 @@ describe('the flick, version two', () => {
 describe('the flick, version three', () => {
   const flick = (x: number) => { const batter = new Batter(); batter.prepare(1); batter.update(0); play(batter, 'flick3', x); return batter; };
   const guard = new Batter().inspect();
-  it('goes back and across, the feet side by side, and meets the ball late in front of the front pad, the face to the bowler', () => {
+  it('goes back and across, the feet side by side, and meets the ball late in front of the front pad, the face to square leg', () => {
     for (const x of PLAYS.flick3.reach) {
       const batter = flick(x); batter.update(FLICK_V3_CONTACT_MS); const pose = batter.inspect();
       const blade = new Vector3(...pose.bladeContact), ball = new Vector3(Math.min(x, -.05), .81, GAME.contactZ + FLICK_V3_MEETS_AT);
@@ -2265,13 +2265,14 @@ describe('the flick, version three', () => {
       // Side by side across the crease, not one behind the other.
       expect(Math.abs(pose.frontFoot[2] - pose.backFoot[2]), `x=${x}`).toBeLessThan(.25);
       expect(pose.backFoot[0] - pose.frontFoot[0], `x=${x}`).toBeGreaterThan(.2);
-      expect(pose.batFace[2], `x=${x}`).toBeGreaterThan(.85);
+      // The wrists have turned the flat face to square leg to send it there.
+      expect(pose.batFace[0], `x=${x}`).toBeLessThan(-.85);
     }
   });
-  it('keeps the flat face to the bowler from the ball to the finish, and stops in front of his helmet with the toe up', () => {
+  it('turns the flat face back to the bowler as the bat is lifted, keeps it there, and stops in front of his helmet with the toe up', () => {
     for (const x of PLAYS.flick3.reach) {
       const batter = flick(x);
-      for (let time = FLICK_V3_CONTACT_MS; time <= FLICK_V3_CLOCK.hold + FLICK_V3_HOLD_MS; time += 10) {
+      for (let time = FLICK_V3_CLOCK.lift; time <= FLICK_V3_CLOCK.hold + FLICK_V3_HOLD_MS; time += 10) {
         batter.update(time); expect(batter.inspect().batFace[2], `x=${x} @${time}`).toBeGreaterThan(.6);
       }
       batter.update(FLICK_V3_CLOCK.finish); const pose = batter.inspect();
