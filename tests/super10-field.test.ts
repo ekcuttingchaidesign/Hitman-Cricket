@@ -2,126 +2,143 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { ARM_REACH, BUILD } from '../src/entities/Cricketer';
 import { SIGNAL_MS, signal } from '../src/entities/Fielder';
-import { SHOT_ANGLES } from '../src/config/gameplay';
 import { SUPER10, type Bowler } from '../src/config/super10';
 import {
-  CUT_SINGLE, GUARD, PAR, ROPE_CATCH, bowlerOf, captainCall, drawnOf, signalFor, fieldFor, fieldRules, guardOf, nameOf, offScreen, ropeAt, ropeLine,
-  surgeOffered, surgeOn,
+  APART, DEEP_REACH, POSITIONS, RING_REACH, SIGHT_SCREEN, STRETCH, bowlerOf, drawnOf, fieldFor, fieldLine, fieldRules, nameOf, nearest,
+  offScreen, passes, plug, ropeAt, signalFor, steer, steerOf, surgeAuto, surgeOffered, type FieldSet,
 } from '../src/game/super10-field';
-import type { ShotOutcome, ShotType } from '../src/game/types';
+import type { ShotOutcome } from '../src/game/types';
 import { sectorOf } from '../src/scene/flight';
 
 const BOWLERS: Bowler[] = ['SWING', 'SEAM', 'SPIN', 'SLING', 'DEATH'];
-const struck = (runs: 4 | 6, extra: Partial<ShotOutcome> = {}): ShotOutcome => ({
-  runs, isWicket: false, quality: 1, feedback: runs === 6 ? 'SIX!' : 'FOUR!', timingGrade: runs === 6 ? 'PERFECT' : 'GOOD',
+const struck = (runs: 1 | 2 | 3 | 4 | 6, extra: Partial<ShotOutcome> = {}): ShotOutcome => ({
+  runs, isWicket: false, quality: 1, feedback: '', timingGrade: runs === 6 ? 'PERFECT' : 'GOOD',
   timingDeltaMs: 0, compatibility: 1, madeBatContact: true, aerial: runs === 6, ...extra,
 });
 const fixed = (value: number) => ({ next: () => value });
+const counting = () => { const rng = { drawn: 0, next: () => { rng.drawn++; return .99; } }; return rng; };
+/** A field of one man, for the rules on their own. */
+const one = (angle: number, distance: number, deep: boolean): FieldSet =>
+  ({ id: 'one', bowler: 'SEAM', men: [{ name: nameOf(angle, deep), angle, distance, deep }], change: null, moved: [] });
 
 describe('the Super10 field', () => {
-  it('has nine men in every field, the captain at mid-off among them', () => {
-    for (const bowler of BOWLERS) for (const over of [0, 5]) {
-      const field = fieldFor({ bowler, over });
-      expect(field.men).toHaveLength(9);
-      const captain = field.men.filter(m => m.captain);
-      expect(captain).toHaveLength(1);
-      expect(nameOf(captain[0].angle, captain[0].deep)).toBe('mid-off');
+  it('has nine men in every field, none in front of the sight screen and none on top of another', () => {
+    for (const bowler of BOWLERS) for (let over = 0; over < SUPER10.overs; over++) {
+      const { men } = fieldFor({ bowler, over });
+      expect(men).toHaveLength(9);
+      for (const m of men) expect(Math.abs(m.angle)).toBeGreaterThanOrEqual(SIGHT_SCREEN);
+      for (const a of men) for (const b of men) if (a !== b) expect(Math.abs(a.angle - b.angle)).toBeGreaterThanOrEqual(APART - 1);
     }
   });
 
-  it('keeps two men back at most in the Powerplay, and four after it', () => {
+  it('keeps two men back in the Powerplay, and four after it', () => {
     for (const bowler of BOWLERS) for (let over = 0; over < SUPER10.overs; over++) {
       const back = fieldFor({ bowler, over }).men.filter(m => m.deep).length;
-      if (over < SUPER10.powerplay) expect(back).toBeLessThanOrEqual(2);
-      expect(back).toBeLessThanOrEqual(4);
+      expect(back).toBe(over < SUPER10.powerplay ? 2 : 4);
     }
   });
 
-  it('stands its boundary riders inside the rope', () => {
+  it('stands its boundary riders inside the rope, and names the chart\'s positions as the chart does', () => {
     for (const bowler of BOWLERS) for (const man of fieldFor({ bowler, over: 6 }).men.filter(m => m.deep)) {
       expect(man.distance).toBeLessThan(ropeAt(man.angle));
       expect(man.distance).toBeGreaterThan(ropeAt(man.angle) - 6);
     }
     expect(ropeAt(0)).toBeCloseTo(40);
     expect(ropeAt(180)).toBeCloseTo(20);
+    for (const [name, p] of Object.entries(POSITIONS)) expect(nameOf(p.angle, 'deep' in p)).toBe(name);
   });
 
-  it('leaves every bowler\'s field a lane up the ground or square to hit', () => {
-    const lanes: ShotType[] = ['LEG', 'LONG_ON', 'STRAIGHT', 'COVER_LONG_OFF', 'SQUARE_CUT'];
+  it('leaves every bowler\'s field gaps to find', () => {
     for (const bowler of BOWLERS) for (const over of [0, 6]) {
       const field = fieldFor({ bowler, over });
-      expect(lanes.some(shot => !guardOf(field, SHOT_ANGLES[shot]))).toBe(true);
+      const open = Array.from({ length: 281 }, (_, i) => i - 140).filter(a =>
+        (nearest(field, a, true)?.by ?? Infinity) > DEEP_REACH && (nearest(field, a, false)?.by ?? Infinity) > RING_REACH);
+      expect(open.length).toBeGreaterThan(30);
     }
   });
 
-  it('is told apart by its id, the same for the same field', () => {
-    expect(fieldFor({ bowler: 'SEAM', over: 1 }).id).not.toBe(fieldFor({ bowler: 'SEAM', over: 6 }).id);
-    expect(fieldFor({ bowler: 'SPIN', over: 3 }).id).toBe(fieldFor({ bowler: 'SPIN', over: 5 }).id);
-    expect(fieldFor({ bowler: 'SPIN', over: 5, surge: true }).id).not.toBe(fieldFor({ bowler: 'SPIN', over: 5 }).id);
-  });
-
-  it('draws the captain and the five men nearest straight', () => {
+  it('draws the six men nearest straight', () => {
     for (const bowler of BOWLERS) {
       const field = fieldFor({ bowler, over: 6 });
       const drawn = drawnOf(field);
       expect(drawn).toHaveLength(6);
-      expect(drawn[0].captain).toBe(true);
-      const widest = Math.max(...drawn.slice(1).map(m => Math.abs(m.angle)));
+      const widest = Math.max(...drawn.map(m => Math.abs(m.angle)));
       for (const man of field.men.filter(m => !drawn.includes(m))) expect(Math.abs(man.angle)).toBeGreaterThanOrEqual(widest);
     }
   });
 
-  it('names positions as a scorer would', () => {
-    expect(nameOf(-15, true)).toBe('long-on');
-    expect(nameOf(98, true)).toBe('deep point');
-    expect(nameOf(-160, true)).toBe('fine leg');
-    expect(nameOf(150, true)).toBe('third man');
-    expect(nameOf(-58, true)).toBe('deep midwicket');
-    expect(nameOf(50, false)).toBe('cover');
+  it('measures how far a ball passes a man, and nobody reaches one going behind him', () => {
+    const man = { name: 'long-off', angle: 24, distance: 35, deep: true };
+    expect(passes(man, 24)).toBe(0);
+    expect(passes(man, 34)).toBeCloseTo(35 * Math.sin(10 * Math.PI / 180));
+    expect(passes(man, 130)).toBe(Infinity);
   });
 });
 
 describe('the field\'s rules', () => {
-  const death = fieldFor({ bowler: 'DEATH', over: 7 });
-
-  it('cuts off a four struck at a boundary rider, for one or two', () => {
-    const four = struck(4);
-    const single = fieldRules(four, 'LONG_ON', death, fixed(CUT_SINGLE - .01));
-    expect(single).toMatchObject({ runs: 1, isWicket: false, aerial: false, rope: { name: 'long-on' } });
-    expect(fieldRules(four, 'LONG_ON', death, fixed(CUT_SINGLE + .01)).runs).toBe(2);
-    expect(ropeLine(single)).toBe('CUT OFF · LONG-ON');
+  it('stops a four along the ground at a man in the ring half the time, a middled one a quarter', () => {
+    const ring = one(32, 22, false);
+    const stopped = fieldRules(struck(4), 33, ring, fixed(.4));
+    expect(stopped.runs).toBeLessThanOrEqual(1);
+    expect(stopped.fielder).toMatchObject({ name: 'mid-off', how: 'stopped' });
+    expect(fieldLine(stopped)).toBe('STOPPED · MID-OFF');
+    expect(fieldRules(struck(4), 33, ring, fixed(.6)).runs).toBe(4);
+    const middled = struck(4, { timingGrade: 'PERFECT' });
+    expect(fieldRules(middled, 33, ring, fixed(.3)).runs).toBe(4);
+    expect(fieldRules(middled, 33, ring, fixed(.2)).fielder).toBeTruthy();
+    // In the air, the ring cannot reach it.
+    expect(fieldRules(struck(4, { aerial: true }), 32, ring, fixed(0)).runs).toBe(4);
   });
 
-  it('catches a six struck at one on the rope three times in ten', () => {
-    const caught = fieldRules(struck(6), 'COVER_LONG_OFF', death, fixed(ROPE_CATCH - .01));
-    expect(caught).toMatchObject({ runs: 0, isWicket: true, wicketType: 'CAUGHT', rope: { name: 'long-off' } });
-    expect(ropeLine(caught)).toBe('LONG-OFF · ON THE ROPE');
-    expect(fieldRules(struck(6), 'COVER_LONG_OFF', death, fixed(ROPE_CATCH + .01)).runs).toBe(6);
+  it('has a boundary rider right behind a four cut it off for one or two', () => {
+    const rider = one(24, 35, true);
+    const cut = fieldRules(struck(4), 25, rider, fixed(.5));
+    expect(cut).toMatchObject({ runs: 1, aerial: false, fielder: { how: 'cut', name: 'long-off' } });
+    expect(fieldLine(cut)).toBe('CUT OFF · LONG-OFF');
+    expect(fieldRules(struck(4), 25, rider, fixed(.8)).runs).toBe(2);
+  });
+
+  it('has one a few metres off it save it for two or three, or be beaten by it', () => {
+    const rider = one(24, 35, true);
+    const wide = 24 + Math.asin(6 / 35) * 180 / Math.PI;
+    expect(fieldRules(struck(4), wide, rider, fixed(.5))).toMatchObject({ runs: 2, fielder: { how: 'saved' } });
+    expect(fieldRules(struck(4), wide, rider, fixed(.65)).runs).toBe(4);
+  });
+
+  it('clears the rope with a middled six, and catches one that was not middled when he is under it', () => {
+    const rider = one(24, 35, true);
+    expect(fieldRules(struck(6), 24, rider, fixed(0)).runs).toBe(6);
+    const mistimed = fieldRules(struck(6, { timingGrade: 'GOOD' }), 26, rider, fixed(0));
+    expect(mistimed).toMatchObject({ isWicket: true, wicketType: 'CAUGHT', fielder: { how: 'caught' } });
+    expect(fieldLine(mistimed)).toBe('LONG-OFF · ON THE ROPE');
+    expect(fieldRules(struck(6, { timingGrade: 'GOOD' }), 60, rider, fixed(0)).runs).toBe(6);
+  });
+
+  it('takes one off a single or two along the ground at a man in the ring, half the time', () => {
+    expect(fieldRules(struck(2), 32, one(32, 22, false), fixed(.4)).runs).toBe(1);
+    expect(fieldRules(struck(2), 32, one(32, 22, false), fixed(.6)).runs).toBe(2);
   });
 
   it('leaves a ball into a gap as it was hit, and draws nothing for it', () => {
-    let drawn = 0;
-    const rng = { next: () => { drawn++; return 0; } };
-    // Straight, middled on time: fifteen degrees from either long boundary.
-    expect(fieldRules(struck(6), 'STRAIGHT', death, rng).runs).toBe(6);
-    expect(fieldRules(struck(4), 'STRAIGHT', death, rng).runs).toBe(4);
-    expect(drawn).toBe(0);
+    const rng = counting();
+    const death = fieldFor({ bowler: 'DEATH', over: 7 });
+    expect(fieldRules(struck(6), 0, death, rng).runs).toBe(6);
+    expect(fieldRules(struck(4), 0, death, rng).runs).toBe(4);
+    expect(rng.drawn).toBe(0);
   });
 
-  it('judges the line the ball is drawn along, timing and all', () => {
-    // A shade early pulls a straight hit round towards long-on, into his reach.
-    const early = struck(4, { timingDeltaMs: -224 });
-    expect(sectorOf(early, 'STRAIGHT')).toBe(-8);
-    expect(Math.abs(-8 - -15)).toBeLessThan(GUARD);
-    expect(fieldRules(early, 'STRAIGHT', death, fixed(0)).rope?.name).toBe('long-on');
-  });
-
-  it('leaves the meter\'s strokes and everything but a boundary alone', () => {
+  it('leaves the meter\'s strokes alone', () => {
     for (const extra of [{ advance: true }, { swept: true }, { scooped: true }]) {
-      expect(fieldRules(struck(6, extra), 'LONG_ON', death, fixed(0)).runs).toBe(6);
+      expect(fieldRules(struck(6, { ...extra, timingGrade: 'GOOD' }), 24, one(24, 35, true), fixed(0)).runs).toBe(6);
     }
-    const two = { ...struck(4), runs: 2 as const };
-    expect(fieldRules(two, 'LONG_ON', death, fixed(0))).toBe(two);
+  });
+
+  it('turns a clean hit stretched to the end of its arc into a mishit half the time', () => {
+    const fit = struck(4, { compatibility: .6 });
+    const caught = fieldRules(fit, 0, fieldFor({ bowler: 'DEATH', over: 7 }), fixed(.3), STRETCH);
+    expect(caught.isWicket).toBe(true);
+    expect(fieldRules(fit, 0, fieldFor({ bowler: 'DEATH', over: 7 }), fixed(.6), STRETCH).runs).toBe(4);
+    expect(fieldRules(struck(4), 0, fieldFor({ bowler: 'DEATH', over: 7 }), fixed(0), STRETCH).isWicket).toBe(false);
   });
 
   it('says which side a ball out of the picture went', () => {
@@ -131,68 +148,58 @@ describe('the field\'s rules', () => {
   });
 });
 
-describe('the captain', () => {
-  it('reads the innings at the top of the sixth over and the eighth, against par', () => {
-    expect(captainCall(PAR * 5 + 13, 5, null)).toBe('tight');
-    expect(captainCall(PAR * 5 - 13, 5, null)).toBe('attack');
-    expect(captainCall(PAR * 5, 5, 'tight')).toBeNull();
-    expect(captainCall(PAR * 7 + 11, 7, null)).toBe('tight');
-    // In between he keeps what he called.
-    expect(captainCall(0, 6, 'tight')).toBe('tight');
+describe('steering', () => {
+  it('reads the swipe\'s place in its zone as the ball\'s place along the arc, and a key as the middle', () => {
+    const cover = steerOf('COVER_LONG_OFF', struck(4))!;
+    expect(steer(cover, 22.5).angle).toBe(12);
+    expect(steer(cover, 67.5).angle).toBe(55);
+    expect(steer(cover, 45).angle).toBeCloseTo(33.5);
+    expect(steer(cover, undefined)).toEqual({ angle: 33.5, stretch: 0 });
+    // Down and to leg is finer: the flick's swipe round to the block plays it to square leg.
+    const flick = steerOf('LEG', struck(4), true)!;
+    expect(steer(flick, -165).angle).toBe(-90);
+    expect(steer(flick, -67.5).angle).toBe(-40);
   });
 
-  it('spreads the field where the runs are going', () => {
-    const scored = [100, 98, 104, 0];
-    const tight = fieldFor({ bowler: 'SPIN', over: 5, captain: 'tight', scored });
-    expect(tight.change).toBe('captain');
-    expect(tight.men.filter(m => m.deep)).toHaveLength(5);
-    expect(guardOf(tight, 100)?.angle).toBe(100);
-    expect(tight.moved).toEqual(['DEEP POINT BACK']);
-    // The captain stays where he is.
-    expect(tight.men.find(m => m.captain)?.deep).toBe(false);
+  it('costs nothing through the middle third and the most at the ends', () => {
+    const straight = steerOf('STRAIGHT', struck(4))!;
+    expect(steer(straight, 0).stretch).toBe(0);
+    expect(steer(straight, 7).stretch).toBe(0);
+    expect(steer(straight, 22.5).stretch).toBeCloseTo(STRETCH);
   });
 
-  it('attacks by bringing up the man the batter has hit least past', () => {
-    const attack = fieldFor({ bowler: 'DEATH', over: 7, captain: 'attack', scored: [-15, -15, 15, 98] });
-    expect(attack.men.filter(m => m.deep)).toHaveLength(3);
-    expect(attack.moved).toEqual(['DEEP MIDWICKET IN']);
+  it('gives each of the leg side\'s strokes its own arc, and the meter\'s none', () => {
+    expect(steerOf('LEG', struck(6, { hooked: true }))!.arc).toEqual([-140, -95]);
+    expect(steerOf('LEG', struck(4, { sweptFlat: true }))!.arc).toEqual([-105, -60]);
+    expect(steerOf('COVER_LONG_OFF', struck(4, { squared: true }))!.arc).toEqual([42, 78]);
+    expect(steerOf('STRAIGHT', struck(6, { advance: true }))).toBeNull();
+    expect(steerOf('DEFEND', struck(1))).toBeNull();
   });
 
-  it('changes nothing in the Powerplay', () => {
-    expect(fieldFor({ bowler: 'SWING', over: 2, captain: 'tight' }).change).toBeNull();
-  });
-});
-
-describe('Power Surge', () => {
-  it('brings the two men back nearest straight into the ring', () => {
-    const surge = fieldFor({ bowler: 'DEATH', over: 7, surge: true });
-    expect(surge.change).toBe('surge');
-    expect(surge.men.filter(m => m.deep).map(m => m.angle).sort((a, b) => a - b)).toEqual([-58, 98]);
-    expect(surge.moved).toEqual(['LONG-ON IN', 'LONG-OFF IN']);
-  });
-
-  it('is offered from the fourth over to be taken in the next, and goes on by itself in the ninth', () => {
-    expect(surgeOffered(2, null)).toBe(false);
-    expect(surgeOffered(3, null)).toBe(true);
-    expect(surgeOffered(7, null)).toBe(true);
-    expect(surgeOffered(8, null)).toBe(false);
-    expect(surgeOffered(5, 5)).toBe(false);
-    expect(surgeOn(4, 4)).toBe(true);
-    expect(surgeOn(8, null)).toBe(true);
-    expect(surgeOn(8, 5)).toBe(false);
-    expect(surgeOn(6, null)).toBe(false);
+  it('is what the scene draws the ball along, the timing\'s bend and all', () => {
+    expect(sectorOf(struck(4, { angle: 40, timingDeltaMs: 224 }), 'COVER_LONG_OFF')).toBe(48);
+    expect(sectorOf(struck(4), 'COVER_LONG_OFF')).toBe(24);
   });
 });
 
-describe('the captain\'s signal', () => {
-  it('waves a man back to the rope, beckons one up, and points otherwise', () => {
+describe('the bowler setting his field', () => {
+  it('plugs the gap a boundary went through with the man back furthest from it', () => {
     const spin = fieldFor({ bowler: 'SPIN', over: 5 });
-    const tight = fieldFor({ bowler: 'SPIN', over: 5, captain: 'tight', scored: [100] });
-    expect(signalFor(spin, tight)).toMatchObject({ kind: 'back', man: { angle: 100, deep: true } });
-    const surge = fieldFor({ bowler: 'SPIN', over: 5, surge: true });
-    expect(signalFor(spin, surge)?.kind).toBe('in');
-    expect(signalFor(null, spin)).toBeNull();
-    expect(signalFor(spin, fieldFor({ bowler: 'SPIN', over: 6 }))).toBeNull();
+    const plugged = plug(spin, 98)!;
+    expect(plugged.change).toBe('plug');
+    expect(plugged.men.filter(m => m.deep)).toHaveLength(4);
+    expect(nearest(plugged, 98, true)!.by).toBe(0);
+    expect(plugged.moved).toEqual(['DEEP POINT BACK']);
+    expect(signalFor(spin, plugged)).toMatchObject({ kind: 'back', man: { angle: 98 } });
+  });
+
+  it('beckons the two men up for Power Surge, and signals nothing when nothing moves', () => {
+    const sling = fieldFor({ bowler: 'SLING', over: 8 }), surge = fieldFor({ bowler: 'SLING', over: 8, surge: true });
+    expect(surge.men.filter(m => m.deep)).toHaveLength(2);
+    expect(surge.moved).toEqual(['LONG-OFF IN', 'DEEP SQUARE LEG IN']);
+    expect(signalFor(sling, surge)?.kind).toBe('in');
+    expect(signalFor(null, sling)).toBeNull();
+    expect(signalFor(fieldFor({ bowler: 'SPIN', over: 3 }), fieldFor({ bowler: 'SPIN', over: 5 }))).toBeNull();
   });
 
   it('names who is bowling from the over\'s kind', () => {
@@ -203,7 +210,17 @@ describe('the captain\'s signal', () => {
   });
 });
 
-describe('the captain\'s signals', () => {
+describe('Power Surge', () => {
+  it('lights up after the fifth over, for the sixth to the eighth, goes on by itself in the ninth, and never in the tenth', () => {
+    expect([4, 5, 6, 7, 8, 9].map(o => surgeOffered(o, false))).toEqual([false, true, true, true, false, false]);
+    expect(surgeOffered(6, true)).toBe(false);
+    expect(surgeAuto(8, false)).toBe(true);
+    expect(surgeAuto(8, true)).toBe(false);
+    expect(surgeAuto(9, false)).toBe(false);
+  });
+});
+
+describe('the bowler\'s signals', () => {
   const spot = { x: 8, z: 20, heading: Math.atan2(-8, -20) };
   const to = { x: 20, z: 30 };
   const turn = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));

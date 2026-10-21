@@ -1,58 +1,68 @@
 import type { OverKind } from '../config/marathon';
+import { SOLID_SHOT } from '../config/gameplay';
 import { SUPER10, type Bowler } from '../config/super10';
-import { sectorOf } from '../scene/flight';
 import type { ShotOutcome, ShotType } from './types';
 
 /**
- * Super10's field: nine men, set by the bowler and moved by the captain and
- * by Power Surge, and the rules that make it matter — a four struck at a
- * boundary rider is cut off for one or two, and a six struck at one is caught
- * on the rope three times in ten. A player who reads the field and hits the
- * gaps keeps their boundaries; one who hits the same lane whoever bowls does
- * not. That is what brings a strong player's totals down from the Blast's
- * towards a very good innings of 140 to 160 without narrowing a timing window
- * any further.
+ * Super10's field: nine men, set by the bowler, moved by Power Surge and by the
+ * bowler plugging a gap the batter has just hit through, and the rules that
+ * make it matter. A ball is fielded by how far it passes the nearest man:
+ * along the ground at a man in the ring it is stopped (half the time; a
+ * middled one beats him three times in four), at a boundary rider it is cut
+ * off for one or two or saved for two or three, and a six that was not
+ * middled is caught on the rope if he is under it. A middled six clears
+ * everybody. The player steers the ball inside each stroke's arc (`steer`),
+ * so the gaps are theirs to find.
  *
- * Nothing here touches a scene or the page: the field is a list of angles and
- * distances, the rules are a function of an outcome, and the scene, the map
- * and the call are drawn from them (`tests/super10-field.test.ts`).
+ * Nothing here touches a scene or the page: the field is a list of positions,
+ * the rules are a function of an outcome and a direction, and the scene, the
+ * map and the call are drawn from them (`tests/super10-field.test.ts`).
  *
  * Angles are degrees off straight as the batter looks down the pitch, the off
  * side positive, as `SHOT_ANGLES` has them; distances are metres from the bat.
  */
 
 export interface Man {
+  name: string;
   angle: number;
   distance: number;
   /** On the rope: a boundary rider. */
   deep: boolean;
-  /** The captain, at mid-off in every field: he is the one who points the changes. */
-  captain?: boolean;
 }
 
-/** What changed this field from the bowler's own: the captain's call, Power Surge, or nothing. */
-export type FieldChange = null | 'captain' | 'surge';
-export type CaptainCall = null | 'tight' | 'attack';
+/** What changed this field from the bowler's own: Power Surge, a gap plugged, or nothing. */
+export type FieldChange = null | 'surge' | 'plug';
 
 export interface FieldSet {
-  /** The same for the same field, so the HUD can tell a field it has shown before. */
+  /** The same for the same field, so the map can tell a field it has shown before. */
   id: string;
   bowler: Bowler;
   men: Man[];
-  /** One line about it, for the field card. */
-  note: string;
   change: FieldChange;
-  /** What moved from the bowler's own field, as the chip says it: `DEEP POINT BACK`, `LONG-ON IN`. */
+  /** What moved, as the map says it: `DEEP POINT BACK`, `LONG-ON IN`. */
   moved: string[];
 }
 
-/** How far either side of a boundary rider a ball is his. */
-export const GUARD = 14;
-/** A four struck at him: a single this often, two otherwise. */
-export const CUT_SINGLE = .6;
-/** A six struck at him: caught on the rope this often. */
-export const ROPE_CATCH = .3;
-/** Where the ring is: men brought in from the rope stand here. */
+/** How far either side of himself a boundary rider gets to a ball before it reaches the rope. */
+export const DEEP_REACH = 7;
+/** Within this he is right behind it: cut off for one or two. */
+export const DEEP_CLEAN = 3;
+/** How far either side a man in the ring stops a ball along the ground; a middled one is past him sooner. */
+export const RING_REACH = 3.5;
+export const RING_REACH_MIDDLED = 2.5;
+/**
+ * The softened ring: a four along the ground at a man in the ring is stopped
+ * this often, and a middled one a quarter of the time, so the ring is a
+ * fielder to beat rather than a wall.
+ */
+export const RING_STOPS = .5;
+export const RING_STOPS_MIDDLED = .25;
+/** A four a boundary rider gets to without being right behind it: saved this often, middled less. */
+export const DEEP_SAVES = .6;
+export const DEEP_SAVES_MIDDLED = .35;
+/** After a boundary through a gap, how often the bowler moves a man into it. */
+export const PLUG = .5;
+/** Where the ring is: men brought up from the rope stand here. */
 export const RING = 23;
 /** How far inside the rope a boundary rider stands. */
 const INSIDE_ROPE = 4;
@@ -68,214 +78,219 @@ export function ropeAt(angle: number) {
 }
 const deepAt = (angle: number) => Math.max(15, ropeAt(angle) - INSIDE_ROPE);
 
-interface Plan { deep: number[]; ring: [number, number][]; note: string }
+/**
+ * The positions the game uses, from the field chart: nobody within twenty
+ * degrees of straight, where the sight screen is and where a man stands in
+ * front of the bowler from behind the bat, and nobody within fifteen degrees
+ * of another man in the same field. No slips, gully, short leg or leg slip:
+ * the keeper takes every edge, and nobody fields close in a ten-over game.
+ */
+export const POSITIONS = {
+  'mid-off': { angle: 32, distance: 22 },
+  'extra cover': { angle: 48, distance: 23 },
+  cover: { angle: 66, distance: 22 },
+  point: { angle: 95, distance: 20 },
+  'backward point': { angle: 122, distance: 18 },
+  'mid-on': { angle: -32, distance: 22 },
+  midwicket: { angle: -60, distance: 22 },
+  'square leg': { angle: -95, distance: 20 },
+  'short fine leg': { angle: -145, distance: 15 },
+  'long-off': { angle: 24, deep: true },
+  'deep extra cover': { angle: 46, deep: true },
+  'deep cover': { angle: 66, deep: true },
+  'deep point': { angle: 96, deep: true },
+  'third man': { angle: 150, deep: true },
+  'long-on': { angle: -24, deep: true },
+  'deep midwicket': { angle: -56, deep: true },
+  'deep square leg': { angle: -96, deep: true },
+  'fine leg': { angle: -152, deep: true },
+} as const satisfies Record<string, { angle: number; distance?: number; deep?: boolean }>;
+export type Position = keyof typeof POSITIONS;
+/** The closest straight a man stands, and the closest two men stand. */
+export const SIGHT_SCREEN = 20;
+export const APART = 15;
 
 /**
- * Each bowler's field. The swing bowler and the seamer have a Powerplay
- * field of their own for the first three overs, two men back at most; after
- * it four. Every field has the captain at mid-off, the first of its ring:
- * fifteen degrees off straight, which is as wide as the camera behind the bat
- * still sees him, because the point of him is to be seen moving the others.
+ * Each bowler's field, nine men. The swing bowler and the seamer have a
+ * Powerplay field of their own for the first three overs, two men back; after
+ * it four.
  */
-const PLANS: Record<string, Plan> = {
-  // The swing bowler bowls only in the Powerplay; out of it, were the
-  // schedule ever to give him an over there, he has the seamer's field.
-  'SWING-pp': { deep: [-160, 150], ring: [[15, 25], [160, 15], [95, 22], [50, 23], [-18, 24], [-60, 23], [-100, 21]],
-    note: 'Fine leg and third man back. Everything in front is open.' },
-  'SEAM-pp': { deep: [-100, 150], ring: [[15, 25], [95, 22], [50, 23], [-18, 24], [-58, 23], [-150, 18], [130, 19]],
-    note: 'Deep square leg and third man back. Hit it straight.' },
-  SEAM: { deep: [-60, 98, -20, 150], ring: [[15, 25], [50, 23], [-100, 21], [-150, 18], [125, 20]],
-    note: 'Deep midwicket, deep point, long-on and third man. Straight and through cover are open.' },
-  get SWING() { return this.SEAM; },
-  SPIN: { deep: [-18, 18, -60, -100], ring: [[15, 25], [95, 22], [50, 23], [-150, 18], [-35, 20]],
-    note: 'Leg side packed. Straight and square on the off side are open.' },
-  SLING: { deep: [-160, -100, 150, 18], ring: [[15, 25], [95, 22], [50, 23], [-18, 24], [-60, 23]],
-    note: 'Three back behind square for the bouncer, and long-off. Straight and to leg are open.' },
-  DEATH: { deep: [-15, 15, -58, 98], ring: [[15, 25], [45, 23], [-150, 20], [-95, 22], [125, 21]],
-    note: 'Both long boundaries, deep midwicket and deep point. Find the gaps either side of straight.' },
+const PLANS: Record<string, Position[]> = {
+  'SWING-pp': ['mid-off', 'extra cover', 'point', 'backward point', 'mid-on', 'midwicket', 'square leg', 'third man', 'fine leg'],
+  'SEAM-pp': ['mid-off', 'cover', 'point', 'backward point', 'mid-on', 'midwicket', 'short fine leg', 'deep square leg', 'third man'],
+  SEAM: ['mid-off', 'extra cover', 'cover', 'square leg', 'short fine leg', 'long-on', 'deep midwicket', 'deep point', 'third man'],
+  SPIN: ['extra cover', 'cover', 'point', 'backward point', 'short fine leg', 'long-off', 'long-on', 'deep midwicket', 'deep square leg'],
+  SLING: ['extra cover', 'cover', 'point', 'mid-on', 'midwicket', 'long-off', 'deep square leg', 'third man', 'fine leg'],
+  DEATH: ['extra cover', 'point', 'backward point', 'square leg', 'short fine leg', 'long-off', 'long-on', 'deep cover', 'deep midwicket'],
 };
+// The swing bowler bowls only in the Powerplay; out of it he has the seamer's field.
+PLANS.SWING = PLANS.SEAM;
 
-/** What a position is called, by where it is. */
+/** What a position is called, by where it is: for a man moved off the chart's own places. */
 export function nameOf(angle: number, deep: boolean) {
   if (deep) {
-    if (Math.abs(angle) <= 25) return angle < 0 ? 'long-on' : 'long-off';
+    if (Math.abs(angle) <= 35) return angle < 0 ? 'long-on' : 'long-off';
     if (angle < -125) return 'fine leg';
     if (angle < -75) return 'deep square leg';
-    if (angle < -25) return 'deep midwicket';
+    if (angle < -35) return 'deep midwicket';
     if (angle > 125) return 'third man';
-    if (angle > 75) return 'deep point';
-    return 'deep cover';
+    if (angle > 80) return 'deep point';
+    if (angle > 58) return 'deep cover';
+    return 'deep extra cover';
   }
-  if (Math.abs(angle) <= 30) return angle < 0 ? 'mid-on' : 'mid-off';
+  if (Math.abs(angle) <= 40) return angle < 0 ? 'mid-on' : 'mid-off';
   if (angle < -125) return 'short fine leg';
-  if (angle < -75) return 'square leg';
-  if (angle < -30) return 'midwicket';
-  if (angle > 150) return 'slip';
-  if (angle > 115) return 'backward point';
-  if (angle > 75) return 'point';
-  return 'cover';
+  if (angle < -78) return 'square leg';
+  if (angle < -40) return 'midwicket';
+  if (angle > 108) return 'backward point';
+  if (angle > 80) return 'point';
+  if (angle > 57) return 'cover';
+  return 'extra cover';
 }
 
-const near = (a: number, b: number, within = GUARD) => Math.abs(a - b) < within;
-const backOf = (angle: number): Man => ({ angle, distance: deepAt(angle), deep: true });
-
-/**
- * The lanes a player can hit, for choosing which one the captain closes: the
- * five strokes up the ground and square, and the two behind.
- */
-const LANES = [-112, -52, -24, 0, 24, 100, 138];
+const placed = (name: Position): Man => {
+  const p: { angle: number; distance?: number; deep?: boolean } = POSITIONS[name];
+  return { name, angle: p.angle, distance: p.deep ? deepAt(p.angle) : p.distance!, deep: !!p.deep };
+};
+const up = (man: Man): Man => ({ ...man, name: nameOf(man.angle, false), distance: RING, deep: false });
 
 export interface FieldAsk {
   bowler: Bowler;
   /** The over, from nought. */
   over: number;
   surge?: boolean;
-  captain?: CaptainCall;
-  /** Where the boundaries this innings have gone, in degrees: the captain reads them. */
-  scored?: readonly number[];
 }
 
-/** The field for an over. */
-export function fieldFor({ bowler, over, surge = false, captain = null, scored = [] }: FieldAsk): FieldSet {
+/** The bowler's field for an over, with Power Surge laid on it if this is the surge over. */
+export function fieldFor({ bowler, over, surge = false }: FieldAsk): FieldSet {
   const key = over < SUPER10.powerplay && PLANS[`${bowler}-pp`] ? `${bowler}-pp` : bowler;
-  const plan = PLANS[key];
-  const men: Man[] = [
-    ...plan.ring.map(([angle, distance], i) => ({ angle, distance, deep: false, ...(i === 0 ? { captain: true } : {}) })),
-    ...plan.deep.map(backOf),
-  ];
-  let id = key, note = plan.note, change: FieldChange = null;
-  const moved: string[] = [];
-  const powerplay = over < SUPER10.powerplay;
-  const deep = () => men.filter(m => m.deep);
-  const hits = (angle: number) => scored.filter(a => near(a, angle, 20)).length;
-  // The Powerplay's two men back, whoever is bowling: a bowler with no field
-  // of his own for it brings the rest up, nearest straight first.
-  while (powerplay && deep().length > 2) {
-    Object.assign(deep().sort((a, b) => Math.abs(a.angle) - Math.abs(b.angle))[0], { distance: RING, deep: false });
+  let men = PLANS[key].map(placed);
+  // The Powerplay's two men back, whoever is bowling: anyone more comes up, nearest straight first.
+  while (over < SUPER10.powerplay && men.filter(m => m.deep).length > 2) {
+    const man = men.filter(m => m.deep).sort((a, b) => Math.abs(a.angle) - Math.abs(b.angle))[0];
+    men = men.map(m => (m === man ? up(m) : m));
   }
-  if (captain === 'tight' && !powerplay && deep().length < 5) {
-    // He spreads it where the runs are going: the open lane hit most, and
-    // the man in the ring nearest it drops back to the rope there.
-    const open = LANES.filter(lane => !deep().some(m => near(m.angle, lane)));
-    const lane = open.sort((a, b) => hits(b) - hits(a) || Math.abs(a - 95) - Math.abs(b - 95))[0];
-    const ring = men.filter(m => !m.deep && !m.captain);
-    if (lane !== undefined && ring.length) {
-      const man = ring.reduce((a, b) => (Math.abs(b.angle - lane) < Math.abs(a.angle - lane) ? b : a));
-      Object.assign(man, backOf(lane));
-      id += `+tight${lane}`; change = 'captain';
-      moved.push(`${nameOf(lane, true)} back`);
-      note = `The captain spreads the field: a man goes back to ${nameOf(lane, true)}.`;
-    }
-  } else if (captain === 'attack' && !powerplay && deep().length > 2) {
-    // He attacks: the man on the rope the batter has hit least past comes up.
-    const man = deep().sort((a, b) => hits(a.angle) - hits(b.angle) || Math.abs(b.angle) - Math.abs(a.angle))[0];
-    const from = man.angle;
-    Object.assign(man, { distance: RING, deep: false });
-    id += `+attack${from}`; change = 'captain';
-    moved.push(`${nameOf(from, true)} in`);
-    note = `The captain attacks: ${nameOf(from, true)} comes up into the ring.`;
-  }
-  if (surge) {
-    // Power Surge: the two men back nearest straight come in.
-    const take = deep().sort((a, b) => Math.abs(a.angle) - Math.abs(b.angle)).slice(0, 2);
-    for (const man of take) { moved.push(`${nameOf(man.angle, true)} in`); Object.assign(man, { distance: RING, deep: false }); }
-    id += '+surge'; change = 'surge';
-    note = `Power Surge: ${take.map(m => nameOf(m.angle, false)).join(' and ')} up. Only ${deep().length} left on the rope.`;
-  }
-  return { id, bowler, men, note, change, moved: moved.map(m => m.toUpperCase()) };
-}
-
-/** The boundary rider a ball struck along `angle` goes to, if it goes to one. */
-export function guardOf(field: FieldSet, angle: number): Man | null {
-  let best: Man | null = null;
-  for (const man of field.men) {
-    if (!man.deep || !near(man.angle, angle)) continue;
-    if (!best || Math.abs(man.angle - angle) < Math.abs(best.angle - angle)) best = man;
-  }
-  return best;
+  const field: FieldSet = { id: key, bowler, men, change: null, moved: [] };
+  if (!surge) return field;
+  // Power Surge: the two men back nearest straight come in.
+  const take = men.filter(m => m.deep).sort((a, b) => Math.abs(a.angle) - Math.abs(b.angle)).slice(0, 2);
+  return {
+    ...field, id: `${key}+surge`, change: 'surge',
+    men: men.map(m => (take.includes(m) ? up(m) : m)),
+    moved: take.map(m => `${m.name} in`.toUpperCase()),
+  };
 }
 
 /**
- * A ball the field has a say in: a four or a six off the bat, played as an
+ * The bowler plugging the gap a boundary just went through: the man back
+ * furthest round from it goes there, for the rest of the over. Answers null
+ * when there is nobody back to move.
+ */
+export function plug(field: FieldSet, angle: number): FieldSet | null {
+  const deep = field.men.filter(m => m.deep);
+  if (!deep.length) return null;
+  const mover = deep.reduce((a, b) => (Math.abs(b.angle - angle) > Math.abs(a.angle - angle) ? b : a));
+  // Never in front of the sight screen.
+  const turned = Math.abs(angle) < SIGHT_SCREEN ? Math.sign(angle || 1) * SIGHT_SCREEN : angle;
+  const at = Math.max(-165, Math.min(165, Math.round(turned)));
+  const man: Man = { name: nameOf(at, true), angle: at, distance: deepAt(at), deep: true };
+  return {
+    ...field, id: `${field.id}+plug${at}`, change: 'plug',
+    men: field.men.map(m => (m === mover ? man : m)),
+    moved: [`${man.name} back`.toUpperCase()],
+  };
+}
+
+/** How far to one side of a man a ball struck along `angle` passes him; nobody behind him reaches it. */
+export function passes(man: Man, angle: number) {
+  const off = Math.abs(angle - man.angle);
+  return off >= 90 ? Infinity : man.distance * Math.sin(off * Math.PI / 180);
+}
+/** The nearest man to a ball struck along `angle`, of the ring or the deep. */
+export function nearest(field: FieldSet, angle: number, deep: boolean): { man: Man; by: number } | null {
+  let best: { man: Man; by: number } | null = null;
+  for (const man of field.men) {
+    if (man.deep !== deep) continue;
+    const by = passes(man, angle);
+    if (!best || by < best.by) best = { man, by };
+  }
+  return best && Number.isFinite(best.by) ? best : null;
+}
+
+/**
+ * A ball the field has a say in: off the bat, not out, and played as an
  * ordinary stroke. The special strokes a full meter buys — the charge, the
  * sweeps, the scoops — are the meter's reward and go where they are hit.
  */
 function answerable(outcome: ShotOutcome) {
-  return outcome.madeBatContact && !outcome.isWicket && (outcome.runs === 4 || outcome.runs === 6)
-    && !outcome.advance && !outcome.swept && !outcome.sweptFlat && !outcome.scooped && !outcome.edged;
+  return outcome.madeBatContact && !outcome.isWicket && outcome.runs > 0 && !outcome.hit
+    && !outcome.advance && !outcome.swept && !outcome.scooped && !outcome.edged && !outcome.defended && !outcome.padded;
 }
 
+const by = (man: Man, how: Fielded['how']) => ({ fielder: { name: man.name, angle: man.angle, distance: man.distance, deep: man.deep, how } });
+export type Fielded = NonNullable<ShotOutcome['fielder']>;
+
 /**
- * The field's answer to a ball: a four at a boundary rider cut off for one or
- * two, a six at one caught on the rope three times in ten, anything else as it
- * was hit. `rng` is drawn from only for a ball a rider is under.
+ * The field's answer to a ball struck along `angle`. `stretch` is how far the
+ * stroke was steered against itself (`steer`): enough of it turns a clean hit
+ * into a mishit half the time. `rng` is drawn from only where a man has a
+ * chance at it, so a ball into a gap moves nothing after it.
  */
-export function fieldRules(outcome: ShotOutcome, shot: ShotType | undefined, field: FieldSet,
-  rng: { next(): number }): ShotOutcome {
+export function fieldRules(outcome: ShotOutcome, angle: number, field: FieldSet, rng: { next(): number }, stretch = 0): ShotOutcome {
   if (!answerable(outcome)) return outcome;
-  const man = guardOf(field, sectorOf(outcome, shot));
-  if (!man) return outcome;
-  const rope = { angle: man.angle, distance: man.distance, name: nameOf(man.angle, true) };
-  if (outcome.runs === 4) {
-    const runs = rng.next() < CUT_SINGLE ? 1 : 2;
-    return { ...outcome, runs, aerial: false, quality: Math.min(outcome.quality, .6), feedback: runs === 1 ? '1 RUN' : '2 RUNS', rope };
+  if (stretch > 0 && outcome.compatibility >= SOLID_SHOT && outcome.compatibility - stretch < SOLID_SHOT && rng.next() < .5) {
+    // Reached for: up off the toe, and somebody gets under it three times in four.
+    return rng.next() < .75
+      ? { ...outcome, runs: 0, isWicket: true, wicketType: 'CAUGHT', aerial: true, quality: 0, feedback: 'CAUGHT!' }
+      : { ...outcome, runs: 4, aerial: true, feedback: 'FOUR!' };
   }
-  if (rng.next() >= ROPE_CATCH) return outcome;
-  return { ...outcome, runs: 0, isWicket: true, wicketType: 'CAUGHT', aerial: true, quality: 0, feedback: 'CAUGHT!', rope };
+  const middled = outcome.timingGrade === 'PERFECT';
+  const deep = nearest(field, angle, true), ring = nearest(field, angle, false);
+  if (outcome.runs === 6) {
+    // Middled, it clears him. Not middled and still carrying, he is under it.
+    if (middled || !deep || deep.by > DEEP_REACH) return outcome;
+    return { ...outcome, runs: 0, isWicket: true, wicketType: 'CAUGHT', aerial: true, quality: 0, feedback: 'CAUGHT!', ...by(deep.man, 'caught') };
+  }
+  if (outcome.runs === 4) {
+    if (!outcome.aerial && ring && ring.by <= (middled ? RING_REACH_MIDDLED : RING_REACH) && rng.next() < (middled ? RING_STOPS_MIDDLED : RING_STOPS)) {
+      const runs = rng.next() < .5 ? 0 : 1;
+      return { ...outcome, runs, feedback: runs ? '1 RUN' : 'DOT BALL', ...by(ring.man, 'stopped') };
+    }
+    if (deep && deep.by <= DEEP_CLEAN) {
+      const runs = rng.next() < .7 ? 1 : 2;
+      return { ...outcome, runs, aerial: false, feedback: runs === 1 ? '1 RUN' : '2 RUNS', ...by(deep.man, 'cut') };
+    }
+    if (deep && deep.by <= DEEP_REACH && rng.next() < (middled ? DEEP_SAVES_MIDDLED : DEEP_SAVES)) {
+      const runs = rng.next() < .7 ? 2 : 3;
+      return { ...outcome, runs, aerial: false, feedback: `${runs} RUNS`, ...by(deep.man, 'saved') };
+    }
+    return outcome;
+  }
+  // Ones, twos and threes: a man in the ring on its line takes one off half the time.
+  if (!outcome.aerial && ring && ring.by <= RING_REACH && rng.next() < .5) {
+    const runs = (outcome.runs - 1) as ShotOutcome['runs'];
+    return { ...outcome, runs, feedback: runs ? `${runs} RUN${runs > 1 ? 'S' : ''}` : 'DOT BALL', ...by(ring.man, 'stopped') };
+  }
+  return outcome;
 }
 
-/** What the call says under the result for a ball a rider got to. */
-export function ropeLine(outcome: ShotOutcome) {
-  if (!outcome.rope) return null;
-  const name = outcome.rope.name.toUpperCase();
-  return outcome.isWicket ? `${name} · ON THE ROPE` : `CUT OFF · ${name}`;
-}
-
-/**
- * The captain's read of the innings, at the top of the sixth over and again
- * at the eighth: well ahead of a par of `PAR` an over he spreads the field,
- * well behind it he attacks, and in between he leaves it. A strong innings is
- * made to find new gaps; one that is struggling is given a man up to hit over.
- */
-export const PAR = 14.4;
-export const CAPTAIN_OVERS: Readonly<Record<number, number>> = { 5: 12, 7: 10 };
-export function captainCall(runs: number, over: number, was: CaptainCall): CaptainCall {
-  const margin = CAPTAIN_OVERS[over];
-  if (margin === undefined) return was;
-  const par = PAR * over;
-  return runs > par + margin ? 'tight' : runs < par - margin ? 'attack' : null;
-}
-
-/**
- * Power Surge: one over of two men in, taken by the player from the fifth
- * over to the ninth and switched on by itself in the ninth if it is still
- * there. It is offered from the fourth over, to be armed for the next.
- */
-export const SURGE = { offerFrom: 3, from: 4, last: 8 } as const;
-/** Whether this over is the surge: armed for it, or the last over it can be taken in. */
-export function surgeOn(over: number, armed: number | null) {
-  return armed === over || (armed === null && over === SURGE.last);
-}
-/** Whether the key that arms the surge for the next over is offered during this one. */
-export function surgeOffered(over: number, armed: number | null) {
-  return armed === null && over >= SURGE.offerFrom && over < SURGE.last;
+/** What the call says under the result for a ball a fielder got to. */
+export function fieldLine(outcome: ShotOutcome) {
+  const f = outcome.fielder;
+  if (!f) return null;
+  const name = f.name.toUpperCase();
+  return f.how === 'caught' ? `${name} · ON THE ROPE` : f.how === 'cut' ? `CUT OFF · ${name}` : f.how === 'saved' ? `SAVED · ${name}` : `STOPPED · ${name}`;
 }
 
 /**
- * The six men the scene draws, out of the nine: the captain and the five
- * nearest straight, which are the ones the camera behind the bat can see.
- * The captain first.
+ * Power Surge: one over of two men in. It lights up at the end of the fifth
+ * over and can be taken in the break before the sixth, seventh or eighth
+ * (`surgeOffered`, overs from nought); not taken by the ninth, it goes on by
+ * itself then (`surgeAuto`). The tenth never has it.
  */
-export function drawnOf(field: FieldSet): Man[] {
-  const captain = field.men.find(m => m.captain)!;
-  const rest = field.men.filter(m => m !== captain).sort((a, b) => Math.abs(a.angle) - Math.abs(b.angle)).slice(0, 5);
-  return [captain, ...rest];
-}
-
-/** Whether a ball struck along `angle` is out of the picture, and which side of it. */
-export function offScreen(angle: number): 'leg' | 'off' | null {
-  return Math.abs(angle) <= 22 ? null : angle < 0 ? 'leg' : 'off';
-}
+export const SURGE = { from: 5, last: 7, auto: 8 } as const;
+export const surgeOffered = (over: number, used: boolean) => !used && over >= SURGE.from && over <= SURGE.last;
+export const surgeAuto = (over: number, used: boolean) => !used && over === SURGE.auto;
 
 /**
  * Who is bowling, from the kind of over the generator planned: the swing
@@ -286,28 +301,94 @@ export function bowlerOf(kind: OverKind | null, over: number): Bowler {
 }
 
 /**
- * What the captain signals as a new field is set, and to whom: a man sent
- * back to the rope is waved back there, one brought up from it is beckoned
- * in, and otherwise the man who moves furthest is pointed to his new place.
- * Nothing moves, nothing is signalled.
+ * The six men the scene draws, out of the nine: the ones nearest straight,
+ * which are the ones the camera behind the bat can see.
+ */
+export function drawnOf(field: FieldSet): Man[] {
+  return [...field.men].sort((a, b) => Math.abs(a.angle) - Math.abs(b.angle)).slice(0, 6);
+}
+
+/**
+ * What the bowler signals as a field changes, and to whom: a man sent back to
+ * the rope is waved back there, one brought up from it beckoned in, and
+ * otherwise the man who moves furthest is pointed to his new place. Nothing
+ * moves, nothing is signalled.
  */
 export function signalFor(prev: FieldSet | null, field: FieldSet): { kind: 'point' | 'back' | 'in'; man: Man } | null {
   if (!prev) return null;
-  const back = field.men.find(m => m.deep && !prev.men.some(n => n.deep && near(n.angle, m.angle, 3)));
-  const came = prev.men.find(m => m.deep && !field.men.some(n => n.deep && near(n.angle, m.angle, 3)));
-  const up = came && field.men.find(m => !m.deep && near(m.angle, came.angle, 3));
+  const at = (a: Man, b: Man) => a.deep === b.deep && Math.abs(a.angle - b.angle) < 3;
+  const back = field.men.find(m => m.deep && !prev.men.some(n => at(m, n)));
+  const came = prev.men.find(m => m.deep && !field.men.some(n => at(m, n)));
+  const upMan = came && field.men.find(m => !m.deep && Math.abs(m.angle - came.angle) < 3);
   if (field.change !== 'surge' && back) return { kind: 'back', man: back };
-  if (up) return { kind: 'in', man: up };
+  if (upMan) return { kind: 'in', man: upMan };
   if (back) return { kind: 'back', man: back };
+  const xy = (m: Man) => [Math.sin(m.angle * Math.PI / 180) * m.distance, Math.cos(m.angle * Math.PI / 180) * m.distance];
   let best: { man: Man; moved: number } | null = null;
-  for (const man of field.men.filter(m => !m.captain)) {
-    const moved = Math.min(...prev.men.map(n => distanceBetween(n, man)));
+  for (const man of field.men) {
+    const [x, z] = xy(man);
+    const moved = Math.min(...prev.men.map(n => { const [a, b] = xy(n); return Math.hypot(x - a, z - b); }));
     if (!best || moved > best.moved) best = { man, moved };
   }
   return best && best.moved > 3 ? { kind: 'point', man: best.man } : null;
 }
-const distanceBetween = (a: Man, b: Man) => {
-  const ax = Math.sin(a.angle * Math.PI / 180) * a.distance, az = Math.cos(a.angle * Math.PI / 180) * a.distance;
-  const bx = Math.sin(b.angle * Math.PI / 180) * b.distance, bz = Math.cos(b.angle * Math.PI / 180) * b.distance;
-  return Math.hypot(ax - bx, az - bz);
-};
+
+/** Whether a ball struck along `angle` is out of the picture, and which side of it. */
+export function offScreen(angle: number): 'leg' | 'off' | null {
+  return Math.abs(angle) <= 22 ? null : angle < 0 ? 'leg' : 'off';
+}
+
+// ---------------------------------------------------------------------------
+// Steering
+// ---------------------------------------------------------------------------
+
+/** A stroke's arc on the ground, and the swipe zone it is steered from (its edges, degrees off straight up). */
+export interface Steer { arc: readonly [number, number]; zone: readonly [number, number] }
+
+/** The leg side's swipe runs from the on drive's edge round to the block's fan. */
+const LEG_ZONE = [-165, -67.5] as const;
+
+/**
+ * Where a stroke can be steered, by the stroke and what it came to: the cover
+ * swipe is the cover drive, the square drive or the punch by the ball, and the
+ * leg-side swipe the flick, the pull, the hook, the pull off the spinner or the
+ * sweep (`flicked` is the attempt's). Null for the strokes that are not
+ * steered: the block, and the meter's.
+ */
+export function steerOf(shot: ShotType | undefined, outcome: ShotOutcome, flicked = false): Steer | null {
+  if (!shot || outcome.advance || outcome.swept || outcome.scooped) return null;
+  switch (shot) {
+    case 'STRAIGHT': return { arc: [-12, 12], zone: [-22.5, 22.5] };
+    case 'LONG_ON': return { arc: [-45, -12], zone: [-67.5, -22.5] };
+    case 'COVER_LONG_OFF': return { arc: outcome.squared ? [42, 78] : outcome.punched ? [35, 72] : [12, 55], zone: [22.5, 67.5] };
+    case 'SQUARE_CUT': return { arc: [72, 122], zone: [67.5, 117.5] };
+    case 'LATE_CUT': return { arc: [122, 160], zone: [117.5, 165] };
+    case 'HOOK': return { arc: [-140, -95], zone: LEG_ZONE };
+    case 'LEG': return {
+      arc: outcome.hooked ? [-140, -95] : outcome.spinPulled ? [-95, -50] : outcome.sweptFlat ? [-105, -60] : flicked ? [-90, -40] : [-100, -45],
+      zone: LEG_ZONE,
+    };
+    default: return null;
+  }
+}
+
+/** The most a stroke steered to the end of its arc loses in fit with the ball. */
+export const STRETCH = .15;
+
+/**
+ * Where a steered ball goes, and what steering it cost. The swipe's place in
+ * its zone is its place along the arc, so a swipe further round sends the ball
+ * further round; a key (no swipe angle) plays the arc's middle. Steering into
+ * the outer third of the arc either side stretches the stroke (`STRETCH` at
+ * the very end), which `fieldRules` reads. The timing's bend is laid on after
+ * by `sectorOf`, as it always was.
+ */
+export function steer(steer: Steer, swipe: number | undefined): { angle: number; stretch: number } {
+  const [a0, a1] = steer.arc, [z0, z1] = steer.zone;
+  const centre = (a0 + a1) / 2, half = (a1 - a0) / 2;
+  if (swipe === undefined) return { angle: centre, stretch: 0 };
+  const t = Math.max(0, Math.min(1, (swipe - z0) / (z1 - z0)));
+  const angle = a0 + t * (a1 - a0);
+  const off = Math.abs(angle - centre) - half / 3;
+  return { angle, stretch: off > 0 ? STRETCH * off / (half * 2 / 3) : 0 };
+}

@@ -62,6 +62,8 @@ export interface ShotAttempt {
    * scored on its own ladder (`FLICK`) in every mode.
    */
   flicked?: boolean;
+  /** Which way the swipe went, degrees off straight up the batter's way round; none off a key. Super10 steers by it. */
+  swipe?: number;
 }
 export interface ShotOutcome {
   runs: 0 | 1 | 2 | 3 | 4 | 6; isWicket: boolean; wicketType?: WicketType;
@@ -102,9 +104,11 @@ export interface ShotOutcome {
   /** Skied, reached, and put down: the fielder gets hands to it and it does not stick. */
   dropped?: boolean;
   /**
-   * Super10: a boundary rider got to it — cut off a four, or caught a six on
-   * the rope (`isWicket` says which). Where he stands, in degrees off straight
-   * and metres from the bat, and what his position is called.
+   * Super10: a fielder got to it — stopped it in the ring, cut it off or saved
+   * it on the rope, or caught it there (`isWicket` says so). Where he stands,
+   * in degrees off straight and metres from the bat, and what he is called.
    */
-  rope?: { angle: number; distance: number; name: string };
+  fielder?: { name: string; angle: number; distance: number; deep: boolean; how: 'stopped' | 'cut' | 'saved' | 'caught' };
+  /** Super10: where the stroke was steered, in degrees off straight, before the timing bends it. */
+  angle?: number;
 }

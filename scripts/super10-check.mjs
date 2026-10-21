@@ -11,10 +11,11 @@
  * gun on every ball, the next batter named as he walks out after a wicket, and
  * the card at the end headed SUPER10 and saying it does not count yet, with
  * nothing sent to a board or a career: Super10 has neither yet. And the field:
- * the first over's card going up before the first ball, the captain on the
- * field in the clean build, each over's field set for its bowler, Power Surge
- * taken with P and two men brought in for it, the field drawn in the pause
- * sheet, and `?fieldui=a`'s map at the foot with no card.
+ * the first over's card going up before the first ball, each over's field set
+ * for its bowler with the bowler signalling the change, Power Surge taken with
+ * P in the break before the sixth over and two men brought in for it, the
+ * field drawn in the pause sheet, and `?fieldui=a`'s map at the foot with no
+ * card.
  *
  * The actions themselves are looked at in `bowler-sheet.html`
  * (`scripts/bowler-sheet.mjs`): a frame there is the frame asked for, which a
@@ -78,7 +79,6 @@ const opener = await page.locator('#phase-label').textContent();
 check(first.balls === 0 && !!opener?.startsWith('OPENER IN'), 'the opener is named as he walks out', `${opener} (balls ${first.balls})`);
 check(first.super10?.card === true && first.super10.field?.id === 'SWING-pp', 'the first over\'s field goes up on its card before the first ball',
   JSON.stringify(first.super10?.field));
-check(first.super10?.leading === true, 'with the captain on the field in the clean build');
 
 const ACTION = { PACE: 'pace', SPIN: 'pace', EXPRESS: 'express', DEATH: 'death' };
 const kinds = [];
@@ -86,6 +86,7 @@ const actions = {};
 const speeds = [];
 const fields = [];
 let armed = null, pauseMap = false;
+const signals = [];
 const write = balls => page.evaluate(b => window.__cricket.blast(b), balls);
 // Who bowls each over is read off the game at its top; one real ball is bowled
 // for each kind of bowler — the swing bowler's, the spinner's, the sling
@@ -98,11 +99,15 @@ for (let over = 0; over < 10; over++) {
   if (ready.phase === 'INNINGS_END') break;
   kinds[over] = ready.super10.bowler;
   fields[over] = ready.super10.field;
-  // Power Surge, taken in the fourth over for the fifth.
-  if (over === 3) {
+  if (over === 1 || over === 2) signals.push(ready.super10.signalling);
+  // Power Surge, taken in the break before the sixth over, which it is for.
+  if (over === 5) {
     await page.keyboard.press('p');
     armed = (await snap()).super10.surge;
-    // And the field in the pause sheet.
+    fields[5] = (await snap()).super10.field;
+  }
+  if (over === 3) {
+    // The field in the pause sheet.
     await page.keyboard.press('Escape');
     pauseMap = await page.locator('#s10-pause svg').isVisible();
     await page.keyboard.press('Escape');
@@ -146,11 +151,13 @@ check(real.every(o => o.death === (o.kind === 'DEATH') && o.express === (o.kind 
 const BOWLER = { PACE: ['SWING', 'SEAM'], SPIN: ['SPIN'], EXPRESS: ['SLING'], DEATH: ['DEATH'] };
 check(fields.length >= 8 && fields.every((f, i) => f && BOWLER[kinds[i]].includes(f.bowler)), 'each over\'s field is set for its bowler',
   fields.map(f => f?.id).join(' '));
-check(fields.slice(0, 3).every(f => f.deep.length <= 2), 'with two men back at most in the Powerplay');
-// The sling bowler's four men back, less the two the surge brings in.
-check(armed === 4 && fields[4]?.change === 'surge' && fields[4].deep.length === 2,
-  'Power Surge taken with P in the fourth over brings two men in for the fifth', `${armed} ${JSON.stringify(fields[4])}`);
-check(fields.slice(5).every(f => f?.change !== 'surge'), 'and it is one over only');
+check(fields.slice(0, 3).every(f => f.deep.length === 2) && fields.slice(3, 5).every(f => f.deep.length === 4),
+  'with two men back in the Powerplay and four after it');
+check(signals.some(Boolean), 'the bowler signals a change of field between overs', JSON.stringify(signals));
+// Four men back, less the two the surge brings in.
+check(armed === 5 && fields[5]?.change === 'surge' && fields[5].deep.length === 2,
+  'Power Surge taken with P before the sixth over brings two men in for it', `${armed} ${JSON.stringify(fields[5])}`);
+check(fields.slice(6).every(f => f?.change !== 'surge'), 'and it is one over only: the ninth does not switch it on again');
 check(pauseMap, 'the field is drawn in the pause sheet');
 check(speeds.every(v => /^\d+$/.test(v ?? '')), 'the speed gun reads out every ball', speeds.slice(0, 12).join(' '));
 

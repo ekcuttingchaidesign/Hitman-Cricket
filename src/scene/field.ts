@@ -100,50 +100,19 @@ export class Field {
   /** Deliveries walked in for, so every ball deals each man a different walk. */
   private ball = 0;
 
-  /**
-   * Super10's captain: the bowler's clean build, standing in for the first
-   * man while he leads, and made the first time a Super10 is played so no
-   * other game pays for him.
-   */
-  captain: Fielder | null = null;
-  private leading = false;
-  private kit?: Kit;
-
-  dress(kit: Kit) {
-    this.kit = kit;
-    for (const fielder of this.fielders) fielder.figure.dress(kit);
-    this.captain?.figure.dress(kit);
-  }
-
-  /** The captain on or off. Answers with him the first time he is made, for the scene to put on the field. */
-  lead(on: boolean): Fielder | null {
-    let made: Fielder | null = null;
-    if (on && !this.captain) made = this.captain = new Fielder(this.kit, { connected: true });
-    this.leading = on;
-    this.fielders[0].root.visible = !on;
-    if (this.captain) this.captain.root.visible = on;
-    return made;
-  }
-
-  /** The figures on the field now: the captain in the first man's place while he leads. */
-  private get figures() { return this.leading && this.captain ? [this.captain, ...this.fielders.slice(1)] : this.fielders; }
-
-  /** The clean build hangs his clothes on his pose once a frame, as the bowler's does. */
-  drape() { if (this.leading) this.captain?.figure.drape(); }
+  dress(kit: Kit) { for (const fielder of this.fielders) fielder.figure.dress(kit); }
 
   /**
    * A new field in the middle of an innings, walked to: Super10's, between
-   * overs. The first man keeps the first mark — he is the captain — and every
-   * other mark goes to whoever is nearest it, so nobody crosses the ground
-   * to stand where his neighbour was. With a signal, the captain turns to the
-   * man he is moving and puts him there first.
+   * overs and when the bowler plugs a gap. Every mark goes to whoever is
+   * nearest it, so nobody crosses the ground to stand where his neighbour was.
    */
-  moveTo(marks: readonly Mark[], now: number, told?: { kind: Signal; to: { x: number; z: number } }) {
+  moveTo(marks: readonly Mark[], now: number) {
     const at = this.routines.map(routine => routine.at(now));
-    const order: Mark[] = [marks[0]];
-    const free = new Set(marks.slice(1).map((_, i) => i + 1));
+    const order: Mark[] = [];
+    const free = new Set(marks.map((_, i) => i));
     const pairs: [number, number, number][] = [];
-    for (let man = 1; man < at.length; man++) for (const k of free) pairs.push([away(at[man], marks[k].spot), man, k]);
+    for (let man = 0; man < at.length; man++) for (const k of free) pairs.push([away(at[man], marks[k].spot), man, k]);
     pairs.sort((a, b) => a[0] - b[0]);
     const placed = new Set<number>();
     for (const [, man, k] of pairs) {
@@ -152,15 +121,17 @@ export class Field {
     }
     this.marks = order;
     this.catching = null; this.gathering = null; this.bowling = null;
-    this.routines = this.routines.map((routine, i) => {
-      if (i === 0 && told) {
-        const here = at[0];
-        const sign = signal({ x: here.x, z: here.z, heading: here.heading }, told.to, now + 60, told.kind);
-        const lead = new Routine([...recent(routine, now), sign]);
-        return new Routine([...lead.actions, ...this.homeward(0, lead, sign.end)]);
-      }
-      return new Routine([...recent(routine, now), ...this.homeward(i, routine, now + 120 + deal(i, this.ball, 9) * 320)]);
-    });
+    this.routines = this.routines.map((routine, i) =>
+      new Routine([...recent(routine, now), ...this.homeward(i, routine, now + 120 + deal(i, this.ball, 9) * 320)]));
+  }
+
+  /**
+   * The bowler setting his field: from wherever he stands, turned to the man
+   * he is moving and signalling him there. The ball waits for it (`settled`).
+   */
+  bowlerSignal(rest: Body, now: number, to: { x: number; z: number }, kind: Signal) {
+    const sign = signal({ x: rest.x, z: rest.z, heading: rest.heading }, to, now + 60, kind);
+    this.bowling = new Routine([still(rest, now), sign, still(sign.at(sign.end), sign.end)]);
   }
 
   /**
@@ -191,7 +162,7 @@ export class Field {
 
   /** Pose everyone for this instant. */
   update(now: number) {
-    this.figures.forEach((fielder, i) => fielder.show(this.routines[i].at(now)));
+    this.fielders.forEach((fielder, i) => fielder.show(this.routines[i].at(now)));
   }
 
   /**
@@ -199,6 +170,8 @@ export class Field {
    * waits for before he turns at the top of his mark.
    */
   settled(now: number) {
+    // And the bowler done signalling a change.
+    if (this.bowling && this.bowling.actions[this.bowling.current(now)].name === 'Signalling') return false;
     return this.routines.every((routine, i) => {
       const at = routine.at(now);
       const doing = routine.actions[routine.current(now)].name;
@@ -268,9 +241,9 @@ export class Field {
    * is dead they wander back to their marks.
    *
    * The catch is put where the camera can see it, along the line of the
-   * stroke as near as that allows, and far enough from the nearest man that
-   * he has to run for it — usually in from outside the frame — and close
-   * enough that he gets there. The answer is where his hands are when it
+   * stroke as near as that allows, and as far from the nearest man as the
+   * ball deals — a step, a run or a dive (`findCatch`) — and close enough
+   * that he gets there. The answer is where his hands are when it
    * arrives, which is where the flight should finish.
    */
   struck(now: number, deadAt: number, look: (t: number) => THREE.Vector3 | null,
@@ -592,14 +565,19 @@ export class Field {
    * since a square drive sliced up off the toe can go anywhere, and a phone
    * held upright sees only twenty degrees either side of straight. A point has to
    * be in shot. Then the nearest man to it has to be able to get there — a
-   * sprint and a dive — and the best of them is the one that makes him run
-   * most of that, so the catch is a man arriving, not a man who was already
-   * standing there. Nothing in shot that anyone can reach (a field set deep
+   * sprint and a dive — and the best of them is the one that makes him go
+   * the share of that the ball has dealt: a step or two, a run, or the whole
+   * of it and a dive. Nothing in shot that anyone can reach (a field set deep
    * and a short hang can do it) falls back to the stroke's own line and the
    * best-placed man, and the flight is bent to wherever he gets to.
    */
   private findCatch(spots: Spot[], now: number, take: { angle: number; height: number; arrives: number; visible: Visible }) {
     const reach = furthest(Math.max(0, take.arrives - now - REACTION_MS - DIVE.catch)) + diveReach() * .95;
+    // How far he has to go for it, dealt a ball at a time: half are taken
+    // where he stands or a step or two from it, a third on the run, and only
+    // the rest at full stretch. Every one a sprint and a dive read as staged.
+    const kind = deal(0, this.ball, 11);
+    const running = kind < .5 ? .12 : kind < .85 ? .5 : .78;
     let best: { index: number; target: THREE.Vector3; score: number } | null = null;
     const toward = (angle: number, distance: number) =>
       new THREE.Vector3(Math.sin(angle) * distance, take.height, Math.cos(angle) * distance);
@@ -612,7 +590,7 @@ export class Field {
           let index = 0, gap = Infinity;
           spots.forEach((spot, i) => { const d = away(spot, target); if (d < gap) { gap = d; index = i; } });
           if (gap > reach * .9) continue;
-          const score = Math.abs(gap - reach * .7) + swing * .12 + Math.abs(distance - 20) * .15;
+          const score = Math.abs(gap - reach * running) + swing * .12 + Math.abs(distance - 20) * .15;
           if (!best || score < best.score) best = { index, target, score };
         }
       }

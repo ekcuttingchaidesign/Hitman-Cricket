@@ -19,7 +19,7 @@ import { CONFIDENCE_STEP, SHOTS_STEP, howToDue, noteHowTo, playedBefore } from '
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
 import { SUPER10, batterAt as super10Batter, windowsAt as super10Windows } from './config/super10';
 import {
-  bowlerOf, captainCall, drawnOf, fieldFor, fieldRules, offScreen, signalFor, surgeOffered, surgeOn, type CaptainCall, type FieldSet,
+  PLUG, bowlerOf, drawnOf, fieldFor, fieldRules, offScreen, plug, signalFor, steer, steerOf, surgeAuto, surgeOffered, type FieldSet,
 } from './game/super10-field';
 import { FieldUi, fieldUiOf } from './ui/FieldMap';
 import { sectorOf } from './scene/flight';
@@ -214,6 +214,8 @@ const MARATHON_OPEN = SHOW_MARATHON || (!SURVIVE_ONLY
  * yet, no board and no career, so an innings of it is played and counted for
  * nothing (`practising`).
  */
+/** How long the bowler waits at his mark in a break Power Surge is offered in. */
+const SURGE_WAIT_MS = 1600;
 const SUPER10_OPEN = !SURVIVE_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production';
 
 /**
@@ -311,15 +313,16 @@ export class Game {
   /** What the Marathon has put up this innings: the swing coming on, and the express bowler's first over. */
   private told = { swing: false };
   /**
-   * Super10's field this innings: the over it was last set for, the
-   * captain's call, the over Power Surge is taken for, where the boundaries
-   * have gone (the captain reads them), the field in play, and the fields the
-   * card has shown already.
+   * Super10's field this innings: the over it was last set for, the over Power
+   * Surge was taken in, the field in play, where the bowler is to plug the gap
+   * a boundary just went through, and the fields the map has shown already.
    */
   private s10 = Game.freshField();
   private static freshField() {
-    return { over: -1, captain: null as CaptainCall, armed: null as number | null, scored: [] as number[], field: null as FieldSet | null, seen: new Set<string>() };
+    return { over: -1, surged: null as number | null, field: null as FieldSet | null, plugAt: null as number | null, seen: new Set<string>() };
   }
+  /** Whether the stroke just played was the flick, which has an arc of its own. */
+  private flickPlayed = false;
   private fieldUi!: FieldUi;
   /** When the bowler may set off, if a level's banner is up: he waits for it as for the field. */
   private bannerUntil = 0;
@@ -2184,7 +2187,6 @@ export class Game {
     this.hand();
     // Super10's field, and its captain at mid-off, put out before the first ball.
     this.s10 = Game.freshField();
-    this.scene.captain(this.super10);
     this.fieldUi.show(this.super10, this.scene.mirrored);
     if (this.super10) this.super10Over(false);
     this.nearing = null; this.hud.nearing(null, null);
@@ -2257,7 +2259,7 @@ export class Game {
     track('tutorial-start', 'Tutorial started');
     this.mode = 'CLASSIC';
     this.scene.whites(false); this.scene.overcast(false, true); this.hud.levelBanner(null); this.scene.time(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
-    this.scene.captain(false); this.fieldUi.show(false);
+    this.fieldUi.show(false);
     this.audio.stop(); this.audio.music(null); this.audio.crowd(null); this.audio.unlock(); this.score = new ScoreManager();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = null; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     this.ease = 1; this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
@@ -2496,6 +2498,8 @@ export class Game {
     this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials);
     if (phase === 'READY' && this.marathon) this.tellLevel();
     if (phase === 'READY' && this.super10 && this.lesson < 0) this.super10Over(true);
+    // The surge's offer goes as the bowler sets off.
+    if (phase === 'BOWLER_RUNUP' && this.super10) this.surgeShown();
     if (phase === 'READY' && this.momentAsked) { const moment = this.momentAsked; this.momentAsked = null; this.askMoment(moment); }
     if (phase === 'READY' && this.actionAsked) { const kind = this.actionAsked; this.actionAsked = null; this.askAction(kind); }
   }
@@ -2528,39 +2532,57 @@ export class Game {
     else if (['BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'].includes(this.phase)) this.actionAsked = kind;
   }
   /**
-   * Super10, at the top of an over: the captain's read of the innings, Power
-   * Surge if this is its over, the bowler's field with both laid on it, the
-   * drawn men walked to it — the captain signalling the one he moves — and
-   * the field on the screen, the bowler waiting while a card for it is up.
-   * Once an over; the first is put out rather than walked to.
+   * Super10, between balls: at the top of an over the bowler's field, with
+   * Power Surge on it when this is its over by itself; after a boundary
+   * through a gap, that gap plugged. The drawn men walk to it, the bowler
+   * signals the man he moves, and the ball waits for both.
    */
   private super10Over(walk: boolean) {
     const s10 = this.s10;
     const over = Math.min(Math.floor(this.score.balls / SUPER10.ballsPerOver), SUPER10.overs - 1);
-    if (s10.over === over) return;
-    for (let o = s10.over + 1; o <= over; o++) s10.captain = captainCall(this.score.runs, o, s10.captain);
-    s10.over = over;
-    const prev = s10.field;
-    const surge = surgeOn(over, s10.armed);
-    // Not taken by the ninth, it goes on by itself.
-    if (surge && s10.armed === null) { s10.armed = over; this.mark('surge-auto', 'Power Surge switched on by itself'); }
-    const field = fieldFor({ bowler: bowlerOf(this.generator.overKind(over), over), over, surge, captain: s10.captain, scored: s10.scored });
+    if (s10.over !== over) {
+      s10.over = over; s10.plugAt = null;
+      const surge = surgeAuto(over, s10.surged !== null);
+      if (surge) { s10.surged = over; this.mark('surge-auto', 'Power Surge switched on by itself'); }
+      this.setSuper10Field(fieldFor({ bowler: bowlerOf(this.generator.overKind(over), over), over, surge }), walk);
+    } else if (s10.plugAt !== null && s10.field) {
+      const plugged = plug(s10.field, s10.plugAt);
+      s10.plugAt = null;
+      if (plugged) { this.setSuper10Field(plugged, true); this.mark('field-plug', 'A gap plugged'); }
+    }
+    this.surgeShown();
+  }
+  /** A field into play: the men walked to it, the bowler's signal, the map. */
+  private setSuper10Field(field: FieldSet, walk: boolean) {
+    const s10 = this.s10, prev = s10.field;
     s10.field = field;
-    this.scene.super10Field(drawnOf(field), walk, (walk && signalFor(prev, field)) || undefined);
+    this.scene.super10Field(drawnOf(field), walk);
+    const told = walk ? signalFor(prev, field) : null;
+    if (told) this.scene.bowlerSignals(told.kind, told.man);
     const fresh = !s10.seen.has(field.id);
     s10.seen.add(field.id);
-    // A changed field is shown against the bowler's own, which is what the captain or the surge moved.
-    const own = field.change ? fieldFor({ bowler: field.bowler, over }) : prev;
-    this.fieldUi.overBegins(field, over, { prev: prev && own, fresh });
-    this.fieldUi.surge(surge ? 'on' : surgeOffered(over, s10.armed) ? 'offer' : null);
-    if (field.change === 'captain') this.mark(`captain-${s10.captain}`, 'The captain changed the field');
+    this.fieldUi.overBegins(field, s10.over, { prev, fresh });
   }
-  /** Power Surge taken for the next over: the chip, or P. */
+  /**
+   * Power Surge's corner: locked to the end of the fifth over, ready in the
+   * break before the sixth to the eighth, on through its over, used after.
+   */
+  private surgeShown() {
+    const s10 = this.s10, used = s10.surged !== null;
+    const between = this.phase === 'READY' && this.score.balls % SUPER10.ballsPerOver === 0;
+    const offered = between && surgeOffered(s10.over, used);
+    this.fieldUi.surge(s10.surged === s10.over ? 'on' : offered ? 'offer' : null);
+    // The bowler gives it a moment at his mark, which the corner's ring counts down.
+    if (offered && this.phase === 'READY') this.bannerUntil = Math.max(this.bannerUntil, this.elapsed + SURGE_WAIT_MS);
+  }
+  /** Power Surge taken, in the break before an over it is offered for: the chip, or P. */
   private armSurge() {
-    if (!this.super10 || !surgeOffered(this.s10.over, this.s10.armed) || this.phase === 'INNINGS_END') return;
-    this.s10.armed = this.s10.over + 1;
-    this.fieldUi.surge('armed');
-    this.mark(`surge-${this.s10.armed + 1}`, 'Power Surge taken');
+    const s10 = this.s10;
+    if (!this.super10 || this.phase !== 'READY' || this.score.balls % SUPER10.ballsPerOver || !surgeOffered(s10.over, s10.surged !== null) || !s10.field) return;
+    s10.surged = s10.over;
+    this.setSuper10Field(fieldFor({ bowler: s10.field.bowler, over: s10.over, surge: true }), true);
+    this.surgeShown();
+    this.mark(`surge-${s10.over + 1}`, 'Power Surge taken');
   }
   /** The field in play, looked at again: a tap on the scoreboard, or F. Between balls, and the bowler waits. */
   private lookAtField() {
@@ -2594,7 +2616,7 @@ export class Game {
     this.hud.levelBanner(banner, over + 1, LEVEL_BANNER_MS);
     this.bannerUntil = this.elapsed + LEVEL_BANNER_MS;
   }
-  private shoot = (shot: ShotType, inputTimeMs: number) => {
+  private shoot = (shot: ShotType, inputTimeMs: number, swipe?: number) => {
     if (this.phase !== 'BALL_IN_FLIGHT' || this.attempt) return;
     // The first swing of the session, tutorial or not: a player who never plays
     // one did not understand the controls, and that is a different problem from
@@ -2602,7 +2624,7 @@ export class Game {
     trackOnce('first-shot', 'First shot played');
     // A scoop with nothing to spend on it, or at a bouncer, is the block: the
     // rig and the score read the same answer.
-    this.attempt = playedAs(this.delivery!, { shotType: shot, inputTimeMs }, this.charged);
+    this.attempt = playedAs(this.delivery!, { shotType: shot, inputTimeMs, swipe }, this.charged);
     const shotType = this.attempt.shotType;
     const charging = advanceShot(this.delivery!, this.attempt, this.charged);
     const lofted = !charging && loftedDrive(this.delivery!, this.attempt);
@@ -2657,6 +2679,7 @@ export class Game {
     if ((driven && version >= 2) || punching) this.attempt = { ...this.attempt, grounded: true };
     // Versions two and three of the flick, worked off the pads with the wrists: four at the most (`FLICK`).
     if (flicking && version >= 2) this.attempt = { ...this.attempt, flicked: true };
+    this.flickPlayed = flicking;
     // At the spinner the cut is played making room for it: see `SPIN_CUT`.
     this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, version, this.meetsAt,
       !charging && spinCut(this.delivery!, this.attempt), spinPulling);
@@ -3904,13 +3927,18 @@ export class Game {
       : this.marathon ? this.marathonBall()
       : this.surviving ? resolveSurvive(this.delivery!, this.attempt, this.rng, easedSkill(TAILENDER, this.ease))
       : resolveShot(this.delivery!, this.attempt, this.rng, this.charged, this.windows);
-    // Super10's field has its say: a four at a boundary rider cut off, a six
-    // at one sometimes caught on the rope.
+    // Super10: the swipe steers the stroke inside its arc, and the field has
+    // its say on the line it went — stopped, cut off, saved, caught on the
+    // rope — and a boundary through a gap may have the bowler plug it.
     if (!step && this.super10 && this.s10.field) {
-      this.outcome = fieldRules(this.outcome, this.attempt?.shotType, this.s10.field, this.rng);
-      // Every boundary struck, cut off or not, is a place the captain wants a man.
-      if (this.outcome.runs >= 4 || this.outcome.rope) this.s10.scored.push(sectorOf(this.outcome, this.attempt?.shotType));
-      if (this.outcome.rope) this.mark(this.outcome.isWicket ? 'rope-catch' : 'cut-off', this.outcome.isWicket ? 'Caught on the rope' : 'A four cut off');
+      const shot = this.attempt?.shotType;
+      const lane = steerOf(shot, this.outcome, this.flickPlayed);
+      const steered = lane ? steer(lane, this.attempt?.swipe) : null;
+      if (steered) this.outcome = { ...this.outcome, angle: steered.angle };
+      const line = sectorOf(this.outcome, shot), struck = this.outcome.runs;
+      this.outcome = fieldRules(this.outcome, line, this.s10.field, this.rng, steered?.stretch ?? 0);
+      if (this.outcome.fielder) this.mark(`fielded-${this.outcome.fielder.how}`, 'A ball fielded');
+      if (struck >= 4 && this.outcome.runs >= 4 && !this.outcome.fielder && this.rng.next() < PLUG) this.s10.plugAt = line;
     }
     if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);
     else {
@@ -4225,8 +4253,8 @@ export class Game {
     if (this.lesson < 0) { this.hud.score(this.score); this.showNearing(this.batterHistory); this.chaseBall(outcome); }
     this.hud.result(outcome, this.chargeMiss);
     // A boundary rider out of the picture: the side label it went past says who.
-    const away = outcome.rope && offScreen(outcome.rope.angle);
-    if (away && outcome.rope) this.fieldUi.light({ side: (away === 'leg') !== this.scene.mirrored ? 'left' : 'right', name: outcome.rope.name });
+    const away = outcome.fielder && offScreen(outcome.fielder.angle);
+    if (away && outcome.fielder) this.fieldUi.light({ side: (away === 'leg') !== this.scene.mirrored ? 'left' : 'right', name: outcome.fielder.name });
     if (outcome.hit) {
       // The blow lands with the call rather than before it, so the flash, the
       // kick and the words are one event instead of three.
@@ -5792,8 +5820,8 @@ export class Game {
       speed: this.delivery?.speedKph ?? null, windows: this.windows, practising: this.practising,
       field: this.s10.field && { id: this.s10.field.id, change: this.s10.field.change, bowler: this.s10.field.bowler,
         deep: this.s10.field.men.filter(m => m.deep).map(m => m.angle) },
-      captain: this.s10.captain, surge: this.s10.armed, card: this.fieldUi.cardOpen, ui: this.fieldUi.version,
-      rope: this.outcome?.rope ?? null, leading: this.scene.leading,
+      surge: this.s10.surged, card: this.fieldUi.cardOpen, ui: this.fieldUi.version,
+      fielder: this.outcome?.fielder ?? null, angle: this.outcome?.angle ?? null, signalling: this.scene.signalling,
     };
   }
   /** Where a Marathon innings stands, for `marathon-check.mjs`. */

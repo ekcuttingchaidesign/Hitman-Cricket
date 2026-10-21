@@ -89,7 +89,7 @@ import { chaseStanding, chaseTarget, playedMode, playerSheetMarkup, soloOf, type
 import { cachedProfile, type ProfilePayload } from '../game/profile-api';
 import { chipLine, surviveGoal, type Chase, type Mine } from '../game/chase';
 import { chaseChipMarkup, chaseIntroMarkup, passedMarkup } from './ChaseUi';
-import { ropeLine } from '../game/super10-field';
+import { fieldLine } from '../game/super10-field';
 import { activitySheetMarkup } from './Activity';
 import type { OwnActivity } from '../game/profile-api';
 import wifiOff from '../assets/board/wifi-off.svg?raw';
@@ -2589,8 +2589,8 @@ ${modeSelectMarkup()}
     const panel = this.$('result');
     panel.className = `result ${outcome.advance ? 'is-advance' : outcome.isWicket ? 'is-wicket' : outcome.runs >= 4 ? 'is-boundary' : ''}${chargeMiss ? ' is-missed-charge' : ''}`;
     this.$('result-text').textContent = outcome.feedback;
-    // A Super10 boundary rider who got to it is named under the call.
-    this.$('timing').textContent = ropeLine(outcome) ?? (outcome.advance ? 'DOWN THE PITCH'
+    // A Super10 fielder who got to it is named under the call.
+    this.$('timing').textContent = fieldLine(outcome) ?? (outcome.advance ? 'DOWN THE PITCH'
       : chargeMiss ?? (outcome.timingGrade === 'PERFECT' || outcome.timingGrade === 'GOOD' ? `${outcome.timingGrade} TIMING`
       : outcome.timingDeltaMs === null ? 'NO SHOT' : outcome.timingGrade === 'MISS' ? 'MISSED IT' : outcome.timingDeltaMs < 0 ? 'EARLY' : 'LATE'));
     // Restart the rise-and-fade from the top for back-to-back deliveries.

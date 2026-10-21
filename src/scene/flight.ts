@@ -58,8 +58,9 @@ export interface Flight {
  * along the long-off sector the cover input names.
  *
  * The scene draws the ball along it and the Super10 field judges it on it
- * (`src/game/super10-field.ts`), so a ball a boundary rider is said to have
- * stopped is one the player watched go to him.
+ * (`src/game/super10-field.ts`), so a ball a fielder is said to have stopped
+ * is one the player watched go to him. In Super10 the swipe steers the line
+ * inside the stroke's arc (`steer`), and it arrives here as `outcome.angle`.
  */
 export function sectorOf(outcome: ShotOutcome, shot: ShotType | undefined): number {
   const sector = outcome.swept ? SWEEP.angle
@@ -67,7 +68,8 @@ export function sectorOf(outcome: ShotOutcome, shot: ShotType | undefined): numb
     : outcome.advance && shot === 'COVER_LONG_OFF' ? ADVANCE.coverAngle
     : outcome.advance && shot === 'LONG_ON' ? ADVANCE.onAngle
     : outcome.squared ? SQUARE_DRIVE.angle : outcome.punched ? PUNCH.angle : outcome.spinPulled ? SPIN_PULL.angle : SHOT_ANGLES[shot ?? 'STRAIGHT'];
-  return sector + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28));
+  // Steered (Super10), the swipe chose the line inside the stroke's arc.
+  return (outcome.angle ?? sector) + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28));
 }
 
 /** Runs to how far a ball that stayed down runs away from the bat. */
@@ -87,13 +89,14 @@ export function flightOf(outcome: ShotOutcome): Flight {
    */
   const toAFielder = (caught || !!outcome.dropped) && outcome.aerial;
 
-  if (outcome.rope) {
-    // To a boundary rider: a four he cut off runs out to him along the ground
-    // and stops a stride short, in his hands; a six he caught comes down to
-    // him high on the rope.
-    return outcome.isWicket
-      ? { distance: outcome.rope.distance, height: 15, flightMs: hang(outcome), endY: 2, takeAt: 0.9, dropAt: 0, bounceAt: 0 }
-      : shape(Math.max(8, outcome.rope.distance - 1.2), 0.22, GAME.hitAnimationMs * 0.9, 0.1);
+  if (outcome.fielder) {
+    // To the man who got to it: a six he caught comes down to him high on the
+    // rope; anything he stopped runs out to him along the ground and is in his
+    // hands a stride short of where he stood.
+    const { distance, how } = outcome.fielder;
+    return how === 'caught'
+      ? { distance, height: 15, flightMs: hang(outcome), endY: 2, takeAt: 0.9, dropAt: 0, bounceAt: 0 }
+      : shape(Math.max(6, distance - 1.2), 0.22, GAME.hitAnimationMs * (how === 'stopped' ? 0.7 : 0.9), 0.1);
   }
   if (outcome.advance) return shape(78, 32, 2200, 0.1);
   if (outcome.swept) {

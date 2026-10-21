@@ -1,5 +1,5 @@
 import type { Bowler } from '../config/super10';
-import { guardOf, type FieldSet } from '../game/super10-field';
+import { DEEP_REACH, nearest, type FieldSet } from '../game/super10-field';
 
 /**
  * Super10's field on the screen, in the two versions being tried
@@ -55,7 +55,7 @@ export function fieldMapMarkup(field: FieldSet, { solid = false, lanes = false, 
     s += '<g class="s10-lanes">';
     for (const lane of LANES) {
       const [x, y] = P(lane, 44);
-      s += `<line x1="50" y1="54" x2="${x}" y2="${y}" class="${guardOf(field, lane) ? 'is-guarded' : 'is-open'}"/>`;
+      s += `<line x1="50" y1="54" x2="${x}" y2="${y}" class="${(nearest(field, lane, true)?.by ?? Infinity) <= DEEP_REACH ? 'is-guarded' : 'is-open'}"/>`;
     }
     s += '</g>';
   }
@@ -69,7 +69,7 @@ export function fieldMapMarkup(field: FieldSet, { solid = false, lanes = false, 
   for (const man of field.men) {
     const [x, y] = at(man);
     const fresh = prev && man.deep && !prev.men.some(n => n.deep && Math.abs(n.angle - man.angle) < 3);
-    s += `<circle cx="${x}" cy="${y}" r="${man.deep ? (fresh ? 4 : 3.4) : 2.4}" class="${man.deep ? 's10-deep' : 's10-man'}${man.captain ? ' is-captain' : ''}${fresh ? ' is-new' : ''}"/>`;
+    s += `<circle cx="${x}" cy="${y}" r="${man.deep ? (fresh ? 4 : 3.4) : 2.4}" class="${man.deep ? 's10-deep' : 's10-man'}${fresh ? ' is-new' : ''}"/>`;
   }
   s += `<circle cx="50" cy="54" r="2.8" class="s10-bat"/></svg>`;
   return `<span class="s10-map${solid ? ' is-solid' : ''}">${s}</span>`;
@@ -77,11 +77,11 @@ export function fieldMapMarkup(field: FieldSet, { solid = false, lanes = false, 
 
 /** The card at the foot: who is bowling, his field, and a line about it. */
 export function fieldCardMarkup(field: FieldSet, over: number, { prev = null, mirrored = false }: { prev?: FieldSet | null; mirrored?: boolean } = {}) {
-  const title = field.change === 'surge' ? 'POWER SURGE' : field.change === 'captain' ? 'FIELD CHANGE' : BOWLER_LABEL[field.bowler];
+  const title = field.change === 'surge' ? 'POWER SURGE' : field.change === 'plug' ? 'FIELD CHANGE' : BOWLER_LABEL[field.bowler];
   return `<div class="s10-card" style="--tone:${TONE[field.bowler]}" data-change="${field.change ?? ''}">
     <p class="s10-card-eyebrow"><span>OVER ${over + 1}</span><b>${title}</b></p>
     ${fieldMapMarkup(field, { solid: true, lanes: true, prev, mirrored })}
-    <p class="s10-card-note">${field.note}</p>
+    
     <p class="s10-card-key"><span class="s10-key-open">Open</span><span class="s10-key-guarded">On the rope</span><span class="s10-tap">Tap to bat</span></p>
   </div>`;
 }
@@ -150,7 +150,7 @@ export class FieldUi {
   overBegins(field: FieldSet, over: number, { prev, fresh }: { prev: FieldSet | null; fresh: boolean }) {
     this.field = field; this.over = over;
     this.pause.innerHTML = `<p class="s10-pause-head"><span>FIELD · OVER ${over + 1}</span><b>${field.change === 'surge' ? 'POWER SURGE' : BOWLER_LABEL[field.bowler]}</b></p>
-      ${fieldMapMarkup(field, { solid: true, lanes: true, mirrored: this.mirrored })}<p class="s10-pause-note">${field.note}</p>`;
+      ${fieldMapMarkup(field, { solid: true, lanes: true, mirrored: this.mirrored })}`;
     const changed = !!field.change && !!prev;
     this.foot.innerHTML = fieldMapMarkup(field, { mirrored: this.mirrored, prev: changed ? prev : null });
     if (changed) {
