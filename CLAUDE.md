@@ -1493,9 +1493,12 @@ Choose a mode. Until it has a board, an innings of it is practice
 (`practising`): posted nowhere, counted toward nothing, and the card says so.
 It is reached by `?mode=super10` off production only (`SUPER10_OPEN`).
 `scripts/super10-check.mjs` plays one through on the dev server: the bowlers in
-the schedule's order with their actions, the speed gun, the No. 3 named after a
-wicket, the practice card and nothing sent; with `SHOTS=dir` it photographs the
-death bowler's action from the batter's end.
+the schedule's order, one real ball from each kind with his own action, the
+speed gun, the No. 3 named after a wicket, the practice card and nothing sent.
+The actions are looked at in `bowler-sheet.html`, every action a row at the
+same moments, from the batter's end or side on (`scripts/bowler-sheet.mjs
+out-dir batter side`): a software-rendered game's clock does not land a
+screenshot on the frame it was asked for, and the sheet does.
 
 ## A newcomer's first innings
 
