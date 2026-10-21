@@ -1013,7 +1013,8 @@ export class Game {
       // Each entry is bowled, so the plan moves on with it, and the next man
       // walks out at once. An entry that ends the innings ends it, card and all.
       marathon: (balls: (number | 'W' | 'H')[]) => this.writeMarathon(balls),
-      // A Blast innings written ball by ball, the same way, for looking at its card.
+      // A Blast innings written ball by ball, the same way, for looking at its card,
+      // and a Super10 one, for jumping to its later bowlers.
       blast: (balls: (number | 'W')[]) => this.writeBlast(balls),
       // The star prompt on demand, for `rating-check.mjs`: which thing, asked
       // as the end of an innings would ask it, and nothing about when.
@@ -3919,6 +3920,8 @@ export class Game {
       } as ShotOutcome;
       this.score.record(outcome); this.generator.record(outcome);
       this.chaseBall(outcome);
+      // Super10's next man walks out, as he would off a real ball.
+      if (this.super10 && outcome.isWicket && !this.score.ended) { this.changed = 'OUT'; this.nextBatter(); }
     }
     this.hud.score(this.score);
     if (this.chasePassDue && !this.score.ended) this.celebrateChase();
