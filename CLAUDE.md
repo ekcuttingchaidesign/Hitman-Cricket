@@ -1461,7 +1461,9 @@ and every window but the miss narrowed by `DEATH_TIMING` in the last two overs
 
 Five bowlers bowl two overs each, never two running (`scheduleOf`): the swing
 bowler with the new ball in overs one and three (the Marathon's swing, late, no
-reverse: `SWING_LEVEL`), the seamer (the Blast's own over) in the second, the
+reverse: `SWING_LEVEL`, and the Marathon swing bowler's own balls at his speeds
+and time to the bat, about 150 and 0.55 seconds: `bowledAs` in the plan, where
+the Blast's arcade timing had the ball take 0.8), the seamer (the Blast's own over) in the second, the
 spinner always fourth and the sling bowler (the Marathon's express bowler)
 always fifth, the spinner and the seamer in the sixth and seventh in an order
 drawn off the seed, and the death bowler and the sling bowler closing it, eight,
@@ -1479,15 +1481,18 @@ them apart by their actions and the speed gun, which Super10 shows on every
 ball. A short, choppy run (its own `stride` and `accel`) with the ball at his
 belly in both hands; the ball arm looping out wide to his side and up above his
 head before a low hop (`loop`: the one arm path in the game that leaves the
-carry before the bound); front-on all the way; the arm dropping back behind him
-and whipping over straight and late; a deep fold and the back leg kicked high.
+carry before the bound), the front arm out level at the batter from the
+take-off; front-on all the way; the ball arm dropping back behind him and
+whipping over straight and late, the front arm turning over with it on the same
+clock and on round behind him (the loop branch of `frontArmAngle`); a deep fold
+and the back leg kicked high.
 The elbow's hyperextension is left out: the bowling arm is one straight limb.
 `tests/bowler.test.ts` holds him to every rule the other two actions keep, and
 `tests/super10.test.ts` to what makes him his.
 
 What is not here yet, being designed: the field (boundary riders, the captain
 at mid-off pointing the changes, Power Surge) that is meant to bring a strong
-player's totals from the 185 `scripts/super10-sim.ts` reports now towards a
+player's totals from the 167 `scripts/super10-sim.ts` reports now towards a
 very good innings of 140 to 160; the boards and the career; and a card on
 Choose a mode. Until it has a board, an innings of it is practice
 (`practising`): posted nowhere, counted toward nothing, and the card, headed

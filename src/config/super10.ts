@@ -98,8 +98,9 @@ export const KIND: Record<Bowler, OverKind> = { SWING: 'PACE', SEAM: 'PACE', SPI
 export const SEAM_LEVEL: Level = { level: 1, pace: 0, spin: 0, express: 0, swing: 1, late: 0 };
 /**
  * The swing bowler with the new ball: the Marathon's swing, later and further,
- * two thirds of what he rolls for swinging. No reverse: a ten-over ball is
- * never old enough for it.
+ * two thirds of what he rolls for swinging, and the Marathon's swing bowler's
+ * own balls, at his speeds and with his time to the bat (`bowledAs` in
+ * `SUPER10_PLAN`). No reverse: a ten-over ball is never old enough for it.
  */
 export const SWING_LEVEL: Level = { level: 2, pace: 0, spin: 0, express: 0, swing: 2.6, late: 0.4, swingShare: 0.6 };
 

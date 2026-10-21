@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BATTERS, DEATH_OVER, DEATH_TIMING, SIX_WINDOW, SUPER10, batterAt, scheduleOf, windowsAt, type Bowler as Super10Bowler } from '../src/config/super10';
 import { BATTERS as MARATHON_BATTERS } from '../src/config/marathon';
-import { DeliveryGenerator, SUPER10_PLAN, spun, withoutYorkers } from '../src/game/DeliveryGenerator';
+import { DeliveryGenerator, MARATHON_PLAN, SUPER10_PLAN, spun, withoutYorkers } from '../src/game/DeliveryGenerator';
 import { SeededRandom } from '../src/game/SeededRandom';
 import { Bowler, DEATH_ACTION, PACE_ACTION, PHASES } from '../src/entities/Bowler';
 import type { Delivery } from '../src/game/types';
@@ -80,6 +80,29 @@ describe('Super10: the bowling', () => {
     // Two thirds of what he rolls for: well over half his balls, every one held late.
     expect(swung / (40 * 12)).toBeGreaterThan(.45);
     expect(late).toBe(swung);
+  });
+
+  it('bowls the new ball at the Marathon swing bowler\'s pace, and as quick to the bat', () => {
+    // His own balls only: the Marathon's spinner shares those overs, and its reverse swing is not Super10's.
+    const swingBalls = (plan: typeof SUPER10_PLAN, overs: number[]) => {
+      const kph: number[] = [], ms: number[] = [];
+      for (const seed of SEEDS) {
+        const generator = new DeliveryGenerator(new SeededRandom(seed), plan);
+        for (let over = 0; over < SUPER10.overs; over++) {
+          const swinging = generator.overKind(over) === 'PACE' && generator.levelAt(over)?.swingShare !== undefined;
+          for (let ball = 0; ball < SUPER10.ballsPerOver; ball++) {
+            const d = generator.next(0);
+            if (overs.includes(over) && swinging && !spun(d) && !d.style.startsWith('REVERSE')) { kph.push(d.speedKph); ms.push(d.durationMs); }
+          }
+        }
+      }
+      const mean = (a: number[]) => a.reduce((t, v) => t + v, 0) / a.length;
+      return { kph: mean(kph), ms: mean(ms) };
+    };
+    const super10 = swingBalls(SUPER10_PLAN, [0, 2]);
+    const marathon = swingBalls(MARATHON_PLAN, [5, 6, 7, 8, 9]);
+    expect(Math.abs(super10.kph / marathon.kph - 1)).toBeLessThan(.03);
+    expect(Math.abs(super10.ms / marathon.ms - 1)).toBeLessThan(.05);
   });
 
   it('plans the death bowler\'s over: two yorkers, a slower ball, and his stock ball at his own pace', () => {
@@ -170,6 +193,27 @@ describe('Super10: the death bowler\'s action, against the fast bowler', () => {
     const [pace, death] = both(() => at((PHASES.BOUND + PHASES.BACK_FOOT) / 2));
     expect(death.hands[1][1]).toBeGreaterThan(death.chest[1] + .45);
     expect(death.hands[1][1]).toBeGreaterThan(pace.hands[1][1] + .4);
+  });
+
+  it('holds the front arm out level at the batter as he takes off, then turns it over with the ball arm', () => {
+    bowler.action(DEATH_ACTION);
+    const shoulderY = (st: ReturnType<typeof at>) => st.shoulders[0][1];
+    // At 0.54 seconds, in the hop: level with his shoulder, out in front of his chest.
+    const hop = at(.54 * 1000 / 840);
+    expect(Math.abs(hop.hands[0][1] - shoulderY(hop))).toBeLessThan(.12);
+    expect(hop.armReach[0]).toBeGreaterThan(.9);
+    // Still there when the ball arm starts its whip.
+    const whip = at(loop.drop);
+    expect(Math.abs(whip.hands[0][1] - shoulderY(whip))).toBeLessThan(.15);
+    // And halfway through the whip both arms are half way round: the front arm
+    // has dropped below his shoulder as the ball arm has risen above it.
+    const mid = at((loop.drop + 1) / 2);
+    expect(mid.hands[0][1]).toBeLessThan(shoulderY(mid) - .1);
+    expect(mid.hands[1][1]).toBeGreaterThan(shoulderY(mid) + .1);
+    // At the release it is down by his hip and going on behind him.
+    const release = at(1);
+    expect(release.hands[0][1]).toBeLessThan(release.hip[1] + .15);
+    bowler.action(PACE_ACTION);
   });
 
   it('stays front-on where the fast bowler turns side-on', () => {

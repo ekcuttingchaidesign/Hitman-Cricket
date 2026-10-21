@@ -12,6 +12,8 @@ import type { BallLine, Delivery, DeliveryStyle, ShotOutcome } from './types';
 type ExpressOver = Omit<typeof EXPRESS_OVER, 'yorkers'> & { yorkers: number };
 /** And Super10's death bowler's, the same way. */
 type DeathOver = Omit<typeof DEATH_OVER, 'yorkers'> & { yorkers: number };
+/** What an over is bowled off: the table rolled on, the padding of the flight, and whether it is aimed. */
+export interface Bowled { styles: typeof STYLES; travelScale: number; aimed: boolean }
 /** One ball of the death bowler's plan: what it is, and its own line and pace where they are not the stock ball's. */
 interface DeathBall { style: DeliveryStyle; line?: BallLine; pace?: { min: number; max: number } }
 /** What a mode's bowling is made of: the table to roll on and the two counters. */
@@ -68,6 +70,12 @@ export interface BlockPlan {
    * front, off the seed, where the blocks would have been.
    */
   fixed?: (rng: SeededRandom) => OverKind[];
+  /**
+   * An over bowled off another table and at another pace, where the plan says
+   * so: Super10's swing bowler bowls the Marathon swing bowler's balls, at his
+   * speeds and with his time to the bat. Null leaves the plan's own.
+   */
+  bowledAs?: (over: number) => Bowled | null;
   /**
    * Which overs are bowled round the wicket: none before `from`, and each one
    * after it with this chance. Absent, every over is bowled over the wicket.
@@ -272,6 +280,9 @@ export const SUPER10_PLAN: BowlingPlan = {
 /** Which overs of a Super10 schedule are the swing bowler's: the first and the third, always. */
 const SUPER10_SWING = new Set([0, 2]);
 SUPER10_PLAN.blocks!.levelAt = over => SUPER10_SWING.has(over) ? SWING_LEVEL : SEAM_LEVEL;
+/** And he bowls them as the Marathon's swing bowler does: Survival's table, at its speeds and its time to the bat, aimed. */
+const MARATHON_SWING: Bowled = { styles: SURVIVE_STYLES, travelScale: SURVIVE.travelScale, aimed: true };
+SUPER10_PLAN.blocks!.bowledAs = over => SUPER10_SWING.has(over) ? MARATHON_SWING : null;
 
 /**
  * Any mode's bowling with no yorker in it, for a newcomer's first innings (see
@@ -539,9 +550,15 @@ export class DeliveryGenerator {
    * dealt it. Answers null for anything the bowler is not aiming, which is most
    * of the over.
    */
+  /** What the over now in progress is bowled off: the plan's own, unless it says another (`bowledAs`). */
+  private get bowledOff(): Bowled {
+    const as = this.netting ? null : this.plan.blocks?.bowledAs?.(this.over);
+    return as ?? { styles: this.plan.styles, travelScale: this.plan.travelScale, aimed: !!this.plan.aimed };
+  }
   private aim(style: DeliveryStyle): BallLine | null {
-    if (!this.plan.aimed) return null;
-    const shape = this.plan.styles[style];
+    const bowled = this.bowledOff;
+    if (!bowled.aimed) return null;
+    const shape = bowled.styles[style];
     if (shape.aimBody && this.rng.next() < shape.aimBody) return this.pick(BODY_LINES);
     if (shape.aimWide && this.rng.next() < shape.aimWide) return this.pick(WIDE_LINES);
     return null;
@@ -628,7 +645,8 @@ export class DeliveryGenerator {
     return placed;
   }
   private chooseStyle(): DeliveryStyle {
-    const { specials, styles } = this.plan;
+    const { specials } = this.plan;
+    const { styles } = this.bowledOff;
     this.dragging = false; this.deathBall = null;
     // His over is all his too, as the express bowler's is.
     if (this.deathOn) {
@@ -729,7 +747,8 @@ export class DeliveryGenerator {
       : swingFrom ? this.pick([...swingFrom])
       : (this.aim(style) ?? this.bag.pop()!);
     if (QUICK_STYLES.includes(style)) this.quick++;
-    const shape = this.plan.styles[style];
+    const bowled = this.bowledOff;
+    const shape = bowled.styles[style];
     const express = this.expressOn;
     const death = this.deathOn;
     const round = this.roundOn;
@@ -759,7 +778,7 @@ export class DeliveryGenerator {
       : reversing ? clampX(LINE_X[line] + movement, LINE_X.OUTSIDE_OFF)
       : swung ? clampX(LINE_X[line] + movement, LINE_X.OUTSIDE_OFF + GAME.movement)
       : LINE_X[line] + movement;
-    const durationMs = (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * this.plan.travelScale * (shape.rush ?? 1);
+    const durationMs = (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * bowled.travelScale * (shape.rush ?? 1);
     this.bowled++;
     return { line, style, speedKph, baseTargetX: LINE_X[line], finalTargetX,
       bounceZ: dragged ? DRAGGED.bounce : shape.bounce ?? GAME.bounceZ, rise: dragged ? DRAGGED.rise : shape.rise ?? GAME.rise,

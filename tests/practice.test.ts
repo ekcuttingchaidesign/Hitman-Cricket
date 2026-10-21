@@ -69,6 +69,9 @@ describe('every switch the game reads', () => {
     ui: 'the UI kit laid out as a page, instead of the game, reading and sending nothing',
     gloves: 'which pair of gloves the strokes viewer opens with, a dev page that bats nothing',
     stroke: 'which stroke the strokes viewer opens on, a dev page that bats nothing',
+    fixed: 'holds the bowler sheet\'s camera still, a dev page that bats nothing',
+    tile: 'the size of the bowler sheet\'s frames, a dev page that bats nothing',
+    labels: 'leaves the names off the bowler sheet\'s frames, a dev page that bats nothing',
   };
 
   it('is either practice or named as not practice', () => {
