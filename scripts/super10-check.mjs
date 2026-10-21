@@ -9,8 +9,8 @@
  * five bowlers coming on over by over in the schedule's order — each with his
  * own action at the top of his mark, the death bowler's above all — the speed
  * gun on every ball, the next batter named as he walks out after a wicket, and
- * the card at the end calling it practice, with nothing sent to a board or a
- * career: Super10 has neither yet.
+ * the card at the end headed SUPER10 and saying it does not count yet, with
+ * nothing sent to a board or a career: Super10 has neither yet.
  *
  * The actions themselves are looked at in `bowler-sheet.html`
  * (`scripts/bowler-sheet.mjs`): a frame there is the frame asked for, which a
@@ -127,7 +127,11 @@ check(real.every(o => o.death === (o.kind === 'DEATH') && o.express === (o.kind 
 check(speeds.every(v => /^\d+$/.test(v ?? '')), 'the speed gun reads out every ball', speeds.slice(0, 12).join(' '));
 
 const card = await page.locator('#end').textContent().catch(() => '');
-check(/practice/i.test(card ?? ''), 'the card calls the innings practice', (card ?? '').slice(0, 160));
+const heading = `${await page.locator('#end-mode').textContent()} · ${await page.locator('#end-label').textContent()}`;
+check(heading === 'SUPER10 · 10 OVERS', 'the card is headed SUPER10 · 10 OVERS', heading);
+const note = (await page.locator('#card-board-head').textContent()) ?? '';
+check(/still being built/i.test(note), 'and says Super10 does not count yet', note);
+check(!/best stands/i.test(card ?? ''), 'and quotes no Blast best on it');
 check(sent.length === 0, 'nothing is sent to a board or a career', sent.join(', '));
 check(errors.length === 0, 'no errors on the page', errors.join(' | '));
 

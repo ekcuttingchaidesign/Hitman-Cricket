@@ -2641,9 +2641,9 @@ ${modeSelectMarkup()}
     this.$('ambience-switch').setAttribute('aria-checked', String(ambience));
     this.$('pause-sound-note').classList.toggle('hidden', !silent);
   }
-  end(score: ScoreManager, best: number, isRecord: boolean, track$: number = GAME.totalBalls) {
+  end(score: ScoreManager, best: number, isRecord: boolean, track$: number = GAME.totalBalls, mode = 'THE BLAST') {
     this.$('end').classList.remove('is-marathon');
-    this.$('end-mode').textContent = 'THE BLAST';
+    this.$('end-mode').textContent = mode;
     this.$('end-label').textContent = `${Math.round(track$ / 6)} OVERS`;
     // As on the Test card: the card carries its own sound key, so the game's
     // floating one steps aside rather than sitting on the header.
@@ -2834,6 +2834,12 @@ ${modeSelectMarkup()}
       this.$('card-board-head').innerHTML = 'Private window — this innings can’t go on the board';
       this.$('card-peek').innerHTML =
         '<p class="peek-note">Open the game in a normal tab to register a score.</p>';
+      key.innerHTML = door;
+    } else if (offer.kind === 'practice' && offer.why === 'building') {
+      // A mode still being built, with no board of its own to go on yet.
+      this.$('card-board-head').innerHTML = 'Super10 is still being built';
+      this.$('card-peek').innerHTML =
+        '<p class="peek-note">Its innings don’t go on a leaderboard or count toward a career yet.</p>';
       key.innerHTML = door;
     } else if (offer.kind === 'practice') {
       // Played with a switch in the link — the nets, a full meter, one bowler

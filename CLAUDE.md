@@ -1490,11 +1490,14 @@ at mid-off pointing the changes, Power Surge) that is meant to bring a strong
 player's totals from the 185 `scripts/super10-sim.ts` reports now towards a
 very good innings of 140 to 160; the boards and the career; and a card on
 Choose a mode. Until it has a board, an innings of it is practice
-(`practising`): posted nowhere, counted toward nothing, and the card says so.
+(`practising`): posted nowhere, counted toward nothing, and the card, headed
+SUPER10 · 10 OVERS with no best quoted, says the mode is still being built
+whatever the innings was worth (`why: 'building'` on the practice offer).
 It is reached by `?mode=super10` off production only (`SUPER10_OPEN`).
 `scripts/super10-check.mjs` plays one through on the dev server: the bowlers in
 the schedule's order, one real ball from each kind with his own action, the
-speed gun, the No. 3 named after a wicket, the practice card and nothing sent.
+speed gun, the No. 3 named after a wicket, the card's heading and its line,
+and nothing sent.
 The actions are looked at in `bowler-sheet.html`, every action a row at the
 same moments, from the batter's end or side on (`scripts/bowler-sheet.mjs
 out-dir batter side`): a software-rendered game's clock does not land a

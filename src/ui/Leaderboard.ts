@@ -474,8 +474,12 @@ export type CardOffer =
   | { kind: 'standing'; runs: number; place: number }
   /** A private window: the innings was worth a place and cannot be given one. */
   | { kind: 'private' }
-  /** Played with a switch in the link that changes the game: see `practice.ts`. */
-  | { kind: 'practice' }
+  /**
+   * Played with a switch in the link that changes the game (see `practice.ts`),
+   * or in a mode still being built, with no board yet (`why: 'building'`,
+   * Super10's).
+   */
+  | { kind: 'practice'; why?: 'building' }
   /**
    * Nothing on a board for this innings, and no name to the player's career
    * yet: claiming one is offered anyway, because the name is what keeps a

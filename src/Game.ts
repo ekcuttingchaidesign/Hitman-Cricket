@@ -2282,6 +2282,8 @@ export class Game {
    * a private window. An innings with nothing to offer stays quiet either way.
    */
   private shownOffer(offer: CardOffer): CardOffer {
+    // Super10 has no board yet, and says so whatever the innings was worth.
+    if (this.super10 && !this.challenge.playing) return { kind: 'practice', why: 'building' };
     // An innings with nothing for the boards still offers a name to a player
     // who has none — not from a private window, which cannot keep one, nor
     // practice, nor a Rival Match, whose card is the match's.
@@ -5013,7 +5015,9 @@ export class Game {
 
   /** The five-over card, with the strip, the key and the board under it. */
   private showBlastCard(record: boolean, fromMatch = false) {
-    this.hud.end(this.score, this.best, record);
+    // Super10's card is the Blast's, for ten overs, with no best of its own to quote yet.
+    if (this.super10) this.hud.end(this.score, 0, record, this.limits.totalBalls, 'SUPER10');
+    else this.hud.end(this.score, this.best, record);
     this.hud.matchScorecard(fromMatch);
     // The way to the career card from the innings card. Offered only where a
     // career is actually being kept: a private window counts nothing, so a
