@@ -65,12 +65,13 @@ await page.waitForTimeout(800);
 const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });
 if (await anyway.count()) { await anyway.first().click(); await advance(1200); await page.waitForTimeout(300); }
 await page.locator('#start').click({ force: true });
-await advance(600);
 
-const first = await until(['READY']);
+// In small steps: the opener is named only until the first ball is bowled.
+const first = await until(['READY'], 800, 16);
 check(first.super10 !== null, '?mode=super10 starts a Super10 innings', JSON.stringify(first.super10));
 check(first.super10?.practising === true, 'and it is counted as practice until it has a board');
-check((await page.locator('#phase-label').textContent())?.startsWith('OPENER IN'), 'the opener is named as he walks out', await page.locator('#phase-label').textContent());
+const opener = await page.locator('#phase-label').textContent();
+check(first.balls === 0 && !!opener?.startsWith('OPENER IN'), 'the opener is named as he walks out', `${opener} (balls ${first.balls})`);
 
 const ACTION = { PACE: 'pace', SPIN: 'pace', EXPRESS: 'express', DEATH: 'death' };
 const kinds = [];
