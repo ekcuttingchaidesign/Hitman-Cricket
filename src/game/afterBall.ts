@@ -86,6 +86,8 @@ export interface Pace {
  */
 export const PACES: Record<GameMode, Pace> = {
   CLASSIC: { chance: .5, gap: 0 }, SURVIVE: { chance: .25, gap: 4 }, MARATHON: { chance: .25, gap: 4 },
+  // Super10 is twice the Blast: a little fewer, and not on two balls running.
+  SUPER10: { chance: .35, gap: 1 },
 };
 
 /** Beaten playing a drive or a block: most of the time, whatever the mode. */

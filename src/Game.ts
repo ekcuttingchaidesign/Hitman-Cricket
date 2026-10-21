@@ -17,6 +17,7 @@ import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro, type IntroGame } from './ui/MarathonIntro';
 import { CONFIDENCE_STEP, SHOTS_STEP, howToDue, noteHowTo, playedBefore } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
+import { SUPER10, batterAt as super10Batter, windowsAt as super10Windows } from './config/super10';
 import { MarathonInnings, leftHandersOf, marathonFigures, type Change } from './game/Marathon';
 import { soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
 import { marathonOffer, type MarathonLadder } from './ui/MarathonBoard';
@@ -26,7 +27,7 @@ import { Health } from './game/Health';
 import { TAILENDER, endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { EASE, easeFor, easedSkill, easedWindows, notePlayed, playedIn, seedPlayed } from './game/newcomer';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SURVIVE_PLAN, bouncersEvery, lateCutsEvery, spinCutsEvery, spinPullsEvery, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SUPER10_PLAN, SURVIVE_PLAN, bouncersEvery, lateCutsEvery, spinCutsEvery, spinPullsEvery, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -202,6 +203,13 @@ const SHOW_MARATHON = !SURVIVE_ONLY && (!!import.meta.env.VITE_SHOW_MARATHON
 const PREVIEW_FILL = !SURVIVE_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production';
 const MARATHON_OPEN = SHOW_MARATHON || (!SURVIVE_ONLY
   && new URLSearchParams(location.search).get('mode')?.toLowerCase() === 'marathon');
+/**
+ * Whether Super10 can be played here: off production only, from a link that
+ * names it (`?mode=super10`), while it is built. It has no card on the picker
+ * yet, no board and no career, so an innings of it is played and counted for
+ * nothing (`practising`).
+ */
+const SUPER10_OPEN = !SURVIVE_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production';
 
 /**
  * When the ghost's ball appears, and how long it holds.
@@ -254,6 +262,10 @@ const SURVIVE_LIMITS: InningsLimits = {
  */
 const MARATHON_LIMITS: InningsLimits = {
   totalBalls: MARATHON.maxBalls, maxWickets: MARATHON.batters, ballsPerOver: MARATHON.ballsPerOver,
+};
+/** Super10's: ten overs, three wickets, and `ScoreManager` ends it on either. */
+const SUPER10_LIMITS: InningsLimits = {
+  totalBalls: SUPER10.totalBalls, maxWickets: SUPER10.maxWickets, ballsPerOver: SUPER10.ballsPerOver,
 };
 
 /** The longest the bowler waits past `readyMs` for the field to be back on its marks. */
@@ -914,7 +926,7 @@ export class Game {
     const named = SURVIVE_ONLY ? 'SURVIVE' : new URLSearchParams(location.search).get('mode')?.toUpperCase();
     // Off production the Marathon has a card on the picker; on it, until it
     // ships, it is this link and nothing else. See `docs/MARATHON.md`.
-    if (named === 'SURVIVE' || named === 'CLASSIC' || named === 'MARATHON') {
+    if (named === 'SURVIVE' || named === 'CLASSIC' || named === 'MARATHON' || (named === 'SUPER10' && SUPER10_OPEN)) {
       this.mode = named as GameMode;
       this.locked = true;
       this.hud.lockMode(SURVIVE_ONLY);
@@ -2245,6 +2257,8 @@ export class Game {
   private get surviving() { return this.mode === 'SURVIVE'; }
   /** Test Marathon: three batters, and no end but theirs. */
   private get marathoning() { return this.mode === 'MARATHON'; }
+  /** Super10: the Blast's ball for ten overs, three batters and five bowlers. */
+  private get super10() { return this.mode === 'SUPER10'; }
   /**
    * Either Test mode: Survival's ball — its ladder, its injury meter, no
    * confidence and no charge. Which of the two decides everything else.
@@ -2252,14 +2266,16 @@ export class Game {
   private get hurts() { return this.surviving || this.marathoning; }
   /** A Test match of either kind: how it looks — whites, the Test field, by day. See `modes.ts`. */
   private get test() { return isTest(this.mode); }
-  private get limits() { return this.surviving ? SURVIVE_LIMITS : this.marathoning ? MARATHON_LIMITS : CLASSIC_LIMITS; }
+  private get limits() {
+    return this.surviving ? SURVIVE_LIMITS : this.marathoning ? MARATHON_LIMITS : this.super10 ? SUPER10_LIMITS : CLASSIC_LIMITS;
+  }
   /** The switches in this link that change the game: see `practice.ts`. */
   private readonly switches = practiceSwitches(location.search, { spinOnly: SPIN_ONLY, chargeOnly: CHARGE_ONLY });
   /**
    * This innings was played with one of them. Not in a Rival Match, where
    * they do nothing: a match has to send its innings to finish.
    */
-  private get practising() { return this.switches.length > 0 && !this.challenge.playing; }
+  private get practising() { return (this.switches.length > 0 || this.super10) && !this.challenge.playing; }
   /**
    * What a card offers, once the innings is known to be practice or played in
    * a private window. An innings with nothing to offer stays quiet either way.
@@ -2357,8 +2373,13 @@ export class Game {
     const career = this.myCareer[mode]?.career ?? heldCareer(mode);
     return easeFor(playedIn(mode, readStored, career.innings));
   }
-  /** The Blast's windows for this innings, a newcomer's if it is helped. */
-  private get windows() { return easedWindows(GAME.timing, this.ease); }
+  /**
+   * The Blast's windows for this innings, a newcomer's if it is helped. In
+   * Super10, whoever is in, and narrower at the death.
+   */
+  private get windows() {
+    return easedWindows(this.super10 ? super10Windows(this.score.wickets, this.score.balls) : GAME.timing, this.ease);
+  }
   /**
    * The grade the mode that pays for this swing gives it: the Blast's windows,
    * or Survival's and the Marathon batter's own, so a stroke picked by its
@@ -2377,7 +2398,7 @@ export class Game {
       return marathonOnly({ swing: this.swingOnly, express: this.expressOnly, reverse: this.reverseOnly });
     }
     if (this.marathoning && this.wearFast) return marathonFastWear();
-    const plan = this.surviving ? SURVIVE_PLAN : this.marathoning ? MARATHON_PLAN : CLASSIC_PLAN;
+    const plan = this.surviving ? SURVIVE_PLAN : this.marathoning ? MARATHON_PLAN : this.super10 ? SUPER10_PLAN : CLASSIC_PLAN;
     if (this.bouncersOnly || this.hooksOnly) return bouncersEvery(plan, this.hooksOnly);
     if (this.spinCutsOnly) return spinCutsEvery(plan);
     if (this.spinPullsOnly) return spinPullsEvery(plan);
@@ -2401,7 +2422,7 @@ export class Game {
   /** How long after the ideal moment a swing still counts as a swing at all. */
   private get swingWindow() {
     if (this.marathon) return this.marathon.current.batter.timing.poor;
-    return this.surviving ? SURVIVE.timing.poor : GAME.timing.poor;
+    return this.surviving ? SURVIVE.timing.poor : this.super10 ? this.windows.poor : GAME.timing.poor;
   }
   /**
    * A moment, named for the innings it happened in.
@@ -2439,6 +2460,7 @@ export class Game {
   private named(name: string, title: string): [string, string] {
     const [moded, said]: [string, string] = this.surviving ? [`survive-${name}`, `Test match: ${title}`]
       : this.marathoning ? [`marathon-${name}`, `Test Marathon: ${title}`]
+      : this.super10 ? [`super10-${name}`, `Super10: ${title}`]
       : [name, title];
     return this.practising ? [`practice-${moded}`, `Practice: ${said}`] : [moded, said];
   }
@@ -3752,7 +3774,7 @@ export class Game {
       this.scene.reset(true); this.input.reset();
       // After the reset, which hands the ball back to the quick bowler.
       this.scene.spinner(spun(this.delivery));
-      this.scene.express(!!this.delivery.express);
+      this.scene.express(!!this.delivery.express, !!this.delivery.death);
       this.scene.round(!!this.delivery.round);
       this.showConfidence(); this.setPhase('BOWLER_RUNUP');
       // The stands lift as he runs in, and settle once the ball has gone.
@@ -3761,8 +3783,10 @@ export class Game {
       this.scene.runup(Math.min(1, age / GAME.runupMs));
       if (age >= GAME.runupMs) {
         this.delivery!.releaseTimeMs = this.elapsed; this.delivery!.idealContactTimeMs = this.elapsed + this.delivery!.durationMs; this.setPhase('BALL_IN_FLIGHT');
-        // Out of the hand, onto the gun. The Marathon's first; see `speed-gun.ts`.
-        if (this.marathon) this.hud.speed(shownKph(this.delivery!.speedKph));
+        // Out of the hand, onto the gun: the Marathon's, and Super10's, whose
+        // five bowlers are told apart by their pace as much as their actions.
+        // See `speed-gun.ts`.
+        if (this.marathon || this.super10) this.hud.speed(shownKph(this.delivery!.speedKph));
       }
     } else if (this.phase === 'BALL_IN_FLIGHT' && this.delivery) {
       const progress = flightProgress(this.delivery, this.elapsed - this.delivery.releaseTimeMs);
@@ -3850,6 +3874,9 @@ export class Game {
         }
       } else {
         this.confidence.record(this.outcome);
+        // Super10's next man walks out once this ball is dead, as the
+        // Marathon's does: the score says who, by the wickets down.
+        if (this.super10 && this.outcome.isWicket && !this.score.ended) this.changed = 'OUT';
       }
       this.showConfidence();
       // Not about a Marathon batter this ball has already taken out of the
@@ -3942,12 +3969,12 @@ export class Game {
    * carried off was put on the ground, and nothing but a reset lifts him.
    */
   private nextBatter() {
-    const marathon = this.marathon!;
+    const marathon = this.marathon;
     this.mark(this.changed === 'OUT' ? 'batter-out' : 'batter-retired',
       this.changed === 'OUT' ? 'A batter dismissed' : 'A batter retired hurt');
     this.changed = null; this.felled = false;
     this.playedFrom = this.score.balls;
-    this.health = marathon.current.health;
+    if (marathon) this.health = marathon.current.health;
     this.wasCritical = false;
     this.nearing = null; this.hud.nearing(null, null);
     this.scene.newBatter();
@@ -3966,7 +3993,7 @@ export class Game {
     const left = man ? man.left : readHand() === 'left';
     this.scene.leftHanded(left);
     this.hud.sides(left);
-    this.hud.walkingOut(man?.batter.title ?? null);
+    this.hud.walkingOut(man?.batter.title ?? (this.super10 ? super10Batter(this.score.wickets).title : null));
   }
   /**
    * The player has had enough, from the pause card. Refused before twenty
@@ -5667,7 +5694,17 @@ export class Game {
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
       pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, pullPen: this.pullPen,
       mirrored: this.scene.mirrored, look: this.scene.wearing, fieldingKit: this.scene.fieldingKit, chase: this.chase ? { handle: this.chase.handle, mode: this.chase.mode, target: this.chase.target } : null, marathon: this.marathon ? this.marathonState() : null,
+      super10: this.super10 ? this.super10State() : null,
       standing: this.standing, ease: this.ease };
+  }
+  /** Where a Super10 innings stands, for `super10-check.mjs`. */
+  private super10State() {
+    const over = Math.floor(this.score.balls / SUPER10.ballsPerOver);
+    return {
+      over, batter: super10Batter(this.score.wickets).title, bowler: this.generator.overKind(over),
+      express: !!this.delivery?.express, death: !!this.delivery?.death, action: this.scene.bowlerAction,
+      speed: this.delivery?.speedKph ?? null, windows: this.windows, practising: this.practising,
+    };
   }
   /** Where a Marathon innings stands, for `marathon-check.mjs`. */
   private marathonState() {
@@ -5779,7 +5816,7 @@ const TOP_SPOT_KEYS: readonly { label: string; mode: CareerMode }[] = [
   { label: 'BLAST', mode: 'classic' }, { label: 'MARATHON', mode: 'marathon' }, { label: 'SURVIVAL', mode: 'survive' },
 ];
 
-const PAUSE_NAMES: Record<GameMode, string> = { CLASSIC: 'The Blast', SURVIVE: 'Test Survival', MARATHON: 'Test Marathon' };
+const PAUSE_NAMES: Record<GameMode, string> = { CLASSIC: 'The Blast', SURVIVE: 'Test Survival', MARATHON: 'Test Marathon', SUPER10: 'Super10' };
 const CHEER: Record<Milestone, number> = { fifty: 2.3, raise: 2.3, century: 2.8, 'six-sixes': 2.8, double: 3.1, triple: 3.3, four: 3.5 };
 const MOMENT_SAID: Record<Milestone, string> = {
   fifty: 'Reached fifty', raise: 'Reached another fifty', century: 'Reached a hundred', 'six-sixes': 'Six sixes in a row',

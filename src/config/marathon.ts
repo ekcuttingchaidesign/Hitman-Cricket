@@ -92,8 +92,11 @@ export const BATTERS: readonly Batter[] = [
   { role: 'TAILENDER', title: 'TAILENDER', timing: SURVIVE.timing, bands: BANDS },
 ];
 
-/** Which of the three bowlers has the over. */
-export type OverKind = 'PACE' | 'SPIN' | 'EXPRESS';
+/**
+ * Which bowler has the over: pace, spin or the express bowler — the Marathon's
+ * three — or Super10's death bowler, who bowls nowhere else.
+ */
+export type OverKind = 'PACE' | 'SPIN' | 'EXPRESS' | 'DEATH';
 
 /**
  * The bowling, in blocks of ten overs. The block is the innings' over number,

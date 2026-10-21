@@ -1448,6 +1448,55 @@ The orthodox sweep (`FLAT_SWEEP`) is still built on the kneel the slog was
 before (`KNEELING_SWEEP`) and meets the ball where the drives do. It is
 `sweep` in the batter tests' `PLAYS`, with its `meets`.
 
+## Super10: ten overs, five bowlers
+
+Super10 (`SUPER10` in `src/game/modes.ts`, its numbers in `src/config/super10.ts`)
+is the Blast's ball for ten overs: `resolveShot`, the confidence meter and the
+charge, coloured kit, the Blast field and the lights by the player's clock.
+Three wickets, and the batters are the Marathon's three, opener, No. 3 and
+tailender, by how many are down (`batterAt`), each named walking out
+(`walkingOut`), with the window for a six narrowed to `SIX_WINDOW` of theirs
+and every window but the miss narrowed by `DEATH_TIMING` in the last two overs
+(`windowsAt`, read through `windows` in `src/Game.ts`).
+
+Five bowlers bowl two overs each, never two running (`scheduleOf`): the swing
+bowler with the new ball in overs one and three (the Marathon's swing, late, no
+reverse: `SWING_LEVEL`), the seamer (the Blast's own over) in the second, the
+spinner always fourth and the sling bowler (the Marathon's express bowler)
+always fifth, the spinner and the seamer in the sixth and seventh in an order
+drawn off the seed, and the death bowler and the sling bowler closing it, eight,
+nine and ten. The generator takes it as a fixed schedule (`blocks.fixed` in
+`SUPER10_PLAN`, `src/game/DeliveryGenerator.ts`). The death bowler is new and
+bowls nowhere else: his over is planned at its top as the express bowler's is
+(`placeDeath`, `DEATH_OVER`): two yorkers, one of them often wide of off, a
+dipping slower ball, half the time a slower bouncer, the rest full and quick at
+135 to 145, every ball flagged `death`.
+
+His action (`DEATH_ACTION`, `DEATH_RUN` in `src/entities/Bowler.ts`) was built
+from slow-motion clips of the most famous death bowler, from behind the batter
+and side on, and he is never named: no bowler is, in any mode, and players tell
+them apart by their actions and the speed gun, which Super10 shows on every
+ball. A short, choppy run (its own `stride` and `accel`) with the ball at his
+belly in both hands; the ball arm looping out wide to his side and up above his
+head before a low hop (`loop`: the one arm path in the game that leaves the
+carry before the bound); front-on all the way; the arm dropping back behind him
+and whipping over straight and late; a deep fold and the back leg kicked high.
+The elbow's hyperextension is left out: the bowling arm is one straight limb.
+`tests/bowler.test.ts` holds him to every rule the other two actions keep, and
+`tests/super10.test.ts` to what makes him his.
+
+What is not here yet, being designed: the field (boundary riders, the captain
+at mid-off pointing the changes, Power Surge) that is meant to bring a strong
+player's totals from the 185 `scripts/super10-sim.ts` reports now towards a
+very good innings of 140 to 160; the boards and the career; and a card on
+Choose a mode. Until it has a board, an innings of it is practice
+(`practising`): posted nowhere, counted toward nothing, and the card says so.
+It is reached by `?mode=super10` off production only (`SUPER10_OPEN`).
+`scripts/super10-check.mjs` plays one through on the dev server: the bowlers in
+the schedule's order with their actions, the speed gun, the No. 3 named after a
+wicket, the practice card and nothing sent; with `SHOTS=dir` it photographs the
+death bowler's action from the batter's end.
+
 ## A newcomer's first innings
 
 The first three finished innings in each mode are batted a little easier

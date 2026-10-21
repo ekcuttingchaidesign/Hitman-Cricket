@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt } from '../entities/Batter';
-import { ACTION_MS, Bowler, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
+import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
 import { bodyOf, showBody } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
 import { BLAST_FIELD, Field, TEST_FIELD } from './field';
@@ -962,13 +962,17 @@ export class GameScene {
    */
   spinner(on: boolean) { this.bowler.spinner(on); }
   /**
-   * And whose action he bowls it with: the Marathon's express bowler in his
-   * overs, the fast bowler in everyone else's. Set beside `spinner`, every ball,
-   * so an over can never inherit the last one's.
+   * And whose action he bowls it with: the express bowler's in his overs (the
+   * Marathon's, and Super10's sling bowler), Super10's death bowler's in his,
+   * and the fast bowler's in everyone else's. Set beside `spinner`, every
+   * ball, so an over can never inherit the last one's.
    */
-  express(on: boolean) { this.bowler.action(on ? EXPRESS_ACTION : PACE_ACTION); }
+  express(on: boolean, death = false) { this.bowler.action(death ? DEATH_ACTION : on ? EXPRESS_ACTION : PACE_ACTION); }
   /** Which action is at the top of the mark, for the checks. */
-  get bowlerAction() { return this.bowler.actionStyle === EXPRESS_ACTION ? 'express' : 'pace'; }
+  get bowlerAction() {
+    const style = this.bowler.actionStyle;
+    return style === EXPRESS_ACTION ? 'express' : style === DEATH_ACTION ? 'death' : 'pace';
+  }
   /**
    * And which side of the stumps he bowls it from: round the wicket in the
    * Marathon's overs that are, over it in everyone else's. Set beside

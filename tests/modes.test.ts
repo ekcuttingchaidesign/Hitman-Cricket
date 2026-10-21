@@ -29,6 +29,8 @@ describe('the modes', () => {
     expect(isTest('CLASSIC')).toBe(false);
     expect(isTest('SURVIVE')).toBe(true);
     expect(isTest('MARATHON')).toBe(true);
+    // Super10 is the Blast's ball for ten overs, in coloured kit.
+    expect(isTest('SUPER10')).toBe(false);
   });
 });
 
