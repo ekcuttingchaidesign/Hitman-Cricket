@@ -73,23 +73,25 @@ interface Plan { deep: number[]; ring: [number, number][]; note: string }
 /**
  * Each bowler's field. The swing bowler and the seamer have a Powerplay
  * field of their own for the first three overs, two men back at most; after
- * it four. Every field has the captain at mid-off, the first of its ring.
+ * it four. Every field has the captain at mid-off, the first of its ring:
+ * fifteen degrees off straight, which is as wide as the camera behind the bat
+ * still sees him, because the point of him is to be seen moving the others.
  */
 const PLANS: Record<string, Plan> = {
   // The swing bowler bowls only in the Powerplay; out of it, were the
   // schedule ever to give him an over there, he has the seamer's field.
-  'SWING-pp': { deep: [-160, 150], ring: [[22, 22], [160, 15], [95, 22], [50, 23], [-18, 24], [-60, 23], [-100, 21]],
+  'SWING-pp': { deep: [-160, 150], ring: [[15, 25], [160, 15], [95, 22], [50, 23], [-18, 24], [-60, 23], [-100, 21]],
     note: 'Fine leg and third man back. Everything in front is open.' },
-  'SEAM-pp': { deep: [-100, 150], ring: [[22, 22], [95, 22], [50, 23], [-18, 24], [-58, 23], [-150, 18], [130, 19]],
+  'SEAM-pp': { deep: [-100, 150], ring: [[15, 25], [95, 22], [50, 23], [-18, 24], [-58, 23], [-150, 18], [130, 19]],
     note: 'Deep square leg and third man back. Hit it straight.' },
-  SEAM: { deep: [-60, 98, -20, 150], ring: [[20, 23], [50, 23], [-100, 21], [-150, 18], [125, 20]],
+  SEAM: { deep: [-60, 98, -20, 150], ring: [[15, 25], [50, 23], [-100, 21], [-150, 18], [125, 20]],
     note: 'Deep midwicket, deep point, long-on and third man. Straight and through cover are open.' },
   get SWING() { return this.SEAM; },
-  SPIN: { deep: [-18, 18, -60, -100], ring: [[24, 21], [95, 22], [50, 23], [-150, 18], [-35, 20]],
+  SPIN: { deep: [-18, 18, -60, -100], ring: [[15, 25], [95, 22], [50, 23], [-150, 18], [-35, 20]],
     note: 'Leg side packed. Straight and square on the off side are open.' },
-  SLING: { deep: [-160, -100, 150, 18], ring: [[24, 21], [95, 22], [50, 23], [-18, 24], [-60, 23]],
+  SLING: { deep: [-160, -100, 150, 18], ring: [[15, 25], [95, 22], [50, 23], [-18, 24], [-60, 23]],
     note: 'Three back behind square for the bouncer, and long-off. Straight and to leg are open.' },
-  DEATH: { deep: [-15, 15, -58, 98], ring: [[24, 21], [45, 23], [-150, 20], [-95, 22], [125, 21]],
+  DEATH: { deep: [-15, 15, -58, 98], ring: [[15, 25], [45, 23], [-150, 20], [-95, 22], [125, 21]],
     note: 'Both long boundaries, deep midwicket and deep point. Find the gaps either side of straight.' },
 };
 

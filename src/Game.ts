@@ -2549,7 +2549,9 @@ export class Game {
     this.scene.super10Field(drawnOf(field), walk, (walk && signalFor(prev, field)) || undefined);
     const fresh = !s10.seen.has(field.id);
     s10.seen.add(field.id);
-    this.fieldUi.overBegins(field, over, { prev, fresh });
+    // A changed field is shown against the bowler's own, which is what the captain or the surge moved.
+    const own = field.change ? fieldFor({ bowler: field.bowler, over }) : prev;
+    this.fieldUi.overBegins(field, over, { prev: prev && own, fresh });
     this.fieldUi.surge(surge ? 'on' : surgeOffered(over, s10.armed) ? 'offer' : null);
     if (field.change === 'captain') this.mark(`captain-${s10.captain}`, 'The captain changed the field');
   }
@@ -3906,7 +3908,8 @@ export class Game {
     // at one sometimes caught on the rope.
     if (!step && this.super10 && this.s10.field) {
       this.outcome = fieldRules(this.outcome, this.attempt?.shotType, this.s10.field, this.rng);
-      if (this.outcome.runs >= 4) this.s10.scored.push(sectorOf(this.outcome, this.attempt?.shotType));
+      // Every boundary struck, cut off or not, is a place the captain wants a man.
+      if (this.outcome.runs >= 4 || this.outcome.rope) this.s10.scored.push(sectorOf(this.outcome, this.attempt?.shotType));
       if (this.outcome.rope) this.mark(this.outcome.isWicket ? 'rope-catch' : 'cut-off', this.outcome.isWicket ? 'Caught on the rope' : 'A four cut off');
     }
     if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);

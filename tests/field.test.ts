@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { BLAST_FIELD, Field, TEST_FIELD, type Visible } from '../src/scene/field';
+import { BLAST_FIELD, Field, TEST_FIELD, mark, type Mark, type Visible } from '../src/scene/field';
+import { drawnOf, fieldFor } from '../src/game/super10-field';
 import { DIVE, SPRINT, bodyOf, midpointOfHands } from '../src/entities/Fielder';
 import { standPose } from '../src/entities/Cricketer';
 
@@ -304,3 +305,35 @@ describe('the field', () => {
   });
 });
 
+
+describe('Super10\'s field on the ground', () => {
+  const marksOf = (field: ReturnType<typeof fieldFor>): Mark[] => drawnOf(field).map((m, i) => ({
+    name: `${i}`, spot: mark(m.angle, m.distance), style: 'loose', deep: m.deep,
+  }));
+
+  it('walks every man to the next over\'s field, the captain signalling first, and settles', () => {
+    const field = new Field();
+    const from = fieldFor({ bowler: 'SPIN', over: 5 }), to = fieldFor({ bowler: 'SPIN', over: 5, captain: 'tight', scored: [100] });
+    field.setField(marksOf(from));
+    const next = marksOf(to);
+    const rider = mark(100, to.men.find(m => m.deep && m.angle === 100)!.distance);
+    field.moveTo(next, HIT, { kind: 'back', to: rider });
+    const state = field.state(HIT + 300);
+    expect(state.fielders[0].action).toBe('Signalling');
+    // Every new mark is somebody's, the captain's his own.
+    expect(field.state(HIT + 20_000).fielders.map(f => f.name).sort()).toEqual(next.map(m => m.name).sort());
+    expect(field.state(HIT + 20_000).fielders[0].name).toBe('0');
+    expect(field.settled(HIT + 6000)).toBe(true);
+  });
+
+  it('takes a catch on the rope where the boundary rider stands', () => {
+    const field = new Field();
+    field.setField(marksOf(fieldFor({ bowler: 'DEATH', over: 7 })));
+    const at = mark(-15, fieldFor({ bowler: 'DEATH', over: 7 }).men.find(m => m.angle === -15)!.distance);
+    const target = new THREE.Vector3(at.x, 2, at.z);
+    const plan = field.struck(HIT, HIT + 1900, look, { angle: deg(-15), height: 2, arrives: HIT + HANG, dropped: false, visible: () => true, at: target })!;
+    expect(plan).not.toBeNull();
+    expect(plan.hands.distanceTo(target)).toBeLessThan(.8);
+    expect(field.state(HIT).catcher).not.toBeNull();
+  });
+});

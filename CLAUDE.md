@@ -1493,7 +1493,8 @@ The elbow's hyperextension is left out: the bowling arm is one straight limb.
 The field (`src/game/super10-field.ts`, in `tests/super10-field.test.ts`) is
 nine men, each bowler setting his own (`fieldFor`; the swing bowler and the
 seamer a Powerplay field of two back for the first three overs, four back
-after it), the captain at mid-off in every one. It matters through
+after it), the captain at mid-off in every one, fifteen degrees off straight so
+the camera behind the bat sees him. It matters through
 `fieldRules`, laid on `resolveShot`'s answer in `resolve`: a four struck within
 `GUARD` (14 degrees) of a boundary rider is cut off for one or two, a six at one
 is caught on the rope three times in ten (`ROPE_CATCH`), and the outcome

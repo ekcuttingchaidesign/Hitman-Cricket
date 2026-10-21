@@ -62,7 +62,7 @@
 .s10-card-key .s10-tap::before{display:none}
 
 /* Version a: always at the foot, so faint the ground shows through. */
-.s10-foot{position:absolute;left:50%;bottom:calc(var(--pad-bottom) + calc(var(--u) * 18));z-index:3;width:calc(var(--u) * 104);transform:translateX(-50%);
+.s10-foot{position:absolute;left:50%;bottom:calc(var(--pad-bottom) + calc(var(--u) * 64));z-index:3;width:calc(var(--u) * 104);transform:translateX(-50%);
   opacity:.55;pointer-events:none;transition:opacity 400ms ease}
 .s10-foot .s10-rope{stroke:#ffffff59;stroke-width:.9}
 .s10-foot .s10-ring{stroke:#ffffff2e}
