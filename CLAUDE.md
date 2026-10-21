@@ -1502,6 +1502,10 @@ The actions are looked at in `bowler-sheet.html`, every action a row at the
 same moments, from the batter's end or side on (`scripts/bowler-sheet.mjs
 out-dir batter side`): a software-rendered game's clock does not land a
 screenshot on the frame it was asked for, and the sheet does.
+`bowler.html` (`src/bowler-preview.ts`) has all three actions live in 3D, on a
+pitch with a batter at the far end, with a camera to turn round him, set views
+and one that follows his run; `scripts/bowler-artifact.mjs` builds it into
+one file, as `cover-drive-artifact.mjs` does the strokes.
 
 ## A newcomer's first innings
 
