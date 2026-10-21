@@ -3,15 +3,18 @@
 // (as the game's camera sees him, closer) or side on, the reference clips'
 // angles. Dev tool, like `rig-sheet.ts`; `scripts/bowler-sheet.mjs` drives it.
 import * as THREE from 'three';
-import { Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION, type ActionStyle } from './entities/Bowler';
+import { Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION, RELEASE_Z, type ActionStyle } from './entities/Bowler';
 
 const params = new URLSearchParams(location.search);
 const view = params.get('view') ?? 'batter';
+// `?fixed=1` holds the camera still, framed on the crease, so he runs in
+// towards it rather than being followed; `?tile=` sizes the frames.
+const fixed = params.get('fixed') === '1';
 const ACTIONS: Record<string, ActionStyle> = { pace: PACE_ACTION, express: EXPRESS_ACTION, death: DEATH_ACTION };
 const rows = (params.get('actions') ?? 'pace,express,death').split(',').filter(a => a in ACTIONS);
 // Moments: run-up fractions, then `f` and a fraction for the follow-through.
 const moments = (params.get('times') ?? '.3,.46,.52,.64,.8,.9,.97,1,f.12,f.3').split(',');
-const TILE = 260, COLS = moments.length, ROWS = rows.length;
+const TILE = Number(params.get('tile')) || 260, COLS = moments.length, ROWS = rows.length;
 const canvas = document.createElement('canvas');
 canvas.width = COLS * TILE; canvas.height = ROWS * TILE; canvas.id = 'sheet';
 document.body.append(canvas);
@@ -30,7 +33,7 @@ const pitch = new THREE.Mesh(new THREE.PlaneGeometry(3, 20.1), new THREE.MeshSta
 pitch.rotation.x = -Math.PI / 2; pitch.position.set(0, .002, 10); world.add(pitch);
 
 const bowler = new Bowler(); world.add(bowler.root);
-const camera = new THREE.PerspectiveCamera(view === 'side' ? 26 : 13, 1, .1, 80);
+const camera = new THREE.PerspectiveCamera(fixed ? (view === 'side' ? 40 : 12) : view === 'side' ? 26 : 13, 1, .1, 80);
 
 ctx.font = '14px sans-serif'; ctx.fillStyle = '#10202c';
 rows.forEach((name, row) => {
@@ -45,12 +48,20 @@ rows.forEach((name, row) => {
     // Keep him in the middle of the tile wherever he has got to.
     const at = bowler.root.getWorldPosition(new THREE.Vector3());
     const focus = new THREE.Vector3(at.x, 1.15, at.z);
-    if (view === 'side') camera.position.set(at.x - 7.5, 1.3, at.z - .4);
-    else camera.position.set(0, 1.7, at.z - 16);
-    camera.lookAt(focus);
+    if (fixed) {
+      // The middle of his run and delivery, wherever this frame has him.
+      const middle = new THREE.Vector3(.3, 1.15, RELEASE_Z + 2.2);
+      if (view === 'side') camera.position.set(-9.5, 1.4, middle.z);
+      else camera.position.set(0, 1.75, RELEASE_Z - 16);
+      camera.lookAt(middle);
+    } else {
+      if (view === 'side') camera.position.set(at.x - 7.5, 1.3, at.z - .4);
+      else camera.position.set(0, 1.7, at.z - 16);
+      camera.lookAt(focus);
+    }
     renderer.render(scene, camera);
     ctx.drawImage(renderer.domElement, col * TILE, row * TILE);
-    ctx.fillText(`${name} ${moment}`, col * TILE + 8, row * TILE + 18);
+    if (params.get('labels') !== '0') ctx.fillText(`${name} ${moment}`, col * TILE + 8, row * TILE + 18);
   });
 });
 document.title = 'ready';
