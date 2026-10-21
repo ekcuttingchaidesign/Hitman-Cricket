@@ -1482,10 +1482,14 @@ ball. A short, choppy run (its own `stride` and `accel`) with the ball at his
 belly in both hands; the ball arm looping out wide to his side and up above his
 head before a low hop (`loop`: the one arm path in the game that leaves the
 carry before the bound), the front arm out level at the batter from the
-take-off; front-on all the way; the ball arm dropping back behind him and
-whipping over straight and late, the front arm turning over with it on the same
-clock and on round behind him (the loop branch of `frontArmAngle`); a deep fold
-and the back leg kicked high.
+take-off; front-on all the way; then the ball arm once all the way round from
+over his head, straight — over in front of him, down past his hip, up behind
+him and over the top to the ball — slow from the top and quickening all the way
+to the release (`loop.turn`, `loop.spin`; it is behind him at `loopDrop`), the
+front arm turning over with the last of it on the same clock and on round
+behind him (the loop branch of `frontArmAngle`); a deep fold and the back leg
+kicked high. The first build only dropped the arm back and whipped it over,
+half a turn.
 The elbow's hyperextension is left out: the bowling arm is one straight limb.
 `tests/bowler.test.ts` holds him to every rule the other two actions keep, and
 `tests/super10.test.ts` to what makes him his.
@@ -1538,13 +1542,23 @@ The scene draws six of the nine (`drawnOf`: the six nearest straight), walked
 to their new marks when the field changes (`Field.moveTo`,
 `GameScene.super10Field`).
 
-How the field is shown is being tried two ways (`src/ui/FieldMap.ts`,
-`?fieldui=`, which is not practice): **b**, the default, a card at the foot at
-the top of an over whose field this innings has not shown or that the captain
-or the surge changed, held `FIELD_CARD_MS` or until tapped, the bowler waiting
-while it is up, a chip saying what moved, and the field again on a tap of the
-scoreboard or F; **a**, a see-through map always at the foot, brightening when it
-changes, and no card. Both have the field drawn solid in the pause sheet.
+The field is shown in two corners (`src/ui/FieldMap.ts`, Figma section 16A,
+`422:5003`), both live all innings. Bottom right, the field map: only the
+ground and the dots, never on a panel — the fielders in the fielding side's
+shirt and the batter in his own (`GameScene.kitColours`); a new field has the
+men walk to their places as a ring pulses twice and NEW FIELD · N OUT floats
+over it; after a shot the ball's line is drawn to where it went, the man who
+got to it pinging, until the next ball; a tap (or F) enlarges it from its
+corner, and a tap, the bowler's first stride or six seconds put it back.
+Bottom left, Power Surge (`SurgeState`): locked to the end of the fifth over,
+gold and breathing in the breaks it can be taken in, its ring emptying over
+the bowler's wait; a ring filling a sixth a ball through its over, with POWER
+SURGE over the ground when it is taken and a SURGE badge under the scoreboard;
+a grey tick once used. A first Super10 in a browser opens with the field
+map's coach card (`FIELD_STEP` in `ShotsIntro.ts`, kept in
+`hitman-field-intro`); the surge is taught by its tag when it first lights up.
+The pause sheet has the map drawn solid. The design's assets could not be
+downloaded into this build, so the bolt and the rings are drawn in code.
 
 What is not here yet: the boards and the career, and a card on
 Choose a mode. Until it has a board, an innings of it is practice
@@ -1554,9 +1568,9 @@ whatever the innings was worth (`why: 'building'` on the practice offer).
 It is reached by `?mode=super10` off production only (`SUPER10_OPEN`).
 `scripts/super10-check.mjs` plays one through on the dev server: the bowlers in
 the schedule's order, one real ball from each kind with his own action, the
-speed gun, the No. 3 named after a wicket, the field's card, each over's field
-and the bowler signalling it, Power Surge, the card's heading and its line,
-and nothing sent.
+speed gun, the No. 3 named after a wicket, the field map and Power Surge in
+their corners, each over's field and the bowler signalling it, the field
+map's coach card once, the card's heading and its line, and nothing sent.
 The actions are looked at in `bowler-sheet.html`, every action a row at the
 same moments, from the batter's end or side on (`scripts/bowler-sheet.mjs
 out-dir batter side`): a software-rendered game's clock does not land a

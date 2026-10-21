@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION, PHASES, RELEASE_Z, RUNUP_START_Z, type ActionStyle } from '../src/entities/Bowler';
+import { ACTION_MS, Bowler, DEATH_ACTION, loopDrop, EXPRESS_ACTION, PACE_ACTION, PHASES, RELEASE_Z, RUNUP_START_Z, type ActionStyle } from '../src/entities/Bowler';
 import { Cricketer } from '../src/entities/Cricketer';
 import { GAME } from '../src/config/gameplay';
 import { ballPosition } from '../src/game/DeliveryTrajectory';
@@ -63,7 +63,7 @@ describe.each(ACTIONS)('the bowling action — %s', (_, style) => {
       // An arm that looped up before the leap (the death bowler's) holds high
       // through it and drops back behind him first: its one climb over the top
       // starts from there.
-      const from = style.loop?.drop ?? PHASES.BACK_FOOT;
+      const from = style.loop ? loopDrop(style) : PHASES.BACK_FOOT;
       const steps = 400;
       const heights = Array.from({ length: steps + 1 }, (_, i) =>
         at(from + (1 - from) * (i / steps)).hands[1][1]);
@@ -87,7 +87,7 @@ describe.each(ACTIONS)('the bowling action — %s', (_, style) => {
       // And behind him before it comes over: the hand is back past his hips.
       // Measured from the hips rather than the chest, which an action that
       // arches away from the target carries back with it.
-      const gather = at(style.loop?.drop ?? .74);
+      const gather = at(style.loop ? loopDrop(style) : .74);
       expect(gather.hands[1][2]).toBeGreaterThan(gather.hip[2] + .3);
     });
 

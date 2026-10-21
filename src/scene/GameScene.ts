@@ -923,6 +923,11 @@ export class GameScene {
   private sideKit: Kit = KIT;
   /** The fielding side's kit, as a Dressing Room id, for the checks. */
   fieldingKit: string | null = null;
+  /** The two sides' shirts, for Super10's field map: the batter in his, the fielders in theirs. */
+  get kitColours() {
+    const field = OUTFITS.find(o => o.id === this.fieldingKit);
+    return { batter: this.look?.outfit.shirt ?? '#2b5f8f', field: field?.shirt ?? '#ed7044' };
+  }
   private pickSide(except: string) {
     const choices = OUTFITS.filter(o => o.id !== except);
     const outfit = choices[Math.floor(Math.random() * choices.length)];
@@ -988,7 +993,10 @@ export class GameScene {
    */
   bowlerSignals(kind: Signal, man: Man) {
     const routine = this.field.bowlerRoutine();
-    const rest = routine ? routine.at(this.clock) : bodyOf(this.bowler.figure.posed, this.bowler.root.position.x, this.bowler.root.position.z);
+    // Off his routine, wherever it has taken him; off his mark, where `reset`
+    // put him, with the holder's mirror for a left-hander.
+    const rest = routine ? routine.at(this.clock)
+      : bodyOf(this.bowler.figure.posed, this.bowlerHolder.position.x + this.bowlerHolder.scale.x * this.bowler.root.position.x, this.bowlerHolder.position.z + this.bowler.root.position.z);
     const to = mark(man.angle, man.distance);
     this.field.bowlerSignal(rest, this.clock, to, kind);
   }

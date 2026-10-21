@@ -158,6 +158,26 @@ export const CONFIDENCE_STEP: IntroStep = {
   tag: 'Confidence meter',
 };
 
+/**
+ * Super10's field map, the first time a browser bats one (Figma section 16A,
+ * M1): the map cut out of the scrim and tagged, and one line on reading it.
+ * Power Surge is taught when it first lights up, by its own tag.
+ */
+export const FIELD_STEP: IntroStep = {
+  title: 'The field, live',
+  line: 'Their fielders in their kit, you in yours. Hit between them for four. Tap the map to see it big.',
+  spot: 's10-map',
+  tag: 'Field map',
+};
+const FIELD_KEY = 'hitman-field-intro';
+/** Whether the field map's card is still to be shown in this browser. */
+export function fieldIntroDue() {
+  try { return !localStorage.getItem(FIELD_KEY); } catch { return false; }
+}
+export function noteFieldIntro() {
+  try { localStorage.setItem(FIELD_KEY, 'done'); } catch { /* Nothing to remember it in. */ }
+}
+
 const KEY = 'hitman-shots-intro';
 
 /**

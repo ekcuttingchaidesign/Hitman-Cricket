@@ -14,7 +14,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION, PHASES, type ActionStyle } from './entities/Bowler';
+import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION, PHASES, loopDrop, type ActionStyle } from './entities/Bowler';
 import { Batter } from './entities/Batter';
 import { GAME } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
@@ -39,7 +39,7 @@ const ACTIONS: Record<string, { style: ActionStyle; name: string }> = {
 const loop = DEATH_ACTION.loop!;
 const PHASE_MARKS: [string, number][] = [
   ['Run-in', 0], ['The loop', loop.from * RUNUP_MS], ['The hop', PHASES.BOUND * RUNUP_MS],
-  ['Drop back', PHASES.BACK_FOOT * RUNUP_MS], ['Release', loop.drop * RUNUP_MS], ['Follow-through', RUNUP_MS],
+  ['The turn', loop.turn * RUNUP_MS], ['Behind him', loopDrop(DEATH_ACTION) * RUNUP_MS], ['Follow-through', RUNUP_MS],
 ];
 
 // ── The ground ──────────────────────────────────────────────────────────────

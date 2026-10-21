@@ -1,94 +1,102 @@
-/* ── Super10's field (`src/ui/FieldMap.ts`) ────────────────────────────────
-   The chips under the scoreboard, the field card at the foot (version b), the
-   see-through map always at the foot (version a), the field in the pause
-   sheet, and the side label lit with a boundary rider's name. Sizes in --u. */
+/* ── Super10's corners (`src/ui/FieldMap.ts`, Figma section 16A) ──────────────
+   The live field map bottom right and Power Surge bottom left, the tag that
+   floats over either, the map enlarged, the surge's moment, its badge under
+   the scoreboard, the field in the pause sheet, and the side label lit with a
+   fielder's name. Sizes in --u, measured off the 402-wide frames. */
 
-.s10-chips{display:flex;flex-direction:column;align-items:flex-start;gap:calc(var(--u) * 6);margin-top:calc(var(--u) * 8)}
-.s10-chip{display:inline-flex;align-items:center;padding:calc(var(--u) * 6) calc(var(--u) * 10);border:1px solid #f5b83d66;border-radius:10px;
-  background:#0d1014cc;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:var(--c-gold);
-  font:800 calc(var(--u) * 10)/1.2 var(--f-ui);letter-spacing:.1em;pointer-events:none;white-space:nowrap}
-.s10-chip.is-in{animation:s10-in 260ms cubic-bezier(.2,.9,.25,1.15) both}
-.s10-surge{display:inline-flex;align-items:center;gap:calc(var(--u) * 8);min-height:44px;padding:0 calc(var(--u) * 12);border:1px solid #f5b83d;border-radius:12px;
-  background:linear-gradient(135deg,#f5b83d,#d98a1c);color:#1a1205;font-family:var(--f-ui);cursor:pointer;pointer-events:auto;box-shadow:0 6px 18px #00000059}
-.s10-surge b{font:900 calc(var(--u) * 11)/1 var(--f-ui);letter-spacing:.1em}
-.s10-surge span{font:700 calc(var(--u) * 9.5)/1 var(--f-ui);letter-spacing:.08em;opacity:.8}
-.s10-surge kbd{padding:1px 5px;border-radius:4px;background:#1a120526;font:800 calc(var(--u) * 9)/1.3 var(--f-ui)}
-.s10-surge[data-state="offer"]{animation:s10-glow 1.6s ease-in-out infinite}
-.s10-surge[data-state="armed"],.s10-surge[data-state="on"]{min-height:0;padding:calc(var(--u) * 6) calc(var(--u) * 10);cursor:default;
-  background:#0d1014cc;color:var(--c-gold);border-color:#f5b83d99}
-.s10-surge[data-state="on"]{background:#f5b83d;color:#1a1205}
-.s10-surge[hidden],.s10-chip[hidden]{display:none}
+.s10-corner{position:absolute;z-index:6;padding:0;border:0;background:none;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.s10-corner:focus-visible{outline:2px solid #fff;outline-offset:3px;border-radius:50%}
 
-/* The map, from above: everything a stroke so it reads at any size. */
-.s10-map{display:block;aspect-ratio:1}
-.s10-svg{display:block;width:100%;height:100%;overflow:visible}
-.s10-rope{fill:none;stroke:#ffffff70;stroke-width:1}
-.s10-ring{fill:none;stroke:#ffffff40;stroke-width:.8;stroke-dasharray:2.5 2.5}
-.s10-pitch{fill:#ffffff26}
-.s10-man{fill:#ffffff66}
-.s10-deep{fill:#ff4f9a8c}
-.s10-bat{fill:#ed7044a6}
-.s10-was{fill:none;stroke:#ff4f9a;stroke-width:1;stroke-dasharray:1.5 1.2}
-.s10-lanes line{stroke-width:2.4;stroke-linecap:round;opacity:.85}
-.s10-lanes .is-open{stroke:#5bd08f}
-.s10-lanes .is-guarded{stroke:#ff4f9a}
-.s10-map.is-solid .s10-rope{fill:#16351f;stroke:#fff;stroke-width:1.3}
-.s10-map.is-solid .s10-ring{stroke:#ffffffaa}
-.s10-map.is-solid .s10-pitch{fill:#ffffff66}
-.s10-map.is-solid .s10-man{fill:#fff;stroke:#0b0f14;stroke-width:.9}
-.s10-map.is-solid .s10-deep{fill:#ff4f9a;stroke:#0b0f14;stroke-width:.9}
-.s10-map.is-solid .s10-deep.is-new{stroke:#ffffffb0;stroke-width:1}
-.s10-map.is-solid .s10-bat{fill:#ed7044;stroke:#0b0f14;stroke-width:.9}
-.s10-map .is-captain{stroke:var(--c-gold);stroke-width:1}
+/* The map: 76 square, its ground 66 inset 5, 10 from the right and 28.7 off the foot. */
+.s10-map{right:calc(var(--u) * 10);bottom:calc(var(--u) * 28.7);width:calc(var(--u) * 76);height:calc(var(--u) * 76);transition:opacity 180ms ease-in}
+.s10-map>.s10-svg{position:absolute;inset:calc(var(--u) * 5);width:calc(var(--u) * 66);height:calc(var(--u) * 66)}
+.s10-map.is-away{opacity:0;pointer-events:none}
+.s10-svg{display:block;overflow:visible}
+.s10-ground{fill:#e6f3dc4d}
+.s10-rope{fill:none;stroke:#ffffffd9;stroke-width:1.4}
+.s10-ring{fill:none;stroke:#ffffff99;stroke-width:.9;stroke-dasharray:2.4 2.4}
+.s10-pitch{fill:#f3e3c4a6}
+.s10-man circle{stroke:#fff;stroke-width:1}
+.s10-man{transition:transform 900ms cubic-bezier(.3,.1,.25,1)}
+.s10-man.is-ping circle{animation:s10-ping 520ms ease-out}
+.s10-bat{stroke:#fff;stroke-width:1.4}
+.s10-shot{fill:none;stroke:#ffd27a;stroke-width:1.8;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;opacity:0}
+.s10-shot.is-on{opacity:1;animation:s10-draw 300ms ease-out forwards}
+.s10-map.is-surge .s10-rope,.s10-big-map.is-surge .s10-rope{stroke:#f5b83d;stroke-width:2}
+.s10-pulse{position:absolute;inset:calc(var(--u) * 3);border:2px solid #ffffffcc;border-radius:50%;opacity:0;pointer-events:none}
+.s10-pulse.is-on{animation:s10-pulse 700ms ease-out 2}
 
-/* Version b: the card at the foot, over the ground. */
-.s10-layer{position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;justify-content:flex-end;
-  padding:0 calc(var(--u) * 16) max(calc(var(--u) * 44),env(safe-area-inset-bottom,0px));
-  background:linear-gradient(180deg,#0a0b0d00 45%,#0a0b0d99 100%);cursor:pointer}
-.s10-card{--tone:#3f88f2;display:grid;grid-template-columns:calc(var(--u) * 132) 1fr;grid-template-rows:auto 1fr auto;column-gap:calc(var(--u) * 14);
-  padding:calc(var(--u) * 14);border:1px solid #ffffff1f;border-top:3px solid var(--tone);border-radius:20px;background:#14171bf2;color:var(--c-text);
-  font-family:var(--f-ui);box-shadow:0 18px 44px #000000a6;animation:s10-rise 280ms cubic-bezier(.2,.9,.25,1.12) both}
-.s10-card .s10-map{grid-row:1 / 4;grid-column:1;width:calc(var(--u) * 132)}
-.s10-card-eyebrow{display:flex;flex-direction:column;gap:calc(var(--u) * 4);margin:0}
-.s10-card-eyebrow span{font:700 calc(var(--u) * 9.5)/1 var(--f-ui);letter-spacing:.14em;color:var(--c-text-3,#ffffff99)}
-.s10-card-eyebrow b{font:400 calc(var(--u) * 20)/1 var(--f-display);letter-spacing:.06em;color:var(--tone);font-optical-sizing:none;font-variation-settings:'opsz' 6}
-.s10-card[data-change="captain"] .s10-card-eyebrow b,.s10-card[data-change="surge"] .s10-card-eyebrow b{color:var(--c-gold)}
-.s10-card-note{margin:calc(var(--u) * 8) 0 0;font:500 calc(var(--u) * 12.5)/1.4 var(--f-ui);color:var(--c-text-2,#ffffffcc)}
-.s10-card-key{display:flex;flex-wrap:wrap;gap:calc(var(--u) * 10);margin:calc(var(--u) * 8) 0 0;font:700 calc(var(--u) * 9)/1 var(--f-ui);letter-spacing:.1em;text-transform:uppercase;color:#ffffff99}
-.s10-card-key span::before{content:'';display:inline-block;width:calc(var(--u) * 10);height:2px;margin-right:5px;vertical-align:middle;border-radius:1px}
-.s10-key-open::before{background:#5bd08f}
-.s10-key-guarded::before{background:#ff4f9a}
-.s10-card-key .s10-tap{margin-left:auto;color:#ffffff66}
-.s10-card-key .s10-tap::before{display:none}
+/* The tag over a corner: white, the display face, 13 with a little tracking. */
+.s10-tag{position:absolute;z-index:7;bottom:calc(var(--u) * 102);padding:calc(var(--u) * 7) calc(var(--u) * 12);border-radius:calc(var(--u) * 12);background:#fff;color:#0b0f14;
+  font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;white-space:nowrap;pointer-events:none;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.s10-tag[data-corner="map"]{right:calc(var(--u) * 10)}
+.s10-tag[data-corner="surge"]{left:calc(var(--u) * 12);bottom:calc(var(--u) * 108)}
+.s10-tag.is-in{animation:s10-float 260ms cubic-bezier(.2,.9,.25,1.15) both}
 
-/* Version a: always at the foot, so faint the ground shows through. */
-.s10-foot{position:absolute;left:50%;bottom:calc(var(--pad-bottom) + calc(var(--u) * 64));z-index:3;width:calc(var(--u) * 104);transform:translateX(-50%);
-  opacity:.55;pointer-events:none;transition:opacity 400ms ease}
-.s10-foot .s10-rope{stroke:#ffffff59;stroke-width:.9}
-.s10-foot .s10-ring{stroke:#ffffff2e}
-.s10-foot .s10-pitch{fill:#ffffff1f}
-.s10-foot .s10-man{fill:#ffffff52}
-.s10-foot .s10-deep{fill:#ff4f9a80}
-.s10-foot .s10-bat{fill:#ed704480}
-.s10-foot.is-lit{animation:s10-lit 1.8s ease-out both}
+/* Enlarged: 264 square out of the corner, still on no panel, the field named on the left. */
+.s10-big{position:absolute;inset:0;z-index:8;cursor:pointer}
+.s10-big-map{position:absolute;right:calc(var(--u) * -20);bottom:calc(var(--u) * -7.3);width:calc(var(--u) * 264);height:calc(var(--u) * 264);transform-origin:82% 82%;
+  animation:s10-grow 260ms cubic-bezier(.3,1.35,.5,1) both}
+.s10-big-map .s10-svg{width:100%;height:100%}
+.s10-big-words{position:absolute;left:calc(var(--u) * 20);bottom:calc(var(--u) * 132);display:flex;flex-direction:column;gap:calc(var(--u) * 2);color:#fff;text-shadow:0 1px 6px #000000b3}
+.s10-big-words span{font:800 calc(var(--u) * 10)/1.3 var(--f-ui);letter-spacing:.12em;color:#ffd27a}
+.s10-big-words b{font:400 calc(var(--u) * 24)/1.1 var(--f-display);font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.s10-big-words small{font:600 calc(var(--u) * 11)/1.3 var(--f-ui);opacity:.9}
+
+/* Power Surge: 68 square, 14 from the left and 32.7 off the foot, the disc 54 inside it. */
+.s10-surge{left:calc(var(--u) * 14);bottom:calc(var(--u) * 32.7);width:calc(var(--u) * 68);height:calc(var(--u) * 68);--filled:0}
+.s10-surge:disabled{cursor:default;opacity:1}
+.s10-surge-disc{position:absolute;inset:calc(var(--u) * 7);display:grid;place-items:center;border-radius:50%;border:1px solid #ffffff99;background:#0b1622b3}
+.s10-bolt{width:calc(var(--u) * 17.6);height:calc(var(--u) * 25.6);fill:#f5efe6}
+.s10-surge-lock{position:absolute;left:calc(var(--u) * 40);top:calc(var(--u) * 6);height:calc(var(--u) * 16);padding:0 calc(var(--u) * 3);display:grid;place-items:center;border-radius:calc(var(--u) * 8);
+  border:1px solid #ffffff4d;background:#0b1622;color:#f5efe6;font:800 calc(var(--u) * 8.5)/1 var(--f-ui)}
+.s10-surge[data-state="locked"],.s10-surge[data-state="rest"]{opacity:.3}
+.s10-surge[data-state="offer"] .s10-surge-disc{border:0;background:radial-gradient(circle at 40% 35%,#ffe08a,#f5b83d 55%,#d98a1c);box-shadow:0 0 0 calc(var(--u) * 4) #f5b83d40,0 6px 18px #00000059;animation:s10-breathe 1.6s ease-in-out infinite}
+.s10-surge[data-state="offer"] .s10-bolt{fill:#3a2400}
+.s10-surge[data-state="on"] .s10-surge-disc{border-color:#f5b83d80;background:#0b1622e6}
+.s10-surge[data-state="on"] .s10-bolt{fill:#f5b83d}
+.s10-surge[data-state="used"]{opacity:.3}
+.s10-surge[data-state="used"] .s10-surge-disc svg{width:calc(var(--u) * 24);height:calc(var(--u) * 24);color:#f5efe6}
+.s10-ring-svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg);overflow:visible}
+.s10-ring-svg circle{fill:none;stroke-width:3;stroke-linecap:round}
+.s10-ring-svg.is-wait circle{stroke:#fff;stroke-dasharray:100;stroke-dashoffset:0;animation:s10-empty 1.6s linear forwards}
+.s10-ring-svg.is-fill circle{stroke:#f5b83d;stroke-dasharray:100;stroke-dashoffset:calc(100 - var(--filled));transition:stroke-dashoffset 300ms ease-out}
+
+/* Pressed: POWER SURGE over the ground for a moment, and its line. */
+.s10-title{position:absolute;left:0;right:0;top:calc(var(--u) * 146);z-index:7;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 10);pointer-events:none}
+.s10-title b{font:400 calc(var(--u) * 64)/1 var(--f-display);color:#f5b83d;text-shadow:0 4px 12px #00000073;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.s10-title span{padding:calc(var(--u) * 7) calc(var(--u) * 12);border-radius:calc(var(--u) * 12);background:#fff;color:#0b0f14;font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;white-space:pre}
+.s10-title.is-in{animation:s10-slam 1.6s cubic-bezier(.2,.9,.25,1) both}
+.s10-badge{display:inline-flex;align-items:center;gap:calc(var(--u) * 6);height:calc(var(--u) * 22);margin-top:calc(var(--u) * 6);padding:0 calc(var(--u) * 12) 0 calc(var(--u) * 10);border-radius:calc(var(--u) * 11);
+  background:linear-gradient(180deg,#ffd772,#f5b83d);color:#3a2400;font:800 calc(var(--u) * 10)/1 var(--f-ui);letter-spacing:.08em}
+.s10-badge .s10-bolt{width:calc(var(--u) * 10.45);height:calc(var(--u) * 15.2);fill:#3a2400}
 
 /* The pause sheet's. */
 .s10-pause{display:grid;grid-template-columns:calc(var(--u) * 96) 1fr;column-gap:calc(var(--u) * 12);align-items:center;margin-top:calc(var(--u) * 14);
   padding:calc(var(--u) * 12);border:1px solid #ffffff14;border-radius:16px;background:#ffffff08}
-.s10-pause .s10-map{grid-row:1 / 3;width:calc(var(--u) * 96)}
-.s10-pause-head{display:flex;flex-direction:column;gap:3px;margin:0}
+.s10-pause .s10-svg{grid-row:1;width:calc(var(--u) * 96);height:calc(var(--u) * 96)}
+.s10-pause-head{display:flex;flex-direction:column;gap:3px;margin:0;grid-column:2}
 .s10-pause-head span{font:700 calc(var(--u) * 9)/1 var(--f-ui);letter-spacing:.14em;color:#ffffff99}
 .s10-pause-head b{font:800 calc(var(--u) * 13)/1.2 var(--f-ui)}
-.s10-pause-note{margin:calc(var(--u) * 4) 0 0;font:500 calc(var(--u) * 11.5)/1.4 var(--f-ui);color:#ffffffbf}
+.s10-svg.is-solid .s10-ground{fill:#16351f}
 
-/* A boundary rider out of the picture: the side label says who. */
-.arena-bottom .is-rider{color:var(--c-gold);font-weight:900;text-shadow:0 0 10px #f5b83dcc,0 1px 3px #000;animation:s10-in 260ms ease-out both}
+/* A fielder out of the picture: the side label says who. */
+.arena-bottom .is-rider{color:var(--c-gold);font-weight:900;text-shadow:0 0 10px #f5b83dcc,0 1px 3px #000;animation:s10-float 260ms ease-out both}
 
-@keyframes s10-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-@keyframes s10-rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
-@keyframes s10-glow{0%,100%{box-shadow:0 6px 18px #00000059}50%{box-shadow:0 0 0 4px #f5b83d40,0 6px 18px #00000059}}
-@keyframes s10-lit{0%{opacity:.55}15%{opacity:1}100%{opacity:.55}}
-@media (prefers-reduced-motion:reduce){.s10-chip.is-in,.s10-card,.s10-surge[data-state="offer"],.s10-foot.is-lit,.arena-bottom .is-rider{animation:none}}
-body.start-screen .s10-foot,.stage.result-open .s10-foot,.stage.picking-mode .s10-foot{display:none}
-/* The scoreboard is the way to look at the field again, in Super10. */
-.score-stack:has(.s10-chips:not(.hidden)) #scoreboard{pointer-events:auto;cursor:pointer}
+body.start-screen .s10-corner,.stage.result-open .s10-corner,.stage.picking-mode .s10-corner,.stage.modal-open .s10-corner,
+body.start-screen .s10-tag,.stage.result-open .s10-tag{display:none}
+
+@keyframes s10-float{from{opacity:0;transform:translateY(calc(var(--u) * 6))}to{opacity:1;transform:none}}
+@keyframes s10-pulse{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(1.3)}}
+@keyframes s10-ping{0%{transform:scale(1)}40%{transform:scale(1.8)}100%{transform:scale(1)}}
+@keyframes s10-draw{to{stroke-dashoffset:0}}
+@keyframes s10-grow{from{transform:scale(.29)}to{transform:none}}
+@keyframes s10-breathe{0%,100%{box-shadow:0 0 0 calc(var(--u) * 3) #f5b83d33,0 6px 18px #00000059}50%{box-shadow:0 0 0 calc(var(--u) * 7) #f5b83d59,0 6px 18px #00000059}}
+@keyframes s10-empty{to{stroke-dashoffset:100}}
+@keyframes s10-slam{0%{opacity:0;transform:scale(1.25)}14%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){
+  .s10-man{transition:none}
+  .s10-pulse.is-on,.s10-tag.is-in,.s10-big-map,.s10-title.is-in,.s10-surge[data-state="offer"] .s10-surge-disc,.s10-man.is-ping circle,.arena-bottom .is-rider{animation:none}
+  .s10-title.is-in{opacity:1}
+  .s10-shot.is-on{animation:none;stroke-dashoffset:0}
+}

@@ -5,7 +5,7 @@ import {
 import {
   EXPRESS_OVER, MARATHON, BLOCK_OVERS, REVERSE, ROUND, SWING_FROM, SWING_LINES, isReverse, levelAt as marathonLevelAt, levelOf, type Level, type OverKind,
 } from '../config/marathon';
-import { DEATH_OVER, KIND, SEAM_LEVEL, SUPER10, SWING_LEVEL, scheduleOf } from '../config/super10';
+import { BOWL_TO, DEATH_OVER, KIND, SEAM_LEVEL, SUPER10, SWING_LEVEL, scheduleOf } from '../config/super10';
 import { SeededRandom } from './SeededRandom';
 import type { BallLine, Delivery, DeliveryStyle, ShotOutcome } from './types';
 /** The express bowler's over, with how many yorkers it holds left open: a newcomer is bowled none. */
@@ -76,6 +76,11 @@ export interface BlockPlan {
    * speeds and with his time to the bat. Null leaves the plan's own.
    */
   bowledAs?: (over: number) => Bowled | null;
+  /**
+   * The lines a bowler bowls to his field, and how much of the over: Super10's
+   * (`BOWL_TO`). A ball not aimed there is dealt from the bag as ever.
+   */
+  toField?: (over: number, kind: OverKind | null) => { lines: readonly BallLine[]; share: number } | null;
   /**
    * Which overs are bowled round the wicket: none before `from`, and each one
    * after it with this chance. Absent, every over is bowled over the wicket.
@@ -283,6 +288,11 @@ SUPER10_PLAN.blocks!.levelAt = over => SUPER10_SWING.has(over) ? SWING_LEVEL : S
 /** And he bowls them as the Marathon's swing bowler does: Survival's table, at its speeds and its time to the bat, aimed. */
 const MARATHON_SWING: Bowled = { styles: SURVIVE_STYLES, travelScale: SURVIVE.travelScale, aimed: true };
 SUPER10_PLAN.blocks!.bowledAs = over => SUPER10_SWING.has(over) ? MARATHON_SWING : null;
+/** Each bowling to his field (`BOWL_TO`), the swing bowler and the seamer by the over they bowl. */
+SUPER10_PLAN.blocks!.toField = (over, kind) => {
+  const bowler = kind === 'SPIN' ? 'SPIN' : kind === 'EXPRESS' ? 'SLING' : kind === 'DEATH' ? 'DEATH' : SUPER10_SWING.has(over) ? 'SWING' : 'SEAM';
+  return BOWL_TO[bowler === 'SEAM' && over < SUPER10.powerplay ? 'SEAM-pp' : bowler] ?? null;
+};
 
 /**
  * Any mode's bowling with no yorker in it, for a newcomer's first innings (see
@@ -564,6 +574,12 @@ export class DeliveryGenerator {
     return null;
   }
   private pick(lines: BallLine[]): BallLine { return lines[Math.floor(this.rng.next() * lines.length)]; }
+  /** A ball bowled to the field, where the plan has the bowler do that: see `toField`. */
+  private toField(): BallLine | null {
+    const want = this.netting ? null : this.plan.blocks?.toField?.(this.over, this.overKind(this.over));
+    if (!want || this.rng.next() >= want.share) return null;
+    return this.pick([...want.lines]);
+  }
   /**
    * Where in the over the ball that goes straight on comes. Placed rather than
    * rolled for, so it is never the whole over and never absent from it — and at
@@ -745,7 +761,7 @@ export class DeliveryGenerator {
       : this.deathBall?.line ? this.deathBall.line
       : turning ? this.pick(turnable(sign, spell!))
       : swingFrom ? this.pick([...swingFrom])
-      : (this.aim(style) ?? this.bag.pop()!);
+      : (this.aim(style) ?? this.toField() ?? this.bag.pop()!);
     if (QUICK_STYLES.includes(style)) this.quick++;
     const bowled = this.bowledOff;
     const shape = bowled.styles[style];

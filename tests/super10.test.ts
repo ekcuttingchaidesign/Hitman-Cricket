@@ -3,7 +3,7 @@ import { BATTERS, DEATH_OVER, DEATH_TIMING, SIX_WINDOW, SUPER10, batterAt, sched
 import { BATTERS as MARATHON_BATTERS } from '../src/config/marathon';
 import { DeliveryGenerator, MARATHON_PLAN, SUPER10_PLAN, spun, withoutYorkers } from '../src/game/DeliveryGenerator';
 import { SeededRandom } from '../src/game/SeededRandom';
-import { Bowler, DEATH_ACTION, PACE_ACTION, PHASES } from '../src/entities/Bowler';
+import { Bowler, DEATH_ACTION, PACE_ACTION, PHASES, loopDrop } from '../src/entities/Bowler';
 import type { Delivery } from '../src/game/types';
 
 /** A whole Super10 innings' bowling, sixty balls, over by over. */
@@ -52,6 +52,20 @@ describe('Super10: who bowls when', () => {
 });
 
 describe('Super10: the bowling', () => {
+  it('bowls to the field: the seamer at the stumps and the pads after the Powerplay, the death bowler wide of off', () => {
+    const share = (pick: (over: number, kind: string | null) => boolean, lines: string[]) => {
+      let mine = 0, all = 0;
+      for (const seed of SEEDS) innings(seed).forEach(({ kind, balls }, over) => {
+        if (!pick(over, kind)) return;
+        for (const ball of balls) { all++; if (lines.includes(ball.line)) mine++; }
+      });
+      return mine / all;
+    };
+    // Two lines of five dealt at random are two in five; bowled to the field, well over half.
+    expect(share((over, kind) => kind === 'PACE' && over >= SUPER10.powerplay, ['MIDDLE', 'LEG'])).toBeGreaterThan(.55);
+    expect(share((_, kind) => kind === 'DEATH', ['OFF', 'OUTSIDE_OFF'])).toBeGreaterThan(.55);
+  });
+
   it('hands each over to the bowler the schedule names', () => {
     for (const seed of SEEDS.slice(0, 40)) {
       for (const { kind, balls } of innings(seed)) {
@@ -203,16 +217,46 @@ describe('Super10: the death bowler\'s action, against the fast bowler', () => {
     expect(Math.abs(hop.hands[0][1] - shoulderY(hop))).toBeLessThan(.12);
     expect(hop.armReach[0]).toBeGreaterThan(.9);
     // Still there when the ball arm starts its whip.
-    const whip = at(loop.drop);
+    const whip = at(loopDrop(DEATH_ACTION));
     expect(Math.abs(whip.hands[0][1] - shoulderY(whip))).toBeLessThan(.15);
     // And halfway through the whip both arms are half way round: the front arm
     // has dropped below his shoulder as the ball arm has risen above it.
-    const mid = at((loop.drop + 1) / 2);
+    const mid = at((loopDrop(DEATH_ACTION) + 1) / 2);
     expect(mid.hands[0][1]).toBeLessThan(shoulderY(mid) - .1);
     expect(mid.hands[1][1]).toBeGreaterThan(shoulderY(mid) + .1);
     // At the release it is down by his hip and going on behind him.
     const release = at(1);
     expect(release.hands[0][1]).toBeLessThan(release.hip[1] + .15);
+    bowler.action(PACE_ACTION);
+  });
+
+  it('takes the ball arm once all the way round from over his head before it lets go, quickening all the way', () => {
+    bowler.action(DEATH_ACTION);
+    // The arm's angle about the shoulder, nought straight up and climbing
+    // towards the batter, followed round without wrapping.
+    const angle = (s: ReturnType<typeof at>) => Math.atan2(-(s.hands[1][2] - s.shoulders[1][2]), s.hands[1][1] - s.shoulders[1][1]);
+    const steps = 300;
+    const shots = Array.from({ length: steps + 1 }, (_, i) => at(loop.turn + (1 - loop.turn) * (i / steps)));
+    let turned = 0, low = Infinity, last = angle(shots[0]);
+    const turns: number[] = [];
+    for (const s of shots.slice(1)) {
+      let d = angle(s) - last;
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      turns.push(d); turned += d; last = angle(s);
+      low = Math.min(low, s.hands[1][1] - s.hip[1]);
+    }
+    // Over the top at the start and again at the ball, and always forward: the
+    // body moving under the slow first of it is all that can tip it back, by a
+    // fraction of a degree.
+    expect(turned).toBeGreaterThan(2 * Math.PI);
+    expect(Math.min(...turns)).toBeGreaterThan(-.01);
+    // Down past his hip on the way round, the arm straight.
+    expect(low).toBeLessThan(.15);
+    // And quickening: each third of the clock turns it further than the last.
+    const third = (k: number) => turns.slice(k * steps / 3, (k + 1) * steps / 3).reduce((a, b) => a + b, 0);
+    expect(third(1)).toBeGreaterThan(third(0));
+    expect(third(2)).toBeGreaterThan(third(1));
     bowler.action(PACE_ACTION);
   });
 

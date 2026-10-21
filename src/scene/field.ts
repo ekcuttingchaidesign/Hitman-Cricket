@@ -120,7 +120,9 @@ export class Field {
       order[man] = marks[k]; placed.add(man); free.delete(k);
     }
     this.marks = order;
-    this.catching = null; this.gathering = null; this.bowling = null;
+    // The bowler is left to what he is doing: he signals the change from
+    // wherever that has taken him (`bowlerSignal`).
+    this.catching = null; this.gathering = null;
     this.routines = this.routines.map((routine, i) =>
       new Routine([...recent(routine, now), ...this.homeward(i, routine, now + 120 + deal(i, this.ball, 9) * 320)]));
   }

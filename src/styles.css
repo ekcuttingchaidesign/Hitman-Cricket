@@ -1854,6 +1854,7 @@ body.start-screen #sound{pointer-events:auto}
 .mi-tag{position:absolute;display:flex;padding:calc(var(--u) * 7) calc(var(--u) * 12);border-radius:calc(var(--u) * 12);background:#fff;color:var(--c-ink);white-space:nowrap;pointer-events:none;animation:mi-in .3s .1s ease both}
 .mi-tag b{font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase;font-variation-settings:'opsz' 6}
 .mi-tag i{position:absolute;left:var(--point);top:calc(var(--u) * -7);width:calc(var(--u) * 12);height:calc(var(--u) * 6);margin-left:calc(var(--u) * -6);background:#fff;clip-path:polygon(50% 0,100% 100%,0 100%)}
+.mi-tag.is-above i{top:auto;bottom:calc(var(--u) * -6);clip-path:polygon(0 0,100% 0,50% 100%)}
 .mi-spot.hidden,.mi-tag.hidden{display:none}
 .mi-stage{position:absolute;inset:0;pointer-events:none}
 

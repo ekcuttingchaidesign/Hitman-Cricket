@@ -121,3 +121,22 @@ export const DEATH_OVER = {
   slowBouncerChance: 0.5,
   slowBouncer: { min: 118, max: 126 },
 } as const;
+
+/**
+ * Each bowler bowling to his field (`fieldFor` in `src/game/super10-field.ts`):
+ * this share of his balls aimed at these lines, the rest dealt from the bag.
+ * His field is set for the stroke those lines ask for, so the natural stroke
+ * goes into the men and the gap is against the line, which the steering's
+ * stretch makes the riskier hit. The swing bowler and the seamer in the
+ * Powerplay, with men round the off side, bowl off stump and outside it; the
+ * seamer after it, with long-on and deep midwicket out, bowls at the stumps
+ * and the pads; the death bowler, with long-off and deep cover out, wide of
+ * off. The spinner's lines are his turn's and the sling bowler's his
+ * bouncers' (`aimBody`), so neither is listed.
+ */
+export const BOWL_TO: Partial<Record<Bowler | 'SEAM-pp', { lines: readonly BallLine[]; share: number }>> = {
+  SWING: { lines: ['OFF', 'OUTSIDE_OFF'], share: .5 },
+  'SEAM-pp': { lines: ['MIDDLE', 'OFF'], share: .45 },
+  SEAM: { lines: ['MIDDLE', 'LEG'], share: .45 },
+  DEATH: { lines: ['OFF', 'OUTSIDE_OFF'], share: .5 },
+};

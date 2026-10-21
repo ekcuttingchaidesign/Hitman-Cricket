@@ -2509,6 +2509,8 @@ ${modeSelectMarkup()}
     }
     scrim.setAttribute('viewBox', `0 0 ${w} ${h}`);
     let d = `M0 0H${w}V${h}H0Z`;
+    const card = this.$('mi-card');
+    card.style.bottom = '';
     if (!box) {
       spot.classList.add('hidden'); tag.classList.add('hidden');
       this.$('mi-scrim-path').setAttribute('d', d);
@@ -2521,13 +2523,18 @@ ${modeSelectMarkup()}
     this.$('mi-scrim-path').setAttribute('d', d);
     Object.assign(spot.style, { left: `${x}px`, top: `${y}px`, width: `${sw}px`, height: `${sh}px`, borderRadius: `${r}px` });
     spot.classList.remove('hidden');
-    // The tag hangs under the outline on a pointer, kept inside the screen.
+    // The tag hangs under the outline on a pointer, kept inside the screen;
+    // over it for a widget in the lower half (Super10's field map in its
+    // corner), and the card is lifted clear of both.
+    const low = box.y > h / 2;
     tag.innerHTML = `<i></i><b>${step.tag ?? ''}</b>`;
     tag.classList.remove('hidden');
+    tag.classList.toggle('is-above', low);
     const cx = x + sw / 2;
     const width = tag.offsetWidth;
     const left = Math.min(Math.max(cx - width / 2, 12 * u), w - width - 12 * u);
-    Object.assign(tag.style, { left: `${left}px`, top: `${y + sh + 14 * u}px` });
+    Object.assign(tag.style, { left: `${left}px`, top: `${low ? y - tag.offsetHeight - 14 * u : y + sh + 14 * u}px` });
+    if (low) card.style.bottom = `${h - y + tag.offsetHeight + 30 * u}px`;
     tag.style.setProperty('--point', `${cx - left}px`);
   }
   /** The pause card's declaration, offered in a Marathon from twenty overs. */
