@@ -1046,7 +1046,7 @@ They are `pull` and `pullV1` in the batter tests' `PLAYS`, and
 
 ## The flick, version two
 
-The leg-side input at a ball below pull height is the flick, in two versions
+The leg-side input at a ball below pull height is the flick. Pitched up, it is in two versions
 (`FlickVersion`), half and half (`FLICK_ODDS`, `flickVersionOf` off the
 innings' seed and the ball, mixed apart from the other strokes' rolls). The
 swing's version argument is the flick's for it (`flicking` in `Game.shoot`,
@@ -1084,7 +1084,39 @@ version moves the score, `?flickv=1` or `2` is practice. It is `flick2` in the
 batter tests' `PLAYS` and shared checks, with `describe('the flick, version
 two')`; `tests/flick.test.ts` holds the scoring; `scripts/flick-check.mjs`
 plays it in a browser on `?flickv=2`, in the Blast and in Survival; and
-`cover-drive.html` has both versions (`?stroke=flick2` opens on it).
+`cover-drive.html` has every version (`?stroke=flick2` opens on it).
+
+## The flick, version three: off the back foot
+
+A ball short of a length, one that reaches him above `DEFENCE_BACK_HEIGHT`
+and no higher than `PULL_HEIGHT` (back of a length, at the thigh), is flicked
+off the back foot whatever the roll says (`flickBackFoot`, `flickVersion` in
+`Game.shoot`): a stride down the pitch is the wrong stroke at a ball rising to
+the thigh. The length picks it, as it picks the two defences, so `?flickv=`
+does not reach it; a bouncer is still pulled, and a ball pitched up keeps
+versions one and two. The game sends version three to the swing; the batter
+plays `FLICK_V3` for it (`flickV3`) and never pulls it, though a ball still
+climbing can be over pull height where he meets it.
+
+Built from a net clip filmed from the bowler's end (`FLICK_V3`,
+`FLICK_V3_CLOCK`): back and across towards off stump with the bat up
+(`load`), the front foot drawn back beside the back one, so at the ball the
+feet are side by side across the crease and the hips and chest open to the
+bowler, tall on the back leg; the bat straight down, the top elbow up
+(`wristFlick` shares v2's elbow and riding), meeting the ball late at
+`FLICK_V3_CONTACT_MS`, `FLICK_V3_MEETS_AT`, just in front of the front pad
+and under his eyes, the flat face turned to square leg. Then the hands lift the bat straight up (`lift`), the toe
+tips over to the off side until it lies across the front of his helmet
+(`across`), and on up to stand diagonally in front of it (`finish`), the toe
+up over the back shoulder; held `FLICK_V3_HOLD_MS` past the stroke's clock,
+the front heel up, and home. The face rides the handle: to square leg at the
+ball, then back to the bowler by `lift` and kept there at every key, so to the
+finish the flat face looks at the bowler and the curved back at his helmet. The hands are carried out in
+front through the tip-over: closer, the blade went through the back elbow.
+Scored as version two is (`flicked`, `FLICK`): four at the most. It is
+`flick3` in the batter tests' `PLAYS` and shared checks, with
+`describe('the flick, version three')`; `tests/flick.test.ts` holds the
+length rule; `cover-drive.html` has it (`?stroke=flick3`).
 
 ## Alive in his guard
 

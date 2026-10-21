@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FLICK, GAME, LINE_X } from '../src/config/gameplay';
-import { FLICK_ODDS, flickVersionOf } from '../src/entities/Batter';
+import { DEFENCE_BACK_HEIGHT, FLICK_ODDS, PULL_HEIGHT, flickBackFoot, flickVersionOf } from '../src/entities/Batter';
 import { flicked, resolveShot } from '../src/game/ShotResolver';
 import { surviveBall } from '../src/game/Survive';
 import { practiceSwitches } from '../src/game/practice';
@@ -85,5 +85,20 @@ describe('the flick, version two', () => {
     expect(practiceSwitches('?flickv=2')).toEqual(['flickv']);
     expect(practiceSwitches('?flickv=1')).toEqual(['flickv']);
     expect(practiceSwitches('?flickv=3')).toEqual([]);
+  });
+});
+
+/**
+ * The flick's version three is the length's, not the roll's: at a ball short
+ * of a length, rising to the thigh, the leg-side input flicks off the back
+ * foot. Pitched up it is versions one and two; a bouncer is pulled.
+ */
+describe('the flick, version three', () => {
+  it('is played at a ball short of a length and never at one pitched up or a bouncer', () => {
+    // A yorker, a full ball, a good length, back of a length, a bouncer, as they reach him.
+    expect([.19, .4, .54, .81, 1.13].map(flickBackFoot)).toEqual([false, false, false, true, false]);
+    expect(flickBackFoot(DEFENCE_BACK_HEIGHT)).toBe(false);
+    expect(flickBackFoot(PULL_HEIGHT)).toBe(true);
+    expect(flickBackFoot(PULL_HEIGHT + .01)).toBe(false);
   });
 });
