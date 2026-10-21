@@ -10,7 +10,11 @@
  * own action at the top of his mark, the death bowler's above all — the speed
  * gun on every ball, the next batter named as he walks out after a wicket, and
  * the card at the end headed SUPER10 and saying it does not count yet, with
- * nothing sent to a board or a career: Super10 has neither yet.
+ * nothing sent to a board or a career: Super10 has neither yet. And the field:
+ * the first over's card going up before the first ball, the captain on the
+ * field in the clean build, each over's field set for its bowler, Power Surge
+ * taken with P and two men brought in for it, the field drawn in the pause
+ * sheet, and `?fieldui=a`'s map at the foot with no card.
  *
  * The actions themselves are looked at in `bowler-sheet.html`
  * (`scripts/bowler-sheet.mjs`): a frame there is the frame asked for, which a
@@ -72,11 +76,16 @@ check(first.super10 !== null, '?mode=super10 starts a Super10 innings', JSON.str
 check(first.super10?.practising === true, 'and it is counted as practice until it has a board');
 const opener = await page.locator('#phase-label').textContent();
 check(first.balls === 0 && !!opener?.startsWith('OPENER IN'), 'the opener is named as he walks out', `${opener} (balls ${first.balls})`);
+check(first.super10?.card === true && first.super10.field?.id === 'SWING-pp', 'the first over\'s field goes up on its card before the first ball',
+  JSON.stringify(first.super10?.field));
+check(first.super10?.leading === true, 'with the captain on the field in the clean build');
 
 const ACTION = { PACE: 'pace', SPIN: 'pace', EXPRESS: 'express', DEATH: 'death' };
 const kinds = [];
 const actions = {};
 const speeds = [];
+const fields = [];
+let armed = null, pauseMap = false;
 const write = balls => page.evaluate(b => window.__cricket.blast(b), balls);
 // Who bowls each over is read off the game at its top; one real ball is bowled
 // for each kind of bowler — the swing bowler's, the spinner's, the sling
@@ -88,6 +97,16 @@ for (let over = 0; over < 10; over++) {
   const ready = await until(['READY', 'INNINGS_END']);
   if (ready.phase === 'INNINGS_END') break;
   kinds[over] = ready.super10.bowler;
+  fields[over] = ready.super10.field;
+  // Power Surge, taken in the fourth over for the fifth.
+  if (over === 3) {
+    await page.keyboard.press('p');
+    armed = (await snap()).super10.surge;
+    // And the field in the pause sheet.
+    await page.keyboard.press('Escape');
+    pauseMap = await page.locator('#s10-pause svg').isVisible();
+    await page.keyboard.press('Escape');
+  }
   if (over === 2) {
     const label = await page.locator('#phase-label').textContent();
     check(!!label?.startsWith('NO. 3 IN'), 'after a wicket the No. 3 is named walking out', label);
@@ -124,6 +143,15 @@ check(real.length === REAL.size && real.every(o => o.action === ACTION[o.kind]),
   'the swing, spin, sling and death bowlers each run in with their own action', JSON.stringify(actions));
 check(real.every(o => o.death === (o.kind === 'DEATH') && o.express === (o.kind === 'EXPRESS')),
   'and the death and sling bowlers\' balls are flagged as theirs');
+const BOWLER = { PACE: ['SWING', 'SEAM'], SPIN: ['SPIN'], EXPRESS: ['SLING'], DEATH: ['DEATH'] };
+check(fields.length >= 8 && fields.every((f, i) => f && BOWLER[kinds[i]].includes(f.bowler)), 'each over\'s field is set for its bowler',
+  fields.map(f => f?.id).join(' '));
+check(fields.slice(0, 3).every(f => f.deep.length <= 2), 'with two men back at most in the Powerplay');
+// The sling bowler's four men back, less the two the surge brings in.
+check(armed === 4 && fields[4]?.change === 'surge' && fields[4].deep.length === 2,
+  'Power Surge taken with P in the fourth over brings two men in for the fifth', `${armed} ${JSON.stringify(fields[4])}`);
+check(fields.slice(5).every(f => f?.change !== 'surge'), 'and it is one over only');
+check(pauseMap, 'the field is drawn in the pause sheet');
 check(speeds.every(v => /^\d+$/.test(v ?? '')), 'the speed gun reads out every ball', speeds.slice(0, 12).join(' '));
 
 const card = await page.locator('#end').textContent().catch(() => '');
@@ -133,6 +161,17 @@ const note = (await page.locator('#card-board-head').textContent()) ?? '';
 check(/still being built/i.test(note), 'and says Super10 does not count yet', note);
 check(!/best stands/i.test(card ?? ''), 'and quotes no Blast best on it');
 check(sent.length === 0, 'nothing is sent to a board or a career', sent.join(', '));
+
+// `?fieldui=a`: the map always at the foot, and no card.
+await page.goto(`${base}/?debug=1&mode=super10&seed=778&fieldui=a`, { waitUntil: 'load' });
+for (let i = 0; i < 80 && !(await page.evaluate(() => !!document.querySelector('#start') && !!window.__cricket)); i++) {
+  if (await anyway.count()) await anyway.first().click().catch(() => {});
+  await advance(300); await page.waitForTimeout(200);
+}
+await page.locator('#start').click({ force: true });
+const a = await until(['READY'], 800, 16);
+check(a.super10?.ui === 'a' && a.super10.card === false && await page.locator('#s10-foot svg').isVisible(),
+  '?fieldui=a keeps the field at the foot and puts up no card', JSON.stringify({ ui: a.super10?.ui, card: a.super10?.card }));
 check(errors.length === 0, 'no errors on the page', errors.join(' | '));
 
 await browser.close();

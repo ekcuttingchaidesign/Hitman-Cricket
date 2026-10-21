@@ -875,8 +875,9 @@ export class Fielder {
   readonly figure: Cricketer;
   /** A contact shadow, kept under his hips — which in a dive are metres from his feet. */
   patch?: THREE.Object3D;
-  constructor(kit?: Kit) {
-    this.figure = new Cricketer(kit);
+  /** `connected`: the bowler's clean build, for Super10's captain. It wants `figure.drape()` before a frame is drawn. */
+  constructor(kit?: Kit, { connected = false } = {}) {
+    this.figure = new Cricketer(kit, { connected });
     this.root.name = 'Fielder';
     this.root.add(this.figure.root);
   }
@@ -984,3 +985,42 @@ export function receive(spot: Spot, start: number, at: number, end = Infinity): 
   };
 }
 
+
+/** What the captain is telling a man to do. */
+export type Signal = 'point' | 'back' | 'in';
+/** How long the captain's signal takes, from turning to the man to dropping the arm. */
+export const SIGNAL_MS = 900;
+
+/**
+ * The captain at mid-off moving a man: turned towards him, and either the
+ * right arm out straight at where he wants him (`point`), up over his head
+ * and pushing him back twice (`back`), or both hands out low in front and
+ * beckoning him up twice (`in`). He does not walk: a captain points.
+ */
+export function signal(spot: Spot, toward: { x: number; z: number }, start: number, kind: Signal): Action {
+  const facing = Math.atan2(toward.x - spot.x, toward.z - spot.z);
+  return {
+    name: 'Signalling', start, end: start + SIGNAL_MS, blend: 220,
+    at(t) {
+      const ms = t - start;
+      const up = ease(span(ms, 60, 300)), down = ease(span(ms, 680, SIGNAL_MS));
+      const k = up * (1 - down);
+      // Two beats while the arm is up.
+      const beat = Math.sin(span(ms, 300, 680) * Math.PI * 4);
+      const p = standPose(NOWHERE);
+      p.hip.y += .03; p.chest.y += .03;
+      const shoulder = p.chest.y + BUILD.shoulderY;
+      if (kind === 'point') {
+        p.rightHand.lerp(new THREE.Vector3(.2, shoulder + .08 + beat * .025, .63), k);
+      } else if (kind === 'back') {
+        p.rightHand.lerp(new THREE.Vector3(.21, shoulder + .5, .18 + beat * .13), k);
+      } else {
+        p.leftHand.lerp(new THREE.Vector3(-.17, shoulder - .22 + beat * .12, .48), k);
+        p.rightHand.lerp(new THREE.Vector3(.17, shoulder - .22 + beat * .12, .48), k);
+      }
+      p.headPitch = -.04 * k;
+      const turned = ease(span(ms, 0, 240)) * (1 - ease(span(ms, 700, SIGNAL_MS)));
+      return upright({ x: spot.x, z: spot.z, heading: lerpAngle(spot.heading, facing, turned) }, p);
+    },
+  };
+}

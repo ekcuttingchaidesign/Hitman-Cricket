@@ -18,6 +18,11 @@ import { INTRO_STEPS, introDue, noteIntro, type IntroGame } from './ui/MarathonI
 import { CONFIDENCE_STEP, SHOTS_STEP, howToDue, noteHowTo, playedBefore } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
 import { SUPER10, batterAt as super10Batter, windowsAt as super10Windows } from './config/super10';
+import {
+  bowlerOf, captainCall, drawnOf, fieldFor, fieldRules, offScreen, signalFor, surgeOffered, surgeOn, type CaptainCall, type FieldSet,
+} from './game/super10-field';
+import { FieldUi, fieldUiOf } from './ui/FieldMap';
+import { sectorOf } from './scene/flight';
 import { MarathonInnings, leftHandersOf, marathonFigures, type Change } from './game/Marathon';
 import { soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
 import { marathonOffer, type MarathonLadder } from './ui/MarathonBoard';
@@ -305,6 +310,17 @@ export class Game {
   private marathon: MarathonInnings | null = null;
   /** What the Marathon has put up this innings: the swing coming on, and the express bowler's first over. */
   private told = { swing: false };
+  /**
+   * Super10's field this innings: the over it was last set for, the
+   * captain's call, the over Power Surge is taken for, where the boundaries
+   * have gone (the captain reads them), the field in play, and the fields the
+   * card has shown already.
+   */
+  private s10 = Game.freshField();
+  private static freshField() {
+    return { over: -1, captain: null as CaptainCall, armed: null as number | null, scored: [] as number[], field: null as FieldSet | null, seen: new Set<string>() };
+  }
+  private fieldUi!: FieldUi;
   /** When the bowler may set off, if a level's banner is up: he waits for it as for the field. */
   private bannerUntil = 0;
   /** Where the batter who played the last ball came in, in the team's history: his fifty is his own. */
@@ -633,6 +649,9 @@ export class Game {
     if (this.demo) document.documentElement.setAttribute('data-demo', '1');
     try { this.best = Math.max(0, Math.min(180, Number(localStorage.getItem('hitman-best')) || 0)); } catch { /* Storage may be disabled. */ }
     this.hud = new HUD(root, this.best, { player: readPlayer() });
+    // Super10's field on the screen, in the version this link asks for.
+    this.fieldUi = new FieldUi(this.hud.viewport, fieldUiOf(location.search), { surge: () => this.armSurge(), closed: () => {} });
+    this.hud.viewport.querySelector('#scoreboard')?.addEventListener('click', () => this.lookAtField());
     this.hud.coverPlayer = () => readPlayer();
     this.noteLaunch();
     this.stopDressingSends = onDressingWrite(() => this.queueDressingSend());
@@ -2163,6 +2182,11 @@ export class Game {
     this.scene.overcast(false, true); this.hud.levelBanner(null);
     this.hud.start(this.surviving, this.marathoning);
     this.hand();
+    // Super10's field, and its captain at mid-off, put out before the first ball.
+    this.s10 = Game.freshField();
+    this.scene.captain(this.super10);
+    this.fieldUi.show(this.super10, this.scene.mirrored);
+    if (this.super10) this.super10Over(false);
     this.nearing = null; this.hud.nearing(null, null);
     // The Test board is fetched when a Test innings starts rather than on every
     // load: a player who only ever picks the five-over innings never asks for
@@ -2233,6 +2257,7 @@ export class Game {
     track('tutorial-start', 'Tutorial started');
     this.mode = 'CLASSIC';
     this.scene.whites(false); this.scene.overcast(false, true); this.hud.levelBanner(null); this.scene.time(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
+    this.scene.captain(false); this.fieldUi.show(false);
     this.audio.stop(); this.audio.music(null); this.audio.crowd(null); this.audio.unlock(); this.score = new ScoreManager();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = null; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     this.ease = 1; this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
@@ -2470,6 +2495,7 @@ export class Game {
   private setPhase(phase: GamePhase) {
     this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials);
     if (phase === 'READY' && this.marathon) this.tellLevel();
+    if (phase === 'READY' && this.super10 && this.lesson < 0) this.super10Over(true);
     if (phase === 'READY' && this.momentAsked) { const moment = this.momentAsked; this.momentAsked = null; this.askMoment(moment); }
     if (phase === 'READY' && this.actionAsked) { const kind = this.actionAsked; this.actionAsked = null; this.askAction(kind); }
   }
@@ -2500,6 +2526,44 @@ export class Game {
       } else this.bannerUntil = Math.max(this.bannerUntil, this.scene.rehearse(kind, this.elapsed));
     }
     else if (['BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'].includes(this.phase)) this.actionAsked = kind;
+  }
+  /**
+   * Super10, at the top of an over: the captain's read of the innings, Power
+   * Surge if this is its over, the bowler's field with both laid on it, the
+   * drawn men walked to it — the captain signalling the one he moves — and
+   * the field on the screen, the bowler waiting while a card for it is up.
+   * Once an over; the first is put out rather than walked to.
+   */
+  private super10Over(walk: boolean) {
+    const s10 = this.s10;
+    const over = Math.min(Math.floor(this.score.balls / SUPER10.ballsPerOver), SUPER10.overs - 1);
+    if (s10.over === over) return;
+    for (let o = s10.over + 1; o <= over; o++) s10.captain = captainCall(this.score.runs, o, s10.captain);
+    s10.over = over;
+    const prev = s10.field;
+    const surge = surgeOn(over, s10.armed);
+    // Not taken by the ninth, it goes on by itself.
+    if (surge && s10.armed === null) { s10.armed = over; this.mark('surge-auto', 'Power Surge switched on by itself'); }
+    const field = fieldFor({ bowler: bowlerOf(this.generator.overKind(over), over), over, surge, captain: s10.captain, scored: s10.scored });
+    s10.field = field;
+    this.scene.super10Field(drawnOf(field), walk, (walk && signalFor(prev, field)) || undefined);
+    const fresh = !s10.seen.has(field.id);
+    s10.seen.add(field.id);
+    this.fieldUi.overBegins(field, over, { prev, fresh });
+    this.fieldUi.surge(surge ? 'on' : surgeOffered(over, s10.armed) ? 'offer' : null);
+    if (field.change === 'captain') this.mark(`captain-${s10.captain}`, 'The captain changed the field');
+  }
+  /** Power Surge taken for the next over: the chip, or P. */
+  private armSurge() {
+    if (!this.super10 || !surgeOffered(this.s10.over, this.s10.armed) || this.phase === 'INNINGS_END') return;
+    this.s10.armed = this.s10.over + 1;
+    this.fieldUi.surge('armed');
+    this.mark(`surge-${this.s10.armed + 1}`, 'Power Surge taken');
+  }
+  /** The field in play, looked at again: a tap on the scoreboard, or F. Between balls, and the bowler waits. */
+  private lookAtField() {
+    if (!this.super10 || !['READY', 'RESULT'].includes(this.phase)) return;
+    if (this.fieldUi.look()) this.mark('field-look', 'Looked at the field');
   }
   /**
    * At the top of an over, whether it is the one the innings changes in: the
@@ -3680,6 +3744,8 @@ export class Game {
     else if (key === 'R' && this.phase !== 'START') { event.preventDefault(); this.start(); }
     else if (key === 'ESCAPE') { event.preventDefault(); this.togglePause(); }
     else if (key === 'M') { event.preventDefault(); this.toggleSound(); }
+    else if (key === 'P' && this.super10) { event.preventDefault(); this.armSurge(); }
+    else if (key === 'F' && this.super10) { event.preventDefault(); this.lookAtField(); }
   };
   /**
    * The innings clock at the moment an input actually happened.
@@ -3753,7 +3819,7 @@ export class Game {
     // The bowler waits for the field to be back on its marks — a catcher
     // jogging back from deep midwicket, the man who chased one to the rope —
     // and no longer than a few seconds past the usual wait, whatever happens.
-    if (this.phase === 'READY' && age >= this.readyMs && this.elapsed >= this.bannerUntil && (this.scene.fieldSettled || age >= this.readyMs + FIELD_WAIT_MS)
+    if (this.phase === 'READY' && age >= this.readyMs && this.elapsed >= this.bannerUntil && !this.fieldUi.cardOpen && (this.scene.fieldSettled || age >= this.readyMs + FIELD_WAIT_MS)
       && (!this.scene.batterTapping || age >= this.readyMs + TAP_WAIT_MS)) {
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
         : this.chargeable(this.generator.next(this.elapsed + GAME.runupMs));
@@ -3836,6 +3902,13 @@ export class Game {
       : this.marathon ? this.marathonBall()
       : this.surviving ? resolveSurvive(this.delivery!, this.attempt, this.rng, easedSkill(TAILENDER, this.ease))
       : resolveShot(this.delivery!, this.attempt, this.rng, this.charged, this.windows);
+    // Super10's field has its say: a four at a boundary rider cut off, a six
+    // at one sometimes caught on the rope.
+    if (!step && this.super10 && this.s10.field) {
+      this.outcome = fieldRules(this.outcome, this.attempt?.shotType, this.s10.field, this.rng);
+      if (this.outcome.runs >= 4) this.s10.scored.push(sectorOf(this.outcome, this.attempt?.shotType));
+      if (this.outcome.rope) this.mark(this.outcome.isWicket ? 'rope-catch' : 'cut-off', this.outcome.isWicket ? 'Caught on the rope' : 'A four cut off');
+    }
     if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);
     else {
       this.score.record(this.outcome); this.generator.record(this.outcome);
@@ -4148,6 +4221,9 @@ export class Game {
     const outcome = this.outcome!;
     if (this.lesson < 0) { this.hud.score(this.score); this.showNearing(this.batterHistory); this.chaseBall(outcome); }
     this.hud.result(outcome, this.chargeMiss);
+    // A boundary rider out of the picture: the side label it went past says who.
+    const away = outcome.rope && offScreen(outcome.rope.angle);
+    if (away && outcome.rope) this.fieldUi.light({ side: (away === 'leg') !== this.scene.mirrored ? 'left' : 'right', name: outcome.rope.name });
     if (outcome.hit) {
       // The blow lands with the call rather than before it, so the flash, the
       // kick and the words are one event instead of three.
@@ -5711,6 +5787,10 @@ export class Game {
       over, batter: super10Batter(this.score.wickets).title, bowler: this.generator.overKind(over),
       express: !!this.delivery?.express, death: !!this.delivery?.death, action: this.scene.bowlerAction,
       speed: this.delivery?.speedKph ?? null, windows: this.windows, practising: this.practising,
+      field: this.s10.field && { id: this.s10.field.id, change: this.s10.field.change, bowler: this.s10.field.bowler,
+        deep: this.s10.field.men.filter(m => m.deep).map(m => m.angle) },
+      captain: this.s10.captain, surge: this.s10.armed, card: this.fieldUi.cardOpen, ui: this.fieldUi.version,
+      rope: this.outcome?.rope ?? null, leading: this.scene.leading,
     };
   }
   /** Where a Marathon innings stands, for `marathon-check.mjs`. */

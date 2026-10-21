@@ -72,6 +72,7 @@ describe('every switch the game reads', () => {
     fixed: 'holds the bowler sheet\'s camera still, a dev page that bats nothing',
     tile: 'the size of the bowler sheet\'s frames, a dev page that bats nothing',
     labels: 'leaves the names off the bowler sheet\'s frames, a dev page that bats nothing',
+    fieldui: 'which way Super10 shows its field, a card when it changes or a map always there; Super10 is practice already',
   };
 
   it('is either practice or named as not practice', () => {

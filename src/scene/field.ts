@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import type { Kit } from '../entities/Cricketer';
 import {
   DIVE, Fielder, PICKED_UP, REACTION_MS, RELEASED, Routine, diveReach, furthest, gather, idle, midpointOfHands, onField,
-  planCatch, receive, splitStep, still, throwIn, travel, type Action, type Body, type CatchPlan, type Idle, type Spot,
+  planCatch, receive, signal, splitStep, still, throwIn, travel, type Action, type Body, type CatchPlan, type Idle, type Signal,
+  type Spot,
 } from '../entities/Fielder';
 
 /**
@@ -24,7 +25,7 @@ import {
 export interface Mark { name: string; spot: Spot; style: Idle; deep: boolean }
 
 /** A mark on the field, by its angle from straight and its distance from the bat. */
-function mark(angle: number, distance: number): Spot {
+export function mark(angle: number, distance: number): Spot {
   const a = angle * Math.PI / 180, x = Math.sin(a) * distance, z = Math.cos(a) * distance;
   return { x, z, heading: Math.atan2(-x, -z) };
 }
@@ -99,7 +100,68 @@ export class Field {
   /** Deliveries walked in for, so every ball deals each man a different walk. */
   private ball = 0;
 
-  dress(kit: Kit) { for (const fielder of this.fielders) fielder.figure.dress(kit); }
+  /**
+   * Super10's captain: the bowler's clean build, standing in for the first
+   * man while he leads, and made the first time a Super10 is played so no
+   * other game pays for him.
+   */
+  captain: Fielder | null = null;
+  private leading = false;
+  private kit?: Kit;
+
+  dress(kit: Kit) {
+    this.kit = kit;
+    for (const fielder of this.fielders) fielder.figure.dress(kit);
+    this.captain?.figure.dress(kit);
+  }
+
+  /** The captain on or off. Answers with him the first time he is made, for the scene to put on the field. */
+  lead(on: boolean): Fielder | null {
+    let made: Fielder | null = null;
+    if (on && !this.captain) made = this.captain = new Fielder(this.kit, { connected: true });
+    this.leading = on;
+    this.fielders[0].root.visible = !on;
+    if (this.captain) this.captain.root.visible = on;
+    return made;
+  }
+
+  /** The figures on the field now: the captain in the first man's place while he leads. */
+  private get figures() { return this.leading && this.captain ? [this.captain, ...this.fielders.slice(1)] : this.fielders; }
+
+  /** The clean build hangs his clothes on his pose once a frame, as the bowler's does. */
+  drape() { if (this.leading) this.captain?.figure.drape(); }
+
+  /**
+   * A new field in the middle of an innings, walked to: Super10's, between
+   * overs. The first man keeps the first mark — he is the captain — and every
+   * other mark goes to whoever is nearest it, so nobody crosses the ground
+   * to stand where his neighbour was. With a signal, the captain turns to the
+   * man he is moving and puts him there first.
+   */
+  moveTo(marks: readonly Mark[], now: number, told?: { kind: Signal; to: { x: number; z: number } }) {
+    const at = this.routines.map(routine => routine.at(now));
+    const order: Mark[] = [marks[0]];
+    const free = new Set(marks.slice(1).map((_, i) => i + 1));
+    const pairs: [number, number, number][] = [];
+    for (let man = 1; man < at.length; man++) for (const k of free) pairs.push([away(at[man], marks[k].spot), man, k]);
+    pairs.sort((a, b) => a[0] - b[0]);
+    const placed = new Set<number>();
+    for (const [, man, k] of pairs) {
+      if (placed.has(man) || !free.has(k)) continue;
+      order[man] = marks[k]; placed.add(man); free.delete(k);
+    }
+    this.marks = order;
+    this.catching = null; this.gathering = null; this.bowling = null;
+    this.routines = this.routines.map((routine, i) => {
+      if (i === 0 && told) {
+        const here = at[0];
+        const sign = signal({ x: here.x, z: here.z, heading: here.heading }, told.to, now + 60, told.kind);
+        const lead = new Routine([...recent(routine, now), sign]);
+        return new Routine([...lead.actions, ...this.homeward(0, lead, sign.end)]);
+      }
+      return new Routine([...recent(routine, now), ...this.homeward(i, routine, now + 120 + deal(i, this.ball, 9) * 320)]);
+    });
+  }
 
   /**
    * Set the field for an innings. They are put on their marks rather than
@@ -129,7 +191,7 @@ export class Field {
 
   /** Pose everyone for this instant. */
   update(now: number) {
-    this.fielders.forEach((fielder, i) => fielder.show(this.routines[i].at(now)));
+    this.figures.forEach((fielder, i) => fielder.show(this.routines[i].at(now)));
   }
 
   /**
@@ -212,12 +274,14 @@ export class Field {
    * arrives, which is where the flight should finish.
    */
   struck(now: number, deadAt: number, look: (t: number) => THREE.Vector3 | null,
-    take?: { angle: number; height: number; arrives: number; dropped: boolean; visible: Visible }): CatchPlan | null {
+    take?: { angle: number; height: number; arrives: number; dropped: boolean; visible: Visible; at?: THREE.Vector3 }): CatchPlan | null {
     let plan: CatchPlan | null = null;
     let catcher = -1;
     if (take) {
       const spots = this.routines.map(routine => { const at = routine.at(now); return { x: at.x, z: at.z, heading: at.heading }; });
-      const found = this.findCatch(spots, now, take);
+      // Where it was decided it is taken — a boundary rider's catch on the
+      // rope — or where somebody can be got under it.
+      const found = take.at ? { index: nearestTo(spots, take.at), target: take.at } : this.findCatch(spots, now, take);
       catcher = found.index;
       plan = planCatch(spots[catcher], found.target, now, take.arrives, { dropped: take.dropped, look });
       // His own lead-in, then the plan without the split step it opens with:
@@ -582,6 +646,13 @@ export class Field {
       { face: near ? spot.heading : undefined, name: 'Walking back' });
     return [back, idle(spot, style, SEEDS[i], from + duration)];
   }
+}
+
+/** Which of these men is nearest a point. */
+function nearestTo(spots: Spot[], point: { x: number; z: number }) {
+  let index = 0, gap = Infinity;
+  spots.forEach((spot, i) => { const d = away(spot, point); if (d < gap) { gap = d; index = i; } });
+  return index;
 }
 
 /** How far along a line from `from` the rope is: thirty metres round a point ten up the pitch. */

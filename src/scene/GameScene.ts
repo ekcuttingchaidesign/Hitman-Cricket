@@ -3,12 +3,14 @@ import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT
 import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
 import { bodyOf, showBody } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
-import { BLAST_FIELD, Field, TEST_FIELD } from './field';
-import { ADVANCE, FLAT_SWEEP, GAME, PUNCH, SHOT_ANGLES, SPIN_PULL, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
+import { BLAST_FIELD, Field, TEST_FIELD, mark, type Mark } from './field';
+import { nameOf, type Man } from '../game/super10-field';
+import type { Signal } from '../entities/Fielder';
+import { GAME } from '../config/gameplay';
 import { ballPosition, drawnAt } from '../game/DeliveryTrajectory';
 import { KIT, type Kit } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
-import { flightOf } from './flight';
+import { flightOf, sectorOf } from './flight';
 import { OVERCAST, SKY, Sky, type SkyTime } from './sky';
 import { FILL_POSITION, LIGHTING, glows, moon, nightReflections } from './night';
 import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture } from './turf';
@@ -491,6 +493,7 @@ export class GameScene {
     // A fielder's goes on the man standing on the turf, not on the figure that
     // tips over in a dive, and follows his hips wherever they go.
     for (const fielder of this.field.fielders) { fielder.patch = under(); fielder.root.add(fielder.patch); }
+    this.underFielder = under;
     this.field.update(0);
   }
   private createStadium(anisotropy: number) {
@@ -581,7 +584,7 @@ export class GameScene {
    */
   private kitsUnderLights() {
     const night = this.now === 'night';
-    const roots = [this.batter.root, this.bowler.root, ...this.field.fielders.map(f => f.root)];
+    const roots = [this.batter.root, this.bowler.root, ...this.field.fielders.map(f => f.root), ...(this.field.captain ? [this.field.captain.root] : [])];
     for (const root of roots) root.traverse(object => {
       if (!(object instanceof THREE.Mesh)) return;
       for (const material of [object.material].flat()) {
@@ -968,6 +971,29 @@ export class GameScene {
    * ball, so an over can never inherit the last one's.
    */
   express(on: boolean, death = false) { this.bowler.action(death ? DEATH_ACTION : on ? EXPRESS_ACTION : PACE_ACTION); }
+  /**
+   * Super10's field for an over: the six men drawn of its nine, the captain
+   * first, put on their marks at the start of an innings and walked to them
+   * between overs, the captain signalling the man he moves.
+   */
+  super10Field(men: readonly Man[], walk: boolean, told?: { kind: Signal; man: Man }) {
+    const marks: Mark[] = men.map((man, i) => {
+      const name = nameOf(man.angle, man.deep);
+      return { name: name[0].toUpperCase() + name.slice(1), spot: mark(man.angle, man.distance), style: i % 2 ? 'hips' : 'loose', deep: man.deep };
+    });
+    if (!walk) { this.field.setField(marks); return; }
+    const to = told && mark(told.man.angle, told.man.distance);
+    this.field.moveTo(marks, this.clock, told && to ? { kind: told.kind, to } : undefined);
+  }
+  /** Super10's captain on the field in the first man's place, or the Blast's man back. */
+  captain(on: boolean) {
+    const made = this.field.lead(on);
+    if (!made) return;
+    made.patch = this.underFielder?.();
+    if (made.patch) made.root.add(made.patch);
+    this.world.add(made.root);
+    this.kitsUnderLights();
+  }
   /** Which action is at the top of the mark, for the checks. */
   get bowlerAction() {
     const style = this.bowler.actionStyle;
@@ -1038,6 +1064,8 @@ export class GameScene {
     const contact = this.flight(delivery, charging ? GameScene.meetsAt(true) : meets);
     this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging, lofted, sweeping, levelled, version, spinCut, spinPull);
   }
+  /** The contact shadow a fielder stands on, for one made after the ground was built. */
+  private underFielder?: () => THREE.Mesh;
   hit(outcome: ShotOutcome, shot: ShotType | undefined, delivery: Delivery, now: number) {
     this.hitStart = outcome.madeBatContact ? Math.max(now, this.batter.strikeAt) : now;
     this.contactDelay = this.hitStart - now;
@@ -1045,21 +1073,10 @@ export class GameScene {
     this.hitOutcome = outcome;
     const p = this.flight(delivery, outcome.advance ? GameScene.meetsAt(true) : this.meeting); this.hitOrigin.set(p.x, p.y, p.z);
     this.meeting = 1;
-    // The sweep is hit where the sweep goes — midwicket — rather than out along
-    // the sector of the leg-side swipe that played it.
-    // The orthodox sweep goes squarer than the slog does: the blade is level and
-    // going across the line, so the ball leaves square of the wicket rather than
-    // in front of it.
-    // The back-foot punch goes through cover, squarer than the drive's sector.
-    // The pull off the spinner goes between midwicket and square leg.
-    // The charge over cover goes over extra cover, where the stroke sends it,
-    // rather than out along the long-off sector the cover input names.
-    const sector = outcome.swept ? SWEEP.angle
-      : outcome.sweptFlat ? FLAT_SWEEP.angle
-      : outcome.advance && shot === 'COVER_LONG_OFF' ? ADVANCE.coverAngle
-      : outcome.advance && shot === 'LONG_ON' ? ADVANCE.onAngle
-      : outcome.squared ? SQUARE_DRIVE.angle : outcome.punched ? PUNCH.angle : outcome.spinPulled ? SPIN_PULL.angle : SHOT_ANGLES[shot ?? 'STRAIGHT'];
-    let angle = (sector + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28))) * Math.PI / 180;
+    // Which way it goes: `sectorOf`, out of this file so the Super10 field
+    // reads the same line the ball is drawn along. A ball a boundary rider
+    // stopped or caught goes to him, wherever that is.
+    let angle = (outcome.rope ? outcome.rope.angle : sectorOf(outcome, shot)) * Math.PI / 180;
     const caught = outcome.wicketType === 'CAUGHT';
     /**
      * A ball that hit him rather than the bat. It has spent itself on his body,
@@ -1080,13 +1097,14 @@ export class GameScene {
     this.hitHeight = flight.height;
     // A ball going to a fielder is swept off the straight, so the take does not
     // happen directly behind the bowler where nothing can be seen of it.
-    if ((caught || toAFielder) && Math.abs(angle) < 0.2) angle = 0.22;
+    const rope = outcome.rope;
+    if ((caught || toAFielder) && Math.abs(angle) < 0.2 && !rope) angle = 0.22;
     // A ball off the body drops away on the leg side, at his feet.
     if (struckBody || outcome.padded) angle = -0.85;
     // Along the ground and into the field: never between a fielder's boots.
     // Turned the least it takes to pass him by a stride and a half, which is
     // close enough that he dives for it and it beats him.
-    const along = outcome.madeBatContact && !outcome.aerial && !caught && !outcome.edged && !playedOn && !outcome.defended && !outcome.padded
+    const along = !rope && outcome.madeBatContact && !outcome.aerial && !caught && !outcome.edged && !playedOn && !outcome.defended && !outcome.padded
       && !struckBody && !outcome.advance && flight.height < 1 && outcome.runs >= 1;
     if (along) angle = this.field.clear(this.hitStart, angle, flight.distance);
     this.gathered = false;
@@ -1107,7 +1125,8 @@ export class GameScene {
     // hands, wherever they get to, so he is never put under it.
     const look = () => (this.ball.visible ? this.ball.position.clone() : null);
     const deadAt = this.hitStart + this.flightMs;
-    if ((caught || outcome.dropped) && !outcome.edged) {
+    if (rope) this.toRider(caught, flight.endY, deadAt, look);
+    else if ((caught || outcome.dropped) && !outcome.edged) {
       const plan = this.field.struck(this.hitStart, deadAt, look, {
         angle, height: flight.endY, arrives: this.hitStart + this.flightMs * this.takeAt, dropped: !!outcome.dropped,
         visible: point => this.inShot(point),
@@ -1123,6 +1142,28 @@ export class GameScene {
     if (outcome.advance) this.chargeRing.position.set(this.hitOrigin.x, 0.045, this.hitOrigin.z);
     // Hold the call back until a skied ball is taken, put down, or clears the rope.
     return { contactAt: this.hitStart, presentAt: this.hitStart + (outcome.aerial ? this.flightMs * 0.88 : 0), endAt: this.hitStart + this.flightMs };
+  }
+  /**
+   * A ball a Super10 boundary rider got to. In the picture, he takes it: a
+   * catch high on the rope where he stands, or the four he cut off picked up
+   * at his feet. Out of it — he is at deep point, and the camera behind the
+   * bat sees twenty degrees either side of straight — it flies out of the
+   * frame towards him, the field watches it go, and the call says who.
+   */
+  private toRider(caught: boolean, height: number, deadAt: number, look: (t: number) => THREE.Vector3 | null) {
+    if (!this.inShot(this.hitEnd.clone().setY(1.2))) { this.field.struck(this.hitStart, deadAt, look); return; }
+    if (caught) {
+      const plan = this.field.struck(this.hitStart, deadAt, look, {
+        angle: Math.atan2(this.hitEnd.x, this.hitEnd.z), height, arrives: this.hitStart + this.flightMs * this.takeAt, dropped: false,
+        visible: () => true, at: this.hitEnd.clone().setY(height),
+      });
+      if (plan) this.hitEnd.copy(plan.hands);
+      this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
+      return;
+    }
+    this.gathered = this.field.ground(this.hitStart, deadAt, look,
+      { from: this.hitOrigin.clone(), to: this.hitEnd.clone(), flightMs: this.flightMs, four: false },
+      this.bowling ? this.bowlerAtRest() : undefined).gathered;
   }
   /**
    * The bails leave when the ball reaches them, not on a fixed delay. Called
@@ -1309,7 +1350,7 @@ export class GameScene {
       this.clouding(THREE.MathUtils.lerp(this.cover.from, this.cover.to, k * k * (3 - 2 * k)), k >= 1);
     }
     this.mute.value = Math.max(muteAt(now - this.celebratedAt, this.celebratedFor), powerAt(now - this.poweredAt));
-    this.batter.drape(); this.bowler.figure.drape();
+    this.batter.drape(); this.bowler.figure.drape(); this.field.drape();
     if (this.cut) this.drawCutout();
     this.renderer.render(this.scene, this.camera);
     this.performanceReadout?.update(this.renderer);
@@ -1329,6 +1370,8 @@ export class GameScene {
 
   /** Whether the field is back on its marks, so the next ball can be bowled. */
   get fieldSettled() { return this.field.settled(this.clock); }
+  /** Whether Super10's captain, the clean build, is on the field in the first man's place. */
+  get leading() { return !!this.field.captain?.root.visible; }
   /** The batter tapping his bat down between balls, which the bowler waits out. */
   get batterTapping() { return this.batter.tapping; }
   /** The field as of the last frame, for `field-check.mjs`. */

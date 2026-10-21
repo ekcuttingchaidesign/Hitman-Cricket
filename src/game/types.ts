@@ -101,4 +101,10 @@ export interface ShotOutcome {
   hangMs?: number;
   /** Skied, reached, and put down: the fielder gets hands to it and it does not stick. */
   dropped?: boolean;
+  /**
+   * Super10: a boundary rider got to it — cut off a four, or caught a six on
+   * the rope (`isWicket` says which). Where he stands, in degrees off straight
+   * and metres from the bat, and what his position is called.
+   */
+  rope?: { angle: number; distance: number; name: string };
 }

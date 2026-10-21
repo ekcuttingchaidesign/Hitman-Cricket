@@ -1490,10 +1490,48 @@ The elbow's hyperextension is left out: the bowling arm is one straight limb.
 `tests/bowler.test.ts` holds him to every rule the other two actions keep, and
 `tests/super10.test.ts` to what makes him his.
 
-What is not here yet, being designed: the field (boundary riders, the captain
-at mid-off pointing the changes, Power Surge) that is meant to bring a strong
-player's totals from the 167 `scripts/super10-sim.ts` reports now towards a
-very good innings of 140 to 160; the boards and the career; and a card on
+The field (`src/game/super10-field.ts`, in `tests/super10-field.test.ts`) is
+nine men, each bowler setting his own (`fieldFor`; the swing bowler and the
+seamer a Powerplay field of two back for the first three overs, four back
+after it), the captain at mid-off in every one. It matters through
+`fieldRules`, laid on `resolveShot`'s answer in `resolve`: a four struck within
+`GUARD` (14 degrees) of a boundary rider is cut off for one or two, a six at one
+is caught on the rope three times in ten (`ROPE_CATCH`), and the outcome
+carries the rider (`rope`) for the call (CUT OFF · LONG-ON, LONG-OFF · ON THE
+ROPE) and the scene. The meter's strokes — the charge, the sweeps, the scoops —
+go where they are hit. The line judged is `sectorOf` in `src/scene/flight.ts`,
+the one `GameScene.hit` draws the ball along, timing jitter and all, so a ball
+said to have gone to a man is one the player watched go to him. In the picture
+he takes it (`toRider`); out of it — the camera sees about twenty degrees either
+side of straight — the ball flies out of frame towards him and the side label
+it went past says his name (`FieldUi.light`). The captain reads the innings at
+the top of the sixth over and the eighth against a par of 14.4 an over
+(`captainCall`): well ahead, a man goes back to the open lane the batter has hit
+most; well behind, the rider hit past least comes up. Power Surge
+(`surgeOffered`, `surgeOn`) is a gold chip under the scoreboard from the fourth
+over, or P, that takes it for the next over, from the fifth to the ninth, and it
+goes on by itself in the ninth: the two men back nearest straight come in.
+`super10-sim.ts` reports a strong player's 167 down to about 134 against the
+field, with no special strokes.
+
+The scene draws six of the nine (`drawnOf`: the captain and the five nearest
+straight), walked to their new marks at the top of an over (`Field.moveTo`,
+`GameScene.super10Field`). The captain is the bowler's clean build
+(`new Fielder(kit, { connected: true })`, made the first time a Super10 is
+played, `Field.lead`) standing in the first man's place, and he signals the man
+he moves (`signal` in `Fielder.ts`, chosen by `signalFor`): waved back to the
+rope, beckoned in, or pointed to; he does not walk. The bowler waits for it as
+he waits for any man walking back.
+
+How the field is shown is being tried two ways (`src/ui/FieldMap.ts`,
+`?fieldui=`, which is not practice): **b**, the default, a card at the foot at
+the top of an over whose field this innings has not shown or that the captain
+or the surge changed, held `FIELD_CARD_MS` or until tapped, the bowler waiting
+while it is up, a chip saying what moved, and the field again on a tap of the
+scoreboard or F; **a**, a see-through map always at the foot, brightening when it
+changes, and no card. Both have the field drawn solid in the pause sheet.
+
+What is not here yet: the boards and the career, and a card on
 Choose a mode. Until it has a board, an innings of it is practice
 (`practising`): posted nowhere, counted toward nothing, and the card, headed
 SUPER10 · 10 OVERS with no best quoted, says the mode is still being built
@@ -1501,8 +1539,9 @@ whatever the innings was worth (`why: 'building'` on the practice offer).
 It is reached by `?mode=super10` off production only (`SUPER10_OPEN`).
 `scripts/super10-check.mjs` plays one through on the dev server: the bowlers in
 the schedule's order, one real ball from each kind with his own action, the
-speed gun, the No. 3 named after a wicket, the card's heading and its line,
-and nothing sent.
+speed gun, the No. 3 named after a wicket, the field's card, its changes, the
+captain on the field and Power Surge, the card's heading and its line, and
+nothing sent.
 The actions are looked at in `bowler-sheet.html`, every action a row at the
 same moments, from the batter's end or side on (`scripts/bowler-sheet.mjs
 out-dir batter side`): a software-rendered game's clock does not land a
