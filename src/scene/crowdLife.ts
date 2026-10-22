@@ -84,8 +84,8 @@ export function livelyCrowd(materials: THREE.Material[], life: CrowdLife) {
 #endif`);
 }
 
-/** The flags' and banners' colours: the two sides', and the arena's violet and white. */
-const FLAG_COLOURS = [0x1f4fd6, 0xffd23f, 0x8b5cf6, 0xffffff, 0x1f4fd6, 0xffd23f];
+/** The flags' colours: a home crowd's, the tricolour's saffron, white and green among team blues and reds. */
+const FLAG_COLOURS = [0xff9933, 0xffffff, 0x138808, 0x1f4fd6, 0xd8322b, 0xff9933];
 /** The flag, its pole and how many: one in about forty seats, most of them at the far end, where a phone looks. */
 const FLAG = { width: 1.1, height: .7, pole: 1.7, far: 22, round: 14 } as const;
 
@@ -152,8 +152,8 @@ export function flags(world: THREE.Object3D, seats: THREE.Matrix4[], life: Crowd
 /** What the banners say, a row of the sheet each: the fans' own words, in the brand's colours. */
 export const BANNERS = [
   { text: 'SUPER10', ink: '#c6ff1a', cloth: '#2a0e5c' },
-  { text: 'HIT IT HERE', ink: '#12052b', cloth: '#ffd23f' },
-  { text: '6 6 6', ink: '#ffffff', cloth: '#8b5cf6' },
+  { text: 'HIT IT HERE', ink: '#12052b', cloth: '#ffffff' },
+  { text: '6 6 6', ink: '#ffffff', cloth: '#e2401c' },
   { text: 'TEN OVERS. FULL CHARGE.', ink: '#ffffff', cloth: '#1f4fd6' },
   { text: 'HITMAN!', ink: '#2a0e5c', cloth: '#ffffff' },
   { text: 'MAXIMUM', ink: '#c6ff1a', cloth: '#12052b' },
@@ -219,4 +219,57 @@ export function banners(world: THREE.Object3D, seats: THREE.Matrix4[], life: Cro
   const repaint = () => { const again = bannerSheet(); canvas.getContext('2d')?.drawImage(again.canvas, 0, 0); again.texture.dispose(); texture.needsUpdate = true; };
   document.fonts?.load('italic 900 84px Saira').then(repaint).catch(() => {});
   return { mesh, texture };
+}
+
+/**
+ * Phone torches held up in the stands, as a crowd does under lights: a point
+ * over a seat in every seat clear of the eyeline, each up only while the
+ * share asked for (`torches` in `arenaFrame`) is past its own draw, so more
+ * go up as the game gets tight and the same ones stay up. Each twinkles as
+ * the hand holding it moves; under reduced motion they stand steady. One
+ * draw for all of them, in the vertex shader: a torch that is down is a
+ * point of no size.
+ */
+export function torches(world: THREE.Object3D, seats: THREE.Matrix4[], life: CrowdLife) {
+  const random = seeded(97);
+  const held = seats.filter(clearOfEyeline);
+  const at: number[] = [], draw: number[] = [], phase: number[] = [];
+  for (const seat of held) {
+    const e = seat.elements;
+    at.push(e[12], e[13] + .62, e[14]); draw.push(random()); phase.push(random() * Math.PI * 2);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(at, 3));
+  geometry.setAttribute('torchAt', new THREE.Float32BufferAttribute(draw, 1));
+  geometry.setAttribute('torchPhase', new THREE.Float32BufferAttribute(phase, 1));
+  const texture = torchTexture();
+  const material = new THREE.PointsMaterial({ map: texture, color: 0xeef4ff, size: 1.3, sizeAttenuation: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false });
+  const share = { value: 0 };
+  material.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, { crowdTime: life.time, crowdStill: life.still, torchShare: share });
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nuniform float crowdTime, crowdStill, torchShare;\nattribute float torchAt, torchPhase;')
+      .replace('#include <fog_vertex>', `
+  float up = step(torchAt, torchShare);
+  float twinkle = mix(0.65 + 0.35 * sin(crowdTime * 5.0 + torchPhase), 1.0, crowdStill);
+  gl_PointSize *= up * twinkle;
+#include <fog_vertex>`);
+  };
+  material.customProgramCacheKey = () => 'crowd-torch';
+  const points = new THREE.Points(geometry, material);
+  points.name = 'Phone torches';
+  world.add(points);
+  return { material, share, texture };
+}
+
+/** A torch's light: a hot white middle in a soft round glow. */
+function torchTexture() {
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 32;
+  const ctx = canvas.getContext('2d')!;
+  const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.18, 'rgba(255,255,255,.95)'); g.addColorStop(.4, 'rgba(255,255,255,.3)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 32, 32);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 }

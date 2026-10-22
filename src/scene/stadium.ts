@@ -58,19 +58,15 @@ export const STADIUM = {
 const CROWD = [0xf2ede1, 0x2f5d46, 0xe0d8c4, 0xc9d7de, 0x4a7a5e, 0xefe2bf, 0xf7f4ec, 0x7d9a8c, 0x2b4a63];
 
 /**
- * How the arena (`arena.ts`) differs from the stadium it is built on: a crowd
- * in its two sides' colours rather than summer whites, no towers and no bank
- * of lamps on every other section (its light is one ring round the roof's
- * edge, which the arena hangs itself), and, where it has its big screen, no
- * commentary box under it.
+ * How the arena (`arena.ts`) differs from the stadium it is built on: no
+ * towers and no bank of lamps on every other section (its light is one ring
+ * round the roof's edge, which the arena hangs itself), and, where it has its
+ * big screen, no commentary box under it.
  */
 export interface StandsOptions {
-  crowd?: readonly (readonly number[])[];
   towers?: boolean;
   roofLamps?: boolean;
   commentary?: boolean;
-  /** The sightscreen and the covered seats behind the bowler's arm: the stadium's white, or the arena's ink. */
-  eyeline?: number;
   /** A crowd that is never still (`crowdLife.ts`): its own materials, moved in their shaders. */
   lively?: boolean;
 }
@@ -123,17 +119,15 @@ export interface StadiumLights {
 
 /** Builds the stadium onto `world`, the stage's own frame: the bowler's end is +z. */
 export function stadium(world: THREE.Object3D, options: StandsOptions = {}): StadiumLights {
-  const { crowd: palettes = [CROWD], towers = true, roofLamps = true, commentary: box = true, eyeline = STADIUM.cover, lively = false } = options;
+  const { towers = true, roofLamps = true, commentary: box = true, lively = false } = options;
   const b = new Batch();
   const lights: StadiumLights = { lamps: lampFinish(), roof: [], towers: [] };
   const seats: THREE.Matrix4[] = [];
   const colours: number[] = [];
   const seat = (frame: THREE.Matrix4, x: number, y: number, z: number, n: number) => {
     seats.push(frame.clone().multiply(new THREE.Matrix4().makeTranslation(x, y, z)));
-    colours.push(palette[n % palette.length]);
+    colours.push(CROWD[n % CROWD.length]);
   };
-  // A palette a section, in turn round the ground: the stadium has the one.
-  let palette = palettes[0];
 
   for (let section = 0; section < SECTIONS; section++) {
     const a = section / SECTIONS * Math.PI * 2;
@@ -142,10 +136,9 @@ export function stadium(world: THREE.Object3D, options: StandsOptions = {}): Sta
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), a),
       new THREE.Vector3(1, 1, 1),
     );
-    palette = palettes[section % palettes.length];
-    stand(b, seat, frame, section, lights, roofLamps, eyeline);
+    stand(b, seat, frame, section, lights, roofLamps);
   }
-  sightscreen(b, eyeline);
+  sightscreen(b);
   if (box) commentary(b);
   if (towers) floodlights(b, lights);
 
@@ -190,8 +183,8 @@ function across(w: number, skip: (x: number) => boolean, place: (x: number) => v
  * a tunnel into the middle of its lower tier, so the ring has the rhythm a
  * real stand has rather than one unbroken band of crowd.
  */
-function stand(b: Batch, seat: (frame: THREE.Matrix4, x: number, y: number, z: number, n: number) => void, frame: THREE.Matrix4, section: number, lights: StadiumLights, lamps: boolean, cover: number) {
-  const { concrete, paint, steel, glass, tunnel } = STADIUM;
+function stand(b: Batch, seat: (frame: THREE.Matrix4, x: number, y: number, z: number, n: number) => void, frame: THREE.Matrix4, section: number, lights: StadiumLights, lamps: boolean) {
+  const { concrete, paint, steel, glass, cover, tunnel } = STADIUM;
   const behindTheBowler = section === 0, tunnelled = section % 2 === 1;
   let n = section * 31;
 
@@ -256,9 +249,9 @@ function roof(b: Batch, frame: THREE.Matrix4, rear: number, lights: StadiumLight
 }
 
 /** The sightscreen, behind the bowler's arm: tall enough for his hand, with a capping rail. */
-function sightscreen(b: Batch, cover: number) {
+function sightscreen(b: Batch) {
   const z = CENTRE_Z + RING - 3.3;
-  b.box(12.5, 3.3, 0.3, cover, 0, 1.65, z);
+  b.box(12.5, 3.3, 0.3, STADIUM.cover, 0, 1.65, z);
   b.box(12.7, 0.12, 0.42, STADIUM.steel, 0, 3.32, z);
 }
 

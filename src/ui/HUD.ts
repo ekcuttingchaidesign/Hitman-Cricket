@@ -447,6 +447,11 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
                 <span class="pause-row-say"><b id="lights-label">Lights</b></span>
                 <div id="lights-toggle" class="lights-toggle" role="radiogroup" aria-labelledby="lights-label"><button id="lights-day" class="lights-option" type="button" role="radio" aria-checked="false">${icon('sun')}<span>Day</span></button><button id="lights-night" class="lights-option" type="button" role="radio" aria-checked="true">${icon('moon')}<span>Night</span></button></div>
               </div>
+              <div id="stumps-row" class="pause-row is-static hidden">
+                <span class="pause-row-icon is-stumps"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="M7 7v14M12 7v14M17 7v14M6 4.5h5M13 4.5h5"/></svg></span>
+                <span class="pause-row-say"><b id="stumps-label">Stumps</b></span>
+                <div class="lights-toggle" role="radiogroup" aria-labelledby="stumps-label"><button id="stumps-violet" class="lights-option" type="button" role="radio" aria-checked="true"><span>Violet</span></button><button id="stumps-raspberry" class="lights-option" type="button" role="radio" aria-checked="false"><span>Raspberry</span></button></div>
+              </div>
             </div>
             <p id="pause-sound-note" class="pause-note hidden">All sound is off. The speaker key at the top turns it back on.</p>
             <button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button>
@@ -2615,6 +2620,16 @@ ${modeSelectMarkup()}
       const option = this.$(`lights-${time}`);
       option.classList.toggle('is-on', time === now);
       option.setAttribute('aria-checked', String(time === now));
+    }
+  }
+  /** The pause card's stumps colourway, in the arena only: violet or raspberry, the one on lit. */
+  stumpsSwitch(now: 'violet' | 'raspberry' | null) {
+    this.$('stumps-row').classList.toggle('hidden', now === null);
+    if (!now) return;
+    for (const theme of ['violet', 'raspberry'] as const) {
+      const option = this.$(`stumps-${theme}`);
+      option.classList.toggle('is-on', theme === now);
+      option.setAttribute('aria-checked', String(theme === now));
     }
   }
   /**

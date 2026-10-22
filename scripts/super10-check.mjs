@@ -82,7 +82,7 @@ check(first.super10?.practising === true, 'and it is counted as practice until i
 const opener = await page.locator('#phase-label').textContent();
 check(first.balls === 0 && !!opener?.startsWith('OPENER IN'), 'the opener is named as he walks out', `${opener} (balls ${first.balls})`);
 const ball = await page.evaluate(() => window.__cricket.ball());
-check(ball === '#f4f2ec', 'and it is played with a white ball', ball);
+check(ball === '#e84829', 'and it is played with the red ball', ball);
 const corner = await page.evaluate(() => ({
   map: document.querySelectorAll('#s10-map .s10-man').length, bat: !!document.querySelector('#s10-map .s10-bat'),
   shown: !document.querySelector('#s10-map')?.classList.contains('hidden'), surge: document.querySelector('#s10-surge')?.dataset.state,

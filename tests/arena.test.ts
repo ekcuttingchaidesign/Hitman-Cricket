@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { ARENA, ARENA_CROWD, CUES, MILESTONE_WORDS, MOST_FLASHES, arenaFrame, arenaStands, screenFrom, slamScale, stingOf, type ArenaCue, type ArenaMood } from '../src/scene/arena';
+import { ARENA, CUES, FLASH, MILESTONE_WORDS, MOST_FLASHES, TORCHES, arenaFrame, arenaStands, screenFrom, slamScale, stingOf, stumpLight, stumpsFrom, type ArenaCue, type ArenaMood } from '../src/scene/arena';
 import { WAVE, waveAt } from '../src/scene/crowdLife';
 import { buildGround, groundFrom, nightOnly, ownFloodlights } from '../src/scene/grounds';
+import { STADIUM } from '../src/scene/stadium';
 
-const hex = (c: THREE.Color) => c.getHex();
 const KINDS = Object.keys(CUES) as ArenaCue[];
 const MOODS: ArenaMood[] = ['calm', 'surge', 'death'];
 const built = () => { const world = new THREE.Group(); const lights = arenaStands(world); return { world, lights }; };
@@ -13,16 +13,23 @@ const crowdOf = (world: THREE.Object3D) => {
   world.traverse(object => { if (object instanceof THREE.InstancedMesh) crowd.push(object); });
   return crowd;
 };
-/** How many times the halo goes up to lime from something else over `ms`, sampled every frame. */
-function flashes(mood: ArenaMood, cue: { kind: ArenaCue; at: number } | null, from: number, ms: number) {
+/** How many times the floodlights strike up from under a flash over `ms`, sampled every frame. */
+function flashes(mood: ArenaMood, cue: { kind: ArenaCue; at: number } | null, from: number, ms: number, still = false) {
   let count = 0, was = false;
   for (let t = from; t < from + ms; t += 1000 / 60) {
-    const lime = hex(arenaFrame(mood, cue, t).halo) === ARENA.volt;
-    if (lime && !was) count++;
-    was = lime;
+    const flash = arenaFrame(mood, cue, t, still).lamps >= FLASH;
+    if (flash && !was) count++;
+    was = flash;
   }
   return count;
 }
+/** Every colour the crowd is wearing. */
+const shirts = (world: THREE.Object3D) => {
+  const [crowd] = crowdOf(world);
+  const seen = new Set<number>(), colour = new THREE.Color();
+  for (let i = 0; i < crowd.count; i++) { crowd.getColorAt(i, colour); seen.add(colour.getHex()); }
+  return seen;
+};
 
 describe('the arena', () => {
   it('is asked for with ?ground=arena, brings its own lights and is played at night only', () => {
@@ -47,25 +54,13 @@ describe('the arena', () => {
     expect(buildGround('stadium', new THREE.Group())!.towers).toHaveLength(4);
   });
 
-  it('seats the two sides in their colours, a section each, where the stadium has its summer whites', () => {
-    const [crowd] = crowdOf(built().world);
-    const allowed = new Set(ARENA_CROWD.flat());
-    const seen = new Set<number>();
-    const colour = new THREE.Color();
-    for (let i = 0; i < crowd.count; i++) { crowd.getColorAt(i, colour); seen.add(colour.getHex()); }
-    for (const c of seen) expect(allowed.has(c)).toBe(true);
-    expect(seen.has(ARENA_CROWD[0][0]) && seen.has(ARENA_CROWD[1][0])).toBe(true);
-  });
-
-  it('keeps the eyeline dark: the sightscreen and the covered seats are ink, in the arena and nowhere else', () => {
-    const colours = (world: THREE.Object3D) => {
-      const found = new Set<number>();
-      world.traverse(o => { if (o instanceof THREE.Mesh && !(o instanceof THREE.InstancedMesh)) found.add((o.material as THREE.MeshStandardMaterial).color.getHex()); });
-      return found;
-    };
-    expect(colours(built().world).has(ARENA.ink)).toBe(true);
+  it('seats the stadium\'s own crowd, and keeps its white sightscreen for the red ball', () => {
     const stadium = new THREE.Group(); buildGround('stadium', stadium);
-    expect(colours(stadium).has(ARENA.ink)).toBe(false);
+    expect([...shirts(built().world)].sort()).toEqual([...shirts(stadium)].sort());
+    const colours = new Set<number>();
+    built().world.traverse(o => { if (o instanceof THREE.Mesh && !(o instanceof THREE.InstancedMesh)) colours.add((o.material as THREE.MeshStandardMaterial).color.getHex()); });
+    expect(colours.has(STADIUM.cover)).toBe(true);
+    expect(colours.has(ARENA.ink)).toBe(false);
   });
 
   it('brings the crowd to life on its own materials, never the scenery\'s shared ones, and only in the arena', () => {
@@ -89,9 +84,10 @@ describe('the arena', () => {
     expect(front(WAVE.lap / 2)).toBeGreaterThan(0);
   });
 
-  it('is violet at rest, its boards idle, and the idle boards at 40% while the ball is live', () => {
+  it('burns its floodlights at the night\'s own at rest, its boards idle, and the idle boards at 40% while the ball is live', () => {
     const calm = arenaFrame('calm', null, 5000);
-    expect(hex(calm.halo)).toBe(ARENA.violet);
+    expect(calm.lamps).toBe(1);
+    expect(calm.torches).toBe(TORCHES.calm);
     expect(calm.board).toBe('idle');
     expect(calm.word).toBeNull();
     expect(calm.boards).toBe(1);
@@ -100,16 +96,24 @@ describe('the arena', () => {
     expect(arenaFrame('calm', { kind: 'four', at: 0 }, 300, false, true).boards).toBe(1);
   });
 
-  it('charges the roof lime for Power Surge, and crackles it in the death overs, never in red', () => {
-    for (let t = 0; t < 3000; t += 97) {
-      const surge = arenaFrame('surge', null, t).halo;
-      expect(surge.g).toBeGreaterThan(surge.b);
-      for (const mood of MOODS) {
-        const h = arenaFrame(mood, null, t).halo;
-        expect(h.r > .8 && h.g < .4 && h.b < .5).toBe(false);
-      }
+  it('puts more phone torches up as the game gets tight, and never flashes the floodlights for a mood alone', () => {
+    expect(TORCHES.calm).toBeLessThan(TORCHES.surge);
+    expect(TORCHES.surge).toBeLessThan(TORCHES.death);
+    for (const mood of MOODS) {
+      expect(arenaFrame(mood, null, 1234).torches).toBe(TORCHES[mood]);
+      expect(flashes(mood, null, 0, 6000)).toBe(0);
     }
-    expect(flashes('death', null, 0, 2600)).toBeGreaterThan(0);
+    // A six and a milestone put the phones up; they come down with the moment.
+    expect(arenaFrame('calm', { kind: 'six', at: 0 }, 1000).torches).toBe(TORCHES.moment);
+    expect(arenaFrame('calm', { kind: 'milestone', at: 0 }, 1000).torches).toBe(TORCHES.moment);
+    expect(arenaFrame('calm', { kind: 'six', at: 0 }, CUES.six.ms + 1).torches).toBe(TORCHES.calm);
+  });
+
+  it('strikes the floodlights once for a four and crackles them for a six', () => {
+    expect(arenaFrame('calm', { kind: 'four', at: 0 }, 40).lamps).toBeGreaterThanOrEqual(FLASH);
+    expect(arenaFrame('calm', { kind: 'four', at: 0 }, 700).lamps).toBe(1);
+    expect(flashes('calm', { kind: 'four', at: 0 }, 0, CUES.four.ms)).toBe(1);
+    expect(flashes('calm', { kind: 'six', at: 0 }, 0, CUES.six.ms)).toBe(3);
   });
 
   it('puts the brand\'s board up for each moment: four, six, wicket, and a word on its plate for the rest', () => {
@@ -125,10 +129,8 @@ describe('the arena', () => {
   });
 
   it('takes the lights down for a wicket and brings them back', () => {
-    const down = arenaFrame('calm', { kind: 'wicket', at: 0 }, 700).halo;
-    const up = arenaFrame('calm', { kind: 'wicket', at: 0 }, CUES.wicket.ms).halo;
-    expect(down.r + down.g + down.b).toBeLessThan(.6);
-    expect(hex(up)).toBe(ARENA.violet);
+    expect(arenaFrame('calm', { kind: 'wicket', at: 0 }, 700).lamps).toBeLessThan(.5);
+    expect(arenaFrame('calm', { kind: 'wicket', at: 0 }, CUES.wicket.ms).lamps).toBe(1);
   });
 
   it('flashes nothing more than three times a second, whatever is up', () => {
@@ -161,23 +163,43 @@ describe('the arena', () => {
   it('lets every moment go back into the mood it was in', () => {
     for (const kind of KINDS) {
       const over = arenaFrame('calm', { kind, at: 0 }, CUES[kind].ms + 1, true);
-      expect(hex(over.halo)).toBe(ARENA.violet);
+      expect(over.lamps).toBe(1);
       expect(over.word).toBeNull();
       expect(over.board).toBe('idle');
     }
+  });
+
+  it('lights the LED stumps as the sheet has them: rings at 60% at rest, then strike, raspberry, one dip, hold, and back', () => {
+    const rest = stumpLight(-1);
+    expect(rest.rings).toEqual({ colour: ARENA.volt, level: .6 });
+    expect(rest.crown.level).toBe(0); expect(rest.bails.level).toBe(0);
+    expect(stumpLight(20).crown.colour).toBe(ARENA.white);
+    expect(stumpLight(100).crown).toEqual({ colour: ARENA.wicket, level: 1 });
+    expect(stumpLight(300).rings.level).toBe(.3);
+    expect(stumpLight(1500).bails).toEqual({ colour: ARENA.wicket, level: 1 });
+    expect(stumpLight(3000)).toEqual(rest);
+    // Two flashes and a hold: never more than three a second.
+    let flashes = 0, was = 0;
+    for (let t = 0; t < 3000; t += 1000 / 60) { const level = stumpLight(t).crown.level; if (level >= 1 && was < 1) flashes++; was = level; }
+    expect(flashes).toBeLessThanOrEqual(MOST_FLASHES);
+    // Raspberry only once a bail has gone; under reduced motion no flash and no dip.
+    for (let t = 0; t < 2400; t += 50) { expect(stumpLight(t, true).crown).toEqual({ colour: ARENA.wicket, level: 1 }); }
+    // The raspberry stumps' rings stand dark at rest and come back to dark.
+    expect(stumpLight(-1, false, 'raspberry').rings.level).toBe(0);
+    expect(stumpLight(3000, false, 'raspberry')).toEqual(stumpLight(-1, false, 'raspberry'));
+    expect(stumpsFrom('?stumps=raspberry')).toBe('raspberry'); expect(stumpsFrom('')).toBe('violet');
   });
 
   it('forgets a moment from before the clock went back to nought, a new innings', () => {
     expect(arenaFrame('calm', { kind: 'six', at: 5000 }, 200).word).toBeNull();
   });
 
-  it('under reduced motion changes colour and says the word, and nothing runs or flickers', () => {
+  it('under reduced motion says the word, and nothing runs, strikes or flickers', () => {
     for (const mood of MOODS) for (const kind of KINDS) for (let t = 0; t < CUES[kind].ms; t += 100) {
       const f = arenaFrame(mood, { kind, at: 0 }, t, true);
       expect(f.chase).toBe(0);
       expect(f.word).not.toBeNull();
     }
-    expect(hex(arenaFrame('surge', null, 400, true).halo)).toBe(hex(arenaFrame('surge', null, 900, true).halo));
-    expect(hex(arenaFrame('death', null, 100, true).halo)).toBe(ARENA.violet);
+    for (const kind of KINDS) expect(flashes('calm', { kind, at: 0 }, 0, CUES[kind].ms, true)).toBe(0);
   });
 });

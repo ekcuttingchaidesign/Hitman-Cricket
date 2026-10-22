@@ -55,6 +55,7 @@ describe('every switch the game reads', () => {
     cheer: 'the crowd',
     ground: 'which ground is built',
     screen: "the arena's big screen, or the commentary box in its place",
+    stumps: "the arena stumps' colourway",
     lights: 'day or night',
     view: 'which screen opens',
     shot: 'a shot preview page',

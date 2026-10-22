@@ -179,8 +179,8 @@ export class Sky {
   }
 
   /** Day or night: repaints the dome. The environment map has to be taken again after it. */
-  time(time: SkyTime, tint?: { zenith: number; horizon: number }) {
-    const t = { ...TIMES[time], ...tint }, u = this.material.uniforms;
+  time(time: SkyTime) {
+    const t = TIMES[time], u = this.material.uniforms;
     (u.zenith.value as THREE.Color).set(t.zenith);
     (u.horizon.value as THREE.Color).set(t.horizon);
     (u.ground.value as THREE.Color).set(t.ground);

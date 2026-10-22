@@ -17,7 +17,7 @@ import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture } from '.
 import { BOARD_PANELS, perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, nightOnly, ownFloodlights, type GroundName } from './grounds';
-import { ARENA_SKY, Arena, MILESTONE_WORDS, screenFrom, type ArenaCue, type ArenaMood, type Scoreboard } from './arena';
+import { Arena, MILESTONE_WORDS, screenFrom, STUMP_THEMES, stumpsFrom, type StumpTheme, type ArenaCue, type ArenaMood, type Scoreboard } from './arena';
 import { buildWicket } from './wicket';
 import type { CrowdCelebration, CrowdMoment } from './CrowdCelebration';
 import { PerformanceReadout } from './performance';
@@ -121,16 +121,15 @@ function muteAt(age: number, lasts = CELEBRATION_MS) {
 const SHAPES = { ball: new THREE.SphereGeometry(1, 24, 16) };
 
 /**
- * The ball, by format: the Blast's bright red, the Test match's darker
- * Dukes, and Super10's white, as a ten-over game under lights is played with
- * (the brand sheet's white is "the letters, the ball"), its seam a grey that
- * shows it turning. Each keeps the faint glow of its own colour, which is
- * what holds a ball against the stands in the second it is in the air.
+ * The ball, by format: the Blast's bright red, which Super10 plays with too
+ * (a white ball was tried and lost against the pitch: players know a red
+ * one), and the Test match's darker Dukes. Each keeps the faint glow of its
+ * own colour, which is what holds a ball against the stands in the second it
+ * is in the air.
  */
 const BALL = {
   blast: { color: 0xe84829, glow: 0x972708, seam: 0xffefd6 },
   test: { color: 0xa81c1c, glow: 0x5c0b07, seam: 0xffefd6 },
-  white: { color: 0xf4f2ec, glow: 0x4c4a46, seam: 0x8d8a84 },
   /**
    * How much grass the Test strip keeps, of `pitchTexture`'s nought to one. A
    * little greener, not a green top: at one the whole strip reads as grass.
@@ -190,8 +189,6 @@ export class GameScene {
   private trail: THREE.Mesh[] = [];
   /** The ball's seam, recoloured with the ball (`testLook`). */
   private seam!: THREE.Mesh;
-  /** Super10's white ball: see `whiteBall`. */
-  private whiteBallOn = false;
   /**
    * The fire behind a ball struck with a special stroke: yellow at the ball,
    * red at the tail, glowing rather than lit, and flickering. Drawn instead of
@@ -313,7 +310,8 @@ export class GameScene {
     this.fill.position.set(...FILL_POSITION); this.scene.add(this.fill);
     this.createGround();
     this.wicket(0); this.wicket(18.7);
-    this.arena?.wire(this.stumps);
+    // The stage starts mirrored for a right-hander: the arena's stump wrap is turned over with it.
+    this.arena?.mirrorWrap(true);
     this.bowlerHolder.add(this.bowler.root);
     this.world.add(this.batter.root, this.bowlerHolder, ...this.field.fielders.map(f => f.root));
     this.ball = new THREE.Mesh(SHAPES.ball, soft(BALL.blast.color, 0.34));
@@ -480,7 +478,7 @@ export class GameScene {
     const ground = new THREE.Mesh(new THREE.CircleGeometry(70, 96), new THREE.MeshStandardMaterial({ map: grass, normalMap: blades, normalScale: new THREE.Vector2(0.65, 0.65), roughness: 0.95 })); ground.rotation.x = -Math.PI / 2;
     ground.position.set(0, -0.035, 10); ground.receiveShadow = true; this.world.add(ground);
     // The strip, its wear painted on rather than built from boxes.
-    const surface = pitchTexture(2.8, 32, 4.3, anisotropy, { batting: 0, bowling: 18.7 });
+    const surface = pitchTexture(2.8, 32, 4.3, anisotropy, { batting: 0, bowling: 18.7 }, 0, 0);
     this.pitch = new THREE.MeshStandardMaterial({ map: surface, roughness: 0.9 });
     this.dryPitch = surface; this.anisotropy = anisotropy;
     const strip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.025, 32), this.pitch);
@@ -521,7 +519,7 @@ export class GameScene {
       if (object instanceof THREE.Mesh && (object.material as THREE.MeshStandardMaterial).emissiveMap) this.boardsMaterial = object.material as THREE.MeshStandardMaterial;
     });
     if (this.ground === 'arena') {
-      this.arena = new Arena(this.scene, screen, anisotropy);
+      this.arena = new Arena(this.scene, screen, anisotropy, stumpsFrom(location.search));
       if (lights?.life && lights.seats) this.arena.crowd(lights.life, lights.seats, this.scene);
       if (this.boardsMaterial) this.arena.boards(this.boardsMaterial, BOARD_PANELS);
       this.textures.push(...this.arena.textures);
@@ -535,6 +533,8 @@ export class GameScene {
       this.lamps = lights.lamps;
       const glow = glows(lights.roof, lights.towers);
       this.world.add(...glow.points); this.night.push(...glow.points); this.textures.push(glow.texture);
+      // The arena's floodlights answer the game, glows and all.
+      this.arena?.glows(glow.points[0].material as THREE.PointsMaterial);
     }
     if (!ownFloodlights(this.ground)) for (const [x, z] of [[-29, 35], [29, 35], [-32, -13], [32, -13]]) {
       cylinder(this.world, 0.19, 18, 0x839697, x, 9, z);
@@ -543,7 +543,8 @@ export class GameScene {
     }
   }
   private wicket(z: number) {
-    const { timber, bails } = buildWicket(this.world, GAME.stumpHeight, z);
+    const { timber, bails, lights } = buildWicket(this.world, GAME.stumpHeight, z, this.arena ? { wrap: this.arena.wrap, rings: STUMP_THEMES[this.arena.stumps].rings } : undefined);
+    if (lights) this.arena?.wire(lights, z === 0);
     if (z === 0) { this.bails.push(...bails); this.stumps.push(...timber, ...bails); }
   }
   private resize = () => {
@@ -579,7 +580,7 @@ export class GameScene {
     this.crowd?.setNight(time === 'night');
     // Day breaking on a show takes it down: there are none by day.
     if (time !== 'night') this.bursts.stop();
-    const palette = this.sky.time(time, this.ground === 'arena' ? ARENA_SKY : undefined), light = time === 'night' && this.ground === 'arena' ? ARENA_NIGHT : LIGHTING[time];
+    const palette = this.sky.time(time), light = time === 'night' && this.ground === 'arena' ? ARENA_NIGHT : LIGHTING[time];
     this.scene.fog = new THREE.Fog(palette.horizon, 48, 125);
     this.renderer.setClearColor(palette.horizon);
     this.environment.dispose();
@@ -637,6 +638,7 @@ export class GameScene {
    */
   leftHanded(on: boolean) {
     this.world.scale.x = on ? 1 : -1;
+    this.arena?.mirrorWrap(!on);
     this.batter.mirrorStickers(!on);
     this.bowlerHolder.scale.x = on ? -1 : 1;
   }
@@ -682,13 +684,18 @@ export class GameScene {
   /** The arena's mood: calm, Power Surge's gold or the death overs' red. Nothing on any other ground. */
   arenaMood(mood: ArenaMood) { this.arena?.mood(mood); }
   /** A moment the arena lights up for that the crowd has no part in: a wicket, Power Surge, the death overs. */
-  arenaCue(kind: ArenaCue | 'wave', now: number, word?: string) {
-    if (kind === 'wave') this.arena?.wave(now); else this.arena?.cue(kind, now, word);
+  arenaCue(kind: ArenaCue | 'wave' | 'stumps', now: number, word?: string) {
+    if (kind === 'wave') this.arena?.wave(now);
+    else if (kind === 'stumps') this.arena?.lightStumps(now);
+    else this.arena?.cue(kind, now, word);
   }
   /** What the big screen shows between moments. */
   scoreboard(board: Scoreboard) { this.arena?.scoreboard(board); }
   /** For the checks: the arena's mood and what it is showing, or null on another ground. */
   get arenaState() { return this.arena?.state ?? null; }
+  /** The arena's stumps' colourway, or null on another ground; and putting the other one on. */
+  get stumpTheme(): StumpTheme | null { return this.arena?.stumps ?? null; }
+  stumpsTo(theme: StumpTheme) { this.arena?.setStumps(theme); }
   get crowdState() { return this.crowd?.state ?? { kind: null, spectators: 0, banners: 0 }; }
   /**
    * A moment: his hundred or six sixes, the bat to the sky and the world gone
@@ -855,7 +862,7 @@ export class GameScene {
    */
   private testLook(on: boolean) {
     const ball = this.ball.material as THREE.MeshStandardMaterial;
-    const look = on ? BALL.test : this.whiteBallOn ? BALL.white : BALL.blast;
+    const look = on ? BALL.test : BALL.blast;
     ball.color.setHex(look.color); ball.emissive.setHex(look.glow);
     this.seam.material = soft(look.seam);
     if (on && !this.greenPitch) {
@@ -865,8 +872,6 @@ export class GameScene {
     this.pitch.map = on ? this.greenPitch! : this.dryPitch;
     this.dropWear();
   }
-  /** Super10's white ball, or the Blast's red: asked for at the start of every innings, before `whites`. */
-  whiteBall(on: boolean) { this.whiteBallOn = on; }
   /** The ball's colour, for the checks. */
   get ballColour() { return `#${(this.ball.material as THREE.MeshStandardMaterial).color.getHexString()}`; }
   /** Which strip is down, for the checks. */

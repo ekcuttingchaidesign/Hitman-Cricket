@@ -4,40 +4,42 @@ import { EAVES, STADIUM, stadium, type StadiumLights } from './stadium';
 import { seeded } from './turf';
 import type { Milestone } from '../game/milestone';
 import { paintFilm, type Film, type Playing } from '../ui/Lottie';
-import { banners, flags, waveAt, type CrowdLife } from './crowdLife';
+import { banners, flags, torches, waveAt, type CrowdLife } from './crowdLife';
+import { LED, type WicketLights } from './wicket';
+import { GAME } from '../config/gameplay';
 
 /**
- * The arena: Super10's ground, played under lights and nowhere else, dressed
- * by the Super10 brand sheet (Figma section 17, node `467:5197`): ink night,
- * violet light, lime for the one thing that is charged, raspberry only when a
- * batter is out.
+ * The arena: Super10's ground, played under lights and nowhere else. The
+ * stadium's own night (`stadium.ts`, `LIGHTING.night`): its crowd, its white
+ * sightscreen, its sky, so nothing about it reads as a painted set; and over
+ * that what a new ground has that an old one does not, taken from real ones:
  *
- * It is the stadium's bowl (`stadium.ts`) with what makes a ground read as
- * new where a phone looks, which is the far end and the sky over it:
- *
- * - **A ring of fire.** No towers: the light is one ring of lamps round the
- *   edge of the roof, as at the Dubai International Stadium, with a glow on
- *   every few metres of it (the stadium's `glows`).
- * - **LED round the bowl.** The roof's fascia is a halo of LED in violet, the
- *   floodlights' wash; the front of the upper tier is a ribbon of LED board,
- *   and so is the ring of boards along the rope: both show the brand's board
- *   states (`BOARDS`), the lime mark and violet slashes drifting at the lean
- *   when nothing is happening, dimmed to 40% while the ball is live.
- * - **The two sides' supporters.** The stands in the sides' colours, a
- *   section each in turn, rather than the stadium's summer whites.
- * - **A city behind it**, under a sky the floodlights' violet has got into.
+ * - **A ring of LED floodlights on the roof's edge**, no towers: as at the
+ *   Narendra Modi Stadium, whose 580 LEDs stand in a ring at the front of the
+ *   canopy, which keeps its shadow off the field. Cool white, where the
+ *   stadium's metal-halide towers are warm, with a glow every few metres.
+ * - **Floodlights that answer the game**, as Wankhede's DMX-controlled LEDs
+ *   do: a strike for a four, a crackle for a six, dimmed for a wicket,
+ *   breathing for a milestone (`arenaFrame`'s `lamps`).
+ * - **Phone torches in the stands**, a few always and more as the game gets
+ *   tight: the death overs, Power Surge, a six (`torches`).
+ * - **LED round the bowl**: the front of the upper tier is a ribbon of LED
+ *   board, and so is the fence along the rope, both in the Super10 brand
+ *   (Figma section 17, node `467:5197`) and showing its board states
+ *   (`BOARDS`), the lime mark and violet slashes drifting at the lean when
+ *   nothing is happening, dimmed to 40% while the ball is live.
+ * - **A city behind it**, against the night's own sky.
  * - **The big screen.** Where the commentary box was, over the far end: the
- *   mark, the score and who is in, in the brand's lettering, and the moment's
- *   word slammed on when there is one. `?screen=0` puts the commentary box
- *   back instead, for when the screen does not earn its place.
- * - **The eyeline dark.** The sightscreen and the covered seats behind the
- *   bowler's arm are ink, still and blank: the batter has to see the ball.
+ *   mark, the score and who is in, in the brand's lettering, and the brand's
+ *   stings for the moments. `?screen=0` puts the commentary box back instead.
  *
- * And it reacts (`arenaFrame`) by the sheet's ground rules: light, not paint
- * (the grass, the pitch and the kits are never coloured); lime is a budget
- * (a tenth of any view at most, one thing at a time charged); no strobe
- * (nothing flashes more than three times a second, nothing flashes the whole
- * frame); a wicket means out (raspberry for a dismissal and for nothing else).
+ * The brand's ground rules hold where the brand is: the grass, the pitch and
+ * the kits are never coloured; lime is a budget; nothing flashes more than
+ * three times a second; raspberry is for a dismissal and nothing else.
+ *
+ * A purple LED halo round the roof's fascia, a violet sky, a crowd in two
+ * sides' yellow and blue and an ink sightscreen were tried first, and read as
+ * a worse night than the stadium's.
  */
 
 /** The brand's colours (the sheet's C · Colour), changed here, changed everywhere. */
@@ -63,23 +65,40 @@ export const ARENA = {
   frame: 0x1b1430,
 } as const;
 
-/** The sky over it, the floodlights' violet got into the night: see `Sky.time`. */
-export const ARENA_SKY = { zenith: 0x0d0726, horizon: 0x2c1d5c } as const;
-
-/** The two sides in the stands, a section each in turn: a blue side and a yellow one, with the odd white shirt. */
-export const ARENA_CROWD: readonly (readonly number[])[] = [
-  [0x1f4fd6, 0x163a9e, 0x1f4fd6, 0xf2ede1, 0x2a62ff, 0x111418, 0x1f4fd6, 0xffffff, 0x163a9e],
-  [0xffd23f, 0xf2b91c, 0xffd23f, 0x111418, 0xffe36e, 0xf2ede1, 0xffd23f, 0xffffff, 0xf2b91c],
-];
-
 /** `?screen=0` builds the commentary box in place of the big screen. */
 export const screenFrom = (search: string) => new URLSearchParams(search).get('screen') !== '0';
 
+/**
+ * The stumps' two colourways off the sheet: violet (section 18, the plate
+ * timber, the rings lit lime at rest, the 10 in volt) and raspberry (485:5198,
+ * the timber raspberry, the base cut plate, the rings dark plate and the 10 in
+ * ink). The pause sheet switches between them (`hitman-stumps`), and
+ * `?stumps=raspberry` or `violet` asks for one on a link.
+ */
+export const STUMP_THEMES = {
+  violet: { timber: 0x2a0e5c, base: 0x8b5cf6, ten: 0xc6ff1a, rings: .6 },
+  raspberry: { timber: 0xf12e60, base: 0x2a0e5c, ten: 0x12052b, rings: 0 },
+} as const;
+export type StumpTheme = keyof typeof STUMP_THEMES;
+const STUMPS_KEY = 'hitman-stumps';
+const isTheme = (value: unknown): value is StumpTheme => value === 'violet' || value === 'raspberry';
+/** The link's colourway, else the one last picked, else violet. */
+export function stumpsFrom(search: string): StumpTheme {
+  const asked = new URLSearchParams(search).get('stumps');
+  if (isTheme(asked)) return asked;
+  try { const kept = localStorage.getItem(STUMPS_KEY); if (isTheme(kept)) return kept; } catch { /* storage shut: the default */ }
+  return 'violet';
+}
+export function keepStumps(theme: StumpTheme) {
+  try { localStorage.setItem(STUMPS_KEY, theme); } catch { /* storage shut: this visit only */ }
+}
+
 /** Where the lit pieces stand, from the middle of the ground (the stands are centred on it, ten metres up the pitch). */
 const CENTRE_Z = 10;
-/** The roof's front edge, its fascia's height, and the ring of lamps over it. */
-const HALO = { radius: 35.78, y: EAVES + .3, height: .8 } as const;
+/** The ring of lamps over the roof's front edge. */
 const LAMPS = { radius: 35.85, y: EAVES + 1.18, height: .42, every: 3 } as const;
+/** The ring at the night's own brightness, so a strike has somewhere to go. */
+const LAMP_REST = .82;
 /** The front of the upper tier, which the ribbon covers. */
 const RIBBON = { radius: 40.62, y: 4.95, height: .5 } as const;
 /** The city, well beyond the stands, round the far half of the ground only: nobody looks behind them. */
@@ -94,7 +113,7 @@ export const SCREEN = { width: 11.5, height: 4.3, bottom: EAVES + 1.85, z: CENTR
 
 /** Builds the arena's stands onto `world`; the rest of it is `Arena`, which `GameScene` hangs in its own frame. */
 export function arenaStands(world: THREE.Object3D, screen = true): StadiumLights {
-  const lights = stadium(world, { crowd: ARENA_CROWD, towers: false, roofLamps: false, commentary: !screen, eyeline: ARENA.ink, lively: true });
+  const lights = stadium(world, { towers: false, roofLamps: false, commentary: !screen, lively: true });
   // The ring of fire's glow: one every few degrees, round the whole roof.
   for (let degrees = 0; degrees < 360; degrees += LAMPS.every) {
     const a = THREE.MathUtils.degToRad(degrees);
@@ -130,8 +149,10 @@ export const MILESTONE_WORDS: Record<Milestone, string> = {
 
 /** What the arena shows at a moment: see `arenaFrame`. */
 export interface ArenaFrame {
-  /** The halo round the roof. */
-  halo: THREE.Color;
+  /** How bright the ring of floodlights burns: one is the night's own, more a strike, less a dip. */
+  lamps: number;
+  /** The share of the crowd with a phone torch up, nought to one. */
+  torches: number;
   /** How bright the LED boards are, nought to one: 40% for the idle board while the ball is live. */
   boards: number;
   board: BoardState;
@@ -143,7 +164,6 @@ export interface ArenaFrame {
   since: number;
 }
 
-const colour = (hex: number) => new THREE.Color(hex);
 const fade = (t: number, from: number, to: number) => THREE.MathUtils.clamp((t - from) / (to - from), 0, 1);
 /** The idle boards' drift, at the lean: slow enough to read, never still. */
 const DRIFT = .012;
@@ -154,63 +174,122 @@ const crackle = (since: number, count: number) => {
   const period = 1000 / MOST_FLASHES;
   return since >= 0 && since < count * period && since % period < period * .5;
 };
+/** The floodlights at their strike: a flash is the lamps at this or over, coming up from under it. */
+export const FLASH = 1.5;
+/** Phone torches up in the stands: a few always, more as the game gets tight, most for a six or a milestone. */
+export const TORCHES = { calm: .03, surge: .08, death: .14, moment: .22 } as const;
 
 /**
  * The arena at `now`, in its mood and with the moment last cued: a function
  * of the clock and nothing else, so any moment can be asked for on its own
  * and the tests can hold each to the sheet. `live` is a ball on its way, when
- * the idle boards stand at 40%; `still` is reduced motion: the colours and
- * the words change, and nothing flickers, runs or sweeps.
+ * the idle boards stand at 40%; `still` is reduced motion: the boards and
+ * the words change, the lights dip and come back, and nothing flickers, runs
+ * or strikes.
  */
 export function arenaFrame(mood: ArenaMood, cue: { kind: ArenaCue; at: number; word?: string } | null, now: number, still = false, live = false): ArenaFrame {
-  const halo = colour(ARENA.violet);
-  // Power Surge charges the roof: lime, breathing, the one thing lit.
-  if (mood === 'surge') halo.set(ARENA.volt).multiplyScalar(still ? 1 : .78 + .22 * Math.cos(now / 1000 * Math.PI * 1.6));
-  const frame: ArenaFrame = { halo, boards: live ? .4 : 1, board: 'idle', chase: still ? 0 : DRIFT, word: null, since: Infinity };
+  const frame: ArenaFrame = { lamps: 1, torches: TORCHES[mood], boards: live ? .4 : 1, board: 'idle', chase: still ? 0 : DRIFT, word: null, since: Infinity };
   const since = cue ? now - cue.at : Infinity;
-  if (!cue || since < 0 || since >= CUES[cue.kind].ms) {
-    // The death overs crackle: three lime flickers on the violet every few seconds, while nothing else has the roof.
-    if (mood === 'death' && !still && crackle(now % 2600, 3)) halo.set(ARENA.volt);
-    return frame;
-  }
+  if (!cue || since < 0 || since >= CUES[cue.kind].ms) return frame;
   const { ms, word, board } = CUES[cue.kind];
   Object.assign(frame, { word: cue.word ?? word, board, boards: 1, since });
   // Every moment lets go over its last half second, back into the mood.
   const hold = 1 - fade(since, ms - 500, ms);
-  const lime = colour(ARENA.volt);
+  const cheering = Math.max(frame.torches, TORCHES.moment * hold);
   switch (cue.kind) {
     case 'four':
-      // Struck lime in an instant and settled back to violet; the boards race.
-      halo.lerp(lime, (1 - fade(since, 100, 600)) * hold);
+      // The floodlights struck once and settled; the boards race.
+      if (!still) frame.lamps = 1 + (FLASH - 1 + .1) * (1 - fade(since, 80, 600));
       frame.chase = still ? 0 : .5 * hold;
       break;
     case 'six':
-      // The roof crackles lime on violet and the boards chase round the
-      // ground. (Six searchlights swept the sky over the far end too, and were
-      // taken down: too much going on behind the bowler.)
-      if (still || crackle(since, 3)) halo.lerp(lime, hold);
+      // The floodlights crackle, the boards chase round the ground, and the phones go up.
+      if (!still && crackle(since, 3)) frame.lamps = FLASH + .1;
       frame.chase = still ? 0 : .8 * hold;
+      frame.torches = cheering;
       break;
     case 'wicket':
-      // The lights go down the way the news goes, to the plate's dark, and come back.
-      halo.lerp(colour(ARENA.plate), Math.min(fade(since, 0, 300), hold)).multiplyScalar(1 - .6 * Math.min(fade(since, 0, 300), hold));
+      // The lights go down the way the news goes, and come back.
+      frame.lamps = 1 - .55 * Math.min(fade(since, 0, 300), hold);
       frame.chase = 0;
       break;
     case 'milestone':
-      // The charge breathes on the roof.
-      halo.lerp(lime, (still ? 1 : .6 + .4 * Math.cos(since / 1000 * Math.PI * 2)) * hold);
+      // The floodlights breathe, short of a flash, and the phones go up.
+      frame.lamps = 1 + .3 * (still ? 0 : .5 - .5 * Math.cos(since / 1000 * Math.PI * 2)) * hold;
       frame.chase = still ? 0 : .3 * hold;
+      frame.torches = cheering;
       break;
     case 'surge':
-      if (still || crackle(since, 3)) halo.lerp(lime, hold);
       frame.chase = still ? 0 : .6 * hold;
       break;
     case 'death':
-      if (!still && crackle(since, 3)) halo.lerp(lime, hold);
       frame.chase = still ? 0 : -.4 * hold;
       break;
   }
   return frame;
+}
+
+/**
+ * The LED stumps' light (Figma section 18, B · The light, ball by ball), for
+ * how long ago the batter's bails went: at rest the rings lime at 60% and the
+ * crown and bails dark; as a bail lifts one white flash for two frames, then
+ * crown, rings and bails at full raspberry, a dip to 30% once at 280 ms, full
+ * again and held while the batter walks, and back to rest over the last 0.6
+ * of three seconds. Under reduced motion: no flash and no dip, the raspberry
+ * held and let go. Nothing changes while the ball is live, so a delivery
+ * always comes out of the same dark.
+ */
+export interface StumpGlow { colour: number; level: number }
+export function stumpLight(broken: number, still = false, theme: StumpTheme = 'violet'): { crown: StumpGlow; rings: StumpGlow; bails: StumpGlow } {
+  const ringsAtRest = STUMP_THEMES[theme].rings;
+  const rest = { crown: { colour: ARENA.wicket, level: 0 }, rings: { colour: ARENA.volt, level: ringsAtRest }, bails: { colour: ARENA.wicket, level: 0 } };
+  if (broken < 0 || broken >= 3000) return rest;
+  const all = (colour: number, level: number) => ({ crown: { colour, level }, rings: { colour, level }, bails: { colour, level } });
+  if (!still && broken < 66) return all(ARENA.white, 1);
+  if (broken < 2400) return all(ARENA.wicket, !still && broken >= 280 && broken < 400 ? .3 : 1);
+  // Back to rest: the raspberry going out, the rings' lime coming back.
+  const t = (broken - 2400) / 600;
+  return { crown: { colour: ARENA.wicket, level: 1 - t }, rings: t < .5 ? { colour: ARENA.wicket, level: 1 - t * 2 } : { colour: ARENA.volt, level: ringsAtRest * (t - .5) * 2 }, bails: { colour: ARENA.wicket, level: 1 - t } };
+}
+
+/**
+ * The stumps' wrap (C · The wrap and the build): one map for all six, a
+ * millimetre to the pixel at twice over — the 157 mm round by the timber's
+ * height under the crown. Plate violet; at the foot the base cut in violet,
+ * 90 mm up the leg side and falling away across at the rise, edged in lime;
+ * and SUPER10 reading up from 120 mm, once to the keeper (u .25) and once to
+ * the bowler (u .75), in Saira Black Italic with the 10 in volt.
+ */
+export function stumpWrap(height: number, theme: StumpTheme = 'violet') {
+  const colours = STUMP_THEMES[theme];
+  const mm = 2, round = 157, tall = Math.round((height - LED.crown) * 1000);
+  const W = round * mm, H = tall * mm;
+  const { context: ctx, texture } = painted(W, H);
+  ctx.fillStyle = hex(colours.timber); ctx.fillRect(0, 0, W, H);
+  const y = (fromFoot: number) => (tall - fromFoot) * mm;
+  for (let px = 0; px < W; px++) {
+    // How far round towards the leg side this column of the wrap is: its x on the stump, off side +1, leg side -1.
+    const across = Math.sin(Math.PI / 2 + px / W * Math.PI * 2);
+    const cut = 90 - 5.3 * (1 + across) / 2;
+    ctx.fillStyle = hex(colours.base); ctx.fillRect(px, y(cut), 1, cut * mm);
+    ctx.fillStyle = hex(ARENA.volt); ctx.fillRect(px, y(cut + 3.5), 1, 3.5 * mm);
+  }
+  const mark = () => {
+    for (const u of [.25, .75]) {
+      ctx.save();
+      ctx.translate(u * W, y(120)); ctx.rotate(-Math.PI / 2);
+      ctx.font = `italic 900 ${42 * mm}px Saira, "Arial Black", Impact, sans-serif`;
+      ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+      ctx.fillStyle = '#fff'; ctx.fillText('SUPER', 0, 0);
+      ctx.fillStyle = hex(colours.ten); ctx.fillText('10', ctx.measureText('SUPER').width, 0);
+      ctx.restore();
+    }
+  };
+  mark();
+  // Painted again over the plate once the face has loaded.
+  document.fonts?.load(`italic 900 ${42 * mm}px Saira`).then(() => { mark(); texture.needsUpdate = true; }).catch(() => {});
+  texture.wrapS = THREE.RepeatWrapping;
+  return texture;
 }
 
 /** What the screen shows between moments. */
@@ -368,41 +447,21 @@ function boardPanel(state: BoardState, word: string, panels: number, mark: HTMLI
 /** The lamps along the roof's edge: bright cells with dark frames between them. */
 function lampTexture() {
   const { context: ctx, texture } = painted(64, 16);
-  ctx.fillStyle = '#1d1730'; ctx.fillRect(0, 0, 64, 16);
+  ctx.fillStyle = '#1b2028'; ctx.fillRect(0, 0, 64, 16);
   for (let x = 0; x < 64; x += 16) {
     const g = ctx.createLinearGradient(0, 2, 0, 14);
-    g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#d8d4ff');
+    g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#e2eaff');
     ctx.fillStyle = g; ctx.fillRect(x + 2, 3, 12, 10);
   }
   texture.wrapS = THREE.RepeatWrapping;
   return texture;
 }
 
-/** The halo's LED: a row of pixels in a housing, so it reads as lamps rather than paint. */
-function haloTexture() {
-  const { context: ctx, texture } = painted(64, 32);
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 64, 32);
-  ctx.fillStyle = '#fff';
-  for (let x = 0; x < 64; x += 4) for (let y = 4; y < 28; y += 4) ctx.fillRect(x, y, 3, 3);
-  texture.wrapS = THREE.RepeatWrapping;
-  return texture;
-}
-
-/** A soft band of light either side of a line, for the halo's glow. */
-function glowTexture() {
-  const { context: ctx, texture } = painted(4, 128);
-  const g = ctx.createLinearGradient(0, 0, 0, 128);
-  g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.42, 'rgba(255,255,255,.55)');
-  g.addColorStop(.5, 'rgba(255,255,255,.8)'); g.addColorStop(.58, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, 4, 128);
-  return texture;
-}
-
 /**
- * The city: towers and blocks in the night's ink against the sky, their
- * windows lit in warm and cool whites, the odd one violet, red lights on the
- * tallest, and the violet haze of the streets behind them. Only what stands
- * higher than the far roof is ever seen, so that is where the windows are.
+ * The city: towers and blocks a shade darker than the night sky behind them,
+ * their windows lit in warm and cool whites, red lights on the tallest, and
+ * the sodium glow of the streets low down. Only what stands higher than the
+ * far roof is ever seen, so that is where the windows are.
  */
 function cityTexture() {
   const W = 4096, H = 256;
@@ -410,24 +469,23 @@ function cityTexture() {
   const random = seeded(71);
   ctx.clearRect(0, 0, W, H);
   const haze = ctx.createLinearGradient(0, H * .3, 0, H * .62);
-  haze.addColorStop(0, 'rgba(139,92,246,0)'); haze.addColorStop(1, 'rgba(139,92,246,.2)');
+  haze.addColorStop(0, 'rgba(255,190,120,0)'); haze.addColorStop(1, 'rgba(255,190,120,.12)');
   ctx.fillStyle = haze; ctx.fillRect(0, H * .3, W, H * .32);
   let x = 0;
   while (x < W) {
     const w = 24 + random() * 70, tall = random() < .12;
     const top = H * (tall ? .05 + random() * .2 : .3 + random() * .25);
-    ctx.fillStyle = random() < .5 ? '#0e0624' : '#140a30';
+    ctx.fillStyle = random() < .5 ? '#0a1224' : '#0f182c';
     ctx.fillRect(x, top, w, H - top);
     const warm = random() < .5;
     for (let y = top + 5; y < H * .66; y += 7) for (let wx = x + 4; wx < x + w - 4; wx += 6) {
       const r = random();
       if (r < .45) continue;
-      ctx.fillStyle = r > .975 ? hex(ARENA.violet) : warm ? 'rgba(255,214,150,.8)' : 'rgba(214,214,255,.78)';
+      ctx.fillStyle = warm ? 'rgba(255,214,150,.8)' : 'rgba(214,226,255,.78)';
       ctx.fillRect(wx, y, 3, 3);
     }
     if (tall) {
       ctx.fillStyle = '#ff3b3b'; ctx.fillRect(x + w / 2 - 2, top - 5, 4, 4);
-      if (random() < .4) { ctx.fillStyle = hex(ARENA.violet); ctx.fillRect(x, top, w, 3); }
     }
     x += w + random() * 6;
   }
@@ -470,8 +528,10 @@ export function slamScale(since: number) {
  */
 export class Arena {
   readonly textures: THREE.Texture[] = [];
-  private halo: THREE.MeshBasicMaterial;
-  private haloGlow: THREE.MeshBasicMaterial;
+  private lamps: THREE.MeshBasicMaterial;
+  /** The ring's glows, which the scene hangs (`glows` in `night.ts`): they burn with the lamps. */
+  private glow: THREE.PointsMaterial | null = null;
+  private torches: { material: THREE.PointsMaterial; share: { value: number } } | null = null;
   private ribbon: THREE.MeshBasicMaterial;
   private screen: ReturnType<typeof painted> | null = null;
   private shown = '';
@@ -482,7 +542,12 @@ export class Arena {
   private panels = { boards: 30, ribbon: 100 };
   private faces = new Map<string, THREE.Texture>();
   private boardUp = '';
-  private stumps: THREE.MeshStandardMaterial[] = [];
+  private stumpLights: WicketLights | null = null;
+  /** Both wickets' lights, to put a new colourway on. */
+  private wickets: WicketLights[] = [];
+  /** The stumps' wrap, for the wicket to be built with: see `stumpWrap`. */
+  wrap: THREE.Texture;
+  private anisotropy: number;
   private last: ArenaFrame | null = null;
   private marks: { primary: HTMLImageElement; lime: HTMLImageElement };
   private offset = 0;
@@ -494,7 +559,8 @@ export class Arena {
   private life: CrowdLife | null = null;
   private waveFrom = -Infinity;
 
-  constructor(scene: THREE.Object3D, readonly hasScreen: boolean, anisotropy: number) {
+  constructor(scene: THREE.Object3D, readonly hasScreen: boolean, anisotropy: number, public stumps: StumpTheme = 'violet') {
+    this.anisotropy = anisotropy;
     const ring = (radius: number, height: number, y: number, material: THREE.Material, top = radius) => {
       const mesh = new THREE.Mesh(new THREE.CylinderGeometry(top, radius, height, 180, 1, true), material);
       mesh.position.set(0, y, CENTRE_Z);
@@ -507,17 +573,10 @@ export class Arena {
     this.marks = { primary: picture(MARKS.primary, repaint), lime: picture(MARKS.lime, repaint) };
     document.fonts?.load(SAIRA(80)).then(() => document.fonts.load(SUB(40))).then(repaint).catch(() => {});
 
-    const haloMap = haloTexture(); haloMap.repeat.x = -Math.round(2 * Math.PI * HALO.radius / 1.6); haloMap.anisotropy = anisotropy;
-    this.halo = new THREE.MeshBasicMaterial({ map: haloMap, color: ARENA.violet, side: THREE.BackSide, fog: false, toneMapped: false });
-    ring(HALO.radius, HALO.height, HALO.y, this.halo);
-    // Its glow on the night either side of it: added light, so it sits on the roof and the sky alike.
-    const band = glowTexture();
-    this.haloGlow = new THREE.MeshBasicMaterial({ map: band, color: ARENA.violet, side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false, opacity: .35 });
-    ring(HALO.radius - .05, 3.4, HALO.y, this.haloGlow);
-
     const lamps = lampTexture(); lamps.repeat.x = -Math.round(2 * Math.PI * LAMPS.radius / 1.2); lamps.anisotropy = anisotropy;
     // Tipped down at the field: wider at the top than at the foot.
-    ring(LAMPS.radius - .2, LAMPS.height, LAMPS.y, new THREE.MeshBasicMaterial({ map: lamps, color: new THREE.Color(ARENA.lamp), side: THREE.BackSide, fog: false, toneMapped: false }), LAMPS.radius + .15);
+    this.lamps = new THREE.MeshBasicMaterial({ map: lamps, color: new THREE.Color(ARENA.lamp).multiplyScalar(LAMP_REST), side: THREE.BackSide, fog: false, toneMapped: false });
+    ring(LAMPS.radius - .2, LAMPS.height, LAMPS.y, this.lamps, LAMPS.radius + .15);
 
     // The ribbon: an LED board the length of the upper tier, a panel every two and a half metres.
     this.panels.ribbon = Math.round(2 * Math.PI * RIBBON.radius / (RIBBON.height * 5));
@@ -534,7 +593,8 @@ export class Arena {
 
 
     if (hasScreen) this.buildScreen(scene, anisotropy);
-    this.textures.push(haloMap, band, lamps, city);
+    this.wrap = stumpWrap(GAME.stumpHeight, stumps); this.wrap.anisotropy = anisotropy;
+    this.textures.push(lamps, city, this.wrap);
   }
 
   /** The screen on its frame, on two legs off the roof, turned to the crease. */
@@ -566,19 +626,46 @@ export class Arena {
     this.boardsMaterial = material; this.panels.boards = panels;
   }
 
-  /** The batter's wicket, lit raspberry when it is broken, as LED stumps are: each piece given its own material. */
-  wire(stumps: THREE.Mesh[]) {
-    for (const mesh of stumps) {
-      const material = (mesh.material as THREE.MeshStandardMaterial).clone();
-      mesh.material = material; this.stumps.push(material);
-    }
+  /** An LED wicket: the batter's has its crown, rings and bails lit when it is broken (`stumpLight`); the far one stays at rest. */
+  wire(lights: WicketLights, batting: boolean) {
+    this.wickets.push(lights);
+    if (batting) this.stumpLights = lights;
   }
+  /** The other colourway on both wickets, now: a new wrap printed, the far wicket's rings set to the new rest. */
+  setStumps(theme: StumpTheme) {
+    if (theme === this.stumps) return;
+    this.stumps = theme;
+    const old = this.wrap;
+    this.wrap = stumpWrap(GAME.stumpHeight, theme); this.wrap.anisotropy = this.anisotropy;
+    this.wrap.repeat.copy(old.repeat); this.wrap.offset.copy(old.offset);
+    for (const lights of this.wickets) {
+      lights.timber.map = this.wrap; lights.timber.needsUpdate = true;
+      if (lights !== this.stumpLights) lights.rings.emissiveIntensity = STUMP_THEMES[theme].rings;
+    }
+    this.textures.splice(this.textures.indexOf(old), 1, this.wrap);
+    old.dispose();
+  }
+  /** The ring's glows, to burn with the lamps. */
+  glows(material: THREE.PointsMaterial) { this.glow = material; this.glowSize = material.size; }
+  private glowSize = 1;
+  /** The stumps' light run from `now` with no bail gone: for looking at it (`__cricket.arenaCue('stumps')`). */
+  lightStumps(now: number) { this.stumpsFrom = now; }
+  private stumpsFrom = -Infinity;
+  /**
+   * The wrap read the right way round on a mirrored stage: the ground is
+   * mirrored for a right-hander, which would print SUPER10 backwards, so the
+   * wrap is turned over with it. Its marks stand at u .25 and .75 and the
+   * base cut at the leg side's u .5, so turned over they are where they were.
+   */
+  mirrorWrap(mirrored: boolean) { this.wrap.repeat.x = mirrored ? -1 : 1; this.wrap.offset.x = mirrored ? 1 : 0; }
 
   /** The stands' life: the clock the crowd moves to, and the flags and banners held up over the seats, hung in the scene's frame so a banner's words read the right way round. */
   crowd(life: CrowdLife, seats: THREE.Matrix4[], scene: THREE.Object3D) {
     this.life = life;
     flags(scene, seats, life);
     this.textures.push(banners(scene, seats, life).texture);
+    const lit = torches(scene, seats, life);
+    this.torches = lit; this.textures.push(lit.texture);
   }
   /** A Mexican wave sent round the stands from `now`. */
   wave(now: number) { this.waveFrom = now; }
@@ -597,7 +684,7 @@ export class Arena {
     return { mood: this.moodNow, word: f?.word ?? null, board: f?.board ?? 'idle', boards: f?.boards ?? 1,
       screen: this.hasScreen ? this.shown.split('|').slice(0, 2).join('|') : null, sting: this.playing?.name ?? null,
       wave: +(this.life?.waveOn.value ?? 0).toFixed(2), front: +(this.life?.wave.value ?? 0).toFixed(2),
-      halo: `#${this.halo.color.getHexString()}` };
+      lamps: +(f?.lamps ?? 1).toFixed(2), torches: +(f?.torches ?? 0).toFixed(2), stumps: this.stumps };
   }
 
   /** `broken` is how long ago the batter's bails went, or less than nought; `live`, a ball on its way. */
@@ -614,13 +701,22 @@ export class Arena {
     this.last = f; this.still = still;
     // A moment over, its sting goes with it.
     if (!f.word && this.playing) this.stopSting();
-    this.halo.color.copy(f.halo); this.haloGlow.color.copy(f.halo);
+    // The floodlights: the ring's colour and its glows, which stand bigger as they burn brighter.
+    this.lamps.color.setHex(ARENA.lamp).multiplyScalar(LAMP_REST * f.lamps);
+    if (this.glow) { this.glow.opacity = Math.min(1, f.lamps); this.glow.size = this.glowSize * Math.max(.6, f.lamps); }
+    if (this.torches) this.torches.share.value = f.torches;
     this.offset = (this.offset + f.chase * .016) % 1;
     this.ledBoards(f);
     if (this.screen) this.paintScreen(f);
-    // The stumps lit raspberry once the bails go, flashing no more than three times a second.
-    const lit = broken >= 0 && broken < 1600 ? (still || crackle(broken, 4) ? 1 : .3) : 0;
-    for (const material of this.stumps) { material.emissive.setHex(ARENA.wicket); material.emissiveIntensity = lit * 1.4; }
+    // The batter's stumps: strike, dip, hold, as the sheet has them.
+    if (this.stumpLights) {
+      if (now < this.stumpsFrom) this.stumpsFrom = -Infinity;
+      const glow = stumpLight(broken >= 0 ? broken : Number.isFinite(this.stumpsFrom) ? now - this.stumpsFrom : -1, still, this.stumps);
+      for (const part of ['crown', 'rings', 'bails'] as const) {
+        const material = this.stumpLights[part];
+        material.emissive.setHex(glow[part].colour); material.emissiveIntensity = glow[part].level * 1.4;
+      }
+    }
   }
 
   /** The two LED boards, the ribbon and the rope's, in the frame's state, at its brightness, run round by its chase. */

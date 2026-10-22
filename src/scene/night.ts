@@ -46,15 +46,16 @@ export const LIGHTING: Record<SkyTime, {
 };
 
 /**
- * The arena's night: no towers behind the batter's end, a ring of lamps
- * round the whole roof instead, so the key comes down steeper and cooler, a
- * little less of it, and the fill from the far end is the ring's too.
+ * The arena's night: the stadium's, under LED rather than metal halide. No
+ * towers behind the batter's end, a ring of lamps round the whole roof
+ * instead, so the key comes down steeper and a cleaner white, and the fill
+ * from the far end is the ring's too. The sky's light is the night's own: a
+ * lilac one turned the stands grey.
  */
 export const ARENA_NIGHT: typeof LIGHTING.night = {
   ...LIGHTING.night,
-  hemisphere: { sky: 0x8a90c8, ground: 0x34502c, intensity: 0.8 },
-  key: { colour: 0xf3f6ff, intensity: 3.2, position: [-8, 38, -22] },
-  fill: { colour: 0xf0e8ff, intensity: 1.2 },
+  key: { colour: 0xfbfaf6, intensity: 3.4, position: [-8, 38, -22] },
+  fill: { colour: 0xeef2ff, intensity: 1.2 },
 };
 
 /**

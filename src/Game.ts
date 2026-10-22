@@ -17,7 +17,7 @@ import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro, type IntroGame } from './ui/MarathonIntro';
 import { CONFIDENCE_STEP, FIELD_STEP, SHOTS_STEP, fieldIntroDue, howToDue, noteFieldIntro, noteHowTo, playedBefore } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
-import type { ArenaCue } from './scene/arena';
+import { keepStumps, type ArenaCue } from './scene/arena';
 import { SUPER10, batterAt as super10Batter, windowsAt as super10Windows } from './config/super10';
 import {
   SURGE, bowlerOf, drawnOf, fieldFor, fieldRules, offScreen, planFor, signalFor, steer, steerOf, surgeAuto, surgeOffered, type FieldSet,
@@ -822,6 +822,11 @@ export class Game {
       if (this.phase !== 'PAUSED' || this.test) return;
       keepLights(time); this.scene.time(time); this.hud.lightsSwitch(time);
     });
+    // The arena's stumps, violet or raspberry, from the pause card. Remembered.
+    for (const theme of ['violet', 'raspberry'] as const) this.hud.on(`stumps-${theme}`, () => {
+      if (this.phase !== 'PAUSED' || !this.scene.stumpTheme) return;
+      keepStumps(theme); this.scene.stumpsTo(theme); this.hud.stumpsSwitch(theme);
+    });
     this.hud.on('share', () => { void this.hud.share(); });
     this.hud.on('board', this.showBoard);
     // Both ladders exist, so the sheet carries a way between them.
@@ -988,7 +993,7 @@ export class Game {
       // The arena's mood and what it is showing, and any of its moments on
       // demand, for photographing them without batting to them.
       arena: () => this.scene.arenaState,
-      arenaCue: (kind: ArenaCue | 'wave', word?: string) => this.scene.arenaCue(kind, this.elapsed, word),
+      arenaCue: (kind: ArenaCue | 'wave' | 'stumps', word?: string) => this.scene.arenaCue(kind, this.elapsed, word),
       // The Test look, for the checks: the green strip down, or the Blast's.
       greenTop: () => this.scene.greenTop,
       // How worn the Marathon's strip is, a stage of `WEAR_STAGES`.
@@ -2186,8 +2191,6 @@ export class Game {
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
     this.input.reset(); this.scene.reset();
     const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat, look.guard);
-    // Super10 is played with a white ball; the rest with red.
-    this.scene.whiteBall(this.super10);
     this.scene.whites(this.test);
     // A Test by day; the Blast by the player's clock, or their own choice.
     this.scene.time(this.test ? 'day' : blastLights());
@@ -2274,7 +2277,7 @@ export class Game {
   startTutorial = () => {
     track('tutorial-start', 'Tutorial started');
     this.mode = 'CLASSIC';
-    this.scene.whiteBall(false); this.scene.whites(false); this.scene.overcast(false, true); this.hud.levelBanner(null); this.scene.time(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
+    this.scene.whites(false); this.scene.overcast(false, true); this.hud.levelBanner(null); this.scene.time(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
     this.fieldUi.show(false);
     this.audio.stop(); this.audio.music(null); this.audio.crowd(null); this.audio.unlock(); this.score = new ScoreManager();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = null; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
@@ -2813,7 +2816,9 @@ export class Game {
     else {
       this.input.cancel(); this.audio.stop(); this.audio.holdCrowd(true); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true, this.pauseGame);
       this.soundSwitches();
-      this.hud.lightsSwitch(this.test ? null : this.scene.lit);
+      // The arena is played at night whatever the switch says, so it has the stumps' instead.
+      this.hud.lightsSwitch(this.test || this.scene.stumpTheme ? null : this.scene.lit);
+      this.hud.stumpsSwitch(this.scene.stumpTheme);
       // Twenty overs in, the Marathon can be declared — from here, and from
       // nowhere else, so it is never pressed by accident mid-ball. Before
       // that the key is there but shut, saying when it opens.

@@ -2397,6 +2397,7 @@ button.pause-row:focus-visible{outline:3px solid #ec754a;outline-offset:-3px}
 .pause-row-icon.is-crowd{background:#e9582b2b;color:#ff9566}
 .pause-row-icon.is-ambience{background:#087bff2e;color:#77b9ff}
 .pause-row-icon.is-lights{background:#f5c8422b;color:#f7d36a}
+.pause-row-icon.is-stumps{background:#8b5cf62b;color:#b79bff}
 .pause-row-say{display:flex;flex-direction:column;min-width:0}
 .pause-row-say b{font-weight:700;font-size:15.5px;line-height:1.25}
 .pause-row-say em{font-style:normal;font-weight:500;font-size:12.5px;line-height:1.3;color:#8fa2af}
