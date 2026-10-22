@@ -51,6 +51,14 @@ const executablePath = process.env.CHROMIUM_PATH || undefined;
  */
 const BUDGET = 460;
 /**
+ * The arena (`src/scene/arena.ts`) is the stadium at night less its towers'
+ * glow, and more by its own pieces: the halo, its glow, the ring of lamps,
+ * the ribbon, the city, the screen and its frame and legs, and the batter's
+ * stumps given their own materials to light up. Measured from the stadium's
+ * night plus those.
+ */
+const ARENA_BUDGET = 475;
+/**
  * The bowl, the ground before it, is kept and can still be asked for with
  * `?ground=bowl`, so it is still drawn here and held to the budget it shipped
  * under: built a box at a time, it costs about 800, and about 580 with the
@@ -61,6 +69,9 @@ const GROUNDS = [
   // The Blast's night: the same stadium, the moon and two clouds of glow added.
   ['stadium', 'night', '&lights=night', BUDGET],
   ['bowl', 'day', '&ground=bowl&lights=day', 590],
+  // Super10's arena, night only whatever the link says: the stadium's bowl
+  // without its towers, and its own rings of light, city and big screen.
+  ['arena', 'night', '&ground=arena&lights=day', ARENA_BUDGET],
 ];
 
 let failures = 0;

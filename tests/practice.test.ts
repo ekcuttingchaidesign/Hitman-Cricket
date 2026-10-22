@@ -54,6 +54,7 @@ describe('every switch the game reads', () => {
     private: 'treating the window as private: it counts less, not more',
     cheer: 'the crowd',
     ground: 'which ground is built',
+    screen: "the arena's big screen, or the commentary box in its place",
     lights: 'day or night',
     view: 'which screen opens',
     shot: 'a shot preview page',

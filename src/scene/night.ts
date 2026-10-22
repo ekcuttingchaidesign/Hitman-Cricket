@@ -46,6 +46,18 @@ export const LIGHTING: Record<SkyTime, {
 };
 
 /**
+ * The arena's night: no towers behind the batter's end, a ring of lamps
+ * round the whole roof instead, so the key comes down steeper and cooler, a
+ * little less of it, and the fill from the far end is the ring's too.
+ */
+export const ARENA_NIGHT: typeof LIGHTING.night = {
+  ...LIGHTING.night,
+  hemisphere: { sky: 0x8a90c8, ground: 0x34502c, intensity: 0.8 },
+  key: { colour: 0xf3f6ff, intensity: 3.2, position: [-8, 38, -22] },
+  fill: { colour: 0xf0e8ff, intensity: 1.2 },
+};
+
+/**
  * What the ground reflects at night, besides the sky: the floodlights' heads,
  * the ring of lamps along the roof, and the lit stands under them. Without
  * these a helmet, the glass and the ball reflected nothing but a dark blue
@@ -53,10 +65,11 @@ export const LIGHTING: Record<SkyTime, {
  * full of glints. Drawn into the environment map only — they are never in
  * the scene itself.
  */
-export function nightReflections(): THREE.Object3D[] {
+export function nightReflections(towers = true): THREE.Object3D[] {
   const glare = (r: number, g: number, b: number) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b), side: THREE.DoubleSide, toneMapped: false });
   const objects: THREE.Object3D[] = [];
-  for (const [x, z] of [[-19, 58], [19, 58], [-19, -38], [19, -38]]) {
+  // The arena has no towers: its ring is all there is to see in a helmet.
+  for (const [x, z] of towers ? [[-19, 58], [19, 58], [-19, -38], [19, -38]] : []) {
     const head = new THREE.Mesh(new THREE.PlaneGeometry(7, 4.5), glare(7, 6.6, 6));
     head.position.set(x, 15.6, z - 10).normalize().multiplyScalar(40);
     head.lookAt(0, 0, 0);

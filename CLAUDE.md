@@ -356,9 +356,10 @@ A check that seeds `hitman-whatsnew` seeds the current update key
 
 `scripts/scene-check.mjs` is the ground itself: the sky and the painted turf
 are canvases and a shader no unit test runs, and it holds the draw-call budget
-a frame. Lower its `BUDGET` when a change brings the count down. It walks both
-grounds — the stadium every mode plays in, and the bowl before it,
-which `?ground=bowl` still builds and which is kept for that — and the stadium both by day and by night. The Blast follows the
+a frame. Lower its `BUDGET` when a change brings the count down. It walks all three
+grounds — the stadium every mode plays in, the bowl before it,
+which `?ground=bowl` still builds and which is kept for that, and Super10's
+arena under its own `ARENA_BUDGET` — and the stadium both by day and by night. The Blast follows the
 device's clock — night from six in the evening to seven in the morning — so a
 check that judges the ground's colours in a Blast innings without saying
 which is judging whatever the machine's clock says; `?lights=day` or
@@ -1646,6 +1647,43 @@ screenshot on the frame it was asked for, and the sheet does.
 pitch with a batter at the far end, with a camera to turn round him, set views
 and one that follows his run; `scripts/bowler-artifact.mjs` builds it into
 one file, as `cover-drive-artifact.mjs` does the strokes.
+
+## The arena: Super10's ground
+
+Super10 is to have a ground of its own, so it does not feel like an old mode
+played again: the arena (`src/scene/arena.ts`), built for now by
+`?ground=arena` in any mode, and played at night only, whatever the clock,
+the link or the pause card says (`nightOnly` in `grounds.ts`). It is the
+stadium's bowl (`stadium`'s `StandsOptions`) with what makes it new where a
+phone looks, the far end and the sky over it: no towers and no bank of lamps
+on every other section, but one ring of lamps round the roof's edge with a
+glow every three degrees, as at Dubai's "Ring of Fire"; an LED halo on the
+roof's fascia in magenta and a ribbon along the upper tier's front in cyan,
+with the game's chevrons in it, each one ring with continuous texture so
+light can run round the ground; the crowd in two sides' colours, blue and
+yellow, a section each in turn; a city skyline behind the far stand; the
+night's light from the ring (`ARENA_NIGHT` in `night.ts`), cooler and from
+higher than the towers'; and a big screen over the far end in place of the
+commentary box, the mode, the score, the over and, in Super10, who is in
+(`scoreboard` in `src/Game.ts`, drawn every frame and painted only when it
+changes). It stands in the band between the score bar and the roof's edge:
+lower, its foot went behind the ring of lamps. `?screen=0` is its fallback,
+the commentary box back in its place.
+
+It reacts (`arenaFrame`, a function of the clock, every case in
+`tests/arena.test.ts`): Power Surge's gold and the death overs' red as moods,
+breathing; and moments over them, each with its word on the screen and on
+every board round the rope — a four runs the light round with a white flash
+on the roof, a six strobes the roof and puts six searchlights up over the far
+end, a wicket goes to red and down nearly to dark with the batter's stumps
+lit red and flashing as LED stumps are, a milestone turns the colours round
+the wheel under the searchlights, Power Surge runs gold round the ground and
+the ninth over (unless the surge has it) runs red the other way. The boundaries and milestones
+come in through the crowd's `cheer`; a wicket, the surge and the death overs
+are `arenaCue` from the game. Reduced motion keeps the colours and the words
+and drops every chase, strobe and sweep. The colours are `ARENA`, changed
+there and everywhere. `__cricket.arena()` says what it is showing and
+`__cricket.arenaCue('six')` puts any moment up, for photographing.
 
 ## A newcomer's first innings
 

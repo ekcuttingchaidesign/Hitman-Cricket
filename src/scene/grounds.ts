@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { box, colors, cylinder, mat } from './build';
 import { stadium, type StadiumLights } from './stadium';
+import { arenaStands } from './arena';
 
 /**
  * The stands and everything over them: what a ground is, once the turf and
@@ -9,6 +10,11 @@ import { stadium, type StadiumLights } from './stadium';
  * Two are built. **The stadium** (`stadium.ts`) is the one every mode plays
  * in: a two-tier bowl right round the ground under a cantilever roof, with the
  * commentary box over the far end and floodlight towers behind it.
+ *
+ * **The arena** (`arena.ts`) is Super10's: the stadium's bowl under a ring
+ * of lamps instead of towers, LED round the roof and the upper tier, a city
+ * behind it and a big screen over the far end, played at night only. For now
+ * it is asked for with `?ground=arena`.
  *
  * **The bowl** is the ground before it: one tier of stands in a full ring, flat
  * roofs, and the low clubhouse with the flags. It is kept whole, line for line,
@@ -19,9 +25,9 @@ import { stadium, type StadiumLights } from './stadium';
  * leg side reads left: the bowler's end is +z, and both are symmetric enough
  * across x that the mirror changes nothing anybody would notice.
  */
-export type GroundName = 'stadium' | 'bowl';
+export type GroundName = 'stadium' | 'bowl' | 'arena';
 
-export const GROUNDS: readonly GroundName[] = ['stadium', 'bowl'];
+export const GROUNDS: readonly GroundName[] = ['stadium', 'bowl', 'arena'];
 
 /** The ground every innings is played on unless the link asks for another. */
 export const DEFAULT_GROUND: GroundName = 'stadium';
@@ -32,14 +38,22 @@ export function groundFrom(search: string): GroundName {
   return GROUNDS.find(name => name === asked) ?? DEFAULT_GROUND;
 }
 
-/** Builds a ground onto `world`; the stadium hands back its lamps, for the night. */
-export function buildGround(name: GroundName, world: THREE.Object3D): StadiumLights | null {
+/**
+ * Builds a ground onto `world`; the stadium and the arena hand back their
+ * lamps, for the night. `screen` is the arena's: its big screen, or the
+ * commentary box in its place.
+ */
+export function buildGround(name: GroundName, world: THREE.Object3D, { screen = true } = {}): StadiumLights | null {
   if (name === 'bowl') { bowl(world); return null; }
+  if (name === 'arena') return arenaStands(world, screen);
   return stadium(world);
 }
 
 /** Whether a ground brings its own floodlights, in place of the four poles `GameScene` stands up for the bowl. */
-export const ownFloodlights = (name: GroundName) => name === 'stadium';
+export const ownFloodlights = (name: GroundName) => name !== 'bowl';
+
+/** The arena is played under lights and nowhere else: whatever the clock or the pause card says. */
+export const nightOnly = (name: GroundName) => name === 'arena';
 
 /** The ground as it was, unchanged. */
 function bowl(world: THREE.Object3D) {

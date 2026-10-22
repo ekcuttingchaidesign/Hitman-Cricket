@@ -17,6 +17,7 @@ import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro, type IntroGame } from './ui/MarathonIntro';
 import { CONFIDENCE_STEP, FIELD_STEP, SHOTS_STEP, fieldIntroDue, howToDue, noteFieldIntro, noteHowTo, playedBefore } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
+import type { ArenaCue } from './scene/arena';
 import { SUPER10, batterAt as super10Batter, windowsAt as super10Windows } from './config/super10';
 import {
   SURGE, bowlerOf, drawnOf, fieldFor, fieldRules, offScreen, planFor, signalFor, steer, steerOf, surgeAuto, surgeOffered, type FieldSet,
@@ -980,6 +981,10 @@ export class Game {
       drawn: (progress: number) => this.delivery ? this.scene.drawnBall(this.delivery, progress) : null,
       // Which ground was built, for `scene-check.mjs`: `?ground=bowl` or the default.
       ground: () => this.scene.ground,
+      // The arena's mood and what it is showing, and any of its moments on
+      // demand, for photographing them without batting to them.
+      arena: () => this.scene.arenaState,
+      arenaCue: (kind: ArenaCue) => this.scene.arenaCue(kind, this.elapsed),
       // The Test look, for the checks: the green strip down, or the Blast's.
       greenTop: () => this.scene.greenTop,
       // How worn the Marathon's strip is, a stage of `WEAR_STAGES`.
@@ -2187,6 +2192,7 @@ export class Game {
     this.hand();
     // Super10's field, and its captain at mid-off, put out before the first ball.
     this.s10 = Game.freshField();
+    this.scene.arenaMood('calm');
     this.fieldUi.show(this.super10, this.scene.mirrored);
     if (this.super10) this.super10Over(false);
     this.nearing = null; this.hud.nearing(null, null);
@@ -2291,6 +2297,13 @@ export class Game {
   private get marathoning() { return this.mode === 'MARATHON'; }
   /** Super10: the Blast's ball for ten overs, three batters and five bowlers. */
   private get super10() { return this.mode === 'SUPER10'; }
+  /** What the arena's big screen says between moments: the game, the score, the over and, in Super10, who is in. */
+  private scoreboard() {
+    const { runs, wickets, balls } = this.score;
+    const title = this.super10 ? 'SUPER10' : this.marathoning ? 'TEST' : this.surviving ? 'SURVIVAL' : 'THE BLAST';
+    const overs = `${Math.floor(balls / 6)}.${balls % 6} OV`;
+    return { title, score: `${runs}/${wickets}`, detail: this.super10 ? `${overs} · ${super10Batter(wickets).title}` : overs };
+  }
   /**
    * Either Test mode: Survival's ball — its ladder, its injury meter, no
    * confidence and no charge. Which of the two decides everything else.
@@ -2549,7 +2562,9 @@ export class Game {
     const newBatter = this.score.wickets > s10.wicketsAtOver;
     s10.over = over; s10.wicketsAtOver = this.score.wickets;
     const surge = surgeAuto(over, s10.surged !== null);
-    if (surge) { s10.surged = over; this.mark('surge-auto', 'Power Surge switched on by itself'); }
+    if (surge) { s10.surged = over; this.mark('surge-auto', 'Power Surge switched on by itself'); this.scene.arenaCue('surge', this.elapsed); }
+    // The arena tells the last two overs coming, unless Power Surge has the ninth.
+    else if (over === SUPER10.overs - 2) this.scene.arenaCue('death', this.elapsed);
     const bowler = bowlerOf(this.generator.overKind(over), over);
     const plan = planFor(bowler, over, { boundaries: s10.boundaries, newBatter });
     if (plan) this.mark(`field-plan-${bowler.toLowerCase()}`, 'A bowler took his other field');
@@ -2578,6 +2593,7 @@ export class Game {
    */
   private surgeShown() {
     const s10 = this.s10, used = s10.surged !== null;
+    this.scene.arenaMood(s10.surged === s10.over ? 'surge' : s10.over >= SUPER10.overs - 2 ? 'death' : 'calm');
     const between = this.phase === 'READY' && this.score.balls % SUPER10.ballsPerOver === 0;
     const offered = between && surgeOffered(s10.over, used);
     this.fieldUi.surge(s10.surged === s10.over ? 'on' : used ? 'used' : offered ? 'offer' : s10.over < SURGE.from ? 'locked' : 'rest',
@@ -2593,6 +2609,7 @@ export class Game {
     const plan = s10.field.change === 'plan' ? 1 : 0;
     this.setSuper10Field(fieldFor({ bowler: s10.field.bowler, over: s10.over, surge: true, plan }), true);
     this.surgeShown();
+    this.scene.arenaCue('surge', this.elapsed);
     this.mark(`surge-${s10.over + 1}`, 'Power Surge taken');
   }
   /**
@@ -3841,7 +3858,7 @@ export class Game {
     }
     // Level Up covers the whole screen, so the ground under it is not drawn:
     // a phone has one GPU, and the confetti wants it.
-    if (!document.hidden && !this.levelUp) this.scene.render(this.elapsed);
+    if (!document.hidden && !this.levelUp) { this.scene.scoreboard(this.scoreboard()); this.scene.render(this.elapsed); }
     // The sound first: on a phone the overlay is taller than the screen is.
     if (this.debug) this.hud.debug({ ...this.audio.describe(), ...this.snapshot() });
     this.frameId = requestAnimationFrame(this.frame);
@@ -4338,6 +4355,7 @@ export class Game {
     // A wicket goes quiet under a groan; one that cost him a milestone, or a
     // man carried off, is sent off with a softer cheer once it has.
     if (outcome.isWicket || this.felled) {
+      this.scene.arenaCue('wicket', this.elapsed);
       this.audio.groan(this.test ? GROAN.outTest : GROAN.out);
       this.audio.hushCrowd(HUSH.depth, HUSH.hold, HUSH.recover, HUSH.after);
       if (this.felled || (this.lesson < 0 && outNearMilestone(this.batterHistory))) this.audio.cheer(SEND_OFF, SEND_OFF.after);

@@ -12,11 +12,12 @@ import { KIT, type Kit } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
 import { flightOf, sectorOf } from './flight';
 import { OVERCAST, SKY, Sky, type SkyTime } from './sky';
-import { FILL_POSITION, LIGHTING, glows, moon, nightReflections } from './night';
+import { ARENA_NIGHT, FILL_POSITION, LIGHTING, glows, moon, nightReflections } from './night';
 import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture } from './turf';
-import { perimeterBoards } from './boards';
+import { BOARD_PANELS, perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
-import { buildGround, groundFrom, ownFloodlights, type GroundName } from './grounds';
+import { buildGround, groundFrom, nightOnly, ownFloodlights, type GroundName } from './grounds';
+import { Arena, MILESTONE_WORDS, screenFrom, type ArenaCue, type ArenaMood, type Scoreboard } from './arena';
 import { buildWicket } from './wicket';
 import type { CrowdCelebration, CrowdMoment } from './CrowdCelebration';
 import { PerformanceReadout } from './performance';
@@ -248,7 +249,9 @@ export class GameScene {
   private lamps: THREE.MeshStandardMaterial | null = null;
   private night: THREE.Object3D[] = [];
   /** The lights the ground reflects after dark: see `nightReflections`. */
-  private reflections = nightReflections();
+  private reflections = nightReflections(this.ground !== 'arena');
+  /** The arena's lights, screen and moments: see `arena.ts`. */
+  private arena: Arena | null = null;
   private environment: THREE.WebGLRenderTarget;
   /** Painted once at start-up; the scene's traversal finds materials, not their maps. */
   private textures: THREE.Texture[] = [];
@@ -301,6 +304,7 @@ export class GameScene {
     this.fill.position.set(...FILL_POSITION); this.scene.add(this.fill);
     this.createGround();
     this.wicket(0); this.wicket(18.7);
+    this.arena?.wire(this.stumps);
     this.bowlerHolder.add(this.bowler.root);
     this.world.add(this.batter.root, this.bowlerHolder, ...this.field.fielders.map(f => f.root));
     this.ball = new THREE.Mesh(SHAPES.ball, soft(BALL.blast.color, 0.34));
@@ -348,6 +352,8 @@ export class GameScene {
     this.swish = this.createSwish();
     this.reset();
     this.resizeObserver = new ResizeObserver(this.resize); this.resizeObserver.observe(container); this.resize();
+    // The arena is lit from the first frame: there is no day there to start in.
+    if (nightOnly(this.ground)) this.time('night');
     if (new URLSearchParams(location.search).get('perf') === '1') this.performanceReadout = new PerformanceReadout(container);
   }
   /**
@@ -496,7 +502,8 @@ export class GameScene {
     this.field.update(0);
   }
   private createStadium(anisotropy: number) {
-    const lights = buildGround(this.ground, this.world);
+    const screen = screenFrom(location.search);
+    const lights = buildGround(this.ground, this.world, { screen });
     // The boards along the foot of the stands. Added to the scene rather than
     // the mirrored stage, or every sponsor would read backwards.
     const boards = perimeterBoards(35.1, 1.2, 1.5, 10, anisotropy);
@@ -504,6 +511,11 @@ export class GameScene {
     boards.group.traverse(object => {
       if (object instanceof THREE.Mesh && (object.material as THREE.MeshStandardMaterial).emissiveMap) this.boardsMaterial = object.material as THREE.MeshStandardMaterial;
     });
+    if (this.ground === 'arena') {
+      this.arena = new Arena(this.scene, screen, anisotropy);
+      if (this.boardsMaterial) this.arena.boards(this.boardsMaterial, BOARD_PANELS);
+      this.textures.push(...this.arena.textures);
+    }
     // The night's own: the moon, and a glow on every lamp the stadium has.
     const theMoon = moon(this.camera.position);
     this.scene.add(theMoon.sprite); this.night.push(theMoon.sprite); this.textures.push(theMoon.texture);
@@ -551,12 +563,13 @@ export class GameScene {
    * pause menu between balls.
    */
   time(time: SkyTime) {
+    if (nightOnly(this.ground)) time = 'night';
     if (time === this.now) return;
     this.now = time;
     this.crowd?.setNight(time === 'night');
     // Day breaking on a show takes it down: there are none by day.
     if (time !== 'night') this.bursts.stop();
-    const palette = this.sky.time(time), light = LIGHTING[time];
+    const palette = this.sky.time(time), light = time === 'night' && this.ground === 'arena' ? ARENA_NIGHT : LIGHTING[time];
     this.scene.fog = new THREE.Fog(palette.horizon, 48, 125);
     this.renderer.setClearColor(palette.horizon);
     this.environment.dispose();
@@ -648,7 +661,19 @@ export class GameScene {
     this.bursts.show(now, ms, this.camera.aspect >= 1);
   }
   get fireworksUp() { return this.bursts.up; }
-  cheer(kind: CrowdMoment, now: number, mark = 0, streak = 1, name = '') { this.crowd?.trigger(kind, now, mark, streak, name); }
+  cheer(kind: CrowdMoment, now: number, mark = 0, streak = 1, name = '') {
+    this.crowd?.trigger(kind, now, mark, streak, name);
+    if (kind === 'hit-four' || kind === 'hit-six') this.arena?.cue(kind === 'hit-six' ? 'six' : 'four', now);
+    else this.arena?.cue('milestone', now, MILESTONE_WORDS[kind]);
+  }
+  /** The arena's mood: calm, Power Surge's gold or the death overs' red. Nothing on any other ground. */
+  arenaMood(mood: ArenaMood) { this.arena?.mood(mood); }
+  /** A moment the arena lights up for that the crowd has no part in: a wicket, Power Surge, the death overs. */
+  arenaCue(kind: ArenaCue, now: number) { this.arena?.cue(kind, now); }
+  /** What the big screen shows between moments. */
+  scoreboard(board: Scoreboard) { this.arena?.scoreboard(board); }
+  /** For the checks: the arena's mood and what it is showing, or null on another ground. */
+  get arenaState() { return this.arena?.state ?? null; }
   get crowdState() { return this.crowd?.state ?? { kind: null, spectators: 0, banners: 0 }; }
   /**
    * A moment: his hundred or six sixes, the bat to the sky and the world gone
@@ -1307,6 +1332,7 @@ export class GameScene {
     this.clock = now;
     this.crowd?.update(now);
     this.bursts.update(now);
+    this.arena?.update(now, this.bailsBrokeAt ? now - this.bailsBrokeAt : -1, this.reducedMotion);
     this.batter.update(now);
     this.field.update(now);
     // Held, the ball goes where his hands go: through the slide, and up with
