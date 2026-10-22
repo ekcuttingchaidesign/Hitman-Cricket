@@ -1456,9 +1456,9 @@ charge, coloured kit, the Blast field and the lights by the player's clock.
 Three wickets, and the batters are the opener, No. 3 and a middle-order
 batter, by how many are down (`batterAt`), each named walking out
 (`walkingOut`). All three bat with the Marathon opener's windows, the window
-for a six narrowed to `SIX_WINDOW` of his, and every window but the miss
-narrowed by `DEATH_TIMING` in the last two overs (`windowsAt`, read through
-`windows` in `src/Game.ts`). They were the Marathon's three, each worse than
+for a six narrowed to `SIX_WINDOW` of his (`windowsAt`, read through `windows`
+in `src/Game.ts`), the same to the last ball: the last two overs used to
+narrow every window but the miss by fifteen per cent, and that went. They were the Marathon's three, each worse than
 the last — its tailender's six window was eleven milliseconds either side —
 and the game got too hard after the first wicket.
 
@@ -1578,8 +1578,8 @@ sixth, seventh or eighth (`surgeOffered`; its chip, or P), the bowler waiting
 `SURGE_WAIT_MS` at his mark while it is offered; not taken, it goes on by
 itself in the ninth (`surgeAuto`), and the tenth never has it: the two men back
 nearest straight come in. `scripts/super10-sim.ts` plays all of it with a
-steering player: a pro about 168 (typically 175, the best near 245), a regular
-85, a beginner 28 with a boundary in ten innings of eleven, and no meter
+steering player: a pro about 172 (typically 179, the best near 245), a regular
+86, a beginner 28 with a boundary in ten innings of eleven, and no meter
 strokes in any of it. With the Marathon's three batters it was 140, 54 and
 18, and nobody in a playtest got past the third.
 

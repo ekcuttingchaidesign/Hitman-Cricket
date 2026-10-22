@@ -19,10 +19,8 @@ export const SUPER10 = {
   ballsPerOver: 6,
   totalBalls: 60,
   maxWickets: 3,
-  /** The first three overs are the Powerplay: two men out, when the field arrives. */
+  /** The first three overs are the Powerplay: two men out. */
   powerplay: 3,
-  /** And the last two the death, where the timing is a little harder (`DEATH_TIMING`). */
-  deathFrom: 8,
 } as const;
 
 export type Windows = { perfect: number; good: number; ok: number; poor: number };
@@ -56,25 +54,17 @@ export const BATTERS: readonly Super10Batter[] = ['OPENER', 'NO. 3', 'MIDDLE ORD
   timing: { ...OPENER, perfect: Math.round(OPENER.perfect * SIX_WINDOW) },
 }));
 
-/**
- * The last two overs: every window but the miss a shade narrower, for the
- * yorkers and the pace. A big finish has to be earned.
- */
-export const DEATH_TIMING = 0.85;
-
 /** The man in, by wickets down: the third stays in once he is. */
 export const batterAt = (wickets: number): Super10Batter => BATTERS[Math.min(wickets, BATTERS.length - 1)];
 
-/** The windows the ball about to be played is graded on: whoever is in, and the death's. */
-export function windowsAt(wickets: number, balls: number): Windows {
-  const { timing } = batterAt(wickets);
-  if (Math.floor(balls / SUPER10.ballsPerOver) < SUPER10.deathFrom) return timing;
-  return {
-    perfect: Math.round(timing.perfect * DEATH_TIMING),
-    good: Math.round(timing.good * DEATH_TIMING),
-    ok: Math.round(timing.ok * DEATH_TIMING),
-    poor: timing.poor,
-  };
+/**
+ * The windows the ball about to be played is graded on: whoever is in. The
+ * last two overs used to narrow every window but the miss by fifteen per cent
+ * for the yorkers and the pace; the death bowler's over is hard enough
+ * without it, and it went. `balls` is kept for whatever the next rule is.
+ */
+export function windowsAt(wickets: number, _balls = 0): Windows {
+  return batterAt(wickets).timing;
 }
 
 /** Who bowls an over: the five, as the players will come to know them by their actions. */

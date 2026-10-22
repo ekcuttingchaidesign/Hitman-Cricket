@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BATTERS, DEATH_OVER, DEATH_TIMING, SIX_WINDOW, SUPER10, batterAt, scheduleOf, windowsAt, type Bowler as Super10Bowler } from '../src/config/super10';
+import { BATTERS, DEATH_OVER, SIX_WINDOW, SUPER10, batterAt, scheduleOf, windowsAt, type Bowler as Super10Bowler } from '../src/config/super10';
 import { BATTERS as MARATHON_BATTERS } from '../src/config/marathon';
 import { DeliveryGenerator, MARATHON_PLAN, SUPER10_PLAN, spun, withoutYorkers } from '../src/game/DeliveryGenerator';
 import { SeededRandom } from '../src/game/SeededRandom';
@@ -180,14 +180,8 @@ describe('Super10: the three batters', () => {
     expect(batterAt(5).title).toBe('MIDDLE ORDER');
   });
 
-  it('narrow every window but the miss in the last two overs', () => {
-    const before = windowsAt(0, SUPER10.deathFrom * SUPER10.ballsPerOver - 1);
-    const death = windowsAt(0, SUPER10.deathFrom * SUPER10.ballsPerOver);
-    expect(before).toEqual(BATTERS[0].timing);
-    expect(death.perfect).toBe(Math.round(before.perfect * DEATH_TIMING));
-    expect(death.good).toBe(Math.round(before.good * DEATH_TIMING));
-    expect(death.ok).toBe(Math.round(before.ok * DEATH_TIMING));
-    expect(death.poor).toBe(before.poor);
+  it('keep the same windows to the last ball: the death overs narrow nothing', () => {
+    for (let ball = 0; ball < SUPER10.totalBalls; ball++) expect(windowsAt(0, ball)).toEqual(BATTERS[0].timing);
   });
 });
 
