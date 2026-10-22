@@ -1604,7 +1604,11 @@ the field's rules' man, or the drawn man the scene sent for a catch,
 corner, to 180 square over it, and it stays up, kept live, until it is tapped
 again or F is pressed; it passes every other touch through, so a ball can be
 played with it up. Put back by itself at the bowler's first stride, it was gone
-before anybody had read it, and at 264 square it covered most of the pitch.
+before anybody had read it, and at 264 square it covered most of the pitch. It
+grows out of the corner map's own place and shrinks back into it
+(`s10-grow`, `s10-shrink`, the corner fading out and back in under it), and it
+has its own thinner lines and smaller dots: the corner's drawing scaled up two
+and a half times had lines two and a half times as thick.
 Bottom left, Power Surge (`SurgeState`): locked to the end of the fifth over,
 gold and breathing in the breaks it can be taken in, its ring emptying over
 the bowler's wait; a ring filling a sixth a ball through its over, with POWER

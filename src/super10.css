@@ -8,9 +8,10 @@
 .s10-corner:focus-visible{outline:2px solid #fff;outline-offset:3px;border-radius:50%}
 
 /* The map: 76 square, its ground 66 inset 5, 10 from the right and 28.7 off the foot. */
-.s10-map{right:calc(var(--u) * 10);bottom:calc(var(--u) * 28.7);width:calc(var(--u) * 76);height:calc(var(--u) * 76);transition:opacity 180ms ease-in}
+.s10-map{right:calc(var(--u) * 10);bottom:calc(var(--u) * 28.7);width:calc(var(--u) * 76);height:calc(var(--u) * 76);transition:opacity 140ms ease-out 140ms}
 .s10-map>.s10-svg{position:absolute;inset:calc(var(--u) * 5);width:calc(var(--u) * 66);height:calc(var(--u) * 66)}
-.s10-map.is-away{opacity:0;pointer-events:none}
+/* Out as the big one grows over it, back in as it lands on it. */
+.s10-map.is-away{opacity:0;pointer-events:none;transition:opacity 90ms ease-in}
 .s10-svg{display:block;overflow:visible}
 /* The map's own colours, never the kits': a kit near the fielders' shirt, or
    the grass, lost its dots. A dark ground under white lines, the fielders red,
@@ -49,10 +50,26 @@
    tapped. 264 square, it covered most of the pitch. */
 .s10-big{position:absolute;inset:0;z-index:8;pointer-events:none}
 .s10-big-map{position:absolute;right:calc(var(--u) * 10);bottom:calc(var(--u) * 28.7);width:calc(var(--u) * 180);height:calc(var(--u) * 180);transform-origin:100% 100%;
-  pointer-events:auto;cursor:pointer;animation:s10-grow 240ms cubic-bezier(.3,1.35,.5,1) both}
-.s10-big-map.is-up{animation:none}
+  pointer-events:auto;cursor:pointer;animation:s10-grow 280ms cubic-bezier(.2,.8,.2,1) both}
+.s10-big-map.is-up,.s10-big-words.is-up{animation:none}
 .s10-big-map .s10-svg{width:100%;height:100%}
-.s10-big-words{position:absolute;right:calc(var(--u) * 14);bottom:calc(var(--u) * 216);display:flex;flex-direction:column;align-items:flex-end;gap:calc(var(--u) * 2);
+/* Put back: it shrinks into the corner it came out of, and fades as it lands. */
+.s10-big.is-closing .s10-big-map{animation:s10-shrink 240ms cubic-bezier(.4,0,.7,1) both;pointer-events:none}
+.s10-big.is-closing .s10-big-words{animation:s10-fade 140ms ease-in reverse both;pointer-events:none}
+/* Drawn at two and a half times the corner's size, the corner's own lines were
+   two and a half times as thick: the big map has its own, and smaller dots. */
+.s10-big-map .s10-rope{stroke-width:.85}
+.s10-big-map.is-surge .s10-rope{stroke-width:1.1}
+.s10-big-map .s10-ring{stroke-width:.5;stroke-dasharray:1.5 1.3}
+.s10-big-map .s10-man>circle{transform:scale(.72);transform-box:fill-box;transform-origin:center}
+.s10-big-map .s10-man circle:not(.s10-halo){stroke-width:.6}
+.s10-big-map .s10-man.is-taker circle:not(.s10-halo){stroke-width:.8}
+.s10-big-map .s10-halo{stroke-width:1}
+.s10-big-map .s10-bat{stroke-width:.6;transform:scale(.8);transform-box:fill-box;transform-origin:center}
+.s10-big-map .s10-pitch{transform:scaleX(.7);transform-box:fill-box;transform-origin:center}
+.s10-big-map .s10-shot{stroke-width:1.3}
+.s10-big-map .s10-shot-under{stroke-width:2.1}
+.s10-big-words{position:absolute;right:calc(var(--u) * 14);bottom:calc(var(--u) * 216);display:flex;flex-direction:column;align-items:flex-end;gap:calc(var(--u) * 2);animation:s10-fade 200ms 100ms ease-out both;
   color:#fff;text-align:right;text-shadow:0 1px 6px #000000b3;pointer-events:auto;cursor:pointer}
 .s10-big-words span{font:800 calc(var(--u) * 10)/1.3 var(--f-ui);letter-spacing:.12em;color:#ffd27a}
 .s10-big-words b{font:400 calc(var(--u) * 24)/1.1 var(--f-display);font-optical-sizing:none;font-variation-settings:'opsz' 6}
@@ -105,13 +122,17 @@ body.start-screen .s10-tag,.stage.result-open .s10-tag{display:none}
 @keyframes s10-pulse{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(1.3)}}
 @keyframes s10-pop{0%{opacity:0;transform:scale(.3)}100%{opacity:1;transform:none}}
 @keyframes s10-draw{to{stroke-dashoffset:0}}
-@keyframes s10-grow{from{transform:scale(.42)}to{transform:none}}
+/* From the corner map's own place and size: its drawing is 66 square, inset 5
+   inside the 76 the big one is anchored to. */
+@keyframes s10-grow{from{transform:translate(calc(var(--u) * -5),calc(var(--u) * -5)) scale(.367);opacity:.6}to{transform:none;opacity:1}}
+@keyframes s10-shrink{from{transform:none;opacity:1}70%{opacity:1}to{transform:translate(calc(var(--u) * -5),calc(var(--u) * -5)) scale(.367);opacity:0}}
+@keyframes s10-fade{from{opacity:0}to{opacity:1}}
 @keyframes s10-breathe{0%,100%{box-shadow:0 0 0 calc(var(--u) * 3) #f5b83d33,0 6px 18px #00000059}50%{box-shadow:0 0 0 calc(var(--u) * 7) #f5b83d59,0 6px 18px #00000059}}
 @keyframes s10-empty{to{stroke-dashoffset:100}}
 @keyframes s10-slam{0%{opacity:0;transform:scale(1.25)}14%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){
   .s10-man{transition:none}
-  .s10-pulse.is-on,.s10-tag.is-in,.s10-big-map,.s10-title.is-in,.s10-surge[data-state="offer"] .s10-surge-disc,.s10-man.is-taker .s10-halo,.arena-bottom .is-rider{animation:none}
+  .s10-pulse.is-on,.s10-tag.is-in,.s10-big-map,.s10-big-words,.s10-big.is-closing .s10-big-map,.s10-big.is-closing .s10-big-words,.s10-title.is-in,.s10-surge[data-state="offer"] .s10-surge-disc,.s10-man.is-taker .s10-halo,.arena-bottom .is-rider{animation:none}
   .s10-title.is-in{opacity:1}
   .s10-shot.is-on,.s10-shot-under.is-on{animation:none;stroke-dashoffset:0}
 }

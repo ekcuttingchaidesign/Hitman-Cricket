@@ -34,6 +34,8 @@ import { icon } from './Kit';
 export type SurgeState = 'locked' | 'rest' | 'offer' | 'on' | 'used';
 
 const TAG_MS = 2400;
+/** How long the enlarged map takes to shrink back into its corner (`s10-shrink`). */
+const CLOSE_MS = 240;
 const LIT_MS = 1800;
 const TITLE_MS = 1600;
 
@@ -102,7 +104,7 @@ export class FieldUi {
   private mirrored = false;
   private on = false;
   private taught = false;
-  private timers = { tag: 0, lit: 0, title: 0 };
+  private timers = { tag: 0, lit: 0, title: 0, close: 0 };
 
   constructor(private readonly root: HTMLElement, private readonly handlers: FieldUiHandlers) {
     this.map = this.made('button', 's10-corner s10-map hidden', root) as HTMLButtonElement;
@@ -143,7 +145,8 @@ export class FieldUi {
     }
   }
 
-  get enlargedOpen() { return !this.enlarged.classList.contains('hidden'); }
+  /** Up, and not on its way back into the corner. */
+  get enlargedOpen() { return !this.enlarged.classList.contains('hidden') && !this.enlarged.classList.contains('is-closing'); }
 
   /**
    * A field into play: the map redrawn, and for a field that changed — a new
@@ -209,7 +212,8 @@ export class FieldUi {
    */
   enlarge() {
     if (!this.on || !this.field || this.enlargedOpen) return false;
-    this.enlarged.classList.remove('hidden');
+    clearTimeout(this.timers.close);
+    this.enlarged.classList.remove('hidden', 'is-closing');
     this.map.classList.add('is-away');
     this.drawBig(true);
     return true;
@@ -218,14 +222,20 @@ export class FieldUi {
   private drawBig(growing = false) {
     if (!this.field || !this.enlargedOpen) return;
     const out = this.field.men.filter(m => m.deep).length;
-    this.enlarged.innerHTML = `<div class="s10-big-words"><span>OVER ${this.over + 1} · ${out} OUT</span><b>${this.field.name.toUpperCase()}</b><small>Tap to shrink</small></div>
+    this.enlarged.innerHTML = `<div class="s10-big-words${growing ? '' : ' is-up'}"><span>OVER ${this.over + 1} · ${out} OUT</span><b>${this.field.name.toUpperCase()}</b><small>Tap to shrink</small></div>
       <div class="s10-big-map${this.field.change === 'surge' ? ' is-surge' : ''}${growing ? '' : ' is-up'}">${this.map.querySelector('svg')?.outerHTML ?? ''}</div>`;
   }
-  /** Back into its corner: a tap on it, or F. */
+  /**
+   * Back into its corner, a tap on it or F: it shrinks into the corner map's
+   * place as that fades back in under it, rather than vanishing.
+   */
   shrink() {
-    if (this.enlarged.classList.contains('hidden')) return;
-    this.enlarged.classList.add('hidden');
+    if (!this.enlargedOpen) return;
     this.map.classList.remove('is-away');
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { this.enlarged.classList.add('hidden'); return; }
+    this.enlarged.classList.add('is-closing');
+    clearTimeout(this.timers.close);
+    this.timers.close = window.setTimeout(() => { this.enlarged.classList.add('hidden'); this.enlarged.classList.remove('is-closing'); }, CLOSE_MS);
   }
   /** F: the map enlarged, or put back. */
   toggle() {
