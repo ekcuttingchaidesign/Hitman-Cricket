@@ -4,7 +4,7 @@ import { ARM_REACH, BUILD } from '../src/entities/Cricketer';
 import { SIGNAL_MS, signal } from '../src/entities/Fielder';
 import { SUPER10, type Bowler } from '../src/config/super10';
 import {
-  APART, BOOK, DEEP_REACH, IN_LINE, IN_LINE_NEAR, POSITIONS, RING_REACH, SIGHT_SCREEN, STRETCH, bookOf, bowlerOf, drawnOf, fieldFor, fieldLine,
+  APART, BOOK, DEEP_REACH, IN_LINE, POSITIONS, RING_REACH, SIGHT_SCREEN, STRAIGHT_RING, STRETCH, bookOf, bowlerOf, drawnOf, fieldFor, fieldLine,
   fieldRules, nameOf, nearest, offScreen, passes, planFor, ropeAt, signalFor, steer, steerOf, surgeAuto, surgeOffered, type FieldSet,
 } from '../src/game/super10-field';
 import type { ShotOutcome } from '../src/game/types';
@@ -32,12 +32,12 @@ describe('the Super10 field', () => {
   it('has nine men in every field, none in front of the sight screen and none on top of another', () => {
     for (const { men, id } of EVERY) {
       expect(men, id).toHaveLength(9);
-      for (const m of men) expect(Math.abs(m.angle), `${id} ${m.name}`).toBeGreaterThanOrEqual(SIGHT_SCREEN);
+      for (const m of men) expect(Math.abs(m.angle), `${id} ${m.name}`).toBeGreaterThanOrEqual(m.deep ? SIGHT_SCREEN : STRAIGHT_RING);
       for (const a of men) for (const b of men) {
         if (a === b) continue;
         const apart = Math.abs(a.angle - b.angle);
-        // Two at one depth stand well apart; one in the ring is off the line of the man behind him, the more so near straight.
-        const least = a.deep === b.deep ? APART : Math.min(Math.abs(a.angle), Math.abs(b.angle)) < 45 ? IN_LINE_NEAR : IN_LINE;
+        // Two at one depth stand well apart; one in the ring is off the line of the man behind him.
+        const least = a.deep === b.deep ? APART : IN_LINE;
         expect(apart, `${id}: ${a.name} and ${b.name}`).toBeGreaterThanOrEqual(least);
       }
     }

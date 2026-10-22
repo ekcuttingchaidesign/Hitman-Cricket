@@ -81,28 +81,32 @@ const deepAt = (angle: number) => Math.max(15, ropeAt(angle) - INSIDE_ROPE);
 
 /**
  * The positions the game uses, from the field chart and the field book's
- * angles: nobody within twenty degrees of straight, where the sight screen is
- * and where a man stands in front of the bowler from behind the bat (the
- * book's long-off and long-on at sixteen are stood at twenty-two). No slips,
- * gully, short leg or leg slip: the keeper takes every edge, and nobody fields
- * close in a ten-over game, so the book's slip is a backward point or point.
+ * angles. Mid-off and mid-on stand eighteen degrees off straight, a little
+ * inside the picture the camera behind the bat sees on a phone (about
+ * seventeen either side at the distance they stand, less nearer the bat):
+ * at the book's twenty-four they were never seen. The men back stand no
+ * nearer straight than `SIGHT_SCREEN`, nobody in front of the sight screen,
+ * so long-off and long-on are at twenty-six, just out of the picture and off
+ * the line of the man in front of them. No slips, gully, short leg or leg
+ * slip: the keeper takes every edge, and nobody fields close in a ten-over
+ * game, so the book's slip is a backward point or point.
  */
 export const POSITIONS = {
-  'mid-off': { angle: 34, distance: 22 },
+  'mid-off': { angle: 18, distance: 22 },
   'extra cover': { angle: 50, distance: 23 },
   cover: { angle: 66, distance: 22 },
   point: { angle: 92, distance: 21 },
   'backward point': { angle: 112, distance: 19 },
   'short third man': { angle: 135, distance: 20 },
-  'mid-on': { angle: -34, distance: 22 },
+  'mid-on': { angle: -18, distance: 22 },
   midwicket: { angle: -62, distance: 22 },
   'square leg': { angle: -90, distance: 20 },
   'short fine leg': { angle: -146, distance: 16 },
-  'long-off': { angle: 22, deep: true },
+  'long-off': { angle: 26, deep: true },
   'deep cover': { angle: 60, deep: true },
   'deep point': { angle: 102, deep: true },
   'third man': { angle: 142, deep: true },
-  'long-on': { angle: -22, deep: true },
+  'long-on': { angle: -26, deep: true },
   'deep midwicket': { angle: -50, deep: true },
   'deep square leg': { angle: -80, deep: true },
   'deep backward square leg': { angle: -112, deep: true },
@@ -110,25 +114,27 @@ export const POSITIONS = {
 } as const satisfies Record<string, { angle: number; distance?: number; deep?: boolean }>;
 export type Position = keyof typeof POSITIONS;
 /**
- * The closest straight a man stands; the closest two men at the same depth
- * stand; and the closest a man in the ring stands to the line of a man behind
- * him, which is wider near straight (`IN_LINE_NEAR`), where the camera behind
- * the bat would see one stood in front of the other.
+ * The closest straight a man back stands, and a man in the ring; the closest
+ * two men at the same depth stand; and the closest a man in the ring stands to
+ * the line of a man behind him.
  */
 export const SIGHT_SCREEN = 20;
+export const STRAIGHT_RING = 16;
 export const APART = 15;
 export const IN_LINE = 6;
-export const IN_LINE_NEAR = 12;
 
 /** A field from the book, as this game stands it. */
 interface Plan { name: string; men: Position[] }
 /**
  * The field book's fields, the slip turned into a man square of the wicket.
  * Two men back in each Powerplay field and five in the rest but the spinner's
- * attacking one, which keeps three.
+ * attacking one, which keeps three. The new-ball attack keeps its deep third
+ * and has long-off for the other where the book has deep fine leg: two men
+ * back, both behind the bat, made no sense to anyone batting, and the swing
+ * bowler's ball outside off is driven there.
  */
 const PLANS = {
-  'new-ball': { name: 'New-ball attack', men: ['point', 'backward point', 'cover', 'mid-off', 'mid-on', 'midwicket', 'square leg', 'third man', 'fine leg'] },
+  'new-ball': { name: 'New-ball attack', men: ['point', 'backward point', 'cover', 'mid-off', 'mid-on', 'midwicket', 'square leg', 'third man', 'long-off'] },
   'square-riders': { name: 'Square riders', men: ['short third man', 'cover', 'extra cover', 'mid-off', 'mid-on', 'midwicket', 'short fine leg', 'deep point', 'deep square leg'] },
   'hard-length': { name: 'Hard length', men: ['backward point', 'point', 'cover', 'mid-off', 'mid-on', 'midwicket', 'short fine leg', 'deep square leg', 'third man'] },
   cutters: { name: 'Cutters', men: ['point', 'cover', 'mid-off', 'mid-on', 'third man', 'deep point', 'long-on', 'deep midwicket', 'deep square leg'] },

@@ -1498,12 +1498,16 @@ The field (`src/game/super10-field.ts`, in `tests/super10-field.test.ts`) is
 nine men, set from the fields T20 sides use: the claude.ai artifact "The T20
 Field Book" (https://claude.ai/artifact/C3YAV9BVN4v4QGCUHPEfZX), fourteen
 fields with the situation each is for. The positions (`POSITIONS`) are the
-book's angles, with nobody within twenty degrees of straight, in front of the
-sight screen (its long-off and long-on stand at 22), nobody within fifteen of
-another man at his depth, and a man in the ring off the line of the man behind
-him (`IN_LINE`, and `IN_LINE_NEAR` near straight, where the camera behind the
-bat would see one in front of the other); no slips, gully or short leg, so the
-book's slip is a point or a backward point. Each bowler has two of the book's
+book's angles but two: mid-off and mid-on stand eighteen degrees off
+straight, a little inside the picture (a phone's camera behind the bat sees
+about seventeen either side at their distance), where at the book's
+twenty-four nobody ever saw them; and no man back within twenty of straight,
+in front of the sight screen (`SIGHT_SCREEN`), so long-off and long-on are at
+twenty-six, just out of the picture. Nobody within fifteen of another man at
+his depth, a man in the ring off the line of the man behind him (`IN_LINE`);
+no slips, gully or short leg, so the book's slip is a point or a backward
+point. The new-ball attack's two men back are deep third and long-off, where
+the book's deep fine leg put both behind the bat in the first over. Each bowler has two of the book's
 fields (`BOOK`, `PLANS`), his first and his other: the swing bowler New-ball
 attack and Square riders, the seamer Hard length and Square riders in the
 Powerplay and Cutters and the Straight field after it, the spinner Leg-spin
@@ -1554,10 +1558,11 @@ sixth, seventh or eighth (`surgeOffered`; its chip, or P), the bowler waiting
 `SURGE_WAIT_MS` at his mark while it is offered; not taken, it goes on by
 itself in the ninth (`surgeAuto`), and the tenth never has it: the two men back
 nearest straight come in. `scripts/super10-sim.ts` plays all of it with a
-steering player: a pro about 146 (typically 158, the best near 250), a regular
-59, a beginner 20 with a boundary in seven innings of eight, against 167, 69
+steering player: a pro about 143 (typically 154, the best near 230), a regular
+57, a beginner 19 with a boundary in five innings of six, against 167, 69
 and 24 with no field, and no meter strokes in any of it. Five men back cost
-about what the plug had, so the totals hardly moved when it went.
+about what the plug had, so the totals hardly moved when it went; mid-off and
+mid-on brought into the picture took three more off a pro.
 
 The scene draws six of the nine (`drawnOf`: the six nearest straight), stood
 on their new marks when the field changes (`Field.standOn`,
