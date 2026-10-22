@@ -3,91 +3,73 @@ import { Batch, mat } from './build';
 import { EAVES, STADIUM, stadium, type StadiumLights } from './stadium';
 import { seeded } from './turf';
 import type { Milestone } from '../game/milestone';
+import { paintFilm, type Film, type Playing } from '../ui/Lottie';
+import { banners, flags, waveAt, type CrowdLife } from './crowdLife';
 
 /**
- * The arena: Super10's ground, played under lights and nowhere else.
+ * The arena: Super10's ground, played under lights and nowhere else, dressed
+ * by the Super10 brand sheet (Figma section 17, node `467:5197`): ink night,
+ * violet light, lime for the one thing that is charged, raspberry only when a
+ * batter is out.
  *
  * It is the stadium's bowl (`stadium.ts`) with what makes a ground read as
  * new where a phone looks, which is the far end and the sky over it:
  *
  * - **A ring of fire.** No towers: the light is one ring of lamps round the
  *   edge of the roof, as at the Dubai International Stadium, with a glow on
- *   every few metres of it (`ringLamps`, the stadium's `glows`).
- * - **LED round the bowl.** The roof's fascia is a halo of LED, and the front
- *   of the upper tier a ribbon of it, in the arena's two colours: magenta
- *   and cyan. Both are one ring each with continuous texture, so a chase of
- *   light can run round the whole ground.
+ *   every few metres of it (the stadium's `glows`).
+ * - **LED round the bowl.** The roof's fascia is a halo of LED in violet, the
+ *   floodlights' wash; the front of the upper tier is a ribbon of LED board,
+ *   and so is the ring of boards along the rope: both show the brand's board
+ *   states (`BOARDS`), the lime mark and violet slashes drifting at the lean
+ *   when nothing is happening, dimmed to 40% while the ball is live.
  * - **The two sides' supporters.** The stands in the sides' colours, a
  *   section each in turn, rather than the stadium's summer whites.
- * - **A city behind it.** A skyline of lit windows over the far stand, with
- *   the odd tower's red light on top, painted once into a strip.
+ * - **A city behind it**, under a sky the floodlights' violet has got into.
  * - **The big screen.** Where the commentary box was, over the far end: the
- *   mode, the score and who is in, and the moment in big letters when there
- *   is one. `?screen=0` puts the commentary box back instead, for when
- *   the screen does not earn its place.
+ *   mark, the score and who is in, in the brand's lettering, and the moment's
+ *   word slammed on when there is one. `?screen=0` puts the commentary box
+ *   back instead, for when the screen does not earn its place.
+ * - **The eyeline dark.** The sightscreen and the covered seats behind the
+ *   bowler's arm are ink, still and blank: the batter has to see the ball.
  *
- * And it reacts (`arenaFrame`): gold for Power Surge, red for the death
- * overs, a chase of light and the boards' word for a four, searchlights over
- * the far end for a six, everything to red and down for a wicket with the
- * stumps lit, the colours cycling for a milestone. The stadium's crowd,
- * placards and phone torches go on as they always have, over it.
+ * And it reacts (`arenaFrame`) by the sheet's ground rules: light, not paint
+ * (the grass, the pitch and the kits are never coloured); lime is a budget
+ * (a tenth of any view at most, one thing at a time charged); no strobe
+ * (nothing flashes more than three times a second, nothing flashes the whole
+ * frame); a wicket means out (raspberry for a dismissal and for nothing else).
  */
 
-/**
- * The arena's calm colours, the halo round the roof and the ribbon along the
- * upper tier, which the screen's title and the city's odd lit window share.
- * Several to look at side by side on a phone (`?palette=violet`), none of
- * them gold or red, which are Power Surge's and the death overs'. The first
- * build's magenta is kept as `pink`; it read as too much.
- */
-export const ARENA_PALETTES = {
-  /** Ice blue round the roof over a white-blue ribbon: cool, and the floodlights' own white. */
-  ice: { halo: 0x2fc8ff, ribbon: 0xbfe9ff },
-  /** Electric violet over cyan. */
-  violet: { halo: 0x7b5cff, ribbon: 0x22d8ff },
-  /** The game's own orange over the batter's blue. */
-  orange: { halo: 0xff7a2f, ribbon: 0x2f8cff },
-  /** White LED round the roof, a royal blue ribbon: the least of a colour. */
-  white: { halo: 0xe8eeff, ribbon: 0x3d6bff },
-  /** The first build's, magenta over cyan. */
-  pink: { halo: 0xff2fa8, ribbon: 0x22e1ff },
-} as const;
-export type PaletteName = keyof typeof ARENA_PALETTES;
-export const DEFAULT_PALETTE: PaletteName = 'ice';
-/** `?palette=` asks for one; anything else, or nothing, is the default. */
-export function paletteFrom(search: string): PaletteName {
-  const asked = new URLSearchParams(search).get('palette')?.toLowerCase();
-  return (Object.keys(ARENA_PALETTES) as PaletteName[]).find(name => name === asked) ?? DEFAULT_PALETTE;
-}
-
-/** The arena's colours, as a designer would pick them; changed here, changed everywhere. The calm two are the palette's (`usePalette`). */
-export const ARENA: { halo: number; ribbon: number; surge: number; death: number; deathRibbon: number; out: number; lamp: number; frame: number } = {
-  /** The halo round the roof, and the screen's first colour. */
-  halo: ARENA_PALETTES[DEFAULT_PALETTE].halo,
-  /** The ribbon along the upper tier, and the screen's second colour. */
-  ribbon: ARENA_PALETTES[DEFAULT_PALETTE].ribbon,
-  /** Power Surge. */
-  surge: 0xffc23a,
-  /** The death overs: the halo, and the ribbon under it. */
-  death: 0xff2a4d,
-  deathRibbon: 0xff7a1f,
-  /** A wicket. */
-  out: 0xff1e1e,
+/** The brand's colours (the sheet's C · Colour), changed here, changed everywhere. */
+export const ARENA = {
+  /** The ground: night, backgrounds, LED boards, sightscreens. */
+  ink: 0x12052b,
+  /** The slab behind every word, and the mark's outline. */
+  plate: 0x2a0e5c,
+  /** Secondary energy: shards, haze, the floodlights' wash, the halo. */
+  violet: 0x8b5cf6,
+  /** The charge. One thing at a time. */
+  volt: 0xc6ff1a,
+  /** Only the shaded side of lime lettering. */
+  voltDeep: 0x93d400,
+  white: 0xffffff,
+  /** Only the shaded side of white lettering. */
+  mist: 0xe4e1f2,
+  /** Dismissals only: OUT, BOWLED, WICKET. Never decoration. */
+  wicket: 0xff2e63,
   /** The ring of lamps: a cool white, where the stadium's lamps are warm. */
   lamp: 0xf2f6ff,
   /** The screen's frame, and the bars it stands on. */
-  frame: 0x1b2129,
-};
+  frame: 0x1b1430,
+} as const;
 
-/** Puts a palette's two colours on the arena, before it is built: the city's windows are painted from them once. */
-export function usePalette(name: PaletteName) {
-  ARENA.halo = ARENA_PALETTES[name].halo; ARENA.ribbon = ARENA_PALETTES[name].ribbon;
-}
+/** The sky over it, the floodlights' violet got into the night: see `Sky.time`. */
+export const ARENA_SKY = { zenith: 0x0d0726, horizon: 0x2c1d5c } as const;
 
-/** The two sides in the stands, a section each in turn: a blue side and a yellow one, with the odd shirt from the arena's shop. */
+/** The two sides in the stands, a section each in turn: a blue side and a yellow one, with the odd white shirt. */
 export const ARENA_CROWD: readonly (readonly number[])[] = [
   [0x1f4fd6, 0x163a9e, 0x1f4fd6, 0xf2ede1, 0x2a62ff, 0x111418, 0x1f4fd6, 0xffffff, 0x163a9e],
-  [0xffd23f, 0xf2b91c, 0xffd23f, 0x111418, 0xffe36e, 0xf2ede1, 0xffd23f, 0x22e1ff, 0xf2b91c],
+  [0xffd23f, 0xf2b91c, 0xffd23f, 0x111418, 0xffe36e, 0xf2ede1, 0xffd23f, 0xffffff, 0xf2b91c],
 ];
 
 /** `?screen=0` builds the commentary box in place of the big screen. */
@@ -114,7 +96,7 @@ const BEAMS = { count: 6, length: 70, spread: .7 } as const;
 
 /** Builds the arena's stands onto `world`; the rest of it is `Arena`, which `GameScene` hangs in its own frame. */
 export function arenaStands(world: THREE.Object3D, screen = true): StadiumLights {
-  const lights = stadium(world, { crowd: ARENA_CROWD, towers: false, roofLamps: false, commentary: !screen });
+  const lights = stadium(world, { crowd: ARENA_CROWD, towers: false, roofLamps: false, commentary: !screen, eyeline: ARENA.ink, lively: true });
   // The ring of fire's glow: one every few degrees, round the whole roof.
   for (let degrees = 0; degrees < 360; degrees += LAMPS.every) {
     const a = THREE.MathUtils.degToRad(degrees);
@@ -123,114 +105,115 @@ export function arenaStands(world: THREE.Object3D, screen = true): StadiumLights
   return lights;
 }
 
+
 export type ArenaMood = 'calm' | 'surge' | 'death';
 export type ArenaCue = 'four' | 'six' | 'wicket' | 'milestone' | 'surge' | 'death';
+/** What the LED boards show: the sheet's G · LED board states, and a word on its plate for the rest. */
+export type BoardState = 'idle' | 'four' | 'six' | 'wicket' | 'word';
 
-/** The mood's colours, read when asked so the palette is the one in use, and how fast and how deep they breathe (a pulse a second; nought is still). */
-const moodOf = (mood: ArenaMood) => ({
-  calm: { halo: ARENA.halo, ribbon: ARENA.ribbon, pulse: 0, depth: 0 },
-  surge: { halo: ARENA.surge, ribbon: ARENA.surge, pulse: 1.2, depth: .35 },
-  death: { halo: ARENA.death, ribbon: ARENA.deathRibbon, pulse: .55, depth: .3 },
-})[mood];
-
-/** How long each moment holds the arena, what the boards and the screen say, and the colour they say it on. */
-export const CUES: Record<ArenaCue, { ms: number; word: string; colour: () => number }> = {
-  four: { ms: 1800, word: 'FOUR', colour: () => ARENA.ribbon },
-  six: { ms: 2800, word: 'SIX', colour: () => ARENA.halo },
-  wicket: { ms: 2000, word: 'WICKET', colour: () => ARENA.out },
-  milestone: { ms: 3600, word: 'FIFTY', colour: () => ARENA.surge },
-  surge: { ms: 2600, word: 'POWER SURGE', colour: () => ARENA.surge },
-  death: { ms: 2600, word: 'DEATH OVERS', colour: () => ARENA.death },
+/**
+ * How long each moment holds the arena, what it says, and the board it puts
+ * up. The boundaries' and the wicket's are the brand's stings' lengths, so
+ * the drawn word and a sting (`STINGS`) last the same.
+ */
+export const CUES: Record<ArenaCue, { ms: number; word: string; board: BoardState }> = {
+  four: { ms: 2300, word: 'FOUR', board: 'four' },
+  six: { ms: 2900, word: 'SIX', board: 'six' },
+  wicket: { ms: 2600, word: 'OUT', board: 'wicket' },
+  milestone: { ms: 3600, word: '50', board: 'word' },
+  surge: { ms: 2600, word: 'POWER SURGE', board: 'word' },
+  death: { ms: 2600, word: 'DEATH OVERS', board: 'word' },
 };
 
-/** What a milestone puts on the boards and the screen. */
+/** What a milestone puts on the boards and the screen: figures, not words, for numbers. */
 export const MILESTONE_WORDS: Record<Milestone, string> = {
-  fifty: 'FIFTY', century: 'HUNDRED', 'six-sixes': 'SIX SIXES', raise: '150', double: 'DOUBLE', triple: 'TRIPLE', four: '400',
+  fifty: '50', century: '100', 'six-sixes': '6 SIXES', raise: '150', double: '200', triple: '300', four: '400',
 };
 
 /** What the arena shows at a moment: see `arenaFrame`. */
 export interface ArenaFrame {
+  /** The halo round the roof. */
   halo: THREE.Color;
-  ribbon: THREE.Color;
-  /** How fast the light runs round the ground, in laps of its pattern a second; less than nought runs it the other way. */
+  /** How bright the LED boards are, nought to one: 40% for the idle board while the ball is live. */
+  boards: number;
+  board: BoardState;
+  /** How fast the boards run round the ground, in laps of their pattern a second. */
   chase: number;
   /** The searchlights over the far end, nought to one. */
   beams: number;
-  /** What the boards and the screen say, or nothing. */
+  /** What the screen and the boards say, or nothing. */
   word: string | null;
-  /** The colour behind it. */
-  wordColour: number;
+  /** How far through its moment the word is, for the screen's slam and its leave. */
+  since: number;
 }
 
-const white = new THREE.Color(1, 1, 1);
+const colour = (hex: number) => new THREE.Color(hex);
 const fade = (t: number, from: number, to: number) => THREE.MathUtils.clamp((t - from) / (to - from), 0, 1);
+/** The idle boards' drift, at the lean: slow enough to read, never still. */
+const DRIFT = .012;
+/** Nothing flickers faster than three times a second: the sheet's NO STROBE. */
+export const MOST_FLASHES = 3;
+/** On, off, on: a crackle, `count` flashes at the most there are, from `since`. */
+const crackle = (since: number, count: number) => {
+  const period = 1000 / MOST_FLASHES;
+  return since >= 0 && since < count * period && since % period < period * .5;
+};
 
 /**
  * The arena at `now`, in its mood and with the moment last cued: a function
  * of the clock and nothing else, so any moment can be asked for on its own
- * and the tests can hold each to what it is. `still` is reduced motion: the
- * colours change and nothing flashes, runs or sweeps.
+ * and the tests can hold each to the sheet. `live` is a ball on its way, when
+ * the idle boards stand at 40%; `still` is reduced motion: the colours and
+ * the words change, and nothing flickers, runs or sweeps.
  */
-export function arenaFrame(mood: ArenaMood, cue: { kind: ArenaCue; at: number; word?: string } | null, now: number, still = false): ArenaFrame {
-  const m = moodOf(mood);
-  const breathe = still || !m.pulse ? 1 : 1 - m.depth * (.5 + .5 * Math.cos(now / 1000 * m.pulse * Math.PI * 2));
-  const halo = new THREE.Color(m.halo).multiplyScalar(breathe), ribbon = new THREE.Color(m.ribbon).multiplyScalar(breathe);
-  const frame: ArenaFrame = { halo, ribbon, chase: 0, beams: 0, word: null, wordColour: 0 };
+export function arenaFrame(mood: ArenaMood, cue: { kind: ArenaCue; at: number; word?: string } | null, now: number, still = false, live = false): ArenaFrame {
+  const halo = colour(ARENA.violet);
+  // Power Surge charges the roof: lime, breathing, the one thing lit.
+  if (mood === 'surge') halo.set(ARENA.volt).multiplyScalar(still ? 1 : .78 + .22 * Math.cos(now / 1000 * Math.PI * 1.6));
+  const frame: ArenaFrame = { halo, boards: live ? .4 : 1, board: 'idle', chase: still ? 0 : DRIFT, beams: 0, word: null, since: Infinity };
   const since = cue ? now - cue.at : Infinity;
-  if (!cue || since < 0 || since >= CUES[cue.kind].ms) return frame;
-  const { ms, word, colour } = CUES[cue.kind];
-  frame.word = cue.word ?? word; frame.wordColour = colour();
+  if (!cue || since < 0 || since >= CUES[cue.kind].ms) {
+    // The death overs crackle: three lime flickers on the violet every few seconds, while nothing else has the roof.
+    if (mood === 'death' && !still && crackle(now % 2600, 3)) halo.set(ARENA.volt);
+    return frame;
+  }
+  const { ms, word, board } = CUES[cue.kind];
+  Object.assign(frame, { word: cue.word ?? word, board, boards: 1, since });
   // Every moment lets go over its last half second, back into the mood.
   const hold = 1 - fade(since, ms - 500, ms);
-  const blink = (hz: number, until: number) => still || since > until ? 1 : (Math.floor(since / 1000 * hz * 2) % 2 ? .25 : 1);
+  const lime = colour(ARENA.volt);
   switch (cue.kind) {
-    case 'four': {
-      // A white flash round the roof, and the ribbon's colour run round the ground.
-      const flash = Math.max(0, 1 - since / 600);
-      halo.lerp(white, flash * hold);
-      ribbon.lerp(new THREE.Color(ARENA.ribbon), hold);
-      frame.chase = still ? 0 : 1.6 * hold;
+    case 'four':
+      // Struck lime in an instant and settled back to violet; the boards race.
+      halo.lerp(lime, (1 - fade(since, 100, 600)) * hold);
+      frame.chase = still ? 0 : .5 * hold;
       break;
-    }
-    case 'six': {
-      // The roof strobes white and magenta, the ribbon goes gold and runs, and the searchlights come up.
-      const strobe = new THREE.Color(ARENA.halo).lerp(white, still ? .4 : blink(6, 1200) === 1 ? .7 : 0);
-      halo.lerp(strobe, hold);
-      ribbon.lerp(new THREE.Color(ARENA.surge), hold);
-      frame.chase = still ? 0 : 2.6 * hold;
+    case 'six':
+      // The roof crackles lime on violet, the boards chase round the ground,
+      // and the searchlights come up over the far end.
+      if (still || crackle(since, 3)) halo.lerp(lime, hold);
+      frame.chase = still ? 0 : .8 * hold;
       frame.beams = still ? 0 : fade(since, 0, 250) * hold;
       break;
-    }
-    case 'wicket': {
-      // Everything to red, then down nearly to dark, then the red let go.
-      const red = new THREE.Color(ARENA.out);
-      const level = since < 300 ? 1 : since < 1100 ? .15 : .15 + .85 * fade(since, 1100, 1500);
-      halo.lerp(red, hold).multiplyScalar(level); ribbon.lerp(red, hold).multiplyScalar(level);
+    case 'wicket':
+      // The lights go down the way the news goes, to the plate's dark, and come back.
+      halo.lerp(colour(ARENA.plate), Math.min(fade(since, 0, 300), hold)).multiplyScalar(1 - .6 * Math.min(fade(since, 0, 300), hold));
+      frame.chase = 0;
       break;
-    }
-    case 'milestone': {
-      // The colours turn round the wheel, and the searchlights with them.
-      const hue = still ? 0.12 : (since / 1600) % 1;
-      halo.lerp(new THREE.Color().setHSL(hue, 1, .55), hold);
-      ribbon.lerp(new THREE.Color().setHSL((hue + .5) % 1, 1, .55), hold);
-      frame.chase = still ? 0 : 1 * hold;
+    case 'milestone':
+      // The charge breathes on the roof under the searchlights.
+      halo.lerp(lime, (still ? 1 : .6 + .4 * Math.cos(since / 1000 * Math.PI * 2)) * hold);
+      frame.chase = still ? 0 : .3 * hold;
       frame.beams = still ? 0 : fade(since, 0, 400) * hold;
       break;
-    }
-    case 'surge': {
-      // Gold runs round the ground, fast, and settles into the mood (which is the surge's own gold).
-      const gold = new THREE.Color(ARENA.surge);
-      halo.lerp(gold, hold).multiplyScalar(blink(4, 900)); ribbon.lerp(gold, hold);
-      frame.chase = still ? 0 : 3 * hold;
+    case 'surge':
+      if (still || crackle(since, 3)) halo.lerp(lime, hold);
+      frame.chase = still ? 0 : .6 * hold;
       break;
-    }
-    case 'death': {
-      // Red runs the other way round.
-      const red = new THREE.Color(ARENA.death);
-      halo.lerp(red, hold); ribbon.lerp(new THREE.Color(ARENA.deathRibbon), hold);
-      frame.chase = still ? 0 : -1.4 * hold;
+    case 'death':
+      if (!still && crackle(since, 3)) halo.lerp(lime, hold);
+      frame.chase = still ? 0 : -.4 * hold;
       break;
-    }
   }
   return frame;
 }
@@ -247,41 +230,165 @@ function painted(width: number, height: number) {
   return { canvas, context, texture };
 }
 
-const hex = (colour: number) => `#${colour.toString(16).padStart(6, '0')}`;
-/** Dark letters on a light colour, white on the rest: the ice palette's ribbon is nearly white. */
-const inkOn = (colour: number) => new THREE.Color(colour).getHSL({ h: 0, s: 0, l: 0 }).l > .68 ? '#05070d' : '#fff';
-const DISPLAY = (size: number) => `${size}px Jaro, "Arial Narrow", Impact, sans-serif`;
+const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
+/** The brand's lettering face, and the tracked line under it. */
+const SAIRA = (size: number) => `italic 900 ${size}px Saira, "Arial Black", Impact, sans-serif`;
+const SUB = (size: number) => `italic 700 ${size}px Saira, "Arial Narrow", Arial, sans-serif`;
+/** The rise, 6° up to the right, and the lean, 12°: the two angles every shape is drawn on. */
+const RISE = 6 * Math.PI / 180, LEAN = 12 * Math.PI / 180;
+/** A figure, or a word with one in it: those get the lime face (the one number that matters). */
+const numeric = (word: string) => /^[+\d]/.test(word);
+
+/** The marks off the sheet (B · The mark): the primary for the screen, the one-colour lime for the boards. */
+const MARKS = {
+  primary: new URL('../assets/super10/mark.png', import.meta.url).href,
+  lime: new URL('../assets/super10/mark-lime.png', import.meta.url).href,
+};
+function picture(src: string, ready: () => void) {
+  const image = new Image();
+  image.onload = ready; image.src = src;
+  return image;
+}
+
+/** A slash: a parallelogram leaning 12°, corners sharp. */
+function slash(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, fill: string) {
+  const run = h * Math.tan(LEAN);
+  ctx.fillStyle = fill;
+  ctx.beginPath(); ctx.moveTo(x + run, y); ctx.lineTo(x + w + run, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+}
+
+/** A lightning shard: a long wedge from a blunt tail to a point, leaning with the rise. */
+function shard(ctx: CanvasRenderingContext2D, x: number, y: number, length: number, thick: number, fill: string) {
+  ctx.fillStyle = fill;
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + length, y - thick * .35); ctx.lineTo(x + length * .18, y + thick); ctx.closePath(); ctx.fill();
+}
 
 /**
- * An LED strip: a row of pixels in a housing, each tile of it brighter at
- * one end than the other, so that run round the ring the light is seen to
- * chase, and stood still it reads as a strip of lamps rather than paint.
+ * The sheet's lettering (D · Type), step by step: Saira Black Italic in
+ * capitals; the face white, its lower right cut away in Mist on the diagonal
+ * 56% of the way across each letter; an outline in Plate 9% of the cap height
+ * with mitred corners; set on a Plate slab pointed at the left and rising 6°,
+ * a lime shard over it and a violet one under; a figure's face lime, cut in
+ * Volt deep. Drawn centred on (`x`, `y`), `size` the cap height's font size,
+ * scaled down to `fit` across. `slab` is the plate's colour: raspberry for a
+ * dismissal and nothing else.
  */
-function stripTexture(chevrons: boolean) {
-  const { context: ctx, texture } = painted(256, 32);
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 256, 32);
-  for (let x = 0; x < 256; x += 4) {
-    const level = .62 + .38 * (x / 256);
-    for (let y = 4; y < 28; y += 4) {
-      // The ribbon carries the game's chevrons, in light, on a dimmer strip.
-      const lit = !chevrons || Math.abs(((x + Math.abs(y - 16) * 1.4) % 64) - 32) < 9;
-      const v = Math.round(255 * level * (lit ? 1 : .28));
-      ctx.fillStyle = `rgb(${v},${v},${v})`; ctx.fillRect(x, y, 3, 3);
+function lettering(ctx: CanvasRenderingContext2D, word: string, x: number, y: number, size: number, fit: number, slab: number = ARENA.plate, scale = 1, alpha = 1) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.font = SAIRA(size);
+  const width = ctx.measureText(word).width, cap = size * .72;
+  const s = Math.min(1, fit / (width + size * .6)) * scale;
+  ctx.translate(x, y); ctx.rotate(-RISE); ctx.scale(s, s);
+  const half = width / 2, padX = size * .32, padY = cap * .42;
+  // The slab, pointed at the left, square at the right.
+  ctx.fillStyle = hex(slab);
+  ctx.beginPath();
+  ctx.moveTo(-half - padX * 1.6, 0); ctx.lineTo(-half - padX * .4, -cap / 2 - padY); ctx.lineTo(half + padX, -cap / 2 - padY);
+  ctx.lineTo(half + padX, cap / 2 + padY); ctx.lineTo(-half - padX * .4, cap / 2 + padY); ctx.closePath(); ctx.fill();
+  // A lime shard over it, a violet one under.
+  shard(ctx, -half - padX * .2, -cap / 2 - padY * .9, width * .55, cap * .16, hex(ARENA.volt));
+  shard(ctx, half - width * .5, cap / 2 + padY * .9, width * .55, cap * .14, hex(ARENA.violet));
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  ctx.lineJoin = 'miter'; ctx.lineWidth = cap * .09 * 2; ctx.strokeStyle = hex(ARENA.plate);
+  let pen = -half;
+  for (const ch of word) {
+    const w = ctx.measureText(ch).width;
+    if (ch !== ' ') {
+      const lime = numeric(word) && /[+\d]/.test(ch);
+      ctx.strokeText(ch, pen, 0);
+      ctx.fillStyle = hex(lime ? ARENA.volt : ARENA.white); ctx.fillText(ch, pen, 0);
+      // The cut: the letter's lower right, on the diagonal, in the shaded colour.
+      ctx.save();
+      ctx.beginPath(); ctx.moveTo(pen + w * .56, cap / 2 + 2); ctx.lineTo(pen + w * 1.1, cap / 2 + 2); ctx.lineTo(pen + w * 1.1, -cap * .1); ctx.closePath(); ctx.clip();
+      ctx.fillStyle = hex(lime ? ARENA.voltDeep : ARENA.mist); ctx.fillText(ch, pen, 0);
+      ctx.restore();
     }
+    pen += w;
+  }
+  ctx.restore();
+}
+
+/** The tracked line under a word: Saira Bold Italic, tracking 30%. */
+function sub(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, fill: string) {
+  ctx.save();
+  ctx.font = SUB(size); ctx.fillStyle = fill; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+  (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${size * .3}px`;
+  ctx.translate(x, y); ctx.rotate(-RISE); ctx.fillText(text, 0, 0);
+  ctx.restore();
+}
+
+/**
+ * One panel of LED board, 640 by 128, in a board state (the sheet's G):
+ * idle, the lime mark and violet slashes on ink; four, full lime with ink
+ * letters and slashes; six, plate with a lime SIX over MAXIMUM; wicket,
+ * raspberry with white letters; and a word on its plate for the rest. The
+ * ring repeats it `panels` times; seen from inside, it runs backwards
+ * unless the repeat is negative.
+ */
+function boardPanel(state: BoardState, word: string, panels: number, mark: HTMLImageElement | null) {
+  const W = 640, H = 128;
+  const { context: ctx, texture } = painted(W, H);
+  const write = (text: string, x: number, fill: string, size = 92) => {
+    ctx.save(); ctx.font = SAIRA(size); ctx.fillStyle = fill; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ctx.translate(x, H / 2 + 4); ctx.fillText(text, 0, 0);
+    const w = ctx.measureText(text).width; ctx.restore(); return w;
+  };
+  const slashes = (from: number, fill: string, n: number, w = 90, h = 16) => { for (let i = 0; i < n; i++) slash(ctx, from + i * (w + 24), H / 2 - h / 2, w, h, fill); };
+  if (state === 'idle') {
+    ctx.fillStyle = hex(ARENA.ink); ctx.fillRect(0, 0, W, H);
+    for (const x of [24, 344]) {
+      if (mark?.complete && mark.naturalWidth) ctx.drawImage(mark, x, 26, 150, 76);
+      slash(ctx, x + 172, H / 2 - 6, 130, 12, hex(ARENA.violet));
+    }
+  } else if (state === 'four') {
+    ctx.fillStyle = hex(ARENA.volt); ctx.fillRect(0, 0, W, H);
+    const w = write(word, 30, hex(ARENA.ink));
+    write('+4', 30 + w + 34, hex(ARENA.ink));
+    slashes(30 + w + 160, hex(ARENA.plate), 3);
+  } else if (state === 'six') {
+    ctx.fillStyle = hex(ARENA.plate); ctx.fillRect(0, 0, W, H);
+    const w = write(word, 30, hex(ARENA.volt));
+    ctx.save(); ctx.font = SUB(30); ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle';
+    (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = '9px';
+    ctx.fillText('MAXIMUM', 30 + w + 30, H / 2 + 4); ctx.restore();
+    slashes(470, hex(ARENA.volt), 2, 60, 14); slash(ctx, 610, H / 2 - 7, 60, 14, hex(ARENA.violet));
+  } else if (state === 'wicket') {
+    ctx.fillStyle = hex(ARENA.wicket); ctx.fillRect(0, 0, W, H);
+    const w = write(word, 30, '#fff');
+    slashes(30 + w + 60, hex(ARENA.plate), 3);
+  } else {
+    ctx.fillStyle = hex(ARENA.plate); ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.font = SAIRA(84);
+    const fit = Math.min(1, 470 / ctx.measureText(word).width); ctx.restore();
+    ctx.save(); ctx.translate(30, 0); ctx.scale(fit, 1);
+    write(word, 0, hex(numeric(word) ? ARENA.volt : ARENA.white), 84); ctx.restore();
+    slashes(520, hex(ARENA.violet), 1, 90);
   }
   texture.wrapS = THREE.RepeatWrapping;
+  texture.repeat.x = -panels;
   return texture;
 }
 
 /** The lamps along the roof's edge: bright cells with dark frames between them. */
 function lampTexture() {
   const { context: ctx, texture } = painted(64, 16);
-  ctx.fillStyle = '#20262e'; ctx.fillRect(0, 0, 64, 16);
+  ctx.fillStyle = '#1d1730'; ctx.fillRect(0, 0, 64, 16);
   for (let x = 0; x < 64; x += 16) {
     const g = ctx.createLinearGradient(0, 2, 0, 14);
-    g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#c9d6ff');
+    g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#d8d4ff');
     ctx.fillStyle = g; ctx.fillRect(x + 2, 3, 12, 10);
   }
+  texture.wrapS = THREE.RepeatWrapping;
+  return texture;
+}
+
+/** The halo's LED: a row of pixels in a housing, so it reads as lamps rather than paint. */
+function haloTexture() {
+  const { context: ctx, texture } = painted(64, 32);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 64, 32);
+  ctx.fillStyle = '#fff';
+  for (let x = 0; x < 64; x += 4) for (let y = 4; y < 28; y += 4) ctx.fillRect(x, y, 3, 3);
   texture.wrapS = THREE.RepeatWrapping;
   return texture;
 }
@@ -302,9 +409,9 @@ function glowTexture(vertical: 'band' | 'beam') {
 }
 
 /**
- * The city: towers and blocks in a dark navy against the sky, their windows
- * lit in warm and cool whites, a few in the arena's colours, red lights on
- * the tallest, and the glow of the streets behind them. Only what stands
+ * The city: towers and blocks in the night's ink against the sky, their
+ * windows lit in warm and cool whites, the odd one violet, red lights on the
+ * tallest, and the violet haze of the streets behind them. Only what stands
  * higher than the far roof is ever seen, so that is where the windows are.
  */
 function cityTexture() {
@@ -313,26 +420,24 @@ function cityTexture() {
   const random = seeded(71);
   ctx.clearRect(0, 0, W, H);
   const haze = ctx.createLinearGradient(0, H * .3, 0, H * .62);
-  haze.addColorStop(0, 'rgba(255,90,190,0)'); haze.addColorStop(1, 'rgba(255,120,200,.16)');
+  haze.addColorStop(0, 'rgba(139,92,246,0)'); haze.addColorStop(1, 'rgba(139,92,246,.2)');
   ctx.fillStyle = haze; ctx.fillRect(0, H * .3, W, H * .32);
   let x = 0;
   while (x < W) {
     const w = 24 + random() * 70, tall = random() < .12;
     const top = H * (tall ? .05 + random() * .2 : .3 + random() * .25);
-    ctx.fillStyle = random() < .5 ? '#0a1226' : '#0d1730';
+    ctx.fillStyle = random() < .5 ? '#0e0624' : '#140a30';
     ctx.fillRect(x, top, w, H - top);
-    // Windows, in rows, some dark.
     const warm = random() < .5;
     for (let y = top + 5; y < H * .66; y += 7) for (let wx = x + 4; wx < x + w - 4; wx += 6) {
       const r = random();
       if (r < .45) continue;
-      ctx.fillStyle = r > .985 ? hex(ARENA.halo) : r > .97 ? hex(ARENA.ribbon) : warm ? 'rgba(255,214,150,.85)' : 'rgba(200,222,255,.8)';
+      ctx.fillStyle = r > .975 ? hex(ARENA.violet) : warm ? 'rgba(255,214,150,.8)' : 'rgba(214,214,255,.78)';
       ctx.fillRect(wx, y, 3, 3);
     }
     if (tall) {
       ctx.fillStyle = '#ff3b3b'; ctx.fillRect(x + w / 2 - 2, top - 5, 4, 4);
-      // The odd tower lit along its crown in the arena's colour.
-      if (random() < .5) { ctx.fillStyle = hex(random() < .5 ? ARENA.halo : ARENA.ribbon); ctx.fillRect(x, top, w, 3); }
+      if (random() < .4) { ctx.fillStyle = hex(ARENA.violet); ctx.fillRect(x, top, w, 3); }
     }
     x += w + random() * 6;
   }
@@ -340,20 +445,29 @@ function cityTexture() {
   return texture;
 }
 
-/** A word on the boards, one panel of it, which the ring repeats `panels` times. */
-function boardWordTexture(word: string, colour: number, panels: number) {
-  const { context: ctx, texture } = painted(640, 128);
-  const g = ctx.createLinearGradient(0, 0, 640, 0);
-  g.addColorStop(0, '#05070d'); g.addColorStop(.5, hex(colour)); g.addColorStop(1, '#05070d');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, 640, 128);
-  ctx.fillStyle = inkOn(colour); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = DISPLAY(104);
-  const scale = Math.min(1, 560 / ctx.measureText(word).width);
-  ctx.save(); ctx.translate(320, 68); ctx.scale(scale, 1); ctx.fillText(word, 0, 0); ctx.restore();
-  texture.wrapS = THREE.RepeatWrapping;
-  // Negative, as the sponsors' are: the ring is seen from inside.
-  texture.repeat.x = -panels;
-  return texture;
+/**
+ * The brand's stings (F · Motion): Lotties at 1024 by 384, thirty frames a
+ * second, transparent, each ending on an empty frame. Played on the screen
+ * over its ink when the file is there (`public/lotties/arena-<name>.json`),
+ * and the drawn word stands in for any that is not.
+ */
+export const STINGS = ['four', 'six', 'bowled', 'out', 'duck'] as const;
+export type Sting = typeof STINGS[number];
+/** The sting a moment plays, if it has one: a wicket's by how he went. */
+export function stingOf(kind: ArenaCue, word: string | null): Sting | null {
+  if (kind === 'four' || kind === 'six') return kind;
+  if (kind !== 'wicket') return null;
+  return word === 'BOWLED' ? 'bowled' : word === 'DUCK' ? 'duck' : 'out';
+}
+
+/** The screen's slam: from big, overshooting once, settled by eleven frames; then, at the end, the leave. */
+const SLAM_MS = 370, LEAVE_MS = 470;
+export function slamScale(since: number) {
+  if (since >= SLAM_MS) return 1;
+  const t = since / SLAM_MS;
+  // Out-expo down from 2.2 past 1 to .94, then back up to 1.
+  const out = 1 - Math.pow(2, -10 * Math.min(1, t / .75));
+  return t < .75 ? 2.2 - (2.2 - .94) * out : .94 + .06 * ((t - .75) / .25);
 }
 
 /**
@@ -367,8 +481,6 @@ export class Arena {
   private halo: THREE.MeshBasicMaterial;
   private haloGlow: THREE.MeshBasicMaterial;
   private ribbon: THREE.MeshBasicMaterial;
-  private haloMap: THREE.Texture;
-  private ribbonMap: THREE.Texture;
   private beams: THREE.InstancedMesh;
   private beamMaterial: THREE.MeshBasicMaterial;
   private screen: ReturnType<typeof painted> | null = null;
@@ -377,13 +489,20 @@ export class Arena {
   private moodNow: ArenaMood = 'calm';
   private cued: { kind: ArenaCue; at: number; word?: string } | null = null;
   private boardsMaterial: THREE.MeshStandardMaterial | null = null;
-  private sponsors: THREE.Texture | null = null;
-  private words = new Map<string, THREE.Texture>();
-  private wordUp: string | null = null;
-  private panels = 30;
+  private panels = { boards: 30, ribbon: 100 };
+  private faces = new Map<string, THREE.Texture>();
+  private boardUp = '';
   private stumps: THREE.MeshStandardMaterial[] = [];
   private last: ArenaFrame | null = null;
   private dummy = new THREE.Object3D();
+  private marks: { primary: HTMLImageElement; lime: HTMLImageElement };
+  private offset = 0;
+  /** The stings there are files for, found once (`STINGS`), and the one playing. */
+  private stings = new Set<Sting>();
+  private playing: { name: Sting; at: number; canvas: HTMLCanvasElement; film: Playing | null } | null = null;
+  /** The crowd's clock and its wave: see `crowdLife.ts`. */
+  private life: CrowdLife | null = null;
+  private waveFrom = -Infinity;
 
   constructor(scene: THREE.Object3D, readonly hasScreen: boolean, anisotropy: number) {
     const ring = (radius: number, height: number, y: number, material: THREE.Material, top = radius) => {
@@ -393,22 +512,26 @@ export class Arena {
       scene.add(mesh);
       return mesh;
     };
-    const led = (map: THREE.Texture, colour: number) => new THREE.MeshBasicMaterial({ map, color: colour, side: THREE.BackSide, fog: false, toneMapped: false });
+    // Once the pictures and the faces are in, everything painted is painted again.
+    const repaint = () => { this.faces.forEach(t => t.dispose()); this.faces.clear(); this.boardUp = ''; this.shown = ''; };
+    this.marks = { primary: picture(MARKS.primary, repaint), lime: picture(MARKS.lime, repaint) };
+    document.fonts?.load(SAIRA(80)).then(() => document.fonts.load(SUB(40))).then(repaint).catch(() => {});
 
-    this.haloMap = stripTexture(false); this.haloMap.repeat.x = -24; this.haloMap.anisotropy = anisotropy;
-    this.halo = led(this.haloMap, ARENA.halo);
+    const haloMap = haloTexture(); haloMap.repeat.x = -Math.round(2 * Math.PI * HALO.radius / 1.6); haloMap.anisotropy = anisotropy;
+    this.halo = new THREE.MeshBasicMaterial({ map: haloMap, color: ARENA.violet, side: THREE.BackSide, fog: false, toneMapped: false });
     ring(HALO.radius, HALO.height, HALO.y, this.halo);
     // Its glow on the night either side of it: added light, so it sits on the roof and the sky alike.
     const band = glowTexture('band');
-    this.haloGlow = new THREE.MeshBasicMaterial({ map: band, color: ARENA.halo, side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false, opacity: .4 });
+    this.haloGlow = new THREE.MeshBasicMaterial({ map: band, color: ARENA.violet, side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false, opacity: .35 });
     ring(HALO.radius - .05, 3.4, HALO.y, this.haloGlow);
 
     const lamps = lampTexture(); lamps.repeat.x = -Math.round(2 * Math.PI * LAMPS.radius / 1.2); lamps.anisotropy = anisotropy;
     // Tipped down at the field: wider at the top than at the foot.
     ring(LAMPS.radius - .2, LAMPS.height, LAMPS.y, new THREE.MeshBasicMaterial({ map: lamps, color: new THREE.Color(ARENA.lamp), side: THREE.BackSide, fog: false, toneMapped: false }), LAMPS.radius + .15);
 
-    this.ribbonMap = stripTexture(true); this.ribbonMap.repeat.x = -40; this.ribbonMap.anisotropy = anisotropy;
-    this.ribbon = led(this.ribbonMap, ARENA.ribbon);
+    // The ribbon: an LED board the length of the upper tier, a panel every two and a half metres.
+    this.panels.ribbon = Math.round(2 * Math.PI * RIBBON.radius / (RIBBON.height * 5));
+    this.ribbon = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide, fog: false, toneMapped: false });
     ring(RIBBON.radius, RIBBON.height, RIBBON.y, this.ribbon);
 
     const city = cityTexture(); city.anisotropy = anisotropy;
@@ -419,16 +542,27 @@ export class Arena {
     skyline.position.set(0, CITY.from + CITY.height / 2, CENTRE_Z); skyline.name = 'Skyline';
     scene.add(skyline);
 
-    // The searchlights: one instanced cone, up only for a six or a milestone.
+    // The searchlights: one instanced cone, up only for a six or a milestone, in the floodlights' violet.
     const beam = glowTexture('beam');
-    this.beamMaterial = new THREE.MeshBasicMaterial({ map: beam, color: 0xffffff, side: THREE.DoubleSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false });
+    this.beamMaterial = new THREE.MeshBasicMaterial({ map: beam, color: 0xc4b0ff, side: THREE.DoubleSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false });
     this.beams = new THREE.InstancedMesh(new THREE.CylinderGeometry(3.4, .35, BEAMS.length, 16, 1, true).translate(0, BEAMS.length / 2, 0), this.beamMaterial, BEAMS.count);
     this.beams.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.beams.frustumCulled = false; this.beams.visible = false;
     this.beams.name = 'Searchlights';
     scene.add(this.beams);
 
     if (hasScreen) this.buildScreen(scene, anisotropy);
-    this.textures.push(this.haloMap, band, lamps, this.ribbonMap, city, beam);
+    this.textures.push(haloMap, band, lamps, city, beam);
+    this.findStings();
+  }
+
+  /** Which stings have files: a JSON answer, not the page the server sends for anything it does not have. */
+  private findStings() {
+    if (!this.hasScreen) return;
+    for (const name of STINGS) {
+      fetch(`lotties/arena-${name}.json`, { method: 'HEAD' })
+        .then(r => { if (r.ok && (r.headers.get('content-type') ?? '').includes('json')) this.stings.add(name); })
+        .catch(() => {});
+    }
   }
 
   /** The screen on its frame, on two legs off the roof, turned to the crease. */
@@ -453,19 +587,14 @@ export class Arena {
     held.add(face);
     this.textures.push(this.screen.texture);
     this.paintScreen(null);
-    // Jaro may not have loaded by the first frame; drawn again once it has.
-    Promise.all([document.fonts?.load(DISPLAY(80)), document.fonts?.load('700 50px Satoshi')]).then(() => { this.shown = ''; }).catch(() => {});
   }
 
-  /**
-   * The boards along the rope, for their words: the sponsors' texture is
-   * kept to go back to. `panels` is how many boards make a lap.
-   */
+  /** The boards along the rope: in the arena they are its LED boards, not the sponsors'. `panels` is how many make a lap. */
   boards(material: THREE.MeshStandardMaterial, panels: number) {
-    this.boardsMaterial = material; this.sponsors = material.map; this.panels = panels;
+    this.boardsMaterial = material; this.panels.boards = panels;
   }
 
-  /** The batter's wicket, lit red when it is broken, as LED stumps are: each piece given its own material. */
+  /** The batter's wicket, lit raspberry when it is broken, as LED stumps are: each piece given its own material. */
   wire(stumps: THREE.Mesh[]) {
     for (const mesh of stumps) {
       const material = (mesh.material as THREE.MeshStandardMaterial).clone();
@@ -473,39 +602,89 @@ export class Arena {
     }
   }
 
+  /** The stands' life: the clock the crowd moves to, and the flags and banners held up over the seats, hung in the scene's frame so a banner's words read the right way round. */
+  crowd(life: CrowdLife, seats: THREE.Matrix4[], scene: THREE.Object3D) {
+    this.life = life;
+    flags(scene, seats, life);
+    this.textures.push(banners(scene, seats, life).texture);
+  }
+  /** A Mexican wave sent round the stands from `now`. */
+  wave(now: number) { this.waveFrom = now; }
+
   mood(mood: ArenaMood) { this.moodNow = mood; }
-  cue(kind: ArenaCue, now: number, word?: string) { this.cued = { kind, at: now, word }; }
+  cue(kind: ArenaCue, now: number, word?: string) {
+    this.cued = { kind, at: now, word };
+    this.stopSting();
+    const name = stingOf(kind, word ?? CUES[kind].word);
+    if (name && this.stings.has(name) && this.screen) this.playSting(name, now);
+  }
   scoreboard(board: Scoreboard) { this.board = board; }
-  /** For the checks: the mood, the moment up, and what the screen says. */
+  /** For the checks: the mood, the moment up, what the boards and the screen show. */
   get state() {
     const f = this.last;
-    return { mood: this.moodNow, word: f?.word ?? null, beams: +(f?.beams ?? 0).toFixed(2), screen: this.hasScreen ? this.shown : null,
-      halo: `#${this.halo.color.getHexString()}`, ribbon: `#${this.ribbon.color.getHexString()}` };
+    return { mood: this.moodNow, word: f?.word ?? null, board: f?.board ?? 'idle', boards: f?.boards ?? 1, beams: +(f?.beams ?? 0).toFixed(2),
+      screen: this.hasScreen ? this.shown.split('|').slice(0, 2).join('|') : null, sting: this.playing?.name ?? null,
+      wave: +(this.life?.waveOn.value ?? 0).toFixed(2), front: +(this.life?.wave.value ?? 0).toFixed(2),
+      halo: `#${this.halo.color.getHexString()}` };
   }
 
-  /** `broken` is how long ago the batter's bails went, or less than nought. */
-  update(now: number, broken: number, still: boolean) {
+  /** `broken` is how long ago the batter's bails went, or less than nought; `live`, a ball on its way. */
+  update(now: number, broken: number, still: boolean, live: boolean) {
     // A new innings starts the clock again from nought: a moment from the last one is let go.
-    if (this.cued && now < this.cued.at) this.cued = null;
-    const f = arenaFrame(this.moodNow, this.cued, now, still);
+    if (this.cued && now < this.cued.at) { this.cued = null; this.stopSting(); }
+    if (now < this.waveFrom) this.waveFrom = -Infinity;
+    if (this.life) {
+      const wave = waveAt(now - this.waveFrom);
+      this.life.time.value = now / 1000; this.life.still.value = still ? 1 : 0;
+      this.life.wave.value = wave.at; this.life.waveOn.value = wave.on;
+    }
+    const f = arenaFrame(this.moodNow, this.cued, now, still, live);
     this.last = f;
-    this.halo.color.copy(f.halo); this.haloGlow.color.copy(f.halo); this.ribbon.color.copy(f.ribbon);
-    // The light runs round: the halo with the chase, the ribbon a little behind it.
-    this.haloMap.offset.x = (this.haloMap.offset.x + f.chase * .016) % 1;
-    this.ribbonMap.offset.x = (this.ribbonMap.offset.x + f.chase * .011) % 1;
-    this.searchlights(f.beams, now, this.cued?.kind === 'milestone');
-    this.boardWord(f, now);
+    this.halo.color.copy(f.halo); this.haloGlow.color.copy(f.halo);
+    this.offset = (this.offset + f.chase * .016) % 1;
+    this.ledBoards(f);
+    this.searchlights(f.beams, now);
     if (this.screen) this.paintScreen(f);
-    // The stumps, lit red and flashing for a second and a half once the bails go.
-    const lit = broken >= 0 && broken < 1600 ? (still ? 1 : Math.floor(broken / 125) % 2 ? .35 : 1) : 0;
-    for (const material of this.stumps) { material.emissive.setHex(ARENA.out); material.emissiveIntensity = lit * 1.6; }
+    // The stumps lit raspberry once the bails go, flashing no more than three times a second.
+    const lit = broken >= 0 && broken < 1600 ? (still || crackle(broken, 4) ? 1 : .3) : 0;
+    for (const material of this.stumps) { material.emissive.setHex(ARENA.wicket); material.emissiveIntensity = lit * 1.4; }
   }
 
-  private searchlights(level: number, now: number, colourful: boolean) {
+  /** The two LED boards, the ribbon and the rope's, in the frame's state, at its brightness, run round by its chase. */
+  private ledBoards(f: ArenaFrame) {
+    const key = `${f.board}|${f.word ?? ''}`;
+    if (key !== this.boardUp) {
+      this.boardUp = key;
+      this.ribbon.map = this.face(f.board, f.word ?? '', this.panels.ribbon);
+      this.ribbon.needsUpdate = true;
+      if (this.boardsMaterial) {
+        const map = this.face(f.board, f.word ?? '', this.panels.boards);
+        this.boardsMaterial.map = map; this.boardsMaterial.emissiveMap = map;
+      }
+    }
+    this.ribbon.color.setScalar(f.boards);
+    (this.ribbon.map as THREE.Texture).offset.x = this.offset;
+    if (this.boardsMaterial) {
+      this.boardsMaterial.color.setScalar(f.boards); this.boardsMaterial.emissiveIntensity = f.boards;
+      (this.boardsMaterial.map as THREE.Texture).offset.x = this.offset;
+    }
+  }
+
+  /** A board state's panel for a ring of `panels`, painted once and kept. */
+  private face(state: BoardState, word: string, panels: number) {
+    const key = `${state}|${state === 'idle' ? '' : word}|${panels}`;
+    let texture = this.faces.get(key);
+    if (!texture) {
+      texture = boardPanel(state, word, panels, this.marks.lime);
+      this.faces.set(key, texture); this.textures.push(texture);
+    }
+    return texture;
+  }
+
+  private searchlights(level: number, now: number) {
     this.beams.visible = level > 0;
     if (!level) return;
     this.beamMaterial.opacity = level;
-    if (colourful) this.beamMaterial.color.setHSL((now / 1600) % 1, 1, .7); else this.beamMaterial.color.set(0xffffff);
     const t = now / 1000;
     for (let i = 0; i < BEAMS.count; i++) {
       // From the roof's edge over the far end, spread either side of straight.
@@ -523,60 +702,59 @@ export class Arena {
     this.beams.instanceMatrix.needsUpdate = true;
   }
 
-  /** The boards' word for the moment, scrolling round, then the sponsors back. */
-  private boardWord(f: ArenaFrame, now: number) {
-    const material = this.boardsMaterial;
-    if (!material || !this.sponsors) return;
-    const word = f.word;
-    if (word !== this.wordUp) {
-      this.wordUp = word;
-      let map = this.sponsors;
-      if (word) {
-        const key = `${word}|${f.wordColour}`;
-        map = this.words.get(key) ?? boardWordTexture(word, f.wordColour, this.panels);
-        if (!this.words.has(key)) { this.words.set(key, map); this.textures.push(map); }
-      }
-      material.map = map; material.emissiveMap = map;
-      material.emissiveIntensity = word ? 1.4 : 1;
-    }
-    if (word && material.map) material.map.offset.x = (now / 1000 * .02) % 1;
+  private playSting(name: Sting, now: number) {
+    const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 384;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    this.playing = { name, at: now, canvas, film: paintFilm(context, `arena-${name}` as Film) };
   }
+  private stopSting() { this.playing?.film?.destroy(); this.playing = null; }
 
-  /** The screen: the moment's word on its colour, or the mode, the score and who is in. Painted only when it changes. */
+  /**
+   * The screen. Between moments: the mark, and the score in the brand's
+   * lettering with who is in under it, painted only when it changes. In a
+   * moment: its sting over the ink if there is one, or its word slammed on
+   * and let go the way the news went, painted every frame while it moves.
+   */
   private paintScreen(f: ArenaFrame | null) {
     const screen = this.screen!;
-    const word = f?.word ?? null;
-    const key = word ? `w|${word}|${f!.wordColour}` : `b|${this.board.title}|${this.board.score}|${this.board.detail}`;
+    const ctx = screen.context, W = 1024, H = 384;
+    const word = f?.word ?? null, since = f?.since ?? Infinity;
+    const kind = this.cued?.kind;
+    const ms = kind ? CUES[kind].ms : 0;
+    const moving = word !== null && (this.playing !== null || since < SLAM_MS || since > ms - LEAVE_MS);
+    const key = word ? `w|${word}|${moving ? since : 'held'}` : `b|${this.board.title}|${this.board.score}|${this.board.detail}`;
     if (key === this.shown) return;
     this.shown = key;
-    const ctx = screen.context, W = 1024, H = 384;
-    ctx.fillStyle = '#05070d'; ctx.fillRect(0, 0, W, H);
-    ctx.textBaseline = 'middle';
-    if (word) {
-      const g = ctx.createLinearGradient(0, 0, W, H);
-      g.addColorStop(0, hex(f!.wordColour)); g.addColorStop(1, '#0a0d18');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = inkOn(f!.wordColour); ctx.textAlign = 'center';
-      ctx.font = DISPLAY(word.length > 6 ? 150 : 240);
-      const scale = Math.min(1, (W - 80) / ctx.measureText(word).width);
-      ctx.save(); ctx.translate(W / 2, H / 2 + 10); ctx.scale(scale, 1); ctx.fillText(word, 0, 0); ctx.restore();
+    ctx.fillStyle = hex(ARENA.ink); ctx.fillRect(0, 0, W, H);
+    // The floodlights' violet in the screen's corner, and nothing else behind.
+    const haze = ctx.createRadialGradient(W * .15, H, 10, W * .15, H, W * .6);
+    haze.addColorStop(0, 'rgba(139,92,246,.35)'); haze.addColorStop(1, 'rgba(139,92,246,0)');
+    ctx.fillStyle = haze; ctx.fillRect(0, 0, W, H);
+    if (word && this.playing) {
+      ctx.drawImage(this.playing.canvas, 0, 0, W, H);
+    } else if (word) {
+      const leaving = fade(since, ms - LEAVE_MS, ms);
+      // Up and away for good news, down for a wicket.
+      const drift = (kind === 'wicket' ? 1 : -1) * leaving * 90;
+      const out = kind === 'wicket';
+      const big = word.length <= 7;
+      // A four's +4 stands in its own corner, the word moved over for it.
+      const four = word === 'FOUR';
+      lettering(ctx, word, four ? W / 2 - 90 : W / 2, H / 2 + (word === 'SIX' ? -26 : 0) + drift, big ? 190 : 120, four ? W - 380 : W - 120, out ? ARENA.wicket : ARENA.plate, slamScale(since), 1 - leaving);
+      if (word === 'SIX') sub(ctx, 'MAXIMUM', W / 2, H - 70 + drift, 40, `rgba(255,255,255,${1 - leaving})`);
+      if (four) lettering(ctx, '+4', W - 140, H / 2 - 60 + drift, 110, 210, ARENA.plate, slamScale(since - 120), 1 - leaving);
     } else {
       const { title, score, detail } = this.board;
-      // The mode in the arena's colours down the left, the score big on the right.
-      const g = ctx.createLinearGradient(40, 0, 470, 0);
-      g.addColorStop(0, hex(ARENA.halo)); g.addColorStop(1, hex(ARENA.ribbon));
-      ctx.fillStyle = g; ctx.textAlign = 'left';
-      ctx.font = DISPLAY(118);
-      const fit = Math.min(1, 440 / ctx.measureText(title).width);
-      ctx.save(); ctx.translate(48, H / 2 - 8); ctx.scale(fit, 1); ctx.fillText(title, 0, 0); ctx.restore();
-      ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(512, 60, 4, H - 120);
-      ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
-      ctx.font = DISPLAY(190); ctx.fillText(score, 770, H / 2 - 30);
-      // The small line in the game's UI face, where Jaro's V reads as a U.
-      ctx.fillStyle = '#9fb3d9'; ctx.font = '700 50px Satoshi, "Helvetica Neue", Arial, sans-serif'; ctx.fillText(detail, 770, H / 2 + 112);
+      const mark = this.marks.primary;
+      // The mark down the left with its clear space; any other game's name in the lettering.
+      if (title === 'SUPER10' && mark.complete && mark.naturalWidth) ctx.drawImage(mark, 40, 78, 440, 207);
+      else lettering(ctx, title, 260, H / 2, 96, 400);
+      lettering(ctx, score, 760, H / 2 - 34, 150, 420);
+      sub(ctx, detail, 760, H / 2 + 112, 34, hex(ARENA.mist));
     }
     // The screen's pixels: a fine dark grid over all of it.
-    ctx.fillStyle = 'rgba(0,0,0,.28)';
+    ctx.fillStyle = 'rgba(0,0,0,.22)';
     for (let x = 0; x < W; x += 4) ctx.fillRect(x, 0, 1, H);
     for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
     screen.texture.needsUpdate = true;

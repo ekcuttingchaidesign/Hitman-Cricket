@@ -217,6 +217,8 @@ const MARATHON_OPEN = SHOW_MARATHON || (!SURVIVE_ONLY
  */
 /** How long the bowler waits at his mark in a break Power Surge is offered in. */
 const SURGE_WAIT_MS = 1600;
+/** The overs a Super10 crowd sends a Mexican wave round the arena at the top of: the third, sixth and eighth. */
+const WAVE_OVERS = [2, 5, 7];
 const SUPER10_OPEN = !SURVIVE_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production';
 
 /**
@@ -984,7 +986,7 @@ export class Game {
       // The arena's mood and what it is showing, and any of its moments on
       // demand, for photographing them without batting to them.
       arena: () => this.scene.arenaState,
-      arenaCue: (kind: ArenaCue) => this.scene.arenaCue(kind, this.elapsed),
+      arenaCue: (kind: ArenaCue | 'wave', word?: string) => this.scene.arenaCue(kind, this.elapsed, word),
       // The Test look, for the checks: the green strip down, or the Blast's.
       greenTop: () => this.scene.greenTop,
       // How worn the Marathon's strip is, a stage of `WEAR_STAGES`.
@@ -2565,6 +2567,8 @@ export class Game {
     if (surge) { s10.surged = over; this.mark('surge-auto', 'Power Surge switched on by itself'); this.scene.arenaCue('surge', this.elapsed); }
     // The arena tells the last two overs coming, unless Power Surge has the ninth.
     else if (over === SUPER10.overs - 2) this.scene.arenaCue('death', this.elapsed);
+    // And the stands send a wave round in the breaks a crowd would.
+    if (WAVE_OVERS.includes(over)) this.scene.arenaCue('wave', this.elapsed);
     const bowler = bowlerOf(this.generator.overKind(over), over);
     const plan = planFor(bowler, over, { boundaries: s10.boundaries, newBatter });
     if (plan) this.mark(`field-plan-${bowler.toLowerCase()}`, 'A bowler took his other field');
@@ -4355,7 +4359,9 @@ export class Game {
     // A wicket goes quiet under a groan; one that cost him a milestone, or a
     // man carried off, is sent off with a softer cheer once it has.
     if (outcome.isWicket || this.felled) {
-      this.scene.arenaCue('wicket', this.elapsed);
+      // The screen's word for how he went: bowled, out for nothing, or out.
+      const runs = this.batterHistory.reduce((sum, ball) => sum + ball.runs, 0);
+      this.scene.arenaCue('wicket', this.elapsed, outcome.wicketType === 'BOWLED' ? 'BOWLED' : runs === 0 ? 'DUCK' : 'OUT');
       this.audio.groan(this.test ? GROAN.outTest : GROAN.out);
       this.audio.hushCrowd(HUSH.depth, HUSH.hold, HUSH.recover, HUSH.after);
       if (this.felled || (this.lesson < 0 && outNearMilestone(this.batterHistory))) this.audio.cheer(SEND_OFF, SEND_OFF.after);

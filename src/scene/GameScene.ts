@@ -17,7 +17,7 @@ import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture } from '.
 import { BOARD_PANELS, perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, nightOnly, ownFloodlights, type GroundName } from './grounds';
-import { Arena, MILESTONE_WORDS, paletteFrom, screenFrom, usePalette, type ArenaCue, type ArenaMood, type Scoreboard } from './arena';
+import { ARENA_SKY, Arena, MILESTONE_WORDS, screenFrom, type ArenaCue, type ArenaMood, type Scoreboard } from './arena';
 import { buildWicket } from './wicket';
 import type { CrowdCelebration, CrowdMoment } from './CrowdCelebration';
 import { PerformanceReadout } from './performance';
@@ -31,6 +31,8 @@ import type { GloveDesign } from '../entities/gloves';
 import type { CameraPose } from '../game/ShotReel';
 import { batSheet } from '../entities/batSkins';
 
+/** How long the arena's fireworks go up for, for a six and for a milestone. */
+const ARENA_FIREWORKS = { six: 3000, milestone: 4500 } as const;
 /** How much a kit glows in its own colour under the floodlights: see `kitsUnderLights`. */
 const KIT_GLOW = 0.32;
 /** Where a beaten ball runs out of steam: just short of the stumps. */
@@ -512,8 +514,8 @@ export class GameScene {
       if (object instanceof THREE.Mesh && (object.material as THREE.MeshStandardMaterial).emissiveMap) this.boardsMaterial = object.material as THREE.MeshStandardMaterial;
     });
     if (this.ground === 'arena') {
-      usePalette(paletteFrom(location.search));
       this.arena = new Arena(this.scene, screen, anisotropy);
+      if (lights?.life && lights.seats) this.arena.crowd(lights.life, lights.seats, this.scene);
       if (this.boardsMaterial) this.arena.boards(this.boardsMaterial, BOARD_PANELS);
       this.textures.push(...this.arena.textures);
     }
@@ -570,7 +572,7 @@ export class GameScene {
     this.crowd?.setNight(time === 'night');
     // Day breaking on a show takes it down: there are none by day.
     if (time !== 'night') this.bursts.stop();
-    const palette = this.sky.time(time), light = time === 'night' && this.ground === 'arena' ? ARENA_NIGHT : LIGHTING[time];
+    const palette = this.sky.time(time, this.ground === 'arena' ? ARENA_SKY : undefined), light = time === 'night' && this.ground === 'arena' ? ARENA_NIGHT : LIGHTING[time];
     this.scene.fog = new THREE.Fog(palette.horizon, 48, 125);
     this.renderer.setClearColor(palette.horizon);
     this.environment.dispose();
@@ -664,13 +666,18 @@ export class GameScene {
   get fireworksUp() { return this.bursts.up; }
   cheer(kind: CrowdMoment, now: number, mark = 0, streak = 1, name = '') {
     this.crowd?.trigger(kind, now, mark, streak, name);
-    if (kind === 'hit-four' || kind === 'hit-six') this.arena?.cue(kind === 'hit-six' ? 'six' : 'four', now);
-    else this.arena?.cue('milestone', now, MILESTONE_WORDS[kind]);
+    if (!this.arena) return;
+    if (kind === 'hit-four' || kind === 'hit-six') this.arena.cue(kind === 'hit-six' ? 'six' : 'four', now);
+    else this.arena.cue('milestone', now, MILESTONE_WORDS[kind]);
+    // Fireworks off the far end for a six and a milestone: the arena is always night.
+    if (kind !== 'hit-four') this.fireworks(now, kind === 'hit-six' ? ARENA_FIREWORKS.six : ARENA_FIREWORKS.milestone);
   }
   /** The arena's mood: calm, Power Surge's gold or the death overs' red. Nothing on any other ground. */
   arenaMood(mood: ArenaMood) { this.arena?.mood(mood); }
   /** A moment the arena lights up for that the crowd has no part in: a wicket, Power Surge, the death overs. */
-  arenaCue(kind: ArenaCue, now: number) { this.arena?.cue(kind, now); }
+  arenaCue(kind: ArenaCue | 'wave', now: number, word?: string) {
+    if (kind === 'wave') this.arena?.wave(now); else this.arena?.cue(kind, now, word);
+  }
   /** What the big screen shows between moments. */
   scoreboard(board: Scoreboard) { this.arena?.scoreboard(board); }
   /** For the checks: the arena's mood and what it is showing, or null on another ground. */
@@ -1333,7 +1340,7 @@ export class GameScene {
     this.clock = now;
     this.crowd?.update(now);
     this.bursts.update(now);
-    this.arena?.update(now, this.bailsBrokeAt ? now - this.bailsBrokeAt : -1, this.reducedMotion);
+    this.arena?.update(now, this.bailsBrokeAt ? now - this.bailsBrokeAt : -1, this.reducedMotion, this.bowling);
     this.batter.update(now);
     this.field.update(now);
     // Held, the ball goes where his hands go: through the slide, and up with

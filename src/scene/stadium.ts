@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Batch, mat, soft } from './build';
 import { CrowdCelebration } from './CrowdCelebration';
+import { crowdLife, livelyCrowd, type CrowdLife } from './crowdLife';
 
 /**
  * The stadium: one bowl of stands carried right round the ground, which is
@@ -68,6 +69,10 @@ export interface StandsOptions {
   towers?: boolean;
   roofLamps?: boolean;
   commentary?: boolean;
+  /** The sightscreen and the covered seats behind the bowler's arm: the stadium's white, or the arena's ink. */
+  eyeline?: number;
+  /** A crowd that is never still (`crowdLife.ts`): its own materials, moved in their shaders. */
+  lively?: boolean;
 }
 
 /** The glass: smooth and a little metallic, so it catches the sky where the concrete is faceted and dry. */
@@ -108,6 +113,9 @@ const AISLE = 0.4;
  */
 export interface StadiumLights {
   createCrowd?: (reducedMotion: boolean) => CrowdCelebration;
+  /** Every seat with somebody in it, and the clock their movement runs off, where the crowd is lively. */
+  seats?: THREE.Matrix4[];
+  life?: CrowdLife;
   lamps: THREE.MeshStandardMaterial;
   roof: THREE.Vector3[];
   towers: THREE.Vector3[];
@@ -115,7 +123,7 @@ export interface StadiumLights {
 
 /** Builds the stadium onto `world`, the stage's own frame: the bowler's end is +z. */
 export function stadium(world: THREE.Object3D, options: StandsOptions = {}): StadiumLights {
-  const { crowd: palettes = [CROWD], towers = true, roofLamps = true, commentary: box = true } = options;
+  const { crowd: palettes = [CROWD], towers = true, roofLamps = true, commentary: box = true, eyeline = STADIUM.cover, lively = false } = options;
   const b = new Batch();
   const lights: StadiumLights = { lamps: lampFinish(), roof: [], towers: [] };
   const seats: THREE.Matrix4[] = [];
@@ -135,9 +143,9 @@ export function stadium(world: THREE.Object3D, options: StandsOptions = {}): Sta
       new THREE.Vector3(1, 1, 1),
     );
     palette = palettes[section % palettes.length];
-    stand(b, seat, frame, section, lights, roofLamps);
+    stand(b, seat, frame, section, lights, roofLamps, eyeline);
   }
-  sightscreen(b);
+  sightscreen(b, eyeline);
   if (box) commentary(b);
   if (towers) floodlights(b, lights);
 
@@ -153,8 +161,12 @@ export function stadium(world: THREE.Object3D, options: StandsOptions = {}): Sta
   const body = new THREE.CylinderGeometry(.23, .27, .43, 6).scale(1, 1, .78);
   // Seated torsos never expose their undersides. Keep the shoulders capped.
   body.setDrawRange(0, body.groups[2].start);
-  const crowd = new THREE.InstancedMesh(body, mat(0xffffff), seats.length);
-  const heads = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.15, 0).translate(0, .32, 0), soft(0xe0b692), seats.length);
+  // A lively crowd has materials of its own, which its shader moves: the shared ones are drawn on boxes too.
+  const bodyFinish = lively ? new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .85, flatShading: true }) : mat(0xffffff);
+  const headFinish = lively ? new THREE.MeshStandardMaterial({ color: 0xe0b692, roughness: .72 }) : soft(0xe0b692);
+  if (lively) { lights.life = crowdLife(); lights.seats = seats; livelyCrowd([bodyFinish, headFinish], lights.life); }
+  const crowd = new THREE.InstancedMesh(body, bodyFinish, seats.length);
+  const heads = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.15, 0).translate(0, .32, 0), headFinish, seats.length);
   seats.forEach((matrix, i) => { crowd.setMatrixAt(i, matrix); crowd.setColorAt(i, new THREE.Color(colours[i])); });
   seats.forEach((matrix, i) => heads.setMatrixAt(i, matrix));
   crowd.instanceMatrix.needsUpdate = true; heads.instanceMatrix.needsUpdate = true;
@@ -178,8 +190,8 @@ function across(w: number, skip: (x: number) => boolean, place: (x: number) => v
  * a tunnel into the middle of its lower tier, so the ring has the rhythm a
  * real stand has rather than one unbroken band of crowd.
  */
-function stand(b: Batch, seat: (frame: THREE.Matrix4, x: number, y: number, z: number, n: number) => void, frame: THREE.Matrix4, section: number, lights: StadiumLights, lamps: boolean) {
-  const { concrete, paint, steel, glass, cover, tunnel } = STADIUM;
+function stand(b: Batch, seat: (frame: THREE.Matrix4, x: number, y: number, z: number, n: number) => void, frame: THREE.Matrix4, section: number, lights: StadiumLights, lamps: boolean, cover: number) {
+  const { concrete, paint, steel, glass, tunnel } = STADIUM;
   const behindTheBowler = section === 0, tunnelled = section % 2 === 1;
   let n = section * 31;
 
@@ -244,9 +256,9 @@ function roof(b: Batch, frame: THREE.Matrix4, rear: number, lights: StadiumLight
 }
 
 /** The sightscreen, behind the bowler's arm: tall enough for his hand, with a capping rail. */
-function sightscreen(b: Batch) {
+function sightscreen(b: Batch, cover: number) {
   const z = CENTRE_Z + RING - 3.3;
-  b.box(12.5, 3.3, 0.3, STADIUM.cover, 0, 1.65, z);
+  b.box(12.5, 3.3, 0.3, cover, 0, 1.65, z);
   b.box(12.7, 0.12, 0.42, STADIUM.steel, 0, 3.32, z);
 }
 

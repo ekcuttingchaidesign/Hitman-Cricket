@@ -12,7 +12,9 @@
  * what happened, it just does not move to say it.
  */
 
-export type Film = 'win' | 'lose' | 'draw' | 'waiting' | 'joined' | 'flame' | 'test-marathon' | 'fireworks' | 'player-profiles';
+export type Film = 'win' | 'lose' | 'draw' | 'waiting' | 'joined' | 'flame' | 'test-marathon' | 'fireworks' | 'player-profiles'
+  // The Super10 arena's stings (`STINGS` in `scene/arena.ts`), played when their files are there.
+  | 'arena-four' | 'arena-six' | 'arena-bowled' | 'arena-out' | 'arena-duck';
 
 export interface Playing {
   /** Takes the film down and frees what it was holding. */

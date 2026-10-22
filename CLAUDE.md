@@ -1653,42 +1653,71 @@ one file, as `cover-drive-artifact.mjs` does the strokes.
 Super10 is to have a ground of its own, so it does not feel like an old mode
 played again: the arena (`src/scene/arena.ts`), built for now by
 `?ground=arena` in any mode, and played at night only, whatever the clock,
-the link or the pause card says (`nightOnly` in `grounds.ts`). It is the
-stadium's bowl (`stadium`'s `StandsOptions`) with what makes it new where a
-phone looks, the far end and the sky over it: no towers and no bank of lamps
-on every other section, but one ring of lamps round the roof's edge with a
-glow every three degrees, as at Dubai's "Ring of Fire"; an LED halo on the
-roof's fascia in magenta and a ribbon along the upper tier's front in cyan,
-with the game's chevrons in it, each one ring with continuous texture so
-light can run round the ground; the crowd in two sides' colours, blue and
-yellow, a section each in turn; a city skyline behind the far stand; the
-night's light from the ring (`ARENA_NIGHT` in `night.ts`), cooler and from
-higher than the towers'; and a big screen over the far end in place of the
-commentary box, the mode, the score, the over and, in Super10, who is in
-(`scoreboard` in `src/Game.ts`, drawn every frame and painted only when it
-changes). It stands in the band between the score bar and the roof's edge:
-lower, its foot went behind the ring of lamps. `?screen=0` is its fallback,
-the commentary box back in its place.
+the link or the pause card says (`nightOnly` in `grounds.ts`). It is dressed
+by the Super10 brand sheet, Figma section 17 (node `467:5197`): ink night,
+plate slabs, violet light, lime (volt) for the one thing that is charged,
+raspberry only when a batter is out, Saira Black Italic for the shouted
+words (`src/assets/saira-*`, OFL), and the mark itself
+(`src/assets/super10/mark.png`, and the one-colour lime for the LED boards),
+exported off the sheet. Its colours are `ARENA`, the sheet's names.
+
+It is the stadium's bowl (`stadium`'s `StandsOptions`) with what makes it new
+where a phone looks, the far end and the sky over it: no towers and no bank of
+lamps on every other section, but one ring of lamps round the roof's edge
+with a glow every three degrees, as at Dubai's "Ring of Fire"; an LED halo on
+the roof's fascia in violet; the front of the upper tier and the boards along
+the rope as LED boards showing the sheet's board states (`boardPanel`: idle,
+the lime mark and violet slashes drifting at the lean, at 40% while the ball
+is live; FOUR +4 on full lime; SIX over MAXIMUM on plate; WICKET, or how he
+went, on raspberry; and a word on its plate for the rest — the sponsors are
+not up in the arena); a sky the floodlights' violet has got into
+(`ARENA_SKY`, through `Sky.time`'s tint) over a city skyline; the night's
+light from the ring (`ARENA_NIGHT` in `night.ts`); the eyeline dark, the
+sightscreen and the covered seats behind the bowler's arm ink (`eyeline`);
+the crowd in two sides' colours, blue and yellow, a section each; and a big
+screen over the far end in place of the commentary box: the mark, and the
+score in the sheet's lettering (`lettering`: white faces cut in mist on the
+diagonal, a plate outline, on a plate slab rising 6° with a lime shard over
+and a violet one under, a figure's face lime) with the over and who is in
+tracked under it (`scoreboard` in `src/Game.ts`). It stands in the band
+between the score bar and the roof's edge: lower, its foot went behind the
+ring of lamps. `?screen=0` is its fallback, the commentary box back.
 
 It reacts (`arenaFrame`, a function of the clock, every case in
-`tests/arena.test.ts`): Power Surge's gold and the death overs' red as moods,
-breathing; and moments over them, each with its word on the screen and on
-every board round the rope — a four runs the light round with a white flash
-on the roof, a six strobes the roof and puts six searchlights up over the far
-end, a wicket goes to red and down nearly to dark with the batter's stumps
-lit red and flashing as LED stumps are, a milestone turns the colours round
-the wheel under the searchlights, Power Surge runs gold round the ground and
-the ninth over (unless the surge has it) runs red the other way. The boundaries and milestones
-come in through the crowd's `cheer`; a wicket, the surge and the death overs
-are `arenaCue` from the game. Reduced motion keeps the colours and the words
-and drops every chase, strobe and sweep. The colours are `ARENA`, changed
-there and everywhere; its calm two, the halo and the ribbon, are a palette
-(`ARENA_PALETTES`: ice, the default, violet, orange, white, and the first
-build's magenta as pink, which read as too much), asked for with
-`?palette=violet` to judge them on a phone, none of them gold or red, which are
-the surge's and the death overs'. A word goes on a light colour in dark
-letters (`inkOn`). `__cricket.arena()` says what it is showing and
-`__cricket.arenaCue('six')` puts any moment up, for photographing.
+`tests/arena.test.ts`) by the sheet's ground rules: light, not paint (the
+grass, the pitch and the kits are never coloured); lime is a budget; no
+strobe (`MOST_FLASHES`: nothing flickers more than three times a second,
+which the tests count frame by frame for every mood and moment); a wicket
+means out. Power Surge charges the halo lime, breathing; the death overs
+crackle it, three lime flickers every few seconds; a four strikes it lime and
+settles, a six crackles it under six violet searchlights, a milestone breathes
+it lime under them, a wicket takes the lights down to the plate's dark with
+the batter's stumps lit raspberry once the bails go. The word goes on the
+boards and on the screen, slammed on from big with one overshoot
+(`slamScale`) and let go up for good news and down for a wicket; a milestone
+is its figure (`MILESTONE_WORDS`: 50, 100, 150…). The screen plays the
+sheet's stings instead — FOUR, SIX, BOWLED, OUT, DUCK, Lotties at 1024 by 384
+— when their files are in `public/lotties/arena-<name>.json` (`STINGS`,
+`stingOf`; looked for once with a HEAD and played over the ink through
+`paintFilm`), and the drawn word stands in for any that is not. A wicket is
+told how he went (`BOWLED`, `DUCK` for none, else `OUT`).
+
+The crowd is never still (`src/scene/crowdLife.ts`, `lively` on the stands):
+everybody bobs on their seat and sways from the hips to a rhythm of their own,
+in the crowd's vertex shaders off one clock, on materials of their own (the
+scenery's shared ones are drawn on boxes with no instances). A Mexican wave
+goes a lap and a bit round the bowl at the top of the third, sixth and eighth
+overs (`WAVE_OVERS` in `src/Game.ts`, `waveAt`), coming into a phone's picture
+a few seconds in. Flags on poles wave over the heads and fans hold banners
+across a few seats (`BANNERS`, one painted sheet a row an instance), most of
+them at the far end and none near the eyeline, both hung in the scene's frame
+so the words read the right way round. Fireworks go up over the far end for a
+six and a milestone. Reduced motion keeps every colour and word and stills
+every chase, crackle, sweep, sway and wave. The crowd's sound is the game's
+own clips, as everywhere.
+
+`__cricket.arena()` says what it is showing, and `__cricket.arenaCue('six')`
+(or `'wicket', 'BOWLED'`, or `'wave'`) puts any moment up, for photographing.
 
 ## A newcomer's first innings
 
