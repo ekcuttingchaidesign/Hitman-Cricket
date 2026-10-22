@@ -1478,7 +1478,8 @@ nine and ten. The generator takes it as a fixed schedule (`blocks.fixed` in
 bowls nowhere else: his over is planned at its top as the express bowler's is
 (`placeDeath`, `DEATH_OVER`): two yorkers, one of them often wide of off, a
 dipping slower ball, half the time a slower bouncer, the rest full and quick at
-135 to 145, every ball flagged `death`.
+145 to 158 (about 141 to 147 on the gun; at 135 to 145 a playtest found him
+too slow for the death), every ball flagged `death`.
 
 His action (`DEATH_ACTION`, `DEATH_RUN` in `src/entities/Bowler.ts`) was built
 from slow-motion clips of the most famous death bowler, from behind the batter
@@ -1550,9 +1551,11 @@ bend on it, so what the field judges is the line the ball is drawn along.
 A ball is fielded by how far it passes the nearest man (`fieldRules`, laid on
 `resolveShot`'s answer in `resolve`): a four along the ground within
 `RING_REACH` of a man in the ring is stopped half the time, a middled one a
-quarter (`RING_STOPS`, the softened ring); within `DEEP_CLEAN` of a boundary
-rider it is cut off for one or two, within `DEEP_REACH` saved for two or three
-or beaten; a six not middled is caught on the rope when he is under it, and a
+quarter (`RING_STOPS`, the softened ring), and a two or three half the time;
+a ball a man in the ring fields is always a single, never a dot ball and
+never two. Within `DEEP_CLEAN` of a boundary rider a four is cut off, within
+`DEEP_REACH` saved or beaten, and one he fields is two or three, never one
+(`DEEP_TWO`); a six not middled is caught on the rope when he is under it, and a
 middled six clears everybody. The outcome carries the fielder (`fielder`) for
 the call (STOPPED · MID-OFF, CUT OFF · LONG-ON, LONG-OFF · ON THE ROPE,
 `fieldLine`) and the scene: in the picture he gets across to it (`toRider`),
@@ -1580,7 +1583,9 @@ lights up at the end of the fifth over and is taken in the break before the
 sixth, seventh or eighth (`surgeOffered`; its chip, or P), the bowler waiting
 `SURGE_WAIT_MS` at his mark while it is offered; not taken, it goes on by
 itself in the ninth (`surgeAuto`), and the tenth never has it: the two men back
-nearest straight come in. `scripts/super10-sim.ts` plays all of it with a
+nearest straight come in, each to the free place in the ring nearest his line
+(`up`), clear of every man there; brought straight in along his own line,
+long-on stood at mid-on's shoulder. `scripts/super10-sim.ts` plays all of it with a
 steering player: a pro about 190 (typically 196, the best near 255), a regular
 98, a beginner 36 with a boundary in twenty-four innings of twenty-five, and no
 meter strokes in any of it. With three wickets and the narrowed six it was 172,

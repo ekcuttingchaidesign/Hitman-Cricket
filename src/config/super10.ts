@@ -100,19 +100,20 @@ export const SWING_LEVEL: Level = { level: 2, pace: 0, spin: 0, express: 0, swin
 /**
  * The death bowler's over, planned at the top of it the way the express
  * bowler's is: two yorkers, one of them often wide of off stump, a slower ball
- * that dips, and in half his overs a slower bouncer; the rest full and quick.
- * About 135 to 145 on the gun.
+ * that dips, and in half his overs a slower bouncer; the rest full and quick,
+ * 145 to 158, which the gun reads about 141 to 147 (`shownKph`). At 135 to
+ * 145 a playtest found him too slow for the death.
  */
 export const DEATH_OVER = {
-  min: 135,
-  max: 145,
+  min: 145,
+  max: 158,
   yorkers: 2,
   /** How often one of the yorkers is the wide one, outside off. */
   wideChance: 0.5,
   wideLine: 'OUTSIDE_OFF' as BallLine,
   slower: { min: 108, max: 118 },
   slowBouncerChance: 0.5,
-  slowBouncer: { min: 118, max: 126 },
+  slowBouncer: { min: 122, max: 130 },
 } as const;
 
 /**

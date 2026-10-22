@@ -50,6 +50,13 @@ export interface FieldSet {
 export const DEEP_REACH = 7;
 /** Within this he is right behind it: cut off for one or two. */
 export const DEEP_CLEAN = 3;
+/**
+ * A ball a man in the ring fields is a single, never a dot ball and never two:
+ * the batters run while he gathers. One a boundary rider fields is two, or
+ * three: the share of twos when he is right behind it (`cut`), and when he had
+ * to run and dive across for it (`saved`).
+ */
+export const DEEP_TWO = { cut: .7, saved: .55 } as const;
 /** A ball along the ground passing a man in the ring closer than this is straight at him: fielded, a single at the most. */
 export const RING_STRAIGHT = 1.5;
 /** How far either side a man in the ring stops a ball along the ground; a middled one is past him sooner. */
@@ -189,7 +196,20 @@ const placed = (name: Position): Man => {
   const p: { angle: number; distance?: number; deep?: boolean } = POSITIONS[name];
   return { name, angle: p.angle, distance: p.deep ? deepAt(p.angle) : p.distance!, deep: !!p.deep };
 };
-const up = (man: Man): Man => ({ ...man, name: nameOf(man.angle, false), distance: RING, deep: false });
+/**
+ * A man brought up from the rope, by Power Surge or the Powerplay: to the ring
+ * position nearest his line that leaves him clear of every other man in the
+ * ring (`APART`), so he never lands on top of one. Brought straight in along
+ * his own line, long-on came up to stand at mid-on's shoulder. With no such
+ * place, along his line as before.
+ */
+const RING_PLACES = (Object.keys(POSITIONS) as Position[]).filter(name => !('deep' in POSITIONS[name])).map(placed);
+function up(man: Man, men: readonly Man[]): Man {
+  const ring = men.filter(m => m !== man && !m.deep);
+  const free = RING_PLACES.filter(p => ring.every(m => Math.abs(m.angle - p.angle) >= APART));
+  const best = free.sort((a, b) => Math.abs(a.angle - man.angle) - Math.abs(b.angle - man.angle))[0];
+  return best ? { ...best } : { ...man, name: nameOf(man.angle, false), distance: RING, deep: false };
+}
 
 export interface FieldAsk {
   bowler: Bowler;
@@ -212,15 +232,17 @@ export function fieldFor({ bowler, over, surge = false, plan = 0 }: FieldAsk): F
   // The Powerplay's two men back, whoever is bowling: anyone more comes up, nearest straight first.
   while (over < SUPER10.powerplay && men.filter(m => m.deep).length > 2) {
     const man = men.filter(m => m.deep).sort((a, b) => Math.abs(a.angle) - Math.abs(b.angle))[0];
-    men = men.map(m => (m === man ? up(m) : m));
+    men = men.map(m => (m === man ? up(m, men) : m));
   }
   const field: FieldSet = { id: key, name: PLANS[key].name, bowler, men, change: plan ? 'plan' : null, moved: [] };
   if (!surge) return field;
-  // Power Surge: the two men back nearest straight come in.
+  // Power Surge: the two men back nearest straight come in, each to a free place in the ring.
   const take = men.filter(m => m.deep).sort((a, b) => Math.abs(a.angle) - Math.abs(b.angle)).slice(0, 2);
+  let surged = men;
+  for (const man of take) surged = surged.map(m => (m === man ? up(m, surged) : m));
   return {
     ...field, id: `${key}+surge`, change: 'surge',
-    men: men.map(m => (take.includes(m) ? up(m) : m)),
+    men: surged,
     moved: take.map(m => `${m.name} in`.toUpperCase()),
   };
 }
@@ -307,23 +329,23 @@ export function fieldRules(outcome: ShotOutcome, angle: number, field: FieldSet,
   }
   if (outcome.runs === 4) {
     if (!outcome.aerial && ring && ring.by <= (middled ? RING_REACH_MIDDLED : RING_REACH) && rng.next() < (middled ? RING_STOPS_MIDDLED : RING_STOPS)) {
-      const runs = rng.next() < .5 ? 0 : 1;
-      return { ...outcome, runs, feedback: runs ? '1 RUN' : 'DOT BALL', ...by(ring.man, 'stopped') };
+      return { ...outcome, runs: 1, feedback: '1 RUN', ...by(ring.man, 'stopped') };
     }
+    // A boundary rider who gets to it holds it to two or three, as a man in
+    // the deep does: the batters are already turning for the second.
     if (deep && deep.by <= DEEP_CLEAN) {
-      const runs = rng.next() < .7 ? 1 : 2;
-      return { ...outcome, runs, aerial: false, feedback: runs === 1 ? '1 RUN' : '2 RUNS', ...by(deep.man, 'cut') };
+      const runs = rng.next() < DEEP_TWO.cut ? 2 : 3;
+      return { ...outcome, runs, aerial: false, feedback: `${runs} RUNS`, ...by(deep.man, 'cut') };
     }
     if (deep && deep.by <= DEEP_REACH && rng.next() < (middled ? DEEP_SAVES_MIDDLED : DEEP_SAVES)) {
-      const runs = rng.next() < .7 ? 2 : 3;
+      const runs = rng.next() < DEEP_TWO.saved ? 2 : 3;
       return { ...outcome, runs, aerial: false, feedback: `${runs} RUNS`, ...by(deep.man, 'saved') };
     }
     return outcome;
   }
-  // Ones, twos and threes: a man in the ring on its line takes one off half the time.
-  if (!outcome.aerial && ring && ring.by <= RING_REACH && rng.next() < .5) {
-    const runs = (outcome.runs - 1) as ShotOutcome['runs'];
-    return { ...outcome, runs, feedback: runs ? `${runs} RUN${runs > 1 ? 'S' : ''}` : 'DOT BALL', ...by(ring.man, 'stopped') };
+  // Twos and threes: a man in the ring on its line holds it to a single half the time.
+  if (!outcome.aerial && ring && ring.by <= RING_REACH && outcome.runs > 1 && rng.next() < .5) {
+    return { ...outcome, runs: 1, feedback: '1 RUN', ...by(ring.man, 'stopped') };
   }
   return outcome;
 }
@@ -373,7 +395,8 @@ export function signalFor(prev: FieldSet | null, field: FieldSet): { kind: 'poin
   const at = (a: Man, b: Man) => a.deep === b.deep && Math.abs(a.angle - b.angle) < 3;
   const back = field.men.find(m => m.deep && !prev.men.some(n => at(m, n)));
   const came = prev.men.find(m => m.deep && !field.men.some(n => at(m, n)));
-  const upMan = came && field.men.find(m => !m.deep && Math.abs(m.angle - came.angle) < 3);
+  // The man come up: one in the ring who was not, wherever in it he went.
+  const upMan = came && field.men.find(m => !m.deep && !prev.men.some(n => at(m, n)));
   if (field.change !== 'surge' && back) return { kind: 'back', man: back };
   if (upMan) return { kind: 'in', man: upMan };
   if (back) return { kind: 'back', man: back };

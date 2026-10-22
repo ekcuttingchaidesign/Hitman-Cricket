@@ -123,12 +123,23 @@ describe('the field\'s rules', () => {
     expect(fieldRules(struck(4, { aerial: true }), 32, ring, fixed(0)).runs).toBe(4);
   });
 
-  it('has a boundary rider right behind a four cut it off for one or two', () => {
+  it('has a boundary rider right behind a four cut it off for two or three, never one', () => {
     const rider = one(24, 35, true);
     const cut = fieldRules(struck(4), 25, rider, fixed(.5));
-    expect(cut).toMatchObject({ runs: 1, aerial: false, fielder: { how: 'cut', name: 'long-off' } });
+    expect(cut).toMatchObject({ runs: 2, aerial: false, fielder: { how: 'cut', name: 'long-off' } });
     expect(fieldLine(cut)).toBe('CUT OFF · LONG-OFF');
-    expect(fieldRules(struck(4), 25, rider, fixed(.8)).runs).toBe(2);
+    expect(fieldRules(struck(4), 25, rider, fixed(.8)).runs).toBe(3);
+  });
+
+  it('makes a ball a man in the ring fields a single, never a dot ball and never two', () => {
+    const ring = one(32, 22, false);
+    for (const value of [0, .1, .2, .3, .4]) {
+      const four = fieldRules(struck(4), 39, ring, fixed(value));
+      expect(four.runs).toBe(1);
+      expect(fieldRules(struck(3), 39, ring, fixed(value)).runs).toBe(1);
+    }
+    // A single stays a single, whoever is near it.
+    expect(fieldRules(struck(1), 32, ring, fixed(0)).runs).toBe(1);
   });
 
   it('has one a few metres off it save it for two or three, or be beaten by it', () => {
@@ -229,6 +240,14 @@ describe('the bowler setting his field', () => {
   it('has the spinner attack a new batter, and only a new batter', () => {
     expect(planFor('SPIN', 3, { boundaries: [], newBatter: true })).toBe(1);
     expect(planFor('SPIN', 3, { boundaries: [-52, -78, 60, 22], newBatter: false })).toBe(0);
+  });
+
+  it('brings the two men up for Power Surge to free places in the ring, never on top of a man there', () => {
+    for (const [bowler, over] of BOWLS) for (const plan of [0, 1] as const) {
+      const { men, id } = fieldFor({ bowler, over, plan, surge: true });
+      const ring = men.filter(m => !m.deep);
+      for (const a of ring) for (const b of ring) if (a !== b) expect(Math.abs(a.angle - b.angle), `${id}: ${a.name}, ${b.name}`).toBeGreaterThanOrEqual(APART);
+    }
   });
 
   it('beckons the two men up for Power Surge, and signals nothing when nothing moves', () => {
