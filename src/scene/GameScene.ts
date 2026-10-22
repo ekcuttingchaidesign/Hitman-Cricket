@@ -1370,6 +1370,8 @@ export class GameScene {
 
   /** Whether the field is back on its marks, so the next ball can be bowled. */
   get fieldSettled() { return this.field.settled(this.clock); }
+  /** The drawn man going for a catch this ball, by his place among the marks `super10Field` was given. */
+  get catcher() { return this.field.catcher; }
   /** How far the man furthest from his mark is from it, in metres, for the checks: nobody walks to a new field. */
   get fieldAway() { return Math.max(0, ...this.field.state(this.clock).fielders.map(f => f.home)); }
   /** Whether the bowler is signalling a field change, for the checks. */

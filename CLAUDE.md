@@ -1570,8 +1570,13 @@ white rope and a white dashed ring, the fielders red and the batter blue
 whatever either side wears (the kits' own colours lost the dots whenever a kit
 was near the other side's or the grass), the ball's line yellow on a dark
 edge; a new field has the dots slide to their places as a ring pulses twice
-and the field's name floats over it (WIDE YORKER · 5 OUT, FIELD CHANGE · …); after a shot the ball's line is drawn to where it went, the man who
-got to it pinging, until the next ball; a tap (or F) enlarges it from its
+and the field's name floats over it (WIDE YORKER · 5 OUT, FIELD CHANGE · …);
+it is a plan of the ground, not a scale drawing (`onMap`): the ring's men
+inside the dashed circle, the boundary riders just inside the rope, which to
+scale stood a few points apart, the ground being twenty-eight metres square; after a shot the ball's line is drawn to where it went, and the man who
+caught it or got to it is lit with a yellow ring (`takerOf` in `src/Game.ts`:
+the field's rules' man, or the drawn man the scene sent for a catch,
+`Field.catcher`), until the next ball; a tap (or F) enlarges it from its
 corner, and a tap, the bowler's first stride or six seconds put it back.
 Bottom left, Power Surge (`SurgeState`): locked to the end of the fifth over,
 gold and breathing in the breaks it can be taken in, its ring emptying over

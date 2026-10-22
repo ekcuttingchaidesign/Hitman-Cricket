@@ -13,7 +13,7 @@ import { icon } from './Kit';
  *    dots slide to their places while a ring pulses round the map twice and
  *    its name in the field book floats above it. After a
  *    shot the ball's line is drawn from the batter to where it went, the man
- *    who got to it pinging once, and it stays until the next ball. One tap
+ *    who caught it or got to it lit, and both stay until the next ball. One tap
  *    enlarges it from its corner; a tap, the bowler's first stride or six
  *    seconds put it back.
  *  - **Power Surge**, bottom left: locked to the end of the fifth over, gold
@@ -39,10 +39,25 @@ const TAG_MS = 2400;
 const LIT_MS = 1800;
 const TITLE_MS = 1600;
 
-/** Where a man is drawn on the map: his share of the way to the rope along his line, out to the rope's circle. */
+/**
+ * Where a thing is drawn on the map, a plan of the ground rather than a scale
+ * drawing: inside the dashed ring (`RING_R`) for anything within `CIRCLE_M`
+ * of the bat, and beyond it out to the rope in proportion to how far on it
+ * is, so a man in the ring is always drawn in the ring and a boundary rider
+ * (`deep`) always just inside the rope. Drawn to scale, a ring man and the
+ * rider behind him were a few points apart, the ground being only
+ * twenty-eight metres square of the bat.
+ */
 const ROPE_R = 44;
-function onMap(angle: number, distance: number, mirrored: boolean) {
-  const r = ROPE_R * Math.min(1, distance / ropeAt(angle));
+const RING_R = 28;
+const CIRCLE_M = 24;
+const RIDER_R = ROPE_R - 3;
+function onMap(angle: number, distance: number, mirrored: boolean, deep = false) {
+  const rope = ropeAt(angle);
+  const r = deep ? RIDER_R
+    : distance >= rope ? ROPE_R + 2
+    : distance <= CIRCLE_M ? RING_R * distance / CIRCLE_M
+    : RING_R + (ROPE_R - RING_R) * (distance - CIRCLE_M) / Math.max(1, rope - CIRCLE_M);
   const t = angle * Math.PI / 180;
   return { x: 50 + (mirrored ? -1 : 1) * r * Math.sin(t), y: 50 - r * Math.cos(t) };
 }
@@ -51,13 +66,13 @@ const f = (v: number) => v.toFixed(1);
 /** The map, drawn: the ground, the rope and ring, the pitch, the fielders and the batter. */
 export function fieldMapMarkup(field: FieldSet, { mirrored = false, solid = false }: { mirrored?: boolean; solid?: boolean } = {}) {
   const men = field.men.map((m, i) => {
-    const p = onMap(m.angle, m.distance, mirrored);
-    return `<g class="s10-man${m.deep ? ' is-deep' : ''}" data-man="${i}" style="transform:translate(${f(p.x)}px,${f(p.y)}px)"><circle r="3.4"/></g>`;
+    const p = onMap(m.angle, m.distance, mirrored, m.deep);
+    return `<g class="s10-man${m.deep ? ' is-deep' : ''}" data-man="${i}" style="transform:translate(${f(p.x)}px,${f(p.y)}px)"><circle class="s10-halo" r="6.2"/><circle r="3.4"/></g>`;
   }).join('');
   return `<svg class="s10-svg${solid ? ' is-solid' : ''}" viewBox="0 0 100 100" aria-hidden="true">
     <circle class="s10-ground" cx="50" cy="50" r="${ROPE_R + 2}"/>
     <circle class="s10-rope" cx="50" cy="50" r="${ROPE_R + 2}"/>
-    <circle class="s10-ring" cx="50" cy="50" r="26"/>
+    <circle class="s10-ring" cx="50" cy="50" r="${RING_R}"/>
     <rect class="s10-pitch" x="48" y="28" width="4" height="22" rx="1"/>
     <path class="s10-shot-under" pathLength="100" d=""/>
     <path class="s10-shot" pathLength="100" d=""/>
@@ -165,7 +180,7 @@ export class FieldUi {
 
   /** For each new man, the old man nearest him, so a man walks to his new place rather than across the ground. */
   private matched(prev: Man[], next: Man[]) {
-    const xy = (m: Man) => onMap(m.angle, m.distance, false);
+    const xy = (m: Man) => onMap(m.angle, m.distance, false, m.deep);
     const pairs: [number, number, number][] = [];
     next.forEach((n, i) => prev.forEach((p, j) => { const a = xy(n), b = xy(p); pairs.push([Math.hypot(a.x - b.x, a.y - b.y), i, j]); }));
     pairs.sort((a, b) => a[0] - b[0]);
@@ -207,28 +222,26 @@ export class FieldUi {
 
   /**
    * After a shot, the ball's line from the batter to where it went: over the
-   * rope for a boundary, to the man who got to it — whose dot pings once —
-   * or out into the field for the runs it was worth. It stays until the next
-   * ball, which clears it (`angle` null).
+   * rope for a boundary, to the man who got to it, or out into the field for
+   * the runs it was worth. The man who caught it or stopped it (`taker`, his
+   * place in the field's men) is lit until the next ball, a ring round his
+   * dot that pops as the line reaches him. The next ball clears both (`angle`
+   * null).
    */
-  shot(angle: number | null, outcome: ShotOutcome | null) {
+  shot(angle: number | null, outcome: ShotOutcome | null, taker: number | null = null) {
     const path = this.map.querySelector<SVGPathElement>('.s10-shot');
     const under = this.map.querySelector<SVGPathElement>('.s10-shot-under');
-    this.map.querySelectorAll('.s10-man.is-ping').forEach(g => g.classList.remove('is-ping'));
+    this.map.querySelectorAll('.s10-man.is-taker').forEach(g => g.classList.remove('is-taker'));
     if (!path || !under) return;
     if (angle === null || !outcome || !this.field) { path.setAttribute('d', ''); under.setAttribute('d', ''); path.classList.remove('is-on'); under.classList.remove('is-on'); return; }
-    const fielder = outcome.fielder;
+    const man = taker === null ? null : this.field.men[taker] ?? null;
     const distance = outcome.runs >= 4 ? ropeAt(angle) : [6, 14, 22, 28][outcome.runs] ?? 6;
-    const end = fielder ? onMap(fielder.angle, fielder.distance, this.mirrored) : onMap(angle, distance, this.mirrored);
+    const end = man ? onMap(man.angle, man.distance, this.mirrored, man.deep) : onMap(angle, distance, this.mirrored);
     path.setAttribute('d', `M50 50L${f(end.x)} ${f(end.y)}`);
     under.setAttribute('d', `M50 50L${f(end.x)} ${f(end.y)}`);
-    path.classList.toggle('is-boundary', !fielder && outcome.runs >= 4);
     path.classList.remove('is-on'); under.classList.remove('is-on'); void path.getBoundingClientRect();
     path.classList.add('is-on'); under.classList.add('is-on');
-    if (fielder) {
-      const index = this.field.men.findIndex(m => m.angle === fielder.angle && m.deep === fielder.deep);
-      this.map.querySelector(`.s10-man[data-man="${index}"]`)?.classList.add('is-ping');
-    }
+    if (man) this.map.querySelector(`.s10-man[data-man="${taker}"]`)?.classList.add('is-taker');
   }
 
   /**

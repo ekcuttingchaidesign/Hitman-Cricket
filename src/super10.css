@@ -22,7 +22,10 @@
 .s10-pitch{fill:#e2c98fd9}
 .s10-man circle{fill:var(--s10-field);stroke:#fff;stroke-width:1.1}
 .s10-man{transition:transform 900ms cubic-bezier(.3,.1,.25,1)}
-.s10-man.is-ping circle{animation:s10-ping 520ms ease-out}
+/* The man who caught it or got to it: a yellow ring round his dot, popping in as the line reaches him. */
+.s10-halo{fill:none;stroke:var(--s10-line);stroke-width:1.8;opacity:0;transform-box:fill-box;transform-origin:center}
+.s10-man.is-taker .s10-halo{opacity:1;animation:s10-pop 420ms 220ms cubic-bezier(.3,1.5,.5,1) both}
+.s10-man.is-taker circle:not(.s10-halo){stroke:var(--s10-line);stroke-width:1.4}
 .s10-bat{fill:var(--s10-batter);stroke:#fff;stroke-width:1.3}
 .s10-shot{fill:none;stroke:var(--s10-line);stroke-width:2.8;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;opacity:0}
 .s10-shot.is-on{opacity:1;animation:s10-draw 300ms ease-out forwards}
@@ -94,7 +97,7 @@ body.start-screen .s10-tag,.stage.result-open .s10-tag{display:none}
 
 @keyframes s10-float{from{opacity:0;transform:translateY(calc(var(--u) * 6))}to{opacity:1;transform:none}}
 @keyframes s10-pulse{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(1.3)}}
-@keyframes s10-ping{0%{transform:scale(1)}40%{transform:scale(1.8)}100%{transform:scale(1)}}
+@keyframes s10-pop{0%{opacity:0;transform:scale(.3)}100%{opacity:1;transform:none}}
 @keyframes s10-draw{to{stroke-dashoffset:0}}
 @keyframes s10-grow{from{transform:scale(.29)}to{transform:none}}
 @keyframes s10-breathe{0%,100%{box-shadow:0 0 0 calc(var(--u) * 3) #f5b83d33,0 6px 18px #00000059}50%{box-shadow:0 0 0 calc(var(--u) * 7) #f5b83d59,0 6px 18px #00000059}}
@@ -102,7 +105,7 @@ body.start-screen .s10-tag,.stage.result-open .s10-tag{display:none}
 @keyframes s10-slam{0%{opacity:0;transform:scale(1.25)}14%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){
   .s10-man{transition:none}
-  .s10-pulse.is-on,.s10-tag.is-in,.s10-big-map,.s10-title.is-in,.s10-surge[data-state="offer"] .s10-surge-disc,.s10-man.is-ping circle,.arena-bottom .is-rider{animation:none}
+  .s10-pulse.is-on,.s10-tag.is-in,.s10-big-map,.s10-title.is-in,.s10-surge[data-state="offer"] .s10-surge-disc,.s10-man.is-taker .s10-halo,.arena-bottom .is-rider{animation:none}
   .s10-title.is-in{opacity:1}
   .s10-shot.is-on,.s10-shot-under.is-on{animation:none;stroke-dashoffset:0}
 }

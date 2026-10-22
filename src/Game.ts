@@ -2595,6 +2595,22 @@ export class Game {
     this.surgeShown();
     this.mark(`surge-${s10.over + 1}`, 'Power Surge taken');
   }
+  /**
+   * Who got to a Super10 ball, by his place in the field's men, for the map to
+   * light: the man the field's rules gave it to, or the man the scene sent
+   * for a catch (he is one of the drawn six, in their order).
+   */
+  private takerOf(outcome: ShotOutcome): number | null {
+    const field = this.s10.field;
+    if (!field) return null;
+    const f = outcome.fielder;
+    if (f) { const i = field.men.findIndex(m => m.angle === f.angle && m.deep === f.deep); return i < 0 ? null : i; }
+    const caught = (outcome.isWicket && outcome.wicketType === 'CAUGHT') || outcome.dropped;
+    const drawn = caught && !outcome.edged ? this.scene.catcher : null;
+    if (drawn === null) return null;
+    const man = drawnOf(field)[drawn];
+    return man ? field.men.indexOf(man) : null;
+  }
   /** The map enlarged from its corner: a tap on it, or F. */
   private lookAtField() {
     if (!this.super10) return;
@@ -4267,7 +4283,7 @@ export class Game {
     const away = outcome.fielder && offScreen(outcome.fielder.angle);
     if (away && outcome.fielder) this.fieldUi.light({ side: (away === 'leg') !== this.scene.mirrored ? 'left' : 'right', name: outcome.fielder.name });
     // And on the map, the line it went.
-    if (this.super10 && this.lesson < 0 && outcome.madeBatContact) this.fieldUi.shot(sectorOf(outcome, this.attempt?.shotType), outcome);
+    if (this.super10 && this.lesson < 0 && outcome.madeBatContact) this.fieldUi.shot(sectorOf(outcome, this.attempt?.shotType), outcome, this.takerOf(outcome));
     if (outcome.hit) {
       // The blow lands with the call rather than before it, so the flash, the
       // kick and the words are one event instead of three.

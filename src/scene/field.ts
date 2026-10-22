@@ -174,6 +174,8 @@ export class Field {
 
   /** A fresh delivery: whoever was under the last one is no longer catching it. */
   reset() { this.catching = null; this.gathering = null; this.bowling = null; }
+  /** Which man is taking (or putting down) a catch this ball, by his place in the marks: Super10's map lights him. */
+  get catcher() { return this.catching?.index ?? null; }
 
   /** The bowler's plan for this ball, if he has one. Drawn by the scene on the bowler. */
   bowlerRoutine() { return this.bowling; }
