@@ -64,6 +64,8 @@ const SEEDS = [.4, 1.9, 3.1, 4.4, 5.2, 6.6];
 const AREA = 35 * Math.PI / 180;
 /** And no further than this from where it crosses, whatever the angle. */
 const AREA_REACH = 22;
+/** How far from a man a ball along the ground can go past him and still have him go for it. */
+const NEAR_MISS = 6;
 /** Back to the mark once the ball is dead, before each man's own pace is laid on it. */
 const WALK_BACK_MS = 1150;
 
@@ -336,7 +338,10 @@ export class Field {
    * there unless it is going for four.
    *
    * Anybody it passes within a dive of goes full length at it and misses —
-   * the run of the game decided it is not stopped, so it beats him by a hand.
+   * the run of the game decided it is not stopped, so it beats him by a hand —
+   * and anybody else it passes within `NEAR_MISS` gets across towards it a few
+   * strides and is beaten: a man standing still as it went by a few metres
+   * from him looked as if he had not seen it.
    * Going for four, the man in the deep nearest where it reaches the rope
    * goes for it too, diving if he can get there and chasing it to the rope
    * if he cannot. Stopping in the field, the nearest man runs to where it
@@ -424,6 +429,15 @@ export class Field {
         busy.add(picker);
       }
     }
+
+    // Too far to dive and near enough to try: across towards it, and beaten.
+    spots.forEach((spot, i) => {
+      if (busy.has(i)) return;
+      const pass = passing(spot);
+      if (pass.along > length - .8 || pass.gap > NEAR_MISS) return;
+      this.chase(i, spot, pass.point, now, Math.max(450, pass.at - now + 250), look);
+      busy.add(i);
+    });
 
     // Everyone else watches it go and wanders back once it is dead.
     this.routines.forEach((routine, i) => {

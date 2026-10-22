@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import {
-  DIVE, Fielder, REACTION_MS, Routine, SPRINT, idle, midpointOfHands, planCatch, splitStep, travel,
+  DIVE, Fielder, REACTION_MS, RUNNING_CATCH, Routine, SPRINT, idle, midpointOfHands, planCatch, splitStep, travel,
   type Spot,
 } from '../src/entities/Fielder';
 
@@ -163,5 +163,15 @@ describe('a catch', () => {
   it('settles under one he has time for, and dives for one he has not', () => {
     expect(planCatch(home, offset(2, -1.2, 2.2), HIT, HIT + HANG).style).toBe('high');
     expect(planCatch(home, offset(7.5, -.5), HIT, HIT + HANG).style).toBe('dive');
+  });
+
+  it('runs in and takes on his feet one he can get to, at no more than a man runs in at', () => {
+    // Three metres off with a second and a fifth of hang: a run, never a dive.
+    const plan = planCatch(home, offset(2.5, 1.5, 1.6), HIT, HIT + 1200);
+    expect(plan.style).toBe('high');
+    expect(plan.routine.actions.map(a => a.name)).toContain('Running in');
+    expect(plan.topSpeed).toBeLessThanOrEqual(RUNNING_CATCH * 1.6);
+    // The same three metres in half the time is a dive.
+    expect(planCatch(home, offset(2.5, 1.5, 1.6), HIT, HIT + 650).style).toBe('dive');
   });
 });

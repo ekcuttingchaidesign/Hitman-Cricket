@@ -761,10 +761,18 @@ export function midpointOfHands(body: Body) {
 }
 
 /**
+ * The fastest a man runs in to take a catch on his feet, on average over the
+ * run (half as fast again at the most): any further than that in the time and
+ * he dives for it.
+ */
+export const RUNNING_CATCH = 4;
+
+/**
  * Plan a fielder's catch. He is on `home`, facing the bat. The ball is struck
  * at `hitAt` and will be at `ball` (on the field, at catching height) at
  * `arrives`. Close enough to settle under, he settles under it and takes it
- * high; further, he reads it, sprints, and dives the last of it.
+ * high; near enough to get there on his feet, he runs in and takes it on the
+ * move; further, he reads it, sprints, and dives the last of it.
  *
  * `ball` is where the ball is *going*. The plan answers with where his hands
  * actually are at that moment, and the flight should be bent to finish there.
@@ -784,12 +792,19 @@ export function planCatch(home: Spot, ball: THREE.Vector3, hitAt: number, arrive
   const window = arrives - go;
 
   // Near enough to walk under it, and with time to: no need to throw himself.
-  if (!options.ground && (away < 2.2 || away / Math.max(.2, (window - 450) / 1000) < 2.6)) {
+  // A little further, he runs in and takes it on the move, the hands coming
+  // up as he gets there: only dived for when his feet cannot get him there.
+  // Asked to be stood still under it four tenths of a second before it came,
+  // every catch but a dolly was a dive, ones he could have jogged to as well.
+  const settles = away < 2.2 || away / Math.max(.2, (window - 450) / 1000) < 2.6;
+  const onTheRun = (window - 150) / 1000;
+  if (!options.ground && (settles || (onTheRun > .3 && away / onTheRun <= RUNNING_CATCH))) {
     const heading = Math.atan2(batter.x - ball.x, batter.z - ball.z);
     const under: Spot = { x: ball.x, z: ball.z, heading };
     // He turns and goes, and squares up to the bat as he settles: holding his
     // heading while moving sideways crosses his legs.
-    const move = travel(home, under, go, Math.max(300, window - 420), 'stop');
+    const move = settles ? travel(home, under, go, Math.max(300, window - 420), 'stop')
+      : travel(home, under, go, window - 150, 'stop', { name: 'Running in' });
     const take = highCatch(under, move.end, arrives);
     actions.push(move, take);
     // Watching it into his hands and no further: once he holds it, the ball

@@ -1552,7 +1552,13 @@ the call (STOPPED · MID-OFF, CUT OFF · LONG-ON, LONG-OFF · ON THE ROPE,
 `fieldLine`) and the scene: in the picture he gets across to it (`toRider`),
 out of it the ball flies out of frame and the side label it went past says his
 name (`FieldUi.light`). Catches everywhere are dealt a step, a run or a dive
-(`findCatch`'s `running`), not always the full sprint and dive. Power Surge
+(`findCatch`'s `running`), and a man who can get there on his feet runs in and
+takes it on the move (`RUNNING_CATCH` in `planCatch`): about half are taken
+standing under it, a third running in, the rest diving. Asked to be stood still
+under it four tenths of a second early, every catch but a dolly had been a
+dive. A ball along the ground that beats a man by more than a dive gets him
+across towards it a few strides (`NEAR_MISS` in `Field.ground`), where he used
+to stand and watch it go past. Power Surge
 lights up at the end of the fifth over and is taken in the break before the
 sixth, seventh or eighth (`surgeOffered`; its chip, or P), the bowler waiting
 `SURGE_WAIT_MS` at his mark while it is offered; not taken, it goes on by

@@ -163,6 +163,24 @@ describe('the field', () => {
       expect(routines[midOff].actions.map(a => a.name)).toContain('Up, hands on head');
     });
 
+    it('has a man it passes a few metres off, too far to dive, get across towards it', () => {
+      const field = new Field();
+      // Eleven degrees off mid-off at 24°: four metres wide of him at his depth.
+      const end = line(field, 35, 44);
+      field.ground(HIT, HIT + 1250, look, { from: origin, to: end, flightMs: 1250, four: true });
+      const routines = routinesOf(field);
+      const midOff = BLAST_FIELD.findIndex(m => m.name === 'Mid-off');
+      const names = routines[midOff].actions.map(a => a.name);
+      expect(names, names.join(' > ')).toContain('Chasing it');
+      expect(names).not.toContain('Diving catch');
+      // He goes towards the line, and stops short of it.
+      const before = routines[midOff].at(HIT), after = routines[midOff].at(HIT + 900);
+      const dir = end.clone().sub(origin).setY(0).normalize();
+      const off = (p: { x: number; z: number }) => Math.abs((p.x - origin.x) * dir.z - (p.z - origin.z) * dir.x);
+      expect(off(after)).toBeLessThan(off(before) - 1);
+      expect(off(after)).toBeGreaterThan(.5);
+    });
+
     for (const [stroke, angle] of [['straight drive', 0], ['on drive', -24], ['cover drive', 24]] as const) {
       it(`sends somebody from the deep after a ${stroke} going for four`, () => {
         const field = new Field();
