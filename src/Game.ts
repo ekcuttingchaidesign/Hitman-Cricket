@@ -983,6 +983,8 @@ export class Game {
       drawn: (progress: number) => this.delivery ? this.scene.drawnBall(this.delivery, progress) : null,
       // Which ground was built, for `scene-check.mjs`: `?ground=bowl` or the default.
       ground: () => this.scene.ground,
+      // The ball's colour: Super10's white, the Blast's red, the Test's cherry.
+      ball: () => this.scene.ballColour,
       // The arena's mood and what it is showing, and any of its moments on
       // demand, for photographing them without batting to them.
       arena: () => this.scene.arenaState,
@@ -2184,6 +2186,8 @@ export class Game {
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
     this.input.reset(); this.scene.reset();
     const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat, look.guard);
+    // Super10 is played with a white ball; the rest with red.
+    this.scene.whiteBall(this.super10);
     this.scene.whites(this.test);
     // A Test by day; the Blast by the player's clock, or their own choice.
     this.scene.time(this.test ? 'day' : blastLights());
@@ -2270,7 +2274,7 @@ export class Game {
   startTutorial = () => {
     track('tutorial-start', 'Tutorial started');
     this.mode = 'CLASSIC';
-    this.scene.whites(false); this.scene.overcast(false, true); this.hud.levelBanner(null); this.scene.time(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
+    this.scene.whiteBall(false); this.scene.whites(false); this.scene.overcast(false, true); this.hud.levelBanner(null); this.scene.time(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
     this.fieldUi.show(false);
     this.audio.stop(); this.audio.music(null); this.audio.crowd(null); this.audio.unlock(); this.score = new ScoreManager();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = null; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;

@@ -13,8 +13,8 @@
  */
 
 export type Film = 'win' | 'lose' | 'draw' | 'waiting' | 'joined' | 'flame' | 'test-marathon' | 'fireworks' | 'player-profiles'
-  // The Super10 arena's stings (`STINGS` in `scene/arena.ts`), played when their files are there.
-  | 'arena-four' | 'arena-six' | 'arena-bowled' | 'arena-out' | 'arena-duck';
+  // The Super10 arena's stings on its big screen (`STINGS` in `scene/arena.ts`).
+  | 'super10-four' | 'super10-six' | 'super10-bowled' | 'super10-out' | 'super10-duck';
 
 export interface Playing {
   /** Takes the film down and frees what it was holding. */

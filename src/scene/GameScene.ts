@@ -121,13 +121,16 @@ function muteAt(age: number, lasts = CELEBRATION_MS) {
 const SHAPES = { ball: new THREE.SphereGeometry(1, 24, 16) };
 
 /**
- * The ball, by format: the Blast's bright red, and the Test match's darker
- * Dukes. Both keep the faint glow of their own colour, which is what holds a
- * ball against the stands in the second it is in the air.
+ * The ball, by format: the Blast's bright red, the Test match's darker
+ * Dukes, and Super10's white, as a ten-over game under lights is played with
+ * (the brand sheet's white is "the letters, the ball"), its seam a grey that
+ * shows it turning. Each keeps the faint glow of its own colour, which is
+ * what holds a ball against the stands in the second it is in the air.
  */
 const BALL = {
-  blast: { color: 0xe84829, glow: 0x972708 },
-  test: { color: 0xa81c1c, glow: 0x5c0b07 },
+  blast: { color: 0xe84829, glow: 0x972708, seam: 0xffefd6 },
+  test: { color: 0xa81c1c, glow: 0x5c0b07, seam: 0xffefd6 },
+  white: { color: 0xf4f2ec, glow: 0x4c4a46, seam: 0x8d8a84 },
   /**
    * How much grass the Test strip keeps, of `pitchTexture`'s nought to one. A
    * little greener, not a green top: at one the whole strip reads as grass.
@@ -185,6 +188,10 @@ export class GameScene {
   private readonly cutCanvas = document.createElement('canvas');
   private cut: { spec: Cutout; until: number; him: Set<THREE.Object3D>; stumps: Set<THREE.Object3D>; sil: HTMLCanvasElement; ring: HTMLCanvasElement } | null = null;
   private trail: THREE.Mesh[] = [];
+  /** The ball's seam, recoloured with the ball (`testLook`). */
+  private seam!: THREE.Mesh;
+  /** Super10's white ball: see `whiteBall`. */
+  private whiteBallOn = false;
   /**
    * The fire behind a ball struck with a special stroke: yellow at the ball,
    * red at the tail, glowing rather than lit, and flickering. Drawn instead of
@@ -313,8 +320,8 @@ export class GameScene {
     this.ball.scale.setScalar(0.115); this.ball.castShadow = true; this.world.add(this.ball);
     (this.ball.material as THREE.MeshStandardMaterial).emissive.setHex(BALL.blast.glow);
     (this.ball.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.2;
-    const seam = new THREE.Mesh(new THREE.TorusGeometry(0.98, 0.07, 10, 32), soft(0xffefd6));
-    this.ball.add(seam);
+    this.seam = new THREE.Mesh(new THREE.TorusGeometry(0.98, 0.07, 10, 32), soft(BALL.blast.seam));
+    this.ball.add(this.seam);
     this.shadow = new THREE.Mesh(new THREE.CircleGeometry(0.17, 16), new THREE.MeshBasicMaterial({ color: 0x243828, transparent: true, opacity: 0.35, depthWrite: false }));
     this.shadow.rotation.x = -Math.PI / 2; this.world.add(this.shadow);
     const ringMat = new THREE.MeshBasicMaterial({ color: 0xffe4a6, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false });
@@ -848,8 +855,9 @@ export class GameScene {
    */
   private testLook(on: boolean) {
     const ball = this.ball.material as THREE.MeshStandardMaterial;
-    const look = on ? BALL.test : BALL.blast;
+    const look = on ? BALL.test : this.whiteBallOn ? BALL.white : BALL.blast;
     ball.color.setHex(look.color); ball.emissive.setHex(look.glow);
+    this.seam.material = soft(look.seam);
     if (on && !this.greenPitch) {
       this.greenPitch = pitchTexture(2.8, 32, 4.3, this.anisotropy, { batting: 0, bowling: 18.7 }, BALL.testGrass);
       this.textures.push(this.greenPitch);
@@ -857,6 +865,10 @@ export class GameScene {
     this.pitch.map = on ? this.greenPitch! : this.dryPitch;
     this.dropWear();
   }
+  /** Super10's white ball, or the Blast's red: asked for at the start of every innings, before `whites`. */
+  whiteBall(on: boolean) { this.whiteBallOn = on; }
+  /** The ball's colour, for the checks. */
+  get ballColour() { return `#${(this.ball.material as THREE.MeshStandardMaterial).color.getHexString()}`; }
   /** Which strip is down, for the checks. */
   get greenTop() { return this.pitch.map === this.greenPitch; }
   /** How worn the Test strip is, as a stage of `WEAR_STAGES`, for the checks. */

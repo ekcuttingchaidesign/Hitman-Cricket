@@ -447,9 +447,11 @@ function cityTexture() {
 
 /**
  * The brand's stings (F · Motion): Lotties at 1024 by 384, thirty frames a
- * second, transparent, each ending on an empty frame. Played on the screen
- * over its ink when the file is there (`public/lotties/arena-<name>.json`),
- * and the drawn word stands in for any that is not.
+ * second, each a whole board on its own ground — violet for the boundaries,
+ * raspberry for a wicket — and each letting its word go before its last
+ * frame (`public/lotties/super10-<name>.json`). Played on the screen over
+ * the drawn word, which shows until the film has loaded and stands in for it
+ * under reduced motion.
  */
 export const STINGS = ['four', 'six', 'bowled', 'out', 'duck'] as const;
 export type Sting = typeof STINGS[number];
@@ -497,8 +499,9 @@ export class Arena {
   private dummy = new THREE.Object3D();
   private marks: { primary: HTMLImageElement; lime: HTMLImageElement };
   private offset = 0;
-  /** The stings there are files for, found once (`STINGS`), and the one playing. */
-  private stings = new Set<Sting>();
+  /** Reduced motion, as the last frame was drawn under. */
+  private still = false;
+  /** The sting playing, painted into a canvas of its own and laid over the screen. */
   private playing: { name: Sting; at: number; canvas: HTMLCanvasElement; film: Playing | null } | null = null;
   /** The crowd's clock and its wave: see `crowdLife.ts`. */
   private life: CrowdLife | null = null;
@@ -552,17 +555,6 @@ export class Arena {
 
     if (hasScreen) this.buildScreen(scene, anisotropy);
     this.textures.push(haloMap, band, lamps, city, beam);
-    this.findStings();
-  }
-
-  /** Which stings have files: a JSON answer, not the page the server sends for anything it does not have. */
-  private findStings() {
-    if (!this.hasScreen) return;
-    for (const name of STINGS) {
-      fetch(`lotties/arena-${name}.json`, { method: 'HEAD' })
-        .then(r => { if (r.ok && (r.headers.get('content-type') ?? '').includes('json')) this.stings.add(name); })
-        .catch(() => {});
-    }
   }
 
   /** The screen on its frame, on two legs off the roof, turned to the crease. */
@@ -616,7 +608,7 @@ export class Arena {
     this.cued = { kind, at: now, word };
     this.stopSting();
     const name = stingOf(kind, word ?? CUES[kind].word);
-    if (name && this.stings.has(name) && this.screen) this.playSting(name, now);
+    if (name && this.screen && !this.still) this.playSting(name, now);
   }
   scoreboard(board: Scoreboard) { this.board = board; }
   /** For the checks: the mood, the moment up, what the boards and the screen show. */
@@ -639,7 +631,9 @@ export class Arena {
       this.life.wave.value = wave.at; this.life.waveOn.value = wave.on;
     }
     const f = arenaFrame(this.moodNow, this.cued, now, still, live);
-    this.last = f;
+    this.last = f; this.still = still;
+    // A moment over, its sting goes with it.
+    if (!f.word && this.playing) this.stopSting();
     this.halo.color.copy(f.halo); this.haloGlow.color.copy(f.halo);
     this.offset = (this.offset + f.chase * .016) % 1;
     this.ledBoards(f);
@@ -706,7 +700,7 @@ export class Arena {
     const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 384;
     const context = canvas.getContext('2d');
     if (!context) return;
-    this.playing = { name, at: now, canvas, film: paintFilm(context, `arena-${name}` as Film) };
+    this.playing = { name, at: now, canvas, film: paintFilm(context, `super10-${name}` as Film) };
   }
   private stopSting() { this.playing?.film?.destroy(); this.playing = null; }
 
@@ -722,7 +716,7 @@ export class Arena {
     const word = f?.word ?? null, since = f?.since ?? Infinity;
     const kind = this.cued?.kind;
     const ms = kind ? CUES[kind].ms : 0;
-    const moving = word !== null && (this.playing !== null || since < SLAM_MS || since > ms - LEAVE_MS);
+    const moving = word !== null && (this.playing !== null || (!this.still && (since < SLAM_MS || since > ms - LEAVE_MS)));
     const key = word ? `w|${word}|${moving ? since : 'held'}` : `b|${this.board.title}|${this.board.score}|${this.board.detail}`;
     if (key === this.shown) return;
     this.shown = key;
@@ -731,19 +725,21 @@ export class Arena {
     const haze = ctx.createRadialGradient(W * .15, H, 10, W * .15, H, W * .6);
     haze.addColorStop(0, 'rgba(139,92,246,.35)'); haze.addColorStop(1, 'rgba(139,92,246,0)');
     ctx.fillStyle = haze; ctx.fillRect(0, 0, W, H);
-    if (word && this.playing) {
-      ctx.drawImage(this.playing.canvas, 0, 0, W, H);
-    } else if (word) {
-      const leaving = fade(since, ms - LEAVE_MS, ms);
+    if (word) {
+      // Under reduced motion the word stands still: no slam, no leave.
+      const leaving = this.still ? 0 : fade(since, ms - LEAVE_MS, ms);
+      const slam = this.still ? 1 : slamScale(since);
       // Up and away for good news, down for a wicket.
       const drift = (kind === 'wicket' ? 1 : -1) * leaving * 90;
       const out = kind === 'wicket';
       const big = word.length <= 7;
       // A four's +4 stands in its own corner, the word moved over for it.
       const four = word === 'FOUR';
-      lettering(ctx, word, four ? W / 2 - 90 : W / 2, H / 2 + (word === 'SIX' ? -26 : 0) + drift, big ? 190 : 120, four ? W - 380 : W - 120, out ? ARENA.wicket : ARENA.plate, slamScale(since), 1 - leaving);
+      lettering(ctx, word, four ? W / 2 - 90 : W / 2, H / 2 + (word === 'SIX' ? -26 : 0) + drift, big ? 190 : 120, four ? W - 380 : W - 120, out ? ARENA.wicket : ARENA.plate, slam, 1 - leaving);
       if (word === 'SIX') sub(ctx, 'MAXIMUM', W / 2, H - 70 + drift, 40, `rgba(255,255,255,${1 - leaving})`);
-      if (four) lettering(ctx, '+4', W - 140, H / 2 - 60 + drift, 110, 210, ARENA.plate, slamScale(since - 120), 1 - leaving);
+      if (four) lettering(ctx, '+4', W - 140, H / 2 - 60 + drift, 110, 210, ARENA.plate, this.still ? 1 : slamScale(since - 120), 1 - leaving);
+      // The sting over it, its own ground covering the word once its first frame is in.
+      if (this.playing) ctx.drawImage(this.playing.canvas, 0, 0, W, H);
     } else {
       const { title, score, detail } = this.board;
       const mark = this.marks.primary;

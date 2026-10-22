@@ -1695,12 +1695,22 @@ it lime under them, a wicket takes the lights down to the plate's dark with
 the batter's stumps lit raspberry once the bails go. The word goes on the
 boards and on the screen, slammed on from big with one overshoot
 (`slamScale`) and let go up for good news and down for a wicket; a milestone
-is its figure (`MILESTONE_WORDS`: 50, 100, 150…). The screen plays the
-sheet's stings instead — FOUR, SIX, BOWLED, OUT, DUCK, Lotties at 1024 by 384
-— when their files are in `public/lotties/arena-<name>.json` (`STINGS`,
-`stingOf`; looked for once with a HEAD and played over the ink through
-`paintFilm`), and the drawn word stands in for any that is not. A wicket is
-told how he went (`BOWLED`, `DUCK` for none, else `OUT`).
+is its figure (`MILESTONE_WORDS`: 50, 100, 150…). For a boundary and a
+wicket the screen plays the brand's stings over the drawn word — FOUR, SIX,
+BOWLED, OUT and DUCK, the design's own Lotties at 1024 by 384 and thirty
+frames a second, each a whole board on its ground, violet or raspberry
+(`public/lotties/super10-<name>.json`, `STINGS`, `stingOf`, painted into a
+canvas of their own through `paintFilm` and laid over the screen every frame
+they play) — so the drawn word shows only until a film's first frame is in,
+and under reduced motion, where no sting plays and the word stands still. A
+wicket is told how he went (`BOWLED`, `DUCK` for a batter out with none, else
+`OUT`).
+
+Super10 is played with a white ball (`BALL.white` in `GameScene.ts`, its seam
+grey so it shows the ball turning; `whiteBall`, set at the start of every
+innings before `whites`), wherever it is played; the Blast keeps its red and
+the Test its cherry Dukes. `__cricket.ball()` says which, and
+`super10-check.mjs` holds it.
 
 The crowd is never still (`src/scene/crowdLife.ts`, `lively` on the stands):
 everybody bobs on their seat and sways from the hips to a rhythm of their own,
