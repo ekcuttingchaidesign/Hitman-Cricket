@@ -130,7 +130,9 @@ for (let over = 0; over < 10; over++) {
     offered = await page.evaluate(() => document.querySelector('#s10-surge')?.dataset.state);
     await page.keyboard.press('p');
     const surged = (await snap()).super10;
-    armed = surged.surge; fields[5] = surged.field; signals.push(surged.signalling);
+    armed = surged.surge; fields[5] = surged.field;
+    // He starts the beckon a moment after the press: watched for a second.
+    for (let i = 0; i < 12 && !signals.some(Boolean); i++) { await advance(80); signals.push((await snap()).super10.signalling); }
   }
   if (over === 3) {
     // The field in the pause sheet.
