@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import {
-  DIVE, Fielder, REACTION_MS, RUNNING_CATCH, Routine, SPRINT, idle, midpointOfHands, planCatch, splitStep, travel,
+  COLLECT_MS, DIVE, Fielder, REACTION_MS, RUNNING_CATCH, Routine, SPRINT, collect, idle, midpointOfHands, planCatch, splitStep, travel,
   type Spot,
 } from '../src/entities/Fielder';
 
@@ -173,5 +173,37 @@ describe('a catch', () => {
     expect(plan.topSpeed).toBeLessThanOrEqual(RUNNING_CATCH * 1.6);
     // The same three metres in half the time is a dive.
     expect(planCatch(home, offset(2.5, 1.5, 1.6), HIT, HIT + 650).style).toBe('dive');
+  });
+});
+
+describe('a fielder collecting a ball along the ground', () => {
+  // Stood behind its line facing back up it, the ball coming to a stop at his feet.
+  const spot: Spot = { x: 4, z: 20, heading: Math.atan2(-4, -20) };
+  const ball = new THREE.Vector3(4 + Math.sin(spot.heading) * .42, .08, 20 + Math.cos(spot.heading) * .42);
+  const at = HIT + 800;
+  const routine = new Routine([idle(spot, 'hips', 1), collect(spot, at, ball)]);
+
+  it('gets down on his haunches as it comes, both hands together on it as it arrives', () => {
+    const down = routine.at(at);
+    expect(down.anchor.y).toBeLessThan(.62);
+    const hands = midpointOfHands(down);
+    expect(hands.distanceTo(ball)).toBeLessThan(.15);
+    const { world } = joints(routine, at);
+    const [leftHand, rightHand] = [world[4], world[5]];
+    expect(leftHand.distanceTo(rightHand)).toBeLessThan(.25);
+  });
+
+  it('comes up with it at his chest', () => {
+    const up = routine.at(at + 700);
+    expect(up.anchor.y).toBeGreaterThan(.85);
+    expect(midpointOfHands(up).y).toBeGreaterThan(1);
+  });
+
+  it('keeps every joint above the grass and every limb within its length', () => {
+    for (const t of every(at - COLLECT_MS - 200, at + 900, 10)) {
+      const { world, legReach, armReach } = joints(routine, t);
+      for (const p of world) expect(p.y, `at ${t}ms`).toBeGreaterThan(-.02);
+      for (const r of [...legReach, ...armReach]) expect(r, `at ${t}ms`).toBeLessThan(1.001);
+    }
   });
 });

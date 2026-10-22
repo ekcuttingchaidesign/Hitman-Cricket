@@ -1124,7 +1124,7 @@ export class GameScene {
     // hands, wherever they get to, so he is never put under it.
     const look = () => (this.ball.visible ? this.ball.position.clone() : null);
     const deadAt = this.hitStart + this.flightMs;
-    if (rope) this.toRider(caught, flight.endY, deadAt, look);
+    if (rope) this.toRider(caught, flight.endY, deadAt, look, rope.how === 'saved');
     else if ((caught || outcome.dropped) && !outcome.edged) {
       const plan = this.field.struck(this.hitStart, deadAt, look, {
         angle, height: flight.endY, arrives: this.hitStart + this.flightMs * this.takeAt, dropped: !!outcome.dropped,
@@ -1145,12 +1145,12 @@ export class GameScene {
   /**
    * A ball a Super10 fielder got to. It goes along its own line to his depth,
    * and in the picture he gets across to it: a catch high on the rope, or a
-   * ball stopped or cut off and picked up. Out of it — he is at deep point,
+   * ball collected down behind its line or stopped full length, and thrown in. Out of it — he is at deep point,
    * and the camera behind the bat sees twenty degrees either side of
    * straight — it flies out of the frame towards him, the field watches it
    * go, and the call and the side label say who.
    */
-  private toRider(caught: boolean, height: number, deadAt: number, look: (t: number) => THREE.Vector3 | null) {
+  private toRider(caught: boolean, height: number, deadAt: number, look: (t: number) => THREE.Vector3 | null, saving = false) {
     if (!this.inShot(this.hitEnd.clone().setY(1.2))) { this.field.struck(this.hitStart, deadAt, look); return; }
     if (caught) {
       const plan = this.field.struck(this.hitStart, deadAt, look, {
@@ -1161,9 +1161,13 @@ export class GameScene {
       this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
       return;
     }
-    this.gathered = this.field.ground(this.hitStart, deadAt, look,
-      { from: this.hitOrigin.clone(), to: this.hitEnd.clone(), flightMs: this.flightMs, four: false },
-      this.bowling ? this.bowlerAtRest() : undefined).gathered;
+    // Along the ground to him: down behind it and collected, or stopped full
+    // length — every save on the rope is — and thrown in to the bowler.
+    const taken = this.field.fielded(this.hitStart, deadAt, look,
+      { from: this.hitOrigin.clone(), to: this.hitEnd.clone(), flightMs: this.flightMs, dive: saving },
+      this.bowling ? this.bowlerAtRest() : undefined);
+    if (taken) { this.hitEnd.copy(taken.hands); this.gathered = true; }
+    else this.field.struck(this.hitStart, deadAt, look);
   }
   /**
    * The bails leave when the ball reaches them, not on a fixed delay. Called

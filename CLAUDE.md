@@ -1558,17 +1558,29 @@ standing under it, a third running in, the rest diving. Asked to be stood still
 under it four tenths of a second early, every catch but a dolly had been a
 dive. A ball along the ground that beats a man by more than a dive gets him
 across towards it a few strides (`NEAR_MISS` in `Field.ground`), where he used
-to stand and watch it go past. Power Surge
+to stand and watch it go past. Straight at a man in the ring along the ground
+(`RING_STRAIGHT`, a metre and a half) it is a single at the most, however hard
+it was hit. A ball the field's rules give a man along the ground he fields
+(`Field.fielded`, from `toRider`): with time to get behind its line he gets
+down on his haunches and collects it in both hands as it comes (`collect` in
+`Fielder.ts`), and without, or saving it on the rope, he runs and dives full
+length and holds it, and gets up; then he throws it in to the bowler
+(`throwToBowler`, which a ball picked up in the field shares). He used to walk
+up to it once it had stopped. A save on the rope rolls the slower
+(`flightOf`'s `saved`) so he has the time to get to it. `fielder-sheet.html`
+(`src/fielder-sheet.ts`, `scripts/fielder-sheet.mjs out-dir side bat`) draws
+the collect, the dive saving it and a running catch frame by frame. Power Surge
 lights up at the end of the fifth over and is taken in the break before the
 sixth, seventh or eighth (`surgeOffered`; its chip, or P), the bowler waiting
 `SURGE_WAIT_MS` at his mark while it is offered; not taken, it goes on by
 itself in the ninth (`surgeAuto`), and the tenth never has it: the two men back
 nearest straight come in. `scripts/super10-sim.ts` plays all of it with a
-steering player: a pro about 143 (typically 154, the best near 230), a regular
-57, a beginner 19 with a boundary in five innings of six, against 167, 69
+steering player: a pro about 140 (typically 151, the best near 230), a regular
+54, a beginner 18 with a boundary in four innings of five, against 167, 69
 and 24 with no field, and no meter strokes in any of it. Five men back cost
 about what the plug had, so the totals hardly moved when it went; mid-off and
-mid-on brought into the picture took three more off a pro.
+mid-on brought into the picture took three more off a pro, and the single
+for a ball straight at the ring three more.
 
 The scene draws six of the nine (`drawnOf`: the six nearest straight), stood
 on their new marks when the field changes (`Field.standOn`,

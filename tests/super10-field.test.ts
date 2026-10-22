@@ -96,16 +96,29 @@ describe('the Super10 field', () => {
 });
 
 describe('the field\'s rules', () => {
-  it('stops a four along the ground at a man in the ring half the time, a middled one a quarter', () => {
+  it('keeps a ball straight at a man in the ring along the ground to a single, however hard it was hit', () => {
+    const ring = one(18, 22, false);
+    for (const runs of [4, 3, 2] as const) for (const grade of ['PERFECT', 'GOOD'] as const) {
+      const fielded = fieldRules(struck(runs, { timingGrade: grade }), 19, ring, fixed(.99));
+      expect(fielded).toMatchObject({ runs: 1, fielder: { name: 'mid-off', how: 'stopped' } });
+    }
+    expect(fieldRules(struck(1), 19, ring, fixed(.99)).runs).toBe(1);
+    // In the air, it goes over him.
+    expect(fieldRules(struck(4, { aerial: true }), 18, ring, fixed(.99)).runs).toBe(4);
+  });
+
+  it('stops a four along the ground a few metres off a man in the ring half the time, a middled one a quarter', () => {
     const ring = one(32, 22, false);
-    const stopped = fieldRules(struck(4), 33, ring, fixed(.4));
+    // Seven degrees off him: two and a half metres at his depth.
+    const stopped = fieldRules(struck(4), 39, ring, fixed(.4));
     expect(stopped.runs).toBeLessThanOrEqual(1);
     expect(stopped.fielder).toMatchObject({ name: 'mid-off', how: 'stopped' });
     expect(fieldLine(stopped)).toBe('STOPPED · MID-OFF');
-    expect(fieldRules(struck(4), 33, ring, fixed(.6)).runs).toBe(4);
+    expect(fieldRules(struck(4), 39, ring, fixed(.6)).runs).toBe(4);
     const middled = struck(4, { timingGrade: 'PERFECT' });
-    expect(fieldRules(middled, 33, ring, fixed(.3)).runs).toBe(4);
-    expect(fieldRules(middled, 33, ring, fixed(.2)).fielder).toBeTruthy();
+    // Middled, he has only two and a half metres of reach: six degrees off.
+    expect(fieldRules(middled, 38, ring, fixed(.3)).runs).toBe(4);
+    expect(fieldRules(middled, 38, ring, fixed(.2)).fielder).toBeTruthy();
     // In the air, the ring cannot reach it.
     expect(fieldRules(struck(4, { aerial: true }), 32, ring, fixed(0)).runs).toBe(4);
   });
@@ -134,9 +147,9 @@ describe('the field\'s rules', () => {
     expect(fieldRules(struck(6, { timingGrade: 'GOOD' }), 60, rider, fixed(0)).runs).toBe(6);
   });
 
-  it('takes one off a single or two along the ground at a man in the ring, half the time', () => {
-    expect(fieldRules(struck(2), 32, one(32, 22, false), fixed(.4)).runs).toBe(1);
-    expect(fieldRules(struck(2), 32, one(32, 22, false), fixed(.6)).runs).toBe(2);
+  it('takes one off a two along the ground a few metres off a man in the ring, half the time', () => {
+    expect(fieldRules(struck(2), 39, one(32, 22, false), fixed(.4)).runs).toBe(1);
+    expect(fieldRules(struck(2), 39, one(32, 22, false), fixed(.6)).runs).toBe(2);
   });
 
   it('leaves a ball into a gap as it was hit, and draws nothing for it', () => {

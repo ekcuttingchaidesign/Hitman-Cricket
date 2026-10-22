@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { Kit } from '../entities/Cricketer';
 import {
-  DIVE, Fielder, PICKED_UP, REACTION_MS, RELEASED, Routine, diveReach, furthest, gather, idle, midpointOfHands, onField,
+  COLLECT_MS, DIVE, Fielder, PICKED_UP, REACTION_MS, RELEASED, Routine, collect, diveReach, furthest, gather, idle, midpointOfHands, onField,
   planCatch, receive, signal, splitStep, still, throwIn, travel, type Action, type Body, type CatchPlan, type Idle, type Signal,
   type Spot,
 } from '../entities/Fielder';
@@ -66,6 +66,10 @@ const AREA = 35 * Math.PI / 180;
 const AREA_REACH = 22;
 /** How far from a man a ball along the ground can go past him and still have him go for it. */
 const NEAR_MISS = 6;
+/** The fastest a man gets across, on average, to be down behind a ball rather than dive at it. */
+const COLLECT_RUN = 5;
+/** How far in front of his feet a ball he collects comes into his hands. */
+const COLLECT_AHEAD = .42;
 /** Back to the mark once the ball is dead, before each man's own pace is laid on it. */
 const WALK_BACK_MS = 1150;
 
@@ -493,7 +497,6 @@ export class Field {
    */
   private pickUp(i: number, spot: Spot, ball: THREE.Vector3, now: number, stops: number,
     look: (t: number) => THREE.Vector3 | null, bowler?: { rest: Body; free: number }) {
-    const routine = this.routines[i];
     const toward = new THREE.Vector3(ball.x - spot.x, 0, ball.z - spot.z);
     const distance = toward.length();
     toward.normalize();
@@ -510,32 +513,93 @@ export class Field {
     const there: Spot = { x: stand.x, z: stand.z, heading };
     const pick = gather(there, run.end, ball);
     const pickedAt = run.end + PICKED_UP;
+    this.throwToBowler(i, stand, [run, pick], pickedAt, pickedAt + 180, now, look, bowler);
+  }
+
+  /**
+   * A ball a Super10 fielder gets to along the ground, by the field's rules:
+   * the man nearest where it is going. With time to get across behind it he
+   * gets down and collects it in both hands as it comes (`collect`), as a man
+   * in the ring or one cutting it off on the rope does; without, or saving it
+   * on the rope (`dive`), he runs and goes full length and stops it in his
+   * hands, then gets up. Either way he throws it in to the bowler. Answers with where his hands take it, for the ball's path
+   * to finish there.
+   */
+  fielded(now: number, deadAt: number, look: (t: number) => THREE.Vector3 | null,
+    path: { from: THREE.Vector3; to: THREE.Vector3; flightMs: number; dive?: boolean }, bowler?: { rest: Body; free: number }): { hands: THREE.Vector3 } | null {
+    const dir = path.to.clone().sub(path.from).setY(0);
+    if (dir.lengthSq() < 1) return null;
+    dir.normalize();
+    const spots = this.routines.map(routine => { const at = routine.at(now); return { x: at.x, z: at.z, heading: at.heading }; });
+    const i = nearestTo(spots, path.to), spot = spots[i];
+    const arrives = now + path.flightMs;
+    // Behind its line and facing back up it, the ball coming into his hands.
+    const stand = { x: path.to.x + dir.x * COLLECT_AHEAD, z: path.to.z + dir.z * COLLECT_AHEAD };
+    const behind: Spot = { ...stand, heading: Math.atan2(-dir.x, -dir.z) };
+    const time = arrives - COLLECT_MS - now - REACTION_MS;
+    const going = Math.hypot(stand.x - spot.x, stand.z - spot.z);
+    let before: Action[], hands: THREE.Vector3, had: number, has: number;
+    if (!path.dive && time > 180 && going / (time / 1000) <= COLLECT_RUN) {
+      const run = travel(spot, stand, now + REACTION_MS, time, 'stop', { name: 'Getting across' });
+      const down = collect(behind, arrives, path.to.clone().setY(.08));
+      before = [run, down];
+      hands = midpointOfHands(down.at(arrives));
+      had = arrives; has = arrives + 420;
+    } else {
+      // Too far to get behind it: full length at it, and it stays in his hands.
+      const plan = planCatch(spot, path.to.clone().setY(.2), now, arrives, { ground: true, look });
+      before = plan.routine.actions.slice(1);
+      hands = plan.hands; had = plan.catchAt;
+      has = before[before.length - 1].start + 950;
+    }
+    this.throwToBowler(i, stand, before, had, has, now, look, bowler, true);
+    this.routines.forEach((routine, j) => {
+      if (j === i) return;
+      const back = this.homeward(j, routine, deadAt + 200 + deal(j, this.ball, 7) * 450);
+      this.routines[j] = new Routine([...recent(routine, now), ...back], look);
+    });
+    return { hands };
+  }
+
+  /**
+   * The ball he has, in to the bowler: `before` is what he did to get it,
+   * `had` when it is in his hands and `has` when he is up to throw. Up into a
+   * throw turned to the bowler, who turns and takes it; then back to his mark
+   * without it, which is quicker than bringing it. With no bowler to throw to
+   * he walks back with it. `both`: held in both hands until the throw.
+   */
+  private throwToBowler(i: number, at: { x: number; z: number }, before: Action[], had: number, has: number, now: number,
+    look: (t: number) => THREE.Vector3 | null, bowler?: { rest: Body; free: number }, both = false) {
+    const routine = this.routines[i];
+    const holding = (t: number) => {
+      const body = this.routines[i].at(t);
+      return both && t < has ? midpointOfHands(body) : onField(body, body.pose.rightHand);
+    };
     if (!bowler) {
-      this.gathering = t => (t < pickedAt ? null : (b => onField(b, b.pose.rightHand))(this.routines[i].at(t)));
-      const back = this.homeward(i, new Routine([run, pick]), pickedAt + 900);
-      this.routines[i] = new Routine([...recent(routine, now), run, pick, ...back], t => (t < pickedAt ? look(t) : null));
+      this.gathering = t => (t < had ? null : holding(t));
+      const back = this.homeward(i, new Routine(before), has + 900);
+      this.routines[i] = new Routine([...recent(routine, now), ...before, ...back], t => (t < had ? look(t) : null));
       return;
     }
     // Up into the throw, turned to the bowler.
     const target = new THREE.Vector3(bowler.rest.x, 1.2, bowler.rest.z);
-    const thrower: Spot = { x: stand.x, z: stand.z, heading: Math.atan2(target.x - stand.x, target.z - stand.z) };
-    const throwStart = pickedAt + 180;
-    const throwing = throwIn(thrower, throwStart);
-    const releasedAt = throwStart + RELEASED;
+    const thrower: Spot = { x: at.x, z: at.z, heading: Math.atan2(target.x - at.x, target.z - at.z) };
+    const throwing = throwIn(thrower, has);
+    const releasedAt = has + RELEASED;
     const from = (b => onField(b, b.pose.rightHand))(throwing.at(releasedAt));
     // The bowler faces him and has his hands out where it is coming.
-    const catcher: Spot = { x: bowler.rest.x, z: bowler.rest.z, heading: Math.atan2(stand.x - bowler.rest.x, stand.z - bowler.rest.z) };
+    const catcher: Spot = { x: bowler.rest.x, z: bowler.rest.z, heading: Math.atan2(at.x - bowler.rest.x, at.z - bowler.rest.z) };
     const hands = midpointOfHands(receive(catcher, 0, 1000).at(1000));
     const span = from.distanceTo(hands);
     const arrives = releasedAt + 120 + span / 26 * 1000;
     const loft = Math.min(3, span * .09);
     const taking = receive(catcher, Math.max(bowler.free, releasedAt - 650), arrives);
     this.bowling = new Routine([still(bowler.rest, bowler.free), taking], t => (t < arrives ? this.held(t) : null));
-    const back = this.homeward(i, new Routine([run, pick, throwing]), releasedAt + 450);
-    this.routines[i] = new Routine([...recent(routine, now), run, pick, throwing, ...back], t => (t < pickedAt ? look(t) : null));
+    const back = this.homeward(i, new Routine([...before, throwing]), releasedAt + 450);
+    this.routines[i] = new Routine([...recent(routine, now), ...before, throwing, ...back], t => (t < had ? look(t) : null));
     this.gathering = t => {
-      if (t < pickedAt) return null;
-      if (t < releasedAt) return (b => onField(b, b.pose.rightHand))(this.routines[i].at(t));
+      if (t < had) return null;
+      if (t < releasedAt) return holding(t);
       if (t < arrives) {
         const u = (t - releasedAt) / (arrives - releasedAt);
         const p = from.clone().lerp(hands, u);

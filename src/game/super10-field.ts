@@ -50,6 +50,8 @@ export interface FieldSet {
 export const DEEP_REACH = 7;
 /** Within this he is right behind it: cut off for one or two. */
 export const DEEP_CLEAN = 3;
+/** A ball along the ground passing a man in the ring closer than this is straight at him: fielded, a single at the most. */
+export const RING_STRAIGHT = 1.5;
 /** How far either side a man in the ring stops a ball along the ground; a middled one is past him sooner. */
 export const RING_REACH = 3.5;
 export const RING_REACH_MIDDLED = 2.5;
@@ -296,6 +298,11 @@ export function fieldRules(outcome: ShotOutcome, angle: number, field: FieldSet,
     // Middled, it clears him. Not middled and still carrying, he is under it.
     if (middled || !deep || deep.by > DEEP_REACH) return outcome;
     return { ...outcome, runs: 0, isWicket: true, wicketType: 'CAUGHT', aerial: true, quality: 0, feedback: 'CAUGHT!', ...by(deep.man, 'caught') };
+  }
+  // Straight at a man in the ring along the ground, however hard: he gets
+  // down behind it, and they take a single at the most.
+  if (!outcome.aerial && ring && ring.by <= RING_STRAIGHT && outcome.runs > 1) {
+    return { ...outcome, runs: 1, feedback: '1 RUN', ...by(ring.man, 'stopped') };
   }
   if (outcome.runs === 4) {
     if (!outcome.aerial && ring && ring.by <= (middled ? RING_REACH_MIDDLED : RING_REACH) && rng.next() < (middled ? RING_STOPS_MIDDLED : RING_STOPS)) {

@@ -92,11 +92,13 @@ export function flightOf(outcome: ShotOutcome): Flight {
   if (outcome.fielder) {
     // To the man who got to it: a six he caught comes down to him high on the
     // rope; anything he stopped runs out to him along the ground and is in his
-    // hands a stride short of where he stood.
+    // hands a stride short of where he stood. One a boundary rider saves, a
+    // few metres off him, slows on the long way out, which gives him the time
+    // to run and dive across for it.
     const { distance, how } = outcome.fielder;
     return how === 'caught'
       ? { distance, height: 15, flightMs: hang(outcome), endY: 2, takeAt: 0.9, dropAt: 0, bounceAt: 0 }
-      : shape(Math.max(6, distance - 1.2), 0.22, GAME.hitAnimationMs * (how === 'stopped' ? 0.7 : 0.9), 0.1);
+      : shape(Math.max(6, distance - 1.2), 0.22, GAME.hitAnimationMs * (how === 'stopped' ? 0.7 : how === 'saved' ? 1.3 : 0.9), 0.1);
   }
   if (outcome.advance) return shape(78, 32, 2200, 0.1);
   if (outcome.swept) {

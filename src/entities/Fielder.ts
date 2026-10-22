@@ -666,6 +666,59 @@ export function gather(spot: Spot, start: number, ball: THREE.Vector3, end = Inf
   };
 }
 
+/** How long a man takes to get down behind a ball coming at him along the ground. */
+export const COLLECT_MS = 340;
+
+/**
+ * Getting down behind a ball coming at him along the ground and taking it in
+ * both hands, as a fielder in the ring does: stood behind its line and facing
+ * it, he sinks onto his haunches as it comes, knees bent and weight forward,
+ * both hands together on the turf in front of his feet where it is going,
+ * takes it at `at`, and comes up with it at his chest. Walking up to a ball
+ * that had already stopped read as a man fetching it, not fielding it.
+ */
+export function collect(spot: Spot, at: number, ball: THREE.Vector3, end = Infinity): Action {
+  const start = at - COLLECT_MS;
+  const stood = (body: Body, spread: number) => {
+    for (const [foot, side] of [[body.pose.leftFoot, -1], [body.pose.rightFoot, 1]] as const) {
+      foot.copy(fromField(body, outOfSpot(new THREE.Vector3(side * spread, SOLE, side > 0 ? .04 : -.04), spot)));
+    }
+  };
+  const upright = (() => {
+    const pose = standPose(NOWHERE);
+    const body: Body = { ...spot, pitch: 0, anchor: pose.hip.clone(), pose };
+    stood(body, .2);
+    return body;
+  })();
+  const low = (() => {
+    const pose = standPose(NOWHERE);
+    pose.hip.set(0, .9, 0); pose.chest.set(0, .9 + SPINE, 0);
+    // Down on his haunches, the chest over his knees and his head over the ball.
+    const body: Body = { ...spot, pitch: 1.1, anchor: new THREE.Vector3(0, .44, -.05), pose };
+    stood(body, .26);
+    const lying = ball.clone().setY(Math.max(ball.y, .07));
+    const local = intoSpot(lying, spot);
+    pose.rightHand.copy(fromField(body, outOfSpot(local.clone().add(new THREE.Vector3(.07, 0, 0)), spot).setY(lying.y)));
+    pose.leftHand.copy(fromField(body, outOfSpot(local.clone().add(new THREE.Vector3(-.07, 0, 0)), spot).setY(lying.y)));
+    pose.headPitch = .45;
+    return body;
+  })();
+  return {
+    name: 'Collecting it', start, end, blend: 140,
+    at(t, look) {
+      const down = ease(span(t, start, at - 30)), up = ease(span(t, at + 160, at + 560));
+      const body = mixBodies(mixBodies(upright, low, down), upright, up);
+      const pose = copyPose(body.pose);
+      // Up with it held at his chest in both hands, the right on it to throw.
+      pose.rightHand.lerp(new THREE.Vector3(.08, pose.hip.y + .4, .26), up);
+      pose.leftHand.lerp(new THREE.Vector3(-.06, pose.hip.y + .38, .24), up);
+      const out = aboveGround({ ...body, anchor: body.anchor.clone(), pose });
+      if (look && t < at) watch(out, look);
+      return out;
+    },
+  };
+}
+
 /**
  * Settled under a skied ball and taking it above his head. The hands go up as
  * it comes down; on `catch` they close round it and bring it in to the chest.
