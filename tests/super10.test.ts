@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BATTERS, DEATH_OVER, SIX_WINDOW, SUPER10, batterAt, scheduleOf, windowsAt, type Bowler as Super10Bowler } from '../src/config/super10';
+import { BATTERS, DEATH_OVER, SUPER10, batterAt, scheduleOf, windowsAt, type Bowler as Super10Bowler } from '../src/config/super10';
 import { BATTERS as MARATHON_BATTERS } from '../src/config/marathon';
 import { DeliveryGenerator, MARATHON_PLAN, SUPER10_PLAN, spun, withoutYorkers } from '../src/game/DeliveryGenerator';
 import { SeededRandom } from '../src/game/SeededRandom';
@@ -165,19 +165,15 @@ describe('Super10: the bowling', () => {
 });
 
 describe('Super10: the three batters', () => {
-  it('all bat with the Marathon opener\'s windows, the window for a six narrowed', () => {
-    const opener = MARATHON_BATTERS[0].timing;
-    for (const b of BATTERS) {
-      expect(b.timing.perfect).toBe(Math.round(opener.perfect * SIX_WINDOW));
-      expect(b.timing).toMatchObject({ good: opener.good, ok: opener.ok, poor: opener.poor });
-    }
+  it('are five, with the Test Marathon\'s own windows: two openers, its No. 3, then two of its tailender', () => {
+    const [opener, no3, tail] = MARATHON_BATTERS.map(b => b.timing);
+    expect(BATTERS.map(b => b.timing)).toEqual([opener, opener, no3, tail, tail]);
+    expect(SUPER10.maxWickets).toBe(BATTERS.length);
   });
 
-  it('send in whoever the wickets say, and the middle-order batter stays', () => {
-    expect(batterAt(0).title).toBe('OPENER');
-    expect(batterAt(1).title).toBe('NO. 3');
-    expect(batterAt(2).title).toBe('MIDDLE ORDER');
-    expect(batterAt(5).title).toBe('MIDDLE ORDER');
+  it('send in whoever the wickets say, and the last stays', () => {
+    expect(BATTERS.map((_, i) => batterAt(i).title)).toEqual(['OPENER', 'NO. 2', 'NO. 3', 'NO. 4', 'NO. 5']);
+    expect(batterAt(9).title).toBe('NO. 5');
   });
 
   it('keep the same windows to the last ball: the death overs narrow nothing', () => {

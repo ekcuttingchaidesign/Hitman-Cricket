@@ -142,7 +142,7 @@ for (let over = 0; over < 10; over++) {
   }
   if (over === 2) {
     const label = await page.locator('#phase-label').textContent();
-    check(!!label?.startsWith('NO. 3 IN'), 'after a wicket the No. 3 is named walking out', label);
+    check(!!label?.startsWith('NO. 2 IN'), 'after a wicket the No. 2 is named walking out', label);
   }
   let left = 6;
   if (REAL.has(over)) {
@@ -164,7 +164,7 @@ for (let over = 0; over < 10; over++) {
 
 await until(['INNINGS_END'], 200);
 const final = await snap();
-check(final.balls === 60 || final.wickets === 3, 'the innings ends at ten overs or three wickets', `${final.runs}/${final.wickets} off ${final.balls}`);
+check(final.balls === 60 || final.wickets === 5, 'the innings ends at ten overs or five wickets', `${final.runs}/${final.wickets} off ${final.balls}`);
 
 // The schedule: swing, seam, swing, spin, sling, spin and seam either way, death, sling, death.
 const want = ['PACE', 'PACE', 'PACE', 'SPIN', 'EXPRESS', null, null, 'DEATH', 'EXPRESS', 'DEATH'];

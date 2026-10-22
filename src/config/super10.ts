@@ -18,22 +18,13 @@ export const SUPER10 = {
   overs: 10,
   ballsPerOver: 6,
   totalBalls: 60,
-  maxWickets: 3,
+  /** Five batters, so five wickets. */
+  maxWickets: 5,
   /** The first three overs are the Powerplay: two men out. */
   powerplay: 3,
 } as const;
 
 export type Windows = { perfect: number; good: number; ok: number; poor: number };
-
-/**
- * How much narrower the window for a six is than the Marathon batter's own.
- *
- * In the Blast a perfect swing is a six and a good one a four, and over ten
- * overs that is three hundred runs: a simulated strong player hit twenty-five
- * sixes an innings. A narrower perfect window turns most of them into fours,
- * and the field (still to come) turns most fours into ones and twos.
- */
-export const SIX_WINDOW = 0.6;
 
 export interface Super10Batter {
   title: string;
@@ -41,20 +32,28 @@ export interface Super10Batter {
 }
 
 /**
- * The three, in the order they bat: the opener, No. 3 and a middle-order
- * batter, all three with the Marathon opener's windows and the six window
- * narrowed. Who is in is simply how many wickets have fallen. They were the
- * Marathon's three, each worse than the last, and after the first wicket the
- * game got harder than anybody wanted: the third's window for a six was
- * eleven milliseconds either side.
+ * The five, in the order they bat, each with the Test Marathon's own windows
+ * and nothing narrowed: the first two the Marathon opener's, the third its
+ * No. 3's, the last two its tailender's. Who is in is simply how many wickets
+ * have fallen.
+ *
+ * The first build had three, the Marathon's three with the window for a six
+ * cut to six tenths of theirs: in the Blast's ladder a perfect swing is a six,
+ * and full width a strong player hit twenty-five an innings before there was a
+ * field. With the field that was too strict (a six eleven milliseconds either
+ * side by the third batter), and three equal batters with the narrowed six
+ * still read as a hard game.
  */
-const OPENER = MARATHON_BATTERS[0].timing;
-export const BATTERS: readonly Super10Batter[] = ['OPENER', 'NO. 3', 'MIDDLE ORDER'].map(title => ({
-  title,
-  timing: { ...OPENER, perfect: Math.round(OPENER.perfect * SIX_WINDOW) },
-}));
+const [OPENER, NO_3, TAILENDER] = MARATHON_BATTERS.map(b => b.timing);
+export const BATTERS: readonly Super10Batter[] = [
+  { title: 'OPENER', timing: OPENER },
+  { title: 'NO. 2', timing: OPENER },
+  { title: 'NO. 3', timing: NO_3 },
+  { title: 'NO. 4', timing: TAILENDER },
+  { title: 'NO. 5', timing: TAILENDER },
+];
 
-/** The man in, by wickets down: the third stays in once he is. */
+/** The man in, by wickets down: the last stays in once he is. */
 export const batterAt = (wickets: number): Super10Batter => BATTERS[Math.min(wickets, BATTERS.length - 1)];
 
 /**

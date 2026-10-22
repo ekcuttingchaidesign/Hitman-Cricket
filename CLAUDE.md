@@ -1453,14 +1453,17 @@ before (`KNEELING_SWEEP`) and meets the ball where the drives do. It is
 Super10 (`SUPER10` in `src/game/modes.ts`, its numbers in `src/config/super10.ts`)
 is the Blast's ball for ten overs: `resolveShot`, the confidence meter and the
 charge, coloured kit, the Blast field and the lights by the player's clock.
-Three wickets, and the batters are the opener, No. 3 and a middle-order
-batter, by how many are down (`batterAt`), each named walking out
-(`walkingOut`). All three bat with the Marathon opener's windows, the window
-for a six narrowed to `SIX_WINDOW` of his (`windowsAt`, read through `windows`
-in `src/Game.ts`), the same to the last ball: the last two overs used to
-narrow every window but the miss by fifteen per cent, and that went. They were the Marathon's three, each worse than
-the last — its tailender's six window was eleven milliseconds either side —
-and the game got too hard after the first wicket.
+Five wickets and five batters, by how many are down (`batterAt`), each named
+walking out (`walkingOut`: OPENER, NO. 2 … NO. 5), each with the Test
+Marathon's own windows and nothing narrowed (`windowsAt`, read through
+`windows` in `src/Game.ts`): the first two the Marathon opener's, the third
+its No. 3's, the last two its tailender's, the same to the last ball. The
+first build had three wickets and cut the window for a six to six tenths
+(`SIX_WINDOW`, gone), because in the Blast's ladder a perfect swing is a six;
+with the field it was too strict, and the last two overs narrowing every
+window by fifteen per cent went too. The one difference left from the
+Marathon is a fast ball's: the Blast's ladder shrinks its windows by
+`GAME.fastTimingScale`, the Marathon by Survival's.
 
 Five bowlers bowl two overs each, never two running (`scheduleOf`): the swing
 bowler with the new ball in overs one and three (the Marathon's swing, late, no
@@ -1578,10 +1581,10 @@ sixth, seventh or eighth (`surgeOffered`; its chip, or P), the bowler waiting
 `SURGE_WAIT_MS` at his mark while it is offered; not taken, it goes on by
 itself in the ninth (`surgeAuto`), and the tenth never has it: the two men back
 nearest straight come in. `scripts/super10-sim.ts` plays all of it with a
-steering player: a pro about 172 (typically 179, the best near 245), a regular
-86, a beginner 28 with a boundary in ten innings of eleven, and no meter
-strokes in any of it. With the Marathon's three batters it was 140, 54 and
-18, and nobody in a playtest got past the third.
+steering player: a pro about 190 (typically 196, the best near 255), a regular
+98, a beginner 36 with a boundary in twenty-four innings of twenty-five, and no
+meter strokes in any of it. With three wickets and the narrowed six it was 172,
+86 and 28; with the Marathon's three as they are, 155, 59 and 20.
 
 The scene draws six of the nine (`drawnOf`: the six nearest straight), stood
 on their new marks when the field changes (`Field.standOn`,
@@ -1627,7 +1630,7 @@ whatever the innings was worth (`why: 'building'` on the practice offer).
 It is reached by `?mode=super10` off production only (`SUPER10_OPEN`).
 `scripts/super10-check.mjs` plays one through on the dev server: the bowlers in
 the schedule's order, one real ball from each kind with his own action, the
-speed gun, the No. 3 named after a wicket, the field map and Power Surge in
+speed gun, the No. 2 named after a wicket, the field map and Power Surge in
 their corners, each over's field and the bowler signalling it, the field
 map's coach card once, the card's heading and its line, and nothing sent.
 The actions are looked at in `bowler-sheet.html`, every action a row at the

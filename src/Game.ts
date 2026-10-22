@@ -5139,8 +5139,8 @@ export class Game {
     }
     this.mark('innings-end', 'Innings completed');
     this.mark(inningsBand(this.playedMs - this.inningsFrom), 'How long the innings took');
-    this.mark(this.score.wickets >= GAME.maxWickets ? 'innings-all-out' : 'innings-overs-up',
-      this.score.wickets >= GAME.maxWickets ? 'Innings ended all out' : 'Innings ended, overs up');
+    this.mark(this.score.wickets >= this.score.limits.maxWickets ? 'innings-all-out' : 'innings-overs-up',
+      this.score.wickets >= this.score.limits.maxWickets ? 'Innings ended all out' : 'Innings ended, overs up');
     this.mark(scoreBand(this.score.runs), `Innings scored ${scoreBand(this.score.runs).replace('score-', '').replace(/-/g, ' to ')} runs`);
     // A chase answers itself the moment it ends, and the reveal replaces the
     // ordinary card: the scoreline is what the player has been waiting thirty

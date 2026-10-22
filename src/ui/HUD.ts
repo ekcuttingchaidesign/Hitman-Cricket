@@ -2698,7 +2698,7 @@ ${modeSelectMarkup()}
     // already banked by the time this runs, so it is only worth quoting back
     // when the innings did not set it.
     // The band says how it ended; whether it was a best is the player card's to say.
-    this.$('end-title').textContent = score.wickets >= GAME.maxWickets ? 'All out' : 'Innings complete';
+    this.$('end-title').textContent = score.wickets >= score.limits.maxWickets ? 'All out' : 'Innings complete';
     this.cardNote = null;
     // The number is already the largest thing on the card, so the line under it
     // does not repeat it. It adds what the figures cannot: how long the innings
