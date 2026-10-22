@@ -123,20 +123,22 @@ export const DEATH_OVER = {
 } as const;
 
 /**
- * Each bowler bowling to his field (`fieldFor` in `src/game/super10-field.ts`):
- * this share of his balls aimed at these lines, the rest dealt from the bag.
- * His field is set for the stroke those lines ask for, so the natural stroke
- * goes into the men and the gap is against the line, which the steering's
- * stretch makes the riskier hit. The swing bowler and the seamer in the
- * Powerplay, with men round the off side, bowl off stump and outside it; the
- * seamer after it, with long-on and deep midwicket out, bowls at the stumps
- * and the pads; the death bowler, with long-off and deep cover out, wide of
- * off. The spinner's lines are his turn's and the sling bowler's his
- * bouncers' (`aimBody`), so neither is listed.
+ * Each bowler bowling to his field (`fieldFor` in `src/game/super10-field.ts`),
+ * by the field: this share of his balls aimed at these lines, the rest dealt
+ * from the bag. A field is set for the stroke its lines ask for, so the
+ * natural stroke goes into the men and the gap is against the line, which the
+ * steering's stretch makes the riskier hit. With the new ball, men round the
+ * off side and the ball outside off; the hard length and the square riders
+ * straighter, nothing wide to cut; the cutters and the straight field at the
+ * stumps and the pads, long-on and deep midwicket out; the wide yorker wide of
+ * off, long-off and deep cover out. The spinner's lines are his turn's and the
+ * sling bowler's his bouncers' (`aimBody`), so neither's fields are listed.
  */
-export const BOWL_TO: Partial<Record<Bowler | 'SEAM-pp', { lines: readonly BallLine[]; share: number }>> = {
-  SWING: { lines: ['OFF', 'OUTSIDE_OFF'], share: .5 },
-  'SEAM-pp': { lines: ['MIDDLE', 'OFF'], share: .45 },
-  SEAM: { lines: ['MIDDLE', 'LEG'], share: .45 },
-  DEATH: { lines: ['OFF', 'OUTSIDE_OFF'], share: .5 },
+export const BOWL_TO: Partial<Record<string, { lines: readonly BallLine[]; share: number }>> = {
+  'new-ball': { lines: ['OFF', 'OUTSIDE_OFF'], share: .5 },
+  'square-riders': { lines: ['MIDDLE', 'OFF'], share: .45 },
+  'hard-length': { lines: ['MIDDLE', 'OFF'], share: .45 },
+  cutters: { lines: ['MIDDLE', 'LEG'], share: .45 },
+  straight: { lines: ['MIDDLE', 'LEG'], share: .5 },
+  'wide-yorker': { lines: ['OFF', 'OUTSIDE_OFF'], share: .5 },
 };

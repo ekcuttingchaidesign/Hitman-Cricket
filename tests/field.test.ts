@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { BLAST_FIELD, Field, TEST_FIELD, mark, type Mark, type Visible } from '../src/scene/field';
-import { drawnOf, fieldFor, plug } from '../src/game/super10-field';
+import { drawnOf, fieldFor } from '../src/game/super10-field';
 import { DIVE, SPRINT, bodyOf, midpointOfHands } from '../src/entities/Fielder';
 import { standPose } from '../src/entities/Cricketer';
 
@@ -311,27 +311,29 @@ describe('Super10\'s field on the ground', () => {
     name: `${i}`, spot: mark(m.angle, m.distance), style: 'loose', deep: m.deep,
   }));
 
-  it('walks every man to the next field, waits for the bowler\'s signal, and settles', () => {
+  it('stands every man straight on the next field\'s marks, and waits for the bowler\'s signal', () => {
     const field = new Field();
-    const from = fieldFor({ bowler: 'SPIN', over: 5 }), to = plug(from, 100)!;
+    const from = fieldFor({ bowler: 'SEAM', over: 5 }), to = fieldFor({ bowler: 'SEAM', over: 5, surge: true });
     field.setField(marksOf(from));
     const next = marksOf(to);
-    field.moveTo(next, HIT);
+    field.standOn(next);
+    // Nobody walks: every man is on his new mark at once.
+    for (const man of field.state(HIT + 20).fielders) expect(man.home).toBeLessThan(.2);
+    expect(field.state(HIT + 20).fielders.map(f => f.name).sort()).toEqual(next.map(m => m.name).sort());
     const rest = { x: 1, z: 16, heading: Math.PI, pitch: 0, anchor: new THREE.Vector3(0, .9, 0), pose: standPose(new THREE.Group()) };
-    field.bowlerSignal(rest, HIT, mark(100, to.men.find(m => m.angle === 100)!.distance), 'back');
+    const man = to.men.find(m => !m.deep && !from.men.some(n => n.angle === m.angle && !n.deep))!;
+    field.bowlerSignal(rest, HIT, mark(man.angle, man.distance), 'in');
     expect(field.bowlerRoutine()!.at(HIT + 400).heading).not.toBeCloseTo(Math.PI, 1);
     expect(field.settled(HIT + 500)).toBe(false);
-    // Every new mark is somebody's.
-    expect(field.state(HIT + 20_000).fielders.map(f => f.name).sort()).toEqual(next.map(m => m.name).sort());
     expect(field.settled(HIT + 6000)).toBe(true);
   });
 
   it('takes a catch on the rope where the boundary rider stands', () => {
     const field = new Field();
     field.setField(marksOf(fieldFor({ bowler: 'DEATH', over: 7 })));
-    const at = mark(-24, fieldFor({ bowler: 'DEATH', over: 7 }).men.find(m => m.angle === -24)!.distance);
+    const at = mark(-22, fieldFor({ bowler: 'DEATH', over: 7 }).men.find(m => m.angle === -22)!.distance);
     const target = new THREE.Vector3(at.x, 2, at.z);
-    const plan = field.struck(HIT, HIT + 1900, look, { angle: deg(-24), height: 2, arrives: HIT + HANG, dropped: false, visible: () => true, at: target })!;
+    const plan = field.struck(HIT, HIT + 1900, look, { angle: deg(-22), height: 2, arrives: HIT + HANG, dropped: false, visible: () => true, at: target })!;
     expect(plan).not.toBeNull();
     expect(plan.hands.distanceTo(target)).toBeLessThan(.8);
     expect(field.state(HIT).catcher).not.toBeNull();

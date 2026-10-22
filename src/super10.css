@@ -12,16 +12,22 @@
 .s10-map>.s10-svg{position:absolute;inset:calc(var(--u) * 5);width:calc(var(--u) * 66);height:calc(var(--u) * 66)}
 .s10-map.is-away{opacity:0;pointer-events:none}
 .s10-svg{display:block;overflow:visible}
-.s10-ground{fill:#e6f3dc4d}
-.s10-rope{fill:none;stroke:#ffffffd9;stroke-width:1.4}
-.s10-ring{fill:none;stroke:#ffffff99;stroke-width:.9;stroke-dasharray:2.4 2.4}
-.s10-pitch{fill:#f3e3c4a6}
-.s10-man circle{stroke:#fff;stroke-width:1}
+/* The map's own colours, never the kits': a kit near the fielders' shirt, or
+   the grass, lost its dots. A dark ground under white lines, the fielders red,
+   the batter blue, and the ball's line yellow on a dark edge. */
+.s10-svg{--s10-field:#ff4438;--s10-batter:#2fa4ff;--s10-line:#ffe03a}
+.s10-ground{fill:#06180dad}
+.s10-rope{fill:none;stroke:#fff;stroke-width:1.8}
+.s10-ring{fill:none;stroke:#ffffffe6;stroke-width:1.3;stroke-dasharray:3 2.4}
+.s10-pitch{fill:#e2c98fd9}
+.s10-man circle{fill:var(--s10-field);stroke:#fff;stroke-width:1.1}
 .s10-man{transition:transform 900ms cubic-bezier(.3,.1,.25,1)}
 .s10-man.is-ping circle{animation:s10-ping 520ms ease-out}
-.s10-bat{stroke:#fff;stroke-width:1.4}
-.s10-shot{fill:none;stroke:#ffd27a;stroke-width:1.8;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;opacity:0}
+.s10-bat{fill:var(--s10-batter);stroke:#fff;stroke-width:1.3}
+.s10-shot{fill:none;stroke:var(--s10-line);stroke-width:2.8;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;opacity:0}
 .s10-shot.is-on{opacity:1;animation:s10-draw 300ms ease-out forwards}
+.s10-shot-under{fill:none;stroke:#000000b3;stroke-width:4.6;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;opacity:0}
+.s10-shot-under.is-on{opacity:1;animation:s10-draw 300ms ease-out forwards}
 .s10-map.is-surge .s10-rope,.s10-big-map.is-surge .s10-rope{stroke:#f5b83d;stroke-width:2}
 .s10-pulse{position:absolute;inset:calc(var(--u) * 3);border:2px solid #ffffffcc;border-radius:50%;opacity:0;pointer-events:none}
 .s10-pulse.is-on{animation:s10-pulse 700ms ease-out 2}
@@ -78,7 +84,7 @@
 .s10-pause-head{display:flex;flex-direction:column;gap:3px;margin:0;grid-column:2}
 .s10-pause-head span{font:700 calc(var(--u) * 9)/1 var(--f-ui);letter-spacing:.14em;color:#ffffff99}
 .s10-pause-head b{font:800 calc(var(--u) * 13)/1.2 var(--f-ui)}
-.s10-svg.is-solid .s10-ground{fill:#16351f}
+.s10-svg.is-solid .s10-ground{fill:#0d2a17}
 
 /* A fielder out of the picture: the side label says who. */
 .arena-bottom .is-rider{color:var(--c-gold);font-weight:900;text-shadow:0 0 10px #f5b83dcc,0 1px 3px #000;animation:s10-float 260ms ease-out both}
@@ -98,5 +104,5 @@ body.start-screen .s10-tag,.stage.result-open .s10-tag{display:none}
   .s10-man{transition:none}
   .s10-pulse.is-on,.s10-tag.is-in,.s10-big-map,.s10-title.is-in,.s10-surge[data-state="offer"] .s10-surge-disc,.s10-man.is-ping circle,.arena-bottom .is-rider{animation:none}
   .s10-title.is-in{opacity:1}
-  .s10-shot.is-on{animation:none;stroke-dashoffset:0}
+  .s10-shot.is-on,.s10-shot-under.is-on{animation:none;stroke-dashoffset:0}
 }

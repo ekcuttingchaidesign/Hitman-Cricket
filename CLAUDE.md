@@ -1495,14 +1495,36 @@ The elbow's hyperextension is left out: the bowling arm is one straight limb.
 `tests/super10.test.ts` to what makes him his.
 
 The field (`src/game/super10-field.ts`, in `tests/super10-field.test.ts`) is
-nine men in the field chart's positions (`POSITIONS`: nobody within twenty
-degrees of straight, in front of the sight screen, and nobody within fifteen of
-another man; no slips, gully or short leg), each bowler setting his own
-(`fieldFor`; two men back in the Powerplay, four after it). There is no
-captain: the bowler sets the field and signals the man he moves (`signal` in
-`Fielder.ts`, chosen by `signalFor`, `GameScene.bowlerSignals`), waving him
-back, beckoning him in or pointing, and the next ball waits for it
-(`Field.settled`).
+nine men, set from the fields T20 sides use: the claude.ai artifact "The T20
+Field Book" (https://claude.ai/artifact/C3YAV9BVN4v4QGCUHPEfZX), fourteen
+fields with the situation each is for. The positions (`POSITIONS`) are the
+book's angles, with nobody within twenty degrees of straight, in front of the
+sight screen (its long-off and long-on stand at 22), nobody within fifteen of
+another man at his depth, and a man in the ring off the line of the man behind
+him (`IN_LINE`, and `IN_LINE_NEAR` near straight, where the camera behind the
+bat would see one in front of the other); no slips, gully or short leg, so the
+book's slip is a point or a backward point. Each bowler has two of the book's
+fields (`BOOK`, `PLANS`), his first and his other: the swing bowler New-ball
+attack and Square riders, the seamer Hard length and Square riders in the
+Powerplay and Cutters and the Straight field after it, the spinner Leg-spin
+strike and Spinner attacking, the sling bowler the Short-ball field and
+Cutters, the death bowler Wide yorker and the Straight field. Two men back in
+the Powerplay and five after it, as the book has them, but the spinner
+attacking with three. A field is set at the top of an over and kept for all
+six balls, its men stood straight on their marks (`Field.standOn`): nothing a
+ball does moves a man. The first build plugged the gap a boundary had gone
+through, and walked the men to every new field, and the player saw the field
+change every ball and men forever running about. Which of the two is his
+(`planFor`): the spinner attacks a new batter, a wicket in the over before his;
+any other bowler takes his other field only when it has men back on the lines
+of more of the batter's last eight boundaries than his first does, two at
+least. A bowler bowls to the field he set (`BOWL_TO` in
+`src/config/super10.ts`, by the field, told to the generator as `field`): the
+wide yorker wide of off, the straight field and the cutters at the stumps and
+the pads. There is no captain: the bowler signals a man (`signal` in
+`Fielder.ts`, chosen by `signalFor`, `GameScene.bowlerSignals`) only when he
+takes his other field or Power Surge brings two in, and the next ball waits
+for it (`Field.settled`).
 
 In Super10 the swipe steers the stroke (`steerOf`, `steer`): every ordinary
 stroke has an arc on the ground, and the swipe's place inside its zone is the
@@ -1526,28 +1548,29 @@ the call (STOPPED · MID-OFF, CUT OFF · LONG-ON, LONG-OFF · ON THE ROPE,
 `fieldLine`) and the scene: in the picture he gets across to it (`toRider`),
 out of it the ball flies out of frame and the side label it went past says his
 name (`FieldUi.light`). Catches everywhere are dealt a step, a run or a dive
-(`findCatch`'s `running`), not always the full sprint and dive. After a
-boundary through a gap the bowler plugs it half the time (`plug`, `PLUG`): the
-man back furthest from it goes there for the rest of the over. Power Surge
+(`findCatch`'s `running`), not always the full sprint and dive. Power Surge
 lights up at the end of the fifth over and is taken in the break before the
 sixth, seventh or eighth (`surgeOffered`; its chip, or P), the bowler waiting
 `SURGE_WAIT_MS` at his mark while it is offered; not taken, it goes on by
 itself in the ninth (`surgeAuto`), and the tenth never has it: the two men back
 nearest straight come in. `scripts/super10-sim.ts` plays all of it with a
-steering player: a pro about 147 (typically 159, the best near 230), a regular
-59, a beginner 21 with a boundary in seven innings of eight, against 165, 70
-and 25 with no field, and no meter strokes in any of it.
+steering player: a pro about 146 (typically 158, the best near 250), a regular
+59, a beginner 20 with a boundary in seven innings of eight, against 167, 69
+and 24 with no field, and no meter strokes in any of it. Five men back cost
+about what the plug had, so the totals hardly moved when it went.
 
-The scene draws six of the nine (`drawnOf`: the six nearest straight), walked
-to their new marks when the field changes (`Field.moveTo`,
+The scene draws six of the nine (`drawnOf`: the six nearest straight), stood
+on their new marks when the field changes (`Field.standOn`,
 `GameScene.super10Field`).
 
 The field is shown in two corners (`src/ui/FieldMap.ts`, Figma section 16A,
 `422:5003`), both live all innings. Bottom right, the field map: only the
-ground and the dots, never on a panel — the fielders in the fielding side's
-shirt and the batter in his own (`GameScene.kitColours`); a new field has the
-men walk to their places as a ring pulses twice and NEW FIELD · N OUT floats
-over it; after a shot the ball's line is drawn to where it went, the man who
+ground and the dots, never on a panel — a dark see-through ground under a
+white rope and a white dashed ring, the fielders red and the batter blue
+whatever either side wears (the kits' own colours lost the dots whenever a kit
+was near the other side's or the grass), the ball's line yellow on a dark
+edge; a new field has the dots slide to their places as a ring pulses twice
+and the field's name floats over it (WIDE YORKER · 5 OUT, FIELD CHANGE · …); after a shot the ball's line is drawn to where it went, the man who
 got to it pinging, until the next ball; a tap (or F) enlarges it from its
 corner, and a tap, the bowler's first stride or six seconds put it back.
 Bottom left, Power Surge (`SurgeState`): locked to the end of the fifth over,

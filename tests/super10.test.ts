@@ -7,8 +7,9 @@ import { Bowler, DEATH_ACTION, PACE_ACTION, PHASES, loopDrop } from '../src/enti
 import type { Delivery } from '../src/game/types';
 
 /** A whole Super10 innings' bowling, sixty balls, over by over. */
-function innings(seed: number, plan = SUPER10_PLAN) {
+function innings(seed: number, plan = SUPER10_PLAN, field: string | null = null) {
   const generator = new DeliveryGenerator(new SeededRandom(seed), plan);
+  generator.field = field;
   const overs: { kind: ReturnType<DeliveryGenerator['overKind']>; balls: Delivery[] }[] = [];
   for (let over = 0; over < SUPER10.overs; over++) {
     const kind = generator.overKind(over);
@@ -64,6 +65,15 @@ describe('Super10: the bowling', () => {
     // Two lines of five dealt at random are two in five; bowled to the field, well over half.
     expect(share((over, kind) => kind === 'PACE' && over >= SUPER10.powerplay, ['MIDDLE', 'LEG'])).toBeGreaterThan(.55);
     expect(share((_, kind) => kind === 'DEATH', ['OFF', 'OUTSIDE_OFF'])).toBeGreaterThan(.55);
+  });
+
+  it('bowls to the field he set: the death bowler at the stumps and the pads to his straight field', () => {
+    let mine = 0, all = 0;
+    for (const seed of SEEDS) innings(seed, SUPER10_PLAN, 'straight').forEach(({ kind, balls }) => {
+      if (kind !== 'DEATH') return;
+      for (const ball of balls) { all++; if (['MIDDLE', 'LEG'].includes(ball.line)) mine++; }
+    });
+    expect(mine / all).toBeGreaterThan(.55);
   });
 
   it('hands each over to the bowler the schedule names', () => {

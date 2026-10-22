@@ -923,11 +923,6 @@ export class GameScene {
   private sideKit: Kit = KIT;
   /** The fielding side's kit, as a Dressing Room id, for the checks. */
   fieldingKit: string | null = null;
-  /** The two sides' shirts, for Super10's field map: the batter in his, the fielders in theirs. */
-  get kitColours() {
-    const field = OUTFITS.find(o => o.id === this.fieldingKit);
-    return { batter: this.look?.outfit.shirt ?? '#2b5f8f', field: field?.shirt ?? '#ed7044' };
-  }
   private pickSide(except: string) {
     const choices = OUTFITS.filter(o => o.id !== except);
     const outfit = choices[Math.floor(Math.random() * choices.length)];
@@ -977,14 +972,14 @@ export class GameScene {
   express(on: boolean, death = false) { this.bowler.action(death ? DEATH_ACTION : on ? EXPRESS_ACTION : PACE_ACTION); }
   /**
    * Super10's field: the six men drawn of its nine, put on their marks at the
-   * start of an innings and walked to them when it changes.
+   * start of an innings, and stood on the new ones when it changes in it.
    */
-  super10Field(men: readonly Man[], walk: boolean) {
+  super10Field(men: readonly Man[], changed: boolean) {
     const marks: Mark[] = men.map((man, i) => {
       const name = nameOf(man.angle, man.deep);
       return { name: name[0].toUpperCase() + name.slice(1), spot: mark(man.angle, man.distance), style: i % 2 ? 'hips' : 'loose', deep: man.deep };
     });
-    if (walk) this.field.moveTo(marks, this.clock); else this.field.setField(marks);
+    if (changed) this.field.standOn(marks); else this.field.setField(marks);
   }
   /**
    * The bowler setting his field: turned, from wherever he stands, to the man
@@ -1375,6 +1370,8 @@ export class GameScene {
 
   /** Whether the field is back on its marks, so the next ball can be bowled. */
   get fieldSettled() { return this.field.settled(this.clock); }
+  /** How far the man furthest from his mark is from it, in metres, for the checks: nobody walks to a new field. */
+  get fieldAway() { return Math.max(0, ...this.field.state(this.clock).fielders.map(f => f.home)); }
   /** Whether the bowler is signalling a field change, for the checks. */
   get signalling() { const routine = this.field.bowlerRoutine(); return !!routine && routine.actions[routine.current(this.clock)].name === 'Signalling'; }
   /** The batter tapping his bat down between balls, which the bowler waits out. */

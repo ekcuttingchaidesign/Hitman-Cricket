@@ -6,9 +6,10 @@
  * that best suits the line and pulling the odd bouncer. The ball is bowled by
  * `SUPER10_PLAN` and resolved by the Blast's `resolveShot` with the windows
  * the game grades it on (`windowsAt`), and the field is the game's own:
- * `steer` reads the swipe, `fieldRules` answers the ball, `plug` moves a man
- * into a gap a boundary went through, and Power Surge goes on by itself in the
- * ninth over. All of it imported, none of it restated.
+ * `steer` reads the swipe, `fieldRules` answers the ball, each bowler sets his
+ * field from the book at the top of his over (`planFor`, off the boundaries so
+ * far) and bowls to it, and Power Surge goes on by itself in the ninth over.
+ * All of it imported, none of it restated.
  *
  * Each player reads the field some of the time: aiming at the middle of the
  * widest gap in the stroke's arc rather than at the arc's middle, with a thumb
@@ -27,7 +28,7 @@ import { effectiveLine } from '../src/game/DeliveryTrajectory.js';
 import { SeededRandom } from '../src/game/SeededRandom.js';
 import { resolveShot } from '../src/game/ShotResolver.js';
 import {
-  DEEP_REACH, PLUG, RING_REACH, bowlerOf, fieldFor, fieldRules, nearest, plug, steer, steerOf, surgeAuto, type FieldSet, type Steer,
+  DEEP_REACH, RING_REACH, bowlerOf, fieldFor, fieldRules, nearest, planFor, steer, steerOf, surgeAuto, type FieldSet, type Steer,
 } from '../src/game/super10-field.js';
 import type { Delivery, ShotType } from '../src/game/types.js';
 import { sectorOf } from '../src/scene/flight.js';
@@ -63,15 +64,19 @@ function play(player: Player, seed: number) {
   const rng = new SeededRandom(seed);
   const generator = new DeliveryGenerator(rng, SUPER10_PLAN);
   let runs = 0, wickets = 0, balls = 0, sixes = 0, fours = 0, fielded = 0;
-  let field: FieldSet | null = null, surged = false, plugAt: number | null = null;
+  let field: FieldSet | null = null, surged = false, wicketsAtOver = 0;
+  const boundaries: number[] = [];
   while (balls < SUPER10.totalBalls && wickets < SUPER10.maxWickets) {
     const over = Math.floor(balls / SUPER10.ballsPerOver);
-    if (balls % SUPER10.ballsPerOver === 0) {
+    if (balls % SUPER10.ballsPerOver === 0 && !BLIND) {
       const surge = surgeAuto(over, surged);
       surged ||= surge;
-      field = fieldFor({ bowler: bowlerOf(generator.overKind(over), over), over, surge });
-      plugAt = null;
-    } else if (plugAt !== null) { field = plug(field!, plugAt) ?? field; plugAt = null; }
+      const bowler = bowlerOf(generator.overKind(over), over);
+      const plan = planFor(bowler, over, { boundaries, newBatter: wickets > wicketsAtOver });
+      wicketsAtOver = wickets;
+      field = fieldFor({ bowler, over, surge, plan });
+      generator.field = field.id.split('+')[0];
+    }
     const delivery = generator.next(0);
     const rush = (NOMINAL_MS - delivery.durationMs) / 100;
     const shot: ShotType = delivery.style === 'SHORT' ? (rng.next() < 0.4 ? 'LEG' : 'DEFEND') : bestShot(delivery);
@@ -87,7 +92,7 @@ function play(player: Player, seed: number) {
       const line = sectorOf(outcome, shot), before = outcome.runs;
       outcome = fieldRules(outcome, line, field, rng, steered.stretch);
       fielded += Number(!!outcome.fielder);
-      if (before >= 4 && outcome.runs >= 4 && !outcome.fielder && rng.next() < PLUG) plugAt = line;
+      if (before >= 4 && outcome.runs >= 4) boundaries.push(line);
     }
     generator.record(outcome);
     runs += outcome.runs; wickets += Number(outcome.isWicket); balls++;

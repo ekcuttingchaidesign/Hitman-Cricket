@@ -103,28 +103,16 @@ export class Field {
   dress(kit: Kit) { for (const fielder of this.fielders) fielder.figure.dress(kit); }
 
   /**
-   * A new field in the middle of an innings, walked to: Super10's, between
-   * overs and when the bowler plugs a gap. Every mark goes to whoever is
-   * nearest it, so nobody crosses the ground to stand where his neighbour was.
+   * A new field in the middle of an innings, Super10's between overs: every
+   * man put straight on his mark, where the field used to walk there and
+   * read as men forever running about the ground. The bowler is left to what
+   * he is doing, and signals the change from wherever that has taken him
+   * (`bowlerSignal`) when he signals it at all.
    */
-  moveTo(marks: readonly Mark[], now: number) {
-    const at = this.routines.map(routine => routine.at(now));
-    const order: Mark[] = [];
-    const free = new Set(marks.map((_, i) => i));
-    const pairs: [number, number, number][] = [];
-    for (let man = 0; man < at.length; man++) for (const k of free) pairs.push([away(at[man], marks[k].spot), man, k]);
-    pairs.sort((a, b) => a[0] - b[0]);
-    const placed = new Set<number>();
-    for (const [, man, k] of pairs) {
-      if (placed.has(man) || !free.has(k)) continue;
-      order[man] = marks[k]; placed.add(man); free.delete(k);
-    }
-    this.marks = order;
-    // The bowler is left to what he is doing: he signals the change from
-    // wherever that has taken him (`bowlerSignal`).
+  standOn(marks: readonly Mark[]) {
+    this.marks = marks;
+    this.routines = marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i])]));
     this.catching = null; this.gathering = null;
-    this.routines = this.routines.map((routine, i) =>
-      new Routine([...recent(routine, now), ...this.homeward(i, routine, now + 120 + deal(i, this.ball, 9) * 320)]));
   }
 
   /**

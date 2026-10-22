@@ -4,8 +4,8 @@ import { ARM_REACH, BUILD } from '../src/entities/Cricketer';
 import { SIGNAL_MS, signal } from '../src/entities/Fielder';
 import { SUPER10, type Bowler } from '../src/config/super10';
 import {
-  APART, DEEP_REACH, POSITIONS, RING_REACH, SIGHT_SCREEN, STRETCH, bowlerOf, drawnOf, fieldFor, fieldLine, fieldRules, nameOf, nearest,
-  offScreen, passes, plug, ropeAt, signalFor, steer, steerOf, surgeAuto, surgeOffered, type FieldSet,
+  APART, BOOK, DEEP_REACH, IN_LINE, IN_LINE_NEAR, POSITIONS, RING_REACH, SIGHT_SCREEN, STRETCH, bookOf, bowlerOf, drawnOf, fieldFor, fieldLine,
+  fieldRules, nameOf, nearest, offScreen, passes, planFor, ropeAt, signalFor, steer, steerOf, surgeAuto, surgeOffered, type FieldSet,
 } from '../src/game/super10-field';
 import type { ShotOutcome } from '../src/game/types';
 import { sectorOf } from '../src/scene/flight';
@@ -19,23 +19,44 @@ const fixed = (value: number) => ({ next: () => value });
 const counting = () => { const rng = { drawn: 0, next: () => { rng.drawn++; return .99; } }; return rng; };
 /** A field of one man, for the rules on their own. */
 const one = (angle: number, distance: number, deep: boolean): FieldSet =>
-  ({ id: 'one', bowler: 'SEAM', men: [{ name: nameOf(angle, deep), angle, distance, deep }], change: null, moved: [] });
+  ({ id: 'one', name: 'One', bowler: 'SEAM', men: [{ name: nameOf(angle, deep), angle, distance, deep }], change: null, moved: [] });
+/**
+ * Who bowls in the Powerplay and who after it: the swing bowler only in it,
+ * the spinner, the sling bowler and the death bowler only after.
+ */
+const BOWLS: [Bowler, number][] = [['SWING', 0], ['SEAM', 1], ['SEAM', 6], ['SPIN', 3], ['SLING', 4], ['DEATH', 7]];
+/** Every field the bowlers set: each one's two, in the overs he bowls. */
+const EVERY = BOWLS.flatMap(([bowler, over]) => ([0, 1] as const).map(plan => fieldFor({ bowler, over, plan })));
 
 describe('the Super10 field', () => {
   it('has nine men in every field, none in front of the sight screen and none on top of another', () => {
-    for (const bowler of BOWLERS) for (let over = 0; over < SUPER10.overs; over++) {
-      const { men } = fieldFor({ bowler, over });
-      expect(men).toHaveLength(9);
-      for (const m of men) expect(Math.abs(m.angle)).toBeGreaterThanOrEqual(SIGHT_SCREEN);
-      for (const a of men) for (const b of men) if (a !== b) expect(Math.abs(a.angle - b.angle)).toBeGreaterThanOrEqual(APART - 1);
+    for (const { men, id } of EVERY) {
+      expect(men, id).toHaveLength(9);
+      for (const m of men) expect(Math.abs(m.angle), `${id} ${m.name}`).toBeGreaterThanOrEqual(SIGHT_SCREEN);
+      for (const a of men) for (const b of men) {
+        if (a === b) continue;
+        const apart = Math.abs(a.angle - b.angle);
+        // Two at one depth stand well apart; one in the ring is off the line of the man behind him, the more so near straight.
+        const least = a.deep === b.deep ? APART : Math.min(Math.abs(a.angle), Math.abs(b.angle)) < 45 ? IN_LINE_NEAR : IN_LINE;
+        expect(apart, `${id}: ${a.name} and ${b.name}`).toBeGreaterThanOrEqual(least);
+      }
     }
   });
 
-  it('keeps two men back in the Powerplay, and four after it', () => {
-    for (const bowler of BOWLERS) for (let over = 0; over < SUPER10.overs; over++) {
-      const back = fieldFor({ bowler, over }).men.filter(m => m.deep).length;
-      expect(back).toBe(over < SUPER10.powerplay ? 2 : 4);
+  it('keeps two men back in the Powerplay and five after it, three when the spinner attacks', () => {
+    for (const [bowler, over] of BOWLS) for (const plan of [0, 1] as const) {
+      const back = fieldFor({ bowler, over, plan }).men.filter(m => m.deep).length;
+      expect(back, `${bowler} ${over}`).toBe(over < SUPER10.powerplay ? 2 : bowler === 'SPIN' && plan ? 3 : 5);
     }
+  });
+
+  it('sets each bowler two fields from the book, and names them', () => {
+    expect(bookOf('SEAM', 1)).toEqual(BOOK['SEAM-pp']);
+    expect(bookOf('SEAM', 6)).toEqual(BOOK.SEAM);
+    const death = fieldFor({ bowler: 'DEATH', over: 7 });
+    expect(death).toMatchObject({ id: 'wide-yorker', name: 'Wide yorker', change: null });
+    expect(fieldFor({ bowler: 'DEATH', over: 7, plan: 1 })).toMatchObject({ id: 'straight', change: 'plan' });
+    expect(fieldFor({ bowler: 'SWING', over: 0 }).name).toBe('New-ball attack');
   });
 
   it('stands its boundary riders inside the rope, and names the chart\'s positions as the chart does', () => {
@@ -48,12 +69,11 @@ describe('the Super10 field', () => {
     for (const [name, p] of Object.entries(POSITIONS)) expect(nameOf(p.angle, 'deep' in p)).toBe(name);
   });
 
-  it('leaves every bowler\'s field gaps to find', () => {
-    for (const bowler of BOWLERS) for (const over of [0, 6]) {
-      const field = fieldFor({ bowler, over });
+  it('leaves every field gaps to find', () => {
+    for (const field of EVERY) {
       const open = Array.from({ length: 281 }, (_, i) => i - 140).filter(a =>
         (nearest(field, a, true)?.by ?? Infinity) > DEEP_REACH && (nearest(field, a, false)?.by ?? Infinity) > RING_REACH);
-      expect(open.length).toBeGreaterThan(30);
+      expect(open.length, field.id).toBeGreaterThan(20);
     }
   });
 
@@ -183,20 +203,25 @@ describe('steering', () => {
 });
 
 describe('the bowler setting his field', () => {
-  it('plugs the gap a boundary went through with the man back furthest from it', () => {
-    const spin = fieldFor({ bowler: 'SPIN', over: 5 });
-    const plugged = plug(spin, 98)!;
-    expect(plugged.change).toBe('plug');
-    expect(plugged.men.filter(m => m.deep)).toHaveLength(4);
-    expect(nearest(plugged, 98, true)!.by).toBe(0);
-    expect(plugged.moved).toEqual(['DEEP POINT BACK']);
-    expect(signalFor(spin, plugged)).toMatchObject({ kind: 'back', man: { angle: 98 } });
+  it('keeps his first field until the batter\'s boundaries say his other has the men for them', () => {
+    // The death bowler's wide yorker has the off side back; a batter hitting him to leg brings the straight field.
+    expect(planFor('DEATH', 7, { boundaries: [], newBatter: false })).toBe(0);
+    expect(planFor('DEATH', 7, { boundaries: [-52], newBatter: false })).toBe(0);
+    expect(planFor('DEATH', 7, { boundaries: [-52, -78], newBatter: false })).toBe(1);
+    expect(planFor('DEATH', 7, { boundaries: [-52, -78, 100, 62, 140], newBatter: false })).toBe(0);
+    // Only the last eight are read.
+    expect(planFor('DEATH', 7, { boundaries: [100, 62, 140, 100, 62, -52, -78, -52, -78, -50, -80, -52, -78], newBatter: false })).toBe(1);
+  });
+
+  it('has the spinner attack a new batter, and only a new batter', () => {
+    expect(planFor('SPIN', 3, { boundaries: [], newBatter: true })).toBe(1);
+    expect(planFor('SPIN', 3, { boundaries: [-52, -78, 60, 22], newBatter: false })).toBe(0);
   });
 
   it('beckons the two men up for Power Surge, and signals nothing when nothing moves', () => {
     const sling = fieldFor({ bowler: 'SLING', over: 8 }), surge = fieldFor({ bowler: 'SLING', over: 8, surge: true });
-    expect(surge.men.filter(m => m.deep)).toHaveLength(2);
-    expect(surge.moved).toEqual(['LONG-OFF IN', 'DEEP SQUARE LEG IN']);
+    expect(surge.men.filter(m => m.deep)).toHaveLength(3);
+    expect(surge.moved).toEqual(['LONG-ON IN', 'DEEP MIDWICKET IN']);
     expect(signalFor(sling, surge)?.kind).toBe('in');
     expect(signalFor(null, sling)).toBeNull();
     expect(signalFor(fieldFor({ bowler: 'SPIN', over: 3 }), fieldFor({ bowler: 'SPIN', over: 5 }))).toBeNull();

@@ -6,10 +6,12 @@ import { icon } from './Kit';
  * Super10's two corners (Figma section 16A, node `422:5003`).
  *
  *  - **The field map**, bottom right, live all innings: only the ground and
- *    the dots, never on a panel — the ground's fill at 30%, the rope and the
- *    ring as lines, the fielders in the fielding side's shirt and the batter in
- *    his own. A new field has the men who moved walk to their places while a
- *    ring pulses round the map twice and NEW FIELD floats above it. After a
+ *    the dots, never on a panel — a dark see-through ground, the rope and the
+ *    ring as white lines, the fielders red and the batter blue, whatever
+ *    either side wears: drawn in the kits' own colours, a kit near the
+ *    fielders' shirt or the grass lost its dots. A new field has the men's
+ *    dots slide to their places while a ring pulses round the map twice and
+ *    its name in the field book floats above it. After a
  *    shot the ball's line is drawn from the batter to where it went, the man
  *    who got to it pinging once, and it stays until the next ball. One tap
  *    enlarges it from its corner; a tap, the bowler's first stride or six
@@ -46,22 +48,21 @@ function onMap(angle: number, distance: number, mirrored: boolean) {
 }
 const f = (v: number) => v.toFixed(1);
 
-export interface Colours { batter: string; field: string }
-
-/** The map, drawn: the ground, the rope and ring, the pitch, the men in their shirt and the batter in his. */
-export function fieldMapMarkup(field: FieldSet, { mirrored = false, colours, solid = false }: { mirrored?: boolean; colours: Colours; solid?: boolean }) {
+/** The map, drawn: the ground, the rope and ring, the pitch, the fielders and the batter. */
+export function fieldMapMarkup(field: FieldSet, { mirrored = false, solid = false }: { mirrored?: boolean; solid?: boolean } = {}) {
   const men = field.men.map((m, i) => {
     const p = onMap(m.angle, m.distance, mirrored);
-    return `<g class="s10-man${m.deep ? ' is-deep' : ''}" data-man="${i}" style="transform:translate(${f(p.x)}px,${f(p.y)}px)"><circle r="3.2" fill="${colours.field}"/></g>`;
+    return `<g class="s10-man${m.deep ? ' is-deep' : ''}" data-man="${i}" style="transform:translate(${f(p.x)}px,${f(p.y)}px)"><circle r="3.4"/></g>`;
   }).join('');
   return `<svg class="s10-svg${solid ? ' is-solid' : ''}" viewBox="0 0 100 100" aria-hidden="true">
     <circle class="s10-ground" cx="50" cy="50" r="${ROPE_R + 2}"/>
     <circle class="s10-rope" cx="50" cy="50" r="${ROPE_R + 2}"/>
     <circle class="s10-ring" cx="50" cy="50" r="26"/>
     <rect class="s10-pitch" x="48" y="28" width="4" height="22" rx="1"/>
+    <path class="s10-shot-under" pathLength="100" d=""/>
     <path class="s10-shot" pathLength="100" d=""/>
     <g class="s10-men">${men}</g>
-    <circle class="s10-bat" cx="50" cy="50" r="3.6" fill="${colours.batter}"/>
+    <circle class="s10-bat" cx="50" cy="50" r="3.8"/>
   </svg>`;
 }
 
@@ -86,7 +87,6 @@ export class FieldUi {
   private field: FieldSet | null = null;
   private over = 0;
   private mirrored = false;
-  private colours: Colours = { batter: '#2b5f8f', field: '#ed7044' };
   private on = false;
   private taught = false;
   private timers = { tag: 0, big: 0, lit: 0, title: 0 };
@@ -121,9 +121,8 @@ export class FieldUi {
   }
 
   /** Whether this innings has a field: Super10's does, and nothing else does. */
-  show(on: boolean, mirrored = false, colours?: Colours) {
+  show(on: boolean, mirrored = false) {
     this.on = on; this.mirrored = mirrored;
-    if (colours) this.colours = colours;
     for (const el of [this.map, this.surgeKey, this.pause]) el.classList.toggle('hidden', !on);
     if (!on) {
       for (const el of [this.tag, this.enlarged, this.title, this.badge]) el.classList.add('hidden');
@@ -135,19 +134,20 @@ export class FieldUi {
 
   /**
    * A field into play: the map redrawn, and for a field that changed — a new
-   * over's, a gap plugged, Power Surge — its men walking from where they stood
-   * to where they now are, a ring pulsing twice and the tag above the map.
+   * over's, the bowler's other field, Power Surge — its men's dots sliding
+   * from where they stood to where they now are, a ring pulsing twice and the
+   * tag above the map with the field's name.
    */
   overBegins(field: FieldSet, over: number, { prev }: { prev: FieldSet | null }) {
     this.field = field; this.over = over;
     const out = field.men.filter(m => m.deep).length;
     this.pause.innerHTML = `<p class="s10-pause-head"><span>FIELD · OVER ${over + 1}</span><b>${out} OUT</b></p>
-      ${fieldMapMarkup(field, { mirrored: this.mirrored, colours: this.colours, solid: true })}`;
+      ${fieldMapMarkup(field, { mirrored: this.mirrored, solid: true })}`;
     const surge = field.change === 'surge';
     this.map.classList.toggle('is-surge', surge);
     const was = [...this.map.querySelectorAll<SVGGElement>('.s10-man')].map(g => g.style.transform);
-    this.map.innerHTML = `${fieldMapMarkup(field, { mirrored: this.mirrored, colours: this.colours })}<span class="s10-pulse"></span>`;
-    if (!prev || !was.length) return;
+    this.map.innerHTML = `${fieldMapMarkup(field, { mirrored: this.mirrored })}<span class="s10-pulse"></span>`;
+    if (!prev || !was.length || prev.id === field.id) return;
     // The men walk: each new place from whoever stood nearest it.
     const from = this.matched(prev.men, field.men);
     [...this.map.querySelectorAll<SVGGElement>('.s10-man')].forEach((g, i) => {
@@ -159,7 +159,8 @@ export class FieldUi {
     });
     const pulse = this.map.querySelector<HTMLElement>('.s10-pulse')!;
     pulse.classList.remove('is-on'); void pulse.offsetWidth; pulse.classList.add('is-on');
-    this.say(surge ? 'POWER SURGE · TWO FIELDERS IN' : field.change === 'plug' ? `FIELD CHANGE · ${field.moved[0] ?? ''}` : `NEW FIELD · ${out} OUT`, 'map');
+    const name = field.name.toUpperCase();
+    this.say(surge ? 'POWER SURGE · TWO FIELDERS IN' : field.change === 'plan' ? `FIELD CHANGE · ${name}` : `${name} · ${out} OUT`, 'map');
   }
 
   /** For each new man, the old man nearest him, so a man walks to his new place rather than across the ground. */
@@ -188,7 +189,7 @@ export class FieldUi {
   enlarge() {
     if (!this.on || !this.field || this.enlargedOpen) return false;
     const out = this.field.men.filter(m => m.deep).length;
-    this.enlarged.innerHTML = `<div class="s10-big-words"><span>OVER ${this.over + 1} · ${out} OUT</span><b>THE FIELD</b><small>Tap to shrink</small></div>
+    this.enlarged.innerHTML = `<div class="s10-big-words"><span>OVER ${this.over + 1} · ${out} OUT</span><b>${this.field.name.toUpperCase()}</b><small>Tap to shrink</small></div>
       <div class="s10-big-map${this.field.change === 'surge' ? ' is-surge' : ''}">${this.map.querySelector('svg')?.outerHTML ?? ''}</div>`;
     this.enlarged.classList.remove('hidden');
     this.map.classList.add('is-away');
@@ -212,15 +213,18 @@ export class FieldUi {
    */
   shot(angle: number | null, outcome: ShotOutcome | null) {
     const path = this.map.querySelector<SVGPathElement>('.s10-shot');
+    const under = this.map.querySelector<SVGPathElement>('.s10-shot-under');
     this.map.querySelectorAll('.s10-man.is-ping').forEach(g => g.classList.remove('is-ping'));
-    if (!path) return;
-    if (angle === null || !outcome || !this.field) { path.setAttribute('d', ''); path.classList.remove('is-on'); return; }
+    if (!path || !under) return;
+    if (angle === null || !outcome || !this.field) { path.setAttribute('d', ''); under.setAttribute('d', ''); path.classList.remove('is-on'); under.classList.remove('is-on'); return; }
     const fielder = outcome.fielder;
     const distance = outcome.runs >= 4 ? ropeAt(angle) : [6, 14, 22, 28][outcome.runs] ?? 6;
     const end = fielder ? onMap(fielder.angle, fielder.distance, this.mirrored) : onMap(angle, distance, this.mirrored);
     path.setAttribute('d', `M50 50L${f(end.x)} ${f(end.y)}`);
+    under.setAttribute('d', `M50 50L${f(end.x)} ${f(end.y)}`);
     path.classList.toggle('is-boundary', !fielder && outcome.runs >= 4);
-    path.classList.remove('is-on'); void path.getBoundingClientRect(); path.classList.add('is-on');
+    path.classList.remove('is-on'); under.classList.remove('is-on'); void path.getBoundingClientRect();
+    path.classList.add('is-on'); under.classList.add('is-on');
     if (fielder) {
       const index = this.field.men.findIndex(m => m.angle === fielder.angle && m.deep === fielder.deep);
       this.map.querySelector(`.s10-man[data-man="${index}"]`)?.classList.add('is-ping');

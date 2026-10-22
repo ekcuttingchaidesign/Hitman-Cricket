@@ -12,10 +12,12 @@
  * the card at the end headed SUPER10 and saying it does not count yet, with
  * nothing sent to a board or a career: Super10 has neither yet. And the field
  * and its two corners: the map in the bottom right with a dot a man and the
- * batter, enlarged by a tap and put back, each over's field set for its
- * bowler with the bowler signalling the change, Power Surge locked in the
- * bottom left, offered in the break before the sixth over, taken with P and
- * two men brought in for it, used after, the field drawn in the pause sheet,
+ * batter in the map's own colours, enlarged by a tap and put back, each
+ * over's field from the field book set for its bowler, its men stood on their
+ * marks rather than walked there, Power Surge locked in the bottom left,
+ * offered in the break before the sixth over, taken with P and two men
+ * brought in for it with the bowler beckoning them, used after, the field
+ * drawn in the pause sheet,
  * and the field map's coach card a first Super10 opens with, once.
  *
  * The actions themselves are looked at in `bowler-sheet.html`
@@ -82,9 +84,13 @@ check(first.balls === 0 && !!opener?.startsWith('OPENER IN'), 'the opener is nam
 const corner = await page.evaluate(() => ({
   map: document.querySelectorAll('#s10-map .s10-man').length, bat: !!document.querySelector('#s10-map .s10-bat'),
   shown: !document.querySelector('#s10-map')?.classList.contains('hidden'), surge: document.querySelector('#s10-surge')?.dataset.state,
+  man: getComputedStyle(document.querySelector('#s10-map .s10-man circle')).fill,
+  batter: getComputedStyle(document.querySelector('#s10-map .s10-bat')).fill,
 }));
-check(first.super10.field?.id === 'SWING-pp' && corner.shown && corner.map === 9 && corner.bat,
+check(first.super10.field?.id === 'new-ball' && corner.shown && corner.map === 9 && corner.bat,
   'the first over\'s field is on the map in its corner before the first ball, a dot a man and the batter', JSON.stringify({ corner, field: first.super10.field }));
+check(corner.man === 'rgb(255, 68, 56)' && corner.batter === 'rgb(47, 164, 255)',
+  'the fielders drawn red and the batter blue, whatever either side wears', JSON.stringify(corner));
 check(corner.surge === 'locked', 'and Power Surge is locked in the other', corner.surge);
 // Both taps in one turn of the page, or the bowler's first stride can put the
 // map back before the second.
@@ -103,7 +109,7 @@ const actions = {};
 const speeds = [];
 const fields = [];
 let armed = null, pauseMap = false, offered = null, usedAfter = null;
-const signals = [];
+const signals = [], away = [];
 const write = balls => page.evaluate(b => window.__cricket.blast(b), balls);
 // Who bowls each over is read off the game at its top; one real ball is bowled
 // for each kind of bowler — the swing bowler's, the spinner's, the sling
@@ -116,14 +122,15 @@ for (let over = 0; over < 10; over++) {
   if (ready.phase === 'INNINGS_END') break;
   kinds[over] = ready.super10.bowler;
   fields[over] = ready.super10.field;
-  if (over === 1 || over === 2) signals.push(ready.super10.signalling);
+  // The new field's men are on their marks the moment the over is set, nobody walking there.
+  if (over >= 1) away.push(ready.super10.away);
   if (over === 7) usedAfter = await page.evaluate(() => document.querySelector('#s10-surge')?.dataset.state);
   // Power Surge, taken in the break before the sixth over, which it is for.
   if (over === 5) {
     offered = await page.evaluate(() => document.querySelector('#s10-surge')?.dataset.state);
     await page.keyboard.press('p');
-    armed = (await snap()).super10.surge;
-    fields[5] = (await snap()).super10.field;
+    const surged = (await snap()).super10;
+    armed = surged.surge; fields[5] = surged.field; signals.push(surged.signalling);
   }
   if (over === 3) {
     // The field in the pause sheet.
@@ -170,12 +177,13 @@ check(real.every(o => o.death === (o.kind === 'DEATH') && o.express === (o.kind 
 const BOWLER = { PACE: ['SWING', 'SEAM'], SPIN: ['SPIN'], EXPRESS: ['SLING'], DEATH: ['DEATH'] };
 check(fields.length >= 8 && fields.every((f, i) => f && BOWLER[kinds[i]].includes(f.bowler)), 'each over\'s field is set for its bowler',
   fields.map(f => f?.id).join(' '));
-check(fields.slice(0, 3).every(f => f.deep.length === 2) && fields.slice(3, 5).every(f => f.deep.length === 4),
-  'with two men back in the Powerplay and four after it');
-check(signals.some(Boolean), 'the bowler signals a change of field between overs', JSON.stringify(signals));
-// Four men back, less the two the surge brings in.
-check(armed === 5 && fields[5]?.change === 'surge' && fields[5].deep.length === 2,
+check(fields.slice(0, 3).every(f => f.deep.length === 2) && fields.slice(3, 5).every(f => f.deep.length === 5),
+  'with two men back in the Powerplay and five after it', fields.map(f => f?.deep.length).join(' '));
+check(away.every(a => a < .5), 'and the men stand on a new field\'s marks, nobody walking there', away.join(' '));
+// Five men back, less the two the surge brings in.
+check(armed === 5 && fields[5]?.change === 'surge' && fields[5].deep.length === 3,
   'Power Surge taken with P before the sixth over brings two men in for it', `${armed} ${JSON.stringify(fields[5])}`);
+check(signals.some(Boolean), 'and the bowler beckons them in', JSON.stringify(signals));
 check(offered === 'offer' && usedAfter === 'used', 'its corner offers it in the break before the sixth and shows it used after',
   `${offered} ${usedAfter}`);
 check(fields.slice(6).every(f => f?.change !== 'surge'), 'and it is one over only: the ninth does not switch it on again');

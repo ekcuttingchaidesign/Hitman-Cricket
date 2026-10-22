@@ -4,9 +4,10 @@ import { SUPER10, type Bowler } from '../config/super10';
 import type { ShotOutcome, ShotType } from './types';
 
 /**
- * Super10's field: nine men, set by the bowler, moved by Power Surge and by the
- * bowler plugging a gap the batter has just hit through, and the rules that
- * make it matter. A ball is fielded by how far it passes the nearest man:
+ * Super10's field: nine men, set by the bowler from the fields T20 sides use
+ * (the claude.ai artifact "The T20 Field Book"), two of them a bowler, chosen
+ * at the top of his over and kept for it; moved within an over by nothing but
+ * Power Surge; and the rules that make it matter. A ball is fielded by how far it passes the nearest man:
  * along the ground at a man in the ring it is stopped (half the time; a
  * middled one beats him three times in four), at a boundary rider it is cut
  * off for one or two or saved for two or three, and a six that was not
@@ -30,12 +31,14 @@ export interface Man {
   deep: boolean;
 }
 
-/** What changed this field from the bowler's own: Power Surge, a gap plugged, or nothing. */
-export type FieldChange = null | 'surge' | 'plug';
+/** What changed this field from the bowler's first: Power Surge, his other plan, or nothing. */
+export type FieldChange = null | 'surge' | 'plan';
 
 export interface FieldSet {
   /** The same for the same field, so the map can tell a field it has shown before. */
   id: string;
+  /** The field book's name for it, as the map's tag says it: `WIDE YORKER`. */
+  name: string;
   bowler: Bowler;
   men: Man[];
   change: FieldChange;
@@ -60,8 +63,6 @@ export const RING_STOPS_MIDDLED = .25;
 /** A four a boundary rider gets to without being right behind it: saved this often, middled less. */
 export const DEEP_SAVES = .6;
 export const DEEP_SAVES_MIDDLED = .35;
-/** After a boundary through a gap, how often the bowler moves a man into it. */
-export const PLUG = .5;
 /** Where the ring is: men brought up from the rope stand here. */
 export const RING = 23;
 /** How far inside the rope a boundary rider stands. */
@@ -79,72 +80,99 @@ export function ropeAt(angle: number) {
 const deepAt = (angle: number) => Math.max(15, ropeAt(angle) - INSIDE_ROPE);
 
 /**
- * The positions the game uses, from the field chart: nobody within twenty
- * degrees of straight, where the sight screen is and where a man stands in
- * front of the bowler from behind the bat, and nobody within fifteen degrees
- * of another man in the same field. No slips, gully, short leg or leg slip:
- * the keeper takes every edge, and nobody fields close in a ten-over game.
+ * The positions the game uses, from the field chart and the field book's
+ * angles: nobody within twenty degrees of straight, where the sight screen is
+ * and where a man stands in front of the bowler from behind the bat (the
+ * book's long-off and long-on at sixteen are stood at twenty-two). No slips,
+ * gully, short leg or leg slip: the keeper takes every edge, and nobody fields
+ * close in a ten-over game, so the book's slip is a backward point or point.
  */
 export const POSITIONS = {
-  'mid-off': { angle: 32, distance: 22 },
-  'extra cover': { angle: 48, distance: 23 },
+  'mid-off': { angle: 34, distance: 22 },
+  'extra cover': { angle: 50, distance: 23 },
   cover: { angle: 66, distance: 22 },
-  point: { angle: 95, distance: 20 },
-  'backward point': { angle: 122, distance: 18 },
-  'mid-on': { angle: -32, distance: 22 },
-  midwicket: { angle: -60, distance: 22 },
-  'square leg': { angle: -95, distance: 20 },
-  'short fine leg': { angle: -145, distance: 15 },
-  'long-off': { angle: 24, deep: true },
-  'deep extra cover': { angle: 46, deep: true },
-  'deep cover': { angle: 66, deep: true },
-  'deep point': { angle: 96, deep: true },
-  'third man': { angle: 150, deep: true },
-  'long-on': { angle: -24, deep: true },
-  'deep midwicket': { angle: -56, deep: true },
-  'deep square leg': { angle: -96, deep: true },
-  'fine leg': { angle: -152, deep: true },
+  point: { angle: 92, distance: 21 },
+  'backward point': { angle: 112, distance: 19 },
+  'short third man': { angle: 135, distance: 20 },
+  'mid-on': { angle: -34, distance: 22 },
+  midwicket: { angle: -62, distance: 22 },
+  'square leg': { angle: -90, distance: 20 },
+  'short fine leg': { angle: -146, distance: 16 },
+  'long-off': { angle: 22, deep: true },
+  'deep cover': { angle: 60, deep: true },
+  'deep point': { angle: 102, deep: true },
+  'third man': { angle: 142, deep: true },
+  'long-on': { angle: -22, deep: true },
+  'deep midwicket': { angle: -50, deep: true },
+  'deep square leg': { angle: -80, deep: true },
+  'deep backward square leg': { angle: -112, deep: true },
+  'fine leg': { angle: -156, deep: true },
 } as const satisfies Record<string, { angle: number; distance?: number; deep?: boolean }>;
 export type Position = keyof typeof POSITIONS;
-/** The closest straight a man stands, and the closest two men stand. */
+/**
+ * The closest straight a man stands; the closest two men at the same depth
+ * stand; and the closest a man in the ring stands to the line of a man behind
+ * him, which is wider near straight (`IN_LINE_NEAR`), where the camera behind
+ * the bat would see one stood in front of the other.
+ */
 export const SIGHT_SCREEN = 20;
 export const APART = 15;
+export const IN_LINE = 6;
+export const IN_LINE_NEAR = 12;
 
+/** A field from the book, as this game stands it. */
+interface Plan { name: string; men: Position[] }
 /**
- * Each bowler's field, nine men. The swing bowler and the seamer have a
- * Powerplay field of their own for the first three overs, two men back; after
- * it four.
+ * The field book's fields, the slip turned into a man square of the wicket.
+ * Two men back in each Powerplay field and five in the rest but the spinner's
+ * attacking one, which keeps three.
  */
-const PLANS: Record<string, Position[]> = {
-  'SWING-pp': ['mid-off', 'extra cover', 'point', 'backward point', 'mid-on', 'midwicket', 'square leg', 'third man', 'fine leg'],
-  'SEAM-pp': ['mid-off', 'cover', 'point', 'backward point', 'mid-on', 'midwicket', 'short fine leg', 'deep square leg', 'third man'],
-  SEAM: ['mid-off', 'extra cover', 'cover', 'square leg', 'short fine leg', 'long-on', 'deep midwicket', 'deep point', 'third man'],
-  SPIN: ['extra cover', 'cover', 'point', 'backward point', 'short fine leg', 'long-off', 'long-on', 'deep midwicket', 'deep square leg'],
-  SLING: ['extra cover', 'cover', 'point', 'mid-on', 'midwicket', 'long-off', 'deep square leg', 'third man', 'fine leg'],
-  DEATH: ['extra cover', 'point', 'backward point', 'square leg', 'short fine leg', 'long-off', 'long-on', 'deep cover', 'deep midwicket'],
+const PLANS = {
+  'new-ball': { name: 'New-ball attack', men: ['point', 'backward point', 'cover', 'mid-off', 'mid-on', 'midwicket', 'square leg', 'third man', 'fine leg'] },
+  'square-riders': { name: 'Square riders', men: ['short third man', 'cover', 'extra cover', 'mid-off', 'mid-on', 'midwicket', 'short fine leg', 'deep point', 'deep square leg'] },
+  'hard-length': { name: 'Hard length', men: ['backward point', 'point', 'cover', 'mid-off', 'mid-on', 'midwicket', 'short fine leg', 'deep square leg', 'third man'] },
+  cutters: { name: 'Cutters', men: ['point', 'cover', 'mid-off', 'mid-on', 'third man', 'deep point', 'long-on', 'deep midwicket', 'deep square leg'] },
+  straight: { name: 'Straight field', men: ['short third man', 'point', 'mid-off', 'short fine leg', 'long-on', 'deep midwicket', 'deep square leg', 'long-off', 'deep cover'] },
+  'leg-spin': { name: 'Leg-spin strike', men: ['point', 'cover', 'midwicket', 'short fine leg', 'long-on', 'long-off', 'deep midwicket', 'deep square leg', 'deep cover'] },
+  'spin-attack': { name: 'Spinner attacking', men: ['backward point', 'point', 'cover', 'mid-off', 'midwicket', 'short fine leg', 'long-on', 'deep midwicket', 'deep square leg'] },
+  'short-ball': { name: 'Short-ball field', men: ['point', 'cover', 'mid-off', 'mid-on', 'fine leg', 'deep backward square leg', 'deep midwicket', 'long-on', 'third man'] },
+  'wide-yorker': { name: 'Wide yorker', men: ['point', 'extra cover', 'mid-on', 'short fine leg', 'third man', 'deep point', 'deep cover', 'long-off', 'long-on'] },
+} as const satisfies Record<string, Plan>;
+export type PlanId = keyof typeof PLANS;
+/**
+ * Each bowler's two fields, his first and his other: the swing bowler with
+ * the new ball, the seamer in the Powerplay and after it, the spinner, the
+ * sling bowler banging it in, and the death bowler's wide yorker.
+ */
+export const BOOK: Record<Bowler | 'SEAM-pp', readonly [PlanId, PlanId]> = {
+  SWING: ['new-ball', 'square-riders'],
+  'SEAM-pp': ['hard-length', 'square-riders'],
+  SEAM: ['cutters', 'straight'],
+  SPIN: ['leg-spin', 'spin-attack'],
+  SLING: ['short-ball', 'cutters'],
+  DEATH: ['wide-yorker', 'straight'],
 };
-// The swing bowler bowls only in the Powerplay; out of it he has the seamer's field.
-PLANS.SWING = PLANS.SEAM;
 
 /** What a position is called, by where it is: for a man moved off the chart's own places. */
 export function nameOf(angle: number, deep: boolean) {
   if (deep) {
     if (Math.abs(angle) <= 35) return angle < 0 ? 'long-on' : 'long-off';
-    if (angle < -125) return 'fine leg';
-    if (angle < -75) return 'deep square leg';
+    if (angle < -130) return 'fine leg';
+    if (angle < -96) return 'deep backward square leg';
+    if (angle < -65) return 'deep square leg';
     if (angle < -35) return 'deep midwicket';
-    if (angle > 125) return 'third man';
-    if (angle > 80) return 'deep point';
-    if (angle > 58) return 'deep cover';
-    return 'deep extra cover';
+    if (angle > 122) return 'third man';
+    if (angle > 81) return 'deep point';
+    return 'deep cover';
   }
-  if (Math.abs(angle) <= 40) return angle < 0 ? 'mid-on' : 'mid-off';
+  if (Math.abs(angle) <= 42) return angle < 0 ? 'mid-on' : 'mid-off';
   if (angle < -125) return 'short fine leg';
-  if (angle < -78) return 'square leg';
-  if (angle < -40) return 'midwicket';
-  if (angle > 108) return 'backward point';
-  if (angle > 80) return 'point';
-  if (angle > 57) return 'cover';
+  if (angle < -76) return 'square leg';
+  if (angle < -42) return 'midwicket';
+  if (angle > 124) return 'short third man';
+  if (angle > 102) return 'backward point';
+  if (angle > 79) return 'point';
+  if (angle > 58) return 'cover';
   return 'extra cover';
 }
 
@@ -159,18 +187,25 @@ export interface FieldAsk {
   /** The over, from nought. */
   over: number;
   surge?: boolean;
+  /** His first field or his other (`planFor`). */
+  plan?: 0 | 1;
+}
+
+/** Which of a bowler's two fields is his for an over: the seamer's own pair in the Powerplay. */
+export function bookOf(bowler: Bowler, over: number): readonly [PlanId, PlanId] {
+  return BOOK[bowler === 'SEAM' && over < SUPER10.powerplay ? 'SEAM-pp' : bowler];
 }
 
 /** The bowler's field for an over, with Power Surge laid on it if this is the surge over. */
-export function fieldFor({ bowler, over, surge = false }: FieldAsk): FieldSet {
-  const key = over < SUPER10.powerplay && PLANS[`${bowler}-pp`] ? `${bowler}-pp` : bowler;
-  let men = PLANS[key].map(placed);
+export function fieldFor({ bowler, over, surge = false, plan = 0 }: FieldAsk): FieldSet {
+  const key = bookOf(bowler, over)[plan];
+  let men = PLANS[key].men.map(placed);
   // The Powerplay's two men back, whoever is bowling: anyone more comes up, nearest straight first.
   while (over < SUPER10.powerplay && men.filter(m => m.deep).length > 2) {
     const man = men.filter(m => m.deep).sort((a, b) => Math.abs(a.angle) - Math.abs(b.angle))[0];
     men = men.map(m => (m === man ? up(m) : m));
   }
-  const field: FieldSet = { id: key, bowler, men, change: null, moved: [] };
+  const field: FieldSet = { id: key, name: PLANS[key].name, bowler, men, change: plan ? 'plan' : null, moved: [] };
   if (!surge) return field;
   // Power Surge: the two men back nearest straight come in.
   const take = men.filter(m => m.deep).sort((a, b) => Math.abs(a.angle) - Math.abs(b.angle)).slice(0, 2);
@@ -181,24 +216,29 @@ export function fieldFor({ bowler, over, surge = false }: FieldAsk): FieldSet {
   };
 }
 
+/** How near a boundary passes a man back for him to count as having had it covered. */
+export const COVERS = 12;
+/** How many of the batter's last boundaries a bowler reads. */
+export const READS = 8;
+
 /**
- * The bowler plugging the gap a boundary just went through: the man back
- * furthest round from it goes there, for the rest of the over. Answers null
- * when there is nobody back to move.
+ * Which of his two fields a bowler sets for an over, read off how the innings
+ * has gone, and only ever at the top of his over: the field is kept for all
+ * six balls. The spinner attacks a new batter — a wicket in the over before
+ * his — with his three-out field. Otherwise a bowler takes his other field
+ * only when it has more men back on the lines of the batter's last boundaries
+ * than his first does, two of them at least, so one four never moves a man.
  */
-export function plug(field: FieldSet, angle: number): FieldSet | null {
-  const deep = field.men.filter(m => m.deep);
-  if (!deep.length) return null;
-  const mover = deep.reduce((a, b) => (Math.abs(b.angle - angle) > Math.abs(a.angle - angle) ? b : a));
-  // Never in front of the sight screen.
-  const turned = Math.abs(angle) < SIGHT_SCREEN ? Math.sign(angle || 1) * SIGHT_SCREEN : angle;
-  const at = Math.max(-165, Math.min(165, Math.round(turned)));
-  const man: Man = { name: nameOf(at, true), angle: at, distance: deepAt(at), deep: true };
-  return {
-    ...field, id: `${field.id}+plug${at}`, change: 'plug',
-    men: field.men.map(m => (m === mover ? man : m)),
-    moved: [`${man.name} back`.toUpperCase()],
+export function planFor(bowler: Bowler, over: number, { boundaries, newBatter }: { boundaries: readonly number[]; newBatter: boolean }): 0 | 1 {
+  if (bowler === 'SPIN') return newBatter ? 1 : 0;
+  const last = boundaries.slice(-READS);
+  if (last.length < 2) return 0;
+  const covered = (plan: 0 | 1) => {
+    const back = fieldFor({ bowler, over, plan }).men.filter(m => m.deep);
+    return last.filter(a => back.some(m => Math.abs(m.angle - a) <= COVERS)).length;
   };
+  const first = covered(0), other = covered(1);
+  return other > first && other >= 2 ? 1 : 0;
 }
 
 /** How far to one side of a man a ball struck along `angle` passes him; nobody behind him reaches it. */
