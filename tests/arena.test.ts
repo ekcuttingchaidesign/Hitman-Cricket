@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { ARENA, ARENA_CROWD, CUES, arenaFrame, arenaStands, screenFrom } from '../src/scene/arena';
+import { ARENA, ARENA_CROWD, ARENA_PALETTES, CUES, DEFAULT_PALETTE, arenaFrame, arenaStands, paletteFrom, screenFrom, usePalette } from '../src/scene/arena';
 import { buildGround, groundFrom, nightOnly, ownFloodlights } from '../src/scene/grounds';
 
 const hex = (c: THREE.Color) => c.getHex();
@@ -22,6 +22,18 @@ describe('the arena', () => {
     expect(screenFrom('')).toBe(true);
     expect(screenFrom('?ground=arena')).toBe(true);
     expect(screenFrom('?ground=arena&screen=0')).toBe(false);
+  });
+
+  it('takes its calm colours from a palette the link can ask for, never Power Surge\'s gold or the death overs\' red', () => {
+    expect(paletteFrom('')).toBe(DEFAULT_PALETTE);
+    expect(paletteFrom('?palette=VIOLET')).toBe('violet');
+    expect(paletteFrom('?palette=lime')).toBe(DEFAULT_PALETTE);
+    for (const name of Object.keys(ARENA_PALETTES) as (keyof typeof ARENA_PALETTES)[]) {
+      usePalette(name);
+      expect(hex(arenaFrame('calm', null, 0).halo)).toBe(ARENA_PALETTES[name].halo);
+      for (const c of [ARENA.halo, ARENA.ribbon]) expect(c === ARENA.surge || c === ARENA.death || c === ARENA.out).toBe(false);
+    }
+    usePalette(DEFAULT_PALETTE);
   });
 
   it('is lit by a ring of lamps round the whole roof, and stands up no towers', () => {

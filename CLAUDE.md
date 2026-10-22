@@ -1682,7 +1682,12 @@ the ninth over (unless the surge has it) runs red the other way. The boundaries 
 come in through the crowd's `cheer`; a wicket, the surge and the death overs
 are `arenaCue` from the game. Reduced motion keeps the colours and the words
 and drops every chase, strobe and sweep. The colours are `ARENA`, changed
-there and everywhere. `__cricket.arena()` says what it is showing and
+there and everywhere; its calm two, the halo and the ribbon, are a palette
+(`ARENA_PALETTES`: ice, the default, violet, orange, white, and the first
+build's magenta as pink, which read as too much), asked for with
+`?palette=violet` to judge them on a phone, none of them gold or red, which are
+the surge's and the death overs'. A word goes on a light colour in dark
+letters (`inkOn`). `__cricket.arena()` says what it is showing and
 `__cricket.arenaCue('six')` puts any moment up, for photographing.
 
 ## A newcomer's first innings

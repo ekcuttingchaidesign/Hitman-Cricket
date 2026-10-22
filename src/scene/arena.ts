@@ -33,28 +33,60 @@ import type { Milestone } from '../game/milestone';
  * placards and phone torches go on as they always have, over it.
  */
 
-/** The arena's colours, as a designer would pick them; changed here, changed everywhere. */
-export const ARENA = {
+/**
+ * The arena's calm colours, the halo round the roof and the ribbon along the
+ * upper tier, which the screen's title and the city's odd lit window share.
+ * Several to look at side by side on a phone (`?palette=violet`), none of
+ * them gold or red, which are Power Surge's and the death overs'. The first
+ * build's magenta is kept as `pink`; it read as too much.
+ */
+export const ARENA_PALETTES = {
+  /** Ice blue round the roof over a white-blue ribbon: cool, and the floodlights' own white. */
+  ice: { halo: 0x2fc8ff, ribbon: 0xbfe9ff },
+  /** Electric violet over cyan. */
+  violet: { halo: 0x7b5cff, ribbon: 0x22d8ff },
+  /** The game's own orange over the batter's blue. */
+  orange: { halo: 0xff7a2f, ribbon: 0x2f8cff },
+  /** White LED round the roof, a royal blue ribbon: the least of a colour. */
+  white: { halo: 0xe8eeff, ribbon: 0x3d6bff },
+  /** The first build's, magenta over cyan. */
+  pink: { halo: 0xff2fa8, ribbon: 0x22e1ff },
+} as const;
+export type PaletteName = keyof typeof ARENA_PALETTES;
+export const DEFAULT_PALETTE: PaletteName = 'ice';
+/** `?palette=` asks for one; anything else, or nothing, is the default. */
+export function paletteFrom(search: string): PaletteName {
+  const asked = new URLSearchParams(search).get('palette')?.toLowerCase();
+  return (Object.keys(ARENA_PALETTES) as PaletteName[]).find(name => name === asked) ?? DEFAULT_PALETTE;
+}
+
+/** The arena's colours, as a designer would pick them; changed here, changed everywhere. The calm two are the palette's (`usePalette`). */
+export const ARENA: { halo: number; ribbon: number; surge: number; death: number; deathRibbon: number; out: number; lamp: number; frame: number } = {
   /** The halo round the roof, and the screen's first colour. */
-  halo: 0xff2fa8,
+  halo: ARENA_PALETTES[DEFAULT_PALETTE].halo,
   /** The ribbon along the upper tier, and the screen's second colour. */
-  ribbon: 0x22e1ff,
+  ribbon: ARENA_PALETTES[DEFAULT_PALETTE].ribbon,
   /** Power Surge. */
   surge: 0xffc23a,
   /** The death overs: the halo, and the ribbon under it. */
   death: 0xff2a4d,
-  deathRibbon: 0xff2fa8,
+  deathRibbon: 0xff7a1f,
   /** A wicket. */
   out: 0xff1e1e,
   /** The ring of lamps: a cool white, where the stadium's lamps are warm. */
   lamp: 0xf2f6ff,
   /** The screen's frame, and the bars it stands on. */
   frame: 0x1b2129,
-} as const;
+};
+
+/** Puts a palette's two colours on the arena, before it is built: the city's windows are painted from them once. */
+export function usePalette(name: PaletteName) {
+  ARENA.halo = ARENA_PALETTES[name].halo; ARENA.ribbon = ARENA_PALETTES[name].ribbon;
+}
 
 /** The two sides in the stands, a section each in turn: a blue side and a yellow one, with the odd shirt from the arena's shop. */
 export const ARENA_CROWD: readonly (readonly number[])[] = [
-  [0x1f4fd6, 0x163a9e, 0x1f4fd6, 0xf2ede1, 0x2a62ff, 0x111418, 0x1f4fd6, 0xff2fa8, 0x163a9e],
+  [0x1f4fd6, 0x163a9e, 0x1f4fd6, 0xf2ede1, 0x2a62ff, 0x111418, 0x1f4fd6, 0xffffff, 0x163a9e],
   [0xffd23f, 0xf2b91c, 0xffd23f, 0x111418, 0xffe36e, 0xf2ede1, 0xffd23f, 0x22e1ff, 0xf2b91c],
 ];
 
@@ -94,21 +126,21 @@ export function arenaStands(world: THREE.Object3D, screen = true): StadiumLights
 export type ArenaMood = 'calm' | 'surge' | 'death';
 export type ArenaCue = 'four' | 'six' | 'wicket' | 'milestone' | 'surge' | 'death';
 
-/** The mood's colours, and how fast and how deep they breathe (a pulse a second; nought is still). */
-const MOODS: Record<ArenaMood, { halo: number; ribbon: number; pulse: number; depth: number }> = {
+/** The mood's colours, read when asked so the palette is the one in use, and how fast and how deep they breathe (a pulse a second; nought is still). */
+const moodOf = (mood: ArenaMood) => ({
   calm: { halo: ARENA.halo, ribbon: ARENA.ribbon, pulse: 0, depth: 0 },
   surge: { halo: ARENA.surge, ribbon: ARENA.surge, pulse: 1.2, depth: .35 },
   death: { halo: ARENA.death, ribbon: ARENA.deathRibbon, pulse: .55, depth: .3 },
-};
+})[mood];
 
-/** How long each moment holds the arena, and what the boards and the screen say. */
-export const CUES: Record<ArenaCue, { ms: number; word: string; colour: number }> = {
-  four: { ms: 1800, word: 'FOUR', colour: ARENA.ribbon },
-  six: { ms: 2800, word: 'SIX', colour: ARENA.halo },
-  wicket: { ms: 2000, word: 'WICKET', colour: ARENA.out },
-  milestone: { ms: 3600, word: 'FIFTY', colour: ARENA.surge },
-  surge: { ms: 2600, word: 'POWER SURGE', colour: ARENA.surge },
-  death: { ms: 2600, word: 'DEATH OVERS', colour: ARENA.death },
+/** How long each moment holds the arena, what the boards and the screen say, and the colour they say it on. */
+export const CUES: Record<ArenaCue, { ms: number; word: string; colour: () => number }> = {
+  four: { ms: 1800, word: 'FOUR', colour: () => ARENA.ribbon },
+  six: { ms: 2800, word: 'SIX', colour: () => ARENA.halo },
+  wicket: { ms: 2000, word: 'WICKET', colour: () => ARENA.out },
+  milestone: { ms: 3600, word: 'FIFTY', colour: () => ARENA.surge },
+  surge: { ms: 2600, word: 'POWER SURGE', colour: () => ARENA.surge },
+  death: { ms: 2600, word: 'DEATH OVERS', colour: () => ARENA.death },
 };
 
 /** What a milestone puts on the boards and the screen. */
@@ -140,14 +172,14 @@ const fade = (t: number, from: number, to: number) => THREE.MathUtils.clamp((t -
  * colours change and nothing flashes, runs or sweeps.
  */
 export function arenaFrame(mood: ArenaMood, cue: { kind: ArenaCue; at: number; word?: string } | null, now: number, still = false): ArenaFrame {
-  const m = MOODS[mood];
+  const m = moodOf(mood);
   const breathe = still || !m.pulse ? 1 : 1 - m.depth * (.5 + .5 * Math.cos(now / 1000 * m.pulse * Math.PI * 2));
   const halo = new THREE.Color(m.halo).multiplyScalar(breathe), ribbon = new THREE.Color(m.ribbon).multiplyScalar(breathe);
   const frame: ArenaFrame = { halo, ribbon, chase: 0, beams: 0, word: null, wordColour: 0 };
   const since = cue ? now - cue.at : Infinity;
   if (!cue || since < 0 || since >= CUES[cue.kind].ms) return frame;
   const { ms, word, colour } = CUES[cue.kind];
-  frame.word = cue.word ?? word; frame.wordColour = colour;
+  frame.word = cue.word ?? word; frame.wordColour = colour();
   // Every moment lets go over its last half second, back into the mood.
   const hold = 1 - fade(since, ms - 500, ms);
   const blink = (hz: number, until: number) => still || since > until ? 1 : (Math.floor(since / 1000 * hz * 2) % 2 ? .25 : 1);
@@ -216,6 +248,8 @@ function painted(width: number, height: number) {
 }
 
 const hex = (colour: number) => `#${colour.toString(16).padStart(6, '0')}`;
+/** Dark letters on a light colour, white on the rest: the ice palette's ribbon is nearly white. */
+const inkOn = (colour: number) => new THREE.Color(colour).getHSL({ h: 0, s: 0, l: 0 }).l > .68 ? '#05070d' : '#fff';
 const DISPLAY = (size: number) => `${size}px Jaro, "Arial Narrow", Impact, sans-serif`;
 
 /**
@@ -312,7 +346,7 @@ function boardWordTexture(word: string, colour: number, panels: number) {
   const g = ctx.createLinearGradient(0, 0, 640, 0);
   g.addColorStop(0, '#05070d'); g.addColorStop(.5, hex(colour)); g.addColorStop(1, '#05070d');
   ctx.fillStyle = g; ctx.fillRect(0, 0, 640, 128);
-  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = inkOn(colour); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = DISPLAY(104);
   const scale = Math.min(1, 560 / ctx.measureText(word).width);
   ctx.save(); ctx.translate(320, 68); ctx.scale(scale, 1); ctx.fillText(word, 0, 0); ctx.restore();
@@ -366,7 +400,7 @@ export class Arena {
     ring(HALO.radius, HALO.height, HALO.y, this.halo);
     // Its glow on the night either side of it: added light, so it sits on the roof and the sky alike.
     const band = glowTexture('band');
-    this.haloGlow = new THREE.MeshBasicMaterial({ map: band, color: ARENA.halo, side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false, opacity: .55 });
+    this.haloGlow = new THREE.MeshBasicMaterial({ map: band, color: ARENA.halo, side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false, opacity: .4 });
     ring(HALO.radius - .05, 3.4, HALO.y, this.haloGlow);
 
     const lamps = lampTexture(); lamps.repeat.x = -Math.round(2 * Math.PI * LAMPS.radius / 1.2); lamps.anisotropy = anisotropy;
@@ -522,7 +556,7 @@ export class Arena {
       const g = ctx.createLinearGradient(0, 0, W, H);
       g.addColorStop(0, hex(f!.wordColour)); g.addColorStop(1, '#0a0d18');
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+      ctx.fillStyle = inkOn(f!.wordColour); ctx.textAlign = 'center';
       ctx.font = DISPLAY(word.length > 6 ? 150 : 240);
       const scale = Math.min(1, (W - 80) / ctx.measureText(word).width);
       ctx.save(); ctx.translate(W / 2, H / 2 + 10); ctx.scale(scale, 1); ctx.fillText(word, 0, 0); ctx.restore();
