@@ -94,7 +94,6 @@ describe('the arena', () => {
     expect(hex(calm.halo)).toBe(ARENA.violet);
     expect(calm.board).toBe('idle');
     expect(calm.word).toBeNull();
-    expect(calm.beams).toBe(0);
     expect(calm.boards).toBe(1);
     expect(arenaFrame('calm', null, 5000, false, true).boards).toBe(.4);
     // A moment's board is never dimmed: it is the news.
@@ -123,13 +122,6 @@ describe('the arena', () => {
   it('says a figure for a milestone, never the number in words', () => {
     for (const word of Object.values(MILESTONE_WORDS)) expect(word).toMatch(/^\d/);
     expect(arenaFrame('calm', { kind: 'milestone', at: 0, word: '100' }, 800).word).toBe('100');
-  });
-
-  it('puts the searchlights up for a six and a milestone, and not for a four or a wicket', () => {
-    expect(arenaFrame('calm', { kind: 'six', at: 0 }, 800).beams).toBe(1);
-    expect(arenaFrame('calm', { kind: 'milestone', at: 0, word: '100' }, 800).beams).toBe(1);
-    expect(arenaFrame('calm', { kind: 'four', at: 0 }, 800).beams).toBe(0);
-    expect(arenaFrame('calm', { kind: 'wicket', at: 0 }, 800).beams).toBe(0);
   });
 
   it('takes the lights down for a wicket and brings them back', () => {
@@ -179,11 +171,10 @@ describe('the arena', () => {
     expect(arenaFrame('calm', { kind: 'six', at: 5000 }, 200).word).toBeNull();
   });
 
-  it('under reduced motion changes colour and says the word, and nothing runs, flickers or sweeps', () => {
+  it('under reduced motion changes colour and says the word, and nothing runs or flickers', () => {
     for (const mood of MOODS) for (const kind of KINDS) for (let t = 0; t < CUES[kind].ms; t += 100) {
       const f = arenaFrame(mood, { kind, at: 0 }, t, true);
       expect(f.chase).toBe(0);
-      expect(f.beams).toBe(0);
       expect(f.word).not.toBeNull();
     }
     expect(hex(arenaFrame('surge', null, 400, true).halo)).toBe(hex(arenaFrame('surge', null, 900, true).halo));

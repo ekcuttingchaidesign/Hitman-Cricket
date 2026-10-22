@@ -1690,8 +1690,9 @@ strobe (`MOST_FLASHES`: nothing flickers more than three times a second,
 which the tests count frame by frame for every mood and moment); a wicket
 means out. Power Surge charges the halo lime, breathing; the death overs
 crackle it, three lime flickers every few seconds; a four strikes it lime and
-settles, a six crackles it under six violet searchlights, a milestone breathes
-it lime under them, a wicket takes the lights down to the plate's dark with
+settles, a six crackles it, a milestone breathes it lime (six violet
+searchlights swept the sky over the far end for those two, and were taken
+down as too distracting behind the bowler), a wicket takes the lights down to the plate's dark with
 the batter's stumps lit raspberry once the bails go. The word goes on the
 boards and on the screen, slammed on from big with one overshoot
 (`slamScale`) and let go up for good news and down for a wicket; a milestone
@@ -1723,7 +1724,7 @@ across a few seats (`BANNERS`, one painted sheet a row an instance), most of
 them at the far end and none near the eyeline, both hung in the scene's frame
 so the words read the right way round. Fireworks go up over the far end for a
 six and a milestone. Reduced motion keeps every colour and word and stills
-every chase, crackle, sweep, sway and wave. The crowd's sound is the game's
+every chase, crackle, sway and wave. The crowd's sound is the game's
 own clips, as everywhere.
 
 `__cricket.arena()` says what it is showing, and `__cricket.arenaCue('six')`

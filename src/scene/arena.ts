@@ -91,8 +91,6 @@ const CITY = { radius: 120, height: 46, from: -1, arc: 3.3 } as const;
  * no taller than that band.
  */
 export const SCREEN = { width: 11.5, height: 4.3, bottom: EAVES + 1.85, z: CENTRE_Z + 37.6 } as const;
-/** The searchlights: how many, how long, and how far round either side of straight they stand. */
-const BEAMS = { count: 6, length: 70, spread: .7 } as const;
 
 /** Builds the arena's stands onto `world`; the rest of it is `Arena`, which `GameScene` hangs in its own frame. */
 export function arenaStands(world: THREE.Object3D, screen = true): StadiumLights {
@@ -139,8 +137,6 @@ export interface ArenaFrame {
   board: BoardState;
   /** How fast the boards run round the ground, in laps of their pattern a second. */
   chase: number;
-  /** The searchlights over the far end, nought to one. */
-  beams: number;
   /** What the screen and the boards say, or nothing. */
   word: string | null;
   /** How far through its moment the word is, for the screen's slam and its leave. */
@@ -170,7 +166,7 @@ export function arenaFrame(mood: ArenaMood, cue: { kind: ArenaCue; at: number; w
   const halo = colour(ARENA.violet);
   // Power Surge charges the roof: lime, breathing, the one thing lit.
   if (mood === 'surge') halo.set(ARENA.volt).multiplyScalar(still ? 1 : .78 + .22 * Math.cos(now / 1000 * Math.PI * 1.6));
-  const frame: ArenaFrame = { halo, boards: live ? .4 : 1, board: 'idle', chase: still ? 0 : DRIFT, beams: 0, word: null, since: Infinity };
+  const frame: ArenaFrame = { halo, boards: live ? .4 : 1, board: 'idle', chase: still ? 0 : DRIFT, word: null, since: Infinity };
   const since = cue ? now - cue.at : Infinity;
   if (!cue || since < 0 || since >= CUES[cue.kind].ms) {
     // The death overs crackle: three lime flickers on the violet every few seconds, while nothing else has the roof.
@@ -189,11 +185,11 @@ export function arenaFrame(mood: ArenaMood, cue: { kind: ArenaCue; at: number; w
       frame.chase = still ? 0 : .5 * hold;
       break;
     case 'six':
-      // The roof crackles lime on violet, the boards chase round the ground,
-      // and the searchlights come up over the far end.
+      // The roof crackles lime on violet and the boards chase round the
+      // ground. (Six searchlights swept the sky over the far end too, and were
+      // taken down: too much going on behind the bowler.)
       if (still || crackle(since, 3)) halo.lerp(lime, hold);
       frame.chase = still ? 0 : .8 * hold;
-      frame.beams = still ? 0 : fade(since, 0, 250) * hold;
       break;
     case 'wicket':
       // The lights go down the way the news goes, to the plate's dark, and come back.
@@ -201,10 +197,9 @@ export function arenaFrame(mood: ArenaMood, cue: { kind: ArenaCue; at: number; w
       frame.chase = 0;
       break;
     case 'milestone':
-      // The charge breathes on the roof under the searchlights.
+      // The charge breathes on the roof.
       halo.lerp(lime, (still ? 1 : .6 + .4 * Math.cos(since / 1000 * Math.PI * 2)) * hold);
       frame.chase = still ? 0 : .3 * hold;
-      frame.beams = still ? 0 : fade(since, 0, 400) * hold;
       break;
     case 'surge':
       if (still || crackle(since, 3)) halo.lerp(lime, hold);
@@ -393,17 +388,12 @@ function haloTexture() {
   return texture;
 }
 
-/** A soft band of light either side of a line, for the halo's glow and the searchlights. */
-function glowTexture(vertical: 'band' | 'beam') {
+/** A soft band of light either side of a line, for the halo's glow. */
+function glowTexture() {
   const { context: ctx, texture } = painted(4, 128);
   const g = ctx.createLinearGradient(0, 0, 0, 128);
-  if (vertical === 'band') {
-    g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.42, 'rgba(255,255,255,.55)');
-    g.addColorStop(.5, 'rgba(255,255,255,.8)'); g.addColorStop(.58, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
-  } else {
-    // The top of the canvas is the far end of the beam.
-    g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.6, 'rgba(255,255,255,.18)'); g.addColorStop(1, 'rgba(255,255,255,.7)');
-  }
+  g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.42, 'rgba(255,255,255,.55)');
+  g.addColorStop(.5, 'rgba(255,255,255,.8)'); g.addColorStop(.58, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, 4, 128);
   return texture;
 }
@@ -483,8 +473,6 @@ export class Arena {
   private halo: THREE.MeshBasicMaterial;
   private haloGlow: THREE.MeshBasicMaterial;
   private ribbon: THREE.MeshBasicMaterial;
-  private beams: THREE.InstancedMesh;
-  private beamMaterial: THREE.MeshBasicMaterial;
   private screen: ReturnType<typeof painted> | null = null;
   private shown = '';
   private board: Scoreboard = { title: 'SUPER10', score: '0/0', detail: '' };
@@ -496,7 +484,6 @@ export class Arena {
   private boardUp = '';
   private stumps: THREE.MeshStandardMaterial[] = [];
   private last: ArenaFrame | null = null;
-  private dummy = new THREE.Object3D();
   private marks: { primary: HTMLImageElement; lime: HTMLImageElement };
   private offset = 0;
   /** Reduced motion, as the last frame was drawn under. */
@@ -524,7 +511,7 @@ export class Arena {
     this.halo = new THREE.MeshBasicMaterial({ map: haloMap, color: ARENA.violet, side: THREE.BackSide, fog: false, toneMapped: false });
     ring(HALO.radius, HALO.height, HALO.y, this.halo);
     // Its glow on the night either side of it: added light, so it sits on the roof and the sky alike.
-    const band = glowTexture('band');
+    const band = glowTexture();
     this.haloGlow = new THREE.MeshBasicMaterial({ map: band, color: ARENA.violet, side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false, opacity: .35 });
     ring(HALO.radius - .05, 3.4, HALO.y, this.haloGlow);
 
@@ -545,16 +532,9 @@ export class Arena {
     skyline.position.set(0, CITY.from + CITY.height / 2, CENTRE_Z); skyline.name = 'Skyline';
     scene.add(skyline);
 
-    // The searchlights: one instanced cone, up only for a six or a milestone, in the floodlights' violet.
-    const beam = glowTexture('beam');
-    this.beamMaterial = new THREE.MeshBasicMaterial({ map: beam, color: 0xc4b0ff, side: THREE.DoubleSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false });
-    this.beams = new THREE.InstancedMesh(new THREE.CylinderGeometry(3.4, .35, BEAMS.length, 16, 1, true).translate(0, BEAMS.length / 2, 0), this.beamMaterial, BEAMS.count);
-    this.beams.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.beams.frustumCulled = false; this.beams.visible = false;
-    this.beams.name = 'Searchlights';
-    scene.add(this.beams);
 
     if (hasScreen) this.buildScreen(scene, anisotropy);
-    this.textures.push(haloMap, band, lamps, city, beam);
+    this.textures.push(haloMap, band, lamps, city);
   }
 
   /** The screen on its frame, on two legs off the roof, turned to the crease. */
@@ -614,7 +594,7 @@ export class Arena {
   /** For the checks: the mood, the moment up, what the boards and the screen show. */
   get state() {
     const f = this.last;
-    return { mood: this.moodNow, word: f?.word ?? null, board: f?.board ?? 'idle', boards: f?.boards ?? 1, beams: +(f?.beams ?? 0).toFixed(2),
+    return { mood: this.moodNow, word: f?.word ?? null, board: f?.board ?? 'idle', boards: f?.boards ?? 1,
       screen: this.hasScreen ? this.shown.split('|').slice(0, 2).join('|') : null, sting: this.playing?.name ?? null,
       wave: +(this.life?.waveOn.value ?? 0).toFixed(2), front: +(this.life?.wave.value ?? 0).toFixed(2),
       halo: `#${this.halo.color.getHexString()}` };
@@ -637,7 +617,6 @@ export class Arena {
     this.halo.color.copy(f.halo); this.haloGlow.color.copy(f.halo);
     this.offset = (this.offset + f.chase * .016) % 1;
     this.ledBoards(f);
-    this.searchlights(f.beams, now);
     if (this.screen) this.paintScreen(f);
     // The stumps lit raspberry once the bails go, flashing no more than three times a second.
     const lit = broken >= 0 && broken < 1600 ? (still || crackle(broken, 4) ? 1 : .3) : 0;
@@ -673,27 +652,6 @@ export class Arena {
       this.faces.set(key, texture); this.textures.push(texture);
     }
     return texture;
-  }
-
-  private searchlights(level: number, now: number) {
-    this.beams.visible = level > 0;
-    if (!level) return;
-    this.beamMaterial.opacity = level;
-    const t = now / 1000;
-    for (let i = 0; i < BEAMS.count; i++) {
-      // From the roof's edge over the far end, spread either side of straight.
-      const a = (i / (BEAMS.count - 1) - .5) * BEAMS.spread;
-      this.dummy.position.set(Math.sin(a) * LAMPS.radius, LAMPS.y, CENTRE_Z + Math.cos(a) * LAMPS.radius);
-      // Each leans out and sweeps across, every other one the other way, so they cross.
-      const sweep = (i % 2 ? -1 : 1) * Math.sin(t * 1.3 + i * .9) * .6;
-      const lean = .32 + .1 * Math.sin(t * .9 + i);
-      this.dummy.rotation.set(0, 0, 0);
-      this.dummy.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0),
-        new THREE.Vector3(Math.sin(a + sweep) * Math.sin(lean), Math.cos(lean), Math.cos(a + sweep) * Math.sin(lean) * .4 - .3 * Math.sin(lean)).normalize());
-      this.dummy.updateMatrix();
-      this.beams.setMatrixAt(i, this.dummy.matrix);
-    }
-    this.beams.instanceMatrix.needsUpdate = true;
   }
 
   private playSting(name: Sting, now: number) {
