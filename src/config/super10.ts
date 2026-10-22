@@ -43,13 +43,17 @@ export interface Super10Batter {
 }
 
 /**
- * The three, in the order they bat: the Marathon's opener, No. 3 and
- * tailender, each worse than the last, with the six window narrowed for all
- * three. Who is in is simply how many wickets have fallen.
+ * The three, in the order they bat: the opener, No. 3 and a middle-order
+ * batter, all three with the Marathon opener's windows and the six window
+ * narrowed. Who is in is simply how many wickets have fallen. They were the
+ * Marathon's three, each worse than the last, and after the first wicket the
+ * game got harder than anybody wanted: the third's window for a six was
+ * eleven milliseconds either side.
  */
-export const BATTERS: readonly Super10Batter[] = MARATHON_BATTERS.map(b => ({
-  title: b.title,
-  timing: { ...b.timing, perfect: Math.round(b.timing.perfect * SIX_WINDOW) },
+const OPENER = MARATHON_BATTERS[0].timing;
+export const BATTERS: readonly Super10Batter[] = ['OPENER', 'NO. 3', 'MIDDLE ORDER'].map(title => ({
+  title,
+  timing: { ...OPENER, perfect: Math.round(OPENER.perfect * SIX_WINDOW) },
 }));
 
 /**
@@ -58,7 +62,7 @@ export const BATTERS: readonly Super10Batter[] = MARATHON_BATTERS.map(b => ({
  */
 export const DEATH_TIMING = 0.85;
 
-/** The man in, by wickets down: the tailender stays in once he is. */
+/** The man in, by wickets down: the third stays in once he is. */
 export const batterAt = (wickets: number): Super10Batter => BATTERS[Math.min(wickets, BATTERS.length - 1)];
 
 /** The windows the ball about to be played is graded on: whoever is in, and the death's. */

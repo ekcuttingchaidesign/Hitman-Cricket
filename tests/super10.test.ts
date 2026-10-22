@@ -165,20 +165,19 @@ describe('Super10: the bowling', () => {
 });
 
 describe('Super10: the three batters', () => {
-  it('are the Marathon\'s three, with the window for a six narrowed', () => {
-    BATTERS.forEach((b, i) => {
-      const marathon = MARATHON_BATTERS[i];
-      expect(b.title).toBe(marathon.title);
-      expect(b.timing.perfect).toBe(Math.round(marathon.timing.perfect * SIX_WINDOW));
-      expect(b.timing.good).toBe(marathon.timing.good);
-    });
+  it('all bat with the Marathon opener\'s windows, the window for a six narrowed', () => {
+    const opener = MARATHON_BATTERS[0].timing;
+    for (const b of BATTERS) {
+      expect(b.timing.perfect).toBe(Math.round(opener.perfect * SIX_WINDOW));
+      expect(b.timing).toMatchObject({ good: opener.good, ok: opener.ok, poor: opener.poor });
+    }
   });
 
-  it('send in whoever the wickets say, and the tailender stays', () => {
+  it('send in whoever the wickets say, and the middle-order batter stays', () => {
     expect(batterAt(0).title).toBe('OPENER');
     expect(batterAt(1).title).toBe('NO. 3');
-    expect(batterAt(2).title).toBe('TAILENDER');
-    expect(batterAt(5).title).toBe('TAILENDER');
+    expect(batterAt(2).title).toBe('MIDDLE ORDER');
+    expect(batterAt(5).title).toBe('MIDDLE ORDER');
   });
 
   it('narrow every window but the miss in the last two overs', () => {

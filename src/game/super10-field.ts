@@ -86,12 +86,13 @@ const deepAt = (angle: number) => Math.max(15, ropeAt(angle) - INSIDE_ROPE);
  * angles. Mid-off and mid-on stand eighteen degrees off straight, a little
  * inside the picture the camera behind the bat sees on a phone (about
  * seventeen either side at the distance they stand, less nearer the bat):
- * at the book's twenty-four they were never seen. The men back stand no
- * nearer straight than `SIGHT_SCREEN`, nobody in front of the sight screen,
- * so long-off and long-on are at twenty-six, just out of the picture and off
- * the line of the man in front of them. No slips, gully, short leg or leg
- * slip: the keeper takes every edge, and nobody fields close in a ten-over
- * game, so the book's slip is a backward point or point.
+ * at the book's twenty-four they were never seen. Long-off and long-on stand
+ * twelve off straight on the rope, inside the picture as well, seven and a
+ * half metres off the line of the stumps and so clear of the sight screen
+ * (`SIGHT_SCREEN`), and six degrees off the line of mid-off and mid-on in
+ * front of them. No slips, gully, short leg or leg slip: the keeper takes
+ * every edge, and nobody fields close in a ten-over game, so the book's slip
+ * is a backward point or point.
  */
 export const POSITIONS = {
   'mid-off': { angle: 18, distance: 22 },
@@ -104,11 +105,11 @@ export const POSITIONS = {
   midwicket: { angle: -62, distance: 22 },
   'square leg': { angle: -90, distance: 20 },
   'short fine leg': { angle: -146, distance: 16 },
-  'long-off': { angle: 26, deep: true },
+  'long-off': { angle: 12, deep: true },
   'deep cover': { angle: 60, deep: true },
   'deep point': { angle: 102, deep: true },
   'third man': { angle: 142, deep: true },
-  'long-on': { angle: -26, deep: true },
+  'long-on': { angle: -12, deep: true },
   'deep midwicket': { angle: -50, deep: true },
   'deep square leg': { angle: -80, deep: true },
   'deep backward square leg': { angle: -112, deep: true },
@@ -120,7 +121,7 @@ export type Position = keyof typeof POSITIONS;
  * two men at the same depth stand; and the closest a man in the ring stands to
  * the line of a man behind him.
  */
-export const SIGHT_SCREEN = 20;
+export const SIGHT_SCREEN = 12;
 export const STRAIGHT_RING = 16;
 export const APART = 15;
 export const IN_LINE = 6;

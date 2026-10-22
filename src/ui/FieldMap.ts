@@ -14,8 +14,8 @@ import { icon } from './Kit';
  *    its name in the field book floats above it. After a
  *    shot the ball's line is drawn from the batter to where it went, the man
  *    who caught it or got to it lit, and both stay until the next ball. One tap
- *    enlarges it from its corner; a tap, the bowler's first stride or six
- *    seconds put it back.
+ *    enlarges it from its corner, and it stays up, live, until it is tapped
+ *    again; the ground under it still takes a swipe.
  *  - **Power Surge**, bottom left: locked to the end of the fifth over, gold
  *    and breathing in the breaks it can be taken in, its ring emptying over the
  *    bowler's wait; through its over a ring filling a sixth a ball; a grey tick
@@ -33,8 +33,6 @@ import { icon } from './Kit';
 /** Locked to the end of the fifth over; resting mid-over until it is used; offered in a break; on through its over; used. */
 export type SurgeState = 'locked' | 'rest' | 'offer' | 'on' | 'used';
 
-/** How long the enlarged map stays up untouched. */
-const ENLARGED_MS = 6000;
 const TAG_MS = 2400;
 const LIT_MS = 1800;
 const TITLE_MS = 1600;
@@ -104,7 +102,7 @@ export class FieldUi {
   private mirrored = false;
   private on = false;
   private taught = false;
-  private timers = { tag: 0, big: 0, lit: 0, title: 0 };
+  private timers = { tag: 0, lit: 0, title: 0 };
 
   constructor(private readonly root: HTMLElement, private readonly handlers: FieldUiHandlers) {
     this.map = this.made('button', 's10-corner s10-map hidden', root) as HTMLButtonElement;
@@ -162,7 +160,7 @@ export class FieldUi {
     this.map.classList.toggle('is-surge', surge);
     const was = [...this.map.querySelectorAll<SVGGElement>('.s10-man')].map(g => g.style.transform);
     this.map.innerHTML = `${fieldMapMarkup(field, { mirrored: this.mirrored })}<span class="s10-pulse"></span>`;
-    if (!prev || !was.length || prev.id === field.id) return;
+    if (!prev || !was.length || prev.id === field.id) { this.drawBig(); return; }
     // The men walk: each new place from whoever stood nearest it.
     const from = this.matched(prev.men, field.men);
     [...this.map.querySelectorAll<SVGGElement>('.s10-man')].forEach((g, i) => {
@@ -176,6 +174,7 @@ export class FieldUi {
     pulse.classList.remove('is-on'); void pulse.offsetWidth; pulse.classList.add('is-on');
     const name = field.name.toUpperCase();
     this.say(surge ? 'POWER SURGE · TWO FIELDERS IN' : field.change === 'plan' ? `FIELD CHANGE · ${name}` : `${name} · ${out} OUT`, 'map');
+    this.drawBig();
   }
 
   /** For each new man, the old man nearest him, so a man walks to his new place rather than across the ground. */
@@ -195,29 +194,43 @@ export class FieldUi {
   private say(text: string, corner: 'map' | 'surge') {
     this.tag.textContent = text;
     this.tag.dataset.corner = corner;
+    // Over the enlarged map when it is up, not across it.
+    this.tag.classList.toggle('is-high', corner === 'map' && this.enlargedOpen);
     this.tag.classList.remove('hidden', 'is-in'); void this.tag.offsetWidth; this.tag.classList.add('is-in');
     clearTimeout(this.timers.tag);
     this.timers.tag = window.setTimeout(() => this.tag.classList.add('hidden'), TAG_MS);
   }
 
-  /** The map grown out of its corner, still on no panel, the field named beside it. A tap puts it back. */
+  /**
+   * The map grown out of its corner, still on no panel, the field named above
+   * it. It stays up, kept live as the field and the shots change it, until it
+   * is tapped again (or F): put back by itself, at the bowler's first stride
+   * or after six seconds, it was gone before anybody had read it.
+   */
   enlarge() {
     if (!this.on || !this.field || this.enlargedOpen) return false;
-    const out = this.field.men.filter(m => m.deep).length;
-    this.enlarged.innerHTML = `<div class="s10-big-words"><span>OVER ${this.over + 1} · ${out} OUT</span><b>${this.field.name.toUpperCase()}</b><small>Tap to shrink</small></div>
-      <div class="s10-big-map${this.field.change === 'surge' ? ' is-surge' : ''}">${this.map.querySelector('svg')?.outerHTML ?? ''}</div>`;
     this.enlarged.classList.remove('hidden');
     this.map.classList.add('is-away');
-    clearTimeout(this.timers.big);
-    this.timers.big = window.setTimeout(() => this.shrink(), ENLARGED_MS);
+    this.drawBig(true);
     return true;
   }
-  /** Back into its corner: a tap, the bowler's first stride, or six seconds. */
+  /** The enlarged map drawn again from the corner's, while it is up. */
+  private drawBig(growing = false) {
+    if (!this.field || !this.enlargedOpen) return;
+    const out = this.field.men.filter(m => m.deep).length;
+    this.enlarged.innerHTML = `<div class="s10-big-words"><span>OVER ${this.over + 1} · ${out} OUT</span><b>${this.field.name.toUpperCase()}</b><small>Tap to shrink</small></div>
+      <div class="s10-big-map${this.field.change === 'surge' ? ' is-surge' : ''}${growing ? '' : ' is-up'}">${this.map.querySelector('svg')?.outerHTML ?? ''}</div>`;
+  }
+  /** Back into its corner: a tap on it, or F. */
   shrink() {
-    clearTimeout(this.timers.big);
     if (this.enlarged.classList.contains('hidden')) return;
     this.enlarged.classList.add('hidden');
     this.map.classList.remove('is-away');
+  }
+  /** F: the map enlarged, or put back. */
+  toggle() {
+    if (this.enlargedOpen) { this.shrink(); return false; }
+    return this.enlarge();
   }
 
   /**
@@ -233,7 +246,7 @@ export class FieldUi {
     const under = this.map.querySelector<SVGPathElement>('.s10-shot-under');
     this.map.querySelectorAll('.s10-man.is-taker').forEach(g => g.classList.remove('is-taker'));
     if (!path || !under) return;
-    if (angle === null || !outcome || !this.field) { path.setAttribute('d', ''); under.setAttribute('d', ''); path.classList.remove('is-on'); under.classList.remove('is-on'); return; }
+    if (angle === null || !outcome || !this.field) { path.setAttribute('d', ''); under.setAttribute('d', ''); path.classList.remove('is-on'); under.classList.remove('is-on'); this.drawBig(); return; }
     const man = taker === null ? null : this.field.men[taker] ?? null;
     const distance = outcome.runs >= 4 ? ropeAt(angle) : [6, 14, 22, 28][outcome.runs] ?? 6;
     const end = man ? onMap(man.angle, man.distance, this.mirrored, man.deep) : onMap(angle, distance, this.mirrored);
@@ -242,6 +255,7 @@ export class FieldUi {
     path.classList.remove('is-on'); under.classList.remove('is-on'); void path.getBoundingClientRect();
     path.classList.add('is-on'); under.classList.add('is-on');
     if (man) this.map.querySelector(`.s10-man[data-man="${taker}"]`)?.classList.add('is-taker');
+    this.drawBig();
   }
 
   /**

@@ -349,9 +349,9 @@ describe('Super10\'s field on the ground', () => {
   it('takes a catch on the rope where the boundary rider stands', () => {
     const field = new Field();
     field.setField(marksOf(fieldFor({ bowler: 'DEATH', over: 7 })));
-    const at = mark(-26, fieldFor({ bowler: 'DEATH', over: 7 }).men.find(m => m.angle === -26)!.distance);
+    const at = mark(-12, fieldFor({ bowler: 'DEATH', over: 7 }).men.find(m => m.angle === -12)!.distance);
     const target = new THREE.Vector3(at.x, 2, at.z);
-    const plan = field.struck(HIT, HIT + 1900, look, { angle: deg(-26), height: 2, arrives: HIT + HANG, dropped: false, visible: () => true, at: target })!;
+    const plan = field.struck(HIT, HIT + 1900, look, { angle: deg(-12), height: 2, arrives: HIT + HANG, dropped: false, visible: () => true, at: target })!;
     expect(plan).not.toBeNull();
     expect(plan.hands.distanceTo(target)).toBeLessThan(.8);
     expect(field.state(HIT).catcher).not.toBeNull();

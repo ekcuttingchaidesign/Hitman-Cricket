@@ -2504,7 +2504,7 @@ export class Game {
     if (phase === 'READY' && this.super10 && this.lesson < 0) this.super10Over(true);
     // As the bowler sets off: the surge's offer goes, the map goes back into
     // its corner, and the last ball's line comes off it.
-    if (phase === 'BOWLER_RUNUP' && this.super10) { this.surgeShown(); this.fieldUi.shrink(); this.fieldUi.shot(null, null); }
+    if (phase === 'BOWLER_RUNUP' && this.super10) { this.surgeShown(); this.fieldUi.shot(null, null); }
     if (phase === 'READY' && this.momentAsked) { const moment = this.momentAsked; this.momentAsked = null; this.askMoment(moment); }
     if (phase === 'READY' && this.actionAsked) { const kind = this.actionAsked; this.actionAsked = null; this.askAction(kind); }
   }
@@ -2611,10 +2611,10 @@ export class Game {
     const man = drawnOf(field)[drawn];
     return man ? field.men.indexOf(man) : null;
   }
-  /** The map enlarged from its corner: a tap on it, or F. */
+  /** F: the map enlarged from its corner, or put back. */
   private lookAtField() {
     if (!this.super10) return;
-    if (this.fieldUi.enlarge()) this.mark('field-look', 'Looked at the field');
+    if (this.fieldUi.toggle()) this.mark('field-look', 'Looked at the field');
   }
   /**
    * At the top of an over, whether it is the one the innings changes in: the

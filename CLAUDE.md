@@ -1453,11 +1453,14 @@ before (`KNEELING_SWEEP`) and meets the ball where the drives do. It is
 Super10 (`SUPER10` in `src/game/modes.ts`, its numbers in `src/config/super10.ts`)
 is the Blast's ball for ten overs: `resolveShot`, the confidence meter and the
 charge, coloured kit, the Blast field and the lights by the player's clock.
-Three wickets, and the batters are the Marathon's three, opener, No. 3 and
-tailender, by how many are down (`batterAt`), each named walking out
-(`walkingOut`), with the window for a six narrowed to `SIX_WINDOW` of theirs
-and every window but the miss narrowed by `DEATH_TIMING` in the last two overs
-(`windowsAt`, read through `windows` in `src/Game.ts`).
+Three wickets, and the batters are the opener, No. 3 and a middle-order
+batter, by how many are down (`batterAt`), each named walking out
+(`walkingOut`). All three bat with the Marathon opener's windows, the window
+for a six narrowed to `SIX_WINDOW` of his, and every window but the miss
+narrowed by `DEATH_TIMING` in the last two overs (`windowsAt`, read through
+`windows` in `src/Game.ts`). They were the Marathon's three, each worse than
+the last — its tailender's six window was eleven milliseconds either side —
+and the game got too hard after the first wicket.
 
 Five bowlers bowl two overs each, never two running (`scheduleOf`): the swing
 bowler with the new ball in overs one and three (the Marathon's swing, late, no
@@ -1498,12 +1501,12 @@ The field (`src/game/super10-field.ts`, in `tests/super10-field.test.ts`) is
 nine men, set from the fields T20 sides use: the claude.ai artifact "The T20
 Field Book" (https://claude.ai/artifact/C3YAV9BVN4v4QGCUHPEfZX), fourteen
 fields with the situation each is for. The positions (`POSITIONS`) are the
-book's angles but two: mid-off and mid-on stand eighteen degrees off
+book's angles but four: mid-off and mid-on stand eighteen degrees off
 straight, a little inside the picture (a phone's camera behind the bat sees
 about seventeen either side at their distance), where at the book's
-twenty-four nobody ever saw them; and no man back within twenty of straight,
-in front of the sight screen (`SIGHT_SCREEN`), so long-off and long-on are at
-twenty-six, just out of the picture. Nobody within fifteen of another man at
+twenty-four nobody ever saw them; and long-off and long-on twelve off it on
+the rope, in the picture too, seven and a half metres off the line of the
+stumps and clear of the sight screen (`SIGHT_SCREEN`). Nobody within fifteen of another man at
 his depth, a man in the ring off the line of the man behind him (`IN_LINE`);
 no slips, gully or short leg, so the book's slip is a point or a backward
 point. The new-ball attack's two men back are deep third and long-off, where
@@ -1575,12 +1578,10 @@ sixth, seventh or eighth (`surgeOffered`; its chip, or P), the bowler waiting
 `SURGE_WAIT_MS` at his mark while it is offered; not taken, it goes on by
 itself in the ninth (`surgeAuto`), and the tenth never has it: the two men back
 nearest straight come in. `scripts/super10-sim.ts` plays all of it with a
-steering player: a pro about 140 (typically 151, the best near 230), a regular
-54, a beginner 18 with a boundary in four innings of five, against 167, 69
-and 24 with no field, and no meter strokes in any of it. Five men back cost
-about what the plug had, so the totals hardly moved when it went; mid-off and
-mid-on brought into the picture took three more off a pro, and the single
-for a ball straight at the ring three more.
+steering player: a pro about 168 (typically 175, the best near 245), a regular
+85, a beginner 28 with a boundary in ten innings of eleven, and no meter
+strokes in any of it. With the Marathon's three batters it was 140, 54 and
+18, and nobody in a playtest got past the third.
 
 The scene draws six of the nine (`drawnOf`: the six nearest straight), stood
 on their new marks when the field changes (`Field.standOn`,
@@ -1600,7 +1601,10 @@ scale stood a few points apart, the ground being twenty-eight metres square; aft
 caught it or got to it is lit with a yellow ring (`takerOf` in `src/Game.ts`:
 the field's rules' man, or the drawn man the scene sent for a catch,
 `Field.catcher`), until the next ball; a tap (or F) enlarges it from its
-corner, and a tap, the bowler's first stride or six seconds put it back.
+corner, to 180 square over it, and it stays up, kept live, until it is tapped
+again or F is pressed; it passes every other touch through, so a ball can be
+played with it up. Put back by itself at the bowler's first stride, it was gone
+before anybody had read it, and at 264 square it covered most of the pitch.
 Bottom left, Power Surge (`SurgeState`): locked to the end of the fifth over,
 gold and breathing in the breaks it can be taken in, its ring emptying over
 the bowler's wait; a ring filling a sixth a ball through its over, with POWER

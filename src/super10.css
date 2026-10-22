@@ -39,15 +39,21 @@
 .s10-tag{position:absolute;z-index:7;bottom:calc(var(--u) * 102);padding:calc(var(--u) * 7) calc(var(--u) * 12);border-radius:calc(var(--u) * 12);background:#fff;color:#0b0f14;
   font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;white-space:nowrap;pointer-events:none;font-optical-sizing:none;font-variation-settings:'opsz' 6}
 .s10-tag[data-corner="map"]{right:calc(var(--u) * 10)}
+.s10-tag[data-corner="map"].is-high{bottom:calc(var(--u) * 272)}
 .s10-tag[data-corner="surge"]{left:calc(var(--u) * 12);bottom:calc(var(--u) * 108)}
 .s10-tag.is-in{animation:s10-float 260ms cubic-bezier(.2,.9,.25,1.15) both}
 
-/* Enlarged: 264 square out of the corner, still on no panel, the field named on the left. */
-.s10-big{position:absolute;inset:0;z-index:8;cursor:pointer}
-.s10-big-map{position:absolute;right:calc(var(--u) * -20);bottom:calc(var(--u) * -7.3);width:calc(var(--u) * 264);height:calc(var(--u) * 264);transform-origin:82% 82%;
-  animation:s10-grow 260ms cubic-bezier(.3,1.35,.5,1) both}
+/* Enlarged: 180 square grown out of the corner the map stands in, still on no
+   panel, the field named beside it. It passes every touch but its own through
+   to the ground, so a ball can be played while it is up; it stays until it is
+   tapped. 264 square, it covered most of the pitch. */
+.s10-big{position:absolute;inset:0;z-index:8;pointer-events:none}
+.s10-big-map{position:absolute;right:calc(var(--u) * 10);bottom:calc(var(--u) * 28.7);width:calc(var(--u) * 180);height:calc(var(--u) * 180);transform-origin:100% 100%;
+  pointer-events:auto;cursor:pointer;animation:s10-grow 240ms cubic-bezier(.3,1.35,.5,1) both}
+.s10-big-map.is-up{animation:none}
 .s10-big-map .s10-svg{width:100%;height:100%}
-.s10-big-words{position:absolute;left:calc(var(--u) * 20);bottom:calc(var(--u) * 132);display:flex;flex-direction:column;gap:calc(var(--u) * 2);color:#fff;text-shadow:0 1px 6px #000000b3}
+.s10-big-words{position:absolute;right:calc(var(--u) * 14);bottom:calc(var(--u) * 216);display:flex;flex-direction:column;align-items:flex-end;gap:calc(var(--u) * 2);
+  color:#fff;text-align:right;text-shadow:0 1px 6px #000000b3;pointer-events:auto;cursor:pointer}
 .s10-big-words span{font:800 calc(var(--u) * 10)/1.3 var(--f-ui);letter-spacing:.12em;color:#ffd27a}
 .s10-big-words b{font:400 calc(var(--u) * 24)/1.1 var(--f-display);font-optical-sizing:none;font-variation-settings:'opsz' 6}
 .s10-big-words small{font:600 calc(var(--u) * 11)/1.3 var(--f-ui);opacity:.9}
@@ -99,7 +105,7 @@ body.start-screen .s10-tag,.stage.result-open .s10-tag{display:none}
 @keyframes s10-pulse{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(1.3)}}
 @keyframes s10-pop{0%{opacity:0;transform:scale(.3)}100%{opacity:1;transform:none}}
 @keyframes s10-draw{to{stroke-dashoffset:0}}
-@keyframes s10-grow{from{transform:scale(.29)}to{transform:none}}
+@keyframes s10-grow{from{transform:scale(.42)}to{transform:none}}
 @keyframes s10-breathe{0%,100%{box-shadow:0 0 0 calc(var(--u) * 3) #f5b83d33,0 6px 18px #00000059}50%{box-shadow:0 0 0 calc(var(--u) * 7) #f5b83d59,0 6px 18px #00000059}}
 @keyframes s10-empty{to{stroke-dashoffset:100}}
 @keyframes s10-slam{0%{opacity:0;transform:scale(1.25)}14%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}
