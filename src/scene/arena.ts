@@ -68,31 +68,6 @@ export const ARENA = {
 /** `?screen=0` builds the commentary box in place of the big screen. */
 export const screenFrom = (search: string) => new URLSearchParams(search).get('screen') !== '0';
 
-/**
- * The stumps' two colourways off the sheet: violet (section 18, the plate
- * timber, the rings lit lime at rest, the 10 in volt) and raspberry (485:5198,
- * the timber raspberry, the base cut plate, the rings dark plate and the 10 in
- * ink). The pause sheet switches between them (`hitman-stumps`), and
- * `?stumps=raspberry` or `violet` asks for one on a link.
- */
-export const STUMP_THEMES = {
-  violet: { timber: 0x2a0e5c, base: 0x8b5cf6, ten: 0xc6ff1a, rings: .6 },
-  raspberry: { timber: 0xf12e60, base: 0x2a0e5c, ten: 0x12052b, rings: 0 },
-} as const;
-export type StumpTheme = keyof typeof STUMP_THEMES;
-const STUMPS_KEY = 'hitman-stumps';
-const isTheme = (value: unknown): value is StumpTheme => value === 'violet' || value === 'raspberry';
-/** The link's colourway, else the one last picked, else violet. */
-export function stumpsFrom(search: string): StumpTheme {
-  const asked = new URLSearchParams(search).get('stumps');
-  if (isTheme(asked)) return asked;
-  try { const kept = localStorage.getItem(STUMPS_KEY); if (isTheme(kept)) return kept; } catch { /* storage shut: the default */ }
-  return 'violet';
-}
-export function keepStumps(theme: StumpTheme) {
-  try { localStorage.setItem(STUMPS_KEY, theme); } catch { /* storage shut: this visit only */ }
-}
-
 /** Where the lit pieces stand, from the middle of the ground (the stands are centred on it, ten metres up the pitch). */
 const CENTRE_Z = 10;
 /** The ring of lamps over the roof's front edge. */
@@ -240,16 +215,15 @@ export function arenaFrame(mood: ArenaMood, cue: { kind: ArenaCue; at: number; w
  * always comes out of the same dark.
  */
 export interface StumpGlow { colour: number; level: number }
-export function stumpLight(broken: number, still = false, theme: StumpTheme = 'violet'): { crown: StumpGlow; rings: StumpGlow; bails: StumpGlow } {
-  const ringsAtRest = STUMP_THEMES[theme].rings;
-  const rest = { crown: { colour: ARENA.wicket, level: 0 }, rings: { colour: ARENA.volt, level: ringsAtRest }, bails: { colour: ARENA.wicket, level: 0 } };
+export function stumpLight(broken: number, still = false): { crown: StumpGlow; rings: StumpGlow; bails: StumpGlow } {
+  const rest = { crown: { colour: ARENA.wicket, level: 0 }, rings: { colour: ARENA.volt, level: LED.rings }, bails: { colour: ARENA.wicket, level: 0 } };
   if (broken < 0 || broken >= 3000) return rest;
   const all = (colour: number, level: number) => ({ crown: { colour, level }, rings: { colour, level }, bails: { colour, level } });
   if (!still && broken < 66) return all(ARENA.white, 1);
   if (broken < 2400) return all(ARENA.wicket, !still && broken >= 280 && broken < 400 ? .3 : 1);
   // Back to rest: the raspberry going out, the rings' lime coming back.
   const t = (broken - 2400) / 600;
-  return { crown: { colour: ARENA.wicket, level: 1 - t }, rings: t < .5 ? { colour: ARENA.wicket, level: 1 - t * 2 } : { colour: ARENA.volt, level: ringsAtRest * (t - .5) * 2 }, bails: { colour: ARENA.wicket, level: 1 - t } };
+  return { crown: { colour: ARENA.wicket, level: 1 - t }, rings: t < .5 ? { colour: ARENA.wicket, level: 1 - t * 2 } : { colour: ARENA.volt, level: LED.rings * (t - .5) * 2 }, bails: { colour: ARENA.wicket, level: 1 - t } };
 }
 
 /**
@@ -260,18 +234,17 @@ export function stumpLight(broken: number, still = false, theme: StumpTheme = 'v
  * and SUPER10 reading up from 120 mm, once to the keeper (u .25) and once to
  * the bowler (u .75), in Saira Black Italic with the 10 in volt.
  */
-export function stumpWrap(height: number, theme: StumpTheme = 'violet') {
-  const colours = STUMP_THEMES[theme];
+export function stumpWrap(height: number) {
   const mm = 2, round = 157, tall = Math.round((height - LED.crown) * 1000);
   const W = round * mm, H = tall * mm;
   const { context: ctx, texture } = painted(W, H);
-  ctx.fillStyle = hex(colours.timber); ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = hex(ARENA.plate); ctx.fillRect(0, 0, W, H);
   const y = (fromFoot: number) => (tall - fromFoot) * mm;
   for (let px = 0; px < W; px++) {
     // How far round towards the leg side this column of the wrap is: its x on the stump, off side +1, leg side -1.
     const across = Math.sin(Math.PI / 2 + px / W * Math.PI * 2);
     const cut = 90 - 5.3 * (1 + across) / 2;
-    ctx.fillStyle = hex(colours.base); ctx.fillRect(px, y(cut), 1, cut * mm);
+    ctx.fillStyle = hex(ARENA.violet); ctx.fillRect(px, y(cut), 1, cut * mm);
     ctx.fillStyle = hex(ARENA.volt); ctx.fillRect(px, y(cut + 3.5), 1, 3.5 * mm);
   }
   const mark = () => {
@@ -281,7 +254,7 @@ export function stumpWrap(height: number, theme: StumpTheme = 'violet') {
       ctx.font = `italic 900 ${42 * mm}px Saira, "Arial Black", Impact, sans-serif`;
       ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
       ctx.fillStyle = '#fff'; ctx.fillText('SUPER', 0, 0);
-      ctx.fillStyle = hex(colours.ten); ctx.fillText('10', ctx.measureText('SUPER').width, 0);
+      ctx.fillStyle = hex(ARENA.volt); ctx.fillText('10', ctx.measureText('SUPER').width, 0);
       ctx.restore();
     }
   };
@@ -543,11 +516,8 @@ export class Arena {
   private faces = new Map<string, THREE.Texture>();
   private boardUp = '';
   private stumpLights: WicketLights | null = null;
-  /** Both wickets' lights, to put a new colourway on. */
-  private wickets: WicketLights[] = [];
   /** The stumps' wrap, for the wicket to be built with: see `stumpWrap`. */
-  wrap: THREE.Texture;
-  private anisotropy: number;
+  readonly wrap: THREE.Texture;
   private last: ArenaFrame | null = null;
   private marks: { primary: HTMLImageElement; lime: HTMLImageElement };
   private offset = 0;
@@ -559,8 +529,7 @@ export class Arena {
   private life: CrowdLife | null = null;
   private waveFrom = -Infinity;
 
-  constructor(scene: THREE.Object3D, readonly hasScreen: boolean, anisotropy: number, public stumps: StumpTheme = 'violet') {
-    this.anisotropy = anisotropy;
+  constructor(scene: THREE.Object3D, readonly hasScreen: boolean, anisotropy: number) {
     const ring = (radius: number, height: number, y: number, material: THREE.Material, top = radius) => {
       const mesh = new THREE.Mesh(new THREE.CylinderGeometry(top, radius, height, 180, 1, true), material);
       mesh.position.set(0, y, CENTRE_Z);
@@ -593,7 +562,7 @@ export class Arena {
 
 
     if (hasScreen) this.buildScreen(scene, anisotropy);
-    this.wrap = stumpWrap(GAME.stumpHeight, stumps); this.wrap.anisotropy = anisotropy;
+    this.wrap = stumpWrap(GAME.stumpHeight); this.wrap.anisotropy = anisotropy;
     this.textures.push(lamps, city, this.wrap);
   }
 
@@ -626,25 +595,8 @@ export class Arena {
     this.boardsMaterial = material; this.panels.boards = panels;
   }
 
-  /** An LED wicket: the batter's has its crown, rings and bails lit when it is broken (`stumpLight`); the far one stays at rest. */
-  wire(lights: WicketLights, batting: boolean) {
-    this.wickets.push(lights);
-    if (batting) this.stumpLights = lights;
-  }
-  /** The other colourway on both wickets, now: a new wrap printed, the far wicket's rings set to the new rest. */
-  setStumps(theme: StumpTheme) {
-    if (theme === this.stumps) return;
-    this.stumps = theme;
-    const old = this.wrap;
-    this.wrap = stumpWrap(GAME.stumpHeight, theme); this.wrap.anisotropy = this.anisotropy;
-    this.wrap.repeat.copy(old.repeat); this.wrap.offset.copy(old.offset);
-    for (const lights of this.wickets) {
-      lights.timber.map = this.wrap; lights.timber.needsUpdate = true;
-      if (lights !== this.stumpLights) lights.rings.emissiveIntensity = STUMP_THEMES[theme].rings;
-    }
-    this.textures.splice(this.textures.indexOf(old), 1, this.wrap);
-    old.dispose();
-  }
+  /** The batter's LED wicket, its crown, rings and bails to light when it is broken (`stumpLight`); the far wicket stays at rest. */
+  wire(lights: WicketLights) { this.stumpLights = lights; }
   /** The ring's glows, to burn with the lamps. */
   glows(material: THREE.PointsMaterial) { this.glow = material; this.glowSize = material.size; }
   private glowSize = 1;
@@ -684,7 +636,7 @@ export class Arena {
     return { mood: this.moodNow, word: f?.word ?? null, board: f?.board ?? 'idle', boards: f?.boards ?? 1,
       screen: this.hasScreen ? this.shown.split('|').slice(0, 2).join('|') : null, sting: this.playing?.name ?? null,
       wave: +(this.life?.waveOn.value ?? 0).toFixed(2), front: +(this.life?.wave.value ?? 0).toFixed(2),
-      lamps: +(f?.lamps ?? 1).toFixed(2), torches: +(f?.torches ?? 0).toFixed(2), stumps: this.stumps };
+      lamps: +(f?.lamps ?? 1).toFixed(2), torches: +(f?.torches ?? 0).toFixed(2) };
   }
 
   /** `broken` is how long ago the batter's bails went, or less than nought; `live`, a ball on its way. */
@@ -711,7 +663,7 @@ export class Arena {
     // The batter's stumps: strike, dip, hold, as the sheet has them.
     if (this.stumpLights) {
       if (now < this.stumpsFrom) this.stumpsFrom = -Infinity;
-      const glow = stumpLight(broken >= 0 ? broken : Number.isFinite(this.stumpsFrom) ? now - this.stumpsFrom : -1, still, this.stumps);
+      const glow = stumpLight(broken >= 0 ? broken : Number.isFinite(this.stumpsFrom) ? now - this.stumpsFrom : -1, still);
       for (const part of ['crown', 'rings', 'bails'] as const) {
         const material = this.stumpLights[part];
         material.emissive.setHex(glow[part].colour); material.emissiveIntensity = glow[part].level * 1.4;

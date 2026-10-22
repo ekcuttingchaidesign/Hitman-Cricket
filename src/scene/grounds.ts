@@ -2,12 +2,13 @@ import * as THREE from 'three';
 import { box, colors, cylinder, mat } from './build';
 import { stadium, type StadiumLights } from './stadium';
 import { arenaStands } from './arena';
+import { pavilionStands } from './pavilion';
 
 /**
  * The stands and everything over them: what a ground is, once the turf and
  * the boards along the rope are taken as given.
  *
- * Two are built. **The stadium** (`stadium.ts`) is the one every mode plays
+ * Four are built. **The stadium** (`stadium.ts`) is the one every mode plays
  * in: a two-tier bowl right round the ground under a cantilever roof, with the
  * commentary box over the far end and floodlight towers behind it.
  *
@@ -15,6 +16,11 @@ import { arenaStands } from './arena';
  * of lamps instead of towers, LED round the roof and the upper tier, a city
  * behind it and a big screen over the far end, played at night only. For now
  * it is asked for with `?ground=arena`.
+ *
+ * **The pavilion** (`pavilion.ts`) is the stadium's bowl with an old
+ * ground's far end: cream verandahs full of crowd under green roofs, a clock
+ * tower, trees behind and tall floodlight towers. For now it is asked for
+ * with `?ground=pavilion`, to be looked at beside the stadium.
  *
  * **The bowl** is the ground before it: one tier of stands in a full ring, flat
  * roofs, and the low clubhouse with the flags. It is kept whole, line for line,
@@ -25,9 +31,9 @@ import { arenaStands } from './arena';
  * leg side reads left: the bowler's end is +z, and both are symmetric enough
  * across x that the mirror changes nothing anybody would notice.
  */
-export type GroundName = 'stadium' | 'bowl' | 'arena';
+export type GroundName = 'stadium' | 'bowl' | 'arena' | 'pavilion';
 
-export const GROUNDS: readonly GroundName[] = ['stadium', 'bowl', 'arena'];
+export const GROUNDS: readonly GroundName[] = ['stadium', 'bowl', 'arena', 'pavilion'];
 
 /** The ground every innings is played on unless the link asks for another. */
 export const DEFAULT_GROUND: GroundName = 'stadium';
@@ -46,6 +52,7 @@ export function groundFrom(search: string): GroundName {
 export function buildGround(name: GroundName, world: THREE.Object3D, { screen = true } = {}): StadiumLights | null {
   if (name === 'bowl') { bowl(world); return null; }
   if (name === 'arena') return arenaStands(world, screen);
+  if (name === 'pavilion') return pavilionStands(world);
   return stadium(world);
 }
 

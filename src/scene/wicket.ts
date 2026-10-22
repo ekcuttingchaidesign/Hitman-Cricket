@@ -20,11 +20,10 @@ import { Batch, soft } from './build';
  * the two rings and the bails are meshes of their own, so lighting them is a
  * colour on their own materials and nothing else.
  */
-/** The wrap the timber is printed with, and how bright the rings stand at rest. */
-export interface LedWicket { wrap: THREE.Texture; rings: number }
-export interface WicketLights { timber: THREE.MeshStandardMaterial; crown: THREE.MeshStandardMaterial; rings: THREE.MeshStandardMaterial; bails: THREE.MeshStandardMaterial }
-/** The LED stump's measures: the crown's height, and the timber turned in this many even steps so the wrap's v runs straight up it. */
-export const LED = { crown: .055, steps: 24 } as const;
+export interface LedWicket { wrap: THREE.Texture }
+export interface WicketLights { crown: THREE.MeshStandardMaterial; rings: THREE.MeshStandardMaterial; bails: THREE.MeshStandardMaterial }
+/** The LED stump's measures: the crown's height, the timber turned in this many even steps so the wrap's v runs straight up it, and how bright the rings stand at rest. */
+export const LED = { crown: .055, steps: 24, rings: .6 } as const;
 
 export function buildWicket(parent: THREE.Object3D, height: number, z: number, led?: LedWicket): { timber: THREE.Mesh[]; bails: THREE.Mesh[]; lights?: WicketLights } {
   if (led) return ledWicket(parent, height, z, led);
@@ -81,7 +80,7 @@ function ledWicket(parent: THREE.Object3D, height: number, z: number, led: LedWi
   const batch = new Batch();
   const timber = new THREE.MeshStandardMaterial({ color: 0xffffff, map: led.wrap, roughness: .55, metalness: 0 });
   const crown = new THREE.MeshStandardMaterial({ color: 0xe4e1f2, roughness: .35, emissive: 0x000000 });
-  const rings = new THREE.MeshStandardMaterial({ color: 0x2a0e5c, roughness: .4, emissive: 0xc6ff1a, emissiveIntensity: led.rings });
+  const rings = new THREE.MeshStandardMaterial({ color: 0x2a0e5c, roughness: .4, emissive: 0xc6ff1a, emissiveIntensity: LED.rings });
   const TIMBER = 0x2a0e5c, CROWN = 0xe4e1f2, RING = 0xc6ff1a;
   batch.finish(TIMBER, timber); batch.finish(CROWN, crown); batch.finish(RING, rings);
   const top = height - LED.crown;
@@ -112,5 +111,5 @@ function ledWicket(parent: THREE.Object3D, height: number, z: number, led: LedWi
     parent.add(bail);
     return bail;
   });
-  return { timber: stumps, bails, lights: { timber, crown, rings, bails: bailFinish } };
+  return { timber: stumps, bails, lights: { crown, rings, bails: bailFinish } };
 }

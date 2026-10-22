@@ -52,8 +52,8 @@ const executablePath = process.env.CHROMIUM_PATH || undefined;
 const BUDGET = 460;
 /**
  * The arena (`src/scene/arena.ts`) is the stadium at night less its towers'
- * glow, and more by its own pieces: the halo, its glow, the ring of lamps,
- * the ribbon, the city, the screen and its frame and legs, and the batter's
+ * glow, and more by its own pieces: the ring of lamps, the ribbon, the city,
+ * the screen and its frame and legs, the phone torches, and the batter's
  * stumps given their own materials to light up. Measured from the stadium's
  * night plus those.
  */
@@ -72,6 +72,10 @@ const GROUNDS = [
   // Super10's arena, night only whatever the link says: the stadium's bowl
   // without its towers, and its own rings of light, city and big screen.
   ['arena', 'night', '&ground=arena&lights=day', ARENA_BUDGET],
+  // The pavilion: the stadium's bowl with a far end of its own, built into
+  // the same batch, so it is held to the stadium's budget by day and by night.
+  ['pavilion', 'day', '&ground=pavilion&lights=day', BUDGET],
+  ['pavilion', 'night', '&ground=pavilion&lights=night', BUDGET],
 ];
 
 let failures = 0;

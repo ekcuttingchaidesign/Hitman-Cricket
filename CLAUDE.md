@@ -356,10 +356,11 @@ A check that seeds `hitman-whatsnew` seeds the current update key
 
 `scripts/scene-check.mjs` is the ground itself: the sky and the painted turf
 are canvases and a shader no unit test runs, and it holds the draw-call budget
-a frame. Lower its `BUDGET` when a change brings the count down. It walks all three
+a frame. Lower its `BUDGET` when a change brings the count down. It walks all four
 grounds — the stadium every mode plays in, the bowl before it,
-which `?ground=bowl` still builds and which is kept for that, and Super10's
-arena under its own `ARENA_BUDGET` — and the stadium both by day and by night. The Blast follows the
+which `?ground=bowl` still builds and which is kept for that, Super10's
+arena under its own `ARENA_BUDGET`, and the pavilion under the stadium's —
+and the stadium and the pavilion both by day and by night. The Blast follows the
 device's clock — night from six in the evening to seven in the morning — so a
 check that judges the ground's colours in a Blast innings without saying
 which is judging whatever the machine's clock says; `?lights=day` or
@@ -1617,7 +1618,9 @@ before anybody had read it, and at 264 square it covered most of the pitch. It
 grows out of the corner map's own place and shrinks back into it
 (`s10-grow`, `s10-shrink`, the corner fading out and back in under it), and it
 has its own thinner lines and smaller dots: the corner's drawing scaled up two
-and a half times had lines two and a half times as thick.
+and a half times had lines two and a half times as thick. Nothing is written
+over it: the over, the men out and the field's name it once carried, with Tap
+to shrink, were taken off it, and a field change is said by the tag alone.
 Bottom left, Power Surge (`SurgeState`): locked to the end of the fifth over,
 gold and breathing in the breaks it can be taken in, its ring emptying over
 the bowler's wait; a ring filling a sixth a ball through its over, with POWER
@@ -1625,7 +1628,8 @@ SURGE over the ground when it is taken and a SURGE badge under the scoreboard;
 a grey tick once used. A first Super10 in a browser opens with the field
 map's coach card (`FIELD_STEP` in `ShotsIntro.ts`, kept in
 `hitman-field-intro`); the surge is taught by its tag when it first lights up.
-The pause sheet has the map drawn solid. The design's assets could not be
+The pause sheet has no field map: it was there, drawn solid, and was taken out
+(`super10-check` holds that). The design's assets could not be
 downloaded into this build, so the bolt and the rings are drawn in code.
 
 What is not here yet: the boards and the career, and a card on
@@ -1695,11 +1699,9 @@ back.
 
 The stumps are LED stumps (`buildWicket`'s `ledWicket`, Figma section 18),
 printed with SUPER10 reading up (`stumpWrap`, turned over with the mirrored
-stage, `mirrorWrap`), in two colourways: violet (`483:5197`: plate timber,
-rings lit lime at rest) and raspberry (`485:5198`: raspberry timber, dark
-rings, the 10 in ink). The pause card's Stumps row switches between them, on
-both wickets at once (`setStumps`), and keeps the pick (`hitman-stumps`);
-`?stumps=violet` or `raspberry` asks for one on a link. The batter's light up
+stage, `mirrorWrap`), in violet (`483:5197`: plate timber, the rings lit lime
+at rest, the 10 in volt). A raspberry colourway (`485:5198`) was built with
+a switch on the pause card and taken out: violet was kept. The batter's light up
 once the bails go (`stumpLight`): a white strike, raspberry with one dip,
 held, and back to rest. `__cricket.arenaCue('stumps')` lights them with no
 wicket, for photographing.
@@ -1740,6 +1742,31 @@ sway and wave. The crowd's sound is the game's own clips, as everywhere.
 `__cricket.arena()` says what it is showing, and `__cricket.arenaCue('six')`
 (or `'wicket', 'BOWLED'`, or `'wave'`, or `'stumps'`) puts any moment up, for
 photographing.
+
+## The pavilion: a fresh stadium, being tried
+
+`?ground=pavilion` (`src/scene/pavilion.ts`) is a fresh stadium drawn from a
+reference picture the designer gave: a members' pavilion behind the bowler,
+cream verandahs on white posts with fretwork, two decks over a raked lower
+tier, every one of them full of crowd, under green roofs, a clock tower with
+a flag over the middle and a turret with one over either end; a wing either
+side turned in from its corners, so a phone sees the pavilion in the middle
+of its picture and a wing at each edge; trees behind them; and two tall
+floodlight towers with round lamps over the far corners, standing in the top
+of the picture (and a pair out of shot behind the batter). Lamps hang in
+every verandah bay and are lit at night with the stadium's.
+
+A Victorian pavilion behind the bowler was tried before and read on a phone
+as a banquet hall (the README's "How it got here"): a building's front. This
+one is a stand: there is crowd in front of every wall a phone sees. It is the
+stadium's bowl with its own far end (`StandsOptions.end`: the bowl's
+sections straight behind the bowler and two either side are left out,
+`pavilionSkips`, and the pavilion is built into the same batch and the same
+crowd), so it costs the stadium's draw calls and its crowd cheers and moves
+as the stadium's does. The middle of the lower tier and the first verandah's
+front row are left empty behind the bowler's arm, and the sightscreen stays
+white for the red ball (the reference has it dark). It is not the default:
+the stadium is, until it is chosen. `tests/grounds.test.ts` holds it.
 
 ## A newcomer's first innings
 

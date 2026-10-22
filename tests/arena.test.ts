@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { ARENA, CUES, FLASH, MILESTONE_WORDS, MOST_FLASHES, TORCHES, arenaFrame, arenaStands, screenFrom, slamScale, stingOf, stumpLight, stumpsFrom, type ArenaCue, type ArenaMood } from '../src/scene/arena';
+import { ARENA, CUES, FLASH, MILESTONE_WORDS, MOST_FLASHES, TORCHES, arenaFrame, arenaStands, screenFrom, slamScale, stingOf, stumpLight, type ArenaCue, type ArenaMood } from '../src/scene/arena';
 import { WAVE, waveAt } from '../src/scene/crowdLife';
 import { buildGround, groundFrom, nightOnly, ownFloodlights } from '../src/scene/grounds';
 import { STADIUM } from '../src/scene/stadium';
@@ -184,10 +184,6 @@ describe('the arena', () => {
     expect(flashes).toBeLessThanOrEqual(MOST_FLASHES);
     // Raspberry only once a bail has gone; under reduced motion no flash and no dip.
     for (let t = 0; t < 2400; t += 50) { expect(stumpLight(t, true).crown).toEqual({ colour: ARENA.wicket, level: 1 }); }
-    // The raspberry stumps' rings stand dark at rest and come back to dark.
-    expect(stumpLight(-1, false, 'raspberry').rings.level).toBe(0);
-    expect(stumpLight(3000, false, 'raspberry')).toEqual(stumpLight(-1, false, 'raspberry'));
-    expect(stumpsFrom('?stumps=raspberry')).toBe('raspberry'); expect(stumpsFrom('')).toBe('violet');
   });
 
   it('forgets a moment from before the clock went back to nought, a new innings', () => {

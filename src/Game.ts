@@ -17,7 +17,7 @@ import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro, type IntroGame } from './ui/MarathonIntro';
 import { CONFIDENCE_STEP, FIELD_STEP, SHOTS_STEP, fieldIntroDue, howToDue, noteFieldIntro, noteHowTo, playedBefore } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
-import { keepStumps, type ArenaCue } from './scene/arena';
+import type { ArenaCue } from './scene/arena';
 import { SUPER10, batterAt as super10Batter, windowsAt as super10Windows } from './config/super10';
 import {
   SURGE, bowlerOf, drawnOf, fieldFor, fieldRules, offScreen, planFor, signalFor, steer, steerOf, surgeAuto, surgeOffered, type FieldSet,
@@ -821,11 +821,6 @@ export class Game {
     for (const time of ['day', 'night'] as const) this.hud.on(`lights-${time}`, () => {
       if (this.phase !== 'PAUSED' || this.test) return;
       keepLights(time); this.scene.time(time); this.hud.lightsSwitch(time);
-    });
-    // The arena's stumps, violet or raspberry, from the pause card. Remembered.
-    for (const theme of ['violet', 'raspberry'] as const) this.hud.on(`stumps-${theme}`, () => {
-      if (this.phase !== 'PAUSED' || !this.scene.stumpTheme) return;
-      keepStumps(theme); this.scene.stumpsTo(theme); this.hud.stumpsSwitch(theme);
     });
     this.hud.on('share', () => { void this.hud.share(); });
     this.hud.on('board', this.showBoard);
@@ -2816,9 +2811,8 @@ export class Game {
     else {
       this.input.cancel(); this.audio.stop(); this.audio.holdCrowd(true); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true, this.pauseGame);
       this.soundSwitches();
-      // The arena is played at night whatever the switch says, so it has the stumps' instead.
-      this.hud.lightsSwitch(this.test || this.scene.stumpTheme ? null : this.scene.lit);
-      this.hud.stumpsSwitch(this.scene.stumpTheme);
+      // The arena is played at night whatever the switch says, so it has none.
+      this.hud.lightsSwitch(this.test || this.scene.arenaGround ? null : this.scene.lit);
       // Twenty overs in, the Marathon can be declared — from here, and from
       // nowhere else, so it is never pressed by accident mid-ball. Before
       // that the key is there but shut, saying when it opens.

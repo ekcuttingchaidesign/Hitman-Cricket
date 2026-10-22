@@ -24,9 +24,8 @@ import { icon } from './Kit';
  *
  * A touch that starts on either and travels as far as a swipe is a swipe: the
  * stroke wins (the input listens on the whole picture and captures the
- * pointer, so a tap is all either answers). The pause sheet has the map drawn
- * solid, and a ball out of the picture that a fielder got to lights the side
- * label it went past with his name. Drawn from the batter's end, the leg side
+ * pointer, so a tap is all either answers). A ball out of the picture that a
+ * fielder got to lights the side label it went past with his name. Drawn from the batter's end, the leg side
  * on the left for a right-hander, as the ground is.
  */
 
@@ -64,12 +63,12 @@ function onMap(angle: number, distance: number, mirrored: boolean, deep = false)
 const f = (v: number) => v.toFixed(1);
 
 /** The map, drawn: the ground, the rope and ring, the pitch, the fielders and the batter. */
-export function fieldMapMarkup(field: FieldSet, { mirrored = false, solid = false }: { mirrored?: boolean; solid?: boolean } = {}) {
+export function fieldMapMarkup(field: FieldSet, { mirrored = false }: { mirrored?: boolean } = {}) {
   const men = field.men.map((m, i) => {
     const p = onMap(m.angle, m.distance, mirrored, m.deep);
     return `<g class="s10-man${m.deep ? ' is-deep' : ''}" data-man="${i}" style="transform:translate(${f(p.x)}px,${f(p.y)}px)"><circle class="s10-halo" r="6.2"/><circle r="3.4"/></g>`;
   }).join('');
-  return `<svg class="s10-svg${solid ? ' is-solid' : ''}" viewBox="0 0 100 100" aria-hidden="true">
+  return `<svg class="s10-svg" viewBox="0 0 100 100" aria-hidden="true">
     <circle class="s10-ground" cx="50" cy="50" r="${ROPE_R + 2}"/>
     <circle class="s10-rope" cx="50" cy="50" r="${ROPE_R + 2}"/>
     <circle class="s10-ring" cx="50" cy="50" r="${RING_R}"/>
@@ -98,7 +97,6 @@ export class FieldUi {
   private readonly enlarged: HTMLElement;
   private readonly title: HTMLElement;
   private readonly badge: HTMLElement;
-  private readonly pause: HTMLElement;
   private field: FieldSet | null = null;
   private over = 0;
   private mirrored = false;
@@ -119,10 +117,6 @@ export class FieldUi {
     this.title.id = 's10-title'; this.title.setAttribute('aria-hidden', 'true');
     this.badge = this.made('div', 's10-badge hidden', root.querySelector('.score-stack') ?? root);
     this.badge.id = 's10-badge';
-    const keys = root.querySelector('.pause-keys');
-    this.pause = this.made('div', 's10-pause hidden', keys?.parentElement ?? root);
-    this.pause.id = 's10-pause';
-    if (keys) keys.after(this.pause);
     this.map.addEventListener('click', () => this.enlarge());
     this.enlarged.addEventListener('click', () => this.shrink());
     this.surgeKey.addEventListener('click', () => { if (this.surgeKey.dataset.state === 'offer') this.handlers.surge(); });
@@ -138,7 +132,7 @@ export class FieldUi {
   /** Whether this innings has a field: Super10's does, and nothing else does. */
   show(on: boolean, mirrored = false) {
     this.on = on; this.mirrored = mirrored;
-    for (const el of [this.map, this.surgeKey, this.pause]) el.classList.toggle('hidden', !on);
+    for (const el of [this.map, this.surgeKey]) el.classList.toggle('hidden', !on);
     if (!on) {
       for (const el of [this.tag, this.enlarged, this.title, this.badge]) el.classList.add('hidden');
       this.field = null; this.light(null);
@@ -157,8 +151,6 @@ export class FieldUi {
   overBegins(field: FieldSet, over: number, { prev }: { prev: FieldSet | null }) {
     this.field = field; this.over = over;
     const out = field.men.filter(m => m.deep).length;
-    this.pause.innerHTML = `<p class="s10-pause-head"><span>FIELD · OVER ${over + 1}</span><b>${out} OUT</b></p>
-      ${fieldMapMarkup(field, { mirrored: this.mirrored, solid: true })}`;
     const surge = field.change === 'surge';
     this.map.classList.toggle('is-surge', surge);
     const was = [...this.map.querySelectorAll<SVGGElement>('.s10-man')].map(g => g.style.transform);
@@ -205,8 +197,8 @@ export class FieldUi {
   }
 
   /**
-   * The map grown out of its corner, still on no panel, the field named above
-   * it. It stays up, kept live as the field and the shots change it, until it
+   * The map grown out of its corner, on no panel and with no words over it
+   * (the field's name is the tag's, when it changes). It stays up, kept live as the field and the shots change it, until it
    * is tapped again (or F): put back by itself, at the bowler's first stride
    * or after six seconds, it was gone before anybody had read it.
    */
@@ -221,9 +213,7 @@ export class FieldUi {
   /** The enlarged map drawn again from the corner's, while it is up. */
   private drawBig(growing = false) {
     if (!this.field || !this.enlargedOpen) return;
-    const out = this.field.men.filter(m => m.deep).length;
-    this.enlarged.innerHTML = `<div class="s10-big-words${growing ? '' : ' is-up'}"><span>OVER ${this.over + 1} · ${out} OUT</span><b>${this.field.name.toUpperCase()}</b><small>Tap to shrink</small></div>
-      <div class="s10-big-map${this.field.change === 'surge' ? ' is-surge' : ''}${growing ? '' : ' is-up'}">${this.map.querySelector('svg')?.outerHTML ?? ''}</div>`;
+    this.enlarged.innerHTML = `<div class="s10-big-map${this.field.change === 'surge' ? ' is-surge' : ''}${growing ? '' : ' is-up'}">${this.map.querySelector('svg')?.outerHTML ?? ''}</div>`;
   }
   /**
    * Back into its corner, a tap on it or F: it shrinks into the corner map's

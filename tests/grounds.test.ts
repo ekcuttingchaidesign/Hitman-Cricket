@@ -2,13 +2,13 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_GROUND, buildGround, groundFrom, ownFloodlights } from '../src/scene/grounds';
 
-const built = (name: 'stadium' | 'bowl') => {
+const built = (name: 'stadium' | 'bowl' | 'pavilion') => {
   const world = new THREE.Group();
-  buildGround(name, world);
+  const lights = buildGround(name, world);
   const meshes: THREE.Mesh[] = [];
   world.traverse(object => { if (object instanceof THREE.Mesh) meshes.push(object); });
   const crowd = meshes.filter(mesh => mesh instanceof THREE.InstancedMesh) as THREE.InstancedMesh[];
-  return { world, crowd, scenery: meshes.filter(mesh => !(mesh instanceof THREE.InstancedMesh)) };
+  return { world, lights, crowd, scenery: meshes.filter(mesh => !(mesh instanceof THREE.InstancedMesh)) };
 };
 
 describe('the ground', () => {
@@ -18,7 +18,8 @@ describe('the ground', () => {
     expect(groundFrom('?debug=1&seed=222')).toBe('stadium');
     expect(groundFrom('?ground=bowl')).toBe('bowl');
     expect(groundFrom('?ground=BOWL&debug=1')).toBe('bowl');
-    expect(groundFrom('?ground=pavilion')).toBe('stadium');
+    expect(groundFrom('?ground=pavilion')).toBe('pavilion');
+    expect(groundFrom('?ground=members')).toBe('stadium');
   });
 
   it('batches the stadium by colour and the entire crowd into bodies and heads', () => {
@@ -32,8 +33,8 @@ describe('the ground', () => {
     expect(new Set(colours).size).toBe(colours.length);
   });
 
-  it('seats nobody behind the sightscreen', () => {
-    const { crowd } = built('stadium');
+  it.each(['stadium', 'pavilion'] as const)('seats nobody behind the sightscreen at the %s', name => {
+    const { crowd } = built(name);
     const at = new THREE.Vector3(), m = new THREE.Matrix4();
     let behind = 0;
     for (let i = 0; i < crowd[0].count; i++) {
@@ -48,6 +49,26 @@ describe('the ground', () => {
   it('lights the stadium itself, and leaves the bowl its four poles', () => {
     expect(ownFloodlights('stadium')).toBe(true);
     expect(ownFloodlights('bowl')).toBe(false);
+  });
+
+  it('builds the pavilion into the stadium\'s batch and crowd, under four towers of its own', () => {
+    const { crowd, scenery, lights } = built('pavilion');
+    expect(crowd).toHaveLength(2);
+    expect(crowd[1].count).toBe(crowd[0].count);
+    expect(crowd[0].count).toBeGreaterThan(2500);
+    const colours = scenery.map(mesh => (mesh.material as THREE.MeshStandardMaterial).color.getHex());
+    expect(new Set(colours).size).toBe(colours.length);
+    expect(scenery.length).toBeLessThan(30);
+    expect(lights!.towers).toHaveLength(4);
+    expect(ownFloodlights('pavilion')).toBe(true);
+    // People in its verandahs, up to the second deck, straight behind the bowler.
+    const at = new THREE.Vector3(), m = new THREE.Matrix4();
+    let upstairs = 0;
+    for (let i = 0; i < crowd[0].count; i++) {
+      crowd[0].getMatrixAt(i, m); at.setFromMatrixPosition(m);
+      if (Math.abs(at.x) < 11 && at.z > 50 && at.y > 7) upstairs++;
+    }
+    expect(upstairs).toBeGreaterThan(100);
   });
 
   it('still builds the bowl the way it always was', () => {

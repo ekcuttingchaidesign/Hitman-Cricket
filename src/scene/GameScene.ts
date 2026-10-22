@@ -17,7 +17,7 @@ import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture } from '.
 import { BOARD_PANELS, perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, nightOnly, ownFloodlights, type GroundName } from './grounds';
-import { Arena, MILESTONE_WORDS, screenFrom, STUMP_THEMES, stumpsFrom, type StumpTheme, type ArenaCue, type ArenaMood, type Scoreboard } from './arena';
+import { Arena, MILESTONE_WORDS, screenFrom, type ArenaCue, type ArenaMood, type Scoreboard } from './arena';
 import { buildWicket } from './wicket';
 import type { CrowdCelebration, CrowdMoment } from './CrowdCelebration';
 import { PerformanceReadout } from './performance';
@@ -519,7 +519,7 @@ export class GameScene {
       if (object instanceof THREE.Mesh && (object.material as THREE.MeshStandardMaterial).emissiveMap) this.boardsMaterial = object.material as THREE.MeshStandardMaterial;
     });
     if (this.ground === 'arena') {
-      this.arena = new Arena(this.scene, screen, anisotropy, stumpsFrom(location.search));
+      this.arena = new Arena(this.scene, screen, anisotropy);
       if (lights?.life && lights.seats) this.arena.crowd(lights.life, lights.seats, this.scene);
       if (this.boardsMaterial) this.arena.boards(this.boardsMaterial, BOARD_PANELS);
       this.textures.push(...this.arena.textures);
@@ -543,9 +543,8 @@ export class GameScene {
     }
   }
   private wicket(z: number) {
-    const { timber, bails, lights } = buildWicket(this.world, GAME.stumpHeight, z, this.arena ? { wrap: this.arena.wrap, rings: STUMP_THEMES[this.arena.stumps].rings } : undefined);
-    if (lights) this.arena?.wire(lights, z === 0);
-    if (z === 0) { this.bails.push(...bails); this.stumps.push(...timber, ...bails); }
+    const { timber, bails, lights } = buildWicket(this.world, GAME.stumpHeight, z, this.arena ? { wrap: this.arena.wrap } : undefined);
+    if (z === 0) { this.bails.push(...bails); this.stumps.push(...timber, ...bails); if (lights) this.arena?.wire(lights); }
   }
   private resize = () => {
     const { width, height } = this.container.getBoundingClientRect();
@@ -693,9 +692,8 @@ export class GameScene {
   scoreboard(board: Scoreboard) { this.arena?.scoreboard(board); }
   /** For the checks: the arena's mood and what it is showing, or null on another ground. */
   get arenaState() { return this.arena?.state ?? null; }
-  /** The arena's stumps' colourway, or null on another ground; and putting the other one on. */
-  get stumpTheme(): StumpTheme | null { return this.arena?.stumps ?? null; }
-  stumpsTo(theme: StumpTheme) { this.arena?.setStumps(theme); }
+  /** Whether this is the arena, which is played at night whatever the lights say. */
+  get arenaGround() { return this.arena !== null; }
   get crowdState() { return this.crowd?.state ?? { kind: null, spectators: 0, banners: 0 }; }
   /**
    * A moment: his hundred or six sixes, the bat to the sky and the world gone

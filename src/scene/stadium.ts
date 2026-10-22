@@ -64,11 +64,21 @@ const CROWD = [0xf2ede1, 0x2f5d46, 0xe0d8c4, 0xc9d7de, 0x4a7a5e, 0xefe2bf, 0xf7f
  * big screen, no commentary box under it.
  */
 export interface StandsOptions {
+  /** A far end of its own (the pavilion's, `pavilion.ts`): the sections it stands in are left out, and it is built into the same batch and crowd. */
+  end?: FarEnd;
   towers?: boolean;
   roofLamps?: boolean;
   commentary?: boolean;
   /** A crowd that is never still (`crowdLife.ts`): its own materials, moved in their shaders. */
   lively?: boolean;
+}
+
+/** Somebody in a seat: where, in a stand's frame, and a number that picks their shirt. */
+export type SeatFn = (frame: THREE.Matrix4, x: number, y: number, z: number, n: number) => void;
+export interface FarEnd {
+  /** Whether the bowl's section `section` (nought straight behind the bowler, 28 round) is the end's. */
+  skip: (section: number) => boolean;
+  build: (b: Batch, seat: SeatFn, lights: StadiumLights) => void;
 }
 
 /** The glass: smooth and a little metallic, so it catches the sky where the concrete is faceted and dry. */
@@ -119,7 +129,7 @@ export interface StadiumLights {
 
 /** Builds the stadium onto `world`, the stage's own frame: the bowler's end is +z. */
 export function stadium(world: THREE.Object3D, options: StandsOptions = {}): StadiumLights {
-  const { towers = true, roofLamps = true, commentary: box = true, lively = false } = options;
+  const { end, towers = true, roofLamps = true, commentary: box = true, lively = false } = options;
   const b = new Batch();
   const lights: StadiumLights = { lamps: lampFinish(), roof: [], towers: [] };
   const seats: THREE.Matrix4[] = [];
@@ -130,6 +140,7 @@ export function stadium(world: THREE.Object3D, options: StandsOptions = {}): Sta
   };
 
   for (let section = 0; section < SECTIONS; section++) {
+    if (end?.skip(section)) continue;
     const a = section / SECTIONS * Math.PI * 2;
     const frame = new THREE.Matrix4().compose(
       new THREE.Vector3(Math.sin(a) * RING, 0, CENTRE_Z + Math.cos(a) * RING),
@@ -141,6 +152,7 @@ export function stadium(world: THREE.Object3D, options: StandsOptions = {}): Sta
   sightscreen(b);
   if (box) commentary(b);
   if (towers) floodlights(b, lights);
+  end?.build(b, seat, lights);
 
   b.finish(STADIUM.glass, glassFinish());
   b.finish(STADIUM.lamp, lights.lamps);

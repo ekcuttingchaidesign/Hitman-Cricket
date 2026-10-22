@@ -137,9 +137,9 @@ for (let over = 0; over < 10; over++) {
     for (let i = 0; i < 12 && !signals.some(Boolean); i++) { await advance(80); signals.push((await snap()).super10.signalling); }
   }
   if (over === 3) {
-    // The field in the pause sheet.
+    // No field in the pause sheet: the corner has it.
     await page.keyboard.press('Escape');
-    pauseMap = await page.locator('#s10-pause svg').isVisible();
+    pauseMap = await page.locator('#pause-overlay .s10-svg').count() > 0;
     await page.keyboard.press('Escape');
   }
   if (over === 2) {
@@ -191,7 +191,7 @@ check(signals.some(Boolean), 'and the bowler beckons them in', JSON.stringify(si
 check(offered === 'offer' && usedAfter === 'used', 'its corner offers it in the break before the sixth and shows it used after',
   `${offered} ${usedAfter}`);
 check(fields.slice(6).every(f => f?.change !== 'surge'), 'and it is one over only: the ninth does not switch it on again');
-check(pauseMap, 'the field is drawn in the pause sheet');
+check(!pauseMap, 'the pause sheet has no field map');
 check(speeds.every(v => /^\d+$/.test(v ?? '')), 'the speed gun reads out every ball', speeds.slice(0, 12).join(' '));
 
 const card = await page.locator('#end').textContent().catch(() => '');
