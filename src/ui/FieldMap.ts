@@ -133,6 +133,9 @@ export class FieldUi {
   show(on: boolean, mirrored = false) {
     this.on = on; this.mirrored = mirrored;
     for (const el of [this.map, this.surgeKey]) el.classList.toggle('hidden', !on);
+    // Every innings starts with the map in its corner: left enlarged, it stood over the end card and the next innings.
+    clearTimeout(this.timers.close);
+    this.enlarged.classList.add('hidden'); this.enlarged.classList.remove('is-closing'); this.map.classList.remove('is-away');
     if (!on) {
       for (const el of [this.tag, this.enlarged, this.title, this.badge]) el.classList.add('hidden');
       this.field = null; this.light(null);
@@ -187,10 +190,10 @@ export class FieldUi {
   }
 
   private say(text: string, corner: 'map' | 'surge') {
+    // The enlarged map shows the new field itself: a tag over it was one thing too many.
+    if (corner === 'map' && this.enlargedOpen) return;
     this.tag.textContent = text;
     this.tag.dataset.corner = corner;
-    // Over the enlarged map when it is up, not across it.
-    this.tag.classList.toggle('is-high', corner === 'map' && this.enlargedOpen);
     this.tag.classList.remove('hidden', 'is-in'); void this.tag.offsetWidth; this.tag.classList.add('is-in');
     clearTimeout(this.timers.tag);
     this.timers.tag = window.setTimeout(() => this.tag.classList.add('hidden'), TAG_MS);
@@ -207,6 +210,7 @@ export class FieldUi {
     clearTimeout(this.timers.close);
     this.enlarged.classList.remove('hidden', 'is-closing');
     this.map.classList.add('is-away');
+    if (this.tag.dataset.corner === 'map') this.tag.classList.add('hidden');
     this.drawBig(true);
     return true;
   }

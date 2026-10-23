@@ -181,6 +181,8 @@ describe('the field\'s rules', () => {
     const fit = struck(4, { compatibility: .6 });
     const caught = fieldRules(fit, 0, fieldFor({ bowler: 'DEATH', over: 7 }), fixed(.3), STRETCH);
     expect(caught.isWicket).toBe(true);
+    // Marked, so the call says it was reached for rather than PERFECT TIMING over CAUGHT.
+    expect(caught.stretched).toBe(true);
     expect(fieldRules(fit, 0, fieldFor({ bowler: 'DEATH', over: 7 }), fixed(.6), STRETCH).runs).toBe(4);
     expect(fieldRules(struck(4), 0, fieldFor({ bowler: 'DEATH', over: 7 }), fixed(0), STRETCH).isWicket).toBe(false);
   });

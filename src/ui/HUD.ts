@@ -1,6 +1,6 @@
 import { ownsHandle } from '../game/handle';
 import { MarathonInnings } from '../game/Marathon';
-import { GAME } from '../config/gameplay';
+import { GAME, SOLID_SHOT } from '../config/gameplay';
 import { ScoreManager } from '../game/ScoreManager';
 import {
   gameLink, shareFileName, shareFileType, shareText, statsFileName,
@@ -2603,8 +2603,14 @@ ${modeSelectMarkup()}
     const panel = this.$('result');
     panel.className = `result ${outcome.advance ? 'is-advance' : outcome.isWicket ? 'is-wicket' : outcome.runs >= 4 ? 'is-boundary' : ''}${chargeMiss ? ' is-missed-charge' : ''}`;
     this.$('result-text').textContent = outcome.feedback;
-    // A Super10 fielder who got to it is named under the call.
-    this.$('timing').textContent = fieldLine(outcome) ?? (outcome.advance ? 'DOWN THE PITCH'
+    // A Super10 fielder who got to it is named under the call. A ball that
+    // went up off a well-timed swing says why, not PERFECT TIMING over CAUGHT:
+    // steered too far and reached for, or a stroke the line did not suit.
+    const timed = outcome.timingGrade === 'PERFECT' || outcome.timingGrade === 'GOOD';
+    const why = !timed || !outcome.aerial || outcome.runs === 6 ? null
+      : outcome.stretched ? 'STRETCHED · OFF THE TOE'
+      : outcome.isWicket && outcome.compatibility < SOLID_SHOT ? 'WRONG SHOT FOR THE LINE' : null;
+    this.$('timing').textContent = why ?? fieldLine(outcome) ?? (outcome.advance ? 'DOWN THE PITCH'
       : chargeMiss ?? (outcome.timingGrade === 'PERFECT' || outcome.timingGrade === 'GOOD' ? `${outcome.timingGrade} TIMING`
       : outcome.timingDeltaMs === null ? 'NO SHOT' : outcome.timingGrade === 'MISS' ? 'MISSED IT' : outcome.timingDeltaMs < 0 ? 'EARLY' : 'LATE'));
     // Restart the rise-and-fade from the top for back-to-back deliveries.

@@ -109,6 +109,8 @@ export interface ShotOutcome {
    * in degrees off straight and metres from the bat, and what he is called.
    */
   fielder?: { name: string; angle: number; distance: number; deep: boolean; how: 'stopped' | 'cut' | 'saved' | 'caught' };
+  /** Super10: steered into the outer third of its zone and reached for, so it went up off the toe however it was timed (`fieldRules`). */
+  stretched?: boolean;
   /** Super10: where the stroke was steered, in degrees off straight, before the timing bends it. */
   angle?: number;
 }

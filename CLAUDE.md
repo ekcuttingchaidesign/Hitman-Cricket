@@ -1547,7 +1547,10 @@ ball's place along the arc; a key plays the middle. The leg side's one swipe
 is the flick, the pull, the hook, the pull off the spinner or the sweep by the
 ball, each with its own arc. Steering into the outer third either side
 stretches the stroke (`STRETCH`), which turns a clean hit into a mishit half
-the time. The meter's strokes — the charge, the slog sweep, the scoops — are
+the time. A stroke reached for that way is `stretched` on the outcome, and
+the call says STRETCHED · OFF THE TOE under it rather than the timing, as a
+well-timed stroke the line did not suit is WRONG SHOT FOR THE LINE: both
+read PERFECT TIMING over CAUGHT before. The meter's strokes — the charge, the slog sweep, the scoops — are
 not steered and the field never stops them. The steered line arrives on the
 outcome as `angle`, and `sectorOf` in `src/scene/flight.ts` lays the timing's
 bend on it, so what the field judges is the line the ball is drawn along.
@@ -1606,17 +1609,23 @@ white rope and a white dashed ring, the fielders red and the batter blue
 whatever either side wears (the kits' own colours lost the dots whenever a kit
 was near the other side's or the grass), the ball's line yellow on a dark
 edge; a new field has the dots slide to their places as a ring pulses twice
-and the field's name floats over it (WIDE YORKER · 5 OUT, FIELD CHANGE · …);
+and the field's name floats over it on a quiet dark glass chip (WIDE YORKER · 5
+OUT, FIELD CHANGE · …; it was a white pill in the display face every over,
+the loudest thing on the screen, and it is not put up over the enlarged map,
+which shows the new field itself);
 it is a plan of the ground, not a scale drawing (`onMap`): the ring's men
 inside the dashed circle, the boundary riders just inside the rope, which to
 scale stood a few points apart, the ground being twenty-eight metres square; after a shot the ball's line is drawn to where it went, and the man who
 caught it or got to it is lit with a yellow ring (`takerOf` in `src/Game.ts`:
 the field's rules' man, or the drawn man the scene sent for a catch,
 `Field.catcher`), until the next ball; a tap (or F) enlarges it from its
-corner, to 180 square over it, and it stays up, kept live, until it is tapped
-again or F is pressed; it passes every other touch through, so a ball can be
+corner, to 150 square over it, and it stays up, kept live, until it is tapped
+again or F is pressed, or the innings ends: the end card, the pause sheet and
+every other screen over the game hide it, and each innings starts with it in
+its corner (left up, it stood over the end card's keys); it passes every other touch through, so a ball can be
 played with it up. Put back by itself at the bowler's first stride, it was gone
-before anybody had read it, and at 264 square it covered most of the pitch. It
+before anybody had read it, and at 264 square it covered most of the pitch;
+180 still sat over the batter's off side. It
 grows out of the corner map's own place and shrinks back into it
 (`s10-grow`, `s10-shrink`, the corner fading out and back in under it), and it
 has its own thinner lines and smaller dots: the corner's drawing scaled up two

@@ -312,8 +312,8 @@ export function fieldRules(outcome: ShotOutcome, angle: number, field: FieldSet,
   if (stretch > 0 && outcome.compatibility >= SOLID_SHOT && outcome.compatibility - stretch < SOLID_SHOT && rng.next() < .5) {
     // Reached for: up off the toe, and somebody gets under it three times in four.
     return rng.next() < .75
-      ? { ...outcome, runs: 0, isWicket: true, wicketType: 'CAUGHT', aerial: true, quality: 0, feedback: 'CAUGHT!' }
-      : { ...outcome, runs: 4, aerial: true, feedback: 'FOUR!' };
+      ? { ...outcome, runs: 0, isWicket: true, wicketType: 'CAUGHT', aerial: true, quality: 0, feedback: 'CAUGHT!', stretched: true }
+      : { ...outcome, runs: 4, aerial: true, feedback: 'FOUR!', stretched: true };
   }
   const middled = outcome.timingGrade === 'PERFECT';
   const deep = nearest(field, angle, true), ring = nearest(field, angle, false);
