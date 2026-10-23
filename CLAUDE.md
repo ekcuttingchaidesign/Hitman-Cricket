@@ -1835,7 +1835,8 @@ lower, where their heads clear the score bar and the keys.
 
 The pavilion and the canopy are laid with their own turf (`turfOf` in
 `grounds.ts`, `FRESH_TURF` in `turf.ts`): the outfield's light stripe #6DA637
-and its dark a shade under, and the dry strip #DEAC67, brighter and warmer
+and its dark a shade under, and the dry strip #E5BD85 (#DEAC67 read too
+orange), brighter and warmer
 than the stadium's, which every other ground keeps. The outfield, its standing
 blades and the dry strip are shared by every ground's stands, so the scene
 paints each turf the first time a ground laid with it goes up and lays it
