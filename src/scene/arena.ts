@@ -704,10 +704,49 @@ export class Showboards {
 }
 
 /**
+ * The Super10 LED stumps (Figma section 18): their wrap, which the batter's
+ * and the far wicket are built with (`buildWicket`'s `led`), and the batter's
+ * light run when his bails go (`stumpLight`). Any ground can carry them:
+ * `GameScene` puts them up for a Super10 innings, wherever it is played, and
+ * on the arena.
+ */
+export class LedStumps {
+  /** The stumps' wrap, for the wicket to be built with: see `stumpWrap`. */
+  readonly wrap: THREE.Texture;
+  private lights: WicketLights | null = null;
+  private from = -Infinity;
+  constructor(anisotropy: number) {
+    this.wrap = stumpWrap(GAME.stumpHeight); this.wrap.anisotropy = anisotropy;
+  }
+  /** The batter's LED wicket, its crown, rings and bails to light when it is broken; the far wicket stays at rest. */
+  wire(lights: WicketLights) { this.lights = lights; }
+  /** The light run from `now` with no bail gone: for looking at it (`__cricket.arenaCue('stumps')`). */
+  light(now: number) { this.from = now; }
+  /**
+   * The wrap read the right way round on a mirrored stage: the ground is
+   * mirrored for a right-hander, which would print SUPER10 backwards, so the
+   * wrap is turned over with it. Its marks stand at u .25 and .75 and the
+   * base cut at the leg side's u .5, so turned over they are where they were.
+   */
+  mirror(mirrored: boolean) { this.wrap.repeat.x = mirrored ? -1 : 1; this.wrap.offset.x = mirrored ? 1 : 0; }
+  /** Strike, dip, hold, as the sheet has them. `broken` is how long ago the batter's bails went, or less than nought. */
+  update(now: number, broken: number, still: boolean) {
+    if (!this.lights) return;
+    if (now < this.from) this.from = -Infinity;
+    const glow = stumpLight(broken >= 0 ? broken : Number.isFinite(this.from) ? now - this.from : -1, still);
+    for (const part of ['crown', 'rings', 'bails'] as const) {
+      const material = this.lights[part];
+      material.emissive.setHex(glow[part].colour); material.emissiveIntensity = glow[part].level * 1.4;
+    }
+  }
+}
+
+/**
  * The arena's own lit pieces, hung in the scene's own frame rather than the
  * mirrored stage, over the boards and the screen (`Showboards`, its `show`,
  * which the cues reach it through): the ring of lamps that answers the
- * game, the phone torches, the crowd's wave and the LED stumps.
+ * game, the phone torches and the crowd's wave. Its stumps are the LED
+ * stumps (`LedStumps`), which the scene keeps.
  */
 export class Arena {
   readonly textures: THREE.Texture[] = [];
@@ -717,9 +756,6 @@ export class Arena {
   /** The ring's glows, which the scene hangs (`glows` in `night.ts`): they burn with the lamps. */
   private glow: THREE.PointsMaterial | null = null;
   private torches: { material: THREE.PointsMaterial; share: { value: number } } | null = null;
-  private stumpLights: WicketLights | null = null;
-  /** The stumps' wrap, for the wicket to be built with: see `stumpWrap`. */
-  readonly wrap: THREE.Texture;
   private last: ArenaFrame | null = null;
   /** The crowd's clock and its wave: see `crowdLife.ts`. */
   private life: CrowdLife | null = null;
@@ -747,8 +783,7 @@ export class Arena {
 
     this.show = new Showboards(hasScreen ? this.buildScreen(scene, anisotropy) : null);
     this.show.ring(ribbon, Math.round(2 * Math.PI * RIBBON.radius / (RIBBON.height * 5)));
-    this.wrap = stumpWrap(GAME.stumpHeight); this.wrap.anisotropy = anisotropy;
-    this.textures.push(lamps, city.texture, this.wrap);
+    this.textures.push(lamps, city.texture);
   }
 
   /** The screen on its frame, on two legs off the roof, turned to the crease. */
@@ -778,21 +813,9 @@ export class Arena {
   /** The boards along the rope: in the arena they are its LED boards, not the sponsors'. `panels` is how many make a lap. */
   boards(material: THREE.MeshStandardMaterial, panels: number) { this.show.ring(material, panels); }
 
-  /** The batter's LED wicket, its crown, rings and bails to light when it is broken (`stumpLight`); the far wicket stays at rest. */
-  wire(lights: WicketLights) { this.stumpLights = lights; }
   /** The ring's glows, to burn with the lamps. */
   glows(material: THREE.PointsMaterial) { this.glow = material; this.glowSize = material.size; }
   private glowSize = 1;
-  /** The stumps' light run from `now` with no bail gone: for looking at it (`__cricket.arenaCue('stumps')`). */
-  lightStumps(now: number) { this.stumpsFrom = now; }
-  private stumpsFrom = -Infinity;
-  /**
-   * The wrap read the right way round on a mirrored stage: the ground is
-   * mirrored for a right-hander, which would print SUPER10 backwards, so the
-   * wrap is turned over with it. Its marks stand at u .25 and .75 and the
-   * base cut at the leg side's u .5, so turned over they are where they were.
-   */
-  mirrorWrap(mirrored: boolean) { this.wrap.repeat.x = mirrored ? -1 : 1; this.wrap.offset.x = mirrored ? 1 : 0; }
 
   /** The stands' life: the clock the crowd moves to, and the flags and banners held up over the seats, hung in the scene's frame so a banner's words read the right way round. */
   crowd(life: CrowdLife, seats: THREE.Matrix4[], scene: THREE.Object3D) {
@@ -812,8 +835,8 @@ export class Arena {
       lamps: +(f?.lamps ?? 1).toFixed(2), torches: +(f?.torches ?? 0).toFixed(2) };
   }
 
-  /** The lamps, the torches, the wave and the stumps at `now`, by the frame the boards were drawn from (`Showboards.update`). `broken` is how long ago the batter's bails went, or less than nought. */
-  update(now: number, f: ArenaFrame, broken: number, still: boolean) {
+  /** The lamps, the torches and the wave at `now`, by the frame the boards were drawn from (`Showboards.update`). */
+  update(now: number, f: ArenaFrame, still: boolean) {
     if (now < this.waveFrom) this.waveFrom = -Infinity;
     if (this.life) {
       const wave = waveAt(now - this.waveFrom);
@@ -825,14 +848,5 @@ export class Arena {
     this.lamps.color.setHex(ARENA.lamp).multiplyScalar(LAMP_REST * f.lamps);
     if (this.glow) { this.glow.opacity = Math.min(1, f.lamps); this.glow.size = this.glowSize * Math.max(.6, f.lamps); }
     if (this.torches) this.torches.share.value = f.torches;
-    // The batter's stumps: strike, dip, hold, as the sheet has them.
-    if (this.stumpLights) {
-      if (now < this.stumpsFrom) this.stumpsFrom = -Infinity;
-      const glow = stumpLight(broken >= 0 ? broken : Number.isFinite(this.stumpsFrom) ? now - this.stumpsFrom : -1, still);
-      for (const part of ['crown', 'rings', 'bails'] as const) {
-        const material = this.stumpLights[part];
-        material.emissive.setHex(glow[part].colour); material.emissiveIntensity = glow[part].level * 1.4;
-      }
-    }
   }
 }

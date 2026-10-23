@@ -18,7 +18,9 @@
  * offered in the break before the sixth over, taken with P and two men
  * brought in for it with the bowler beckoning them, used after, the field
  * drawn in the pause sheet,
- * and the field map's coach card a first Super10 opens with, once. And the
+ * and the field map's coach card a first Super10 opens with, once. The
+ * canopy under lights whatever the clock says, with the LED stumps and no
+ * Lights row on the pause sheet. And the
  * canopy's big screen and the boards along its rope playing the brand's
  * moment for a four, and going back after it, the fence to its sponsors and
  * the screen to the Super10 mark and the score.
@@ -86,6 +88,9 @@ const opener = await page.locator('#phase-label').textContent();
 check(first.balls === 0 && !!opener?.startsWith('OPENER IN'), 'the opener is named as he walks out', `${opener} (balls ${first.balls})`);
 const ball = await page.evaluate(() => window.__cricket.ball());
 check(ball === '#e84829', 'and it is played with the red ball', ball);
+const look = await page.evaluate(() => ({ ground: window.__cricket.ground(), lights: window.__cricket.lights(), led: window.__cricket.ledStumps(), turf: window.__cricket.turf() }));
+check(look.ground === 'canopy' && look.lights === 'night' && look.led && look.turf === 'fresh',
+  'at the canopy under lights, whatever the clock, with the Super10 LED stumps and the canopy\'s turf', JSON.stringify(look));
 const corner = await page.evaluate(() => ({
   map: document.querySelectorAll('#s10-map .s10-man').length, bat: !!document.querySelector('#s10-map .s10-bat'),
   shown: !document.querySelector('#s10-map')?.classList.contains('hidden'), surge: document.querySelector('#s10-surge')?.dataset.state,
@@ -113,7 +118,7 @@ const kinds = [];
 const actions = {};
 const speeds = [];
 const fields = [];
-let armed = null, pauseMap = false, offered = null, usedAfter = null;
+let armed = null, pauseMap = false, pauseLights = true, offered = null, usedAfter = null;
 const signals = [], away = [];
 const write = balls => page.evaluate(b => window.__cricket.blast(b), balls);
 // Who bowls each over is read off the game at its top; one real ball is bowled
@@ -143,6 +148,7 @@ for (let over = 0; over < 10; over++) {
     // No field in the pause sheet: the corner has it.
     await page.keyboard.press('Escape');
     pauseMap = await page.locator('#pause-overlay .s10-svg').count() > 0;
+    pauseLights = await page.locator('#lights-row').isVisible();
     await page.keyboard.press('Escape');
   }
   if (over === 2) {
@@ -210,6 +216,7 @@ check(offered === 'offer' && usedAfter === 'used', 'its corner offers it in the 
   `${offered} ${usedAfter}`);
 check(fields.slice(6).every(f => f?.change !== 'surge'), 'and it is one over only: the ninth does not switch it on again');
 check(!pauseMap, 'the pause sheet has no field map');
+check(!pauseLights, 'and no Lights row: Super10 is always played at night');
 check(speeds.every(v => /^\d+$/.test(v ?? '')), 'the speed gun reads out every ball', speeds.slice(0, 12).join(' '));
 
 const card = await page.locator('#end').textContent().catch(() => '');

@@ -17,7 +17,7 @@ import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture, type Tur
 import { BOARD_PANELS, perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, nightOnly, ownFloodlights, turfOf, type GroundName } from './grounds';
-import { Arena, MILESTONE_WORDS, Showboards, screenFrom, type ArenaCue, type ArenaMood, type Scoreboard } from './arena';
+import { Arena, LedStumps, MILESTONE_WORDS, Showboards, screenFrom, type ArenaCue, type ArenaMood, type Scoreboard } from './arena';
 import { buildWicket } from './wicket';
 import type { CrowdCelebration, CrowdMoment } from './CrowdCelebration';
 import { PerformanceReadout } from './performance';
@@ -193,6 +193,15 @@ export class GameScene {
   private catchRing: THREE.Mesh;
   private chargeRing: THREE.Mesh;
   private bails: THREE.Mesh[] = [];
+  /**
+   * Both wickets, plain and LED, built once: the LED pair stands for a
+   * Super10 innings (`brand`) and on the arena, the plain pair everywhere
+   * else. `bails` and `stumps` are the batter's of whichever is up.
+   */
+  private wickets = { plain: { meshes: [] as THREE.Mesh[], bails: [] as THREE.Mesh[], stumps: [] as THREE.Mesh[] }, led: { meshes: [] as THREE.Mesh[], bails: [] as THREE.Mesh[], stumps: [] as THREE.Mesh[] } };
+  private led!: LedStumps;
+  /** A Super10 innings: its stumps are the LED stumps, and the screen and the boards play its moments. */
+  private branded = false;
   /** His own stumps, the ones between the camera and him: drawn back over a moment's back layer with him. */
   private stumps: THREE.Mesh[] = [];
   /**
@@ -335,9 +344,11 @@ export class GameScene {
     // Always in the scene, so switching to night recompiles no shader.
     this.fill.position.set(...FILL_POSITION); this.scene.add(this.fill);
     this.createGround();
-    this.wicket(0); this.wicket(18.7);
-    // The stage starts mirrored for a right-hander: the arena's stump wrap is turned over with it.
-    this.arena?.mirrorWrap(true);
+    this.led = new LedStumps(this.anisotropy); this.textures.push(this.led.wrap);
+    for (const kind of ['plain', 'led'] as const) { this.wicket(0, kind); this.wicket(18.7, kind); }
+    this.raiseStumps();
+    // The stage starts mirrored for a right-hander: the LED stumps' wrap is turned over with it.
+    this.led.mirror(true);
     this.bowlerHolder.add(this.bowler.root);
     this.world.add(this.batter.root, this.bowlerHolder, ...this.field.fielders.map(f => f.root));
     this.ball = new THREE.Mesh(SHAPES.ball, soft(BALL.blast.color, 0.34));
@@ -567,6 +578,7 @@ export class GameScene {
     this.current = name;
     this.crowd = stands.crowd; this.lamps = stands.lamps; this.show = stands.show ?? null;
     this.lay(turfOf(name));
+    this.raiseStumps();
     this.lightStands();
   }
   private buildStands(name: GroundName): Stands {
@@ -646,10 +658,37 @@ export class GameScene {
     });
   }
   private get lighting() { return this.now === 'night' && this.current === 'arena' ? ARENA_NIGHT : LIGHTING[this.now]; }
-  private wicket(z: number) {
-    const { timber, bails, lights } = buildWicket(this.world, GAME.stumpHeight, z, this.arena ? { wrap: this.arena.wrap } : undefined);
-    if (z === 0) { this.bails.push(...bails); this.stumps.push(...timber, ...bails); if (lights) this.arena?.wire(lights); }
+  private wicket(z: number, kind: 'plain' | 'led') {
+    const { timber, bails, lights } = buildWicket(this.world, GAME.stumpHeight, z, kind === 'led' ? { wrap: this.led.wrap } : undefined);
+    const set = this.wickets[kind];
+    set.meshes.push(...timber, ...bails);
+    if (z === 0) { set.bails.push(...bails); set.stumps.push(...timber, ...bails); if (lights) this.led.wire(lights); }
   }
+  /** Whether the LED stumps are up: a Super10 innings, and the arena whatever is played on it. */
+  private get ledUp() { return this.branded || this.current === 'arena'; }
+  /** The wickets that go with the innings and the ground up, and the bails the ball breaks theirs. */
+  private raiseStumps() {
+    if (!this.led) return;
+    const led = this.ledUp;
+    for (const mesh of this.wickets.plain.meshes) mesh.visible = !led;
+    for (const mesh of this.wickets.led.meshes) mesh.visible = led;
+    const up = this.wickets[led ? 'led' : 'plain'];
+    this.bails = up.bails; this.stumps = up.stumps;
+  }
+  /**
+   * A Super10 innings, or not: the LED stumps go up for it, and the screen
+   * and the boards along the rope play its moments, on whatever ground has
+   * them. Any other innings at the canopy keeps its plain stumps, and its
+   * screen shows the score and nothing more.
+   */
+  brand(on: boolean) {
+    if (on === this.branded) return;
+    this.branded = on;
+    if (!on && this.current !== 'arena') this.show?.rest();
+    this.raiseStumps();
+  }
+  /** The screen and the boards the moments go to: the stands' own, in a Super10 innings or on the arena. */
+  private get cued() { return this.branded || this.current === 'arena' ? this.show : null; }
   private resize = () => {
     const { width, height } = this.container.getBoundingClientRect();
     this.renderer.setSize(width, height);
@@ -740,7 +779,7 @@ export class GameScene {
    */
   leftHanded(on: boolean) {
     this.world.scale.x = on ? 1 : -1;
-    this.arena?.mirrorWrap(!on);
+    this.led.mirror(!on);
     this.batter.mirrorStickers(!on);
     this.bowlerHolder.scale.x = on ? -1 : 1;
   }
@@ -777,24 +816,27 @@ export class GameScene {
   get fireworksUp() { return this.bursts.up; }
   cheer(kind: CrowdMoment, now: number, mark = 0, streak = 1, name = '') {
     this.crowd?.trigger(kind, now, mark, streak, name);
-    if (!this.show) return;
-    if (kind === 'hit-four' || kind === 'hit-six') this.show.cue(kind === 'hit-six' ? 'six' : 'four', now);
-    else this.show.cue('milestone', now, MILESTONE_WORDS[kind]);
+    const show = this.cued;
+    if (!show) return;
+    if (kind === 'hit-four' || kind === 'hit-six') show.cue(kind === 'hit-six' ? 'six' : 'four', now);
+    else show.cue('milestone', now, MILESTONE_WORDS[kind]);
     // Fireworks off the far end for a six and a milestone: the arena is always night.
     if (this.arena && kind !== 'hit-four') this.fireworks(now, kind === 'hit-six' ? ARENA_FIREWORKS.six : ARENA_FIREWORKS.milestone);
   }
   /** The brand's mood: calm, Power Surge's gold or the death overs' red. Nothing on a ground without its boards. */
-  arenaMood(mood: ArenaMood) { this.show?.mood(mood); }
+  arenaMood(mood: ArenaMood) { this.cued?.mood(mood); }
   /** A moment the screen and the boards light up for that the crowd has no part in: a wicket, Power Surge, the death overs. The wave and the stumps are the arena's alone. */
   arenaCue(kind: ArenaCue | 'wave' | 'stumps', now: number, word?: string) {
     if (kind === 'wave') this.arena?.wave(now);
-    else if (kind === 'stumps') this.arena?.lightStumps(now);
-    else this.show?.cue(kind, now, word);
+    else if (kind === 'stumps') this.led.light(now);
+    else this.cued?.cue(kind, now, word);
   }
   /** What the big screen shows between moments, where it shows the score. */
   scoreboard(board: Scoreboard) { this.show?.scoreboard(board); }
   /** For the checks: the mood and what the screen and the boards show, with the arena's lamps and torches there, or null on a ground with neither. */
   get arenaState() { return this.arena?.state ?? this.show?.state ?? null; }
+  /** For the checks: whether the LED stumps are up. */
+  get ledStumps() { return this.ledUp; }
   /** Whether the stands in use have a big screen the moments play on: the call over the field leaves them to it. */
   get bigScreen() { return this.show?.hasScreen ?? false; }
   /** Whether this is the arena, which is played at night whatever the lights say. */
@@ -1461,7 +1503,8 @@ export class GameScene {
     this.crowd?.update(now);
     this.bursts.update(now);
     const frame = this.show?.update(now, this.reducedMotion, this.bowling);
-    if (frame) this.arena?.update(now, frame, this.bailsBrokeAt ? now - this.bailsBrokeAt : -1, this.reducedMotion);
+    if (frame) this.arena?.update(now, frame, this.reducedMotion);
+    if (this.ledUp) this.led.update(now, this.bailsBrokeAt ? now - this.bailsBrokeAt : -1, this.reducedMotion);
     this.batter.update(now);
     this.field.update(now);
     // Held, the ball goes where his hands go: through the slide, and up with

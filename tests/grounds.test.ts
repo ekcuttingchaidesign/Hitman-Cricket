@@ -25,24 +25,34 @@ describe('the ground', () => {
     expect(groundFrom('?ground=members')).toBe('stadium');
   });
 
-  it('plays Super10 at the canopy, half the Blast\'s nights at the pavilion on a coin, and the rest at the stadium, unless the link asks', () => {
+  it('plays Super10 at the canopy, the Blast at the pavilion or the stadium, and a Test at any of the three, unless the link asks', () => {
     expect(askedGround('')).toBeNull();
-    for (const coin of [0, .3, .5, .9]) {
-      expect(groundFor(null, 'super10', 'night', coin)).toBe('canopy');
-      expect(groundFor(null, 'super10', 'day', coin)).toBe('canopy');
-      expect(groundFor(null, 'blast', 'day', coin)).toBe('stadium');
-      expect(groundFor(null, 'other', 'night', coin)).toBe('stadium');
-      expect(groundFor(null, 'other', 'day', coin)).toBe('stadium');
-    }
-    // The Blast under lights: the pavilion on the coin's lower half, the stadium on its upper.
-    expect(groundFor(null, 'blast', 'night', 0)).toBe('pavilion');
-    expect(groundFor(null, 'blast', 'night', .49)).toBe('pavilion');
-    expect(groundFor(null, 'blast', 'night', .5)).toBe('stadium');
-    expect(groundFor(null, 'blast', 'night', .99)).toBe('stadium');
-    // A link's ground is every innings' ground, day or night, whatever the coin.
-    expect(groundFor(askedGround('?ground=stadium'), 'blast', 'night', 0)).toBe('stadium');
-    expect(groundFor(askedGround('?ground=pavilion'), 'blast', 'night', .9)).toBe('pavilion');
-    expect(groundFor(askedGround('?ground=arena'), 'super10', 'day', .5)).toBe('arena');
+    // Super10: the canopy, whatever the coin.
+    for (const coin of [0, .3, .5, .9]) expect(groundFor(null, 'super10', coin)).toBe('canopy');
+    // The Blast, day or night: the pavilion on the coin's lower half, the stadium on its upper.
+    expect(groundFor(null, 'blast', 0)).toBe('pavilion');
+    expect(groundFor(null, 'blast', .49)).toBe('pavilion');
+    expect(groundFor(null, 'blast', .5)).toBe('stadium');
+    expect(groundFor(null, 'blast', .99)).toBe('stadium');
+    // A Test: a third each, the pavilion, the stadium, the canopy.
+    expect(groundFor(null, 'test', 0)).toBe('pavilion');
+    expect(groundFor(null, 'test', .33)).toBe('pavilion');
+    expect(groundFor(null, 'test', .34)).toBe('stadium');
+    expect(groundFor(null, 'test', .66)).toBe('stadium');
+    expect(groundFor(null, 'test', .67)).toBe('canopy');
+    expect(groundFor(null, 'test', .99)).toBe('canopy');
+    // Even shares over a fine sweep of the coin.
+    const count = (game: 'blast' | 'test') => {
+      const seen: Record<string, number> = {};
+      for (let i = 0; i < 3000; i++) { const g = groundFor(null, game, (i + .5) / 3000); seen[g] = (seen[g] ?? 0) + 1; }
+      return seen;
+    };
+    expect(count('blast')).toEqual({ pavilion: 1500, stadium: 1500 });
+    expect(count('test')).toEqual({ pavilion: 1000, stadium: 1000, canopy: 1000 });
+    // A link's ground is every innings' ground, whatever the game and the coin.
+    expect(groundFor(askedGround('?ground=stadium'), 'blast', 0)).toBe('stadium');
+    expect(groundFor(askedGround('?ground=pavilion'), 'super10', .9)).toBe('pavilion');
+    expect(groundFor(askedGround('?ground=arena'), 'test', .5)).toBe('arena');
   });
 
   it('batches the stadium by colour and the entire crowd into bodies and heads', () => {

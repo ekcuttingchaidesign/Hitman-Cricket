@@ -211,8 +211,13 @@ const SHOW_MARATHON = !SURVIVE_ONLY && (!!import.meta.env.VITE_SHOW_MARATHON
 const PREVIEW_FILL = !SURVIVE_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production';
 /** The ground a link asks for (`?ground=`), which every innings is then played on: otherwise the game and the lights pick it (`groundFor`). */
 const ASKED_GROUND = askedGround(location.search);
-/** The visit's coin for the Blast's night ground, tossed once so the venue holds for the visit: under a half, the pavilion. */
-const VENUE_COIN = Math.random();
+/**
+ * The visit's coins for the grounds, tossed once each so the venue holds for
+ * the visit (`groundFor`): the Blast's, the pavilion under a half and the
+ * stadium over; the Tests', the pavilion, the stadium and the canopy a third
+ * each. Two coins, so the Blast's ground says nothing about a Test's.
+ */
+const VENUE_COIN = { blast: Math.random(), test: Math.random() } as const;
 const MARATHON_OPEN = SHOW_MARATHON || (!SURVIVE_ONLY
   && new URLSearchParams(location.search).get('mode')?.toLowerCase() === 'marathon');
 /**
@@ -990,6 +995,7 @@ export class Game {
       // Which ground was built, for `scene-check.mjs`: `?ground=bowl` or the default.
       ground: () => this.scene.ground,
       turf: () => this.scene.turf,
+      ledStumps: () => this.scene.ledStumps,
       // The ball's colour: Super10's white, the Blast's red, the Test's cherry.
       ball: () => this.scene.ballColour,
       // The arena's mood and what it is showing, and any of its moments on
@@ -2308,9 +2314,17 @@ export class Game {
   private get marathoning() { return this.mode === 'MARATHON'; }
   /** Super10: the Blast's ball for ten overs, three batters and five bowlers. */
   private get super10() { return this.mode === 'SUPER10'; }
-  /** Day or night for the innings, and the ground that goes with it: Super10 is the canopy's, the Blast under lights the pavilion's on the visit's coin (`groundFor`). */
+  /**
+   * Day or night for the innings, and the ground that goes with it
+   * (`groundFor`): Super10 at the canopy, always at night, its stumps the LED
+   * stumps (`brand`); a Test by day at the pavilion, the stadium or the
+   * canopy; the Blast at the pavilion or the stadium by the player's clock.
+   */
   private light(time: SkyTime) {
-    this.scene.stands(groundFor(ASKED_GROUND, this.super10 ? 'super10' : this.mode === 'CLASSIC' ? 'blast' : 'other', time, VENUE_COIN));
+    const game = this.super10 ? 'super10' : this.test ? 'test' : 'blast';
+    if (game === 'super10') time = 'night';
+    this.scene.stands(groundFor(ASKED_GROUND, game, VENUE_COIN[game === 'test' ? 'test' : 'blast']));
+    this.scene.brand(this.super10);
     this.scene.time(time);
     this.hud.bigScreen(this.scene.bigScreen);
   }
@@ -2825,7 +2839,7 @@ export class Game {
       this.input.cancel(); this.audio.stop(); this.audio.holdCrowd(true); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true, this.pauseGame);
       this.soundSwitches();
       // The arena is played at night whatever the switch says, so it has none.
-      this.hud.lightsSwitch(this.test || this.scene.arenaGround ? null : this.scene.lit);
+      this.hud.lightsSwitch(this.test || this.super10 || this.scene.arenaGround ? null : this.scene.lit);
       // Twenty overs in, the Marathon can be declared — from here, and from
       // nowhere else, so it is never pressed by accident mid-ball. Before
       // that the key is there but shut, saying when it opens.

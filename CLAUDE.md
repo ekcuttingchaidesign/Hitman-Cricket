@@ -1455,8 +1455,10 @@ before (`KNEELING_SWEEP`) and meets the ball where the drives do. It is
 
 Super10 (`SUPER10` in `src/game/modes.ts`, its numbers in `src/config/super10.ts`)
 is the Blast's ball for ten overs: `resolveShot`, the confidence meter and the
-charge, coloured kit, the Blast field and the lights by the player's clock,
-played at the canopy (`groundFor`).
+charge, coloured kit and the Blast field, played at the canopy (`groundFor`)
+and always under lights, whatever the clock says (`light` in `src/Game.ts`;
+no Lights row on its pause card), with the LED stumps (`brand` in
+`GameScene`, below).
 Five wickets and five batters, by how many are down (`batterAt`), each named
 walking out (`walkingOut`: OPENER, NO. 2 … NO. 5), each with the Test
 Marathon's own windows and nothing narrowed (`windowsAt`, read through
@@ -1714,8 +1716,11 @@ behind the ring of lamps. `?screen=0` is its fallback, the commentary box
 back.
 
 The stumps are LED stumps (`buildWicket`'s `ledWicket`, Figma section 18),
-printed with SUPER10 reading up (`stumpWrap`, turned over with the mirrored
-stage, `mirrorWrap`), in violet (`483:5197`: plate timber, the rings lit lime
+up for every Super10 innings wherever it is played and on the arena
+(`LedStumps` in `arena.ts`: the scene builds the plain pair and the LED pair
+once and shows the one the innings wants, `brand` and `raiseStumps` in
+`GameScene`), printed with SUPER10 reading up (`stumpWrap`, turned over with
+the mirrored stage, `mirror`), in violet (`483:5197`: plate timber, the rings lit lime
 at rest, the 10 in volt). A raspberry colourway (`485:5198`) was built with
 a switch on the pause card and taken out: violet was kept. The batter's light up
 once the bails go (`stumpLight`): a white strike, raspberry with one dip,
@@ -1780,21 +1785,32 @@ sway and wave. The crowd's sound is the game's own clips, as everywhere.
 (or `'wicket', 'BOWLED'`, or `'wave'`, or `'stumps'`) puts any moment up, for
 photographing.
 
-## The pavilion: half the Blast's nights
+## Which ground, and the pavilion
 
-The pavilion (`src/scene/pavilion.ts`) is where half the Blast's nights are
-played: a coin tossed once a visit (`VENUE_COIN` in `src/Game.ts`, under a
-half the pavilion, else the stadium), so the venue holds for the visit and a
-reload may change it; by day the Blast is the stadium's, and so is every
-other mode but Super10, day or night (`groundFor` in `grounds.ts`, in
-`tests/grounds.test.ts`). A check that wants one of them names it
-(`?ground=`): nothing on a link but the lights leaves it to the coin. The scene builds
-each ground's stands the first time they are asked for, into a group of their
-own with their crowd, lamps and glows, and from then on only shows and hides
-them (`GameScene.stands`), so the pause card's Lights switch changes the
-ground between balls; the game asks for it wherever it sets the lights
-(`light` in `src/Game.ts`). A link's `?ground=` is every innings' ground, day
-or night. It was drawn from a reference picture the designer gave: a members' pavilion behind the bowler,
+Three grounds are played on (`groundFor` in `grounds.ts`, every case in
+`tests/grounds.test.ts`):
+
+- **The Blast**, and a Rival Match with it: the pavilion or the stadium, half
+  each, by day or under lights by the player's clock — both have a day and a
+  night of their own.
+- **A Test**, Survival or the Marathon: the pavilion, the stadium or the
+  canopy, a third each, always by day.
+- **Super10**: the canopy, always at night, with the LED stumps.
+
+The Blast's and the Tests' coins are tossed once a visit, one each
+(`VENUE_COIN` in `src/Game.ts`), so the ground holds for the visit, a reload
+may change it, and the Blast's says nothing about a Test's; the Lights
+switch changes the light, not the ground. A link's `?ground=` is every
+innings' ground in any mode, day or night, and a check that wants one names
+it: nothing else on a link leaves it to the coin. The scene builds each
+ground's stands the first time they are asked for, into a group of their own
+with their crowd, lamps and glows, and from then on only shows and hides them
+(`GameScene.stands`); the game asks for one wherever it sets the lights
+(`light` in `src/Game.ts`). The canopy's screen and the boards along its rope
+play the brand's moments only in a Super10 innings (`cued` in `GameScene`): a
+Test there has the plain stumps and a screen that shows the score.
+
+The pavilion (`src/scene/pavilion.ts`) was drawn from a reference picture the designer gave: a members' pavilion behind the bowler,
 cream verandahs on white posts with fretwork, two decks over a raked lower
 tier, every one of them full of crowd, under green roofs, a clock tower with
 a flag over the middle and a turret with one over either end; a wing either
@@ -1845,9 +1861,9 @@ Test's green and worn strips are their own and are left down.
 
 ## The canopy: Super10's ground
 
-The canopy (`src/scene/canopy.ts`) is where Super10 is played, by day or
-under lights by the player's clock (`groundFor`; `?ground=canopy` asks for
-it in any mode): a third stadium, built from the designer's reference
+The canopy (`src/scene/canopy.ts`) is where Super10 is played, always under
+lights, and a third of the Tests, by day (`groundFor`; `?ground=canopy` asks
+for it in any mode): a third stadium, built from the designer's reference
 picture of a modern ground, for a ground with more in it than the
 stadium's. Over the far end a block the width of the section
 behind the bowler: dark glass behind the sightscreen, two VIP boxes (a white

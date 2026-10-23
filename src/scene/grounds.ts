@@ -5,7 +5,6 @@ import { stadium, type StadiumLights } from './stadium';
 import { arenaStands } from './arena';
 import { pavilionStands } from './pavilion';
 import { canopyStands } from './canopy';
-import type { SkyTime } from './sky';
 
 /**
  * The stands and everything over them: what a ground is, once the turf and
@@ -56,18 +55,21 @@ export function askedGround(search: string): GroundName | null {
 export const groundFrom = (search: string): GroundName => askedGround(search) ?? DEFAULT_GROUND;
 
 /** What picks a ground for an innings, besides the lights: the game it is. */
-export type GroundGame = 'blast' | 'super10' | 'other';
+export type GroundGame = 'blast' | 'super10' | 'test';
 /**
- * The ground an innings is played on. A link that asks for one has it,
- * always; otherwise Super10 is played at the canopy, day or night; the
- * Blast under lights at the pavilion or the stadium on a coin (`coin`,
- * nought to one, tossed once a visit: under a half the pavilion); and
- * everything else — the Blast by day, the Tests — at the stadium.
+ * Which ground an innings is played at. A link's `?ground=` wins, in any
+ * mode. Super10 is the canopy's, always. A Test, Survival or the Marathon, is
+ * played at the pavilion, the stadium or the canopy, a third each, and the
+ * Blast (a Rival Match with it) at the pavilion or the stadium, half each,
+ * day or night: both have a day and a night of their own. `coin` is drawn once
+ * a visit for each (`VENUE_COIN` in `src/Game.ts`), so the ground holds for
+ * the visit and the Lights switch changes the light, not the ground.
  */
-export function groundFor(asked: GroundName | null, game: GroundGame, time: SkyTime, coin: number): GroundName {
+export function groundFor(asked: GroundName | null, game: GroundGame, coin: number): GroundName {
   if (asked) return asked;
   if (game === 'super10') return 'canopy';
-  return game === 'blast' && time === 'night' && coin < .5 ? 'pavilion' : DEFAULT_GROUND;
+  if (game === 'test') return coin < 1 / 3 ? 'pavilion' : coin < 2 / 3 ? 'stadium' : 'canopy';
+  return coin < .5 ? 'pavilion' : DEFAULT_GROUND;
 }
 
 /**
