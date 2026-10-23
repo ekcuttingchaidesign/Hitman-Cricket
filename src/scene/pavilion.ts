@@ -268,8 +268,10 @@ function verandahs(b: Batch, seat: SeatFn, frame: THREE.Matrix4, w: number, { to
 function stairTower(b: Batch, frame: THREE.Matrix4, spots: THREE.Vector3[]) {
   const { cream, trim, roof, light } = PAVILION;
   // Set back behind the lower tier and no wider than the gap: at the full
-  // height and width of the stands it stood over the wings as two slabs.
-  const w = 3.6, front = DECK.z - 1.4, back = DECK.z + DECK.depth + 2.2, top = DECK.top + 3;
+  // height and width of the stands it stood over the wings as two slabs. Its
+  // face stands in front of the roofs' eaves, turned half a wing's turn from
+  // each: behind them, the roof, its ribs and its fascia came out through it.
+  const w = 3.6, front = DECK.z - 2.4, back = DECK.z + DECK.depth + 2.2, top = DECK.top + 3;
   const z = (front + back) / 2, depth = back - front;
   b.box(w, top, depth, cream, 0, top / 2, z, frame);
   for (const sx of [-1, 1]) b.box(.3, top, .3, trim, sx * (w / 2 - .05), top / 2, front - .05, frame);

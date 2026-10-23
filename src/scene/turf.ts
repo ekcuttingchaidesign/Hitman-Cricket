@@ -66,7 +66,7 @@ function finish(c: HTMLCanvasElement, anisotropy: number) {
 }
 
 /** Outfield colours, in sRGB. */
-export const TURF = { light: '#6aa449', dark: '#5e9540', edge: 'rgba(38,70,30,1)' } as const;
+export const TURF = { light: '#6da637', dark: '#629631', edge: 'rgba(38,70,30,1)' } as const;
 
 /**
  * The outfield, for a `CircleGeometry` of `radius` centred `centreZ` along
@@ -159,7 +159,7 @@ export function pitchTexture(width: number, length: number, centreZ: number, ani
   // Worn grass at the edges, the prepared surface in the middle.
   const across = ctx.createLinearGradient(0, 0, W, 0);
   const browned = (colour: string) => (wear ? mix(colour, '#b0905e', 0.5 * wear) : colour);
-  const edge = browned(mix('#aaae70', '#93a862', green)), surface = browned(mix('#d3b683', '#b3bd78', green)), verge = browned(mix('#b9b27b', '#a1ae6a', green));
+  const edge = browned(mix('#aaae70', '#93a862', green)), surface = browned(mix('#deac67', '#b3bd78', green)), verge = browned(mix('#b9b27b', '#a1ae6a', green));
   across.addColorStop(0, edge); across.addColorStop(0.1, verge); across.addColorStop(0.16, surface);
   across.addColorStop(0.84, surface); across.addColorStop(0.9, verge); across.addColorStop(1, edge);
   ctx.fillStyle = across; ctx.fillRect(0, 0, W, H);
