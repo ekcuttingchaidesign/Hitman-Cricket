@@ -65,16 +65,15 @@ const ARENA_BUDGET = 475;
  * figures' parts merged.
  */
 const GROUNDS = [
-  ['stadium', 'day', '&lights=day', BUDGET],
-  // The stadium's night, asked for: the Blast at night is the pavilion's now.
+  // Every ground asked for by name: the Blast's is a third each on a coin.
+  ['stadium', 'day', '&ground=stadium&lights=day', BUDGET],
   ['stadium', 'night', '&ground=stadium&lights=night', BUDGET],
   ['bowl', 'day', '&ground=bowl&lights=day', 590],
   // Super10's arena, night only whatever the link says: the stadium's bowl
   // without its towers, and its own rings of light, city and big screen.
   ['arena', 'night', '&ground=arena&lights=day', ARENA_BUDGET],
   // The pavilion: the stadium's bowl with a far end of its own, built into
-  // the same batch, so it is held to the stadium's budget. Half the Blast's
-  // nights are played there on a coin, so a check names it.
+  // the same batch, so it is held to the stadium's budget.
   ['pavilion', 'day', '&ground=pavilion&lights=day', BUDGET],
   ['pavilion', 'night', '&ground=pavilion&lights=night', BUDGET],
   // The canopy: the stadium's bowl with stands, a block and roofs of its own,

@@ -1790,9 +1790,9 @@ photographing.
 Three grounds are played on (`groundFor` in `grounds.ts`, every case in
 `tests/grounds.test.ts`):
 
-- **The Blast**, and a Rival Match with it: the pavilion or the stadium, half
-  each, by day or under lights by the player's clock — both have a day and a
-  night of their own.
+- **The Blast**, and a Rival Match with it: the pavilion, the stadium or the
+  canopy, a third each, by day or under lights by the player's clock — all
+  three have a day and a night of their own.
 - **A Test**, Survival or the Marathon: the pavilion, the stadium or the
   canopy, a third each, always by day.
 - **Super10**: the canopy, always at night, with the LED stumps.
@@ -1808,7 +1808,7 @@ with their crowd, lamps and glows, and from then on only shows and hides them
 (`GameScene.stands`); the game asks for one wherever it sets the lights
 (`light` in `src/Game.ts`). The canopy's screen and the boards along its rope
 play the brand's moments only in a Super10 innings (`cued` in `GameScene`): a
-Test there has the plain stumps and the game's own screen, never the Super10
+Blast or a Test there has the plain stumps and the game's own screen, never the Super10
 mark — the title down the left, and the game being played in gold, the score
 in Jaro and the overs under it on navy (`branded` and `paintPlain` on
 `Showboards`, `p|` in `__cricket.arena().screen` where the brand's is `b|`).
@@ -1852,21 +1852,22 @@ at the stands' full height and width it covered the wings. The trees are
 clusters of rounder crowns, and the far floodlights stand behind the joins and
 lower, where their heads clear the score bar and the keys.
 
-The pavilion and the canopy are laid with their own turf (`turfOf` in
-`grounds.ts`, `FRESH_TURF` in `turf.ts`): the outfield's light stripe #6DA637
-and its dark a shade under, and the dry strip #FDC375 (after #DEAC67, too
-orange, and #E5BD85), brighter and warmer
-than the stadium's, which every other ground keeps. The outfield, its standing
-blades and the dry strip are shared by every ground's stands, so the scene
-paints each turf the first time a ground laid with it goes up and lays it
-whenever the stands change (`lay` in `GameScene`, `__cricket.turf()`); a
-Test's green and worn strips are their own and are left down.
+The pavilion and the canopy are laid with their own outfield (`turfOf` in
+`grounds.ts`, `FRESH_TURF` in `turf.ts`): its light stripe #6DA637 and its
+dark a shade under, brighter and yellower than the stadium's, which every
+other ground keeps. The strip is the same on every ground, in every mode and
+light: the stadium's #d3b683, and a Test's green and worn strips on it. A
+warmer strip was tried at these two (#DEAC67, #E5BD85, #FDC375) and taken
+back. The outfield and its standing blades are shared by every ground's
+stands, so the scene paints each turf the first time a ground laid with it
+goes up and lays it whenever the stands change (`lay` in `GameScene`,
+`__cricket.turf()`).
 
 ## The canopy: Super10's ground
 
 The canopy (`src/scene/canopy.ts`) is where Super10 is played, always under
-lights, and a third of the Tests, by day (`groundFor`; `?ground=canopy` asks
-for it in any mode): a third stadium, built from the designer's reference
+lights, and a third of the Blast's innings, by day or night, and of the
+Tests', by day (`groundFor`; `?ground=canopy` asks for it in any mode): a third stadium, built from the designer's reference
 picture of a modern ground, for a ground with more in it than the
 stadium's. Over the far end a block the width of the section
 behind the bowler: dark glass behind the sightscreen, two VIP boxes (a white

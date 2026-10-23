@@ -21,9 +21,9 @@ import { canopyStands } from './canopy';
  *
  * **The pavilion** (`pavilion.ts`) is the stadium's bowl with an old
  * ground's far end: cream verandahs full of crowd under green roofs, a clock
- * tower, trees behind and tall floodlight towers. Half the Blast's nights
- * are played there, on a coin (`groundFor`), and `?ground=pavilion` asks
- * for it any time.
+ * tower, trees behind and tall floodlight towers. A third of the Blast's
+ * innings and of the Tests' are played there, on a coin (`groundFor`), and
+ * `?ground=pavilion` asks for it any time.
  *
  * **The canopy** (`canopy.ts`) is Super10's ground, a modern one: a big
  * screen over a glass-fronted block at the far end, shell canopies either
@@ -58,18 +58,18 @@ export const groundFrom = (search: string): GroundName => askedGround(search) ??
 export type GroundGame = 'blast' | 'super10' | 'test';
 /**
  * Which ground an innings is played at. A link's `?ground=` wins, in any
- * mode. Super10 is the canopy's, always. A Test, Survival or the Marathon, is
- * played at the pavilion, the stadium or the canopy, a third each, and the
- * Blast (a Rival Match with it) at the pavilion or the stadium, half each,
- * day or night: both have a day and a night of their own. `coin` is drawn once
- * a visit for each (`VENUE_COIN` in `src/Game.ts`), so the ground holds for
- * the visit and the Lights switch changes the light, not the ground.
+ * mode. Super10 is the canopy's, always. Every other game is played at the
+ * pavilion, the stadium or the canopy, a third each: the Blast (a Rival Match
+ * with it) by day or night, all three having a night of their own, and a
+ * Test, Survival or the Marathon, by day. `coin` is drawn once a visit for
+ * the Blast and once for the Tests (`VENUE_COIN` in `src/Game.ts`), so the
+ * ground holds for the visit and the Lights switch changes the light, not the
+ * ground.
  */
 export function groundFor(asked: GroundName | null, game: GroundGame, coin: number): GroundName {
   if (asked) return asked;
   if (game === 'super10') return 'canopy';
-  if (game === 'test') return coin < 1 / 3 ? 'pavilion' : coin < 2 / 3 ? 'stadium' : 'canopy';
-  return coin < .5 ? 'pavilion' : DEFAULT_GROUND;
+  return coin < 1 / 3 ? 'pavilion' : coin < 2 / 3 ? DEFAULT_GROUND : 'canopy';
 }
 
 /**

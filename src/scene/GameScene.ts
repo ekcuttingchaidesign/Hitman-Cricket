@@ -180,7 +180,7 @@ export class GameScene {
   private pitch!: THREE.MeshStandardMaterial;
   private dryPitch!: THREE.Texture;
   /** Each turf's outfield and dry strip, painted the first time a ground laid with it is put up (`turfOf`). */
-  private turfs = new Map<Turf, { grass: THREE.Texture; pitch: THREE.Texture }>();
+  private turfs = new Map<Turf, THREE.Texture>();
   private outfield!: THREE.MeshStandardMaterial;
   private blades!: THREE.MeshStandardMaterial;
   private greenPitch: THREE.Texture | null = null;
@@ -517,7 +517,7 @@ export class GameScene {
     const surface = pitchTexture(2.8, 32, 4.3, anisotropy, { batting: 0, bowling: 18.7 }, 0, 0);
     this.pitch = new THREE.MeshStandardMaterial({ map: surface, roughness: 0.9 });
     this.dryPitch = surface; this.anisotropy = anisotropy;
-    this.turfs.set('classic', { grass, pitch: surface });
+    this.turfs.set('classic', grass);
     const strip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.025, 32), this.pitch);
     strip.position.set(0, 0, 4.3); strip.receiveShadow = true; this.world.add(strip);
     this.textures.push(grass, blades, surface);
@@ -622,23 +622,19 @@ export class GameScene {
     return stands;
   }
   /**
-   * The outfield, its standing blades and the dry strip in `turf`'s colours,
-   * painted the first time it is asked for. A Test's green and worn strips
-   * are their own and are left down.
+   * The outfield and its standing blades in `turf`'s colours, painted the
+   * first time it is asked for. The strip is every ground's own.
    */
   private lay(turf: Turf) {
-    let laid = this.turfs.get(turf);
-    if (!laid) {
-      laid = { grass: grassTexture(70, 10, GAME.boundaryRadius, this.anisotropy, turf),
-        pitch: pitchTexture(2.8, 32, 4.3, this.anisotropy, { batting: 0, bowling: 18.7 }, 0, 0, turf) };
-      this.turfs.set(turf, laid); this.textures.push(laid.grass, laid.pitch);
+    let grass = this.turfs.get(turf);
+    if (!grass) {
+      grass = grassTexture(70, 10, GAME.boundaryRadius, this.anisotropy, turf);
+      this.turfs.set(turf, grass); this.textures.push(grass);
     }
-    this.outfield.map = laid.grass; this.blades.map = laid.grass;
-    if (this.pitch.map === this.dryPitch) this.pitch.map = laid.pitch;
-    this.dryPitch = laid.pitch;
+    this.outfield.map = grass; this.blades.map = grass;
   }
   /** For the checks: which turf is down. */
-  get turf(): Turf { return [...this.turfs].find(([, t]) => t.grass === this.outfield.map)?.[0] ?? 'classic'; }
+  get turf(): Turf { return [...this.turfs].find(([, grass]) => grass === this.outfield.map)?.[0] ?? 'classic'; }
   /** The stands in use lit for the time it is: their crowd, their lamps and their warm windows. */
   private lightStands() {
     const night = this.now === 'night', light = this.lighting;

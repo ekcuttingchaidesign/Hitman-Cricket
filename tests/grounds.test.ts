@@ -25,15 +25,17 @@ describe('the ground', () => {
     expect(groundFrom('?ground=members')).toBe('stadium');
   });
 
-  it('plays Super10 at the canopy, the Blast at the pavilion or the stadium, and a Test at any of the three, unless the link asks', () => {
+  it('plays Super10 at the canopy, and the Blast and a Test at any of the three, unless the link asks', () => {
     expect(askedGround('')).toBeNull();
     // Super10: the canopy, whatever the coin.
     for (const coin of [0, .3, .5, .9]) expect(groundFor(null, 'super10', coin)).toBe('canopy');
-    // The Blast, day or night: the pavilion on the coin's lower half, the stadium on its upper.
+    // The Blast, day or night: a third each, the pavilion, the stadium, the canopy.
     expect(groundFor(null, 'blast', 0)).toBe('pavilion');
-    expect(groundFor(null, 'blast', .49)).toBe('pavilion');
-    expect(groundFor(null, 'blast', .5)).toBe('stadium');
-    expect(groundFor(null, 'blast', .99)).toBe('stadium');
+    expect(groundFor(null, 'blast', .33)).toBe('pavilion');
+    expect(groundFor(null, 'blast', .34)).toBe('stadium');
+    expect(groundFor(null, 'blast', .66)).toBe('stadium');
+    expect(groundFor(null, 'blast', .67)).toBe('canopy');
+    expect(groundFor(null, 'blast', .99)).toBe('canopy');
     // A Test: a third each, the pavilion, the stadium, the canopy.
     expect(groundFor(null, 'test', 0)).toBe('pavilion');
     expect(groundFor(null, 'test', .33)).toBe('pavilion');
@@ -47,7 +49,7 @@ describe('the ground', () => {
       for (let i = 0; i < 3000; i++) { const g = groundFor(null, game, (i + .5) / 3000); seen[g] = (seen[g] ?? 0) + 1; }
       return seen;
     };
-    expect(count('blast')).toEqual({ pavilion: 1500, stadium: 1500 });
+    expect(count('blast')).toEqual({ pavilion: 1000, stadium: 1000, canopy: 1000 });
     expect(count('test')).toEqual({ pavilion: 1000, stadium: 1000, canopy: 1000 });
     // A link's ground is every innings' ground, whatever the game and the coin.
     expect(groundFor(askedGround('?ground=stadium'), 'blast', 0)).toBe('stadium');
