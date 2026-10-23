@@ -301,6 +301,11 @@ const MARKS = {
   primary: new URL('../assets/super10/mark.png', import.meta.url).href,
   lime: new URL('../assets/super10/mark-lime.png', import.meta.url).href,
 };
+/** The game's own title, for the screen outside Super10 (`plain`). */
+const LOGO = new URL('../assets/title.webp', import.meta.url).href;
+/** The game's faces, as its screens set them: Jaro for the figures, Satoshi for the words. */
+const JARO = (size: number) => `${size}px Jaro, "Arial Narrow", Impact, sans-serif`;
+const SATOSHI = (size: number) => `800 ${size}px Satoshi, "Segoe UI", Arial, sans-serif`;
 function picture(src: string, ready: () => void) {
   // The tests have no browser, and paint the boards without the marks.
   if (typeof Image === 'undefined') return null;
@@ -535,7 +540,9 @@ export class Showboards {
   private faces = new Map<string, THREE.Texture>();
   private boardUp = '';
   private last: ArenaFrame | null = null;
-  private marks: { primary: HTMLImageElement | null; lime: HTMLImageElement | null };
+  private marks: { primary: HTMLImageElement | null; lime: HTMLImageElement | null; logo: HTMLImageElement | null };
+  /** The screen in the game's own colours rather than the brand's: see `branded`. */
+  private plain = false;
   private offset = 0;
   /** What a board's own face is lit at between moments: see `lit`. */
   private level = 1;
@@ -547,8 +554,11 @@ export class Showboards {
   constructor(private screen: BigScreen | null) {
     // Once the pictures and the faces are in, everything painted is painted again.
     const repaint = () => { this.faces.forEach(t => t.dispose()); this.faces.clear(); this.boardUp = ''; this.shown = ''; };
-    this.marks = { primary: picture(MARKS.primary, repaint), lime: picture(MARKS.lime, repaint) };
-    if (typeof document !== 'undefined') document.fonts?.load(SAIRA(80)).then(() => document.fonts.load(SUB(40))).then(repaint).catch(() => {});
+    this.marks = { primary: picture(MARKS.primary, repaint), lime: picture(MARKS.lime, repaint), logo: picture(LOGO, repaint) };
+    if (typeof document !== 'undefined') {
+      document.fonts?.load(SAIRA(80)).then(() => document.fonts.load(SUB(40))).then(repaint).catch(() => {});
+      document.fonts?.load(JARO(80)).then(() => document.fonts.load(SATOSHI(30))).then(repaint).catch(() => {});
+    }
     if (screen) this.paintScreen(null);
   }
 
@@ -574,6 +584,16 @@ export class Showboards {
     if (name && this.screen && !this.still) this.playSting(name, now);
   }
   scoreboard(board: Scoreboard) { this.board = board; }
+  /**
+   * Whether the screen is the brand's, as it is for a Super10 innings and on
+   * the arena, or the game's own: a Test at the canopy has the game's title
+   * and the score in its faces on its navy, never the Super10 mark.
+   */
+  branded(on: boolean) {
+    if (this.plain === !on) return;
+    this.plain = !on; this.shown = '';
+    if (this.screen) this.paintScreen(this.last);
+  }
   /** Whether there is a screen for the moments to play on, which the call over the field then leaves them to. */
   get hasScreen() { return this.screen !== null; }
   /** For the checks: the mood, the moment up, what the boards and the screen show. */
@@ -663,9 +683,10 @@ export class Showboards {
     const kind = this.cued?.kind;
     const ms = kind ? CUES[kind].ms : 0;
     const moving = word !== null && (this.playing !== null || (!this.still && (since < SLAM_MS || since > ms - LEAVE_MS)));
-    const key = word ? `w|${word}|${moving ? since : 'held'}` : `b|${this.board.title}|${this.board.score}|${this.board.detail}`;
+    const key = word ? `w|${word}|${moving ? since : 'held'}` : `${this.plain ? 'p' : 'b'}|${this.board.title}|${this.board.score}|${this.board.detail}`;
     if (key === this.shown) return;
     this.shown = key;
+    if (this.plain && !word) { this.paintPlain(ctx, W, H); screen.texture.needsUpdate = true; return; }
     ctx.fillStyle = hex(ARENA.ink); ctx.fillRect(0, 0, W, H);
     // The floodlights' violet in the screen's corner, and nothing else behind.
     const haze = ctx.createRadialGradient(W * .15, H, 10, W * .15, H, W * .6);
@@ -700,6 +721,42 @@ export class Showboards {
     for (let x = 0; x < W; x += 4) ctx.fillRect(x, 0, 1, H);
     for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
     screen.texture.needsUpdate = true;
+  }
+  /**
+   * The game's own screen: its title down the left, and on the right the
+   * game being played in its gold, the score in Jaro and the overs under it,
+   * on the navy of its screens with the orange warming one corner.
+   */
+  private paintPlain(ctx: CanvasRenderingContext2D, W: number, H: number) {
+    const ground = ctx.createLinearGradient(0, 0, 0, H);
+    ground.addColorStop(0, '#1d3d58'); ground.addColorStop(1, '#0c1c2a');
+    ctx.fillStyle = ground; ctx.fillRect(0, 0, W, H);
+    const glow = ctx.createRadialGradient(W * .22, H * 1.05, 10, W * .22, H * 1.05, W * .5);
+    glow.addColorStop(0, 'rgba(237,112,68,.35)'); glow.addColorStop(1, 'rgba(237,112,68,0)');
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+    const logo = this.marks.logo;
+    if (logo?.complete && logo.naturalWidth) {
+      const w = 470, h = w * logo.naturalHeight / logo.naturalWidth;
+      ctx.drawImage(logo, 28, (H - h) / 2, w, h);
+    }
+    ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.fillRect(536, H * .2, 3, H * .6);
+    const { title, score, detail } = this.board;
+    const x = 790;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const spaced = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+    spaced.letterSpacing = '4px';
+    ctx.font = SATOSHI(34); ctx.fillStyle = '#f5b83d';
+    ctx.fillText(title, x, H * .22, 440);
+    spaced.letterSpacing = '0px';
+    ctx.font = JARO(150); ctx.fillStyle = '#ffffff';
+    ctx.fillText(score, x, H * .52, 440);
+    spaced.letterSpacing = '3px';
+    ctx.font = SATOSHI(32); ctx.fillStyle = 'rgba(255,255,255,.72)';
+    ctx.fillText(detail, x, H * .82, 440);
+    spaced.letterSpacing = '0px';
+    ctx.fillStyle = 'rgba(0,0,0,.18)';
+    for (let i = 0; i < W; i += 4) ctx.fillRect(i, 0, 1, H);
+    for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
   }
 }
 

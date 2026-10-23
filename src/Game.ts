@@ -2331,7 +2331,7 @@ export class Game {
   /** What the arena's big screen says between moments: the game, the score, the over and, in Super10, who is in. */
   private scoreboard() {
     const { runs, wickets, balls } = this.score;
-    const title = this.super10 ? 'SUPER10' : this.marathoning ? 'TEST' : this.surviving ? 'SURVIVAL' : 'THE BLAST';
+    const title = this.super10 ? 'SUPER10' : this.marathoning ? 'TEST MARATHON' : this.surviving ? 'TEST SURVIVAL' : 'THE BLAST';
     const overs = `${Math.floor(balls / 6)}.${balls % 6} OV`;
     return { title, score: `${runs}/${wickets}`, detail: this.super10 ? `${overs} · ${super10Batter(wickets).title}` : overs };
   }

@@ -269,4 +269,21 @@ describe('the boards any ground carries', () => {
     expect(show.update(0, false, false).word).toBeNull();
     expect(material.map).toBe(sponsors);
   });
+
+  it('puts the game\'s own face on the screen outside Super10, and the brand\'s back for it', () => {
+    paintless();
+    const context = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+    const show = new Showboards({ context, texture: new THREE.Texture() });
+    show.scoreboard({ title: 'SUPER10', score: '0/0', detail: '0.0 OV · OPENER' });
+    show.update(0, false, false);
+    expect(show.state.screen).toBe('b|SUPER10');
+    show.branded(false);
+    show.scoreboard({ title: 'TEST MARATHON', score: '12/1', detail: '3.2 OV' });
+    show.update(16, false, false);
+    expect(show.state.screen).toBe('p|TEST MARATHON');
+    show.branded(true);
+    show.scoreboard({ title: 'SUPER10', score: '0/0', detail: '0.0 OV · OPENER' });
+    show.update(32, false, false);
+    expect(show.state.screen).toBe('b|SUPER10');
+  });
 });

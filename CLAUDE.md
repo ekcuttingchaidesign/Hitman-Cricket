@@ -1808,7 +1808,10 @@ with their crowd, lamps and glows, and from then on only shows and hides them
 (`GameScene.stands`); the game asks for one wherever it sets the lights
 (`light` in `src/Game.ts`). The canopy's screen and the boards along its rope
 play the brand's moments only in a Super10 innings (`cued` in `GameScene`): a
-Test there has the plain stumps and a screen that shows the score.
+Test there has the plain stumps and the game's own screen, never the Super10
+mark — the title down the left, and the game being played in gold, the score
+in Jaro and the overs under it on navy (`branded` and `paintPlain` on
+`Showboards`, `p|` in `__cricket.arena().screen` where the brand's is `b|`).
 
 The pavilion (`src/scene/pavilion.ts`) was drawn from a reference picture the designer gave: a members' pavilion behind the bowler,
 cream verandahs on white posts with fretwork, two decks over a raked lower
