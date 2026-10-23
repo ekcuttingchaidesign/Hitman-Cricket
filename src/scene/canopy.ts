@@ -42,7 +42,7 @@ export const CANOPY = {
   wall: 0x6c655d,
   /** The players' level under the hospitality floors, dark glass. */
   dark: 0x1b242b,
-  /** Glass balustrades. */
+  /** Glass balustrades: see-through, `glass` in `canopyStands`. */
   glass: 0x86a0b0,
   /** The downlights in the soffits and the hospitality ceilings: grey fittings by day, lit at night. */
   light: 0xd8d5ce,
@@ -130,13 +130,15 @@ export function canopyStands(world: THREE.Object3D): StadiumLights {
     light: new THREE.MeshStandardMaterial({ color: CANOPY.light, roughness: .4, emissive: 0xfff6e6, emissiveIntensity: 0 }),
   };
   const spots: THREE.Vector3[] = [];
+  // Glass that can be seen through: the boxes' balustrade and the decks', with the people behind them showing.
+  const glass = new THREE.MeshStandardMaterial({ color: 0xcfe0ea, roughness: .15, metalness: .1, transparent: true, opacity: .3, depthWrite: false });
   const lights = stadium(world, {
     commentary: false, towers: false, roofLamps: false, crowd: CROWD,
     section: (b, seat, frame) => tiers(b, seat, frame, span, spots),
     end: {
       skip: section => section === 0,
       build: (b, seat, l) => {
-        b.finish(CANOPY.wall, warm.wall); b.finish(CANOPY.soffit, warm.soffit); b.finish(CANOPY.light, warm.light);
+        b.finish(CANOPY.wall, warm.wall); b.finish(CANOPY.soffit, warm.soffit); b.finish(CANOPY.light, warm.light); b.finish(CANOPY.glass, glass);
         block(b, seat, spots);
         towers(b, l);
         trees(b);
@@ -219,33 +221,38 @@ function tiers(b: Batch, seat: SeatFn, frame: THREE.Matrix4, width: (z: number) 
 
 /**
  * The block over the far end: the players' level in dark glass behind the
- * sightscreen; two hospitality floors, each a white slab, a glass front on
- * white mullions, two rows of people, a warm back wall and lamps in the
- * ceiling; the big screen on the roof in a dark frame with a white edge, and
- * a flag over either corner. It stands in the one section of the ring
- * straight behind the bowler, as wide as it is.
+ * sightscreen; two hospitality floors — the VIP boxes — each a white slab
+ * with a warm back wall and lamps along its ceiling, and two rows of people
+ * standing at its front, raised so they show from the chest up over it: the
+ * upper box behind a glass balustrade on white mullions, the lower behind a
+ * solid parapet, as the reference has them (the first build sat them behind
+ * panes drawn solid, and nobody was seen in either); the big screen on the
+ * roof in a dark frame with a white edge, and a flag over either corner. It
+ * stands in the one section of the ring straight behind the bowler, as wide
+ * as it is.
  */
 function block(b: Batch, seat: SeatFn, spots: THREE.Vector3[]) {
   const { trim, dark, glass, concrete, wall, frame: box, flag } = CANOPY;
   const at = new THREE.Matrix4().makeTranslation(0, 0, BLOCK.z);
   const W = BLOCK.width, deep = 7;
   b.box(W, BLOCK.floor1, deep, dark, 0, BLOCK.floor1 / 2, deep / 2, at);
-  for (const [floor, ceiling, back] of [[BLOCK.floor1, BLOCK.floor2, 0], [BLOCK.floor2, BLOCK.roof, .5]] as const) {
+  for (const [floor, ceiling, back, glazed] of [[BLOCK.floor1, BLOCK.floor2, 0, false], [BLOCK.floor2, BLOCK.roof, .5, true]] as const) {
     b.box(W + .3, .26, deep, trim, 0, floor, deep / 2, at);
-    // Two rows of people, the second raised a step, and the back wall lit warm.
-    for (const [r, z] of [[0, back + 1.1], [1, back + 2.1]] as const) {
-      if (r) b.box(W - .4, .3, 1, concrete, 0, floor + .28, z, at);
-      for (let x = -W / 2 + .6; x <= W / 2 - .6; x += SEAT) seat(at, x, floor + .13 + r * .3 + .3, z, shirt());
+    // Two rows on their feet, the front at the rail and the second a step up behind, close packed.
+    for (const [z, up] of [[back + .8, .7], [back + 1.65, 1.1]] as const) {
+      b.box(W - .4, up, .85, concrete, 0, floor + up / 2, z, at);
+      for (let x = -W / 2 + .5; x <= W / 2 - .5; x += .5) seat(at, x, floor + up + .3, z, shirt());
     }
     b.box(W - .2, ceiling - floor, .3, wall, 0, (floor + ceiling) / 2, back + 3.2, at);
     b.box(W + .3, .3, deep, trim, 0, ceiling - .02, deep / 2, at);
-    // The glass front on white mullions, a rail along it.
-    b.box(W - .2, .9, .05, glass, 0, floor + .58, back + .12, at);
-    b.box(W - .2, .07, .1, trim, 0, floor + 1.05, back + .12, at);
+    // The front: glass or a parapet, a rail along the top, and white mullions the floor's height.
+    b.box(W - .2, 1.0, glazed ? .05 : .25, glazed ? glass : trim, 0, floor + .63, back + .12, at);
+    b.box(W - .2, .07, .12, trim, 0, floor + 1.15, back + .12, at);
     for (let x = -W / 2 + .1; x <= W / 2; x += 1.62) b.box(.1, ceiling - floor, .12, trim, x, (floor + ceiling) / 2, back + .08, at);
+    // The lamps along the back of the ceiling, lighting the wall behind the people.
     for (let x = -W / 2 + .9; x < W / 2; x += 1.62) {
-      b.box(.34, .06, .34, CANOPY.light, x, ceiling - .19, back + 1.4, at);
-      spots.push(new THREE.Vector3(x, ceiling - .3, back + 1.4).applyMatrix4(at));
+      b.box(.34, .06, .34, CANOPY.light, x, ceiling - .19, back + 2.7, at);
+      spots.push(new THREE.Vector3(x, ceiling - .3, back + 2.7).applyMatrix4(at));
     }
   }
   // The screen's box on the roof, its white edge, and the flags.
