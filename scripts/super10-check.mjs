@@ -187,6 +187,8 @@ const rested = await page.evaluate(() => window.__cricket.arena());
 check(ground === 'canopy', 'Super10 is played at the canopy', ground);
 const screenGround = await page.evaluate(() => document.querySelector('#viewport').classList.contains('has-screen'));
 check(screenGround, 'and the call over the field is taken down off its big screen', String(screenGround));
+const moments = await page.evaluate(() => document.querySelector('#viewport').classList.contains('screen-moments'));
+check(moments, 'which plays the moments, so a boundary\'s word is left to it (a wicket\'s never is)', String(moments));
 check(cued?.word === 'FOUR' && cued.board === 'four' && cued.sting === 'four' && cued.screen === 'w|FOUR',
   'a four puts FOUR and its sting on the screen and the boards along the rope', JSON.stringify(cued));
 check(rested?.word === null && rested.board === 'idle' && rested.sting === null && rested.screen?.startsWith('b|SUPER10'),

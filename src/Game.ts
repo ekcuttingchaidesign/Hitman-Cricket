@@ -2326,7 +2326,7 @@ export class Game {
     this.scene.stands(groundFor(ASKED_GROUND, game, VENUE_COIN[game === 'test' ? 'test' : 'blast']));
     this.scene.brand(this.super10);
     this.scene.time(time);
-    this.hud.bigScreen(this.scene.bigScreen);
+    this.hud.bigScreen(this.scene.bigScreen, this.scene.screenMoments);
   }
   /** What the arena's big screen says between moments: the game, the score, the over and, in Super10, who is in. */
   private scoreboard() {

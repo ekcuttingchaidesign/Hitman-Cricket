@@ -1770,9 +1770,12 @@ screen shows the mark and the score between moments. A ground going out of
 sight under another's lets its moment go and leaves the rope's boards as it
 found them (`rest`). On a ground with a screen (`bigScreen` on the scene,
 `has-screen` on the stage) the call over the field comes down onto the grass
-under the fence, where it sat on the screen, and a boundary's or a wicket's
-word is left to the screen and the fence, the line under it — the timing, or
-who fielded it — kept. `tests/arena.test.ts`
+under the fence, where it sat on the screen; where the screen plays the
+moments (`screenMoments`, `screen-moments` on the stage: Super10's) a
+boundary's word is left to the screen and the fence, the line under it — the
+timing, or who fielded it — kept. A wicket's call is always on the grass: the
+screen says OUT, BOWLED or DUCK, and the call says how (CAUGHT BEHIND), which
+the first build left off and a caught behind read as nothing at all. `tests/arena.test.ts`
 holds the rings, and `super10-check` cues a four on the canopy at the end of
 its innings.
 

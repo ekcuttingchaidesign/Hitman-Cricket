@@ -845,8 +845,10 @@ export class GameScene {
   get arenaState() { return this.arena?.state ?? this.show?.state ?? null; }
   /** For the checks: whether the LED stumps are up. */
   get ledStumps() { return this.ledUp; }
-  /** Whether the stands in use have a big screen the moments play on: the call over the field leaves them to it. */
+  /** Whether the stands in use have a big screen: the call over the field comes down off it. */
   get bigScreen() { return this.show?.hasScreen ?? false; }
+  /** Whether the moments play on it (Super10's): a boundary's word is then left to it. */
+  get screenMoments() { return this.cued?.hasScreen ?? false; }
   /** Whether this is the arena, which is played at night whatever the lights say. */
   get arenaGround() { return this.arena !== null; }
   get crowdState() { return this.crowd?.state ?? { kind: null, spectators: 0, banners: 0 }; }
