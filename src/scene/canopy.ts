@@ -398,10 +398,14 @@ function panelGlow() {
  * about the game being played under it.
  */
 function bigScreen() {
-  const W = 1024, H = Math.round(W * SCREEN.height / SCREEN.width);
+  // Half of what the screen is drawn at (`Showboards`): on a phone it stands about 130 points across, and
+  // every frame of a sting this picture goes to the GPU again, which at 1024 cost an iPhone its frame rate.
+  const W = 512, H = Math.round(W * SCREEN.height / SCREEN.width);
   const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d')!;
   const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 4;
+  // And with no mipmaps to rebuild each time it goes.
+  texture.generateMipmaps = false; texture.minFilter = THREE.LinearFilter;
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(SCREEN.width, SCREEN.height).rotateY(Math.PI),
     new THREE.MeshBasicMaterial({ map: texture, toneMapped: false, fog: false }));
   mesh.position.set(0, SCREEN.bottom + SCREEN.height / 2, BLOCK.z + 1.75 + .08);

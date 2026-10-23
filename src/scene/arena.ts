@@ -3,7 +3,7 @@ import { Batch, mat } from './build';
 import { EAVES, STADIUM, stadium, type BigScreen, type StadiumLights } from './stadium';
 import { seeded } from './turf';
 import type { Milestone } from '../game/milestone';
-import { paintFilm, type Film, type Playing } from '../ui/Lottie';
+import { paintFilm, prefetchFilms, type Film, type Playing } from '../ui/Lottie';
 import { banners, flags, torches, waveAt, type CrowdLife } from './crowdLife';
 import { LED, type WicketLights } from './wicket';
 import { GAME } from '../config/gameplay';
@@ -314,6 +314,8 @@ function picture(src: string, ready: () => void) {
   return image;
 }
 
+/** How wide the screen is drawn, whatever its canvas: everything on it is laid out on this. */
+const SCREEN_WIDTH = 1024;
 /** The stings' frame: they are drawn at thirty a second. */
 const STING_FRAME_MS = 1000 / 30;
 const grids = new Map<string, HTMLCanvasElement>();
@@ -685,10 +687,28 @@ export class Showboards {
   }
 
   private playSting(name: Sting, now: number) {
-    const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 384;
+    // The film at the screen's own resolution: no bigger than the picture it is laid into.
+    const width = this.screen?.context.canvas.width ?? SCREEN_WIDTH;
+    const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = Math.round(width * 384 / 1024);
     const context = canvas.getContext('2d');
     if (!context) return;
     this.playing = { name, at: now, canvas, film: paintFilm(context, `super10-${name}` as Film, { whole: true }) };
+  }
+  /**
+   * Everything a moment needs, made before the first one: the stings fetched,
+   * and every ring's face for a four, a six and each wicket painted. Done at
+   * the moment, the first FOUR of an innings fetched and unpacked its film and
+   * painted the boards' face while the ball was in the air. Hands back the
+   * faces, for the scene to send to the GPU.
+   */
+  warm(): THREE.Texture[] {
+    if (this.screen) prefetchFilms(STINGS.map(name => `super10-${name}` as Film));
+    const faces: THREE.Texture[] = [];
+    for (const { panels } of this.boards) {
+      faces.push(this.face('four', CUES.four.word, panels), this.face('six', CUES.six.word, panels));
+      for (const word of ['OUT', 'BOWLED', 'DUCK']) faces.push(this.face('wicket', word, panels));
+    }
+    return faces;
   }
   private stopSting() { this.playing?.film?.destroy(); this.playing = null; }
 
@@ -700,7 +720,9 @@ export class Showboards {
    */
   private paintScreen(f: ArenaFrame | null) {
     const screen = this.screen!;
-    const ctx = screen.context, W = ctx.canvas.width, H = ctx.canvas.height;
+    const ctx = screen.context;
+    // Drawn as if 1024 wide, onto a canvas of whatever size the ground gave it.
+    const S = ctx.canvas.width / SCREEN_WIDTH, W = SCREEN_WIDTH, H = ctx.canvas.height / S;
     const word = f?.word ?? null, since = f?.since ?? Infinity;
     const kind = this.cued?.kind;
     const ms = kind ? CUES[kind].ms : 0;
@@ -709,7 +731,8 @@ export class Showboards {
     const key = word ? `w|${word}|${moving ? Math.floor(since / STING_FRAME_MS) : 'held'}` : `${this.plain ? 'p' : 'b'}|${this.board.title}|${this.board.score}|${this.board.detail}`;
     if (key === this.shown) return;
     this.shown = key;
-    if (this.plain && !word) { this.paintPlain(ctx, W, H); screen.texture.needsUpdate = true; return; }
+    ctx.setTransform(S, 0, 0, S, 0, 0);
+    if (this.plain && !word) { this.paintPlain(ctx, W, H); this.grid(ctx, .18); screen.texture.needsUpdate = true; return; }
     ctx.fillStyle = hex(ARENA.ink); ctx.fillRect(0, 0, W, H);
     // The floodlights' violet in the screen's corner, and nothing else behind.
     const haze = ctx.createRadialGradient(W * .15, H, 10, W * .15, H, W * .6);
@@ -739,9 +762,18 @@ export class Showboards {
       lettering(ctx, score, 760, H / 2 - 34, 150, 420);
       sub(ctx, detail, 760, H / 2 + 112, 34, hex(ARENA.mist));
     }
-    // The screen's pixels: a fine dark grid over all of it.
-    ctx.drawImage(pixels(W, H, .22), 0, 0);
+    this.grid(ctx, .22);
     screen.texture.needsUpdate = true;
+  }
+  /**
+   * The screen's pixels: a fine dark grid over all of it, in the canvas's own
+   * pixels. Only on a screen drawn full size: on the canopy's, half that, a
+   * line every few pixels beat against the phone's own and ran in bands
+   * across it, and at its size on a phone no grid can be seen anyway.
+   */
+  private grid(ctx: CanvasRenderingContext2D, alpha: number) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (ctx.canvas.width >= SCREEN_WIDTH) ctx.drawImage(pixels(ctx.canvas.width, ctx.canvas.height, alpha), 0, 0);
   }
   /**
    * The game's own screen: its title down the left, and on the right the
@@ -775,7 +807,6 @@ export class Showboards {
     ctx.font = SATOSHI(32); ctx.fillStyle = 'rgba(255,255,255,.72)';
     ctx.fillText(detail, x, H * .82, 440);
     spaced.letterSpacing = '0px';
-    ctx.drawImage(pixels(W, H, .18), 0, 0);
   }
 }
 
@@ -879,6 +910,8 @@ export class Arena {
     scene.add(held);
     const screen = painted(1024, 384);
     screen.texture.anisotropy = anisotropy;
+    // Painted afresh through every moment: no mipmaps to rebuild each time.
+    screen.texture.generateMipmaps = false; screen.texture.minFilter = THREE.LinearFilter;
     const face = new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshBasicMaterial({ map: screen.texture, fog: false, toneMapped: false }));
     face.name = 'Big screen';
     held.add(face);

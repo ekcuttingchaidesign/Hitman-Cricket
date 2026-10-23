@@ -579,6 +579,7 @@ export class GameScene {
     this.crowd = stands.crowd; this.lamps = stands.lamps; this.show = stands.show ?? null;
     this.lay(turfOf(name));
     this.show?.branded(this.cued !== null);
+    this.warmShow();
     this.raiseStumps();
     this.lightStands();
   }
@@ -683,8 +684,17 @@ export class GameScene {
     this.branded = on;
     if (!on && this.current !== 'arena') this.show?.rest();
     this.show?.branded(this.cued !== null);
+    this.warmShow();
     this.raiseStumps();
   }
+  /** A screen and boards that will play moments made ready for them before the first: see `Showboards.warm`. */
+  private warmShow() {
+    const show = this.cued;
+    if (!show || this.warmed.has(show)) return;
+    this.warmed.add(show);
+    for (const face of show.warm()) this.renderer.initTexture(face);
+  }
+  private warmed = new WeakSet<Showboards>();
   /** The screen and the boards the moments go to: the stands' own, in a Super10 innings or on the arena. */
   private get cued() { return this.branded || this.current === 'arena' ? this.show : null; }
   private resize = () => {

@@ -39,6 +39,22 @@ function loadPainter(): Promise<Painter> {
 /** Where the films live. A bare relative path, for the same reason the kits use one. */
 const src = (film: Film) => `lotties/${film}.json`;
 
+/** Films fetched ahead (`prefetchFilms`), as their text: each play parses its own copy, which the player is free to change. */
+const fetched = new Map<Film, Promise<string | null>>();
+/**
+ * Fetches films, and the canvas player, before they are wanted, so the first
+ * play of each starts at once rather than after a download in the middle of
+ * the moment it is for.
+ */
+export function prefetchFilms(films: Film[]) {
+  if (typeof fetch === 'undefined') return;
+  void loadPainter().catch(() => {});
+  for (const film of films) {
+    if (fetched.has(film)) continue;
+    fetched.set(film, fetch(src(film)).then(r => (r.ok ? r.text() : null)).catch(() => { fetched.delete(film); return null; }));
+  }
+}
+
 /**
  * Plays a film into an element. The element is emptied first, so playing a
  * second film into the same slot replaces the first rather than stacking on it.
@@ -82,13 +98,13 @@ export function playFilm(host: HTMLElement, film: Film, options: { loop?: boolea
 export function paintFilm(context: CanvasRenderingContext2D, film: Film, options: { loop?: boolean; whole?: boolean } = {}): Playing {
   let gone = false;
   let animation: { destroy(): void } | null = null;
-  void loadPainter().then(lottie => {
+  void Promise.all([loadPainter(), fetched.get(film) ?? null]).then(([lottie, text]) => {
     if (gone) return;
     animation = lottie.loadAnimation({
       renderer: 'canvas',
       loop: options.loop ?? false,
       autoplay: true,
-      path: src(film),
+      ...(text ? { animationData: JSON.parse(text) } : { path: src(film) }),
       rendererSettings: { context, clearCanvas: true, dpr: 1, preserveAspectRatio: 'xMidYMid meet' },
     } as Parameters<Painter['loadAnimation']>[0]);
     // Whole frames only: the film is drawn once a frame of its own, not again at every refresh between them.
