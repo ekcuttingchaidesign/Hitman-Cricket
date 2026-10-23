@@ -356,11 +356,12 @@ A check that seeds `hitman-whatsnew` seeds the current update key
 
 `scripts/scene-check.mjs` is the ground itself: the sky and the painted turf
 are canvases and a shader no unit test runs, and it holds the draw-call budget
-a frame. Lower its `BUDGET` when a change brings the count down. It walks all four
+a frame. Lower its `BUDGET` when a change brings the count down. It walks all five
 grounds — the stadium every mode plays in, the bowl before it,
 which `?ground=bowl` still builds and which is kept for that, Super10's
-arena under its own `ARENA_BUDGET`, and the pavilion under the stadium's —
-and the stadium and the pavilion both by day and by night. The Blast follows the
+arena under its own `ARENA_BUDGET`, and the pavilion and the canopy under
+the stadium's — and the stadium, the pavilion and the canopy both by day and
+by night. The Blast follows the
 device's clock — night from six in the evening to seven in the morning — so a
 check that judges the ground's colours in a Blast innings without saying
 which is judging whatever the machine's clock says; `?lights=day` or
@@ -1774,6 +1775,43 @@ as the stadium's does. The middle of the lower tier and the first verandah's
 front row are left empty behind the bowler's arm, and the sightscreen stays
 white for the red ball (the reference has it dark). `tests/grounds.test.ts`
 holds it.
+
+## The canopy: a modern ground, being tried
+
+`?ground=canopy` (`src/scene/canopy.ts`) is a third stadium, built from the
+designer's reference picture of a modern ground, for a ground with more in
+it than the stadium's. Over the far end a block the width of the section
+behind the bowler: dark glass behind the sightscreen, two hospitality floors
+(a white slab, a glass front on white mullions, two rows of people, a back
+wall lit warm, lamps in the ceiling) and on its roof the big screen, HITMAN
+CRICKET under an outlined crown with teal and green slashes either side, in
+a dark frame with a white edge, a flag over each corner. Round the rest of
+the ring a section of its own (`tiers`, the stadium's `section` option): a
+lower tier, a warm concourse band behind its last row under the upper deck,
+the deck's soffit with a lamp every couple of metres, its white fascia with
+glass on it, an upper tier of eight rows; a stair aisle down the middle of
+every tier with a white nosing on each step and handrails on posts; the
+crowd closer packed than the stadium's (`SEAT`) on darker steps, in the home
+side's greens and whites, every shirt drawn at random. Two roof canopies
+sweep round from tips lifted beside the screen to behind the batter, on
+columns behind every section with a tie to the top of the stand. They are
+highest at the front edge and fall back to the columns: rising to the back,
+they rose more steeply than a line from the batter's end and the camera saw
+their tops, not their lights. Square floodlight heads of twenty round lamps
+stand over the far corners, and trees behind.
+
+The lighting is what makes it at night: the lamps in the soffits, the
+hospitality ceilings and the roof are the stadium's lamp material, each with
+a small glow (`spots`, a third cloud in `glows`); the concourse and
+hospitality walls, the soffits and the canopies' undersides glow warm
+(`warm` on the lights, `lightStands` in `GameScene`), and the canopies'
+downlights burn faintly by day too (`userData.day`). The screen hangs in the
+scene, not the mirrored stage (`unmirrored`), so its words read the right
+way round for either hand. Every stand built after the scene was put
+together is made greyable for a hundred (`greyable`). It costs the
+stadium's budget in `scene-check`; `tests/grounds.test.ts` holds its crowd,
+towers, screen, lights and the empty seats behind the sightscreen. It is not
+any mode's ground yet.
 
 ## A newcomer's first innings
 

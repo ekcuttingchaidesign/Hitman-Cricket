@@ -1,8 +1,19 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_GROUND, askedGround, buildGround, groundFor, groundFrom, ownFloodlights } from '../src/scene/grounds';
 
-const built = (name: 'stadium' | 'bowl' | 'pavilion') => {
+/** A canvas that paints nothing, for the grounds that paint a texture (the canopy's screen and roof): the tests have no browser. */
+function paintless() {
+  const context = new Proxy({}, {
+    get: (_, key) => key === 'createLinearGradient' || key === 'createRadialGradient' ? () => ({ addColorStop() {} })
+      : key === 'measureText' ? () => ({ width: 0 }) : () => {},
+    set: () => true,
+  });
+  vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => context }) });
+}
+afterEach(() => { vi.unstubAllGlobals(); });
+
+const built = (name: 'stadium' | 'bowl' | 'pavilion' | 'canopy') => {
   const world = new THREE.Group();
   const lights = buildGround(name, world);
   const meshes: THREE.Mesh[] = [];
@@ -80,6 +91,28 @@ describe('the ground', () => {
       if (Math.abs(at.x) < 11 && at.z > 50 && at.y > 7) upstairs++;
     }
     expect(upstairs).toBeGreaterThan(100);
+  });
+
+  it('builds the canopy: a packed house, its own towers, a screen that reads the right way round, lit at night', () => {
+    paintless();
+    const { crowd, scenery, lights } = built('canopy');
+    expect(crowd).toHaveLength(2);
+    expect(crowd[0].count).toBeGreaterThan(4000);
+    expect(lights!.towers).toHaveLength(4);
+    expect(ownFloodlights('canopy')).toBe(true);
+    // Its screen hangs in the scene, not the mirrored stage; its windows, soffits and roof are lit at night.
+    expect(lights!.unmirrored?.map(o => o.name)).toEqual(['Big screen']);
+    expect(lights!.warm?.length).toBeGreaterThanOrEqual(3);
+    expect(lights!.spots!.length).toBeGreaterThan(200);
+    expect(scenery.map(m => m.name)).toEqual(expect.arrayContaining(['Canopy', 'Canopy underside', 'Canopy rim']));
+    // Nobody straight behind the sightscreen below its top, where they would move behind the bowler's arm: the block is glass and dark there.
+    const at = new THREE.Vector3(), m = new THREE.Matrix4();
+    let behind = 0;
+    for (let i = 0; i < crowd[0].count; i++) {
+      crowd[0].getMatrixAt(i, m); at.setFromMatrixPosition(m);
+      if (Math.abs(at.x) < 3.5 && at.z > 45 && at.y < 3.4) behind++;
+    }
+    expect(behind).toBe(0);
   });
 
   it('still builds the bowl the way it always was', () => {

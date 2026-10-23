@@ -77,6 +77,10 @@ const GROUNDS = [
   // the Blast's own, asked for by nothing but the lights.
   ['pavilion', 'day', '&ground=pavilion&lights=day', BUDGET],
   ['pavilion', 'night', '&lights=night', BUDGET],
+  // The canopy: the stadium's bowl with stands, a block and roofs of its own,
+  // held to the stadium's budget too.
+  ['canopy', 'day', '&ground=canopy&lights=day', BUDGET],
+  ['canopy', 'night', '&ground=canopy&lights=night', BUDGET],
 ];
 
 let failures = 0;

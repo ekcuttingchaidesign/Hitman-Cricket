@@ -365,14 +365,12 @@ export class GameScene {
     }
     // Everything built so far, bar him, can be greyed for his hundred. Done
     // once, here, so the shaders are compiled with it before the first frame.
-    const his = new Set<THREE.Material>();
+    const his = this.his;
     this.batter.root.traverse(object => { if (object instanceof THREE.Mesh) [object.material].flat().forEach(m => his.add(m)); });
     // And the ball he hit, and its trail: a special stroke greys the ground
     // while the ball is still in the air, and the eye wants to follow it.
     for (const mesh of [this.ball, ...this.trail, ...this.fire]) [mesh.material].flat().forEach(m => his.add(m));
-    this.scene.traverse(object => {
-      if (object instanceof THREE.Mesh) [object.material].flat().forEach(m => { if (!his.has(m)) mutable(m, this.mute); });
-    });
+    this.greyable(this.scene);
     // After the greying is wired, so a hundred never greys the swoosh.
     this.swish = this.createSwish();
     this.reset();
@@ -572,7 +570,7 @@ export class GameScene {
       stands.crowd = lights.createCrowd?.(this.reducedMotion);
       if (stands.crowd) this.textures.push(...stands.crowd.textures);
       // A glow on every lamp the ground has, in its own group, so they go with it.
-      const glow = glows(lights.roof, lights.towers);
+      const glow = glows(lights.roof, lights.towers, lights.spots);
       group.add(...glow.points); this.night.push(...glow.points); this.textures.push(glow.texture);
       for (const points of glow.points) points.visible = this.now === 'night';
       // The arena's floodlights answer the game, glows and all.
@@ -586,6 +584,8 @@ export class GameScene {
       box(group, 4, 2, 0.3, 0x304953, x, 17.5, z);
       for (let row = 0; row < 2; row++) for (let col = 0; col < 5; col++) box(group, 0.55, 0.55, 0.1, 0xfff4d9, x - 1.5 + col * 0.75, 17.1 + row * 0.8, z - 0.21);
     }
+    // Stands built after the scene was put together are greyed for a hundred as the rest of it is.
+    if (this.his.size) { this.greyable(group); stands.unmirrored?.forEach(object => this.greyable(object)); }
     return stands;
   }
   /** The stands in use lit for the time it is: their crowd, their lamps and their warm windows. */
@@ -594,9 +594,17 @@ export class GameScene {
     this.crowd?.setNight(night);
     if (this.lamps) this.lamps.emissiveIntensity = light.lamps;
     for (const [name, built] of this.built) {
-      for (const material of built.warm) material.emissiveIntensity = night ? 1 : 0;
+      for (const material of built.warm) material.emissiveIntensity = night ? 1 : material.userData.day ?? 0;
       built.unmirrored?.forEach(object => { object.visible = name === this.current; });
     }
+  }
+  /** The batter's materials and the ball's, which a hundred never greys: see `greyable`. */
+  private his = new Set<THREE.Material>();
+  /** Everything under `root` but him and the ball made greyable for his hundred: the scene at first, and stands built later. */
+  private greyable(root: THREE.Object3D) {
+    root.traverse(object => {
+      if (object instanceof THREE.Mesh) [object.material].flat().forEach(m => { if (!this.his.has(m)) mutable(m, this.mute); });
+    });
   }
   private get lighting() { return this.now === 'night' && this.current === 'arena' ? ARENA_NIGHT : LIGHTING[this.now]; }
   private wicket(z: number) {

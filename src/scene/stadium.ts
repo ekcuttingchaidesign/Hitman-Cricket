@@ -66,6 +66,10 @@ const CROWD = [0xf2ede1, 0x2f5d46, 0xe0d8c4, 0xc9d7de, 0x4a7a5e, 0xefe2bf, 0xf7f
 export interface StandsOptions {
   /** A far end of its own (the pavilion's, `pavilion.ts`): the sections it stands in are left out, and it is built into the same batch and crowd. */
   end?: FarEnd;
+  /** A section of stand of its own (the canopy's, `canopy.ts`), in place of the stadium's, in the section's frame. */
+  section?: (b: Batch, seat: SeatFn, frame: THREE.Matrix4, section: number, lights: StadiumLights) => void;
+  /** Who is in the seats, in place of the stadium's summer whites. */
+  crowd?: readonly number[];
   towers?: boolean;
   roofLamps?: boolean;
   commentary?: boolean;
@@ -96,11 +100,11 @@ const lampFinish = () => new THREE.MeshStandardMaterial({ color: STADIUM.lamp, r
 const soffitFinish = () => new THREE.MeshStandardMaterial({ color: STADIUM.soffit, roughness: 0.85, flatShading: true, emissive: 0x4a4744 });
 
 /** The stands stand in a ring this far from the middle of the ground, cut into this many sections. */
-const RING = 39;
-const SECTIONS = 28;
-const CENTRE_Z = 10;
+export const RING = 39;
+export const SECTIONS = 28;
+export const CENTRE_Z = 10;
 /** How wide a section is at `z` behind its front, so the ring closes as it goes back. */
-const span = (z: number) => 2 * Math.PI * (RING + z) / SECTIONS + 0.12;
+export const span = (z: number) => 2 * Math.PI * (RING + z) / SECTIONS + 0.12;
 
 /** Rows in each tier, and the upper tier: where its front row stands, how high it starts, how it rakes. */
 const LOWER = 5, UPPER = 4;
@@ -125,7 +129,9 @@ export interface StadiumLights {
   lamps: THREE.MeshStandardMaterial;
   roof: THREE.Vector3[];
   towers: THREE.Vector3[];
-  /** Materials lit only at night (their emissive at one), dark by day: windows, soffits, a screen. */
+  /** Small lamps — downlights under a roof or a deck — each with a small glow at night. */
+  spots?: THREE.Vector3[];
+  /** Materials lit at night (their emissive at one) and dark by day, or at `userData.day` by day: windows, soffits, a roof's downlights. */
   warm?: THREE.MeshStandardMaterial[];
   /** Pieces to hang in the scene's own frame, not the mirrored stage: anything with words on it. */
   unmirrored?: THREE.Object3D[];
@@ -135,14 +141,14 @@ export interface StadiumLights {
 
 /** Builds the stadium onto `world`, the stage's own frame: the bowler's end is +z. */
 export function stadium(world: THREE.Object3D, options: StandsOptions = {}): StadiumLights {
-  const { end, towers = true, roofLamps = true, commentary: box = true, lively = false } = options;
+  const { end, section: own, crowd: shirts = CROWD, towers = true, roofLamps = true, commentary: box = true, lively = false } = options;
   const b = new Batch();
   const lights: StadiumLights = { lamps: lampFinish(), roof: [], towers: [] };
   const seats: THREE.Matrix4[] = [];
   const colours: number[] = [];
   const seat = (frame: THREE.Matrix4, x: number, y: number, z: number, n: number) => {
     seats.push(frame.clone().multiply(new THREE.Matrix4().makeTranslation(x, y, z)));
-    colours.push(CROWD[n % CROWD.length]);
+    colours.push(shirts[n % shirts.length]);
   };
 
   for (let section = 0; section < SECTIONS; section++) {
@@ -153,7 +159,8 @@ export function stadium(world: THREE.Object3D, options: StandsOptions = {}): Sta
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), a),
       new THREE.Vector3(1, 1, 1),
     );
-    stand(b, seat, frame, section, lights, roofLamps);
+    if (own) own(b, seat, frame, section, lights);
+    else stand(b, seat, frame, section, lights, roofLamps);
   }
   sightscreen(b);
   if (box) commentary(b);

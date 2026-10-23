@@ -3,13 +3,14 @@ import { box, colors, cylinder, mat } from './build';
 import { stadium, type StadiumLights } from './stadium';
 import { arenaStands } from './arena';
 import { pavilionStands } from './pavilion';
+import { canopyStands } from './canopy';
 import type { SkyTime } from './sky';
 
 /**
  * The stands and everything over them: what a ground is, once the turf and
  * the boards along the rope are taken as given.
  *
- * Four are built. **The stadium** (`stadium.ts`) is the one every mode plays
+ * Five are built. **The stadium** (`stadium.ts`) is the one every mode plays
  * in: a two-tier bowl right round the ground under a cantilever roof, with the
  * commentary box over the far end and floodlight towers behind it.
  *
@@ -23,6 +24,11 @@ import type { SkyTime } from './sky';
  * tower, trees behind and tall floodlight towers. It is the Blast's ground at
  * night (`groundFor`), and `?ground=pavilion` asks for it any time.
  *
+ * **The canopy** (`canopy.ts`) is a modern ground: a big screen over a
+ * glass-fronted block at the far end, roof canopies sweeping round from
+ * beside it over two packed tiers, square floodlight heads over the corners.
+ * For now it is asked for with `?ground=canopy`.
+ *
  * **The bowl** is the ground before it: one tier of stands in a full ring, flat
  * roofs, and the low clubhouse with the flags. It is kept whole, line for line,
  * so it can be looked at again with `?ground=bowl` and stood beside the new
@@ -32,9 +38,9 @@ import type { SkyTime } from './sky';
  * leg side reads left: the bowler's end is +z, and both are symmetric enough
  * across x that the mirror changes nothing anybody would notice.
  */
-export type GroundName = 'stadium' | 'bowl' | 'arena' | 'pavilion';
+export type GroundName = 'stadium' | 'bowl' | 'arena' | 'pavilion' | 'canopy';
 
-export const GROUNDS: readonly GroundName[] = ['stadium', 'bowl', 'arena', 'pavilion'];
+export const GROUNDS: readonly GroundName[] = ['stadium', 'bowl', 'arena', 'pavilion', 'canopy'];
 
 /** The ground every innings is played on unless the link asks for another. */
 export const DEFAULT_GROUND: GroundName = 'stadium';
@@ -65,6 +71,7 @@ export function buildGround(name: GroundName, world: THREE.Object3D, { screen = 
   if (name === 'bowl') { bowl(world); return null; }
   if (name === 'arena') return arenaStands(world, screen);
   if (name === 'pavilion') return pavilionStands(world);
+  if (name === 'canopy') return canopyStands(world);
   return stadium(world);
 }
 

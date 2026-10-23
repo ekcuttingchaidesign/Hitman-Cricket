@@ -150,11 +150,12 @@ function glowTexture() {
 }
 
 /**
- * The glow round the lamps: one cloud of points for the roof's lamps and one
- * for the towers' heads, added light, so the whole of it is two draw calls.
- * Hidden by day.
+ * The glow round the lamps: one cloud of points for the roof's lamps, one
+ * for the towers' heads, and where a ground has them one of small ones for
+ * its downlights, added light, so the whole of it is two or three draw
+ * calls. Hidden by day.
  */
-export function glows(roof: THREE.Vector3[], towers: THREE.Vector3[]) {
+export function glows(roof: THREE.Vector3[], towers: THREE.Vector3[], spots: THREE.Vector3[] = []) {
   const texture = glowTexture();
   const cloud = (at: THREE.Vector3[], size: number) => {
     const points = new THREE.Points(
@@ -164,5 +165,5 @@ export function glows(roof: THREE.Vector3[], towers: THREE.Vector3[]) {
     points.visible = false;
     return points;
   };
-  return { points: [cloud(roof, 4.2), cloud(towers, 16)], texture };
+  return { points: [cloud(roof, 4.2), cloud(towers, 16), ...spots.length ? [cloud(spots, 1.8)] : []], texture };
 }
