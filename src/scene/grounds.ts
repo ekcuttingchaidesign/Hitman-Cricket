@@ -21,8 +21,9 @@ import type { SkyTime } from './sky';
  *
  * **The pavilion** (`pavilion.ts`) is the stadium's bowl with an old
  * ground's far end: cream verandahs full of crowd under green roofs, a clock
- * tower, trees behind and tall floodlight towers. It is the Blast's ground at
- * night (`groundFor`), and `?ground=pavilion` asks for it any time.
+ * tower, trees behind and tall floodlight towers. Half the Blast's nights
+ * are played there, on a coin (`groundFor`), and `?ground=pavilion` asks
+ * for it any time.
  *
  * **The canopy** (`canopy.ts`) is Super10's ground, a modern one: a big
  * screen over a glass-fronted block at the far end, shell canopies either
@@ -57,14 +58,15 @@ export const groundFrom = (search: string): GroundName => askedGround(search) ??
 export type GroundGame = 'blast' | 'super10' | 'other';
 /**
  * The ground an innings is played on. A link that asks for one has it,
- * always; otherwise Super10 is played at the canopy, day or night, the
- * Blast under lights at the pavilion, and everything else — the Blast by
- * day, the Tests — at the stadium.
+ * always; otherwise Super10 is played at the canopy, day or night; the
+ * Blast under lights at the pavilion or the stadium on a coin (`coin`,
+ * nought to one, tossed once a visit: under a half the pavilion); and
+ * everything else — the Blast by day, the Tests — at the stadium.
  */
-export function groundFor(asked: GroundName | null, game: GroundGame, time: SkyTime): GroundName {
+export function groundFor(asked: GroundName | null, game: GroundGame, time: SkyTime, coin: number): GroundName {
   if (asked) return asked;
   if (game === 'super10') return 'canopy';
-  return game === 'blast' && time === 'night' ? 'pavilion' : DEFAULT_GROUND;
+  return game === 'blast' && time === 'night' && coin < .5 ? 'pavilion' : DEFAULT_GROUND;
 }
 
 /**

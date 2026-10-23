@@ -33,18 +33,24 @@ describe('the ground', () => {
     expect(groundFrom('?ground=members')).toBe('stadium');
   });
 
-  it('plays Super10 at the canopy, the Blast under lights at the pavilion, and the rest at the stadium, unless the link asks', () => {
+  it('plays Super10 at the canopy, half the Blast\'s nights at the pavilion on a coin, and the rest at the stadium, unless the link asks', () => {
     expect(askedGround('')).toBeNull();
-    expect(groundFor(null, 'super10', 'night')).toBe('canopy');
-    expect(groundFor(null, 'super10', 'day')).toBe('canopy');
-    expect(groundFor(null, 'blast', 'night')).toBe('pavilion');
-    expect(groundFor(null, 'blast', 'day')).toBe('stadium');
-    expect(groundFor(null, 'other', 'night')).toBe('stadium');
-    expect(groundFor(null, 'other', 'day')).toBe('stadium');
-    // A link's ground is every innings' ground, day or night.
-    expect(groundFor(askedGround('?ground=stadium'), 'blast', 'night')).toBe('stadium');
-    expect(groundFor(askedGround('?ground=arena'), 'super10', 'day')).toBe('arena');
-    expect(groundFor(askedGround('?ground=pavilion'), 'other', 'day')).toBe('pavilion');
+    for (const coin of [0, .3, .5, .9]) {
+      expect(groundFor(null, 'super10', 'night', coin)).toBe('canopy');
+      expect(groundFor(null, 'super10', 'day', coin)).toBe('canopy');
+      expect(groundFor(null, 'blast', 'day', coin)).toBe('stadium');
+      expect(groundFor(null, 'other', 'night', coin)).toBe('stadium');
+      expect(groundFor(null, 'other', 'day', coin)).toBe('stadium');
+    }
+    // The Blast under lights: the pavilion on the coin's lower half, the stadium on its upper.
+    expect(groundFor(null, 'blast', 'night', 0)).toBe('pavilion');
+    expect(groundFor(null, 'blast', 'night', .49)).toBe('pavilion');
+    expect(groundFor(null, 'blast', 'night', .5)).toBe('stadium');
+    expect(groundFor(null, 'blast', 'night', .99)).toBe('stadium');
+    // A link's ground is every innings' ground, day or night, whatever the coin.
+    expect(groundFor(askedGround('?ground=stadium'), 'blast', 'night', 0)).toBe('stadium');
+    expect(groundFor(askedGround('?ground=pavilion'), 'blast', 'night', .9)).toBe('pavilion');
+    expect(groundFor(askedGround('?ground=arena'), 'super10', 'day', .5)).toBe('arena');
   });
 
   it('batches the stadium by colour and the entire crowd into bodies and heads', () => {

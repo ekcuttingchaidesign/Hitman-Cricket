@@ -1749,11 +1749,15 @@ sway and wave. The crowd's sound is the game's own clips, as everywhere.
 (or `'wicket', 'BOWLED'`, or `'wave'`, or `'stumps'`) puts any moment up, for
 photographing.
 
-## The pavilion: the Blast's ground at night
+## The pavilion: half the Blast's nights
 
-The pavilion (`src/scene/pavilion.ts`) is where the Blast is played under
-lights; by day it is the stadium's, and so is every other mode, day or night
-(`groundFor` in `grounds.ts`, in `tests/grounds.test.ts`). The scene builds
+The pavilion (`src/scene/pavilion.ts`) is where half the Blast's nights are
+played: a coin tossed once a visit (`VENUE_COIN` in `src/Game.ts`, under a
+half the pavilion, else the stadium), so the venue holds for the visit and a
+reload may change it; by day the Blast is the stadium's, and so is every
+other mode but Super10, day or night (`groundFor` in `grounds.ts`, in
+`tests/grounds.test.ts`). A check that wants one of them names it
+(`?ground=`): nothing on a link but the lights leaves it to the coin. The scene builds
 each ground's stands the first time they are asked for, into a group of their
 own with their crowd, lamps and glows, and from then on only shows and hides
 them (`GameScene.stands`), so the pause card's Lights switch changes the

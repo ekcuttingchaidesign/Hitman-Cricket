@@ -73,10 +73,10 @@ const GROUNDS = [
   // without its towers, and its own rings of light, city and big screen.
   ['arena', 'night', '&ground=arena&lights=day', ARENA_BUDGET],
   // The pavilion: the stadium's bowl with a far end of its own, built into
-  // the same batch, so it is held to the stadium's budget. By night it is
-  // the Blast's own, asked for by nothing but the lights.
+  // the same batch, so it is held to the stadium's budget. Half the Blast's
+  // nights are played there on a coin, so a check names it.
   ['pavilion', 'day', '&ground=pavilion&lights=day', BUDGET],
-  ['pavilion', 'night', '&lights=night', BUDGET],
+  ['pavilion', 'night', '&ground=pavilion&lights=night', BUDGET],
   // The canopy: the stadium's bowl with stands, a block and roofs of its own,
   // held to the stadium's budget too.
   ['canopy', 'day', '&ground=canopy&lights=day', BUDGET],

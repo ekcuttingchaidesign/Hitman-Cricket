@@ -209,8 +209,10 @@ const SHOW_MARATHON = !SURVIVE_ONLY && (!!import.meta.env.VITE_SHOW_MARATHON
  * looking at, and a real innings still lands in its true place among them.
  */
 const PREVIEW_FILL = !SURVIVE_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production';
-/** The ground a link asks for (`?ground=`), which every innings is then played on: otherwise the lights pick it (`groundFor`). */
+/** The ground a link asks for (`?ground=`), which every innings is then played on: otherwise the game and the lights pick it (`groundFor`). */
 const ASKED_GROUND = askedGround(location.search);
+/** The visit's coin for the Blast's night ground, tossed once so the venue holds for the visit: under a half, the pavilion. */
+const VENUE_COIN = Math.random();
 const MARATHON_OPEN = SHOW_MARATHON || (!SURVIVE_ONLY
   && new URLSearchParams(location.search).get('mode')?.toLowerCase() === 'marathon');
 /**
@@ -2305,9 +2307,9 @@ export class Game {
   private get marathoning() { return this.mode === 'MARATHON'; }
   /** Super10: the Blast's ball for ten overs, three batters and five bowlers. */
   private get super10() { return this.mode === 'SUPER10'; }
-  /** Day or night for the innings, and the ground that goes with it: Super10 is the canopy's, the Blast under lights the pavilion's (`groundFor`). */
+  /** Day or night for the innings, and the ground that goes with it: Super10 is the canopy's, the Blast under lights the pavilion's on the visit's coin (`groundFor`). */
   private light(time: SkyTime) {
-    this.scene.stands(groundFor(ASKED_GROUND, this.super10 ? 'super10' : this.mode === 'CLASSIC' ? 'blast' : 'other', time));
+    this.scene.stands(groundFor(ASKED_GROUND, this.super10 ? 'super10' : this.mode === 'CLASSIC' ? 'blast' : 'other', time, VENUE_COIN));
     this.scene.time(time);
   }
   /** What the arena's big screen says between moments: the game, the score, the over and, in Super10, who is in. */
