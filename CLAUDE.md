@@ -1812,9 +1812,26 @@ sections straight behind the bowler and two either side are left out,
 `pavilionSkips`, and the pavilion is built into the same batch and the same
 crowd), so it costs the stadium's draw calls and its crowd cheers and moves
 as the stadium's does. The middle of the lower tier and the first verandah's
-front row are left empty behind the bowler's arm, and the sightscreen stays
-white for the red ball (the reference has it dark). `tests/grounds.test.ts`
-holds it.
+front row are left empty behind the bowler's arm, under a green cover (boarded
+black, it read as a slot cut in the stand), and the sightscreen stays white
+for the red ball (the reference has it dark). `tests/grounds.test.ts` holds it.
+
+The second pass, from photographs of the first: at night it was the day's
+stand under a dark sky, so the verandahs' back walls, their ceilings and the
+eaves' undersides glow warm after dark, as the canopy's do (`warm` on the
+lights), and a lamp in every bay and the towers' windows are dark glass by day
+and lit at night with a glow each (`spots`). The steps went grey and the crowd
+into a home crowd's colours (`CROWD` in `pavilion.ts`): cream on cream, crowd
+and stand had been one beige block. The roof is corrugated, ribs down its
+front slope, with a white fascia and cresting; the clock tower has pilasters,
+its hours marked and a belfry with two lit openings under the cap; the turrets
+are bigger with a lit window each. Where each wing turns in from the centre's
+corner the two stands' roofs and decks pulled apart behind their fronts and
+left a wedge of sky and trees: a stair tower stands over each join
+(`stairTower`), set back behind the lower tier and no wider than the gap —
+at the stands' full height and width it covered the wings. The trees are
+clusters of rounder crowns, and the far floodlights stand behind the joins and
+lower, where their heads clear the score bar and the keys.
 
 ## The canopy: Super10's ground
 
