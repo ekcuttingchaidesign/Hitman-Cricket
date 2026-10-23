@@ -595,7 +595,7 @@ export class GameScene {
     if (this.lamps) this.lamps.emissiveIntensity = light.lamps;
     for (const [name, built] of this.built) {
       for (const material of built.warm) material.emissiveIntensity = night ? 1 : 0;
-      built.unmirrored?.forEach(object => { object.visible = name === this.current; });
+      built.unmirrored?.forEach(object => { object.visible = name === this.current && (night || !object.userData.nightOnly); });
     }
   }
   /** The batter's materials and the ball's, which a hundred never greys: see `greyable`. */

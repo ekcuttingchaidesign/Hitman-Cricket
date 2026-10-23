@@ -101,7 +101,8 @@ describe('the ground', () => {
     expect(lights!.towers).toHaveLength(4);
     expect(ownFloodlights('canopy')).toBe(true);
     // Its screen hangs in the scene, not the mirrored stage; its windows, soffits and roof are lit at night.
-    expect(lights!.unmirrored?.map(o => o.name)).toEqual(['Big screen']);
+    expect(lights!.unmirrored?.map(o => o.name)).toEqual(['Big screen', 'Skyline']);
+    expect(lights!.unmirrored![1].userData.nightOnly).toBe(true);
     expect(lights!.warm?.length).toBeGreaterThanOrEqual(3);
     expect(lights!.spots!.length).toBeGreaterThan(200);
     expect(scenery.map(m => m.name)).toEqual(expect.arrayContaining(['Canopy', 'Canopy underside', 'Canopy rim']));

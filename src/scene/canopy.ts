@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { Batch } from './build';
 import { CENTRE_Z, RING, SECTIONS, STADIUM, span, stadium, type SeatFn, type StadiumLights } from './stadium';
 import { seeded } from './turf';
+import { skyline } from './arena';
 
 /**
  * The canopy: a modern ground, built from the reference picture the game's
@@ -80,33 +81,36 @@ const SEAT = .55;
 const AISLE = .5;
 
 /**
- * The canopy: from its tip beside the screen (`from`, an angle round the
- * ground off straight) round to behind the batter, its front edge over the
- * upper tier's fascia and its back over the columns behind the stand. It is
- * highest at its front edge and falls back to the columns, as a cantilever
- * does: rising to the back, it rose more steeply than a line from the
- * batter's end, and the camera saw its top rather than its lights.
- *
- * And it is curved, as the reference's are: from a rounded point low beside
- * the screen (`tipY`, the depth drawn in over `tip`), the front edge sweeps
- * up on an easing curve (`sweep`) to its full height round the ground, so a
- * phone sees the white rim swoop up from the screen to the edge of its
- * picture. Built first level along the ring with its tip lifted, it read as
- * two flat planks.
+ * The canopies: a shell either side of the screen, as the reference has
+ * them. In section each is an arc in the plane through the middle of the
+ * ground: from its bottom edge over the front of the upper tier it climbs
+ * back and up, stands furthest back at mid height and curls forward again to
+ * a lip at the top, so its concave face — the lit inside — looks straight
+ * down the ground at the camera and is most of what a phone sees of it.
+ * Along the ring it is a petal: closed to a point low beside the screen,
+ * growing to its full size by the edge of a phone's picture (`peakAt`) and
+ * holding that round to behind the batter, its bottom edge easing down a
+ * little as it grows (`drop`). A level roof along the ring, tilted or swept,
+ * read as two planks from the crease: the camera sees a roof's underside
+ * only edge on, and a shell stood up on end is the one shape that shows it
+ * face on.
  */
-const ROOF = { from: .14, to: Math.PI - .03, front: RING + .4, back: RING + 14, frontY: 14.2, backY: 11.3, tipY: 10, sweep: .55, tip: .3 } as const;
-/** The canopy `angle` off straight: where its front edge stands, and how high its front and back edges are. */
-export function roofAt(angle: number) {
-  const s = Math.max(0, Math.abs(angle) - ROOF.from);
-  const f = THREE.MathUtils.smoothstep(s, 0, ROOF.tip);
-  const curve = Math.sin(Math.min(1, s / ROOF.sweep) * Math.PI / 2);
-  return {
-    // The depth drawn in to a rounded point at the tip.
-    front: THREE.MathUtils.lerp(ROOF.back - .8, ROOF.front, Math.sqrt(f)),
-    frontY: THREE.MathUtils.lerp(ROOF.tipY, ROOF.frontY, curve),
-    backY: THREE.MathUtils.lerp(ROOF.tipY - .2, ROOF.backY, curve),
-    f,
-  };
+const DEG = Math.PI / 180;
+const SHELL = {
+  from: .13, to: Math.PI - .03, peakAt: .52,
+  /** The bottom edge: its radius from the middle of the ground, its height at the tip, and how far it eases down by the peak. */
+  r: RING + 2.5, y: 10.9, drop: 1.1,
+  /** The arc at full size: its radius, and where on it the bottom edge and the lip stand (nought is its furthest back). */
+  radius: 5, bottom: -60 * DEG, top: 50 * DEG,
+  /** The skin's thickness, and the lit rim along each edge of the inside. */
+  thick: .35, rim: .55,
+} as const;
+/** The shell `angle` off straight: how grown it is, its arc's radius and the arc's centre, in the plane through the middle. */
+export function shellAt(angle: number) {
+  const s = THREE.MathUtils.smoothstep(Math.abs(angle), SHELL.from, SHELL.peakAt);
+  const R = SHELL.radius * Math.max(s, .02);
+  const bottom = { r: SHELL.r, y: SHELL.y - SHELL.drop * s };
+  return { s, R, centre: { r: bottom.r - R * Math.cos(SHELL.bottom), y: bottom.y - R * Math.sin(SHELL.bottom) } };
 }
 
 /** The far end's block, straight across behind the sightscreen. */
@@ -115,8 +119,8 @@ const BLOCK = { z: CENTRE_Z + RING - 1.7, width: 9.8, floor1: 3.3, floor2: 5.6, 
 const SCREEN = { width: 9.2, height: 3.5, bottom: 8.35 } as const;
 
 /** The towers: over the far corners, standing above the canopies, and a pair out of shot behind the batter. */
-const TOWERS = [[-19, 70], [19, 70], [-25, -46], [25, -46]] as const;
-const MAST = 15.5;
+const TOWERS = [[-21, 70], [21, 70], [-25, -46], [25, -46]] as const;
+const MAST = 22;
 
 export function canopyStands(world: THREE.Object3D): StadiumLights {
   const warm = {
@@ -143,10 +147,12 @@ export function canopyStands(world: THREE.Object3D): StadiumLights {
   const roof = canopies(spots);
   roof.meshes.forEach(mesh => world.add(mesh));
   const screen = bigScreen();
+  // The arena's city behind it, after dark only: by day the trees and the sky are what is behind the stands.
+  const city = skyline(4); city.mesh.userData.nightOnly = true;
   lights.spots = spots;
   lights.warm = [warm.wall, warm.soffit, warm.light, roof.under];
-  lights.unmirrored = [screen.mesh];
-  lights.textures = [...roof.textures, screen.texture];
+  lights.unmirrored = [screen.mesh, city.mesh];
+  lights.textures = [...roof.textures, screen.texture, city.texture];
   return lights;
 }
 
@@ -256,82 +262,90 @@ function block(b: Batch, seat: SeatFn, spots: THREE.Vector3[]) {
   }
 }
 
-/** The columns the canopies stand on, behind every section, and a tie from each to the top of the stand. */
+/**
+ * What holds a shell up: behind every section where it is grown, a column
+ * behind the stand's back wall and a beam from its top forward to the
+ * shell's back, a goalpost the camera sees nothing of but through the gaps
+ * at the tips.
+ */
 function columns(b: Batch) {
   const { steel } = CANOPY;
   for (let section = 1; section < SECTIONS; section++) {
-    const a = (section + .5) / SECTIONS * Math.PI * 2;
+    const a = (section + .5) / SECTIONS * Math.PI * 2, signed = a > Math.PI ? a - Math.PI * 2 : a;
+    const { s, R, centre } = shellAt(signed);
+    if (s < .5) continue;
     const at = (r: number, y: number) => new THREE.Vector3(Math.sin(a) * r, y, CENTRE_Z + Math.cos(a) * r);
-    const foot = at(ROOF.back - .4, 0);
-    // Up to the roof's underside over it, wherever the sweep has it.
-    const top = roofAt(a > Math.PI ? a - Math.PI * 2 : a).backY;
+    const foot = at(RING + BACK + 1.2, 0), top = centre.y + .4;
     b.add(new THREE.CylinderGeometry(.22, .32, top, 8).translate(foot.x, top / 2, foot.z), steel);
-    const from = at(RING + BACK + .4, WALL_TOP), to = at(ROOF.back - .4, WALL_TOP);
+    const from = at(RING + BACK + 1.2, top - .1), to = at(centre.r + R - .2, centre.y);
     const mid = from.clone().add(to).multiplyScalar(.5);
-    b.add(new THREE.BoxGeometry(.14, .14, from.distanceTo(to)).lookAt(to.clone().sub(from)).translate(mid.x, mid.y, mid.z), steel);
+    b.add(new THREE.BoxGeometry(.16, .16, from.distanceTo(to)).lookAt(to.clone().sub(from)).translate(mid.x, mid.y, mid.z), steel);
   }
 }
 
 /**
- * The two canopies, one geometry each for their white tops, their lit
- * undersides and the white rim along their front edges, laid out round the
- * ground from the tip to behind the batter by `roofAt`.
+ * The two shells, one geometry each for their lit insides, their white
+ * outer skins and the white rims along their edges, laid out round the
+ * ground by `shellAt`: at each step round, the arc from the bottom edge to
+ * the lip, in `V` pieces.
  */
 function canopies(spots: THREE.Vector3[]) {
-  const U = 120, V = 6;
-  const tops: THREE.BufferGeometry[] = [], unders: THREE.BufferGeometry[] = [], rims: THREE.BufferGeometry[] = [];
-  const edge = (side: number, u: number) => {
-    const a = side * THREE.MathUtils.lerp(ROOF.from, ROOF.to, u / U);
-    return { a, ...roofAt(a) };
-  };
-  /** The underside's height `t` of the way back: falling from the front edge to the back, with a gentle belly. */
-  const height = (frontY: number, backY: number, t: number) => THREE.MathUtils.lerp(frontY, backY, t) + .5 * Math.sin(Math.PI * t);
+  const U = 120, V = 10;
+  const insides: THREE.BufferGeometry[] = [], skins: THREE.BufferGeometry[] = [], rims: THREE.BufferGeometry[] = [];
   const point = (a: number, r: number, y: number) => new THREE.Vector3(Math.sin(a) * r, y, CENTRE_Z + Math.cos(a) * r);
-  for (const side of [-1, 1]) {
-    const under: number[] = [], top: number[] = [], uv: number[] = [], rim: number[] = [], rimUv: number[] = [];
-    for (let u = 0; u <= U; u++) {
-      const { a, front, frontY, backY, f } = edge(side, u);
-      for (let v = 0; v <= V; v++) {
-        const t = v / V, r = THREE.MathUtils.lerp(front, ROOF.back, t);
-        const y = height(frontY, backY, t);
-        under.push(...point(a, r, y).toArray());
-        top.push(...point(a, r, y + .5 - .2 * t).toArray());
-        uv.push(Math.abs(a) * RING / 4, (r - ROOF.front) / 4);
-      }
-      // The rim, thinning to nothing at the tip.
-      for (const [dy, dr] of [[-.85 * (.25 + .75 * f), -.02], [.5 * (.25 + .75 * f), -.1]]) {
-        rim.push(...point(a, front + dr, frontY + dy).toArray());
-        rimUv.push(u / U, dy > 0 ? 1 : 0);
-      }
-      // Downlights under it, two rows across its depth.
-      if (u % 2 === 0 && f > .3) for (const t of [.2, .45, .7]) {
-        spots.push(point(a, THREE.MathUtils.lerp(front, ROOF.back, t), height(frontY, backY, t) - .12));
-      }
+  /** A point on the arc at `angle`, `theta` round it, moved `off` along the arc's inward normal (towards the ground). */
+  const on = (angle: number, theta: number, off: number) => {
+    const { R, centre } = shellAt(angle);
+    return point(angle, centre.r + (R - off) * Math.cos(theta), centre.y + (R - off) * Math.sin(theta));
+  };
+  const grid = (positions: number[], uvs: number[], columns: number) => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    const index: number[] = [];
+    for (let u = 0; u < U; u++) for (let v = 0; v < columns - 1; v++) {
+      const i = u * columns + v, j = i + columns;
+      index.push(i, j, i + 1, i + 1, j, j + 1);
     }
-    const grid = (positions: number[], uvs: number[], columns: number) => {
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-      geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-      const index: number[] = [];
-      for (let u = 0; u < U; u++) for (let v = 0; v < columns - 1; v++) {
-        const i = u * columns + v, j = i + columns;
-        index.push(i, j, i + 1, i + 1, j, j + 1);
+    geometry.setIndex(index);
+    geometry.computeVertexNormals();
+    return geometry;
+  };
+  for (const side of [-1, 1]) {
+    const inside: number[] = [], skin: number[] = [], uv: number[] = [];
+    const bands: { xyz: number[]; uv: number[] }[] = [{ xyz: [], uv: [] }, { xyz: [], uv: [] }, { xyz: [], uv: [] }, { xyz: [], uv: [] }];
+    for (let u = 0; u <= U; u++) {
+      const a = side * THREE.MathUtils.lerp(SHELL.from, SHELL.to, u / U);
+      const { s, R } = shellAt(a);
+      for (let v = 0; v <= V; v++) {
+        const theta = THREE.MathUtils.lerp(SHELL.bottom, SHELL.top, v / V);
+        inside.push(...on(a, theta, 0).toArray());
+        skin.push(...on(a, theta, -SHELL.thick).toArray());
+        uv.push(Math.abs(a) * SHELL.r / 4, (theta - SHELL.bottom) * SHELL.radius / 4);
       }
-      geometry.setIndex(index);
-      geometry.computeVertexNormals();
-      return geometry;
-    };
-    unders.push(grid(under, uv, V + 1));
-    tops.push(grid(top, uv, V + 1));
-    rims.push(grid(rim, rimUv, 2));
+      // The rims: a band along each edge of the inside, and the skin's thickness closed at each edge.
+      const width = Math.min(12 * DEG, SHELL.rim / R);
+      for (const [edge, sign, band, closer] of [[SHELL.bottom, 1, bands[0], bands[1]], [SHELL.top, -1, bands[2], bands[3]]] as const) {
+        band.xyz.push(...on(a, edge, .03).toArray(), ...on(a, edge + sign * width, .03).toArray());
+        band.uv.push(u / U, 0, u / U, 1);
+        closer.xyz.push(...on(a, edge, .01).toArray(), ...on(a, edge, -SHELL.thick - .01).toArray());
+        closer.uv.push(u / U, 0, u / U, 1);
+      }
+      // Downlights across the inside, where the shell is grown enough to hold them.
+      if (u % 2 === 0 && s > .3) for (const t of [.25, .5, .75]) spots.push(on(a, THREE.MathUtils.lerp(SHELL.bottom, SHELL.top, t), .12));
+    }
+    insides.push(grid(inside, uv, V + 1));
+    skins.push(grid(skin, uv, V + 1));
+    for (const band of bands) rims.push(grid(band.xyz, band.uv, 2));
   }
   const panels = panelTexture(), glow = panelGlow();
   for (const texture of [panels, glow]) { texture.wrapS = texture.wrapT = THREE.RepeatWrapping; }
-  const under = new THREE.MeshStandardMaterial({ color: 0xd8bcff, map: panels, roughness: .8, envMapIntensity: .5, side: THREE.DoubleSide, emissive: 0xfff0d8, emissiveMap: glow, emissiveIntensity: 0 });
+  // Stood up to face the ground, the inside takes the sky's light, not the grass's: a plain cream, no tint against the green.
+  const under = new THREE.MeshStandardMaterial({ color: 0xe9e2d6, map: panels, roughness: .8, envMapIntensity: .5, side: THREE.DoubleSide, emissive: 0xfff0d8, emissiveMap: glow, emissiveIntensity: 0 });
   const merged = (list: THREE.BufferGeometry[]) => { const geometry = mergeGeometries(list); list.forEach(g => g.dispose()); return geometry; };
   const meshes = [
-    new THREE.Mesh(merged(tops), new THREE.MeshStandardMaterial({ color: 0xeef0ec, roughness: .55, side: THREE.DoubleSide })),
-    new THREE.Mesh(merged(unders), under),
+    new THREE.Mesh(merged(skins), new THREE.MeshStandardMaterial({ color: 0xeef0ec, roughness: .55, side: THREE.DoubleSide })),
+    new THREE.Mesh(merged(insides), under),
     new THREE.Mesh(merged(rims), new THREE.MeshStandardMaterial({ color: CANOPY.trim, roughness: .5, side: THREE.DoubleSide })),
   ];
   meshes.forEach((mesh, i) => { mesh.name = ['Canopy', 'Canopy underside', 'Canopy rim'][i]; mesh.receiveShadow = true; });

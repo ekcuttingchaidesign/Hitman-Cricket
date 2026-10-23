@@ -78,6 +78,16 @@ const LAMP_REST = .82;
 const RIBBON = { radius: 40.62, y: 4.95, height: .5 } as const;
 /** The city, well beyond the stands, round the far half of the ground only: nobody looks behind them. */
 const CITY = { radius: 120, height: 46, from: -1, arc: 3.3 } as const;
+/** The city behind the far half of the ground, as the arena has it and the canopy borrows it: its mesh, to hang in the scene's own frame. */
+export function skyline(anisotropy: number) {
+  const texture = cityTexture(); texture.anisotropy = anisotropy;
+  const mesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(CITY.radius, CITY.radius, CITY.height, 96, 1, true, -CITY.arc / 2, CITY.arc),
+    new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide, transparent: true, depthWrite: false, fog: false }),
+  );
+  mesh.position.set(0, CITY.from + CITY.height / 2, CENTRE_Z); mesh.name = 'Skyline';
+  return { mesh, texture };
+}
 /**
  * The big screen: over the far end on the roof, tipped to the crease. A
  * phone has it in the band between the score bar and the roof's edge, so it
@@ -552,18 +562,13 @@ export class Arena {
     this.ribbon = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide, fog: false, toneMapped: false });
     ring(RIBBON.radius, RIBBON.height, RIBBON.y, this.ribbon);
 
-    const city = cityTexture(); city.anisotropy = anisotropy;
-    const skyline = new THREE.Mesh(
-      new THREE.CylinderGeometry(CITY.radius, CITY.radius, CITY.height, 96, 1, true, -CITY.arc / 2, CITY.arc),
-      new THREE.MeshBasicMaterial({ map: city, side: THREE.BackSide, transparent: true, depthWrite: false, fog: false }),
-    );
-    skyline.position.set(0, CITY.from + CITY.height / 2, CENTRE_Z); skyline.name = 'Skyline';
-    scene.add(skyline);
+    const city = skyline(anisotropy);
+    scene.add(city.mesh);
 
 
     if (hasScreen) this.buildScreen(scene, anisotropy);
     this.wrap = stumpWrap(GAME.stumpHeight); this.wrap.anisotropy = anisotropy;
-    this.textures.push(lamps, city, this.wrap);
+    this.textures.push(lamps, city.texture, this.wrap);
   }
 
   /** The screen on its frame, on two legs off the roof, turned to the crease. */

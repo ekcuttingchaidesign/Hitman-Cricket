@@ -1792,18 +1792,20 @@ the deck's soffit with a lamp every couple of metres, its white fascia with
 glass on it, an upper tier of eight rows; a stair aisle down the middle of
 every tier with a white nosing on each step and handrails on posts; the
 crowd closer packed than the stadium's (`SEAT`) on darker steps, in the home
-side's greens and whites, every shirt drawn at random. Two curved roof
-canopies (`roofAt`) sweep round from rounded points low beside the screen,
-the front edge rising on an easing curve to its full height round the
-ground, so a phone sees each white rim swoop up from the screen to the edge
-of its picture; built first level along the ring with a lifted tip, they read
-as two flat planks. They stand on columns behind every section with a tie to
-the top of the stand, and are highest at the front edge and fall back to the
-columns: rising to the back, they rose more steeply than a line from the
-batter's end and the camera saw their tops, not their lights. By day the
-underside is in shade, tinted lilac against the grass's green bounce as the
-stadium's soffit is. Square floodlight heads of twenty round lamps stand over
-the far corners, and trees behind.
+side's greens and whites, every shirt drawn at random. The canopies are two
+shells (`SHELL`, `shellAt`): in section an arc that climbs back and up from
+its bottom edge over the upper tier, stands furthest back at mid height and
+curls forward to a lip, so its concave, lit inside faces straight down the
+ground at the camera; along the ring a petal, closed to a point low beside
+the screen and grown to full size by the edge of a phone's picture, the
+bottom edge easing down as it grows. A roof laid level along the ring, swept
+or tilted, was tried twice and read as two planks from the crease: the
+camera sees a roof's underside only edge on, and a shell stood on end is the
+one shape that shows it face on. Each stands on a column and beam behind
+every grown section. Square floodlight heads of twenty round lamps stand
+over the far corners, trees behind, and after dark the arena's city skyline
+(`skyline` in `arena.ts`, hung unmirrored and marked `nightOnly`) behind
+those.
 
 The lighting is what makes it at night, and none of it is on by day: the
 downlights in the soffits and the hospitality ceilings (a material of their

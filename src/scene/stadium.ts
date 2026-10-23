@@ -133,7 +133,7 @@ export interface StadiumLights {
   spots?: THREE.Vector3[];
   /** Materials lit only at night (their emissive at one), dark by day: windows, soffits, downlights. */
   warm?: THREE.MeshStandardMaterial[];
-  /** Pieces to hang in the scene's own frame, not the mirrored stage: anything with words on it. */
+  /** Pieces to hang in the scene's own frame, not the mirrored stage: anything with words on it. One marked `userData.nightOnly` is shown after dark alone. */
   unmirrored?: THREE.Object3D[];
   /** Textures painted for the ground, to be disposed of with the scene. */
   textures?: THREE.Texture[];
