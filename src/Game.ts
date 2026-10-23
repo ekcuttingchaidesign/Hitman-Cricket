@@ -2305,9 +2305,9 @@ export class Game {
   private get marathoning() { return this.mode === 'MARATHON'; }
   /** Super10: the Blast's ball for ten overs, three batters and five bowlers. */
   private get super10() { return this.mode === 'SUPER10'; }
-  /** Day or night for the innings, and the ground that goes with it: the Blast under lights is the pavilion's (`groundFor`). */
+  /** Day or night for the innings, and the ground that goes with it: Super10 is the canopy's, the Blast under lights the pavilion's (`groundFor`). */
   private light(time: SkyTime) {
-    this.scene.stands(groundFor(ASKED_GROUND, this.mode === 'CLASSIC', time));
+    this.scene.stands(groundFor(ASKED_GROUND, this.super10 ? 'super10' : this.mode === 'CLASSIC' ? 'blast' : 'other', time));
     this.scene.time(time);
   }
   /** What the arena's big screen says between moments: the game, the score, the over and, in Super10, who is in. */

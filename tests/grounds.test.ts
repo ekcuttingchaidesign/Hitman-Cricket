@@ -33,15 +33,18 @@ describe('the ground', () => {
     expect(groundFrom('?ground=members')).toBe('stadium');
   });
 
-  it('plays the Blast under lights at the pavilion, and everything else at the stadium, unless the link asks', () => {
+  it('plays Super10 at the canopy, the Blast under lights at the pavilion, and the rest at the stadium, unless the link asks', () => {
     expect(askedGround('')).toBeNull();
-    expect(groundFor(null, true, 'night')).toBe('pavilion');
-    expect(groundFor(null, true, 'day')).toBe('stadium');
-    expect(groundFor(null, false, 'night')).toBe('stadium');
-    expect(groundFor(null, false, 'day')).toBe('stadium');
+    expect(groundFor(null, 'super10', 'night')).toBe('canopy');
+    expect(groundFor(null, 'super10', 'day')).toBe('canopy');
+    expect(groundFor(null, 'blast', 'night')).toBe('pavilion');
+    expect(groundFor(null, 'blast', 'day')).toBe('stadium');
+    expect(groundFor(null, 'other', 'night')).toBe('stadium');
+    expect(groundFor(null, 'other', 'day')).toBe('stadium');
     // A link's ground is every innings' ground, day or night.
-    expect(groundFor(askedGround('?ground=stadium'), true, 'night')).toBe('stadium');
-    expect(groundFor(askedGround('?ground=pavilion'), false, 'day')).toBe('pavilion');
+    expect(groundFor(askedGround('?ground=stadium'), 'blast', 'night')).toBe('stadium');
+    expect(groundFor(askedGround('?ground=arena'), 'super10', 'day')).toBe('arena');
+    expect(groundFor(askedGround('?ground=pavilion'), 'other', 'day')).toBe('pavilion');
   });
 
   it('batches the stadium by colour and the entire crowd into bodies and heads', () => {

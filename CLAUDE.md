@@ -1455,7 +1455,8 @@ before (`KNEELING_SWEEP`) and meets the ball where the drives do. It is
 
 Super10 (`SUPER10` in `src/game/modes.ts`, its numbers in `src/config/super10.ts`)
 is the Blast's ball for ten overs: `resolveShot`, the confidence meter and the
-charge, coloured kit, the Blast field and the lights by the player's clock.
+charge, coloured kit, the Blast field and the lights by the player's clock,
+played at the canopy (`groundFor`).
 Five wickets and five batters, by how many are down (`batterAt`), each named
 walking out (`walkingOut`: OPENER, NO. 2 … NO. 5), each with the Test
 Marathon's own windows and nothing narrowed (`windowsAt`, read through
@@ -1655,10 +1656,14 @@ one file, as `cover-drive-artifact.mjs` does the strokes.
 
 ## The arena: Super10's ground
 
-Super10 is to have a ground of its own, so it does not feel like an old mode
-played again: the arena (`src/scene/arena.ts`), built for now by
-`?ground=arena` in any mode, and played at night only, whatever the clock or
-the link says (`nightOnly` in `grounds.ts`; its pause card has no Lights row).
+Super10 was to have a ground of its own, so it does not feel like an old
+mode played again, and the arena (`src/scene/arena.ts`) was built for it:
+Super10's ground is the canopy now (below, `groundFor`), and the arena is
+kept behind `?ground=arena` in any mode, with the brand's pieces that are
+built into it — the LED stumps, the screen's stings, the floodlights that
+answer the game, the phone torches — ready to move across. It is played at
+night only, whatever the clock or the link says (`nightOnly` in
+`grounds.ts`; its pause card has no Lights row).
 It is the stadium's own night first — its crowd, its white sightscreen, its
 sky, its grass and pitch, the red ball — and an improvement on it second,
 from real grounds: no towers, but one ring of LED floodlights along the
@@ -1776,14 +1781,19 @@ front row are left empty behind the bowler's arm, and the sightscreen stays
 white for the red ball (the reference has it dark). `tests/grounds.test.ts`
 holds it.
 
-## The canopy: a modern ground, being tried
+## The canopy: Super10's ground
 
-`?ground=canopy` (`src/scene/canopy.ts`) is a third stadium, built from the
-designer's reference picture of a modern ground, for a ground with more in
-it than the stadium's. Over the far end a block the width of the section
-behind the bowler: dark glass behind the sightscreen, two hospitality floors
-(a white slab, a glass front on white mullions, two rows of people, a back
-wall lit warm, lamps in the ceiling) and on its roof the big screen, HITMAN
+The canopy (`src/scene/canopy.ts`) is where Super10 is played, by day or
+under lights by the player's clock (`groundFor`; `?ground=canopy` asks for
+it in any mode): a third stadium, built from the designer's reference
+picture of a modern ground, for a ground with more in it than the
+stadium's. Over the far end a block the width of the section
+behind the bowler: dark glass behind the sightscreen, two VIP boxes (a white
+slab each, two rows of people on their feet at the front showing from the
+chest up, the upper behind a see-through glass balustrade on white mullions
+and the lower behind a solid parapet — the first build sat them behind panes
+drawn solid and nobody was seen — a back wall lit warm, lamps in the
+ceiling) and on its roof the big screen, HITMAN
 CRICKET under an outlined crown with teal and green slashes either side, in
 a dark frame with a white edge, a flag over each corner. Round the rest of
 the ring a section of its own (`tiers`, the stadium's `section` option): a
@@ -1818,8 +1828,7 @@ scene, not the mirrored stage (`unmirrored`), so its words read the right
 way round for either hand. Every stand built after the scene was put
 together is made greyable for a hundred (`greyable`). It costs the
 stadium's budget in `scene-check`; `tests/grounds.test.ts` holds its crowd,
-towers, screen, lights and the empty seats behind the sightscreen. It is not
-any mode's ground yet.
+towers, screen, lights and the empty seats behind the sightscreen.
 
 ## A newcomer's first innings
 

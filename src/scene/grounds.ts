@@ -24,10 +24,10 @@ import type { SkyTime } from './sky';
  * tower, trees behind and tall floodlight towers. It is the Blast's ground at
  * night (`groundFor`), and `?ground=pavilion` asks for it any time.
  *
- * **The canopy** (`canopy.ts`) is a modern ground: a big screen over a
- * glass-fronted block at the far end, roof canopies sweeping round from
- * beside it over two packed tiers, square floodlight heads over the corners.
- * For now it is asked for with `?ground=canopy`.
+ * **The canopy** (`canopy.ts`) is Super10's ground, a modern one: a big
+ * screen over a glass-fronted block at the far end, shell canopies either
+ * side of it over two packed tiers, square floodlight heads over the
+ * corners. `?ground=canopy` asks for it in any mode.
  *
  * **The bowl** is the ground before it: one tier of stands in a full ring, flat
  * roofs, and the low clubhouse with the flags. It is kept whole, line for line,
@@ -53,13 +53,18 @@ export function askedGround(search: string): GroundName | null {
 /** The ground the link asks for, or the default: what the scene is built on at first. */
 export const groundFrom = (search: string): GroundName => askedGround(search) ?? DEFAULT_GROUND;
 
+/** What picks a ground for an innings, besides the lights: the game it is. */
+export type GroundGame = 'blast' | 'super10' | 'other';
 /**
  * The ground an innings is played on. A link that asks for one has it,
- * always; otherwise the Blast under lights is played at the pavilion, and
- * everything else — the Blast by day, the Tests, Super10 — at the stadium.
+ * always; otherwise Super10 is played at the canopy, day or night, the
+ * Blast under lights at the pavilion, and everything else — the Blast by
+ * day, the Tests — at the stadium.
  */
-export function groundFor(asked: GroundName | null, blast: boolean, time: SkyTime): GroundName {
-  return asked ?? (blast && time === 'night' ? 'pavilion' : DEFAULT_GROUND);
+export function groundFor(asked: GroundName | null, game: GroundGame, time: SkyTime): GroundName {
+  if (asked) return asked;
+  if (game === 'super10') return 'canopy';
+  return game === 'blast' && time === 'night' ? 'pavilion' : DEFAULT_GROUND;
 }
 
 /**
