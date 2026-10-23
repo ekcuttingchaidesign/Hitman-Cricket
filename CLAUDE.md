@@ -361,7 +361,8 @@ grounds — the stadium every mode plays in, the bowl before it,
 which `?ground=bowl` still builds and which is kept for that, Super10's
 arena under its own `ARENA_BUDGET`, and the pavilion and the canopy under
 the stadium's — and the stadium, the pavilion and the canopy both by day and
-by night. The Blast follows the
+by night, and Super10 at the canopy under its own `SUPER10_BUDGET`
+(`ONLY=super10` walks that row alone). The Blast follows the
 device's clock — night from six in the evening to seven in the morning — so a
 check that judges the ground's colours in a Blast innings without saying
 which is judging whatever the machine's clock says; `?lights=day` or
@@ -1740,8 +1741,10 @@ wicket the screen plays the brand's stings over the drawn word — FOUR, SIX,
 BOWLED, OUT and DUCK, the design's own Lotties at 1024 by 384 and thirty
 frames a second, each a whole board on its ground, violet or raspberry
 (`public/lotties/super10-<name>.json`, `STINGS`, `stingOf`, painted into a
-canvas of their own through `paintFilm` and laid over the screen every frame
-they play) — so the drawn word shows only until a film's first frame is in,
+canvas of their own through `paintFilm` in whole frames, and the screen
+repainted and laid over only when a sting's frame changes, its pixel grid
+drawn once a size, `pixels`: painted at every refresh, a SIX doubled the
+JavaScript a frame) — so the drawn word shows only until a film's first frame is in,
 and under reduced motion, where no sting plays and the word stands still. A
 wicket is told how he went (`BOWLED`, `DUCK` for a batter out with none, else
 `OUT`).

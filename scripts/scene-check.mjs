@@ -51,6 +51,13 @@ const executablePath = process.env.CHROMIUM_PATH || undefined;
  */
 const BUDGET = 460;
 /**
+ * Super10 at the canopy: the canopy's night plus what only Super10 puts up —
+ * the LED stumps' own materials, the brand's screen, and its field, more men
+ * in the picture than the Blast's. It came in at 452 on the phone and in the
+ * desktop column alike, and up to 462 as a shot resolves.
+ */
+const SUPER10_BUDGET = 470;
+/**
  * The arena (`src/scene/arena.ts`) is the stadium at night less its towers'
  * glow, and more by its own pieces: the ring of lamps, the ribbon, the city,
  * the screen and its frame and legs, the phone torches, and the batter's
@@ -80,7 +87,13 @@ const GROUNDS = [
   // held to the stadium's budget too.
   ['canopy', 'day', '&ground=canopy&lights=day', BUDGET],
   ['canopy', 'night', '&ground=canopy&lights=night', BUDGET],
+  // Super10 at the canopy: the canopy's night with what only Super10 puts up
+  // on it, the LED stumps, the brand's screen and its field.
+  ['canopy', 'night', '&mode=super10', SUPER10_BUDGET, 'super10'],
 ];
+// `ONLY=super10` (or `canopy`, `pavilion night`…) walks just the rows that match.
+const only = process.env.ONLY;
+const rows = only ? GROUNDS.filter(([ground, time, , , game]) => `${game ?? 'blast'} ${ground} ${time}`.includes(only)) : GROUNDS;
 
 let failures = 0;
 const check = (ok, what, detail) => {
@@ -91,11 +104,11 @@ const check = (ok, what, detail) => {
 await mkdir('test-results', { recursive: true });
 const browser = await chromium.launch({ executablePath });
 
-for (const [ground, time, query, budget] of GROUNDS) for (const [name, options] of [
+for (const [ground, time, query, budget, game] of rows) for (const [name, options] of [
   ['desktop', { viewport: { width: 1280, height: 720 } }],
   ['phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }],
 ]) {
-  console.log(`${ground} · ${time} · ${name}`);
+  console.log(`${game ? `${game} · ` : ''}${ground} · ${time} · ${name}`);
   const page = await browser.newPage(options);
   // Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
   await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
@@ -159,13 +172,13 @@ for (const [ground, time, query, budget] of GROUNDS) for (const [name, options] 
   check(built === ground, `on the ${ground} ground`, built);
   // The Blast's strip is the dry one: the greener Test strip is never laid
   // here, and never painted unless a Test is played.
-  check(await page.evaluate(() => window.__cricket?.greenTop()) === false, 'on the Blast\'s dry strip');
+  check(await page.evaluate(() => window.__cricket?.greenTop()) === false, 'on the dry strip');
   const lit = await page.evaluate(() => window.__cricket?.lights());
   check(lit === time, `by ${time}`, lit);
   check(draws > 0, 'the ground is being drawn', draws);
   check(draws <= budget, `in ${draws} draw calls a frame, within ${budget}`);
   check(errors.length === 0, 'with nothing in the console', errors.join('\n        '));
-  await page.screenshot({ path: `test-results/scene-${ground}-${time}-${name}.png` });
+  await page.screenshot({ path: `test-results/scene-${game ? `${game}-` : ''}${ground}-${time}-${name}.png` });
   await page.close();
 }
 
