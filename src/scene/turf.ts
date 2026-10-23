@@ -70,12 +70,12 @@ export const TURF = { light: '#6aa449', dark: '#5e9540', edge: 'rgba(38,70,30,1)
 /**
  * The pavilion's and the canopy's turf (`turfOf` in `grounds.ts`): a brighter,
  * yellower outfield, its light stripe #6DA637 and its dark a shade under, and
- * a warmer strip, #E5BD85 where the stadium's is #d3b683 (#DEAC67 first,
- * which read too orange under the lights).
+ * a warmer strip, #FDC375 where the stadium's is #d3b683 (#DEAC67 first,
+ * which read too orange under the lights, then #E5BD85).
  */
 export const FRESH_TURF = { light: '#6da637', dark: '#629631', edge: TURF.edge } as const;
 export type Turf = 'classic' | 'fresh';
-const PALETTE = { classic: { ...TURF, surface: '#d3b683' }, fresh: { ...FRESH_TURF, surface: '#e5bd85' } } as const;
+const PALETTE = { classic: { ...TURF, surface: '#d3b683' }, fresh: { ...FRESH_TURF, surface: '#fdc375' } } as const;
 
 /**
  * The outfield, for a `CircleGeometry` of `radius` centred `centreZ` along
