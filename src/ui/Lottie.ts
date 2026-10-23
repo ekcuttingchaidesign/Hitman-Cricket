@@ -79,7 +79,7 @@ export function playFilm(host: HTMLElement, film: Film, options: { loop?: boolea
  * have to be in the picture rather than over it. The canvas is cleared each
  * frame, so what is not the film is see-through. Nothing here throws either.
  */
-export function paintFilm(context: CanvasRenderingContext2D, film: Film, options: { loop?: boolean } = {}): Playing {
+export function paintFilm(context: CanvasRenderingContext2D, film: Film, options: { loop?: boolean; whole?: boolean } = {}): Playing {
   let gone = false;
   let animation: { destroy(): void } | null = null;
   void loadPainter().then(lottie => {
@@ -91,6 +91,8 @@ export function paintFilm(context: CanvasRenderingContext2D, film: Film, options
       path: src(film),
       rendererSettings: { context, clearCanvas: true, dpr: 1, preserveAspectRatio: 'xMidYMid meet' },
     } as Parameters<Painter['loadAnimation']>[0]);
+    // Whole frames only: the film is drawn once a frame of its own, not again at every refresh between them.
+    if (options.whole) (animation as unknown as { setSubframe(flag: boolean): void }).setSubframe(false);
   }).catch(() => { /* No film: an empty sky. */ });
   return {
     destroy() {

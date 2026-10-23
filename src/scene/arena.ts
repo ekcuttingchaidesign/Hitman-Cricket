@@ -314,6 +314,28 @@ function picture(src: string, ready: () => void) {
   return image;
 }
 
+/** The stings' frame: they are drawn at thirty a second. */
+const STING_FRAME_MS = 1000 / 30;
+const grids = new Map<string, HTMLCanvasElement>();
+/**
+ * A screen's pixels, a fine dark grid a line every four, drawn once a size
+ * and laid over the screen whole: drawn line by line it was four hundred
+ * rectangles every time the screen was painted, every frame of a sting.
+ */
+function pixels(W: number, H: number, alpha: number) {
+  const key = `${W}x${H}@${alpha}`;
+  let grid = grids.get(key);
+  if (!grid) {
+    grid = document.createElement('canvas'); grid.width = W; grid.height = H;
+    const ctx = grid.getContext('2d')!;
+    ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+    for (let x = 0; x < W; x += 4) ctx.fillRect(x, 0, 1, H);
+    for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+    grids.set(key, grid);
+  }
+  return grid;
+}
+
 /** A slash: a parallelogram leaning 12°, corners sharp. */
 function slash(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, fill: string) {
   const run = h * Math.tan(LEAN);
@@ -666,7 +688,7 @@ export class Showboards {
     const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 384;
     const context = canvas.getContext('2d');
     if (!context) return;
-    this.playing = { name, at: now, canvas, film: paintFilm(context, `super10-${name}` as Film) };
+    this.playing = { name, at: now, canvas, film: paintFilm(context, `super10-${name}` as Film, { whole: true }) };
   }
   private stopSting() { this.playing?.film?.destroy(); this.playing = null; }
 
@@ -683,7 +705,8 @@ export class Showboards {
     const kind = this.cued?.kind;
     const ms = kind ? CUES[kind].ms : 0;
     const moving = word !== null && (this.playing !== null || (!this.still && (since < SLAM_MS || since > ms - LEAVE_MS)));
-    const key = word ? `w|${word}|${moving ? since : 'held'}` : `${this.plain ? 'p' : 'b'}|${this.board.title}|${this.board.score}|${this.board.detail}`;
+    // A moving screen is painted once a frame of the stings' own thirty a second, not at every refresh.
+    const key = word ? `w|${word}|${moving ? Math.floor(since / STING_FRAME_MS) : 'held'}` : `${this.plain ? 'p' : 'b'}|${this.board.title}|${this.board.score}|${this.board.detail}`;
     if (key === this.shown) return;
     this.shown = key;
     if (this.plain && !word) { this.paintPlain(ctx, W, H); screen.texture.needsUpdate = true; return; }
@@ -717,9 +740,7 @@ export class Showboards {
       sub(ctx, detail, 760, H / 2 + 112, 34, hex(ARENA.mist));
     }
     // The screen's pixels: a fine dark grid over all of it.
-    ctx.fillStyle = 'rgba(0,0,0,.22)';
-    for (let x = 0; x < W; x += 4) ctx.fillRect(x, 0, 1, H);
-    for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+    ctx.drawImage(pixels(W, H, .22), 0, 0);
     screen.texture.needsUpdate = true;
   }
   /**
@@ -754,9 +775,7 @@ export class Showboards {
     ctx.font = SATOSHI(32); ctx.fillStyle = 'rgba(255,255,255,.72)';
     ctx.fillText(detail, x, H * .82, 440);
     spaced.letterSpacing = '0px';
-    ctx.fillStyle = 'rgba(0,0,0,.18)';
-    for (let i = 0; i < W; i += 4) ctx.fillRect(i, 0, 1, H);
-    for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+    ctx.drawImage(pixels(W, H, .18), 0, 0);
   }
 }
 
