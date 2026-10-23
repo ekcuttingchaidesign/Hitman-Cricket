@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Batch } from './build';
-import { CENTRE_Z, RING, SECTIONS, STADIUM, span, stadium, type SeatFn, type StadiumLights } from './stadium';
+import { CENTRE_Z, RING, SECTIONS, STADIUM, span, stadium, type BigScreen, type SeatFn, type StadiumLights } from './stadium';
 import { seeded } from './turf';
 import { skyline } from './arena';
 
@@ -155,6 +155,8 @@ export function canopyStands(world: THREE.Object3D): StadiumLights {
   lights.warm = [warm.wall, warm.soffit, warm.light, roof.under];
   lights.unmirrored = [screen.mesh, city.mesh];
   lights.textures = [...roof.textures, screen.texture, city.texture];
+  // The brand's moments play on the screen, and it goes back to its own picture after each (`Showboards` in `arena.ts`).
+  lights.screen = screen.screen;
   return lights;
 }
 
@@ -388,15 +390,32 @@ function panelGlow() {
 }
 
 /**
- * The big screen's face: the game's mark on a deep blue, a crown over
- * HITMAN and CRICKET, and slashes of teal and green racing in from either
- * side. Hung in the scene rather than the mirrored stage, so it reads the
- * right way round for either hand, and lit by itself, day and night.
+ * The big screen: its own picture between moments (`picture`), the brand's
+ * stings and words in them, painted into one canvas. Hung in the scene
+ * rather than the mirrored stage, so it reads the right way round for either
+ * hand, and lit by itself, day and night.
  */
 function bigScreen() {
   const W = 1024, H = Math.round(W * SCREEN.height / SCREEN.width);
   const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d')!;
+  const own = (context: CanvasRenderingContext2D) => picture(context, W, H);
+  own(ctx);
+  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 4;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(SCREEN.width, SCREEN.height).rotateY(Math.PI),
+    new THREE.MeshBasicMaterial({ map: texture, toneMapped: false, fog: false }));
+  mesh.position.set(0, SCREEN.bottom + SCREEN.height / 2, BLOCK.z + 1.75 + .08);
+  mesh.name = 'Big screen';
+  const screen: BigScreen = { context: ctx, texture, own };
+  return { mesh, texture, screen };
+}
+
+/**
+ * The screen's own picture: the game's mark on a deep blue, a crown over
+ * HITMAN and CRICKET, and slashes of teal and green racing in from either
+ * side, under the screen's pixels.
+ */
+function picture(ctx: CanvasRenderingContext2D, W: number, H: number) {
   const ground = ctx.createLinearGradient(0, 0, 0, H);
   ground.addColorStop(0, '#13305e'); ground.addColorStop(1, '#0a1b3a');
   ctx.fillStyle = ground; ctx.fillRect(0, 0, W, H);
@@ -428,12 +447,6 @@ function bigScreen() {
   ctx.fillStyle = 'rgba(0,0,0,.18)';
   for (let x = 0; x < W; x += 4) ctx.fillRect(x, 0, 1, H);
   for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
-  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 4;
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(SCREEN.width, SCREEN.height).rotateY(Math.PI),
-    new THREE.MeshBasicMaterial({ map: texture, toneMapped: false, fog: false }));
-  mesh.position.set(0, SCREEN.bottom + SCREEN.height / 2, BLOCK.z + 1.75 + .08);
-  mesh.name = 'Big screen';
-  return { mesh, texture };
 }
 
 /**

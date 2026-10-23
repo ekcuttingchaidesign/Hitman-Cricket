@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
-import { ARENA, CUES, FLASH, MILESTONE_WORDS, MOST_FLASHES, TORCHES, arenaFrame, arenaStands, screenFrom, slamScale, stingOf, stumpLight, type ArenaCue, type ArenaMood } from '../src/scene/arena';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ARENA, CUES, FLASH, MILESTONE_WORDS, MOST_FLASHES, Showboards, TORCHES, arenaFrame, arenaStands, screenFrom, slamScale, stingOf, stumpLight, type ArenaCue, type ArenaMood } from '../src/scene/arena';
+import { paintless } from './paintless';
 import { WAVE, waveAt } from '../src/scene/crowdLife';
 import { buildGround, groundFrom, nightOnly, ownFloodlights } from '../src/scene/grounds';
 import { STADIUM } from '../src/scene/stadium';
@@ -197,5 +198,75 @@ describe('the arena', () => {
       expect(f.word).not.toBeNull();
     }
     for (const kind of KINDS) expect(flashes('calm', { kind, at: 0 }, 0, CUES[kind].ms, true)).toBe(0);
+  });
+});
+
+describe('the boards any ground carries', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+  /** The boards along the rope as the stadium builds them: the sponsors' faces, lit a little by day. */
+  const rope = () => {
+    const sponsors = new THREE.Texture();
+    return { sponsors, material: new THREE.MeshStandardMaterial({ map: sponsors, emissiveMap: sponsors, emissive: 0xffffff, emissiveIntensity: .35 }) };
+  };
+
+  it('keeps a board\'s own face between moments, puts the brand\'s up in one, and hands back at the night\'s level', () => {
+    paintless();
+    const { sponsors, material } = rope();
+    const show = new Showboards(null);
+    show.ring(material, 30, true); show.lit(.35);
+    expect(show.update(0, false, true).board).toBe('idle');
+    expect(material.map).toBe(sponsors);
+    expect(material.emissiveIntensity).toBe(.35);
+    expect(material.color.getHex()).toBe(0xffffff);
+    show.cue('four', 1000);
+    const f = show.update(1100, false, false);
+    expect(f.board).toBe('four');
+    expect(material.map).not.toBe(sponsors);
+    expect(material.emissiveMap).toBe(material.map);
+    expect(material.emissiveIntensity).toBe(1);
+    expect(show.state).toMatchObject({ word: 'FOUR', board: 'four', screen: null, sting: null });
+    // Night fell while the word was up: the sponsors come back at the night's level.
+    show.lit(1);
+    expect(show.update(1000 + CUES.four.ms, false, false).board).toBe('idle');
+    expect(material.map).toBe(sponsors);
+    expect(material.emissiveMap).toBe(sponsors);
+    expect(material.emissiveIntensity).toBe(1);
+    expect(material.color.getHex()).toBe(0xffffff);
+    expect(show.state).toMatchObject({ word: null, board: 'idle', sting: null });
+  });
+
+  it('shows the brand\'s idle on a board that is the brand\'s, at 40% while the ball is live', () => {
+    paintless();
+    const ribbon = new THREE.MeshBasicMaterial();
+    const show = new Showboards(null);
+    show.ring(ribbon, 20);
+    show.update(0, false, true);
+    expect(ribbon.map).not.toBeNull();
+    expect(ribbon.color.r).toBeCloseTo(.4);
+    show.update(16, false, false);
+    expect(ribbon.color.r).toBe(1);
+    // The same face for the same state and lap, painted once.
+    const idle = ribbon.map;
+    show.cue('six', 100); show.update(200, false, false);
+    expect(ribbon.map).not.toBe(idle);
+    show.update(100 + CUES.six.ms, false, false);
+    expect(ribbon.map).toBe(idle);
+  });
+
+  it('lets a moment go when its ground goes out of sight, and when a new innings starts the clock again', () => {
+    paintless();
+    const { sponsors, material } = rope();
+    const show = new Showboards(null);
+    show.ring(material, 30, true); show.lit(.35);
+    show.cue('wicket', 500, 'BOWLED'); show.update(600, false, false);
+    expect(show.state).toMatchObject({ word: 'BOWLED', board: 'wicket' });
+    show.rest();
+    expect(material.map).toBe(sponsors);
+    expect(material.emissiveIntensity).toBe(.35);
+    expect(show.state).toMatchObject({ word: null, board: 'idle' });
+    show.cue('six', 5000); show.update(5100, false, false);
+    expect(show.state.word).toBe('SIX');
+    expect(show.update(0, false, false).word).toBeNull();
+    expect(material.map).toBe(sponsors);
   });
 });

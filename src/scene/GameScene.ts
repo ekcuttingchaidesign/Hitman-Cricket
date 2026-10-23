@@ -17,7 +17,7 @@ import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture } from '.
 import { BOARD_PANELS, perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, nightOnly, ownFloodlights, type GroundName } from './grounds';
-import { Arena, MILESTONE_WORDS, screenFrom, type ArenaCue, type ArenaMood, type Scoreboard } from './arena';
+import { Arena, MILESTONE_WORDS, Showboards, screenFrom, type ArenaCue, type ArenaMood, type Scoreboard } from './arena';
 import { buildWicket } from './wicket';
 import type { CrowdCelebration, CrowdMoment } from './CrowdCelebration';
 import { PerformanceReadout } from './performance';
@@ -125,6 +125,8 @@ interface Stands {
   warm: THREE.MeshStandardMaterial[];
   /** What hangs in the scene rather than the mirrored stage, a screen's words, shown only while these stands are up. */
   unmirrored?: THREE.Object3D[];
+  /** The brand's screen and LED boards, on a ground that has them (`Showboards`): the arena's, and the canopy's screen with the boards along the rope. */
+  show?: Showboards;
 }
 
 // The ball and its trail are the only things left that want a bare sphere;
@@ -274,8 +276,10 @@ export class GameScene {
   private night: THREE.Object3D[] = [];
   /** The lights the ground reflects after dark: see `nightReflections`. */
   private reflections = nightReflections(this.ground !== 'arena');
-  /** The arena's lights, screen and moments: see `arena.ts`. */
+  /** The arena's lights, stumps and torches: see `arena.ts`. */
   private arena: Arena | null = null;
+  /** The screen and the boards of the stands in use, which every moment is cued through, or null on a ground with none. */
+  private show: Showboards | null = null;
   private environment: THREE.WebGLRenderTarget;
   /** Painted once at start-up; the scene's traversal finds materials, not their maps. */
   private textures: THREE.Texture[] = [];
@@ -550,8 +554,10 @@ export class GameScene {
     let stands = this.built.get(name);
     if (!stands) { stands = this.buildStands(name); this.built.set(name, stands); }
     for (const [other, built] of this.built) built.group.visible = other === name;
+    // The stands going out of sight leave the boards along the rope as they found them.
+    if (this.show && this.show !== stands.show) this.show.rest();
     this.current = name;
-    this.crowd = stands.crowd; this.lamps = stands.lamps;
+    this.crowd = stands.crowd; this.lamps = stands.lamps; this.show = stands.show ?? null;
     this.lightStands();
   }
   private buildStands(name: GroundName): Stands {
@@ -565,6 +571,11 @@ export class GameScene {
       if (lights?.life && lights.seats) this.arena.crowd(lights.life, lights.seats, this.scene);
       if (this.boardsMaterial) this.arena.boards(this.boardsMaterial, BOARD_PANELS);
       this.textures.push(...this.arena.textures);
+      stands.show = this.arena.show;
+    } else if (lights?.screen) {
+      // A ground with a big screen plays the brand's moments on it and on the boards along the rope, which keep their sponsors between them.
+      stands.show = new Showboards(lights.screen);
+      if (this.boardsMaterial) stands.show.ring(this.boardsMaterial, BOARD_PANELS, true);
     }
     if (lights) {
       stands.crowd = lights.createCrowd?.(this.reducedMotion);
@@ -596,6 +607,7 @@ export class GameScene {
     for (const [name, built] of this.built) {
       for (const material of built.warm) material.emissiveIntensity = night ? 1 : 0;
       built.unmirrored?.forEach(object => { object.visible = name === this.current && (night || !object.userData.nightOnly); });
+      built.show?.lit(light.boards);
     }
   }
   /** The batter's materials and the ball's, which a hundred never greys: see `greyable`. */
@@ -738,24 +750,24 @@ export class GameScene {
   get fireworksUp() { return this.bursts.up; }
   cheer(kind: CrowdMoment, now: number, mark = 0, streak = 1, name = '') {
     this.crowd?.trigger(kind, now, mark, streak, name);
-    if (!this.arena) return;
-    if (kind === 'hit-four' || kind === 'hit-six') this.arena.cue(kind === 'hit-six' ? 'six' : 'four', now);
-    else this.arena.cue('milestone', now, MILESTONE_WORDS[kind]);
+    if (!this.show) return;
+    if (kind === 'hit-four' || kind === 'hit-six') this.show.cue(kind === 'hit-six' ? 'six' : 'four', now);
+    else this.show.cue('milestone', now, MILESTONE_WORDS[kind]);
     // Fireworks off the far end for a six and a milestone: the arena is always night.
-    if (kind !== 'hit-four') this.fireworks(now, kind === 'hit-six' ? ARENA_FIREWORKS.six : ARENA_FIREWORKS.milestone);
+    if (this.arena && kind !== 'hit-four') this.fireworks(now, kind === 'hit-six' ? ARENA_FIREWORKS.six : ARENA_FIREWORKS.milestone);
   }
-  /** The arena's mood: calm, Power Surge's gold or the death overs' red. Nothing on any other ground. */
-  arenaMood(mood: ArenaMood) { this.arena?.mood(mood); }
-  /** A moment the arena lights up for that the crowd has no part in: a wicket, Power Surge, the death overs. */
+  /** The brand's mood: calm, Power Surge's gold or the death overs' red. Nothing on a ground without its boards. */
+  arenaMood(mood: ArenaMood) { this.show?.mood(mood); }
+  /** A moment the screen and the boards light up for that the crowd has no part in: a wicket, Power Surge, the death overs. The wave and the stumps are the arena's alone. */
   arenaCue(kind: ArenaCue | 'wave' | 'stumps', now: number, word?: string) {
     if (kind === 'wave') this.arena?.wave(now);
     else if (kind === 'stumps') this.arena?.lightStumps(now);
-    else this.arena?.cue(kind, now, word);
+    else this.show?.cue(kind, now, word);
   }
-  /** What the big screen shows between moments. */
-  scoreboard(board: Scoreboard) { this.arena?.scoreboard(board); }
-  /** For the checks: the arena's mood and what it is showing, or null on another ground. */
-  get arenaState() { return this.arena?.state ?? null; }
+  /** What the big screen shows between moments, where it shows the score. */
+  scoreboard(board: Scoreboard) { this.show?.scoreboard(board); }
+  /** For the checks: the mood and what the screen and the boards show, with the arena's lamps and torches there, or null on a ground with neither. */
+  get arenaState() { return this.arena?.state ?? this.show?.state ?? null; }
   /** Whether this is the arena, which is played at night whatever the lights say. */
   get arenaGround() { return this.arena !== null; }
   get crowdState() { return this.crowd?.state ?? { kind: null, spectators: 0, banners: 0 }; }
@@ -1419,7 +1431,8 @@ export class GameScene {
     this.clock = now;
     this.crowd?.update(now);
     this.bursts.update(now);
-    this.arena?.update(now, this.bailsBrokeAt ? now - this.bailsBrokeAt : -1, this.reducedMotion, this.bowling);
+    const frame = this.show?.update(now, this.reducedMotion, this.bowling);
+    if (frame) this.arena?.update(now, frame, this.bailsBrokeAt ? now - this.bailsBrokeAt : -1, this.reducedMotion);
     this.batter.update(now);
     this.field.update(now);
     // Held, the ball goes where his hands go: through the slide, and up with

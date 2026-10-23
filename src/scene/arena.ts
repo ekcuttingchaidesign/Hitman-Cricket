@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Batch, mat } from './build';
-import { EAVES, STADIUM, stadium, type StadiumLights } from './stadium';
+import { EAVES, STADIUM, stadium, type BigScreen, type StadiumLights } from './stadium';
 import { seeded } from './turf';
 import type { Milestone } from '../game/milestone';
 import { paintFilm, type Film, type Playing } from '../ui/Lottie';
@@ -302,6 +302,8 @@ const MARKS = {
   lime: new URL('../assets/super10/mark-lime.png', import.meta.url).href,
 };
 function picture(src: string, ready: () => void) {
+  // The tests have no browser, and paint the boards without the marks.
+  if (typeof Image === 'undefined') return null;
   const image = new Image();
   image.onload = ready; image.src = src;
   return image;
@@ -503,43 +505,228 @@ export function slamScale(since: number) {
   return t < .75 ? 2.2 - (2.2 - .94) * out : .94 + .06 * ((t - .75) / .25);
 }
 
+/** A ring of LED board the brand's states go on: how many panels make its lap, and, where it has a face of its own between moments (the rope's sponsors), that face, to go back to. */
+interface LedBoard {
+  material: THREE.MeshBasicMaterial | THREE.MeshStandardMaterial;
+  panels: number;
+  own: { map: THREE.Texture | null; emissiveMap: THREE.Texture | null; color: THREE.Color } | null;
+}
+
 /**
- * The arena's lit pieces, hung in the scene's own frame rather than the
- * mirrored stage, so the screen and the boards' words read the right way
- * round whichever hand is batting; everything else is round, and the mirror
- * would change nothing.
+ * The brand's screen and LED boards, which any ground can carry: the
+ * arena's ribbon, its rope and its screen, and the canopy's screen and the
+ * boards along its rope. A moment cued (`cue`) puts its word on every board
+ * and its sting on the screen for as long as the sheet gives it (`CUES`),
+ * then lets go. Between moments a board that is the brand's shows the
+ * brand's idle (the arena's), and one with a face of its own keeps it (the
+ * sponsors along the canopy's rope), at the level the night lights it
+ * (`lit`); a screen with a picture of its own (`BigScreen.own`) shows that,
+ * and the score otherwise. Every frame is `arenaFrame`'s, and `update` hands
+ * it on for a ground with more to light by it. Hung in the scene's own frame
+ * rather than the mirrored stage, so the words read the right way round
+ * whichever hand is batting.
  */
-export class Arena {
+export class Showboards {
   readonly textures: THREE.Texture[] = [];
-  private lamps: THREE.MeshBasicMaterial;
-  /** The ring's glows, which the scene hangs (`glows` in `night.ts`): they burn with the lamps. */
-  private glow: THREE.PointsMaterial | null = null;
-  private torches: { material: THREE.PointsMaterial; share: { value: number } } | null = null;
-  private ribbon: THREE.MeshBasicMaterial;
-  private screen: ReturnType<typeof painted> | null = null;
   private shown = '';
   private board: Scoreboard = { title: 'SUPER10', score: '0/0', detail: '' };
   private moodNow: ArenaMood = 'calm';
   private cued: { kind: ArenaCue; at: number; word?: string } | null = null;
-  private boardsMaterial: THREE.MeshStandardMaterial | null = null;
-  private panels = { boards: 30, ribbon: 100 };
+  private boards: LedBoard[] = [];
   private faces = new Map<string, THREE.Texture>();
   private boardUp = '';
-  private stumpLights: WicketLights | null = null;
-  /** The stumps' wrap, for the wicket to be built with: see `stumpWrap`. */
-  readonly wrap: THREE.Texture;
   private last: ArenaFrame | null = null;
-  private marks: { primary: HTMLImageElement; lime: HTMLImageElement };
+  private marks: { primary: HTMLImageElement | null; lime: HTMLImageElement | null };
   private offset = 0;
+  /** What a board's own face is lit at between moments: see `lit`. */
+  private level = 1;
   /** Reduced motion, as the last frame was drawn under. */
   private still = false;
   /** The sting playing, painted into a canvas of its own and laid over the screen. */
   private playing: { name: Sting; at: number; canvas: HTMLCanvasElement; film: Playing | null } | null = null;
+
+  constructor(private screen: BigScreen | null) {
+    // Once the pictures and the faces are in, everything painted is painted again.
+    const repaint = () => { this.faces.forEach(t => t.dispose()); this.faces.clear(); this.boardUp = ''; this.shown = ''; };
+    this.marks = { primary: picture(MARKS.primary, repaint), lime: picture(MARKS.lime, repaint) };
+    if (typeof document !== 'undefined') document.fonts?.load(SAIRA(80)).then(() => document.fonts.load(SUB(40))).then(repaint).catch(() => {});
+    if (screen) this.paintScreen(null);
+  }
+
+  /**
+   * A ring of LED board for the brand's states, `panels` to its lap. With
+   * `own`, what it shows between moments is the face it has now, as the
+   * boards along the rope keep their sponsors, and the brand's only in a
+   * moment; without, the brand's idle.
+   */
+  ring(material: LedBoard['material'], panels: number, own = false) {
+    const standard = material instanceof THREE.MeshStandardMaterial;
+    this.boards.push({ material, panels, own: own ? { map: material.map, emissiveMap: standard ? material.emissiveMap : null, color: material.color.clone() } : null });
+    this.boardUp = '';
+  }
+  /** The level a board's own face is lit at: the night's for the boards along the rope (`LIGHTING`'s `boards`), which the brand's face hands back to. */
+  lit(level: number) { this.level = level; }
+
+  mood(mood: ArenaMood) { this.moodNow = mood; }
+  cue(kind: ArenaCue, now: number, word?: string) {
+    this.cued = { kind, at: now, word };
+    this.stopSting();
+    const name = stingOf(kind, word ?? CUES[kind].word);
+    if (name && this.screen && !this.still) this.playSting(name, now);
+  }
+  scoreboard(board: Scoreboard) { this.board = board; }
+  /** For the checks: the mood, the moment up, what the boards and the screen show. */
+  get state() {
+    const f = this.last;
+    return { mood: this.moodNow, word: f?.word ?? null, board: f?.board ?? 'idle', boards: f?.boards ?? 1,
+      screen: this.screen ? this.shown.split('|').slice(0, 2).join('|') : null, sting: this.playing?.name ?? null };
+  }
+
+  /** The boards and the screen at `now`, and the frame they were drawn from, for a ground with more to light by it. `live` is a ball on its way. */
+  update(now: number, still: boolean, live: boolean): ArenaFrame {
+    // A new innings starts the clock again from nought: a moment from the last one is let go.
+    if (this.cued && now < this.cued.at) { this.cued = null; this.stopSting(); }
+    const f = arenaFrame(this.moodNow, this.cued, now, still, live);
+    this.last = f; this.still = still;
+    // A moment over, its sting goes with it.
+    if (!f.word && this.playing) this.stopSting();
+    this.offset = (this.offset + f.chase * .016) % 1;
+    this.ledBoards(f);
+    if (this.screen) this.paintScreen(f);
+    return f;
+  }
+
+  /** The moment let go and every board back to what it shows between them: for a ground going out of sight under another's, which shares the rope's boards with it. */
+  rest() {
+    this.cued = null; this.stopSting(); this.last = null;
+    this.ledBoards(arenaFrame(this.moodNow, null, 0));
+    if (this.screen) this.paintScreen(null);
+  }
+
+  /** Every ring of board in the frame's state, at its brightness, run round by its chase; a board with a face of its own keeps it between moments. */
+  private ledBoards(f: ArenaFrame) {
+    const key = `${f.board}|${f.word ?? ''}`;
+    const changed = key !== this.boardUp;
+    this.boardUp = key;
+    for (const { material, panels, own } of this.boards) {
+      const standard = material instanceof THREE.MeshStandardMaterial;
+      if (own && f.board === 'idle') {
+        if (changed) {
+          material.map = own.map; material.color.copy(own.color);
+          if (standard) { material.emissiveMap = own.emissiveMap; material.emissiveIntensity = this.level; }
+          material.needsUpdate = true;
+        }
+        continue;
+      }
+      if (changed) {
+        const map = this.face(f.board, f.word ?? '', panels);
+        material.map = map;
+        if (standard) material.emissiveMap = map;
+        material.needsUpdate = true;
+      }
+      material.color.setScalar(f.boards);
+      if (standard) material.emissiveIntensity = f.boards;
+      (material.map as THREE.Texture).offset.x = this.offset;
+    }
+  }
+
+  /** A board state's panel for a ring of `panels`, painted once and kept. */
+  private face(state: BoardState, word: string, panels: number) {
+    const key = `${state}|${state === 'idle' ? '' : word}|${panels}`;
+    let texture = this.faces.get(key);
+    if (!texture) {
+      texture = boardPanel(state, word, panels, this.marks.lime);
+      this.faces.set(key, texture); this.textures.push(texture);
+    }
+    return texture;
+  }
+
+  private playSting(name: Sting, now: number) {
+    const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 384;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    this.playing = { name, at: now, canvas, film: paintFilm(context, `super10-${name}` as Film) };
+  }
+  private stopSting() { this.playing?.film?.destroy(); this.playing = null; }
+
+  /**
+   * The screen. Between moments: the ground's own picture where it has one,
+   * else the mark, and the score in the brand's lettering with who is in
+   * under it, painted only when it changes. In a moment: its sting over the
+   * ink if there is one, or its word slammed on and let go the way the news
+   * went, painted every frame while it moves.
+   */
+  private paintScreen(f: ArenaFrame | null) {
+    const screen = this.screen!;
+    const ctx = screen.context, W = ctx.canvas.width, H = ctx.canvas.height;
+    const word = f?.word ?? null, since = f?.since ?? Infinity;
+    const kind = this.cued?.kind;
+    const ms = kind ? CUES[kind].ms : 0;
+    const moving = word !== null && (this.playing !== null || (!this.still && (since < SLAM_MS || since > ms - LEAVE_MS)));
+    const key = word ? `w|${word}|${moving ? since : 'held'}` : screen.own ? 'own' : `b|${this.board.title}|${this.board.score}|${this.board.detail}`;
+    if (key === this.shown) return;
+    this.shown = key;
+    if (!word && screen.own) { screen.own(ctx); screen.texture.needsUpdate = true; return; }
+    ctx.fillStyle = hex(ARENA.ink); ctx.fillRect(0, 0, W, H);
+    // The floodlights' violet in the screen's corner, and nothing else behind.
+    const haze = ctx.createRadialGradient(W * .15, H, 10, W * .15, H, W * .6);
+    haze.addColorStop(0, 'rgba(139,92,246,.35)'); haze.addColorStop(1, 'rgba(139,92,246,0)');
+    ctx.fillStyle = haze; ctx.fillRect(0, 0, W, H);
+    if (word) {
+      // Under reduced motion the word stands still: no slam, no leave.
+      const leaving = this.still ? 0 : fade(since, ms - LEAVE_MS, ms);
+      const slam = this.still ? 1 : slamScale(since);
+      // Up and away for good news, down for a wicket.
+      const drift = (kind === 'wicket' ? 1 : -1) * leaving * 90;
+      const out = kind === 'wicket';
+      const big = word.length <= 7;
+      // A four's +4 stands in its own corner, the word moved over for it.
+      const four = word === 'FOUR';
+      lettering(ctx, word, four ? W / 2 - 90 : W / 2, H / 2 + (word === 'SIX' ? -26 : 0) + drift, big ? 190 : 120, four ? W - 380 : W - 120, out ? ARENA.wicket : ARENA.plate, slam, 1 - leaving);
+      if (word === 'SIX') sub(ctx, 'MAXIMUM', W / 2, H - 70 + drift, 40, `rgba(255,255,255,${1 - leaving})`);
+      if (four) lettering(ctx, '+4', W - 140, H / 2 - 60 + drift, 110, 210, ARENA.plate, this.still ? 1 : slamScale(since - 120), 1 - leaving);
+      // The sting over it, its own ground covering the word once its first frame is in.
+      if (this.playing) ctx.drawImage(this.playing.canvas, 0, 0, W, H);
+    } else {
+      const { title, score, detail } = this.board;
+      const mark = this.marks.primary;
+      // The mark down the left with its clear space; any other game's name in the lettering.
+      if (title === 'SUPER10' && mark?.complete && mark.naturalWidth) ctx.drawImage(mark, 40, 78, 440, 207);
+      else lettering(ctx, title, 260, H / 2, 96, 400);
+      lettering(ctx, score, 760, H / 2 - 34, 150, 420);
+      sub(ctx, detail, 760, H / 2 + 112, 34, hex(ARENA.mist));
+    }
+    // The screen's pixels: a fine dark grid over all of it.
+    ctx.fillStyle = 'rgba(0,0,0,.22)';
+    for (let x = 0; x < W; x += 4) ctx.fillRect(x, 0, 1, H);
+    for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+    screen.texture.needsUpdate = true;
+  }
+}
+
+/**
+ * The arena's own lit pieces, hung in the scene's own frame rather than the
+ * mirrored stage, over the boards and the screen (`Showboards`, its `show`,
+ * which the cues reach it through): the ring of lamps that answers the
+ * game, the phone torches, the crowd's wave and the LED stumps.
+ */
+export class Arena {
+  readonly textures: THREE.Texture[] = [];
+  /** The ribbon, the boards along the rope and the screen, cued by `GameScene` as any ground's are. */
+  readonly show: Showboards;
+  private lamps: THREE.MeshBasicMaterial;
+  /** The ring's glows, which the scene hangs (`glows` in `night.ts`): they burn with the lamps. */
+  private glow: THREE.PointsMaterial | null = null;
+  private torches: { material: THREE.PointsMaterial; share: { value: number } } | null = null;
+  private stumpLights: WicketLights | null = null;
+  /** The stumps' wrap, for the wicket to be built with: see `stumpWrap`. */
+  readonly wrap: THREE.Texture;
+  private last: ArenaFrame | null = null;
   /** The crowd's clock and its wave: see `crowdLife.ts`. */
   private life: CrowdLife | null = null;
   private waveFrom = -Infinity;
 
-  constructor(scene: THREE.Object3D, readonly hasScreen: boolean, anisotropy: number) {
+  constructor(scene: THREE.Object3D, hasScreen: boolean, anisotropy: number) {
     const ring = (radius: number, height: number, y: number, material: THREE.Material, top = radius) => {
       const mesh = new THREE.Mesh(new THREE.CylinderGeometry(top, radius, height, 180, 1, true), material);
       mesh.position.set(0, y, CENTRE_Z);
@@ -547,32 +734,26 @@ export class Arena {
       scene.add(mesh);
       return mesh;
     };
-    // Once the pictures and the faces are in, everything painted is painted again.
-    const repaint = () => { this.faces.forEach(t => t.dispose()); this.faces.clear(); this.boardUp = ''; this.shown = ''; };
-    this.marks = { primary: picture(MARKS.primary, repaint), lime: picture(MARKS.lime, repaint) };
-    document.fonts?.load(SAIRA(80)).then(() => document.fonts.load(SUB(40))).then(repaint).catch(() => {});
-
     const lamps = lampTexture(); lamps.repeat.x = -Math.round(2 * Math.PI * LAMPS.radius / 1.2); lamps.anisotropy = anisotropy;
     // Tipped down at the field: wider at the top than at the foot.
     this.lamps = new THREE.MeshBasicMaterial({ map: lamps, color: new THREE.Color(ARENA.lamp).multiplyScalar(LAMP_REST), side: THREE.BackSide, fog: false, toneMapped: false });
     ring(LAMPS.radius - .2, LAMPS.height, LAMPS.y, this.lamps, LAMPS.radius + .15);
 
     // The ribbon: an LED board the length of the upper tier, a panel every two and a half metres.
-    this.panels.ribbon = Math.round(2 * Math.PI * RIBBON.radius / (RIBBON.height * 5));
-    this.ribbon = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide, fog: false, toneMapped: false });
-    ring(RIBBON.radius, RIBBON.height, RIBBON.y, this.ribbon);
+    const ribbon = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide, fog: false, toneMapped: false });
+    ring(RIBBON.radius, RIBBON.height, RIBBON.y, ribbon);
 
     const city = skyline(anisotropy);
     scene.add(city.mesh);
 
-
-    if (hasScreen) this.buildScreen(scene, anisotropy);
+    this.show = new Showboards(hasScreen ? this.buildScreen(scene, anisotropy) : null);
+    this.show.ring(ribbon, Math.round(2 * Math.PI * RIBBON.radius / (RIBBON.height * 5)));
     this.wrap = stumpWrap(GAME.stumpHeight); this.wrap.anisotropy = anisotropy;
     this.textures.push(lamps, city.texture, this.wrap);
   }
 
   /** The screen on its frame, on two legs off the roof, turned to the crease. */
-  private buildScreen(scene: THREE.Object3D, anisotropy: number) {
+  private buildScreen(scene: THREE.Object3D, anisotropy: number): BigScreen {
     const { width, height, bottom, z } = SCREEN;
     const middle = bottom + height / 2;
     // The face and its frame turned together to look back down the pitch at
@@ -586,19 +767,17 @@ export class Arena {
     for (const x of [-width / 3, width / 3]) b.box(.45, bottom - EAVES + .4, .45, STADIUM.steel, x, (bottom + EAVES) / 2, z + .5);
     b.build(scene, { casts: false });
     scene.add(held);
-    this.screen = painted(1024, 384);
-    this.screen.texture.anisotropy = anisotropy;
-    const face = new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshBasicMaterial({ map: this.screen.texture, fog: false, toneMapped: false }));
+    const screen = painted(1024, 384);
+    screen.texture.anisotropy = anisotropy;
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshBasicMaterial({ map: screen.texture, fog: false, toneMapped: false }));
     face.name = 'Big screen';
     held.add(face);
-    this.textures.push(this.screen.texture);
-    this.paintScreen(null);
+    this.textures.push(screen.texture);
+    return { context: screen.context, texture: screen.texture };
   }
 
   /** The boards along the rope: in the arena they are its LED boards, not the sponsors'. `panels` is how many make a lap. */
-  boards(material: THREE.MeshStandardMaterial, panels: number) {
-    this.boardsMaterial = material; this.panels.boards = panels;
-  }
+  boards(material: THREE.MeshStandardMaterial, panels: number) { this.show.ring(material, panels); }
 
   /** The batter's LED wicket, its crown, rings and bails to light when it is broken (`stumpLight`); the far wicket stays at rest. */
   wire(lights: WicketLights) { this.stumpLights = lights; }
@@ -627,44 +806,26 @@ export class Arena {
   /** A Mexican wave sent round the stands from `now`. */
   wave(now: number) { this.waveFrom = now; }
 
-  mood(mood: ArenaMood) { this.moodNow = mood; }
-  cue(kind: ArenaCue, now: number, word?: string) {
-    this.cued = { kind, at: now, word };
-    this.stopSting();
-    const name = stingOf(kind, word ?? CUES[kind].word);
-    if (name && this.screen && !this.still) this.playSting(name, now);
-  }
-  scoreboard(board: Scoreboard) { this.board = board; }
-  /** For the checks: the mood, the moment up, what the boards and the screen show. */
+  /** For the checks: the boards' and the screen's state, with the wave, the lamps and the torches. */
   get state() {
     const f = this.last;
-    return { mood: this.moodNow, word: f?.word ?? null, board: f?.board ?? 'idle', boards: f?.boards ?? 1,
-      screen: this.hasScreen ? this.shown.split('|').slice(0, 2).join('|') : null, sting: this.playing?.name ?? null,
-      wave: +(this.life?.waveOn.value ?? 0).toFixed(2), front: +(this.life?.wave.value ?? 0).toFixed(2),
+    return { ...this.show.state, wave: +(this.life?.waveOn.value ?? 0).toFixed(2), front: +(this.life?.wave.value ?? 0).toFixed(2),
       lamps: +(f?.lamps ?? 1).toFixed(2), torches: +(f?.torches ?? 0).toFixed(2) };
   }
 
-  /** `broken` is how long ago the batter's bails went, or less than nought; `live`, a ball on its way. */
-  update(now: number, broken: number, still: boolean, live: boolean) {
-    // A new innings starts the clock again from nought: a moment from the last one is let go.
-    if (this.cued && now < this.cued.at) { this.cued = null; this.stopSting(); }
+  /** The lamps, the torches, the wave and the stumps at `now`, by the frame the boards were drawn from (`Showboards.update`). `broken` is how long ago the batter's bails went, or less than nought. */
+  update(now: number, f: ArenaFrame, broken: number, still: boolean) {
     if (now < this.waveFrom) this.waveFrom = -Infinity;
     if (this.life) {
       const wave = waveAt(now - this.waveFrom);
       this.life.time.value = now / 1000; this.life.still.value = still ? 1 : 0;
       this.life.wave.value = wave.at; this.life.waveOn.value = wave.on;
     }
-    const f = arenaFrame(this.moodNow, this.cued, now, still, live);
-    this.last = f; this.still = still;
-    // A moment over, its sting goes with it.
-    if (!f.word && this.playing) this.stopSting();
+    this.last = f;
     // The floodlights: the ring's colour and its glows, which stand bigger as they burn brighter.
     this.lamps.color.setHex(ARENA.lamp).multiplyScalar(LAMP_REST * f.lamps);
     if (this.glow) { this.glow.opacity = Math.min(1, f.lamps); this.glow.size = this.glowSize * Math.max(.6, f.lamps); }
     if (this.torches) this.torches.share.value = f.torches;
-    this.offset = (this.offset + f.chase * .016) % 1;
-    this.ledBoards(f);
-    if (this.screen) this.paintScreen(f);
     // The batter's stumps: strike, dip, hold, as the sheet has them.
     if (this.stumpLights) {
       if (now < this.stumpsFrom) this.stumpsFrom = -Infinity;
@@ -674,96 +835,5 @@ export class Arena {
         material.emissive.setHex(glow[part].colour); material.emissiveIntensity = glow[part].level * 1.4;
       }
     }
-  }
-
-  /** The two LED boards, the ribbon and the rope's, in the frame's state, at its brightness, run round by its chase. */
-  private ledBoards(f: ArenaFrame) {
-    const key = `${f.board}|${f.word ?? ''}`;
-    if (key !== this.boardUp) {
-      this.boardUp = key;
-      this.ribbon.map = this.face(f.board, f.word ?? '', this.panels.ribbon);
-      this.ribbon.needsUpdate = true;
-      if (this.boardsMaterial) {
-        const map = this.face(f.board, f.word ?? '', this.panels.boards);
-        this.boardsMaterial.map = map; this.boardsMaterial.emissiveMap = map;
-      }
-    }
-    this.ribbon.color.setScalar(f.boards);
-    (this.ribbon.map as THREE.Texture).offset.x = this.offset;
-    if (this.boardsMaterial) {
-      this.boardsMaterial.color.setScalar(f.boards); this.boardsMaterial.emissiveIntensity = f.boards;
-      (this.boardsMaterial.map as THREE.Texture).offset.x = this.offset;
-    }
-  }
-
-  /** A board state's panel for a ring of `panels`, painted once and kept. */
-  private face(state: BoardState, word: string, panels: number) {
-    const key = `${state}|${state === 'idle' ? '' : word}|${panels}`;
-    let texture = this.faces.get(key);
-    if (!texture) {
-      texture = boardPanel(state, word, panels, this.marks.lime);
-      this.faces.set(key, texture); this.textures.push(texture);
-    }
-    return texture;
-  }
-
-  private playSting(name: Sting, now: number) {
-    const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 384;
-    const context = canvas.getContext('2d');
-    if (!context) return;
-    this.playing = { name, at: now, canvas, film: paintFilm(context, `super10-${name}` as Film) };
-  }
-  private stopSting() { this.playing?.film?.destroy(); this.playing = null; }
-
-  /**
-   * The screen. Between moments: the mark, and the score in the brand's
-   * lettering with who is in under it, painted only when it changes. In a
-   * moment: its sting over the ink if there is one, or its word slammed on
-   * and let go the way the news went, painted every frame while it moves.
-   */
-  private paintScreen(f: ArenaFrame | null) {
-    const screen = this.screen!;
-    const ctx = screen.context, W = 1024, H = 384;
-    const word = f?.word ?? null, since = f?.since ?? Infinity;
-    const kind = this.cued?.kind;
-    const ms = kind ? CUES[kind].ms : 0;
-    const moving = word !== null && (this.playing !== null || (!this.still && (since < SLAM_MS || since > ms - LEAVE_MS)));
-    const key = word ? `w|${word}|${moving ? since : 'held'}` : `b|${this.board.title}|${this.board.score}|${this.board.detail}`;
-    if (key === this.shown) return;
-    this.shown = key;
-    ctx.fillStyle = hex(ARENA.ink); ctx.fillRect(0, 0, W, H);
-    // The floodlights' violet in the screen's corner, and nothing else behind.
-    const haze = ctx.createRadialGradient(W * .15, H, 10, W * .15, H, W * .6);
-    haze.addColorStop(0, 'rgba(139,92,246,.35)'); haze.addColorStop(1, 'rgba(139,92,246,0)');
-    ctx.fillStyle = haze; ctx.fillRect(0, 0, W, H);
-    if (word) {
-      // Under reduced motion the word stands still: no slam, no leave.
-      const leaving = this.still ? 0 : fade(since, ms - LEAVE_MS, ms);
-      const slam = this.still ? 1 : slamScale(since);
-      // Up and away for good news, down for a wicket.
-      const drift = (kind === 'wicket' ? 1 : -1) * leaving * 90;
-      const out = kind === 'wicket';
-      const big = word.length <= 7;
-      // A four's +4 stands in its own corner, the word moved over for it.
-      const four = word === 'FOUR';
-      lettering(ctx, word, four ? W / 2 - 90 : W / 2, H / 2 + (word === 'SIX' ? -26 : 0) + drift, big ? 190 : 120, four ? W - 380 : W - 120, out ? ARENA.wicket : ARENA.plate, slam, 1 - leaving);
-      if (word === 'SIX') sub(ctx, 'MAXIMUM', W / 2, H - 70 + drift, 40, `rgba(255,255,255,${1 - leaving})`);
-      if (four) lettering(ctx, '+4', W - 140, H / 2 - 60 + drift, 110, 210, ARENA.plate, this.still ? 1 : slamScale(since - 120), 1 - leaving);
-      // The sting over it, its own ground covering the word once its first frame is in.
-      if (this.playing) ctx.drawImage(this.playing.canvas, 0, 0, W, H);
-    } else {
-      const { title, score, detail } = this.board;
-      const mark = this.marks.primary;
-      // The mark down the left with its clear space; any other game's name in the lettering.
-      if (title === 'SUPER10' && mark.complete && mark.naturalWidth) ctx.drawImage(mark, 40, 78, 440, 207);
-      else lettering(ctx, title, 260, H / 2, 96, 400);
-      lettering(ctx, score, 760, H / 2 - 34, 150, 420);
-      sub(ctx, detail, 760, H / 2 + 112, 34, hex(ARENA.mist));
-    }
-    // The screen's pixels: a fine dark grid over all of it.
-    ctx.fillStyle = 'rgba(0,0,0,.22)';
-    for (let x = 0; x < W; x += 4) ctx.fillRect(x, 0, 1, H);
-    for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
-    screen.texture.needsUpdate = true;
   }
 }

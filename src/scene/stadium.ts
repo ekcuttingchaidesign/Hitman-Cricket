@@ -117,6 +117,14 @@ const COVERED = 3.8;
 const AISLE = 0.4;
 
 /**
+ * A big screen painted in a canvas, for the brand's moments to play on
+ * (`Showboards` in `arena.ts`): its context and texture, and `own`, what it
+ * shows between moments where that is the ground's own picture rather than
+ * the score.
+ */
+export interface BigScreen { context: CanvasRenderingContext2D; texture: THREE.Texture; own?: (ctx: CanvasRenderingContext2D) => void }
+
+/**
  * What the scene needs to light the stadium up at night: the lamps' material,
  * to turn them up, and where the lamps are, in the stage's frame, to hang a
  * glow on each.
@@ -137,6 +145,8 @@ export interface StadiumLights {
   unmirrored?: THREE.Object3D[];
   /** Textures painted for the ground, to be disposed of with the scene. */
   textures?: THREE.Texture[];
+  /** The ground's big screen, where it has one the brand's moments can play on. */
+  screen?: BigScreen;
 }
 
 /** Builds the stadium onto `world`, the stage's own frame: the bowler's end is +z. */

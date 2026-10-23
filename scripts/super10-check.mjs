@@ -18,7 +18,9 @@
  * offered in the break before the sixth over, taken with P and two men
  * brought in for it with the bowler beckoning them, used after, the field
  * drawn in the pause sheet,
- * and the field map's coach card a first Super10 opens with, once.
+ * and the field map's coach card a first Super10 opens with, once. And the
+ * canopy's big screen and the boards along its rope playing the brand's
+ * moment for a four, and going back to their own faces after it.
  *
  * The actions themselves are looked at in `bowler-sheet.html`
  * (`scripts/bowler-sheet.mjs`): a frame there is the frame asked for, which a
@@ -167,6 +169,19 @@ for (let over = 0; over < 10; over++) {
 await until(['INNINGS_END'], 200);
 const final = await snap();
 check(final.balls === 60 || final.wickets === 5, 'the innings ends at ten overs or five wickets', `${final.runs}/${final.wickets} off ${final.balls}`);
+
+// The canopy's screen and the boards along the rope: the brand's moment on both, then their own faces back.
+const ground = await page.evaluate(() => window.__cricket.ground());
+await page.evaluate(() => window.__cricket.arenaCue('four'));
+await advance(120);
+const cued = await page.evaluate(() => window.__cricket.arena());
+await advance(2600);
+const rested = await page.evaluate(() => window.__cricket.arena());
+check(ground === 'canopy', 'Super10 is played at the canopy', ground);
+check(cued?.word === 'FOUR' && cued.board === 'four' && cued.sting === 'four' && cued.screen === 'w|FOUR',
+  'a four puts FOUR and its sting on the screen and the boards along the rope', JSON.stringify(cued));
+check(rested?.word === null && rested.board === 'idle' && rested.sting === null && rested.screen === 'own',
+  'and both go back to their own faces after it', JSON.stringify(rested));
 
 // The schedule: swing, seam, swing, spin, sling, spin and seam either way, death, sling, death.
 const want = ['PACE', 'PACE', 'PACE', 'SPIN', 'EXPRESS', null, null, 'DEATH', 'EXPRESS', 'DEATH'];

@@ -1,16 +1,8 @@
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_GROUND, askedGround, buildGround, groundFor, groundFrom, ownFloodlights } from '../src/scene/grounds';
+import { paintless } from './paintless';
 
-/** A canvas that paints nothing, for the grounds that paint a texture (the canopy's screen and roof): the tests have no browser. */
-function paintless() {
-  const context = new Proxy({}, {
-    get: (_, key) => key === 'createLinearGradient' || key === 'createRadialGradient' ? () => ({ addColorStop() {} })
-      : key === 'measureText' ? () => ({ width: 0 }) : () => {},
-    set: () => true,
-  });
-  vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => context }) });
-}
 afterEach(() => { vi.unstubAllGlobals(); });
 
 const built = (name: 'stadium' | 'bowl' | 'pavilion' | 'canopy') => {
@@ -112,6 +104,9 @@ describe('the ground', () => {
     // Its screen hangs in the scene, not the mirrored stage; its windows, soffits and roof are lit at night.
     expect(lights!.unmirrored?.map(o => o.name)).toEqual(['Big screen', 'Skyline']);
     expect(lights!.unmirrored![1].userData.nightOnly).toBe(true);
+    // The screen is handed over for the brand's moments, with its own picture to go back to between them.
+    expect(lights!.screen?.texture).toBe((lights!.unmirrored![0] as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>).material.map);
+    expect(lights!.screen?.own).toBeTypeOf('function');
     expect(lights!.warm?.length).toBeGreaterThanOrEqual(3);
     expect(lights!.spots!.length).toBeGreaterThan(200);
     expect(scenery.map(m => m.name)).toEqual(expect.arrayContaining(['Canopy', 'Canopy underside', 'Canopy rim']));

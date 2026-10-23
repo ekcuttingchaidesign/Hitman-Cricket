@@ -1659,9 +1659,10 @@ one file, as `cover-drive-artifact.mjs` does the strokes.
 Super10 was to have a ground of its own, so it does not feel like an old
 mode played again, and the arena (`src/scene/arena.ts`) was built for it:
 Super10's ground is the canopy now (below, `groundFor`), and the arena is
-kept behind `?ground=arena` in any mode, with the brand's pieces that are
-built into it — the LED stumps, the screen's stings, the floodlights that
-answer the game, the phone torches — ready to move across. It is played at
+kept behind `?ground=arena` in any mode. The screen's stings and the LED
+boards' states have moved across already (`Showboards`, below); the brand's
+other pieces built into it — the LED stumps, the floodlights that answer
+the game, the phone torches — are ready to. It is played at
 night only, whatever the clock or the link says (`nightOnly` in
 `grounds.ts`; its pause card has no Lights row).
 It is the stadium's own night first — its crowd, its white sightscreen, its
@@ -1731,6 +1732,23 @@ and under reduced motion, where no sting plays and the word stands still. A
 wicket is told how he went (`BOWLED`, `DUCK` for a batter out with none, else
 `OUT`).
 
+The screen and the boards are one piece any ground can carry, `Showboards`
+in `arena.ts`: the brand's states on every ring of board it is given
+(`ring`), the stings and the words on its screen (`BigScreen` in
+`stadium.ts`, handed over on the ground's lights as `screen`), every frame
+`arenaFrame`'s. `GameScene` cues the one belonging to the stands in use
+(`show`, through `cheer`, `arenaCue`, `arenaMood` and `scoreboard`), and the
+arena's own pieces — the lamps, the torches, the wave, the stumps — light by
+the frame it hands back. A board that is the brand's shows the brand's idle
+between moments (the arena's ribbon and rope); one with a face of its own
+keeps it, and takes the brand's only in a moment (`ring(…, true)`: the
+sponsors along the canopy's rope, back at the night's level, `lit`); a
+screen with a picture of its own (`own`) shows that between moments, the
+score otherwise. A ground going out of sight under another's lets its moment
+go and leaves the rope's boards as it found them (`rest`). `tests/arena.test.ts`
+holds the rings, and `super10-check` cues a four on the canopy at the end of
+its innings.
+
 The crowd is never still (`src/scene/crowdLife.ts`, `lively` on the stands):
 everybody bobs on their seat and sways from the hips to a rhythm of their own,
 in the crowd's vertex shaders off one clock, on materials of their own (the
@@ -1799,7 +1817,11 @@ and the lower behind a solid parapet — the first build sat them behind panes
 drawn solid and nobody was seen — a back wall lit warm, lamps in the
 ceiling) and on its roof the big screen, HITMAN
 CRICKET under an outlined crown with teal and green slashes either side, in
-a dark frame with a white edge, a flag over each corner. Round the rest of
+a dark frame with a white edge, a flag over each corner; in a moment it
+plays the brand's sting or word (`Showboards`, above), and the boards along
+the rope put the brand's state up over their sponsors for as long as it
+lasts, FOUR +4 on lime, SIX over MAXIMUM, OUT on raspberry, then both go
+back to their own faces. Round the rest of
 the ring a section of its own (`tiers`, the stadium's `section` option): a
 lower tier, a warm concourse band behind its last row under the upper deck,
 the deck's soffit with a lamp every couple of metres, its white fascia with
