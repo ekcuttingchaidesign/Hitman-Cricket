@@ -1792,20 +1792,26 @@ the deck's soffit with a lamp every couple of metres, its white fascia with
 glass on it, an upper tier of eight rows; a stair aisle down the middle of
 every tier with a white nosing on each step and handrails on posts; the
 crowd closer packed than the stadium's (`SEAT`) on darker steps, in the home
-side's greens and whites, every shirt drawn at random. Two roof canopies
-sweep round from tips lifted beside the screen to behind the batter, on
-columns behind every section with a tie to the top of the stand. They are
-highest at the front edge and fall back to the columns: rising to the back,
-they rose more steeply than a line from the batter's end and the camera saw
-their tops, not their lights. Square floodlight heads of twenty round lamps
-stand over the far corners, and trees behind.
+side's greens and whites, every shirt drawn at random. Two curved roof
+canopies (`roofAt`) sweep round from rounded points low beside the screen,
+the front edge rising on an easing curve to its full height round the
+ground, so a phone sees each white rim swoop up from the screen to the edge
+of its picture; built first level along the ring with a lifted tip, they read
+as two flat planks. They stand on columns behind every section with a tie to
+the top of the stand, and are highest at the front edge and fall back to the
+columns: rising to the back, they rose more steeply than a line from the
+batter's end and the camera saw their tops, not their lights. By day the
+underside is in shade, tinted lilac against the grass's green bounce as the
+stadium's soffit is. Square floodlight heads of twenty round lamps stand over
+the far corners, and trees behind.
 
-The lighting is what makes it at night: the lamps in the soffits, the
-hospitality ceilings and the roof are the stadium's lamp material, each with
-a small glow (`spots`, a third cloud in `glows`); the concourse and
-hospitality walls, the soffits and the canopies' undersides glow warm
-(`warm` on the lights, `lightStands` in `GameScene`), and the canopies'
-downlights burn faintly by day too (`userData.day`). The screen hangs in the
+The lighting is what makes it at night, and none of it is on by day: the
+downlights in the soffits and the hospitality ceilings (a material of their
+own, grey fittings by day: the stadium's lamp material glows a little in
+daylight), the canopies' undersides, the concourse and hospitality walls and
+the soffits all glow warm only at night (`warm` on the lights, `lightStands`
+in `GameScene`), and each downlight has a small glow (`spots`, a third cloud
+in `glows`). The screen hangs in the
 scene, not the mirrored stage (`unmirrored`), so its words read the right
 way round for either hand. Every stand built after the scene was put
 together is made greyable for a hundred (`greyable`). It costs the

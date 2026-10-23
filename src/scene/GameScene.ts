@@ -594,7 +594,7 @@ export class GameScene {
     this.crowd?.setNight(night);
     if (this.lamps) this.lamps.emissiveIntensity = light.lamps;
     for (const [name, built] of this.built) {
-      for (const material of built.warm) material.emissiveIntensity = night ? 1 : material.userData.day ?? 0;
+      for (const material of built.warm) material.emissiveIntensity = night ? 1 : 0;
       built.unmirrored?.forEach(object => { object.visible = name === this.current; });
     }
   }

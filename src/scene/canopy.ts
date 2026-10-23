@@ -43,6 +43,8 @@ export const CANOPY = {
   dark: 0x1b242b,
   /** Glass balustrades. */
   glass: 0x86a0b0,
+  /** The downlights in the soffits and the hospitality ceilings: grey fittings by day, lit at night. */
+  light: 0xd8d5ce,
   /** The screen's frame and the box behind it. */
   frame: 0x222a31,
   /** The towers: white masts and frames round a dark head. */
@@ -78,14 +80,34 @@ const SEAT = .55;
 const AISLE = .5;
 
 /**
- * The canopy: from a lifted tip beside the screen (`from`, an angle round the
+ * The canopy: from its tip beside the screen (`from`, an angle round the
  * ground off straight) round to behind the batter, its front edge over the
  * upper tier's fascia and its back over the columns behind the stand. It is
  * highest at its front edge and falls back to the columns, as a cantilever
  * does: rising to the back, it rose more steeply than a line from the
  * batter's end, and the camera saw its top rather than its lights.
+ *
+ * And it is curved, as the reference's are: from a rounded point low beside
+ * the screen (`tipY`, the depth drawn in over `tip`), the front edge sweeps
+ * up on an easing curve (`sweep`) to its full height round the ground, so a
+ * phone sees the white rim swoop up from the screen to the edge of its
+ * picture. Built first level along the ring with its tip lifted, it read as
+ * two flat planks.
  */
-const ROOF = { from: .14, to: Math.PI - .03, front: RING + 1.2, back: RING + 14, frontY: 12.4, backY: 10.9, tip: .24, lift: 2.2 } as const;
+const ROOF = { from: .14, to: Math.PI - .03, front: RING + .4, back: RING + 14, frontY: 14.2, backY: 11.3, tipY: 10, sweep: .55, tip: .3 } as const;
+/** The canopy `angle` off straight: where its front edge stands, and how high its front and back edges are. */
+export function roofAt(angle: number) {
+  const s = Math.max(0, Math.abs(angle) - ROOF.from);
+  const f = THREE.MathUtils.smoothstep(s, 0, ROOF.tip);
+  const curve = Math.sin(Math.min(1, s / ROOF.sweep) * Math.PI / 2);
+  return {
+    // The depth drawn in to a rounded point at the tip.
+    front: THREE.MathUtils.lerp(ROOF.back - .8, ROOF.front, Math.sqrt(f)),
+    frontY: THREE.MathUtils.lerp(ROOF.tipY, ROOF.frontY, curve),
+    backY: THREE.MathUtils.lerp(ROOF.tipY - .2, ROOF.backY, curve),
+    f,
+  };
+}
 
 /** The far end's block, straight across behind the sightscreen. */
 const BLOCK = { z: CENTRE_Z + RING - 1.7, width: 9.8, floor1: 3.3, floor2: 5.6, roof: 7.9 } as const;
@@ -100,6 +122,8 @@ export function canopyStands(world: THREE.Object3D): StadiumLights {
   const warm = {
     wall: new THREE.MeshStandardMaterial({ color: CANOPY.wall, roughness: .9, emissive: 0xffd49a, emissiveIntensity: 0 }),
     soffit: new THREE.MeshStandardMaterial({ color: CANOPY.soffit, roughness: .85, emissive: 0x9c8466, emissiveIntensity: 0 }),
+    // Not the stadium's lamps, which glow a little by day: these are off until the floodlights are on.
+    light: new THREE.MeshStandardMaterial({ color: CANOPY.light, roughness: .4, emissive: 0xfff6e6, emissiveIntensity: 0 }),
   };
   const spots: THREE.Vector3[] = [];
   const lights = stadium(world, {
@@ -108,7 +132,7 @@ export function canopyStands(world: THREE.Object3D): StadiumLights {
     end: {
       skip: section => section === 0,
       build: (b, seat, l) => {
-        b.finish(CANOPY.wall, warm.wall); b.finish(CANOPY.soffit, warm.soffit);
+        b.finish(CANOPY.wall, warm.wall); b.finish(CANOPY.soffit, warm.soffit); b.finish(CANOPY.light, warm.light);
         block(b, seat, spots);
         towers(b, l);
         trees(b);
@@ -120,7 +144,7 @@ export function canopyStands(world: THREE.Object3D): StadiumLights {
   roof.meshes.forEach(mesh => world.add(mesh));
   const screen = bigScreen();
   lights.spots = spots;
-  lights.warm = [warm.wall, warm.soffit, roof.under];
+  lights.warm = [warm.wall, warm.soffit, warm.light, roof.under];
   lights.unmirrored = [screen.mesh];
   lights.textures = [...roof.textures, screen.texture];
   return lights;
@@ -168,7 +192,7 @@ function tiers(b: Batch, seat: SeatFn, frame: THREE.Matrix4, width: (z: number) 
   for (let x = -w / 2 + .8; x < w / 2 - .4; x += 1.6) {
     if (Math.abs(x) < AISLE) continue;
     for (const z of [DECK.z + .9, DECK.z + 2.2]) {
-      b.box(.34, .06, .34, STADIUM.lamp, x, DECK.y - .02, z, frame);
+      b.box(.34, .06, .34, CANOPY.light, x, DECK.y - .02, z, frame);
       spots.push(new THREE.Vector3(x, DECK.y - .15, z).applyMatrix4(frame));
     }
   }
@@ -214,7 +238,7 @@ function block(b: Batch, seat: SeatFn, spots: THREE.Vector3[]) {
     b.box(W - .2, .07, .1, trim, 0, floor + 1.05, back + .12, at);
     for (let x = -W / 2 + .1; x <= W / 2; x += 1.62) b.box(.1, ceiling - floor, .12, trim, x, (floor + ceiling) / 2, back + .08, at);
     for (let x = -W / 2 + .9; x < W / 2; x += 1.62) {
-      b.box(.34, .06, .34, STADIUM.lamp, x, ceiling - .19, back + 1.4, at);
+      b.box(.34, .06, .34, CANOPY.light, x, ceiling - .19, back + 1.4, at);
       spots.push(new THREE.Vector3(x, ceiling - .3, back + 1.4).applyMatrix4(at));
     }
   }
@@ -239,7 +263,8 @@ function columns(b: Batch) {
     const a = (section + .5) / SECTIONS * Math.PI * 2;
     const at = (r: number, y: number) => new THREE.Vector3(Math.sin(a) * r, y, CENTRE_Z + Math.cos(a) * r);
     const foot = at(ROOF.back - .4, 0);
-    const top = ROOF.backY + .6;
+    // Up to the roof's underside over it, wherever the sweep has it.
+    const top = roofAt(a > Math.PI ? a - Math.PI * 2 : a).backY;
     b.add(new THREE.CylinderGeometry(.22, .32, top, 8).translate(foot.x, top / 2, foot.z), steel);
     const from = at(RING + BACK + .4, WALL_TOP), to = at(ROOF.back - .4, WALL_TOP);
     const mid = from.clone().add(to).multiplyScalar(.5);
@@ -249,42 +274,38 @@ function columns(b: Batch) {
 
 /**
  * The two canopies, one geometry each for their white tops, their lit
- * undersides and the white rim along their front edges. Laid out round the
- * ground from the lifted tip to behind the batter; near the tip the front
- * edge draws back towards the columns and rises, so the tip is a narrow wing
- * high beside the screen with the trees showing under it.
+ * undersides and the white rim along their front edges, laid out round the
+ * ground from the tip to behind the batter by `roofAt`.
  */
 function canopies(spots: THREE.Vector3[]) {
   const U = 120, V = 6;
   const tops: THREE.BufferGeometry[] = [], unders: THREE.BufferGeometry[] = [], rims: THREE.BufferGeometry[] = [];
   const edge = (side: number, u: number) => {
     const a = side * THREE.MathUtils.lerp(ROOF.from, ROOF.to, u / U);
-    const f = THREE.MathUtils.smoothstep(Math.abs(a) - ROOF.from, 0, ROOF.tip);
-    const front = THREE.MathUtils.lerp(ROOF.back - 1.2, ROOF.front, f);
-    const low = ROOF.frontY + (1 - f) * ROOF.lift;
-    return { a, front, low, f };
+    return { a, ...roofAt(a) };
   };
+  /** The underside's height `t` of the way back: falling from the front edge to the back, with a gentle belly. */
+  const height = (frontY: number, backY: number, t: number) => THREE.MathUtils.lerp(frontY, backY, t) + .5 * Math.sin(Math.PI * t);
   const point = (a: number, r: number, y: number) => new THREE.Vector3(Math.sin(a) * r, y, CENTRE_Z + Math.cos(a) * r);
   for (const side of [-1, 1]) {
     const under: number[] = [], top: number[] = [], uv: number[] = [], rim: number[] = [], rimUv: number[] = [];
     for (let u = 0; u <= U; u++) {
-      const { a, front, low } = edge(side, u);
+      const { a, front, frontY, backY, f } = edge(side, u);
       for (let v = 0; v <= V; v++) {
         const t = v / V, r = THREE.MathUtils.lerp(front, ROOF.back, t);
-        // A shell: rising to the back, with a gentle belly between.
-        const y = THREE.MathUtils.lerp(low, ROOF.backY, t) + .5 * Math.sin(Math.PI * t);
+        const y = height(frontY, backY, t);
         under.push(...point(a, r, y).toArray());
         top.push(...point(a, r, y + .5 - .2 * t).toArray());
         uv.push(Math.abs(a) * RING / 4, (r - ROOF.front) / 4);
       }
-      for (const [dy, dr] of [[-.6, -.02], [.4, -.08]]) {
-        rim.push(...point(a, front + dr, low + dy).toArray());
+      // The rim, thinning to nothing at the tip.
+      for (const [dy, dr] of [[-.85 * (.25 + .75 * f), -.02], [.5 * (.25 + .75 * f), -.1]]) {
+        rim.push(...point(a, front + dr, frontY + dy).toArray());
         rimUv.push(u / U, dy > 0 ? 1 : 0);
       }
       // Downlights under it, two rows across its depth.
-      if (u % 2 === 0 && edge(side, u).f > .3) for (const t of [.2, .45, .7]) {
-        const r = THREE.MathUtils.lerp(front, ROOF.back, t);
-        spots.push(point(a, r, THREE.MathUtils.lerp(low, ROOF.backY, t) + .5 * Math.sin(Math.PI * t) - .12));
+      if (u % 2 === 0 && f > .3) for (const t of [.2, .45, .7]) {
+        spots.push(point(a, THREE.MathUtils.lerp(front, ROOF.back, t), height(frontY, backY, t) - .12));
       }
     }
     const grid = (positions: number[], uvs: number[], columns: number) => {
@@ -306,9 +327,7 @@ function canopies(spots: THREE.Vector3[]) {
   }
   const panels = panelTexture(), glow = panelGlow();
   for (const texture of [panels, glow]) { texture.wrapS = texture.wrapT = THREE.RepeatWrapping; }
-  const under = new THREE.MeshStandardMaterial({ color: 0xc6c2d4, map: panels, roughness: .8, side: THREE.DoubleSide, emissive: 0xfff0d8, emissiveMap: glow, emissiveIntensity: 0 });
-  // The downlights are on by day too, as they are under any covered stand, only less to see.
-  under.userData.day = .55;
+  const under = new THREE.MeshStandardMaterial({ color: 0xd8bcff, map: panels, roughness: .8, envMapIntensity: .5, side: THREE.DoubleSide, emissive: 0xfff0d8, emissiveMap: glow, emissiveIntensity: 0 });
   const merged = (list: THREE.BufferGeometry[]) => { const geometry = mergeGeometries(list); list.forEach(g => g.dispose()); return geometry; };
   const meshes = [
     new THREE.Mesh(merged(tops), new THREE.MeshStandardMaterial({ color: 0xeef0ec, roughness: .55, side: THREE.DoubleSide })),
@@ -319,7 +338,7 @@ function canopies(spots: THREE.Vector3[]) {
   return { meshes, under, textures: [panels, glow] };
 }
 
-/** The canopy's underside by day: pale panels with their seams and a downlight in each. */
+/** The canopy's underside by day: pale panels with their seams and a downlight in each, off: a grey fitting. */
 function panelTexture() {
   const S = 128, canvas = document.createElement('canvas'); canvas.width = canvas.height = S;
   const ctx = canvas.getContext('2d')!;
@@ -328,7 +347,7 @@ function panelTexture() {
   ctx.fillStyle = '#e4e2dc'; ctx.fillRect(0, S / 2 - 1, S, 2);
   for (const [x, y] of [[S / 4, S / 4], [S * 3 / 4, S * 3 / 4]]) {
     ctx.fillStyle = '#b8b5ae'; ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#fffaf0'; ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#d6d3cc'; ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI * 2); ctx.fill();
   }
   const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
