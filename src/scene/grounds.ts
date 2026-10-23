@@ -3,6 +3,7 @@ import { box, colors, cylinder, mat } from './build';
 import { stadium, type StadiumLights } from './stadium';
 import { arenaStands } from './arena';
 import { pavilionStands } from './pavilion';
+import type { SkyTime } from './sky';
 
 /**
  * The stands and everything over them: what a ground is, once the turf and
@@ -19,8 +20,8 @@ import { pavilionStands } from './pavilion';
  *
  * **The pavilion** (`pavilion.ts`) is the stadium's bowl with an old
  * ground's far end: cream verandahs full of crowd under green roofs, a clock
- * tower, trees behind and tall floodlight towers. For now it is asked for
- * with `?ground=pavilion`, to be looked at beside the stadium.
+ * tower, trees behind and tall floodlight towers. It is the Blast's ground at
+ * night (`groundFor`), and `?ground=pavilion` asks for it any time.
  *
  * **The bowl** is the ground before it: one tier of stands in a full ring, flat
  * roofs, and the low clubhouse with the flags. It is kept whole, line for line,
@@ -38,10 +39,21 @@ export const GROUNDS: readonly GroundName[] = ['stadium', 'bowl', 'arena', 'pavi
 /** The ground every innings is played on unless the link asks for another. */
 export const DEFAULT_GROUND: GroundName = 'stadium';
 
-/** `?ground=bowl` puts the old ground back; anything else, or nothing, is the default. */
-export function groundFrom(search: string): GroundName {
+/** The ground a link asks for (`?ground=bowl`), or null. */
+export function askedGround(search: string): GroundName | null {
   const asked = new URLSearchParams(search).get('ground')?.toLowerCase();
-  return GROUNDS.find(name => name === asked) ?? DEFAULT_GROUND;
+  return GROUNDS.find(name => name === asked) ?? null;
+}
+/** The ground the link asks for, or the default: what the scene is built on at first. */
+export const groundFrom = (search: string): GroundName => askedGround(search) ?? DEFAULT_GROUND;
+
+/**
+ * The ground an innings is played on. A link that asks for one has it,
+ * always; otherwise the Blast under lights is played at the pavilion, and
+ * everything else — the Blast by day, the Tests, Super10 — at the stadium.
+ */
+export function groundFor(asked: GroundName | null, blast: boolean, time: SkyTime): GroundName {
+  return asked ?? (blast && time === 'night' ? 'pavilion' : DEFAULT_GROUND);
 }
 
 /**

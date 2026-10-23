@@ -190,7 +190,8 @@ export class CrowdCelebration {
     if (!this.moment) return;
     const event = CROWD_MOMENTS[this.moment], age = now - this.started;
     if (age < 0 || age >= event.ms) { this.reset(); return; }
-    const mirrored = this.world.scale.x < 0;
+    // The stage mirrored for a right-hander, whatever group the stands were built into.
+    const mirrored = this.world.matrixWorld.determinant() < 0;
     if (mirrored !== this.mirrored) {
       this.mirrored = mirrored;
       this.textures.forEach(t => {t.repeat.x = mirrored ? -1 : 1; t.offset.x = mirrored ? 1 : 0;});

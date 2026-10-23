@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_GROUND, buildGround, groundFrom, ownFloodlights } from '../src/scene/grounds';
+import { DEFAULT_GROUND, askedGround, buildGround, groundFor, groundFrom, ownFloodlights } from '../src/scene/grounds';
 
 const built = (name: 'stadium' | 'bowl' | 'pavilion') => {
   const world = new THREE.Group();
@@ -20,6 +20,17 @@ describe('the ground', () => {
     expect(groundFrom('?ground=BOWL&debug=1')).toBe('bowl');
     expect(groundFrom('?ground=pavilion')).toBe('pavilion');
     expect(groundFrom('?ground=members')).toBe('stadium');
+  });
+
+  it('plays the Blast under lights at the pavilion, and everything else at the stadium, unless the link asks', () => {
+    expect(askedGround('')).toBeNull();
+    expect(groundFor(null, true, 'night')).toBe('pavilion');
+    expect(groundFor(null, true, 'day')).toBe('stadium');
+    expect(groundFor(null, false, 'night')).toBe('stadium');
+    expect(groundFor(null, false, 'day')).toBe('stadium');
+    // A link's ground is every innings' ground, day or night.
+    expect(groundFor(askedGround('?ground=stadium'), true, 'night')).toBe('stadium');
+    expect(groundFor(askedGround('?ground=pavilion'), false, 'day')).toBe('pavilion');
   });
 
   it('batches the stadium by colour and the entire crowd into bodies and heads', () => {

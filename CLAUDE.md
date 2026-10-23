@@ -1743,10 +1743,17 @@ sway and wave. The crowd's sound is the game's own clips, as everywhere.
 (or `'wicket', 'BOWLED'`, or `'wave'`, or `'stumps'`) puts any moment up, for
 photographing.
 
-## The pavilion: a fresh stadium, being tried
+## The pavilion: the Blast's ground at night
 
-`?ground=pavilion` (`src/scene/pavilion.ts`) is a fresh stadium drawn from a
-reference picture the designer gave: a members' pavilion behind the bowler,
+The pavilion (`src/scene/pavilion.ts`) is where the Blast is played under
+lights; by day it is the stadium's, and so is every other mode, day or night
+(`groundFor` in `grounds.ts`, in `tests/grounds.test.ts`). The scene builds
+each ground's stands the first time they are asked for, into a group of their
+own with their crowd, lamps and glows, and from then on only shows and hides
+them (`GameScene.stands`), so the pause card's Lights switch changes the
+ground between balls; the game asks for it wherever it sets the lights
+(`light` in `src/Game.ts`). A link's `?ground=` is every innings' ground, day
+or night. It was drawn from a reference picture the designer gave: a members' pavilion behind the bowler,
 cream verandahs on white posts with fretwork, two decks over a raked lower
 tier, every one of them full of crowd, under green roofs, a clock tower with
 a flag over the middle and a turret with one over either end; a wing either
@@ -1765,8 +1772,8 @@ sections straight behind the bowler and two either side are left out,
 crowd), so it costs the stadium's draw calls and its crowd cheers and moves
 as the stadium's does. The middle of the lower tier and the first verandah's
 front row are left empty behind the bowler's arm, and the sightscreen stays
-white for the red ball (the reference has it dark). It is not the default:
-the stadium is, until it is chosen. `tests/grounds.test.ts` holds it.
+white for the red ball (the reference has it dark). `tests/grounds.test.ts`
+holds it.
 
 ## A newcomer's first innings
 

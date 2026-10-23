@@ -18,6 +18,8 @@ import { INTRO_STEPS, introDue, noteIntro, type IntroGame } from './ui/MarathonI
 import { CONFIDENCE_STEP, FIELD_STEP, SHOTS_STEP, fieldIntroDue, howToDue, noteFieldIntro, noteHowTo, playedBefore } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
 import type { ArenaCue } from './scene/arena';
+import { askedGround, groundFor } from './scene/grounds';
+import type { SkyTime } from './scene/sky';
 import { SUPER10, batterAt as super10Batter, windowsAt as super10Windows } from './config/super10';
 import {
   SURGE, bowlerOf, drawnOf, fieldFor, fieldRules, offScreen, planFor, signalFor, steer, steerOf, surgeAuto, surgeOffered, type FieldSet,
@@ -207,6 +209,8 @@ const SHOW_MARATHON = !SURVIVE_ONLY && (!!import.meta.env.VITE_SHOW_MARATHON
  * looking at, and a real innings still lands in its true place among them.
  */
 const PREVIEW_FILL = !SURVIVE_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production';
+/** The ground a link asks for (`?ground=`), which every innings is then played on: otherwise the lights pick it (`groundFor`). */
+const ASKED_GROUND = askedGround(location.search);
 const MARATHON_OPEN = SHOW_MARATHON || (!SURVIVE_ONLY
   && new URLSearchParams(location.search).get('mode')?.toLowerCase() === 'marathon');
 /**
@@ -820,7 +824,7 @@ export class Game {
     // Day or night, from the pause card, between balls. Remembered for the next Blast innings.
     for (const time of ['day', 'night'] as const) this.hud.on(`lights-${time}`, () => {
       if (this.phase !== 'PAUSED' || this.test) return;
-      keepLights(time); this.scene.time(time); this.hud.lightsSwitch(time);
+      keepLights(time); this.light(time); this.hud.lightsSwitch(time);
     });
     this.hud.on('share', () => { void this.hud.share(); });
     this.hud.on('board', this.showBoard);
@@ -2188,7 +2192,7 @@ export class Game {
     const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat, look.guard);
     this.scene.whites(this.test);
     // A Test by day; the Blast by the player's clock, or their own choice.
-    this.scene.time(this.test ? 'day' : blastLights());
+    this.light(this.test ? 'day' : blastLights());
     // Under a clear sky, with nothing yet told.
     this.told = { swing: false }; this.bannerUntil = 0; this.hud.closeIntro();
     this.scene.overcast(false, true); this.hud.levelBanner(null);
@@ -2272,7 +2276,7 @@ export class Game {
   startTutorial = () => {
     track('tutorial-start', 'Tutorial started');
     this.mode = 'CLASSIC';
-    this.scene.whites(false); this.scene.overcast(false, true); this.hud.levelBanner(null); this.scene.time(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
+    this.scene.whites(false); this.scene.overcast(false, true); this.hud.levelBanner(null); this.light(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
     this.fieldUi.show(false);
     this.audio.stop(); this.audio.music(null); this.audio.crowd(null); this.audio.unlock(); this.score = new ScoreManager();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = null; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
@@ -2301,6 +2305,11 @@ export class Game {
   private get marathoning() { return this.mode === 'MARATHON'; }
   /** Super10: the Blast's ball for ten overs, three batters and five bowlers. */
   private get super10() { return this.mode === 'SUPER10'; }
+  /** Day or night for the innings, and the ground that goes with it: the Blast under lights is the pavilion's (`groundFor`). */
+  private light(time: SkyTime) {
+    this.scene.stands(groundFor(ASKED_GROUND, this.mode === 'CLASSIC', time));
+    this.scene.time(time);
+  }
   /** What the arena's big screen says between moments: the game, the score, the over and, in Super10, who is in. */
   private scoreboard() {
     const { runs, wickets, balls } = this.score;

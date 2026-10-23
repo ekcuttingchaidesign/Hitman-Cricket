@@ -125,6 +125,12 @@ export interface StadiumLights {
   lamps: THREE.MeshStandardMaterial;
   roof: THREE.Vector3[];
   towers: THREE.Vector3[];
+  /** Materials lit only at night (their emissive at one), dark by day: windows, soffits, a screen. */
+  warm?: THREE.MeshStandardMaterial[];
+  /** Pieces to hang in the scene's own frame, not the mirrored stage: anything with words on it. */
+  unmirrored?: THREE.Object3D[];
+  /** Textures painted for the ground, to be disposed of with the scene. */
+  textures?: THREE.Texture[];
 }
 
 /** Builds the stadium onto `world`, the stage's own frame: the bowler's end is +z. */

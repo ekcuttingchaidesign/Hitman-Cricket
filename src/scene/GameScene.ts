@@ -116,6 +116,17 @@ function muteAt(age: number, lasts = CELEBRATION_MS) {
   return Math.min(into, out);
 }
 
+/** A ground's stands, built once into a group of their own: see `GameScene.stands`. */
+interface Stands {
+  group: THREE.Group;
+  crowd?: CrowdCelebration;
+  lamps: THREE.MeshStandardMaterial | null;
+  /** Windows, soffits and screens lit only at night. */
+  warm: THREE.MeshStandardMaterial[];
+  /** What hangs in the scene rather than the mirrored stage, a screen's words, shown only while these stands are up. */
+  unmirrored?: THREE.Object3D[];
+}
+
 // The ball and its trail are the only things left that want a bare sphere;
 // every figure on the field is a Cricketer, which carries its own primitives.
 const SHAPES = { ball: new THREE.SphereGeometry(1, 24, 16) };
@@ -243,8 +254,15 @@ export class GameScene {
   private runupProgress = 0;
   private reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   private sky = new Sky();
-  /** Which ground the stands are built for: see `grounds.ts`. */
-  readonly ground: GroundName = groundFrom(location.search);
+  /** Which ground's stands are up: see `grounds.ts` and `stands`. */
+  private current: GroundName = groundFrom(location.search);
+  get ground() { return this.current; }
+  /**
+   * Every ground's stands built so far, each in a group of its own: the one
+   * in use is shown and the rest kept, hidden, for when the lights change
+   * back (the Blast at night is the pavilion's, by day the stadium's).
+   */
+  private built = new Map<GroundName, Stands>();
   /** Day or night: see `time`. */
   private now: SkyTime = 'day';
   private hemisphere = new THREE.HemisphereLight(LIGHTING.day.hemisphere.sky, LIGHTING.day.hemisphere.ground, LIGHTING.day.hemisphere.intensity);
@@ -509,8 +527,6 @@ export class GameScene {
     this.field.update(0);
   }
   private createStadium(anisotropy: number) {
-    const screen = screenFrom(location.search);
-    const lights = buildGround(this.ground, this.world, { screen });
     // The boards along the foot of the stands. Added to the scene rather than
     // the mirrored stage, or every sponsor would read backwards.
     const boards = perimeterBoards(35.1, 1.2, 1.5, 10, anisotropy);
@@ -518,30 +534,71 @@ export class GameScene {
     boards.group.traverse(object => {
       if (object instanceof THREE.Mesh && (object.material as THREE.MeshStandardMaterial).emissiveMap) this.boardsMaterial = object.material as THREE.MeshStandardMaterial;
     });
-    if (this.ground === 'arena') {
-      this.arena = new Arena(this.scene, screen, anisotropy);
+    // The night's own: the moon. Each ground brings its own glows.
+    const theMoon = moon(this.camera.position);
+    this.scene.add(theMoon.sprite); this.night.push(theMoon.sprite); this.textures.push(theMoon.texture);
+    this.raise(this.current);
+  }
+  /**
+   * The stands for `name` up, in place of the ones that were: built the
+   * first time they are asked for, and from then on only shown. The ground,
+   * the strip and the boards along the rope are every ground's, and stay.
+   */
+  stands(name: GroundName) {
+    if (name === this.current && this.built.has(name)) return;
+    this.raise(name);
+  }
+  private raise(name: GroundName) {
+    let stands = this.built.get(name);
+    if (!stands) { stands = this.buildStands(name); this.built.set(name, stands); }
+    for (const [other, built] of this.built) built.group.visible = other === name;
+    this.current = name;
+    this.crowd = stands.crowd; this.lamps = stands.lamps;
+    this.lightStands();
+  }
+  private buildStands(name: GroundName): Stands {
+    const group = new THREE.Group(); group.name = `Stands: ${name}`;
+    this.world.add(group);
+    const screen = screenFrom(location.search);
+    const lights = buildGround(name, group, { screen });
+    const stands: Stands = { group, lamps: lights?.lamps ?? null, warm: lights?.warm ?? [] };
+    if (name === 'arena') {
+      this.arena = new Arena(this.scene, screen, this.anisotropy);
       if (lights?.life && lights.seats) this.arena.crowd(lights.life, lights.seats, this.scene);
       if (this.boardsMaterial) this.arena.boards(this.boardsMaterial, BOARD_PANELS);
       this.textures.push(...this.arena.textures);
     }
-    // The night's own: the moon, and a glow on every lamp the stadium has.
-    const theMoon = moon(this.camera.position);
-    this.scene.add(theMoon.sprite); this.night.push(theMoon.sprite); this.textures.push(theMoon.texture);
     if (lights) {
-      this.crowd = lights.createCrowd?.(this.reducedMotion);
-      if (this.crowd) { this.textures.push(...this.crowd.textures); this.crowd.setNight(this.now === 'night'); }
-      this.lamps = lights.lamps;
+      stands.crowd = lights.createCrowd?.(this.reducedMotion);
+      if (stands.crowd) this.textures.push(...stands.crowd.textures);
+      // A glow on every lamp the ground has, in its own group, so they go with it.
       const glow = glows(lights.roof, lights.towers);
-      this.world.add(...glow.points); this.night.push(...glow.points); this.textures.push(glow.texture);
+      group.add(...glow.points); this.night.push(...glow.points); this.textures.push(glow.texture);
+      for (const points of glow.points) points.visible = this.now === 'night';
       // The arena's floodlights answer the game, glows and all.
       this.arena?.glows(glow.points[0].material as THREE.PointsMaterial);
+      lights.unmirrored?.forEach(object => this.scene.add(object));
+      if (lights.unmirrored) stands.unmirrored = lights.unmirrored;
+      this.textures.push(...lights.textures ?? []);
     }
-    if (!ownFloodlights(this.ground)) for (const [x, z] of [[-29, 35], [29, 35], [-32, -13], [32, -13]]) {
-      cylinder(this.world, 0.19, 18, 0x839697, x, 9, z);
-      box(this.world, 4, 2, 0.3, 0x304953, x, 17.5, z);
-      for (let row = 0; row < 2; row++) for (let col = 0; col < 5; col++) box(this.world, 0.55, 0.55, 0.1, 0xfff4d9, x - 1.5 + col * 0.75, 17.1 + row * 0.8, z - 0.21);
+    if (!ownFloodlights(name)) for (const [x, z] of [[-29, 35], [29, 35], [-32, -13], [32, -13]]) {
+      cylinder(group, 0.19, 18, 0x839697, x, 9, z);
+      box(group, 4, 2, 0.3, 0x304953, x, 17.5, z);
+      for (let row = 0; row < 2; row++) for (let col = 0; col < 5; col++) box(group, 0.55, 0.55, 0.1, 0xfff4d9, x - 1.5 + col * 0.75, 17.1 + row * 0.8, z - 0.21);
+    }
+    return stands;
+  }
+  /** The stands in use lit for the time it is: their crowd, their lamps and their warm windows. */
+  private lightStands() {
+    const night = this.now === 'night', light = this.lighting;
+    this.crowd?.setNight(night);
+    if (this.lamps) this.lamps.emissiveIntensity = light.lamps;
+    for (const [name, built] of this.built) {
+      for (const material of built.warm) material.emissiveIntensity = night ? 1 : 0;
+      built.unmirrored?.forEach(object => { object.visible = name === this.current; });
     }
   }
+  private get lighting() { return this.now === 'night' && this.current === 'arena' ? ARENA_NIGHT : LIGHTING[this.now]; }
   private wicket(z: number) {
     const { timber, bails, lights } = buildWicket(this.world, GAME.stumpHeight, z, this.arena ? { wrap: this.arena.wrap } : undefined);
     if (z === 0) { this.bails.push(...bails); this.stumps.push(...timber, ...bails); if (lights) this.arena?.wire(lights); }
@@ -576,10 +633,9 @@ export class GameScene {
     if (nightOnly(this.ground)) time = 'night';
     if (time === this.now) return;
     this.now = time;
-    this.crowd?.setNight(time === 'night');
     // Day breaking on a show takes it down: there are none by day.
     if (time !== 'night') this.bursts.stop();
-    const palette = this.sky.time(time), light = time === 'night' && this.ground === 'arena' ? ARENA_NIGHT : LIGHTING[time];
+    const palette = this.sky.time(time), light = this.lighting;
     this.scene.fog = new THREE.Fog(palette.horizon, 48, 125);
     this.renderer.setClearColor(palette.horizon);
     this.environment.dispose();
@@ -591,8 +647,8 @@ export class GameScene {
     this.sun.color.set(light.key.colour); this.sun.intensity = light.key.intensity * (1 - this.sky.cover * OVERCAST.sun); this.sun.position.set(...light.key.position);
     this.fill.intensity = light.fill.intensity;
     if (this.boardsMaterial) this.boardsMaterial.emissiveIntensity = light.boards;
-    if (this.lamps) this.lamps.emissiveIntensity = light.lamps;
     for (const object of this.night) object.visible = time === 'night';
+    this.lightStands();
     this.kitsUnderLights();
   }
   /**
