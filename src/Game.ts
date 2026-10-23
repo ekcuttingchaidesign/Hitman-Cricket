@@ -989,6 +989,7 @@ export class Game {
       drawn: (progress: number) => this.delivery ? this.scene.drawnBall(this.delivery, progress) : null,
       // Which ground was built, for `scene-check.mjs`: `?ground=bowl` or the default.
       ground: () => this.scene.ground,
+      turf: () => this.scene.turf,
       // The ball's colour: Super10's white, the Blast's red, the Test's cherry.
       ball: () => this.scene.ballColour,
       // The arena's mood and what it is showing, and any of its moments on

@@ -65,15 +65,24 @@ function finish(c: HTMLCanvasElement, anisotropy: number) {
   return texture;
 }
 
-/** Outfield colours, in sRGB. */
-export const TURF = { light: '#6da637', dark: '#629631', edge: 'rgba(38,70,30,1)' } as const;
+/** Outfield colours, in sRGB: the stadium's, and every ground's but the two below. */
+export const TURF = { light: '#6aa449', dark: '#5e9540', edge: 'rgba(38,70,30,1)' } as const;
+/**
+ * The pavilion's and the canopy's turf (`turfOf` in `grounds.ts`): a brighter,
+ * yellower outfield, its light stripe #6DA637 and its dark a shade under, and
+ * a warmer strip, #DEAC67 where the stadium's is #d3b683.
+ */
+export const FRESH_TURF = { light: '#6da637', dark: '#629631', edge: TURF.edge } as const;
+export type Turf = 'classic' | 'fresh';
+const PALETTE = { classic: { ...TURF, surface: '#d3b683' }, fresh: { ...FRESH_TURF, surface: '#deac67' } } as const;
 
 /**
  * The outfield, for a `CircleGeometry` of `radius` centred `centreZ` along
  * the wicket and laid flat. The circle's UVs are its bounding square, so a
  * metre is the same number of pixels in both directions.
  */
-export function grassTexture(radius: number, centreZ: number, boundary: number, anisotropy: number) {
+export function grassTexture(radius: number, centreZ: number, boundary: number, anisotropy: number, turf: Turf = 'classic') {
+  const TURF = PALETTE[turf];
   const size = 2048, scale = size / (radius * 2);
   const { c, ctx } = canvas(size, size);
   const random = seeded(11);
@@ -145,7 +154,7 @@ function mix(from: string, to: string, t: number) {
  * it as its levels come (`WEAR_STAGES`). At nought nothing is drawn that was
  * not drawn before, and in the same order, so the strip is unchanged.
  */
-export function pitchTexture(width: number, length: number, centreZ: number, anisotropy: number, ends: { batting: number; bowling: number }, green = 0, wear = 0) {
+export function pitchTexture(width: number, length: number, centreZ: number, anisotropy: number, ends: { batting: number; bowling: number }, green = 0, wear = 0, turf: Turf = 'classic') {
   green *= 1 - 0.8 * wear;
   const W = 320, H = 3072;
   const { c, ctx } = canvas(W, H);
@@ -159,7 +168,7 @@ export function pitchTexture(width: number, length: number, centreZ: number, ani
   // Worn grass at the edges, the prepared surface in the middle.
   const across = ctx.createLinearGradient(0, 0, W, 0);
   const browned = (colour: string) => (wear ? mix(colour, '#b0905e', 0.5 * wear) : colour);
-  const edge = browned(mix('#aaae70', '#93a862', green)), surface = browned(mix('#deac67', '#b3bd78', green)), verge = browned(mix('#b9b27b', '#a1ae6a', green));
+  const edge = browned(mix('#aaae70', '#93a862', green)), surface = browned(mix(PALETTE[turf].surface, '#b3bd78', green)), verge = browned(mix('#b9b27b', '#a1ae6a', green));
   across.addColorStop(0, edge); across.addColorStop(0.1, verge); across.addColorStop(0.16, surface);
   across.addColorStop(0.84, surface); across.addColorStop(0.9, verge); across.addColorStop(1, edge);
   ctx.fillStyle = across; ctx.fillRect(0, 0, W, H);

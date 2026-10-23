@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_GROUND, askedGround, buildGround, groundFor, groundFrom, ownFloodlights } from '../src/scene/grounds';
+import { DEFAULT_GROUND, askedGround, buildGround, groundFor, groundFrom, ownFloodlights, turfOf } from '../src/scene/grounds';
 import { paintless } from './paintless';
 
 afterEach(() => { vi.unstubAllGlobals(); });
@@ -92,6 +92,12 @@ describe('the ground', () => {
       if (Math.abs(at.x) < 11 && at.z > 50 && at.y > 7) upstairs++;
     }
     expect(upstairs).toBeGreaterThan(100);
+  });
+
+  it('lays the brighter turf at the pavilion and the canopy only, the stadium keeping its own', () => {
+    expect(turfOf('pavilion')).toBe('fresh');
+    expect(turfOf('canopy')).toBe('fresh');
+    for (const name of ['stadium', 'bowl', 'arena'] as const) expect(turfOf(name)).toBe('classic');
   });
 
   it('builds the canopy: a packed house, its own towers, a screen that reads the right way round, lit at night', () => {

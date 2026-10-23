@@ -1,3 +1,4 @@
+import type { Turf } from './turf';
 import * as THREE from 'three';
 import { box, colors, cylinder, mat } from './build';
 import { stadium, type StadiumLights } from './stadium';
@@ -87,6 +88,8 @@ export const ownFloodlights = (name: GroundName) => name !== 'bowl';
 
 /** The arena is played under lights and nowhere else: whatever the clock or the pause card says. */
 export const nightOnly = (name: GroundName) => name === 'arena';
+/** Which turf a ground is laid with: the pavilion and the canopy the brighter one (`FRESH_TURF` in `turf.ts`), the rest the stadium's. */
+export const turfOf = (name: GroundName): Turf => name === 'pavilion' || name === 'canopy' ? 'fresh' : 'classic';
 
 /** The ground as it was, unchanged. */
 function bowl(world: THREE.Object3D) {

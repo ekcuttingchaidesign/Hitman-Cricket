@@ -13,10 +13,10 @@ import { WHITES } from '../config/survive';
 import { flightOf, sectorOf } from './flight';
 import { OVERCAST, SKY, Sky, type SkyTime } from './sky';
 import { ARENA_NIGHT, FILL_POSITION, LIGHTING, glows, moon, nightReflections } from './night';
-import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture } from './turf';
+import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture, type Turf } from './turf';
 import { BOARD_PANELS, perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
-import { buildGround, groundFrom, nightOnly, ownFloodlights, type GroundName } from './grounds';
+import { buildGround, groundFrom, nightOnly, ownFloodlights, turfOf, type GroundName } from './grounds';
 import { Arena, MILESTONE_WORDS, Showboards, screenFrom, type ArenaCue, type ArenaMood, type Scoreboard } from './arena';
 import { buildWicket } from './wicket';
 import type { CrowdCelebration, CrowdMoment } from './CrowdCelebration';
@@ -179,6 +179,10 @@ export class GameScene {
   /** The strip's material, and the two surfaces it is laid with: see `testLook`. */
   private pitch!: THREE.MeshStandardMaterial;
   private dryPitch!: THREE.Texture;
+  /** Each turf's outfield and dry strip, painted the first time a ground laid with it is put up (`turfOf`). */
+  private turfs = new Map<Turf, { grass: THREE.Texture; pitch: THREE.Texture }>();
+  private outfield!: THREE.MeshStandardMaterial;
+  private blades!: THREE.MeshStandardMaterial;
   private greenPitch: THREE.Texture | null = null;
   /** The Test strip worn to the current stage, painted when the stage comes; null while it is fresh. */
   private wornPitch: THREE.Texture | null = null;
@@ -495,17 +499,21 @@ export class GameScene {
     // Relief only, the colour left to the turf: a blade's light and shade,
     // tiled, and fading into the flat as the mipmaps take over.
     const blades = grassDetail(140, anisotropy);
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(70, 96), new THREE.MeshStandardMaterial({ map: grass, normalMap: blades, normalScale: new THREE.Vector2(0.65, 0.65), roughness: 0.95 })); ground.rotation.x = -Math.PI / 2;
+    this.outfield = new THREE.MeshStandardMaterial({ map: grass, normalMap: blades, normalScale: new THREE.Vector2(0.65, 0.65), roughness: 0.95 });
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(70, 96), this.outfield); ground.rotation.x = -Math.PI / 2;
     ground.position.set(0, -0.035, 10); ground.receiveShadow = true; this.world.add(ground);
     // The strip, its wear painted on rather than built from boxes.
     const surface = pitchTexture(2.8, 32, 4.3, anisotropy, { batting: 0, bowling: 18.7 }, 0, 0);
     this.pitch = new THREE.MeshStandardMaterial({ map: surface, roughness: 0.9 });
     this.dryPitch = surface; this.anisotropy = anisotropy;
+    this.turfs.set('classic', { grass, pitch: surface });
     const strip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.025, 32), this.pitch);
     strip.position.set(0, 0, 4.3); strip.receiveShadow = true; this.world.add(strip);
     this.textures.push(grass, blades, surface);
     // And standing blades either side of the strip near the bat, one draw.
-    this.world.add(grassBlades(grass));
+    const standing = grassBlades(grass);
+    this.blades = standing.material as THREE.MeshStandardMaterial;
+    this.world.add(standing);
     // Popping creases, 1.2m in front of each wicket, with return creases running
     // back past the stumps.
     [GAME.creaseZ, 18.7 - GAME.creaseZ].forEach(z => {
@@ -558,6 +566,7 @@ export class GameScene {
     if (this.show && this.show !== stands.show) this.show.rest();
     this.current = name;
     this.crowd = stands.crowd; this.lamps = stands.lamps; this.show = stands.show ?? null;
+    this.lay(turfOf(name));
     this.lightStands();
   }
   private buildStands(name: GroundName): Stands {
@@ -599,6 +608,24 @@ export class GameScene {
     if (this.his.size) { this.greyable(group); stands.unmirrored?.forEach(object => this.greyable(object)); }
     return stands;
   }
+  /**
+   * The outfield, its standing blades and the dry strip in `turf`'s colours,
+   * painted the first time it is asked for. A Test's green and worn strips
+   * are their own and are left down.
+   */
+  private lay(turf: Turf) {
+    let laid = this.turfs.get(turf);
+    if (!laid) {
+      laid = { grass: grassTexture(70, 10, GAME.boundaryRadius, this.anisotropy, turf),
+        pitch: pitchTexture(2.8, 32, 4.3, this.anisotropy, { batting: 0, bowling: 18.7 }, 0, 0, turf) };
+      this.turfs.set(turf, laid); this.textures.push(laid.grass, laid.pitch);
+    }
+    this.outfield.map = laid.grass; this.blades.map = laid.grass;
+    if (this.pitch.map === this.dryPitch) this.pitch.map = laid.pitch;
+    this.dryPitch = laid.pitch;
+  }
+  /** For the checks: which turf is down. */
+  get turf(): Turf { return [...this.turfs].find(([, t]) => t.grass === this.outfield.map)?.[0] ?? 'classic'; }
   /** The stands in use lit for the time it is: their crowd, their lamps and their warm windows. */
   private lightStands() {
     const night = this.now === 'night', light = this.lighting;

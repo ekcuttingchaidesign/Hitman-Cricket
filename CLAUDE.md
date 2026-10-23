@@ -1833,6 +1833,15 @@ at the stands' full height and width it covered the wings. The trees are
 clusters of rounder crowns, and the far floodlights stand behind the joins and
 lower, where their heads clear the score bar and the keys.
 
+The pavilion and the canopy are laid with their own turf (`turfOf` in
+`grounds.ts`, `FRESH_TURF` in `turf.ts`): the outfield's light stripe #6DA637
+and its dark a shade under, and the dry strip #DEAC67, brighter and warmer
+than the stadium's, which every other ground keeps. The outfield, its standing
+blades and the dry strip are shared by every ground's stands, so the scene
+paints each turf the first time a ground laid with it goes up and lays it
+whenever the stands change (`lay` in `GameScene`, `__cricket.turf()`); a
+Test's green and worn strips are their own and are left down.
+
 ## The canopy: Super10's ground
 
 The canopy (`src/scene/canopy.ts`) is where Super10 is played, by day or
