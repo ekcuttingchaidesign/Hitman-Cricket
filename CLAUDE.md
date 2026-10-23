@@ -1742,10 +1742,14 @@ arena's own pieces — the lamps, the torches, the wave, the stumps — light by
 the frame it hands back. A board that is the brand's shows the brand's idle
 between moments (the arena's ribbon and rope); one with a face of its own
 keeps it, and takes the brand's only in a moment (`ring(…, true)`: the
-sponsors along the canopy's rope, back at the night's level, `lit`); a
-screen with a picture of its own (`own`) shows that between moments, the
-score otherwise. A ground going out of sight under another's lets its moment
-go and leaves the rope's boards as it found them (`rest`). `tests/arena.test.ts`
+sponsors along the canopy's rope, back at the night's level, `lit`); the
+screen shows the mark and the score between moments. A ground going out of
+sight under another's lets its moment go and leaves the rope's boards as it
+found them (`rest`). On a ground with a screen (`bigScreen` on the scene,
+`has-screen` on the stage) the call over the field comes down onto the grass
+under the fence, where it sat on the screen, and a boundary's or a wicket's
+word is left to the screen and the fence, the line under it — the timing, or
+who fielded it — kept. `tests/arena.test.ts`
 holds the rings, and `super10-check` cues a four on the canopy at the end of
 its innings.
 
@@ -1815,13 +1819,14 @@ slab each, two rows of people on their feet at the front showing from the
 chest up, the upper behind a see-through glass balustrade on white mullions
 and the lower behind a solid parapet — the first build sat them behind panes
 drawn solid and nobody was seen — a back wall lit warm, lamps in the
-ceiling) and on its roof the big screen, HITMAN
-CRICKET under an outlined crown with teal and green slashes either side, in
-a dark frame with a white edge, a flag over each corner; in a moment it
-plays the brand's sting or word (`Showboards`, above), and the boards along
+ceiling) and on its roof the big screen, in
+a dark frame with a white edge, a flag over each corner, painted by the
+brand (`Showboards`, above): the Super10 mark and the score between moments
+(it carried HITMAN CRICKET under a crown, which said nothing about the game
+under it), and in a moment the brand's sting or word, while the boards along
 the rope put the brand's state up over their sponsors for as long as it
-lasts, FOUR +4 on lime, SIX over MAXIMUM, OUT on raspberry, then both go
-back to their own faces. Round the rest of
+lasts, FOUR +4 on lime, SIX over MAXIMUM, OUT on raspberry, then go back to
+their sponsors. Round the rest of
 the ring a section of its own (`tiers`, the stadium's `section` option): a
 lower tier, a warm concourse band behind its last row under the upper deck,
 the deck's soffit with a lamp every couple of metres, its white fascia with

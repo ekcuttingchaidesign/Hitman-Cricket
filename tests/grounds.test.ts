@@ -104,9 +104,8 @@ describe('the ground', () => {
     // Its screen hangs in the scene, not the mirrored stage; its windows, soffits and roof are lit at night.
     expect(lights!.unmirrored?.map(o => o.name)).toEqual(['Big screen', 'Skyline']);
     expect(lights!.unmirrored![1].userData.nightOnly).toBe(true);
-    // The screen is handed over for the brand's moments, with its own picture to go back to between them.
+    // The screen is handed over for the brand to paint: its mark and the score, and its moments.
     expect(lights!.screen?.texture).toBe((lights!.unmirrored![0] as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>).material.map);
-    expect(lights!.screen?.own).toBeTypeOf('function');
     expect(lights!.warm?.length).toBeGreaterThanOrEqual(3);
     expect(lights!.spots!.length).toBeGreaterThan(200);
     expect(scenery.map(m => m.name)).toEqual(expect.arrayContaining(['Canopy', 'Canopy underside', 'Canopy rim']));

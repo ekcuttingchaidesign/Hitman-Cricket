@@ -520,8 +520,7 @@ interface LedBoard {
  * then lets go. Between moments a board that is the brand's shows the
  * brand's idle (the arena's), and one with a face of its own keeps it (the
  * sponsors along the canopy's rope), at the level the night lights it
- * (`lit`); a screen with a picture of its own (`BigScreen.own`) shows that,
- * and the score otherwise. Every frame is `arenaFrame`'s, and `update` hands
+ * (`lit`); the screen shows the mark and the score. Every frame is `arenaFrame`'s, and `update` hands
  * it on for a ground with more to light by it. Hung in the scene's own frame
  * rather than the mirrored stage, so the words read the right way round
  * whichever hand is batting.
@@ -575,6 +574,8 @@ export class Showboards {
     if (name && this.screen && !this.still) this.playSting(name, now);
   }
   scoreboard(board: Scoreboard) { this.board = board; }
+  /** Whether there is a screen for the moments to play on, which the call over the field then leaves them to. */
+  get hasScreen() { return this.screen !== null; }
   /** For the checks: the mood, the moment up, what the boards and the screen show. */
   get state() {
     const f = this.last;
@@ -650,8 +651,7 @@ export class Showboards {
   private stopSting() { this.playing?.film?.destroy(); this.playing = null; }
 
   /**
-   * The screen. Between moments: the ground's own picture where it has one,
-   * else the mark, and the score in the brand's lettering with who is in
+   * The screen. Between moments: the mark, and the score in the brand's lettering with who is in
    * under it, painted only when it changes. In a moment: its sting over the
    * ink if there is one, or its word slammed on and let go the way the news
    * went, painted every frame while it moves.
@@ -663,10 +663,9 @@ export class Showboards {
     const kind = this.cued?.kind;
     const ms = kind ? CUES[kind].ms : 0;
     const moving = word !== null && (this.playing !== null || (!this.still && (since < SLAM_MS || since > ms - LEAVE_MS)));
-    const key = word ? `w|${word}|${moving ? since : 'held'}` : screen.own ? 'own' : `b|${this.board.title}|${this.board.score}|${this.board.detail}`;
+    const key = word ? `w|${word}|${moving ? since : 'held'}` : `b|${this.board.title}|${this.board.score}|${this.board.detail}`;
     if (key === this.shown) return;
     this.shown = key;
-    if (!word && screen.own) { screen.own(ctx); screen.texture.needsUpdate = true; return; }
     ctx.fillStyle = hex(ARENA.ink); ctx.fillRect(0, 0, W, H);
     // The floodlights' violet in the screen's corner, and nothing else behind.
     const haze = ctx.createRadialGradient(W * .15, H, 10, W * .15, H, W * .6);

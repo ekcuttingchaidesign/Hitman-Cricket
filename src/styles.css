@@ -435,6 +435,13 @@ kbd{
 }
 .result.is-boundary>strong{color:#ffb277}
 .result.is-wicket>strong{color:#ff9c86}
+/* A ground with a big screen over the far end (Super10's canopy): the call
+   comes down off it onto the grass under the fence, and a boundary's or a
+   wicket's word is the screen's and the fence's to say. */
+.stage.has-screen .result{top:36.5%}
+.stage.has-screen .result>strong{font-size:clamp(30px,5.4cqw,52px)}
+.stage.has-screen .result:is(.is-boundary,.is-wicket)>strong{display:none}
+.stage.has-screen .result:is(.is-boundary,.is-wicket)>span{margin-top:0;font-size:12px}
 .result.is-advance{top:32%}
 .result.is-advance>strong{
   color:#ffd98a;

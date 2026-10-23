@@ -155,7 +155,7 @@ export function canopyStands(world: THREE.Object3D): StadiumLights {
   lights.warm = [warm.wall, warm.soffit, warm.light, roof.under];
   lights.unmirrored = [screen.mesh, city.mesh];
   lights.textures = [...roof.textures, screen.texture, city.texture];
-  // The brand's moments play on the screen, and it goes back to its own picture after each (`Showboards` in `arena.ts`).
+  // The brand paints the screen: its mark and the score between moments, its stings in them (`Showboards` in `arena.ts`).
   lights.screen = screen.screen;
   return lights;
 }
@@ -390,63 +390,24 @@ function panelGlow() {
 }
 
 /**
- * The big screen: its own picture between moments (`picture`), the brand's
- * stings and words in them, painted into one canvas. Hung in the scene
- * rather than the mirrored stage, so it reads the right way round for either
- * hand, and lit by itself, day and night.
+ * The big screen, painted by the brand (`Showboards` in `arena.ts`): the
+ * Super10 mark and the score in its lettering between moments, its stings
+ * and words in them. Hung in the scene rather than the mirrored stage, so it
+ * reads the right way round for either hand, and lit by itself, day and
+ * night. It carried HITMAN CRICKET under a crown before, which said nothing
+ * about the game being played under it.
  */
 function bigScreen() {
   const W = 1024, H = Math.round(W * SCREEN.height / SCREEN.width);
   const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d')!;
-  const own = (context: CanvasRenderingContext2D) => picture(context, W, H);
-  own(ctx);
   const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 4;
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(SCREEN.width, SCREEN.height).rotateY(Math.PI),
     new THREE.MeshBasicMaterial({ map: texture, toneMapped: false, fog: false }));
   mesh.position.set(0, SCREEN.bottom + SCREEN.height / 2, BLOCK.z + 1.75 + .08);
   mesh.name = 'Big screen';
-  const screen: BigScreen = { context: ctx, texture, own };
+  const screen: BigScreen = { context: ctx, texture };
   return { mesh, texture, screen };
-}
-
-/**
- * The screen's own picture: the game's mark on a deep blue, a crown over
- * HITMAN and CRICKET, and slashes of teal and green racing in from either
- * side, under the screen's pixels.
- */
-function picture(ctx: CanvasRenderingContext2D, W: number, H: number) {
-  const ground = ctx.createLinearGradient(0, 0, 0, H);
-  ground.addColorStop(0, '#13305e'); ground.addColorStop(1, '#0a1b3a');
-  ctx.fillStyle = ground; ctx.fillRect(0, 0, W, H);
-  // The slashes: parallelograms leaning in from the edges, teal to green.
-  const random = seeded(17);
-  for (const side of [-1, 1]) {
-    for (let i = 0; i < 14; i++) {
-      const x0 = side < 0 ? random() * W * .26 : W - random() * W * .26;
-      const w = 8 + random() * 26, h = H * (.35 + random() * .7), y0 = random() * H - h * .3;
-      const g = ctx.createLinearGradient(x0, y0, x0, y0 + h);
-      const hue = random() < .5 ? ['rgba(31,209,178,', 'rgba(67,224,122,'] : ['rgba(67,224,122,', 'rgba(26,160,214,'];
-      g.addColorStop(0, `${hue[0]}0)`); g.addColorStop(.5, `${hue[0]}${.55 + random() * .4})`); g.addColorStop(1, `${hue[1]}0)`);
-      ctx.fillStyle = g;
-      const lean = h * .45 * side;
-      ctx.beginPath(); ctx.moveTo(x0, y0 + h); ctx.lineTo(x0 + w, y0 + h); ctx.lineTo(x0 + w - lean, y0); ctx.lineTo(x0 - lean, y0); ctx.closePath(); ctx.fill();
-    }
-  }
-  // The crown, outlined, and the name under it.
-  ctx.save(); ctx.translate(W / 2, H * .3); ctx.scale(3.3, 3.3);
-  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.4; ctx.lineJoin = 'round';
-  ctx.beginPath(); ctx.moveTo(-14, 7.5); ctx.lineTo(-11, -4.5); ctx.lineTo(-5, 2.5); ctx.lineTo(0, -6.5); ctx.lineTo(5, 2.5); ctx.lineTo(11, -4.5); ctx.lineTo(14, 7.5); ctx.closePath(); ctx.stroke();
-  ctx.restore();
-  ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = '900 92px "Arial Black", "Helvetica Neue", Arial, sans-serif';
-  ctx.fillText('HITMAN', W / 2, H * .58);
-  ctx.font = '600 70px "Helvetica Neue", Arial, sans-serif';
-  ctx.fillText('CRICKET', W / 2, H * .8);
-  // The screen's pixels: a fine dark grid.
-  ctx.fillStyle = 'rgba(0,0,0,.18)';
-  for (let x = 0; x < W; x += 4) ctx.fillRect(x, 0, 1, H);
-  for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
 }
 
 /**

@@ -20,7 +20,8 @@
  * drawn in the pause sheet,
  * and the field map's coach card a first Super10 opens with, once. And the
  * canopy's big screen and the boards along its rope playing the brand's
- * moment for a four, and going back to their own faces after it.
+ * moment for a four, and going back after it, the fence to its sponsors and
+ * the screen to the Super10 mark and the score.
  *
  * The actions themselves are looked at in `bowler-sheet.html`
  * (`scripts/bowler-sheet.mjs`): a frame there is the frame asked for, which a
@@ -178,10 +179,12 @@ const cued = await page.evaluate(() => window.__cricket.arena());
 await advance(2600);
 const rested = await page.evaluate(() => window.__cricket.arena());
 check(ground === 'canopy', 'Super10 is played at the canopy', ground);
+const screenGround = await page.evaluate(() => document.querySelector('#viewport').classList.contains('has-screen'));
+check(screenGround, 'and the call over the field is taken down off its big screen', String(screenGround));
 check(cued?.word === 'FOUR' && cued.board === 'four' && cued.sting === 'four' && cued.screen === 'w|FOUR',
   'a four puts FOUR and its sting on the screen and the boards along the rope', JSON.stringify(cued));
-check(rested?.word === null && rested.board === 'idle' && rested.sting === null && rested.screen === 'own',
-  'and both go back to their own faces after it', JSON.stringify(rested));
+check(rested?.word === null && rested.board === 'idle' && rested.sting === null && rested.screen?.startsWith('b|SUPER10'),
+  'and after it the fence goes back to its sponsors and the screen to the Super10 mark and the score', JSON.stringify(rested));
 
 // The schedule: swing, seam, swing, spin, sling, spin and seam either way, death, sling, death.
 const want = ['PACE', 'PACE', 'PACE', 'SPIN', 'EXPRESS', null, null, 'DEATH', 'EXPRESS', 'DEATH'];

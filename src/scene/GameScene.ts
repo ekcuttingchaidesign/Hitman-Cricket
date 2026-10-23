@@ -768,6 +768,8 @@ export class GameScene {
   scoreboard(board: Scoreboard) { this.show?.scoreboard(board); }
   /** For the checks: the mood and what the screen and the boards show, with the arena's lamps and torches there, or null on a ground with neither. */
   get arenaState() { return this.arena?.state ?? this.show?.state ?? null; }
+  /** Whether the stands in use have a big screen the moments play on: the call over the field leaves them to it. */
+  get bigScreen() { return this.show?.hasScreen ?? false; }
   /** Whether this is the arena, which is played at night whatever the lights say. */
   get arenaGround() { return this.arena !== null; }
   get crowdState() { return this.crowd?.state ?? { kind: null, spectators: 0, banners: 0 }; }

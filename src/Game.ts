@@ -2311,6 +2311,7 @@ export class Game {
   private light(time: SkyTime) {
     this.scene.stands(groundFor(ASKED_GROUND, this.super10 ? 'super10' : this.mode === 'CLASSIC' ? 'blast' : 'other', time, VENUE_COIN));
     this.scene.time(time);
+    this.hud.bigScreen(this.scene.bigScreen);
   }
   /** What the arena's big screen says between moments: the game, the score, the over and, in Super10, who is in. */
   private scoreboard() {

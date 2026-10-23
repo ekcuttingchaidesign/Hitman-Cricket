@@ -116,13 +116,8 @@ const COVERED = 3.8;
 /** Half the width of the aisle down the middle of every section. */
 const AISLE = 0.4;
 
-/**
- * A big screen painted in a canvas, for the brand's moments to play on
- * (`Showboards` in `arena.ts`): its context and texture, and `own`, what it
- * shows between moments where that is the ground's own picture rather than
- * the score.
- */
-export interface BigScreen { context: CanvasRenderingContext2D; texture: THREE.Texture; own?: (ctx: CanvasRenderingContext2D) => void }
+/** A big screen painted in a canvas, which the brand paints (`Showboards` in `arena.ts`): its context and its texture. */
+export interface BigScreen { context: CanvasRenderingContext2D; texture: THREE.Texture }
 
 /**
  * What the scene needs to light the stadium up at night: the lamps' material,

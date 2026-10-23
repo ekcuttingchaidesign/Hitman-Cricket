@@ -2590,6 +2590,13 @@ ${modeSelectMarkup()}
     this.$('tutorial-done').classList.remove('hidden');
     this.$('tutorial-play').focus();
   }
+  /**
+   * A ground with a big screen over the far end, which the call over the
+   * field would sit on: the call is taken down onto the grass under the fence,
+   * and a boundary's or a wicket's word is left to the screen and the fence,
+   * which play it, the line under it (the timing, or who fielded it) kept.
+   */
+  bigScreen(on: boolean) { this.viewport.classList.toggle('has-screen', on); }
   /** A call, not a popup: the outcome rises off the field and fades on its own. */
   result(outcome: ShotOutcome, chargeMiss: string | null = null) {
     this.$('phase-label').textContent = '';
