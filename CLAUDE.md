@@ -1859,8 +1859,11 @@ orange, and #E5BD85), brighter and warmer
 than the stadium's, which every other ground keeps. The outfield, its standing
 blades and the dry strip are shared by every ground's stands, so the scene
 paints each turf the first time a ground laid with it goes up and lays it
-whenever the stands change (`lay` in `GameScene`, `__cricket.turf()`); a
-Test's green and worn strips are their own and are left down.
+whenever the stands change (`lay` in `GameScene`, `__cricket.turf()`). A
+Test's green and worn strips are painted on the same turf (`greenOf`, and
+`wear` on the turf laid), so a Test at the pavilion or the canopy has the new
+strip with its grass left on, and one already down is swapped for the new
+ground's.
 
 ## The canopy: Super10's ground
 
