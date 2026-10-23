@@ -1047,7 +1047,7 @@ They are `pull` and `pullV1` in the batter tests' `PLAYS`, and
 ## The flick, version two
 
 The leg-side input at a ball below pull height is the flick. Pitched up, it is in two versions
-(`FlickVersion`), seven in ten and three in ten (`FLICK_ODDS`, `flickVersionOf` off the
+(`FlickVersion`), three in four and one in four (`FLICK_ODDS`, `flickVersionOf` off the
 innings' seed and the ball, mixed apart from the other strokes' rolls). The
 swing's version argument is the flick's for it (`flicking` in `Game.shoot`,
 `flickV2` in `Batter.ts`), and since the default version is two, every test

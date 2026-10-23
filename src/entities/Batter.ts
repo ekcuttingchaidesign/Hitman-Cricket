@@ -1859,8 +1859,8 @@ export function pullVersionOf(seed: number, ball: number): PullVersion {
  * off the pads rebuilt from a coaching film in four angles (`FLICK_V2`).
  */
 export type FlickVersion = 1 | 2 | 3;
-/** How often each is played: seven flicks in ten version one, three version two. */
-export const FLICK_ODDS: Record<1 | 2, number> = { 1: .7, 2: .3 };
+/** How often each is played: three flicks in four version one, one version two. */
+export const FLICK_ODDS: Record<1 | 2, number> = { 1: .75, 2: .25 };
 /**
  * The version a ball plays, off the seed and the ball as the pull's is, with a
  * constant of its own. Version two is scored its own way (`FLICK`), so like
