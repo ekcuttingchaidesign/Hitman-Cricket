@@ -181,10 +181,6 @@ export class GameScene {
   private dryPitch!: THREE.Texture;
   /** Each turf's outfield and dry strip, painted the first time a ground laid with it is put up (`turfOf`). */
   private turfs = new Map<Turf, { grass: THREE.Texture; pitch: THREE.Texture }>();
-  /** The turf down now, which the Test's strips are painted on too. */
-  private laid: Turf = 'classic';
-  /** The Test's green strip on each turf, painted the first time a Test is played on it. */
-  private greens = new Map<Turf, THREE.Texture>();
   private outfield!: THREE.MeshStandardMaterial;
   private blades!: THREE.MeshStandardMaterial;
   private greenPitch: THREE.Texture | null = null;
@@ -628,8 +624,7 @@ export class GameScene {
   /**
    * The outfield, its standing blades and the dry strip in `turf`'s colours,
    * painted the first time it is asked for. A Test's green and worn strips
-   * are painted on the same turf, and a strip already down is swapped for
-   * that turf's.
+   * are their own and are left down.
    */
   private lay(turf: Turf) {
     let laid = this.turfs.get(turf);
@@ -641,21 +636,6 @@ export class GameScene {
     this.outfield.map = laid.grass; this.blades.map = laid.grass;
     if (this.pitch.map === this.dryPitch) this.pitch.map = laid.pitch;
     this.dryPitch = laid.pitch;
-    if (turf === this.laid) return;
-    this.laid = turf;
-    if (!this.greenPitch) return;
-    const green = this.pitch.map === this.greenPitch, stage = this.wornPitch && this.pitch.map === this.wornPitch ? this.wearStage : 0;
-    this.greenPitch = this.greenOf(turf);
-    if (green) this.pitch.map = this.greenPitch;
-    if (stage) { this.dropWear(); this.wear(stage); }
-  }
-  private greenOf(turf: Turf) {
-    let green = this.greens.get(turf);
-    if (!green) {
-      green = pitchTexture(2.8, 32, 4.3, this.anisotropy, { batting: 0, bowling: 18.7 }, BALL.testGrass, 0, turf);
-      this.greens.set(turf, green); this.textures.push(green);
-    }
-    return green;
   }
   /** For the checks: which turf is down. */
   get turf(): Turf { return [...this.turfs].find(([, t]) => t.grass === this.outfield.map)?.[0] ?? 'classic'; }
@@ -1032,7 +1012,10 @@ export class GameScene {
     const look = on ? BALL.test : BALL.blast;
     ball.color.setHex(look.color); ball.emissive.setHex(look.glow);
     this.seam.material = soft(look.seam);
-    if (on) this.greenPitch = this.greenOf(this.laid);
+    if (on && !this.greenPitch) {
+      this.greenPitch = pitchTexture(2.8, 32, 4.3, this.anisotropy, { batting: 0, bowling: 18.7 }, BALL.testGrass);
+      this.textures.push(this.greenPitch);
+    }
     this.pitch.map = on ? this.greenPitch! : this.dryPitch;
     this.dropWear();
   }
@@ -1055,7 +1038,7 @@ export class GameScene {
     this.dropWear();
     this.wearStage = at;
     if (!at) return;
-    this.wornPitch = pitchTexture(2.8, 32, 4.3, this.anisotropy, { batting: 0, bowling: 18.7 }, BALL.testGrass, WEAR_STAGES[at], this.laid);
+    this.wornPitch = pitchTexture(2.8, 32, 4.3, this.anisotropy, { batting: 0, bowling: 18.7 }, BALL.testGrass, WEAR_STAGES[at]);
     this.pitch.map = this.wornPitch;
   }
   private dropWear() {
