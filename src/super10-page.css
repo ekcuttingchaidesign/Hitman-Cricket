@@ -94,6 +94,16 @@
 }
 .sp-hero::after{height:calc(var(--u) * 690);background:linear-gradient(90deg,#0a0b0d99 0%,#0a0b0d00 42%)}
 .sp-hero>*:not(.sp-picture){position:absolute;z-index:2}
+/* The header in two layers that part as the page scrolls (`--s`, the pixels
+   scrolled, set by the HUD): the picture held back, at under half the
+   scroll and growing a touch, the logo and its words carried up a little
+   faster than the page and fading, so they lift off the picture. Still
+   under reduced motion, where `--s` is never set. */
+.sp-lockup{inset:0;pointer-events:none;will-change:transform,opacity;
+  transform:translateY(calc(var(--s, 0) * -.14px));opacity:calc(1 - var(--s, 0) / 560)}
+.sp-lockup>*{position:absolute}
+.sp-picture{will-change:transform;transform-origin:50% 0;
+  transform:translateY(calc(var(--s, 0) * .42px)) scale(calc(1 + var(--s, 0) * .0003))}
 .sp-hero-top{top:var(--top-gap);left:calc(var(--u) * 20);right:calc(var(--u) * 20);display:flex;align-items:center;justify-content:space-between}
 .sp-hero-top .k-icon-button{background:#1b2027}
 .sp-tag{padding:calc(var(--u) * 5) calc(var(--u) * 12);border-radius:999px;background:#c6ff1a;color:#12052b;font:800 calc(var(--u) * 11)/1.25 var(--f-ui);letter-spacing:.08em}

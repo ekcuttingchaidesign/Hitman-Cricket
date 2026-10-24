@@ -115,7 +115,7 @@ const ground = `<div class="ms-ground" aria-hidden="true">
 
 const play = (ink: string, ledge: string) => `<span class="k-cta k-cta--play-small ms-play" style="--ink:${ink};--ledge:${ledge}" aria-hidden="true"><span class="k-cta-face"><span>PLAY</span></span></span>`;
 
-/** The screen itself, drawn once. The Marathon's NEW tag goes once it has been played (`is-played`). */
+/** The screen itself, drawn once. */
 export function modeSelectMarkup(): string {
   return `
         <div id="modes" class="modal-overlay ms-screen hidden" role="dialog" aria-modal="true" aria-labelledby="modes-title">
@@ -138,7 +138,6 @@ export function modeSelectMarkup(): string {
               </button>
               <button id="mode-marathon" class="ms-poster is-marathon" type="button" data-mode="MARATHON">
                 <img class="ms-art" src="${POSTER_MARATHON}" alt="" decoding="async">
-                <span class="ms-tag is-new">NEW</span>
                 <span class="ms-name"><span>TEST</span><span>MARATHON</span></span>
                 <span class="ms-desc">One long innings, no over limit.</span>
                 <span class="ms-foot"><span id="mode-marathon-stat" class="ms-stat">Not played</span>${play('var(--c-marathon)', '#00301a')}</span>
