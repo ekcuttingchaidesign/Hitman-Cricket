@@ -1722,6 +1722,30 @@ reads the count, read-only. The game itself still opens only by
 Black Italic (`src/assets/saira-latin-900-italic.woff2`, OFL), the brand's
 lettering.
 
+## Super10 on GitHub Pages, for testers
+
+`.github/workflows/pages.yml` publishes two serverless builds to the
+repository's Pages site: Survive at the root (`VITE_SURVIVE_ONLY`) and Super10
+at `super10/` (`VITE_SUPER10_ONLY`,
+https://ekcuttingchaidesign.github.io/Hitman-Cricket/super10/). The Super10 one
+plays Super10 and nothing else (PLAY and HOW TO PLAY both walk out into it), is
+practice as it is everywhere until it has a board, keeps the player in the
+browser as a private window does (`main.ts` passes `canRegister: false` and
+skips the private-window notice and the return ticket), and counts nothing:
+GoatCounter is off (`counting`) and its script is left off the page
+(`noCounter` in `vite.config.ts`). Both builds share `NO_BOARD` in `Game.ts`
+and `no-board` on the body, which hides every key that needs `/api` (the
+boards, My profile, Played before?, the feedback forms). The workflow runs on
+pushes to `codex/cricket-batting-game` and to the Super10 branch; Pages is
+one site, so whichever ran last is what is up, and a production merge before
+Super10's lands builds both from production.
+
+The workflow's test step had failed every run since 20 October on an
+unhandled "Timeout calling onTaskUpdate" with every test passed:
+`tests/batter.test.ts` is two minutes of synchronous work in one worker, and
+the runner never gave the event loop a turn between its tests. Its `afterEach`
+yields once (`setImmediate`); keep it.
+
 ## The arena: Super10's ground
 
 Super10 was to have a ground of its own, so it does not feel like an old

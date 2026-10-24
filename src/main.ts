@@ -56,11 +56,14 @@ void (async () => {
   // A phone that has forgotten who is playing, and still holds the ticket the
   // server wrote: the player is put back before the game asks. After the clean
   // slate above, which takes the ticket with it.
-  await comeBack();
-  const hidden = await privateWindow();
+  // Super10's Pages build has no server: the player stays in the browser, as a
+  // private window's does, and nobody is told to go somewhere else to keep it.
+  const serverless = !!import.meta.env.VITE_SUPER10_ONLY;
+  if (!serverless) await comeBack();
+  const hidden = serverless || await privateWindow();
   // Asked once a session: a player who has read the notice and chosen to bat on
   // should not meet it again every time the page reloads.
-  if (hidden && !noticeSeen()) { await privateNotice(root); markNoticeSeen(); }
+  if (hidden && !serverless && !noticeSeen()) { await privateNotice(root); markNoticeSeen(); }
   const { Game } = await import('./Game');
   // A forgetful window can still bat; what it cannot do is take a place on the
   // board, so the card offers it nothing to claim.

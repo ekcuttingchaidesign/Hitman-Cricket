@@ -11,15 +11,19 @@
 # takes the picker away: there is no route from this deployment to a screen that
 # would go looking for an endpoint Pages cannot serve.
 #
+# Super10's playtest build goes up beside it, at `super10/`, for the same
+# reason: until it has a board it is practice, and VITE_SUPER10_ONLY locks the
+# bundle to it, keeps the player in the browser and sends nothing anywhere.
+#
 # The game is published at the repository's Pages address and Vercel remains the
 # home of the real thing.
-name: Publish Survive to Pages
+name: Publish Survive and Super10 to Pages
 
 on:
   push:
     # The branch this is being built on, and the one it will land on, so the
     # published game does not quietly stop updating the day it is merged.
-    branches: [claude/modest-brown-cvm5oq, codex/cricket-batting-game]
+    branches: [claude/vigilant-feynman-721ozv, codex/cricket-batting-game]
   workflow_dispatch:
 
 permissions:
@@ -50,6 +54,11 @@ jobs:
       - run: npm run build
         env:
           VITE_SURVIVE_ONLY: '1'
+      # The second build goes inside the first, into its own folder: Vite
+      # empties only that folder, so Survive at the root stays.
+      - run: npx vite build --outDir dist/super10 --emptyOutDir
+        env:
+          VITE_SUPER10_ONLY: '1'
       # Vite is configured with a relative base, so the bundle works unchanged
       # under a project subdirectory. Nothing here needs to know the path.
       - uses: actions/upload-pages-artifact@v3

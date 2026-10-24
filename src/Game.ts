@@ -175,6 +175,15 @@ export type { GameMode } from './game/modes';
  * host cannot serve the board's two functions, and this build never asks it to.
  */
 const SURVIVE_ONLY = !!import.meta.env.VITE_SURVIVE_ONLY;
+/**
+ * Super10's playtest build for GitHub Pages, as Survive's is: Super10 and
+ * nothing else, practice as it is everywhere until it has a board, with no
+ * server behind it (`main.ts` keeps the player in the browser, as a private
+ * window does). The other modes, the boards and the stories are not reached.
+ */
+const SUPER10_ONLY = !!import.meta.env.VITE_SUPER10_ONLY;
+/** A build published where nothing answers `/api`: no board, and nothing that goes looking for one. */
+const NO_BOARD = SURVIVE_ONLY || SUPER10_ONLY;
 
 /**
  * Whether this build offers the Test match at all.
@@ -231,7 +240,7 @@ const MARATHON_OPEN = SHOW_MARATHON || (!SURVIVE_ONLY
 const SURGE_WAIT_MS = 1600;
 /** The overs a Super10 crowd sends a Mexican wave round the arena at the top of: the third, sixth and eighth. */
 const WAVE_OVERS = [2, 5, 7];
-const SUPER10_OPEN = !SURVIVE_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production';
+const SUPER10_OPEN = SUPER10_ONLY || (!SURVIVE_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production');
 /** The mode a browser played last, which Choose a mode's rail opens on; a new player starts on the Blast. */
 const LAST_MODE_KEY = 'hitman-last-mode';
 function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' {
@@ -710,7 +719,7 @@ export class Game {
     // 404 on every load — harmless, since a board that never answers is already
     // handled, but a console full of red is a bad first impression for somebody
     // who was handed the link to give an opinion on the batting.
-    if (!SURVIVE_ONLY) void this.loadBoard();
+    if (!NO_BOARD) void this.loadBoard();
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
     // Bowled or stumped, the wicket is heard when the ball reaches it.
     this.scene.onStumps = () => this.audio.play('stumps');
@@ -745,7 +754,7 @@ export class Game {
     // second or two to make on a phone. Where they are due, it is made while the
     // cover is up, a moment after the game's own load, so the first story opens
     // on the batter rather than on an empty room.
-    if (whatsNewDue()) window.setTimeout(() => { if (whatsNewDue() && this.phase === 'START' && !this.disposed) this.hud.warmStories(); }, 1500);
+    if (!NO_BOARD && whatsNewDue()) window.setTimeout(() => { if (whatsNewDue() && this.phase === 'START' && !this.disposed) this.hud.warmStories(); }, 1500);
     this.hud.on('mode-classic', () => { this.hud.closeModes(); this.choose('CLASSIC'); });
     this.hud.on('mode-survive', () => { this.hud.closeModes(); this.choose('SURVIVE'); });
     this.hud.on('mode-marathon', () => { this.hud.closeModes(); this.choose('MARATHON'); });
@@ -771,7 +780,7 @@ export class Game {
     this.hud.on('modes-stats', this.showStats);
     // The boards, from the mode screen: the same sheet the cover's trophy
     // opens, laid over the picker, which is still there when it is put away.
-    if (SURVIVE_ONLY) document.getElementById('modes-board')?.remove();
+    if (NO_BOARD) document.getElementById('modes-board')?.remove();
     else {
       this.hud.on('modes-board', () => {
         this.mark('modes-board', 'The boards opened from the mode screen');
@@ -957,7 +966,7 @@ export class Game {
       event.preventDefault();
       void this.sendClaim();
     });
-    if (!SURVIVE_ONLY) this.hud.on('cover-board', this.showBoard);
+    if (!NO_BOARD) this.hud.on('cover-board', this.showBoard);
     // The chip on the cover is always the way to My Stats. Delegated, because
     // the chip is redrawn whenever the player behind it changes.
     this.hud.viewport.addEventListener('click', event => {
@@ -973,13 +982,13 @@ export class Game {
     // A bundle built survive-only plays one innings and offers no way out of
     // it — that is the whole of what makes it publishable somewhere with no
     // board behind it. A `?mode=` link does the same thing at runtime.
-    const named = SURVIVE_ONLY ? 'SURVIVE' : new URLSearchParams(location.search).get('mode')?.toUpperCase();
+    const named = SURVIVE_ONLY ? 'SURVIVE' : SUPER10_ONLY ? 'SUPER10' : new URLSearchParams(location.search).get('mode')?.toUpperCase();
     // Off production the Marathon has a card on the picker; on it, until it
     // ships, it is this link and nothing else. See `docs/MARATHON.md`.
     if (named === 'SURVIVE' || named === 'CLASSIC' || named === 'MARATHON' || (named === 'SUPER10' && SUPER10_OPEN)) {
       this.mode = named as GameMode;
       this.locked = true;
-      this.hud.lockMode(SURVIVE_ONLY);
+      this.hud.lockMode(NO_BOARD);
     } else {
       // The picker opens whenever there is something to pick. Challenging a
       // friend is always on offer, so from here that is always — where before,
@@ -1401,7 +1410,7 @@ export class Game {
 
   /** The count on the hero card, refreshed without putting anything up. */
   private async refreshCount() {
-    if (!this.player) return;
+    if (!this.player || NO_BOARD) return;
     const list = await ChallengeRun.mine(this.player);
     if (!list) return;
     this.rooms = list;
@@ -2307,7 +2316,9 @@ export class Game {
     noteHowTo(true);
     this.hud.marathonIntro(how => {
       if (how === 'skipped') return;
-      if (how === 'modes') return this.locked ? this.walkOut() : this.modes();
+      // A link or a build locked to one mode plays that mode either way: PLAY NOW started a Blast.
+      if (this.locked) return this.walkOut();
+      if (how === 'modes') return this.modes();
       this.choose('CLASSIC');
     // Drawn for the right-hander the picture of the ground shows.
     }, [SHOTS_STEP, CONFIDENCE_STEP], { finish: true });
@@ -2978,7 +2989,8 @@ export class Game {
    */
   private play = () => {
     const go = () => (this.locked ? this.walkOut() : this.modes());
-    if (!whatsNewDue()) return go();
+    // A build with nothing but one mode in it has no update to tell.
+    if (NO_BOARD || !whatsNewDue()) return go();
     markWhatsNewShown();
     this.showStories('intro', go);
   };
@@ -3303,7 +3315,7 @@ export class Game {
     // The Rivals record rides on the same answer as the list. A screen opened
     // before that answer has arrived is drawn again when it does, with every
     // card already painted standing where it was.
-    if (!this.rooms && this.player) {
+    if (!this.rooms && this.player && !NO_BOARD) {
       void ChallengeRun.mine(this.player).then(list => {
         if (this.disposed || !list) return;
         this.rooms = list;
@@ -3882,7 +3894,7 @@ export class Game {
       event.preventDefault();
       if (this.phase === 'INNINGS_END') this.start(); else if (this.locked) this.walkOut(); else this.modes();
     }
-    else if (key === 'B' && !SURVIVE_ONLY) { event.preventDefault(); this.showBoard(); }
+    else if (key === 'B' && !NO_BOARD) { event.preventDefault(); this.showBoard(); }
     else if (key === 'R' && this.phase !== 'START') { event.preventDefault(); this.start(); }
     else if (key === 'ESCAPE') { event.preventDefault(); this.togglePause(); }
     else if (key === 'M') { event.preventDefault(); this.toggleSound(); }

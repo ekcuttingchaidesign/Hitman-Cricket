@@ -431,6 +431,17 @@ function surviveFigures(raw: unknown): SurviveInnings {
   };
 }
 
+/**
+ * Super10's Pages build counts nothing (`VITE_SUPER10_ONLY`): GoatCounter's
+ * script counts a page view by itself as it loads, so it is left off the page.
+ */
+function noCounter(): Plugin {
+  return {
+    name: 'hitman-no-counter',
+    transformIndexHtml: html => process.env.VITE_SUPER10_ONLY ? html.replace(/<script data-goatcounter[^>]*><\/script>\s*/, '') : html,
+  };
+}
+
 export default defineConfig({
   base: './',
   // Which Vercel environment built this bundle, for the one thing the page
@@ -438,7 +449,7 @@ export default defineConfig({
   // Unset anywhere off Vercel, which the page reads as not production, as the
   // functions read their key prefix.
   define: { 'import.meta.env.VITE_VERCEL_ENV': JSON.stringify(process.env.VERCEL_ENV ?? '') },
-  plugins: [boardEndpoints()],
+  plugins: [boardEndpoints(), noCounter()],
   // Git worktrees get made inside `.claude/`, and a worktree is a whole second
   // copy of this repository — tests included. Left to its default globs vitest
   // collects those copies too, so one checkout's run reports another checkout's

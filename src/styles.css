@@ -4355,7 +4355,8 @@ body.marathon-mode #end :is(#challenge-set,#card-share){display:none}
 
 /* A build published somewhere that cannot serve the board hides the way to it
    entirely, rather than offering a key that can only ever say it is unreachable. */
-body.survive-only #cover-board,body.survive-only #panel-board,body.survive-only #board{display:none}
+/* A build with no server behind it (Pages): nothing that opens a board, a career, a restore or a form that posts. */
+body.no-board :is(#cover-board,#panel-board,#board,.ec-doors,.restore-panel,#feedback-pause,#feedback-card,#feedback-open,#cover-profile,#profile-played){display:none!important}
 @container app (max-width:560px){
   .hit-burst span{font-size:36px}
 }

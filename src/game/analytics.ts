@@ -40,6 +40,8 @@ export function counting(where: { hostname: string; search: string }, vercelEnv:
   const params = new URLSearchParams(where.search);
   if (params.has('seed') || params.get('debug') === '1' || params.get('perf') === '1') return false;
   if (vercelEnv === 'preview' || vercelEnv === 'development') return false;
+  // Super10's playtest build on Pages: its testers are not the game's players.
+  if (import.meta.env.VITE_SUPER10_ONLY) return false;
   return !/^(localhost|127\.0\.0\.1|\[::1\]|::1)$/.test(where.hostname);
 }
 

@@ -4269,7 +4269,7 @@ ${super10PageMarkup(excitedAlready())}
    * that mode, and offering to leave it is how a playtester ends up filing
    * feedback about the wrong game.
    */
-  lockMode(surviveOnly = false) {
+  lockMode(noBoard = false) {
     this.$('survive-modes').classList.add('hidden');
     // Including the way out of the pause card. A link that names one mode is a
     // link to that mode wherever the player is standing when they ask.
@@ -4279,7 +4279,7 @@ ${super10PageMarkup(excitedAlready())}
     // A build with no board behind it should not offer a way to one. The key is
     // on the cover under two different ids depending on whether the screen got
     // the phone layout or the desktop one.
-    if (surviveOnly) document.body.classList.add('survive-only');
+    if (noBoard) document.body.classList.add('no-board');
   }
 
   /**
