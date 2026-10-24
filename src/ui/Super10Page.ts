@@ -77,11 +77,11 @@ export function super10PageMarkup(excited: boolean): string {
           <div class="sp-scroll">
             <div class="sp-hero">
               <img class="sp-picture" src="${SUPER10_PICTURE}" alt="" decoding="async">
-              <div class="sp-lockup">
               <div class="sp-hero-top">
                 <button id="super10-back" class="k-icon-button" aria-label="Back" title="Back">${icon('arrow-left')}</button>
                 <span class="sp-tag">COMING SOON</span>
               </div>
+              <div class="sp-lockup">
                 <h2 id="super10-title" class="sp-logo"><img src="${SUPER10_LOGO}" alt="Super10"></h2>
                 <p class="sp-tagline">TEN OVERS OF REAL <b>T10.</b></p>
                 <p class="sp-line">Five wickets, five bowlers and a field that fights back.</p>

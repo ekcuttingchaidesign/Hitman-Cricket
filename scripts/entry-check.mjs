@@ -131,6 +131,16 @@ const words = (page, selector) => page.locator(selector).innerText().then(t => t
     "My Stats is a Debutant's card", await words(page, '#modes-stats-tier'));
   check(/Same balls/.test(await words(page, '#modes-rivals-line')), 'and Rivals invites', await words(page, '#modes-rivals-line'));
   await page.screenshot({ path: 'test-results/entry/modes-new.png' });
+  // Super10's page: its back key is the thing a thumb finds, not the picture under it.
+  await page.locator('#mode-super10').click();
+  await page.waitForSelector('#super10-page:not(.hidden)');
+  const s10back = await page.locator('#super10-back').boundingBox();
+  const under = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('#super10-back') !== null,
+    [s10back.x + s10back.width / 2, s10back.y + s10back.height / 2]);
+  await page.mouse.click(s10back.x + s10back.width / 2, s10back.y + s10back.height / 2);
+  await page.waitForTimeout(400);
+  check(under && !(await page.locator('#super10-page').isVisible()) && await page.locator('#modes').isVisible(),
+    "Super10's page closes from its back key, back to Choose a mode");
   check(errors.length === 0, 'with nothing thrown', errors.join(' | '));
   await context.close();
 }
