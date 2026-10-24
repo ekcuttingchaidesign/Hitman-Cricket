@@ -68,3 +68,17 @@ export async function sendFeedback(payload: FeedbackPayload): Promise<FeedbackSe
     clearTimeout(timer);
   }
 }
+
+/**
+ * I'M EXCITED on Super10's page, told to the store, which counts each player
+ * once (`countExcited`). Nothing waits on it and nothing is said if it fails:
+ * GoatCounter has the tap either way, and the key is lit before this is sent.
+ */
+export function sendExcited(playerId: string): void {
+  void fetch(`${API}/api/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    keepalive: true,
+    body: JSON.stringify({ excited: 'super10', playerId }),
+  }).catch(() => {});
+}

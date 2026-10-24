@@ -1448,6 +1448,42 @@ The orthodox sweep (`FLAT_SWEEP`) is still built on the kneel the slog was
 before (`KNEELING_SWEEP`) and meets the ball where the drives do. It is
 `sweep` in the batter tests' `PLAYS`, with its `meets`.
 
+## Choose a mode's rail, and Super10 coming soon
+
+Choose a mode puts the Blast, the Test Marathon and Test Survival on one
+swipeable rail of posters 240 wide (Figma 16E, `450:5037`; `#modes-rail` in
+`ModeSelect.ts`, `.ms-rail` in `src/super10-page.css`): CSS scroll snap, the
+first at the left gutter, the middle centred, the last at the right, a pager
+under it whose dot stretches in the colour of the poster settled on
+(`settledPoster`: the one most on screen), each picture drifting a fifth
+slower than its card (`--drift`). A tap on a card half off the side brings it
+in rather than playing it (a capture-phase listener in `wireRail`), so PLAY
+is only pressed on the card in front; a Playwright click scrolls its target
+into view first, so the checks' `#mode-survive` clicks still play. The rail
+opens on the mode played last (`hitman-last-mode`, written in `choose`), the
+Blast for a new player, and the arrow keys move it on a desktop (`stepRail`).
+Survival's poster keeps `#mode-survive-line` (its rules, or its best result,
+the Not played chip stepping aside, `is-played`).
+
+Under the rail, in the slot Survival's banner had, the Super10 card
+(`#mode-super10`, Figma 488:591): coming soon, no PLAY, opening Super10's
+page (`src/ui/Super10Page.ts`, Figma 19B whole scroll `497:6198`,
+`#super10-page`, over the picker, Escape and back put it away). The picture
+is `src/assets/super10/picture.webp` (exported from the Figma image fill)
+and the logo `logo.svg` (the Volt colourway from `artifacts/super10-logo`).
+The page's foot has the day it opens (`SUPER10_OPENS`) over I'M EXCITED in
+Volt beside GOT IT. I'M EXCITED lights for good (`hitman-super10-excited`,
+`excitedAlready`) and is counted once a browser: GoatCounter's
+`super10-excited` (preview and dev count nothing there) and the store's
+`POST /api/feedback { excited: 'super10', playerId }` (`sendExcited`), kept
+in a set so each player counts once and tallied by day (`countExcited`,
+`super10-excited` on the end of `TALLIES`); a private window sends nothing.
+It rides the feedback endpoint rather than a new one: the deployment is
+one function short of the Hobby plan's twelve. `scripts/super10-report.ts`
+reads the count, read-only. The mode itself is not in this build: it ships
+later, and the card is only its trailer. The tagline is Saira Black Italic
+(`src/assets/saira-latin-900-italic.woff2`, OFL), the brand's lettering.
+
 ## A newcomer's first innings
 
 The first three finished innings in each mode are batted a little easier

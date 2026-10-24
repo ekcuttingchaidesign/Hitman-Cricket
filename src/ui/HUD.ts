@@ -53,6 +53,7 @@ import {
 } from './Board';
 import { battingCardMarkup, injuryRingMarkup, injuryWord, overChartMarkup, wormChartMarkup } from './EndCard';
 import { modeSelectMarkup, modeSelectParts, type ModeSelectView } from './ModeSelect';
+import { excitedAlready, opensLine, super10PageMarkup } from './Super10Page';
 import { storiesMarkup, storyHolds, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
 import { applyNearing, endNearing, nearingMarkup } from './Nearing';
 import type { Nearing, NearingEnd } from '../game/milestone';
@@ -533,6 +534,7 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
             </div>
         </div>
 ${modeSelectMarkup()}
+${super10PageMarkup(excitedAlready())}
         <div id="challenge-room" class="modal-overlay room-screen hidden" role="dialog" aria-modal="true" aria-labelledby="room-title">
           <div class="room-sheet">
             <div class="mode-top room-top">
@@ -673,6 +675,7 @@ ${modeSelectMarkup()}
       </div>
       <dialog id="help-dialog"><button class="close-help hud-button" aria-label="Close instructions">×</button><p class="eyebrow">WELCOME TO HITMAN OVAL</p><h2>Make every ball count.</h2><p>Face 30 balls, with three wickets to spare. Read the ball's position as it approaches the crease and press a shot key just as it reaches your bat.</p><div class="touch-only"><p>Swipe directly on the field when the ball reaches your bat. A short, decisive swipe is enough.</p><ul><li>← Left: leg-side shot</li><li>↖ Up-left: long-on drive</li><li>↑ Up: straight drive</li><li>↗ Up-right: cover drive</li><li>→ Right: square cut, behind point</li><li>↓ Down: forward defensive</li><li>↙ Down-left: the scoop, over the keeper (meter full)</li><li>↘ Down-right: the reverse scoop, over the slips (meter full)</li></ul><p>One swipe per ball. A tap plays no shot. The same timing and wicket rules apply.</p></div><ul class="keyboard-only"><li><kbd>A</kbd> plays left to leg; <kbd>D</kbd> cuts it square off the back foot.</li><li><kbd>W</kbd> drives straight back toward the bowler.</li><li>Press <kbd>A</kbd> + <kbd>W</kbd> or <kbd>W</kbd> + <kbd>D</kbd> within 100 ms for a diagonal drive.</li><li><kbd>S</kbd> blocks it: bat down, no runs, and nothing can be caught off it. With the meter full, <kbd>S</kbd> + <kbd>A</kbd> scoops it over the keeper and <kbd>S</kbd> + <kbd>D</kbd> reverse-scoops it over the slips.</li><li>The arrow keys play the same shots: <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd>, and pair up the same way.</li><li>One swing per ball. Wait for the ball to come to you.</li><li>Perfect timing can score four or six. Mistimed contact can be caught; missing the stumps' line can mean Bowled or LBW.</li></ul><p class="help-note"><b>The square cut.</b> Swipe out to the off (or press <kbd>D</kbd>) and he rocks onto the back foot and cuts square of the wicket, behind point. It wants width: the further outside off the ball is, the better it plays, and there is nothing in it against a ball at the stumps. It is also the one stroke that answers a bouncer outside off — the ball sits up with room to free the arms at it. Middled, it goes behind point for six or four. Anything else feathers the edge through to the keeper, and a bouncer outside off is exactly where that happens.</p><p class="help-note"><b>Defending.</b> Swipe down (or press <kbd>S</kbd>) and the batter blocks it: the ball dies at his feet for a dot, and a dead bat cannot be caught. Leave it too late, though, and the ball goes past — on the stumps, that bowls you. Blocking costs your confidence nothing, but go three balls without scoring and you will hear about it from the field.</p><p class="help-note"><b>The confidence meter.</b> Boundaries, twos and threes fill it; a ball that beats the bat drains it, a single or a block leaves it where it stands, and a wicket empties it. Full, it pulses — and when a ball you can walk at is coming, the whole field lights up gold from the bowler's run-up. Drive that one — straight, or either diagonal — and time it well, and you charge down the pitch and hit it out of the ground. Miss it and the call tells you which half you got wrong, with the meter still charged.</p><p class="help-note"><b>The scoops.</b> With the meter full, swipe down and to the left (or press <kbd>S</kbd> + <kbd>A</kbd>) at a ball on middle or leg and he crouches, gets the face under it and ramps it over the keeper's shoulder; swipe down and to the right (<kbd>S</kbd> + <kbd>D</kbd>) at one on or outside off and he kneels and reverses it over the slips. Timed perfectly it is six, a shade under is four, held back is ones and twos. Poor timing is a top edge to the keeper, and a ball missed altogether has only your pads between it and the stumps. Neither works on a bouncer, and playing one at the wrong line is playing at air. Either way the meter is spent.</p><p class="help-note">Play with swipes on a phone, or A, W, D, S — or the arrow keys — on a keyboard. Use Pause to take a break or restart.</p><button id="help-done" class="primary-button">GOT IT ${icon('arrow')}</button></dialog>`;
     this.viewport = this.$('viewport'); this.score(new ScoreManager());
+    this.wireRail();
     if (!document.fullscreenEnabled) this.$('fullscreen').classList.add('hidden');
     this.$('card-career').addEventListener('click', () => this.onStatsOpen?.());
     const dialog = this.$('help-dialog') as HTMLDialogElement;
@@ -4072,8 +4075,95 @@ ${modeSelectMarkup()}
 
   private keyPending: KeyView | null = null;
 
-  /** The mode picker. Skipped entirely when a link has already named the mode. */
-  modes() {
+  /** The rail's posters as they stand: the ones on offer, in order. */
+  private posters() { return [...this.$('modes-rail').querySelectorAll<HTMLElement>('.ms-poster:not(.hidden)')]; }
+  /**
+   * The poster the rail has settled on: the one most of which is on screen,
+   * the leftmost of a tie. At rest the first is whole and the next half-seen,
+   * so it is the first; swiped to the middle, the middle.
+   */
+  private settledPoster(): HTMLElement | null {
+    const rail = this.$('modes-rail').getBoundingClientRect();
+    let best: HTMLElement | null = null, most = -1;
+    for (const poster of this.posters()) {
+      const box = poster.getBoundingClientRect();
+      const seen = Math.min(box.right, rail.right) - Math.max(box.left, rail.left);
+      if (seen > most + 1) { most = seen; best = poster; }
+    }
+    return best;
+  }
+  /** Where the rail has to be scrolled to for `poster` to settle: its snap point, the first at the left gutter, the last at the right, any other in the middle. */
+  private railLeft(poster: HTMLElement) {
+    const rail = this.$('modes-rail');
+    const centred = poster.offsetLeft - (rail.clientWidth - poster.offsetWidth) / 2;
+    return Math.max(0, Math.min(rail.scrollWidth - rail.clientWidth, centred));
+  }
+  /**
+   * The rail of posters (Figma 16E): the pager's dot stretches in the colour of
+   * the poster settled on, each picture drifts a fifth slower than its card,
+   * and a tap on a card half off the side brings it in rather than playing it
+   * — PLAY is only ever pressed on the card in front of you.
+   */
+  private wireRail() {
+    const rail = this.$('modes-rail');
+    let frame = 0;
+    const follow = () => {
+      frame = 0;
+      const settled = this.settledPoster();
+      const middle = rail.getBoundingClientRect().left + rail.clientWidth / 2;
+      for (const poster of this.posters()) {
+        const box = poster.getBoundingClientRect();
+        poster.style.setProperty('--drift', String(Math.round((middle - (box.left + box.width / 2)) * 0.2)));
+        const dot = this.viewport.querySelector(`.ms-pager .is-${poster.classList.contains('is-blast') ? 'blast' : poster.classList.contains('is-marathon') ? 'marathon' : 'survival'}`);
+        dot?.classList.toggle('is-on', poster === settled);
+      }
+    };
+    rail.addEventListener('scroll', () => { frame ||= requestAnimationFrame(follow); }, { passive: true });
+    rail.addEventListener('click', event => {
+      const poster = (event.target as Element).closest<HTMLElement>('.ms-poster');
+      if (!poster || poster === this.settledPoster()) return;
+      // In the capture phase, so the mode's own key never hears it.
+      event.stopPropagation(); event.preventDefault();
+      rail.scrollTo({ left: this.railLeft(poster), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    }, true);
+    this.followRail = follow;
+  }
+  private followRail = () => {};
+  /** The next poster along the rail, or the one before, settled on as a swipe would. */
+  stepRail(by: 1 | -1) {
+    const posters = this.posters();
+    const at = posters.indexOf(this.settledPoster()!);
+    const next = posters[Math.max(0, Math.min(posters.length - 1, at + by))];
+    if (next) this.$('modes-rail').scrollTo({ left: this.railLeft(next), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }
+
+  /** Super10's page over Choose a mode, from its card, at the top of its scroll. */
+  super10Page() {
+    this.$('super10-page').classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    this.viewport.querySelector('.sp-scroll')?.scrollTo({ top: 0 });
+    (this.$('super10-back') as HTMLButtonElement).focus({ preventScroll: true });
+  }
+  /** Put away, back to Choose a mode with the card in focus. */
+  closeSuper10() {
+    this.$('super10-page').classList.add('hidden');
+    (this.$('mode-super10') as HTMLButtonElement).focus({ preventScroll: true });
+  }
+  get super10Open() { return !this.$('super10-page').classList.contains('hidden'); }
+  /** I'M EXCITED, pressed: lit for good, with a burst of Volt the moment it is pressed (`burst`). */
+  super10Excited(burst: boolean) {
+    const key = this.$('super10-excited');
+    key.classList.add('is-done');
+    key.setAttribute('aria-pressed', 'true');
+    key.querySelector('.sp-excited-word')!.textContent = 'EXCITED!';
+    this.$('super10-when').textContent = opensLine(true);
+    if (!burst) return;
+    key.classList.remove('is-bursting'); void key.offsetWidth; key.classList.add('is-bursting');
+    window.setTimeout(() => key.classList.remove('is-bursting'), 700);
+  }
+
+  /** The mode picker, settled on `at` (the mode played last). Skipped entirely when a link has already named the mode. */
+  modes(at: 'CLASSIC' | 'MARATHON' | 'SURVIVE' = 'CLASSIC') {
     // Whatever was over the ground goes first. The picker is a screen, and both
     // end cards sit later in the markup on the same layer — opened from one of
     // them the picker appeared *behind* it, which read as the key doing nothing.
@@ -4089,6 +4179,11 @@ ${modeSelectMarkup()}
     // key is at the foot, and the screen would open scrolled past its title.
     (this.$('mode-challenge') as HTMLButtonElement).focus({ preventScroll: true });
     this.viewport.querySelector('.ms-content')?.scrollTo({ top: 0 });
+    // The rail opens on the mode played last, where it would have settled had it been swiped there.
+    const rail = this.$('modes-rail');
+    const poster = this.posters().find(p => p.dataset.mode === at) ?? this.posters()[0];
+    if (poster) rail.scrollLeft = this.railLeft(poster);
+    this.followRail();
   }
   closeModes() {
     this.$('modes').classList.add('hidden');
@@ -4105,9 +4200,9 @@ ${modeSelectMarkup()}
    * friend is the second thing to choose between now, so the screen has a job
    * whether or not the Test match is on offer.
    */
-  hideSurviveCard() { this.$('mode-survive').classList.add('hidden'); }
+  hideSurviveCard() { this.$('mode-survive').classList.add('hidden'); this.viewport.querySelector('.ms-pager .is-survival')?.classList.add('hidden'); }
   /** The Marathon's card, off the picker on production until the mode launches. */
-  hideMarathonCard() { this.$('mode-marathon').classList.add('hidden'); }
+  hideMarathonCard() { this.$('mode-marathon').classList.add('hidden'); this.viewport.querySelector('.ms-pager .is-marathon')?.classList.add('hidden'); }
 
   /**
    * The end card the picker was opened from, put back the way it was.
@@ -4976,6 +5071,7 @@ ${modeSelectMarkup()}
       if (at) at.innerHTML = html;
     }
     this.$('mode-marathon').classList.toggle('is-played', !!view.marathon.best);
+    this.$('mode-survive').classList.toggle('is-played', !!view.survive.best);
     this.$('modes-dressing').classList.toggle('is-visited', view.dressing.visited);
     const stats = this.$('modes-stats');
     stats.className = stats.className.replace(/tier-\S+/g, '').trim() + ` tier-${view.stats.tier.key}`;

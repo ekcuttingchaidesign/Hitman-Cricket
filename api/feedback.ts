@@ -4,11 +4,13 @@
 import {
   FEEDBACK_KEPT, feedbackCsv, keyAccepted, refusedFeedback, takeFeedback,
 } from '../src/server/feedback-store.js';
-import { NoDatabase, redisFromEnv, upstashFeedback } from '../src/server/upstash.js';
+import { NoDatabase, countExcited, redisFromEnv, upstashFeedback } from '../src/server/upstash.js';
+import { isPlayerId } from '../src/server/board-store.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 
 /**
- * `POST /api/feedback` — a filled-in questionnaire.
+ * `POST /api/feedback` — a filled-in questionnaire, or `{ excited: 'super10', playerId }`
+ *   from I'M EXCITED on Super10's page, counted once a player (`countExcited`).
  * `GET  /api/feedback?key=…` — every one of them, as a spreadsheet.
  *
  * Everything that decides what is kept lives in `takeFeedback`, which runs the
@@ -30,6 +32,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   const body = parse(req.body);
   if (!body) return failed(res, 400, 'Send the answers as JSON.');
+
+  if (body.excited === 'super10') {
+    if (!isPlayerId(body.playerId)) return failed(res, 400, 'Who is excited?');
+    try {
+      await countExcited(redisFromEnv(), body.playerId);
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json({ ok: true });
+    } catch (error) {
+      if (error instanceof NoDatabase) return failed(res, 503, 'Not set up yet.', error);
+      return failed(res, 503, 'That could not be counted.', error);
+    }
+  }
 
   try {
     const outcome = await takeFeedback(upstashFeedback(redisFromEnv()), {
