@@ -1471,7 +1471,7 @@ page (`src/ui/Super10Page.ts`, Figma 19B whole scroll `497:6198`,
 `#super10-page`, over the picker, Escape and back put it away). The picture
 is `src/assets/super10/picture.webp` (exported from the Figma image fill)
 and the logo `logo.svg` (the Volt colourway from `artifacts/super10-logo`).
-The page's foot has the day it opens (`SUPER10_OPENS`) over I'M EXCITED in
+The page's foot has the day it opens (`SUPER10_OPENS`, null until there is one, when it says Coming soon) over I'M EXCITED in
 Volt beside GOT IT. I'M EXCITED lights for good (`hitman-super10-excited`,
 `excitedAlready`) and is counted once a browser: GoatCounter's
 `super10-excited` (preview and dev count nothing there) and the store's
