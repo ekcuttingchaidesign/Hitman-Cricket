@@ -46,6 +46,12 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 #marks button{position:absolute;top:0;transform:translateX(-10%);min-height:0;padding:2px 8px;font-size:11px;background:transparent;border:0;color:var(--text-3)}
 #marks button.low{top:18px}
 #marks button.on{color:var(--death)}
+/* On a phone the phases sit too close to label on the track: a row of jump keys under it instead. */
+@media (max-width:560px){
+  .scrub{display:flex;flex-direction:column-reverse;gap:10px;padding-top:0}
+  #marks{position:static;height:auto;display:flex;flex-wrap:wrap;gap:6px}
+  #marks button,#marks button.low{position:static;transform:none;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--card-2)}
+}
 .notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
 .note{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:14px;color:var(--text-2)}
 .note b{color:var(--text)}
@@ -87,6 +93,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
   </div>
   <div class="notes">
     <div class="note"><b>The loop.</b> From the batter's end, watch the ball arm drop and swing out wide to his side, then up above his head, about two strides before the hop.</div>
+    <div class="note"><b>The front arm.</b> Thrown straight up as he takes off, so both arms are high through the hop. Then it is pulled down in front of him, a little ahead of the ball arm, and hangs straight down at his side as the ball goes. Watch it from Side on at Slow.</div>
     <div class="note"><b>Front-on.</b> Side on, compare him with the fast bowler: the fast bowler turns his chest away at the jump, the death bowler stays open to the batter.</div>
     <div class="note"><b>Same release.</b> Every bowler's run takes 0.84 seconds and lets go from the same point, because the batter times the ball off it.</div>
   </div>
