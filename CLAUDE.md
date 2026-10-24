@@ -1462,7 +1462,7 @@ is only pressed on the card in front; a Playwright click scrolls its target
 into view first, so the checks' `#mode-survive` clicks still play. The rail
 opens on the mode played last (`hitman-last-mode`, written in `choose`), the
 Blast for a new player, and the arrow keys move it on a desktop (`stepRail`).
-Survival's poster keeps `#mode-survive-line` (its rules, or its best result,
+The Marathon's poster has no NEW tag any more. Survival's poster keeps `#mode-survive-line` (its rules, or its best result,
 the Not played chip stepping aside, `is-played`).
 
 Under the rail, in the slot Survival's banner had, the Super10 card
@@ -1471,6 +1471,9 @@ page (`src/ui/Super10Page.ts`, Figma 19B whole scroll `497:6198`,
 `#super10-page`, over the picker, Escape and back put it away). The picture
 is `src/assets/super10/picture.webp` (exported from the Figma image fill)
 and the logo `logo.svg` (the Volt colourway from `artifacts/super10-logo`).
+Its header is two layers that part as the page scrolls (`wireSuper10Header`
+sets `--s`): the picture held back at under half the scroll, the logo and
+its words (`.sp-lockup`) lifting a little faster and fading.
 The page's foot has the day it opens (`SUPER10_OPENS`, null until there is one, when it says Coming soon) over I'M EXCITED in
 Volt beside GOT IT. I'M EXCITED lights for good (`hitman-super10-excited`,
 `excitedAlready`) and is counted once a browser: GoatCounter's
