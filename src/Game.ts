@@ -5244,8 +5244,9 @@ export class Game {
 
   /** The five-over card, with the strip, the key and the board under it. */
   private showBlastCard(record: boolean, fromMatch = false) {
-    // Super10's card is the Blast's, for ten overs, with no best of its own to quote yet.
-    if (this.super10) this.hud.end(this.score, 0, record, this.limits.totalBalls, 'SUPER10');
+    // Super10's card is the Blast's in its own colours, with the batting card
+    // and no best of its own to quote yet.
+    if (this.super10) this.hud.endSuper10(this.score, record, this.s10.surged);
     else this.hud.end(this.score, this.best, record);
     this.hud.matchScorecard(fromMatch);
     // The way to the career card from the innings card. Offered only where a

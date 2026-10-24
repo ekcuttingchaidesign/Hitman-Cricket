@@ -1654,6 +1654,18 @@ What is not here yet: the boards and the career. Until it has a board, an inning
 SUPER10 · 10 OVERS with no best quoted, says the mode is still being built
 whatever the innings was worth (`why: 'building'` on the practice offer).
 It is reached by `?mode=super10` off production only (`SUPER10_OPEN`).
+
+The card is the Blast's in the brand's colours (`endSuper10` in the HUD,
+`is-super10` on `#end`, its rules at the foot of `src/super10.css`): the band
+violet over ink with paler violet chevrons, the 10 of SUPER10 in Volt, and the
+over by over for ten overs (`super10ChartMarkup` in `EndCard.ts`) — bars half
+the Blast's width so ten fit, a six Volt, a four violet, a wicket raspberry,
+each over's runs over its number and the number in its phase's colour
+(`super10Phase`: the Powerplay Volt, the middle violet, the death white), and
+a gold bolt over the over Power Surge was taken in. Under it the Marathon's
+batting card, worked out from the balls alone (`battingOf`: each ball is the
+man in's, the next is listed once he faces one, the man still in starred).
+Super10's five all bat the player's way round, so no LH chip.
 `scripts/super10-check.mjs` plays one through on the dev server: the bowlers in
 the schedule's order, one real ball from each kind with his own action, the
 speed gun, the No. 2 named after a wicket, the field map and Power Surge in

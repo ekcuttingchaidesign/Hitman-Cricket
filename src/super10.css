@@ -126,3 +126,42 @@ body.start-screen .s10-big,.stage.result-open .s10-big,.stage.picking-mode .s10-
   .s10-title.is-in{opacity:1}
   .s10-shot.is-on,.s10-shot-under.is-on{animation:none;stroke-dashoffset:0}
 }
+
+/* ── Super10's innings card (`endSuper10` in the HUD, `super10ChartMarkup`) ──
+   The Blast's card in the brand's colours (Figma section 17): the band in
+   violet over ink with paler violet chevrons (Volt on violet read muddy),
+   the 10 of the name in Volt, a six Volt,
+   a four violet, a wicket raspberry, and gold only for Power Surge. Ten overs
+   go in the width the Blast's five take, so the bars are half as wide, and
+   each over's number is in its phase's colour, as Super10's page draws the
+   innings. The batting card under it is the Marathon's. */
+#end.ec-screen.is-super10{--mode:#8b5cf6;--band-a:#5b2fc0;--band-b:#1d0848;--chev:#b79bff;--chev-a:.16;--chev-b:.3;--track:#8b5cf621}
+#end.is-super10 .k-pit-mode b{font:inherit;color:#c6ff1a}
+#end.is-super10 .ec-chart-head .k-icon{color:#c6ff1a}
+#end.is-super10 .ec-bar.is-six{--fill:#c6ff1a}
+#end.is-super10 .ec-bar.is-four{--fill:#a98bff}
+#end.is-super10 .ec-bar.is-run{--fill:#8b5cf666}
+#end.is-super10 .ec-bar.is-out{--fill:#ff2e63}
+#end.is-super10 .ec-key i.is-six{background:#c6ff1a}
+#end.is-super10 .ec-key i.is-four{background:#a98bff}
+#end.is-super10 .ec-key i.is-out{background:#ff2e63}
+.ec-columns.is-ten{padding-top:calc(var(--u) * 13)}
+.ec-columns.is-ten .ec-over{position:relative;align-items:center}
+.ec-columns.is-ten .ec-bars{gap:calc(var(--u) * 1.5)}
+.ec-columns.is-ten .ec-bar{width:calc(var(--u) * 3.5);border-radius:2px}
+.ec-screen .ec-columns.is-ten i.ec-bar::after{border-radius:2px}
+.ec-columns.is-ten .ec-over-label{flex-direction:column;gap:calc(var(--u) * 3)}
+.ec-columns.is-ten .ec-over-label b{min-height:1em;font:800 calc(var(--u) * 11)/1 var(--f-ui);letter-spacing:0;color:#fff}
+.ec-columns.is-ten .ec-over-label span{font:700 calc(var(--u) * 9)/1 var(--f-ui);letter-spacing:.04em}
+.ec-over.is-powerplay .ec-over-label span{color:#c6ff1a}
+.ec-over.is-middle .ec-over-label span{color:#a98bff}
+.ec-over.is-death .ec-over-label span{color:#fff}
+.ec-over.is-unbowled .ec-over-label span{opacity:.45}
+.ec-bolt{width:calc(var(--u) * 10);height:calc(var(--u) * 10);fill:var(--c-gold)}
+.ec-over.is-surge>.ec-bolt{position:absolute;top:calc(var(--u) * -13);left:50%;translate:-50% 0}
+.ec-over.is-surge .ec-over-label b{color:var(--c-gold)}
+.ec-key.is-surge{color:var(--c-gold)}
+.ec-key.is-surge .ec-bolt{width:calc(var(--u) * 9);height:calc(var(--u) * 9)}
+#end.is-super10 .ec-chip.is-milestone{background:#c6ff1a26;color:#c6ff1a}
+#end.is-super10 .ec-chip.is-milestone.is-ton{background:#c6ff1a;color:#12052b}
+.ec-not-out{margin-left:1px;font-style:normal;color:var(--c-text-3)}

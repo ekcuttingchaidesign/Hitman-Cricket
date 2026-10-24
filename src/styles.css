@@ -4231,7 +4231,8 @@ body.marathon-mode #end :is(#challenge-set,#card-share){display:none}
 /* The Marathon's card: the worm and the batting card where the Blast's ball
    strip, batter line and three figures are, and its own two keys under PLAY
    AGAIN. Shown only on that card, so the Blast's is exactly what it was. */
-#end:not(.is-marathon) :is(.mcard-worm,.mcard-score,.mcard-keys){display:none}
+#end:not(.is-marathon) :is(.mcard-worm,.mcard-keys){display:none}
+#end:not(.is-marathon):not(.is-super10) .mcard-score{display:none}
 #end.is-marathon :is(#final-balls,#end-message,.card-stats){display:none}
 /* The Blast's pair under PLAY AGAIN is Challenge a friend and Change mode; the
    Marathon has no friend to challenge and carries its own Change mode beside
@@ -7437,6 +7438,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .ec-chart-title{flex:1;color:#ffffffd9}
 .ec-key{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
 .ec-key i{width:7px;height:7px;border-radius:50%}
+/* The old card's ball strip (`.card-balls i`) dimmed every <i> in the chart, the legend's dots with it. */
+.ec-screen .ec-chart .ec-key i{opacity:1;transform:none;animation:none}
 .ec-key i.is-six{background:#4da3ff}.ec-key i.is-four{background:#a9cfffd9}.ec-key i.is-out{background:var(--c-loss)}
 .ec-key.is-best i{width:14px;height:0;border-radius:0;border-top:1.5px dashed var(--c-win)}
 .ec-columns{display:flex;justify-content:space-between;align-items:flex-start}

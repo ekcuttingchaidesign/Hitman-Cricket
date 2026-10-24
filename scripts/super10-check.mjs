@@ -227,6 +227,22 @@ check(heading === 'SUPER10 · 10 OVERS', 'the card is headed SUPER10 · 10 OVERS
 const note = (await page.locator('#card-board-head').textContent()) ?? '';
 check(/still being built/i.test(note), 'and says Super10 does not count yet', note);
 check(!/best stands/i.test(card ?? ''), 'and quotes no Blast best on it');
+// Its own card: the Blast's in Super10's colours, ten overs charted with the
+// surge's over marked, and the Marathon's batting card, a row a man who came in.
+const drawn = await page.evaluate(() => ({
+  themed: document.querySelector('#end').classList.contains('is-super10'),
+  overs: document.querySelectorAll('#final-balls .ec-over').length,
+  surge: [...document.querySelectorAll('#final-balls .ec-over')].findIndex(o => o.classList.contains('is-surge')),
+  rows: [...document.querySelectorAll('#mcard-score tbody tr')].map(r => r.querySelector('.ec-bat-name')?.textContent),
+  shown: !!document.querySelector('#mcard-score')?.offsetHeight,
+  balls: [...document.querySelectorAll('#mcard-score tbody tr')].reduce((n, r) => n + Number(r.cells[2]?.textContent ?? 0), 0),
+}));
+check(drawn.themed && drawn.overs === 10, 'the card charts all ten overs in Super10\'s colours', JSON.stringify(drawn));
+check(drawn.surge === 5, 'with the bolt over the sixth, the over Power Surge was taken in', String(drawn.surge));
+check(drawn.shown && drawn.rows.length === final.wickets + (final.wickets < 5 ? 1 : 0) && drawn.rows[0] === 'OPENER' && drawn.rows[1] === 'NO. 2',
+  'and a batting card under it, a row for each man who came in', drawn.rows.join(' · '));
+check(drawn.balls === final.balls, 'whose balls add up to the innings\'', `${drawn.balls} of ${final.balls}`);
+await page.locator('#end .ec-content').screenshot({ path: 'test-results/super10-card.png' }).catch(() => {});
 check(sent.length === 0, 'nothing is sent to a board or a career', sent.join(', '));
 
 // A first Super10 in this browser opens with the field map's card, once.

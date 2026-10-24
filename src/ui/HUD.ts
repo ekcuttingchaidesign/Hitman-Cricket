@@ -51,7 +51,7 @@ import {
   BOARD_MODES, MODE_ORDER, NO_CONTEXT, blastBody, blurbOf, boardScreenMarkup, careerBody, ladderSheetMarkup, marathonBody, menuRank,
   modeMenuMarkup, rulesSheetMarkup, surviveBody, type BoardBody, type BoardContext, type BoardMode, type BoardScreen,
 } from './Board';
-import { battingCardMarkup, injuryRingMarkup, injuryWord, overChartMarkup, wormChartMarkup } from './EndCard';
+import { battingCardMarkup, battingOf, injuryRingMarkup, injuryWord, overChartMarkup, super10ChartMarkup, wormChartMarkup } from './EndCard';
 import { modeSelectMarkup, modeSelectParts, type ModeSelectView } from './ModeSelect';
 import { excitedAlready, opensLine, super10PageMarkup } from './Super10Page';
 import { storiesMarkup, storyHolds, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
@@ -83,6 +83,7 @@ import type { NetsBowler } from '../game/DeliveryGenerator';
 const NETS_LABEL: Record<NetsBowler, string> = { PACE: 'PACE', SWING: 'SWING', SPIN: 'SPIN', EXPRESS: 'SLING' };
 import { HEALTH, SURVIVE } from '../config/survive';
 import { BATTERS, type LevelBanner } from '../config/marathon';
+import { BATTERS as SUPER10_BATTERS } from '../config/super10';
 import { resultOf, type Result } from '../game/Survive';
 import type { SoundSetting } from '../game/Audio';
 import type { CareerMode } from '../game/career';
@@ -2671,7 +2672,7 @@ ${super10PageMarkup(excitedAlready())}
     this.$('pause-sound-note').classList.toggle('hidden', !silent);
   }
   end(score: ScoreManager, best: number, isRecord: boolean, track$: number = GAME.totalBalls, mode = 'THE BLAST') {
-    this.$('end').classList.remove('is-marathon');
+    this.$('end').classList.remove('is-marathon', 'is-super10');
     this.$('end-mode').textContent = mode;
     this.$('end-label').textContent = `${Math.round(track$ / 6)} OVERS`;
     // As on the Test card: the card carries its own sound key, so the game's
@@ -4556,6 +4557,19 @@ ${super10PageMarkup(excitedAlready())}
     this.$('mcard-worm').innerHTML = wormChartMarkup(score.history.map(ball => ball.runs), fallsOf(batters), best && best > score.runs ? best : null);
     this.$('mcard-score').innerHTML = battingCardMarkup(batters.map(b => ({ ...b, title: b.title.toUpperCase() })));
     this.marathonShare = marathonShareText(total, batters, gameLink());
+  }
+  /**
+   * How a Super10 innings finished: the Blast's card in Super10's colours, its
+   * ten overs charted with the Power Surge over marked (`surge`, counted from
+   * nought), and the batting card the Marathon has, a row for each man who
+   * came in, worked out from the balls.
+   */
+  endSuper10(score: ScoreManager, isRecord: boolean, surge: number | null) {
+    this.end(score, 0, isRecord, score.limits.totalBalls, 'SUPER10');
+    this.$('end').classList.add('is-super10');
+    this.$('end-mode').innerHTML = 'SUPER<b>10</b>';
+    this.$('final-balls').innerHTML = super10ChartMarkup(score.history, score.limits.totalBalls, surge);
+    this.$('mcard-score').innerHTML = battingCardMarkup(battingOf(score.history, SUPER10_BATTERS.map(b => b.title)));
   }
   /** What Test Survival's share key sends: only a win has one. */
   private surviveShare = '';
