@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { coverBoardLines, coverMarkup, profileChip } from '../src/ui/Cover';
 import { boardNote, modeSelectMarkup, modeSelectParts, posterStat, rivalsLine, surviveLine } from '../src/ui/ModeSelect';
 import { plateName, profileMarkup } from '../src/ui/Profile';
-import { EXCITED_KEY, SUPER10_OPENS, excitedAlready, opensLine, super10PageMarkup } from '../src/ui/Super10Page';
+import { EXCITED_KEY, excitedAlready, opensLine, super10PageMarkup } from '../src/ui/Super10Page';
 
 describe('the cover', () => {
   it('says GUEST on the chip until there is a name, and the name after', () => {
@@ -96,7 +96,7 @@ describe("Super10's page, coming soon", () => {
     const page = super10PageMarkup(false);
     for (const id of ['super10-page', 'super10-back', 'super10-excited', 'super10-got-it', 'super10-when']) expect(page).toContain(`id="${id}"`);
     expect(page).toContain('I’M EXCITED');
-    expect(page).toContain(`Coming on ${SUPER10_OPENS}`);
+    expect(page).toContain(opensLine(false));
     expect(page).toContain('aria-pressed="false"');
   });
 
@@ -105,7 +105,11 @@ describe("Super10's page, coming soon", () => {
     expect(page).toContain('sp-excited is-done');
     expect(page).toContain('EXCITED!');
     expect(page).toContain('aria-pressed="true"');
-    expect(opensLine(true)).toBe(`Noted. See you on ${SUPER10_OPENS}.`);
+    expect(opensLine(true, '30 October')).toBe('Noted. See you on 30 October.');
+    expect(opensLine(false, '30 October')).toBe('Coming on 30 October');
+    // With no day set it promises none.
+    expect(opensLine(false, null)).toBe('Coming soon');
+    expect(opensLine(true, null)).toBe('Noted. See you when it opens.');
   });
 
   it('remembers it once a browser, and a browser that keeps nothing never has', () => {

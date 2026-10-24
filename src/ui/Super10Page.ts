@@ -17,8 +17,8 @@
 import { cta, icon } from './Kit';
 import { SUPER10_LOGO, SUPER10_PICTURE } from './ModeSelect';
 
-/** The day it opens, said under the keys. */
-export const SUPER10_OPENS = '30 October';
+/** The day it opens, said over the keys ('30 October'), or null until there is one. */
+export const SUPER10_OPENS: string | null = null;
 
 /** Kept in the browser once I'M EXCITED is pressed, so it is counted once a browser. */
 export const EXCITED_KEY = 'hitman-super10-excited';
@@ -28,9 +28,10 @@ export function excitedAlready(storage?: Pick<Storage, 'getItem'>): boolean {
   try { return (storage ?? localStorage).getItem(EXCITED_KEY) === '1'; } catch { return false; }
 }
 
-/** The line over the keys: when it opens, and once excited, that it was heard. */
-export function opensLine(excited: boolean): string {
-  return excited ? `Noted. See you on ${SUPER10_OPENS}.` : `Coming on ${SUPER10_OPENS}`;
+/** The line over the keys: when it opens, and once excited, that it was heard. No day set, no day said. */
+export function opensLine(excited: boolean, opens: string | null = SUPER10_OPENS): string {
+  if (opens) return excited ? `Noted. See you on ${opens}.` : `Coming on ${opens}`;
+  return excited ? 'Noted. See you when it opens.' : 'Coming soon';
 }
 
 /** A field on the ground's own colours: the rope, the ring, the strip, the batter in blue and the side in orange. */
@@ -80,9 +81,11 @@ export function super10PageMarkup(excited: boolean): string {
                 <button id="super10-back" class="k-icon-button" aria-label="Back" title="Back">${icon('arrow-left')}</button>
                 <span class="sp-tag">COMING SOON</span>
               </div>
-              <h2 id="super10-title" class="sp-logo"><img src="${SUPER10_LOGO}" alt="Super10"></h2>
-              <p class="sp-tagline">TEN OVERS OF REAL <b>T10.</b></p>
-              <p class="sp-line">Five wickets, five bowlers and a field that fights back.</p>
+              <div class="sp-lockup">
+                <h2 id="super10-title" class="sp-logo"><img src="${SUPER10_LOGO}" alt="Super10"></h2>
+                <p class="sp-tagline">TEN OVERS OF REAL <b>T10.</b></p>
+                <p class="sp-line">Five wickets, five bowlers and a field that fights back.</p>
+              </div>
             </div>
             <div class="sp-body">
               <div class="sp-figures">

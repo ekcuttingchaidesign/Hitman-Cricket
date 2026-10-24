@@ -500,7 +500,7 @@ has a name.
 
 `scripts/dressing-check.mjs` is the Dressing Room (`src/ui/DressingRoom.ts`,
 its stage `src/scene/DressingStage.ts`): reached by its card on Choose a mode,
-under Rivals; the shelf's pictures drawn off the models, a locked kit tried on
+above Rivals; the shelf's pictures drawn off the models, a locked kit tried on
 with the key to the game it is won in, a kit and a bat put on, and the batter
 then going out to bat in them (`snapshot().look`), or in OG Navy and Plain when
 the pick is no longer earned. Boom is not free and nothing goes off on the way
@@ -1051,7 +1051,7 @@ They are `pull` and `pullV1` in the batter tests' `PLAYS`, and
 ## The flick, version two
 
 The leg-side input at a ball below pull height is the flick. Pitched up, it is in two versions
-(`FlickVersion`), half and half (`FLICK_ODDS`, `flickVersionOf` off the
+(`FlickVersion`), three in four and one in four (`FLICK_ODDS`, `flickVersionOf` off the
 innings' seed and the ball, mixed apart from the other strokes' rolls). The
 swing's version argument is the flick's for it (`flicking` in `Game.shoot`,
 `flickV2` in `Batter.ts`), and since the default version is two, every test
@@ -1679,7 +1679,7 @@ is only pressed on the card in front; a Playwright click scrolls its target
 into view first, so the checks' `#mode-survive` clicks still play. The rail
 opens on the mode played last (`hitman-last-mode`, written in `choose`), the
 Blast for a new player, and the arrow keys move it on a desktop (`stepRail`).
-Survival's poster keeps `#mode-survive-line` (its rules, or its best result,
+The Marathon's poster has no NEW tag any more. Survival's poster keeps `#mode-survive-line` (its rules, or its best result,
 the Not played chip stepping aside, `is-played`).
 
 Under the rail, in the slot Survival's banner had, the Super10 card
@@ -1688,7 +1688,10 @@ page (`src/ui/Super10Page.ts`, Figma 19B whole scroll `497:6198`,
 `#super10-page`, over the picker, Escape and back put it away). The picture
 is `src/assets/super10/picture.webp` (exported from the Figma image fill)
 and the logo `logo.svg` (the Volt colourway from `artifacts/super10-logo`).
-The page's foot has the day it opens (`SUPER10_OPENS`) over I'M EXCITED in
+Its header is two layers that part as the page scrolls (`wireSuper10Header`
+sets `--s`): the picture held back at under half the scroll, the logo and
+its words (`.sp-lockup`) lifting a little faster and fading.
+The page's foot has the day it opens (`SUPER10_OPENS`, null until there is one, when it says Coming soon) over I'M EXCITED in
 Volt beside GOT IT. I'M EXCITED lights for good (`hitman-super10-excited`,
 `excitedAlready`) and is counted once a browser: GoatCounter's
 `super10-excited` (preview and dev count nothing there) and the store's
@@ -1698,7 +1701,9 @@ in a set so each player counts once and tallied by day (`countExcited`,
 It rides the feedback endpoint rather than a new one: the deployment is
 one function short of the Hobby plan's twelve. `scripts/super10-report.ts`
 reads the count, read-only. The game itself still opens only by
-`?mode=super10` off production (`SUPER10_OPEN`).
+`?mode=super10` off production (`SUPER10_OPEN`). The tagline is Saira
+Black Italic (`src/assets/saira-latin-900-italic.woff2`, OFL), the brand's
+lettering.
 
 ## The arena: Super10's ground
 

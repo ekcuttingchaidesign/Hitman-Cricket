@@ -115,7 +115,7 @@ const ground = `<div class="ms-ground" aria-hidden="true">
 
 const play = (ink: string, ledge: string) => `<span class="k-cta k-cta--play-small ms-play" style="--ink:${ink};--ledge:${ledge}" aria-hidden="true"><span class="k-cta-face"><span>PLAY</span></span></span>`;
 
-/** The screen itself, drawn once. The Marathon's NEW tag goes once it has been played (`is-played`). */
+/** The screen itself, drawn once. */
 export function modeSelectMarkup(): string {
   return `
         <div id="modes" class="modal-overlay ms-screen hidden" role="dialog" aria-modal="true" aria-labelledby="modes-title">
@@ -138,7 +138,6 @@ export function modeSelectMarkup(): string {
               </button>
               <button id="mode-marathon" class="ms-poster is-marathon" type="button" data-mode="MARATHON">
                 <img class="ms-art" src="${POSTER_MARATHON}" alt="" decoding="async">
-                <span class="ms-tag is-new">NEW</span>
                 <span class="ms-name"><span>TEST</span><span>MARATHON</span></span>
                 <span class="ms-desc">One long innings, no over limit.</span>
                 <span class="ms-foot"><span id="mode-marathon-stat" class="ms-stat">Not played</span>${play('var(--c-marathon)', '#00301a')}</span>
@@ -158,6 +157,11 @@ export function modeSelectMarkup(): string {
               <span class="ms-super10-tag">COMING SOON</span>
               <span class="ms-super10-key" aria-hidden="true">${icon('chevron-right')}</span>
             </button>
+            <button id="modes-dressing" class="ms-dressing" type="button">
+              <img class="ms-art" src="${DRESSING_CARD}" alt="" decoding="async">
+              <span class="ms-tag is-new">NEW</span>
+              <span class="ms-dressing-text"><span class="ms-dressing-name">DRESSING ROOM${icon('chevron-right')}</span><span id="modes-dressing-line" class="ms-dressing-line">3 of 13 earned</span></span>
+            </button>
             <div class="ms-card ms-rivals">
               <button id="modes-challenges" class="ms-rivals-open" type="button" aria-label="Rival matches"></button>
               <span id="modes-rivals-faces" class="ms-versus" aria-hidden="true"></span>
@@ -165,11 +169,6 @@ export function modeSelectMarkup(): string {
               <span class="ms-rivals-text"><span class="ms-rivals-name">RIVALS <i id="mode-challenge-flag" class="ms-flag hidden"></i></span><span id="modes-rivals-line" class="ms-note">Same balls. Best score wins.</span></span>
               ${cta({ kind: 'challenge', label: 'Challenge a friend', id: 'mode-challenge' })}
             </div>
-            <button id="modes-dressing" class="ms-dressing" type="button">
-              <img class="ms-art" src="${DRESSING_CARD}" alt="" decoding="async">
-              <span class="ms-tag is-new">NEW</span>
-              <span class="ms-dressing-text"><span class="ms-dressing-name">DRESSING ROOM${icon('chevron-right')}</span><span id="modes-dressing-line" class="ms-dressing-line">3 of 13 earned</span></span>
-            </button>
             <div class="ms-bento">
               <button id="modes-board" class="ms-card ms-boards" type="button">
                 <span class="ms-card-head"><span>LEADERBOARDS</span>${icon('chevron-right')}</span>

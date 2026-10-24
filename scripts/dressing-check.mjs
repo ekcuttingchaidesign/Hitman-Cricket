@@ -86,8 +86,8 @@ check(await card.isVisible(), 'carries the Dressing Room card');
 check(await text(page, '#modes-dressing-line') === '10 of 20 earned', 'which says how much of the room is earned, Boom not yet among it', await text(page, '#modes-dressing-line'));
 check(await card.locator('.ms-tag').isVisible(), 'with NEW on it before the room is opened');
 const order = await page.locator('.ms-content > *').evaluateAll(all => all.map(one => one.id || one.className.split(' ')[0]));
-check(order.indexOf('mode-survive') < order.indexOf('ms-card') && order.indexOf('ms-card') < order.indexOf('modes-dressing') && order.indexOf('modes-dressing') < order.indexOf('ms-bento'),
-  'under Rivals, above the boards and My stats', order.join(' · '));
+check(order.indexOf('mode-super10') >= 0 && order.indexOf('mode-super10') < order.indexOf('modes-dressing') && order.indexOf('modes-dressing') < order.indexOf('ms-card') && order.indexOf('ms-card') < order.indexOf('ms-bento'),
+  'under Super10, above Rivals, the boards and My stats', order.join(' · '));
 await page.locator('.ms-content').evaluate(content => { content.scrollTop = content.scrollHeight; });
 await shoot(page, '1-modes');
 

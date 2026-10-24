@@ -17,6 +17,16 @@
    Free Font License; the notice ships beside the file in
    src/assets/satoshi-LICENSE.txt. Latin subset of the variable release, so one
    14 KB file covers every weight the innings-end card asks for. */
+/* Saira, by the Saira Project Authors (Omnibus-Type). SIL Open Font License
+   1.1 — the notice ships beside the file in src/assets/saira-OFL.txt. The
+   Super10 brand's lettering, Black Italic, for the tagline on its page. */
+@font-face{
+  font-family:Saira;
+  src:url('./assets/saira-latin-900-italic.woff2') format('woff2');
+  font-weight:900;
+  font-style:italic;
+  font-display:swap
+}
 @font-face{
   font-family:Satoshi;
   src:url('./assets/satoshi-latin.woff2') format('woff2');
