@@ -1758,8 +1758,8 @@ flash, the big hundreds) was the worst second on an iPhone: 29 to 40 frames a
 second in two playtests, the readout's only real drop. Every picture of him it
 takes is a render more and a read back off the GPU, which an iPhone pays for by
 stopping to hand it over. The outline is drawn again thirty times a second
-(`OUTLINE_MS`), not every frame, at half CSS pixels (`OUTLINE_SCALE`), and him
-alone is rendered only for it: between, he and his stumps are one render and
+(`OUTLINE_MS`), not every frame, and him alone is rendered only for it (at
+half CSS pixels too it came out in steps on an iPhone, and went back): between, he and his stumps are one render and
 one read. Three reads a frame became one and a half, and the cut-out's own
 work about forty per cent less at a quarter of a desktop's speed.
 `batterOnScreen` takes the size the renderer was given rather than measuring

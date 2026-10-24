@@ -69,10 +69,10 @@ function mutable(material: THREE.Material, amount: { value: number }) {
 /**
  * How often a moment's outline is drawn again, not every frame: it boils by
  * its own clock nine times a second, and each drawing reads the picture back
- * off the GPU. And the share of CSS pixels it is worked at: a thick pen line,
- * no softer to see at half, and a quarter of the stamping.
+ * off the GPU. It is worked at CSS pixels: at half of them, it came out in
+ * steps on an iPhone, whose screen has three pixels to each.
  */
-const OUTLINE_MS = 1000 / 30, OUTLINE_SCALE = .5;
+const OUTLINE_MS = 1000 / 30;
 /** How long the flash of grey round a special stroke lasts, from the hit. */
 export const POWER_MS = 1100;
 /** How far gone the colour is, a given time into a special stroke: in fast, out slower. */
@@ -969,7 +969,7 @@ export class GameScene {
   /**
    * The outline rings, biggest first: his silhouette stamped round a circle
    * of each ring's radius and filled with its colour, into a canvas of each
-   * ring's own (`cut.rings`). Worked at half CSS pixels (`OUTLINE_SCALE`) in a
+   * ring's own (`cut.rings`). Worked at CSS pixels in a
    * box round him rather than across the whole screen, and the stamps are
    * jittered afresh nine times a second so the line boils like the pen's.
    */
@@ -980,29 +980,28 @@ export class GameScene {
     const y0 = Math.max(0, at.head.y - s * 1.5), y1 = Math.min(at.height, at.feet.y + s * .45);
     const w = Math.ceil(x1 - x0), h = Math.ceil(y1 - y0);
     if (w <= 0 || h <= 0) return;
-    const k = OUTLINE_SCALE, sw = Math.ceil(w * k), sh = Math.ceil(h * k);
-    if (cut.sil.width !== sw || cut.sil.height !== sh) { cut.sil.width = sw; cut.sil.height = sh; }
+    if (cut.sil.width !== w || cut.sil.height !== h) { cut.sil.width = w; cut.sil.height = h; }
     const sil = cut.sil.getContext('2d');
     if (!sil) return;
-    sil.clearRect(0, 0, sw, sh);
-    sil.drawImage(gl, x0 * ratio, y0 * ratio, w * ratio, h * ratio, 0, 0, sw, sh);
+    sil.clearRect(0, 0, w, h);
+    sil.drawImage(gl, x0 * ratio, y0 * ratio, w * ratio, h * ratio, 0, 0, w, h);
     let seed = Math.floor(performance.now() / 110) * 7919 >>> 0;
     const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
     cut.spec.rings.forEach(({ r, colour, dx = 0, dy = 0 }, i) => {
       const slot = cut.rings[i] ??= { canvas: document.createElement('canvas'), x: 0, y: 0, w: 0, h: 0 };
       const canvas = slot.canvas;
-      if (canvas.width !== sw || canvas.height !== sh) { canvas.width = sw; canvas.height = sh; }
+      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
       const ring = canvas.getContext('2d');
       if (!ring) return;
       ring.globalCompositeOperation = 'source-over';
-      ring.clearRect(0, 0, sw, sh);
+      ring.clearRect(0, 0, w, h);
       for (const [count, reach] of [[16, 1], [8, .55]] as const) for (let j = 0; j < count; j++) {
-        const a = (j + random() * .3) / count * Math.PI * 2, rr = r * k * reach * (1 + (random() - .5) * .16);
+        const a = (j + random() * .3) / count * Math.PI * 2, rr = r * reach * (1 + (random() - .5) * .16);
         ring.drawImage(cut.sil, Math.cos(a) * rr, Math.sin(a) * rr);
       }
       ring.globalCompositeOperation = 'source-in';
       ring.fillStyle = colour;
-      ring.fillRect(0, 0, sw, sh);
+      ring.fillRect(0, 0, w, h);
       Object.assign(slot, { x: (x0 + dx) * ratio, y: (y0 + dy) * ratio, w: w * ratio, h: h * ratio });
     });
   }
