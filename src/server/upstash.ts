@@ -684,6 +684,20 @@ export function upstashProfiles(redis: Redis): ProfileStores {
 }
 
 /**
+ * A player excited about Super10, from its page while it is coming soon: kept
+ * in a set, so a player counts once however often they press, and tallied by
+ * the day the first press lands (`super10-excited`). The set's size is the
+ * figure; `scripts/super10-report.ts` reads both. Never throws.
+ */
+export async function countExcited(redis: Redis, playerId: string, now = Date.now()): Promise<boolean> {
+  try {
+    const fresh = await redis.sadd(`${SCOPE}excited:super10`, playerId);
+    if (fresh) await raiseTally(redis, 'super10-excited', now);
+    return fresh > 0;
+  } catch { return false; }
+}
+
+/**
  * One password or key event counted (`tally.ts`): its total and its day's, in
  * one round trip. Never throws: a count is never worth a player's restore.
  */

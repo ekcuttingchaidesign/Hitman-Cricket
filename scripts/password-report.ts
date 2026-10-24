@@ -1,5 +1,4 @@
 import { Redis } from '@upstash/redis';
-import { TALLIES } from '../src/server/tally';
 
 /**
  * How many players have a career password, and what they have done with it.
@@ -62,7 +61,9 @@ const LABELS: Record<string, string> = {
   'forgot-asked': 'Forgot password? asked',
 };
 console.log('\nSince the tally began');
-for (const event of TALLIES) console.log(`  ${LABELS[event].padEnd(34)} ${Number(held[event]) || 0}`);
+// Only the password events: the tally holds the profiles' and Super10's too, which have reports of their own.
+const EVENTS = Object.keys(LABELS);
+for (const event of EVENTS) console.log(`  ${LABELS[event].padEnd(34)} ${Number(held[event]) || 0}`);
 
 const day = (at: number) => new Date(at + ZONE_MS).toISOString().slice(0, 10);
 const short = ['made', 'chgd', 'ques', 'bk-pw', 'bk-q', 'bk-key', 'forgot'];
@@ -70,7 +71,7 @@ console.log(`\nThe last ${DAYS} days (India's time)`);
 console.log(`  ${'day'.padEnd(10)}  ${short.map(one => one.padStart(6)).join('')}`);
 for (let back = DAYS - 1; back >= 0; back--) {
   const d = day(Date.now() - back * 86_400_000);
-  console.log(`  ${d}  ${TALLIES.map(event => String(Number(held[`${d}:${event}`]) || 0).padStart(6)).join('')}`);
+  console.log(`  ${d}  ${EVENTS.map(event => String(Number(held[`${d}:${event}`]) || 0).padStart(6)).join('')}`);
 }
 
 console.log(`

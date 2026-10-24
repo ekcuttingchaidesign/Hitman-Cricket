@@ -116,7 +116,8 @@ import type { BlastCareer, MarathonCareer, SurviveCareer } from './game/career';
 import type { SurviveInnings } from './game/survive-board';
 import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
-import { sendFeedback } from './game/feedback-api';
+import { sendExcited, sendFeedback } from './game/feedback-api';
+import { EXCITED_KEY, excitedAlready } from './ui/Super10Page';
 import { askRating, type RatingPrompt } from './ui/Rating';
 import {
   counted, dismissed, mintRef, nextAsk, rated, readMemory, writeMemory,
@@ -231,6 +232,14 @@ const SURGE_WAIT_MS = 1600;
 /** The overs a Super10 crowd sends a Mexican wave round the arena at the top of: the third, sixth and eighth. */
 const WAVE_OVERS = [2, 5, 7];
 const SUPER10_OPEN = !SURVIVE_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production';
+/** The mode a browser played last, which Choose a mode's rail opens on; a new player starts on the Blast. */
+const LAST_MODE_KEY = 'hitman-last-mode';
+function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' {
+  try {
+    const kept = localStorage.getItem(LAST_MODE_KEY);
+    return kept === 'MARATHON' || kept === 'SURVIVE' ? kept : 'CLASSIC';
+  } catch { return 'CLASSIC'; }
+}
 
 /**
  * When the ghost's ball appears, and how long it holds.
@@ -752,6 +761,11 @@ export class Game {
     this.hud.onRoomAct = act => { void this.roomAct(act); };
     this.hud.on('modes-challenges', () => { void this.showChallenges(); });
     this.hud.on('modes-dressing', () => this.openDressing('modes'));
+    // Super10, coming soon: its card opens its page, and I'M EXCITED says how much it is wanted.
+    this.hud.on('mode-super10', () => { track('super10-open-card', 'Opened Super10 from Choose a mode'); this.hud.super10Page(); });
+    this.hud.on('super10-back', () => this.hud.closeSuper10());
+    this.hud.on('super10-got-it', () => { track('super10-got-it', 'Super10 page put away with GOT IT'); this.hud.closeSuper10(); });
+    this.hud.on('super10-excited', this.excited);
     // My Stats from Choose a mode: the avatar at the top and the tier card in the bento.
     this.hud.on('modes-profile', this.showStats);
     this.hud.on('modes-stats', this.showStats);
@@ -1094,7 +1108,7 @@ export class Game {
     this.hud.careerKey(this.careerKeyHeld(), { panel: false, bar: true });
     // The picker replaces the card, and the stars were asked of the card.
     this.putRatingAway();
-    this.hud.modes();
+    this.hud.modes(lastMode());
     // What this browser already knows goes up with the screen, and the places
     // the store keeps are asked for behind it.
     const view = this.modeSelectView();
@@ -2137,7 +2151,25 @@ export class Game {
     this.hud.pause(true);
   };
   /** Pick an innings. The mode is remembered, so Play Again replays the same one. */
-  choose = (mode: GameMode) => { this.mode = mode; this.walkOut(); };
+  choose = (mode: GameMode) => {
+    this.mode = mode;
+    // The mode played last, where Choose a mode's rail opens next time.
+    try { if (mode === 'CLASSIC' || mode === 'MARATHON' || mode === 'SURVIVE') localStorage.setItem(LAST_MODE_KEY, mode); } catch { /* Then it opens on the Blast. */ }
+    this.walkOut();
+  };
+  /**
+   * I'M EXCITED on Super10's page: lit at once and for good, and counted once a
+   * browser, on GoatCounter and by the store (`sendExcited`). A private window
+   * keeps nothing, so it is counted on GoatCounter alone.
+   */
+  private excited = () => {
+    if (excitedAlready()) return;
+    try { localStorage.setItem(EXCITED_KEY, '1'); } catch { /* Lit for this visit, all the same. */ }
+    this.hud.super10Excited(true);
+    buzz([12, 40, 18]);
+    track('super10-excited', "Pressed I'M EXCITED on the Super10 page");
+    if (this.player && this.canRegister) sendExcited(this.player);
+  };
   /**
    * An innings chosen, by whichever way a player chose it: the picker, a link
    * that named the mode, or the tutorial's way out. The first one used to put
@@ -3828,8 +3860,15 @@ export class Game {
     }
     // The picker is the thing on top while it is open, so it answers first —
     // otherwise Enter starts an innings underneath a sheet nobody closed.
+    // Super10's page is over the picker, so it answers before it does.
+    if (this.hud.super10Open) {
+      if (key === 'ESCAPE') { event.preventDefault(); this.hud.closeSuper10(); }
+      return;
+    }
     if (this.hud.modesOpen) {
       if (key === 'ESCAPE') { event.preventDefault(); this.closePicker(); }
+      // On a desktop the arrow keys move the rail of posters, as a swipe does.
+      else if (key === 'ARROWLEFT' || key === 'ARROWRIGHT') { event.preventDefault(); this.hud.stepRail(key === 'ARROWRIGHT' ? 1 : -1); }
       return;
     }
     // The card opened from a match result goes back to it, rather than

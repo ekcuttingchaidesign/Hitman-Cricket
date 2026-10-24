@@ -30,6 +30,8 @@ export const TALLIES = [
   'chase-beat',
   'chase-short',
   'passed',
+  // I'M EXCITED on Super10's page, coming soon: each player once (`countExcited`).
+  'super10-excited',
 ] as const;
 
 export type Tally = typeof TALLIES[number];

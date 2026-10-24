@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { coverBoardLines, coverMarkup, profileChip } from '../src/ui/Cover';
 import { boardNote, modeSelectMarkup, modeSelectParts, posterStat, rivalsLine, surviveLine } from '../src/ui/ModeSelect';
 import { plateName, profileMarkup } from '../src/ui/Profile';
+import { EXCITED_KEY, SUPER10_OPENS, excitedAlready, opensLine, super10PageMarkup } from '../src/ui/Super10Page';
 
 describe('the cover', () => {
   it('says GUEST on the chip until there is a name, and the name after', () => {
@@ -66,6 +67,18 @@ describe('Choose a mode', () => {
     }
   });
 
+  it('puts the three posters on one rail, the Blast first, with Super10 coming soon under it', () => {
+    const screen = modeSelectMarkup();
+    const order = ['mode-classic', 'mode-marathon', 'mode-survive', 'mode-super10'].map(id => screen.indexOf(`id="${id}"`));
+    expect(order.every((at, i) => at > 0 && (i === 0 || at > order[i - 1]))).toBe(true);
+    expect(screen).toContain('id="modes-rail"');
+    expect(screen.match(/class="ms-poster /g)).toHaveLength(3);
+    expect(screen).toContain('COMING SOON');
+    // No PLAY on Super10's card: it opens its page.
+    const card = screen.slice(screen.indexOf('id="mode-super10"'));
+    expect(card.slice(0, card.indexOf('</button>'))).not.toContain('PLAY');
+  });
+
   it('draws the podium first, second and third into its places', () => {
     const parts = modeSelectParts({
       player: null, marathon: { best: null, rank: null }, blast: { best: null, rank: null }, survive: { best: null, rank: null },
@@ -75,6 +88,37 @@ describe('Choose a mode', () => {
     expect(parts['modes-dressing-line']).toBe('3 of 13 earned');
     expect(parts['modes-podium-faces']).toMatch(/is-2.*is-1.*is-3/s);
     expect(parts['modes-profile']).toContain('is-guest');
+  });
+});
+
+describe("Super10's page, coming soon", () => {
+  it("offers I'M EXCITED beside GOT IT, with the day it opens", () => {
+    const page = super10PageMarkup(false);
+    for (const id of ['super10-page', 'super10-back', 'super10-excited', 'super10-got-it', 'super10-when']) expect(page).toContain(`id="${id}"`);
+    expect(page).toContain('I’M EXCITED');
+    expect(page).toContain(`Coming on ${SUPER10_OPENS}`);
+    expect(page).toContain('aria-pressed="false"');
+  });
+
+  it('stays pressed for a browser that has said it, and says it was heard', () => {
+    const page = super10PageMarkup(true);
+    expect(page).toContain('sp-excited is-done');
+    expect(page).toContain('EXCITED!');
+    expect(page).toContain('aria-pressed="true"');
+    expect(opensLine(true)).toBe(`Noted. See you on ${SUPER10_OPENS}.`);
+  });
+
+  it('remembers it once a browser, and a browser that keeps nothing never has', () => {
+    expect(excitedAlready({ getItem: key => (key === EXCITED_KEY ? '1' : null) })).toBe(true);
+    expect(excitedAlready({ getItem: () => null })).toBe(false);
+    expect(excitedAlready({ getItem: () => { throw new Error('private'); } })).toBe(false);
+  });
+
+  it('tells what is new in it, the stadium unnamed', () => {
+    const page = super10PageMarkup(false);
+    for (const rule of ['Five bowlers', 'A new stadium', 'The field reads you', 'Its own board']) expect(page).toContain(rule);
+    expect(page).not.toMatch(/canopy|pavilion|arena/i);
+    expect(page.match(/<i class="is-(powerplay|middle|death)">/g)).toHaveLength(10);
   });
 });
 

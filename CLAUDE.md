@@ -1646,8 +1646,7 @@ The pause sheet has no field map: it was there, drawn solid, and was taken out
 (`super10-check` holds that). The design's assets could not be
 downloaded into this build, so the bolt and the rings are drawn in code.
 
-What is not here yet: the boards and the career, and a card on
-Choose a mode. Until it has a board, an innings of it is practice
+What is not here yet: the boards and the career. Until it has a board, an innings of it is practice
 (`practising`): posted nowhere, counted toward nothing, and the card, headed
 SUPER10 · 10 OVERS with no best quoted, says the mode is still being built
 whatever the innings was worth (`why: 'building'` on the practice offer).
@@ -1665,6 +1664,41 @@ screenshot on the frame it was asked for, and the sheet does.
 pitch with a batter at the far end, with a camera to turn round him, set views
 and one that follows his run; `scripts/bowler-artifact.mjs` builds it into
 one file, as `cover-drive-artifact.mjs` does the strokes.
+
+## Choose a mode's rail, and Super10 coming soon
+
+Choose a mode puts the Blast, the Test Marathon and Test Survival on one
+swipeable rail of posters 240 wide (Figma 16E, `450:5037`; `#modes-rail` in
+`ModeSelect.ts`, `.ms-rail` in `src/super10-page.css`): CSS scroll snap, the
+first at the left gutter, the middle centred, the last at the right, a pager
+under it whose dot stretches in the colour of the poster settled on
+(`settledPoster`: the one most on screen), each picture drifting a fifth
+slower than its card (`--drift`). A tap on a card half off the side brings it
+in rather than playing it (a capture-phase listener in `wireRail`), so PLAY
+is only pressed on the card in front; a Playwright click scrolls its target
+into view first, so the checks' `#mode-survive` clicks still play. The rail
+opens on the mode played last (`hitman-last-mode`, written in `choose`), the
+Blast for a new player, and the arrow keys move it on a desktop (`stepRail`).
+Survival's poster keeps `#mode-survive-line` (its rules, or its best result,
+the Not played chip stepping aside, `is-played`).
+
+Under the rail, in the slot Survival's banner had, the Super10 card
+(`#mode-super10`, Figma 488:591): coming soon, no PLAY, opening Super10's
+page (`src/ui/Super10Page.ts`, Figma 19B whole scroll `497:6198`,
+`#super10-page`, over the picker, Escape and back put it away). The picture
+is `src/assets/super10/picture.webp` (exported from the Figma image fill)
+and the logo `logo.svg` (the Volt colourway from `artifacts/super10-logo`).
+The page's foot has the day it opens (`SUPER10_OPENS`) over I'M EXCITED in
+Volt beside GOT IT. I'M EXCITED lights for good (`hitman-super10-excited`,
+`excitedAlready`) and is counted once a browser: GoatCounter's
+`super10-excited` (preview and dev count nothing there) and the store's
+`POST /api/feedback { excited: 'super10', playerId }` (`sendExcited`), kept
+in a set so each player counts once and tallied by day (`countExcited`,
+`super10-excited` on the end of `TALLIES`); a private window sends nothing.
+It rides the feedback endpoint rather than a new one: the deployment is
+one function short of the Hobby plan's twelve. `scripts/super10-report.ts`
+reads the count, read-only. The game itself still opens only by
+`?mode=super10` off production (`SUPER10_OPEN`).
 
 ## The arena: Super10's ground
 
