@@ -339,8 +339,9 @@ export const EXPRESS_ACTION: ActionStyle = {
  *   - **The loop.** About two strides out the ball arm drops, swings out wide
  *     to his right — a wing opening, from the batter's end — and climbs on up
  *     to hold the ball high above his head through a low hop, the front knee
- *     driving high and the front arm out straight at the batter, level with
- *     his shoulder, from the take-off (`frontUp`, a quarter turn). Nothing
+ *     driving high and the front arm thrown straight up beside it from the
+ *     take-off, the hand high over his head and a little towards the batter
+ *     (`frontUp`): both arms up at once. Nothing
  *     else in the game moves an arm like it, and it is what tells a batter who
  *     is bowling: no bowler is ever named.
  *   - **The delivery.** Front-on: the chest is open early and stays open. From
@@ -349,9 +350,13 @@ export const EXPRESS_ACTION: ActionStyle = {
  *     ball, slow at first and quickening the whole way, so it is fastest as the
  *     ball goes (`loop.turn`, `loop.spin`). The first build only dropped it back
  *     behind him and whipped it over, half a turn, and a playtest asked for the
- *     whole one. The front arm turns over with the last of it on the same
- *     clock, down past his hip as the ball goes and on round behind him after
- *     it (`frontArmAngle`'s loop branch, `frontSync`, from `loopDrop`).
+ *     whole one. The front arm is pulled down with the last of it on the same
+ *     clock, straight, down in front of him, so that as the ball goes it hangs
+ *     straight down at his side, square to the ground (`frontPull`), and is
+ *     swept back past his hip as he folds (`frontAfter`; `frontArmAngle`'s
+ *     loop branch, `frontSync`, from `loopDrop`). The first build held it out
+ *     level at the batter and turned it on round behind him like a windmill's
+ *     second sail, which is nobody's action.
  *   - **The follow-through.** A deep fold over the braced front leg, the
  *     bowling arm swept down across to the far knee, and the back leg kicked
  *     up high behind him before it swings through.
@@ -363,7 +368,7 @@ export const EXPRESS_ACTION: ActionStyle = {
  */
 export const DEATH_ACTION: ActionStyle = {
   gatherAngle: -1.6, whip: 2.0, release: .16, through: 2.95,
-  frontUp: Math.PI / 2, frontPull: 3.9, frontAfter: 4.6,
+  frontUp: .3, frontPull: Math.PI + .12, frontAfter: 3.75,
   runTurn: .04, gatherTurn: .72, releaseTurn: -.35,
   leap: .09, followDrop: .22,
   coilBack: .16, coilLean: .18, coilHead: -.4,
@@ -372,7 +377,7 @@ export const DEATH_ACTION: ActionStyle = {
   carry: 'chest', lane: .32,
   runLean: .05, pump: .8,
   frontRise: [.46, .6], kneeDrive: 1.45, releaseTilt: .1, tiltFrom: FRONT_FOOT, armTilt: -.08, throughTilt: .35,
-  open: .75, throughTurn: .55, releaseHead: 0, throughHead: .35, throughTwist: .1, frontTuck: .92, frontAfterReach: .95, frontTilt: -.16, frontAfterTilt: -.16, frontSync: 1,
+  open: .75, throughTurn: .55, releaseHead: 0, throughHead: .35, throughTwist: .1, frontTuck: .96, frontAfterReach: .95, frontTilt: -.2, frontAfterTilt: -.26, frontSync: 1,
   kick: .35, kickHold: .28, followAcross: .2,
   run: DEATH_RUN,
   loop: { from: .40, out: -2.6, top: -.5, hold: -.7, turn: .53, spin: 2.4 },
@@ -453,6 +458,9 @@ const ARM_THROUGH = .36;
  */
 const FRONT_OPEN = .09;
 
+/** How much sooner than the ball arm's whip a looping action's front arm is pulled down: the power its clock is raised to, against the whip's. */
+const FRONT_LEAD = .6;
+
 /** The front arm mirrors it: up at the target in the gather, then pulled down. */
 function frontArmAngle(t: number, run: Run, style: ActionStyle) {
   const rise = ease(span(t, style.frontRise[0], style.frontRise[1]));
@@ -462,13 +470,14 @@ function frontArmAngle(t: number, run: Run, style: ActionStyle) {
   // halves meet there.
   if (t <= BOUND) return THREE.MathUtils.lerp(-Math.PI - Math.sin(advance(t, run) / run.stride * Math.PI * 2) * .78 + (rise > 0 ? 2 * Math.PI : 0), style.frontUp, rise);
   if (t <= BACK_FOOT) return THREE.MathUtils.lerp(Math.PI, style.frontUp, rise);
-  // An action with the loop holds the front arm where it rose to until the
-  // bowling arm whips over, and turns it over with it, on the same clock: the
-  // two go round together, like the arms of a windmill.
+  // An action with the loop holds the front arm up where it rose to until the
+  // bowling arm whips over, and pulls it down as it does, a little ahead of
+  // it: the front arm is the lever the ball arm comes over on, so it is down
+  // past level while the ball arm is still climbing.
   const loop = style.loop;
   if (loop && t <= 1) {
     const drop = loopDrop(style);
-    return t <= drop ? style.frontUp : THREE.MathUtils.lerp(style.frontUp, style.frontPull, span(t, drop, 1) ** style.whip);
+    return t <= drop ? style.frontUp : THREE.MathUtils.lerp(style.frontUp, style.frontPull, span(t, drop, 1) ** (style.whip * FRONT_LEAD));
   }
   // The pull-down: this is the block that turns the shoulders over.
   if (t <= 1) return THREE.MathUtils.lerp(style.frontUp, style.frontPull, ease(span(t, BACK_FOOT, 1)) ** 1.8);

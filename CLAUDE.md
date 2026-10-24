@@ -1495,15 +1495,18 @@ them apart by their actions and the speed gun, which Super10 shows on every
 ball. A short, choppy run (its own `stride` and `accel`) with the ball at his
 belly in both hands; the ball arm looping out wide to his side and up above his
 head before a low hop (`loop`: the one arm path in the game that leaves the
-carry before the bound), the front arm out level at the batter from the
-take-off; front-on all the way; then the ball arm once all the way round from
+carry before the bound), the front arm thrown straight up beside it from the
+take-off, so both arms are up through the hop; front-on all the way; then the ball arm once all the way round from
 over his head, straight — over in front of him, down past his hip, up behind
 him and over the top to the ball — slow from the top and quickening all the way
 to the release (`loop.turn`, `loop.spin`; it is behind him at `loopDrop`), the
-front arm turning over with the last of it on the same clock and on round
-behind him (the loop branch of `frontArmAngle`); a deep fold and the back leg
-kicked high. The first build only dropped the arm back and whipped it over,
-half a turn.
+front arm pulled down straight in front of him from there, a little ahead of
+the ball arm (`FRONT_LEAD`), to hang straight down at his side, square to the
+ground, as the ball goes (`frontPull`) and swept back past his hip as he folds
+(`frontAfter`; the loop branch of `frontArmAngle`); a deep fold and the back
+leg kicked high. The first build only dropped the arm back and whipped it over,
+half a turn; the second held the front arm out level at the batter and turned
+it on round behind him like a windmill, which a playtest said was not his.
 The elbow's hyperextension is left out: the bowling arm is one straight limb.
 `tests/bowler.test.ts` holds him to every rule the other two actions keep, and
 `tests/super10.test.ts` to what makes him his.

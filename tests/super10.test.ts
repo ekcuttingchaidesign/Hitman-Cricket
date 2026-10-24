@@ -208,24 +208,32 @@ describe('Super10: the death bowler\'s action, against the fast bowler', () => {
     expect(death.hands[1][1]).toBeGreaterThan(pace.hands[1][1] + .4);
   });
 
-  it('holds the front arm out level at the batter as he takes off, then turns it over with the ball arm', () => {
+  it('throws the front arm straight up as he takes off, and pulls it down straight to his side as the ball goes', () => {
     bowler.action(DEATH_ACTION);
     const shoulderY = (st: ReturnType<typeof at>) => st.shoulders[0][1];
-    // At 0.54 seconds, in the hop: level with his shoulder, out in front of his chest.
+    // At 0.54 seconds, in the hop: up over his head, straight, both arms up.
     const hop = at(.54 * 1000 / 840);
-    expect(Math.abs(hop.hands[0][1] - shoulderY(hop))).toBeLessThan(.12);
-    expect(hop.armReach[0]).toBeGreaterThan(.9);
-    // Still there when the ball arm starts its whip.
+    expect(hop.hands[0][1]).toBeGreaterThan(shoulderY(hop) + .45);
+    expect(hop.hands[1][1]).toBeGreaterThan(shoulderY(hop) + .3);
+    expect(hop.armReach[0]).toBeGreaterThan(.95);
+    // Still up when the ball arm starts its whip.
     const whip = at(loopDrop(DEATH_ACTION));
-    expect(Math.abs(whip.hands[0][1] - shoulderY(whip))).toBeLessThan(.15);
-    // And halfway through the whip both arms are half way round: the front arm
-    // has dropped below his shoulder as the ball arm has risen above it.
+    expect(whip.hands[0][1]).toBeGreaterThan(shoulderY(whip) + .4);
+    // Halfway through the whip it is coming down in front of him, not round behind.
     const mid = at((loopDrop(DEATH_ACTION) + 1) / 2);
-    expect(mid.hands[0][1]).toBeLessThan(shoulderY(mid) - .1);
-    expect(mid.hands[1][1]).toBeGreaterThan(shoulderY(mid) + .1);
-    // At the release it is down by his hip and going on behind him.
+    expect(mid.hands[0][1]).toBeLessThan(shoulderY(mid) + .2);
+    // At the release it hangs straight down at his side: the hand by his hip,
+    // under the shoulder, the arm straight.
     const release = at(1);
     expect(release.hands[0][1]).toBeLessThan(release.hip[1] + .15);
+    expect(Math.hypot(release.hands[0][0] - release.shoulders[0][0], release.hands[0][2] - release.shoulders[0][2])).toBeLessThan(.3);
+    expect(release.armReach[0]).toBeGreaterThan(.93);
+    // And through the follow-through it stays down: never up behind him.
+    for (let k = 0; k <= 1; k += .1) {
+      bowler.followThrough(k);
+      const st = bowler.figure.inspect();
+      expect(st.hands[0][1]).toBeLessThan(shoulderY(st) - .2);
+    }
     bowler.action(PACE_ACTION);
   });
 
