@@ -456,7 +456,10 @@ export default defineConfig({
   // failures and the same test name appears three times with three different
   // sets of numbers. It is a genuinely baffling half hour if you have not seen
   // it before.
-  test: { exclude: ['**/node_modules/**', '**/dist/**', '**/.claude/**'] },
+  // A test's time limit, for GitHub's runners: the rig tests sweep every stroke
+  // frame by frame, and one that takes a second or two here took over the
+  // default five there and failed the Pages workflow with every result right.
+  test: { exclude: ['**/node_modules/**', '**/dist/**', '**/.claude/**'], testTimeout: 30_000 },
   // The rig preview is a second entry so a branch deployment serves it at
   // /shot-preview.html. It is unlinked from the game and pulls in nothing the
   // game does not already ship; drop this entry before a production release if
