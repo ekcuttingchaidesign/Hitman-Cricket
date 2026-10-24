@@ -92,6 +92,7 @@ import { cachedProfile, type ProfilePayload } from '../game/profile-api';
 import { chipLine, surviveGoal, type Chase, type Mine } from '../game/chase';
 import { chaseChipMarkup, chaseIntroMarkup, passedMarkup } from './ChaseUi';
 import { fieldLine } from '../game/super10-field';
+import { replayAnimation, replayClass } from './replay';
 import { activitySheetMarkup } from './Activity';
 import type { OwnActivity } from '../game/profile-api';
 import wifiOff from '../assets/board/wifi-off.svg?raw';
@@ -2348,7 +2349,10 @@ ${super10PageMarkup(excitedAlready())}
   speed(kph: number) {
     const gun = this.$('speed-gun');
     this.$('speed').textContent = String(kph);
-    gun.classList.remove('is-on'); void gun.offsetWidth; gun.classList.add('is-on');
+    // At the next frame: forcing the page's layout here, the instant the ball
+    // left the hand, held up the first frame of its flight in the two modes
+    // with a gun, and only them.
+    replayClass(gun, 'is-on');
   }
   /**
    * The Marathon's second meter, beside the injury: how settled the man in is,
@@ -2621,8 +2625,9 @@ ${super10PageMarkup(excitedAlready())}
     this.$('timing').textContent = why ?? fieldLine(outcome) ?? (outcome.advance ? 'DOWN THE PITCH'
       : chargeMiss ?? (outcome.timingGrade === 'PERFECT' || outcome.timingGrade === 'GOOD' ? `${outcome.timingGrade} TIMING`
       : outcome.timingDeltaMs === null ? 'NO SHOT' : outcome.timingGrade === 'MISS' ? 'MISSED IT' : outcome.timingDeltaMs < 0 ? 'EARLY' : 'LATE'));
-    // Restart the rise-and-fade from the top for back-to-back deliveries.
-    panel.style.animation = 'none'; void panel.offsetWidth; panel.style.animation = '';
+    // Restart the rise-and-fade from the top for back-to-back deliveries, at
+    // the next frame rather than by forcing the page's layout in this one.
+    replayAnimation(panel);
   }
   /**
    * The pause card's day-or-night toggle, in a Blast innings only: a Test is
@@ -4523,12 +4528,9 @@ ${super10PageMarkup(excitedAlready())}
   blow(where: string) {
     const burst = this.$('hit-burst');
     this.$('hit-where').textContent = where;
-    // Restarting a CSS animation needs the class off, a reflow, and the class on.
-    burst.classList.remove('is-on');
-    this.viewport.classList.remove('struck');
-    void burst.offsetWidth;
-    burst.classList.add('is-on');
-    this.viewport.classList.add('struck');
+    // Off now and on at the next frame (`replayClass`), not through a reflow.
+    replayClass(burst, 'is-on');
+    replayClass(this.viewport, 'struck');
     window.setTimeout(() => this.viewport.classList.remove('struck'), 920);
   }
 

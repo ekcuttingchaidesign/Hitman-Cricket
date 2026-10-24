@@ -281,7 +281,8 @@ export interface Scoreboard { title: string; score: string; detail: string }
 /** One canvas painted into a texture, sRGB, kept with its context. */
 function painted(width: number, height: number) {
   const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
-  const context = canvas.getContext('2d')!;
+  // In memory rather than on the GPU, for the upload to WebGL: see the canopy's `bigScreen`.
+  const context = canvas.getContext('2d', { willReadFrequently: true })!;
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return { canvas, context, texture };
@@ -690,7 +691,8 @@ export class Showboards {
     // The film at the screen's own resolution: no bigger than the picture it is laid into.
     const width = this.screen?.context.canvas.width ?? SCREEN_WIDTH;
     const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = Math.round(width * 384 / 1024);
-    const context = canvas.getContext('2d');
+    // In memory, as the screen it is laid into is: drawn from the GPU onto it, every frame of the film was read back.
+    const context = canvas.getContext('2d', { willReadFrequently: true });
     if (!context) return;
     this.playing = { name, at: now, canvas, film: paintFilm(context, `super10-${name}` as Film, { whole: true }) };
   }

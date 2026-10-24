@@ -402,7 +402,10 @@ function bigScreen() {
   // every frame of a sting this picture goes to the GPU again, which at 1024 cost an iPhone its frame rate.
   const W = 512, H = Math.round(W * SCREEN.height / SCREEN.width);
   const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
-  const ctx = canvas.getContext('2d')!;
+  // Kept in memory, not on the GPU (`willReadFrequently`): a canvas the GPU
+  // draws has to be finished and read back before WebGL can take it, and that
+  // wait, at every repaint of a moment, was most of Super10's stalls at the shot.
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
   const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 4;
   // And with no mipmaps to rebuild each time it goes.
   texture.generateMipmaps = false; texture.minFilter = THREE.LinearFilter;

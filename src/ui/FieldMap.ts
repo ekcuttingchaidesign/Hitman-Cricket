@@ -1,6 +1,7 @@
 import { ropeAt, type FieldSet, type Man } from '../game/super10-field';
 import type { ShotOutcome } from '../game/types';
 import { icon } from './Kit';
+import { replayClass } from './replay';
 
 /**
  * Super10's two corners (Figma section 16A, node `422:5003`).
@@ -161,15 +162,18 @@ export class FieldUi {
     if (!prev || !was.length || prev.id === field.id) { this.drawBig(); return; }
     // The men walk: each new place from whoever stood nearest it.
     const from = this.matched(prev.men, field.men);
+    // Each from his old place to his new: stood on the old one now, sent on
+    // his way at the next frame. Read back with a forced layout between, nine
+    // men in a row, it held the frame up.
+    const walking: [SVGGElement, string][] = [];
     [...this.map.querySelectorAll<SVGGElement>('.s10-man')].forEach((g, i) => {
       const to = g.style.transform, start = was[from[i]];
       if (!start || start === to) return;
       g.style.transition = 'none'; g.style.transform = start;
-      void g.getBoundingClientRect();
-      g.style.transition = ''; g.style.transform = to;
+      walking.push([g, to]);
     });
-    const pulse = this.map.querySelector<HTMLElement>('.s10-pulse')!;
-    pulse.classList.remove('is-on'); void pulse.offsetWidth; pulse.classList.add('is-on');
+    if (walking.length) requestAnimationFrame(() => walking.forEach(([g, to]) => { g.style.transition = ''; g.style.transform = to; }));
+    replayClass(this.map.querySelector<HTMLElement>('.s10-pulse')!, 'is-on');
     const name = field.name.toUpperCase();
     this.say(surge ? 'POWER SURGE · TWO FIELDERS IN' : field.change === 'plan' ? `FIELD CHANGE · ${name}` : `${name} · ${out} OUT`, 'map');
     this.drawBig();
@@ -194,7 +198,8 @@ export class FieldUi {
     if (corner === 'map' && this.enlargedOpen) return;
     this.tag.textContent = text;
     this.tag.dataset.corner = corner;
-    this.tag.classList.remove('hidden', 'is-in'); void this.tag.offsetWidth; this.tag.classList.add('is-in');
+    this.tag.classList.remove('hidden');
+    replayClass(this.tag, 'is-in');
     clearTimeout(this.timers.tag);
     this.timers.tag = window.setTimeout(() => this.tag.classList.add('hidden'), TAG_MS);
   }
@@ -256,8 +261,7 @@ export class FieldUi {
     const end = man ? onMap(man.angle, man.distance, this.mirrored, man.deep) : onMap(angle, distance, this.mirrored);
     path.setAttribute('d', `M50 50L${f(end.x)} ${f(end.y)}`);
     under.setAttribute('d', `M50 50L${f(end.x)} ${f(end.y)}`);
-    path.classList.remove('is-on'); under.classList.remove('is-on'); void path.getBoundingClientRect();
-    path.classList.add('is-on'); under.classList.add('is-on');
+    replayClass(path, 'is-on'); replayClass(under, 'is-on');
     if (man) this.map.querySelector(`.s10-man[data-man="${taker}"]`)?.classList.add('is-taker');
     this.drawBig();
   }
@@ -283,7 +287,8 @@ export class FieldUi {
   private surged(over: number) {
     this.badge.innerHTML = `${BOLT}<span>SURGE · OVER ${over + 1}</span>`;
     this.title.innerHTML = '<b>POWER SURGE</b><span>TWO FIELDERS IN · THIS OVER</span>';
-    this.title.classList.remove('hidden', 'is-in'); void this.title.offsetWidth; this.title.classList.add('is-in');
+    this.title.classList.remove('hidden');
+    replayClass(this.title, 'is-in');
     clearTimeout(this.timers.title);
     this.timers.title = window.setTimeout(() => this.title.classList.add('hidden'), TITLE_MS);
   }

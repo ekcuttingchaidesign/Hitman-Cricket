@@ -1737,6 +1737,22 @@ Now it is about three and a half metres behind the fastest ball and a metre
 and a half behind the Blast's, about the trail it had. `snapshot().streak` is
 how many ghosts show and how far back they reach.
 
+## No forced layout in the middle of a ball
+
+Restarting a CSS animation by taking its class off, reading `offsetWidth`
+and putting it back makes the browser finish every pending style and layout
+change on the page in that frame. The speed gun did it the instant the ball
+left the hand, which only the Marathon and Super10 have, and the call, the
+field map's line, its men and its tag, and the body blow did it at the shot:
+thirty to sixty milliseconds a time at a quarter of a desktop's speed, frames
+a phone dropped while the eye was on the ball. `src/ui/replay.ts` takes the
+animation off now and puts it back at the next frame (`replayClass`,
+`replayAnimation`, the second holding the element out of sight for that
+frame). Use it for anything that restarts during play. The canopy's screen
+and its stings draw into canvases kept in memory (`willReadFrequently`) for
+their uploads to WebGL. `?perf=1` also shows the worst frame of the last five
+seconds and how many ran over 25 ms: a second's average hid them.
+
 ## Super10 on GitHub Pages, for testers
 
 `.github/workflows/pages.yml` publishes two serverless builds to the
