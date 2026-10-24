@@ -1753,6 +1753,18 @@ and its stings draw into canvases kept in memory (`willReadFrequently`) for
 their uploads to WebGL. `?perf=1` also shows the worst frame of the last five
 seconds and how many ran over 25 ms: a second's average hid them.
 
+A moment's cut-out (`drawCutout` in `GameScene.ts`: the special stroke's
+flash, the big hundreds) was the worst second on an iPhone: 29 to 40 frames a
+second in two playtests, the readout's only real drop. Every picture of him it
+takes is a render more and a read back off the GPU, which an iPhone pays for by
+stopping to hand it over. The outline is drawn again thirty times a second
+(`OUTLINE_MS`), not every frame, at half CSS pixels (`OUTLINE_SCALE`), and him
+alone is rendered only for it: between, he and his stumps are one render and
+one read. Three reads a frame became one and a half, and the cut-out's own
+work about forty per cent less at a quarter of a desktop's speed.
+`batterOnScreen` takes the size the renderer was given rather than measuring
+the canvas, which laid the page out every frame of it.
+
 `?glass=0` is a trial for Super10 alone (`SOLID_BARS` in `Game.ts`,
 `s10-solid` on the body, its rules at the foot of `src/super10.css`): the
 score bar, its keys, the nearing card and the field's tag solid ink with a

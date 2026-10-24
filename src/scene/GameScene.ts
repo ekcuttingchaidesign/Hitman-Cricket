@@ -66,6 +66,13 @@ function mutable(material: THREE.Material, amount: { value: number }) {
   material.customProgramCacheKey = () => `${key()}|mute`;
   material.needsUpdate = true;
 }
+/**
+ * How often a moment's outline is drawn again, not every frame: it boils by
+ * its own clock nine times a second, and each drawing reads the picture back
+ * off the GPU. And the share of CSS pixels it is worked at: a thick pen line,
+ * no softer to see at half, and a quarter of the stamping.
+ */
+const OUTLINE_MS = 1000 / 30, OUTLINE_SCALE = .5;
 /** How long the flash of grey round a special stroke lasts, from the hit. */
 export const POWER_MS = 1100;
 /** How far gone the colour is, a given time into a special stroke: in fast, out slower. */
@@ -224,7 +231,13 @@ export class GameScene {
    */
   private readonly underlay = document.createElement('div');
   private readonly cutCanvas = document.createElement('canvas');
-  private cut: { spec: Cutout; until: number; him: Set<THREE.Object3D>; stumps: Set<THREE.Object3D>; sil: HTMLCanvasElement; ring: HTMLCanvasElement } | null = null;
+  private cut: {
+    spec: Cutout; until: number; him: Set<THREE.Object3D>; stumps: Set<THREE.Object3D>; sil: HTMLCanvasElement;
+    /** The outline's rings as last drawn (`OUTLINE_MS`), each a canvas and where it goes on the cut-out's, in its pixels. */
+    rings: { canvas: HTMLCanvasElement; x: number; y: number; w: number; h: number }[];
+    /** Which of the outline's beats they were drawn on. */
+    beat: number;
+  } | null = null;
   private trail: THREE.Mesh[] = [];
   /**
    * The bowled ball's streak (`STREAK`): ghosts of it set apart in time, not in
@@ -903,11 +916,17 @@ export class GameScene {
     const him = new Set<THREE.Object3D>(), stumps = new Set<THREE.Object3D>(spec.stumps ? this.stumps : []);
     this.batter.root.traverse(o => him.add(o));
     if (spec.ball) for (const o of [this.ball, ...this.trail, ...this.streak, ...this.fire]) him.add(o);
-    this.cut = { spec, until: performance.now() + lasts, him, stumps, sil: document.createElement('canvas'), ring: document.createElement('canvas') };
+    this.cut = { spec, until: performance.now() + lasts, him, stumps, sil: document.createElement('canvas'), rings: [], beat: -1 };
   }
-  /** Him alone, then his stumps with him, into the cut-out's canvas, with the outline rings under. */
+  /**
+   * Him, and his stumps with him, into the cut-out's canvas, with the outline
+   * rings under. Every picture of him is a render more and a read back off the
+   * GPU, which an iPhone pays for by stopping to hand it over: the outline is
+   * drawn again only on its own beat (`OUTLINE_MS`), and him alone only for
+   * it, where the stumps go with him; between, he and they are one render.
+   */
   private drawCutout() {
-    const cut = this.cut!, left = cut.until - performance.now();
+    const cut = this.cut!, now = performance.now(), left = cut.until - now;
     if (left <= 0) { this.cutout(); return; }
     const gl = this.renderer.domElement, canvas = this.cutCanvas;
     if (canvas.width !== gl.width || canvas.height !== gl.height) { canvas.width = gl.width; canvas.height = gl.height; }
@@ -927,16 +946,20 @@ export class GameScene {
     // The shadow map is the last frame's: drawn again for him alone, he would
     // be lit as if nothing else stood on the ground.
     this.renderer.shadowMap.autoUpdate = false;
+    const beat = Math.floor(now / OUTLINE_MS), outlining = beat !== cut.beat;
     try {
-      only(o => cut.him.has(o));
-      this.renderer.render(this.scene, this.camera);
-      this.outline(context, gl);
-      context.drawImage(gl, 0, 0);
-      if (cut.stumps.size) {
-        hidden.forEach(o => { if (cut.stumps.has(o)) o.visible = true; });
+      if (outlining || !cut.stumps.size) {
+        only(o => cut.him.has(o));
         this.renderer.render(this.scene, this.camera);
-        context.drawImage(gl, 0, 0);
+        if (outlining) { this.outline(gl); cut.beat = beat; }
       }
+      for (const ring of cut.rings) context.drawImage(ring.canvas, 0, 0, ring.canvas.width, ring.canvas.height, ring.x, ring.y, ring.w, ring.h);
+      if (cut.stumps.size) {
+        if (hidden.length) hidden.forEach(o => { if (cut.stumps.has(o)) o.visible = true; });
+        else only(o => cut.him.has(o) || cut.stumps.has(o));
+        this.renderer.render(this.scene, this.camera);
+      }
+      context.drawImage(gl, 0, 0);
     } finally {
       hidden.forEach(o => { o.visible = true; });
       this.renderer.setClearColor(clear, alpha);
@@ -945,36 +968,43 @@ export class GameScene {
   }
   /**
    * The outline rings, biggest first: his silhouette stamped round a circle
-   * of each ring's radius and filled with its colour. Worked at CSS pixels in
-   * a box round him rather than across the whole screen, and the stamps are
+   * of each ring's radius and filled with its colour, into a canvas of each
+   * ring's own (`cut.rings`). Worked at half CSS pixels (`OUTLINE_SCALE`) in a
+   * box round him rather than across the whole screen, and the stamps are
    * jittered afresh nine times a second so the line boils like the pen's.
    */
-  private outline(context: CanvasRenderingContext2D, gl: HTMLCanvasElement) {
+  private outline(gl: HTMLCanvasElement) {
     const cut = this.cut!, at = this.batterOnScreen(), ratio = gl.width / Math.max(1, at.width);
     const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
     const x0 = Math.max(0, Math.min(at.head.x, at.feet.x) - s * 2.1), x1 = Math.min(at.width, Math.max(at.head.x, at.feet.x) + s * 2.1);
     const y0 = Math.max(0, at.head.y - s * 1.5), y1 = Math.min(at.height, at.feet.y + s * .45);
     const w = Math.ceil(x1 - x0), h = Math.ceil(y1 - y0);
     if (w <= 0 || h <= 0) return;
-    for (const c of [cut.sil, cut.ring]) if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
-    const sil = cut.sil.getContext('2d'), ring = cut.ring.getContext('2d');
-    if (!sil || !ring) return;
-    sil.clearRect(0, 0, w, h);
-    sil.drawImage(gl, x0 * ratio, y0 * ratio, w * ratio, h * ratio, 0, 0, w, h);
+    const k = OUTLINE_SCALE, sw = Math.ceil(w * k), sh = Math.ceil(h * k);
+    if (cut.sil.width !== sw || cut.sil.height !== sh) { cut.sil.width = sw; cut.sil.height = sh; }
+    const sil = cut.sil.getContext('2d');
+    if (!sil) return;
+    sil.clearRect(0, 0, sw, sh);
+    sil.drawImage(gl, x0 * ratio, y0 * ratio, w * ratio, h * ratio, 0, 0, sw, sh);
     let seed = Math.floor(performance.now() / 110) * 7919 >>> 0;
     const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-    for (const { r, colour, dx = 0, dy = 0 } of cut.spec.rings) {
+    cut.spec.rings.forEach(({ r, colour, dx = 0, dy = 0 }, i) => {
+      const slot = cut.rings[i] ??= { canvas: document.createElement('canvas'), x: 0, y: 0, w: 0, h: 0 };
+      const canvas = slot.canvas;
+      if (canvas.width !== sw || canvas.height !== sh) { canvas.width = sw; canvas.height = sh; }
+      const ring = canvas.getContext('2d');
+      if (!ring) return;
       ring.globalCompositeOperation = 'source-over';
-      ring.clearRect(0, 0, w, h);
-      for (const [count, reach] of [[16, 1], [8, .55]] as const) for (let i = 0; i < count; i++) {
-        const a = (i + random() * .3) / count * Math.PI * 2, rr = r * reach * (1 + (random() - .5) * .16);
+      ring.clearRect(0, 0, sw, sh);
+      for (const [count, reach] of [[16, 1], [8, .55]] as const) for (let j = 0; j < count; j++) {
+        const a = (j + random() * .3) / count * Math.PI * 2, rr = r * k * reach * (1 + (random() - .5) * .16);
         ring.drawImage(cut.sil, Math.cos(a) * rr, Math.sin(a) * rr);
       }
       ring.globalCompositeOperation = 'source-in';
       ring.fillStyle = colour;
-      ring.fillRect(0, 0, w, h);
-      context.drawImage(cut.ring, 0, 0, w, h, (x0 + dx) * ratio, (y0 + dy) * ratio, w * ratio, h * ratio);
-    }
+      ring.fillRect(0, 0, sw, sh);
+      Object.assign(slot, { x: (x0 + dx) * ratio, y: (y0 + dy) * ratio, w: w * ratio, h: h * ratio });
+    });
   }
   /**
    * A special stroke on a full meter, from the moment it is hit: the same
@@ -1008,8 +1038,10 @@ export class GameScene {
    * top of his helmet, and the height the bat reaches held up to the sky. The
    * doodles that go up round his hundred are drawn to these.
    */
+  private readonly screenSize = new THREE.Vector2();
   batterOnScreen() {
-    const { width, height } = this.renderer.domElement.getBoundingClientRect();
+    // The size the renderer was given, not the canvas measured: measuring makes the page lay itself out there and then.
+    const { width, height } = this.renderer.getSize(this.screenSize);
     this.batter.root.updateWorldMatrix(true, false);
     const at = (y: number) => {
       const p = this.batter.root.localToWorld(new THREE.Vector3(0, y, 0)).project(this.camera);
