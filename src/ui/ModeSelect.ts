@@ -1,11 +1,13 @@
 /**
  * Choose a mode, as UI v1 draws it: the hub between the cover and an innings.
  *
- * Two posters, the Test Marathon and the Blast, with the player's best and
- * place on each; Test Survival as a banner under them; then the boards, My
- * Stats in the material of the tier the player is on, and Rivals. A new player
- * sees the same screen with "Not played" on the posters, the Debutant card and
- * the Rivals invitation in place of a record.
+ * Three posters on one swipeable rail, the Blast, the Test Marathon and Test
+ * Survival, with the player's best and place on each (Figma 16E, 450:5037);
+ * under them the Super10 card, coming soon, which opens its own page
+ * (`Super10Page.ts`); then the boards, My Stats in the material of the tier
+ * the player is on, and Rivals. A new player sees the same screen with "Not
+ * played" on the posters, the Debutant card and the Rivals invitation in
+ * place of a record.
  *
  * The keys the game listens on keep the ids the old picker had — `#modes`,
  * `#modes-cancel`, `#mode-marathon`, `#mode-classic`, `#mode-survive`,
@@ -24,6 +26,8 @@ const POSTER_MARATHON = new URL('../assets/entry/poster-marathon.webp', import.m
 const POSTER_BLAST = new URL('../assets/cover-drive.webp', import.meta.url).href;
 const BANNER_SURVIVAL = new URL('../assets/survive-cover.webp', import.meta.url).href;
 const DRESSING_CARD = new URL('../assets/entry/dressing-card.webp', import.meta.url).href;
+export const SUPER10_PICTURE = new URL('../assets/super10/picture.webp', import.meta.url).href;
+export const SUPER10_LOGO = new URL('../assets/super10/logo.svg', import.meta.url).href;
 const art = (file: string) => new URL(`../assets/entry/${file}`, import.meta.url).href;
 
 /** One poster's figures: nothing played yet, or the best and where it stands. */
@@ -54,7 +58,7 @@ export function posterStat(view: PosterView): string {
   return `Best ${view.best}${view.rank ? ` · #${view.rank}` : ''}`;
 }
 
-/** Survival's banner line. */
+/** Survival's poster line: its rules, or its best result once there is one (the chip under it then steps aside). */
 export function surviveLine(view: PosterView): string {
   if (!view.best) return '60 balls, one wicket. Chase or hold out.';
   return `${view.best}${view.rank ? ` · #${view.rank}` : ''}`;
@@ -111,7 +115,7 @@ const ground = `<div class="ms-ground" aria-hidden="true">
 
 const play = (ink: string, ledge: string) => `<span class="k-cta k-cta--play-small ms-play" style="--ink:${ink};--ledge:${ledge}" aria-hidden="true"><span class="k-cta-face"><span>PLAY</span></span></span>`;
 
-/** The screen itself, drawn once. The Marathon's NEW tag goes once it has been played (`is-played`). */
+/** The screen itself, drawn once. */
 export function modeSelectMarkup(): string {
   return `
         <div id="modes" class="modal-overlay ms-screen hidden" role="dialog" aria-modal="true" aria-labelledby="modes-title">
@@ -124,29 +128,39 @@ export function modeSelectMarkup(): string {
               <h2 id="modes-title" class="ms-title">CHOOSE A MODE</h2>
               <button id="modes-profile" class="ms-profile" type="button" aria-label="My profile"></button>
             </div>
-            <div class="ms-posters">
-              <button id="mode-marathon" class="ms-poster is-marathon" type="button">
-                <img class="ms-art" src="${POSTER_MARATHON}" alt="" decoding="async">
-                <span class="ms-tag is-new">NEW</span>
-                <span class="ms-name"><span>TEST</span><span>MARATHON</span></span>
-                <span class="ms-desc">One long innings, no over limit.</span>
-                <span class="ms-foot"><span id="mode-marathon-stat" class="ms-stat">Not played</span>${play('var(--c-marathon)', '#00301a')}</span>
-              </button>
-              <button id="mode-classic" class="ms-poster is-blast" type="button">
+            <div id="modes-rail" class="ms-rail" aria-label="Modes">
+              <button id="mode-classic" class="ms-poster is-blast" type="button" data-mode="CLASSIC">
                 <img class="ms-art" src="${POSTER_BLAST}" alt="" decoding="async">
                 <span class="ms-tag is-blast">5 OVERS</span>
                 <span class="ms-name"><span>THE</span><span>BLAST</span></span>
                 <span class="ms-desc">5 overs, 3 wickets.</span>
                 <span class="ms-foot"><span id="mode-classic-stat" class="ms-stat">Not played</span>${play('#1a4497', '#0f2c68')}</span>
               </button>
+              <button id="mode-marathon" class="ms-poster is-marathon" type="button" data-mode="MARATHON">
+                <img class="ms-art" src="${POSTER_MARATHON}" alt="" decoding="async">
+                <span class="ms-name"><span>TEST</span><span>MARATHON</span></span>
+                <span class="ms-desc">One long innings, no over limit.</span>
+                <span class="ms-foot"><span id="mode-marathon-stat" class="ms-stat">Not played</span>${play('var(--c-marathon)', '#00301a')}</span>
+              </button>
+              <button id="mode-survive" class="ms-poster is-survival" type="button" data-mode="SURVIVE">
+                <img class="ms-art" src="${BANNER_SURVIVAL}" alt="" decoding="async">
+                <span class="ms-tag is-survival">LAST MAN IN</span>
+                <span class="ms-name"><span>TEST</span><span>SURVIVAL</span></span>
+                <span id="mode-survive-line" class="ms-desc">60 balls, one wicket. Chase or hold out.</span>
+                <span class="ms-foot"><span class="ms-stat is-unplayed">Not played</span>${play('#8e1424', '#5e0c17')}</span>
+              </button>
             </div>
-            <button id="mode-survive" class="ms-banner" type="button">
-              <img class="ms-art" src="${BANNER_SURVIVAL}" alt="" decoding="async">
-              <span class="ms-tag is-survival">LAST MAN IN</span>
-              <span class="ms-banner-foot">
-                <span class="ms-banner-text"><span class="ms-banner-name">TEST SURVIVAL</span><span id="mode-survive-line" class="ms-desc">60 balls, one wicket. Chase or hold out.</span></span>
-                ${play('#8e1424', '#5e0c17')}
-              </span>
+            <div class="ms-pager" aria-hidden="true"><i class="is-blast"></i><i class="is-marathon"></i><i class="is-survival"></i></div>
+            <button id="mode-super10" class="ms-super10" type="button" aria-label="Super10, coming soon">
+              <img class="ms-art" src="${SUPER10_PICTURE}" alt="" decoding="async">
+              <img class="ms-super10-logo" src="${SUPER10_LOGO}" alt="" decoding="async">
+              <span class="ms-super10-tag">COMING SOON</span>
+              <span class="ms-super10-key" aria-hidden="true">${icon('chevron-right')}</span>
+            </button>
+            <button id="modes-dressing" class="ms-dressing" type="button">
+              <img class="ms-art" src="${DRESSING_CARD}" alt="" decoding="async">
+              <span class="ms-tag is-new">NEW</span>
+              <span class="ms-dressing-text"><span class="ms-dressing-name">DRESSING ROOM${icon('chevron-right')}</span><span id="modes-dressing-line" class="ms-dressing-line">3 of 13 earned</span></span>
             </button>
             <div class="ms-card ms-rivals">
               <button id="modes-challenges" class="ms-rivals-open" type="button" aria-label="Rival matches"></button>
@@ -155,11 +169,6 @@ export function modeSelectMarkup(): string {
               <span class="ms-rivals-text"><span class="ms-rivals-name">RIVALS <i id="mode-challenge-flag" class="ms-flag hidden"></i></span><span id="modes-rivals-line" class="ms-note">Same balls. Best score wins.</span></span>
               ${cta({ kind: 'challenge', label: 'Challenge a friend', id: 'mode-challenge' })}
             </div>
-            <button id="modes-dressing" class="ms-dressing" type="button">
-              <img class="ms-art" src="${DRESSING_CARD}" alt="" decoding="async">
-              <span class="ms-tag is-new">NEW</span>
-              <span class="ms-dressing-text"><span class="ms-dressing-name">DRESSING ROOM${icon('chevron-right')}</span><span id="modes-dressing-line" class="ms-dressing-line">3 of 13 earned</span></span>
-            </button>
             <div class="ms-bento">
               <button id="modes-board" class="ms-card ms-boards" type="button">
                 <span class="ms-card-head"><span>LEADERBOARDS</span>${icon('chevron-right')}</span>

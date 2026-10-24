@@ -64,6 +64,7 @@ function boardEndpoints(): Plugin {
   // credentials and no database. It is forgotten when the server stops, which is
   // what you want while working on the questions.
   const feedback = memoryFeedback();
+  const excited = new Set<string>();
   // The careers, backed the same way, sharing the same name registry — so a
   // name claimed on an innings board is the name a career is ranked under, the
   // way the deployed keys arrange it.
@@ -180,6 +181,11 @@ function boardEndpoints(): Plugin {
             }
             if (req.method !== 'POST') return send(405, { error: 'Use POST.' });
             const form = JSON.parse(await read(req)) as Record<string, unknown>;
+            // I'M EXCITED on Super10's page: each player once, as `countExcited` keeps them.
+            if (form.excited === 'super10') {
+              if (typeof form.playerId === 'string' && form.playerId) excited.add(form.playerId);
+              return send(200, { ok: true, excited: excited.size });
+            }
             const outcome = await takeFeedback(feedback, {
               playerId: form.playerId, answers: form.answers,
               suggestion: form.suggestion, context: form.context, rating: form.rating, address: 'dev',

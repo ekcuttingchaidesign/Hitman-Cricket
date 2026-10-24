@@ -125,12 +125,22 @@ const words = (page, selector) => page.locator(selector).innerText().then(t => t
   check(await toModes(page), 'PLAY opens Choose a mode');
   check(await words(page, '#modes-title') === 'CHOOSE A MODE', 'under its new title', await words(page, '#modes-title'));
   check(/^not played$/i.test(await words(page, '#mode-marathon-stat')), 'the Marathon poster says not played', await words(page, '#mode-marathon-stat'));
-  check(await page.locator('#mode-marathon .ms-tag.is-new').isVisible(), 'and carries NEW');
+  check(await page.locator('#mode-marathon .ms-tag').count() === 0, 'and carries no NEW tag: the mode is not new any more');
   check(/60 balls, one wicket/.test(await words(page, '#mode-survive-line')), 'Survival gives its rules', await words(page, '#mode-survive-line'));
   check(await words(page, '#modes-stats-tier') === 'DEBUTANT' && await page.locator('#modes-stats.tier-debutant').count() === 1,
     "My Stats is a Debutant's card", await words(page, '#modes-stats-tier'));
   check(/Same balls/.test(await words(page, '#modes-rivals-line')), 'and Rivals invites', await words(page, '#modes-rivals-line'));
   await page.screenshot({ path: 'test-results/entry/modes-new.png' });
+  // Super10's page: its back key is the thing a thumb finds, not the picture under it.
+  await page.locator('#mode-super10').click();
+  await page.waitForSelector('#super10-page:not(.hidden)');
+  const s10back = await page.locator('#super10-back').boundingBox();
+  const under = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('#super10-back') !== null,
+    [s10back.x + s10back.width / 2, s10back.y + s10back.height / 2]);
+  await page.mouse.click(s10back.x + s10back.width / 2, s10back.y + s10back.height / 2);
+  await page.waitForTimeout(400);
+  check(under && !(await page.locator('#super10-page').isVisible()) && await page.locator('#modes').isVisible(),
+    "Super10's page closes from its back key, back to Choose a mode");
   check(errors.length === 0, 'with nothing thrown', errors.join(' | '));
   await context.close();
 }
@@ -141,7 +151,6 @@ const words = (page, selector) => page.locator(selector).innerText().then(t => t
   check(await toModes(page), "a returning player's PLAY opens Choose a mode too");
   check(/^best 158/i.test(await words(page, '#mode-classic-stat')), 'the Blast poster carries their best', await words(page, '#mode-classic-stat'));
   check(/^best 194/i.test(await words(page, '#mode-marathon-stat')), "and the Marathon's", await words(page, '#mode-marathon-stat'));
-  check(!(await page.locator('#mode-marathon .ms-tag.is-new').isVisible()), 'which is no longer NEW');
   check(/Survived all 60/.test(await words(page, '#mode-survive-line')), 'Survival their best result', await words(page, '#mode-survive-line'));
   check(await words(page, '#modes-stats-runs') === '2,140' && await page.locator('#modes-stats.tier-emerging').count() === 1,
     'My Stats is the Emerging card with their runs', await words(page, '#modes-stats-runs'));
