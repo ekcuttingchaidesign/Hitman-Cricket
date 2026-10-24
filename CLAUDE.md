@@ -496,7 +496,7 @@ has a name.
 
 `scripts/dressing-check.mjs` is the Dressing Room (`src/ui/DressingRoom.ts`,
 its stage `src/scene/DressingStage.ts`): reached by its card on Choose a mode,
-under Rivals; the shelf's pictures drawn off the models, a locked kit tried on
+above Rivals; the shelf's pictures drawn off the models, a locked kit tried on
 with the key to the game it is won in, a kit and a bat put on, and the batter
 then going out to bat in them (`snapshot().look`), or in OG Navy and Plain when
 the pick is no longer earned. Boom is not free and nothing goes off on the way
