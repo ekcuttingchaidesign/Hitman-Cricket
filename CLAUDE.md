@@ -1851,17 +1851,23 @@ is its figure (`MILESTONE_WORDS`: 50, 100, 150…). For a boundary and a
 wicket the screen plays the brand's stings over the drawn word — FOUR, SIX,
 BOWLED, OUT and DUCK, the design's own Lotties at 1024 by 384 and thirty
 frames a second, each a whole board on its ground, violet or raspberry
-(`public/lotties/super10-<name>.json`, `STINGS`, `stingOf`, painted into a
-canvas of their own through `paintFilm` in whole frames, and the screen
-repainted and laid over only when a sting's frame changes: painted at every
-refresh, a SIX doubled the JavaScript a frame and an iPhone dropped to thirty
-or forty frames a second). The screen is laid out 1024 wide whatever its
+(`public/lotties/super10-<name>.json`, `STINGS`, `stingOf`). Each is built
+into a canvas of its own and held still (`filmFrames` in `Lottie.ts`), and
+the screen draws every other frame of it, fifteen a second, at the frame the
+moment's clock has reached (`STING_FRAME_MS`, `STING_STEP`), repainting and
+laying it over only then: painted at every refresh, a SIX doubled the
+JavaScript a frame and an iPhone dropped to thirty or forty frames a second,
+and at thirty a second, lottie's own clock driving it, a sting cost twice
+what it does at fifteen. The screen is small and far off in a phone's
+picture, and nobody sees the difference. The screen is laid out 1024 wide whatever its
 canvas (`SCREEN_WIDTH`); the canopy's canvas is half that, with no mipmaps
 to rebuild on each upload and no pixel grid (`pixels`, kept for the arena's
 full-size screen), which at half size ran in bands across it. The stings are
-fetched and every ring's FOUR, SIX and wicket faces painted and sent to the
-GPU when a ground is first cued (`warm`, `warmShow` in `GameScene`), not at
-the first moment — so the drawn word shows only until a film's first frame is in,
+fetched and built, one every 300 ms, and every ring's FOUR, SIX and wicket
+faces painted and sent to the GPU when a ground is first cued (`warm`,
+`warmShow` in `GameScene`), not at the first moment: built at its first play,
+the first SIX of an innings froze a frame for fifty milliseconds at a quarter
+of a desktop's speed. So the drawn word shows only until a film is built,
 and under reduced motion, where no sting plays and the word stands still. A
 wicket is told how he went (`BOWLED`, `DUCK` for a batter out with none, else
 `OUT`).

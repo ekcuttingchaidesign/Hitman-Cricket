@@ -3,7 +3,7 @@ import { Batch, mat } from './build';
 import { EAVES, STADIUM, stadium, type BigScreen, type StadiumLights } from './stadium';
 import { seeded } from './turf';
 import type { Milestone } from '../game/milestone';
-import { paintFilm, prefetchFilms, type Film, type Playing } from '../ui/Lottie';
+import { filmFrames, prefetchFilms, type Film, type Frames } from '../ui/Lottie';
 import { banners, flags, torches, waveAt, type CrowdLife } from './crowdLife';
 import { LED, type WicketLights } from './wicket';
 import { GAME } from '../config/gameplay';
@@ -317,8 +317,15 @@ function picture(src: string, ready: () => void) {
 
 /** How wide the screen is drawn, whatever its canvas: everything on it is laid out on this. */
 const SCREEN_WIDTH = 1024;
-/** The stings' frame: they are drawn at thirty a second. */
-const STING_FRAME_MS = 1000 / 30;
+/**
+ * The screen's frame while it moves: fifteen a second. The stings are made at
+ * thirty, and every other frame of theirs is drawn (`STING_STEP`): the screen
+ * is a small thing far off in a phone's picture, and each frame of it is a
+ * film drawn, the screen painted over it and the lot sent to the GPU.
+ */
+const STING_FRAME_MS = 1000 / 15;
+/** The stings' own frame, a thirtieth of a second, and how many of them go by between two drawn. */
+const FILM_FRAME_MS = 1000 / 30, STING_STEP = 2;
 const grids = new Map<string, HTMLCanvasElement>();
 /**
  * A screen's pixels, a fine dark grid a line every four, drawn once a size
@@ -573,8 +580,10 @@ export class Showboards {
   private level = 1;
   /** Reduced motion, as the last frame was drawn under. */
   private still = false;
-  /** The sting playing, painted into a canvas of its own and laid over the screen. */
-  private playing: { name: Sting; at: number; canvas: HTMLCanvasElement; film: Playing | null } | null = null;
+  /** The sting playing, drawn a frame at a time into its canvas (`films`) and laid over the screen; `frame` is the one drawn, -1 before any. */
+  private playing: { name: Sting; frame: number } | null = null;
+  /** Each sting built and held still in a canvas of its own (`warm`), drawn at the frame the moment has reached. */
+  private films = new Map<Sting, { canvas: HTMLCanvasElement; frames: Frames | null }>();
 
   constructor(private screen: BigScreen | null) {
     // Once the pictures and the faces are in, everything painted is painted again.
@@ -606,7 +615,7 @@ export class Showboards {
     this.cued = { kind, at: now, word };
     this.stopSting();
     const name = stingOf(kind, word ?? CUES[kind].word);
-    if (name && this.screen && !this.still) this.playSting(name, now);
+    if (name && this.screen && !this.still) this.playSting(name);
   }
   scoreboard(board: Scoreboard) { this.board = board; }
   /**
@@ -687,14 +696,24 @@ export class Showboards {
     return texture;
   }
 
-  private playSting(name: Sting, now: number) {
+  private playSting(name: Sting) {
+    this.film(name);
+    this.playing = { name, frame: -1 };
+  }
+  /** A sting's canvas and its film, built the first time it is asked for: by `warm`, before the first moment. */
+  private film(name: Sting) {
+    let film = this.films.get(name);
+    if (film) return film;
     // The film at the screen's own resolution: no bigger than the picture it is laid into.
     const width = this.screen?.context.canvas.width ?? SCREEN_WIDTH;
     const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = Math.round(width * 384 / 1024);
+    film = { canvas, frames: null };
+    this.films.set(name, film);
     // In memory, as the screen it is laid into is: drawn from the GPU onto it, every frame of the film was read back.
     const context = canvas.getContext('2d', { willReadFrequently: true });
-    if (!context) return;
-    this.playing = { name, at: now, canvas, film: paintFilm(context, `super10-${name}` as Film, { whole: true }) };
+    const held = film;
+    if (context) void filmFrames(context, `super10-${name}` as Film).then(frames => { held.frames = frames; });
+    return film;
   }
   /**
    * Everything a moment needs, made before the first one: the stings fetched,
@@ -704,7 +723,11 @@ export class Showboards {
    * faces, for the scene to send to the GPU.
    */
   warm(): THREE.Texture[] {
-    if (this.screen) prefetchFilms(STINGS.map(name => `super10-${name}` as Film));
+    if (this.screen && typeof document !== 'undefined') {
+      prefetchFilms(STINGS.map(name => `super10-${name}` as Film));
+      // One film built at a time, a moment apart, so no one frame of the walk out pays for all five.
+      STINGS.forEach((name, i) => setTimeout(() => this.film(name), 300 * i));
+    }
     const faces: THREE.Texture[] = [];
     for (const { panels } of this.boards) {
       faces.push(this.face('four', CUES.four.word, panels), this.face('six', CUES.six.word, panels));
@@ -712,7 +735,7 @@ export class Showboards {
     }
     return faces;
   }
-  private stopSting() { this.playing?.film?.destroy(); this.playing = null; }
+  private stopSting() { this.playing = null; }
 
   /**
    * The screen. Between moments: the mark, and the score in the brand's lettering with who is in
@@ -753,8 +776,13 @@ export class Showboards {
       lettering(ctx, word, four ? W / 2 - 90 : W / 2, H / 2 + (word === 'SIX' ? -26 : 0) + drift, big ? 190 : 120, four ? W - 380 : W - 120, out ? ARENA.wicket : ARENA.plate, slam, 1 - leaving);
       if (word === 'SIX') sub(ctx, 'MAXIMUM', W / 2, H - 70 + drift, 40, `rgba(255,255,255,${1 - leaving})`);
       if (four) lettering(ctx, '+4', W - 140, H / 2 - 60 + drift, 110, 210, ARENA.plate, this.still ? 1 : slamScale(since - 120), 1 - leaving);
-      // The sting over it, its own ground covering the word once its first frame is in.
-      if (this.playing) ctx.drawImage(this.playing.canvas, 0, 0, W, H);
+      // The sting over it at the frame the moment has reached, its own ground covering the word once its film is built.
+      const playing = this.playing, film = playing && this.films.get(playing.name);
+      if (playing && film?.frames) {
+        const frame = Math.min(film.frames.total - 1, Math.floor(since / FILM_FRAME_MS / STING_STEP) * STING_STEP);
+        if (frame !== playing.frame) { film.frames.show(frame); playing.frame = frame; }
+        ctx.drawImage(film.canvas, 0, 0, W, H);
+      }
     } else {
       const { title, score, detail } = this.board;
       const mark = this.marks.primary;

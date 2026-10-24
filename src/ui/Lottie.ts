@@ -89,13 +89,48 @@ export function playFilm(host: HTMLElement, film: Film, options: { loop?: boolea
   };
 }
 
+/** A film built and held still, for its frames to be drawn when they are asked for: see `filmFrames`. */
+export interface Frames {
+  /** How many frames the film has. */
+  readonly total: number;
+  /** Draws one frame into the canvas, cleared first. */
+  show(frame: number): void;
+}
+
+/**
+ * Builds a film into a canvas and holds it still, so that whoever owns it
+ * draws a frame when it wants one rather than lottie's own clock drawing
+ * every frame the film has. Every layer is built here, by drawing the last
+ * frame once and then the first: built at its first play, the screen's first
+ * FOUR of an innings froze a frame while the film was read and put together.
+ * Null if the film cannot be had.
+ */
+export async function filmFrames(context: CanvasRenderingContext2D, film: Film): Promise<Frames | null> {
+  try {
+    const [lottie, text] = await Promise.all([loadPainter(), fetched.get(film) ?? fetch(src(film)).then(r => (r.ok ? r.text() : null))]);
+    if (!text) return null;
+    const animation = lottie.loadAnimation({
+      renderer: 'canvas', loop: false, autoplay: false,
+      animationData: JSON.parse(text),
+      rendererSettings: { context, clearCanvas: true, dpr: 1, preserveAspectRatio: 'xMidYMid meet' },
+    } as Parameters<Painter['loadAnimation']>[0]);
+    if (!animation.isLoaded) await new Promise<void>(done => animation.addEventListener('DOMLoaded', () => done()));
+    const total = Math.round(animation.totalFrames);
+    animation.goToAndStop(total - 1, true);
+    animation.goToAndStop(0, true);
+    return { total, show: frame => animation.goToAndStop(frame, true) };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Plays a film into a canvas of its own, for the ground to hang up as a
  * texture: the fireworks, which go off in the sky behind the stands and so
  * have to be in the picture rather than over it. The canvas is cleared each
  * frame, so what is not the film is see-through. Nothing here throws either.
  */
-export function paintFilm(context: CanvasRenderingContext2D, film: Film, options: { loop?: boolean; whole?: boolean } = {}): Playing {
+export function paintFilm(context: CanvasRenderingContext2D, film: Film, options: { loop?: boolean } = {}): Playing {
   let gone = false;
   let animation: { destroy(): void } | null = null;
   void Promise.all([loadPainter(), fetched.get(film) ?? null]).then(([lottie, text]) => {
@@ -107,8 +142,6 @@ export function paintFilm(context: CanvasRenderingContext2D, film: Film, options
       ...(text ? { animationData: JSON.parse(text) } : { path: src(film) }),
       rendererSettings: { context, clearCanvas: true, dpr: 1, preserveAspectRatio: 'xMidYMid meet' },
     } as Parameters<Painter['loadAnimation']>[0]);
-    // Whole frames only: the film is drawn once a frame of its own, not again at every refresh between them.
-    if (options.whole) (animation as unknown as { setSubframe(flag: boolean): void }).setSubframe(false);
   }).catch(() => { /* No film: an empty sky. */ });
   return {
     destroy() {
