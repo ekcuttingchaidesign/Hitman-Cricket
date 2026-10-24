@@ -1869,9 +1869,9 @@ cream verandahs on white posts with fretwork, two decks over a raked lower
 tier, every one of them full of crowd, under green roofs, a clock tower with
 a flag over the middle and a turret with one over either end; a wing either
 side turned in from its corners, so a phone sees the pavilion in the middle
-of its picture and a wing at each edge; trees behind them; and two tall
-floodlight towers with round lamps over the far corners, standing in the top
-of the picture (and a pair out of shot behind the batter). Lamps hang in
+of its picture and a wing at each edge; trees behind them; and a floodlight
+of round lamps over either far corner (and a pair of towers out of shot
+behind the batter). Lamps hang in
 every verandah bay and are lit at night with the stadium's.
 
 A Victorian pavilion behind the bowler was tried before and read on a phone
@@ -1900,8 +1900,11 @@ corner the two stands' roofs and decks pulled apart behind their fronts and
 left a wedge of sky and trees: a stair tower stands over each join
 (`stairTower`), set back behind the lower tier and no wider than the gap —
 at the stands' full height and width it covered the wings. The trees are
-clusters of rounder crowns, and the far floodlights stand behind the joins and
-lower, where their heads clear the score bar and the keys.
+clusters of rounder crowns. The far floodlights crown the two stair towers
+(`lampHead` on the tower's roof, `CROWN`), small enough to clear the score bar
+and the keys: as towers behind the joins only their heads showed over the
+roofs, lamps with nothing under them, and over the far corners taller they
+stood behind the score bar.
 
 The pavilion and the canopy are laid with their own outfield (`turfOf` in
 `grounds.ts`, `FRESH_TURF` in `turf.ts`): its light stripe #6DA637 and its

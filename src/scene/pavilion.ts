@@ -8,7 +8,7 @@ import { seeded } from './turf';
  * the reference the game's designer gave for it — a members' pavilion of
  * cream verandahs under green roofs, a clock tower over the middle with a
  * flag, a wing either side turned in to the ground, trees behind them, and
- * two tall floodlight towers with round lamps standing over it all.
+ * a floodlight of round lamps crowning the stair tower at either join.
  *
  * A pavilion was tried behind the bowler once before and read on a phone as a
  * banquet hall stood in a stadium: a building's front, its windows and its
@@ -84,12 +84,15 @@ const WING_END = { angle: .56, radius: 40.5 } as const;
 export const pavilionSkips = (section: number) => section <= 2 || section >= 26;
 
 /**
- * The towers: behind the joins of the stands and, out of shot, behind the
- * batter. Over the far corners and taller, their heads stood behind the score
- * bar and the keys at the top of a phone's picture.
+ * The towers out of shot behind the batter. The far pair are not towers: they
+ * stand on the stair towers over the joins (`stairTower`). Stood behind the
+ * stands, only their heads showed over the roofs, lamps with nothing under
+ * them; over the far corners and taller, they stood behind the score bar.
  */
-const TOWERS = [[-14, 63], [14, 63], [-25, -44], [25, -44]] as const;
+const TOWERS = [[-25, -44], [25, -44]] as const;
 const MAST = 12.5;
+/** The far lamps' head over its stair tower: smaller than a tower's, nearer the camera. */
+const CROWN = { mast: 1.2, scale: .5 } as const;
 
 /** A home crowd in its colours, which stand out from the cream of the stand: the stadium's summer whites were the stand's own colour. */
 const CROWD = [0x1f3b73, 0x2f7d4a, 0xc8342b, 0x2b6cb0, 0xf2c230, 0xf4f1ea, 0x1b1f24, 0x7a2d5c, 0x2aa198, 0xf4f1ea, 0xe8762c] as const;
@@ -140,7 +143,7 @@ function pavilion(b: Batch, seat: SeatFn, lights: StadiumLights, spots: THREE.Ve
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), side * turn / 2),
       new THREE.Vector3(1, 1, 1),
     );
-    stairTower(b, join, spots);
+    stairTower(b, join, spots, lights);
   }
   trees(b);
   towers(b, lights);
@@ -261,11 +264,11 @@ function verandahs(b: Batch, seat: SeatFn, frame: THREE.Matrix4, w: number, { to
 /**
  * A stair tower over the join of the centre stand and a wing, in `frame`
  * (the join at its origin, turned halfway between the two): cream, banded at
- * each deck, a lit window to every floor on its face and a green pyramid cap
- * with a flag. It fills the wedge the two stands' roofs and decks open
+ * each deck, a lit window to every floor on its face, and a floodlight on
+ * its roof. It fills the wedge the two stands' roofs and decks open
  * behind their fronts, where the sky and the trees showed through.
  */
-function stairTower(b: Batch, frame: THREE.Matrix4, spots: THREE.Vector3[]) {
+function stairTower(b: Batch, frame: THREE.Matrix4, spots: THREE.Vector3[], lights: StadiumLights) {
   const { cream, trim, roof, light } = PAVILION;
   // Set back behind the lower tier and no wider than the gap: at the full
   // height and width of the stands it stood over the wings as two slabs. Its
@@ -283,8 +286,11 @@ function stairTower(b: Batch, frame: THREE.Matrix4, spots: THREE.Vector3[]) {
     b.box(1.2, .12, .14, trim, 0, y - h / 2 - .06, front - .12, frame);
   }
   spots.push(new THREE.Vector3(0, DECK.top + 1.5, front - .4).applyMatrix4(frame));
-  b.peak(w + .8, 2.4, depth * .5, roof, 0, top + .15, z, frame);
-  flagOn(b, frame, 0, top + 2.55, z, .9);
+  // Its roof is the floodlight's footing: a low green plinth, a short mast off
+  // it and a head of lamps turned to the middle, so the far lights stand on
+  // the building from the ground up rather than peering over the roofs.
+  b.box(w + .2, .9, depth * .6, roof, 0, top + .6, z, frame);
+  lampHead(b, new THREE.Vector3(0, top + 1.05, z).applyMatrix4(frame), CROWN.mast, CROWN.scale, lights);
 }
 
 /** A flagpole standing from `y`, its flag flying out to the side. */
@@ -319,28 +325,28 @@ function trees(b: Batch) {
 }
 
 /**
- * The floodlights: a tall white mast and a head of round lamps in a dark
- * frame, turned to the middle and tipped down at it, as in the reference —
- * the far pair standing over the pavilion's corners, in the top of a phone's
- * picture, and a pair behind the batter out of it.
+ * The floodlights behind the batter, out of a phone's picture: a tall white
+ * mast and a head of round lamps in a dark frame, turned to the middle and
+ * tipped down at it, as in the reference. The far pair crown the stair towers.
  */
 function towers(b: Batch, lights: StadiumLights) {
+  for (const [x, z] of TOWERS) lampHead(b, new THREE.Vector3(x, 0, z), MAST, 1, lights);
+}
+
+/** A mast `tall` standing at `at` and a head of twenty lamps on it, `size` of a tower's, turned to the middle and tipped down at it. */
+function lampHead(b: Batch, at: THREE.Vector3, tall: number, size: number, lights: StadiumLights) {
   const { mast, head: housing } = PAVILION;
-  const centre = new THREE.Vector3(0, 0, CENTRE_Z);
-  for (const [x, z] of TOWERS) {
-    const at = new THREE.Vector3(x, 0, z);
-    const yaw = Math.atan2(at.x - centre.x, at.z - centre.z);
-    const frame = new THREE.Matrix4().compose(at, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(1, 1, 1));
-    b.add(new THREE.CylinderGeometry(.32, .7, MAST, 8).translate(0, MAST / 2, 0), mast, frame);
-    const head = new THREE.Matrix4().multiplyMatrices(frame, new THREE.Matrix4().compose(
-      new THREE.Vector3(0, MAST + 2.4, -.6), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), .32), new THREE.Vector3(1, 1, 1)));
-    b.box(6.4, 5.4, .5, housing, 0, 0, 0, head);
-    b.box(6.8, .25, .7, mast, 0, 2.8, 0, head);
-    b.box(6.8, .25, .7, mast, 0, -2.8, 0, head);
-    for (let r = 0; r < 4; r++) for (let c = 0; c < 5; c++) {
-      b.add(new THREE.CircleGeometry(.5, 16).rotateY(Math.PI).translate(-2.4 + c * 1.2, -1.85 + r * 1.23, -.27), STADIUM.lamp, head);
-    }
-    lights.towers.push(new THREE.Vector3(0, 0, -.9).applyMatrix4(head));
+  const yaw = Math.atan2(at.x, at.z - CENTRE_Z);
+  const frame = new THREE.Matrix4().compose(at, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(1, 1, 1));
+  b.add(new THREE.CylinderGeometry(.32 * size, .7 * size, tall, 8).translate(0, tall / 2, 0), mast, frame);
+  const head = new THREE.Matrix4().multiplyMatrices(frame, new THREE.Matrix4().compose(
+    new THREE.Vector3(0, tall + 2.4 * size, -.6 * size), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), .32), new THREE.Vector3(size, size, size)));
+  b.box(6.4, 5.4, .5, housing, 0, 0, 0, head);
+  b.box(6.8, .25, .7, mast, 0, 2.8, 0, head);
+  b.box(6.8, .25, .7, mast, 0, -2.8, 0, head);
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 5; c++) {
+    b.add(new THREE.CircleGeometry(.5, 16).rotateY(Math.PI).translate(-2.4 + c * 1.2, -1.85 + r * 1.23, -.27), STADIUM.lamp, head);
   }
+  lights.towers.push(new THREE.Vector3(0, 0, -.9).applyMatrix4(head));
 }
 
