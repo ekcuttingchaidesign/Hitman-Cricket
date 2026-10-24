@@ -4012,8 +4012,9 @@ export class Game {
         if (this.marathon || this.super10) this.hud.speed(shownKph(this.delivery!.speedKph));
       }
     } else if (this.phase === 'BALL_IN_FLIGHT' && this.delivery) {
-      const progress = flightProgress(this.delivery, this.elapsed - this.delivery.releaseTimeMs);
-      this.scene.delivery(this.delivery, progress);
+      const since = this.elapsed - this.delivery.releaseTimeMs;
+      const progress = flightProgress(this.delivery, since);
+      this.scene.delivery(this.delivery, progress, since);
       const bounce = (GAME.releaseZ - this.delivery.bounceZ) / (GAME.releaseZ - GAME.contactZ);
       if (!this.bounced && progress >= bounce) { this.audio.play('bounce'); this.bounced = true; }
       if ((progress >= this.meetsAt && this.attempt) || this.elapsed >= this.delivery.idealContactTimeMs + this.swingWindow + GAME.comboMs) this.resolve();
@@ -4313,8 +4314,9 @@ export class Game {
     if (t < times.runup) return;
     if (t < times.release) { this.scene.runup(Math.min(1, (t - times.runup) / GAME.runupMs)); return; }
     if (!reel.struck) {
-      const progress = flightProgress(delivery, this.elapsed - delivery.releaseTimeMs);
-      this.scene.delivery(delivery, progress);
+      const since = this.elapsed - delivery.releaseTimeMs;
+      const progress = flightProgress(delivery, since);
+      this.scene.delivery(delivery, progress, since);
       // The frame before the bat comes down: held, the swipe drawn over it, then on from here.
       if (!reel.cued && t >= times.swing) { reel.cued = true; reel.hold = CUE.ms; reel.beat('cue'); return; }
       if (!reel.swung && reel.cued && reel.hold <= 0) {
@@ -5941,7 +5943,7 @@ export class Game {
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
-      pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, pullPen: this.pullPen,
+      pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, streak: this.scene.streakShown, pullPen: this.pullPen,
       mirrored: this.scene.mirrored, look: this.scene.wearing, fieldingKit: this.scene.fieldingKit, chase: this.chase ? { handle: this.chase.handle, mode: this.chase.mode, target: this.chase.target } : null, marathon: this.marathon ? this.marathonState() : null,
       super10: this.super10 ? this.super10State() : null,
       standing: this.standing, ease: this.ease };

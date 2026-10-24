@@ -1722,6 +1722,21 @@ reads the count, read-only. The game itself still opens only by
 Black Italic (`src/assets/saira-latin-900-italic.woff2`, OFL), the brand's
 lettering.
 
+## The bowled ball's streak
+
+The ball on its way to the bat carries a streak (`STREAK` in `GameScene.ts`):
+fourteen ghosts of it in its own colour, each five milliseconds further back
+along its flight (`flightProgress` at the time since release, which the game
+hands the scene with the progress), so it always covers the last seventy
+milliseconds. Set a share of the flight apart, as it was and as the struck
+ball's trail still is, a fast ball's streak covered two frames of its travel:
+Super10's sling bowler's ball, under half a second to the bat, jumped most of
+a metre between frames at sixty a second, and on an iPhone, which holds a page
+at sixty, it read as frames dropped while the frame-rate readout held at 59.
+Now it is about three and a half metres behind the fastest ball and a metre
+and a half behind the Blast's, about the trail it had. `snapshot().streak` is
+how many ghosts show and how far back they reach.
+
 ## Super10 on GitHub Pages, for testers
 
 `.github/workflows/pages.yml` publishes two serverless builds to the

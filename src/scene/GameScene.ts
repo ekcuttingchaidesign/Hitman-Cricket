@@ -7,7 +7,7 @@ import { BLAST_FIELD, Field, TEST_FIELD, mark, type Mark } from './field';
 import { nameOf, type Man } from '../game/super10-field';
 import type { Signal } from '../entities/Fielder';
 import { GAME } from '../config/gameplay';
-import { ballPosition, drawnAt } from '../game/DeliveryTrajectory';
+import { ballPosition, drawnAt, flightProgress } from '../game/DeliveryTrajectory';
 import { KIT, type Kit } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
 import { flightOf, sectorOf } from './flight';
@@ -99,6 +99,19 @@ const SWISH_CAP = 8;
 const SWISH_EDGE = .55;
 /** Rows of points the band can need: the cap, and the smoothed path behind it. */
 const SWISH_ROWS = SWISH_CAP + 1 + (SWISH_SAMPLES - 1) * SWISH_SMOOTH + 1;
+/**
+ * The bowled ball's streak: this many ghosts of it, each this many
+ * milliseconds behind the last, so it always covers the last seventy of its
+ * flight. The Blast's average ball, 829 ms to the bat, gets about the trail it
+ * had; the sling bowler's, under 500, a streak half as long again, its ghosts
+ * still overlapping into one line. At sixty frames a second a fast ball
+ * jumps most of a metre between frames, and the streak is what joins them up.
+ * In the ball's own colour, as motion blur is: the pale trail the struck ball
+ * has was lost against the strip.
+ */
+export const STREAK = { ghosts: 14, stepMs: 5, opacity: 0.45 } as const;
+const streakSize = (i: number) => 0.115 * (1 - i / 20);
+
 /**
  * The colours the struck ball's tail is drawn in, head to tail. Fire for a
  * special stroke; red for a pulled bouncer, bright at the ball and going to
@@ -213,6 +226,11 @@ export class GameScene {
   private readonly cutCanvas = document.createElement('canvas');
   private cut: { spec: Cutout; until: number; him: Set<THREE.Object3D>; stumps: Set<THREE.Object3D>; sil: HTMLCanvasElement; ring: HTMLCanvasElement } | null = null;
   private trail: THREE.Mesh[] = [];
+  /**
+   * The bowled ball's streak (`STREAK`): ghosts of it set apart in time, not in
+   * share of the flight, so the faster the ball the longer the streak.
+   */
+  private streak: THREE.Mesh[] = [];
   /** The ball's seam, recoloured with the ball (`testLook`). */
   private seam!: THREE.Mesh;
   /**
@@ -371,6 +389,10 @@ export class GameScene {
       const dot = new THREE.Mesh(this.ball.geometry, new THREE.MeshBasicMaterial({ color: 0xfff5cd, transparent: true, opacity: (1 - i / 9) * 0.32, depthWrite: false }));
       dot.scale.setScalar(0.115 * (1 - i / 12)); this.world.add(dot); this.trail.push(dot);
     }
+    for (let i = 0; i < STREAK.ghosts; i++) {
+      const dot = new THREE.Mesh(this.ball.geometry, new THREE.MeshBasicMaterial({ color: BALL.blast.color, transparent: true, opacity: (1 - i / STREAK.ghosts) * STREAK.opacity, depthWrite: false }));
+      dot.scale.setScalar(streakSize(i)); dot.visible = false; this.world.add(dot); this.streak.push(dot);
+    }
     // Solid colours rather than light added on: added light over a pale sky
     // comes out white, and this is meant to read as yellow going to red.
     const hot = new THREE.Color(0xffd23f), mid = new THREE.Color(0xff7a1f), cold = new THREE.Color(0xd7261b);
@@ -388,7 +410,7 @@ export class GameScene {
     this.batter.root.traverse(object => { if (object instanceof THREE.Mesh) [object.material].flat().forEach(m => his.add(m)); });
     // And the ball he hit, and its trail: a special stroke greys the ground
     // while the ball is still in the air, and the eye wants to follow it.
-    for (const mesh of [this.ball, ...this.trail, ...this.fire]) [mesh.material].flat().forEach(m => his.add(m));
+    for (const mesh of [this.ball, ...this.trail, ...this.streak, ...this.fire]) [mesh.material].flat().forEach(m => his.add(m));
     this.greyable(this.scene);
     // After the greying is wired, so a hundred never greys the swoosh.
     this.swish = this.createSwish();
@@ -880,7 +902,7 @@ export class GameScene {
     if (!spec) { this.cut = null; this.cutCanvas.style.display = 'none'; return; }
     const him = new Set<THREE.Object3D>(), stumps = new Set<THREE.Object3D>(spec.stumps ? this.stumps : []);
     this.batter.root.traverse(o => him.add(o));
-    if (spec.ball) for (const o of [this.ball, ...this.trail, ...this.fire]) him.add(o);
+    if (spec.ball) for (const o of [this.ball, ...this.trail, ...this.streak, ...this.fire]) him.add(o);
     this.cut = { spec, until: performance.now() + lasts, him, stumps, sil: document.createElement('canvas'), ring: document.createElement('canvas') };
   }
   /** Him alone, then his stumps with him, into the cut-out's canvas, with the outline rings under. */
@@ -972,6 +994,11 @@ export class GameScene {
   get swishing() { return this.swish.visible; }
   /** Which tail the struck ball has, for the checks: 'fire', 'pull', or null. */
   get tailKind() { return this.blaze; }
+  /** How many of the bowled ball's streak's ghosts are showing, and how far the streak reaches behind the ball in metres. For the checks. */
+  get streakShown() {
+    const on = this.streak.filter(dot => dot.visible);
+    return { ghosts: on.length, length: on.length ? Number(this.ball.position.distanceTo(on[on.length - 1].position).toFixed(2)) : 0 };
+  }
   /** How much of the fire trail is showing this frame. For the checks. */
   get burning() { return this.fire.filter(dot => dot.visible).length; }
   /** How grey the ground is this frame, nought to one. For the checks. */
@@ -1019,6 +1046,7 @@ export class GameScene {
     const ball = this.ball.material as THREE.MeshStandardMaterial;
     const look = on ? BALL.test : BALL.blast;
     ball.color.setHex(look.color); ball.emissive.setHex(look.glow);
+    this.streak.forEach(dot => (dot.material as THREE.MeshBasicMaterial).color.setHex(look.color));
     this.seam.material = soft(look.seam);
     if (on && !this.greenPitch) {
       this.greenPitch = pitchTexture(2.8, 32, 4.3, this.anisotropy, { batting: 0, bowling: 18.7 }, BALL.testGrass);
@@ -1142,7 +1170,7 @@ export class GameScene {
     this.crowd?.settle(this.clock);
     this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0; this.blaze = null; this.swishedAt = -Infinity; this.swish.visible = false;
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
-    this.trail.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset(carryOn);
+    this.trail.forEach(t => t.visible = false); this.streak.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset(carryOn);
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
     this.batter.root.visible = true;
     this.field.reset(); this.released = false; this.gathered = false;
@@ -1235,16 +1263,26 @@ export class GameScene {
     const window = (GAME.timing.poor + GAME.comboMs) / delivery.durationMs;
     return 1 + Math.min(1, (progress - 1) / window) * (BEATEN_STOP - 1);
   }
-  delivery(delivery: Delivery, progress: number) {
+  /** The ball in flight, `progress` along it (`flightProgress`), `since` milliseconds out of his hand. */
+  delivery(delivery: Delivery, progress: number, since: number) {
     this.batter.prepare(progress); this.batter.runup(1);
     // Out of his hand: the field times its split step to the ball reaching the bat.
     if (!this.released) { this.released = true; this.field.set(this.clock, this.clock + Math.max(0, 1 - progress) * delivery.durationMs); }
     this.ball.visible = this.shadow.visible = true;
     const pos = this.flight(delivery, this.flightAt(delivery, progress)); this.ball.position.set(pos.x, pos.y, pos.z);
     this.groundShadow(this.ball.position, true);
-    this.trail.forEach((dot, i) => {
-      dot.visible = progress > 0.03;
-      const p = this.flight(delivery, this.flightAt(delivery, Math.max(0, progress - (i + 1) * 0.009))); dot.position.set(p.x, p.y, p.z);
+    // The streak: where the ball was a few milliseconds ago and a few before
+    // that, the same span of time behind every ball. Set a share of the flight
+    // apart, as the struck ball's trail is, the fastest ball's streak covered two
+    // frames of its travel and the eye saw it jump from frame to frame.
+    // Stepped back in time and then along the flight's own curve, which is not
+    // the clock's: a slower ball leaves at nearly full pace and dies late.
+    this.streak.forEach((dot, i) => {
+      const before = since - (i + 1) * STREAK.stepMs;
+      const behind = flightProgress(delivery, before);
+      dot.visible = progress > 0.03 && before > 0;
+      if (!dot.visible) return;
+      const p = this.flight(delivery, this.flightAt(delivery, behind)); dot.position.set(p.x, p.y, p.z);
     });
     const bounce = (GAME.releaseZ - delivery.bounceZ) / (GAME.releaseZ - GAME.contactZ);
     const age = (progress - bounce) * delivery.durationMs;
@@ -1271,6 +1309,7 @@ export class GameScene {
     this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging, lofted, sweeping, levelled, version, spinCut, spinPull);
   }
   hit(outcome: ShotOutcome, shot: ShotType | undefined, delivery: Delivery, now: number) {
+    this.streak.forEach(dot => dot.visible = false);
     this.hitStart = outcome.madeBatContact ? Math.max(now, this.batter.strikeAt) : now;
     this.contactDelay = this.hitStart - now;
     this.incomingPosition.copy(this.ball.position);
@@ -1503,6 +1542,7 @@ export class GameScene {
     if (!view) {
       this.camera.position.set(0, 2.9, -5.15); this.resize();
       this.ball.scale.setScalar(0.115); this.trail.forEach((dot, i) => dot.scale.setScalar(0.115 * (1 - i / 12)));
+      this.streak.forEach((dot, i) => dot.scale.setScalar(streakSize(i)));
     }
   }
   render(now: number) {
@@ -1552,6 +1592,7 @@ export class GameScene {
       const near = Math.min(1, Math.max(.4, this.camera.position.distanceTo(this.world.localToWorld(this.ball.position.clone())) / 10));
       this.ball.scale.setScalar(0.115 * near);
       this.trail.forEach((dot, i) => dot.scale.setScalar(0.115 * (1 - i / 12) * near));
+      this.streak.forEach((dot, i) => dot.scale.setScalar(streakSize(i) * near));
     } else {
       this.camera.position.x = Math.sin(now * 0.085) * shake;
       this.camera.position.y = 2.9 + Math.sin(now * 0.13) * shake * 0.6;
