@@ -182,6 +182,12 @@ const SURVIVE_ONLY = !!import.meta.env.VITE_SURVIVE_ONLY;
  * window does). The other modes, the boards and the stories are not reached.
  */
 const SUPER10_ONLY = !!import.meta.env.VITE_SUPER10_ONLY;
+/**
+ * `?glass=0`: Super10's score bar and its keys solid, in the brand's ink and
+ * violet, with no blur of the ground behind them (`s10-solid` on the body).
+ * A trial, to feel on a phone against the glass before deciding.
+ */
+const SOLID_BARS = new URLSearchParams(location.search).get('glass') === '0';
 /** A build published where nothing answers `/api`: no board, and nothing that goes looking for one. */
 const NO_BOARD = SURVIVE_ONLY || SUPER10_ONLY;
 
@@ -2247,6 +2253,7 @@ export class Game {
     this.told = { swing: false }; this.bannerUntil = 0; this.hud.closeIntro();
     this.scene.overcast(false, true); this.hud.levelBanner(null);
     this.hud.start(this.surviving, this.marathoning);
+    document.body.classList.toggle('s10-solid', SOLID_BARS && this.super10);
     this.hand();
     // Super10's field, and its captain at mid-off, put out before the first ball.
     this.s10 = Game.freshField();

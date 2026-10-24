@@ -1753,6 +1753,14 @@ and its stings draw into canvases kept in memory (`willReadFrequently`) for
 their uploads to WebGL. `?perf=1` also shows the worst frame of the last five
 seconds and how many ran over 25 ms: a second's average hid them.
 
+`?glass=0` is a trial for Super10 alone (`SOLID_BARS` in `Game.ts`,
+`s10-solid` on the body, its rules at the foot of `src/super10.css`): the
+score bar, its keys, the nearing card and the field's tag solid ink with a
+violet edge, with no `backdrop-filter`. The glass blurs the 3D picture under
+it every frame, which an iPhone's compositor pays for; the bars are
+ninety-five per cent opaque already, so the blur barely shows. Kept or
+dropped on how it feels on a phone; it changes nothing about the batting.
+
 ## Super10 on GitHub Pages, for testers
 
 `.github/workflows/pages.yml` publishes two serverless builds to the
