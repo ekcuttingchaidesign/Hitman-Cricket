@@ -1502,8 +1502,10 @@ him and over the top to the ball — slow from the top and quickening all the wa
 to the release (`loop.turn`, `loop.spin`; it is behind him at `loopDrop`), the
 front arm pulled down straight in front of him from there, a little ahead of
 the ball arm (`FRONT_LEAD`), to hang straight down at his side, square to the
-ground, as the ball goes (`frontPull`) and swept back past his hip as he folds
-(`frontAfter`; the loop branch of `frontArmAngle`); a deep fold and the back
+ground, as the ball goes (`frontPull`), then carried on round, straight, back
+past his hip and up behind him until it points at the sky beside his head as
+he folds (`frontAfter`, on the ball arm's clock; the loop branch of
+`frontArmAngle`); a deep fold and the back
 leg kicked high. The first build only dropped the arm back and whipped it over,
 half a turn; the second held the front arm out level at the batter and turned
 it on round behind him like a windmill, which a playtest said was not his.

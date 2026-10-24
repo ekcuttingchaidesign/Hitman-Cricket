@@ -352,9 +352,10 @@ export const EXPRESS_ACTION: ActionStyle = {
  *     behind him and whipped it over, half a turn, and a playtest asked for the
  *     whole one. The front arm is pulled down with the last of it on the same
  *     clock, straight, down in front of him, so that as the ball goes it hangs
- *     straight down at his side, square to the ground (`frontPull`), and is
- *     swept back past his hip as he folds (`frontAfter`; `frontArmAngle`'s
- *     loop branch, `frontSync`, from `loopDrop`). The first build held it out
+ *     straight down at his side, square to the ground (`frontPull`), and
+ *     carries on round, straight, back past his hip and up behind him until it
+ *     points at the sky beside his head as he folds (`frontAfter`, on the ball
+ *     arm's clock; `frontArmAngle`'s loop branch, `frontSync`, from `loopDrop`). The first build held it out
  *     level at the batter and turned it on round behind him like a windmill's
  *     second sail, which is nobody's action.
  *   - **The follow-through.** A deep fold over the braced front leg, the
@@ -368,7 +369,7 @@ export const EXPRESS_ACTION: ActionStyle = {
  */
 export const DEATH_ACTION: ActionStyle = {
   gatherAngle: -1.6, whip: 2.0, release: .16, through: 2.95,
-  frontUp: .3, frontPull: Math.PI + .12, frontAfter: 3.75,
+  frontUp: .3, frontPull: Math.PI + .12, frontAfter: 2 * Math.PI - .12,
   runTurn: .04, gatherTurn: .72, releaseTurn: -.35,
   leap: .09, followDrop: .22,
   coilBack: .16, coilLean: .18, coilHead: -.4,
@@ -377,7 +378,7 @@ export const DEATH_ACTION: ActionStyle = {
   carry: 'chest', lane: .32,
   runLean: .05, pump: .8,
   frontRise: [.46, .6], kneeDrive: 1.45, releaseTilt: .1, tiltFrom: FRONT_FOOT, armTilt: -.08, throughTilt: .35,
-  open: .75, throughTurn: .55, releaseHead: 0, throughHead: .35, throughTwist: .1, frontTuck: .96, frontAfterReach: .95, frontTilt: -.2, frontAfterTilt: -.26, frontSync: 1,
+  open: .75, throughTurn: .55, releaseHead: 0, throughHead: .35, throughTwist: .1, frontTuck: .96, frontAfterReach: .99, frontTilt: -.2, frontAfterTilt: -.26, frontSync: 1,
   kick: .35, kickHold: .28, followAcross: .2,
   run: DEATH_RUN,
   loop: { from: .40, out: -2.6, top: -.5, hold: -.7, turn: .53, spin: 2.4 },

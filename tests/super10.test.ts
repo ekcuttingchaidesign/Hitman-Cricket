@@ -208,7 +208,7 @@ describe('Super10: the death bowler\'s action, against the fast bowler', () => {
     expect(death.hands[1][1]).toBeGreaterThan(pace.hands[1][1] + .4);
   });
 
-  it('throws the front arm straight up as he takes off, and pulls it down straight to his side as the ball goes', () => {
+  it('throws the front arm straight up as he takes off, pulls it down to his side as the ball goes, and on round up behind him', () => {
     bowler.action(DEATH_ACTION);
     const shoulderY = (st: ReturnType<typeof at>) => st.shoulders[0][1];
     // At 0.54 seconds, in the hop: up over his head, straight, both arms up.
@@ -228,12 +228,13 @@ describe('Super10: the death bowler\'s action, against the fast bowler', () => {
     expect(release.hands[0][1]).toBeLessThan(release.hip[1] + .15);
     expect(Math.hypot(release.hands[0][0] - release.shoulders[0][0], release.hands[0][2] - release.shoulders[0][2])).toBeLessThan(.3);
     expect(release.armReach[0]).toBeGreaterThan(.93);
-    // And through the follow-through it stays down: never up behind him.
-    for (let k = 0; k <= 1; k += .1) {
-      bowler.followThrough(k);
-      const st = bowler.figure.inspect();
-      expect(st.hands[0][1]).toBeLessThan(shoulderY(st) - .2);
-    }
+    // And in the follow-through it carries on round behind him and up, straight,
+    // until it points at the sky over his shoulder as he folds.
+    // (At a fifth of it: by a third he is getting back up and the arm comes down with him.)
+    bowler.followThrough(.2);
+    const up = bowler.figure.inspect();
+    expect(up.hands[0][1]).toBeGreaterThan(shoulderY(up) + .45);
+    expect(up.armReach[0]).toBeGreaterThan(.9);
     bowler.action(PACE_ACTION);
   });
 
