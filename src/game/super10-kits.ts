@@ -42,7 +42,7 @@ export interface Super10Kit {
 
 // Purple and cherry as the designer set them after a look at the first build, whose purple read too light.
 const PURPLE = '#271473', LILAC = '#A447FF', LIME = '#B7FF3B', CHERRY = '#E92568', PALE = '#F3DDFF';
-const NAVY = '#0B1A36', WHITE = '#FFFFFF';
+const NAVY = '#0B1A36', WHITE = '#FFFFFF', ROYAL = '#2740AF';
 const ORANGE = '#FE7701', BUTTER = '#FDE17A', GOLD = '#EDC562', VIOLET = '#D851FC', TEAL = '#409896';
 
 /** The chest's two bolts, a main one and a smaller one beside it, and the leg's, in two colours. */
@@ -62,7 +62,7 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
     guard: 'super10', stumps: 'violet',
   },
   {
-    id: 's10-yellow', name: 'Nova Kings', shirt: BUTTER, helmet: NAVY, trousers: NAVY, trim: NAVY, number: NAVY, glow: GOLD,
+    id: 's10-yellow', name: 'Nova Kings', shirt: BUTTER, helmet: ROYAL, trousers: ROYAL, trim: NAVY, number: NAVY, glow: GOLD,
     print: { number: NAVY, chest: chest(NAVY, WHITE), back: [], collar: { colour: NAVY, inner: WHITE }, hem: { colour: NAVY, line: WHITE }, sleeve: sleeve(NAVY), leg: leg(BUTTER, WHITE) },
     guard: 'super10-yellow', stumps: 'raspberry',
   },
@@ -77,7 +77,7 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
     guard: 'super10-orange', stumps: 'raspberry',
   },
   {
-    id: 's10-violet', name: 'Royal Mavericks', shirt: VIOLET, helmet: VIOLET, trousers: VIOLET, trim: TEAL, number: WHITE, glow: VIOLET,
+    id: 's10-violet', name: 'Royal Mavericks', shirt: VIOLET, helmet: TEAL, trousers: VIOLET, trim: TEAL, number: WHITE, glow: VIOLET,
     print: { number: WHITE, chest: chest(TEAL, WHITE), back: [], collar: { colour: TEAL, inner: WHITE }, hem: { colour: TEAL, line: WHITE }, sleeve: sleeve(TEAL), leg: leg(TEAL, WHITE) },
     guard: 'super10-violet', stumps: 'violet',
   },

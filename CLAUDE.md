@@ -1689,9 +1689,9 @@ kit (`src/game/super10-kits.ts`, from the designer's sheets on the Super10
 page: `524:616`, `525:618` and `532:625`). Each kit is a team's, and they run
 up a ladder (`SUPER10_KITS`, easiest first): Midnight Panthers (purple and
 lime), everybody's from the first innings, then Apex Vipers (neon), Nova
-Kings (butter yellow, navy trousers), Frontier Falcons (cherry), Aura
-Farmers (orange, navy trousers) and, at the top, Royal Mavericks (violet and
-teal). The earning, the Dressing Room's "Only in Super10" tag and the pick
+Kings (butter yellow, royal blue trousers and helmet), Frontier Falcons (cherry), Aura
+Farmers (orange, navy trousers) and, at the top, Royal Mavericks (violet, a teal
+helmet). The earning, the Dressing Room's "Only in Super10" tag and the pick
 are still to come; until then `?s10kit=neon`, `yellow`, `cherry`, `orange` or
 `violet` asks for one, and is not practice. Each has its own gloves and pads
 (`SUPER10_GLOVES` in `gloves.ts`, never on the GUARD shelf), and its helmet
@@ -1702,7 +1702,7 @@ number colour, painted the other way round on a mirrored stage as the bat's
 stickers are. The game's camera sees his back at an angle, so the number
 shows only in part there. The side in the field wears any other team's kit,
 drawn afresh each innings, printed too, the Falcons in cherry caps (`cap`);
-the LED stumps are raspberry behind navy trousers (the Kings, the Farmers)
+the LED stumps are raspberry behind navy or blue trousers (the Kings, the Farmers)
 and violet behind the rest (`stumps`, `STUMP_THEMES`, `colourway` on
 `LedStumps`). All of it is `GameScene.dressBatter`'s last argument, which
 `Game.super10Kit` hands it at the start of a Super10 innings. The designs
