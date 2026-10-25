@@ -1164,7 +1164,7 @@ export class GameScene {
     if (super10) {
       const side = super10KitOf(super10.against);
       this.fieldingKit = side.id;
-      this.sideKit = this.kitOf(side);
+      this.sideKit = this.kitOf({ ...side, helmet: side.cap ?? side.helmet });
       this.sidePrint = side.print;
       this.led.colourway(super10.stumps);
     } else {

@@ -28,6 +28,8 @@ export interface Super10Kit {
   /** The light the Dressing Room is lit in while it is on show. */
   glow: string;
   print: KitPrint;
+  /** The cap the side in the field wears with it, where it is not the helmet's colour. */
+  cap?: string;
   /** The gloves and pads that go with it. */
   guard: Super10GuardId;
   /** What the side in the field wears against it, and the colour of the LED stumps behind it. */
@@ -36,7 +38,7 @@ export interface Super10Kit {
 }
 
 // Purple and cherry as the designer set them after a look at the first build, whose purple read too light.
-const PURPLE = '#1B0D55', LILAC = '#A447FF', LIME = '#B7FF3B', CHERRY = '#E92568', PALE = '#F3DDFF';
+const PURPLE = '#221067', LILAC = '#A447FF', LIME = '#B7FF3B', CHERRY = '#E92568', PALE = '#F3DDFF';
 
 export const SUPER10_KITS: readonly Super10Kit[] = [
   {
@@ -72,7 +74,7 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
       sleeve: [{ x: 0, y: .05, w: .06, h: .14, lean: 20, colour: PURPLE }],
       leg: [{ x: 0, y: .3, w: .14, h: .5, lean: 8, colour: PURPLE }, { x: -.035, y: .24, w: .08, h: .32, lean: 8, colour: PALE }],
     },
-    guard: 'super10-cherry', against: 's10-purple', stumps: 'violet',
+    cap: CHERRY, guard: 'super10-cherry', against: 's10-purple', stumps: 'violet',
   },
 ];
 
