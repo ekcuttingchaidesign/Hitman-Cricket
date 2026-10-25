@@ -33,16 +33,33 @@ export const TORSO_SHARE = .75;
 const GUTTER = 8 / 1024;
 
 /**
- * A bolt of lightning: where its middle is on a panel, in metres from the
- * panel's centre (x across as you look at it, y up), how wide and long it is,
- * how far it leans from upright (degrees, clockwise), and its colour.
+ * A mark on a panel: where its middle is, in metres from the panel's centre
+ * (x across as you look at it, y up), how wide and tall it is, how far it
+ * leans from upright (degrees, clockwise), and its colour; and what it is
+ * (`shape`), a bolt of lightning unless it says otherwise. Each team's print
+ * is made of a few of them: the Panthers' and the Vipers' bolts, the Kings'
+ * stars, the Falcons' wing chevrons, the Farmers' aura rings and the
+ * Mavericks' crown points.
+ *
+ * - `bolt`: the lightning icon.
+ * - `star`: a four-pointed sparkle.
+ * - `chevron`: a V pointing down, its arms `thick` of its width.
+ * - `bar`: a plain band.
+ * - `ring`: an arc round its middle, `w` its radius, `h` its thickness,
+ *   `from` and `sweep` where it starts and how far it runs (degrees,
+ *   anticlockwise from the right); `lean` is not used.
+ * - `crown`: a band with a row of `points` sharp points along its top.
  */
-export interface Bolt { x: number; y: number; w: number; h: number; lean: number; colour: string }
+export interface Mark {
+  x: number; y: number; w: number; h: number; lean: number; colour: string;
+  shape?: 'bolt' | 'star' | 'chevron' | 'bar' | 'ring' | 'crown';
+  thick?: number; from?: number; sweep?: number; points?: number;
+}
 
 export interface KitPrint {
   /** Across the chest and across the back. */
-  chest: Bolt[];
-  back: Bolt[];
+  chest: Mark[];
+  back: Mark[];
   /** The colour of the number on the back, where a number is worn (`paintKitPrint`'s `number`). */
   number?: string;
   /** The V of the collar: its colour, and a thinner line inside it. */
@@ -50,25 +67,50 @@ export interface KitPrint {
   /** A band round each sleeve's hem, with a thin line above it. */
   hem?: { colour: string; line?: string };
   /** On the outside of each sleeve, above the hem: x across the sleeve from its outside, y up from the hem. */
-  sleeve?: Bolt[];
+  sleeve?: Mark[];
   /** Down the outside of each trouser leg: y down from the hip. */
-  leg?: Bolt[];
+  leg?: Mark[];
 }
 
-/** The lightning icon's outline, in a unit square centred on nought. */
-const ZAP: readonly [number, number][] = [[.04, -.42], [-.375, .08], [0, .08], [-.04, .42], [.375, -.08], [0, -.08]]
-  .map(([x, y]) => [x, y] as [number, number]);
+/** The lightning icon's outline, in a unit square centred on nought, y down. */
+const ZAP: readonly [number, number][] = [[.04, -.42], [-.375, .08], [0, .08], [-.04, .42], [.375, -.08], [0, -.08]];
+/** A four-pointed sparkle, y up: its waist is a sixth of its reach. */
+const STAR: readonly [number, number][] = [[0, .5], [.085, .085], [.5, 0], [.085, -.085], [0, -.5], [-.085, -.085], [-.5, 0], [-.085, .085]];
 
-function bolt(ctx: CanvasRenderingContext2D, b: Bolt) {
+function bolt(ctx: CanvasRenderingContext2D, b: Mark) {
   ctx.save();
   ctx.translate(b.x, b.y);
+  ctx.fillStyle = b.colour;
+  ctx.beginPath();
+  if (b.shape === 'ring') {
+    // Drawn in the panel's own metres, which are the same both ways, so the arc stays round.
+    const from = (b.from ?? 0) * Math.PI / 180, to = from + (b.sweep ?? 360) * Math.PI / 180;
+    ctx.arc(0, 0, b.w + b.h / 2, from, to); ctx.arc(0, 0, Math.max(0, b.w - b.h / 2), to, from, true);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+    return;
+  }
   ctx.rotate(-b.lean * Math.PI / 180);
   ctx.scale(b.w, b.h);
-  ctx.beginPath();
-  // The outline is drawn y down, the panel y up: flip it, so the bolt's head is at its top.
-  ZAP.forEach(([x, y], i) => (i ? ctx.lineTo(x, -y) : ctx.moveTo(x, -y)));
-  ctx.closePath();
-  ctx.fillStyle = b.colour; ctx.fill();
+  const polygon = (points: readonly [number, number][]) => points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  switch (b.shape ?? 'bolt') {
+    // The icon is drawn y down, the panel y up: flipped, so the bolt's head is at its top.
+    case 'bolt': polygon(ZAP.map(([x, y]) => [x, -y] as [number, number])); break;
+    case 'star': polygon(STAR); break;
+    case 'bar': polygon([[-.5, -.5], [.5, -.5], [.5, .5], [-.5, .5]]); break;
+    case 'chevron': {
+      const k = b.thick ?? .25;
+      polygon([[-.5, .5], [-.5 + k, .5], [0, -.5 + 2 * k], [.5 - k, .5], [.5, .5], [0, -.5]]);
+      break;
+    }
+    case 'crown': {
+      // The band's foot straight, its top a row of points with the valleys halfway down.
+      const n = b.points ?? 5, top: [number, number][] = [];
+      for (let i = 0; i <= 2 * n; i++) top.push([-.5 + i / (2 * n), i % 2 ? .5 : 0]);
+      polygon([[-.5, -.5], ...top, [.5, -.5]]);
+      break;
+    }
+  }
+  ctx.closePath(); ctx.fill();
   ctx.restore();
 }
 

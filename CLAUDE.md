@@ -1715,7 +1715,16 @@ where the bolts lie, not stroke for stroke, and their palettes' printed hex
 codes do not always match their swatches: the swatches are taken, and the
 purple (#271473) and cherry (#E92568) were set by the designer after a look.
 
-The bolts are a print (`src/entities/kitPrint.ts`): drawn in a canvas and
+The lightning bolts are the Panthers' and the Vipers' alone; each other team
+has a pattern of its own from its name (`Mark`'s `shape` in `kitPrint.ts`):
+the Kings a big four-pointed star on the chest with two small ones and a
+yellow stripe down each leg to a star at the knee, the Falcons three stacked
+V's across the chest like spread wings and two small ones down each leg, the
+Farmers three arcs spreading from the right shoulder, navy fading to white,
+and two orange stripes down each leg, the Mavericks a band of crown points
+across the chest edged in white and a teal stripe down each leg.
+
+The patterns are a print (`src/entities/kitPrint.ts`): drawn in a canvas and
 read by the jersey's and the trousers' own shaders (`printable`), so a print
 costs a texture and no mesh or draw call. The garments are rings of vertices
 whose first and last share a vertex, so a texture laid by ordinary

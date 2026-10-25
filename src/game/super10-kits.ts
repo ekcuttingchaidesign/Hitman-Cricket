@@ -1,4 +1,4 @@
-import type { KitPrint } from '../entities/kitPrint';
+import type { KitPrint, Mark } from '../entities/kitPrint';
 import type { Super10GuardId } from '../entities/gloves';
 
 /**
@@ -65,14 +65,62 @@ export const SUPER10_LADDER: Record<Super10KitId, Super10Target | null> = {
 };
 
 // Purple and cherry as the designer set them after a look at the first build, whose purple read too light.
-const PURPLE = '#271473', LILAC = '#A447FF', LIME = '#B7FF3B', CHERRY = '#E92568', PALE = '#F3DDFF';
+const PURPLE = '#271473', LILAC = '#A447FF', LIME = '#B7FF3B', CHERRY = '#E92568';
 const NAVY = '#0B1A36', WHITE = '#FFFFFF', ROYAL = '#112E80';
 const ORANGE = '#FE7701', BUTTER = '#FDE17A', GOLD = '#EDC562', VIOLET = '#E78CFF', TEAL = '#178C89';
 
-/** The chest's two bolts, a main one and a smaller one beside it, and the leg's, in two colours. */
-const chest = (main: string, second: string) => [{ x: .03, y: .27, w: .13, h: .44, lean: 38, colour: main }, { x: -.07, y: .3, w: .08, h: .3, lean: 38, colour: second }];
-const leg = (main: string, second: string) => [{ x: 0, y: .3, w: .14, h: .5, lean: 8, colour: main }, { x: -.035, y: .24, w: .08, h: .32, lean: 8, colour: second }];
-const sleeve = (colour: string) => [{ x: 0, y: .05, w: .06, h: .14, lean: 20, colour }];
+/** The lightning, the Panthers' and the Vipers' alone: the chest's two bolts, a main one and a smaller one beside it, and the leg's, in two colours. */
+const chest = (main: string, second: string): Mark[] => [{ x: .03, y: .27, w: .13, h: .44, lean: 38, colour: main }, { x: -.07, y: .3, w: .08, h: .3, lean: 38, colour: second }];
+const leg = (main: string, second: string): Mark[] => [{ x: 0, y: .3, w: .14, h: .5, lean: 8, colour: main }, { x: -.035, y: .24, w: .08, h: .32, lean: 8, colour: second }];
+const sleeve = (colour: string): Mark[] => [{ x: 0, y: .05, w: .06, h: .14, lean: 20, colour }];
+
+/**
+ * The other four teams each have a pattern of their own, from their names,
+ * kept to a few bold shapes so it reads on a batter a few hundred pixels tall.
+ *
+ * Nova Kings, a star flaring up: a big four-pointed star on the chest, blue
+ * with a white heart, two small ones beside it, and a yellow stripe down each
+ * leg ending in a star at the knee.
+ */
+const novaChest: Mark[] = [
+  { shape: 'star', x: .03, y: .3, w: .22, h: .22, lean: 0, colour: ROYAL },
+  { shape: 'star', x: .03, y: .3, w: .07, h: .07, lean: 0, colour: WHITE },
+  { shape: 'star', x: -.08, y: .4, w: .07, h: .07, lean: 0, colour: ROYAL },
+  { shape: 'star', x: .12, y: .17, w: .055, h: .055, lean: 0, colour: ROYAL },
+];
+const novaLeg: Mark[] = [
+  { shape: 'bar', x: 0, y: .3, w: .045, h: .5, lean: 0, colour: BUTTER },
+  { shape: 'star', x: 0, y: .6, w: .1, h: .1, lean: 0, colour: BUTTER },
+];
+/** Frontier Falcons, wings: three stacked V's across the chest, a falcon's spread wings, purple, white and purple, and two small ones down each leg. */
+const falconChest: Mark[] = [
+  { shape: 'chevron', x: 0, y: .36, w: .32, h: .13, lean: 0, colour: PURPLE, thick: .2 },
+  { shape: 'chevron', x: 0, y: .3, w: .32, h: .13, lean: 0, colour: WHITE, thick: .2 },
+  { shape: 'chevron', x: 0, y: .24, w: .32, h: .13, lean: 0, colour: PURPLE, thick: .2 },
+];
+const falconLeg: Mark[] = [
+  { shape: 'chevron', x: 0, y: .34, w: .12, h: .06, lean: 0, colour: PURPLE, thick: .3 },
+  { shape: 'chevron', x: 0, y: .41, w: .12, h: .06, lean: 0, colour: WHITE, thick: .3 },
+];
+/** Aura Farmers, a glow spreading out: three arcs from the right shoulder across the chest, navy fading to white, and two orange stripes down each leg. */
+const auraChest: Mark[] = [
+  { shape: 'ring', x: .15, y: .5, w: .12, h: .035, lean: 0, from: 180, sweep: 90, colour: NAVY },
+  { shape: 'ring', x: .15, y: .5, w: .2, h: .03, lean: 0, from: 180, sweep: 90, colour: '#0B1A3699' },
+  { shape: 'ring', x: .15, y: .5, w: .28, h: .025, lean: 0, from: 180, sweep: 90, colour: WHITE },
+];
+const auraLeg: Mark[] = [
+  { shape: 'bar', x: -.026, y: .32, w: .022, h: .56, lean: 0, colour: ORANGE },
+  { shape: 'bar', x: .026, y: .32, w: .022, h: .56, lean: 0, colour: ORANGE },
+];
+/** Royal Mavericks, a crown: a band of teal points across the chest, edged in white, and a teal stripe with a white line down each leg. */
+const crownChest: Mark[] = [
+  { shape: 'crown', x: 0, y: .305, w: .35, h: .12, lean: 0, colour: WHITE, points: 5 },
+  { shape: 'crown', x: 0, y: .3, w: .34, h: .1, lean: 0, colour: TEAL, points: 5 },
+];
+const crownLeg: Mark[] = [
+  { shape: 'bar', x: 0, y: .32, w: .035, h: .56, lean: 0, colour: TEAL },
+  { shape: 'bar', x: .028, y: .32, w: .01, h: .56, lean: 0, colour: WHITE },
+];
 
 export const SUPER10_KITS: readonly Super10Kit[] = [
   {
@@ -87,22 +135,22 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
   },
   {
     id: 's10-yellow', name: 'Nova Kings', shirt: BUTTER, helmet: ROYAL, trousers: ROYAL, trim: NAVY, number: NAVY, glow: GOLD,
-    print: { number: NAVY, chest: chest(NAVY, WHITE), back: [], collar: { colour: NAVY, inner: WHITE }, hem: { colour: NAVY, line: WHITE }, sleeve: sleeve(NAVY), leg: leg(BUTTER, WHITE) },
+    print: { number: NAVY, chest: novaChest, back: [], collar: { colour: NAVY, inner: WHITE }, hem: { colour: NAVY, line: WHITE }, leg: novaLeg },
     guard: 'super10-yellow', stumps: 'raspberry',
   },
   {
     id: 's10-cherry', name: 'Frontier Falcons', shirt: CHERRY, helmet: PURPLE, trousers: CHERRY, trim: WHITE, number: PURPLE, glow: CHERRY,
-    print: { number: PURPLE, chest: chest(PURPLE, PALE), back: [], collar: { colour: PURPLE, inner: WHITE }, hem: { colour: PURPLE, line: WHITE }, sleeve: sleeve(PURPLE), leg: leg(PURPLE, PALE) },
+    print: { number: PURPLE, chest: falconChest, back: [], collar: { colour: PURPLE, inner: WHITE }, hem: { colour: PURPLE, line: WHITE }, leg: falconLeg },
     cap: CHERRY, guard: 'super10-cherry', stumps: 'violet',
   },
   {
     id: 's10-orange', name: 'Aura Farmers', shirt: ORANGE, helmet: NAVY, trousers: NAVY, trim: NAVY, number: NAVY, glow: ORANGE,
-    print: { number: NAVY, chest: chest(NAVY, WHITE), back: [], collar: { colour: NAVY, inner: WHITE }, hem: { colour: NAVY, line: WHITE }, sleeve: sleeve(NAVY), leg: leg(ORANGE, WHITE) },
+    print: { number: NAVY, chest: auraChest, back: [], collar: { colour: NAVY, inner: WHITE }, hem: { colour: NAVY, line: WHITE }, leg: auraLeg },
     guard: 'super10-orange', stumps: 'raspberry',
   },
   {
     id: 's10-violet', name: 'Royal Mavericks', shirt: VIOLET, helmet: TEAL, trousers: VIOLET, trim: TEAL, number: WHITE, glow: VIOLET,
-    print: { number: WHITE, chest: chest(TEAL, WHITE), back: [], collar: { colour: TEAL, inner: WHITE }, hem: { colour: TEAL, line: WHITE }, sleeve: sleeve(TEAL), leg: leg(TEAL, WHITE) },
+    print: { number: WHITE, chest: crownChest, back: [], collar: { colour: TEAL, inner: WHITE }, hem: { colour: TEAL, line: WHITE }, leg: crownLeg },
     guard: 'super10-violet', stumps: 'violet',
   },
 ];
