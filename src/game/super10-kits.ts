@@ -36,7 +36,7 @@ export interface Super10Kit {
 }
 
 // Purple and cherry as the designer set them after a look at the first build, whose purple read too light.
-const PURPLE = '#200C6D', LILAC = '#A447FF', LIME = '#B7FF3B', CHERRY = '#E92568', PALE = '#F3DDFF';
+const PURPLE = '#140941', LILAC = '#A447FF', LIME = '#B7FF3B', CHERRY = '#E92568', PALE = '#F3DDFF';
 
 export const SUPER10_KITS: readonly Super10Kit[] = [
   {
