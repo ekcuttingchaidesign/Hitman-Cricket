@@ -35,7 +35,8 @@ export interface Super10Kit {
   stumps: 'violet' | 'raspberry';
 }
 
-const PURPLE = '#5E2BFF', LILAC = '#A447FF', LIME = '#B7FF3B', CHERRY = '#FF2D78', DEEP = '#4B1FB8', PALE = '#F3DDFF';
+// Purple and cherry as the designer set them after a look at the first build, whose purple read too light.
+const PURPLE = '#200C6D', LILAC = '#A447FF', LIME = '#B7FF3B', CHERRY = '#E92568', PALE = '#F3DDFF';
 
 export const SUPER10_KITS: readonly Super10Kit[] = [
   {
@@ -62,14 +63,14 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
     guard: 'super10', against: 's10-cherry', stumps: 'raspberry',
   },
   {
-    id: 's10-cherry', name: 'Super10 Cherry', shirt: CHERRY, helmet: DEEP, trousers: CHERRY, trim: '#FFFFFF', number: '#FFFFFF', glow: CHERRY,
+    id: 's10-cherry', name: 'Super10 Cherry', shirt: CHERRY, helmet: PURPLE, trousers: CHERRY, trim: '#FFFFFF', number: '#FFFFFF', glow: CHERRY,
     print: {
-      chest: [{ x: .03, y: .27, w: .13, h: .44, lean: 38, colour: DEEP }, { x: -.07, y: .3, w: .08, h: .3, lean: 38, colour: PALE }],
-      back: [{ x: .02, y: .3, w: .13, h: .42, lean: 22, colour: DEEP }, { x: -.07, y: .34, w: .08, h: .28, lean: 22, colour: PALE }],
-      collar: { colour: DEEP, inner: '#FFFFFF' },
-      hem: { colour: DEEP, line: '#FFFFFF' },
-      sleeve: [{ x: 0, y: .05, w: .06, h: .14, lean: 20, colour: DEEP }],
-      leg: [{ x: 0, y: .3, w: .14, h: .5, lean: 8, colour: DEEP }, { x: -.035, y: .24, w: .08, h: .32, lean: 8, colour: PALE }],
+      chest: [{ x: .03, y: .27, w: .13, h: .44, lean: 38, colour: PURPLE }, { x: -.07, y: .3, w: .08, h: .3, lean: 38, colour: PALE }],
+      back: [{ x: .02, y: .3, w: .13, h: .42, lean: 22, colour: PURPLE }, { x: -.07, y: .34, w: .08, h: .28, lean: 22, colour: PALE }],
+      collar: { colour: PURPLE, inner: '#FFFFFF' },
+      hem: { colour: PURPLE, line: '#FFFFFF' },
+      sleeve: [{ x: 0, y: .05, w: .06, h: .14, lean: 20, colour: PURPLE }],
+      leg: [{ x: 0, y: .3, w: .14, h: .5, lean: 8, colour: PURPLE }, { x: -.035, y: .24, w: .08, h: .32, lean: 8, colour: PALE }],
     },
     guard: 'super10-cherry', against: 's10-purple', stumps: 'violet',
   },

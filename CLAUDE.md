@@ -1699,7 +1699,9 @@ Purple and Neon and violet behind Cherry (`STUMP_THEMES`, `colourway` on
 it is `GameScene.dressBatter`'s last argument, which `Game.super10Kit` hands
 it at the start of a Super10 innings. The designs came out of an image
 model, so they are followed for their colours and where the bolts lie, not
-stroke for stroke.
+stroke for stroke; the purple is #200C6D and the cherry #E92568, as the
+designer set them after the first build's lighter purple (the raspberry
+stumps take the cherry too).
 
 The bolts are a print (`src/entities/kitPrint.ts`): drawn in a canvas and
 read by the jersey's and the trousers' own shaders (`printable`), so a print

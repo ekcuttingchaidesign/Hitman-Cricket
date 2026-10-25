@@ -235,7 +235,7 @@ export interface StumpGlow { colour: number; level: number }
  */
 export const STUMP_THEMES = {
   violet: { timber: ARENA.plate, base: ARENA.violet, ten: ARENA.volt, rings: LED.rings },
-  raspberry: { timber: 0xf12e60, base: ARENA.plate, ten: ARENA.ink, rings: 0 },
+  raspberry: { timber: 0xe92568, base: ARENA.plate, ten: ARENA.ink, rings: 0 },
 } as const;
 export type StumpTheme = keyof typeof STUMP_THEMES;
 export function stumpLight(broken: number, still = false, theme: StumpTheme = 'violet'): { crown: StumpGlow; rings: StumpGlow; bails: StumpGlow } {
