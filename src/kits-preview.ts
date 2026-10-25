@@ -109,6 +109,11 @@ resize(); wear(kit); aim();
   view: (name: string) => { view = name; aim(); },
   night: (on: boolean) => { night = on; light(); },
   number: (n: string) => { shirtNumber = n; wear(kit); },
+  /** The camera anywhere, for the checks: an eye as an offset from his middle. */
+  look: (eye: [number, number, number]) => {
+    const at = new THREE.Box3().setFromObject(batter.root).getCenter(new THREE.Vector3()); at.y = Math.max(at.y, .8);
+    camera.position.copy(at).add(new THREE.Vector3(...eye)); controls.target.copy(at); controls.update();
+  },
   ready: true,
 };
 function frame() { controls.update(); renderer.render(scene, camera); requestAnimationFrame(frame); }

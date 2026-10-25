@@ -1717,15 +1717,18 @@ purple (#271473) and cherry (#E92568) were set by the designer after a look.
 
 The lightning bolts are the Panthers' alone, the first team's mark; each
 other team has a pattern of its own from its name (`Mark`'s `shape` in
-`kitPrint.ts`): the Vipers a diamondback, a chain of purple diamonds across
-the chest and a lime one down each leg, the Kings a big four-pointed star on the chest with two small ones and a
+`kitPrint.ts`): the Vipers angular blocks after the designer's reference, a
+wide purple panel cut diagonally across the chest with white slashes over
+faint purple V-lines and a lime slash down each leg (a diamondback was tried
+first), the Kings a big four-pointed star on the chest with two small ones and a
 yellow stripe down each leg to a star at the knee, the Falcons three stacked
 V's across the chest like spread wings and two small ones down each leg, the
 Farmers three arcs spreading from the right shoulder, navy fading to white,
-and two orange stripes down each leg, the Mavericks a royal sash, a wide
-teal band from the left shoulder to the right hip edged in white, and a teal
-stripe down each leg (a band of crown points across the chest was tried and
-read badly).
+and two orange stripes down each leg, the Mavericks, the top of the ladder,
+an all-over print after the designer's reference (`swirl`): teal waves
+flowing round the whole violet shirt and its sleeves, fading into teal at
+the hem, the number edged in violet, and a teal stripe down each leg (a band
+of crown points and then a sash were tried, and read as bland for the top).
 
 The patterns are a print (`src/entities/kitPrint.ts`): drawn in a canvas and
 read by the jersey's and the trousers' own shaders (`printable`), so a print

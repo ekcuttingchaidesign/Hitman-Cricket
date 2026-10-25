@@ -111,24 +111,34 @@ const auraLeg: Mark[] = [
   { shape: 'bar', x: -.026, y: .32, w: .022, h: .56, lean: 0, colour: ORANGE },
   { shape: 'bar', x: .026, y: .32, w: .022, h: .56, lean: 0, colour: ORANGE },
 ];
-/** Royal Mavericks, a royal sash: a wide teal band from the left shoulder to the right hip, edged in white, and a teal stripe with a white line down each leg. */
-const sashChest: Mark[] = [
-  { shape: 'bar', x: 0, y: .26, w: .125, h: .7, lean: -40, colour: WHITE },
-  { shape: 'bar', x: 0, y: .26, w: .095, h: .7, lean: -40, colour: TEAL },
-];
+/**
+ * Royal Mavericks, the top of the ladder, an all-over print (`swirl`):
+ * teal waves flowing round the whole violet shirt and its sleeves, fading
+ * into teal at the hem, the number edged in violet over it; and a teal stripe
+ * with a white line down each leg. A sash across the chest was tried first
+ * and read as bland for the highest tier.
+ */
 const sashLeg: Mark[] = [
   { shape: 'bar', x: 0, y: .32, w: .035, h: .56, lean: 0, colour: TEAL },
   { shape: 'bar', x: .028, y: .32, w: .01, h: .56, lean: 0, colour: WHITE },
 ];
-/** Apex Vipers, a diamondback: a chain of purple diamonds across the chest the way a viper's back is marked, and a lime chain down each leg. */
-const chain = (x: number, y: number, lean: number, count: number, step: number, w: number, h: number, colour: string): Mark[] =>
-  Array.from({ length: count }, (_, i) => {
-    const along = (i - (count - 1) / 2) * step, turn = lean * Math.PI / 180;
-    // Each diamond stands upright whichever way the chain runs: tilted with it, they read as squares.
-    return { shape: 'diamond' as const, x: x + along * Math.sin(turn), y: y + along * Math.cos(turn), w, h, lean: 0, colour };
-  });
-const viperChest: Mark[] = chain(0, .25, -40, 5, .105, .085, .15, PURPLE);
-const viperLeg: Mark[] = chain(0, .4, 0, 5, .1, .06, .09, LIME);
+/**
+ * Apex Vipers, angular, after the designer's reference: a wide purple panel
+ * cut diagonally across the chest from the right shoulder, a white slash
+ * beside it and two short ones high on the left, over faint purple V-lines;
+ * and a lime slash with a white one down each leg.
+ */
+const viperChest: Mark[] = [
+  ...[0, 1, 2, 3, 4, 5].map(i => ({ shape: 'chevron' as const, x: 0, y: .3 - i * .04, w: .36, h: .09, lean: 0, colour: '#27147359', thick: .07 })),
+  { shape: 'bar', x: .1, y: .24, w: .26, h: .52, lean: 52, colour: PURPLE },
+  { shape: 'bar', x: -.06, y: .1, w: .06, h: .42, lean: 52, colour: WHITE },
+  { shape: 'bar', x: -.12, y: .43, w: .028, h: .22, lean: 52, colour: WHITE },
+  { shape: 'bar', x: -.085, y: .47, w: .02, h: .16, lean: 52, colour: PURPLE },
+];
+const viperLeg: Mark[] = [
+  { shape: 'bar', x: 0, y: .32, w: .05, h: .45, lean: 14, colour: LIME },
+  { shape: 'bar', x: -.04, y: .4, w: .016, h: .35, lean: 14, colour: WHITE },
+];
 
 export const SUPER10_KITS: readonly Super10Kit[] = [
   {
@@ -158,7 +168,7 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
   },
   {
     id: 's10-violet', name: 'Royal Mavericks', shirt: VIOLET, helmet: TEAL, trousers: VIOLET, trim: TEAL, number: WHITE, glow: VIOLET,
-    print: { number: WHITE, chest: sashChest, back: [], collar: { colour: TEAL, inner: WHITE }, hem: { colour: TEAL, line: WHITE }, leg: sashLeg },
+    print: { number: WHITE, swirl: { colour: TEAL, fade: TEAL, edge: VIOLET }, chest: [], back: [], collar: { colour: TEAL, inner: WHITE }, hem: { colour: TEAL, line: WHITE }, leg: sashLeg },
     guard: 'super10-violet', stumps: 'violet',
   },
 ];

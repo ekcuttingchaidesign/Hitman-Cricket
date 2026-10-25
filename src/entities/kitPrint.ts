@@ -71,6 +71,13 @@ export interface KitPrint {
   sleeve?: Mark[];
   /** Down the outside of each trouser leg: y down from the hip. */
   leg?: Mark[];
+  /**
+   * An all-over pattern under the marks, the top tier's (Royal Mavericks):
+   * flowing waves round the whole shirt and its sleeves in `colour`, and
+   * the shirt fading into `fade` towards the hem. The number on the back is
+   * edged in `edge` over it, so it reads.
+   */
+  swirl?: { colour: string; fade?: string; edge?: string };
 }
 
 /** The lightning icon's outline, in a unit square centred on nought, y down. */
@@ -138,6 +145,30 @@ const NUMBER = { tall: .16, up: .25 };
 /** Its face: the brand's lettering, Saira Black Italic, as the screen and the stumps have it. */
 export const NUMBER_FONT = (px: number) => `italic 900 ${px}px Saira, "Arial Black", Impact, sans-serif`;
 
+/**
+ * Flowing waves across a stretch of canvas, `w` by `h` pixels from its
+ * corner: bands of `colour` that ripple and pinch like a marbled print, each
+ * a sum of waves that go round a whole number of times, so the stretch meets
+ * itself where it wraps round him.
+ */
+function waves(ctx: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, colour: string, bands: number) {
+  const gap = h / bands;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x0, y0, w, h); ctx.clip();
+  ctx.strokeStyle = colour; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (let k = -1; k <= bands; k++) {
+    ctx.beginPath();
+    for (let x = 0; x <= w; x += 3) {
+      const t = x / w * Math.PI * 2;
+      const y = (k + .5) * gap + gap * .85 * (Math.sin(2 * t + k * .9) + .45 * Math.sin(3 * t + k * 1.3 + .8 * Math.sin(2 * t + k)));
+      if (x) ctx.lineTo(x0 + x, y0 + y); else ctx.moveTo(x0 + x, y0 + y);
+    }
+    ctx.lineWidth = gap * (.46 + .12 * Math.sin(k * 2.3));
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /** The metres up the cloth at a height `v` on the torso's texture (nought at the hem). */
 function clothAt(v: number) {
   const at = Math.min(CLOTH_UP.length - 1.000001, Math.max(0, v * (CLOTH_UP.length - 1))), i = Math.floor(at);
@@ -170,6 +201,15 @@ export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trouser
     draw();
     f.restore();
   };
+  if (print.swirl) {
+    waves(f, 0, 0, W, FH, print.swirl.colour, 9);
+    if (print.swirl.fade) {
+      // Into the second colour towards the hem, from a little under halfway up.
+      const fade = f.createLinearGradient(0, FH, 0, FH * .45);
+      fade.addColorStop(0, print.swirl.fade); fade.addColorStop(1, `${print.swirl.fade}00`);
+      f.fillStyle = fade; f.fillRect(0, 0, W, FH);
+    }
+  }
   panel(.5, () => print.chest.forEach(b => bolt(f, b)));
   for (const round of [0, 1]) panel(round, () => print.back.forEach(b => bolt(f, b)));
   if (print.collar) panel(.5, () => {
@@ -191,6 +231,7 @@ export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trouser
     // seen the other way round, so the number is painted the other way round.
     for (const x of [0, W]) {
       f.save(); f.translate(x, FH * (1 - NUMBER.up / CLOTH.tall)); f.scale(mirrored ? -1 : 1, 1);
+      if (print.swirl?.edge) { f.lineWidth = px * .16; f.lineJoin = 'round'; f.strokeStyle = print.swirl.edge; f.strokeText(number, 0, 0); }
       f.fillText(number, 0, 0); f.restore();
     }
   }
@@ -204,6 +245,8 @@ export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trouser
   s.beginPath(); s.rect(sx, 0, sw, H); s.clip();
   // Up a sleeve's texture is down the arm: nought at the shoulder, the hem at HEM.
   const down = (z: number) => H * (1 - z);
+  // The waves down the sleeve too, from the shoulder to the hem.
+  if (print.swirl) waves(s, sx, down(HEM), sw, H * HEM, print.swirl.colour, 3);
   if (print.hem) {
     // The band just inside the hem, and the line on the shoulder's side of it.
     s.fillStyle = print.hem.colour; s.fillRect(sx, down(HEM - .006), sw, .05 * H);
