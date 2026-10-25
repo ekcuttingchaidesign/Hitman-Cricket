@@ -200,46 +200,34 @@ function waves(ctx: CanvasRenderingContext2D, x0: number, y0: number, w: number,
 
 /**
  * The Aura Farmers' squares, after the designer's concept shirt: a grid of
- * rounded squares in `colour` on the shirt's orange, packed tight round his
- * left side — the side the game's camera sees — so it reads as navy with
- * thin orange lines through it, and going out from there: across his chest
- * to a diagonal edge, the squares shrinking and fading, a few strays past
- * it; and a little way onto his back.
- *
- * The grid is turned so it meets itself round him: a turn whose tangent is
- * two thirds puts a corner of the grid every `SQUARE_STEPS` squares along the
- * diagonal, and the pitch is set so that comes round exactly once.
+ * rounded squares in `colour` on the front of the shirt alone, packed tight
+ * at the hem, so it reads as navy with thin orange lines through it, and
+ * fading up the chest into the orange, the squares shrinking and going out,
+ * a few strays above; softened at either side, where the front turns into
+ * his sides. The back is left plain.
  */
-const SQUARE_TURN = Math.atan2(2, 3), SQUARE_STEPS = 5;
-const SQUARE_PITCH = CLOTH.round / (Math.hypot(3, 2) * SQUARE_STEPS);
-/**
- * The band, in metres round him from its front edge: the edge up his chest's
- * middle, leaning across by `lean` metres a metre; packed after `front`, and
- * out again over the last `back` of its `span`.
- */
-const SQUARE_BAND = { middle: CLOTH.round / 2, lean: .6, span: .56, front: .18, back: .12 };
+const SQUARE_TURN = Math.atan2(2, 3), SQUARE_PITCH = .06;
+/** In metres up from the hem: packed to `packed`, gone by `gone`; and across the front, out over its last `side` either side. */
+const SQUARE_FADE = { packed: .07, gone: .4, half: .28, side: .07 };
 function squares(ctx: CanvasRenderingContext2D, W: number, FH: number, colour: string) {
-  const m = W / CLOTH.round, p = SQUARE_PITCH, L = CLOTH.round;
+  const m = W / CLOTH.round, p = SQUARE_PITCH, middle = CLOTH.round / 2;
   const [c, s] = [Math.cos(SQUARE_TURN), Math.sin(SQUARE_TURN)];
   ctx.save();
   ctx.fillStyle = colour;
-  // Laid the other way round him, so the squares are on the side the game's camera sees.
-  ctx.translate(W, 0); ctx.scale(-1, 1);
-  const reach = Math.ceil(Math.hypot(L, CLOTH.tall) / p) + 2;
+  const reach = Math.ceil(Math.hypot(SQUARE_FADE.half, CLOTH.tall) / p) + 2;
   for (let i = -reach; i <= reach; i++) for (let j = -reach; j <= reach; j++) {
-    const x = (i * c - j * s) * p, y = (i * s + j * c) * p;
-    if (x < -p || x > L + p || y < -p || y > CLOTH.tall + p) continue;
-    // How far round him from the band's front edge.
-    const edge = SQUARE_BAND.middle - SQUARE_BAND.lean * (y - CLOTH.tall / 2);
-    const round = (((edge - x) % L) + L) % L;
-    let shown = round < SQUARE_BAND.span ? Math.min(1, (round + .02) / SQUARE_BAND.front, (SQUARE_BAND.span - round) / SQUARE_BAND.back) : 0;
-    // A few strays out past the front edge, as the concept has.
-    const stray = Math.abs(Math.sin((i + 7 * ((j % 50) + 50)) * 12.9898) * 43758.5453) % 1;
-    if (shown <= 0 && L - round < .1 && stray < .22) shown = .3;
+    const across = (i * c - j * s) * p, y = (i * s + j * c) * p;
+    if (Math.abs(across) > SQUARE_FADE.half + p || y < -p || y > CLOTH.tall) continue;
+    const up = Math.min(1, (SQUARE_FADE.gone - y) / (SQUARE_FADE.gone - SQUARE_FADE.packed));
+    const side = Math.min(1, (SQUARE_FADE.half - Math.abs(across)) / SQUARE_FADE.side);
+    let shown = Math.min(up, side);
+    // A few strays above where the squares give out, as the concept has.
+    const stray = Math.abs(Math.sin((i * 7 + j * 13) * 12.9898) * 43758.5453) % 1;
+    if (shown <= 0 && side > 0 && y < SQUARE_FADE.gone + .07 && stray < .2) shown = .3;
     if (shown <= 0) continue;
     ctx.globalAlpha = Math.pow(shown, .8);
     ctx.save();
-    ctx.translate(x * m, FH - y * m); ctx.rotate(-SQUARE_TURN);
+    ctx.translate((middle + across) * m, FH - y * m); ctx.rotate(-SQUARE_TURN);
     ctx.beginPath(); roundedSquare(ctx, 0, 0, p * m * (.55 + .32 * shown), .2); ctx.fill();
     ctx.restore();
   }

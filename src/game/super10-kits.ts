@@ -105,11 +105,12 @@ const falconLeg: Mark[] = [
 ];
 /**
  * Aura Farmers, after the designer's concept shirt (`squares` in
- * `kitPrint.ts`): the orange shirt and sleeves with a navy cuff, and a band
- * of navy squares packed round his side, fading out across his chest;
- * and two orange stripes down each leg. Three arcs from the shoulder came
- * first, and read as too plain for the second tier from the top; then the
- * shirt half navy with the squares in orange.
+ * `kitPrint.ts`): the orange shirt and sleeves with a navy cuff, navy
+ * squares packed at the hem on the front and fading up the chest into the
+ * orange, the back plain; and two orange stripes down each leg. Three arcs
+ * from the shoulder came first, and read as too plain for the second tier
+ * from the top; then the shirt half navy with the squares in orange, then a
+ * diagonal band of navy squares round his side and onto his back.
  */
 const auraLeg: Mark[] = [
   { shape: 'bar', x: -.026, y: .32, w: .022, h: .56, lean: 0, colour: ORANGE },
@@ -129,8 +130,8 @@ const sashLeg: Mark[] = [
 /**
  * Apex Vipers, after the designer's concept shirt (`shards` in
  * `kitPrint.ts`): purple lightning, cherry streaks spattered along their
- * edges and yellow slashes all over the lime, running up the diagonal; purple
- * sleeves with a lime cuff, the number edged in lime; and a lime streak of
+ * edges and yellow slashes all over the lime, running up the diagonal; lime
+ * sleeves with a purple cuff, the number edged in lime; and a lime streak of
  * barbs up the outside of each leg. Before it: columns of purple barbs up the
  * front, yoke stripes with spikes from the hip (a South Africa concept
  * shirt), angular blocks and a diamondback.
@@ -158,8 +159,8 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
   {
     id: 's10-neon', name: 'Apex Vipers', line: '10 Super10 innings.', shirt: LIME, helmet: PURPLE, trousers: PURPLE, trim: PURPLE, number: PURPLE, glow: LIME,
     print: {
-      number: PURPLE, numberEdge: LIME, shards: { bolt: PURPLE, streak: CHERRY, slash: YELLOW }, sleeves: PURPLE,
-      chest: [], back: [], collar: { colour: PURPLE, inner: LIME }, hem: { colour: LIME }, leg: viperLeg,
+      number: PURPLE, numberEdge: LIME, shards: { bolt: PURPLE, streak: CHERRY, slash: YELLOW },
+      chest: [], back: [], collar: { colour: PURPLE, inner: LIME }, hem: { colour: PURPLE, line: LILAC }, leg: viperLeg,
     },
     guard: 'super10', stumps: 'violet',
   },
@@ -175,7 +176,7 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
   },
   {
     id: 's10-orange', name: 'Aura Farmers', line: '5,000 Super10 runs.', shirt: ORANGE, helmet: NAVY, trousers: NAVY, trim: NAVY, number: NAVY, glow: ORANGE,
-    print: { number: NAVY, numberEdge: ORANGE, squares: { colour: NAVY }, chest: [], back: [], collar: { colour: NAVY, inner: WHITE }, hem: { colour: NAVY, line: WHITE }, leg: auraLeg },
+    print: { number: NAVY, squares: { colour: NAVY }, chest: [], back: [], collar: { colour: NAVY, inner: WHITE }, hem: { colour: NAVY, line: WHITE }, leg: auraLeg },
     guard: 'super10-orange', stumps: 'raspberry',
   },
   {
