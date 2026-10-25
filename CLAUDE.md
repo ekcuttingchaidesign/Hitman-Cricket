@@ -1691,8 +1691,12 @@ up a ladder (`SUPER10_KITS`, easiest first): Midnight Panthers (purple and
 lime), everybody's from the first innings, then Apex Vipers (neon), Nova
 Kings (butter yellow, royal blue trousers and helmet), Frontier Falcons (cherry), Aura
 Farmers (orange, navy trousers) and, at the top, Royal Mavericks (violet, a teal
-helmet). The earning, the Dressing Room's "Only in Super10" tag and the pick
-are still to come; until then `?s10kit=neon`, `yellow`, `cherry`, `orange` or
+helmet). What earns each is `SUPER10_LADDER`, agreed with the designer and
+counted on team totals, never one batter's: the Vipers 10 innings, the Kings
+50 sixes and 1,500 runs, the Falcons 10 innings of 100 or more, the Farmers
+5,000 runs, the Mavericks an innings of 200 or more and 10,000 runs, all in
+Super10. The counting, the Dressing Room's "Only in Super10" tag and the
+pick are still to come; until then `?s10kit=neon`, `yellow`, `cherry`, `orange` or
 `violet` asks for one, and is not practice. Each has its own gloves and pads
 (`SUPER10_GLOVES` in `gloves.ts`, never on the GUARD shelf), and its helmet
 is plain. Each of the five batters has his number on his back in the print
