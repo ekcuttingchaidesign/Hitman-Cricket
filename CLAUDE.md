@@ -1737,14 +1737,20 @@ purple (#271473) and cherry (#E92568) were set by the designer after a look.
 
 The lightning bolts are the Panthers' alone, the first team's mark; each
 other team has a pattern of its own from its name (`Mark`'s `shape` in
-`kitPrint.ts`): the Vipers after the designer's reference (a South Africa
-concept shirt), thin purple stripes slanting across the yoke and long sharp
-spikes fanning up the front from the left hip, with two spikes down each leg
-(a diamondback and angular blocks were tried first), the Kings a big four-pointed star on the chest with two small ones and a
+`kitPrint.ts`): the Vipers after the designer's jersey reference, streaks
+of sharp purple slashes running up the front, each a column of barbs
+staggered either side of its line, leaning a little to the right as they
+climb, and a lime streak up each leg (`streak`; the yoke stripes and hip
+spikes of a South Africa concept shirt, a diamondback and angular blocks
+came first), the Kings a big four-pointed star on the chest with two small ones and a
 yellow stripe down each leg to a star at the knee, the Falcons three stacked
 V's across the chest like spread wings and two small ones down each leg, the
-Farmers three arcs spreading from the right shoulder, navy fading to white,
-and two orange stripes down each leg, the Mavericks, the top of the ladder,
+Farmers after the designer's concept shirt (`squares`): half the shirt navy
+and the other half a grid of orange squares in navy, from a diagonal down
+the chest round his left side and across his back — the side the game's
+camera sees — fading into the navy at its edges, the number edged in orange
+over it (`numberEdge`), and a run of orange squares fading down each leg
+(three arcs from the shoulder were tried first), the Mavericks, the top of the ladder,
 an all-over print after the designer's reference (`swirl`): teal waves
 flowing round the whole violet shirt and its sleeves, fading into teal at
 the hem, the number edged in violet, and a teal stripe down each leg (a band

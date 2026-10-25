@@ -103,16 +103,16 @@ const falconLeg: Mark[] = [
   { shape: 'chevron', x: 0, y: .34, w: .12, h: .06, lean: 0, colour: PURPLE, thick: .3 },
   { shape: 'chevron', x: 0, y: .41, w: .12, h: .06, lean: 0, colour: WHITE, thick: .3 },
 ];
-/** Aura Farmers, a glow spreading out: three arcs from the right shoulder across the chest, navy fading to white, and two orange stripes down each leg. */
-const auraChest: Mark[] = [
-  { shape: 'ring', x: .16, y: .52, w: .16, h: .05, lean: 0, from: 180, sweep: 90, colour: NAVY },
-  { shape: 'ring', x: .16, y: .52, w: .27, h: .042, lean: 0, from: 180, sweep: 90, colour: '#0B1A3699' },
-  { shape: 'ring', x: .16, y: .52, w: .38, h: .034, lean: 0, from: 180, sweep: 90, colour: WHITE },
-];
-const auraLeg: Mark[] = [
-  { shape: 'bar', x: -.026, y: .32, w: .022, h: .56, lean: 0, colour: ORANGE },
-  { shape: 'bar', x: .026, y: .32, w: .022, h: .56, lean: 0, colour: ORANGE },
-];
+/**
+ * Aura Farmers, after the designer's concept shirt (`squares` in
+ * `kitPrint.ts`): half the shirt navy, the other half a grid of orange
+ * squares in navy, from a diagonal down the chest round his side and across
+ * his back, fading into the navy at its edges; and a run of orange squares
+ * down each leg, going out as they go. Three arcs from the shoulder were
+ * tried first and read as too plain for the second tier from the top.
+ */
+const auraLeg: Mark[] = ([[.1, .05, 1], [.165, .044, .8], [.225, .038, .6], [.28, .032, .4]] as const)
+  .map(([y, w, shown]) => ({ shape: 'tile' as const, x: 0, y, w, h: w, lean: 0, colour: ORANGE + Math.round(shown * 255).toString(16).padStart(2, '0') }));
 /**
  * Royal Mavericks, the top of the ladder, an all-over print (`swirl`):
  * teal waves flowing round the whole violet shirt and its sleeves, fading
@@ -125,25 +125,33 @@ const sashLeg: Mark[] = [
   { shape: 'bar', x: .028, y: .32, w: .01, h: .56, lean: 0, colour: WHITE },
 ];
 /**
- * Apex Vipers, after the designer's reference (a South Africa concept
- * shirt): thin purple stripes slanting across the yoke from shoulder to
- * shoulder, and long sharp purple spikes fanning up the front from the left
- * hip towards the right shoulder, the back left plain for the number; and
- * two spikes pointing down each leg. An angular-blocks design and a
- * diamondback were tried first.
+ * Apex Vipers, after the designer's second reference (a jersey concept):
+ * streaks of sharp purple slashes running up the front from the hem to the
+ * shoulders, each a column of thin barbs pointing up, staggered either side
+ * of its line so its edges are jagged, the lot leaning a little to the
+ * right as it climbs; the back left plain for the number; and one lime
+ * streak up the outside of each leg. Yoke stripes with spikes fanning from the hip (a
+ * South Africa concept shirt), angular blocks and a diamondback came first.
  */
+const VIPER_LEAN = 12;
+/** A streak of barbs from `from` to `to` up the cloth along a line through `x` at the hem, the same every time it is drawn. */
+const streak = (x: number, from: number, to: number, wide: number, seed: number, lean = VIPER_LEAN, colour = PURPLE): Mark[] => {
+  const marks: Mark[] = [], slope = Math.tan(lean * Math.PI / 180);
+  for (let y = from, k = 0; y < to; y += .022, k++) {
+    const r = (n: number) => Math.abs(Math.sin((seed * 31 + k) * 12.9898 + n * 78.233) * 43758.5453) % 1;
+    const h = .07 + .06 * r(1);
+    marks.push({ shape: 'spike', x: x + y * slope + (k % 2 ? 1 : -1) * wide * (.25 + .5 * r(2)), y: y + h / 2, w: .02 + .016 * r(3), h, lean: lean + 6 * (r(4) - .5), colour });
+  }
+  return marks;
+};
 const viperChest: Mark[] = [
-  ...Array.from({ length: 11 }, (_, i) => ({ shape: 'bar' as const, x: -.24 + i * .048, y: .45, w: .02, h: .17, lean: 40, colour: PURPLE })),
-  // Long sharp spikes fanning up from the left hip towards the right shoulder, two rows of them.
-  ...([
-    [-.2, .05, .38], [-.14, .04, .3], [-.08, .03, .36], [-.02, .02, .26], [.04, .02, .3],
-    [-.17, .17, .22], [-.1, .16, .26], [-.04, .15, .2],
-  ] as const).map(([x, y, h]) => ({ shape: 'spike' as const, x, y: y + h / 2, w: .05, h, lean: -36, colour: PURPLE })),
+  ...streak(-.25, 0, .46, .022, 1), ...streak(-.2, .04, .5, .014, 2),
+  ...streak(-.11, 0, .5, .024, 3),
+  ...streak(-.02, .02, .42, .016, 4),
+  ...streak(.06, 0, .48, .024, 5), ...streak(.11, .06, .44, .014, 6),
+  ...streak(.19, 0, .44, .02, 7),
 ];
-const viperLeg: Mark[] = [
-  { shape: 'spike', x: 0, y: .45, w: .06, h: .32, lean: 180, colour: PURPLE },
-  { shape: 'spike', x: -.03, y: .32, w: .04, h: .22, lean: 180, colour: PURPLE },
-];
+const viperLeg: Mark[] = streak(0, .04, .56, .016, 8, 0, LIME);
 
 export const SUPER10_KITS: readonly Super10Kit[] = [
   {
@@ -168,7 +176,7 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
   },
   {
     id: 's10-orange', name: 'Aura Farmers', line: '5,000 Super10 runs.', shirt: ORANGE, helmet: NAVY, trousers: NAVY, trim: NAVY, number: NAVY, glow: ORANGE,
-    print: { number: NAVY, chest: auraChest, back: [], collar: { colour: NAVY, inner: WHITE }, hem: { colour: NAVY, line: WHITE }, leg: auraLeg },
+    print: { number: NAVY, numberEdge: ORANGE, squares: { colour: NAVY }, chest: [], back: [], collar: { colour: NAVY, inner: WHITE }, hem: { colour: NAVY, line: WHITE }, leg: auraLeg },
     guard: 'super10-orange', stumps: 'raspberry',
   },
   {

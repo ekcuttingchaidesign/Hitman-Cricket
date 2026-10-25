@@ -53,10 +53,11 @@ const GUTTER = 8 / 1024;
  *   `from` and `sweep` where it starts and how far it runs (degrees,
  *   anticlockwise from the right); `lean` is not used.
  * - `crown`: a band with a row of `points` sharp points along its top.
+ * - `tile`: a square with rounded corners.
  */
 export interface Mark {
   x: number; y: number; w: number; h: number; lean: number; colour: string;
-  shape?: 'bolt' | 'star' | 'chevron' | 'bar' | 'diamond' | 'spike' | 'zigzag' | 'ring' | 'crown';
+  shape?: 'bolt' | 'star' | 'chevron' | 'bar' | 'diamond' | 'spike' | 'zigzag' | 'ring' | 'crown' | 'tile';
   thick?: number; from?: number; sweep?: number; points?: number;
 }
 
@@ -81,12 +82,27 @@ export interface KitPrint {
    * edged in `edge` over it, so it reads.
    */
   swirl?: { colour: string; fade?: string; edge?: string };
+  /**
+   * Half the shirt in `colour` and the other half a grid of the shirt's own
+   * colour in squares (`squares`), the Aura Farmers': see `squares` below.
+   */
+  squares?: { colour: string };
+  /** An outline round the number on the back, where it is worn over a pattern. */
+  numberEdge?: string;
 }
 
 /** The lightning icon's outline, in a unit square centred on nought, y down. */
 const ZAP: readonly [number, number][] = [[.04, -.42], [-.375, .08], [0, .08], [-.04, .42], [.375, -.08], [0, -.08]];
 /** A four-pointed sparkle, y up: its waist is a sixth of its reach. */
 const STAR: readonly [number, number][] = [[0, .5], [.085, .085], [.5, 0], [.085, -.085], [0, -.5], [-.085, -.085], [-.5, 0], [-.085, .085]];
+
+/** A square `size` across centred on (x, y), its corners rounded by `round` of its size, added to the path. */
+function roundedSquare(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, round: number) {
+  const h = size / 2, r = size * round;
+  ctx.moveTo(x - h + r, y - h);
+  ctx.arcTo(x + h, y - h, x + h, y + h, r); ctx.arcTo(x + h, y + h, x - h, y + h, r);
+  ctx.arcTo(x - h, y + h, x - h, y - h, r); ctx.arcTo(x - h, y - h, x + h, y - h, r);
+}
 
 function bolt(ctx: CanvasRenderingContext2D, b: Mark) {
   ctx.save();
@@ -122,6 +138,7 @@ function bolt(ctx: CanvasRenderingContext2D, b: Mark) {
       polygon([[-.5, .5], [-.5 + k, .5], [0, -.5 + 2 * k], [.5 - k, .5], [.5, .5], [0, -.5]]);
       break;
     }
+    case 'tile': roundedSquare(ctx, 0, 0, 1, .22); break;
     case 'crown': {
       // The band's foot straight, its top a row of points with the valleys halfway down.
       const n = b.points ?? 5, top: [number, number][] = [];
@@ -180,6 +197,52 @@ function waves(ctx: CanvasRenderingContext2D, x0: number, y0: number, w: number,
   ctx.restore();
 }
 
+/**
+ * The Aura Farmers' squares, after the designer's concept shirt: the torso
+ * painted in `colour` and a grid of rounded squares cut out of it, so the
+ * shirt's own colour shows through them. The squares cover half of him, from
+ * a diagonal down his chest round his left side and across his back, the
+ * side and the back the game's camera sees, and fade into the solid half at
+ * both edges, shrinking and going out, a few strays past the edge.
+ *
+ * The grid is turned so it meets itself round him: a turn whose tangent is
+ * two thirds puts a corner of the grid every `SQUARE_STEPS` squares along the
+ * diagonal, and the pitch is set so that comes round exactly once.
+ */
+const SQUARE_TURN = Math.atan2(2, 3), SQUARE_STEPS = 5;
+const SQUARE_PITCH = CLOTH.round / (Math.hypot(3, 2) * SQUARE_STEPS);
+/** The front edge: up his chest's middle, leaning towards the collar on his right by this many metres a metre. */
+const SQUARE_EDGE = { middle: CLOTH.round / 2, lean: .6, span: .72, fade: .16 };
+function squares(ctx: CanvasRenderingContext2D, W: number, FH: number, colour: string) {
+  const m = W / CLOTH.round, p = SQUARE_PITCH, L = CLOTH.round;
+  const [c, s] = [Math.cos(SQUARE_TURN), Math.sin(SQUARE_TURN)];
+  ctx.save();
+  ctx.fillStyle = colour; ctx.fillRect(0, 0, W, FH);
+  ctx.globalCompositeOperation = 'destination-out';
+  // Laid the other way round him, so the squares are on the side the game's camera sees.
+  ctx.translate(W, 0); ctx.scale(-1, 1);
+  const reach = Math.ceil(Math.hypot(L, CLOTH.tall) / p) + 2;
+  for (let i = -reach; i <= reach; i++) for (let j = -reach; j <= reach; j++) {
+    const x = (i * c - j * s) * p, y = (i * s + j * c) * p;
+    if (x < -p || x > L + p || y < -p || y > CLOTH.tall + p) continue;
+    // How far inside the squares' half, in metres round him: positive inside, negative in the solid half.
+    const edge = SQUARE_EDGE.middle - SQUARE_EDGE.lean * (y - CLOTH.tall / 2);
+    const round = (((edge - x) % L) + L) % L;
+    const inside = round < SQUARE_EDGE.span ? Math.min(round, SQUARE_EDGE.span - round) : -Math.min(round - SQUARE_EDGE.span, L - round);
+    let shown = Math.min(1, Math.max(0, (inside + .02) / SQUARE_EDGE.fade));
+    // A few strays out past the edge, as the concept has.
+    const stray = Math.abs(Math.sin((i + 7 * ((j % 50) + 50)) * 12.9898) * 43758.5453) % 1;
+    if (shown === 0 && inside > -.12 && stray < .22) shown = .3;
+    if (shown === 0) continue;
+    ctx.globalAlpha = Math.pow(shown, .7);
+    ctx.save();
+    ctx.translate(x * m, FH - y * m); ctx.rotate(-SQUARE_TURN);
+    ctx.beginPath(); roundedSquare(ctx, 0, 0, p * m * (.5 + .34 * shown), .2); ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 /** The metres up the cloth at a height `v` on the torso's texture (nought at the hem). */
 function clothAt(v: number) {
   const at = Math.min(CLOTH_UP.length - 1.000001, Math.max(0, v * (CLOTH_UP.length - 1))), i = Math.floor(at);
@@ -221,6 +284,7 @@ export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trouser
       f.fillStyle = fade; f.fillRect(0, 0, W, FH);
     }
   }
+  if (print.squares) squares(f, W, FH, print.squares.colour);
   panel(.5, () => print.chest.forEach(b => bolt(f, b)));
   for (const round of [0, 1]) panel(round, () => print.back.forEach(b => bolt(f, b)));
   if (print.collar) panel(.5, () => {
@@ -242,7 +306,8 @@ export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trouser
     // seen the other way round, so the number is painted the other way round.
     for (const x of [0, W]) {
       f.save(); f.translate(x, FH * (1 - NUMBER.up / CLOTH.tall)); f.scale(mirrored ? -1 : 1, 1);
-      if (print.swirl?.edge) { f.lineWidth = px * .16; f.lineJoin = 'round'; f.strokeStyle = print.swirl.edge; f.strokeText(number, 0, 0); }
+      const edge = print.numberEdge ?? print.swirl?.edge;
+      if (edge) { f.lineWidth = px * .16; f.lineJoin = 'round'; f.strokeStyle = edge; f.strokeText(number, 0, 0); }
       f.fillText(number, 0, 0); f.restore();
     }
   }
