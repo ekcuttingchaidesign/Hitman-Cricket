@@ -34,8 +34,10 @@ export const DEFAULT_GLOVE: GuardId = FREE_GUARD;
 /** A print on some of the padding: a carbon-fibre weave in two greys. */
 export interface GlovePrint { kind: 'carbon'; ground: string; ink: string }
 
-export interface GloveDesign {
-  id: GuardId;
+/** The two pairs that go with the Super10 kits, worn only in Super10 and never on the GUARD shelf (`SUPER10_GLOVES`). */
+export type Super10GuardId = 'super10' | 'super10-cherry';
+export interface GloveDesign<Id extends string = GuardId> {
+  id: Id;
   name: string;
   /** What it is, in a line. */
   line: string;
@@ -204,6 +206,42 @@ export const GLOVES: readonly GloveDesign[] = [
   },
 ];
 
+/**
+ * The Super10 kits' gloves and pads (`src/game/super10-kits.ts`), off the
+ * designer's kit sheets: white padding with purple rolls and a lime index and
+ * cuff band, purple pads piped lime, with the purple and the neon kit; white
+ * with raspberry and purple, raspberry pads piped purple, with the cherry one.
+ * Worn by the batter in every Super10 innings with the kit, and nowhere else.
+ */
+export const SUPER10_GLOVES: Record<Super10GuardId, GloveDesign<Super10GuardId>> = {
+  super10: {
+    id: 'super10', name: 'Super10', line: 'White padding with purple rolls, a lime index roll and band, a purple cuff; purple pads piped lime.',
+    glow: '#B7FF3B',
+    pads: { body: '#5E2BFF', trim: '#B7FF3B' },
+    base: '#F4F2FA',
+    rolls: ['#5E2BFF', '#5E2BFF', '#5E2BFF', '#B7FF3B'],
+    index: ['#B7FF3B', '#5E2BFF', '#F4F2FA'],
+    sideBar: true,
+    tips: ['#F4F2FA', '#F4F2FA', '#F4F2FA', '#B7FF3B'],
+    knuckleBar: { colour: '#5E2BFF', badge: '#B7FF3B' },
+    thumb: '#F4F2FA', thumbTip: '#5E2BFF', ridges: '#A447FF',
+    cuff: { base: '#5E2BFF', bands: [{ at: .062, depth: .010, colour: '#B7FF3B' }], strap: '#4A1FD0', badge: '#B7FF3B', rim: '#5E2BFF' },
+  },
+  'super10-cherry': {
+    id: 'super10-cherry', name: 'Super10 Cherry', line: 'White padding with raspberry rolls and a purple index roll and band; raspberry pads piped purple.',
+    glow: '#FF2D78',
+    pads: { body: '#FF2D78', trim: '#4B1FB8' },
+    base: '#F7F2F6',
+    rolls: ['#FF2D78', '#FF2D78', '#FF2D78', '#4B1FB8'],
+    index: ['#4B1FB8', '#FF2D78', '#F7F2F6'],
+    sideBar: true,
+    tips: ['#F7F2F6', '#F7F2F6', '#F7F2F6', '#4B1FB8'],
+    knuckleBar: { colour: '#FF2D78', badge: '#4B1FB8' },
+    thumb: '#F7F2F6', thumbTip: '#FF2D78', ridges: '#4B1FB8',
+    cuff: { base: '#F7F2F6', bands: [{ at: .062, depth: .010, colour: '#4B1FB8' }], strap: '#FF2D78', badge: '#4B1FB8', rim: '#FF2D78' },
+  },
+};
+
 export const gloveOf = (id: string | null | undefined): GloveDesign => GLOVES.find(g => g.id === id) ?? GLOVES.find(g => g.id === DEFAULT_GLOVE)!;
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -311,7 +349,7 @@ function piece(parent: THREE.Object3D, paint: Paint, scale: [number, number, num
  * onto the palm's side, short of the fingertips, so it is on the hand rather
  * than in it.
  */
-export function buildGloveHand(design: GloveDesign, top: boolean) {
+export function buildGloveHand(design: GloveDesign<string>, top: boolean) {
   const hand = new THREE.Group();
   hand.name = `${design.name} glove`;
   const k = top ? -1 : 1;
@@ -380,7 +418,7 @@ export function buildGloveHand(design: GloveDesign, top: boolean) {
  * with the knitted bands round it, the strap closed over it with its badge on
  * the back of the wrist, and a soft rim at the top.
  */
-export function buildGloveCuff(design: GloveDesign) {
+export function buildGloveCuff(design: GloveDesign<string>) {
   const cuff = new THREE.Group(), c = design.cuff;
   cuff.name = `${design.name} gauntlet`;
   made(cuff, new THREE.CylinderGeometry(.051, .055, CUFF_HEIGHT, 24), c.base, TOWELLING).position.y = CUFF_HEIGHT / 2;

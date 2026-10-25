@@ -74,6 +74,7 @@ describe('every switch the game reads', () => {
     tile: 'the size of the bowler sheet\'s frames, a dev page that bats nothing',
     labels: 'leaves the names off the bowler sheet\'s frames, a dev page that bats nothing',
     glass: 'Super10\'s score bar and keys solid rather than glass, a look that bats nothing differently',
+    s10kit: 'which Super10 kit he bats in, a look that bats nothing differently',
   };
 
   it('is either practice or named as not practice', () => {

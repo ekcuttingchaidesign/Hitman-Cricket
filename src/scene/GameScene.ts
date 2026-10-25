@@ -27,7 +27,9 @@ import { Fireworks } from './fireworks';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 import type { Cutout } from '../ui/Milestone';
 import { OUTFITS, type BatSkin, type Outfit } from '../game/dressing';
-import type { GloveDesign } from '../entities/gloves';
+import { SUPER10_GLOVES, type GloveDesign } from '../entities/gloves';
+import type { KitPrint } from '../entities/kitPrint';
+import { super10KitOf, type Super10Kit } from '../game/super10-kits';
 import type { CameraPose } from '../game/ShotReel';
 import { batSheet } from '../entities/batSkins';
 
@@ -695,7 +697,8 @@ export class GameScene {
     const { timber, bails, lights } = buildWicket(this.world, GAME.stumpHeight, z, kind === 'led' ? { wrap: this.led.wrap } : undefined);
     const set = this.wickets[kind];
     set.meshes.push(...timber, ...bails);
-    if (z === 0) { set.bails.push(...bails); set.stumps.push(...timber, ...bails); if (lights) this.led.wire(lights); }
+    if (z === 0) { set.bails.push(...bails); set.stumps.push(...timber, ...bails); }
+    if (lights) this.led.wire(lights, z === 0);
   }
   /** Whether the LED stumps are up: a Super10 innings, and the arena whatever is played on it. */
   private get ledUp() { return this.branded || this.current === 'arena'; }
@@ -1149,11 +1152,28 @@ export class GameScene {
    * batter is dressed for an innings, and the bat taken up at once. In the
    * Test match he keeps his whites, as a Test is played, and takes the kit's
    * helmet and his own bat out with him.
+   *
+   * In Super10 he bats in a Super10 kit instead (`super10`, from
+   * `super10-kits.ts`), printed, with its own gloves and pads, his own bat
+   * still in his hands; the side in the field wears the kit it is set
+   * against, printed too, and the LED stumps take the colourway that goes
+   * with it.
    */
-  dressBatter(outfit: Outfit, bat: BatSkin, guard: GloveDesign) {
-    this.look = { outfit, bat, guard };
-    this.pickSide(outfit.id);
-    this.batter.wearGloves(guard);
+  dressBatter(outfit: Outfit, bat: BatSkin, guard: GloveDesign<string>, super10: Super10Kit | null = null) {
+    this.look = { outfit: super10 ?? outfit, bat, guard: super10 ? SUPER10_GLOVES[super10.guard] : guard };
+    if (super10) {
+      const side = super10KitOf(super10.against);
+      this.fieldingKit = side.id;
+      this.sideKit = this.kitOf(side);
+      this.sidePrint = side.print;
+      this.led.colourway(super10.stumps);
+    } else {
+      this.pickSide(outfit.id);
+      this.sidePrint = null;
+      this.led.colourway('violet');
+    }
+    this.batter.printKit(super10?.print ?? null);
+    this.batter.wearGloves(this.look.guard);
     this.wearLook();
     const asked = ++this.batAsked;
     this.batter.holdBat(bat.grip, null);
@@ -1163,7 +1183,7 @@ export class GameScene {
       this.kitsUnderLights();
     });
   }
-  private look: { outfit: Outfit; bat: BatSkin; guard: GloveDesign } | null = null;
+  private look: { outfit: Outfit | Super10Kit; bat: BatSkin; guard: GloveDesign<string> } | null = null;
   /** What he went out in, `kit/bat/guard`, for the checks. */
   get wearing() { return this.look ? `${this.look.outfit.id}/${this.look.bat.id}/${this.look.guard.id}` : null; }
   private inWhites = false;
@@ -1173,7 +1193,7 @@ export class GameScene {
     if (!this.look) return;
     const { outfit } = this.look;
     this.batter.wear(this.inWhites ? { helmet: outfit.helmet } : outfit);
-    if (!this.inWhites) { this.bowler.figure.dress(this.sideKit); this.field.dress(this.sideKit); }
+    if (!this.inWhites) { this.bowler.figure.dress(this.sideKit, this.sidePrint); this.field.dress(this.sideKit, this.sidePrint); }
     this.kitsUnderLights();
   }
   /**
@@ -1185,14 +1205,20 @@ export class GameScene {
    * in whites, as a Test is played.
    */
   private sideKit: Kit = KIT;
+  /** And its print, where it is a Super10 kit. */
+  private sidePrint: KitPrint | null = null;
   /** The fielding side's kit, as a Dressing Room id, for the checks. */
   fieldingKit: string | null = null;
   private pickSide(except: string) {
     const choices = OUTFITS.filter(o => o.id !== except);
     const outfit = choices[Math.floor(Math.random() * choices.length)];
-    const hex = (colour: string) => new THREE.Color(colour).getHex();
     this.fieldingKit = outfit.id;
-    this.sideKit = { ...KIT, shirt: hex(outfit.shirt), trousers: hex(outfit.trousers), cap: hex(outfit.helmet), trim: hex(outfit.trim) };
+    this.sideKit = this.kitOf(outfit);
+  }
+  /** A kit's colours as the figures wear them. */
+  private kitOf(outfit: Pick<Outfit, 'shirt' | 'trousers' | 'helmet' | 'trim'>): Kit {
+    const hex = (colour: string) => new THREE.Color(colour).getHex();
+    return { ...KIT, shirt: hex(outfit.shirt), trousers: hex(outfit.trousers), cap: hex(outfit.helmet), trim: hex(outfit.trim) };
   }
 
   /** A new ball. `carryOn`: see `Batter.reset`. */

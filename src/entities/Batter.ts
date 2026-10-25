@@ -9,6 +9,7 @@ import { ConnectedTrousers } from './ConnectedTrousers';
 import { clothMaterial, willowMaterial } from './characterMaterials';
 import { GRILLE_MOUNT, helmetGeometry, helmetGrilleGeometry, helmetPeakGeometry, helmetRimGeometry } from './helmetGeometry';
 import { compactRigidParts } from './compactParts';
+import { printable, printTextures, TORSO_SHARE, type KitPrint } from './kitPrint';
 import { buildGloveCuff, buildGloveHand, DEFAULT_GLOVE, gloveHeelGeometry, gloveOf, WRIST_HOME, type GloveDesign } from './gloves';
 import type { BodyPart, ShotType } from '../game/types';
 
@@ -3124,6 +3125,19 @@ export class Batter {
    * the helmet). Colours as the catalogue writes them. The leg pads are not
    * the kit's: they go with the gloves (`wearGloves`).
    */
+  /** The shirt's and the trousers' print: see `printKit`. */
+  private printing = { shirt: printable(this.palette.shirt, TORSO_SHARE), trousers: printable(this.palette.trousers, 1) };
+  /** A kit's print over its colours (`kitPrint.ts`), the Super10 kits' bolts, or none. */
+  printKit(print: KitPrint | null) {
+    const { shirt, trousers } = this.printing;
+    shirt.uKitPrintOn.value = trousers.uKitPrintOn.value = print ? 1 : 0;
+    // The printed shirts have no number on the back: the back's bolt is where it would be.
+    this.palette.number.visible = !print;
+    if (!print) return;
+    const sheets = printTextures(print);
+    shirt.uKitPrint.value = sheets.shirt; trousers.uKitPrint.value = sheets.trousers;
+  }
+
   wear(look: Partial<Record<'shirt' | 'helmet' | 'trousers' | 'pads' | 'trim' | 'number', string>>) {
     if (look.shirt) this.palette.shirt.color.set(look.shirt);
     if (look.helmet) this.palette.helmet.color.set(look.helmet);
@@ -3156,7 +3170,7 @@ export class Batter {
    * cuff (`buildGloveHand`, `buildGloveCuff`), and the pads' colours. The
    * heel `update` re-aims at the wrist takes the padding's colour.
    */
-  wearGloves(design: GloveDesign | null) {
+  wearGloves(design: GloveDesign<string> | null) {
     for (const part of this.wornGloves) part.removeFromParent();
     this.wornGloves = [];
     const worn = design ?? gloveOf(DEFAULT_GLOVE);

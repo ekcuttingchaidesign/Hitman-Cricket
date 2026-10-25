@@ -4,6 +4,7 @@ import { BendingLimb } from './BendingLimb';
 import { ConnectedJersey } from './ConnectedJersey';
 import { ConnectedTrousers } from './ConnectedTrousers';
 import { clothMaterial } from './characterMaterials';
+import { printable, printTextures, TORSO_SHARE, type KitPrint } from './kitPrint';
 import { jerseyGeometry } from './garment';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Point, UP, segment, solveJoint } from './rig';
@@ -144,6 +145,26 @@ function material(color: number, roughness: number) {
 }
 /** Shirt and trousers: the same, with the batter's faint weave on them. */
 function cloth(color: number, roughness: number) { return clothMaterial(material(color, roughness)); }
+/**
+ * A printed shirt or pair of trousers (`kitPrint.ts`): the Super10 kits'
+ * bolts on the side in the field. Its own material, one a print and garment,
+ * shared by every man wearing it, and only on the jersey and the trousers,
+ * which carry where each vertex is round him; the sleeves' own meshes keep
+ * the plain shirt.
+ */
+const printedCloth = new WeakMap<KitPrint, Map<string, THREE.MeshStandardMaterial>>();
+function printed(color: number, print: KitPrint, part: 'shirt' | 'trousers') {
+  let kept = printedCloth.get(print);
+  if (!kept) printedCloth.set(print, kept = new Map());
+  let cloth = kept.get(`${part}|${color}`);
+  if (!cloth) {
+    cloth = clothMaterial(new THREE.MeshStandardMaterial({ color, roughness: part === 'shirt' ? .82 : .8 }));
+    const uniforms = printable(cloth, part === 'shirt' ? TORSO_SHARE : 1);
+    uniforms.uKitPrintOn.value = 1; uniforms.uKitPrint.value = printTextures(print)[part];
+    kept.set(`${part}|${color}`, cloth);
+  }
+  return cloth;
+}
 
 /**
  * How wide each limb is, and the joint balls that close its ends. The taper is
@@ -308,7 +329,7 @@ export class Cricketer {
    * figures in the same kit still share one material each and this costs a
    * handful of assignments.
    */
-  dress(kit: Kit) {
+  dress(kit: Kit, print: KitPrint | null = null) {
     const swatch: Record<DressRole, THREE.Material> = {
       skin: material(kit.skin, .86), shirt: cloth(kit.shirt, .82), trousers: cloth(kit.trousers, .8),
       trim: material(kit.trim, .78), shoe: material(kit.shoe, .7), cap: material(kit.cap, .74),
@@ -318,7 +339,8 @@ export class Cricketer {
       const role = mesh.userData.role as DressRole | undefined;
       if (role) mesh.material = swatch[role];
     }
-    if (this.garments) this.garments.jersey.mesh.material = [swatch.shirt, swatch.skin];
+    if (this.garments) this.garments.jersey.mesh.material = [print ? printed(kit.shirt, print, 'shirt') : swatch.shirt, swatch.skin];
+    if (this.garments && print) this.garments.trousers.mesh.material = printed(kit.trousers, print, 'trousers');
     if (this.garments) for (const sleeve of this.garments.sleeves) sleeve.mesh.material = [swatch.shirt, swatch.skin];
   }
 

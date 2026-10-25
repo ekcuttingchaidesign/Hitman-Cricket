@@ -117,6 +117,7 @@ import type { SurviveInnings } from './game/survive-board';
 import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
 import { sendExcited, sendFeedback } from './game/feedback-api';
+import { SUPER10_KITS, type Super10Kit } from './game/super10-kits';
 import { EXCITED_KEY, excitedAlready } from './ui/Super10Page';
 import { askRating, type RatingPrompt } from './ui/Rating';
 import {
@@ -2245,7 +2246,7 @@ export class Game {
     if (this.coverDrill && !this.challenge.playing) this.generator.drill('NORMAL', 'OFF');
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
     this.input.reset(); this.scene.reset();
-    const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat, look.guard);
+    const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat, look.guard, this.super10 ? this.super10Kit() : null);
     this.scene.whites(this.test);
     // A Test by day; the Blast by the player's clock, or their own choice.
     this.light(this.test ? 'day' : blastLights());
@@ -2364,6 +2365,15 @@ export class Game {
   private get marathoning() { return this.mode === 'MARATHON'; }
   /** Super10: the Blast's ball for ten overs, three batters and five bowlers. */
   private get super10() { return this.mode === 'SUPER10'; }
+  /**
+   * The kit a Super10 innings is batted in (`super10-kits.ts`): the purple
+   * one, which everybody has. `?s10kit=neon` or `cherry` asks for another, for
+   * looking at it; it changes nothing about the batting.
+   */
+  private super10Kit(): Super10Kit {
+    const asked = new URLSearchParams(location.search).get('s10kit');
+    return SUPER10_KITS.find(kit => kit.id === `s10-${asked}`) ?? SUPER10_KITS[0];
+  }
   /**
    * Day or night for the innings, and the ground that goes with it
    * (`groundFor`): Super10 at the canopy, always at night, its stumps the LED

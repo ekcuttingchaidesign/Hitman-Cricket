@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Kit } from '../entities/Cricketer';
+import type { KitPrint } from '../entities/kitPrint';
 import {
   COLLECT_MS, DIVE, Fielder, PICKED_UP, REACTION_MS, RELEASED, Routine, collect, diveReach, furthest, gather, idle, midpointOfHands, onField,
   planCatch, receive, signal, splitStep, still, throwIn, travel, type Action, type Body, type CatchPlan, type Idle, type Signal,
@@ -106,7 +107,7 @@ export class Field {
   /** Deliveries walked in for, so every ball deals each man a different walk. */
   private ball = 0;
 
-  dress(kit: Kit) { for (const fielder of this.fielders) fielder.figure.dress(kit); }
+  dress(kit: Kit, print: KitPrint | null = null) { for (const fielder of this.fielders) fielder.figure.dress(kit, print); }
 
   /**
    * A new field in the middle of an innings, Super10's between overs: every

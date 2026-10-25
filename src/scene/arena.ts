@@ -225,15 +225,29 @@ export function arenaFrame(mood: ArenaMood, cue: { kind: ArenaCue; at: number; w
  * always comes out of the same dark.
  */
 export interface StumpGlow { colour: number; level: number }
-export function stumpLight(broken: number, still = false): { crown: StumpGlow; rings: StumpGlow; bails: StumpGlow } {
-  const rest = { crown: { colour: ARENA.wicket, level: 0 }, rings: { colour: ARENA.volt, level: LED.rings }, bails: { colour: ARENA.wicket, level: 0 } };
+/**
+ * The stumps' two colourways off the sheet: violet (section 18, the plate
+ * timber, the base cut violet, the rings lit lime at rest, the 10 in volt) and
+ * raspberry (485:5198, the timber raspberry, the base cut plate, the rings
+ * dark and the 10 in ink). Which is up goes with the batter's Super10 kit
+ * (`stumps` in `super10-kits.ts`): raspberry behind the purple and the neon,
+ * violet behind the cherry.
+ */
+export const STUMP_THEMES = {
+  violet: { timber: ARENA.plate, base: ARENA.violet, ten: ARENA.volt, rings: LED.rings },
+  raspberry: { timber: 0xf12e60, base: ARENA.plate, ten: ARENA.ink, rings: 0 },
+} as const;
+export type StumpTheme = keyof typeof STUMP_THEMES;
+export function stumpLight(broken: number, still = false, theme: StumpTheme = 'violet'): { crown: StumpGlow; rings: StumpGlow; bails: StumpGlow } {
+  const atRest = STUMP_THEMES[theme].rings;
+  const rest = { crown: { colour: ARENA.wicket, level: 0 }, rings: { colour: ARENA.volt, level: atRest }, bails: { colour: ARENA.wicket, level: 0 } };
   if (broken < 0 || broken >= 3000) return rest;
   const all = (colour: number, level: number) => ({ crown: { colour, level }, rings: { colour, level }, bails: { colour, level } });
   if (!still && broken < 66) return all(ARENA.white, 1);
   if (broken < 2400) return all(ARENA.wicket, !still && broken >= 280 && broken < 400 ? .3 : 1);
   // Back to rest: the raspberry going out, the rings' lime coming back.
   const t = (broken - 2400) / 600;
-  return { crown: { colour: ARENA.wicket, level: 1 - t }, rings: t < .5 ? { colour: ARENA.wicket, level: 1 - t * 2 } : { colour: ARENA.volt, level: LED.rings * (t - .5) * 2 }, bails: { colour: ARENA.wicket, level: 1 - t } };
+  return { crown: { colour: ARENA.wicket, level: 1 - t }, rings: t < .5 ? { colour: ARENA.wicket, level: 1 - t * 2 } : { colour: ARENA.volt, level: atRest * (t - .5) * 2 }, bails: { colour: ARENA.wicket, level: 1 - t } };
 }
 
 /**
@@ -244,17 +258,18 @@ export function stumpLight(broken: number, still = false): { crown: StumpGlow; r
  * and SUPER10 reading up from 120 mm, once to the keeper (u .25) and once to
  * the bowler (u .75), in Saira Black Italic with the 10 in volt.
  */
-export function stumpWrap(height: number) {
+export function stumpWrap(height: number, theme: StumpTheme = 'violet', into?: { context: CanvasRenderingContext2D; texture: THREE.CanvasTexture }) {
   const mm = 2, round = 157, tall = Math.round((height - LED.crown) * 1000);
   const W = round * mm, H = tall * mm;
-  const { context: ctx, texture } = painted(W, H);
-  ctx.fillStyle = hex(ARENA.plate); ctx.fillRect(0, 0, W, H);
+  const colours = STUMP_THEMES[theme];
+  const { context: ctx, texture } = into ?? painted(W, H);
+  ctx.fillStyle = hex(colours.timber); ctx.fillRect(0, 0, W, H);
   const y = (fromFoot: number) => (tall - fromFoot) * mm;
   for (let px = 0; px < W; px++) {
     // How far round towards the leg side this column of the wrap is: its x on the stump, off side +1, leg side -1.
     const across = Math.sin(Math.PI / 2 + px / W * Math.PI * 2);
     const cut = 90 - 5.3 * (1 + across) / 2;
-    ctx.fillStyle = hex(ARENA.violet); ctx.fillRect(px, y(cut), 1, cut * mm);
+    ctx.fillStyle = hex(colours.base); ctx.fillRect(px, y(cut), 1, cut * mm);
     ctx.fillStyle = hex(ARENA.volt); ctx.fillRect(px, y(cut + 3.5), 1, 3.5 * mm);
   }
   const mark = () => {
@@ -264,7 +279,7 @@ export function stumpWrap(height: number) {
       ctx.font = `italic 900 ${42 * mm}px Saira, "Arial Black", Impact, sans-serif`;
       ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
       ctx.fillStyle = '#fff'; ctx.fillText('SUPER', 0, 0);
-      ctx.fillStyle = hex(ARENA.volt); ctx.fillText('10', ctx.measureText('SUPER').width, 0);
+      ctx.fillStyle = hex(colours.ten); ctx.fillText('10', ctx.measureText('SUPER').width, 0);
       ctx.restore();
     }
   };
@@ -272,7 +287,8 @@ export function stumpWrap(height: number) {
   // Painted again over the plate once the face has loaded.
   document.fonts?.load(`italic 900 ${42 * mm}px Saira`).then(() => { mark(); texture.needsUpdate = true; }).catch(() => {});
   texture.wrapS = THREE.RepeatWrapping;
-  return texture;
+  texture.needsUpdate = true;
+  return { context: ctx, texture };
 }
 
 /** What the screen shows between moments. */
@@ -849,14 +865,26 @@ export class Showboards {
  */
 export class LedStumps {
   /** The stumps' wrap, for the wicket to be built with: see `stumpWrap`. */
-  readonly wrap: THREE.Texture;
+  readonly wrap: THREE.CanvasTexture;
+  private painted: { context: CanvasRenderingContext2D; texture: THREE.CanvasTexture };
   private lights: WicketLights | null = null;
+  /** The far wicket's, which only ever stands at rest. */
+  private far: WicketLights[] = [];
   private from = -Infinity;
+  /** The colourway up: see `STUMP_THEMES`. */
+  theme: StumpTheme = 'violet';
   constructor(anisotropy: number) {
-    this.wrap = stumpWrap(GAME.stumpHeight); this.wrap.anisotropy = anisotropy;
+    this.painted = stumpWrap(GAME.stumpHeight); this.wrap = this.painted.texture; this.wrap.anisotropy = anisotropy;
   }
-  /** The batter's LED wicket, its crown, rings and bails to light when it is broken; the far wicket stays at rest. */
-  wire(lights: WicketLights) { this.lights = lights; }
+  /** An LED wicket: the batter's has its crown, rings and bails lit when it is broken; the far one stays at rest. */
+  wire(lights: WicketLights, batting = true) { if (batting) this.lights = lights; else this.far.push(lights); }
+  /** The other colourway, on both wickets at once: the wrap painted again in it, and the far wicket's rings at its rest. */
+  colourway(theme: StumpTheme) {
+    if (theme === this.theme) return;
+    this.theme = theme;
+    stumpWrap(GAME.stumpHeight, theme, this.painted);
+    for (const lights of this.far) lights.rings.emissiveIntensity = STUMP_THEMES[theme].rings;
+  }
   /** The light run from `now` with no bail gone: for looking at it (`__cricket.arenaCue('stumps')`). */
   light(now: number) { this.from = now; }
   /**
@@ -870,7 +898,7 @@ export class LedStumps {
   update(now: number, broken: number, still: boolean) {
     if (!this.lights) return;
     if (now < this.from) this.from = -Infinity;
-    const glow = stumpLight(broken >= 0 ? broken : Number.isFinite(this.from) ? now - this.from : -1, still);
+    const glow = stumpLight(broken >= 0 ? broken : Number.isFinite(this.from) ? now - this.from : -1, still, this.theme);
     for (const part of ['crown', 'rings', 'bails'] as const) {
       const material = this.lights[part];
       material.emissive.setHex(glow[part].colour); material.emissiveIntensity = glow[part].level * 1.4;
