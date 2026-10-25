@@ -1727,7 +1727,8 @@ shows only in part there. The side in the field wears any other team's kit,
 drawn afresh each innings, printed too, the Falcons in cherry caps (`cap`);
 the LED stumps are raspberry behind navy or blue trousers (the Kings, the Farmers)
 and violet behind the rest (`stumps`, `STUMP_THEMES`, `colourway` on
-`LedStumps`). All of it is `GameScene.dressBatter`'s last argument, which
+`LedStumps`); the raspberry ones light white when the bails go, where the
+violet ones light raspberry (`stumpLight`). All of it is `GameScene.dressBatter`'s last argument, which
 `Game.super10Kit` hands it at the start of a Super10 innings. The designs
 came out of an image model, so they are followed for their colours and
 where the bolts lie, not stroke for stroke, and their palettes' printed hex
@@ -1878,13 +1879,17 @@ work about forty per cent less at a quarter of a desktop's speed.
 `batterOnScreen` takes the size the renderer was given rather than measuring
 the canvas, which laid the page out every frame of it.
 
-`?glass=0` is a trial for Super10 alone (`SOLID_BARS` in `Game.ts`,
-`s10-solid` on the body, its rules at the foot of `src/super10.css`): the
-score bar, its keys, the nearing card and the field's tag solid ink with a
-violet edge, with no `backdrop-filter`. The glass blurs the 3D picture under
-it every frame, which an iPhone's compositor pays for; the bars are
-ninety-five per cent opaque already, so the blur barely shows. Kept or
-dropped on how it feels on a phone; it changes nothing about the batting.
+In Super10 the score bar, its keys, the nearing card and the field's tag are
+solid ink with a violet edge, with no `backdrop-filter` (`s10-solid` on the
+body, its rules at the foot of `src/super10.css`). The glass blurred the 3D
+picture under it every frame, which an iPhone's compositor pays for, and the
+bars being ninety-five per cent opaque already, the blur barely showed. It was
+tried behind `?glass=0` first and the designer kept it.
+
+Neither the bowler nor the fielders go grey in a special stroke's moment, in
+any mode: they are dressed for each innings on new materials, which the grey
+(`greyable`, made once when the scene is built) never reaches. The designer
+is happy with that.
 
 ## Super10 on GitHub Pages, for testers
 

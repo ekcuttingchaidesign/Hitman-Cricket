@@ -166,9 +166,10 @@ body.start-screen .s10-big,.stage.result-open .s10-big,.stage.picking-mode .s10-
 #end.is-super10 .ec-chip.is-milestone.is-ton{background:#c6ff1a;color:#12052b}
 .ec-not-out{margin-left:1px;font-style:normal;color:var(--c-text-3)}
 
-/* `?glass=0` (`SOLID_BARS` in Game.ts): the score bar, its keys and the
+/* Super10's (`s10-solid`, put on in Game.ts): the score bar, its keys and the
    cards that come and go over the ground solid ink with a violet edge, and
-   nothing blurring the ground behind them. A trial against the glass. */
+   nothing blurring the ground behind them: the glass's blur cost an iPhone
+   every frame, and at ninety-five per cent opaque it barely showed. */
 body.s10-solid .score-stack{--bar:#0d0a1f;--bar-edge:#8b5cf673;--bar-shadow:0 8px 20px #05031259}
 body.s10-solid .hud-actions{background:#0d0a1f;border-color:#8b5cf673;box-shadow:0 8px 20px #05031259}
 body.s10-solid :is(.score-bug,.hud-actions,.s10-tag,.nearing){-webkit-backdrop-filter:none;backdrop-filter:none}

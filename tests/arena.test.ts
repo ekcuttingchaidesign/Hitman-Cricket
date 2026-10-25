@@ -187,6 +187,12 @@ describe('the arena', () => {
     for (let t = 0; t < 2400; t += 50) { expect(stumpLight(t, true).crown).toEqual({ colour: ARENA.wicket, level: 1 }); }
   });
 
+  it('lights the cherry stumps white when they go, raspberry being lost on raspberry timber', () => {
+    expect(stumpLight(1500, false, 'raspberry').bails).toEqual({ colour: ARENA.white, level: 1 });
+    expect(stumpLight(2600, false, 'raspberry').crown.colour).toBe(ARENA.white);
+    expect(stumpLight(-1, false, 'raspberry').rings.level).toBe(0);
+  });
+
   it('forgets a moment from before the clock went back to nought, a new innings', () => {
     expect(arenaFrame('calm', { kind: 'six', at: 5000 }, 200).word).toBeNull();
   });

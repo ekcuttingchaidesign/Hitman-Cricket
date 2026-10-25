@@ -240,14 +240,16 @@ export const STUMP_THEMES = {
 export type StumpTheme = keyof typeof STUMP_THEMES;
 export function stumpLight(broken: number, still = false, theme: StumpTheme = 'violet'): { crown: StumpGlow; rings: StumpGlow; bails: StumpGlow } {
   const atRest = STUMP_THEMES[theme].rings;
-  const rest = { crown: { colour: ARENA.wicket, level: 0 }, rings: { colour: ARENA.volt, level: atRest }, bails: { colour: ARENA.wicket, level: 0 } };
+  // Raspberry light is lost on raspberry timber, so those stumps are lit white.
+  const out = theme === 'raspberry' ? ARENA.white : ARENA.wicket;
+  const rest = { crown: { colour: out, level: 0 }, rings: { colour: ARENA.volt, level: atRest }, bails: { colour: out, level: 0 } };
   if (broken < 0 || broken >= 3000) return rest;
   const all = (colour: number, level: number) => ({ crown: { colour, level }, rings: { colour, level }, bails: { colour, level } });
   if (!still && broken < 66) return all(ARENA.white, 1);
-  if (broken < 2400) return all(ARENA.wicket, !still && broken >= 280 && broken < 400 ? .3 : 1);
-  // Back to rest: the raspberry going out, the rings' lime coming back.
+  if (broken < 2400) return all(out, !still && broken >= 280 && broken < 400 ? .3 : 1);
+  // Back to rest: the wicket's light going out, the rings' lime coming back.
   const t = (broken - 2400) / 600;
-  return { crown: { colour: ARENA.wicket, level: 1 - t }, rings: t < .5 ? { colour: ARENA.wicket, level: 1 - t * 2 } : { colour: ARENA.volt, level: atRest * (t - .5) * 2 }, bails: { colour: ARENA.wicket, level: 1 - t } };
+  return { crown: { colour: out, level: 1 - t }, rings: t < .5 ? { colour: out, level: 1 - t * 2 } : { colour: ARENA.volt, level: atRest * (t - .5) * 2 }, bails: { colour: out, level: 1 - t } };
 }
 
 /**
