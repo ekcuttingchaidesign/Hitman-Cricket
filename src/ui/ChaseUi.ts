@@ -14,6 +14,7 @@ const MODE: Record<Chase['mode'], { name: string; facts: string; colour: string 
   classic: { name: 'THE BLAST', facts: '5 OVERS · 30 BALLS', colour: '#3f88f2' },
   marathon: { name: 'TEST MARATHON', facts: 'THREE BATTERS · ALL DAY', colour: '#1f8a55' },
   survive: { name: 'TEST SURVIVAL', facts: '10 OVERS · ONE WICKET', colour: '#ff5a4e' },
+  super10: { name: 'SUPER10', facts: '10 OVERS · FIVE WICKETS', colour: '#8b5cf6' },
 };
 
 const grouped = (n: number) => n.toLocaleString('en-US');

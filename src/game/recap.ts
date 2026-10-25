@@ -1,4 +1,4 @@
-import type { BlastTally, CareerMode, MarathonTally, SurviveTally } from './career.js';
+import type { BlastTally, CareerMode, MarathonTally, Super10Tally, SurviveTally } from './career.js';
 import { standingOf } from './survive-board.js';
 import { FREE_BAT, FREE_OUTFITS, type Look } from './dressing-ids.js';
 
@@ -75,7 +75,7 @@ export interface InningsFacts {
   won: boolean;
 }
 
-export function factsOf(mode: CareerMode, tally: BlastTally | SurviveTally | MarathonTally): InningsFacts {
+export function factsOf(mode: CareerMode, tally: BlastTally | SurviveTally | MarathonTally | Super10Tally): InningsFacts {
   const milestones = (scores: number[]) => ({
     fifties: scores.filter(runs => runs >= 50 && runs < 100).length,
     hundreds: scores.filter(runs => runs >= 100).length,
@@ -83,6 +83,11 @@ export function factsOf(mode: CareerMode, tally: BlastTally | SurviveTally | Mar
   if (mode === 'marathon') {
     const t = tally as MarathonTally;
     return { runs: t.runs, balls: t.balls, fours: t.fours, sixes: t.sixes, ...milestones(t.batters.map(b => b.runs)), won: false };
+  }
+  // Super10's milestones are the team's, as its kits are: a hundred is a total of a hundred.
+  if (mode === 'super10') {
+    const t = tally as Super10Tally;
+    return { runs: t.runs, balls: t.balls, fours: t.fours, sixes: t.sixes, ...milestones([t.runs]), won: false };
   }
   if (mode === 'survive') {
     const t = tally as SurviveTally;

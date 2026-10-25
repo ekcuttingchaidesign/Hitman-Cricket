@@ -2,7 +2,7 @@ import { defineConfig, type Plugin } from 'vite';
 import { memoryChallenges, memoryStore } from './src/server/memory-store';
 import type { SurviveInnings } from './src/game/survive-board';
 import {
-  CLASSIC_LADDER, SURVIVE_LADDER, claimOnly, cleanName, isPlayerId, nameRefused, readBoard, readMarathon,
+  CLASSIC_LADDER, SUPER10_LADDER, SURVIVE_LADDER, claimOnly, cleanName, isPlayerId, nameRefused, readBoard, readMarathon,
   readMarathonStanding, readStanding, refused, submitMarathon,
   submitScore, type SubmitRefusal,
 } from './src/server/board-store';
@@ -25,9 +25,10 @@ import {
   restoreWithPassword, setPassword,
 } from './src/server/recovery-store';
 import {
-  BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, readBlastTally, readMarathonTally, readSurviveTally,
-  type BlastCareer, type MarathonCareer, type SurviveCareer,
+  BLAST_CAREER, MARATHON_CAREER, SUPER10_CAREER, SURVIVE_CAREER, readBlastTally, readMarathonTally, readSuper10Tally,
+  readSurviveTally, type BlastCareer, type MarathonCareer, type Super10Career, type SurviveCareer,
 } from './src/game/career';
+import { readSuper10, type Super10Innings } from './src/game/super10-board';
 import { forgetHeader, ticketFrom, ticketHeader } from './src/server/return-ticket';
 import { modeAsked } from './src/server/mode';
 import { memoryPlayers, rememberHandle } from './src/server/player-store';
@@ -56,7 +57,7 @@ function boardEndpoints(): Plugin {
   // in Redis: a name belongs to a person rather than to an innings, so a player
   // carries theirs from one board to the other and nobody else can bat under it.
   const names = new Map<string, string>();
-  const boards = { '': memoryStore(names), 'survive:': memoryStore<SurviveInnings>(names) };
+  const boards = { '': memoryStore(names), 'survive:': memoryStore<SurviveInnings>(names), 'super10:': memoryStore<Super10Innings>(names) };
   // The Marathon's two, sharing the names as every board does.
   const marathon = { team: memoryStore<TeamInnings>(names), solo: memoryStore<SoloInnings>(names) };
   // The questionnaire, backed the same way and for the same reason: the form can
@@ -72,6 +73,7 @@ function boardEndpoints(): Plugin {
     classic: memoryCareer<BlastCareer>(names),
     survive: memoryCareer<SurviveCareer>(names),
     marathon: memoryCareer<MarathonCareer>(names),
+    super10: memoryCareer<Super10Career>(names),
   };
   // The career keys, sharing that same registry for the same reason: restoring
   // asks who holds a name, and claiming is what wrote it. Two maps here would
@@ -86,7 +88,7 @@ function boardEndpoints(): Plugin {
   // The profiles, over the same boards and careers the endpoints above write.
   const profiles: ProfileStores = {
     players: memoryPlayers(),
-    boards: { classic: boards[''], survive: boards['survive:'], team: marathon.team, solo: marathon.solo },
+    boards: { classic: boards[''], survive: boards['survive:'], team: marathon.team, solo: marathon.solo, super10: boards['super10:'] },
     careers,
   };
   return {
@@ -205,12 +207,16 @@ function boardEndpoints(): Plugin {
                 ? await readCareer(careers.survive, SURVIVE_CAREER, player)
                 : mode === 'marathon'
                 ? await readCareer(careers.marathon, MARATHON_CAREER, player)
+                : mode === 'super10'
+                ? await readCareer(careers.super10, SUPER10_CAREER, player)
                 : await readCareer(careers.classic, BLAST_CAREER, player));
             }
             const boards = survive
               ? await readCareerBoards(careers.survive, SURVIVE_CAREER)
               : mode === 'marathon'
               ? await readCareerBoards(careers.marathon, MARATHON_CAREER)
+              : mode === 'super10'
+              ? await readCareerBoards(careers.super10, SUPER10_CAREER)
               : await readCareerBoards(careers.classic, BLAST_CAREER);
             // The same header the deployed endpoint sends. There is no edge
             // cache in front of a dev server, so it costs nothing here.
@@ -229,11 +235,14 @@ function boardEndpoints(): Plugin {
             };
             const countingMode = modeAsked(sent.mode);
             const tally = countingMode === 'survive' ? readSurviveTally(sent.innings)
-              : countingMode === 'marathon' ? readMarathonTally(sent.innings) : readBlastTally(sent.innings);
+              : countingMode === 'marathon' ? readMarathonTally(sent.innings)
+              : countingMode === 'super10' ? readSuper10Tally(sent.innings) : readBlastTally(sent.innings);
             const counted = countingMode === 'survive'
               ? await countInnings(careers.survive, SURVIVE_CAREER, { ...counting, tally: tally as ReturnType<typeof readSurviveTally> })
               : countingMode === 'marathon'
               ? await countInnings(careers.marathon, MARATHON_CAREER, { ...counting, tally: tally as ReturnType<typeof readMarathonTally> })
+              : countingMode === 'super10'
+              ? await countInnings(careers.super10, SUPER10_CAREER, { ...counting, tally: tally as ReturnType<typeof readSuper10Tally> })
               : await countInnings(careers.classic, BLAST_CAREER, { ...counting, tally: tally as ReturnType<typeof readBlastTally> });
             if (refusedCareer(counted)) return send(counted.status, { error: counted.reason });
             // What `api/innings.ts` does with a counted innings, over memory.
@@ -328,11 +337,13 @@ function boardEndpoints(): Plugin {
             if (player !== null) {
               if (!isPlayerId(player)) return send(400, { error: 'That is not a player.' });
               if (mode === 'marathon') return send(200, await readMarathonStanding(marathon, player), 'private, no-store');
+              if (mode === 'super10') return send(200, await readStanding(boards['super10:'], SUPER10_LADDER, player), 'private, no-store');
               return send(200, survive
                 ? await readStanding(boards['survive:'], SURVIVE_LADDER, player)
                 : await readStanding(boards[''], CLASSIC_LADDER, player), 'private, no-store');
             }
             if (mode === 'marathon') return send(200, await readMarathon(marathon), 'public, s-maxage=10, stale-while-revalidate=59');
+            if (mode === 'super10') return send(200, await readBoard(boards['super10:'], SUPER10_LADDER), 'public, s-maxage=10, stale-while-revalidate=59');
             if (survive) {
               return send(200, await readBoard(boards['survive:'], SURVIVE_LADDER),
                 'public, s-maxage=10, stale-while-revalidate=59');
@@ -367,6 +378,20 @@ function boardEndpoints(): Plugin {
             const key = await keyOnClaim(recovery, foldName(cleanName(who.name)));
             await listOnClaim(recovery, { name: who.name, playerId: who.playerId });
             return send(200, key ? { ...taken, ...marathonExtras, key } : { ...taken, ...marathonExtras });
+          }
+          if (submitted === 'super10') {
+            // Super10's board and career, the way the deployed endpoint takes them.
+            const ten = readSuper10(body.innings);
+            const taken = await submitScore(boards['super10:'], SUPER10_LADDER, { ...who, innings: ten });
+            if (refused(taken)) return turnedDown(taken);
+            const tenExtras = await afterPost(profiles, {
+              playerId: who.playerId, name: who.name, avatar: who.avatar, mode: 'super10', runs: ten.runs, outcome: taken, chase: body.chase,
+            });
+            await nameCareer(careers.super10, SUPER10_CAREER, who.playerId, cleanName(who.name), who.avatar);
+            await carryKey(recovery, { from: body.previous, to: foldName(cleanName(who.name)), playerId: who.playerId });
+            const tenKey = await keyOnClaim(recovery, foldName(cleanName(who.name)));
+            await listOnClaim(recovery, { name: who.name, playerId: who.playerId });
+            return send(200, tenKey ? { ...taken, ...tenExtras, key: tenKey } : { ...taken, ...tenExtras });
           }
           const asked = submitted === 'survive';
           const played = asked ? surviveFigures(body.innings) : figures(body.innings);

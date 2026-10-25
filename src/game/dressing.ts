@@ -1,4 +1,4 @@
-import type { BlastCareer, CareerMode, MarathonCareer, SurviveCareer } from './career';
+import type { BlastCareer, CareerMode, MarathonCareer, Super10Career, SurviveCareer } from './career';
 import { TIERS, tierMeasure } from './tier';
 
 /**
@@ -88,7 +88,7 @@ export const outfitOf = (id: string | null | undefined): Outfit => OUTFITS.find(
 export const batOf = (id: string | null | undefined): BatSkin => BATS.find(b => b.id === id) ?? BATS.find(b => b.id === FREE_BAT)!;
 
 /** The game a step is played in, for the key under the list. */
-export type StepMode = 'blast' | 'survival' | 'marathon' | 'rivals';
+export type StepMode = 'blast' | 'survival' | 'marathon' | 'super10' | 'rivals';
 
 /**
  * One line of what an item takes. `best`: `now` is the best score so far, for
@@ -99,7 +99,7 @@ export interface Step { text: string; now: number; of: number; best?: true; mode
 
 /** Everything an unlock is read off. */
 export interface DressingRecord {
-  careers: { classic: BlastCareer; survive: SurviveCareer; marathon: MarathonCareer };
+  careers: { classic: BlastCareer; survive: SurviveCareer; marathon: MarathonCareer; super10: Super10Career };
   /** Rival Matches won, and how many different players were beaten in them. */
   rivals: { won: number; beaten: number };
   /**
@@ -118,16 +118,17 @@ export interface DressingRecord {
   waiting?: readonly string[];
 }
 
+/** The modes a Dressing Room goal can be set in: Super10's kits are its own (`super10-kits.ts`), and its runs, sixes and innings count toward the rest below. */
 const MODES: readonly CareerMode[] = ['classic', 'survive', 'marathon'];
-const STEP_MODE: Record<CareerMode, StepMode> = { classic: 'blast', survive: 'survival', marathon: 'marathon' };
-const MODE_NAME: Record<CareerMode, string> = { classic: 'the Blast', survive: 'Test Survival', marathon: 'Test Marathon' };
+const STEP_MODE: Record<CareerMode, StepMode> = { classic: 'blast', survive: 'survival', marathon: 'marathon', super10: 'super10' };
+const MODE_NAME: Record<CareerMode, string> = { classic: 'the Blast', survive: 'Test Survival', marathon: 'Test Marathon', super10: 'Super10' };
 const at = (key: string, mode: CareerMode) => TIERS.find(t => t.key === key)!.at[mode];
 const measure = (r: DressingRecord, mode: CareerMode) => Math.max(0, Math.floor(tierMeasure(mode, r.careers[mode])));
 /** How far past launch a mode's figure has come. */
 const since = (r: DressingRecord, mode: CareerMode) => Math.max(0, measure(r, mode) - Math.max(0, r.launch[mode] ?? 0));
-const innings = (r: DressingRecord) => r.careers.classic.innings + r.careers.survive.innings + r.careers.marathon.innings;
-const sixes = (r: DressingRecord) => r.careers.classic.sixes + r.careers.survive.sixes + r.careers.marathon.sixes;
-const runs = (r: DressingRecord) => r.careers.classic.runs + r.careers.survive.runs + r.careers.marathon.runs;
+const innings = (r: DressingRecord) => r.careers.classic.innings + r.careers.survive.innings + r.careers.marathon.innings + r.careers.super10.innings;
+const sixes = (r: DressingRecord) => r.careers.classic.sixes + r.careers.survive.sixes + r.careers.marathon.sixes + r.careers.super10.sixes;
+const runs = (r: DressingRecord) => r.careers.classic.runs + r.careers.survive.runs + r.careers.marathon.runs + r.careers.super10.runs;
 
 export const done = (s: Step) => s.now >= s.of;
 /** How far along a list is, all its lines together, nought to one. */

@@ -1651,11 +1651,30 @@ The pause sheet has no field map: it was there, drawn solid, and was taken out
 (`super10-check` holds that). The design's assets could not be
 downloaded into this build, so the bolt and the rings are drawn in code.
 
-What is not here yet: the boards and the career. Until it has a board, an innings of it is practice
-(`practising`): posted nowhere, counted toward nothing, and the card, headed
-SUPER10 · 10 OVERS with no best quoted, says the mode is still being built
-whatever the innings was worth (`why: 'building'` on the practice offer).
-It is reached by `?mode=super10` off production only (`SUPER10_OPEN`).
+Super10 is a mode of its own on the boards and in the careers, as the
+Blast, the Marathon and Survival are (`CareerMode` and `BoardMode`
+`'super10'`, `modeAsked` names it on the server, which took anything it did
+not know for the Blast). Its board (`src/game/super10-board.ts`,
+`SUPER10_LADDER`, keys under `super10:`) ranks each player's best team total
+in one innings, then fewer wickets, then more sixes, then whoever got there
+first, as the designer set it (`packSuper10`, its own packed key: the
+Blast's is sized to thirty balls and full). Its career (`Super10Career`,
+`SUPER10_CAREER`, keys under `super10career:`) adds up innings, runs, sixes
+and fours, and counts the team totals of a hundred and two hundred, which
+the kits are earned on; its one career board is Runs. Its own tier ladder
+reads career runs: 750, 7,500 and, set by the designer for limited overs,
+25,000 (`TIERS`' `super10`). A named player's innings is posted by itself
+and counted, as every mode's is; the end card's rank hero, the Leaderboard's
+Super10 tab (`super10Body` in `Board.ts`, `showSuper10Board`, shown where
+Super10 can be played, `showSuper10Tab`), My Stats' figures
+(`super10Facts`), profiles and chases all carry it, and the year recap
+counts it. It keeps its own best in the browser (`hitman-best-super10`), so
+a Super10 total never moves the Blast's. It has no star prompt yet. The
+Pages tester build (`SUPER10_ONLY`) keeps nothing and its innings are
+practice, the card saying the mode is still being built. Super10 is still
+reached by `?mode=super10` off production only (`SUPER10_OPEN`).
+`scripts/super10-post-check.mjs` follows a named player's innings onto its
+board and career and checks the Blast's are untouched.
 
 The card is the Blast's in the brand's colours (`endSuper10` in the HUD,
 `is-super10` on `#end`, its rules at the foot of `src/super10.css`): the band

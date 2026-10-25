@@ -1,7 +1,7 @@
 import { ownsHandle } from '../game/handle';
 import {
-  BLAST_BOARDS, MARATHON_BOARDS, SURVIVE_BOARDS,
-  type BlastCareer, type CareerBoard, type CareerMode, type MarathonCareer, type SurviveCareer,
+  BLAST_BOARDS, MARATHON_BOARDS, SUPER10_BOARDS, SURVIVE_BOARDS,
+  type BlastCareer, type CareerBoard, type CareerMode, type MarathonCareer, type Super10Career, type SurviveCareer,
 } from '../game/career';
 import type { CareerRow } from '../game/career-api';
 import { escape, kitMarkup, sheetKeys } from './Leaderboard';
@@ -28,11 +28,11 @@ import { escape, kitMarkup, sheetKeys } from './Leaderboard';
  * union is only ever carried, never inspected, which is why one screen can draw
  * seven ladders over two different records.
  */
-export type AnyCareer = BlastCareer | SurviveCareer | MarathonCareer;
+export type AnyCareer = BlastCareer | SurviveCareer | MarathonCareer | Super10Career;
 
 /** A mode's career ladders. */
 function boardsOf(mode: CareerMode): readonly CareerBoard<AnyCareer>[] {
-  return (mode === 'survive' ? SURVIVE_BOARDS : mode === 'marathon' ? MARATHON_BOARDS : BLAST_BOARDS) as readonly CareerBoard<AnyCareer>[];
+  return (mode === 'survive' ? SURVIVE_BOARDS : mode === 'marathon' ? MARATHON_BOARDS : mode === 'super10' ? SUPER10_BOARDS : BLAST_BOARDS) as readonly CareerBoard<AnyCareer>[];
 }
 
 /**

@@ -8,7 +8,7 @@ const profile = (over: Partial<ProfilePayload['modes']> = {}): ProfilePayload =>
   handle: '0123456789abcdef', name: 'Kabir', avatar: 1, bio: 'Leg-side bully.', lastAt: null,
   modes: {
     classic: { career: { ...emptyBlast(), innings: 64, runs: 6210, highest: 187 }, granted: null, best: { runs: 187, place: 4, total: 900 }, bestRank: 3 },
-    survive: none, marathon: none, ...over,
+    survive: none, marathon: none, super10: none, ...over,
   },
 });
 const seed = { handle: '0123456789abcdef', name: 'Kabir', avatar: 1, mode: 'classic' as const, place: 4, best: 180 };

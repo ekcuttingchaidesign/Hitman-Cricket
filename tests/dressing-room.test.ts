@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { emptyBlast, emptyMarathon, emptySurvive } from '../src/game/career';
+import { emptyBlast, emptyMarathon, emptySuper10, emptySurvive } from '../src/game/career';
 import { dressingMarkup, footMarkup, shelfMarkup, type DressingView } from '../src/ui/DressingRoom';
 
 const view = (patch: Partial<DressingView> = {}): DressingView => ({
   shelf: 'kit', kit: 'home', bat: 'boom', guard: 'sterling', wearing: 'home', holding: 'boom', wearingGuard: 'sterling', pictures: {},
   record: {
-    careers: { classic: { ...emptyBlast(), sixes: 182, highest: 112 }, survive: { ...emptySurvive(), wins: 18 }, marathon: { ...emptyMarathon(), highest: 142 } },
-    rivals: { won: 0, beaten: 0 }, launch: { classic: 0, survive: 0, marathon: 0 }, welcomed: true,
+    careers: { classic: { ...emptyBlast(), sixes: 182, highest: 112 }, survive: { ...emptySurvive(), wins: 18 }, marathon: { ...emptyMarathon(), highest: 142 }, super10: emptySuper10() },
+    rivals: { won: 0, beaten: 0 }, launch: { classic: 0, survive: 0, marathon: 0, super10: 0 }, welcomed: true,
   },
   ...patch,
 });

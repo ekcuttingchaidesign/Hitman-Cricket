@@ -1,6 +1,8 @@
 import { ownsHandle } from '../game/handle';
 import { AVATARS, avatarSrc, kitColour, kitName } from '../config/board';
 import { GAME } from '../config/gameplay';
+import { SUPER10_BOARD_SIZE, packSuper10, type Super10Innings } from '../game/super10-board';
+import type { Super10Row } from '../game/board-api';
 import {
   BOARD_SIZE, decidedBy, improvesOn, packScore, qualifies, type BoardRow, type Innings, type LadderKey,
 } from '../game/leaderboard';
@@ -110,11 +112,12 @@ export const BOARD_TABS = [
   { tab: 'classic', id: 'board-tab-classic', name: 'The Blast' },
   { tab: 'survive', id: 'board-tab-survive', name: 'Test Survival' },
   { tab: 'marathon', id: 'board-tab-marathon', name: 'Test Marathon' },
+  { tab: 'super10', id: 'board-tab-super10', name: 'Super10' },
   { tab: 'mine', id: 'board-tab-mine', name: 'My Stats' },
 ] as const;
 
 /** One of the two games. Everything that reads a career is keyed on this. */
-export type BoardTab = 'classic' | 'survive';
+export type BoardTab = 'classic' | 'survive' | 'super10';
 
 /**
  * What the sheet is showing at the top level: one of the two games, or the
@@ -506,6 +509,24 @@ export function cardOffer(
   if (!yours.runs || !qualifies(yours, atMs, rows)) return { kind: 'silent' };
   return { kind: 'claim', place: placeOf(rows, yours, atMs) };
 }
+
+/**
+ * The same offer for a Super10 innings, against its own board's rows and its
+ * own ranking (`packSuper10`): best total, then fewer wickets, then more sixes.
+ */
+export function super10Offer(
+  reached: boolean, rows: readonly Super10Row[], yours: Super10Innings, atMs: number, youId: string | null = null,
+): CardOffer {
+  if (!reached) return { kind: 'silent' };
+  const score = packSuper10(yours, atMs);
+  const mine = youId ? rows.findIndex(row => ownsHandle(row.handle, youId)) : -1;
+  if (mine >= 0 && score <= rows[mine].score) return { kind: 'standing', runs: rows[mine].runs, place: mine + 1 };
+  if (!yours.runs || (rows.length >= SUPER10_BOARD_SIZE && score <= rows[SUPER10_BOARD_SIZE - 1].score)) return { kind: 'silent' };
+  return { kind: 'claim', place: rows.filter(row => row.score > score).length + 1 };
+}
+
+/** A Super10 row in the Blast row's shape, for the strip's peek, which draws a total and a name. */
+export const super10AsBoardRow = (row: Super10Row): BoardRow => ({ ...row, dots: 0 });
 
 /**
  * The three rows around the row a player already holds, for the standing state.

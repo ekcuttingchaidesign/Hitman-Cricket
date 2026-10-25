@@ -1,5 +1,5 @@
 import { kitColour, avatarSrc } from '../config/board';
-import { DOUBLE, FIFTY, HUNDRED, runsPerInnings, survivals, type BlastCareer, type CareerMode, type MarathonCareer, type SurviveCareer } from './career';
+import { DOUBLE, FIFTY, HUNDRED, runsPerInnings, survivals, type BlastCareer, type CareerMode, type MarathonCareer, type Super10Career, type SurviveCareer } from './career';
 import { cardTheme, nextLine, standingOf, type Granted, type Standing, type Theme, type Tier } from './tier';
 
 /**
@@ -167,6 +167,28 @@ export function surviveFacts(career: SurviveCareer): Pick<StatsFacts, 'hero' | '
 }
 
 /**
+ * A Super10 career: the best team total and the runs its tier is read off,
+ * then what ten overs are made of. A hundred is a team total of a hundred, as
+ * its kits count it.
+ */
+export function super10Facts(career: Super10Career): Pick<StatsFacts, 'hero' | 'figures'> {
+  return {
+    hero: [
+      { label: 'Highest', value: career.highest },
+      { label: 'Runs', value: career.runs },
+    ],
+    figures: [
+      { label: 'Innings', value: career.innings },
+      { label: 'Per inns', value: runsPerInnings(career) },
+      { label: 'Sixes', value: career.sixes },
+      { label: 'Fours', value: career.fours },
+      { label: '100+ totals', value: career.hundreds },
+      { label: '200+ totals', value: career.doubles },
+    ],
+  };
+}
+
+/**
  * A Test Marathon career: the biggest total and the most one batter made,
  * then what a long innings is made of (`docs/MARATHON.md`, My Stats). Runs per
  * innings rather than an average: see `MarathonCareer`.
@@ -193,19 +215,21 @@ const SHARE_LINES: Record<CareerMode, string> = {
   classic: 'Five overs. Three wickets. Beat my numbers.',
   survive: 'Ten overs. One wicket. Last longer than me.',
   marathon: 'Three batters. All day. Beat my total.',
+  super10: 'Ten overs. Five wickets. Beat my total.',
 };
 
 /** What each mode is called on its card. */
-const MODE_NAMES: Record<CareerMode, string> = { classic: 'The Blast', survive: 'Test Survival', marathon: 'Test Marathon' };
+const MODE_NAMES: Record<CareerMode, string> = { classic: 'The Blast', survive: 'Test Survival', marathon: 'Test Marathon', super10: 'Super10' };
 
 export function statsFacts(
   mode: CareerMode,
-  career: BlastCareer | SurviveCareer | MarathonCareer,
+  career: BlastCareer | SurviveCareer | MarathonCareer | Super10Career,
   who: { name: string; avatar: number; granted?: Granted | null },
   standing: string | null = null,
 ): StatsFacts {
   const split = mode === 'survive' ? surviveFacts(career as SurviveCareer)
     : mode === 'marathon' ? marathonFacts(career as MarathonCareer)
+    : mode === 'super10' ? super10Facts(career as Super10Career)
     : blastFacts(career as BlastCareer);
   const ladder = standingOf(mode, career, who.granted ?? null);
   return {

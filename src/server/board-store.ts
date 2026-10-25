@@ -7,6 +7,7 @@ import {
   type MarathonFigures, type SoloInnings, type TeamInnings,
 } from '../game/marathon-board.js';
 import { MARATHON } from '../config/marathon.js';
+import { SUPER10_BOARD_SIZE, packSuper10, super10Plausible, type Super10Innings } from '../game/super10-board.js';
 import {
   nameProblem, renameReason, RENAME_WINDOW_MS, siblingBase, siblingReason, SIBLING_WINDOW_MS,
 } from './name-rules.js';
@@ -108,6 +109,15 @@ export const MARATHON_SOLO_LADDER: Ladder<SoloInnings> = {
     && i.order >= 1 && i.order <= MARATHON.batters,
   scope: 'marathonone:',
   figures: from => ({ runs: from.runs, balls: from.balls, out: from.out, order: from.order, left: from.left }),
+};
+
+/** Super10's board: the best team total, then fewer wickets, then more sixes (`super10-board.ts`). */
+export const SUPER10_LADDER: Ladder<Super10Innings> = {
+  size: SUPER10_BOARD_SIZE,
+  pack: packSuper10,
+  plausible: super10Plausible,
+  scope: 'super10:',
+  figures: from => ({ runs: from.runs, balls: from.balls, wickets: from.wickets, fours: from.fours, sixes: from.sixes }),
 };
 
 /** A row as it is kept: the figures that board ranks, plus who owns them and when. */

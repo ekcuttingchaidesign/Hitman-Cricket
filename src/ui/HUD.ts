@@ -48,7 +48,7 @@ import {
   passwordSheetMarkup, ruleStates, type NudgeFigures, type PasswordEntry, type PasswordMode, type PasswordSheetView,
 } from './Password';
 import {
-  BOARD_MODES, MODE_ORDER, NO_CONTEXT, blastBody, blurbOf, boardScreenMarkup, careerBody, ladderSheetMarkup, marathonBody, menuRank,
+  BOARD_MODES, MODE_ORDER, NO_CONTEXT, blastBody, blurbOf, boardScreenMarkup, careerBody, ladderSheetMarkup, marathonBody, menuRank, super10Body,
   modeMenuMarkup, rulesSheetMarkup, surviveBody, type BoardBody, type BoardContext, type BoardMode, type BoardScreen,
 } from './Board';
 import { battingCardMarkup, battingOf, injuryRingMarkup, injuryWord, overChartMarkup, super10ChartMarkup, wormChartMarkup } from './EndCard';
@@ -84,6 +84,8 @@ const NETS_LABEL: Record<NetsBowler, string> = { PACE: 'PACE', SWING: 'SWING', S
 import { HEALTH, SURVIVE } from '../config/survive';
 import { BATTERS, type LevelBanner } from '../config/marathon';
 import { BATTERS as SUPER10_BATTERS } from '../config/super10';
+import type { BoardState, Super10Row } from '../game/board-api';
+import type { Super10Innings } from '../game/super10-board';
 import { resultOf, type Result } from '../game/Survive';
 import type { SoundSetting } from '../game/Audio';
 import type { CareerMode } from '../game/career';
@@ -704,6 +706,11 @@ ${super10PageMarkup(excitedAlready())}
     this.drawBoard('survive', 'best', ctx => surviveBody(view.rows, view.youId ?? null, view.yours ?? null, ctx, view.atMs), view.state ?? 'ready', !!view.actions);
   }
 
+  /** Super10's board: the best team totals, each with its wickets and sixes. */
+  super10Board(view: { rows: readonly Super10Row[]; youId?: string | null; yours?: Super10Innings | null; atMs?: number; state?: BoardState; actions?: boolean }) {
+    this.drawBoard('super10', 'best', ctx => super10Body(view.rows, view.youId ?? null, view.yours ?? null, ctx, view.atMs), view.state ?? 'ready', !!view.actions);
+  }
+
   /** A career board: one big figure a row, and the rest under the name. */
   careerBoard(view: CareerBoardView & { actions?: boolean }) {
     this.drawBoard(view.mode, view.board.key, ctx => careerBody(view.board, view.rows, view.youId ?? null, ctx, view.size), view.state ?? 'ready', !!view.actions);
@@ -742,7 +749,7 @@ ${super10PageMarkup(excitedAlready())}
   /** The modes this build plays, in the pager's order, and always the one on screen. */
   private boardModes(current: BoardMode): BoardMode[] {
     return MODE_ORDER.filter(mode => mode === current
-      || (mode === 'marathon' ? this.marathonTab : this.bothModes || mode === this.lastGame));
+      || (mode === 'marathon' ? this.marathonTab : mode === 'super10' ? this.super10Tab : this.bothModes || mode === this.lastGame));
   }
 
   private drawBoard(
@@ -2058,6 +2065,9 @@ ${super10PageMarkup(excitedAlready())}
    */
   private marathonTab = false;
   showMarathonTab(on: boolean) { this.marathonTab = on; }
+  /** Super10's tab, where the mode can be reached (`SUPER10_OPEN`). */
+  private super10Tab = false;
+  showSuper10Tab(on: boolean) { this.super10Tab = on; }
   /** What a tab does. The game decides, because the rows are the game's. */
   onBoardTab: ((tab: SheetTab) => void) | null = null;
   /** What the sheet's What's New key does. */
@@ -2109,6 +2119,7 @@ ${super10PageMarkup(excitedAlready())}
       // that plays one of the other two takes the other one's tab off the row,
       // keeping the game it plays wherever the player is standing.
       if (other.tab === 'marathon' ? !this.marathonTab
+        : other.tab === 'super10' ? !this.super10Tab
         : other.tab !== 'mine' && !this.bothModes && other.tab !== this.lastGame) { key.remove(); continue; }
       key.onclick = () => { if (other.tab !== tab) this.onBoardTab?.(other.tab); };
     }

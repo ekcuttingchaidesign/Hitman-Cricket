@@ -19,7 +19,7 @@ import type { Tally } from './tally.js';
  * (`upstashPlayers` in `upstash.ts`) with nothing in between.
  */
 
-export type ProfileMode = 'classic' | 'survive' | 'marathon';
+export type ProfileMode = 'classic' | 'survive' | 'marathon' | 'super10';
 
 /** One thing another player did to this one. */
 export interface ActivityEvent {

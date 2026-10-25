@@ -9,8 +9,9 @@
  * five bowlers coming on over by over in the schedule's order — each with his
  * own action at the top of his mark, the death bowler's above all — the speed
  * gun on every ball, the next batter named as he walks out after a wicket, and
- * the card at the end headed SUPER10 and saying it does not count yet, with
- * nothing sent to a board or a career: Super10 has neither yet. And the field
+ * the card at the end headed SUPER10, and the innings not practice: Super10
+ * has a board and a career (`super10-post-check.mjs` follows a named player's
+ * innings onto them). And the field
  * and its two corners: the map in the bottom right with a dot a man and the
  * batter in the map's own colours, enlarged by a tap and put back, each
  * over's field from the field book set for its bowler, its men stood on their
@@ -83,7 +84,7 @@ await page.locator('#start').click({ force: true });
 // In small steps: the opener is named only until the first ball is bowled.
 const first = await until(['READY'], 800, 16);
 check(first.super10 !== null, '?mode=super10 starts a Super10 innings', JSON.stringify(first.super10));
-check(first.super10?.practising === true, 'and it is counted as practice until it has a board');
+check(first.super10?.practising === false, 'and it is not practice: Super10 has a board and a career now');
 check(first.look?.startsWith('s10-purple/') && first.shirt === '10', 'the opener bats in the purple kit with 10 on his back', `${first.look} ${first.shirt}`);
 check(/^s10-/.test(first.fieldingKit ?? '') && first.fieldingKit !== 's10-purple', "and the side in the field in another team's", first.fieldingKit);
 const opener = await page.locator('#phase-label').textContent();
@@ -229,7 +230,7 @@ const card = await page.locator('#end').textContent().catch(() => '');
 const heading = `${await page.locator('#end-mode').textContent()} · ${await page.locator('#end-label').textContent()}`;
 check(heading === 'SUPER10 · 10 OVERS', 'the card is headed SUPER10 · 10 OVERS', heading);
 const note = (await page.locator('#card-board-head').textContent()) ?? '';
-check(/still being built/i.test(note), 'and says Super10 does not count yet', note);
+check(!/still being built/i.test(note), 'and no longer says Super10 does not count', note);
 check(!/best stands/i.test(card ?? ''), 'and quotes no Blast best on it');
 // Its own card: the Blast's in Super10's colours, ten overs charted with the
 // surge's over marked, and the Marathon's batting card, a row a man who came in.
@@ -247,7 +248,7 @@ check(drawn.shown && drawn.rows.length === final.wickets + (final.wickets < 5 ? 
   'and a batting card under it, a row for each man who came in', drawn.rows.join(' · '));
 check(drawn.balls === final.balls, 'whose balls add up to the innings\'', `${drawn.balls} of ${final.balls}`);
 await page.locator('#end .ec-content').screenshot({ path: 'test-results/super10-card.png' }).catch(() => {});
-check(sent.length === 0, 'nothing is sent to a board or a career', sent.join(', '));
+check(sent.every(path => path === '/api/score' || path === '/api/innings'), 'what it sends goes to the board and the career (super10-post-check.mjs follows it there)', sent.join(', '));
 
 // A first Super10 in this browser opens with the field map's card, once.
 for (const time of ['first', 'second']) {

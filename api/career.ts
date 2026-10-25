@@ -4,7 +4,8 @@ import { CAREER_BOARD_SIZE, readCareer, readCareerBoards } from '../src/server/c
 import { NoDatabase, redisFromEnv, upstashCareer } from '../src/server/upstash.js';
 import { cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 import {
-  BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, type BlastCareer, type MarathonCareer, type SurviveCareer,
+  BLAST_CAREER, MARATHON_CAREER, SUPER10_CAREER, SURVIVE_CAREER, type BlastCareer, type MarathonCareer,
+  type Super10Career, type SurviveCareer,
 } from '../src/game/career.js';
 import { modeAsked } from '../src/server/mode.js';
 
@@ -47,6 +48,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         ? await readCareer(upstashCareer<SurviveCareer>(redis, SURVIVE_CAREER.scope), SURVIVE_CAREER, player)
         : mode === 'marathon'
         ? await readCareer(upstashCareer<MarathonCareer>(redis, MARATHON_CAREER.scope), MARATHON_CAREER, player)
+        : mode === 'super10'
+        ? await readCareer(upstashCareer<Super10Career>(redis, SUPER10_CAREER.scope), SUPER10_CAREER, player)
         : await readCareer(upstashCareer<BlastCareer>(redis, BLAST_CAREER.scope), BLAST_CAREER, player);
       res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json(mine);
@@ -55,6 +58,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       ? await readCareerBoards(upstashCareer<SurviveCareer>(redis, SURVIVE_CAREER.scope), SURVIVE_CAREER)
       : mode === 'marathon'
       ? await readCareerBoards(upstashCareer<MarathonCareer>(redis, MARATHON_CAREER.scope), MARATHON_CAREER)
+      : mode === 'super10'
+      ? await readCareerBoards(upstashCareer<Super10Career>(redis, SUPER10_CAREER.scope), SUPER10_CAREER)
       : await readCareerBoards(upstashCareer<BlastCareer>(redis, BLAST_CAREER.scope), BLAST_CAREER);
     // Five minutes of edge cache, then an hour where a stale set of boards is
     // served while a fresh one is fetched behind it. An all-time total five

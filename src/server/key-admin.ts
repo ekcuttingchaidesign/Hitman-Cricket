@@ -85,7 +85,7 @@ export async function resetKey(
 export async function inningsOf(
   read: (field: string, id: string) => Promise<unknown>, scope: string, id: string,
 ): Promise<Record<string, number>> {
-  const careers: Record<string, string> = { blast: 'blast:', survival: 'survivecareer:', marathon: 'marathoncareer:' };
+  const careers: Record<string, string> = { blast: 'blast:', survival: 'survivecareer:', marathon: 'marathoncareer:', super10: 'super10career:' };
   const counted: Record<string, number> = {};
   for (const [mode, prefix] of Object.entries(careers)) {
     const record = await read(`${scope}${prefix}careers`, id).catch(() => null) as { career?: { innings?: unknown } } | null;

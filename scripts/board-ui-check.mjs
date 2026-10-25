@@ -68,7 +68,8 @@ const open = async page => {
     'with the mode and the ladder as pills');
   check(await page.locator('.lb-step:not(.is-open)').count() === 3 && await page.locator('.lb-crown').count() === 1, 'a podium of three, the crown on the first');
   check(await page.locator('.lb-list .lb-row').count() >= 40, 'and the rest in the list', String(await page.locator('.lb-list .lb-row').count()));
-  check(await page.locator('.lb-pager i').count() === 3, 'the pager shows three modes');
+  // Four off production, where Super10 can be played and has its board; three on it.
+  check(await page.locator('.lb-pager i').count() === 4, 'the pager shows four modes, Super10 the fourth');
   check((await page.locator('#board-play').innerText()).trim() === 'PLAY THE BLAST', 'the key at the foot plays the Blast', await page.locator('#board-play').innerText());
   await page.screenshot({ path: 'test-results/board/blast.png' });
 
@@ -79,7 +80,7 @@ const open = async page => {
 
   await page.locator('#board-mode').click();
   await page.waitForTimeout(300);
-  check(await page.locator('#board-mode-menu .lb-menu-item').count() === 3, 'the mode pill opens a menu of the three');
+  check(await page.locator('#board-mode-menu .lb-menu-item').count() === 4, 'the mode pill opens a menu of the four');
   await page.screenshot({ path: 'test-results/board/mode-menu.png' });
   await page.locator('[data-mode="marathon"]').click();
   await page.waitForTimeout(900);

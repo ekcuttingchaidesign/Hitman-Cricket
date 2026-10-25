@@ -1,5 +1,5 @@
-import type { BlastCareer, CareerMode, MarathonCareer, MarathonTally, SurviveCareer, SurviveTally } from './career';
-import { emptyBlast, emptyMarathon, emptySurvive } from './career';
+import type { BlastCareer, CareerMode, MarathonCareer, MarathonTally, Super10Career, Super10Tally, SurviveCareer, SurviveTally } from './career';
+import { emptyBlast, emptyMarathon, emptySuper10, emptySurvive } from './career';
 import type { Innings } from './leaderboard';
 
 /**
@@ -51,7 +51,7 @@ export interface MyCareer<C> {
   granted?: { key: string; reason: string } | null;
 }
 
-type AnyCareer = BlastCareer | SurviveCareer | MarathonCareer;
+type AnyCareer = BlastCareer | SurviveCareer | MarathonCareer | Super10Career;
 
 const cached: Partial<Record<CareerMode, { at: number; payload: CareerBoards<AnyCareer> }>> = {};
 
@@ -82,7 +82,7 @@ export function mintNonce(): string {
  * the name is theirs, so sending one here can never take somebody else's.
  */
 export async function countInnings<C extends AnyCareer>(
-  playerId: string, mode: CareerMode, innings: Innings | SurviveTally | MarathonTally,
+  playerId: string, mode: CareerMode, innings: Innings | SurviveTally | MarathonTally | Super10Tally,
   who: { name: string; avatar: number } | null, nonce: string,
   /** What the innings was played in, for the year recap; the store checks it against the shelves. */
   look: { kit: string; bat: string } | null = null,
@@ -144,7 +144,7 @@ export async function fetchCareerBoards<C extends AnyCareer>(
 }
 
 /** Throws away the boards held from last time, so the next open asks again. */
-export function forgetCareer() { delete cached.classic; delete cached.survive; delete cached.marathon; }
+export function forgetCareer() { delete cached.classic; delete cached.survive; delete cached.marathon; delete cached.super10; }
 
 /**
  * What this browser last saw of its own career, or an empty one.
@@ -154,7 +154,7 @@ export function forgetCareer() { delete cached.classic; delete cached.survive; d
  * will not parse is treated as no mirror rather than repaired.
  */
 export function heldCareer(mode: CareerMode): AnyCareer {
-  const blank = mode === 'survive' ? emptySurvive() : mode === 'marathon' ? emptyMarathon() : emptyBlast();
+  const blank = mode === 'survive' ? emptySurvive() : mode === 'marathon' ? emptyMarathon() : mode === 'super10' ? emptySuper10() : emptyBlast();
   try {
     const raw = localStorage.getItem(MIRROR_KEY);
     if (!raw) return blank;

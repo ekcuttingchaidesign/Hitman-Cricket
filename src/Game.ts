@@ -60,10 +60,11 @@ import { boundaryCheer, boundaryStreak, GROAN, HUSH, milestoneCheer, MURMUR, nea
 import { afterBall, disappointment, HABITS, outNearMilestone, PACES } from './game/afterBall';
 import type { AfterBall, CoverVersion, Hurt } from './entities/Batter';
 import {
-  chaseFor, claimName, fetchBoard, fetchMarathonBoard, fetchStanding, fetchSurviveBoard, forgetBoard, submitInnings, submitMarathon,
-  submitSurvive,
-  type BoardPayload, type SurvivePayload, type MarathonPayload, type SubmitResult,
+  chaseFor, claimName, fetchBoard, fetchMarathonBoard, fetchStanding, fetchSuper10Board, fetchSurviveBoard, forgetBoard, submitInnings,
+  submitMarathon, submitSuper10, submitSurvive,
+  type BoardPayload, type SurvivePayload, type MarathonPayload, type SubmitResult, type Super10Payload, type Super10Row,
 } from './game/board-api';
+import { super10From } from './game/super10-board';
 import {
   forgetPasswordKnown, markPasswordKnown, markProfileDone, onPlayerWritten, passwordKnown, profileDone,
   readHand, readPlayer, writeHand, writePlayer, type Hand,
@@ -72,7 +73,7 @@ import { leaveTicket } from './game/return-ticket';
 import {
   offerRestoreHere, restoreOfferDismissed, restoreOfferDone, restoreOfferShown,
 } from './game/restore-offer';
-import { cardOffer, type BoardTab, type CardOffer, type SheetTab } from './ui/Leaderboard';
+import { cardOffer, super10AsBoardRow, super10Offer, type BoardTab, type CardOffer, type SheetTab } from './ui/Leaderboard';
 import {
   bestStanding, careerBoardOf, placesOf, type AnyCareer, type LadderTab,
 } from './ui/CareerBoard';
@@ -83,7 +84,7 @@ import {
   countInnings, fetchCareerBoards, fetchMyCareer, forgetCareer, heldCareer, mintNonce,
   type CareerBoards, type CareerRow,
 } from './game/career-api';
-import { blastTally, emptyBlast, emptyMarathon, emptySurvive, type BlastTally, type CareerMode, type MarathonTally, type SurviveTally } from './game/career';
+import { blastTally, emptyBlast, emptyMarathon, emptySuper10, emptySurvive, type BlastTally, type CareerMode, type MarathonTally, type Super10Tally, type SurviveTally } from './game/career';
 import { demoBoard, demoCareers, demoMarathon, demoRivals, demoSurvive, demoWanted, fillMarathon, fillRivals } from './game/demo-board';
 import { forgetKey, keepKey, keyView, markKeySaved } from './game/recovery';
 import {
@@ -112,7 +113,7 @@ import type { ModeSelectView } from './ui/ModeSelect';
 import { RECENT_MS, coverParallax, type CoverBoard } from './ui/Cover';
 import { HEADLINE_MS, answeredBy, noteAnswered, readAnswered } from './game/answered';
 import { surviveLine as surviveResult } from './ui/SurviveBoard';
-import type { BlastCareer, MarathonCareer, SurviveCareer } from './game/career';
+import type { BlastCareer, MarathonCareer, Super10Career, SurviveCareer } from './game/career';
 import type { SurviveInnings } from './game/survive-board';
 import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
@@ -444,6 +445,11 @@ export class Game {
   /** The Test fifty, and whether that board has ever answered. Its own ladder. */
   private surviveRows: SurviveRow[] = [];
   private surviveSeen = false;
+  /** Super10's fifty, and whether that board has ever answered. Its own ladder: best team total. */
+  private super10Rows: Super10Row[] = [];
+  private super10Seen = false;
+  /** This browser's own best Super10 total, kept apart from the Blast's (`hitman-best-super10`). */
+  private super10Best = 0;
   /**
    * Whether the batter has been critical yet this innings, so the meter's own
    * lesson is shown once and the analytics count the innings rather than the
@@ -691,6 +697,7 @@ export class Game {
     // number, so while it is on, the board says so above the tabs.
     if (this.demo) document.documentElement.setAttribute('data-demo', '1');
     try { this.best = Math.max(0, Math.min(180, Number(localStorage.getItem('hitman-best')) || 0)); } catch { /* Storage may be disabled. */ }
+    try { this.super10Best = Math.max(0, Math.min(360, Number(localStorage.getItem('hitman-best-super10')) || 0)); } catch { /* Storage may be disabled. */ }
     this.hud = new HUD(root, this.best, { player: readPlayer() });
     // Super10's field on the screen, in the version this link asks for.
     this.fieldUi = new FieldUi(this.hud.viewport, { surge: () => this.armSurge() });
@@ -868,6 +875,8 @@ export class Game {
     // Both ladders exist, so the sheet carries a way between them.
     this.hud.showBoardTabs(SHOW_SURVIVE && !SURVIVE_ONLY);
     this.hud.showMarathonTab(MARATHON_OPEN);
+    // Super10's board where Super10 can be played, and never in the tester build, which keeps nothing.
+    this.hud.showSuper10Tab(SUPER10_OPEN && !SUPER10_ONLY);
     this.hud.onBoardTab = this.tabBoard;
     this.hud.onBoardStories = () => this.showStories('board');
     // OPEN THE DRESSING ROOM, on the last story: after the stories, the room,
@@ -1839,7 +1848,7 @@ export class Game {
   }
 
   /** Whose career the innings in play counts toward. */
-  private get careerMode(): CareerMode { return this.surviving ? 'survive' : this.marathoning ? 'marathon' : 'classic'; }
+  private get careerMode(): CareerMode { return this.surviving ? 'survive' : this.marathoning ? 'marathon' : this.super10 ? 'super10' : 'classic'; }
 
   /** My Stats, in whichever of its two presentations is on the screen. */
   private redrawStats() {
@@ -2412,14 +2421,20 @@ export class Game {
    * This innings was played with one of them. Not in a Rival Match, where
    * they do nothing: a match has to send its innings to finish.
    */
-  private get practising() { return (this.switches.length > 0 || this.super10) && !this.challenge.playing; }
+  /**
+   * Practice: an innings from a link carrying a switch that changes the game,
+   * and every innings of the Super10 tester build on GitHub Pages
+   * (`SUPER10_ONLY`), which keeps nothing. Super10 itself has a board and a
+   * career now, and counts everywhere else.
+   */
+  private get practising() { return (this.switches.length > 0 || (this.super10 && SUPER10_ONLY)) && !this.challenge.playing; }
   /**
    * What a card offers, once the innings is known to be practice or played in
    * a private window. An innings with nothing to offer stays quiet either way.
    */
   private shownOffer(offer: CardOffer): CardOffer {
-    // Super10 has no board yet, and says so whatever the innings was worth.
-    if (this.super10 && !this.challenge.playing) return { kind: 'practice', why: 'building' };
+    // The tester build's Super10 has no board, and says so whatever the innings was worth.
+    if (this.super10 && SUPER10_ONLY && !this.challenge.playing) return { kind: 'practice', why: 'building' };
     // An innings with nothing for the boards still offers a name to a player
     // who has none — not from a private window, which cannot keep one, nor
     // practice, nor a Rival Match, whose card is the match's.
@@ -3030,7 +3045,7 @@ export class Game {
     // other one is a tab away, and never the one they land on.
     this.boardActions = false;
     if (this.marathoning) return this.openMarathon(this.marathonLadder);
-    this.openBoard(this.surviving ? 'survive' : 'classic', 'best');
+    this.openBoard(this.surviving ? 'survive' : this.super10 ? 'super10' : 'classic', 'best');
   };
 
   /**
@@ -3076,7 +3091,9 @@ export class Game {
    */
   private rateThisInnings() {
     if (this.practising || this.demoing) return;
-    const mode: RatedMode = this.challenge.playing ? 'rivals' : this.careerMode;
+    // Super10 has no star prompt of its own yet (`NEW_MODES` in rating.ts).
+    if (this.careerMode === 'super10' && !this.challenge.playing) return;
+    const mode: RatedMode = this.challenge.playing ? 'rivals' : this.careerMode as Exclude<CareerMode, 'super10'>;
     const memory = counted(readMemory(), mode);
     writeMemory(memory);
     const ask = nextAsk(memory, {
@@ -3593,6 +3610,7 @@ export class Game {
     this.boardLadder = ladder;
     if (ladder !== 'best') return this.showCareerBoard(mode, ladder);
     if (mode === 'survive') this.showSurviveBoard();
+    else if (mode === 'super10') this.showSuper10Board();
     else this.showClassicBoard();
   }
 
@@ -3822,6 +3840,21 @@ export class Game {
       // back under the tab they just chose.
       if (!this.hud.boardOpen || this.sheetTab !== 'survive' || this.boardLadder !== 'best') return;
       this.hud.surviveBoard({ ...view, rows: this.surviveRows, state: payload ? 'ready' : 'offline' });
+    });
+  }
+
+  /** Super10's board: what was held goes up at once, and the fetch corrects it. */
+  private showSuper10Board() {
+    this.boardTab = 'super10';
+    this.boardLadder = 'best';
+    const mine = this.phase === 'INNINGS_END' && this.super10;
+    const view = { youId: this.player, yours: mine ? super10From(this.score) : null, actions: this.boardActions && mine };
+    this.hud.super10Board({ ...view, rows: this.super10Rows, state: this.super10Seen ? 'ready' : 'loading' });
+    void fetchSuper10Board().then(payload => {
+      if (this.disposed) return;
+      if (payload) { this.super10Seen = true; this.super10Rows = payload.rows; }
+      if (!this.hud.boardOpen || this.sheetTab !== 'super10' || this.boardLadder !== 'best') return;
+      this.hud.super10Board({ ...view, rows: this.super10Rows, state: payload ? 'ready' : 'offline' });
     });
   }
 
@@ -4507,6 +4540,7 @@ export class Game {
   }
 
   private offerBoard() {
+    if (this.super10) return this.offerSuper10();
     const played = asInnings(this.score);
     this.hud.cardNote = this.cardNoteFor(this.board, played.runs);
     const offer = cardOffer(this.boardSeen, this.board, played, Date.now(), this.player);
@@ -4514,6 +4548,15 @@ export class Game {
     // the strip is there to say what is being missed, and a two-run innings was
     // missing nothing.
     this.hud.offerClaim(this.postedOffer(offer), readPlayer(), this.board, played, this.player);
+    this.drawHero();
+  }
+
+  /** The same, asked of Super10's board and answered on Super10's card. */
+  private offerSuper10() {
+    const played = super10From(this.score);
+    this.hud.cardNote = this.cardNoteFor(this.super10Rows, played.runs);
+    const offer = super10Offer(this.super10Seen, this.super10Rows, played, Date.now(), this.player);
+    this.hud.offerClaim(this.postedOffer(offer), readPlayer(), this.super10Rows.map(super10AsBoardRow), asInnings(this.score), this.player);
     this.drawHero();
   }
 
@@ -4583,6 +4626,8 @@ export class Game {
       ? await submitMarathon(this.player, entry.name, entry.avatar, marathonFigures(this.marathon))
       : this.surviving
       ? await submitSurvive(this.player, entry.name, entry.avatar, this.survived())
+      : this.super10
+      ? await submitSuper10(this.player, entry.name, entry.avatar, super10From(this.score))
       : await submitInnings(this.player, entry.name, entry.avatar, asInnings(this.score));
     if (this.disposed) return;
     if (!result.ok) {
@@ -4622,6 +4667,12 @@ export class Game {
     this.hud.claimDone();
     // Each call answers with its own ladder's board; which one came back is
     // decided by which one was asked, so the mode is what reads it.
+    if (this.super10) {
+      if (result.board) { this.super10Seen = true; this.super10Rows = (result.board as Super10Payload).rows; }
+      this.boardActions = true;
+      this.offerFirstKey();
+      return this.openBoard('super10', 'best');
+    }
     if (this.surviving) {
       if (result.board) {
         // The rows the claim answered with are newer than anything a fetch
@@ -4760,6 +4811,8 @@ export class Game {
       ? submitMarathon(player, mine.name, mine.avatar, marathonFigures(this.marathon))
       : this.surviving
       ? submitSurvive(player, mine.name, mine.avatar, this.survived())
+      : this.super10
+      ? submitSuper10(player, mine.name, mine.avatar, super10From(this.score))
       : submitInnings(player, mine.name, mine.avatar, asInnings(this.score));
     this.postFor = { innings, result };
     return result;
@@ -4801,7 +4854,8 @@ export class Game {
       this.hud.rankHero(null, null);
       return;
     }
-    const rows: readonly (BoardRow | TeamRow | SurviveRow)[] = this.marathoning ? this.marathonShown?.team ?? [] : this.surviving ? this.surviveRows : this.board;
+    const rows: readonly (BoardRow | TeamRow | SurviveRow | Super10Row)[] = this.marathoning ? this.marathonShown?.team ?? []
+      : this.surviving ? this.surviveRows : this.super10 ? this.super10Rows : this.board;
     const own = rows.find(row => ownsHandle(row.handle, this.player)) ?? null;
     const survive = this.surviving ? this.survived() : null;
     const runs = this.marathoning && this.marathon ? marathonFigures(this.marathon).runs : survive ? survive.runs : asInnings(this.score).runs;
@@ -4883,6 +4937,9 @@ export class Game {
         this.surviveRows = (result.board as SurvivePayload).rows;
       }
       rows = this.surviveRows;
+    } else if (this.super10) {
+      if (result.board) { this.super10Seen = true; this.super10Rows = (result.board as Super10Payload).rows; }
+      rows = this.super10Rows;
     } else {
       if (result.board) {
         this.boardEpoch++;
@@ -4980,8 +5037,9 @@ export class Game {
     // The career's own tally, not the board's row: it carries what each batsman
     // made, which the six totals on a row cannot say. The Marathon's is the very
     // innings its boards are sent, every batter's figures with it.
-    const tally: BlastTally | SurviveTally | MarathonTally = this.marathon ? marathonFigures(this.marathon)
+    const tally: BlastTally | SurviveTally | MarathonTally | Super10Tally = this.marathon ? marathonFigures(this.marathon)
       : this.surviving ? { ...this.survived(), sixes: this.score.sixes, fours: this.score.fours }
+      : this.super10 ? super10From(this.score)
       : blastTally(this.score);
     const nonce = mintNonce();
     const innings = this.innings;
@@ -5258,9 +5316,14 @@ export class Game {
       this.offerSurvive();
       return;
     }
-    // Practice does not move this browser's own best either.
-    const record = !this.practising && this.score.runs > this.best;
-    if (!this.practising) {
+    // Practice does not move this browser's own best either. Super10 keeps a
+    // best of its own: ten overs and five wickets is not the Blast's innings.
+    const best = this.super10 ? this.super10Best : this.best;
+    const record = !this.practising && this.score.runs > best;
+    if (!this.practising && this.super10) {
+      this.super10Best = Math.max(this.super10Best, this.score.runs);
+      try { localStorage.setItem('hitman-best-super10', String(this.super10Best)); } catch { /* A session remains playable without persistence. */ }
+    } else if (!this.practising) {
       this.best = Math.max(this.best, this.score.runs);
       try { localStorage.setItem('hitman-best', String(this.best)); } catch { /* A session remains playable without persistence. */ }
     }
@@ -5300,6 +5363,16 @@ export class Game {
     // who play once play once.
     this.hud.offerFeedback({ card: true, cover: this.best > 0 });
     this.offerBoard();
+    // Super10's board, fresh, and the offer asked again once it is here, as the Marathon's is.
+    if (this.super10 && !this.practising) {
+      const innings = this.innings;
+      void fetchSuper10Board(true).then(payload => {
+        if (this.disposed || !payload || this.phase !== 'INNINGS_END' || this.innings !== innings) return;
+        this.super10Seen = true;
+        this.super10Rows = payload.rows;
+        if (!this.hud.claimOpen) this.offerSuper10();
+      });
+    }
   }
   /* ── The match room ────────────────────────────────────────────────── */
 
@@ -5802,14 +5875,21 @@ export class Game {
    */
   private dressingRecord(): DressingRecord {
     if (this.dressingPreview) return this.dressingPreview;
-    const careers = { classic: heldCareer('classic') as BlastCareer, survive: heldCareer('survive') as SurviveCareer, marathon: heldCareer('marathon') as MarathonCareer };
+    const careers = {
+      classic: heldCareer('classic') as BlastCareer, survive: heldCareer('survive') as SurviveCareer,
+      marathon: heldCareer('marathon') as MarathonCareer, super10: heldCareer('super10') as Super10Career,
+    };
     const wins = rivalryEntries().filter(one => one.outcome === 'W');
-    const now = { classic: tierMeasure('classic', careers.classic), survive: tierMeasure('survive', careers.survive), marathon: tierMeasure('marathon', careers.marathon) };
+    const now = {
+      classic: tierMeasure('classic', careers.classic), survive: tierMeasure('survive', careers.survive),
+      marathon: tierMeasure('marathon', careers.marathon), super10: tierMeasure('super10', careers.super10),
+    };
     const held = readDressing();
     const record: DressingRecord = {
       careers,
       rivals: { won: Math.max(wins.length, this.rooms?.record?.won ?? 0), beaten: new Set(wins.map(one => one.them.handle)).size },
-      launch: held.launch ?? now,
+      // Super10 arrived after the room, from nought for everybody, so its launch figure is nought.
+      launch: { ...(held.launch ?? now), super10: 0 },
       welcomed: held.seen.includes(seenKey('bat', WELCOME_BAT)),
     };
     // Earned and known, never shown: won before the room arrived, waiting there
@@ -6040,16 +6120,16 @@ function previewRecord(scenario: 'new' | 'half' | 'all'): DressingRecord {
     Object.assign(blast, { innings: 30, runs: 4000, balls: 2500, sixes: 182, highest: 112, hundreds: 1 });
     Object.assign(survive, { innings: 20, runs: 900, balls: 640, sixes: 20, wins: 18, draws: 1, losses: 1 });
     Object.assign(marathon, { innings: 6, runs: 900, balls: 1100, sixes: 10, highest: 142, hundreds: 1 });
-    return { careers: { classic: blast, survive, marathon }, rivals: { won: 3, beaten: 2 }, launch: { classic: 4000, survive: 640, marathon: 900 }, welcomed: true };
+    return { careers: { classic: blast, survive, marathon, super10: emptySuper10() }, rivals: { won: 3, beaten: 2 }, launch: { classic: 4000, survive: 640, marathon: 900, super10: 0 }, welcomed: true };
   }
   if (scenario === 'all') {
     Object.assign(blast, { innings: 400, runs: 19000, balls: 12000, sixes: 900, highest: 160, hundreds: 20 });
     Object.assign(survive, { innings: 120, runs: 9000, balls: 5400, sixes: 100, wins: 60, draws: 20, losses: 40 });
     Object.assign(marathon, { innings: 40, runs: 9500, balls: 12000, sixes: 60, highest: 230, hundreds: 12, doubles: 2 });
-    return { careers: { classic: blast, survive, marathon }, rivals: { won: 14, beaten: 7 }, launch: { classic: 0, survive: 0, marathon: 0 }, welcomed: true };
+    return { careers: { classic: blast, survive, marathon, super10: emptySuper10() }, rivals: { won: 14, beaten: 7 }, launch: { classic: 0, survive: 0, marathon: 0, super10: 0 }, welcomed: true };
   }
   // As a new player walks in: Boom waiting on the bat shelf for its key.
-  return { careers: { classic: blast, survive, marathon }, rivals: { won: 0, beaten: 0 }, launch: { classic: 0, survive: 0, marathon: 0 }, welcomed: false };
+  return { careers: { classic: blast, survive, marathon, super10: emptySuper10() }, rivals: { won: 0, beaten: 0 }, launch: { classic: 0, survive: 0, marathon: 0, super10: 0 }, welcomed: false };
 }
 /** `?actions=1`'s keys. */
 /** A `?actions=1` key: one of the things he does after a ball, or the retired-hurt fall. */
@@ -6083,9 +6163,9 @@ const FIREWORKS_MS = { special: 3000, milestone: 3600 } as const;
 const STAR_KEYS = new Set(['Enter', ' ', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
 /** The games by name, as the pause sheet's chip says them. */
 /** What a chase's moments and strip call each mode. */
-const CHASE_MODE_NAMES: Record<CareerMode, string> = { classic: 'The Blast', marathon: 'Test Marathon', survive: 'Test Survival' };
+const CHASE_MODE_NAMES: Record<CareerMode, string> = { classic: 'The Blast', marathon: 'Test Marathon', survive: 'Test Survival', super10: 'Super10' };
 /** The board's name as the rank hero's eyebrow says it. */
-const HERO_MODE: Record<CareerMode, string> = { classic: 'THE BLAST', marathon: 'TEST MARATHON', survive: 'TEST SURVIVAL' };
+const HERO_MODE: Record<CareerMode, string> = { classic: 'THE BLAST', marathon: 'TEST MARATHON', survive: 'TEST SURVIVAL', super10: 'SUPER10' };
 /** `?topspot=1`'s keys: New #1 in each board's colours. */
 const TOP_SPOT_KEYS: readonly { label: string; mode: CareerMode }[] = [
   { label: 'BLAST', mode: 'classic' }, { label: 'MARATHON', mode: 'marathon' }, { label: 'SURVIVAL', mode: 'survive' },

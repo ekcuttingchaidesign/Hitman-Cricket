@@ -5,6 +5,7 @@ import { standingOf, type SurviveInnings } from './survive-board.js';
 import type { ScoreManager } from './ScoreManager.js';
 import { marathonPlausible, readMarathonFigures, type MarathonFigures } from './marathon-board.js';
 import type { ShotOutcome } from './types.js';
+import { super10Plausible, readSuper10, type Super10Innings } from './super10-board.js';
 
 /**
  * What a player has done over every innings, rather than in the best one.
@@ -112,6 +113,29 @@ export interface MarathonCareer {
 }
 
 /**
+ * A Super10 career: what the kits are earned on (`SUPER10_LADDER` in
+ * `super10-kits.ts`) and its own tier is read off. Every figure is the team's:
+ * five batters bat, and a hundred here is an innings whose total reached a
+ * hundred, not one batter's, as the designer agreed.
+ */
+export interface Super10Career {
+  innings: number;
+  runs: number;
+  balls: number;
+  wickets: number;
+  fours: number;
+  sixes: number;
+  /** The biggest innings total. */
+  highest: number;
+  /** Innings whose total reached a hundred, and two hundred. */
+  hundreds: number;
+  doubles: number;
+}
+
+/** A Super10 innings as the career counts it is the very innings its board is sent. */
+export type Super10Tally = Super10Innings;
+
+/**
  * A Marathon innings as the career counts it is the very innings the boards
  * are sent — the total and each batter's figures — so the two cannot disagree
  * about what was played, and the career refuses exactly what the boards do.
@@ -207,6 +231,10 @@ export function emptyMarathon(): MarathonCareer {
   };
 }
 
+export function emptySuper10(): Super10Career {
+  return { innings: 0, runs: 0, balls: 0, wickets: 0, fours: 0, sixes: 0, highest: 0, hundreds: 0, doubles: 0 };
+}
+
 /**
  * One more innings, folded in.
  *
@@ -275,6 +303,21 @@ export function mergeMarathon(held: MarathonCareer | null, tally: MarathonTally)
     hundreds: was.hundreds + made.filter(runs => runs >= HUNDRED).length,
     doubles: was.doubles + made.filter(runs => runs >= DOUBLE).length,
     longest: Math.max(was.longest, tally.balls),
+  };
+}
+
+export function mergeSuper10(held: Super10Career | null, tally: Super10Tally): Super10Career {
+  const was = held ?? emptySuper10();
+  return {
+    innings: was.innings + 1,
+    runs: was.runs + tally.runs,
+    balls: was.balls + tally.balls,
+    wickets: was.wickets + tally.wickets,
+    fours: was.fours + tally.fours,
+    sixes: was.sixes + tally.sixes,
+    highest: Math.max(was.highest, tally.runs),
+    hundreds: was.hundreds + Number(tally.runs >= HUNDRED),
+    doubles: was.doubles + Number(tally.runs >= DOUBLE),
   };
 }
 
@@ -508,7 +551,7 @@ export const SURVIVE_BOARDS: readonly CareerBoard<SurviveCareer>[] = [
 ];
 
 /** Which career this is, which is the only thing that differs on the wire. */
-export type CareerMode = 'classic' | 'survive' | 'marathon';
+export type CareerMode = 'classic' | 'survive' | 'marathon' | 'super10';
 
 /**
  * Whether a tally could have come from an innings of this mode at all.
@@ -664,6 +707,39 @@ export const MARATHON_CAREER: CareerLadder<MarathonCareer, MarathonTally> = {
     innings: from.innings, runs: from.runs, balls: from.balls, fours: from.fours, sixes: from.sixes,
     highest: from.highest, individual: from.individual,
     fifties: from.fifties, hundreds: from.hundreds, doubles: from.doubles, longest: from.longest,
+  }),
+};
+
+/** Super10's career ladder: every run scored in it, added up, as the Marathon's. */
+export const SUPER10_BOARDS: readonly CareerBoard<Super10Career>[] = [
+  {
+    key: 'runs',
+    name: 'Runs',
+    blurb: 'Every run scored in Super10, added up. Level totals are split on who took fewer innings.',
+    primary: career => career.runs,
+    secondary: career => fewerInnings(career.innings),
+    figures: [
+      { label: 'runs', of: career => career.runs },
+      { label: 'inns', of: career => career.innings },
+      { label: '100s', of: career => career.hundreds },
+      { label: '6s', of: career => career.sixes },
+    ],
+    counts: career => career.runs > 0,
+  },
+];
+
+/** A Super10 tally off a request body: the board's own reader. */
+export const readSuper10Tally = (raw: unknown): Super10Tally => readSuper10(raw);
+
+export const SUPER10_CAREER: CareerLadder<Super10Career, Super10Tally> = {
+  mode: 'super10',
+  scope: 'super10career:',
+  boards: SUPER10_BOARDS,
+  merge: mergeSuper10,
+  plausible: super10Plausible,
+  figures: from => ({
+    innings: from.innings, runs: from.runs, balls: from.balls, wickets: from.wickets,
+    fours: from.fours, sixes: from.sixes, highest: from.highest, hundreds: from.hundreds, doubles: from.doubles,
   }),
 };
 

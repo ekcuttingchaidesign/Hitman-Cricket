@@ -27,7 +27,7 @@ const SCOPE = process.env.VERCEL_ENV === 'production' ? '' : `${process.env.VERC
 /** The innings boards' scopes: see `board-store.ts`. Each keeps `<scope>players`. */
 const BOARDS: Record<string, string> = { blast: '', survival: 'survive:', marathon: 'marathon:', 'marathon solo': 'marathonone:' };
 /** The careers' scopes: see `career.ts`. Each keeps `<scope>careers`. */
-const CAREERS: Record<string, string> = { blast: 'blast:', survival: 'survivecareer:', marathon: 'marathoncareer:' };
+const CAREERS: Record<string, string> = { blast: 'blast:', survival: 'survivecareer:', marathon: 'marathoncareer:', super10: 'super10career:' };
 
 const url = process.env.KV_REST_API_URL;
 const token = process.env.KV_REST_API_READ_ONLY_TOKEN ?? process.env.KV_REST_API_TOKEN;

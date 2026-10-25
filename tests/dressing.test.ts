@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyBlast, emptyMarathon, emptySurvive } from '../src/game/career';
+import { emptyBlast, emptyMarathon, emptySuper10, emptySurvive } from '../src/game/career';
 import { BATS, OUTFITS, batOwned, batSteps, done, earned, nextUp, outfitOwned, outfitSteps, ready, shareOf, type DressingRecord } from '../src/game/dressing';
 import { lookOf } from '../src/game/dressing-ids';
 
@@ -7,9 +7,9 @@ const record = (patch: {
   classic?: Partial<ReturnType<typeof emptyBlast>>; survive?: Partial<ReturnType<typeof emptySurvive>>; marathon?: Partial<ReturnType<typeof emptyMarathon>>;
   rivals?: { won: number; beaten: number }; launch?: Partial<DressingRecord['launch']>; welcomed?: boolean;
 } = {}): DressingRecord => ({
-  careers: { classic: { ...emptyBlast(), ...patch.classic }, survive: { ...emptySurvive(), ...patch.survive }, marathon: { ...emptyMarathon(), ...patch.marathon } },
+  careers: { classic: { ...emptyBlast(), ...patch.classic }, survive: { ...emptySurvive(), ...patch.survive }, marathon: { ...emptyMarathon(), ...patch.marathon }, super10: emptySuper10() },
   rivals: patch.rivals ?? { won: 0, beaten: 0 },
-  launch: { classic: 0, survive: 0, marathon: 0, ...patch.launch },
+  launch: { classic: 0, survive: 0, marathon: 0, super10: 0, ...patch.launch },
   welcomed: patch.welcomed ?? false,
 });
 

@@ -33,7 +33,7 @@ export interface DressingView {
 }
 
 /** The key for a locked item: the game its first open line is played in. */
-export const PLAY: Record<StepMode, string> = { blast: 'PLAY THE BLAST', survival: 'PLAY TEST SURVIVAL', marathon: 'PLAY TEST MARATHON', rivals: 'START A RIVAL MATCH' };
+export const PLAY: Record<StepMode, string> = { blast: 'PLAY THE BLAST', survival: 'PLAY TEST SURVIVAL', marathon: 'PLAY TEST MARATHON', super10: 'PLAY SUPER10', rivals: 'START A RIVAL MATCH' };
 
 const fmt = (n: number) => Math.floor(n).toLocaleString('en-IN');
 const TICK = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M4.6 8.3l2.2 2.2 4.6-4.8" fill="none" stroke="#0B0F14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';

@@ -11,7 +11,8 @@ import {
 } from '../src/server/profile-endpoint';
 import type { SurviveInnings } from '../src/game/survive-board';
 import { packSolo, type SoloInnings, type TeamInnings } from '../src/game/marathon-board';
-import type { BlastCareer, MarathonCareer, SurviveCareer } from '../src/game/career';
+import type { BlastCareer, MarathonCareer, Super10Career, SurviveCareer } from '../src/game/career';
+import type { Super10Innings } from '../src/game/super10-board';
 
 /** An innings that adds up, as `board-store.test.ts` builds one: sixes, singles, a wicket, dots. */
 const innings = (runs: number): Innings => {
@@ -31,11 +32,11 @@ function stores(): ProfileStores {
     players: memoryPlayers(),
     boards: {
       classic: memoryStore<Innings>(names), survive: memoryStore<SurviveInnings>(names),
-      team: memoryStore<TeamInnings>(names), solo: memoryStore<SoloInnings>(names),
+      team: memoryStore<TeamInnings>(names), solo: memoryStore<SoloInnings>(names), super10: memoryStore<Super10Innings>(names),
     },
     careers: {
       classic: memoryCareer<BlastCareer>(names), survive: memoryCareer<SurviveCareer>(names),
-      marathon: memoryCareer<MarathonCareer>(names),
+      marathon: memoryCareer<MarathonCareer>(names), super10: memoryCareer<Super10Career>(names),
     },
   };
 }

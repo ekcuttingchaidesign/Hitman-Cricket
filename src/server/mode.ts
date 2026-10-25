@@ -6,14 +6,15 @@
  * for the Blast. That was right while there were two modes, and wrong the
  * moment there is a third: a Test Marathon innings would have landed on the
  * Blast's board and in the Blast's careers. So the Marathon is recognised by
- * name, and has boards and careers of its own. Anything else that is not
- * `survive` is still the Blast, as it always was.
+ * name, and has boards and careers of its own, and so is Super10. Anything
+ * else that is not `survive` is still the Blast, as it always was.
  */
-export type ModeAsked = 'classic' | 'survive' | 'marathon';
+export type ModeAsked = 'classic' | 'survive' | 'marathon' | 'super10';
 
 export function modeAsked(value: unknown): ModeAsked {
   const asked = String(value ?? '').trim().toLowerCase();
   if (asked === 'survive') return 'survive';
   if (asked === 'marathon') return 'marathon';
+  if (asked === 'super10') return 'super10';
   return 'classic';
 }

@@ -35,11 +35,13 @@ describe('the modes', () => {
 });
 
 describe('which mode a request is about', () => {
-  it('reads the three by name, however they are written', () => {
+  it('reads the four by name, however they are written', () => {
     expect(modeAsked('survive')).toBe('survive');
     expect(modeAsked(' Survive ')).toBe('survive');
     expect(modeAsked('marathon')).toBe('marathon');
     expect(modeAsked('MARATHON')).toBe('marathon');
+    expect(modeAsked('super10')).toBe('super10');
+    expect(modeAsked('SUPER10')).toBe('super10');
   });
 
   it('takes anything else, and nothing, for the Blast, as it always has', () => {
