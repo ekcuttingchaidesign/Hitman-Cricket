@@ -105,8 +105,8 @@ const falconLeg: Mark[] = [
 ];
 /**
  * Aura Farmers, after the designer's concept shirt (`squares` in
- * `kitPrint.ts`): the orange shirt with navy sleeves, an orange cuff and a
- * band of navy squares packed round his side, fading out across his chest;
+ * `kitPrint.ts`): the orange shirt and sleeves with a navy cuff, and a band
+ * of navy squares packed round his side, fading out across his chest;
  * and two orange stripes down each leg. Three arcs from the shoulder came
  * first, and read as too plain for the second tier from the top; then the
  * shirt half navy with the squares in orange.
@@ -175,7 +175,7 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
   },
   {
     id: 's10-orange', name: 'Aura Farmers', line: '5,000 Super10 runs.', shirt: ORANGE, helmet: NAVY, trousers: NAVY, trim: NAVY, number: NAVY, glow: ORANGE,
-    print: { number: NAVY, numberEdge: ORANGE, squares: { colour: NAVY }, sleeves: NAVY, chest: [], back: [], collar: { colour: NAVY, inner: WHITE }, hem: { colour: ORANGE }, leg: auraLeg },
+    print: { number: NAVY, numberEdge: ORANGE, squares: { colour: NAVY }, chest: [], back: [], collar: { colour: NAVY, inner: WHITE }, hem: { colour: NAVY, line: WHITE }, leg: auraLeg },
     guard: 'super10-orange', stumps: 'raspberry',
   },
   {

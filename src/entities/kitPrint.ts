@@ -292,12 +292,19 @@ function shards(ctx: CanvasRenderingContext2D, W: number, FH: number, colours: {
     shapes.push({ colour: colours.streak, points: [at(x, y, -len / 2, -wide / 2), at(x, y, len / 2, -wide * .2), at(x, y, len / 2, wide * .2), at(x, y, -len / 2, wide / 2)] });
     spatter(x, y, len * .7, rand() < .5 ? 1 : -1, colours.streak, 20);
   }
-  for (let k = 0, tries = 0; k < 11 && tries < 120; tries++) {
-    const x = rand() * L, y = .04 + rand() * (T - .08);
+  // Each bolt stands clear of the others: overlapping, two or three made one purple patch.
+  const bolts: [number, number][] = [];
+  const clear = (x: number, y: number) => bolts.every(([bx, by]) => {
+    const dx = Math.min(Math.abs(x - bx), L - Math.abs(x - bx));
+    return Math.hypot(dx, y - by) > .2;
+  });
+  for (let k = 0, tries = 0; k < 9 && tries < 400; tries++) {
+    const x = rand() * L, y = .06 + rand() * (T - .12);
     // The number's place across the middle of his back is kept clear.
     if ((x < .16 || x > L - .16) && y > .1 && y < .42) continue;
-    k++;
-    const len = .2 + rand() * .2, wide = .045 + rand() * .045, zig = .022 + rand() * .02, kinks = 4 + Math.floor(rand() * 3);
+    if (!clear(x, y)) continue;
+    bolts.push([x, y]); k++;
+    const len = .2 + rand() * .16, wide = .026 + rand() * .02, zig = .022 + rand() * .016, kinks = 4 + Math.floor(rand() * 3);
     // A jagged band zigzagging up the diagonal, thickest in its middle and sharp at both ends.
     const line = Array.from({ length: kinks + 1 }, (_, q) => {
       const t = q / kinks;
