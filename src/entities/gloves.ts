@@ -243,9 +243,9 @@ export const SUPER10_GLOVES: Record<Super10GuardId, GloveDesign<Super10GuardId>>
     thumb: '#F7F2F6', thumbTip: '#E92568', ridges: '#271473',
     cuff: { base: '#F7F2F6', bands: [{ at: .062, depth: .010, colour: '#271473' }], strap: '#E92568', badge: '#271473', rim: '#E92568' },
   },  'super10-yellow': {
-    id: 'super10-yellow', name: 'Nova Kings', line: 'White padding with navy rolls and a butter-yellow index roll and band; navy pads piped yellow.',
+    id: 'super10-yellow', name: 'Nova Kings', line: 'White padding with navy rolls and a butter-yellow index roll and band; royal blue pads piped yellow.',
     glow: '#FDE17A',
-    pads: { body: '#0B1A36', trim: '#FDE17A' },
+    pads: { body: '#2740AF', trim: '#FDE17A' },
     base: '#F4F2FA',
     rolls: ['#0B1A36', '#0B1A36', '#0B1A36', '#FDE17A'],
     index: ['#FDE17A', '#0B1A36', '#F4F2FA'],
@@ -253,7 +253,7 @@ export const SUPER10_GLOVES: Record<Super10GuardId, GloveDesign<Super10GuardId>>
     tips: ['#F4F2FA', '#F4F2FA', '#F4F2FA', '#FDE17A'],
     knuckleBar: { colour: '#0B1A36', badge: '#FDE17A' },
     thumb: '#F4F2FA', thumbTip: '#0B1A36', ridges: '#FDE17A',
-    cuff: { base: '#0B1A36', bands: [{ at: .062, depth: .010, colour: '#FDE17A' }], strap: '#0B1A36', badge: '#FDE17A', rim: '#0B1A36' },
+    cuff: { base: '#0B1A36', bands: [{ at: .062, depth: .010, colour: '#FDE17A' }], strap: '#2740AF', badge: '#FDE17A', rim: '#0B1A36' },
   },
   'super10-orange': {
     id: 'super10-orange', name: 'Aura Farmers', line: 'White padding with navy rolls and an orange index roll and band; navy pads piped orange.',
