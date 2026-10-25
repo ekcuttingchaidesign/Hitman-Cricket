@@ -117,7 +117,7 @@ import type { SurviveInnings } from './game/survive-board';
 import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
 import { sendExcited, sendFeedback } from './game/feedback-api';
-import { SUPER10_KITS, type Super10Kit } from './game/super10-kits';
+import { SUPER10_KITS, super10Number, type Super10Kit } from './game/super10-kits';
 import { EXCITED_KEY, excitedAlready } from './ui/Super10Page';
 import { askRating, type RatingPrompt } from './ui/Rating';
 import {
@@ -4250,6 +4250,8 @@ export class Game {
     this.scene.leftHanded(left);
     this.hud.sides(left);
     this.hud.walkingOut(man?.batter.title ?? (this.super10 ? super10Batter(this.score.wickets).title : null));
+    // Each of Super10's five has his own number on his back.
+    if (this.super10) this.scene.shirtNumber(super10Number(this.score.wickets));
   }
   /**
    * The player has had enough, from the pause card. Refused before twenty
@@ -5961,7 +5963,7 @@ export class Game {
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
       pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, streak: this.scene.streakShown, pullPen: this.pullPen,
-      mirrored: this.scene.mirrored, look: this.scene.wearing, fieldingKit: this.scene.fieldingKit, chase: this.chase ? { handle: this.chase.handle, mode: this.chase.mode, target: this.chase.target } : null, marathon: this.marathon ? this.marathonState() : null,
+      mirrored: this.scene.mirrored, look: this.scene.wearing, shirt: this.scene.shirt, fieldingKit: this.scene.fieldingKit, chase: this.chase ? { handle: this.chase.handle, mode: this.chase.mode, target: this.chase.target } : null, marathon: this.marathon ? this.marathonState() : null,
       super10: this.super10 ? this.super10State() : null,
       standing: this.standing, ease: this.ease };
   }

@@ -1691,8 +1691,13 @@ everybody's from the first innings, and Neon and Cherry once earned (the
 earning, the Dressing Room's "Only in Super10" tag and the pick are still to
 come; until then `?s10kit=neon` or `cherry` asks for one, and is not
 practice). Each has its own gloves and pads (`SUPER10_GLOVES` in
-`gloves.ts`, never on the GUARD shelf), its shirt has no number, and its
-helmet is plain. The side in the field wears Cherry against Purple or Neon
+`gloves.ts`, never on the GUARD shelf), and its helmet is plain. Each of
+the five has his number on his back in the print, where the back's bolt
+was (`SUPER10_NUMBERS`: 10, 17, 9, 23, 77, by how many are down;
+`shirtNumber` as he walks out, `snapshot().shirt`), in Saira Black Italic,
+lime on Purple and purple on Neon and Cherry, painted the other way round on
+a mirrored stage as the bat's stickers are. The game's camera sees his back
+at an angle, so the number shows only in part there. The side in the field wears Cherry against Purple or Neon
 and Purple against Cherry, printed too, the Cherry side in cherry caps
 (`cap`, where the batter's helmet in it is purple); the LED stumps go raspberry behind
 Purple and Neon and violet behind Cherry (`STUMP_THEMES`, `colourway` on
@@ -1717,7 +1722,11 @@ metres up the cloth and its rows taken from where each really is
 (`CLOTH_UP`): the jersey's rows are even in its profile, whose top three
 eighths are the shoulders, and a print laid evenly on them was squeezed up
 into the shoulders. Under the floodlights each bolt glows in its own colour,
-as the shirt does in its (`kitsUnderLights`). The bowler wears the same
+as the shirt does in its (`kitsUnderLights`). Each part reads only its own
+stretch of the shirt's texture, with a clear strip between (`GUTTER`), and
+the first ring of each sleeve, laid between the torso's armhole and the
+sleeve, is left plain: read through, both drew lines down his back and
+round his shoulder. The bowler wears the same
 textures on materials of his own (`printed` in `Cricketer.ts`), one a
 print and garment however many wear it; the fielders, built of boxes and
 tubes and a few dozen pixels tall, wear the kit's colours without it. `kits.html` (`src/kits-preview.ts`)

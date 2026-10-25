@@ -44,8 +44,9 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
   {
     id: 's10-purple', name: 'Super10 Purple', shirt: PURPLE, helmet: PURPLE, trousers: PURPLE, trim: LIME, number: LIME, glow: LILAC,
     print: {
+      number: LIME,
       chest: [{ x: .03, y: .27, w: .13, h: .44, lean: 38, colour: LIME }, { x: -.07, y: .3, w: .08, h: .3, lean: 38, colour: LILAC }],
-      back: [{ x: .02, y: .3, w: .13, h: .42, lean: 22, colour: LIME }, { x: -.07, y: .34, w: .08, h: .28, lean: 22, colour: LILAC }],
+      back: [],
       collar: { colour: LIME, inner: LILAC },
       hem: { colour: LIME, line: LILAC },
       leg: [{ x: 0, y: .3, w: .14, h: .5, lean: 8, colour: LIME }, { x: -.035, y: .24, w: .08, h: .32, lean: 8, colour: LILAC }],
@@ -55,8 +56,9 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
   {
     id: 's10-neon', name: 'Super10 Neon', shirt: LIME, helmet: PURPLE, trousers: PURPLE, trim: PURPLE, number: PURPLE, glow: LIME,
     print: {
+      number: PURPLE,
       chest: [{ x: .03, y: .27, w: .13, h: .44, lean: 38, colour: PURPLE }, { x: -.07, y: .3, w: .08, h: .3, lean: 38, colour: LILAC }],
-      back: [{ x: .02, y: .3, w: .13, h: .42, lean: 22, colour: PURPLE }, { x: -.07, y: .34, w: .08, h: .28, lean: 22, colour: LILAC }],
+      back: [],
       collar: { colour: PURPLE, inner: LILAC },
       hem: { colour: PURPLE, line: LILAC },
       sleeve: [{ x: 0, y: .05, w: .06, h: .14, lean: 20, colour: PURPLE }],
@@ -65,10 +67,11 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
     guard: 'super10', against: 's10-cherry', stumps: 'raspberry',
   },
   {
-    id: 's10-cherry', name: 'Super10 Cherry', shirt: CHERRY, helmet: PURPLE, trousers: CHERRY, trim: '#FFFFFF', number: '#FFFFFF', glow: CHERRY,
+    id: 's10-cherry', name: 'Super10 Cherry', shirt: CHERRY, helmet: PURPLE, trousers: CHERRY, trim: '#FFFFFF', number: PURPLE, glow: CHERRY,
     print: {
+      number: PURPLE,
       chest: [{ x: .03, y: .27, w: .13, h: .44, lean: 38, colour: PURPLE }, { x: -.07, y: .3, w: .08, h: .3, lean: 38, colour: PALE }],
-      back: [{ x: .02, y: .3, w: .13, h: .42, lean: 22, colour: PURPLE }, { x: -.07, y: .34, w: .08, h: .28, lean: 22, colour: PALE }],
+      back: [],
       collar: { colour: PURPLE, inner: '#FFFFFF' },
       hem: { colour: PURPLE, line: '#FFFFFF' },
       sleeve: [{ x: 0, y: .05, w: .06, h: .14, lean: 20, colour: PURPLE }],
@@ -77,5 +80,14 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
     cap: CHERRY, guard: 'super10-cherry', against: 's10-purple', stumps: 'violet',
   },
 ];
+
+/**
+ * The numbers on the five batters' backs, by how many are down: the opener
+ * 10, then 17, 9, 23 and 77. Printed on whichever Super10 kit he wears, in
+ * its print's `number` colour (lime on Purple, purple on Neon and Cherry),
+ * where the back's bolt was.
+ */
+export const SUPER10_NUMBERS = ['10', '17', '9', '23', '77'] as const;
+export const super10Number = (down: number) => SUPER10_NUMBERS[Math.min(Math.max(0, down), SUPER10_NUMBERS.length - 1)];
 
 export const super10KitOf = (id: Super10KitId) => SUPER10_KITS.find(k => k.id === id)!;

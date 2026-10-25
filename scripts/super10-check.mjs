@@ -84,6 +84,8 @@ await page.locator('#start').click({ force: true });
 const first = await until(['READY'], 800, 16);
 check(first.super10 !== null, '?mode=super10 starts a Super10 innings', JSON.stringify(first.super10));
 check(first.super10?.practising === true, 'and it is counted as practice until it has a board');
+check(first.look?.startsWith('s10-purple/') && first.shirt === '10', 'the opener bats in the purple kit with 10 on his back', `${first.look} ${first.shirt}`);
+check(first.fieldingKit === 's10-cherry', 'and the side in the field in cherry', first.fieldingKit);
 const opener = await page.locator('#phase-label').textContent();
 check(first.balls === 0 && !!opener?.startsWith('OPENER IN'), 'the opener is named as he walks out', `${opener} (balls ${first.balls})`);
 const ball = await page.evaluate(() => window.__cricket.ball());
@@ -154,6 +156,8 @@ for (let over = 0; over < 10; over++) {
   if (over === 2) {
     const label = await page.locator('#phase-label').textContent();
     check(!!label?.startsWith('NO. 2 IN'), 'after a wicket the No. 2 is named walking out', label);
+    const shirt = (await snap()).shirt;
+    check(shirt === '17', 'with 17 on his back', shirt);
   }
   let left = 6;
   if (REAL.has(over)) {

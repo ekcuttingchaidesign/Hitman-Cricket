@@ -44,7 +44,7 @@ controls.enableDamping = true;
 const VIEWS: Record<string, [number, number, number]> = {
   front: [-2.6, .2, 0], side: [0, .2, 2.6], back: [2.6, .2, 0], game: [-.4, 1.3, -5.6],
 };
-let view = 'front', night = true, kit = SUPER10_KITS[0];
+let view = 'front', night = true, kit = SUPER10_KITS[0], shirtNumber = '10';
 function aim() {
   // His middle, wherever his guard puts him.
   const at = new THREE.Box3().setFromObject(batter.root).getCenter(new THREE.Vector3()), eye = new THREE.Vector3(...VIEWS[view]);
@@ -65,7 +65,7 @@ function wear(next: Super10Kit) {
   kit = next;
   batter.wear({ shirt: kit.shirt, helmet: kit.helmet, trousers: kit.trousers, trim: kit.trim, number: kit.number });
   batter.wearGloves(SUPER10_GLOVES[kit.guard]);
-  batter.printKit(kit.print);
+  batter.printKit(kit.print, shirtNumber);
   batter.reset(); batter.prepare(0); batter.update(0); batter.drape();
   light();
   for (const b of document.querySelectorAll<HTMLButtonElement>('[data-kit]')) b.setAttribute('aria-pressed', String(b.dataset.kit === kit.id));
@@ -92,6 +92,7 @@ resize(); wear(kit); aim();
   wear: (id: string) => wear(SUPER10_KITS.find(k => k.id === id)!),
   view: (name: string) => { view = name; aim(); },
   night: (on: boolean) => { night = on; light(); },
+  number: (n: string) => { shirtNumber = n; wear(kit); },
   ready: true,
 };
 function frame() { controls.update(); renderer.render(scene, camera); requestAnimationFrame(frame); }

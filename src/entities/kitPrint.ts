@@ -22,6 +22,15 @@ import * as THREE from 'three';
 
 /** The share of the shirt's texture the torso takes: the sleeves have the rest. */
 export const TORSO_SHARE = .75;
+/**
+ * A clear strip either side of the sleeves' part of the shirt's texture, as a
+ * share of its width. Where the torso's texture meets itself down his back it
+ * is also next to the sleeves', and filtered across it took a sliver of the
+ * sleeves' hem band and bolt into a dotted line down his back; the shader
+ * keeps each part's reads inside it, and the strip keeps the coarser mipmaps'
+ * reads off its neighbour.
+ */
+const GUTTER = 8 / 1024;
 
 /**
  * A bolt of lightning: where its middle is on a panel, in metres from the
@@ -34,6 +43,8 @@ export interface KitPrint {
   /** Across the chest and across the back. */
   chest: Bolt[];
   back: Bolt[];
+  /** The colour of the number on the back, where a number is worn (`paintKitPrint`'s `number`). */
+  number?: string;
   /** The V of the collar: its colour, and a thinner line inside it. */
   collar?: { colour: string; inner?: string };
   /** A band round each sleeve's hem, with a thin line above it. */
@@ -78,6 +89,11 @@ const SLEEVE = { round: .5, tall: .62 };
 /** And a trouser leg's: round the thigh, and from the hip to the ankle. */
 const LEG = { round: .66, tall: .92 };
 
+/** The number on the back: how tall, and where its middle is, in metres up the cloth. */
+const NUMBER = { tall: .16, up: .25 };
+/** Its face: the brand's lettering, Saira Black Italic, as the screen and the stumps have it. */
+export const NUMBER_FONT = (px: number) => `italic 900 ${px}px Saira, "Arial Black", Impact, sans-serif`;
+
 /** The metres up the cloth at a height `v` on the torso's texture (nought at the hem). */
 function clothAt(v: number) {
   const at = Math.min(CLOTH_UP.length - 1.000001, Math.max(0, v * (CLOTH_UP.length - 1))), i = Math.floor(at);
@@ -93,10 +109,11 @@ let flat: HTMLCanvasElement | null = null;
  * at both edges; then each row of the shirt's texture is taken from where it
  * really is up the cloth (`CLOTH_UP`).
  */
-export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trousers: HTMLCanvasElement) {
+export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trousers: HTMLCanvasElement, number: string | null = null, mirrored = false) {
   const s = shirt.getContext('2d')!, t = trousers.getContext('2d')!;
   s.clearRect(0, 0, shirt.width, shirt.height); t.clearRect(0, 0, trousers.width, trousers.height);
-  const W = Math.round(shirt.width * TORSO_SHARE), H = shirt.height;
+  const gutter = Math.round(shirt.width * GUTTER);
+  const W = Math.round(shirt.width * TORSO_SHARE) - gutter, H = shirt.height;
   flat ??= document.createElement('canvas');
   flat.width = W; flat.height = Math.round(W * CLOTH.tall / CLOTH.round);
   const f = flat.getContext('2d')!, FH = flat.height;
@@ -121,12 +138,24 @@ export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trouser
     v(.03, print.collar!.colour, .1);
     if (print.collar!.inner) v(.01, print.collar!.inner, .084);
   });
+  if (number && print.number) {
+    // The flat canvas is metres both ways, so the number is set in its pixels:
+    // across the back's middle, which is both edges of the torso's texture.
+    const px = NUMBER.tall * W / CLOTH.round;
+    f.font = NUMBER_FONT(px * 1.32); f.textAlign = 'center'; f.textBaseline = 'middle'; f.fillStyle = print.number;
+    // On a mirrored stage (a right-hander's, `mirrorStickers`) everything is
+    // seen the other way round, so the number is painted the other way round.
+    for (const x of [0, W]) {
+      f.save(); f.translate(x, FH * (1 - NUMBER.up / CLOTH.tall)); f.scale(mirrored ? -1 : 1, 1);
+      f.fillText(number, 0, 0); f.restore();
+    }
+  }
   for (let y = 0; y < H; y++) {
     const up = clothAt(1 - (y + .5) / H);
     s.drawImage(flat, 0, Math.min(FH - 1, Math.max(0, Math.floor((1 - up / CLOTH.tall) * FH))), W, 1, 0, y, W, 1);
   }
-  // The sleeves: round each, and from the shoulder (the top) down.
-  const sx = W, sw = shirt.width - W;
+  // The sleeves: round each, and from the shoulder (the top) down, clear of the gutters either side.
+  const sx = W + 2 * gutter, sw = shirt.width - sx - gutter;
   s.save();
   s.beginPath(); s.rect(sx, 0, sw, H); s.clip();
   // Up a sleeve's texture is down the arm: nought at the shoulder, the hem at HEM.
@@ -190,6 +219,7 @@ export interface PrintUniforms {
   uKitPrint: { value: THREE.Texture | null };
   uKitPrintOn: { value: number };
   uKitSplit: { value: number };
+  uKitGutter: { value: number };
 }
 
 /**
@@ -199,17 +229,21 @@ export interface PrintUniforms {
  * glows in its own colour (`kitsUnderLights`), and so does each bolt in its.
  */
 export function printable(material: THREE.MeshStandardMaterial, split: number): PrintUniforms {
-  const uniforms: PrintUniforms = { uKitPrint: { value: null }, uKitPrintOn: { value: 0 }, uKitSplit: { value: split } };
+  const uniforms: PrintUniforms = { uKitPrint: { value: null }, uKitPrintOn: { value: 0 }, uKitSplit: { value: split }, uKitGutter: { value: split < 1 ? GUTTER : 0 } };
   const before = material.onBeforeCompile;
   material.onBeforeCompile = (shader, renderer) => {
     before.call(material, shader, renderer);
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = `attribute vec4 kitPrint;\nvarying vec4 vKitPrint;\n${shader.vertexShader}`
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vKitPrint = kitPrint;');
-    shader.fragmentShader = `uniform sampler2D uKitPrint;\nuniform float uKitPrintOn;\nuniform float uKitSplit;\nvarying vec4 vKitPrint;\n${shader.fragmentShader}`
+    shader.fragmentShader = `uniform sampler2D uKitPrint;\nuniform float uKitPrintOn;\nuniform float uKitSplit;\nuniform float uKitGutter;\nvarying vec4 vKitPrint;\n${shader.fragmentShader}`
       .replace('#include <color_fragment>', `#include <color_fragment>
   float kitInk = 0.; vec3 kitColour = vec3(0.);
-  if (uKitPrintOn > .5 && dot(vKitPrint.xy, vKitPrint.xy) > .25) {
+  // The first ring of each sleeve is laid from the torso's armhole to the
+  // sleeve's own first row, and everything about where it is on the texture
+  // is mixed between the two across it, the sleeve's hem band smeared round
+  // the shoulder as a line: so it is left plain, as the part is between parts.
+  if (uKitPrintOn > .5 && dot(vKitPrint.xy, vKitPrint.xy) > .25 && (vKitPrint.w < .02 || vKitPrint.w > .98)) {
     vec2 cs = vKitPrint.xy;
     float r2 = dot(cs, cs);
     // Round the ring from the point on its circle, and its rate across the
@@ -219,9 +253,16 @@ export function printable(material: THREE.MeshStandardMaterial, split: number): 
     vec2 dx = dFdx(cs), dy = dFdy(cs);
     float rx = (cs.x * dx.y - cs.y * dx.x) / (6.28318530718 * r2), ry = (cs.x * dy.y - cs.y * dy.x) / (6.28318530718 * r2);
     bool sleeve = vKitPrint.w > .5;
-    float across = sleeve ? 1. - uKitSplit : uKitSplit;
-    vec2 at = vec2((sleeve ? uKitSplit : 0.) + kitRound * across, vKitPrint.z);
-    vec4 ink = textureGrad(uKitPrint, at, vec2(rx * across, dFdx(vKitPrint.z)), vec2(ry * across, dFdy(vKitPrint.z)));
+    // Each part's own stretch of the texture, its reads kept half a texel inside it.
+    float lo = sleeve ? uKitSplit + uKitGutter : 0., hi = sleeve ? 1. - uKitGutter : uKitSplit - uKitGutter;
+    float across = hi - lo, halfTexel = .5 / float(textureSize(uKitPrint, 0).x);
+    vec2 at = vec2(clamp(lo + kitRound * across, lo + halfTexel, hi - halfTexel), vKitPrint.z);
+    // Where a pixel straddles the join of two parts (the shoulder, where the
+    // torso's ring becomes the sleeve's) the rates jump, and taken whole they
+    // read the texture's coarsest mipmap, every colour in it at once, as a line
+    // round the join: held to a few texels a pixel, no real stretch is cut.
+    vec2 gx = clamp(vec2(rx * across, dFdx(vKitPrint.z)), -.02, .02), gy = clamp(vec2(ry * across, dFdy(vKitPrint.z)), -.02, .02);
+    vec4 ink = textureGrad(uKitPrint, at, gx, gy);
     kitInk = ink.a; kitColour = ink.rgb;
     diffuseColor.rgb = mix(diffuseColor.rgb, ink.rgb, ink.a);
   }`)

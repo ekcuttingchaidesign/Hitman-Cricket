@@ -29,7 +29,7 @@ import type { Cutout } from '../ui/Milestone';
 import { OUTFITS, type BatSkin, type Outfit } from '../game/dressing';
 import { SUPER10_GLOVES, type GloveDesign } from '../entities/gloves';
 import type { KitPrint } from '../entities/kitPrint';
-import { super10KitOf, type Super10Kit } from '../game/super10-kits';
+import { super10KitOf, super10Number, type Super10Kit } from '../game/super10-kits';
 import type { CameraPose } from '../game/ShotReel';
 import { batSheet } from '../entities/batSkins';
 
@@ -1172,7 +1172,9 @@ export class GameScene {
       this.sidePrint = null;
       this.led.colourway('violet');
     }
-    this.batter.printKit(super10?.print ?? null);
+    this.super10Kit = super10;
+    this.shirt = super10 ? super10Number(0) : null;
+    this.batter.printKit(super10?.print ?? null, this.shirt);
     this.batter.wearGloves(this.look.guard);
     this.wearLook();
     const asked = ++this.batAsked;
@@ -1184,6 +1186,12 @@ export class GameScene {
     });
   }
   private look: { outfit: Outfit | Super10Kit; bat: BatSkin; guard: GloveDesign<string> } | null = null;
+  /** The Super10 kit he is batting in, if he is. */
+  private super10Kit: Super10Kit | null = null;
+  /** The number on a Super10 batter's back, for the man walking out (`super10Number`). Nothing outside Super10. */
+  shirtNumber(number: string) { if (this.super10Kit) { this.batter.printKit(this.super10Kit.print, number); this.shirt = number; } }
+  /** The number on his back, in a Super10 kit; for the checks. */
+  shirt: string | null = null;
   /** What he went out in, `kit/bat/guard`, for the checks. */
   get wearing() { return this.look ? `${this.look.outfit.id}/${this.look.bat.id}/${this.look.guard.id}` : null; }
   private inWhites = false;
