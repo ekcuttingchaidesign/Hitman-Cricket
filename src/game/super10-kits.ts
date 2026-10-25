@@ -15,6 +15,12 @@ import type { Super10GuardId } from '../entities/gloves';
  * for their colours and the lie of the bolts, not drawn stroke for stroke:
  * nothing on the helmet, and the fabric's weave left to the cloth's own.
  */
+/**
+ * Each kit is a team's, and named for it: Midnight Panthers (purple), Apex
+ * Vipers (neon), Frontier Falcons (cherry); and, drawn and still to be built,
+ * Aura Farmers (orange and navy), Nova Kings (butter yellow and navy) and
+ * Royal Mavericks (violet and teal), Figma `532:625`.
+ */
 export const SUPER10_KIT_IDS = ['s10-purple', 's10-neon', 's10-cherry'] as const;
 export type Super10KitId = typeof SUPER10_KIT_IDS[number];
 
@@ -42,7 +48,7 @@ const PURPLE = '#271473', LILAC = '#A447FF', LIME = '#B7FF3B', CHERRY = '#E92568
 
 export const SUPER10_KITS: readonly Super10Kit[] = [
   {
-    id: 's10-purple', name: 'Super10 Purple', shirt: PURPLE, helmet: PURPLE, trousers: PURPLE, trim: LIME, number: LIME, glow: LILAC,
+    id: 's10-purple', name: 'Midnight Panthers', shirt: PURPLE, helmet: PURPLE, trousers: PURPLE, trim: LIME, number: LIME, glow: LILAC,
     print: {
       number: LIME,
       chest: [{ x: .03, y: .27, w: .13, h: .44, lean: 38, colour: LIME }, { x: -.07, y: .3, w: .08, h: .3, lean: 38, colour: LILAC }],
@@ -54,7 +60,7 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
     guard: 'super10', against: 's10-cherry', stumps: 'raspberry',
   },
   {
-    id: 's10-neon', name: 'Super10 Neon', shirt: LIME, helmet: PURPLE, trousers: PURPLE, trim: PURPLE, number: PURPLE, glow: LIME,
+    id: 's10-neon', name: 'Apex Vipers', shirt: LIME, helmet: PURPLE, trousers: PURPLE, trim: PURPLE, number: PURPLE, glow: LIME,
     print: {
       number: PURPLE,
       chest: [{ x: .03, y: .27, w: .13, h: .44, lean: 38, colour: PURPLE }, { x: -.07, y: .3, w: .08, h: .3, lean: 38, colour: LILAC }],
@@ -67,7 +73,7 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
     guard: 'super10', against: 's10-cherry', stumps: 'raspberry',
   },
   {
-    id: 's10-cherry', name: 'Super10 Cherry', shirt: CHERRY, helmet: PURPLE, trousers: CHERRY, trim: '#FFFFFF', number: PURPLE, glow: CHERRY,
+    id: 's10-cherry', name: 'Frontier Falcons', shirt: CHERRY, helmet: PURPLE, trousers: CHERRY, trim: '#FFFFFF', number: PURPLE, glow: CHERRY,
     print: {
       number: PURPLE,
       chest: [{ x: .03, y: .27, w: .13, h: .44, lean: 38, colour: PURPLE }, { x: -.07, y: .3, w: .08, h: .3, lean: 38, colour: PALE }],
