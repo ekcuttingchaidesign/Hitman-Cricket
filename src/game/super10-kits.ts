@@ -83,10 +83,10 @@ const sleeve = (colour: string): Mark[] => [{ x: 0, y: .05, w: .06, h: .14, lean
  * leg ending in a star at the knee.
  */
 const novaChest: Mark[] = [
-  { shape: 'star', x: .03, y: .3, w: .22, h: .22, lean: 0, colour: ROYAL },
-  { shape: 'star', x: .03, y: .3, w: .07, h: .07, lean: 0, colour: WHITE },
-  { shape: 'star', x: -.08, y: .4, w: .07, h: .07, lean: 0, colour: ROYAL },
-  { shape: 'star', x: .12, y: .17, w: .055, h: .055, lean: 0, colour: ROYAL },
+  { shape: 'star', x: .03, y: .29, w: .29, h: .29, lean: 0, colour: ROYAL },
+  { shape: 'star', x: .03, y: .29, w: .09, h: .09, lean: 0, colour: WHITE },
+  { shape: 'star', x: -.1, y: .41, w: .08, h: .08, lean: 0, colour: ROYAL },
+  { shape: 'star', x: .14, y: .15, w: .06, h: .06, lean: 0, colour: ROYAL },
 ];
 const novaLeg: Mark[] = [
   { shape: 'bar', x: 0, y: .3, w: .045, h: .5, lean: 0, colour: BUTTER },
@@ -104,9 +104,9 @@ const falconLeg: Mark[] = [
 ];
 /** Aura Farmers, a glow spreading out: three arcs from the right shoulder across the chest, navy fading to white, and two orange stripes down each leg. */
 const auraChest: Mark[] = [
-  { shape: 'ring', x: .15, y: .5, w: .12, h: .035, lean: 0, from: 180, sweep: 90, colour: NAVY },
-  { shape: 'ring', x: .15, y: .5, w: .2, h: .03, lean: 0, from: 180, sweep: 90, colour: '#0B1A3699' },
-  { shape: 'ring', x: .15, y: .5, w: .28, h: .025, lean: 0, from: 180, sweep: 90, colour: WHITE },
+  { shape: 'ring', x: .16, y: .52, w: .16, h: .05, lean: 0, from: 180, sweep: 90, colour: NAVY },
+  { shape: 'ring', x: .16, y: .52, w: .27, h: .042, lean: 0, from: 180, sweep: 90, colour: '#0B1A3699' },
+  { shape: 'ring', x: .16, y: .52, w: .38, h: .034, lean: 0, from: 180, sweep: 90, colour: WHITE },
 ];
 const auraLeg: Mark[] = [
   { shape: 'bar', x: -.026, y: .32, w: .022, h: .56, lean: 0, colour: ORANGE },
