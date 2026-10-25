@@ -102,7 +102,7 @@ import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, standingOf, tierMeasure, TIERS, type Granted } from './game/tier';
 import { LevelUp } from './ui/LevelUp';
-import { BATS, FREE_BAT, FREE_OUTFIT, FREE_OUTFITS, OUTFITS, WELCOME_BAT, batOf, batOwned, earned, outfitOf, outfitOwned, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
+import { BATS, FREE_BAT, FREE_OUTFIT, FREE_OUTFITS, FREE_SUPER10, OUTFITS, WELCOME_BAT, batOf, batOwned, earned, isSuper10Kit, outfitOf, outfitOwned, super10KitFor, super10KitOf, super10Owned, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
 import type { DressingRoom } from './ui/DressingRoom';
 import type { UnlockItem, UnlockMoment } from './ui/Unlock';
 import { onDressingWrite, readDressing, seenKey, writeDressing } from './game/dressing-store';
@@ -118,7 +118,7 @@ import type { SurviveInnings } from './game/survive-board';
 import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
 import { sendExcited, sendFeedback } from './game/feedback-api';
-import { SUPER10_KITS, super10Number, type Super10Kit } from './game/super10-kits';
+import { SUPER10_KITS, super10Number, type Super10Kit, type Super10KitId } from './game/super10-kits';
 import { EXCITED_KEY, excitedAlready } from './ui/Super10Page';
 import { askRating, type RatingPrompt } from './ui/Rating';
 import {
@@ -249,6 +249,8 @@ const SURGE_WAIT_MS = 1600;
 /** The overs a Super10 crowd sends a Mexican wave round the arena at the top of: the third, sixth and eighth. */
 const WAVE_OVERS = [2, 5, 7];
 const SUPER10_OPEN = SUPER10_ONLY || (!SURVIVE_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production');
+/** Super10's kits on the Dressing Room's kit shelf: wherever Super10 is played beside the other modes. */
+const SUPER10_SHELF = SUPER10_OPEN && !SUPER10_ONLY;
 /** The mode a browser played last, which Choose a mode's rail opens on; a new player starts on the Blast. */
 const LAST_MODE_KEY = 'hitman-last-mode';
 function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' {
@@ -1086,6 +1088,7 @@ export class Game {
         if (this.unlock) return;
         const look = this.myLook();
         const item: UnlockItem = shelf === 'bat' ? { moment: { kind: 'bat', bat: batOf(id) } }
+          : isSuper10Kit(id) ? this.super10Moment(id)
           : { moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat, guard: look.guard } };
         this.playUnlocks([item], true);
       },
@@ -1193,11 +1196,18 @@ export class Game {
       if (this.dressing || this.disposed) return;
       this.dressing = new DressingRoom(this.hud.viewport, {
         shelf: 'kit', kit: look.outfit.id, bat: look.bat.id, guard: look.guard.id, wearing: look.outfit.id, holding: look.bat.id, wearingGuard: look.guard.id,
+        wearingSuper10: this.super10Pick(), super10: SUPER10_SHELF,
         record: this.dressingRecord(), pictures: {},
       }, {
         wear: (shelf, id) => {
           if (this.dressingPreview) return;
           const now = readDressing();
+          // A Super10 kit is Super10's pick alone: what he wears everywhere else stays on.
+          if (shelf === 'kit' && isSuper10Kit(id)) {
+            writeDressing({ ...now, super10: id });
+            this.dressingMark(`dressing-wear-kit-${id}`, `Picked the Super10 kit ${id}`);
+            return;
+          }
           writeDressing(shelf === 'kit' ? { ...now, outfit: id as OutfitId } : shelf === 'bat' ? { ...now, bat: id as BatId } : { ...now, guard: id as GuardId });
           const worn = this.myLook(); this.scene.dressBatter(worn.outfit, worn.bat, worn.guard);
           this.dressingMark(`dressing-wear-${shelf}-${id}`, `Put on the ${shelf} ${id}`);
@@ -1207,7 +1217,7 @@ export class Game {
           this.closeDressing();
           this.hud.closeModes();
           if (mode === 'rivals') { void this.showChallenges(); return; }
-          this.choose(mode === 'survival' ? 'SURVIVE' : mode === 'marathon' ? 'MARATHON' : 'CLASSIC');
+          this.choose(mode === 'survival' ? 'SURVIVE' : mode === 'marathon' ? 'MARATHON' : mode === 'super10' && SUPER10_OPEN ? 'SUPER10' : 'CLASSIC');
         },
         claim: (shelf, id) => {
           // Taken the moment the key is pressed, so a player who leaves mid-moment has it all the same.
@@ -1219,7 +1229,8 @@ export class Game {
           this.dressing?.update({ record: this.dressingRecord() });
           this.dressingMark(`dressing-claim-${shelf}-${id}`, `Unlocked the ${shelf} ${id} in the room`);
           const look = this.myLook();
-          this.playUnlocks([{ moment: shelf === 'bat' ? { kind: 'bat', bat: batOf(id) } : { kind: 'kit', from: look.outfit, to: outfitOf(id), bat: look.bat, guard: look.guard } }], !!this.dressingPreview);
+          this.playUnlocks([shelf === 'kit' && isSuper10Kit(id) ? this.super10Moment(id)
+            : { moment: shelf === 'bat' ? { kind: 'bat', bat: batOf(id) } : { kind: 'kit', from: look.outfit, to: outfitOf(id), bat: look.bat, guard: look.guard } }], !!this.dressingPreview);
         },
         close: () => this.closeDressing(),
       }, () => new DressingStage({ room: true }));
@@ -1261,6 +1272,11 @@ export class Game {
       }
       this.unlock = new UnlockMoment(this.hud.viewport, items, new DressingStage(), {
         wear: (shelf, id) => {
+          if (shelf === 'kit' && isSuper10Kit(id)) {
+            if (!preview) { writeDressing({ ...readDressing(), super10: id }); this.dressingMark(`dressing-wear-kit-${id}`, `Picked the Super10 kit ${id}`); }
+            this.dressing?.update({ kit: id, wearingSuper10: id, shelf });
+            return;
+          }
           if (!preview) {
             const now = readDressing();
             writeDressing(shelf === 'kit' ? { ...now, outfit: id as OutfitId } : { ...now, bat: id as BatId });
@@ -1302,13 +1318,15 @@ export class Game {
    */
   private freshUnlocks(): UnlockItem[] {
     const got = earned(this.dressingRecord()), held = readDressing();
-    const keys = [...got.outfits.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))];
+    const keys = [...got.outfits.map(id => seenKey('kit', id)), ...got.super10.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))];
     if (!held.seen.length) { writeDressing({ ...held, seen: keys }); return []; }
     const look = this.myLook();
     const items: UnlockItem[] = [];
     // The free kits are nobody's prize: Papaya arriving on an old record is not an unlock.
     for (const id of got.outfits) if (!FREE_OUTFITS.includes(id) && !held.seen.includes(seenKey('kit', id)))
       items.push({ moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat, guard: look.guard } });
+    // The Panthers are everybody's: never a prize either.
+    for (const id of got.super10) if (id !== FREE_SUPER10 && !held.seen.includes(seenKey('kit', id))) items.push(this.super10Moment(id));
     for (const id of got.bats) if (!held.seen.includes(seenKey('bat', id)))
       items.push({ moment: { kind: 'bat', bat: batOf(id) } });
     return items;
@@ -1391,7 +1409,7 @@ export class Game {
     if (sameDressing(merged, mine)) return;
     writeDressing(merged, { quiet: true });
     const look = this.myLook();
-    this.dressing?.update({ record: this.dressingRecord(), wearing: look.outfit.id, holding: look.bat.id, wearingGuard: look.guard.id });
+    this.dressing?.update({ record: this.dressingRecord(), wearing: look.outfit.id, holding: look.bat.id, wearingGuard: look.guard.id, wearingSuper10: this.super10Pick() });
     if (!this.hud.viewport.querySelector('#modes.hidden')) this.hud.modesFill(this.modeSelectView());
   }
 
@@ -1399,7 +1417,9 @@ export class Game {
   private dressingCount() {
     const record = this.dressingRecord(), got = earned(record);
     // The card's NEW stays until the room has been opened and Boom, waiting there, unlocked.
-    return { earned: got.outfits.length + got.bats.length, of: OUTFITS.length + BATS.length, visited: readDressing().visited && record.welcomed && !record.waiting?.length };
+    // Super10's kits count where they are on the shelf.
+    const super10 = SUPER10_SHELF ? { earned: got.super10.length, of: SUPER10_KITS.length } : { earned: 0, of: 0 };
+    return { earned: got.outfits.length + got.bats.length + super10.earned, of: OUTFITS.length + BATS.length + super10.of, visited: readDressing().visited && record.welcomed && !record.waiting?.length };
   }
 
   /**
@@ -2375,14 +2395,31 @@ export class Game {
   /** Super10: the Blast's ball for ten overs, three batters and five bowlers. */
   private get super10() { return this.mode === 'SUPER10'; }
   /**
-   * The kit a Super10 innings is batted in (`super10-kits.ts`): the purple
-   * one, which everybody has. `?s10kit=neon`, `yellow`, `cherry`, `orange` or
-   * `violet` asks for another, for looking at it; it changes nothing about the
+   * The kit a Super10 innings is batted in (`super10KitFor`): the one picked
+   * for Super10 in the Dressing Room while it is earned, or else one of those
+   * earned, drawn once an innings — the Midnight Panthers for a new player.
+   * `?s10kit=neon`, `yellow`, `cherry`, `orange` or `violet` asks for any of
+   * them, earned or not, for looking at it; it changes nothing about the
    * batting.
    */
   private super10Kit(): Super10Kit {
     const asked = new URLSearchParams(location.search).get('s10kit');
-    return SUPER10_KITS.find(kit => kit.id === `s10-${asked}`) ?? SUPER10_KITS[0];
+    const named = SUPER10_KITS.find(kit => kit.id === `s10-${asked}`);
+    if (named) return named;
+    if (this.super10Drawn?.innings !== this.innings)
+      this.super10Drawn = { innings: this.innings, kit: super10KitFor(readDressing().super10, this.dressingRecord(), Math.random()) };
+    return this.super10Drawn.kit;
+  }
+  private super10Drawn: { innings: number; kit: Super10Kit } | null = null;
+  /** The Super10 kit picked in the room, while it is still earned. */
+  private super10Pick() {
+    const pick = readDressing().super10;
+    return pick && super10Owned(pick, this.dressingRecord()) ? pick : null;
+  }
+  /** A Super10 kit's unlock: from the one he would have batted in, or the Panthers, to the new one. */
+  private super10Moment(id: Super10KitId): UnlockItem {
+    const look = this.myLook(), pick = this.super10Pick();
+    return { moment: { kind: 'kit', from: super10KitOf(pick && pick !== id ? pick : FREE_SUPER10), to: super10KitOf(id), bat: look.bat, guard: look.guard } };
   }
   /**
    * Day or night for the innings, and the ground that goes with it
@@ -5897,8 +5934,8 @@ export class Game {
     // Earned and known, never shown: won before the room arrived, waiting there
     // for its key. One not yet seen is new, and goes up at the innings' end.
     const got = earned(record);
-    const free = new Set([...FREE_OUTFITS.map(id => seenKey('kit', id)), seenKey('bat', FREE_BAT), seenKey('bat', WELCOME_BAT)]);
-    const waiting = [...got.outfits.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))]
+    const free = new Set([...FREE_OUTFITS.map(id => seenKey('kit', id)), seenKey('kit', FREE_SUPER10), seenKey('bat', FREE_BAT), seenKey('bat', WELCOME_BAT)]);
+    const waiting = [...got.outfits.map(id => seenKey('kit', id)), ...got.super10.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))]
       .filter(key => !free.has(key) && held.seen.includes(key) && !held.shown.includes(key));
     return { ...record, waiting };
   }
@@ -5928,7 +5965,7 @@ export class Game {
       ...held,
       launch: { classic: tierMeasure('classic', careers.classic), survive: tierMeasure('survive', careers.survive), marathon: tierMeasure('marathon', careers.marathon) },
       // What a career already holds when the room arrives is noted, not celebrated: see `freshUnlocks`.
-      seen: held.seen.length ? held.seen : [...got.outfits.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))],
+      seen: held.seen.length ? held.seen : [...got.outfits.map(id => seenKey('kit', id)), ...got.super10.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))],
     });
   }
   private pending: Challenge[] = [];

@@ -1,5 +1,6 @@
 import type { BlastCareer, CareerMode, MarathonCareer, Super10Career, SurviveCareer } from './career';
 import { TIERS, tierMeasure } from './tier';
+import { SUPER10_KITS, SUPER10_KIT_IDS, SUPER10_LADDER, type Super10Kit, type Super10KitId } from './super10-kits';
 
 /**
  * The Dressing Room's shelves: seven kits and twelve bats.
@@ -198,12 +199,53 @@ export function batSteps(id: BatId, r: DressingRecord): Step[] | null {
   }
 }
 
+/**
+ * What a Super10 kit takes (`SUPER10_LADDER`), every figure a team total off
+ * the Super10 career; null for the Midnight Panthers, everybody's.
+ */
+export function super10Steps(id: Super10KitId, r: DressingRecord): Step[] | null {
+  const target = SUPER10_LADDER[id], c = r.careers.super10;
+  if (!target) return null;
+  const n = (figure: number) => figure.toLocaleString('en-IN');
+  const steps: Step[] = [];
+  if (target.innings) steps.push({ text: `Play ${n(target.innings)} Super10 innings`, now: c.innings, of: target.innings, mode: 'super10' });
+  if (target.hundreds) steps.push({ text: `Make 100 or more in ${n(target.hundreds)} Super10 innings`, now: c.hundreds, of: target.hundreds, mode: 'super10' });
+  if (target.best) steps.push({ text: `Make ${n(target.best)} in a Super10 innings`, now: c.highest, of: target.best, best: true, mode: 'super10' });
+  if (target.sixes) steps.push({ text: `Hit ${n(target.sixes)} sixes in Super10`, now: c.sixes, of: target.sixes, mode: 'super10' });
+  if (target.runs) steps.push({ text: `Score ${n(target.runs)} runs in Super10`, now: c.runs, of: target.runs, mode: 'super10' });
+  return steps;
+}
+
+/** A kit on the kit shelf: one of the room's own, or a Super10 team's. */
+export type KitId = OutfitId | Super10KitId;
+export const isSuper10Kit = (id: unknown): id is Super10KitId => typeof id === 'string' && (SUPER10_KIT_IDS as readonly string[]).includes(id);
+export const super10KitOf = (id: string | null | undefined): Super10Kit => SUPER10_KITS.find(kit => kit.id === id) ?? SUPER10_KITS[0];
+/** The Super10 kit everybody has: no target, never celebrated. */
+export const FREE_SUPER10: Super10KitId = 's10-purple';
+/** What a kit on the kit shelf takes, whichever kind it is. */
+export const kitSteps = (id: KitId, r: DressingRecord) => isSuper10Kit(id) ? super10Steps(id, r) : outfitSteps(id, r);
+
 export const outfitOwned = (id: OutfitId, r: DressingRecord) => (outfitSteps(id, r) ?? []).every(done);
 export const batOwned = (id: BatId, r: DressingRecord) => (batSteps(id, r) ?? []).every(done);
+export const super10Owned = (id: Super10KitId, r: DressingRecord) => (super10Steps(id, r) ?? []).every(done);
 
-/** Everything on both shelves this record has earned, the free ones included. */
-export function earned(r: DressingRecord): { outfits: OutfitId[]; bats: BatId[] } {
-  return { outfits: OUTFITS.filter(o => outfitOwned(o.id, r)).map(o => o.id), bats: BATS.filter(b => batOwned(b.id, r)).map(b => b.id) };
+/** Everything on the shelves this record has earned, the free ones included. */
+export function earned(r: DressingRecord): { outfits: OutfitId[]; bats: BatId[]; super10: Super10KitId[] } {
+  return {
+    outfits: OUTFITS.filter(o => outfitOwned(o.id, r)).map(o => o.id), bats: BATS.filter(b => batOwned(b.id, r)).map(b => b.id),
+    super10: SUPER10_KITS.filter(kit => super10Owned(kit.id, r)).map(kit => kit.id),
+  };
+}
+
+/**
+ * The kit a Super10 innings is batted in: the one picked for Super10 in the
+ * room while it is still earned, or else any earned one at random — the
+ * Panthers alone for a new player. `random` is nought to one.
+ */
+export function super10KitFor(pick: Super10KitId | null | undefined, r: DressingRecord, random: number): Super10Kit {
+  if (pick && super10Owned(pick, r)) return super10KitOf(pick);
+  const owned = earned(r).super10;
+  return super10KitOf(owned[Math.min(owned.length - 1, Math.floor(random * owned.length))]);
 }
 
 /** The locked one on a shelf nearest done, for Next up; null once the shelf is full. */

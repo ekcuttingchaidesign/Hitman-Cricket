@@ -1,7 +1,7 @@
 import { cta } from './Kit';
 import { escape } from './Leaderboard';
-import type { BatSkin, Outfit } from '../game/dressing';
-import type { DressingStage, Moment } from '../scene/DressingStage';
+import type { BatSkin } from '../game/dressing';
+import type { DressingStage, Moment, StageKit } from '../scene/DressingStage';
 
 /**
  * An unlock, celebrated: the stage plays the moment (`DressingStage.play`),
@@ -23,7 +23,7 @@ export interface UnlockHandlers {
 type Bit = { x: number; y: number; vx: number; vy: number; r: number; vr: number; w: number; h: number; c: string; life: number };
 
 export function unlockWords(item: UnlockItem): { eyebrow: string; name: string; line: string; key: string; glow: string } {
-  const thing: Outfit | BatSkin = item.moment.kind === 'bat' ? item.moment.bat : item.moment.to;
+  const thing: StageKit | BatSkin = item.moment.kind === 'bat' ? item.moment.bat : item.moment.to;
   return {
     eyebrow: item.moment.kind === 'bat' ? 'New bat unlocked' : 'New kit unlocked',
     name: thing.name.toUpperCase(),

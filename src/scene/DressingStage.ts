@@ -6,7 +6,15 @@ import { batSheet } from '../entities/batSkins';
 import { GAME } from '../config/gameplay';
 import type { ShotType } from '../game/types';
 import type { BatSkin, Outfit } from '../game/dressing';
-import type { GloveDesign } from '../entities/gloves';
+import { SUPER10_GLOVES, type GloveDesign } from '../entities/gloves';
+import type { Super10Kit } from '../game/super10-kits';
+
+/** A kit the stage can put on him: one of the room's own, or a Super10 team's, printed. */
+export type StageKit = Outfit | Super10Kit;
+const printOf = (kit: StageKit) => 'print' in kit ? kit.print : null;
+/** A Super10 team's kit is shown with its own gloves and pads, and the opener's number on the back. */
+export const guardFor = (kit: StageKit, guard?: GloveDesign<string>): GloveDesign<string> | undefined => 'print' in kit ? SUPER10_GLOVES[kit.guard] : guard;
+const SHOWN_NUMBER = '10';
 
 /**
  * The Dressing Room's stage: the batter, or a bat on its own, turning on a
@@ -112,7 +120,7 @@ function raysTexture() {
  * behind; a kit is a ring of light that runs down the batter from helmet to
  * boots, the new kit above it and the old one below. Then the reveal.
  */
-export type Moment = { kind: 'bat'; bat: BatSkin } | { kind: 'kit'; from: Outfit; to: Outfit; bat: BatSkin; guard?: GloveDesign };
+export type Moment = { kind: 'bat'; bat: BatSkin } | { kind: 'kit'; from: StageKit; to: StageKit; bat: BatSkin; guard?: GloveDesign };
 /** When each moment's reveal comes, from its start. */
 export const REVEAL_MS = { bat: 1650, kit: 2280 } as const;
 /** The turn of the pedestal at which the celebration faces the camera. */
@@ -290,12 +298,16 @@ export class DressingStage {
     this.scanDisc.rotation.x = -Math.PI / 2; scene.add(this.scanDisc);
     for (const material of this.batter.kitMaterials) {
       const uOld = { value: new THREE.Color() }; material.userData.old = uOld.value;
-      material.onBeforeCompile = shader => {
+      // Added to the hook already there, the kit's print (`printable`), never in its place:
+      // the print's lines go in after the scan's, so the scan lays the old kit's plain colour over it.
+      const printing = material.onBeforeCompile.bind(material);
+      material.onBeforeCompile = (shader, renderer) => {
         Object.assign(shader.uniforms, this.scan, { uOld });
         shader.vertexShader = 'varying float vScanY;\n' + shader.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vScanY = (modelMatrix * vec4(transformed, 1.0)).y;');
         shader.fragmentShader = 'uniform float uScanY; uniform vec3 uScanGlow; uniform vec3 uOld; varying float vScanY;\n' + shader.fragmentShader
           .replace('#include <color_fragment>', '#include <color_fragment>\n float scanD = vScanY - uScanY; diffuseColor.rgb = mix(uOld, diffuseColor.rgb, smoothstep(-.006, .006, scanD));')
           .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += uScanGlow * (smoothstep(.16, 0.0, scanD) * step(0.0, scanD) * .45 + smoothstep(.018, 0.0, abs(scanD)) * 2.2);');
+        printing(shader, renderer);
       };
       material.needsUpdate = true;
     }
@@ -323,10 +335,17 @@ export class DressingStage {
   }
 
   /** The batter in a kit, holding a bat, in a guard (left as it is when none is given). */
-  dress(outfit: Outfit, bat: BatSkin, guard?: GloveDesign) {
-    this.batter.wear(outfit);
-    if (guard) this.batter.wearGloves(guard);
+  dress(outfit: StageKit, bat: BatSkin, guard?: GloveDesign<string>) {
+    this.put(outfit);
+    const gloves = guardFor(outfit, guard);
+    if (gloves) this.batter.wearGloves(gloves);
     void batSheet(bat.id).then(sheet => this.batter.holdBat(bat.grip, sheet));
+  }
+  /** A kit's colours on him, and its print where it has one. */
+  private put(kit: StageKit) {
+    this.batter.wear(kit);
+    const print = printOf(kit);
+    this.batter.printKit(print, print ? SHOWN_NUMBER : null);
   }
   /** A bat on its own, on the stand. */
   showcase(bat: BatSkin) { void this.showBat.hold(bat); }
@@ -367,8 +386,10 @@ export class DressingStage {
       this.showBat.reveal.uReveal.value = -.08; this.showBat.reveal.uGlow.value.set(what.bat.glow);
     } else {
       this.holder.visible = true; this.showBat.root.visible = false;
-      this.batter.wear(what.to);
-      if (what.guard) this.batter.wearGloves(what.guard);
+      // The scan sweeps the new kit, print and all, up over the old one's colours.
+      this.put(what.to);
+      const gloves = guardFor(what.to, what.guard);
+      if (gloves) this.batter.wearGloves(gloves);
       void batSheet(what.bat.id).then(sheet => this.batter.holdBat(what.bat.grip, sheet));
       const [shirt, helmet, trousers, trim, number] = this.batter.kitMaterials;
       const from = what.from;
@@ -395,7 +416,7 @@ export class DressingStage {
    * Small pictures of every kit and bat, off the same models, for the shelf.
    * Drawn by a renderer of its own, made for the job and let go after it.
    */
-  async thumbnails(outfits: readonly Outfit[], bats: readonly BatSkin[], holding: BatSkin, guards: readonly GloveDesign[] = [], wearing?: GloveDesign): Promise<Record<string, string>> {
+  async thumbnails(outfits: readonly StageKit[], bats: readonly BatSkin[], holding: BatSkin, guards: readonly GloveDesign[] = [], wearing?: GloveDesign): Promise<Record<string, string>> {
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setPixelRatio(2); renderer.setSize(84, 84); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping;
     const scene = new THREE.Scene(); scene.add(new THREE.HemisphereLight('#ffffff', '#30261c', 1.3));
@@ -413,10 +434,18 @@ export class DressingStage {
     this.batter.reset(); this.batter.update(0); this.batter.drape();
     await batSheet(holding.id).then(sheet => this.batter.holdBat(holding.grip, sheet));
     // The holder's offset stands him on the origin, a little off the ground: head and shoulders from there.
-    for (const outfit of outfits) { this.batter.wear(outfit); out[`kit:${outfit.id}`] = shot(this.holder, new THREE.Vector3(.02, 1.28, 0), 2.1, .55); }
+    for (const outfit of outfits) {
+      this.put(outfit);
+      const gloves = guardFor(outfit);
+      if (gloves) this.batter.wearGloves(gloves);
+      out[`kit:${outfit.id}`] = shot(this.holder, new THREE.Vector3(.02, 1.28, 0), 2.1, .55);
+    }
     // The guards: him from the gloves down to his shoes, from the bowler's side
     // so the backs of both gloves show over both pads. The hands on the handle
     // alone, near to, cropped the pads to a corner and read as nothing much.
+    // In the last of the room's own kits, as before there were Super10 kits on the shelf.
+    const plain = outfits.filter(kit => !printOf(kit)).at(-1);
+    if (plain) this.put(plain);
     this.scene.updateMatrixWorld(true);
     const hands = this.hands(), guardAt = new THREE.Vector3(hands.x, (hands.y + this.soles.y) / 2 + .04, 0);
     const guardDistance = (hands.y - this.soles.y + .42) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));

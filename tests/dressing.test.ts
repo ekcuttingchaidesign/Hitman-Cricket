@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { emptyBlast, emptyMarathon, emptySuper10, emptySurvive } from '../src/game/career';
-import { BATS, OUTFITS, batOwned, batSteps, done, earned, nextUp, outfitOwned, outfitSteps, ready, shareOf, type DressingRecord } from '../src/game/dressing';
+import { BATS, OUTFITS, batOwned, batSteps, done, earned, isSuper10Kit, kitSteps, nextUp, outfitOwned, outfitSteps, ready, shareOf, super10KitFor, super10Owned, super10Steps, type DressingRecord } from '../src/game/dressing';
 import { lookOf } from '../src/game/dressing-ids';
 
 const record = (patch: {
@@ -30,8 +30,8 @@ describe('the Dressing Room shelves', () => {
     expect(new Set(OUTFITS.map(o => o.name)).size).toBe(8);
   });
 
-  it('gives a new player OG Navy and Plain and nothing else', () => {
-    expect(earned(record())).toEqual({ outfits: ['home', 'papaya'], bats: ['plain'] });
+  it('gives a new player OG Navy, Papaya, Plain and the Midnight Panthers, and nothing else', () => {
+    expect(earned(record())).toEqual({ outfits: ['home', 'papaya'], bats: ['plain'], super10: ['s10-purple'] });
   });
 
   it('keeps Boom waiting in the Dressing Room for its key, whatever has been played', () => {
@@ -131,5 +131,44 @@ describe('Next up', () => {
     expect(nextUp(OUTFITS.map(o => o.id), id => outfitSteps(id, r))).toBe('violet');
     expect(nextUp(['home'] as const, id => outfitSteps(id, r))).toBeNull();
     expect(shareOf([{ text: '', now: 1, of: 2 }, { text: '', now: 5, of: 5 }])).toBeCloseTo(.75);
+  });
+});
+
+describe("Super10's kits", () => {
+  const ten = (patch: Partial<ReturnType<typeof emptySuper10>>): DressingRecord => ({ ...record(), careers: { ...record().careers, super10: { ...emptySuper10(), ...patch } } });
+
+  it('gives everybody the Midnight Panthers and nothing else of them', () => {
+    expect(super10Steps('s10-purple', record())).toBeNull();
+    expect(earned(record()).super10).toEqual(['s10-purple']);
+  });
+
+  it('climbs the ladder on Super10 team totals alone, easiest first', () => {
+    expect(super10Steps('s10-neon', ten({ innings: 9 }))!.map(done)).toEqual([false]);
+    expect(super10Owned('s10-neon', ten({ innings: 10 }))).toBe(true);
+    expect(super10Steps('s10-yellow', ten({ sixes: 50, runs: 1499 }))!.map(done)).toEqual([true, false]);
+    expect(super10Owned('s10-cherry', ten({ hundreds: 10 }))).toBe(true);
+    expect(super10Owned('s10-orange', ten({ runs: 5000 }))).toBe(true);
+    const mavericks = super10Steps('s10-violet', ten({ highest: 200, runs: 9999 }))!;
+    expect(mavericks.map(step => [step.now, step.of, !!step.best])).toEqual([[200, 200, true], [9999, 10000, false]]);
+    expect(mavericks.every(step => step.mode === 'super10')).toBe(true);
+    // Runs in every other mode count for nothing here.
+    const elsewhere = { ...record({ classic: { runs: 20000, innings: 500, sixes: 900 } }) };
+    expect(earned(elsewhere).super10).toEqual(['s10-purple']);
+  });
+
+  it('bats in the one picked while it is earned, else one of those earned at random', () => {
+    const two = ten({ innings: 10 });
+    expect(super10KitFor('s10-neon', two, .99).id).toBe('s10-neon');
+    expect(super10KitFor(null, two, 0).id).toBe('s10-purple');
+    expect(super10KitFor(null, two, .99).id).toBe('s10-neon');
+    // A pick no longer earned (another device's, a career lost) is drawn round.
+    expect(super10KitFor('s10-violet', record(), .5).id).toBe('s10-purple');
+  });
+
+  it('tells a Super10 kit from the room’s own', () => {
+    expect(isSuper10Kit('s10-cherry')).toBe(true);
+    expect(isSuper10Kit('crimson')).toBe(false);
+    expect(kitSteps('s10-neon', record())![0].text).toBe('Play 10 Super10 innings');
+    expect(kitSteps('crimson', record())![0].text).toBe('Play 25 finished innings');
   });
 });

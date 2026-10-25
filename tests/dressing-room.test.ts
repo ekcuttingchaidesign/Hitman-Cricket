@@ -3,7 +3,7 @@ import { emptyBlast, emptyMarathon, emptySuper10, emptySurvive } from '../src/ga
 import { dressingMarkup, footMarkup, shelfMarkup, type DressingView } from '../src/ui/DressingRoom';
 
 const view = (patch: Partial<DressingView> = {}): DressingView => ({
-  shelf: 'kit', kit: 'home', bat: 'boom', guard: 'sterling', wearing: 'home', holding: 'boom', wearingGuard: 'sterling', pictures: {},
+  shelf: 'kit', kit: 'home', bat: 'boom', guard: 'sterling', wearing: 'home', holding: 'boom', wearingGuard: 'sterling', wearingSuper10: null, super10: false, pictures: {},
   record: {
     careers: { classic: { ...emptyBlast(), sixes: 182, highest: 112 }, survive: { ...emptySurvive(), wins: 18 }, marathon: { ...emptyMarathon(), highest: 142 }, super10: emptySuper10() },
     rivals: { won: 0, beaten: 0 }, launch: { classic: 0, survive: 0, marathon: 0, super10: 0 }, welcomed: true,
@@ -23,6 +23,29 @@ describe('the Dressing Room screen', () => {
     expect(shelf).toMatch(/data-id="home"[^>]*aria-label="OG Navy, on"/);
     expect(shelf).toMatch(/data-id="lagoon"[^>]*aria-label="Lagoon, locked"/);
     expect(shelfMarkup(view({ shelf: 'bat' })).match(/class="dr-item[ "]/g)).toHaveLength(12);
+  });
+
+  it('puts Super10\'s six kits at the foot of the kit shelf where it is played, each tagged S10', () => {
+    expect(shelfMarkup(view()).match(/class="dr-s10"/g)).toBeNull();
+    const shelf = shelfMarkup(view({ super10: true, wearingSuper10: 's10-purple' }));
+    expect(shelf.match(/class="dr-item[ "]/g)).toHaveLength(14);
+    expect(shelf.match(/class="dr-s10"/g)).toHaveLength(6);
+    // The kit worn everywhere else and the one picked for Super10 each have their tick.
+    expect(shelf).toMatch(/data-id="home"[^>]*aria-label="OG Navy, on"/);
+    expect(shelf).toMatch(/data-id="s10-purple"[^>]*aria-label="Midnight Panthers, only in Super10, on"/);
+    expect(shelf).toMatch(/data-id="s10-violet"[^>]*aria-label="Royal Mavericks, only in Super10, locked"/);
+  });
+
+  it('says a Super10 kit is only for Super10, what it takes, and wears it there alone', () => {
+    const locked = footMarkup(view({ super10: true, kit: 's10-yellow' }));
+    expect(locked).toContain('Only in Super10');
+    expect(locked).toContain('Hit 50 sixes in Super10');
+    expect(locked).toContain('Score 1,500 runs in Super10');
+    expect(locked).toContain('PLAY SUPER10');
+    const free = footMarkup(view({ super10: true, kit: 's10-purple' }));
+    expect(free).toContain('Only in Super10');
+    expect(free).toContain('WEAR IN SUPER10');
+    expect(footMarkup(view({ super10: true, kit: 's10-purple', wearingSuper10: 's10-purple' }))).toContain('WEARING IN SUPER10');
   });
 
   it('puts every guard on its shelf, none locked, the worn one ticked, and WEAR IT at the foot', () => {

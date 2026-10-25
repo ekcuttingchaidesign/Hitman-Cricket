@@ -25,6 +25,8 @@ export interface Super10Kit {
   id: Super10KitId;
   /** The team's name. */
   name: string;
+  /** What earned it, once it has been, as an outfit's line. */
+  line: string;
   shirt: string; helmet: string; trousers: string;
   /** The collar, the cuffs and the shoe flash. */
   trim: string;
@@ -145,32 +147,32 @@ const viperLeg: Mark[] = [
 
 export const SUPER10_KITS: readonly Super10Kit[] = [
   {
-    id: 's10-purple', name: 'Midnight Panthers', shirt: PURPLE, helmet: PURPLE, trousers: PURPLE, trim: LIME, number: LIME, glow: LILAC,
+    id: 's10-purple', name: 'Midnight Panthers', line: "Every Super10 batter's first kit.", shirt: PURPLE, helmet: PURPLE, trousers: PURPLE, trim: LIME, number: LIME, glow: LILAC,
     print: { number: LIME, chest: chest(LIME, LILAC), back: [], collar: { colour: LIME, inner: LILAC }, hem: { colour: LIME, line: LILAC }, leg: leg(LIME, LILAC) },
     guard: 'super10', stumps: 'violet',
   },
   {
-    id: 's10-neon', name: 'Apex Vipers', shirt: LIME, helmet: PURPLE, trousers: PURPLE, trim: PURPLE, number: PURPLE, glow: LIME,
+    id: 's10-neon', name: 'Apex Vipers', line: '10 Super10 innings.', shirt: LIME, helmet: PURPLE, trousers: PURPLE, trim: PURPLE, number: PURPLE, glow: LIME,
     print: { number: PURPLE, chest: viperChest, back: [], collar: { colour: PURPLE, inner: LILAC }, hem: { colour: PURPLE, line: LILAC }, leg: viperLeg },
     guard: 'super10', stumps: 'violet',
   },
   {
-    id: 's10-yellow', name: 'Nova Kings', shirt: BUTTER, helmet: ROYAL, trousers: ROYAL, trim: NAVY, number: NAVY, glow: GOLD,
+    id: 's10-yellow', name: 'Nova Kings', line: '50 sixes and 1,500 runs in Super10.', shirt: BUTTER, helmet: ROYAL, trousers: ROYAL, trim: NAVY, number: NAVY, glow: GOLD,
     print: { number: NAVY, chest: novaChest, back: [], collar: { colour: NAVY, inner: WHITE }, hem: { colour: NAVY, line: WHITE }, leg: novaLeg },
     guard: 'super10-yellow', stumps: 'raspberry',
   },
   {
-    id: 's10-cherry', name: 'Frontier Falcons', shirt: CHERRY, helmet: PURPLE, trousers: CHERRY, trim: WHITE, number: PURPLE, glow: CHERRY,
+    id: 's10-cherry', name: 'Frontier Falcons', line: '10 Super10 totals of 100 or more.', shirt: CHERRY, helmet: PURPLE, trousers: CHERRY, trim: WHITE, number: PURPLE, glow: CHERRY,
     print: { number: PURPLE, chest: falconChest, back: [], collar: { colour: PURPLE, inner: WHITE }, hem: { colour: PURPLE, line: WHITE }, leg: falconLeg },
     cap: CHERRY, guard: 'super10-cherry', stumps: 'violet',
   },
   {
-    id: 's10-orange', name: 'Aura Farmers', shirt: ORANGE, helmet: NAVY, trousers: NAVY, trim: NAVY, number: NAVY, glow: ORANGE,
+    id: 's10-orange', name: 'Aura Farmers', line: '5,000 Super10 runs.', shirt: ORANGE, helmet: NAVY, trousers: NAVY, trim: NAVY, number: NAVY, glow: ORANGE,
     print: { number: NAVY, chest: auraChest, back: [], collar: { colour: NAVY, inner: WHITE }, hem: { colour: NAVY, line: WHITE }, leg: auraLeg },
     guard: 'super10-orange', stumps: 'raspberry',
   },
   {
-    id: 's10-violet', name: 'Royal Mavericks', shirt: VIOLET, helmet: TEAL, trousers: VIOLET, trim: TEAL, number: WHITE, glow: VIOLET,
+    id: 's10-violet', name: 'Royal Mavericks', line: 'A Super10 total of 200, and 10,000 runs.', shirt: VIOLET, helmet: TEAL, trousers: VIOLET, trim: TEAL, number: WHITE, glow: VIOLET,
     print: { number: WHITE, swirl: { colour: TEAL, fade: TEAL, edge: VIOLET }, chest: [], back: [], collar: { colour: TEAL, inner: WHITE }, hem: { colour: TEAL, line: WHITE }, leg: sashLeg },
     guard: 'super10-violet', stumps: 'violet',
   },

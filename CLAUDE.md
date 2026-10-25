@@ -1714,9 +1714,9 @@ helmet). What earns each is `SUPER10_LADDER`, agreed with the designer and
 counted on team totals, never one batter's: the Vipers 10 innings, the Kings
 50 sixes and 1,500 runs, the Falcons 10 innings of 100 or more, the Farmers
 5,000 runs, the Mavericks an innings of 200 or more and 10,000 runs, all in
-Super10. The counting, the Dressing Room's "Only in Super10" tag and the
-pick are still to come; until then `?s10kit=neon`, `yellow`, `cherry`, `orange` or
-`violet` asks for one, and is not practice. Each has its own gloves and pads
+Super10 (`super10Steps` in `dressing.ts`, read off the Super10 career alone).
+`?s10kit=neon`, `yellow`, `cherry`, `orange` or `violet` puts any of them on,
+earned or not, for looking at it, and is not practice. Each has its own gloves and pads
 (`SUPER10_GLOVES` in `gloves.ts`, never on the GUARD shelf), and its helmet
 is plain. Each of the five batters has his number on his back in the print
 (`SUPER10_NUMBERS`: 10, 17, 9, 23, 77, by how many are down; `shirtNumber`
@@ -1772,6 +1772,28 @@ print and garment however many wear it; the fielders, built of boxes and
 tubes and a few dozen pixels tall, wear the kit's colours without it. `kits.html` (`src/kits-preview.ts`)
 shows the three on the batter from the chest, side on, behind and from the
 game's camera, under lights or by day.
+
+Wherever Super10 is played beside the other modes (`SUPER10_SHELF`: off
+production, and not the Pages tester build), the six stand at the foot of the
+Dressing Room's kit shelf, each tile tagged S10 and the foot saying Only in
+Super10 (`kitsOf` in `DressingRoom.ts`), and count in the room's card ("N of
+26 earned"). A locked one is tried on with its targets and PLAY SUPER10; an
+earned one's key is WEAR IN SUPER10, which sets Super10's own pick
+(`super10` on the saved dressing, travelling and merged with the rest of the
+pick) and leaves the kit he wears everywhere else alone, so both carry a
+tick. A Super10 innings is batted in that pick while it is earned, and
+otherwise in one of the earned kits drawn once an innings
+(`super10KitFor`, `Game.super10Kit`): the Panthers alone for a new player.
+Earning one is an unlock like any kit's (`freshUnlocks`, `super10Moment`),
+from the kit he would have batted in to the new one, and one earned before it
+was seen waits in the room for its key; the Panthers are never celebrated
+(`FREE_SUPER10`). The room's stage prints a team's kit wherever it shows one,
+the opener's 10 on his back and the kit's own gloves (`put`, `guardFor` in
+`DressingStage.ts`), and the unlock's scan sweeps the new kit, print and all,
+up over the old one's colours: the scan's shader is added to the print's
+hook, never in its place, which dropped the print in the room. `dressing-check`
+unlocks the Vipers in the room, tries on the Mavericks and bats a Super10
+innings in the pick.
 
 ## Choose a mode's rail, and Super10 coming soon
 

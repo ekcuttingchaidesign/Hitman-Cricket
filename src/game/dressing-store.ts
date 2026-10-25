@@ -18,7 +18,7 @@ const KEY = 'hitman-dressing';
 /** The same shape the store keeps, so the two can be merged without translating either. */
 export type Dressing = SavedDressing;
 
-const fresh = (): Dressing => ({ outfit: FREE_OUTFIT, bat: FREE_BAT, guard: FREE_GUARD, pickedAt: 0, launch: null, seen: [], shown: [], visited: false });
+const fresh = (): Dressing => ({ outfit: FREE_OUTFIT, bat: FREE_BAT, guard: FREE_GUARD, super10: null, pickedAt: 0, launch: null, seen: [], shown: [], visited: false });
 
 export function readDressing(): Dressing {
   try {
@@ -37,14 +37,14 @@ const listeners = new Set<(dressing: Dressing) => void>();
 export function onDressingWrite(listener: (dressing: Dressing) => void) { listeners.add(listener); return () => listeners.delete(listener); }
 
 /**
- * Keeps a copy. A change of kit, bat or guard is stamped with the time it was made,
+ * Keeps a copy. A change of kit, bat, guard or Super10 kit is stamped with the time it was made,
  * unless the copy already carries a time of its own — one merged in from the
  * store, whose time is the other device's. `quiet` keeps it from being sent
  * back: it is how a copy that came from the store is taken up.
  */
 export function writeDressing(dressing: Dressing, { quiet = false } = {}) {
   const before = readDressing();
-  const next = (dressing.outfit !== before.outfit || dressing.bat !== before.bat || dressing.guard !== before.guard) && dressing.pickedAt === before.pickedAt
+  const next = (dressing.outfit !== before.outfit || dressing.bat !== before.bat || dressing.guard !== before.guard || dressing.super10 !== before.super10) && dressing.pickedAt === before.pickedAt
     ? { ...dressing, pickedAt: Date.now() } : dressing;
   try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* Worn for this visit only. */ }
   if (!quiet) for (const listener of listeners) listener(next);

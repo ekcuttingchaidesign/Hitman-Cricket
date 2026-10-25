@@ -8536,6 +8536,10 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .dr-tabs button{position:relative}
 .dr-tabs button.has-dot::after{content:"";position:absolute;top:calc(var(--u) * 5);right:calc(var(--u) * 8);width:calc(var(--u) * 8);height:calc(var(--u) * 8);border-radius:50%;background:#ff3b30}
 .dr-eye-ready{color:#ff5a8a}
+/* Super10's kits on the kit shelf: a violet S10 on the tile, and "Only in Super10" by the line over the foot. */
+.dr-s10{position:absolute;left:calc(var(--u) * 4);bottom:calc(var(--u) * 4);padding:calc(var(--u) * 2) calc(var(--u) * 4);border-radius:calc(var(--u) * 4);background:#8b5cf6;color:#fff;font:900 italic calc(var(--u) * 8)/1 var(--f-ui);letter-spacing:.04em;pointer-events:none}
+.dr-eyes{display:flex;align-items:center;gap:calc(var(--u) * 8);flex-wrap:wrap}
+.dr-only{padding:calc(var(--u) * 3) calc(var(--u) * 6);border-radius:calc(var(--u) * 5);background:#8b5cf62e;border:calc(var(--u) * 1) solid #8b5cf6;color:#c9b4ff;font:800 calc(var(--u) * 9)/1 var(--f-ui);letter-spacing:.14em;text-transform:uppercase}
 .dr-next.is-ready{border-color:#ff2e8866}
 @media (prefers-reduced-motion:reduce){.dr-item.is-ready{animation:none;box-shadow:0 0 calc(var(--u) * 12) #ff2e8866}}
 /* One height for every item, the content standing on its foot: the shelf and the
