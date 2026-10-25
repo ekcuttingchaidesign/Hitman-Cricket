@@ -35,7 +35,7 @@ export const DEFAULT_GLOVE: GuardId = FREE_GUARD;
 export interface GlovePrint { kind: 'carbon'; ground: string; ink: string }
 
 /** The two pairs that go with the Super10 kits, worn only in Super10 and never on the GUARD shelf (`SUPER10_GLOVES`). */
-export type Super10GuardId = 'super10' | 'super10-cherry';
+export type Super10GuardId = 'super10' | 'super10-cherry' | 'super10-yellow' | 'super10-orange' | 'super10-violet';
 export interface GloveDesign<Id extends string = GuardId> {
   id: Id;
   name: string;
@@ -209,8 +209,11 @@ export const GLOVES: readonly GloveDesign[] = [
 /**
  * The Super10 kits' gloves and pads (`src/game/super10-kits.ts`), off the
  * designer's kit sheets: white padding with purple rolls and a lime index and
- * cuff band, purple pads piped lime, with the purple and the neon kit; white
- * with raspberry and purple, raspberry pads piped purple, with the cherry one.
+ * cuff band, purple pads piped lime, with the Panthers' and the Vipers' kits;
+ * white with raspberry and purple, raspberry pads piped purple, with the
+ * Falcons'; and white with navy and yellow, navy and orange, or violet and
+ * teal, the pads in the first and piped in the second, with the Kings', the
+ * Farmers' and the Mavericks'.
  * Worn by the batter in every Super10 innings with the kit, and nowhere else.
  */
 export const SUPER10_GLOVES: Record<Super10GuardId, GloveDesign<Super10GuardId>> = {
@@ -239,6 +242,44 @@ export const SUPER10_GLOVES: Record<Super10GuardId, GloveDesign<Super10GuardId>>
     knuckleBar: { colour: '#E92568', badge: '#271473' },
     thumb: '#F7F2F6', thumbTip: '#E92568', ridges: '#271473',
     cuff: { base: '#F7F2F6', bands: [{ at: .062, depth: .010, colour: '#271473' }], strap: '#E92568', badge: '#271473', rim: '#E92568' },
+  },  'super10-yellow': {
+    id: 'super10-yellow', name: 'Nova Kings', line: 'White padding with navy rolls and a butter-yellow index roll and band; navy pads piped yellow.',
+    glow: '#FDE17A',
+    pads: { body: '#0B1A36', trim: '#FDE17A' },
+    base: '#F4F2FA',
+    rolls: ['#0B1A36', '#0B1A36', '#0B1A36', '#FDE17A'],
+    index: ['#FDE17A', '#0B1A36', '#F4F2FA'],
+    sideBar: true,
+    tips: ['#F4F2FA', '#F4F2FA', '#F4F2FA', '#FDE17A'],
+    knuckleBar: { colour: '#0B1A36', badge: '#FDE17A' },
+    thumb: '#F4F2FA', thumbTip: '#0B1A36', ridges: '#FDE17A',
+    cuff: { base: '#0B1A36', bands: [{ at: .062, depth: .010, colour: '#FDE17A' }], strap: '#0B1A36', badge: '#FDE17A', rim: '#0B1A36' },
+  },
+  'super10-orange': {
+    id: 'super10-orange', name: 'Aura Farmers', line: 'White padding with navy rolls and an orange index roll and band; navy pads piped orange.',
+    glow: '#FE7701',
+    pads: { body: '#0B1A36', trim: '#FE7701' },
+    base: '#F4F2FA',
+    rolls: ['#0B1A36', '#0B1A36', '#0B1A36', '#FE7701'],
+    index: ['#FE7701', '#0B1A36', '#F4F2FA'],
+    sideBar: true,
+    tips: ['#F4F2FA', '#F4F2FA', '#F4F2FA', '#FE7701'],
+    knuckleBar: { colour: '#0B1A36', badge: '#FE7701' },
+    thumb: '#F4F2FA', thumbTip: '#0B1A36', ridges: '#FE7701',
+    cuff: { base: '#0B1A36', bands: [{ at: .062, depth: .010, colour: '#FE7701' }], strap: '#0B1A36', badge: '#FE7701', rim: '#0B1A36' },
+  },
+  'super10-violet': {
+    id: 'super10-violet', name: 'Royal Mavericks', line: 'White padding with violet rolls and a teal index roll and band; violet pads piped teal.',
+    glow: '#D851FC',
+    pads: { body: '#D851FC', trim: '#409896' },
+    base: '#F4F2FA',
+    rolls: ['#D851FC', '#D851FC', '#D851FC', '#409896'],
+    index: ['#409896', '#D851FC', '#F4F2FA'],
+    sideBar: true,
+    tips: ['#F4F2FA', '#F4F2FA', '#F4F2FA', '#409896'],
+    knuckleBar: { colour: '#D851FC', badge: '#409896' },
+    thumb: '#F4F2FA', thumbTip: '#D851FC', ridges: '#409896',
+    cuff: { base: '#D851FC', bands: [{ at: .062, depth: .010, colour: '#409896' }], strap: '#D851FC', badge: '#409896', rim: '#D851FC' },
   },
 };
 

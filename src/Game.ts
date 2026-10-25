@@ -2367,8 +2367,9 @@ export class Game {
   private get super10() { return this.mode === 'SUPER10'; }
   /**
    * The kit a Super10 innings is batted in (`super10-kits.ts`): the purple
-   * one, which everybody has. `?s10kit=neon` or `cherry` asks for another, for
-   * looking at it; it changes nothing about the batting.
+   * one, which everybody has. `?s10kit=neon`, `yellow`, `cherry`, `orange` or
+   * `violet` asks for another, for looking at it; it changes nothing about the
+   * batting.
    */
   private super10Kit(): Super10Kit {
     const asked = new URLSearchParams(location.search).get('s10kit');

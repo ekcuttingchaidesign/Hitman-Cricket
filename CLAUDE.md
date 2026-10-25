@@ -1685,29 +1685,31 @@ one file, as `cover-drive-artifact.mjs` does the strokes.
 ## Super10's kits
 
 In Super10 the batter always bats in a Super10 kit, never a Dressing Room
-kit (`src/game/super10-kits.ts`, from the designer's sheets: the Super10
-page's Kits frame `524:616` and the cherry kit beside it `525:618`): Purple,
-everybody's from the first innings, and Neon and Cherry once earned (the
-earning, the Dressing Room's "Only in Super10" tag and the pick are still to
-come; until then `?s10kit=neon` or `cherry` asks for one, and is not
-practice). Each has its own gloves and pads (`SUPER10_GLOVES` in
-`gloves.ts`, never on the GUARD shelf), and its helmet is plain. Each of
-the five has his number on his back in the print, where the back's bolt
-was (`SUPER10_NUMBERS`: 10, 17, 9, 23, 77, by how many are down;
-`shirtNumber` as he walks out, `snapshot().shirt`), in Saira Black Italic,
-lime on Purple and purple on Neon and Cherry, painted the other way round on
-a mirrored stage as the bat's stickers are. The game's camera sees his back
-at an angle, so the number shows only in part there. The side in the field wears Cherry against Purple or Neon
-and Purple against Cherry, printed too, the Cherry side in cherry caps
-(`cap`, where the batter's helmet in it is purple); the LED stumps go raspberry behind
-Purple and Neon and violet behind Cherry (`STUMP_THEMES`, `colourway` on
-`LedStumps`; the raspberry is the colourway taken out before, back). All of
-it is `GameScene.dressBatter`'s last argument, which `Game.super10Kit` hands
-it at the start of a Super10 innings. The designs came out of an image
-model, so they are followed for their colours and where the bolts lie, not
-stroke for stroke; the purple is #271473 and the cherry #E92568, as the
-designer set them after the first build's lighter purple (the raspberry
-stumps take the cherry too).
+kit (`src/game/super10-kits.ts`, from the designer's sheets on the Super10
+page: `524:616`, `525:618` and `532:625`). Each kit is a team's, and they run
+up a ladder (`SUPER10_KITS`, easiest first): Midnight Panthers (purple and
+lime), everybody's from the first innings, then Apex Vipers (neon), Nova
+Kings (butter yellow, navy trousers), Frontier Falcons (cherry), Aura
+Farmers (orange, navy trousers) and, at the top, Royal Mavericks (violet and
+teal). The earning, the Dressing Room's "Only in Super10" tag and the pick
+are still to come; until then `?s10kit=neon`, `yellow`, `cherry`, `orange` or
+`violet` asks for one, and is not practice. Each has its own gloves and pads
+(`SUPER10_GLOVES` in `gloves.ts`, never on the GUARD shelf), and its helmet
+is plain. Each of the five batters has his number on his back in the print
+(`SUPER10_NUMBERS`: 10, 17, 9, 23, 77, by how many are down; `shirtNumber`
+as he walks out, `snapshot().shirt`), in Saira Black Italic in the kit's
+number colour, painted the other way round on a mirrored stage as the bat's
+stickers are. The game's camera sees his back at an angle, so the number
+shows only in part there. The side in the field wears any other team's kit,
+drawn afresh each innings, printed too, the Falcons in cherry caps (`cap`);
+the LED stumps are raspberry behind navy trousers (the Kings, the Farmers)
+and violet behind the rest (`stumps`, `STUMP_THEMES`, `colourway` on
+`LedStumps`). All of it is `GameScene.dressBatter`'s last argument, which
+`Game.super10Kit` hands it at the start of a Super10 innings. The designs
+came out of an image model, so they are followed for their colours and
+where the bolts lie, not stroke for stroke, and their palettes' printed hex
+codes do not always match their swatches: the swatches are taken, and the
+purple (#271473) and cherry (#E92568) were set by the designer after a look.
 
 The bolts are a print (`src/entities/kitPrint.ts`): drawn in a canvas and
 read by the jersey's and the trousers' own shaders (`printable`), so a print

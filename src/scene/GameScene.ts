@@ -29,7 +29,7 @@ import type { Cutout } from '../ui/Milestone';
 import { OUTFITS, type BatSkin, type Outfit } from '../game/dressing';
 import { SUPER10_GLOVES, type GloveDesign } from '../entities/gloves';
 import type { KitPrint } from '../entities/kitPrint';
-import { super10KitOf, super10Number, type Super10Kit } from '../game/super10-kits';
+import { SUPER10_KITS, super10Number, type Super10Kit } from '../game/super10-kits';
 import type { CameraPose } from '../game/ShotReel';
 import { batSheet } from '../entities/batSkins';
 
@@ -1155,14 +1155,15 @@ export class GameScene {
    *
    * In Super10 he bats in a Super10 kit instead (`super10`, from
    * `super10-kits.ts`), printed, with its own gloves and pads, his own bat
-   * still in his hands; the side in the field wears the kit it is set
-   * against, printed too, and the LED stumps take the colourway that goes
-   * with it.
+   * still in his hands; the side in the field wears any other team's,
+   * printed too, and the LED stumps take the colourway that goes with his.
    */
   dressBatter(outfit: Outfit, bat: BatSkin, guard: GloveDesign<string>, super10: Super10Kit | null = null) {
     this.look = { outfit: super10 ?? outfit, bat, guard: super10 ? SUPER10_GLOVES[super10.guard] : guard };
     if (super10) {
-      const side = super10KitOf(super10.against);
+      // Any of the other teams, drawn afresh each innings.
+      const others = SUPER10_KITS.filter(kit => kit.id !== super10.id);
+      const side = others[Math.floor(Math.random() * others.length)];
       this.fieldingKit = side.id;
       this.sideKit = this.kitOf({ ...side, helmet: side.cap ?? side.helmet });
       this.sidePrint = side.print;

@@ -85,7 +85,7 @@ const first = await until(['READY'], 800, 16);
 check(first.super10 !== null, '?mode=super10 starts a Super10 innings', JSON.stringify(first.super10));
 check(first.super10?.practising === true, 'and it is counted as practice until it has a board');
 check(first.look?.startsWith('s10-purple/') && first.shirt === '10', 'the opener bats in the purple kit with 10 on his back', `${first.look} ${first.shirt}`);
-check(first.fieldingKit === 's10-cherry', 'and the side in the field in cherry', first.fieldingKit);
+check(/^s10-/.test(first.fieldingKit ?? '') && first.fieldingKit !== 's10-purple', "and the side in the field in another team's", first.fieldingKit);
 const opener = await page.locator('#phase-label').textContent();
 check(first.balls === 0 && !!opener?.startsWith('OPENER IN'), 'the opener is named as he walks out', `${opener} (balls ${first.balls})`);
 const ball = await page.evaluate(() => window.__cricket.ball());
