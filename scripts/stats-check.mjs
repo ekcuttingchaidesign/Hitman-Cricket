@@ -114,7 +114,8 @@ if (slides.length > 1) {
   // Wherever the Test Marathon can be played — every build off production —
   // its card is the second, between the Blast's and Test Survival's.
   if (slides.includes('marathon')) {
-    check(slides.join(' | ') === 'classic | marathon | survive', 'the Test Marathon\'s card comes second', slides.join(' | '));
+    // And Super10's last, off production, where it can be played and has a career.
+    check(slides.join(' | ') === 'classic | marathon | survive | super10', 'the Test Marathon\'s card comes second, and Super10\'s last', slides.join(' | '));
     await page.click(`.stats-dot[data-slide="${slides.indexOf('marathon')}"]`);
     await page.waitForFunction(() => document.querySelector('.stats-dot.is-on')?.getAttribute('aria-label') === 'Test Marathon', null, { timeout: 10_000 }).catch(() => {});
     const marathon = await page.$eval('.stats-slide[data-mode="marathon"]', slide => slide.textContent);

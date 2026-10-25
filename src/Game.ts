@@ -3323,9 +3323,11 @@ export class Game {
     // The Test Marathon's card comes second, between the Blast's and Test
     // Survival's, wherever the mode can be played.
     const marathon: CareerMode[] = MARATHON_OPEN ? ['marathon'] : [];
+    // Super10's card last, wherever it can be played and is kept: never in the tester build.
+    const super10: CareerMode[] = SUPER10_OPEN && !SUPER10_ONLY ? ['super10'] : [];
     const modes: CareerMode[] = SHOW_SURVIVE && !SURVIVE_ONLY
-      ? ['classic', ...marathon, 'survive']
-      : [this.boardTab, ...marathon];
+      ? ['classic', ...marathon, 'survive', ...super10]
+      : [this.boardTab, ...marathon, ...super10];
     const at = Math.max(0, modes.indexOf(open));
     this.mineSlides = {};
     for (const mode of modes) {

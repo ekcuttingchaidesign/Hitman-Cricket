@@ -72,7 +72,7 @@ export interface StatsSheetView {
 }
 
 /** The switch's words, shorter than the modes' names: the switch is narrow. */
-const SHORT: Record<string, string> = { classic: 'Blast', survive: 'Survival', marathon: 'Marathon' };
+const SHORT: Record<string, string> = { classic: 'Blast', survive: 'Survival', marathon: 'Marathon', super10: 'Super10' };
 
 const TITLE = new URL('../assets/title.webp', import.meta.url).href;
 
@@ -145,7 +145,7 @@ function heroMarkup(card: StatsSlide, who: { name: string; avatar: number } | nu
 }
 
 /** What the glance calls each mode's board. */
-const BOARD_NAME: Record<string, string> = { classic: 'The Blast', marathon: 'Marathon team', survive: 'Test Survival' };
+const BOARD_NAME: Record<string, string> = { classic: 'The Blast', marathon: 'Marathon team', survive: 'Test Survival', super10: 'Super10' };
 
 /**
  * The mode switch as quiet tabs: the rung's badge and the mode's name, the
@@ -165,7 +165,7 @@ function switchMarkup(cards: StatsSlide[], at: number): string {
         </div>`;
 }
 
-const DOT: Record<string, string> = { classic: '#3f88f2', marathon: '#1f8a55', survive: '#ff5a4e' };
+const DOT: Record<string, string> = { classic: '#3f88f2', marathon: '#1f8a55', survive: '#ff5a4e', super10: '#8b5cf6' };
 
 /** One mode: the password card where it is asked for, the road to the next tier, and six figures. */
 function slideMarkup(card: StatsSlide, first: boolean, live: boolean, password: { runs: number } | null): string {
@@ -200,6 +200,7 @@ export const TILES: Record<string, readonly string[]> = {
   classic: ['Innings', 'Sixes', 'Highest', 'Fours', 'Balls', 'Best rank'],
   survive: ['Innings', 'Survived', 'Won', 'Runs', 'Blows', 'Best rank'],
   marathon: ['Innings', 'Highest', 'Best ind.', 'Hundreds', 'Fifties', 'Best rank'],
+  super10: ['Innings', 'Highest', 'Sixes', '100+ totals', '200+ totals', 'Best rank'],
 };
 
 /** A figure that means nothing before an innings is a dash, not a nought. */
