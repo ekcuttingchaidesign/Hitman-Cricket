@@ -40,6 +40,30 @@ export interface Super10Kit {
   stumps: 'violet' | 'raspberry';
 }
 
+/**
+ * What a Super10 kit takes, counted over the player's Super10 innings, every
+ * score a team total (all five batters' runs, as the scoreboard shows them):
+ * finished innings, sixes, runs, innings of a hundred or more, and the best
+ * innings. Each figure given must be reached.
+ */
+export interface Super10Target { innings?: number; sixes?: number; runs?: number; hundreds?: number; best?: number }
+
+/**
+ * The ladder, agreed with the designer, easiest first: Midnight Panthers free;
+ * Apex Vipers for 10 innings; Nova Kings for 50 sixes and 1,500 runs; Frontier
+ * Falcons for 10 innings of 100 or more; Aura Farmers for 5,000 runs; Royal
+ * Mavericks for an innings of 200 or more and 10,000 runs. All in Super10, and
+ * all team totals: one batter's 200 would ask him to bat out the ten overs.
+ */
+export const SUPER10_LADDER: Record<Super10KitId, Super10Target | null> = {
+  's10-purple': null,
+  's10-neon': { innings: 10 },
+  's10-yellow': { sixes: 50, runs: 1500 },
+  's10-cherry': { hundreds: 10 },
+  's10-orange': { runs: 5000 },
+  's10-violet': { best: 200, runs: 10000 },
+};
+
 // Purple and cherry as the designer set them after a look at the first build, whose purple read too light.
 const PURPLE = '#271473', LILAC = '#A447FF', LIME = '#B7FF3B', CHERRY = '#E92568', PALE = '#F3DDFF';
 const NAVY = '#0B1A36', WHITE = '#FFFFFF', ROYAL = '#112E80';
