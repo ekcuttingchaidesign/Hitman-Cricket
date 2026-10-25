@@ -38,13 +38,14 @@ const GUTTER = 8 / 1024;
  * leans from upright (degrees, clockwise), and its colour; and what it is
  * (`shape`), a bolt of lightning unless it says otherwise. Each team's print
  * is made of a few of them: the Panthers' and the Vipers' bolts, the Kings'
- * stars, the Falcons' wing chevrons, the Farmers' aura rings and the
- * Mavericks' crown points.
+ * stars, the Falcons' wing chevrons, the Farmers' aura rings, the Vipers'
+ * diamondback and the Mavericks' sash.
  *
  * - `bolt`: the lightning icon.
  * - `star`: a four-pointed sparkle.
  * - `chevron`: a V pointing down, its arms `thick` of its width.
  * - `bar`: a plain band.
+ * - `diamond`: a diamond, its points at the middle of each side.
  * - `ring`: an arc round its middle, `w` its radius, `h` its thickness,
  *   `from` and `sweep` where it starts and how far it runs (degrees,
  *   anticlockwise from the right); `lean` is not used.
@@ -52,7 +53,7 @@ const GUTTER = 8 / 1024;
  */
 export interface Mark {
   x: number; y: number; w: number; h: number; lean: number; colour: string;
-  shape?: 'bolt' | 'star' | 'chevron' | 'bar' | 'ring' | 'crown';
+  shape?: 'bolt' | 'star' | 'chevron' | 'bar' | 'diamond' | 'ring' | 'crown';
   thick?: number; from?: number; sweep?: number; points?: number;
 }
 
@@ -97,6 +98,7 @@ function bolt(ctx: CanvasRenderingContext2D, b: Mark) {
     case 'bolt': polygon(ZAP.map(([x, y]) => [x, -y] as [number, number])); break;
     case 'star': polygon(STAR); break;
     case 'bar': polygon([[-.5, -.5], [.5, -.5], [.5, .5], [-.5, .5]]); break;
+    case 'diamond': polygon([[0, .5], [.5, 0], [0, -.5], [-.5, 0]]); break;
     case 'chevron': {
       const k = b.thick ?? .25;
       polygon([[-.5, .5], [-.5 + k, .5], [0, -.5 + 2 * k], [.5 - k, .5], [.5, .5], [0, -.5]]);

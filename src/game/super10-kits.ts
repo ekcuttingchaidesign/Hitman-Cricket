@@ -69,10 +69,9 @@ const PURPLE = '#271473', LILAC = '#A447FF', LIME = '#B7FF3B', CHERRY = '#E92568
 const NAVY = '#0B1A36', WHITE = '#FFFFFF', ROYAL = '#112E80';
 const ORANGE = '#FE7701', BUTTER = '#FDE17A', GOLD = '#EDC562', VIOLET = '#E78CFF', TEAL = '#178C89';
 
-/** The lightning, the Panthers' and the Vipers' alone: the chest's two bolts, a main one and a smaller one beside it, and the leg's, in two colours. */
+/** The lightning, the Panthers' alone, the first team's mark: the chest's two bolts, a main one and a smaller one beside it, and the leg's, in two colours. */
 const chest = (main: string, second: string): Mark[] => [{ x: .03, y: .27, w: .13, h: .44, lean: 38, colour: main }, { x: -.07, y: .3, w: .08, h: .3, lean: 38, colour: second }];
 const leg = (main: string, second: string): Mark[] => [{ x: 0, y: .3, w: .14, h: .5, lean: 8, colour: main }, { x: -.035, y: .24, w: .08, h: .32, lean: 8, colour: second }];
-const sleeve = (colour: string): Mark[] => [{ x: 0, y: .05, w: .06, h: .14, lean: 20, colour }];
 
 /**
  * The other four teams each have a pattern of their own, from their names,
@@ -112,15 +111,24 @@ const auraLeg: Mark[] = [
   { shape: 'bar', x: -.026, y: .32, w: .022, h: .56, lean: 0, colour: ORANGE },
   { shape: 'bar', x: .026, y: .32, w: .022, h: .56, lean: 0, colour: ORANGE },
 ];
-/** Royal Mavericks, a crown: a band of teal points across the chest, edged in white, and a teal stripe with a white line down each leg. */
-const crownChest: Mark[] = [
-  { shape: 'crown', x: 0, y: .305, w: .35, h: .12, lean: 0, colour: WHITE, points: 5 },
-  { shape: 'crown', x: 0, y: .3, w: .34, h: .1, lean: 0, colour: TEAL, points: 5 },
+/** Royal Mavericks, a royal sash: a wide teal band from the left shoulder to the right hip, edged in white, and a teal stripe with a white line down each leg. */
+const sashChest: Mark[] = [
+  { shape: 'bar', x: 0, y: .26, w: .125, h: .7, lean: -40, colour: WHITE },
+  { shape: 'bar', x: 0, y: .26, w: .095, h: .7, lean: -40, colour: TEAL },
 ];
-const crownLeg: Mark[] = [
+const sashLeg: Mark[] = [
   { shape: 'bar', x: 0, y: .32, w: .035, h: .56, lean: 0, colour: TEAL },
   { shape: 'bar', x: .028, y: .32, w: .01, h: .56, lean: 0, colour: WHITE },
 ];
+/** Apex Vipers, a diamondback: a chain of purple diamonds across the chest the way a viper's back is marked, and a lime chain down each leg. */
+const chain = (x: number, y: number, lean: number, count: number, step: number, w: number, h: number, colour: string): Mark[] =>
+  Array.from({ length: count }, (_, i) => {
+    const along = (i - (count - 1) / 2) * step, turn = lean * Math.PI / 180;
+    // Each diamond stands upright whichever way the chain runs: tilted with it, they read as squares.
+    return { shape: 'diamond' as const, x: x + along * Math.sin(turn), y: y + along * Math.cos(turn), w, h, lean: 0, colour };
+  });
+const viperChest: Mark[] = chain(0, .25, -40, 5, .105, .085, .15, PURPLE);
+const viperLeg: Mark[] = chain(0, .4, 0, 5, .1, .06, .09, LIME);
 
 export const SUPER10_KITS: readonly Super10Kit[] = [
   {
@@ -130,7 +138,7 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
   },
   {
     id: 's10-neon', name: 'Apex Vipers', shirt: LIME, helmet: PURPLE, trousers: PURPLE, trim: PURPLE, number: PURPLE, glow: LIME,
-    print: { number: PURPLE, chest: chest(PURPLE, LILAC), back: [], collar: { colour: PURPLE, inner: LILAC }, hem: { colour: PURPLE, line: LILAC }, sleeve: sleeve(PURPLE), leg: leg(LIME, LILAC) },
+    print: { number: PURPLE, chest: viperChest, back: [], collar: { colour: PURPLE, inner: LILAC }, hem: { colour: PURPLE, line: LILAC }, leg: viperLeg },
     guard: 'super10', stumps: 'violet',
   },
   {
@@ -150,7 +158,7 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
   },
   {
     id: 's10-violet', name: 'Royal Mavericks', shirt: VIOLET, helmet: TEAL, trousers: VIOLET, trim: TEAL, number: WHITE, glow: VIOLET,
-    print: { number: WHITE, chest: crownChest, back: [], collar: { colour: TEAL, inner: WHITE }, hem: { colour: TEAL, line: WHITE }, leg: crownLeg },
+    print: { number: WHITE, chest: sashChest, back: [], collar: { colour: TEAL, inner: WHITE }, hem: { colour: TEAL, line: WHITE }, leg: sashLeg },
     guard: 'super10-violet', stumps: 'violet',
   },
 ];
