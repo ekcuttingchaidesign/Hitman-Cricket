@@ -82,11 +82,12 @@ export interface KitPrint {
    * edged in `edge` over it, so it reads.
    */
   swirl?: { colour: string; fade?: string; edge?: string };
-  /**
-   * Half the shirt in `colour` and the other half a grid of the shirt's own
-   * colour in squares (`squares`), the Aura Farmers': see `squares` below.
-   */
+  /** A band of squares in `colour` round his side and across his chest, the Aura Farmers': see `squares` below. */
   squares?: { colour: string };
+  /** Lightning, streaks and slashes all over, the Apex Vipers': see `shards` below. */
+  shards?: { bolt: string; streak: string; slash: string };
+  /** The sleeves in a colour of their own, down to the hem. */
+  sleeves?: string;
   /** An outline round the number on the back, where it is worn over a pattern. */
   numberEdge?: string;
 }
@@ -198,12 +199,12 @@ function waves(ctx: CanvasRenderingContext2D, x0: number, y0: number, w: number,
 }
 
 /**
- * The Aura Farmers' squares, after the designer's concept shirt: the torso
- * painted in `colour` and a grid of rounded squares cut out of it, so the
- * shirt's own colour shows through them. The squares cover half of him, from
- * a diagonal down his chest round his left side and across his back, the
- * side and the back the game's camera sees, and fade into the solid half at
- * both edges, shrinking and going out, a few strays past the edge.
+ * The Aura Farmers' squares, after the designer's concept shirt: a grid of
+ * rounded squares in `colour` on the shirt's orange, packed tight round his
+ * left side — the side the game's camera sees — so it reads as navy with
+ * thin orange lines through it, and going out from there: across his chest
+ * to a diagonal edge, the squares shrinking and fading, a few strays past
+ * it; and a little way onto his back.
  *
  * The grid is turned so it meets itself round him: a turn whose tangent is
  * two thirds puts a corner of the grid every `SQUARE_STEPS` squares along the
@@ -211,34 +212,112 @@ function waves(ctx: CanvasRenderingContext2D, x0: number, y0: number, w: number,
  */
 const SQUARE_TURN = Math.atan2(2, 3), SQUARE_STEPS = 5;
 const SQUARE_PITCH = CLOTH.round / (Math.hypot(3, 2) * SQUARE_STEPS);
-/** The front edge: up his chest's middle, leaning towards the collar on his right by this many metres a metre. */
-const SQUARE_EDGE = { middle: CLOTH.round / 2, lean: .6, span: .72, fade: .16 };
+/**
+ * The band, in metres round him from its front edge: the edge up his chest's
+ * middle, leaning across by `lean` metres a metre; packed after `front`, and
+ * out again over the last `back` of its `span`.
+ */
+const SQUARE_BAND = { middle: CLOTH.round / 2, lean: .6, span: .56, front: .18, back: .12 };
 function squares(ctx: CanvasRenderingContext2D, W: number, FH: number, colour: string) {
   const m = W / CLOTH.round, p = SQUARE_PITCH, L = CLOTH.round;
   const [c, s] = [Math.cos(SQUARE_TURN), Math.sin(SQUARE_TURN)];
   ctx.save();
-  ctx.fillStyle = colour; ctx.fillRect(0, 0, W, FH);
-  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = colour;
   // Laid the other way round him, so the squares are on the side the game's camera sees.
   ctx.translate(W, 0); ctx.scale(-1, 1);
   const reach = Math.ceil(Math.hypot(L, CLOTH.tall) / p) + 2;
   for (let i = -reach; i <= reach; i++) for (let j = -reach; j <= reach; j++) {
     const x = (i * c - j * s) * p, y = (i * s + j * c) * p;
     if (x < -p || x > L + p || y < -p || y > CLOTH.tall + p) continue;
-    // How far inside the squares' half, in metres round him: positive inside, negative in the solid half.
-    const edge = SQUARE_EDGE.middle - SQUARE_EDGE.lean * (y - CLOTH.tall / 2);
+    // How far round him from the band's front edge.
+    const edge = SQUARE_BAND.middle - SQUARE_BAND.lean * (y - CLOTH.tall / 2);
     const round = (((edge - x) % L) + L) % L;
-    const inside = round < SQUARE_EDGE.span ? Math.min(round, SQUARE_EDGE.span - round) : -Math.min(round - SQUARE_EDGE.span, L - round);
-    let shown = Math.min(1, Math.max(0, (inside + .02) / SQUARE_EDGE.fade));
-    // A few strays out past the edge, as the concept has.
+    let shown = round < SQUARE_BAND.span ? Math.min(1, (round + .02) / SQUARE_BAND.front, (SQUARE_BAND.span - round) / SQUARE_BAND.back) : 0;
+    // A few strays out past the front edge, as the concept has.
     const stray = Math.abs(Math.sin((i + 7 * ((j % 50) + 50)) * 12.9898) * 43758.5453) % 1;
-    if (shown === 0 && inside > -.12 && stray < .22) shown = .3;
-    if (shown === 0) continue;
-    ctx.globalAlpha = Math.pow(shown, .7);
+    if (shown <= 0 && L - round < .1 && stray < .22) shown = .3;
+    if (shown <= 0) continue;
+    ctx.globalAlpha = Math.pow(shown, .8);
     ctx.save();
     ctx.translate(x * m, FH - y * m); ctx.rotate(-SQUARE_TURN);
-    ctx.beginPath(); roundedSquare(ctx, 0, 0, p * m * (.5 + .34 * shown), .2); ctx.fill();
+    ctx.beginPath(); roundedSquare(ctx, 0, 0, p * m * (.55 + .32 * shown), .2); ctx.fill();
     ctx.restore();
+  }
+  ctx.restore();
+}
+
+/** A stream of numbers from nought to one, the same every time for a seed. */
+function seeded(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * The Apex Vipers' all-over print, after the designer's concept shirt: on
+ * the lime, everything running up the diagonal to his left shoulder —
+ * long yellow slashes, cherry streaks spattered along their edges, and big
+ * purple lightning, jagged bands zigzagging up the diagonal with spatter
+ * off them. Seeded, so it is the same print every time; drawn three times a
+ * width apart so it meets itself down his back; and no lightning across the
+ * middle of the back, where the number is.
+ */
+function shards(ctx: CanvasRenderingContext2D, W: number, FH: number, colours: { bolt: string; streak: string; slash: string }) {
+  const m = W / CLOTH.round, L = CLOTH.round, T = CLOTH.tall, rand = seeded(10);
+  const a = 58 * Math.PI / 180, d = [Math.cos(a), Math.sin(a)], n = [-Math.sin(a), Math.cos(a)];
+  /** A point `along` the diagonal and `across` it from (x, y). */
+  const at = (x: number, y: number, along: number, across: number): [number, number] => [x + d[0] * along + n[0] * across, y + d[1] * along + n[1] * across];
+  const shapes: { colour: string; points: [number, number][] }[] = [];
+  const spatter = (x: number, y: number, len: number, side: number, colour: string, count: number) => {
+    for (let k = 0; k < count; k++) {
+      const along = (rand() - .5) * len, off = side * (.004 + rand() * .035), size = .004 + rand() * .014;
+      const [px, py] = at(x, y, along, off);
+      const turn = rand() * Math.PI;
+      shapes.push({ colour, points: [0, 1, 2].map(q => {
+        const r = q === 0 ? size * 1.8 : size * .6, t = turn + q * 2.1;
+        return [px + Math.cos(t) * r, py + Math.sin(t) * r] as [number, number];
+      }) });
+    }
+  };
+  for (let k = 0; k < 22; k++) {
+    const x = rand() * L, y = rand() * T, len = .18 + rand() * .28, wide = .026 + rand() * .04;
+    shapes.push({ colour: colours.slash, points: [at(x, y, -len / 2, -wide / 2), at(x, y, -len / 2, wide / 2), at(x, y, len / 2, 0)] });
+  }
+  for (let k = 0; k < 10; k++) {
+    const x = rand() * L, y = rand() * T, len = .28 + rand() * .3, wide = .014 + rand() * .022;
+    shapes.push({ colour: colours.streak, points: [at(x, y, -len / 2, -wide / 2), at(x, y, len / 2, -wide * .2), at(x, y, len / 2, wide * .2), at(x, y, -len / 2, wide / 2)] });
+    spatter(x, y, len * .7, rand() < .5 ? 1 : -1, colours.streak, 20);
+  }
+  for (let k = 0, tries = 0; k < 11 && tries < 120; tries++) {
+    const x = rand() * L, y = .04 + rand() * (T - .08);
+    // The number's place across the middle of his back is kept clear.
+    if ((x < .16 || x > L - .16) && y > .1 && y < .42) continue;
+    k++;
+    const len = .2 + rand() * .2, wide = .045 + rand() * .045, zig = .022 + rand() * .02, kinks = 4 + Math.floor(rand() * 3);
+    // A jagged band zigzagging up the diagonal, thickest in its middle and sharp at both ends.
+    const line = Array.from({ length: kinks + 1 }, (_, q) => {
+      const t = q / kinks;
+      return { along: (t - .5) * len, across: (q % 2 ? zig : -zig) * Math.sin(Math.PI * t), half: wide / 2 * Math.pow(Math.sin(Math.PI * t), .7) };
+    });
+    shapes.push({ colour: colours.bolt, points: [
+      ...line.map(o => at(x, y, o.along, o.across + o.half)),
+      ...line.slice().reverse().map(o => at(x, y, o.along + o.half * .6, o.across - o.half)),
+    ] });
+    spatter(x, y, len, rand() < .5 ? 1 : -1, colours.bolt, 10);
+  }
+  ctx.save();
+  ctx.translate(0, FH); ctx.scale(m, -m);
+  for (const { colour, points } of shapes) {
+    ctx.fillStyle = colour;
+    for (const shift of [-L, 0, L]) {
+      ctx.beginPath();
+      points.forEach(([x, y], i) => (i ? ctx.lineTo(x + shift, y) : ctx.moveTo(x + shift, y)));
+      ctx.closePath(); ctx.fill();
+    }
   }
   ctx.restore();
 }
@@ -285,6 +364,7 @@ export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trouser
     }
   }
   if (print.squares) squares(f, W, FH, print.squares.colour);
+  if (print.shards) shards(f, W, FH, print.shards);
   panel(.5, () => print.chest.forEach(b => bolt(f, b)));
   for (const round of [0, 1]) panel(round, () => print.back.forEach(b => bolt(f, b)));
   if (print.collar) panel(.5, () => {
@@ -323,6 +403,7 @@ export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trouser
   const down = (z: number) => H * (1 - z);
   // The waves down the sleeve too, from the shoulder to the hem.
   if (print.swirl) waves(s, sx, down(HEM), sw, H * HEM, print.swirl.colour, 3);
+  if (print.sleeves) { s.fillStyle = print.sleeves; s.fillRect(sx, down(HEM + .02), sw, H * (HEM + .02)); }
   if (print.hem) {
     // The band just inside the hem, and the line on the shoulder's side of it.
     s.fillStyle = print.hem.colour; s.fillRect(sx, down(HEM - .006), sw, .05 * H);

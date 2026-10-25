@@ -1737,20 +1737,21 @@ purple (#271473) and cherry (#E92568) were set by the designer after a look.
 
 The lightning bolts are the Panthers' alone, the first team's mark; each
 other team has a pattern of its own from its name (`Mark`'s `shape` in
-`kitPrint.ts`): the Vipers after the designer's jersey reference, streaks
-of sharp purple slashes running up the front, each a column of barbs
-staggered either side of its line, leaning a little to the right as they
-climb, and a lime streak up each leg (`streak`; the yoke stripes and hip
-spikes of a South Africa concept shirt, a diamondback and angular blocks
-came first), the Kings a big four-pointed star on the chest with two small ones and a
+`kitPrint.ts`): the Vipers after the designer's concept shirt (`shards`),
+purple lightning, cherry streaks spattered along their edges and yellow
+slashes all over the lime, running up the diagonal, seeded so it is the same
+every time and kept off the number; purple sleeves (`sleeves`) with a lime
+cuff, the number edged in lime (`numberEdge`), and a lime streak of barbs up
+each leg (columns of purple barbs, yoke stripes and hip spikes, a
+diamondback and angular blocks came first), the Kings a big four-pointed star on the chest with two small ones and a
 yellow stripe down each leg to a star at the knee, the Falcons three stacked
 V's across the chest like spread wings and two small ones down each leg, the
-Farmers after the designer's concept shirt (`squares`): half the shirt navy
-and the other half a grid of orange squares in navy, from a diagonal down
-the chest round his left side and across his back — the side the game's
-camera sees — fading into the navy at its edges, the number edged in orange
-over it (`numberEdge`), and a run of orange squares fading down each leg
-(three arcs from the shoulder were tried first), the Mavericks, the top of the ladder,
+Farmers after the designer's concept shirt (`squares`): the orange shirt
+with navy sleeves and an orange cuff, a grid of navy squares packed round
+his left side — the side the game's camera sees — and fading out across his
+chest to a diagonal edge, the number edged in orange, and two orange stripes
+down each leg (three arcs from the shoulder came first, then the shirt half
+navy with the squares in orange), the Mavericks, the top of the ladder,
 an all-over print after the designer's reference (`swirl`): teal waves
 flowing round the whole violet shirt and its sleeves, fading into teal at
 the hem, the number edged in violet, and a teal stripe down each leg (a band
