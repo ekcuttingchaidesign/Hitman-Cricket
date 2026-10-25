@@ -46,6 +46,9 @@ const GUTTER = 8 / 1024;
  * - `chevron`: a V pointing down, its arms `thick` of its width.
  * - `bar`: a plain band.
  * - `diamond`: a diamond, its points at the middle of each side.
+ * - `spike`: a long point, its base at the foot and its tip at the top.
+ * - `zigzag`: a jagged band, `points` teeth along its width, `thick` of its
+ *   height thick.
  * - `ring`: an arc round its middle, `w` its radius, `h` its thickness,
  *   `from` and `sweep` where it starts and how far it runs (degrees,
  *   anticlockwise from the right); `lean` is not used.
@@ -53,7 +56,7 @@ const GUTTER = 8 / 1024;
  */
 export interface Mark {
   x: number; y: number; w: number; h: number; lean: number; colour: string;
-  shape?: 'bolt' | 'star' | 'chevron' | 'bar' | 'diamond' | 'ring' | 'crown';
+  shape?: 'bolt' | 'star' | 'chevron' | 'bar' | 'diamond' | 'spike' | 'zigzag' | 'ring' | 'crown';
   thick?: number; from?: number; sweep?: number; points?: number;
 }
 
@@ -106,6 +109,14 @@ function bolt(ctx: CanvasRenderingContext2D, b: Mark) {
     case 'star': polygon(STAR); break;
     case 'bar': polygon([[-.5, -.5], [.5, -.5], [.5, .5], [-.5, .5]]); break;
     case 'diamond': polygon([[0, .5], [.5, 0], [0, -.5], [-.5, 0]]); break;
+    case 'spike': polygon([[-.5, -.5], [.5, -.5], [.15, .5]]); break;
+    case 'zigzag': {
+      // A line up and down `points` times, made a band by its thickness either side.
+      const n = 2 * (b.points ?? 4), k = (b.thick ?? .3) / 2, line: [number, number][] = [];
+      for (let i = 0; i <= n; i++) line.push([-.5 + i / n, i % 2 ? .5 - k : -.5 + k]);
+      polygon([...line.map(([x, y]) => [x, y + k] as [number, number]), ...line.reverse().map(([x, y]) => [x, y - k] as [number, number])]);
+      break;
+    }
     case 'chevron': {
       const k = b.thick ?? .25;
       polygon([[-.5, .5], [-.5 + k, .5], [0, -.5 + 2 * k], [.5 - k, .5], [.5, .5], [0, -.5]]);

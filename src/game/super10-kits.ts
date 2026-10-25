@@ -123,21 +123,24 @@ const sashLeg: Mark[] = [
   { shape: 'bar', x: .028, y: .32, w: .01, h: .56, lean: 0, colour: WHITE },
 ];
 /**
- * Apex Vipers, angular, after the designer's reference: a wide purple panel
- * cut diagonally across the chest from the right shoulder, a white slash
- * beside it and two short ones high on the left, over faint purple V-lines;
- * and a lime slash with a white one down each leg.
+ * Apex Vipers, after the designer's reference (a South Africa concept
+ * shirt): thin purple stripes slanting across the yoke from shoulder to
+ * shoulder, and long sharp purple spikes fanning up the front from the left
+ * hip towards the right shoulder, the back left plain for the number; and
+ * two spikes pointing down each leg. An angular-blocks design and a
+ * diamondback were tried first.
  */
 const viperChest: Mark[] = [
-  ...[0, 1, 2, 3, 4, 5].map(i => ({ shape: 'chevron' as const, x: 0, y: .3 - i * .04, w: .36, h: .09, lean: 0, colour: '#27147359', thick: .07 })),
-  { shape: 'bar', x: .1, y: .24, w: .26, h: .52, lean: 52, colour: PURPLE },
-  { shape: 'bar', x: -.06, y: .1, w: .06, h: .42, lean: 52, colour: WHITE },
-  { shape: 'bar', x: -.12, y: .43, w: .028, h: .22, lean: 52, colour: WHITE },
-  { shape: 'bar', x: -.085, y: .47, w: .02, h: .16, lean: 52, colour: PURPLE },
+  ...Array.from({ length: 11 }, (_, i) => ({ shape: 'bar' as const, x: -.24 + i * .048, y: .45, w: .02, h: .17, lean: 40, colour: PURPLE })),
+  // Long sharp spikes fanning up from the left hip towards the right shoulder, two rows of them.
+  ...([
+    [-.2, .05, .38], [-.14, .04, .3], [-.08, .03, .36], [-.02, .02, .26], [.04, .02, .3],
+    [-.17, .17, .22], [-.1, .16, .26], [-.04, .15, .2],
+  ] as const).map(([x, y, h]) => ({ shape: 'spike' as const, x, y: y + h / 2, w: .05, h, lean: -36, colour: PURPLE })),
 ];
 const viperLeg: Mark[] = [
-  { shape: 'bar', x: 0, y: .32, w: .05, h: .45, lean: 14, colour: LIME },
-  { shape: 'bar', x: -.04, y: .4, w: .016, h: .35, lean: 14, colour: WHITE },
+  { shape: 'spike', x: 0, y: .45, w: .06, h: .32, lean: 180, colour: PURPLE },
+  { shape: 'spike', x: -.03, y: .32, w: .04, h: .22, lean: 180, colour: PURPLE },
 ];
 
 export const SUPER10_KITS: readonly Super10Kit[] = [

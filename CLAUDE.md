@@ -1717,10 +1717,10 @@ purple (#271473) and cherry (#E92568) were set by the designer after a look.
 
 The lightning bolts are the Panthers' alone, the first team's mark; each
 other team has a pattern of its own from its name (`Mark`'s `shape` in
-`kitPrint.ts`): the Vipers angular blocks after the designer's reference, a
-wide purple panel cut diagonally across the chest with white slashes over
-faint purple V-lines and a lime slash down each leg (a diamondback was tried
-first), the Kings a big four-pointed star on the chest with two small ones and a
+`kitPrint.ts`): the Vipers after the designer's reference (a South Africa
+concept shirt), thin purple stripes slanting across the yoke and long sharp
+spikes fanning up the front from the left hip, with two spikes down each leg
+(a diamondback and angular blocks were tried first), the Kings a big four-pointed star on the chest with two small ones and a
 yellow stripe down each leg to a star at the knee, the Falcons three stacked
 V's across the chest like spread wings and two small ones down each leg, the
 Farmers three arcs spreading from the right shoulder, navy fading to white,
