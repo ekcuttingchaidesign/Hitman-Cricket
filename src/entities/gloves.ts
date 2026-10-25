@@ -245,7 +245,7 @@ export const SUPER10_GLOVES: Record<Super10GuardId, GloveDesign<Super10GuardId>>
   },  'super10-yellow': {
     id: 'super10-yellow', name: 'Nova Kings', line: 'White padding with navy rolls and a butter-yellow index roll and band; royal blue pads piped yellow.',
     glow: '#FDE17A',
-    pads: { body: '#2740AF', trim: '#FDE17A' },
+    pads: { body: '#112E80', trim: '#FDE17A' },
     base: '#F4F2FA',
     rolls: ['#0B1A36', '#0B1A36', '#0B1A36', '#FDE17A'],
     index: ['#FDE17A', '#0B1A36', '#F4F2FA'],
@@ -253,7 +253,7 @@ export const SUPER10_GLOVES: Record<Super10GuardId, GloveDesign<Super10GuardId>>
     tips: ['#F4F2FA', '#F4F2FA', '#F4F2FA', '#FDE17A'],
     knuckleBar: { colour: '#0B1A36', badge: '#FDE17A' },
     thumb: '#F4F2FA', thumbTip: '#0B1A36', ridges: '#FDE17A',
-    cuff: { base: '#0B1A36', bands: [{ at: .062, depth: .010, colour: '#FDE17A' }], strap: '#2740AF', badge: '#FDE17A', rim: '#0B1A36' },
+    cuff: { base: '#0B1A36', bands: [{ at: .062, depth: .010, colour: '#FDE17A' }], strap: '#112E80', badge: '#FDE17A', rim: '#0B1A36' },
   },
   'super10-orange': {
     id: 'super10-orange', name: 'Aura Farmers', line: 'White padding with navy rolls and an orange index roll and band; navy pads piped orange.',
@@ -270,16 +270,16 @@ export const SUPER10_GLOVES: Record<Super10GuardId, GloveDesign<Super10GuardId>>
   },
   'super10-violet': {
     id: 'super10-violet', name: 'Royal Mavericks', line: 'White padding with violet rolls and a teal index roll and band; violet pads piped teal.',
-    glow: '#D851FC',
-    pads: { body: '#D851FC', trim: '#409896' },
+    glow: '#CE77E5',
+    pads: { body: '#CE77E5', trim: '#339C99' },
     base: '#F4F2FA',
-    rolls: ['#D851FC', '#D851FC', '#D851FC', '#409896'],
-    index: ['#409896', '#D851FC', '#F4F2FA'],
+    rolls: ['#CE77E5', '#CE77E5', '#CE77E5', '#339C99'],
+    index: ['#339C99', '#CE77E5', '#F4F2FA'],
     sideBar: true,
-    tips: ['#F4F2FA', '#F4F2FA', '#F4F2FA', '#409896'],
-    knuckleBar: { colour: '#D851FC', badge: '#409896' },
-    thumb: '#F4F2FA', thumbTip: '#D851FC', ridges: '#409896',
-    cuff: { base: '#D851FC', bands: [{ at: .062, depth: .010, colour: '#409896' }], strap: '#D851FC', badge: '#409896', rim: '#D851FC' },
+    tips: ['#F4F2FA', '#F4F2FA', '#F4F2FA', '#339C99'],
+    knuckleBar: { colour: '#CE77E5', badge: '#339C99' },
+    thumb: '#F4F2FA', thumbTip: '#CE77E5', ridges: '#339C99',
+    cuff: { base: '#CE77E5', bands: [{ at: .062, depth: .010, colour: '#339C99' }], strap: '#CE77E5', badge: '#339C99', rim: '#CE77E5' },
   },
 };
 

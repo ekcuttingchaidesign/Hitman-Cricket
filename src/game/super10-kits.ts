@@ -42,8 +42,8 @@ export interface Super10Kit {
 
 // Purple and cherry as the designer set them after a look at the first build, whose purple read too light.
 const PURPLE = '#271473', LILAC = '#A447FF', LIME = '#B7FF3B', CHERRY = '#E92568', PALE = '#F3DDFF';
-const NAVY = '#0B1A36', WHITE = '#FFFFFF', ROYAL = '#2740AF';
-const ORANGE = '#FE7701', BUTTER = '#FDE17A', GOLD = '#EDC562', VIOLET = '#D851FC', TEAL = '#409896';
+const NAVY = '#0B1A36', WHITE = '#FFFFFF', ROYAL = '#112E80';
+const ORANGE = '#FE7701', BUTTER = '#FDE17A', GOLD = '#EDC562', VIOLET = '#CE77E5', TEAL = '#339C99';
 
 /** The chest's two bolts, a main one and a smaller one beside it, and the leg's, in two colours. */
 const chest = (main: string, second: string) => [{ x: .03, y: .27, w: .13, h: .44, lean: 38, colour: main }, { x: -.07, y: .3, w: .08, h: .3, lean: 38, colour: second }];
