@@ -176,6 +176,8 @@ kbd{
     color:#fff
   }
 }
+/* The page's one headline, for search as much as for whoever reads it: a line over the note. */
+.desk-note h1{margin:0 0 -8px;font-size:12px;font-weight:800;line-height:1.3;letter-spacing:.08em;text-transform:uppercase;color:var(--c-accent)}
 .desk-note h2{margin:0;font-family:var(--cta);font-weight:400;font-size:34px;line-height:1.05}
 .desk-note p{margin:0;font-size:15px;font-weight:500;line-height:1.5;color:#b9c8d3}
 .desk-qr{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:4px;padding:12px 12px 10px;border-radius:16px;background:#fff;box-shadow:0 12px 30px #0000008c}

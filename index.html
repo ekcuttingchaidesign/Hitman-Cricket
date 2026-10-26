@@ -8,6 +8,8 @@
     <meta property="og:title" content="Hitman Cricket — Smash sixes. Rule the leaderboard." />
     <meta property="og:description" content="The ultimate batting game. Swipe, smash runs and earn your place as the Hitman. No download." />
     <meta property="og:type" content="website" />
+    <!-- One address for search: the old vercel.app host and every ?room= or ?demo= link count as this page. -->
+    <link rel="canonical" href="https://hitmancricket.in/" />
     <meta property="og:url" content="https://hitmancricket.in/" />
     <meta property="og:site_name" content="Hitman Cricket" />
     <!-- The link preview on WhatsApp and the rest: absolute, 1200x630, under 300 KB or WhatsApp drops it. -->
@@ -23,12 +25,45 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-title" content="Hitman Cricket" />
+    <!-- What the page is, for search engines: the game, and the site's name in results. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://hitmancricket.in/#website",
+            "name": "Hitman Cricket",
+            "alternateName": "Hitman Cricket game",
+            "url": "https://hitmancricket.in/"
+          },
+          {
+            "@type": ["VideoGame", "WebApplication"],
+            "@id": "https://hitmancricket.in/#game",
+            "name": "Hitman Cricket",
+            "url": "https://hitmancricket.in/",
+            "image": "https://hitmancricket.in/og-cover.jpg",
+            "description": "A free 3D cricket batting game in the browser. Swipe to bat in the Blast, the Test Marathon or Test Survival, smash sixes and climb the leaderboards. No download.",
+            "genre": ["Sports", "Cricket"],
+            "gamePlatform": ["Web browser", "Mobile", "PC"],
+            "applicationCategory": "GameApplication",
+            "operatingSystem": "Any",
+            "playMode": ["SinglePlayer", "MultiPlayer"],
+            "inLanguage": "en",
+            "isAccessibleForFree": true,
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
+            "isPartOf": { "@id": "https://hitmancricket.in/#website" }
+          }
+        ]
+      }
+    </script>
     <script data-goatcounter="https://ekcuttingchaidesign.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
   </head>
   <body>
     <div id="app"></div>
     <!-- Beside the game on a desktop, where there is room (see .desk-note in styles.css). -->
     <aside class="desk-note" aria-label="Play on your phone">
+      <h1>Hitman Cricket: free 3D cricket batting game</h1>
       <h2>Made for your phone</h2>
       <p>Hitman Cricket is built to be swiped. Scan to bat on your phone.</p>
       <div class="desk-qr"><img src="play-qr.svg" alt="QR code for hitmancricket.in" width="148" height="148" /><span>hitmancricket.in</span></div>
