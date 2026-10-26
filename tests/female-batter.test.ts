@@ -5,6 +5,7 @@ import type { ConnectedJersey } from '../src/entities/ConnectedJersey';
 import { GAME } from '../src/config/gameplay';
 import { jerseyGeometry } from '../src/entities/garment';
 import { SHAPES, physiqueOf } from '../src/entities/physique';
+import { Ponytail, radiusAt } from '../src/entities/Ponytail';
 
 type Rig = { connectedJersey: ConnectedJersey; head: THREE.Group; torso: THREE.Group; hair: THREE.Group };
 const rigOf = (batter: Batter) => batter as unknown as Rig;
@@ -99,12 +100,14 @@ describe('the ponytail', () => {
     const back = [torso.position.clone().addScaledVector(spine, -.32), torso.position.clone().addScaledVector(spine, .06)];
     let inside = Infinity, stretch = 0;
     chain.forEach((p, i) => {
-      if (i > 0) stretch = Math.max(stretch, Math.abs(p.distanceTo(chain[i - 1]) - .30 / 8));
+      if (i > 0) stretch = Math.max(stretch, Math.abs(p.distanceTo(chain[i - 1]) - Ponytail.LINK));
       if (i < 3) return;
-      inside = Math.min(inside, p.distanceTo(shell) - .195);
+      // Measured from the hair's own surface, not its middle: it is thick.
+      const thick = radiusAt(i / (chain.length - 1)) * .85;
+      inside = Math.min(inside, p.distanceTo(shell) - .195 - thick);
       const line = back[1].clone().sub(back[0]);
       const along = THREE.MathUtils.clamp(p.clone().sub(back[0]).dot(line) / line.lengthSq(), 0, 1);
-      inside = Math.min(inside, p.distanceTo(back[0].clone().addScaledVector(line, along)) - .145);
+      inside = Math.min(inside, p.distanceTo(back[0].clone().addScaledVector(line, along)) - .145 - thick);
     });
     return { chain, inside, stretch };
   }
@@ -114,7 +117,8 @@ describe('the ponytail', () => {
     const { chain, inside, stretch } = measure(her);
     const head = rigOf(her).head.position;
     expect(chain[0].z).toBeLessThan(head.z - .1);
-    expect(chain[chain.length - 1].y).toBeLessThan(chain[0].y - .15);
+    // Long enough to be seen: the tip well down the back, below the shoulders.
+    expect(chain[chain.length - 1].y).toBeLessThan(chain[0].y - .22);
     expect(inside).toBeGreaterThan(-.005);
     expect(stretch).toBeLessThan(.002);
   });

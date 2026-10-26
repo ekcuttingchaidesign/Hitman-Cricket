@@ -696,14 +696,26 @@ gentle bust, `bust`), the trousers' waistband, seat and hips
 the one he always had, number for number. The garments are built anew on a
 change, as the pads are.
 
-Her hair is at the nape under the helmet's rim and in a ponytail gathered in
-a tie in the kit's trim colour (`HAIR_TIE`, `HAIR_OUT`), hanging from it as a
-chain (`src/entities/Ponytail.ts`): Verlet at a fixed step on the batter's own
-clock, so it slows in the slow motion and stops in the pause, kept off the
-helmet, the neck, the shoulders and the back. Both ends of a link give: pulled
-one way only, link by link, the chain gained energy and never settled. A clock
-that never runs (a preview posed by hand) hangs it afresh each frame, at rest.
-For the male build it is hidden, so his draw calls are what they were.
+Her hair follows a reference sheet of her from every side: combed back from
+the temples, behind the ears and down to the nape (`napeGeometry`, lying on
+the face's ball and sinking into it at the hairline, so there is no edge: cut
+straight down the side of the head it was a hard line, taken further round a
+balaclava), gathered from under the helmet's back rim (`gatherGeometry`) into
+a white scrunchie (`HAIR_TIE`, `HAIR_OUT`), and a ponytail forty centimetres
+long, full near the tie and clumped into strands, every strand its own brown
+in the vertices (`hairColour`). It hangs from the tie as a chain
+(`src/entities/Ponytail.ts`): Verlet at a fixed step on the batter's own
+clock, so it slows in the slow motion and stops in the pause, its tip flicked
+out (`CURL`) into the S a ponytail hangs in, kept off the helmet, the neck,
+the shoulders and the back. Both ends of a link give: pulled one way only,
+link by link, the chain gained energy and never settled. A clock that never
+runs (a preview posed by hand) hangs it afresh each frame, at rest. For the
+male build it is hidden, so his draw calls are what they were.
+
+`batter-model.html` is her on a turntable — front, three-quarters, side,
+back, close on the ponytail — in her guard or playing strokes on a loop, in
+any kit and guard; `scripts/batter-model-artifact.mjs` builds it into one
+file.
 
 Nobody can choose her yet: `?batter=female` draws her in the game and the
 Dressing Room (`askedPhysique`; not practice), and `cover-drive.html` has a

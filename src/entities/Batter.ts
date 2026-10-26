@@ -10,7 +10,7 @@ import { clothMaterial, willowMaterial } from './characterMaterials';
 import { GRILLE_MOUNT, helmetGeometry, helmetGrilleGeometry, helmetPeakGeometry, helmetRimGeometry } from './helmetGeometry';
 import { compactRigidParts } from './compactParts';
 import { SHAPES, type BodyShape, type Physique } from './physique';
-import { Ponytail, type HairCollider } from './Ponytail';
+import { hairColour, Ponytail, type HairCollider } from './Ponytail';
 import { buildGloveCuff, buildGloveHand, DEFAULT_GLOVE, gloveHeelGeometry, gloveOf, WRIST_HOME, type GloveDesign } from './gloves';
 import type { BodyPart, ShotType } from '../game/types';
 
@@ -380,23 +380,106 @@ const HELMET_CENTRE = new THREE.Vector3(0, .04, 0);
 /** The bottom of the grille, under the chin, from the head's own origin. */
 const CHIN_GUARD = new THREE.Vector3(0, -.18, .13);
 /**
- * The hair tie, under the back rim of the helmet, and the way it sends the
- * ponytail out: back and a little down. In the head's own frame.
+ * The hair tie, at the back rim of the helmet, and the way it sends the
+ * ponytail out: back, a little down, before it falls. In the head's own frame.
  */
-const HAIR_TIE = new THREE.Vector3(0, -.10, -.152);
-const HAIR_OUT = new THREE.Vector3(0, -.68, -.73).normalize();
+const HAIR_TIE = new THREE.Vector3(0, -.098, -.17);
+const HAIR_OUT = new THREE.Vector3(0, -.26, -.966).normalize();
+/** Where the hair is gathered from, under the shell at the back of the head, and how wide. */
+const GATHER = { from: new THREE.Vector3(0, -.048, -.1), radius: .074 } as const;
 /** The middle of the helmet's shell and how far out it comes, for keeping the hair off it. */
 const SHELL = { centre: new THREE.Vector3(0, .024, -.02), radius: .195 } as const;
+/** Give a geometry hair's colours, strand by strand: `strandOf` says which strand a vertex is on, and how lit. */
+function coloured(geometry: THREE.BufferGeometry, strandOf: (u: number, v: number) => [number, number, number]) {
+  const uv = geometry.getAttribute('uv'), colours = new Float32Array(uv.count * 3), c = new THREE.Color();
+  for (let i = 0; i < uv.count; i++) {
+    hairColour(...strandOf(uv.getX(i), uv.getY(i)), c);
+    colours[i * 3] = c.r; colours[i * 3 + 1] = c.g; colours[i * 3 + 2] = c.b;
+  }
+  geometry.setAttribute('color', new THREE.BufferAttribute(colours, 3));
+  return geometry;
+}
+/** The face's ball, which the hair lies on: its size and how far down the head it sits. */
+const FACE = { scale: [.148, .17, .15] as const, y: -.03 };
 /**
- * The hair at the back of the head, from under the shell down to the nape
- * and round as far as behind the ears: the back of a ball, not a whole one.
- * Taken further round, it was over his cheeks like a balaclava. Its own kind of geometry, so nothing that reads the
- * figure's balls as its joints takes it for one.
+ * The hair at the back of the head, combed back from the temples, behind
+ * where the ears are and down to the nape, where it narrows. It lies on the
+ * face's own ball, standing proud of it by a few millimetres in the middle
+ * and sinking into it at the hairline, so the hair grows out of the head
+ * rather than sitting on it with an edge. A ball cut straight down the side
+ * of the head left a hard line there; taken further round, it was over his
+ * cheeks like a balaclava. In the head's own frame.
  */
 function napeGeometry() {
-  const sphere = new THREE.SphereGeometry(1, 20, 12, Math.PI + .45, Math.PI - .9, .75, 1.5);
-  const geometry = new THREE.BufferGeometry().copy(sphere);
-  sphere.dispose();
+  const rows = 16, across = 44, positions: number[] = [], uv: number[] = [], indices: number[] = [];
+  for (let r = 0; r <= rows; r++) {
+    const v = r / rows, theta = THREE.MathUtils.lerp(.7, 2.38, v);
+    // How far round from the back the hair reaches at this height: to the
+    // temples under the shell, behind the ears, then in to the nape.
+    const reach = v < .55 ? THREE.MathUtils.lerp(1.3, .98, v / .55) : THREE.MathUtils.lerp(.98, .42, Math.sin((v - .55) / .45 * Math.PI / 2));
+    for (let i = 0; i <= across; i++) {
+      const u = i / across, phi = (u * 2 - 1) * reach;
+      // Proud in the middle, into the head at every edge of it.
+      const edge = Math.min(1, (1 - Math.abs(u * 2 - 1)) * 3.2, (1 - v) * 5), proud = 1 - .012 + .052 * Math.sin(edge * Math.PI / 2);
+      const x = Math.sin(phi) * Math.sin(theta), y = Math.cos(theta), z = -Math.cos(phi) * Math.sin(theta);
+      positions.push(x * FACE.scale[0] * proud, FACE.y + y * FACE.scale[1] * proud, z * FACE.scale[2] * proud);
+      uv.push(u, v);
+      if (r < rows && i < across) {
+        const n = r * (across + 1) + i, m = n + across + 1;
+        indices.push(n, n + 1, m, n + 1, m + 1, m);
+      }
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geometry.setIndex(indices); geometry.computeVertexNormals();
+  return coloured(geometry, (u, v) => [u * 70, .5 + .5 * Math.cos(u * Math.PI * 2 * 13), .35 * (1 - v)]);
+}
+/**
+ * The hair gathered from under the back of the helmet into the tie: wide
+ * where it leaves the head, drawn in to the tie's width, a little wider than
+ * deep. In the head's own frame, so it is one piece with the hair at the nape
+ * and the ponytail, with no gap between them for the light to show through.
+ */
+function gatherGeometry() {
+  const rows = 8, sides = 28, axis = HAIR_TIE.clone().sub(GATHER.from), length = axis.length();
+  axis.normalize();
+  const side = new THREE.Vector3(1, 0, 0), up = new THREE.Vector3().crossVectors(axis, side).normalize();
+  const positions: number[] = [], uv: number[] = [], indices: number[] = [];
+  for (let r = 0; r <= rows; r++) {
+    const t = r / rows, centre = GATHER.from.clone().addScaledVector(axis, t * length);
+    const radius = THREE.MathUtils.lerp(GATHER.radius, .027, THREE.MathUtils.smootherstep(t, 0, 1));
+    for (let i = 0; i <= sides; i++) {
+      const a = i / sides * Math.PI * 2, clump = 1 + .05 * Math.cos(7 * a);
+      const p = centre.clone().addScaledVector(side, Math.cos(a) * radius * clump).addScaledVector(up, Math.sin(a) * radius * clump * .85);
+      positions.push(p.x, p.y, p.z); uv.push(i / sides, t);
+      if (r < rows && i < sides) {
+        const n = r * (sides + 1) + i, m = n + sides + 1;
+        indices.push(n, m, n + 1, n + 1, m, m + 1);
+      }
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geometry.setIndex(indices); geometry.computeVertexNormals();
+  return coloured(geometry, (u, v) => [(u % 1) * 56 + 7, .5 + .5 * Math.cos(u * Math.PI * 2 * 7), .25 + .3 * v]);
+}
+/**
+ * The tie: a scrunchie, gathered fabric round the ponytail, its tube ruffled
+ * as it goes round. Its ring is in the xy-plane, its middle on the z axis.
+ */
+function scrunchieGeometry() {
+  const geometry = new THREE.TorusGeometry(.028, .0125, 12, 48);
+  const p = geometry.getAttribute('position'), v = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    const round = Math.atan2(v.y, v.x), tube = new THREE.Vector3(Math.cos(round) * .028, Math.sin(round) * .028, 0);
+    v.sub(tube).multiplyScalar(1 + .13 * Math.cos(round * 13) + .05 * Math.cos(round * 5 + 1)).add(tube);
+    p.setXYZ(i, v.x, v.y, v.z);
+  }
+  geometry.computeVertexNormals();
   return geometry;
 }
 /** How far the handle's end is from the grip, along the bat. */
@@ -3103,7 +3186,8 @@ export class Batter {
     blade: bladeGeometry(),
     heel: gloveHeelGeometry(),
     nape: napeGeometry(),
-    tie: new THREE.TorusGeometry(.024, .009, 8, 20),
+    gather: gatherGeometry(),
+    tie: scrunchieGeometry(),
   };
   private palette = {
     shirt: clothMaterial(new THREE.MeshStandardMaterial({ color: 0x2f5a88, roughness: .88 })),
@@ -3132,7 +3216,10 @@ export class Batter {
     grille: new THREE.MeshStandardMaterial({ color: 0x8c9da0, metalness: .6, roughness: .4 }),
     handle: new THREE.MeshStandardMaterial({ color: 0x2a3238, roughness: .95 }),
     // Dark brown, a little sheen: it is the one thing on him that is not cloth or kit.
-    hair: new THREE.MeshStandardMaterial({ color: 0x241a14, roughness: .58 }),
+    // Brown, strand by strand in its vertices (`hairColour`), with a little sheen.
+    hair: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .5 }),
+    // The scrunchie: white whatever the kit, as most are.
+    tie: new THREE.MeshStandardMaterial({ color: 0xeeede8, roughness: .85 }),
   };
   /**
    * What he bats in: the home kit, whites for the Test match, or one of the
@@ -3286,13 +3373,14 @@ export class Batter {
     }
     const vent = this.mesh(this.head, this.palette.handle, [.014, .014, .014], 'vent');
     vent.position.set(0, .197, .05); vent.rotation.x = -Math.PI / 2 + .34;
-    // The hair, for the female build (`shapeAs`): drawn down the back of the
-    // head below the helmet's rim, round to behind the ears, and gathered in
-    // a tie in the kit's trim colour, the ponytail hanging from it.
+    // The hair, for the female build (`shapeAs`): combed back down the back
+    // of the head below the helmet's rim from behind the ears, gathered from
+    // under the shell into a white scrunchie, the ponytail hanging from it.
     this.hair.name = 'Hair'; this.head.add(this.hair);
-    const nape = this.mesh(this.hair, this.palette.hair, [.156, .174, .158], 'nape'); nape.position.y = -.03;
-    const tie = this.mesh(this.hair, this.palette.accent, [1, 1, 1], 'tie');
-    tie.position.copy(HAIR_TIE).addScaledVector(HAIR_OUT, .012);
+    this.mesh(this.hair, this.palette.hair, [1, 1, 1], 'nape');
+    this.mesh(this.hair, this.palette.hair, [1, 1, 1], 'gather');
+    const tie = this.mesh(this.hair, this.palette.tie, [1, 1, 1], 'tie');
+    tie.position.copy(HAIR_TIE).addScaledVector(HAIR_OUT, .006);
     tie.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), HAIR_OUT);
     this.ponytail = new Ponytail(this.palette.hair);
     this.root.add(this.ponytail.mesh);

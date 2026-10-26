@@ -35,11 +35,14 @@ const ACTIONS: Record<string, Action> = {
 const LEAD_MS = 650, REST_MS = 1100;
 
 // Camera eyes and targets in the rig's frame (off side +x), from where he takes guard.
+// Front is her chest: a batter stands side on, facing the off side.
 const VIEWS: Record<string, { eye: [number, number, number]; at: [number, number, number] }> = {
-  front: { eye: [-.3, 1.45, 4.4], at: [0, 1.0, .1] },
-  side: { eye: [3.6, 1.4, .2], at: [0, 1.0, .1] },
-  behind: { eye: [.25, 1.65, -3.2], at: [0, 1.15, .2] },
-  close: { eye: [-.9, 1.6, -1.6], at: [0, 1.38, .05] },
+  front: { eye: [3.5, 1.25, .25], at: [0, .95, .1] },
+  front34: { eye: [2.5, 1.3, 2.6], at: [0, .95, .1] },
+  side: { eye: [-.1, 1.3, 3.7], at: [0, .95, .1] },
+  back: { eye: [-3.5, 1.3, .1], at: [0, .95, .05] },
+  back34: { eye: [-2.4, 1.35, -2.6], at: [0, .95, .05] },
+  close: { eye: [-1.05, 1.62, -.75], at: [0, 1.4, .02] },
 };
 
 const stage = document.querySelector<HTMLDivElement>('#stage')!;
@@ -151,7 +154,8 @@ function swatches(host: string, items: readonly { id: string; name: string; colo
 }
 swatches('#kit', OUTFITS.map(o => ({ id: o.id, name: o.name, colour: o.shirt })), id => batter.wear(OUTFITS.find(o => o.id === id)!));
 swatches('#guard', GLOVES.map(g => ({ id: g.id, name: g.name, colour: g.glow })), id => batter.wearGloves(gloveOf(id)));
-press('kit', 'home'); press('guard', 'sterling');
+batter.wear(OUTFITS.find(o => o.id === 'papaya')!);
+press('kit', 'papaya'); press('guard', 'sterling');
 
 build('female');
 begin('cover');
@@ -168,3 +172,9 @@ function frame(at: number) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+/** For the checks that photograph it. */
+(window as unknown as { __model: unknown }).__model = {
+  batter, controls, view, begin, setSpeed: (n: number) => { speed = n; },
+  /** The clock moved on by hand, for a check that photographs a moment. */
+  step: (ms: number) => { now += ms; tick(); batter.drape(); },
+};
