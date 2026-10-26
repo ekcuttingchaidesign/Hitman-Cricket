@@ -1,8 +1,12 @@
 import * as THREE from 'three';
 import { updateGarmentNormals } from './ConnectedJersey';
 
-/** Something the hair may not pass into: a ball, or a capsule from `from` to `to`. */
-export interface HairCollider { from: THREE.Vector3; to: THREE.Vector3; radius: number }
+/**
+ * Something the hair may not pass into: a ball, or a capsule from `from` to
+ * `to`; or a shape of its own, which `push` moves a point of the hair `thick`
+ * through out of.
+ */
+export interface HairCollider { from: THREE.Vector3; to: THREE.Vector3; radius: number; push?: (p: THREE.Vector3, thick: number) => void }
 
 /** How long the ponytail is from the tie to the tip, and in how many links: to between the shoulder blades. */
 const LENGTH = .40, LINKS = 10, LINK = LENGTH / LINKS;
@@ -10,6 +14,13 @@ const LENGTH = .40, LINKS = 10, LINK = LENGTH / LINKS;
 const HELD = 1;
 /** Rings drawn between each pair of links, and round each ring. */
 const SPAN = 4, SIDES = 28;
+/**
+ * How far back into the gathered hair the ponytail's tube begins, before the
+ * tie: begun at the tie, its open end showed through the scrunchie, hollow.
+ */
+const ROOT = .035;
+/** The hair's half-width where the scrunchie holds it: the scrunchie's hole. */
+export const HELD_IN = .019;
 /** One step of the simulation, and the most taken in a frame. */
 const STEP = 1 / 120, MOST_STEPS = 8;
 /** A frame longer than this is a cut, not motion: the hair is hung afresh. */
@@ -22,7 +33,7 @@ const DRAG = .12;
  * stiffest by the tie, freest at the tip. A limit rather than a spring, so
  * gravity hangs it in a curve and the limit only stops it folding.
  */
-const BEND = [.34, .7] as const;
+const BEND = [.2, .7] as const;
 /**
  * The ends' own spring, as an acceleration out away from the head, on the
  * last links: what flicks the tip out at the bottom of the S a ponytail
@@ -33,13 +44,14 @@ const CURL = 3;
 const CLUMPS = 7, CLUMP_TWIST = 2.4;
 
 /**
- * Its thickness from the tie to the tip: gathered at the tie, swelling full
- * a little below it, and drawn to a point.
+ * Its thickness from the tie to the tip, `t` from 0 to 1: held in by the
+ * scrunchie, swelling out of it full, and drawn to a point.
  */
 export function radiusAt(t: number) {
-  const tie = .026, full = .055, tip = .0015;
-  if (t < .18) return THREE.MathUtils.lerp(tie, full, Math.sin(t / .18 * Math.PI / 2));
-  return tip + (full - tip) * Math.max(0, Math.cos(Math.min(1, (t - .18) / .82) * Math.PI / 2)) ** .95;
+  const full = .055, tip = .0015;
+  if (t < .03) return HELD_IN;
+  if (t < .2) return THREE.MathUtils.lerp(HELD_IN, full, Math.sin((t - .03) / .17 * Math.PI / 2));
+  return tip + (full - tip) * Math.max(0, Math.cos(Math.min(1, (t - .2) / .8) * Math.PI / 2)) ** .95;
 }
 
 /** A number from 0 to 1 for a strand, the same every time. */
@@ -71,7 +83,9 @@ export class Ponytail {
   private readonly points = Array.from({ length: LINKS + 1 }, () => new THREE.Vector3());
   private readonly last = Array.from({ length: LINKS + 1 }, () => new THREE.Vector3());
   private readonly curve: THREE.CatmullRomCurve3;
-  private readonly rings = LINKS * SPAN + 1;
+  /** Behind the tie, inside the gathered hair: where the tube begins. Drawn, never moved but with the tie. */
+  private readonly root = new THREE.Vector3();
+  private readonly rings = (LINKS + 1) * SPAN + 1;
   private hung = false;
   private carry = 0;
   private readonly flick = new THREE.Vector3();
@@ -83,8 +97,9 @@ export class Ponytail {
   private readonly w = new THREE.Vector3();
 
   constructor(material: THREE.Material) {
-    this.curve = new THREE.CatmullRomCurve3(this.points, false, 'centripetal');
-    const count = this.rings * (SIDES + 1) + 1;
+    this.curve = new THREE.CatmullRomCurve3([this.root, ...this.points], false, 'centripetal');
+    // Every ring, then the tip's point and the root's.
+    const count = this.rings * (SIDES + 1) + 2;
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3).setUsage(THREE.DynamicDrawUsage));
     geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(count * 3), 3).setUsage(THREE.DynamicDrawUsage));
@@ -97,14 +112,16 @@ export class Ponytail {
       hairColour((i % SIDES) * 2 + 7, .5 + .5 * Math.cos(CLUMPS * a + CLUMP_TWIST * t * Math.PI * 2), Math.sin(Math.PI * Math.min(1, t * 1.6)) * (.6 + .4 * Math.cos(a)), c);
       colours.set([c.r, c.g, c.b], n * 3);
       if (r < this.rings - 1 && i < SIDES) {
+        // Wound to face out: wound the other way, it was drawn inside out and read as hollow.
         const p = n, q = p + SIDES + 1;
-        indices.push(p, q, p + 1, p + 1, q, q + 1);
+        indices.push(p, p + 1, q, p + 1, q + 1, q);
       }
     }
-    // The tip closed on a point, so the tube is not an open pipe seen end on.
-    const tip = count - 1, last = (this.rings - 1) * (SIDES + 1);
-    for (let i = 0; i < SIDES; i++) indices.push(last + i, tip, last + i + 1);
+    // Both ends closed on a point, so the tube is never an open pipe seen end on.
+    const tip = count - 2, base = count - 1, last = (this.rings - 1) * (SIDES + 1);
+    for (let i = 0; i < SIDES; i++) indices.push(last + i + 1, tip, last + i, i, base, i + 1);
     colours.set(colours.slice(last * 3, last * 3 + 3), tip * 3);
+    colours.set(colours.slice(0, 3), base * 3);
     geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     geometry.setAttribute('color', new THREE.BufferAttribute(colours, 3));
     geometry.setIndex(indices);
@@ -153,6 +170,7 @@ export class Ponytail {
 
   private hold(tie: THREE.Vector3, out: THREE.Vector3) {
     for (let i = 0; i <= HELD; i++) this.points[i].copy(tie).addScaledVector(out, i * LINK);
+    this.root.copy(tie).addScaledVector(out, -ROOT);
   }
 
   private step(tie: THREE.Vector3, out: THREE.Vector3, colliders: readonly HairCollider[], extraDrag = 1) {
@@ -184,7 +202,7 @@ export class Ponytail {
         const bend = THREE.MathUtils.lerp(BEND[0], BEND[1], (i - HELD - 1) / (LINKS - HELD - 1));
         this.apart(i - 2, i, 2 * LINK * Math.cos(bend / 2), Infinity);
       }
-      for (let i = HELD + 1; i <= LINKS; i++) for (const c of colliders) this.outOf(this.points[i], c, radiusAt(i / LINKS) * .85);
+      this.collide(colliders);
     }
     // What the colliders left stretched, taken up from the tie down, each
     // point's last place moved with it so that taking it up adds no speed.
@@ -195,6 +213,16 @@ export class Ponytail {
       if (d < 1e-9) continue;
       this.w.multiplyScalar(LINK / d - 1);
       p.add(this.w); this.last[i].add(this.w);
+    }
+    // And out of everything once more, last: taking up the stretch dragged
+    // points back inside, through her back and her arms, in the pull.
+    this.collide(colliders);
+  }
+
+  private collide(colliders: readonly HairCollider[]) {
+    for (let i = HELD + 1; i <= LINKS; i++) {
+      const thick = radiusAt(i / LINKS) * .85;
+      for (const c of colliders) c.push ? c.push(this.points[i], thick) : this.outOf(this.points[i], c, thick);
     }
   }
 
@@ -228,10 +256,11 @@ export class Ponytail {
   private draw() {
     const positions = this.mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
     this.curve.updateArcLengths();
+    const total = this.curve.getLength();
     for (let r = 0; r < this.rings; r++) {
-      const t = r / (this.rings - 1);
-      this.curve.getPointAt(t, this.at);
-      this.curve.getTangentAt(t, this.along).normalize();
+      const along = r / (this.rings - 1), t = Math.max(0, (along * total - ROOT) / (total - ROOT));
+      this.curve.getPointAt(along, this.at);
+      this.curve.getTangentAt(along, this.along).normalize();
       if (r === 0) {
         // Side to side across the first link; after that, carried along.
         this.normal.set(1, 0, 0).addScaledVector(this.along, -this.along.x);
@@ -248,7 +277,8 @@ export class Ponytail {
       }
     }
     this.curve.getPointAt(1, this.v).addScaledVector(this.along, .012);
-    positions.setXYZ(positions.count - 1, this.v.x, this.v.y, this.v.z);
+    positions.setXYZ(positions.count - 2, this.v.x, this.v.y, this.v.z);
+    positions.setXYZ(positions.count - 1, this.root.x, this.root.y, this.root.z);
     positions.needsUpdate = true;
     updateGarmentNormals(this.mesh.geometry);
     // The first and last columns are one place: one light, or a line runs down the back of it.

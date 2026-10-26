@@ -10,7 +10,7 @@ import { clothMaterial, willowMaterial } from './characterMaterials';
 import { GRILLE_MOUNT, helmetGeometry, helmetGrilleGeometry, helmetPeakGeometry, helmetRimGeometry } from './helmetGeometry';
 import { compactRigidParts } from './compactParts';
 import { SHAPES, type BodyShape, type Physique } from './physique';
-import { hairColour, Ponytail, type HairCollider } from './Ponytail';
+import { HELD_IN, hairColour, Ponytail, type HairCollider } from './Ponytail';
 import { buildGloveCuff, buildGloveHand, DEFAULT_GLOVE, gloveHeelGeometry, gloveOf, WRIST_HOME, type GloveDesign } from './gloves';
 import type { BodyPart, ShotType } from '../game/types';
 
@@ -449,14 +449,14 @@ function gatherGeometry() {
   const positions: number[] = [], uv: number[] = [], indices: number[] = [];
   for (let r = 0; r <= rows; r++) {
     const t = r / rows, centre = GATHER.from.clone().addScaledVector(axis, t * length);
-    const radius = THREE.MathUtils.lerp(GATHER.radius, .027, THREE.MathUtils.smootherstep(t, 0, 1));
+    const radius = THREE.MathUtils.lerp(GATHER.radius, HELD_IN, THREE.MathUtils.smootherstep(t, 0, 1));
     for (let i = 0; i <= sides; i++) {
       const a = i / sides * Math.PI * 2, clump = 1 + .05 * Math.cos(7 * a);
       const p = centre.clone().addScaledVector(side, Math.cos(a) * radius * clump).addScaledVector(up, Math.sin(a) * radius * clump * .85);
       positions.push(p.x, p.y, p.z); uv.push(i / sides, t);
       if (r < rows && i < sides) {
         const n = r * (sides + 1) + i, m = n + sides + 1;
-        indices.push(n, m, n + 1, n + 1, m, m + 1);
+        indices.push(n, n + 1, m, n + 1, m + 1, m);
       }
     }
   }
@@ -471,11 +471,11 @@ function gatherGeometry() {
  * as it goes round. Its ring is in the xy-plane, its middle on the z axis.
  */
 function scrunchieGeometry() {
-  const geometry = new THREE.TorusGeometry(.028, .0125, 12, 48);
+  const geometry = new THREE.TorusGeometry(HELD_IN + .0125, .0125, 12, 48);
   const p = geometry.getAttribute('position'), v = new THREE.Vector3();
   for (let i = 0; i < p.count; i++) {
     v.fromBufferAttribute(p, i);
-    const round = Math.atan2(v.y, v.x), tube = new THREE.Vector3(Math.cos(round) * .028, Math.sin(round) * .028, 0);
+    const round = Math.atan2(v.y, v.x), ring = HELD_IN + .0125, tube = new THREE.Vector3(Math.cos(round) * ring, Math.sin(round) * ring, 0);
     v.sub(tube).multiplyScalar(1 + .13 * Math.cos(round * 13) + .05 * Math.cos(round * 5 + 1)).add(tube);
     p.setXYZ(i, v.x, v.y, v.z);
   }
@@ -3168,7 +3168,11 @@ export class Batter {
   private readonly ponytail: Ponytail;
   /** The clock the hair last swung to, and what it may not pass into. */
   private hairAt = -Infinity;
-  private readonly hairColliders: HairCollider[] = Array.from({ length: 5 }, () => ({ from: new THREE.Vector3(), to: new THREE.Vector3(), radius: 0 }));
+  private readonly hairColliders: HairCollider[] = Array.from({ length: 10 }, () => ({ from: new THREE.Vector3(), to: new THREE.Vector3(), radius: 0 }));
+  /** The cut of the shirt the hair is kept out of: the build's (`fit`). */
+  private shirt: BodyShape = SHAPES.male;
+  private readonly torsoInverse = new THREE.Quaternion();
+  private readonly inShirt = new THREE.Vector3();
   /** Whether the clothes fit the pose last applied: see `drape`. */
   private draped = false;
   private shapes = {
@@ -3380,7 +3384,7 @@ export class Batter {
     this.mesh(this.hair, this.palette.hair, [1, 1, 1], 'nape');
     this.mesh(this.hair, this.palette.hair, [1, 1, 1], 'gather');
     const tie = this.mesh(this.hair, this.palette.tie, [1, 1, 1], 'tie');
-    tie.position.copy(HAIR_TIE).addScaledVector(HAIR_OUT, .006);
+    tie.position.copy(HAIR_TIE).addScaledVector(HAIR_OUT, .004);
     tie.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), HAIR_OUT);
     this.ponytail = new Ponytail(this.palette.hair);
     this.root.add(this.ponytail.mesh);
@@ -3466,6 +3470,7 @@ export class Batter {
     this.connectedTrousers = new ConnectedTrousers(this.palette.trousers, shape);
     this.root.add(this.connectedJersey.mesh, this.connectedTrousers.mesh);
     this.hair.visible = this.ponytail.mesh.visible = shape.hair;
+    this.shirt = shape;
     this.ponytail.rehang();
     // Aimed at the pose he is in, so the new clothes are drawn on him at once.
     if (refit) this.apply(this.pose);
@@ -5226,17 +5231,56 @@ export class Batter {
     const q = this.head.quaternion, torso = this.torso, spine = UP.clone().applyQuaternion(torso.quaternion);
     const tie = HAIR_TIE.clone().applyQuaternion(q).add(this.head.position);
     const out = HAIR_OUT.clone().applyQuaternion(q);
-    const [shell, neck, back, ...shoulders] = this.hairColliders;
+    const [shell, neck, trunk, shoulderL, shoulderR, upperL, upperR, foreL, foreR, bat] = this.hairColliders;
     shell.from.copy(SHELL.centre).applyQuaternion(q).add(this.head.position); shell.to.copy(shell.from); shell.radius = SHELL.radius;
     neck.from.copy(torso.position).addScaledVector(spine, .1); neck.to.copy(this.head.position); neck.radius = .06;
-    back.from.copy(torso.position).addScaledVector(spine, -.32); back.to.copy(torso.position).addScaledVector(spine, .06); back.radius = .145;
-    shoulders.forEach((ball, i) => {
+    // The trunk is the shirt's own outline, not a capsule down the spine: a
+    // capsule left the sides of the chest open, and the pull's turn swept the
+    // hair through them.
+    this.torsoInverse.copy(torso.quaternion).invert();
+    trunk.push = this.outOfShirt;
+    [shoulderL, shoulderR].forEach((ball, i) => {
       ball.from.set(i === 0 ? -.163 : .163, .075, 0).applyQuaternion(torso.quaternion).add(torso.position); ball.to.copy(ball.from); ball.radius = .085;
     });
+    // The arms and the bat, which the wraps take round behind her head, where the hair is.
+    this.arms.forEach((arm, i) => {
+      const upper = i === 0 ? upperL : upperR, fore = i === 0 ? foreL : foreR;
+      upper.from.copy(arm.shoulder); upper.to.copy(arm.elbow.position); upper.radius = this.shirt.sleeve[0] * .8;
+      fore.from.copy(arm.elbow.position); fore.to.copy(arm.wrist); fore.radius = this.shirt.sleeve[1] * .85;
+    });
+    const handle = UP.clone().applyQuaternion(this.bat.quaternion);
+    bat.from.copy(this.bat.position).addScaledVector(handle, .2); bat.to.copy(this.bat.position).addScaledVector(handle, -.8); bat.radius = .045;
     const seconds = Number.isFinite(this.lastNow) && Number.isFinite(this.hairAt) ? (this.lastNow - this.hairAt) / 1000 : NaN;
     this.hairAt = this.lastNow;
     this.ponytail.swing(tie, out, seconds, this.hairColliders);
   }
+  /**
+   * Move a point of the hair `thick` through out of the shirt, by the shirt's
+   * own outline at its height in the torso's frame (`BodyShape.jersey`),
+   * carried on below the hem over the hips by the trousers' waist.
+   */
+  private readonly outOfShirt = (p: THREE.Vector3, thick: number) => {
+    const local = this.inShirt.copy(p).sub(this.torso.position).applyQuaternion(this.torsoInverse);
+    const rows = this.shirt.jersey, [hemX, hemY, hemZ] = rows[0];
+    let across = 0, deep = 0;
+    if (local.y > rows[rows.length - 1][1]) return;
+    if (local.y < hemY) {
+      if (local.y < hemY - .3) return;
+      across = Math.max(hemX, this.shirt.waist[0]); deep = Math.max(hemZ, this.shirt.waist[1]);
+    } else for (let i = 1; i < rows.length; i++) {
+      const [x0, y0, z0] = rows[i - 1], [x1, y1, z1] = rows[i];
+      if (local.y > y1) continue;
+      const k = (local.y - y0) / (y1 - y0);
+      across = x0 + (x1 - x0) * k; deep = z0 + (z1 - z0) * k;
+      break;
+    }
+    across += thick; deep += thick;
+    const reach = Math.hypot(local.x / across, local.z / deep);
+    if (reach >= 1) return;
+    if (reach < 1e-6) local.z = -deep;
+    else { local.x /= reach; local.z /= reach; }
+    p.copy(local).applyQuaternion(this.torso.quaternion).add(this.torso.position);
+  };
   /** The ponytail's links, for the tests; empty for the male build. */
   get ponytailChain(): THREE.Vector3[] { return this.ponytail.mesh.visible ? this.ponytail.chain.map(p => p.clone()) : []; }
   /** How far a point sits from the handle, and so from inside the bat. */

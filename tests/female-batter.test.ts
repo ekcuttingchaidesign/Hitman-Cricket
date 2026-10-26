@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { Batter, CELEBRATION_LENGTHS, STROKE_DURATION_MS } from '../src/entities/Batter';
+import { Batter, CELEBRATION_LENGTHS, HOOK_MEETS_AT, PULL_MEETS_AT, STROKE_DURATION_MS } from '../src/entities/Batter';
 import type { ConnectedJersey } from '../src/entities/ConnectedJersey';
-import { GAME } from '../src/config/gameplay';
+import { GAME, LINE_X } from '../src/config/gameplay';
 import { jerseyGeometry } from '../src/entities/garment';
 import { SHAPES, physiqueOf } from '../src/entities/physique';
 import { Ponytail, radiusAt } from '../src/entities/Ponytail';
@@ -149,5 +149,115 @@ describe('the ponytail', () => {
     her.update(STROKE_DURATION_MS + 6016); her.drape();
     const after = her.ponytailChain;
     expect(Math.max(...after.map((p, i) => p.distanceTo(settled[i])))).toBeLessThan(.003);
+  });
+});
+
+describe('the ponytail against her body', () => {
+  type Arms = { arms: { shoulder: THREE.Vector3; elbow: THREE.Mesh; wrist: THREE.Vector3 }[] };
+  /** The shirt's half-width and half-depth at a height in the torso's frame, off her profile. */
+  function shirtAt(y: number) {
+    const rows = SHAPES.female.jersey;
+    for (let i = 1; i < rows.length; i++) {
+      const [x0, y0, z0] = rows[i - 1], [x1, y1, z1] = rows[i];
+      if (y >= y0 && y <= y1) { const k = (y - y0) / (y1 - y0); return [x0 + (x1 - x0) * k, z0 + (z1 - z0) * k]; }
+    }
+    return null;
+  }
+  const segment = (p: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3) => {
+    const line = b.clone().sub(a), k = THREE.MathUtils.clamp(p.clone().sub(a).dot(line) / line.lengthSq(), 0, 1);
+    return p.distanceTo(a.clone().addScaledVector(line, k));
+  };
+  /**
+   * How deep any part of the hair goes into the shirt, an arm or the helmet,
+   * measured from most of the way out to its surface (the clumps between
+   * the lobes give a little); 0 when it stays clear.
+   */
+  function deepest(batter: Batter) {
+    const { torso, head } = rigOf(batter), { arms } = batter as unknown as Arms;
+    const chain = batter.ponytailChain, inverse = torso.quaternion.clone().invert();
+    const shell = new THREE.Vector3(0, .024, -.02).applyQuaternion(head.quaternion).add(head.position);
+    let worst = 0;
+    for (let i = 2; i < chain.length; i++) for (const k of [0, .5]) {
+      if (i === chain.length - 1 && k) continue;
+      const p = chain[i].clone().lerp(chain[Math.min(i + 1, chain.length - 1)], k);
+      const thick = radiusAt((i + k) / (chain.length - 1)) * .7;
+      const local = p.clone().sub(torso.position).applyQuaternion(inverse);
+      const shirt = shirtAt(local.y);
+      if (shirt) {
+        const a = shirt[0] + thick, b = shirt[1] + thick, reach = Math.hypot(local.x / a, local.z / b);
+        if (reach < 1) worst = Math.max(worst, (1 - reach) * Math.min(a, b));
+      }
+      for (const arm of arms) {
+        worst = Math.max(worst, .05 + thick - segment(p, arm.shoulder, arm.elbow.position));
+        worst = Math.max(worst, .04 + thick - segment(p, arm.elbow.position, arm.wrist));
+      }
+      worst = Math.max(worst, .183 + thick - p.distanceTo(shell));
+    }
+    return worst;
+  }
+  const plays: [string, (b: Batter) => void][] = [
+    ['the pull', b => b.swing('LEG', 0, LINE_X.MIDDLE, 1.12, GAME.contactZ + PULL_MEETS_AT)],
+    ['the pull, version one', b => b.swing('LEG', 0, LINE_X.MIDDLE, 1.12, GAME.contactZ, false, false, false, false, 1)],
+    ['the hook', b => b.swing('HOOK', 0, LINE_X.OUTSIDE_OFF, 1.134, GAME.contactZ + HOOK_MEETS_AT)],
+    ['the cut', b => b.swing('SQUARE_CUT', 0, LINE_X.OUTSIDE_OFF, .9, GAME.contactZ)],
+    ['the cover drive', b => b.swing('COVER_LONG_OFF', 0, LINE_X.OFF, .54, GAME.contactZ)],
+    ['the straight six', b => b.swing('STRAIGHT', 0, LINE_X.MIDDLE, .54, GAME.contactZ, false, true)],
+    ['the slog sweep', b => b.swing('LEG', 0, LINE_X.MIDDLE, .48, GAME.contactZ, false, false, true)],
+  ];
+  it.each(plays)('stays out of her through %s', (_, play) => {
+    const her = new Batter(); her.shapeAs('female');
+    her.reset(); her.prepare(1);
+    for (let t = -600; t < 0; t += 8) { her.update(t); her.drape(); }
+    play(her);
+    let worst = 0, when = 0;
+    for (let t = 0; t <= STROKE_DURATION_MS + 1200; t += 8) {
+      her.update(t); her.drape();
+      const deep = deepest(her);
+      if (deep > worst) { worst = deep; when = t; }
+    }
+    expect(worst, `${worst.toFixed(3)} m deep at ${when} ms`).toBeLessThan(.01);
+  });
+  it.each(Object.keys(CELEBRATION_LENGTHS))('stays out of her through the %s celebration', kind => {
+    const her = new Batter(); her.shapeAs('female'); her.update(0); her.drape();
+    her.celebrate(0, kind as keyof typeof CELEBRATION_LENGTHS);
+    let worst = 0;
+    for (let t = 0; t <= CELEBRATION_LENGTHS[kind as keyof typeof CELEBRATION_LENGTHS]; t += 8) { her.update(t); her.drape(); worst = Math.max(worst, deepest(her)); }
+    expect(worst).toBeLessThan(.01);
+  });
+});
+
+describe('the hair\'s surfaces', () => {
+  /** The share of a mesh's faces that look away from `centreOf` the face: 1 when it is drawn the right way out. */
+  function outward(geometry: THREE.BufferGeometry, centreOf: (p: THREE.Vector3) => THREE.Vector3) {
+    const p = geometry.getAttribute('position'), index = geometry.index!;
+    let out = 0, all = 0;
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+    for (let i = 0; i < index.count; i += 3) {
+      a.fromBufferAttribute(p, index.getX(i)); b.fromBufferAttribute(p, index.getX(i + 1)); c.fromBufferAttribute(p, index.getX(i + 2));
+      const normal = b.clone().sub(a).cross(c.clone().sub(a));
+      if (normal.lengthSq() < 1e-14) continue;
+      const middle = a.clone().add(b).add(c).divideScalar(3);
+      all++; if (normal.dot(middle.clone().sub(centreOf(middle))) > 0) out++;
+    }
+    return out / all;
+  }
+  it('are all drawn the right way out, so none of it reads as hollow', () => {
+    const her = new Batter(); her.shapeAs('female'); her.update(0); her.drape();
+    const [nape, gather] = rigOf(her).hair.children as THREE.Mesh[];
+    expect(outward(nape.geometry, () => new THREE.Vector3(0, -.03, 0))).toBeGreaterThan(.99);
+    // A tube's faces look away from its own line: the nearest point on the chain.
+    const line = (points: THREE.Vector3[]) => (p: THREE.Vector3) => {
+      let best = points[0], least = Infinity;
+      for (let i = 1; i < points.length; i++) {
+        const a = points[i - 1], d = points[i].clone().sub(a), k = THREE.MathUtils.clamp(p.clone().sub(a).dot(d) / d.lengthSq(), 0, 1);
+        const at = a.clone().addScaledVector(d, k), far = p.distanceTo(at);
+        if (far < least) { least = far; best = at; }
+      }
+      return best;
+    };
+    const ends = [new THREE.Vector3(0, -.048, -.1), new THREE.Vector3(0, -.098, -.17)];
+    expect(outward(gather.geometry, line(ends))).toBeGreaterThan(.95);
+    const ponytail = (her as unknown as { ponytail: { mesh: THREE.Mesh } }).ponytail.mesh;
+    expect(outward(ponytail.geometry, line(her.ponytailChain))).toBeGreaterThan(.95);
   });
 });

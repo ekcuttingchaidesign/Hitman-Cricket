@@ -706,9 +706,20 @@ long, full near the tie and clumped into strands, every strand its own brown
 in the vertices (`hairColour`). It hangs from the tie as a chain
 (`src/entities/Ponytail.ts`): Verlet at a fixed step on the batter's own
 clock, so it slows in the slow motion and stops in the pause, its tip flicked
-out (`CURL`) into the S a ponytail hangs in, kept off the helmet, the neck,
-the shoulders and the back. Both ends of a link give: pulled one way only,
-link by link, the chain gained energy and never settled. A clock that never
+out (`CURL`) into the S a ponytail hangs in. It is held to the scrunchie's
+hole where the scrunchie grips it (`HELD_IN`) and swells out of it, and its
+tube begins back inside the gathered hair, both ends closed (`ROOT`): begun
+at the tie, its open end showed through the scrunchie. Every hair surface is
+wound to face out (`tests/female-batter.test.ts` holds it): the ponytail and
+the gathered hair were first drawn inside out, which read as hollow. It is
+kept off the helmet, the neck, the shoulders, both arms, the bat, and the
+shirt's own outline (`outOfShirt`, the build's profile at the point's
+height): a capsule down the spine left the sides of the chest open, and the
+pull's turn swept the hair through them. The tests hold its surface out of
+her through every stroke that turns her and every celebration. Both ends of
+a link give: pulled one way only, link by link, the chain gained energy and
+never settled; and the colliders have the last word in a step, after the
+links' lengths are taken up, which had dragged points back inside. A clock that never
 runs (a preview posed by hand) hangs it afresh each frame, at rest. For the
 male build it is hidden, so his draw calls are what they were.
 
