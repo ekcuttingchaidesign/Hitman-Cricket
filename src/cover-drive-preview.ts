@@ -20,6 +20,7 @@ import { ADVANCE, GAME, LINE_X, PUNCH, SHOT_ANGLES, STYLES, DRAGGED, SPIN_PULL }
 import { buildWicket } from './scene/wicket';
 import type { ShotType } from './game/types';
 import { DEFAULT_GLOVE, GLOVES, gloveOf } from './entities/gloves';
+import { askedPhysique, physiqueOf, type Physique } from './entities/physique';
 
 /** Ball time before the swing starts, so the delivery can be seen arriving. */
 const LEAD_MS = 260;
@@ -394,6 +395,14 @@ function wear(id: string) {
   for (const o of gloveRow.querySelectorAll('button')) o.setAttribute('aria-pressed', String(o.dataset.glove === id));
   swinging = false; contactSheet(); start();
 }
+// The batter's build, male or female (`Batter.shapeAs`): the same rig and the same strokes under either.
+function build(physique: Physique) {
+  batter.shapeAs(physique);
+  batter.root.traverse(o => { if ((o as THREE.Mesh).isMesh) o.castShadow = true; });
+  for (const o of document.querySelectorAll('[data-build]')) o.setAttribute('aria-pressed', String((o as HTMLElement).dataset.build === physique));
+  swinging = false; contactSheet(); start();
+}
+for (const b of document.querySelectorAll<HTMLButtonElement>('[data-build]')) b.onclick = () => build(physiqueOf(b.dataset.build));
 for (const glove of GLOVES) {
   const button = document.createElement('button');
   button.dataset.glove = glove.id; button.textContent = glove.name; button.setAttribute('aria-pressed', 'false');
@@ -490,6 +499,10 @@ function choose(key: string) {
 
 const firstGlove = new URLSearchParams(location.search).get('gloves') ?? DEFAULT_GLOVE;
 batter.wearGloves(gloveOf(firstGlove));
+// `?batter=female` opens on the female build.
+const firstBuild = askedPhysique();
+batter.shapeAs(firstBuild);
+for (const o of document.querySelectorAll('[data-build]')) o.setAttribute('aria-pressed', String((o as HTMLElement).dataset.build === firstBuild));
 for (const o of gloveRow.querySelectorAll('button')) o.setAttribute('aria-pressed', String(o.dataset.glove === firstGlove));
 // `?stroke=flick2` opens on that stroke; otherwise the page's pressed key does, the cover drive.
 const asked = new URLSearchParams(location.search).get('stroke');

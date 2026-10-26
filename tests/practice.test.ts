@@ -69,6 +69,7 @@ describe('every switch the game reads', () => {
     ui: 'the UI kit laid out as a page, instead of the game, reading and sending nothing',
     gloves: 'which pair of gloves the strokes viewer opens with, a dev page that bats nothing',
     stroke: 'which stroke the strokes viewer opens on, a dev page that bats nothing',
+    batter: 'which build the batter is drawn as, male or female: the same rig, every stroke and its timing unchanged',
   };
 
   it('is either practice or named as not practice', () => {

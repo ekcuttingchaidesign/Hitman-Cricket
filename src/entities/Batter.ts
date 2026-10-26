@@ -9,6 +9,8 @@ import { ConnectedTrousers } from './ConnectedTrousers';
 import { clothMaterial, willowMaterial } from './characterMaterials';
 import { GRILLE_MOUNT, helmetGeometry, helmetGrilleGeometry, helmetPeakGeometry, helmetRimGeometry } from './helmetGeometry';
 import { compactRigidParts } from './compactParts';
+import { SHAPES, type BodyShape, type Physique } from './physique';
+import { Ponytail, type HairCollider } from './Ponytail';
 import { buildGloveCuff, buildGloveHand, DEFAULT_GLOVE, gloveHeelGeometry, gloveOf, WRIST_HOME, type GloveDesign } from './gloves';
 import type { BodyPart, ShotType } from '../game/types';
 
@@ -377,6 +379,26 @@ const HANDS_CLEAR = .36;
 const HELMET_CENTRE = new THREE.Vector3(0, .04, 0);
 /** The bottom of the grille, under the chin, from the head's own origin. */
 const CHIN_GUARD = new THREE.Vector3(0, -.18, .13);
+/**
+ * The hair tie, under the back rim of the helmet, and the way it sends the
+ * ponytail out: back and a little down. In the head's own frame.
+ */
+const HAIR_TIE = new THREE.Vector3(0, -.10, -.152);
+const HAIR_OUT = new THREE.Vector3(0, -.68, -.73).normalize();
+/** The middle of the helmet's shell and how far out it comes, for keeping the hair off it. */
+const SHELL = { centre: new THREE.Vector3(0, .024, -.02), radius: .195 } as const;
+/**
+ * The hair at the back of the head, from under the shell down to the nape
+ * and round as far as behind the ears: the back of a ball, not a whole one.
+ * Taken further round, it was over his cheeks like a balaclava. Its own kind of geometry, so nothing that reads the
+ * figure's balls as its joints takes it for one.
+ */
+function napeGeometry() {
+  const sphere = new THREE.SphereGeometry(1, 20, 12, Math.PI + .45, Math.PI - .9, .75, 1.5);
+  const geometry = new THREE.BufferGeometry().copy(sphere);
+  sphere.dispose();
+  return geometry;
+}
 /** How far the handle's end is from the grip, along the bat. */
 const KNOB = .23;
 /** How close the handle's end may come to the bottom of the grille: round it, and a little air. */
@@ -3056,6 +3078,14 @@ export class Batter {
   private connectedTrousers!: ConnectedTrousers;
   private trouserLegs: BendingLimb[] = [];
   private limbStart = new THREE.Vector3();
+  /** The build drawn over the rig: see `shapeAs`. */
+  private physique: Physique = 'male';
+  /** The hair at the nape and its tie, on the head; the ponytail hangs in the batter's own space. */
+  private readonly hair = new THREE.Group();
+  private readonly ponytail: Ponytail;
+  /** The clock the hair last swung to, and what it may not pass into. */
+  private hairAt = -Infinity;
+  private readonly hairColliders: HairCollider[] = Array.from({ length: 5 }, () => ({ from: new THREE.Vector3(), to: new THREE.Vector3(), radius: 0 }));
   /** Whether the clothes fit the pose last applied: see `drape`. */
   private draped = false;
   private shapes = {
@@ -3072,6 +3102,8 @@ export class Batter {
     flat: new THREE.BoxGeometry(1, 1, 1),
     blade: bladeGeometry(),
     heel: gloveHeelGeometry(),
+    nape: napeGeometry(),
+    tie: new THREE.TorusGeometry(.024, .009, 8, 20),
   };
   private palette = {
     shirt: clothMaterial(new THREE.MeshStandardMaterial({ color: 0x2f5a88, roughness: .88 })),
@@ -3099,6 +3131,8 @@ export class Batter {
     number: new THREE.MeshStandardMaterial({ color: 0xed7044, roughness: .7 }),
     grille: new THREE.MeshStandardMaterial({ color: 0x8c9da0, metalness: .6, roughness: .4 }),
     handle: new THREE.MeshStandardMaterial({ color: 0x2a3238, roughness: .95 }),
+    // Dark brown, a little sheen: it is the one thing on him that is not cloth or kit.
+    hair: new THREE.MeshStandardMaterial({ color: 0x241a14, roughness: .58 }),
   };
   /**
    * What he bats in: the home kit, whites for the Test match, or one of the
@@ -3252,6 +3286,16 @@ export class Batter {
     }
     const vent = this.mesh(this.head, this.palette.handle, [.014, .014, .014], 'vent');
     vent.position.set(0, .197, .05); vent.rotation.x = -Math.PI / 2 + .34;
+    // The hair, for the female build (`shapeAs`): drawn down the back of the
+    // head below the helmet's rim, round to behind the ears, and gathered in
+    // a tie in the kit's trim colour, the ponytail hanging from it.
+    this.hair.name = 'Hair'; this.head.add(this.hair);
+    const nape = this.mesh(this.hair, this.palette.hair, [.156, .174, .158], 'nape'); nape.position.y = -.03;
+    const tie = this.mesh(this.hair, this.palette.accent, [1, 1, 1], 'tie');
+    tie.position.copy(HAIR_TIE).addScaledVector(HAIR_OUT, .012);
+    tie.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), HAIR_OUT);
+    this.ponytail = new Ponytail(this.palette.hair);
+    this.root.add(this.ponytail.mesh);
     // Bat: a dark bound handle standing clear of a plain blade.
     const rubber=new THREE.Mesh(gripGeometry(),this.palette.grip);
     rubber.castShadow=true; rubber.receiveShadow=true; this.bat.add(rubber);
@@ -3301,15 +3345,42 @@ export class Batter {
       // Keep the established IK controls and measurements, but do not draw
       // their separate cylinders or ball joints. The surface spans the chain.
       for (const control of [arm.upper, arm.lower, arm.elbow, arm.cap, leg.thigh, leg.shin, leg.knee, leg.cap]) control.visible = false;
-      const sleeve = new BendingLimb([this.palette.shirt, this.palette.skin], [.09, .062, .046], 24, false, true);
-      const trouser = new BendingLimb(this.palette.trousers, [.109, .072, .059], 16, true);
-      this.sleeves.push(sleeve); this.trouserLegs.push(trouser);
     }
-    this.connectedJersey = new ConnectedJersey([this.palette.shirt, this.palette.skin]);
-    this.connectedTrousers = new ConnectedTrousers(this.palette.trousers);
-    this.root.add(this.connectedJersey.mesh, this.connectedTrousers.mesh);
+    this.fit(SHAPES.male);
     this.wearGloves(null);
     this.reset();
+  }
+  /**
+   * Bat as the male or the female build. The rig is the same — every pose,
+   * every contact, every clock — so only what is drawn over it changes: the
+   * shirt, the trousers and the sleeves and legs are cut again to the build
+   * (`SHAPES`), and the hair is put on or taken off. Built anew rather than
+   * reshaped, as the pads are; the old garments' geometry is let go.
+   */
+  shapeAs(physique: Physique) {
+    if (physique === this.physique) return;
+    this.physique = physique;
+    this.fit(SHAPES[physique]);
+  }
+  /** Which build he or she is drawn as. */
+  get build(): Physique { return this.physique; }
+
+  private fit(shape: BodyShape) {
+    const refit = !!this.connectedJersey;
+    if (refit) {
+      this.root.remove(this.connectedJersey.mesh, this.connectedTrousers.mesh);
+      this.connectedJersey.dispose(); this.connectedTrousers.mesh.geometry.dispose();
+      for (const limb of [...this.sleeves, ...this.trouserLegs]) limb.mesh.geometry.dispose();
+    }
+    this.sleeves = [0, 1].map(() => new BendingLimb([this.palette.shirt, this.palette.skin], [...shape.sleeve], 24, false, true));
+    this.trouserLegs = [0, 1].map(() => new BendingLimb(this.palette.trousers, [...shape.leg], 16, true));
+    this.connectedJersey = new ConnectedJersey([this.palette.shirt, this.palette.skin], false, shape);
+    this.connectedTrousers = new ConnectedTrousers(this.palette.trousers, shape);
+    this.root.add(this.connectedJersey.mesh, this.connectedTrousers.mesh);
+    this.hair.visible = this.ponytail.mesh.visible = shape.hair;
+    this.ponytail.rehang();
+    // Aimed at the pose he is in, so the new clothes are drawn on him at once.
+    if (refit) this.apply(this.pose);
   }
   private mesh(parent: THREE.Object3D, material: THREE.Material, scale: Point, shape: keyof Batter['shapes'] = 'soft') {
     const mesh = new THREE.Mesh(this.shapes[shape], material);
@@ -5048,6 +5119,7 @@ export class Batter {
    * every time the pose is set. Whatever draws him calls this first.
    */
   drape() {
+    this.swingHair();
     if (this.draped) return;
     this.draped = true;
     this.sleeves.forEach(sleeve => sleeve.draw());
@@ -5055,6 +5127,30 @@ export class Batter {
     this.connectedJersey.update(this.torso, this.sleeves);
     this.connectedTrousers.update(this.hips, this.trouserLegs, this.torso);
   }
+  /**
+   * The ponytail moved on to the clock of the last `update`, from the tie
+   * where the head now has it, kept off the helmet, the neck, the shoulders
+   * and the back. A batter whose clock never runs (a preview posed by hand)
+   * has it hung afresh each time, at rest.
+   */
+  private swingHair() {
+    if (!this.ponytail.mesh.visible) return;
+    const q = this.head.quaternion, torso = this.torso, spine = UP.clone().applyQuaternion(torso.quaternion);
+    const tie = HAIR_TIE.clone().applyQuaternion(q).add(this.head.position);
+    const out = HAIR_OUT.clone().applyQuaternion(q);
+    const [shell, neck, back, ...shoulders] = this.hairColliders;
+    shell.from.copy(SHELL.centre).applyQuaternion(q).add(this.head.position); shell.to.copy(shell.from); shell.radius = SHELL.radius;
+    neck.from.copy(torso.position).addScaledVector(spine, .1); neck.to.copy(this.head.position); neck.radius = .06;
+    back.from.copy(torso.position).addScaledVector(spine, -.32); back.to.copy(torso.position).addScaledVector(spine, .06); back.radius = .145;
+    shoulders.forEach((ball, i) => {
+      ball.from.set(i === 0 ? -.163 : .163, .075, 0).applyQuaternion(torso.quaternion).add(torso.position); ball.to.copy(ball.from); ball.radius = .085;
+    });
+    const seconds = Number.isFinite(this.lastNow) && Number.isFinite(this.hairAt) ? (this.lastNow - this.hairAt) / 1000 : NaN;
+    this.hairAt = this.lastNow;
+    this.ponytail.swing(tie, out, seconds, this.hairColliders);
+  }
+  /** The ponytail's links, for the tests; empty for the male build. */
+  get ponytailChain(): THREE.Vector3[] { return this.ponytail.mesh.visible ? this.ponytail.chain.map(p => p.clone()) : []; }
   /** How far a point sits from the handle, and so from inside the bat. */
   private offHandle(point: THREE.Vector3) {
     const handle = new THREE.Vector3(0, 1, 0).applyQuaternion(this.bat.quaternion);

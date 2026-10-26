@@ -682,6 +682,33 @@ in five poses; `cover-drive.html` has every stroke with a Gloves row, and
 `?gloves=<id>` picks the first. Both build into one file with their
 `scripts/*-artifact.mjs`.
 
+## The female build
+
+The batter can be drawn as a woman (`Batter.shapeAs('female')`, the builds in
+`src/entities/physique.ts`). She bats on the same rig as him — every key of
+every stroke, every contact, every clock — so nothing about the batting moves
+and the batter tests hold for both; `tests/female-batter.test.ts` holds her
+hands, feet and bat to his frame by frame. What changes is what is drawn over
+the rig, cut again from `SHAPES`: the shirt (`jerseyGeometry`'s profile,
+narrower at the shoulders and the ribs, in at the waist, out at the hem, and a
+gentle bust, `bust`), the trousers' waistband, seat and hips
+(`ConnectedTrousers` reads the shape), and slimmer sleeves. The male shape is
+the one he always had, number for number. The garments are built anew on a
+change, as the pads are.
+
+Her hair is at the nape under the helmet's rim and in a ponytail gathered in
+a tie in the kit's trim colour (`HAIR_TIE`, `HAIR_OUT`), hanging from it as a
+chain (`src/entities/Ponytail.ts`): Verlet at a fixed step on the batter's own
+clock, so it slows in the slow motion and stops in the pause, kept off the
+helmet, the neck, the shoulders and the back. Both ends of a link give: pulled
+one way only, link by link, the chain gained energy and never settled. A clock
+that never runs (a preview posed by hand) hangs it afresh each frame, at rest.
+For the male build it is hidden, so his draw calls are what they were.
+
+Nobody can choose her yet: `?batter=female` draws her in the game and the
+Dressing Room (`askedPhysique`; not practice), and `cover-drive.html` has a
+Batter row. The fielding side stays as it is.
+
 ## Papaya, and the fielding side's kit
 
 Two kits come free (`FREE_OUTFITS` in `dressing-ids.ts`): OG Navy, the one

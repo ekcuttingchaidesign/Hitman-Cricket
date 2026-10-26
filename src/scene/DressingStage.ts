@@ -7,6 +7,7 @@ import { GAME } from '../config/gameplay';
 import type { ShotType } from '../game/types';
 import type { BatSkin, Outfit } from '../game/dressing';
 import type { GloveDesign } from '../entities/gloves';
+import { askedPhysique } from '../entities/physique';
 
 /**
  * The Dressing Room's stage: the batter, or a bat on its own, turning on a
@@ -218,6 +219,7 @@ export class DressingStage {
   private offPage = 0;
 
   constructor({ room = false }: { room?: boolean } = {}) {
+    this.batter.shapeAs(askedPhysique());
     this.canvas = document.createElement('canvas'); this.canvas.className = 'dr-stage';
     this.canvas.setAttribute('aria-label', 'Your batter on a turning pedestal; drag to turn him, tap to play a shot');
     const renderer = this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: false });

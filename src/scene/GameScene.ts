@@ -25,6 +25,7 @@ import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 import type { Cutout } from '../ui/Milestone';
 import { OUTFITS, type BatSkin, type Outfit } from '../game/dressing';
 import type { GloveDesign } from '../entities/gloves';
+import { askedPhysique } from '../entities/physique';
 import type { CameraPose } from '../game/ShotReel';
 import { batSheet } from '../entities/batSkins';
 
@@ -284,6 +285,7 @@ export class GameScene {
     this.scene.environmentIntensity = 0.75;
     // Mirror the stage so the batter's leg side (negative X) reads left on screen.
     this.world.scale.x = -1; this.scene.add(this.world); this.batter.mirrorStickers(true);
+    this.batter.shapeAs(askedPhysique());
     this.camera.fov = 50;
     this.camera.position.set(0, 2.9, -5.15); this.camera.lookAt(0, 1.05, 9);
     // The sky now lights the scene through the environment map; this is what is

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { BendingLimb } from './BendingLimb';
 import { updateGarmentNormals } from './ConnectedJersey';
+import { SHAPES, type BodyShape } from './physique';
 
 /**
  * How many rows down each leg the trousers take to become the leg: the hip
@@ -8,10 +9,11 @@ import { updateGarmentNormals } from './ConnectedJersey';
  * straight line, which left a slab behind him and a corner at each hip.
  */
 const SEAT_ROWS = 4;
-/** How far the seat stands out behind the line from hip to thigh, at its fullest. */
-const SEAT = .034;
-/** And the hips past the thigh at the sides, so the leg grows out of them. */
-const HIP = .018;
+/*
+ * How far the seat stands out behind the line from hip to thigh, at its
+ * fullest, and the hips past the thigh at the sides, so the leg grows out of
+ * them, are the build's (`BodyShape.seat`, `.hip`).
+ */
 /** How far the seat's curve hangs from the opening before it turns, as a share of the way to the thigh. */
 const FALL = .7;
 /**
@@ -55,7 +57,7 @@ export class ConnectedTrousers {
     for (let i = 0; i < 16; i++) into.add(this.q.fromBufferAttribute(source, row * 17 + i));
     return into.divideScalar(16).sub(hips).applyQuaternion(this.inverse);
   }
-  constructor(material: THREE.Material) {
+  constructor(material: THREE.Material, private readonly shape: BodyShape = SHAPES.male) {
     const indices: number[] = [], count = 691;
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3).setUsage(THREE.DynamicDrawUsage));
@@ -98,14 +100,16 @@ export class ConnectedTrousers {
       if (ring === 0) {
         // Follow the actual jersey hem through twists and bends. A waist tied
         // only to the pelvis lets the shirt poke through the back of the pants.
-        this.p.set(Math.sin(angle) * .164, -.337, Math.cos(angle) * .124)
+        const [hemX, hemY, hemZ] = this.shape.jersey[0];
+        this.p.set(Math.sin(angle) * hemX, hemY, Math.cos(angle) * hemZ)
           .applyQuaternion(torso.quaternion).add(torso.position);
         positions.setXYZ(i, this.p.x, this.p.y, this.p.z);
       } else {
         // Below the shirt's hem, so the cloth falls from it rather than folding
         // back up; and deeper behind than in front, the top of the seat.
         const z = Math.cos(angle);
-        set(24 + i, Math.sin(angle) * .17, -.02, z * (z < 0 ? .15 : .122));
+        const [across, behind, front] = this.shape.waist;
+        set(24 + i, Math.sin(angle) * across, -.02, z * (z < 0 ? behind : front));
       }
     }
     this.inverse.copy(hips.quaternion).invert();
@@ -154,8 +158,8 @@ export class ConnectedTrousers {
           const swell = Math.sin(t ** .7 * Math.PI);
           const behind = Math.max(0, -this.p.z) / (Math.hypot(this.p.x, this.p.z) || 1);
           const side = Math.max(0, this.p.x * outside) / (Math.hypot(this.p.x, this.p.z) || 1);
-          this.p.z -= SEAT * swell * behind * behind * room;
-          this.p.x += outside * HIP * swell * side * side;
+          this.p.z -= this.shape.seat * swell * behind * behind * room;
+          this.p.x += outside * this.shape.hip * swell * side * side;
           this.p.applyQuaternion(hips.quaternion).add(hips.position);
         } else this.p.fromBufferAttribute(source, row * 17 + i);
         positions.setXYZ(this.offset(leg) + (row - 1) * 16 + i, this.p.x, this.p.y, this.p.z);

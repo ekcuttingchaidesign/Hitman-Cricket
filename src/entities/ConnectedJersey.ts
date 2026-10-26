@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { jerseyGeometry } from './garment';
 import { SLEEVE_HEM, type BendingLimb } from './BendingLimb';
+import { SHAPES, type BodyShape } from './physique';
 
 /** Torso, shoulder gussets and arms share vertices: no inserted tubes or joint caps. */
 export class ConnectedJersey {
   readonly mesh: THREE.Mesh;
   readonly loops: number[][] = [];
-  private base = jerseyGeometry(16, 24);
+  private base: THREE.BufferGeometry;
   private torsoCount = 17 * 24;
   private point = new THREE.Vector3();
   private start = new THREE.Vector3();
@@ -19,7 +20,8 @@ export class ConnectedJersey {
   private sourceRows: number[];
   private armOffset(i: number) { return this.torsoCount + i * this.rows * 24; }
 
-  constructor(materials: THREE.Material[], fieldDetail = false) {
+  constructor(materials: THREE.Material[], fieldDetail = false, shape: BodyShape = SHAPES.male) {
+    this.base = jerseyGeometry(16, 24, shape);
     // Distant figures keep the same shoulder topology and elbow/cuff landmarks,
     // with fewer rings along straight stretches of the arm.
     this.sourceRows = fieldDetail ? [0, 1, 2, 3, 4, 6, 8, 9, 11, 13, 15, 17, 20]
@@ -65,6 +67,9 @@ export class ConnectedJersey {
     this.mesh.name = 'Continuous jersey shoulders and arms';
     this.mesh.castShadow = this.mesh.receiveShadow = true;
   }
+
+  /** Let go of both geometries, for a batter changing build (`Batter.shapeAs`). */
+  dispose() { this.base.dispose(); this.mesh.geometry.dispose(); }
 
   reference(arm: number, torso: THREE.Object3D) {
     const p = this.base.getAttribute('position');

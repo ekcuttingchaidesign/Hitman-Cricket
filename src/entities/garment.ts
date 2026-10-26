@@ -1,27 +1,29 @@
 import * as THREE from 'three';
+import { SHAPES, type BodyShape } from './physique';
+
+/**
+ * How far the bust stands the shirt out at a point of it: fullest a little
+ * below the chest anchor and either side of the middle, falling away faster
+ * above than below, where the shirt hangs from it rather than tucking under.
+ */
+function bustAt(angle: number, y: number) {
+  const front = Math.max(0, Math.cos(angle)), across = Math.sin(angle);
+  const band = Math.exp(-(((y + .04) / (y > -.04 ? .045 : .07)) ** 2));
+  return front * front * band * (1 - .3 * Math.exp(-((across / .18) ** 2)));
+}
 
 /** A tailored jersey: elliptical sections through waist, chest, shoulders and neck.
  * Authored in the existing rig's coordinates so no stroke or contact point moves.
  * The profile is continuous; there is no second chest shell intersecting it.
  */
-export function jerseyGeometry(rows = 32, sides = 24) {
-  const profile = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(.164, -.337, .124),
-    new THREE.Vector3(.166, -.315, .129),
-    new THREE.Vector3(.156, -.23, .128),
-    new THREE.Vector3(.181, -.12, .141),
-    new THREE.Vector3(.216, -.025, .148),
-    new THREE.Vector3(.220, .045, .144),
-    new THREE.Vector3(.184, .105, .121),
-    new THREE.Vector3(.108, .143, .087),
-    new THREE.Vector3(.062, .165, .064),
-  ]);
+export function jerseyGeometry(rows = 32, sides = 24, shape: BodyShape = SHAPES.male) {
+  const profile = new THREE.CatmullRomCurve3(shape.jersey.map(([x, y, z]) => new THREE.Vector3(x, y, z)));
   const vertices: number[] = [], uv: number[] = [], indices: number[] = [];
   for (let j = 0; j <= rows; j++) {
     const p = profile.getPoint(j / rows);
     for (let i = 0; i <= sides; i++) {
       const angle = i / sides * Math.PI * 2;
-      vertices.push(Math.sin(angle) * p.x, p.y, Math.cos(angle) * p.z);
+      vertices.push(Math.sin(angle) * p.x, p.y, Math.cos(angle) * p.z + (shape.bust && shape.bust * bustAt(angle, p.y)));
       uv.push(i / sides, j / rows);
       if (j < rows && i < sides) {
         const a = j * (sides + 1) + i, b = a + sides + 1;
