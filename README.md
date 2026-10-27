@@ -1055,6 +1055,7 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `day-batted-1m` … `day-batted-120m` | Marks a device's batting in one day got past (1, 3, 5, 10, 20, 30, 45, 60, 90, 120 minutes), added up across every session that day and sent once each, the moment it is passed (`src/game/playtime.ts`). Against the daily actives, the minutes a player bats a day. |
 | `week-batted-1m` … `week-batted-300m` | The same for a week, Monday to Sunday (1, 5, 10, 20, 30, 60, 90, 120, 180, 300 minutes). |
 | `week-active` | A device's first load in a week, batting or not: the exact weekly actives, and what `week-batted-…` is read against. |
+| `month-active` | A device's first load in a calendar month, in the player's own timezone, batting or not: the exact monthly actives, which GoatCounter's own figures cannot give. |
 
 The password and restore events are also counted by the store itself, because an ad blocker takes a player off GoatCounter and its export is visitor-days rather than events: `/api/restore` raises a total and a day's figure for each password created or changed, security question set, Forgot password? asked, and player brought back by password, question or key (`src/server/tally.ts`, one hash, `tally`). `scripts/password-report.ts` reads those beside the exact number of players holding a password right now, read-only:
 

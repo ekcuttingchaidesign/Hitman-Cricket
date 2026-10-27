@@ -14,8 +14,10 @@
  * The counts fall away across the marks as the session marks do, and the
  * falling-away is the distribution. `week-active` is the denominator for the
  * week's marks, sent once a week on the first load, batting or not; the day's
- * is the daily active count `visits.ts` already gives. As there, no date and
- * no identifier ever goes out: only the mark.
+ * is the daily active count `visits.ts` already gives. `month-active` is the
+ * same once a calendar month, which makes it the monthly active count:
+ * GoatCounter cannot give one, since it forgets a visitor overnight. As there,
+ * no date and no identifier ever goes out: only the mark.
  */
 
 const KEY = 'hitman-playtime';
@@ -33,6 +35,8 @@ export interface Playtime {
   /** The Monday the week's total is for. */
   week: string;
   weekMs: number;
+  /** The last month this browser said it was here, YYYY-MM. Missing from a record kept before it was. */
+  month?: string;
 }
 
 /** The Monday of the week a day is in, as YYYY-MM-DD. */
@@ -54,18 +58,20 @@ function passed(marks: readonly number[], from: number, to: number, unit: 'day' 
  * Some batting, folded into what came before it, on the day it was batted.
  * Pure, so the rollover and the marks can be tested without a clock. A day or
  * week that has moved on starts its total again; a record that does not parse
- * is treated as none. `week-active` goes out whenever the week is new to this
- * browser, which is why a load folds in nothing to say it was here.
+ * is treated as none. `week-active` and `month-active` go out whenever the
+ * week or month is new to this browser, which is why a load folds in nothing
+ * to say it was here.
  */
 export function batting(held: Playtime | null, day: string, ms: number): { playtime: Playtime; events: string[] } {
-  const week = weekOf(day);
+  const week = weekOf(day), month = day.slice(0, 7);
   const valid = !!held && isDay(held.day) && isMs(held.dayMs) && isDay(held.week) && isMs(held.weekMs);
   const dayFrom = valid && held.day === day ? held.dayMs : 0;
   const weekFrom = valid && held.week === week ? held.weekMs : 0;
   const add = isMs(ms) ? ms : 0;
-  const playtime: Playtime = { day, dayMs: dayFrom + add, week, weekMs: weekFrom + add };
+  const playtime: Playtime = { day, dayMs: dayFrom + add, week, weekMs: weekFrom + add, month };
   const events = [
     ...(valid && held.week === week ? [] : ['week-active']),
+    ...(held?.month === month ? [] : ['month-active']),
     ...passed(DAY_MARKS, dayFrom, playtime.dayMs, 'day'),
     ...passed(WEEK_MARKS, weekFrom, playtime.weekMs, 'week'),
   ];
