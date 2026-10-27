@@ -40,6 +40,15 @@ describe('the walk-on\'s player card', () => {
     expect(card.figures.find(one => one.label === 'Won')?.value).toBe('3');
   });
 
+  it('wears the rung: its key for the material and the medallion, and the pill\'s words as the player sheet\'s', () => {
+    expect(walkOnCard('classic', emptyBlast(), who).tier).toBe('debutant');
+    const emerging = walkOnCard('classic', { ...emptyBlast(), innings: 23, runs: 1204 }, who);
+    expect(emerging.tier).toBe('emerging');
+    expect(emerging.rung).toBe('EMERGING PLAYER');
+    // The Marathon says which game's rung it is.
+    expect(walkOnCard('marathon', { ...emptyMarathon(), innings: 3, runs: 210, balls: 300 }, who).rung).toBe('TEST DEBUTANT');
+  });
+
   it('calls a player with no name You, as the rest of the game does', () => {
     expect(walkOnCard('classic', emptyBlast(), { name: '', avatar: 0 }).name).toBe('You');
   });

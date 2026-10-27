@@ -5659,40 +5659,47 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 #viewport.intro-on::before{top:0}
 #viewport.intro-on::after{bottom:0}
 /* The walk-on's player card (`WalkOnCard.ts`): a broadcast's lower third for
-   the batter walking out, over the ground just above the foot's bar. Wiped in
-   from the left, the face popping and the figures following one by one; wiped
+   the batter walking out, in his career card's and his profile's language. It
+   takes his rung's material from the profile's tiers (profile.css lists `.woc`
+   beside the sheet: ground, light, mark, sheen, the melt to the dark under the
+   figures, the ring, the pill, the chrome and gold names), and sets its face,
+   name and glance as the profile does, smaller. Wiped in from the left, the
+   face and its medallion popping and the figures following one by one; wiped
    away again before the film is over. */
-#walkon-card{position:absolute;left:calc(14 * var(--u));right:calc(14 * var(--u));bottom:calc(11% + 18 * var(--u));z-index:51;pointer-events:none}
-.woc{display:grid;gap:calc(10 * var(--u));padding:calc(12 * var(--u)) calc(14 * var(--u)) calc(13 * var(--u));
-  background:linear-gradient(90deg,#0a0b0df0 0%,#0a0b0dd9 60%,#0a0b0d99 100%);border-left:calc(4 * var(--u)) solid var(--woc);
-  border-radius:calc(4 * var(--u));box-shadow:0 calc(10 * var(--u)) calc(30 * var(--u)) #00000066;color:var(--c-text);font-family:var(--f-ui);
-  animation:woc-wipe .55s cubic-bezier(.2,.8,.2,1) both}
+#walkon-card{position:absolute;left:calc(14 * var(--u));right:calc(14 * var(--u));bottom:calc(11% + 16 * var(--u));z-index:51;pointer-events:none}
+.woc{--ground:linear-gradient(180deg,#2a2f37,#171a1f);--light:#ffffff2e;--ring:#c9d1d9;--pill:#ffffff24;--pill-ink:var(--c-text);
+  position:relative;overflow:hidden;border:1px solid #ffffff1f;border-radius:calc(20 * var(--u));background:#111316;color:var(--c-text);font-family:var(--f-ui);
+  box-shadow:0 calc(14 * var(--u)) calc(40 * var(--u)) #00000099;animation:woc-wipe .55s cubic-bezier(.2,.8,.2,1) both}
 #walkon-card.is-out .woc{animation:woc-away .35s ease-in both}
-.woc-head{display:flex;align-items:center;gap:calc(12 * var(--u))}
-.woc-face{flex:none;width:calc(52 * var(--u));height:calc(52 * var(--u));border-radius:50%;overflow:hidden;background:#152b3c;
-  box-shadow:0 0 0 calc(3 * var(--u)) var(--woc);animation:woc-pop .5s .15s cubic-bezier(.3,1.6,.5,1) both}
-.woc-face img{width:100%;height:100%;object-fit:cover;display:block}
-.woc-who{min-width:0;animation:woc-rise .45s .2s ease-out both}
-.woc-eyebrow{display:flex;gap:calc(8 * var(--u));align-items:center;font-size:calc(11 * var(--u));font-weight:700;letter-spacing:.12em;text-transform:uppercase}
-.woc-mode{color:var(--woc);filter:brightness(1.35)}
-.woc-tier{color:var(--c-text-2)}
-.woc-tier::before{content:'·';margin-right:calc(8 * var(--u));color:var(--c-text-3)}
-.woc-name{font-family:var(--f-display);font-size:calc(30 * var(--u));line-height:1.05;text-transform:uppercase;letter-spacing:.02em;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.woc-figures{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--c-line);padding-top:calc(9 * var(--u))}
-.woc-figure{display:grid;gap:calc(2 * var(--u));animation:woc-rise .4s calc(.35s + var(--i) * .09s) ease-out both}
-.woc-figure+.woc-figure{border-left:1px solid var(--c-line);padding-left:calc(10 * var(--u))}
-.woc-figure b{font-family:var(--f-display);font-size:calc(22 * var(--u));line-height:1;font-weight:400}
-.woc-figure span{font-size:calc(10 * var(--u));font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-text-2)}
+.woc .ps-stage{inset:0;height:auto}
+.woc .ps-light{top:calc(-170 * var(--u));height:calc(300 * var(--u))}
+.woc .ps-melt{height:56%}
+.woc .ps-star{right:calc(-40 * var(--u));top:calc(-50 * var(--u));width:calc(190 * var(--u))}
+.woc .ps-rings{top:calc(10 * var(--u))}
+.woc.is-debut .ps-melt{height:30%}
+.woc-body{position:relative;z-index:1;display:grid;gap:calc(12 * var(--u));padding:calc(14 * var(--u))}
+.woc-head{display:flex;align-items:center;gap:calc(14 * var(--u))}
+.woc-face{position:relative;flex:none;width:calc(54 * var(--u));height:calc(54 * var(--u));animation:woc-pop .5s .15s cubic-bezier(.3,1.6,.5,1) both}
+.woc-face .board-kit{width:100%;height:100%;box-shadow:0 0 0 calc(3 * var(--u)) var(--ring),0 0 0 calc(5 * var(--u)) #00000059,0 calc(8 * var(--u)) calc(20 * var(--u)) #00000080}
+.woc-badge{position:absolute;right:calc(-9 * var(--u));bottom:calc(-7 * var(--u));line-height:0;animation:woc-pop .45s .45s cubic-bezier(.3,1.6,.5,1) both}
+.woc-badge .k-badge{--size:calc(26 * var(--u))}
+.woc-badge img{filter:drop-shadow(0 2px 4px #00000080)}
+.woc-who{display:grid;gap:calc(2 * var(--u));min-width:0;flex:1;animation:woc-rise .45s .2s ease-out both}
+.woc-eyebrow{font:700 calc(10 * var(--u))/1.2 var(--f-ui);letter-spacing:.14em;text-transform:uppercase;color:#ffffffc7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  text-shadow:0 1px 6px #00000080}
+.woc-name.ps-name{font-size:calc(24 * var(--u))}
+.woc-pill{flex:none;align-self:flex-start;animation:woc-rise .4s .3s ease-out both}
+.woc-figures{display:grid;grid-template-columns:repeat(4,1fr)}
+.woc-figure{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;padding:0 calc(6 * var(--u));animation:woc-rise .4s calc(.35s + var(--i) * .09s) ease-out both}
+.woc-figure+.woc-figure{border-left:1px solid #ffffff24}
+.woc-figure b{font:900 calc(20 * var(--u))/1.2 var(--f-ui);white-space:nowrap}
+.woc-figure span{font:500 calc(11 * var(--u))/1.3 var(--f-ui);color:#ffffffb3;white-space:nowrap}
 .woc.is-debut{width:max-content;max-width:100%}
-.woc-debut{flex:none;align-self:center;margin-left:calc(4 * var(--u));font-family:var(--f-display);font-size:calc(22 * var(--u));letter-spacing:.14em;text-transform:uppercase;
-  color:#1a1206;background:linear-gradient(180deg,#ffd77a,var(--c-gold));padding:calc(4 * var(--u)) calc(12 * var(--u));border-radius:calc(3 * var(--u));
-  animation:woc-stamp .45s .4s cubic-bezier(.3,1.6,.5,1) both}
-@keyframes woc-wipe{from{clip-path:inset(0 100% 0 0);transform:translateX(calc(-12 * var(--u)))}to{clip-path:inset(0 0 0 0);transform:none}}
-@keyframes woc-away{from{clip-path:inset(0 0 0 0);opacity:1}to{clip-path:inset(0 0 0 100%);opacity:0}}
+.woc.is-debut .woc-pill{align-self:center}
+@keyframes woc-wipe{from{clip-path:inset(0 100% 0 0 round calc(20 * var(--u)));transform:translateX(calc(-12 * var(--u)))}to{clip-path:inset(0 0 0 0 round calc(20 * var(--u)));transform:none}}
+@keyframes woc-away{from{clip-path:inset(0 0 0 0 round calc(20 * var(--u)));opacity:1}to{clip-path:inset(0 0 0 100% round calc(20 * var(--u)));opacity:0}}
 @keyframes woc-pop{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
 @keyframes woc-rise{from{transform:translateY(calc(8 * var(--u)));opacity:0}to{transform:none;opacity:1}}
-@keyframes woc-stamp{from{transform:scale(1.6);opacity:0}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.woc,.woc *{animation:none!important}}
 #viewport.reel-on>#whatsnew-overlay{background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none}
 .whatsnew-sheet.is-reel{width:100%;max-width:none;background:radial-gradient(120% 70% at 50% 0%,#1b4a72 0%,#0d2739 46%,#07121a 100%)}

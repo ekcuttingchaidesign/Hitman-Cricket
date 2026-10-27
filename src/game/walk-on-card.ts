@@ -4,9 +4,10 @@ import { statsFacts } from './StatsCard';
 /**
  * The walk-on's player card (`src/ui/WalkOnCard.ts`): who is batting, as a
  * broadcast puts a batter up as he walks out — the face, the name, the mode
- * and the rung, and four figures from his career in the mode he is about to
- * bat in, or DEBUTANT where he has never batted in it: a debut in the Marathon
- * is a debut whatever he has made in the Blast.
+ * and the rung (whose material and medallion the card wears, as his career
+ * card does), and four figures from his career in the mode he is about to bat
+ * in, or none where he has never batted in it, which is a debut: a debut in
+ * the Marathon is a debut whatever he has made in the Blast.
  *
  * The figures are My Stats' own (`statsFacts`), from this browser's copy of
  * the career (`heldCareer`), so the card says what that page says and is
@@ -17,8 +18,10 @@ export interface WalkOnCard {
   avatar: number;
   mode: CareerMode;
   modeName: string;
-  /** The rung in this mode: EMERGING PLAYER, STAR, HITMAN. */
+  /** The rung in this mode, by key (`debutant` … `hitman`): its material and its medallion. */
   tier: string;
+  /** What the rung's pill says: EMERGING PLAYER, STAR, and in the Marathon TEST STAR (`rungName`'s wording). */
+  rung: string;
   /** No innings in this mode yet: DEBUTANT instead of the figures. */
   debut: boolean;
   figures: readonly { label: string; value: string }[];
@@ -43,7 +46,8 @@ export function walkOnCard(
     avatar: facts.avatar,
     mode,
     modeName: facts.modeName,
-    tier: facts.tier.name,
+    tier: facts.tier.key,
+    rung: mode === 'marathon' ? `TEST ${facts.tier.short.toUpperCase()}` : facts.tier.name,
     debut: !facts.played,
     figures: facts.played ? PICKS[mode].map(([label, shown]) => ({ label: shown, value: (known.get(label) ?? 0).toLocaleString('en-US') })) : [],
   };
