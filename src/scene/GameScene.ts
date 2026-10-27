@@ -26,6 +26,7 @@ import type { Cutout } from '../ui/Milestone';
 import { OUTFITS, type BatSkin, type Outfit } from '../game/dressing';
 import type { GloveDesign } from '../entities/gloves';
 import type { CameraPose } from '../game/ShotReel';
+import { introCamera, introSweep } from '../game/IntroReel';
 import { batSheet } from '../entities/batSkins';
 
 /** How much a kit glows in its own colour under the floodlights: see `kitsUnderLights`. */
@@ -526,16 +527,22 @@ export class GameScene {
     const { width, height } = this.container.getBoundingClientRect();
     this.renderer.setSize(width, height);
     this.camera.aspect = width / height;
+    const { at, fov } = this.homeView;
+    this.camera.fov = fov;
+    this.camera.lookAt(...at);
+    this.camera.updateProjectionMatrix();
+  };
+  /** The game's own view for this screen's shape: where every film's camera hands back to. */
+  get homeView(): CameraPose {
     // Below 16:9 the view widens towards a constant horizontal field of view, so
     // a tall phone sees the whole pitch rather than the batter's shoulders. The
     // aim drops with it: the extra frame goes to the wicket, not to empty sky.
     const design = 16 / 9, base = 50;
     const widened = 2 * Math.atan(Math.tan(base * Math.PI / 360) * design / this.camera.aspect) * 180 / Math.PI;
-    this.camera.fov = THREE.MathUtils.clamp(this.camera.aspect < design ? widened : base, base, 67);
     const tall = THREE.MathUtils.clamp((design - this.camera.aspect) / (design - 0.5), 0, 1);
-    this.camera.lookAt(0, THREE.MathUtils.lerp(1.05, 0.15, tall), THREE.MathUtils.lerp(9, 5.4, tall));
-    this.camera.updateProjectionMatrix();
-  };
+    return { eye: [0, 2.9, -5.15], at: [0, THREE.MathUtils.lerp(1.05, 0.15, tall), THREE.MathUtils.lerp(9, 5.4, tall)],
+      fov: THREE.MathUtils.clamp(this.camera.aspect < design ? widened : base, base, 67) };
+  }
   /**
    * Put both figures into whites, or back into colours. The ball is left alone:
    * it is red in both, which is the one thing a Test match and this game's
@@ -1238,6 +1245,26 @@ export class GameScene {
     this.shadow.visible = visible;
   }
   /**
+   * The walk-on (`IntroReel.ts`) from `now` on the game's clock, or null to
+   * put it away and hand the camera and the batter back. `introAt` pins its
+   * clock to one moment, for the checks.
+   */
+  walkOn(now: number | null) {
+    if (now === null) {
+      if (!Number.isFinite(this.introFrom)) return;
+      this.introFrom = -Infinity; this.introPinned = null;
+      this.batter.stage(null); this.batter.sweep(null);
+      this.cinematic(null);
+      return;
+    }
+    this.introFrom = now; this.introPinned = null;
+    this.cinematic(at => introCamera(this.introClock(at), this.homeView));
+  }
+  introAt(t: number | null) { this.introPinned = t; }
+  private introFrom = -Infinity;
+  private introPinned: number | null = null;
+  private introClock(now: number) { return this.introPinned ?? now - this.introFrom; }
+  /**
    * A film's camera in place of the game's (`ShotReel.ts`): asked each frame
    * where to stand, in the game's frame, and handed the ball where it is now
    * (or was last drawn), so it can follow it. Mirrored with the ground for a right-hander. Null puts
@@ -1258,6 +1285,10 @@ export class GameScene {
     this.clock = now;
     this.crowd?.update(now);
     this.bursts.update(now);
+    if (Number.isFinite(this.introFrom)) {
+      const t = this.introClock(now);
+      this.batter.stage(t); this.batter.sweep(introSweep(t));
+    }
     this.batter.update(now);
     this.field.update(now);
     // Held, the ball goes where his hands go: through the slide, and up with

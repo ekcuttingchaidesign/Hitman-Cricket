@@ -5652,6 +5652,12 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
    it plays everything else on the ground is put out of sight (`reel-on`).
    Where the game cannot film it, the words stand on the sheet's own dark. */
 #viewport.reel-on>:not(canvas):not(#whatsnew-overlay){visibility:hidden}
+/* The walk-on before the first ball (`IntroReel.ts`): the ground alone, between
+   two black bars that come in as it starts and go as it lands on the game's view. */
+#viewport.intro-on>:not(canvas){visibility:hidden}
+#viewport.intro-on::before,#viewport.intro-on::after{content:'';position:absolute;left:0;right:0;z-index:50;height:calc(var(--intro-bars,0) * 11%);background:#000;pointer-events:none}
+#viewport.intro-on::before{top:0}
+#viewport.intro-on::after{bottom:0}
 #viewport.reel-on>#whatsnew-overlay{background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none}
 .whatsnew-sheet.is-reel{width:100%;max-width:none;background:radial-gradient(120% 70% at 50% 0%,#1b4a72 0%,#0d2739 46%,#07121a 100%)}
 .whatsnew-sheet.is-reel.is-filmed{background:transparent}

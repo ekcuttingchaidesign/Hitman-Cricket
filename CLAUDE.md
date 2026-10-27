@@ -1511,6 +1511,27 @@ checks time their strokes to the real windows; `?newcomer=1` beside it lets
 the help back in by the browser's own count. `scripts/newcomer-check.mjs`
 walks when it moves on. GoatCounter counts `newcomer-1` to `-3` a mode.
 
+## The walk-on: `?intro=1`
+
+A prototype, only where the link asks for it: before the first ball of an
+innings the camera climbs the batter from his boots to his helmet while he
+stands in the four's lean (`LEANING` in `Batter.ts`, held by `WALK_ON` through
+`stage`), a light crossing the back of his bat, where a skin's big art is
+(`sweep`, a band always compiled into the blade's material and parked off it,
+so it never compiles a shader mid-film); his eyes on the bat, then up to the
+bowler, and into his guard as the camera comes back over his shoulder onto
+the game's view (`GameScene.homeView`), three and a half seconds in all. Every
+frame is a function of the film's own clock (`src/game/IntroReel.ts`: the
+camera's keys round him, `introSweep`, `introBars`), drawn through
+`GameScene.cinematic`; `__cricket.introAt(t)` pins it. Turned one way round
+him only, inside the line to the stumps, which otherwise come between. The
+bowler waits at his mark (`bannerUntil`), the scoreboard and keys are out of
+sight between two bars (`intro-on`), and the coachmarks and the chase's card
+wait for it; a tap, Space, Enter or Escape skips it, and no other key does
+anything while it plays. GoatCounter counts `walk-on` and `walk-on-skipped`.
+`scripts/intro-check.mjs` walks it and photographs its beats;
+`tests/intro-reel.test.ts` holds the landing and the light.
+
 ## `?moments=1`
 
 A row of keys along the foot of the picture, one a milestone — 50, 100, six

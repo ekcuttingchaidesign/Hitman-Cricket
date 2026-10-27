@@ -2428,6 +2428,14 @@ ${super10PageMarkup(excitedAlready())}
     overlay.classList.remove('hidden');
     show();
   }
+  /**
+   * The walk-on (`IntroReel.ts`): everything over the ground put out of sight
+   * and the bars drawn `bars` of the way in, or all of it put back with null.
+   */
+  walkOn(bars: number | null) {
+    this.viewport.classList.toggle('intro-on', bars !== null);
+    this.viewport.style.setProperty('--intro-bars', String(bars ?? 0));
+  }
   closeIntro() {
     this.$('marathon-intro').classList.add('hidden');
     window.clearInterval(this.laneWalk);

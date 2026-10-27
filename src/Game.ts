@@ -44,6 +44,7 @@ import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType, T
 import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
 import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
+import { INTRO, introBars } from './game/IntroReel';
 import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
@@ -920,6 +921,7 @@ export class Game {
       if (document.fullscreenElement) void document.exitFullscreen();
       else if (this.hud.viewport.requestFullscreen) void this.hud.viewport.requestFullscreen().catch(() => {});
     });
+    this.hud.viewport.addEventListener('pointerdown', () => this.walkedOn(true));
     window.addEventListener('keydown', this.shortcuts); window.addEventListener('beforeunload', this.leaving); document.addEventListener('visibilitychange', this.visibility);
     window.addEventListener('blur', this.blur);
     // A bundle built survive-only plays one innings and offers no way out of
@@ -1026,6 +1028,9 @@ export class Game {
       ratingOpen: () => !!this.ratingPrompt?.open,
       // Level Up by rung, for `levelup-check.mjs`: `levelUp('star', 'marathon')`.
       levelUp: (tier = 'star', mode?: CareerMode) => this.previewLevelUp(tier, mode),
+      /** The walk-on's clock pinned at `t` milliseconds, or let run again with null. */
+      introAt: (t: number | null) => { this.introPin = t; this.scene.introAt(t); },
+      walkingOn: () => !!this.walking,
       // New #1 by board, over a made-up board, for `topspot-check.mjs`: `topSpot('marathon')`.
       topSpot: (mode?: CareerMode) => this.previewTopSpot(mode),
       // Whether it is playing.
@@ -2121,6 +2126,7 @@ export class Game {
    */
   private walkOut = () => this.start();
   start = () => {
+    if (this.walking) { this.walking = null; this.scene.walkOn(null); this.hud.walkOn(null); }
     if (this.chaseWon) { this.chaseWon = false; this.clearChase(); }
     // Who is batting, first: once, before the first innings there is.
     if (this.profileDue) {
@@ -2191,8 +2197,42 @@ export class Game {
     if (this.surviving) this.hud.target(this.chasing, this.score.runs, this.score.balls, this.score.wickets);
     this.setPhase('READY');
     (document.activeElement as HTMLElement | null)?.blur();
-    if (this.marathoning) this.introduce(); else this.teachShots();
-    this.startChase();
+    // The coachmarks and the chase's card wait for the walk-on, where there is one.
+    const told = () => { if (this.marathoning) this.introduce(); else this.teachShots(); this.startChase(); };
+    if (this.introAsked && !this.demoing) this.walkOn(told); else told();
+  };
+  /**
+   * `?intro=1`: the walk-on before the first ball (`IntroReel.ts`), the camera
+   * climbing him in the lean. A prototype, so only where it is asked for. The
+   * bowler waits at his mark until it lands on the game's view, or a tap or a
+   * key skips it there; nothing about the innings moves meanwhile.
+   */
+  private readonly introAsked = new URLSearchParams(location.search).get('intro') === '1';
+  private walking: { start: number; then: () => void } | null = null;
+  /** Where the checks pin the walk-on's clock (`__cricket.introAt`), or null to let it run. */
+  private introPin: number | null = null;
+  private walkOn(then: () => void) {
+    this.walking = { start: this.elapsed, then };
+    this.bannerUntil = Number.POSITIVE_INFINITY;
+    this.scene.walkOn(this.elapsed); this.scene.introAt(this.introPin);
+    this.hud.walkOn(introBars(0));
+    this.mark('walk-on', 'Walk-on shown');
+  }
+  /** One frame of it: the bars, and the hand back once it has landed. */
+  private walkOnFrame() {
+    const walking = this.walking!, t = this.introPin ?? this.elapsed - walking.start;
+    if (this.introPin === null && t >= INTRO.total) return this.walkedOn();
+    this.hud.walkOn(introBars(t));
+  }
+  /** Over, landed or skipped: the camera and the batter handed back, and whatever waited for it told. */
+  private walkedOn = (skipped = false) => {
+    const walking = this.walking;
+    if (!walking) return;
+    this.walking = null;
+    this.scene.walkOn(null); this.hud.walkOn(null);
+    if (skipped) this.mark('walk-on-skipped', 'Walk-on skipped');
+    this.bannerUntil = this.elapsed;
+    walking.then();
   };
   /**
    * The Marathon's rules, the first two times one starts: the bowler waits at
@@ -3638,6 +3678,12 @@ export class Game {
     // Level Up takes its own keys: Escape is its way to the scorecard, and
     // Enter is whichever of its keys has the focus, not PLAY AGAIN under it.
     if (this.levelUp) return;
+    // The walk-on takes every key: Space, Enter or Escape skip it, and nothing
+    // else may restart or pause an innings that has not had a ball yet.
+    if (this.walking) {
+      if ([' ', 'Enter', 'Escape'].includes(event.key)) { event.preventDefault(); this.walkedOn(true); }
+      return;
+    }
     if (event.target instanceof Element && event.target.closest('.rate-pop') && STAR_KEYS.has(event.key)) return;
     const key = event.key.toUpperCase();
     // The stories sit over everything, including the board that may have opened
@@ -3734,6 +3780,7 @@ export class Game {
       this.input.flush(this.elapsed);
       this.update();
       if (this.reel) this.reelFrame();
+      if (this.walking) this.walkOnFrame();
     }
     // Level Up covers the whole screen, so the ground under it is not drawn:
     // a phone has one GPU, and the confetti wants it.
