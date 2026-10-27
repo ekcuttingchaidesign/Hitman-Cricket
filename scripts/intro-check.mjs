@@ -120,9 +120,11 @@ console.log('ends by itself, and takes turns');
   await page.locator('#viewport canvas').first().tap({ force: true });
   await advance(50);
   check(await bowled(), 'and its first ball follows');
+  // Survival's end is a screen of its own, with its own PLAY AGAIN.
   await page.evaluate(() => window.__cricket.finish());
-  for (let i = 0; i < 60 && !(await again.isVisible().catch(() => false)); i++) await advance(250);
-  await again.click({ force: true });
+  const surviveAgain = page.locator('#survive-again');
+  for (let i = 0; i < 60 && !(await surviveAgain.isVisible().catch(() => false)); i++) await advance(250);
+  await surviveAgain.click({ force: true });
   await advance(300);
   check(!(await walking()), 'and its PLAY AGAIN goes straight to the ball');
 
