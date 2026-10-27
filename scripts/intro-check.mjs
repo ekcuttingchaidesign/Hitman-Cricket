@@ -114,7 +114,9 @@ console.log('ends by itself, and takes turns');
   await advance(600);
   await page.locator('#mode-survive').click({ force: true, timeout: 15_000 });
   await advance(100);
-  check(!!(await walking()), 'a mode not yet played this visit opens on a walk-on', await walking());
+  // The film shown last, which the next visit must not open on: one a mode, so a visit can show two.
+  const last = await walking();
+  check(!!last && last !== first, 'a mode not yet played this visit opens on a walk-on, the other film', `${first} then ${last}`);
   // Seen out to its end in the Blast above; here a tap, as software rendering
   // spends minutes of the wall's clock on every second of a film.
   await page.locator('#viewport canvas').first().tap({ force: true });
@@ -131,7 +133,7 @@ console.log('ends by itself, and takes turns');
   // The next visit, in the same browser, opens on the other film.
   await visit('&intro=1');
   const second = await walking();
-  check(second && second !== first, 'the next visit opens on the other film', `${first} then ${second}`);
+  check(second && second !== last, 'the next visit opens on the other film from the last one shown', `${last} then ${second}`);
   check(!errors.length, 'no errors', errors.join('\n'));
   await page.close();
 }
@@ -159,8 +161,9 @@ for (const [who, seeded] of [['a player with a Blast career', true], ['a debutan
     'with their name, the mode, and their Blast figures', text);
   else check(/Debutant/i.test(text) && !(await page.locator('.woc-figure').count()), 'saying DEBUTANT, with no figures', text);
   await page.screenshot({ path: `test-results/intro-card-${seeded ? 'career' : 'debut'}.png` });
+  // Wiped away on the page's clock, which is wound here by hand.
   await page.evaluate(() => window.__cricket.introAt(6500));
-  await advance(40); await page.waitForTimeout(600);
+  await advance(40); await advance(500); await page.waitForTimeout(300);
   check(!(await page.locator('#walkon-card').count()), `${who}: and gone before the cut to the game`);
   check(!errors.length, 'no errors', errors.join('\n'));
   await page.close();
