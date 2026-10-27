@@ -44,7 +44,8 @@ import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType, T
 import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
 import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
-import { filmLength, introBars, nextFilm, type Film } from './game/IntroReel';
+import { cardShown, filmLength, introBars, nextFilm, type Film } from './game/IntroReel';
+import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
 import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
@@ -2128,7 +2129,7 @@ export class Game {
    */
   private walkOut = () => this.start();
   start = () => {
-    if (this.walking) { this.walking = null; this.scene.walkOn(null); this.hud.walkOn(null); }
+    if (this.walking) { this.walking = null; this.scene.walkOn(null); this.hud.walkOn(null); this.hud.walkOnCard(null, true); }
     if (this.chaseWon) { this.chaseWon = false; this.clearChase(); }
     // Who is batting, first: once, before the first innings there is.
     if (this.profileDue) {
@@ -2201,24 +2202,33 @@ export class Game {
     (document.activeElement as HTMLElement | null)?.blur();
     // The coachmarks and the chase's card wait for the walk-on, where there is one.
     const told = () => { if (this.marathoning) this.introduce(); else this.teachShots(); this.startChase(); };
-    if (this.introAsked && !this.walkedIn.has(this.mode) && !this.demoing) this.walkOn(told); else told();
+    if (this.introAsked && !this.walkedIn.has(this.mode) && !this.demoing && !this.challenge.playing) this.walkOn(told); else told();
   };
   /**
-   * `?intro=1`: the walk-on (`IntroReel.ts`), before the first innings of
-   * each mode in a visit (`walkedIn`): PLAY AGAIN and a restart go straight
-   * to the ball, and a mode chosen that has not had one yet gets one. One of two films, the other one from last time (`nextFilm`,
-   * kept in `hitman-walk-on`, drawn from the page's dice and never from the
-   * innings' seed); `?intro=bat` or `?intro=duel` asks for one. A prototype,
-   * so only where it is asked for. The bowler waits at his mark until it is
-   * over, or a tap or a key skips it there; nothing about the innings moves.
+   * The walk-on (`IntroReel.ts`), before the first innings of each mode in a
+   * visit (`walkedIn`): PLAY AGAIN and a restart go straight to the ball, a
+   * mode chosen that has not had one yet gets one, and a Rival Match never
+   * does — the other player may be waiting. One of two films, the other one
+   * from last time (`nextFilm`, kept in `hitman-walk-on`, drawn from the
+   * page's dice and never from the innings' seed), with the player's card over
+   * it (`walkOnCard`). The bowler waits at his mark until it is over, or a tap
+   * or a key skips it there; nothing about the innings moves.
+   *
+   * Everybody's, but not under `?debug=1`, whose checks time their innings to
+   * the ball, nor for a player who has asked for less motion. `?intro=bat` or
+   * `?intro=duel` asks for one film, `?intro=1` for either, wherever; and
+   * `?intro=0` for none.
    */
   private readonly introAsked: Film | true | null = (() => {
     const asked = new URLSearchParams(location.search).get('intro');
-    return asked === 'bat' || asked === 'duel' ? asked : asked === '1' ? true : null;
+    if (asked === 'bat' || asked === 'duel') return asked;
+    if (asked === '1') return true;
+    if (asked === '0' || this.debug) return null;
+    return matchMedia('(prefers-reduced-motion: reduce)').matches ? null : true;
   })();
   /** The modes that have had their walk-on this visit. */
   private readonly walkedIn = new Set<GameMode>();
-  private walking: { start: number; film: Film; then: () => void } | null = null;
+  private walking: { start: number; film: Film; then: () => void; card: WalkOnCard; carded: boolean } | null = null;
   /** Where the checks pin the walk-on's clock (`__cricket.introAt`), or null to let it run. */
   private introPin: number | null = null;
   private walkOn(then: () => void) {
@@ -2227,7 +2237,10 @@ export class Game {
     const film = this.introAsked === true ? nextFilm(last, Math.random()) : this.introAsked!;
     try { localStorage.setItem(WALK_ON_KEY, film); } catch { /* Then the same one may come round again. */ }
     this.walkedIn.add(this.mode);
-    this.walking = { start: this.elapsed, film, then };
+    // Who is batting, as this browser last saw their career in this mode.
+    const who = readPlayer();
+    const card = walkOnCard(this.careerMode, heldCareer(this.careerMode), { name: who?.name ?? '', avatar: who?.avatar ?? 0 });
+    this.walking = { start: this.elapsed, film, then, card, carded: false };
     this.bannerUntil = Number.POSITIVE_INFINITY;
     this.scene.walkOn(this.elapsed, film); this.scene.introAt(this.introPin);
     this.hud.walkOn(introBars(film, 0));
@@ -2238,13 +2251,15 @@ export class Game {
     const walking = this.walking!, t = this.introPin ?? this.elapsed - walking.start;
     if (this.introPin === null && t >= filmLength(walking.film)) return this.walkedOn();
     this.hud.walkOn(introBars(walking.film, t));
+    const carded = cardShown(walking.film, t);
+    if (carded !== walking.carded) { walking.carded = carded; this.hud.walkOnCard(carded ? walking.card : null); }
   }
   /** Over, landed or skipped: the camera and the batter handed back, and whatever waited for it told. */
   private walkedOn = (skipped = false) => {
     const walking = this.walking;
     if (!walking) return;
     this.walking = null;
-    this.scene.walkOn(null); this.hud.walkOn(null);
+    this.scene.walkOn(null); this.hud.walkOn(null); this.hud.walkOnCard(null, true);
     if (skipped) this.mark(`walk-on-skipped-${walking.film}`, 'Walk-on skipped');
     this.bannerUntil = this.elapsed;
     walking.then();

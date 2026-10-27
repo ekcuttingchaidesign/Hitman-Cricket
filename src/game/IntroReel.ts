@@ -60,6 +60,14 @@ export const DUEL = {
   /** The cut to the game's view, as the run-up starts. */
   total: 6700,
 } as const;
+/**
+ * When the player card (`walkOnCard`) is up in each film: over his shoulder as
+ * the camera climbs to the pitch in the bat, through the bowler's eyes in the
+ * duel; gone again before either hands over to the game.
+ */
+const CARD: Record<Film, readonly [number, number]> = { bat: [3700, 6300], duel: [3200, 6200] };
+/** Whether the player card is up at `t` in `film`. */
+export const cardShown = (film: Film, t: number) => t >= CARD[film][0] && t < CARD[film][1];
 /** How long a film runs. */
 export const filmLength = (film: Film) => film === 'bat' ? BAT.total : DUEL.total;
 /** The film after `last`: the other one, so a visit never opens on the same film twice running; the first a coin's. */

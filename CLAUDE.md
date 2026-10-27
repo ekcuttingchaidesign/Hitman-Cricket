@@ -1511,17 +1511,29 @@ checks time their strokes to the real windows; `?newcomer=1` beside it lets
 the help back in by the browser's own count. `scripts/newcomer-check.mjs`
 walks when it moves on. GoatCounter counts `newcomer-1` to `-3` a mode.
 
-## The walk-on: `?intro=1`
+## The walk-on: before the first innings of each mode
 
-A prototype, only where the link asks for it: before the first innings of
-each mode in a visit — never on PLAY AGAIN or a restart, and once for each
-mode chosen (`walkedIn` in `src/Game.ts`) — one
-of two slow films, each a function of its own clock (`src/game/IntroReel.ts`),
-drawn through `GameScene.cinematic`. They take turns: each visit opens on the
-other one from last time (`nextFilm`, kept in `hitman-walk-on`, the first a
-coin from the page's dice, never the innings' seed, so no ball moves).
-`?intro=bat` or `?intro=duel` asks for one; `__cricket.introAt(t)` pins the
-clock and `__cricket.walkingOn()` says which is playing.
+Every player's, by day and under the lights: before the first innings of each
+mode in a visit — never on PLAY AGAIN or a restart, once for each mode chosen
+(`walkedIn` in `src/Game.ts`), and never in a Rival Match, where the other
+player may be waiting — one of two slow films, each a function of its own
+clock (`src/game/IntroReel.ts`), drawn through `GameScene.cinematic`. Not
+under `?debug=1`, whose checks time their innings to the ball, nor for a
+player who has asked for less motion; `?intro=0` turns it off, `?intro=1`
+asks for either film anywhere, and `?intro=bat` or `?intro=duel` for one.
+They take turns: each opens on the other one from last time (`nextFilm`, kept
+in `hitman-walk-on`, the first a coin from the page's dice, never the
+innings' seed, so no ball moves). `__cricket.introAt(t)` pins the clock and
+`__cricket.walkingOn()` says which is playing.
+
+Over each, part-way through, the player card (`src/ui/WalkOnCard.ts`, what it
+says `walkOnCard` in `src/game/walk-on-card.ts`, when `cardShown`): a
+broadcast's lower third for the batter walking out — the face in a ring of
+the mode's colour, the mode and the rung over the name, and four of My Stats'
+figures for that mode from this browser's copy of the career (`heldCareer`,
+there before the store has answered), or a gold DEBUTANT for a player who has
+never batted in it: a debut is per mode. It is the one thing left on screen
+over the film (`#walkon-card`), wiped in and away again before the hand-over.
 
 **The bat** (`BAT`, seven seconds): the bat close to on a long lens, drifting
 up the back of the blade — where a skin's big art is — as a light runs up it

@@ -131,6 +131,36 @@ console.log('ends by itself, and takes turns');
   await page.close();
 }
 
+// ── The player card ──────────────────────────────────────────────────────
+console.log('the player card');
+for (const [who, seeded] of [['a player with a Blast career', true], ['a debutant', false]]) {
+  const { page, errors, advance, visit } = await phone();
+  if (seeded) await page.addInitScript(() => {
+    try {
+      localStorage.setItem('hitman-batter', JSON.stringify({ name: 'Kabir', avatar: 2 }));
+      localStorage.setItem('hitman-career', JSON.stringify({ classic: { innings: 23, runs: 1204, highest: 181, sixes: 77 } }));
+    } catch { /* Then the card is a debutant's. */ }
+  });
+  await visit('&intro=duel', true);
+  await page.evaluate(() => window.__cricket.introAt(1000));
+  await advance(40);
+  check(!(await page.locator('#walkon-card').count()), `${who}: no card over the pitch from above`);
+  await page.evaluate(() => window.__cricket.introAt(4500));
+  await advance(40); await page.waitForTimeout(900);
+  const card = page.locator('#walkon-card');
+  check(await card.isVisible(), `${who}: the card is up through the bowler's eyes`);
+  const text = (await card.innerText()).replace(/\s+/g, ' ');
+  if (seeded) check(/KABIR/i.test(text) && /1,204/.test(text) && /181/.test(text) && /77/.test(text) && /The Blast/i.test(text),
+    'with their name, the mode, and their Blast figures', text);
+  else check(/Debutant/i.test(text) && !(await page.locator('.woc-figure').count()), 'saying DEBUTANT, with no figures', text);
+  await page.screenshot({ path: `test-results/intro-card-${seeded ? 'career' : 'debut'}.png` });
+  await page.evaluate(() => window.__cricket.introAt(6500));
+  await advance(40); await page.waitForTimeout(600);
+  check(!(await page.locator('#walkon-card').count()), `${who}: and gone before the cut to the game`);
+  check(!errors.length, 'no errors', errors.join('\n'));
+  await page.close();
+}
+
 // ── A tap skips it ───────────────────────────────────────────────────────
 console.log('a tap skips it');
 for (const film of ['bat', 'duel']) {
