@@ -3820,9 +3820,10 @@ export class Game {
     if (this.disposed) return;
     const dt = this.previousFrame ? Math.min(time - this.previousFrame, 60) : 0; this.previousFrame = time;
     this.frameClock = time;
-    if (LIVE.includes(this.phase) && !document.hidden) {
+    if (LIVE.includes(this.phase) && !document.hidden && !this.walking) {
       // Wall-clock rather than the game's own clock, which the charge stretches
       // into slow motion: a second of slow motion is still a second of playing.
+      // The walk-on is watched, not played, so it is not counted.
       this.playedMs += dt;
       marksPassed(this.playedMs).forEach(mark => trackOnce(mark, `Played ${mark.slice(7)}`));
       this.batted += dt;
