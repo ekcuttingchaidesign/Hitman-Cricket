@@ -123,7 +123,9 @@ for (const film of ['bat', 'duel']) {
   await page.locator('#viewport canvas').first().tap({ force: true });
   await advance(50);
   check(!(await walking()), 'a tap puts it away at once');
-  check((await snap()).phase === 'READY', 'and plays no stroke', (await snap()).phase);
+  // The bowler may already have set off: he goes the moment it is put away.
+  const after = await snap();
+  check(['READY', 'BOWLER_RUNUP'].includes(after.phase), 'and plays no stroke', after.phase);
   check(await bowled(), 'the bowler goes without waiting out the film');
   check(!errors.length, 'no errors', errors.join('\n'));
   await page.close();
