@@ -1528,12 +1528,20 @@ innings' seed, so no ball moves). `__cricket.introAt(t)` pins the clock and
 
 Over each, part-way through, the player card (`src/ui/WalkOnCard.ts`, what it
 says `walkOnCard` in `src/game/walk-on-card.ts`, when `cardShown`): a
-broadcast's lower third for the batter walking out — the face in a ring of
-the mode's colour, the mode and the rung over the name, and four of My Stats'
-figures for that mode from this browser's copy of the career (`heldCareer`,
-there before the store has answered), or a gold DEBUTANT for a player who has
-never batted in it: a debut is per mode. It is the one thing left on screen
-over the film (`#walkon-card`), wiped in and away again before the hand-over.
+broadcast's lower third for the batter walking out, cut from his career card.
+It wears his rung's material from the player sheet's tiers — `profile.css`
+lists `.woc` beside the sheet, so navy, brushed bronze, chrome with the star
+and black and gold with the rings, the Marathon's green and Dukes red, the
+sheen at Star and Hitman, are the sheet's own and cannot drift from it —
+with his face in the rung's ring and its medallion on it (`tierBadge`), his
+name in the profile's face (chrome at Star, gold at Hitman), the rung's pill
+in the career card's words (TEST STAR in the Marathon), and four of My Stats'
+figures for the mode, set as the profile's glance, from this browser's copy
+of the career (`heldCareer`, there before the store has answered). A player
+who has never batted in the mode — a debut is per mode — gets one row, no
+wider than it needs: the face, FIRST INNINGS, and the DEBUTANT pill. It is the
+one thing left on screen over the film (`#walkon-card`), wiped in and away
+again before the hand-over.
 
 **The bat** (`BAT`, seven seconds): the bat close to on a long lens, drifting
 up the back of the blade — where a skin's big art is — as a light runs up it
