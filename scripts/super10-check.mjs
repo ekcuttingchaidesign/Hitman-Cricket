@@ -281,7 +281,10 @@ for (const time of ['first', 'second']) {
         tag: document.querySelector('#mi-tag:not(.hidden)')?.textContent ?? null,
         gaps: !!document.querySelector('#mi-stage .mi-gaps'),
         big: window.__cricket.snapshot().super10.enlarged,
-        bottom: Math.round(document.querySelector('#mi-card').getBoundingClientRect().bottom),
+        // Measured from the foot of the cards' own overlay, so a page scrolled under it is no difference.
+        bottom: Math.round(document.querySelector('#marathon-intro').getBoundingClientRect().bottom - document.querySelector('#mi-card').getBoundingClientRect().bottom),
+        // And nothing under them slid: the game's stage scrolled once, when the map was held up.
+        scroll: Math.round(scrollY + (document.querySelector('#viewport')?.scrollTop ?? 0)),
       })));
       if (i === 3) await page.locator('#marathon-intro').screenshot({ path: 'test-results/super10-gaps.png' }).catch(() => {});
       await page.locator('#mi-next').click(); await advance(200);
@@ -289,7 +292,7 @@ for (const time of ['first', 'second']) {
     const want = [['Ten overs', 'Overs'], ['Five wickets', 'Wickets'], ['Watch the field', 'Field map'], ['Play in the gaps', null]];
     check(up && cards.length === 4 && cards.every((c, i) => c.title === want[i][0] && c.tag === want[i][1]) && cards[3].gaps,
       'a first Super10 opens with its rules: ten overs, five wickets, the field map tagged, the gaps drawn at the bat', JSON.stringify(cards));
-    check(cards.every(c => c.bottom === cards[0].bottom) && cards.map(c => c.big).join() === 'false,false,true,false',
+    check(cards.every(c => c.bottom === cards[0].bottom && c.scroll === 0) && cards.map(c => c.big).join() === 'false,false,true,false',
       'every card stands at the foot, and Watch the field holds the map up enlarged over its card, then puts it back', JSON.stringify(cards));
     check(!(await page.locator('#marathon-intro').isVisible()) && !(await snap()).super10.enlarged, "and LET'S BAT puts them away, the map in its corner");
   } else check(!up, 'and never again');

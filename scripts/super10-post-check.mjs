@@ -111,11 +111,13 @@ check(Number(await page.evaluate(() => localStorage.getItem('hitman-best-super10
 for (let i = 0; i < 40 && await page.evaluate(() => window.__cricket.topSpotOpen()); i++) await page.waitForTimeout(200);
 await page.addStyleTag({ content: '.debug{display:none!important}' });
 await page.evaluate(() => document.querySelector('#claim').click());
-await page.waitForTimeout(1500);
-const board = await page.evaluate(() => {
+// Waited for, not timed: the board's rows come from the store.
+const boardNow = () => page.evaluate(() => {
   const overlay = document.querySelector('#board-overlay');
   return { open: !!overlay && !overlay.classList.contains('hidden'), text: overlay?.textContent ?? '' };
 });
+let board = await boardNow();
+for (let i = 0; i < 40 && !/You entered the board at #\d+/.test(board.text); i++) { await page.waitForTimeout(200); board = await boardNow(); }
 check(board.open && /Super10/.test(board.text) && /You entered the board at #\d+/.test(board.text), "the board opens on Super10, on the player's own row", board.text.slice(0, 200));
 await page.screenshot({ path: 'test-results/super10-board.png' }).catch(() => {});
 check(errors.length === 0, 'with nothing thrown', errors.join('\n'));

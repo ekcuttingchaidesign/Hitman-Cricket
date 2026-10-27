@@ -158,10 +158,10 @@ if (await widget.isVisible()) {
   await widget.evaluate(el => el.click());
   await page.waitForTimeout(2500);
   const slides = await page.locator('#stats-overlay .stats-slide').count();
-  // A card a game: the Blast and the Test match, and off production the Test
-  // Marathon between them.
+  // A card a game: the Blast, the Test Marathon, Test Survival and Super10
+  // (the Marathon where it can be reached).
   const named = await page.$$eval('#stats-overlay .stats-slide', all => all.map(one => one.getAttribute('aria-label')));
-  check(named.join(' | ') === 'The Blast | Test Survival' || named.join(' | ') === 'The Blast | Test Marathon | Test Survival',
+  check(['The Blast | Test Survival | Super10', 'The Blast | Test Marathon | Test Survival | Super10'].includes(named.join(' | ')),
     'which opens a card for every game', `${slides} of them: ${named.join(' | ')}`);
   check(await page.locator('#stats-overlay #stats-rail.is-rail').count() === 1, 'on a rail to swipe');
   const at = await page.evaluate(() =>

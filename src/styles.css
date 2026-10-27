@@ -208,7 +208,11 @@ kbd{
 .stage{
   position:absolute;
   inset:0;
+  /* Clipped, not only hidden: a hidden overflow can still be scrolled by the
+     browser, and Super10's enlarged map held over its coach card had the
+     whole game slide up the screen. */
   overflow:hidden;
+  overflow:clip;
   background:#a9cbd0;
   isolation:isolate
 }
@@ -3094,7 +3098,10 @@ body.survive-mode #scoreboard{display:none}
   transform:translateX(-50%);
   z-index:10;
   display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
+  /* One row, however many keys: a sixth (SUPER10) in five columns wrapped
+     onto a second row, under the sticker lifted clear of one. */
+  grid-auto-flow:column;
+  grid-auto-columns:minmax(0,1fr);
   gap:4px;
   width:min(100% - 24px,460px);
   padding:5px;
@@ -3109,8 +3116,8 @@ body.survive-mode #scoreboard{display:none}
   border-radius:9px;
   background:#0b3a22;
   color:#f4efe2;
-  font:700 11px/1 var(--card,system-ui);
-  letter-spacing:.4px;
+  font:700 10px/1 var(--card,system-ui);
+  letter-spacing:.2px;
   white-space:nowrap;
   cursor:pointer
 }
