@@ -26,7 +26,7 @@ import type { Cutout } from '../ui/Milestone';
 import { OUTFITS, type BatSkin, type Outfit } from '../game/dressing';
 import type { GloveDesign } from '../entities/gloves';
 import type { CameraPose } from '../game/ShotReel';
-import { introCamera, introSweep } from '../game/IntroReel';
+import { DUEL, introCamera, introSweep, type Film } from '../game/IntroReel';
 import { batSheet } from '../entities/batSkins';
 
 /** How much a kit glows in its own colour under the floodlights: see `kitsUnderLights`. */
@@ -1245,24 +1245,31 @@ export class GameScene {
     this.shadow.visible = visible;
   }
   /**
-   * The walk-on (`IntroReel.ts`) from `now` on the game's clock, or null to
-   * put it away and hand the camera and the batter back. `introAt` pins its
-   * clock to one moment, for the checks.
+   * The walk-on (`IntroReel.ts`): `film` from `now` on the game's clock, or
+   * null to put it away and hand the camera, the batter and the bowler back.
+   * `introAt` pins its clock to one moment, for the checks.
    */
-  walkOn(now: number | null) {
+  walkOn(now: number | null, film: Film = 'bat') {
     if (now === null) {
       if (!Number.isFinite(this.introFrom)) return;
       this.introFrom = -Infinity; this.introPinned = null;
       this.batter.stage(null); this.batter.sweep(null);
+      if (this.introFilm === 'duel') this.bowler.reset();
       this.cinematic(null);
       return;
     }
-    this.introFrom = now; this.introPinned = null;
-    this.cinematic(at => introCamera(this.introClock(at), this.homeView));
+    this.introFrom = now; this.introPinned = null; this.introFilm = film;
+    // The duel is framed on where he stands at the top of his mark, as the
+    // stage has him: he is mirrored back on his own inside it, so his own
+    // position is the other side of the stumps from where he is drawn.
+    this.scene.updateMatrixWorld(true);
+    const { x, y, z } = this.world.worldToLocal(this.bowler.root.getWorldPosition(new THREE.Vector3())), mark = [x, y, z] as const;
+    this.cinematic(at => introCamera(film, this.introClock(at), this.homeView, mark));
   }
   introAt(t: number | null) { this.introPinned = t; }
   private introFrom = -Infinity;
   private introPinned: number | null = null;
+  private introFilm: Film = 'bat';
   private introClock(now: number) { return this.introPinned ?? now - this.introFrom; }
   /**
    * A film's camera in place of the game's (`ShotReel.ts`): asked each frame
@@ -1286,8 +1293,9 @@ export class GameScene {
     this.crowd?.update(now);
     this.bursts.update(now);
     if (Number.isFinite(this.introFrom)) {
-      const t = this.introClock(now);
-      this.batter.stage(t); this.batter.sweep(introSweep(t));
+      const t = this.introClock(now), film = this.introFilm;
+      this.batter.stage(t, film); this.batter.sweep(introSweep(film, t));
+      if (film === 'duel') this.bowler.ready(t, DUEL.look, DUEL.set);
     }
     this.batter.update(now);
     this.field.update(now);

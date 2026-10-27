@@ -44,7 +44,7 @@ import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType, T
 import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
 import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
-import { INTRO, introBars } from './game/IntroReel';
+import { filmLength, introBars, nextFilm, type Film } from './game/IntroReel';
 import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
@@ -206,6 +206,8 @@ const MARATHON_OPEN = SHOW_MARATHON || (!SURVIVE_ONLY
   && new URLSearchParams(location.search).get('mode')?.toLowerCase() === 'marathon');
 /** The mode a browser played last, which Choose a mode's rail opens on; a new player starts on the Blast. */
 const LAST_MODE_KEY = 'hitman-last-mode';
+/** Which walk-on film this browser saw last, so the next visit opens on the other (`nextFilm`). */
+const WALK_ON_KEY = 'hitman-walk-on';
 function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' {
   try {
     const kept = localStorage.getItem(LAST_MODE_KEY);
@@ -1030,7 +1032,7 @@ export class Game {
       levelUp: (tier = 'star', mode?: CareerMode) => this.previewLevelUp(tier, mode),
       /** The walk-on's clock pinned at `t` milliseconds, or let run again with null. */
       introAt: (t: number | null) => { this.introPin = t; this.scene.introAt(t); },
-      walkingOn: () => !!this.walking,
+      walkingOn: () => this.walking?.film ?? null,
       // New #1 by board, over a made-up board, for `topspot-check.mjs`: `topSpot('marathon')`.
       topSpot: (mode?: CareerMode) => this.previewTopSpot(mode),
       // Whether it is playing.
@@ -2199,30 +2201,42 @@ export class Game {
     (document.activeElement as HTMLElement | null)?.blur();
     // The coachmarks and the chase's card wait for the walk-on, where there is one.
     const told = () => { if (this.marathoning) this.introduce(); else this.teachShots(); this.startChase(); };
-    if (this.introAsked && !this.demoing) this.walkOn(told); else told();
+    if (this.introAsked && !this.walkedOnce && !this.demoing) this.walkOn(told); else told();
   };
   /**
-   * `?intro=1`: the walk-on before the first ball (`IntroReel.ts`), the camera
-   * climbing him in the lean. A prototype, so only where it is asked for. The
-   * bowler waits at his mark until it lands on the game's view, or a tap or a
-   * key skips it there; nothing about the innings moves meanwhile.
+   * `?intro=1`: the walk-on (`IntroReel.ts`), before the first innings of a
+   * visit and never again in it, so PLAY AGAIN and a restart go straight to
+   * the ball. One of two films, the other one from last time (`nextFilm`,
+   * kept in `hitman-walk-on`, drawn from the page's dice and never from the
+   * innings' seed); `?intro=bat` or `?intro=duel` asks for one. A prototype,
+   * so only where it is asked for. The bowler waits at his mark until it is
+   * over, or a tap or a key skips it there; nothing about the innings moves.
    */
-  private readonly introAsked = new URLSearchParams(location.search).get('intro') === '1';
-  private walking: { start: number; then: () => void } | null = null;
+  private readonly introAsked: Film | true | null = (() => {
+    const asked = new URLSearchParams(location.search).get('intro');
+    return asked === 'bat' || asked === 'duel' ? asked : asked === '1' ? true : null;
+  })();
+  private walkedOnce = false;
+  private walking: { start: number; film: Film; then: () => void } | null = null;
   /** Where the checks pin the walk-on's clock (`__cricket.introAt`), or null to let it run. */
   private introPin: number | null = null;
   private walkOn(then: () => void) {
-    this.walking = { start: this.elapsed, then };
+    let last: Film | null = null;
+    try { const kept = localStorage.getItem(WALK_ON_KEY); last = kept === 'bat' || kept === 'duel' ? kept : null; } catch { /* Then a coin. */ }
+    const film = this.introAsked === true ? nextFilm(last, Math.random()) : this.introAsked!;
+    try { localStorage.setItem(WALK_ON_KEY, film); } catch { /* Then the same one may come round again. */ }
+    this.walkedOnce = true;
+    this.walking = { start: this.elapsed, film, then };
     this.bannerUntil = Number.POSITIVE_INFINITY;
-    this.scene.walkOn(this.elapsed); this.scene.introAt(this.introPin);
-    this.hud.walkOn(introBars(0));
-    this.mark('walk-on', 'Walk-on shown');
+    this.scene.walkOn(this.elapsed, film); this.scene.introAt(this.introPin);
+    this.hud.walkOn(introBars(film, 0));
+    this.mark(`walk-on-${film}`, 'Walk-on shown');
   }
-  /** One frame of it: the bars, and the hand back once it has landed. */
+  /** One frame of it: the bars, and the hand back once it is over. */
   private walkOnFrame() {
     const walking = this.walking!, t = this.introPin ?? this.elapsed - walking.start;
-    if (this.introPin === null && t >= INTRO.total) return this.walkedOn();
-    this.hud.walkOn(introBars(t));
+    if (this.introPin === null && t >= filmLength(walking.film)) return this.walkedOn();
+    this.hud.walkOn(introBars(walking.film, t));
   }
   /** Over, landed or skipped: the camera and the batter handed back, and whatever waited for it told. */
   private walkedOn = (skipped = false) => {
@@ -2230,7 +2244,7 @@ export class Game {
     if (!walking) return;
     this.walking = null;
     this.scene.walkOn(null); this.hud.walkOn(null);
-    if (skipped) this.mark('walk-on-skipped', 'Walk-on skipped');
+    if (skipped) this.mark(`walk-on-skipped-${walking.film}`, 'Walk-on skipped');
     this.bannerUntil = this.elapsed;
     walking.then();
   };

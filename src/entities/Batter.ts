@@ -11,7 +11,7 @@ import { GRILLE_MOUNT, helmetGeometry, helmetGrilleGeometry, helmetPeakGeometry,
 import { compactRigidParts } from './compactParts';
 import { buildGloveCuff, buildGloveHand, DEFAULT_GLOVE, gloveHeelGeometry, gloveOf, WRIST_HOME, type GloveDesign } from './gloves';
 import type { BodyPart, ShotType } from '../game/types';
-import { INTRO } from '../game/IntroReel';
+import { BAT, DUEL, type Film } from '../game/IntroReel';
 
 type Point = readonly [number, number, number];
 interface Pose {
@@ -2523,10 +2523,10 @@ const WALK_ON: Keys = (() => {
   const lean: Pose = { ...LEANING, face: 2.9, headDown: .34 };
   const { on, off, foot } = SCRUB;
   const looked: Pose = { ...on, headDown: 0 };
-  const [from, to] = INTRO.scuffs, half = (to - from) / 4;
-  return [[0, lean], [INTRO.cut - 1, lean], [INTRO.cut, on], [from, on],
+  const [from, to] = BAT.scuffs, half = (to - from) / 4;
+  return [[0, lean], [BAT.cut - 1, lean], [BAT.cut, on], [from, on],
     [from + half, foot(.16)], [from + 2 * half, foot(-.02)], [from + 3 * half, foot(.16)], [to, on],
-    [INTRO.look - 500, on], [INTRO.look, looked], [INTRO.lift, { ...off, headDown: 0 }], [INTRO.guard, GUARD]];
+    [BAT.look - 500, on], [BAT.look, looked], [BAT.lift, { ...off, headDown: 0 }], [BAT.guard, GUARD]];
 })();
 /**
  * Out close to a milestone: turned three-quarters to the camera, as for a
@@ -3060,8 +3060,8 @@ export class Batter {
   idleRandom = Math.random;
   /** This wait in his guard: from when, its rhythm, and the tap under way or due. */
   private idle: { from: number; period: number; phase: number; tapFrom: number; nextTap: number } | null = null;
-  /** The walk-on's own clock while it plays (`stage`), or null: see `WALK_ON`. */
-  private staged: number | null = null;
+  /** The walk-on's film and its own clock while it plays (`stage`), or null: see `WALK_ON`. */
+  private staged: { t: number; film: Film } | null = null;
   /** Where the light is across the bat's face (`sweep`): far off the blade while there is none. */
   private readonly sweepAt = { value: -9 };
   /** Where the bowler is in his run-up, as the scene last said, and when it last did: see `runup`. */
@@ -3739,17 +3739,29 @@ export class Batter {
    * then into his guard, and nothing else he does in the meantime. Null hands
    * him back, in the guard the film ends in.
    */
-  stage(t: number | null) {
-    if (t === null && this.staged !== null) { this.staged = null; this.reset(); return; }
-    this.staged = t;
+  stage(t: number | null, film: Film = 'bat') {
+    if (t === null) {
+      if (this.staged !== null) { this.staged = null; this.reset(); }
+      return;
+    }
+    this.staged = { t, film };
   }
-  private applyStaged(t: number) {
+  private applyStaged({ t, film }: { t: number; film: Film }) {
+    // The duel's batter is in his guard, as he waits for any ball, but on the
+    // film's clock: settled long since, nobody running in, and his taps
+    // (`TAP`) when the reverse shot is on him rather than when the dice say.
+    if (film === 'duel') {
+      this.idle = this.idle?.nextTap === Infinity ? this.idle : { from: -60_000, period: WAGGLE.period[0], phase: 0, tapFrom: DUEL.tap, nextTap: Infinity };
+      this.runupAt = 0;
+      this.apply(this.lively(GUARD, t, 1));
+      return;
+    }
     const keys = WALK_ON;
     let k = 1; while (k < keys.length - 1 && t >= keys[k][0]) k++;
     const [from, a] = keys[k - 1], [to, b, curve] = keys[k];
     const pose = mix(a, b, (t - from) / (to - from), curve);
     // Breathing while he holds it, settling out as he steps into his guard.
-    const held = 1 - THREE.MathUtils.smoothstep(t, INTRO.look, INTRO.guard);
+    const held = 1 - THREE.MathUtils.smoothstep(t, BAT.look, BAT.guard);
     const breath = Math.sin(t * Math.PI * 2 / 2600) * .007 * held;
     this.apply({ ...pose, chest: [pose.chest[0], pose.chest[1] + breath, pose.chest[2] - breath * .6] });
   }

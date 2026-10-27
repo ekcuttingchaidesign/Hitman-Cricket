@@ -1513,28 +1513,52 @@ walks when it moves on. GoatCounter counts `newcomer-1` to `-3` a mode.
 
 ## The walk-on: `?intro=1`
 
-A prototype, only where the link asks for it: seven slow seconds before the
-first ball, in two shots with a cut between. First the bat, close to on a long
-lens, drifting up the back of the blade — where a skin's big art is — as a
-light runs up it (`sweep`, a band always compiled into the blade's material and
-parked off it, so it never compiles a shader mid-film); he stands in the four's
-lean for it (`LEANING`), framed to stop short of his glove. Then from behind
-him on the leg side — where the stumps are not in the way and his body hides
-the hand on the handle — low on his front foot scuffing his mark across the
-crease, the bat over his shoulder (`SCRUB`'s pieces, slowed), craning up to
-over his shoulder with the pitch running away to the bowler; his head comes up,
-the bat comes off into his guard, and the camera pulls back onto the game's
-view (`GameScene.homeView`). The gloves are kept out of every close shot: their
-mesh does not hold up near to. Every frame is a function of the film's own
-clock (`src/game/IntroReel.ts`: the shots' keys, `introSweep`, `introBars`),
-drawn through `GameScene.cinematic`, and the batter through `stage` (`WALK_ON`);
-`__cricket.introAt(t)` pins it. The bowler waits at his mark (`bannerUntil`),
-the scoreboard and keys are out of sight between two bars (`intro-on`), and the
-coachmarks and the chase's card wait for it; a tap, Space, Enter or Escape skips
-it, and no other key does anything while it plays. GoatCounter counts `walk-on`
-and `walk-on-skipped`. `scripts/intro-check.mjs` walks it and photographs its
-beats; `tests/intro-reel.test.ts` holds the landing, the light and the camera
-to a crane's pace.
+A prototype, only where the link asks for it: before the first innings of a
+visit — never on PLAY AGAIN or a restart (`walkedOnce` in `src/Game.ts`) — one
+of two slow films, each a function of its own clock (`src/game/IntroReel.ts`),
+drawn through `GameScene.cinematic`. They take turns: each visit opens on the
+other one from last time (`nextFilm`, kept in `hitman-walk-on`, the first a
+coin from the page's dice, never the innings' seed, so no ball moves).
+`?intro=bat` or `?intro=duel` asks for one; `__cricket.introAt(t)` pins the
+clock and `__cricket.walkingOn()` says which is playing.
+
+**The bat** (`BAT`, seven seconds): the bat close to on a long lens, drifting
+up the back of the blade — where a skin's big art is — as a light runs up it
+(`sweep`, a band always compiled into the blade's material and parked off it,
+so it never compiles a shader mid-film); he stands in the four's lean for it
+(`LEANING`), framed to stop short of his glove. Then from behind him on the
+leg side — where the stumps are not in the way and his body hides the hand on
+the handle — low on his front foot scuffing his mark across the crease, the
+bat over his shoulder (`SCRUB`'s pieces, slowed), craning up to over his
+shoulder with the pitch running away to the bowler; his head comes up, the bat
+comes off into his guard, and the camera pulls back onto the game's view
+(`GameScene.homeView`). The batter is staged through `stage` (`WALK_ON`).
+
+**The duel** (`DUEL`, five and a half seconds): over the bowler's shoulder at
+the top of his mark, the batter waiting at the far end, the ball rubbed on his
+thigh and his head coming up (`Bowler.ready`, on the film's clock, built on
+his standing pose); the reverse on a long lens from behind him, the batter in
+his guard tapping his bat into the crease (his own waggle and taps, the taps
+fired on the film's clock); and the bowler side on, the ball at his chest,
+rocking forward to go — cut on the game's view as the real run-up starts, so
+the first ball is its last shot. The bowler's face is a plain ball and a close
+lens in front of him makes a mannequin of him, so he is only ever shot from
+behind and from the side. The shots are framed on where the scene draws him
+(`walkOn` reads it off the stage: he is mirrored back on his own inside it),
+so a spinner's mark or round the wicket moves them with him.
+
+Two things hold for both, and for any film added: the gloves are kept out of
+every close shot (their mesh does not hold up near to), and a phone held
+upright sees a narrow slice — a 26-degree lens is a twelve-degree-wide
+picture — so a subject meant to be in frame is aimed at, not framed by
+eye from a wide angle. The bowler waits at his mark (`bannerUntil`), the
+scoreboard and keys are out of sight between two bars (`intro-on`), and the
+coachmarks and the chase's card wait for it; a tap, Space, Enter or Escape
+skips it, and no other key does anything while it plays. GoatCounter counts
+`walk-on-bat`, `walk-on-duel` and `walk-on-skipped-…`.
+`scripts/intro-check.mjs` walks both, the turn-taking and PLAY AGAIN, and
+photographs their beats; `tests/intro-reel.test.ts` holds the landing, the
+light, the duel's framing and both cameras to a crane's pace.
 
 ## `?moments=1`
 

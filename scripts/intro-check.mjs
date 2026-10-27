@@ -1,11 +1,13 @@
 /**
  * The walk-on before the first ball (`src/game/IntroReel.ts`), in a real
- * browser: under `?intro=1` a Blast opens on it, the scoreboard and every key
- * put out of sight between two black bars, the bowler held at his mark; it
- * lands by itself on the game's view and the first ball follows; a tap skips
- * it there at once; and without the switch an innings opens as it always did.
- * It photographs the film at its beats, pinned on its own clock
- * (`__cricket.introAt`), into test-results/intro-*.png.
+ * browser: under `?intro=1` a Blast opens on one of its two films, the
+ * scoreboard and every key put out of sight between two black bars, the
+ * bowler held at his mark; it ends by itself on the game's view and the first
+ * ball follows; the next visit opens on the other film; PLAY AGAIN goes
+ * straight to the ball; a tap skips it at once; and without the switch an
+ * innings opens as it always did. It photographs both films at their beats,
+ * pinned on their own clocks (`__cricket.introAt`), into
+ * test-results/intro-*.png.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/intro-check.mjs
@@ -29,8 +31,8 @@ const check = (ok, what, detail) => {
 await mkdir('test-results', { recursive: true });
 const browser = await chromium.launch({ executablePath });
 
-/** A Blast chosen from the picker, on a clock wound by hand, the film pinned at its start if `pin`. */
-async function blast(query, pin = false) {
+/** A phone's page past the notices, on a clock wound by hand. */
+async function phone() {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -44,20 +46,33 @@ async function blast(query, pin = false) {
   await page.route('**/api/board**', route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ rows: [], cutoff: null, size: 50 }),
   }));
-  const advance = ms => page.clock.runFor(Math.max(16, Math.round(ms)));
-  const snap = () => page.evaluate(() => window.__cricket.snapshot());
-  const walking = () => page.evaluate(() => window.__cricket.walkingOn());
   await page.clock.install();
-  await page.goto(`${base}/?debug=1&seed=222${query}`, { waitUntil: 'load' });
-  await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 3000);
-  await advance(2500);
-  await page.waitForTimeout(800);
-  await page.locator('#start').click({ force: true, timeout: 15_000 });
-  await advance(600);
-  if (pin) await page.evaluate(() => window.__cricket.introAt(0));
-  await page.locator('#mode-classic').click({ force: true, timeout: 15_000 });
-  await advance(100);
-  return { page, errors, advance, snap, walking };
+  const advance = ms => page.clock.runFor(Math.max(16, Math.round(ms)));
+  return {
+    page, errors, advance,
+    snap: () => page.evaluate(() => window.__cricket.snapshot()),
+    walking: () => page.evaluate(() => window.__cricket.walkingOn()),
+    /** A visit: the page loaded with `query`, and a Blast chosen from the picker, the film pinned at its start if `pin`. */
+    async visit(query, pin = false) {
+      await page.goto(`${base}/?debug=1&seed=222${query}`, { waitUntil: 'load' });
+      await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 3000);
+      await advance(2500);
+      await page.waitForTimeout(800);
+      await page.locator('#start').click({ force: true, timeout: 15_000 });
+      await advance(600);
+      if (pin) await page.evaluate(() => window.__cricket.introAt(0));
+      await page.locator('#mode-classic').click({ force: true, timeout: 15_000 });
+      await advance(100);
+    },
+    /** Until the first ball is on its way, or the bowler has not gone in `ms`. */
+    async bowled(ms = 3000) {
+      let phase = '';
+      for (let i = 0; i < ms / 100 && phase !== 'BOWLER_RUNUP' && phase !== 'BALL_IN_FLIGHT'; i++) {
+        await advance(100); phase = (await page.evaluate(() => window.__cricket.snapshot())).phase;
+      }
+      return phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT';
+    },
+  };
 }
 const hidden = page => page.evaluate(() => {
   const viewport = document.getElementById('viewport');
@@ -65,66 +80,83 @@ const hidden = page => page.evaluate(() => {
   return { on: viewport.classList.contains('intro-on'), visible: score ? getComputedStyle(score).visibility : 'none' };
 });
 
-// ── It plays, holds the ball, and lands by itself ────────────────────────
-console.log('lands by itself');
+// ── It plays, holds the ball, ends by itself; the next visit, the other ──
+console.log('ends by itself, and takes turns');
 {
-  const { page, errors, advance, snap, walking } = await blast('&intro=1');
-  check(await walking(), 'a Blast chosen under ?intro=1 opens on the walk-on');
+  const { page, errors, advance, snap, walking, visit, bowled } = await phone();
+  await visit('&intro=1');
+  const first = await walking();
+  check(first === 'bat' || first === 'duel', 'a Blast chosen under ?intro=1 opens on a walk-on', first);
   const cover = await hidden(page);
   check(cover.on && cover.visible === 'hidden', 'the scoreboard and keys are out of sight', JSON.stringify(cover));
   await advance(1500);
   check((await snap()).phase === 'READY', 'the bowler waits at his mark while it plays', (await snap()).phase);
   for (let i = 0; i < 40 && await walking(); i++) await advance(250);
-  check(!(await walking()), 'it lands by itself');
+  check(!(await walking()), 'it ends by itself');
   check(!(await hidden(page)).on, 'and puts the scoreboard back');
-  let phase = '';
-  for (let i = 0; i < 40 && phase !== 'BOWLER_RUNUP' && phase !== 'BALL_IN_FLIGHT'; i++) { await advance(100); phase = (await snap()).phase; }
-  check(phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT', 'and the first ball follows', phase);
+  check(await bowled(), 'and the first ball follows');
+
+  // The innings over, PLAY AGAIN goes straight to the ball.
+  await page.evaluate(() => window.__cricket.finish());
+  const again = page.locator('#again');
+  for (let i = 0; i < 60 && !(await again.isVisible().catch(() => false)); i++) await advance(250);
+  await again.click({ force: true });
+  await advance(300);
+  check(!(await walking()), 'PLAY AGAIN goes straight to the ball, with no walk-on');
+  check(await bowled(), 'and the bowler runs in');
+
+  // The next visit, in the same browser, opens on the other film.
+  await visit('&intro=1');
+  const second = await walking();
+  check(second && second !== first, 'the next visit opens on the other film', `${first} then ${second}`);
   check(!errors.length, 'no errors', errors.join('\n'));
   await page.close();
 }
 
 // ── A tap skips it ───────────────────────────────────────────────────────
 console.log('a tap skips it');
-{
-  const { page, errors, advance, snap, walking } = await blast('&intro=1');
+for (const film of ['bat', 'duel']) {
+  const { page, errors, advance, snap, walking, visit, bowled } = await phone();
+  await visit(`&intro=${film}`);
+  check(await walking() === film, `?intro=${film} asks for that film`, await walking());
   await advance(400);
   await page.locator('#viewport canvas').first().tap({ force: true });
   await advance(50);
   check(!(await walking()), 'a tap puts it away at once');
   check((await snap()).phase === 'READY', 'and plays no stroke', (await snap()).phase);
-  let phase = 'READY';
-  for (let i = 0; i < 30 && phase === 'READY'; i++) { await advance(100); phase = (await snap()).phase; }
-  check(phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT', 'the bowler goes without waiting out the film', phase);
+  check(await bowled(), 'the bowler goes without waiting out the film');
   check(!errors.length, 'no errors', errors.join('\n'));
   await page.close();
 }
 
-// ── Its beats, photographed ──────────────────────────────────────────────
-console.log('its beats');
-{
-  const { page, errors, advance } = await blast('&intro=1&lights=day', true);
+// ── Their beats, photographed ────────────────────────────────────────────
+console.log('their beats');
+for (const [film, beats] of [
+  ['bat', [['bat', 1300], ['scuff', 3300], ['shoulder', 4400], ['bowler', 5000], ['landing', 6200]]],
+  ['duel', [['shoulder', 1200], ['looks-up', 2100], ['batter', 3300], ['side-on', 4800], ['goes', 5500]]],
+]) {
+  const { page, errors, advance, visit } = await phone();
+  await visit(`&intro=${film}&lights=day`, true);
   await page.evaluate(() => window.__cricket.dress('home', 'roar'));
   await page.addStyleTag({ content: '[class*=debug]{display:none!important}' });
   await page.waitForTimeout(1200);
-  for (const [name, t] of [['bat', 1300], ['scuff', 3300], ['shoulder', 4400], ['bowler', 5000], ['landing', 6200]]) {
+  for (const [name, t] of beats) {
     await page.evaluate(t => window.__cricket.introAt(t), t);
     await advance(40); await page.waitForTimeout(120);
-    await page.screenshot({ path: `test-results/intro-${name}.png` });
+    await page.screenshot({ path: `test-results/intro-${film}-${name}.png` });
   }
-  console.log('        photographed test-results/intro-{bat,scuff,shoulder,bowler,landing}.png');
-  check(!errors.length, 'no errors', errors.join('\n'));
+  console.log(`        photographed test-results/intro-${film}-{${beats.map(([name]) => name).join(',')}}.png`);
+  check(!errors.length, `no errors in ${film}`, errors.join('\n'));
   await page.close();
 }
 
 // ── Not asked for, not there ─────────────────────────────────────────────
 console.log('without the switch');
 {
-  const { page, errors, walking, snap, advance } = await blast('');
+  const { page, errors, walking, visit, bowled } = await phone();
+  await visit('');
   check(!(await walking()), 'an innings opens on the game\'s view as it always did');
-  let phase = '';
-  for (let i = 0; i < 30 && phase !== 'BOWLER_RUNUP' && phase !== 'BALL_IN_FLIGHT'; i++) { await advance(100); phase = (await snap()).phase; }
-  check(phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT', 'and the first ball comes as it did', phase);
+  check(await bowled(), 'and the first ball comes as it did');
   check(!errors.length, 'no errors', errors.join('\n'));
   await page.close();
 }
