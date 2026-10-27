@@ -55,6 +55,8 @@
 .s10-big-map{position:absolute;right:calc(var(--u) * 10);bottom:calc(var(--u) * 28.7);width:calc(var(--u) * 150);height:calc(var(--u) * 150);transform-origin:100% 100%;
   pointer-events:auto;cursor:pointer;animation:s10-grow 280ms cubic-bezier(.2,.8,.2,1) both}
 .s10-big-map.is-up{animation:none}
+/* Held over Watch the field's card, which stands at the foot with the others. */
+.s10-big.is-coached .s10-big-map{bottom:calc(var(--coach-over) + var(--u) * 18)}
 .s10-big-map .s10-svg{width:100%;height:100%}
 /* Put back: it shrinks into the corner it came out of, and fades as it lands. */
 .s10-big.is-closing .s10-big-map{animation:s10-shrink 240ms cubic-bezier(.4,0,.7,1) both;pointer-events:none}

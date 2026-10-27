@@ -1651,7 +1651,10 @@ a grey tick once used. A first Super10 in a browser opens with its rules
 (`SUPER10_STEPS` in `ShotsIntro.ts`, kept in `hitman-field-intro`), after how
 to hit and the meter where those are still due, on the coach cards in Volt:
 Ten overs (the overs box outlined, `overs-cell`), Five wickets, Watch the field
-(the field map cut out and tagged) and Play in the gaps, drawn at the bat
+(the map held up enlarged just over the card, `FieldUi.coach`, outlined and
+tagged beside it, then shrunk back to its corner: the corner map is under the
+card, and lifting the card clear of it made this one card jump up the screen)
+and Play in the gaps, drawn at the bat
 (`gaps`, `.mi-gaps`: two fielders in the map's red and the ball's line drawn out
 between them). The surge is taught by its tag when it first lights up.
 The pause sheet has no field map: it was there, drawn solid, and was taken out

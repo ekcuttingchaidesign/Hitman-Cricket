@@ -228,7 +228,7 @@ export class FieldUi {
   /** The enlarged map drawn again from the corner's, while it is up. */
   private drawBig(growing = false) {
     if (!this.field || !this.enlargedOpen) return;
-    this.enlarged.innerHTML = `<div class="s10-big-map${this.field.change === 'surge' ? ' is-surge' : ''}${growing ? '' : ' is-up'}">${this.map.querySelector('svg')?.outerHTML ?? ''}</div>`;
+    this.enlarged.innerHTML = `<div id="s10-big-map" class="s10-big-map${this.field.change === 'surge' ? ' is-surge' : ''}${growing ? '' : ' is-up'}">${this.map.querySelector('svg')?.outerHTML ?? ''}</div>`;
   }
   /**
    * Back into its corner, a tap on it or F: it shrinks into the corner map's
@@ -242,6 +242,31 @@ export class FieldUi {
     clearTimeout(this.timers.close);
     this.timers.close = window.setTimeout(() => { this.enlarged.classList.add('hidden'); this.enlarged.classList.remove('is-closing'); }, CLOSE_MS);
   }
+  /**
+   * Held up for Super10's Watch the field card: the enlarged map stood just
+   * over the card (`over`, px from the foot of the screen), at once, not
+   * grown, so the card's outline can be drawn round it; put back with null.
+   * The card stays at the foot with the others, where the corner map is hid.
+   */
+  coach(over: number | null) {
+    if (over === null) {
+      if (!this.coached) return;
+      this.coached = false;
+      this.enlarged.style.removeProperty('--coach-over');
+      this.enlarged.classList.remove('is-coached');
+      this.shrink();
+      return;
+    }
+    if (!this.on || !this.field) return;
+    this.coached = true;
+    this.enlarged.style.setProperty('--coach-over', `${over}px`);
+    this.enlarged.classList.add('is-coached');
+    clearTimeout(this.timers.close);
+    this.enlarged.classList.remove('hidden', 'is-closing');
+    this.map.classList.add('is-away');
+    this.drawBig();
+  }
+  private coached = false;
   /** F: the map enlarged, or put back. */
   toggle() {
     if (this.enlargedOpen) { this.shrink(); return false; }

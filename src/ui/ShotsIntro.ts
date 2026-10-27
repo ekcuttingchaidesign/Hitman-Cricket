@@ -181,7 +181,8 @@ export const SUPER10_STEPS: readonly IntroStep[] = [
   {
     title: 'Watch the field',
     line: 'Their fielders in red, you in blue. It changes every over. Tap the map to see it big.',
-    spot: 's10-map',
+    // Its enlarged view, held over the card: the corner map is under the card.
+    spot: 's10-big-map',
     tag: 'Field map',
   },
   {

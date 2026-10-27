@@ -2413,7 +2413,10 @@ export class Game {
       this.mark(how === 'skipped' ? 'shots-intro-skipped' : 'shots-intro-done', how === 'skipped' ? 'How to hit skipped' : 'How to hit put away');
       this.bannerUntil = this.elapsed;
     // Drawn the way round the player bats: a left-hander's swipes are mirrored, so are the lanes.
-    }, steps, { left: this.scene.mirrored, game: this.coachGame, at: () => this.scene.batterOnScreen() });
+    }, steps, {
+      left: this.scene.mirrored, game: this.coachGame, at: () => this.scene.batterOnScreen(),
+      onStep: (step, over) => this.fieldUi.coach(step?.spot === 's10-big-map' ? over : null),
+    });
   }
   /**
    * HOW TO PLAY on the cover: the coachmarks a first innings opens with (how

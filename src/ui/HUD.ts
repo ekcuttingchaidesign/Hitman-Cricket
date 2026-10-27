@@ -2420,8 +2420,10 @@ ${super10PageMarkup(excitedAlready())}
    */
   marathonIntro(
     done: (how: 'finished' | 'skipped' | 'modes') => void, steps: readonly IntroStep[] = INTRO_STEPS,
-    { left = false, finish = false, game = { name: 'The Blast', tone: 'blast' }, at }: {
+    { left = false, finish = false, game = { name: 'The Blast', tone: 'blast' }, at, onStep }: {
       left?: boolean; finish?: boolean; game?: IntroGame; at?: () => BatterOnScreen | null;
+      /** Each card as it goes up, with how far over the foot of the screen its top stands; null as they are put away. */
+      onStep?: (step: IntroStep | null, over: number) => void;
     } = {},
   ) {
     const overlay = this.$('marathon-intro');
@@ -2434,13 +2436,18 @@ ${super10PageMarkup(excitedAlready())}
       this.$('mi-keys').innerHTML = introKeysMarkup(index, steps.length, finish);
       this.$('mi-stage').innerHTML = introStageMarkup(step, left);
       const key = (id: string, then: () => void) => { const node = document.getElementById(id); if (node) node.onclick = then; };
-      key('mi-modes', () => { this.closeIntro(); done('modes'); });
-      key('mi-skip', () => { this.closeIntro(); done('skipped'); });
+      const close = () => { this.closeIntro(); onStep?.(null, 0); };
+      key('mi-modes', () => { close(); done('modes'); });
+      key('mi-skip', () => { close(); done('skipped'); });
       key('mi-back', () => { index--; show(); });
       key('mi-next', () => {
         if (++index < steps.length) return show();
-        this.closeIntro(); done('finished');
+        close(); done('finished');
       });
+      if (onStep) {
+        const frame = overlay.getBoundingClientRect(), card = this.$('mi-card').getBoundingClientRect();
+        onStep(step, frame.bottom - card.top);
+      }
       this.stage(step, left, finish ? null : at?.() ?? null);
       this.$('mi-next').focus({ preventScroll: true });
     };
@@ -2576,10 +2583,9 @@ ${super10PageMarkup(excitedAlready())}
     Object.assign(spot.style, { left: `${x}px`, top: `${y}px`, width: `${sw}px`, height: `${sh}px`, borderRadius: `${r}px` });
     spot.classList.remove('hidden');
     // The tag hangs under the outline on a pointer, kept inside the screen.
-    // A widget low in a corner (Super10's field map) has it beside the
-    // outline instead, pointing in from the open side, and the card sits just
-    // over the outline at its usual margins: over the tag as well, it stood
-    // halfway up the screen with the tag squeezed against the edge under it.
+    // A widget low at a side (Super10's enlarged field map, held over the
+    // card) has it beside the outline instead, pointing in from the open
+    // side, and the card stays where every other card stands.
     const low = box.y > h / 2;
     const cx = x + sw / 2;
     const beside = low && (cx > w * .6 || cx < w * .4) ? (cx > w / 2 ? 'left' : 'right') : null;
@@ -2592,7 +2598,6 @@ ${super10PageMarkup(excitedAlready())}
     if (beside) {
       const left = beside === 'left' ? x - width - 12 * u : x + sw + 12 * u;
       Object.assign(tag.style, { left: `${left}px`, top: `${y + sh / 2 - height / 2}px` });
-      card.style.bottom = `${h - y + 14 * u}px`;
       return;
     }
     const left = Math.min(Math.max(cx - width / 2, 12 * u), w - width - 12 * u);
