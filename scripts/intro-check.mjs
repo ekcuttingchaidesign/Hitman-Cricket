@@ -115,7 +115,10 @@ console.log('ends by itself, and takes turns');
   await page.locator('#mode-survive').click({ force: true, timeout: 15_000 });
   await advance(100);
   check(!!(await walking()), 'a mode not yet played this visit opens on a walk-on', await walking());
-  for (let i = 0; i < 40 && await walking(); i++) await advance(250);
+  // Seen out to its end in the Blast above; here a tap, as software rendering
+  // spends minutes of the wall's clock on every second of a film.
+  await page.locator('#viewport canvas').first().tap({ force: true });
+  await advance(50);
   check(await bowled(), 'and its first ball follows');
   await page.evaluate(() => window.__cricket.finish());
   for (let i = 0; i < 60 && !(await again.isVisible().catch(() => false)); i++) await advance(250);
