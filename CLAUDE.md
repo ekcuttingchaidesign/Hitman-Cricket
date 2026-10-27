@@ -352,7 +352,7 @@ the machine is; and a box measured off a screenshot is in the page's pixels,
 so scale it by `devicePixelRatio`.
 
 A check that seeds `hitman-whatsnew` seeds the current update key
-(`player-profiles`), or the stories stand in front of Choose a mode.
+(`super10`), or the stories stand in front of Choose a mode.
 
 `scripts/scene-check.mjs` is the ground itself: the sky and the painted turf
 are canvases and a shader no unit test runs, and it holds the draw-call budget
@@ -545,25 +545,30 @@ plays two devices for one player against the dev server's store; it passes
 `?private=0`, because headless Chromium looks like a private window and would
 otherwise keep nothing.
 
-The update's What's new is one story, the player profiles, as a Lottie film
-(`public/lotties/player-profiles.json`, `Story.film`): a Blast board and a tap
-on Kabir's row, his face lifting out of it into his profile, CHASE THEIR 157
-pressed, the runs rolling up past it like an odometer and PASSED slammed down
-with his name under a wave of paper, then Kabir's own My profile, his place
-rolling from #2 to #3 on Rank down, and WIN IT BACK. The scenes change under
-the game's chevrons rushing up the screen, Level Up's move. Scores stay in the
-150s. It plays down the sheet on the page's black with the one way out under
-it, holds a beat past its ten seconds and moves on by itself out of the stories. It is
-drawn in code, every shape and word a vector from the game's own faces, with
-the five board faces its only pictures. What writes it is not committed, as
-the Dressing Room film's was not: `wip/profiles-film/build.mjs` on the machine
-that made it (assembled from its `head.part`, the Dressing Room film's helpers
-and `scenes.part`), held to Lottie's rules by `wip/dressing-film/lint.mjs`,
-with `stills.mjs` to photograph any frame. The update key is `player-profiles`, so
-everybody is shown it twice and then never (`whatsNewDue`); the strokes'
-launch week and its once a day went with their cards. `whatsnew-check` walks
-it: the film drawn above the way out, its hold, the twice and the never, and
-the board's key that opens it for ever.
+The update's What's new is one story, Super10, as a video (`Story.video`,
+`public/stories/super10.mp4`, 720 by 1280 and fifteen seconds, about 3.4 MB;
+its last frame `super10-lockup.webp` is `Story.still`, shown in its place
+under reduced motion): the floodlights come on and the mark is built as it is
+named, shards in, SUPER slammed down a letter at a time and the 10 dropped in
+Volt with a crack of lightning; then the mode in three hits, 10 OVERS, 5
+BOWLERS on the speed gun and POWER SURGE, two men in and a six over them; then
+the team kits on the batter on the Dressing Room's turntable, each sweeping
+on over the last with its name; and he raises his bat under the mark, held.
+No count of kits in it. It plays muted down the sheet on the page's black and
+holds on its last frame with GOT IT and PLAY SUPER10 under it (`opens:
+'super10'`, `playFromStory`: straight out to a Super10 innings, Choose a mode
+passed by; from the board in the middle of an innings it only puts the
+stories away). It was made in Remotion, not committed, as the films before it
+were not: `wip/super10-film/` on the machine that made it (`src/` the
+composition, `capture/` and `wip/s10-film-capture.mjs` the turntable frames
+off the real stage, rendered with `--sequence` through the system Chrome and
+encoded in Chrome by its `encode.mjs`, Smart App Control blocking Remotion's
+own encoder). The update key is `super10`, so everybody is shown it twice and
+then never (`whatsNewDue`), and a check that seeds `hitman-whatsnew` seeds
+`super10:9`. `whatsnew-check` walks it: the video playing above the two keys,
+its hold, PLAY SUPER10 walking out, the twice and the never, and the board's
+key that opens it for ever. The player profiles' Lottie film before it is
+still `public/lotties/player-profiles.json`.
 
 The other ways a story is told are kept for the next update, and the unit
 tests hold them on made-up stories. A new stroke is filmed in the game

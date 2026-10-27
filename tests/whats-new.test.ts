@@ -34,42 +34,46 @@ const kept = (at: number, over: { where?: 'intro' | 'board'; locked?: boolean; h
   storiesMarkup({ at, where: over.where ?? 'intro', holdMs: over.holdMs ?? 1, locked: over.locked, stories: KEPT });
 
 describe('what the update says it did', () => {
-  it('is the player profiles, one film', () => {
-    expect(STORIES.map(one => one.key)).toEqual(['player-profiles']);
-    expect(STORIES[0].film).toBe('player-profiles');
+  it('is Super10, one film', () => {
+    expect(STORIES.map(one => one.key)).toEqual(['super10']);
+    expect(STORIES[0].video).toBe('stories/super10.mp4');
+    expect(STORIES[0].opens).toBe('super10');
   });
 
   it('is a new update, so everybody is shown it', () => {
-    expect(UPDATE).toBe('player-profiles');
+    expect(UPDATE).toBe('super10');
   });
 
-  it('ships the film it plays, a Lottie inside ten seconds, and holds a beat past its end', () => {
-    const film = JSON.parse(readFileSync('public/lotties/player-profiles.json', 'utf8')) as { fr: number; op: number; w: number; h: number };
-    expect([film.w, film.h]).toEqual([1080, 1920]);
-    const ms = film.op / film.fr * 1000;
-    expect(ms).toBeLessThanOrEqual(10_000);
-    expect(STORIES[0].holdMs).toBeGreaterThan(ms);
-    expect(STORIES[0].holdMs!).toBeLessThan(ms + 1000);
+  it('ships the film it plays and its last frame, light enough for a phone', () => {
+    const film = readFileSync('public/stories/super10.mp4');
+    // An MP4: its first box is ftyp.
+    expect(film.subarray(4, 8).toString('latin1')).toBe('ftyp');
+    expect(film.length).toBeLessThan(4_000_000);
+    expect(readFileSync('public/stories/super10-lockup.webp').subarray(8, 12).toString('latin1')).toBe('WEBP');
   });
 
   it('gives every card something to show, a name for it, and words for whoever cannot see it', () => {
     for (const one of STORIES) {
       expect(one.title.length, one.key).toBeGreaterThan(6);
-      expect(!!(one.art || one.film || one.stage || one.reel), one.key).toBe(true);
+      expect(!!(one.art || one.film || one.video || one.stage || one.reel), one.key).toBe(true);
       // A film says its own words; anything else needs a line under it.
-      if (!one.film) expect(one.body?.length ?? 0, one.key).toBeGreaterThan(30);
+      if (!one.film && !one.video) expect(one.body?.length ?? 0, one.key).toBeGreaterThan(30);
       expect(one.alt.length, one.key).toBeGreaterThan(20);
     }
   });
 
-  it('plays the film down the sheet with the one way out, its title read out rather than shown', () => {
+  it('plays the film down the sheet, muted, held on its last frame with GOT IT and PLAY SUPER10 under it', () => {
     const markup = storiesMarkup({ at: 0, where: 'intro', holdMs: 7000 });
     expect(markup).toContain('whatsnew-sheet is-film');
-    expect(markup).toMatch(/id="whatsnew-film"[^>]*role="img"[^>]*aria-label="[^"]{40,}"/);
+    expect(markup).toMatch(/<video id="whatsnew-film"[^>]*muted playsinline[^>]*aria-label="[^"]{40,}"/);
     expect(markup).toContain('whatsnew-title is-unseen');
     expect(markup).not.toContain('whatsnew-eyebrow');
-    expect(markup).not.toContain('whatsnew-open');
-    expect(markup).toContain(`--hold:${STORIES[0].holdMs}ms`);
+    expect(markup).toContain('id="whatsnew-open"');
+    expect(markup).toContain('PLAY SUPER10');
+    expect(markup).toContain('GOT IT');
+    // The last card with a way in holds still, so the film is not cut off by the bar running out.
+    expect(storyHolds(0)).toBe(true);
+    expect(markup).not.toContain('--hold:');
     expect(markup.match(/class="whatsnew-bar(?: is-\w+)*"/g)).toHaveLength(1);
   });
 

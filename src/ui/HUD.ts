@@ -1753,7 +1753,7 @@ ${modeSelectMarkup()}
    * put away first, they would show whatever they close onto — Choose a mode —
    * for as long as the room takes to load.
    */
-  onStoriesOpen: ((shown: () => void) => void) | null = null;
+  onStoriesOpen: ((what: NonNullable<Story['opens']>, shown: () => void) => void) | null = null;
 
   /** How long one card holds before it moves on by itself. */
   static readonly STORY_MS = 7000;
@@ -1795,12 +1795,17 @@ ${modeSelectMarkup()}
     // bars on it — it is cut at the top and the foot instead, which are its
     // margins, never at the sides, where its words run nearly edge to edge.
     const film = document.getElementById('whatsnew-film');
-    if (story?.film && film) {
+    if ((story?.film || story?.video) && film) {
       const wide = film.clientWidth / Math.max(1, film.clientHeight) > FILM_ASPECT;
       // Measured across the whole room first; then cut to fill it, or shrunk to
       // the film's own shape so its fades land on its own edges.
       film.classList.add(wide ? 'is-cut' : 'is-fit');
-      this.storyFilm = playFilm(film, story.film, { fit: wide ? 'xMidYMid slice' : 'xMidYMax meet' });
+      if (story.film) this.storyFilm = playFilm(film, story.film, { fit: wide ? 'xMidYMid slice' : 'xMidYMax meet' });
+      else if (film instanceof HTMLVideoElement) {
+        // Played once and held on its last frame; under reduced motion, that frame and nothing played.
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches && story.still) { film.removeAttribute('src'); film.poster = story.still; film.load(); }
+        else void film.play().catch(() => { if (story.still) film.poster = story.still; });
+      }
     }
     const stage = document.getElementById('whatsnew-stage');
     const room = document.getElementById('whatsnew-room');
@@ -1831,7 +1836,7 @@ ${modeSelectMarkup()}
       window.clearTimeout(this.storyHold);
       (open as HTMLButtonElement).disabled = true;
       let shown = false;
-      go(() => { if (!shown && this.storiesOpen) { shown = true; this.closeStories('open'); } });
+      go(story!.opens!, () => { if (!shown && this.storiesOpen) { shown = true; this.closeStories('open'); } });
     };
     if (storyHolds(this.storyAt, this.storyRun)) return;
     this.storyHold = window.setTimeout(() => this.stepStory(1), story?.holdMs ?? HUD.STORY_MS);
@@ -1925,7 +1930,7 @@ ${modeSelectMarkup()}
     // the middle of one with the end of the other.
     // The way in is counted on its own, by the card it was taken from: it is
     // what the stories are for, and counted as leaving it would read as a skip.
-    if (how === 'open') track(`whatsnew-open-${this.storyAt + 1}`, 'Went to the Dressing Room from a What\u2019s new story');
+    if (how === 'open') track(`whatsnew-open-${this.storyAt + 1}`, 'Took the way in from a What\u2019s new story');
     else track(this.storyAt >= this.storyRun.length - 1 ? 'whatsnew-read-all' : `whatsnew-left-${this.storyAt + 1}`,
       'How far the What\u2019s new stories were read');
     this.$('whatsnew-overlay').classList.add('hidden');

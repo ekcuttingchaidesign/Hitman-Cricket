@@ -44,7 +44,7 @@ await page.addInitScript(held => {
     localStorage.setItem('hitman-seen', new Date(Date.now() - 172_800_000).toISOString().slice(0, 10));
     localStorage.setItem('hitman-shots-intro', 'done');
     localStorage.setItem('hitman-field-intro', 'done');
-    localStorage.setItem('hitman-whatsnew', 'player-profiles:9');
+    localStorage.setItem('hitman-whatsnew', 'super10:9');
     localStorage.setItem('hitman-profile', '1');
     localStorage.setItem('hitman-best', '77');
     if (!localStorage.getItem('hitman-batter')) localStorage.setItem('hitman-batter', JSON.stringify({ name: held, avatar: 3 }));

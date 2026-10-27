@@ -48,7 +48,7 @@ await page.addInitScript(() => {
   try {
     localStorage.setItem('hitman-shots-intro', 'done');
     if (!location.search.includes('intro=')) localStorage.setItem('hitman-field-intro', 'done');
-    localStorage.setItem('hitman-whatsnew', 'player-profiles:9');
+    localStorage.setItem('hitman-whatsnew', 'super10:9');
     localStorage.setItem('hitman-seen', new Date(Date.now() - 172_800_000).toISOString().slice(0, 10));
   } catch { /* Then the coachmarks show, and the check stops at them. */ }
 });

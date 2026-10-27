@@ -51,7 +51,7 @@ async function open(dressing) {
     try {
       localStorage.setItem('hitman-shots-intro', 'done');
       // Past the update's stories.
-      localStorage.setItem('hitman-whatsnew', 'player-profiles:9');
+      localStorage.setItem('hitman-whatsnew', 'super10:9');
       localStorage.setItem('hitman-career', JSON.stringify(career));
       if (dressing && !sessionStorage.getItem('seeded')) { localStorage.setItem('hitman-dressing', JSON.stringify(dressing)); sessionStorage.setItem('seeded', '1'); }
     } catch { /* Then it shows. */ }

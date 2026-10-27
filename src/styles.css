@@ -5654,6 +5654,10 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .whatsnew-film.is-fit{top:auto;height:auto;aspect-ratio:1080/1920;
   -webkit-mask-image:linear-gradient(180deg,#0000 0,#000 7%,#000 92%,#0000);mask-image:linear-gradient(180deg,#0000 0,#000 7%,#000 92%,#0000)}
 .whatsnew-film svg{display:block}
+/* The film as a video: the same box, the picture cut to it or fitting it. */
+video.whatsnew-film{display:block;width:100%;height:100%;object-fit:cover;background:var(--c-page)}
+video.whatsnew-film.is-fit{height:auto;object-fit:contain;
+  -webkit-mask-image:linear-gradient(180deg,#0000 0,#000 6%,#000 97%,#0000);mask-image:linear-gradient(180deg,#0000 0,#000 6%,#000 97%,#0000)}
 .is-film .whatsnew-bars{position:relative;z-index:2}
 /* The picture is the point, and it shrinks rather than pushing the key off the
    bottom of the screen — but it does not *grow* into the leftover room, or the

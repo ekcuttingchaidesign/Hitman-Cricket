@@ -256,7 +256,7 @@ for (const [name, options] of [
     try {
       localStorage.setItem('hitman-seen', day);
       // Past the update's stories.
-      localStorage.setItem('hitman-whatsnew', 'player-profiles:9');
+      localStorage.setItem('hitman-whatsnew', 'super10:9');
     } catch { /* Then the notices stand. */ }
   });
   await page.route('**/api/board**', route => route.fulfill({

@@ -39,7 +39,7 @@ async function open(options) {
     try {
       localStorage.setItem('hitman-shots-intro', 'done');
       localStorage.setItem('hitman-seen', day);
-      localStorage.setItem('hitman-whatsnew', 'player-profiles:9');
+      localStorage.setItem('hitman-whatsnew', 'super10:9');
     } catch { /* Then the notices stand. */ }
   });
   const errors = [];

@@ -887,7 +887,7 @@ export class Game {
     this.hud.onBoardStories = () => this.showStories('board');
     // OPEN THE DRESSING ROOM, on the last story: after the stories, the room,
     // over Choose a mode where the stories were on the way to it.
-    this.hud.onStoriesOpen = shown => this.openDressing('story', shown);
+    this.hud.onStoriesOpen = (what, shown) => (what === 'super10' ? this.playFromStory(shown) : this.openDressing('story', shown));
     this.hud.onStoryReel = (shot, beat) => this.playReel(shot, beat);
     this.hud.onLadderTab = this.tabLadder;
     this.hud.onBoardFrame = (mode, ladder) => this.boardFrame(mode, ladder);
@@ -3140,6 +3140,19 @@ export class Game {
     markWhatsNewShown();
     this.showStories('intro', go);
   };
+
+  /**
+   * PLAY SUPER10 under the Super10 film: the stories put away and straight out
+   * to a Super10 innings, Choose a mode passed by. Opened from the board in
+   * the middle of an innings, it only puts them away: no innings is walked
+   * out on for it.
+   */
+  private playFromStory(shown: () => void) {
+    const between = (this.phase === 'START' || this.phase === 'INNINGS_END') && SUPER10_OPEN;
+    if (between) this.hud.onStoriesDone = null;
+    shown();
+    if (between) this.choose('SUPER10');
+  }
 
   /** The update's stories, and whatever happens when they are done with. */
   private showStories(where: StoriesWhere, then: (() => void) | null = null) {
