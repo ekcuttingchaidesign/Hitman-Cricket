@@ -31,6 +31,7 @@ import { SUPER10_GLOVES, type GloveDesign } from '../entities/gloves';
 import type { KitPrint } from '../entities/kitPrint';
 import { SUPER10_KITS, super10Number, type Super10Kit } from '../game/super10-kits';
 import type { CameraPose } from '../game/ShotReel';
+import { introCamera, introSweep, type Film } from '../game/IntroReel';
 import { batSheet } from '../entities/batSkins';
 
 /** How long the arena's fireworks go up for, for a six and for a milestone. */
@@ -739,16 +740,22 @@ export class GameScene {
     const { width, height } = this.container.getBoundingClientRect();
     this.renderer.setSize(width, height);
     this.camera.aspect = width / height;
+    const { at, fov } = this.homeView;
+    this.camera.fov = fov;
+    this.camera.lookAt(...at);
+    this.camera.updateProjectionMatrix();
+  };
+  /** The game's own view for this screen's shape: where every film's camera hands back to. */
+  get homeView(): CameraPose {
     // Below 16:9 the view widens towards a constant horizontal field of view, so
     // a tall phone sees the whole pitch rather than the batter's shoulders. The
     // aim drops with it: the extra frame goes to the wicket, not to empty sky.
     const design = 16 / 9, base = 50;
     const widened = 2 * Math.atan(Math.tan(base * Math.PI / 360) * design / this.camera.aspect) * 180 / Math.PI;
-    this.camera.fov = THREE.MathUtils.clamp(this.camera.aspect < design ? widened : base, base, 67);
     const tall = THREE.MathUtils.clamp((design - this.camera.aspect) / (design - 0.5), 0, 1);
-    this.camera.lookAt(0, THREE.MathUtils.lerp(1.05, 0.15, tall), THREE.MathUtils.lerp(9, 5.4, tall));
-    this.camera.updateProjectionMatrix();
-  };
+    return { eye: [0, 2.9, -5.15], at: [0, THREE.MathUtils.lerp(1.05, 0.15, tall), THREE.MathUtils.lerp(9, 5.4, tall)],
+      fov: THREE.MathUtils.clamp(this.camera.aspect < design ? widened : base, base, 67) };
+  }
   /**
    * Put both figures into whites, or back into colours. The ball is left alone:
    * it is red in both, which is the one thing a Test match and this game's
@@ -1597,6 +1604,32 @@ export class GameScene {
     this.shadow.visible = visible;
   }
   /**
+   * The walk-on (`IntroReel.ts`): `film` from `now` on the game's clock, or
+   * null to put it away and hand the camera, the batter and the bowler back.
+   * `introAt` pins its clock to one moment, for the checks.
+   */
+  walkOn(now: number | null, film: Film = 'bat') {
+    if (now === null) {
+      if (!Number.isFinite(this.introFrom)) return;
+      this.introFrom = -Infinity; this.introPinned = null;
+      this.batter.stage(null); this.batter.sweep(null);
+      this.cinematic(null);
+      return;
+    }
+    this.introFrom = now; this.introPinned = null; this.introFilm = film;
+    // The duel is framed on where he stands at the top of his mark, as the
+    // stage has him: he is mirrored back on his own inside it, so his own
+    // position is the other side of the stumps from where he is drawn.
+    this.scene.updateMatrixWorld(true);
+    const { x, y, z } = this.world.worldToLocal(this.bowler.root.getWorldPosition(new THREE.Vector3())), mark = [x, y, z] as const;
+    this.cinematic(at => introCamera(film, this.introClock(at), this.homeView, mark, this.world.scale.x));
+  }
+  introAt(t: number | null) { this.introPinned = t; }
+  private introFrom = -Infinity;
+  private introPinned: number | null = null;
+  private introFilm: Film = 'bat';
+  private introClock(now: number) { return this.introPinned ?? now - this.introFrom; }
+  /**
    * A film's camera in place of the game's (`ShotReel.ts`): asked each frame
    * where to stand, in the game's frame, and handed the ball where it is now
    * (or was last drawn), so it can follow it. Mirrored with the ground for a right-hander. Null puts
@@ -1621,6 +1654,10 @@ export class GameScene {
     const frame = this.show?.update(now, this.reducedMotion, this.bowling);
     if (frame) this.arena?.update(now, frame, this.reducedMotion);
     if (this.ledUp) this.led.update(now, this.bailsBrokeAt ? now - this.bailsBrokeAt : -1, this.reducedMotion);
+    if (Number.isFinite(this.introFrom)) {
+      const t = this.introClock(now), film = this.introFilm;
+      this.batter.stage(t, film); this.batter.sweep(introSweep(film, t));
+    }
     this.batter.update(now);
     this.field.update(now);
     // Held, the ball goes where his hands go: through the slide, and up with

@@ -1,0 +1,7 @@
+# Every page is welcome. /api/ is the game's plumbing (scores, names, careers),
+# not a page anybody should land on from a search.
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://hitmancricket.in/sitemap.xml

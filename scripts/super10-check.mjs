@@ -252,7 +252,7 @@ check(sent.every(path => path === '/api/score' || path === '/api/innings'), 'wha
 
 // A first Super10 in this browser opens with the field map's card, once.
 for (const time of ['first', 'second']) {
-  await page.goto(`${base}/?debug=1&mode=super10&seed=778${time === 'first' ? '&intro=1' : ''}`, { waitUntil: 'load' });
+  await page.goto(`${base}/?debug=1&mode=super10&seed=778`, { waitUntil: 'load' });
   if (time === 'first') await page.evaluate(() => localStorage.removeItem('hitman-field-intro'));
   for (let i = 0; i < 80 && !(await page.evaluate(() => !!document.querySelector('#start') && !!window.__cricket)); i++) {
     if (await anyway.count()) await anyway.first().click().catch(() => {});

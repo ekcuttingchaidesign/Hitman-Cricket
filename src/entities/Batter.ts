@@ -12,6 +12,7 @@ import { compactRigidParts } from './compactParts';
 import { NUMBER_FONT, paintKitPrint, printable, printSheet, TORSO_SHARE, type KitPrint, type PrintSheet } from './kitPrint';
 import { buildGloveCuff, buildGloveHand, DEFAULT_GLOVE, gloveHeelGeometry, gloveOf, WRIST_HOME, type GloveDesign } from './gloves';
 import type { BodyPart, ShotType } from '../game/types';
+import { BAT, DUEL, type Film } from '../game/IntroReel';
 
 type Point = readonly [number, number, number];
 interface Pose {
@@ -2401,11 +2402,11 @@ const CHECK_KEYS: Keys = [[0, GUARD], [450, CHECKING], [1050, CHECKING], [1450, 
  * side, the far foot crossed over in front of the near one on its toe, his
  * free hand on his hip, looking up after the ball.
  */
-const LEAN_KEYS: Keys = (() => {
+const LEANING: Pose = (() => {
   const turned = standing({ ...STANDING, hip: [-.03, .99, -.03], chest: [.0, 1.375, -.03], yaw: 2.05, face: 2.35, headDown: -.2, release: 1 });
   const ahead = new THREE.Vector3(Math.sin(turned.yaw), 0, Math.cos(turned.yaw));
   const hip = V(turned.hip).setY(.08), near = outwards(turned, 0), far = outwards(turned, 1);
-  const crossed: Pose = { ...turned,
+  return { ...turned,
     frontFoot: point(hip.clone().addScaledVector(near, .05)),
     // The far foot over in front of the other and out beyond it, on its toe.
     backFoot: point(hip.clone().addScaledVector(near, .19).addScaledVector(ahead, .11)), heel: .32, backFootYaw: turned.yaw - .5,
@@ -2413,9 +2414,9 @@ const LEAN_KEYS: Keys = (() => {
     grip: point(V(turned.hip).setY(.88).addScaledVector(far, .30).addScaledVector(ahead, .04)),
     batUp: point(UP.clone().addScaledVector(far, -.16).normalize()), batFace: point(ahead),
     fist: onHip(turned) };
-  // The bat down first and then the turn, as for the sky.
-  return [[0, GUARD], [280, STANDING], [620, crossed], [1350, crossed], [1650, STANDING], [1950, GUARD]];
 })();
+// The bat down first and then the turn, as for the sky.
+const LEAN_KEYS: Keys = [[0, GUARD], [280, STANDING], [620, LEANING], [1350, LEANING], [1650, STANDING], [1950, GUARD]];
 /** The free (top) hand let go and hanging loose by his side. */
 function hangingFist(body: Pose) { return point(shoulderOf(body, 0).addScaledVector(UP, -.52).addScaledVector(outwards(body, 0), .10)); }
 /** Where he looks to follow a lofted shot: down the ground, or out to either side of it. */
@@ -2483,7 +2484,7 @@ const SCRUB_LIFT = [.14, .06] as const;
  * shoulder in the bottom hand, and the front foot scraping the turf forward
  * and back twice, as if the ball had done something off a mark there.
  */
-const SCRUB_KEYS: Keys = (() => {
+const SCRUB = (() => {
   // The bat over his shoulder in the one hand, the other hand hanging well
   // clear: plainly one-handed from behind. The blade lies on the shoulder on
   // its back, the face to the sky: the handle comes forward and down to his
@@ -2508,7 +2509,38 @@ const SCRUB_KEYS: Keys = (() => {
   // away from the camera behind him, and cannot be seen.
   const foot = (by: number): Pose => ({ ...over, frontFoot: [GUARD.frontFoot[0] + by, GUARD.frontFoot[1] + .008, GUARD.frontFoot[2] + by * .45] });
   const on = foot(0), off = { ...lifted, frontFoot: on.frontFoot };
-  return [[0, GUARD], [260, off], [400, on], [580, foot(.16)], [780, foot(-.02)], [980, foot(.16)], [1160, on], [1300, off], [1560, GUARD]];
+  return { on, off, foot };
+})();
+const SCRUB_KEYS: Keys = [[0, GUARD], [260, SCRUB.off], [400, SCRUB.on], [580, SCRUB.foot(.16)], [780, SCRUB.foot(-.02)], [980, SCRUB.foot(.16)], [1160, SCRUB.on], [1300, SCRUB.off], [1560, GUARD]];
+/**
+ * The walk-on (`IntroReel.ts`), in two shots. First the bat close to, planted
+ * at his side in the lean (`LEANING`), its back to the camera; then, cut to
+ * from behind him, the bat over his shoulder and the front foot scuffing his
+ * mark on the crease twice, slowly, his head down over it (`SCRUB`'s pieces);
+ * his head up to the bowler; and the bat off the shoulder into his guard.
+ * Held, he breathes (`staged`).
+ */
+const WALK_ON: Keys = (() => {
+  const lean: Pose = { ...LEANING, face: 2.9, headDown: .34 };
+  const { on, off, foot } = SCRUB;
+  const looked: Pose = { ...on, headDown: 0 };
+  const [from, to] = BAT.scuffs, half = (to - from) / 4;
+  return [[0, lean], [BAT.cut - 1, lean], [BAT.cut, on], [from, on],
+    [from + half, foot(.16)], [from + 2 * half, foot(-.02)], [from + 3 * half, foot(.16)], [to, on],
+    [BAT.look - 500, on], [BAT.look, looked], [BAT.lift, { ...off, headDown: 0 }], [BAT.guard, GUARD]];
+})();
+/**
+ * The duel's batter (`IntroReel.ts`), seen from the bowler's end: the bat over
+ * his shoulder, his front foot scuffing his mark across the crease twice, his
+ * head down over it (`SCRUB`'s pieces); his head up the pitch at the bowler;
+ * and the bat off his shoulder into his guard.
+ */
+const DUEL_ON: Keys = (() => {
+  const { on, off, foot } = SCRUB;
+  const looked: Pose = { ...on, headDown: 0 };
+  const [from, to] = DUEL.scuffs, half = (to - from) / 4;
+  return [[0, on], [from, on], [from + half, foot(.16)], [from + 2 * half, foot(-.02)], [from + 3 * half, foot(.16)], [to, on],
+    [DUEL.look - 500, on], [DUEL.look, looked], [DUEL.lift, { ...off, headDown: 0 }], [DUEL.guard, GUARD]];
 })();
 /**
  * Out close to a milestone: turned three-quarters to the camera, as for a
@@ -3042,6 +3074,10 @@ export class Batter {
   idleRandom = Math.random;
   /** This wait in his guard: from when, its rhythm, and the tap under way or due. */
   private idle: { from: number; period: number; phase: number; tapFrom: number; nextTap: number } | null = null;
+  /** The walk-on's film and its own clock while it plays (`stage`), or null: see `WALK_ON`. */
+  private staged: { t: number; film: Film } | null = null;
+  /** Where the light is across the bat's face (`sweep`): far off the blade while there is none. */
+  private readonly sweepAt = { value: -9 };
   /** Where the bowler is in his run-up, as the scene last said, and when it last did: see `runup`. */
   private runupAt = 0; private runupFresh = false; private runupSeen = -Infinity;
   /** The clock of the last `update`, for asking about the wait between frames. */
@@ -3271,6 +3307,25 @@ export class Batter {
   constructor() {
     this.root.name = 'Articulated right-handed batter';
     this.root.add(this.torso, this.hips, this.head, this.bat);
+    // The walk-on's light across the bat's face (`sweep`): a soft diagonal
+    // band of warm white added to what the blade gives off, on the face and
+    // the back — the back carries a skin's big art, and is the side the game's
+    // camera sees.
+    // Always compiled in and parked far off the blade, so putting it on never
+    // compiles a shader in the middle of the film.
+    this.palette.bat.onBeforeCompile = shader => {
+      shader.uniforms.sweepAt = this.sweepAt;
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vBlade;\nvarying float vBladeFace;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBlade = position;\nvBladeFace = normal.z;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform float sweepAt;\nvarying vec3 vBlade;\nvarying float vBladeFace;')
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+          // Nought at the blade's shoulder, one at its toe, leaning across the face.
+          float along = (-vBlade.y - .134) / .7 + vBlade.x * 2.2;
+          float band = exp(-pow((along - sweepAt) / .05, 2.)) + .35 * exp(-pow((along - sweepAt + .09) / .025, 2.));
+          totalEmissiveRadiance += vec3(1., .92, .74) * band * smoothstep(.25, .8, abs(vBladeFace)) * 1.4;`);
+    };
     // Torso and arms are one connected garment below; these groups retain
     // the original IK transforms and carry the rigid kit details.
     const neck = this.mesh(this.torso, this.palette.skin, [.115, .17, .115], 'tube'); neck.position.y = .175;
@@ -3735,8 +3790,53 @@ export class Batter {
     const tapped = mix(rocked, TAPPED, tap);
     return { ...tapped, grip: [tapped.grip[0], tapped.grip[1] + lift * tap, tapped.grip[2]] };
   }
+  /**
+   * The walk-on (`IntroReel.ts`), at `t` on its own clock: stood in the lean,
+   * then into his guard, and nothing else he does in the meantime. Null hands
+   * him back, in the guard the film ends in.
+   */
+  stage(t: number | null, film: Film = 'bat') {
+    if (t === null) {
+      if (this.staged !== null) { this.staged = null; this.reset(); }
+      return;
+    }
+    this.staged = { t, film };
+  }
+  private applyStaged({ t, film }: { t: number; film: Film }) {
+    // The duel's batter (`DUEL_ON`) until he is in his guard; then waiting in
+    // it as for any ball, but on the film's clock: his waggle easing in, a
+    // tap of the bat as the bowler stares, and nobody yet running in.
+    if (film === 'duel') {
+      if (t < DUEL.guard) {
+        const keys = DUEL_ON;
+        let k = 1; while (k < keys.length - 1 && t >= keys[k][0]) k++;
+        const [from, a] = keys[k - 1], [to, b, curve] = keys[k];
+        this.apply(mix(a, b, (t - from) / (to - from), curve));
+        return;
+      }
+      this.idle = this.idle?.nextTap === Infinity ? this.idle : { from: DUEL.guard, period: WAGGLE.period[0], phase: 0, tapFrom: DUEL.guard + 250, nextTap: Infinity };
+      this.runupAt = 0;
+      this.apply(this.lively(GUARD, t, 1));
+      return;
+    }
+    const keys = WALK_ON;
+    let k = 1; while (k < keys.length - 1 && t >= keys[k][0]) k++;
+    const [from, a] = keys[k - 1], [to, b, curve] = keys[k];
+    const pose = mix(a, b, (t - from) / (to - from), curve);
+    // Breathing while he holds it, settling out as he steps into his guard.
+    const held = 1 - THREE.MathUtils.smoothstep(t, BAT.look, BAT.guard);
+    const breath = Math.sin(t * Math.PI * 2 / 2600) * .007 * held;
+    this.apply({ ...pose, chest: [pose.chest[0], pose.chest[1] + breath, pose.chest[2] - breath * .6] });
+  }
+  /**
+   * A light across the bat's face, `along` from nought at the blade's shoulder
+   * to one at its toe; null puts it away. See the blade's material.
+   */
+  sweep(along: number | null) { this.sweepAt.value = along ?? -9; }
+
   update(now: number) {
     this.lastNow = now;
+    if (this.staged !== null) return this.applyStaged(this.staged);
     if (this.runupFresh) { this.runupSeen = now; this.runupFresh = false; }
     if (Number.isFinite(this.felledAt)) return this.applyFall(now - this.felledAt);
     let age = now - this.swingStart;
