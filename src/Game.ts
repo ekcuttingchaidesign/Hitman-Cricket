@@ -235,16 +235,15 @@ const VENUE_COIN = { blast: Math.random(), test: Math.random() } as const;
 const MARATHON_OPEN = SHOW_MARATHON || (!SURVIVE_ONLY
   && new URLSearchParams(location.search).get('mode')?.toLowerCase() === 'marathon');
 /**
- * Whether Super10 can be played here: off production only, from a link that
- * names it (`?mode=super10`), while it is built. It has no card on the picker
- * yet, no board and no career, so an innings of it is played and counted for
- * nothing (`practising`).
+ * Whether Super10 can be played here: everywhere but the Survive-only build,
+ * since its release, from its PLAY card, its story and `?mode=super10`. (While
+ * it was built it was off production only.)
  */
 /** How long the bowler waits at his mark in a break Power Surge is offered in. */
 const SURGE_WAIT_MS = 1600;
 /** The overs a Super10 crowd sends a Mexican wave round the arena at the top of: the third, sixth and eighth. */
 const WAVE_OVERS = [2, 5, 7];
-const SUPER10_OPEN = SUPER10_ONLY || (!SURVIVE_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production');
+const SUPER10_OPEN = SUPER10_ONLY || !SURVIVE_ONLY;
 /** Super10's kits on the Dressing Room's kit shelf: wherever Super10 is played beside the other modes. */
 const SUPER10_SHELF = SUPER10_OPEN && !SUPER10_ONLY;
 /** The mode a browser played last, which Choose a mode's rail opens on; a new player starts on the Blast. */

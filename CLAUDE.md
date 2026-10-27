@@ -1696,8 +1696,10 @@ Super10 can be played, `showSuper10Tab`), My Stats' figures
 counts it. It keeps its own best in the browser (`hitman-best-super10`), so
 a Super10 total never moves the Blast's. Its star prompt asks about it by its logo after its first finished innings (`NEW_MODES`), with two follow-ups of its own, how ten overs felt and what made it (`tlength`, `tbest`); `?rate=1` has a SUPER10 key. The
 Pages tester build (`SUPER10_ONLY`) keeps nothing and its innings are
-practice, the card saying the mode is still being built. Super10 is still
-reached by `?mode=super10` off production only (`SUPER10_OPEN`).
+practice, the card saying the mode is still being built. Super10 is played
+everywhere but the Survive-only build (`SUPER10_OPEN`): from its PLAY card on
+Choose a mode, from PLAY SUPER10 under its story and by `?mode=super10`. It
+was off production only until its release, which the merge to production is.
 `scripts/super10-post-check.mjs` follows a named player's innings onto its
 board and career and checks the Blast's are untouched.
 
@@ -1808,8 +1810,8 @@ tubes and a few dozen pixels tall, wear the kit's colours without it. `kits.html
 shows the three on the batter from the chest, side on, behind and from the
 game's camera, under lights or by day.
 
-Wherever Super10 is played beside the other modes (`SUPER10_SHELF`: off
-production, and not the Pages tester build), the six stand at the foot of the
+Wherever Super10 is played beside the other modes (`SUPER10_SHELF`:
+every build but the two Pages tester builds), the six stand at the foot of the
 Dressing Room's kit shelf, each tile tagged S10 and the foot saying Only in
 Super10 (`kitsOf` in `DressingRoom.ts`), and count in the room's card ("N of
 26 earned"). A locked one is tried on with its targets and PLAY SUPER10; an
