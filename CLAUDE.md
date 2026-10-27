@@ -1534,16 +1534,20 @@ shoulder with the pitch running away to the bowler; his head comes up, the bat
 comes off into his guard, and the camera pulls back onto the game's view
 (`GameScene.homeView`). The batter is staged through `stage` (`WALK_ON`).
 
-**The duel** (`DUEL`, five and a half seconds): over the bowler's shoulder at
-the top of his mark, the batter waiting at the far end, the ball rubbed on his
-thigh and his head coming up (`Bowler.ready`, on the film's clock, built on
-his standing pose); the reverse on a long lens from behind him, the batter in
-his guard tapping his bat into the crease (his own waggle and taps, the taps
-fired on the film's clock); and the bowler side on, the ball at his chest,
-rocking forward to go — cut on the game's view as the real run-up starts, so
-the first ball is its last shot. The bowler's face is a plain ball and a close
-lens in front of him makes a mannequin of him, so he is only ever shot from
-behind and from the side. The shots are framed on where the scene draws him
+**The duel** (`DUEL`, under seven seconds): high above the pitch looking
+straight down, the 22 yards square in the frame with the batter at the foot
+and the bowler at his mark at the top, turning square and sinking — centred
+between the two of them, high enough that the bars leave both in the
+picture, and below 48 metres, where the scene's haze begins; then a cut to
+the bowler's eyes, just in front of his face at the top of his mark, a long
+lens on the batter at the far end, pushing in and breathing as a held eye
+does: the bat over his shoulder, his front foot scuffing his mark
+(`DUEL_ON`, `SCRUB`'s pieces), his head up the pitch at the bowler, into his
+guard, and a tap of the bat (his own waggle and taps, on the film's clock);
+cut on the game's view as the real run-up starts, so the first ball is its
+last shot. Nobody is shot close: the figures do not hold up near to — an
+earlier cut that put the bowler on a long lens from in front and side on
+made a mannequin of him. The bowler's eyes are where the stage draws him
 (`walkOn` reads it off the stage: he is mirrored back on his own inside it),
 so a spinner's mark or round the wicket moves them with him.
 

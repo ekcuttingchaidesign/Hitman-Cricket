@@ -2529,6 +2529,19 @@ const WALK_ON: Keys = (() => {
     [BAT.look - 500, on], [BAT.look, looked], [BAT.lift, { ...off, headDown: 0 }], [BAT.guard, GUARD]];
 })();
 /**
+ * The duel's batter (`IntroReel.ts`), seen from the bowler's end: the bat over
+ * his shoulder, his front foot scuffing his mark across the crease twice, his
+ * head down over it (`SCRUB`'s pieces); his head up the pitch at the bowler;
+ * and the bat off his shoulder into his guard.
+ */
+const DUEL_ON: Keys = (() => {
+  const { on, off, foot } = SCRUB;
+  const looked: Pose = { ...on, headDown: 0 };
+  const [from, to] = DUEL.scuffs, half = (to - from) / 4;
+  return [[0, on], [from, on], [from + half, foot(.16)], [from + 2 * half, foot(-.02)], [from + 3 * half, foot(.16)], [to, on],
+    [DUEL.look - 500, on], [DUEL.look, looked], [DUEL.lift, { ...off, headDown: 0 }], [DUEL.guard, GUARD]];
+})();
+/**
  * Out close to a milestone: turned three-quarters to the camera, as for a
  * celebration, because from behind a man looking at the sky is only the back
  * of a helmet. Head right back, arms hanging, the bat loose in one hand; held;
@@ -3747,11 +3760,18 @@ export class Batter {
     this.staged = { t, film };
   }
   private applyStaged({ t, film }: { t: number; film: Film }) {
-    // The duel's batter is in his guard, as he waits for any ball, but on the
-    // film's clock: settled long since, nobody running in, and his taps
-    // (`TAP`) when the reverse shot is on him rather than when the dice say.
+    // The duel's batter (`DUEL_ON`) until he is in his guard; then waiting in
+    // it as for any ball, but on the film's clock: his waggle easing in, a
+    // tap of the bat as the bowler stares, and nobody yet running in.
     if (film === 'duel') {
-      this.idle = this.idle?.nextTap === Infinity ? this.idle : { from: -60_000, period: WAGGLE.period[0], phase: 0, tapFrom: DUEL.tap, nextTap: Infinity };
+      if (t < DUEL.guard) {
+        const keys = DUEL_ON;
+        let k = 1; while (k < keys.length - 1 && t >= keys[k][0]) k++;
+        const [from, a] = keys[k - 1], [to, b, curve] = keys[k];
+        this.apply(mix(a, b, (t - from) / (to - from), curve));
+        return;
+      }
+      this.idle = this.idle?.nextTap === Infinity ? this.idle : { from: DUEL.guard, period: WAGGLE.period[0], phase: 0, tapFrom: DUEL.guard + 250, nextTap: Infinity };
       this.runupAt = 0;
       this.apply(this.lively(GUARD, t, 1));
       return;

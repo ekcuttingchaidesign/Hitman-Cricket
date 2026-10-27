@@ -524,10 +524,6 @@ export class Bowler {
   }
 
   private apply(t: number, after: number, recover = 0) {
-    this.figure.apply(this.posed(t, after, recover));
-  }
-  /** The pose `apply` puts on him, placing him on his run but not yet posing the figure. */
-  private posed(t: number, after: number, recover = 0): Figure {
     this.shown = [t, after, recover];
     const travelled = after > 0 ? travelledAt(after, this.run) : advance(t, this.run);
     // His left is +x here, the side away from the stumps over the wicket.
@@ -577,37 +573,6 @@ export class Bowler {
     // with his weight on nothing and both elbows out, for the half second the
     // batter spends looking straight at him before every ball.
     this.stand(pose, after > 0 ? ease(recover) : 1 - ease(span(t, 0, WALK_UP)));
-    return pose;
-  }
-
-  /**
-   * At the top of his mark before an innings's first ball, for the walk-on's
-   * duel (`IntroReel.ts`), at `ms` on the film's own clock: the ball rubbed up
-   * and down the front of his right thigh with his eyes on it, then his head
-   * up to the batter and the ball brought up into both hands at his chest,
-   * and at `set` the weight rocked forward onto the front foot, the first
-   * movement of the run he is about to start. Breathing throughout.
-   */
-  ready(ms: number, look: number, set: number) {
-    this.ball.visible = true;
-    const pose = this.posed(0, 0, 0);
-    // Where his right hand hangs stood still says which way is his right, and
-    // where his chest sits over his hips which way he faces: read off the
-    // pose, so the routine is in his frame however the run turns him.
-    const right = Math.sign(pose.rightHand.x - pose.hip.x) || 1;
-    const ahead = Math.sign(pose.rightHand.z - pose.hip.z) || 1;
-    const up = ease(span(ms, look, look + 450));
-    // Rubbing: up and down the front of the thigh, a stroke a little over half a second.
-    const rub = Math.sin(ms * Math.PI * 2 / 560) * .055 * (1 - up);
-    const thigh = new THREE.Vector3(pose.hip.x + right * .12, pose.hip.y - .2 + rub, pose.hip.z + ahead * .11);
-    const chest = new THREE.Vector3(pose.hip.x + right * .03, pose.hip.y + .2, pose.hip.z + ahead * .2);
-    pose.rightHand.copy(thigh.lerp(chest, up));
-    pose.leftHand.lerp(new THREE.Vector3(pose.hip.x - right * .03, pose.hip.y + .2, pose.hip.z + ahead * .2), up);
-    pose.headPitch = THREE.MathUtils.lerp(.38, .02, up);
-    pose.headYaw = THREE.MathUtils.lerp(-.18, 0, up);
-    // Rocked forward to go, and breathing.
-    const go = ease(span(ms, set, set + 300)) * .07, breath = Math.sin(ms * Math.PI * 2 / 2400) * .006;
-    pose.hip.z += ahead * go; pose.chest.z += ahead * go * 1.8; pose.chest.y += breath;
     this.figure.apply(pose);
   }
 

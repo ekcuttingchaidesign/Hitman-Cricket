@@ -11,12 +11,14 @@ import type { CameraPose } from './ShotReel';
  * resting on it; he looks up to the bowler, and as the bat comes off into his
  * guard the camera rises onto the game's own view.
  *
- * **The duel** (`DUEL`): the bowler at the top of his mark on a long lens from
- * the batter's end, rubbing the ball on his thigh, then looking up; the reverse,
- * from behind the bowler, the batter at the far end tapping his bat into the
- * crease; and the bowler again, closer, the ball in both hands, rocking forward
- * to go, cut on the game's view as the real run-up starts. It ends on a cut,
- * not a landing: the first ball is its last shot.
+ * **The duel** (`DUEL`): high above the pitch, looking down on the 22 yards
+ * between them, turning slowly and sinking; then a cut to the bowler's eyes
+ * at the top of his mark, a long lens on the batter at the far end scuffing
+ * his mark with the bat on his shoulder, looking up the pitch at him, and
+ * settling into his guard, the lens pushing in and breathing as a held eye
+ * does; cut on the game's view as the real run-up starts. It ends on a cut,
+ * not a landing: the first ball is its last shot. Nobody is shot close: the
+ * figures do not hold up near to.
  *
  * Slow on purpose: a moment before an innings, not a transition. Any moment of
  * either can be drawn on its own (the checks pin it, `__cricket.introAt`). The
@@ -44,18 +46,18 @@ export const BAT = {
   sweep: [550, 2150] as const,
 } as const;
 export const DUEL = {
-  /** The bowler looks up from the ball to the batter. */
-  look: 1700,
-  /** The cut to the batter, from behind the bowler. */
-  cut: 2400,
-  /** The batter's taps, from. */
-  tap: 2650,
-  /** The cut back to the bowler. */
-  back: 4300,
-  /** He rocks forward to go. */
-  set: 5250,
+  /** The cut from above the pitch to the bowler's eyes. */
+  cut: 2600,
+  /** The batter's front foot scuffing his mark, twice, from and to. */
+  scuffs: [2800, 4300] as const,
+  /** His head up, down the pitch at the bowler: from half a second before this. */
+  look: 4850,
+  /** The bat lifted off his shoulder. */
+  lift: 5250,
+  /** In his guard, waiting; his taps from here. */
+  guard: 5750,
   /** The cut to the game's view, as the run-up starts. */
-  total: 5600,
+  total: 6700,
 } as const;
 /** How long a film runs. */
 export const filmLength = (film: Film) => film === 'bat' ? BAT.total : DUEL.total;
@@ -143,36 +145,38 @@ function hermite(keys: readonly { t: number; v: Vec }[], t: number, landing: boo
 }
 
 /**
- * The duel's shots, round where the bowler stands at the top of his mark
- * (`bowler`, in the game's frame: a quick bowler's mark is further back than a
- * spinner's, and round the wicket is the other side). His face is a plain
- * ball, which a close lens in front of him makes a mannequin of, so he is
- * shot from behind and from the side; the batter, whose grille covers his,
- * from the front. A phone held upright sees a narrow slice, so over the
- * bowler's shoulder the camera stands nearly in line with him.
+ * The duel's shots. Above the pitch, the camera looks so nearly straight down
+ * that the screen's up runs along the pitch, the bowler's end at the top, so a
+ * phone held upright frames the 22 yards whole, both of them in it: centred
+ * between the batter and the bowler's mark, high enough that the bars leave
+ * both in the picture, and below the haze, which starts at 48 metres. It turns
+ * square into that and sinks. Then the bowler's eyes (`bowler`, where the
+ * stage draws him at the top of his mark: a spinner's mark is nearer, round
+ * the wicket the other side), just in front of his face so nothing of him is
+ * in the picture.
  */
 function duelShots(bowler: Vec): readonly (readonly Key[])[] {
-  const [bx, , bz] = bowler;
+  const [bx, , bz] = bowler, between = (ROOT[2] + bz) / 2;
+  // Above the middle of the pitch between them, a metre or so off towards the
+  // batter's end at `turn` radians round, so the screen's up points to the bowler.
+  const above = (turn: number, off: number, up: number): Vec => [Math.sin(turn) * off, up, between - Math.cos(turn) * off];
+  const middle: Vec = [0, 0, between];
+  const eyes: Vec = [bx, 1.72, bz - .35];
   return [
-    // Over his shoulder, close behind him: his cap and shoulder big at the
-    // side of the frame, the batter waiting at the far end; easing in.
     [
-      { t: 0, eye: [bx + .30, 1.85, bz + 2.4], at: [ROOT[0] + .15, 1.0, ROOT[2]], fov: 28 },
-      { t: DUEL.cut, eye: [bx + .26, 1.80, bz + 2.1], at: [ROOT[0] + .15, 1.0, ROOT[2]], fov: 26 },
+      { t: 0, eye: above(-.45, 1.4, 46), at: middle, fov: 50 },
+      { t: DUEL.cut, eye: above(0, 1.0, 40), at: middle, fov: 50 },
     ],
-    // The reverse: a long lens from behind the bowler and off his shoulder,
-    // the batter at the far end in his guard, tapping his bat into the crease.
     [
-      { t: DUEL.cut, eye: [bx + 1.3, 1.75, bz + 5], at: [ROOT[0], .85, ROOT[2]], fov: 5.4 },
-      { t: DUEL.back, eye: [bx + 1.3, 1.75, bz + 5], at: [ROOT[0], .9, ROOT[2]], fov: 4.6 },
-    ],
-    // Side on, waist up, the ball at his chest, room in front of him down the
-    // pitch; the camera still, so his rock forward to go carries him into it.
-    [
-      { t: DUEL.back, eye: [bx + 3.4, 1.35, bz - .3], at: [bx, 1.1, bz - .2], fov: 42 },
-      { t: DUEL.total, eye: [bx + 3.4, 1.35, bz - .3], at: [bx, 1.1, bz - .2], fov: 40 },
+      { t: DUEL.cut, eye: eyes, at: [ROOT[0], .95, ROOT[2]], fov: 8.2 },
+      { t: DUEL.look, eye: eyes, at: [ROOT[0], 1.05, ROOT[2]], fov: 6.6 },
+      { t: DUEL.total, eye: eyes, at: [ROOT[0], 1.0, ROOT[2]], fov: 5.4 },
     ],
   ];
+}
+/** A held eye's sway: a breath's slow rise and fall, and a slower drift, a centimetre or two. */
+function breathing(t: number): Vec {
+  return [Math.sin(t * Math.PI * 2 / 3100) * .012, Math.sin(t * Math.PI * 2 / 2300) * .009, 0];
 }
 
 /**
@@ -186,7 +190,14 @@ export function introCamera(film: Film, t: number, home: CameraPose, bowler: Vec
   const landing = film === 'bat' && n === shots.length - 1;
   const keys = landing ? [...shots[n], { t: BAT.total, eye: home.eye, at: home.at, fov: home.fov }] : shots[n];
   const along = (pick: (k: Key) => Vec) => hermite(keys.map(k => ({ t: k.t, v: pick(k) })), t, landing);
-  return { eye: along(k => k.eye), at: along(k => k.at), fov: along(k => [k.fov, 0, 0])[0] };
+  const eye = along(k => k.eye), seen = along(k => k.at), fov = along(k => [k.fov, 0, 0])[0];
+  // Through the bowler's eyes the picture breathes: a long lens shows every
+  // movement of the head holding it.
+  if (film === 'duel' && n === 1) {
+    const sway = breathing(t);
+    return { eye: [eye[0] + sway[0], eye[1] + sway[1], eye[2]], at: [seen[0] + sway[0] * 4, seen[1] + sway[1] * 4, seen[2]], fov };
+  }
+  return { eye, at: seen, fov };
 }
 
 /**

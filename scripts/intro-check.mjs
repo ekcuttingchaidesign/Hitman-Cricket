@@ -135,7 +135,7 @@ for (const film of ['bat', 'duel']) {
 console.log('their beats');
 for (const [film, beats] of [
   ['bat', [['bat', 1300], ['scuff', 3300], ['shoulder', 4400], ['bowler', 5000], ['landing', 6200]]],
-  ['duel', [['shoulder', 1200], ['looks-up', 2100], ['batter', 3300], ['side-on', 4800], ['goes', 5500]]],
+  ['duel', [['aerial', 1200], ['scuff', 3400], ['looks-up', 4900], ['guard', 6000], ['tap', 6300]]],
 ]) {
   const { page, errors, advance, visit } = await phone();
   await visit(`&intro=${film}&lights=day`, true);

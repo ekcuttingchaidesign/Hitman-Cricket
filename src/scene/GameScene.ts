@@ -26,7 +26,7 @@ import type { Cutout } from '../ui/Milestone';
 import { OUTFITS, type BatSkin, type Outfit } from '../game/dressing';
 import type { GloveDesign } from '../entities/gloves';
 import type { CameraPose } from '../game/ShotReel';
-import { DUEL, introCamera, introSweep, type Film } from '../game/IntroReel';
+import { introCamera, introSweep, type Film } from '../game/IntroReel';
 import { batSheet } from '../entities/batSkins';
 
 /** How much a kit glows in its own colour under the floodlights: see `kitsUnderLights`. */
@@ -1254,7 +1254,6 @@ export class GameScene {
       if (!Number.isFinite(this.introFrom)) return;
       this.introFrom = -Infinity; this.introPinned = null;
       this.batter.stage(null); this.batter.sweep(null);
-      if (this.introFilm === 'duel') this.bowler.reset();
       this.cinematic(null);
       return;
     }
@@ -1295,7 +1294,6 @@ export class GameScene {
     if (Number.isFinite(this.introFrom)) {
       const t = this.introClock(now), film = this.introFilm;
       this.batter.stage(t, film); this.batter.sweep(introSweep(film, t));
-      if (film === 'duel') this.bowler.ready(t, DUEL.look, DUEL.set);
     }
     this.batter.update(now);
     this.field.update(now);

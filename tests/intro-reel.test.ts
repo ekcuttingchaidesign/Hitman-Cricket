@@ -38,44 +38,47 @@ describe('the walk-on: the duel', () => {
     for (let t = 0; t <= DUEL.total; t += 100) expect(introSweep('duel', t)).toBeNull();
   });
 
-  it('starts behind the bowler looking past him at the batter, reverses on the batter, and ends side on to the bowler', () => {
-    const over = at('duel', 500), reverse = at('duel', (DUEL.cut + DUEL.back) / 2), side = at('duel', DUEL.total - 50);
-    // Over his shoulder: behind him, close, looking down the pitch.
-    expect(over.eye[2]).toBeGreaterThan(MARK[2]);
-    expect(over.eye[2] - MARK[2]).toBeLessThan(3);
-    expect(over.at[2]).toBeLessThan(2);
-    // The batter on a long lens from the bowler's end.
-    expect(reverse.eye[2]).toBeGreaterThan(MARK[2]);
-    expect(reverse.at[2]).toBeLessThan(2);
-    expect(reverse.fov).toBeLessThan(8);
-    // Side on to him: level with his mark, out to the side, looking at him.
-    expect(Math.abs(side.eye[2] - MARK[2])).toBeLessThan(1);
-    expect(Math.abs(side.eye[0] - MARK[0])).toBeGreaterThan(2);
-    expect(Math.abs(side.at[2] - MARK[2])).toBeLessThan(1);
+  it('opens high above the pitch looking down on both of them, then cuts to the bowler\'s eyes on the batter', () => {
+    const above = at('duel', 500), eyes = at('duel', (DUEL.cut + DUEL.total) / 2);
+    expect(above.eye[1]).toBeGreaterThan(35);
+    // Below the haze, which starts at 48 metres.
+    expect(above.eye[1]).toBeLessThan(48);
+    // Looking down between them: the batter's mark and the bowler's.
+    expect(above.at[2]).toBeCloseTo((1 + MARK[2]) / 2, 5);
+    // The bowler's eyes: where he stands, a man's height, a long lens on the batter.
+    expect(Math.abs(eyes.eye[2] - MARK[2])).toBeLessThan(.5);
+    expect(eyes.eye[1]).toBeGreaterThan(1.5);
+    expect(eyes.eye[1]).toBeLessThan(2);
+    expect(eyes.at[2]).toBeLessThan(2);
+    expect(eyes.fov).toBeLessThan(10);
   });
 
-  it('never stands in front of the bowler, where his plain face would fill the lens', () => {
+  it('never brings the camera near the batter: the figures do not hold up close to', () => {
     for (let t = 0; t < DUEL.total; t += 100) {
       const { eye } = at('duel', t);
-      // Between him and the batter, close to him, is in front of him.
-      expect(eye[2] < MARK[2] - 1 && eye[2] > MARK[2] - 8).toBe(false);
+      expect(Math.hypot(eye[0] + .36, eye[1] - 1, eye[2] - 1)).toBeGreaterThan(15);
     }
   });
 
-  it('has the bowler look up before the first cut, the batter tap in the reverse, and the bowler go in the last shot', () => {
-    expect(DUEL.look < DUEL.cut && DUEL.cut < DUEL.tap && DUEL.tap < DUEL.back && DUEL.back < DUEL.set && DUEL.set < DUEL.total).toBe(true);
+  it('pushes in on him through the bowler\'s eyes', () => {
+    expect(at('duel', DUEL.total - 50).fov).toBeLessThan(at('duel', DUEL.cut + 50).fov);
+  });
+
+  it('has the batter scuff, look up, and settle into his guard before the cut to the game', () => {
+    expect(DUEL.cut < DUEL.scuffs[0] && DUEL.scuffs[1] < DUEL.look - 500 && DUEL.look < DUEL.lift
+      && DUEL.lift < DUEL.guard && DUEL.guard < DUEL.total).toBe(true);
   });
 
   it('follows the bowler to wherever his mark is', () => {
     const round = [-.36, 0, 22] as const;
-    expect(introCamera('duel', DUEL.total - 50, HOME, round).at[0]).toBeCloseTo(round[0], 5);
-    expect(introCamera('duel', 500, HOME, round).eye[2]).toBeGreaterThan(round[2]);
+    expect(introCamera('duel', DUEL.total - 50, HOME, round).eye[0]).toBeCloseTo(round[0], 1);
+    expect(introCamera('duel', DUEL.total - 50, HOME, round).eye[2]).toBeCloseTo(round[2] - .35, 5);
   });
 });
 
 describe('the walk-on: both films', () => {
   it('move slowly: never faster than a crane, three and a half metres a second, but at a cut', () => {
-    const cuts = { bat: [BAT.cut], duel: [DUEL.cut, DUEL.back] };
+    const cuts = { bat: [BAT.cut], duel: [DUEL.cut] };
     for (const film of FILMS) {
       let last = at(film, 0);
       for (let t = 16; t <= filmLength(film); t += 16) {
