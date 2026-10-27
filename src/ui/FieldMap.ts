@@ -176,7 +176,7 @@ export class FieldUi {
     replayClass(this.map.querySelector<HTMLElement>('.s10-pulse')!, 'is-on');
     const name = field.name.toUpperCase();
     this.say(surge ? 'POWER SURGE · TWO FIELDERS IN' : field.change === 'plan' ? `FIELD CHANGE · ${name}` : `${name} · ${out} OUT`, 'map');
-    this.drawBig();
+    this.drawBigSoon();
   }
 
   /** For each new man, the old man nearest him, so a man walks to his new place rather than across the ground. */
@@ -219,6 +219,12 @@ export class FieldUi {
     this.drawBig(true);
     return true;
   }
+  /**
+   * The same, at the next frame: the corner's line and its men's new places
+   * go on there (`replayClass`, the walk), and copied before them the
+   * enlarged map showed no line after a shot and the old field after a change.
+   */
+  private drawBigSoon() { requestAnimationFrame(() => this.drawBig()); }
   /** The enlarged map drawn again from the corner's, while it is up. */
   private drawBig(growing = false) {
     if (!this.field || !this.enlargedOpen) return;
@@ -263,7 +269,7 @@ export class FieldUi {
     under.setAttribute('d', `M50 50L${f(end.x)} ${f(end.y)}`);
     replayClass(path, 'is-on'); replayClass(under, 'is-on');
     if (man) this.map.querySelector(`.s10-man[data-man="${taker}"]`)?.classList.add('is-taker');
-    this.drawBig();
+    this.drawBigSoon();
   }
 
   /**

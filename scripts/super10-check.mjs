@@ -121,7 +121,7 @@ const kinds = [];
 const actions = {};
 const speeds = [];
 const fields = [];
-let armed = null, pauseMap = false, pauseLights = true, offered = null, usedAfter = null;
+let armed = null, pauseMap = false, pauseLights = true, offered = null, usedAfter = null, bigLine = null;
 const signals = [], away = [];
 const write = balls => page.evaluate(b => window.__cricket.blast(b), balls);
 // Who bowls each over is read off the game at its top; one real ball is bowled
@@ -162,12 +162,22 @@ for (let over = 0; over < 10; over++) {
   }
   let left = 6;
   if (REAL.has(over)) {
+    // The sling bowler's ball is driven with the map enlarged: the ball's line goes on the big map too.
+    if (over === 4) await page.keyboard.press('f');
     const runup = await until(['BOWLER_RUNUP'], 400, 16);
     actions[over] = { kind: runup.super10.bowler, action: runup.super10.action, death: runup.super10.death, express: runup.super10.express };
     const flight = await until(['BALL_IN_FLIGHT']);
     speeds.push(await page.locator('#speed').textContent());
     await advance(flight.contactAt - flight.elapsed - 40);
-    await page.keyboard.press('s');
+    await page.keyboard.press(over === 4 ? 'w' : 's');
+    if (over === 4) {
+      await advance(400);
+      bigLine = await page.evaluate(() => {
+        const line = document.querySelector('#s10-big .s10-shot'), corner = document.querySelector('#s10-map .s10-shot');
+        return { open: window.__cricket.snapshot().super10.enlarged, big: !!line?.getAttribute('d') && line.classList.contains('is-on'), corner: !!corner?.getAttribute('d') };
+      });
+      await page.keyboard.press('f');
+    }
     const after = await until(['READY', 'INNINGS_END']);
     if (after.phase === 'INNINGS_END') break;
     left = 6 - (after.balls % 6);
@@ -222,6 +232,7 @@ check(signals.some(Boolean), 'and the bowler beckons them in', JSON.stringify(si
 check(offered === 'offer' && usedAfter === 'used', 'its corner offers it in the break before the sixth and shows it used after',
   `${offered} ${usedAfter}`);
 check(fields.slice(6).every(f => f?.change !== 'surge'), 'and it is one over only: the ninth does not switch it on again');
+check(!bigLine?.corner || (bigLine.open && bigLine.big), "with the map enlarged, the ball's line is drawn on the big map as on the corner's", JSON.stringify(bigLine));
 check(!pauseMap, 'the pause sheet has no field map');
 check(!pauseLights, 'and no Lights row: Super10 is always played at night');
 check(speeds.every(v => /^\d+$/.test(v ?? '')), 'the speed gun reads out every ball', speeds.slice(0, 12).join(' '));
