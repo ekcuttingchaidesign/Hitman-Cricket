@@ -1263,7 +1263,7 @@ export class GameScene {
     // position is the other side of the stumps from where he is drawn.
     this.scene.updateMatrixWorld(true);
     const { x, y, z } = this.world.worldToLocal(this.bowler.root.getWorldPosition(new THREE.Vector3())), mark = [x, y, z] as const;
-    this.cinematic(at => introCamera(film, this.introClock(at), this.homeView, mark));
+    this.cinematic(at => introCamera(film, this.introClock(at), this.homeView, mark, this.world.scale.x));
   }
   introAt(t: number | null) { this.introPinned = t; }
   private introFrom = -Infinity;

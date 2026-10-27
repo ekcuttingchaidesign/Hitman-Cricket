@@ -1539,9 +1539,11 @@ straight down, the 22 yards square in the frame with the batter at the foot
 and the bowler at his mark at the top, turning square and sinking — centred
 between the two of them, high enough that the bars leave both in the
 picture, and below 48 metres, where the scene's haze begins; then a cut to
-the bowler's eyes, just in front of his face at the top of his mark, a long
-lens on the batter at the far end, pushing in and breathing as a held eye
-does: the bat over his shoulder, his front foot scuffing his mark
+the bowler's eyes, just in front of his face at the top of his mark, his own
+stumps in the foreground and the batter at the far end as big as he is from
+there — no zoom, a held 40 degrees (`EYES_FOV`) — the look panning slowly
+left to right on the screen for either hand (`side`, the stage's mirror) and
+breathing as a held eye does: the bat over his shoulder, his front foot scuffing his mark
 (`DUEL_ON`, `SCRUB`'s pieces), his head up the pitch at the bowler, into his
 guard, and a tap of the bat (his own waggle and taps, on the film's clock);
 cut on the game's view as the real run-up starts, so the first ball is its

@@ -45,12 +45,11 @@ describe('the walk-on: the duel', () => {
     expect(above.eye[1]).toBeLessThan(48);
     // Looking down between them: the batter's mark and the bowler's.
     expect(above.at[2]).toBeCloseTo((1 + MARK[2]) / 2, 5);
-    // The bowler's eyes: where he stands, a man's height, a long lens on the batter.
+    // The bowler's eyes: where he stands, a man's height, looking down the pitch at the batter.
     expect(Math.abs(eyes.eye[2] - MARK[2])).toBeLessThan(.5);
     expect(eyes.eye[1]).toBeGreaterThan(1.5);
     expect(eyes.eye[1]).toBeLessThan(2);
     expect(eyes.at[2]).toBeLessThan(2);
-    expect(eyes.fov).toBeLessThan(10);
   });
 
   it('never brings the camera near the batter: the figures do not hold up close to', () => {
@@ -60,8 +59,19 @@ describe('the walk-on: the duel', () => {
     }
   });
 
-  it('pushes in on him through the bowler\'s eyes', () => {
-    expect(at('duel', DUEL.total - 50).fov).toBeLessThan(at('duel', DUEL.cut + 50).fov);
+  it('sees him through the bowler\'s eyes as big as he is from there: no zoom, a slow pan left to right', () => {
+    for (const side of [1, -1]) {
+      const look = (t: number) => introCamera('duel', t, HOME, MARK, side);
+      expect(look(DUEL.cut + 50).fov).toBe(look(DUEL.total - 50).fov);
+      expect(look(DUEL.cut + 50).fov).toBeGreaterThan(30);
+      // Left to right on the screen, whichever way the stage is mirrored: the screen's x is the stage's times `side`.
+      let last = -Infinity;
+      for (let t = DUEL.cut + 50; t < DUEL.total; t += 100) {
+        const x = look(t).at[0] * side;
+        expect(x).toBeGreaterThan(last);
+        last = x;
+      }
+    }
   });
 
   it('has the batter scuff, look up, and settle into his guard before the cut to the game', () => {
