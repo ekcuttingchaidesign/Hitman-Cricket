@@ -1,5 +1,8 @@
 import { RATED_NAME, STAR_WORDS, tierOf, type RatedThing } from '../game/rating';
 
+/** Super10 is asked about by its logo, not its name in the display face. */
+const SUPER10_LOGO = new URL('../assets/super10/logo.svg', import.meta.url).href;
+
 /**
  * The star prompt, as a screen.
  *
@@ -99,7 +102,7 @@ export function askRating(options: RatingPromptOptions): RatingPrompt {
     <div class="rate-head"><p class="rate-eyebrow"><i aria-hidden="true"></i>QUICK ONE</p>
       <button class="rate-close" type="button" aria-label="Not now">${CROSS}</button></div>
     <h3 class="rate-ask"><span class="rate-ask-lead">${options.thing === 'game' ? 'How are you finding' : 'How was'}</span>
-      <span class="rate-ask-name">${name}?</span></h3>
+      <span class="rate-ask-name">${options.thing === 'super10' ? `<img class="rate-ask-logo" src="${SUPER10_LOGO}" alt="${name}">?` : `${name}?`}</span></h3>
     <div class="rate-stars" role="radiogroup" aria-label="Your rating">${[1, 2, 3, 4, 5].map(n => `
       <button class="rate-star" type="button" role="radio" aria-checked="false" data-n="${n}" style="--i:${n - 1}"
         aria-label="${n} star${n > 1 ? 's' : ''} — ${STAR_WORDS[n - 1]}" tabindex="${n === 1 ? 0 : -1}">${STAR}</button>`).join('')}

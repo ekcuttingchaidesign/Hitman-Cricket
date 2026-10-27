@@ -3214,9 +3214,7 @@ export class Game {
    */
   private rateThisInnings() {
     if (this.practising || this.demoing) return;
-    // Super10 has no star prompt of its own yet (`NEW_MODES` in rating.ts).
-    if (this.careerMode === 'super10' && !this.challenge.playing) return;
-    const mode: RatedMode = this.challenge.playing ? 'rivals' : this.careerMode as Exclude<CareerMode, 'super10'>;
+    const mode: RatedMode = this.challenge.playing ? 'rivals' : this.careerMode;
     const memory = counted(readMemory(), mode);
     writeMemory(memory);
     const ask = nextAsk(memory, {
@@ -6227,7 +6225,7 @@ const SURVIVED = 'Survived all 60 · drew';
 /** `?rate=1`'s keys: the game, then each mode in the order the picker shows them. */
 const RATE_KEYS: readonly { label: string; thing: RatedThing }[] = [
   { label: 'GAME', thing: 'game' }, { label: 'BLAST', thing: 'classic' }, { label: 'MARATHON', thing: 'marathon' },
-  { label: 'SURVIVAL', thing: 'survive' }, { label: 'RIVALS', thing: 'rivals' },
+  { label: 'SURVIVAL', thing: 'survive' }, { label: 'SUPER10', thing: 'super10' }, { label: 'RIVALS', thing: 'rivals' },
 ];
 /** `?levelup=1`'s keys: each rung a player can climb to, in the Blast's card and in the Marathon's green. */
 const LEVEL_UP_KEYS: readonly { label: string; tier: string; mode: CareerMode }[] = [

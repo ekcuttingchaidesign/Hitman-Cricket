@@ -32,6 +32,8 @@ describe('when the stars are asked for', () => {
       .toEqual({ thing: 'marathon', moment: 'mode' });
     expect(nextAsk(after('classic', 'rivals'), when({ mode: 'rivals' })))
       .toEqual({ thing: 'rivals', moment: 'mode' });
+    expect(nextAsk(after('classic', 'super10'), when({ mode: 'super10' })))
+      .toEqual({ thing: 'super10', moment: 'mode' });
   });
 
   it('asks about the game after the third finished innings, and not before', () => {

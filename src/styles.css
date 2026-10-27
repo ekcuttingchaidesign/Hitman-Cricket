@@ -4658,6 +4658,9 @@ body.private-window{overflow:hidden}
 .rate-pop[data-thing=classic]{--tone:var(--c-blast)}
 .rate-pop[data-thing=marathon]{--tone:#2fa36b}
 .rate-pop[data-thing=survive]{--tone:var(--c-survival)}
+.rate-pop[data-thing=super10]{--tone:#c6ff1a}
+/* Super10's name is its logo, stood on the question's baseline and as tall as two lines of it. */
+.rate-ask-logo{height:calc(var(--u) * 46);width:auto;vertical-align:-.36em;margin-right:calc(var(--u) * -4)}
 .rate-pop.is-leaving{animation:rate-sink .24s ease-in both;pointer-events:none}
 /* Up from below the picture with a little overshoot, and a hair of tilt that
    settles square so it can be read. */

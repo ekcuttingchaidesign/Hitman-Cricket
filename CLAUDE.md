@@ -1669,7 +1669,7 @@ Super10 tab (`super10Body` in `Board.ts`, `showSuper10Board`, shown where
 Super10 can be played, `showSuper10Tab`), My Stats' figures
 (`super10Facts`), profiles and chases all carry it, and the year recap
 counts it. It keeps its own best in the browser (`hitman-best-super10`), so
-a Super10 total never moves the Blast's. It has no star prompt yet. The
+a Super10 total never moves the Blast's. Its star prompt asks about it by its logo after its first finished innings (`NEW_MODES`), with two follow-ups of its own, how ten overs felt and what made it (`tlength`, `tbest`); `?rate=1` has a SUPER10 key. The
 Pages tester build (`SUPER10_ONLY`) keeps nothing and its innings are
 practice, the card saying the mode is still being built. Super10 is still
 reached by `?mode=super10` off production only (`SUPER10_OPEN`).
