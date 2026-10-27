@@ -66,7 +66,7 @@ import {
   submitMarathon, submitSuper10, submitSurvive,
   type BoardPayload, type SurvivePayload, type MarathonPayload, type SubmitResult, type Super10Payload, type Super10Row,
 } from './game/board-api';
-import { super10From } from './game/super10-board';
+import { super10From, type Super10Innings } from './game/super10-board';
 import {
   forgetPasswordKnown, markPasswordKnown, markProfileDone, onPlayerWritten, passwordKnown, profileDone,
   readHand, readPlayer, writeHand, writePlayer, type Hand,
@@ -119,9 +119,8 @@ import type { BlastCareer, MarathonCareer, Super10Career, SurviveCareer } from '
 import type { SurviveInnings } from './game/survive-board';
 import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
-import { sendExcited, sendFeedback } from './game/feedback-api';
+import { sendFeedback } from './game/feedback-api';
 import { SUPER10_KITS, super10Number, type Super10Kit, type Super10KitId } from './game/super10-kits';
-import { EXCITED_KEY, excitedAlready } from './ui/Super10Page';
 import { askRating, type RatingPrompt } from './ui/Rating';
 import {
   counted, dismissed, mintRef, nextAsk, rated, readMemory, writeMemory,
@@ -794,11 +793,8 @@ export class Game {
     this.hud.onRoomAct = act => { void this.roomAct(act); };
     this.hud.on('modes-challenges', () => { void this.showChallenges(); });
     this.hud.on('modes-dressing', () => this.openDressing('modes'));
-    // Super10, coming soon: its card opens its page, and I'M EXCITED says how much it is wanted.
-    this.hud.on('mode-super10', () => { track('super10-open-card', 'Opened Super10 from Choose a mode'); this.hud.super10Page(); });
-    this.hud.on('super10-back', () => this.hud.closeSuper10());
-    this.hud.on('super10-got-it', () => { track('super10-got-it', 'Super10 page put away with GOT IT'); this.hud.closeSuper10(); });
-    this.hud.on('super10-excited', this.excited);
+    // Super10's PLAY card: the whole card plays it.
+    this.hud.on('mode-super10', () => { track('super10-play-card', 'Played Super10 from its card on Choose a mode'); this.choose('SUPER10'); });
     // My Stats from Choose a mode: the avatar at the top and the tier card in the bento.
     this.hud.on('modes-profile', this.showStats);
     this.hud.on('modes-stats', this.showStats);
@@ -1182,6 +1178,7 @@ export class Game {
       marathon: { best: marathon.innings > 0 && marathon.highest > 0 ? String(marathon.highest) : null, rank: null },
       blast: { best: this.best > 0 ? String(this.best) : null, rank: at >= 0 ? at + 1 : null },
       survive: { best: surviveBest, rank: null },
+      super10: { best: this.super10Best > 0 ? String(this.super10Best) : null, rank: null },
       podium: this.board.slice(0, 3).map(row => row.avatar),
       blastRank: at >= 0 ? at + 1 : null,
       stats: { runs: blast.runs, tier: { key: tier.key, name: tier.name } },
@@ -1441,18 +1438,21 @@ export class Game {
    */
   private async placeOnModes(view: ModeSelectView) {
     if (!readPlayer() || !this.player) return;
-    const [blast, survive, marathon] = await Promise.all([
+    const [blast, survive, marathon, super10] = await Promise.all([
       fetchStanding(this.player, 'classic'), fetchStanding(this.player, 'survive'), fetchStanding(this.player, 'marathon'),
+      SUPER10_OPEN && !SUPER10_ONLY ? fetchStanding(this.player, 'super10') : Promise.resolve(null),
     ]);
     if (this.disposed || !this.hud.modesOpen) return;
     const row = survive?.row as SurviveInnings | null | undefined;
     const team = marathon?.team?.row as { runs?: number } | null | undefined;
+    const ten = super10?.row as Super10Innings | null | undefined;
     this.hud.modesFill({
       ...view,
       blast: { best: view.blast.best, rank: blast?.rank ?? view.blast.rank },
       blastRank: blast?.rank ?? view.blastRank,
       survive: row ? { best: surviveResult(row) === 'Drew the match' ? SURVIVED : surviveResult(row), rank: survive?.rank ?? null } : view.survive,
       marathon: team?.runs ? { best: String(team.runs), rank: marathon?.team?.rank ?? null } : view.marathon,
+      super10: ten ? { best: `${ten.runs}/${ten.wickets}`, rank: super10?.rank ?? null } : view.super10,
     });
   }
 
@@ -2213,19 +2213,6 @@ export class Game {
     // The mode played last, where Choose a mode's rail opens next time.
     try { if (mode === 'CLASSIC' || mode === 'MARATHON' || mode === 'SURVIVE') localStorage.setItem(LAST_MODE_KEY, mode); } catch { /* Then it opens on the Blast. */ }
     this.walkOut();
-  };
-  /**
-   * I'M EXCITED on Super10's page: lit at once and for good, and counted once a
-   * browser, on GoatCounter and by the store (`sendExcited`). A private window
-   * keeps nothing, so it is counted on GoatCounter alone.
-   */
-  private excited = () => {
-    if (excitedAlready()) return;
-    try { localStorage.setItem(EXCITED_KEY, '1'); } catch { /* Lit for this visit, all the same. */ }
-    this.hud.super10Excited(true);
-    buzz([12, 40, 18]);
-    track('super10-excited', "Pressed I'M EXCITED on the Super10 page");
-    if (this.player && this.canRegister) sendExcited(this.player);
   };
   /**
    * An innings chosen, by whichever way a player chose it: the picker, a link
@@ -4056,11 +4043,6 @@ export class Game {
     }
     // The picker is the thing on top while it is open, so it answers first —
     // otherwise Enter starts an innings underneath a sheet nobody closed.
-    // Super10's page is over the picker, so it answers before it does.
-    if (this.hud.super10Open) {
-      if (key === 'ESCAPE') { event.preventDefault(); this.hud.closeSuper10(); }
-      return;
-    }
     if (this.hud.modesOpen) {
       if (key === 'ESCAPE') { event.preventDefault(); this.closePicker(); }
       // On a desktop the arrow keys move the rail of posters, as a swipe does.

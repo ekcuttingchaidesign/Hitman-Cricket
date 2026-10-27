@@ -1815,7 +1815,7 @@ hook, never in its place, which dropped the print in the room. `dressing-check`
 unlocks the Vipers in the room, tries on the Mavericks and bats a Super10
 innings in the pick.
 
-## Choose a mode's rail, and Super10 coming soon
+## Choose a mode's rail, and Super10's PLAY card
 
 Choose a mode puts the Blast, the Test Marathon and Test Survival on one
 swipeable rail of posters 240 wide (Figma 16E, `450:5037`; `#modes-rail` in
@@ -1832,28 +1832,26 @@ Blast for a new player, and the arrow keys move it on a desktop (`stepRail`).
 The Marathon's poster has no NEW tag any more. Survival's poster keeps `#mode-survive-line` (its rules, or its best result,
 the Not played chip stepping aside, `is-played`).
 
-Under the rail, in the slot Survival's banner had, the Super10 card
-(`#mode-super10`, Figma 488:591): coming soon, no PLAY, opening Super10's
-page (`src/ui/Super10Page.ts`, Figma 19B whole scroll `497:6198`,
-`#super10-page`, over the picker, Escape and back put it away). The picture
-is `src/assets/super10/picture.webp` (exported from the Figma image fill)
-and the logo `logo.svg` (the Volt colourway from `artifacts/super10-logo`).
-Its header is two layers that part as the page scrolls (`wireSuper10Header`
-sets `--s`): the picture held back at under half the scroll, the logo and
-its words (`.sp-lockup`) lifting a little faster and fading.
-The page's foot has the day it opens (`SUPER10_OPENS`, null until there is one, when it says Coming soon) over I'M EXCITED in
-Volt beside GOT IT. I'M EXCITED lights for good (`hitman-super10-excited`,
-`excitedAlready`) and is counted once a browser: GoatCounter's
-`super10-excited` (preview and dev count nothing there) and the store's
-`POST /api/feedback { excited: 'super10', playerId }` (`sendExcited`), kept
-in a set so each player counts once and tallied by day (`countExcited`,
-`super10-excited` on the end of `TALLIES`); a private window sends nothing.
-It rides the feedback endpoint rather than a new one: the deployment is
-one function short of the Hobby plan's twelve. `scripts/super10-report.ts`
-reads the count, read-only. The game itself still opens only by
-`?mode=super10` off production (`SUPER10_OPEN`). The tagline is Saira
-Black Italic (`src/assets/saira-latin-900-italic.woff2`, OFL), the brand's
-lettering.
+Under the rail, in the slot Survival's banner had, Super10's PLAY card
+(`#mode-super10`, `src/ui/Super10Card.ts`, Figma section 20 `616:5495`; the
+claude.ai artifact "Super10 PLAY Card" is the approved motion): the whole
+card plays Super10, NEW and the format for a browser that has not batted one,
+its best and its place once it has (`super10CardWords`, the best from the
+store's row as runs/wickets, `placeOnModes`). The picture is
+`src/assets/super10/picture.webp` and the logo `logo.svg` (the Volt
+colourway from `artifacts/super10-logo`). Every four seconds, while Choose a
+mode is open (`Super10Spark`, started in `modes` and stopped in `closeModes`),
+the bat in the picture charges with arcs on a canvas between the picture and
+the logo, an arc strikes the PLAY key, which flashes and pops, a ring goes
+out from it and a light crosses the logo, and sparks float off; the first
+time a browser sees the card (`hitman-super10-card`) it slams in with a ring
+of arcs round the logo, once. Every frame is drawn from one clock, the arcs
+redrawn every two frames as the stings' are; reduced motion stands it still.
+It is hidden where Super10 cannot be played (`showSuper10Tab`).
+
+It replaced the coming-soon card and its page (Super10Page, I'M EXCITED,
+GOT IT), which went at release. The store's count of I'M EXCITED stays
+(`countExcited`, `super10-excited` in `TALLIES`, `scripts/super10-report.ts`).
 
 ## The bowled ball's streak
 

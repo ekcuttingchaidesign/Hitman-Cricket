@@ -131,16 +131,25 @@ const words = (page, selector) => page.locator(selector).innerText().then(t => t
     "My Stats is a Debutant's card", await words(page, '#modes-stats-tier'));
   check(/Same balls/.test(await words(page, '#modes-rivals-line')), 'and Rivals invites', await words(page, '#modes-rivals-line'));
   await page.screenshot({ path: 'test-results/entry/modes-new.png' });
-  // Super10's page: its back key is the thing a thumb finds, not the picture under it.
+  // Super10's PLAY card: NEW for a new player, its motion drawn on its canvas, and a tap on it plays Super10.
+  check(await words(page, '#mode-super10-tag') === 'NEW' && /10 overs/.test(await words(page, '#mode-super10-line')),
+    "Super10's card says NEW and the format", `${await words(page, '#mode-super10-tag')} ${await words(page, '#mode-super10-line')}`);
+  let drawn = false;
+  for (let i = 0; i < 20 && !drawn; i++) {
+    await page.waitForTimeout(250);
+    drawn = await page.evaluate(() => {
+      const canvas = document.querySelector('#mode-super10 .ms-super10-fx');
+      const data = canvas?.getContext('2d')?.getImageData(0, 0, canvas.width, canvas.height).data;
+      return !!data && data.some((v, i) => i % 4 === 3 && v > 0);
+    });
+  }
+  check(drawn, 'and its bat charges on its canvas while Choose a mode is open');
   await page.locator('#mode-super10').click();
-  await page.waitForSelector('#super10-page:not(.hidden)');
-  const s10back = await page.locator('#super10-back').boundingBox();
-  const under = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('#super10-back') !== null,
-    [s10back.x + s10back.width / 2, s10back.y + s10back.height / 2]);
-  await page.mouse.click(s10back.x + s10back.width / 2, s10back.y + s10back.height / 2);
-  await page.waitForTimeout(400);
-  check(under && !(await page.locator('#super10-page').isVisible()) && await page.locator('#modes').isVisible(),
-    "Super10's page closes from its back key, back to Choose a mode");
+  await page.waitForTimeout(800);
+  // A new player is asked who is batting first, as before any mode's first innings.
+  const went = await page.evaluate(() => ({ s10: document.body.classList.contains('s10-solid'), gate: !document.querySelector('#profile-overlay')?.classList.contains('hidden') }));
+  check(went.s10 || went.gate,
+    'a tap on it walks out to a Super10 innings, by the name screen for a new player', JSON.stringify(went));
   check(errors.length === 0, 'with nothing thrown', errors.join(' | '));
   await context.close();
 }
