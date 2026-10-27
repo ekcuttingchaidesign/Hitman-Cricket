@@ -44,6 +44,8 @@ import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType, T
 import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
 import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
+import { cardShown, filmLength, introBars, nextFilm, type Film } from './game/IntroReel';
+import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
 import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
@@ -206,6 +208,8 @@ const MARATHON_OPEN = SHOW_MARATHON || (!SURVIVE_ONLY
   && new URLSearchParams(location.search).get('mode')?.toLowerCase() === 'marathon');
 /** The mode a browser played last, which Choose a mode's rail opens on; a new player starts on the Blast. */
 const LAST_MODE_KEY = 'hitman-last-mode';
+/** Which walk-on film this browser saw last, so the next visit opens on the other (`nextFilm`). */
+const WALK_ON_KEY = 'hitman-walk-on';
 function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' {
   try {
     const kept = localStorage.getItem(LAST_MODE_KEY);
@@ -930,6 +934,7 @@ export class Game {
       if (document.fullscreenElement) void document.exitFullscreen();
       else if (this.hud.viewport.requestFullscreen) void this.hud.viewport.requestFullscreen().catch(() => {});
     });
+    this.hud.viewport.addEventListener('pointerdown', () => this.walkedOn(true));
     window.addEventListener('keydown', this.shortcuts); window.addEventListener('beforeunload', this.leaving); document.addEventListener('visibilitychange', this.visibility);
     window.addEventListener('blur', this.blur);
     // A bundle built survive-only plays one innings and offers no way out of
@@ -1036,6 +1041,9 @@ export class Game {
       ratingOpen: () => !!this.ratingPrompt?.open,
       // Level Up by rung, for `levelup-check.mjs`: `levelUp('star', 'marathon')`.
       levelUp: (tier = 'star', mode?: CareerMode) => this.previewLevelUp(tier, mode),
+      /** The walk-on's clock pinned at `t` milliseconds, or let run again with null. */
+      introAt: (t: number | null) => { this.introPin = t; this.scene.introAt(t); },
+      walkingOn: () => this.walking?.film ?? null,
       // New #1 by board, over a made-up board, for `topspot-check.mjs`: `topSpot('marathon')`.
       topSpot: (mode?: CareerMode) => this.previewTopSpot(mode),
       // Whether it is playing.
@@ -2131,6 +2139,7 @@ export class Game {
    */
   private walkOut = () => this.start();
   start = () => {
+    if (this.walking) { this.walking = null; this.scene.walkOn(null); this.hud.walkOn(null); this.hud.walkOnCard(null, true); }
     if (this.chaseWon) { this.chaseWon = false; this.clearChase(); }
     // Who is batting, first: once, before the first innings there is.
     if (this.profileDue) {
@@ -2201,8 +2210,69 @@ export class Game {
     if (this.surviving) this.hud.target(this.chasing, this.score.runs, this.score.balls, this.score.wickets);
     this.setPhase('READY');
     (document.activeElement as HTMLElement | null)?.blur();
-    if (this.marathoning) this.introduce(); else this.teachShots();
-    this.startChase();
+    // The coachmarks and the chase's card wait for the walk-on, where there is one.
+    const told = () => { if (this.marathoning) this.introduce(); else this.teachShots(); this.startChase(); };
+    if (this.introAsked && !this.walkedIn.has(this.mode) && !this.demoing && !this.challenge.playing) this.walkOn(told); else told();
+  };
+  /**
+   * The walk-on (`IntroReel.ts`), before the first innings of each mode in a
+   * visit (`walkedIn`): PLAY AGAIN and a restart go straight to the ball, a
+   * mode chosen that has not had one yet gets one, and a Rival Match never
+   * does — the other player may be waiting. One of two films, the other one
+   * from last time (`nextFilm`, kept in `hitman-walk-on`, drawn from the
+   * page's dice and never from the innings' seed), with the player's card over
+   * it (`walkOnCard`). The bowler waits at his mark until it is over, or a tap
+   * or a key skips it there; nothing about the innings moves.
+   *
+   * Everybody's, but not under `?debug=1`, whose checks time their innings to
+   * the ball, nor for a player who has asked for less motion. `?intro=bat` or
+   * `?intro=duel` asks for one film, `?intro=1` for either, wherever; and
+   * `?intro=0` for none.
+   */
+  private readonly introAsked: Film | true | null = (() => {
+    const asked = new URLSearchParams(location.search).get('intro');
+    if (asked === 'bat' || asked === 'duel') return asked;
+    if (asked === '1') return true;
+    if (asked === '0' || this.debug) return null;
+    return matchMedia('(prefers-reduced-motion: reduce)').matches ? null : true;
+  })();
+  /** The modes that have had their walk-on this visit. */
+  private readonly walkedIn = new Set<GameMode>();
+  private walking: { start: number; film: Film; then: () => void; card: WalkOnCard; carded: boolean } | null = null;
+  /** Where the checks pin the walk-on's clock (`__cricket.introAt`), or null to let it run. */
+  private introPin: number | null = null;
+  private walkOn(then: () => void) {
+    let last: Film | null = null;
+    try { const kept = localStorage.getItem(WALK_ON_KEY); last = kept === 'bat' || kept === 'duel' ? kept : null; } catch { /* Then a coin. */ }
+    const film = this.introAsked === true ? nextFilm(last, Math.random()) : this.introAsked!;
+    try { localStorage.setItem(WALK_ON_KEY, film); } catch { /* Then the same one may come round again. */ }
+    this.walkedIn.add(this.mode);
+    // Who is batting, as this browser last saw their career in this mode.
+    const who = readPlayer();
+    const card = walkOnCard(this.careerMode, heldCareer(this.careerMode), { name: who?.name ?? '', avatar: who?.avatar ?? 0 });
+    this.walking = { start: this.elapsed, film, then, card, carded: false };
+    this.bannerUntil = Number.POSITIVE_INFINITY;
+    this.scene.walkOn(this.elapsed, film); this.scene.introAt(this.introPin);
+    this.hud.walkOn(introBars(film, 0));
+    this.mark(`walk-on-${film}`, 'Walk-on shown');
+  }
+  /** One frame of it: the bars, and the hand back once it is over. */
+  private walkOnFrame() {
+    const walking = this.walking!, t = this.introPin ?? this.elapsed - walking.start;
+    if (this.introPin === null && t >= filmLength(walking.film)) return this.walkedOn();
+    this.hud.walkOn(introBars(walking.film, t));
+    const carded = cardShown(walking.film, t);
+    if (carded !== walking.carded) { walking.carded = carded; this.hud.walkOnCard(carded ? walking.card : null); }
+  }
+  /** Over, landed or skipped: the camera and the batter handed back, and whatever waited for it told. */
+  private walkedOn = (skipped = false) => {
+    const walking = this.walking;
+    if (!walking) return;
+    this.walking = null;
+    this.scene.walkOn(null); this.hud.walkOn(null); this.hud.walkOnCard(null, true);
+    if (skipped) this.mark(`walk-on-skipped-${walking.film}`, 'Walk-on skipped');
+    this.bannerUntil = this.elapsed;
+    walking.then();
   };
   /**
    * The Marathon's rules, the first two times one starts: the bowler waits at
@@ -3661,6 +3731,12 @@ export class Game {
     // Level Up takes its own keys: Escape is its way to the scorecard, and
     // Enter is whichever of its keys has the focus, not PLAY AGAIN under it.
     if (this.levelUp) return;
+    // The walk-on takes every key: Space, Enter or Escape skip it, and nothing
+    // else may restart or pause an innings that has not had a ball yet.
+    if (this.walking) {
+      if ([' ', 'Enter', 'Escape'].includes(event.key)) { event.preventDefault(); this.walkedOn(true); }
+      return;
+    }
     if (event.target instanceof Element && event.target.closest('.rate-pop') && STAR_KEYS.has(event.key)) return;
     const key = event.key.toUpperCase();
     // The stories sit over everything, including the board that may have opened
@@ -3744,9 +3820,10 @@ export class Game {
     if (this.disposed) return;
     const dt = this.previousFrame ? Math.min(time - this.previousFrame, 60) : 0; this.previousFrame = time;
     this.frameClock = time;
-    if (LIVE.includes(this.phase) && !document.hidden) {
+    if (LIVE.includes(this.phase) && !document.hidden && !this.walking) {
       // Wall-clock rather than the game's own clock, which the charge stretches
       // into slow motion: a second of slow motion is still a second of playing.
+      // The walk-on is watched, not played, so it is not counted.
       this.playedMs += dt;
       marksPassed(this.playedMs).forEach(mark => trackOnce(mark, `Played ${mark.slice(7)}`));
       this.batted += dt;
@@ -3759,6 +3836,7 @@ export class Game {
       this.input.flush(this.elapsed);
       this.update();
       if (this.reel) this.reelFrame();
+      if (this.walking) this.walkOnFrame();
     }
     // Level Up covers the whole screen, so the ground under it is not drawn:
     // a phone has one GPU, and the confetti wants it.

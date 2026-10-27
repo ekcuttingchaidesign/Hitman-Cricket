@@ -1511,6 +1511,82 @@ checks time their strokes to the real windows; `?newcomer=1` beside it lets
 the help back in by the browser's own count. `scripts/newcomer-check.mjs`
 walks when it moves on. GoatCounter counts `newcomer-1` to `-3` a mode.
 
+## The walk-on: before the first innings of each mode
+
+Every player's, by day and under the lights: before the first innings of each
+mode in a visit — never on PLAY AGAIN or a restart, once for each mode chosen
+(`walkedIn` in `src/Game.ts`), and never in a Rival Match, where the other
+player may be waiting — one of two slow films, each a function of its own
+clock (`src/game/IntroReel.ts`), drawn through `GameScene.cinematic`. Not
+under `?debug=1`, whose checks time their innings to the ball, nor for a
+player who has asked for less motion; `?intro=0` turns it off, `?intro=1`
+asks for either film anywhere, and `?intro=bat` or `?intro=duel` for one.
+They take turns: each opens on the other one from last time (`nextFilm`, kept
+in `hitman-walk-on`, the first a coin from the page's dice, never the
+innings' seed, so no ball moves). `__cricket.introAt(t)` pins the clock and
+`__cricket.walkingOn()` says which is playing.
+
+Over each, part-way through, the player card (`src/ui/WalkOnCard.ts`, what it
+says `walkOnCard` in `src/game/walk-on-card.ts`, when `cardShown`): a
+broadcast's lower third for the batter walking out, cut from his career card.
+It wears his rung's material from the player sheet's tiers — `profile.css`
+lists `.woc` beside the sheet, so navy, brushed bronze, chrome with the star
+and black and gold with the rings, the Marathon's green and Dukes red, the
+sheen at Star and Hitman, are the sheet's own and cannot drift from it —
+with his face in the rung's ring and its medallion on it (`tierBadge`), his
+name in the profile's face (chrome at Star, gold at Hitman), the rung's pill
+in the career card's words (TEST STAR in the Marathon), and four of My Stats'
+figures for the mode, set as the profile's glance, from this browser's copy
+of the career (`heldCareer`, there before the store has answered). A player
+who has never batted in the mode — a debut is per mode — gets one row, no
+wider than it needs: the face, FIRST INNINGS, and the DEBUTANT pill. It is the
+one thing left on screen over the film (`#walkon-card`), wiped in and away
+again before the hand-over.
+
+**The bat** (`BAT`, seven seconds): the bat close to on a long lens, drifting
+up the back of the blade — where a skin's big art is — as a light runs up it
+(`sweep`, a band always compiled into the blade's material and parked off it,
+so it never compiles a shader mid-film); he stands in the four's lean for it
+(`LEANING`), framed to stop short of his glove. Then from behind him on the
+leg side — where the stumps are not in the way and his body hides the hand on
+the handle — low on his front foot scuffing his mark across the crease, the
+bat over his shoulder (`SCRUB`'s pieces, slowed), craning up to over his
+shoulder with the pitch running away to the bowler; his head comes up, the bat
+comes off into his guard, and the camera pulls back onto the game's view
+(`GameScene.homeView`). The batter is staged through `stage` (`WALK_ON`).
+
+**The duel** (`DUEL`, under seven seconds): high above the pitch looking
+straight down, the 22 yards square in the frame with the batter at the foot
+and the bowler at his mark at the top, turning square and sinking — centred
+between the two of them, high enough that the bars leave both in the
+picture, and below 48 metres, where the scene's haze begins; then a cut to
+the bowler's eyes, just in front of his face at the top of his mark, his own
+stumps in the foreground and the batter at the far end as big as he is from
+there — no zoom, a held 40 degrees (`EYES_FOV`) — the look panning slowly
+left to right on the screen for either hand (`side`, the stage's mirror) and
+breathing as a held eye does: the bat over his shoulder, his front foot scuffing his mark
+(`DUEL_ON`, `SCRUB`'s pieces), his head up the pitch at the bowler, into his
+guard, and a tap of the bat (his own waggle and taps, on the film's clock);
+cut on the game's view as the real run-up starts, so the first ball is its
+last shot. Nobody is shot close: the figures do not hold up near to — an
+earlier cut that put the bowler on a long lens from in front and side on
+made a mannequin of him. The bowler's eyes are where the stage draws him
+(`walkOn` reads it off the stage: he is mirrored back on his own inside it),
+so a spinner's mark or round the wicket moves them with him.
+
+Two things hold for both, and for any film added: the gloves are kept out of
+every close shot (their mesh does not hold up near to), and a phone held
+upright sees a narrow slice — a 26-degree lens is a twelve-degree-wide
+picture — so a subject meant to be in frame is aimed at, not framed by
+eye from a wide angle. The bowler waits at his mark (`bannerUntil`), the
+scoreboard and keys are out of sight between two bars (`intro-on`), and the
+coachmarks and the chase's card wait for it; a tap, Space, Enter or Escape
+skips it, and no other key does anything while it plays. GoatCounter counts
+`walk-on-bat`, `walk-on-duel` and `walk-on-skipped-…`.
+`scripts/intro-check.mjs` walks both, the turn-taking and PLAY AGAIN, and
+photographs their beats; `tests/intro-reel.test.ts` holds the landing, the
+light, the duel's framing and both cameras to a crane's pace.
+
 ## `?moments=1`
 
 A row of keys along the foot of the picture, one a milestone — 50, 100, six

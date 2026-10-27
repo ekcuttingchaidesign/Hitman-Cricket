@@ -41,16 +41,16 @@
 .ps-brush{inset:0;background:repeating-linear-gradient(180deg,#3a1e0c12 0 1px,transparent 1px 4px,#ffffff10 4px 5px,transparent 5px 8px)}
 
 /* The rungs. Off the stats cards' materials, opened up into a ground. */
-:is(.ps-sheet,.mp-stage,.mp-hero).tier-debutant{--ground:linear-gradient(170deg,#2f5689 0%,#1d375a 45%,#13223a 100%);--light:#7fb6f066;--ring:#9fc4ec;--pill:#5c83b559;--pill-ink:#d3e3f6}
-:is(.ps-sheet,.mp-stage,.mp-hero).tier-emerging{--ground:linear-gradient(160deg,#e3ad7e 0%,#b97a4c 32%,#8f5530 64%,#5e341b 100%);--light:#ffe0bf80;--ring:#f0c79e;--pill:#2a1608d9;--pill-ink:#f0c79e}
-:is(.ps-sheet,.mp-stage,.mp-hero).tier-star{--ground:linear-gradient(165deg,#3a3f47 0%,#1f2227 50%,#121418 100%);--light:#ffffff40;--ring:#e6ebf0;
+:is(.ps-sheet,.mp-stage,.mp-hero,.woc).tier-debutant{--ground:linear-gradient(170deg,#2f5689 0%,#1d375a 45%,#13223a 100%);--light:#7fb6f066;--ring:#9fc4ec;--pill:#5c83b559;--pill-ink:#d3e3f6}
+:is(.ps-sheet,.mp-stage,.mp-hero,.woc).tier-emerging{--ground:linear-gradient(160deg,#e3ad7e 0%,#b97a4c 32%,#8f5530 64%,#5e341b 100%);--light:#ffe0bf80;--ring:#f0c79e;--pill:#2a1608d9;--pill-ink:#f0c79e}
+:is(.ps-sheet,.mp-stage,.mp-hero,.woc).tier-star{--ground:linear-gradient(165deg,#3a3f47 0%,#1f2227 50%,#121418 100%);--light:#ffffff40;--ring:#e6ebf0;
   --pill:linear-gradient(90deg,#f6f8fa,#9aa3ac 50%,#e3e8ed);--pill-ink:#111316}
-:is(.ps-sheet,.mp-stage,.mp-hero).tier-hitman{--ground:radial-gradient(90% 60% at 50% 20%,#4a3a12 0%,#1c1608 55%,#0a0805 100%);--light:#ffe08a59;--ring:#f3d27a;
+:is(.ps-sheet,.mp-stage,.mp-hero,.woc).tier-hitman{--ground:radial-gradient(90% 60% at 50% 20%,#4a3a12 0%,#1c1608 55%,#0a0805 100%);--light:#ffe08a59;--ring:#f3d27a;
   --pill:linear-gradient(90deg,#fff0b8,#c99a35 45%,#f7d774);--pill-ink:#1a1204}
 /* The Test Marathon: green, crimson rising; its EMERGING in the Dukes ball's red with bronze trim. */
-:is(.ps-sheet,.mp-stage,.mp-hero).is-marathon.tier-debutant{--ground:linear-gradient(170deg,#14553a 0%,#0b3524 50%,#06200f 100%);--light:#6fe0a64d;--ring:#7fc9a0}
-:is(.ps-sheet,.mp-stage,.mp-hero).is-marathon.tier-emerging{--ground:linear-gradient(170deg,#b3182f 0%,#86111f 45%,#4d0912 100%);--light:#ff9a9a52;--ring:#e7b48a;--pill:#2a0a0ed9;--pill-ink:#f0c79e}
-:is(.ps-sheet,.mp-stage,.mp-hero).is-marathon.tier-hitman{--ground:radial-gradient(90% 60% at 50% 20%,#1d5a3b 0%,#0b3a24 50%,#021009 100%)}
+:is(.ps-sheet,.mp-stage,.mp-hero,.woc).is-marathon.tier-debutant{--ground:linear-gradient(170deg,#14553a 0%,#0b3524 50%,#06200f 100%);--light:#6fe0a64d;--ring:#7fc9a0}
+:is(.ps-sheet,.mp-stage,.mp-hero,.woc).is-marathon.tier-emerging{--ground:linear-gradient(170deg,#b3182f 0%,#86111f 45%,#4d0912 100%);--light:#ff9a9a52;--ring:#e7b48a;--pill:#2a0a0ed9;--pill-ink:#f0c79e}
+:is(.ps-sheet,.mp-stage,.mp-hero,.woc).is-marathon.tier-hitman{--ground:radial-gradient(90% 60% at 50% 20%,#1d5a3b 0%,#0b3a24 50%,#021009 100%)}
 .ps-was.tier-debutant{--ground:linear-gradient(170deg,#2f5689 0%,#1d375a 45%,#13223a 100%);--light:#7fb6f066}
 .ps-was.tier-emerging{--ground:linear-gradient(160deg,#e3ad7e 0%,#b97a4c 32%,#8f5530 64%,#5e341b 100%);--light:#ffe0bf80}
 .ps-was.tier-star{--ground:linear-gradient(165deg,#3a3f47 0%,#1f2227 50%,#121418 100%);--light:#ffffff40}
@@ -60,9 +60,9 @@
 .ps-was.is-marathon.tier-emerging{--ground:linear-gradient(170deg,#b3182f 0%,#86111f 45%,#4d0912 100%);--light:#ff9a9a52}
 .ps-was.is-marathon.tier-hitman{--ground:radial-gradient(90% 60% at 50% 20%,#1d5a3b 0%,#0b3a24 50%,#021009 100%)}
 /* Star and Hitman: a sheen crosses every seven seconds, gold and holographic at the top. */
-:is(.ps-sheet,.mp-stage,.mp-hero):is(.tier-star,.tier-hitman) .ps-sheen{opacity:1;background:linear-gradient(115deg,transparent 35%,#ffffff1c 48%,transparent 60%) -100% 0/250% 100% no-repeat;
+:is(.ps-sheet,.mp-stage,.mp-hero,.woc):is(.tier-star,.tier-hitman) .ps-sheen{opacity:1;background:linear-gradient(115deg,transparent 35%,#ffffff1c 48%,transparent 60%) -100% 0/250% 100% no-repeat;
   animation:ps-sheen 7s ease-in-out 1.2s infinite}
-:is(.ps-sheet,.mp-stage,.mp-hero).tier-hitman .ps-sheen{background-image:linear-gradient(115deg,transparent 35%,#ffe08a26 46%,#ff9cd01a 50%,#8fe3ff1a 54%,transparent 62%)}
+:is(.ps-sheet,.mp-stage,.mp-hero,.woc).tier-hitman .ps-sheen{background-image:linear-gradient(115deg,transparent 35%,#ffe08a26 46%,#ff9cd01a 50%,#8fe3ff1a 54%,transparent 62%)}
 
 .ps-grab{position:absolute;left:50%;top:calc(var(--u) * 8);z-index:2;margin-left:calc(var(--u) * -20)}
 .ps-close{position:absolute;right:calc(var(--u) * 14);top:calc(var(--u) * 12);z-index:3;background:#0000004d;border-color:#ffffff1f}
@@ -79,8 +79,8 @@
 .ps-badge .k-badge{--size:calc(var(--u) * 44)}
 .ps-badge img{filter:drop-shadow(0 4px 8px #00000080)}
 .ps-name{margin:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:900 calc(var(--u) * 32)/1.15 var(--f-ui);letter-spacing:-.02em;text-shadow:0 2px 12px #00000059}
-:is(.ps-sheet,.mp-hero).tier-hitman .ps-name{background:linear-gradient(180deg,#fff0b8 0%,#e3b04b 55%,#ffe08a 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
-:is(.ps-sheet,.mp-hero).tier-star .ps-name{background:linear-gradient(180deg,#fff 0%,#c4ccd4 55%,#f2f5f8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
+:is(.ps-sheet,.mp-hero,.woc).tier-hitman .ps-name{background:linear-gradient(180deg,#fff0b8 0%,#e3b04b 55%,#ffe08a 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
+:is(.ps-sheet,.mp-hero,.woc).tier-star .ps-name{background:linear-gradient(180deg,#fff 0%,#c4ccd4 55%,#f2f5f8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
 .ps-rung{display:flex;align-items:center;justify-content:center;gap:calc(var(--u) * 8);margin:calc(var(--u) * 6) 0 0;min-height:calc(var(--u) * 22);
   font:500 calc(var(--u) * 12)/1.3 var(--f-ui);color:#ffffffd9}
 .ps-pill{padding:calc(var(--u) * 4) calc(var(--u) * 9);border-radius:7px;background:var(--pill);color:var(--pill-ink);
@@ -165,7 +165,7 @@
   .ps-sheet .ps-sheen{animation:none;opacity:0}
   .lb-row[data-handle],.lb-row[data-mine]{transition:none}
 }
-:is(.ps-sheet,.mp-stage,.mp-hero).is-marathon .ps-brush{opacity:.35}
+:is(.ps-sheet,.mp-stage,.mp-hero,.woc).is-marathon .ps-brush{opacity:.35}
 
 /* ── My profile (section 14, lane C) ─────────────────────────────────────────
    My Stats renamed and redrawn: the same free face as another player's

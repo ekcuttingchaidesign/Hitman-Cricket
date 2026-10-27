@@ -75,6 +75,8 @@ import {
   statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
 import { AVATARS, avatarSrc, kitDeal } from '../config/board';
+import type { WalkOnCard } from '../game/walk-on-card';
+import { walkOnCardMarkup } from './WalkOnCard';
 import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
 import type { NetsBowler } from '../game/DeliveryGenerator';
@@ -2427,6 +2429,34 @@ ${super10PageMarkup(excitedAlready())}
     };
     overlay.classList.remove('hidden');
     show();
+  }
+  /**
+   * The walk-on (`IntroReel.ts`): everything over the ground put out of sight
+   * and the bars drawn `bars` of the way in, or all of it put back with null.
+   */
+  walkOn(bars: number | null) {
+    this.viewport.classList.toggle('intro-on', bars !== null);
+    this.viewport.style.setProperty('--intro-bars', String(bars ?? 0));
+  }
+  /**
+   * The walk-on's player card (`WalkOnCard.ts`) put up, or with null wiped
+   * away — at once with `now`, as a skip takes it.
+   */
+  walkOnCard(card: WalkOnCard | null, now = false) {
+    let layer = document.getElementById('walkon-card');
+    if (!card) {
+      if (!layer) return;
+      if (now || matchMedia('(prefers-reduced-motion: reduce)').matches) { layer.remove(); return; }
+      layer.classList.add('is-out');
+      const going = layer;
+      setTimeout(() => going.remove(), 360);
+      return;
+    }
+    layer?.remove();
+    layer = document.createElement('div');
+    layer.id = 'walkon-card';
+    layer.innerHTML = walkOnCardMarkup(card);
+    this.viewport.append(layer);
   }
   closeIntro() {
     this.$('marathon-intro').classList.add('hidden');
