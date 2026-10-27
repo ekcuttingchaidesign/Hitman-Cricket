@@ -15,7 +15,7 @@ import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME, STYLES, SWIPE_ZONES } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro, type IntroGame } from './ui/MarathonIntro';
-import { CONFIDENCE_STEP, FIELD_STEP, SHOTS_STEP, fieldIntroDue, howToDue, noteFieldIntro, noteHowTo, playedBefore } from './ui/ShotsIntro';
+import { CONFIDENCE_STEP, SHOTS_STEP, SUPER10_STEPS, fieldIntroDue, howToDue, noteFieldIntro, noteHowTo, playedBefore } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
 import type { ArenaCue } from './scene/arena';
 import { askedGround, groundFor } from './scene/grounds';
@@ -2401,9 +2401,9 @@ export class Game {
    */
   private teachShots() {
     const shots = this.demoing ? [] : howToDue(!this.hurts);
-    // And Super10's field map, the first time this browser bats one.
+    // And Super10's rules, the first time this browser bats one.
     const field = !this.demoing && this.super10 && fieldIntroDue();
-    const steps = field ? [...shots, FIELD_STEP] : shots;
+    const steps = field ? [...shots, ...SUPER10_STEPS] : shots;
     if (!steps.length) return;
     if (shots.length) noteHowTo(shots.includes(CONFIDENCE_STEP));
     if (field) noteFieldIntro();
@@ -3029,7 +3029,7 @@ export class Game {
   /** What the coachmarks call the game they come before, and the colour of its dot: the mode's own, a Rival Match's orange. */
   private get coachGame(): IntroGame {
     if (this.challenge.playing) return { name: 'Rival Match', tone: 'rivals' };
-    return { name: PAUSE_NAMES[this.mode], tone: this.mode === 'CLASSIC' ? 'blast' : this.mode === 'SURVIVE' ? 'survival' : 'marathon' };
+    return { name: PAUSE_NAMES[this.mode], tone: this.mode === 'CLASSIC' ? 'blast' : this.mode === 'SURVIVE' ? 'survival' : this.mode === 'SUPER10' ? 'super10' : 'marathon' };
   }
   private togglePause = () => {
     if (this.phase === 'START' || this.phase === 'INNINGS_END' || this.hud.helpOpen) return;

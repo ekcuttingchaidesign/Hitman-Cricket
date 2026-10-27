@@ -1635,7 +1635,10 @@ played with it up. Put back by itself at the bowler's first stride, it was gone
 before anybody had read it, and at 264 square it covered most of the pitch;
 180 still sat over the batter's off side. It
 grows out of the corner map's own place and shrinks back into it
-(`s10-grow`, `s10-shrink`, the corner fading out and back in under it), and it
+(`s10-grow`, `s10-shrink`, the corner fading out and back in under it); it is
+redrawn from the corner's a frame after a shot or a new field (`drawBigSoon`),
+since the line and the men's new places go on the corner at the next frame and
+copied before them the enlarged map had no ball's line; and it
 has its own thinner lines and smaller dots: the corner's drawing scaled up two
 and a half times had lines two and a half times as thick. Nothing is written
 over it: the over, the men out and the field's name it once carried, with Tap
@@ -1644,9 +1647,13 @@ Bottom left, Power Surge (`SurgeState`): locked to the end of the fifth over,
 gold and breathing in the breaks it can be taken in, its ring emptying over
 the bowler's wait; a ring filling a sixth a ball through its over, with POWER
 SURGE over the ground when it is taken and a SURGE badge under the scoreboard;
-a grey tick once used. A first Super10 in a browser opens with the field
-map's coach card (`FIELD_STEP` in `ShotsIntro.ts`, kept in
-`hitman-field-intro`); the surge is taught by its tag when it first lights up.
+a grey tick once used. A first Super10 in a browser opens with its rules
+(`SUPER10_STEPS` in `ShotsIntro.ts`, kept in `hitman-field-intro`), after how
+to hit and the meter where those are still due, on the coach cards in Volt:
+Ten overs (the overs box outlined, `overs-cell`), Five wickets, Watch the field
+(the field map cut out and tagged) and Play in the gaps, drawn at the bat
+(`gaps`, `.mi-gaps`: two fielders in the map's red and the ball's line drawn out
+between them). The surge is taught by its tag when it first lights up.
 The pause sheet has no field map: it was there, drawn solid, and was taken out
 (`super10-check` holds that). The design's assets could not be
 downloaded into this build, so the bolt and the rings are drawn in code.
@@ -1690,8 +1697,9 @@ Super10's five all bat the player's way round, so no LH chip.
 `scripts/super10-check.mjs` plays one through on the dev server: the bowlers in
 the schedule's order, one real ball from each kind with his own action, the
 speed gun, the No. 2 named after a wicket, the field map and Power Surge in
-their corners, each over's field and the bowler signalling it, the field
-map's coach card once, the card's heading and its line, and nothing sent.
+their corners, each over's field and the bowler signalling it, the ball's
+line on the enlarged map, the four rules cards once, the card's heading and
+its line, and nothing sent.
 The actions are looked at in `bowler-sheet.html`, every action a row at the
 same moments, from the batter's end or side on (`scripts/bowler-sheet.mjs
 out-dir batter side`): a software-rendered game's clock does not land a

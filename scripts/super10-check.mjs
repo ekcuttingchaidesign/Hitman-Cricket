@@ -261,7 +261,7 @@ check(drawn.balls === final.balls, 'whose balls add up to the innings\'', `${dra
 await page.locator('#end .ec-content').screenshot({ path: 'test-results/super10-card.png' }).catch(() => {});
 check(sent.every(path => path === '/api/score' || path === '/api/innings'), 'what it sends goes to the board and the career (super10-post-check.mjs follows it there)', sent.join(', '));
 
-// A first Super10 in this browser opens with the field map's card, once.
+// A first Super10 in this browser opens with its rules, once.
 for (const time of ['first', 'second']) {
   await page.goto(`${base}/?debug=1&mode=super10&seed=778`, { waitUntil: 'load' });
   if (time === 'first') await page.evaluate(() => localStorage.removeItem('hitman-field-intro'));
@@ -271,10 +271,24 @@ for (const time of ['first', 'second']) {
   }
   await page.locator('#start').click({ force: true });
   await until(['READY'], 800, 16);
-  const tag = await page.locator('#mi-tag').textContent().catch(() => '');
   const up = await page.locator('#marathon-intro').isVisible();
-  if (time === 'first') check(up && /field map/i.test(tag ?? ''), 'a first Super10 opens with the field map\'s card, the map cut out and tagged', `${up} ${tag}`);
-  else check(!up, 'and never again');
+  if (time === 'first') {
+    // Ten overs, five wickets, the field map, the gaps: one card each, the first three outlined and tagged.
+    const cards = [];
+    for (let i = 0; i < 4 && await page.locator('#marathon-intro').isVisible(); i++) {
+      cards.push(await page.evaluate(() => ({
+        title: document.querySelector('#mi-title')?.textContent,
+        tag: document.querySelector('#mi-tag:not(.hidden)')?.textContent ?? null,
+        gaps: !!document.querySelector('#mi-stage .mi-gaps'),
+      })));
+      if (i === 3) await page.locator('#marathon-intro').screenshot({ path: 'test-results/super10-gaps.png' }).catch(() => {});
+      await page.locator('#mi-next').click(); await advance(200);
+    }
+    const want = [['Ten overs', 'Overs'], ['Five wickets', 'Wickets'], ['Watch the field', 'Field map'], ['Play in the gaps', null]];
+    check(up && cards.length === 4 && cards.every((c, i) => c.title === want[i][0] && c.tag === want[i][1]) && cards[3].gaps,
+      'a first Super10 opens with its rules: ten overs, five wickets, the field map tagged, the gaps drawn at the bat', JSON.stringify(cards));
+    check(!(await page.locator('#marathon-intro').isVisible()), "and LET'S BAT puts them away");
+  } else check(!up, 'and never again');
 }
 check(errors.length === 0, 'no errors on the page', errors.join(' | '));
 

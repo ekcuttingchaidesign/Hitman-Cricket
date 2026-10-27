@@ -362,7 +362,7 @@ export class HUD {
         <div id="scoreboard" class="scoreboard" role="group" aria-label="Scoreboard">
           <span class="bug-tag" aria-hidden="true">HITMAN<br>OVAL</span>
           <span class="bug-total" id="total" role="img"><span id="runs"></span><span class="bug-slash">/</span><span class="bug-wkts" id="wickets"></span></span>
-          <span class="bug-cell"><b id="overs"></b><i>OVERS</i></span>
+          <span class="bug-cell" id="overs-cell"><b id="overs"></b><i>OVERS</i></span>
           <span class="bug-cell"><b id="last" class="bug-last" role="img"></b><i>LAST</i></span>
         </div>
         <div id="survive-card" class="survive-card hidden" role="group" aria-label="Match situation">
