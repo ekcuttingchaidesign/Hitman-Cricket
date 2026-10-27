@@ -107,12 +107,12 @@ console.log('its beats');
   await page.evaluate(() => window.__cricket.dress('home', 'roar'));
   await page.addStyleTag({ content: '[class*=debug]{display:none!important}' });
   await page.waitForTimeout(1200);
-  for (const [name, t] of [['boots', 0], ['bat', 1250], ['glove', 1600], ['helmet', 2050], ['landing', 3000]]) {
+  for (const [name, t] of [['bat', 1300], ['scuff', 3300], ['shoulder', 4400], ['bowler', 5000], ['landing', 6200]]) {
     await page.evaluate(t => window.__cricket.introAt(t), t);
     await advance(40); await page.waitForTimeout(120);
     await page.screenshot({ path: `test-results/intro-${name}.png` });
   }
-  console.log('        photographed test-results/intro-{boots,bat,glove,helmet,landing}.png');
+  console.log('        photographed test-results/intro-{bat,scuff,shoulder,bowler,landing}.png');
   check(!errors.length, 'no errors', errors.join('\n'));
   await page.close();
 }

@@ -2416,16 +2416,6 @@ const LEANING: Pose = (() => {
 })();
 // The bat down first and then the turn, as for the sky.
 const LEAN_KEYS: Keys = [[0, GUARD], [280, STANDING], [620, LEANING], [1350, LEANING], [1650, STANDING], [1950, GUARD]];
-/**
- * The walk-on (`IntroReel.ts`): stood in the lean before the first ball, his
- * eyes down on the bat at his side; then his head up to the bowler, still
- * crossed, and up out of it into his guard. Held, he breathes (`staged`).
- */
-const WALK_ON: Keys = (() => {
-  const down: Pose = { ...LEANING, face: 2.9, headDown: .34 };
-  const up: Pose = { ...LEANING, face: .7, headDown: 0 };
-  return [[0, down], [INTRO.hold, down], [INTRO.look, up], [INTRO.stand, STANDING], [INTRO.guard, GUARD]];
-})();
 /** The free (top) hand let go and hanging loose by his side. */
 function hangingFist(body: Pose) { return point(shoulderOf(body, 0).addScaledVector(UP, -.52).addScaledVector(outwards(body, 0), .10)); }
 /** Where he looks to follow a lofted shot: down the ground, or out to either side of it. */
@@ -2493,7 +2483,7 @@ const SCRUB_LIFT = [.14, .06] as const;
  * shoulder in the bottom hand, and the front foot scraping the turf forward
  * and back twice, as if the ball had done something off a mark there.
  */
-const SCRUB_KEYS: Keys = (() => {
+const SCRUB = (() => {
   // The bat over his shoulder in the one hand, the other hand hanging well
   // clear: plainly one-handed from behind. The blade lies on the shoulder on
   // its back, the face to the sky: the handle comes forward and down to his
@@ -2518,7 +2508,25 @@ const SCRUB_KEYS: Keys = (() => {
   // away from the camera behind him, and cannot be seen.
   const foot = (by: number): Pose => ({ ...over, frontFoot: [GUARD.frontFoot[0] + by, GUARD.frontFoot[1] + .008, GUARD.frontFoot[2] + by * .45] });
   const on = foot(0), off = { ...lifted, frontFoot: on.frontFoot };
-  return [[0, GUARD], [260, off], [400, on], [580, foot(.16)], [780, foot(-.02)], [980, foot(.16)], [1160, on], [1300, off], [1560, GUARD]];
+  return { on, off, foot };
+})();
+const SCRUB_KEYS: Keys = [[0, GUARD], [260, SCRUB.off], [400, SCRUB.on], [580, SCRUB.foot(.16)], [780, SCRUB.foot(-.02)], [980, SCRUB.foot(.16)], [1160, SCRUB.on], [1300, SCRUB.off], [1560, GUARD]];
+/**
+ * The walk-on (`IntroReel.ts`), in two shots. First the bat close to, planted
+ * at his side in the lean (`LEANING`), its back to the camera; then, cut to
+ * from behind him, the bat over his shoulder and the front foot scuffing his
+ * mark on the crease twice, slowly, his head down over it (`SCRUB`'s pieces);
+ * his head up to the bowler; and the bat off the shoulder into his guard.
+ * Held, he breathes (`staged`).
+ */
+const WALK_ON: Keys = (() => {
+  const lean: Pose = { ...LEANING, face: 2.9, headDown: .34 };
+  const { on, off, foot } = SCRUB;
+  const looked: Pose = { ...on, headDown: 0 };
+  const [from, to] = INTRO.scuffs, half = (to - from) / 4;
+  return [[0, lean], [INTRO.cut - 1, lean], [INTRO.cut, on], [from, on],
+    [from + half, foot(.16)], [from + 2 * half, foot(-.02)], [from + 3 * half, foot(.16)], [to, on],
+    [INTRO.look - 500, on], [INTRO.look, looked], [INTRO.lift, { ...off, headDown: 0 }], [INTRO.guard, GUARD]];
 })();
 /**
  * Out close to a milestone: turned three-quarters to the camera, as for a
