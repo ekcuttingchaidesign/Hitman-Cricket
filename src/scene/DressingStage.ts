@@ -191,6 +191,15 @@ export class DressingStage {
   private view: StageView = 'kit';
   private spin = 0; private spinV = .35; private dragging = false; private lastX = 0; private idleAt = 0; private downAt = 0; private moved = 0;
   private clock = 0; private swingEnd = 0; private flashAt = -1e9; private last = 0; private raf = 0;
+  /**
+   * The share of the way to a target an easing covers this frame, `rate` a
+   * second: the same over a second at 120 frames as at 60. A fixed share a
+   * frame ran twice as fast on a 120Hz phone. The rates are the old shares'
+   * at 60 frames a second, so a 60Hz screen sees what it always did.
+   */
+  private toward = (rate: number) => 1 - Math.exp(-rate * this.frameSeconds);
+  /** This frame's length in seconds. */
+  private frameSeconds = 1 / 60;
   private readonly reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly resize = new ResizeObserver(() => this.fit());
   private readonly pedestalParts: THREE.Object3D[] = [];
@@ -565,11 +574,11 @@ export class DressingStage {
     // draws its first few frames, which is what compiles its shaders, and then
     // rests until it is put up: nothing to see, and the cover's own frames to keep.
     if (!this.canvas.isConnected) { if (++this.offPage > 3) return; } else this.offPage = 0;
-    const dt = Math.min(50, now - (this.last || now)); this.last = now; this.clock += dt;
+    const dt = Math.min(50, now - (this.last || now)); this.last = now; this.clock += dt; this.frameSeconds = dt / 1000;
     if (!this.dragging) {
       // Turning slowly on its own, a while after a drag lets go.
       const rest = this.reducedMotion || this.view === 'guard' ? 0 : .35;
-      if (now - this.idleAt > 1600) this.spinV += (rest - this.spinV) * .03; else this.spinV *= .94;
+      if (now - this.idleAt > 1600) this.spinV += (rest - this.spinV) * this.toward(1.83); else this.spinV *= 1 - this.toward(3.71);
       this.spin += this.spinV * dt / 1000;
     }
     if (this.moment) this.animate(now);
@@ -581,7 +590,7 @@ export class DressingStage {
     if (this.swingEnd && this.clock > this.swingEnd) { this.batter.reset(); this.swingEnd = 0; }
     this.batter.update(this.clock); this.batter.drape();
     // The rim and the light ease to the colour on show; a pick flashes them.
-    this.rimMaterial.color.lerp(this.glow, .12); this.ringMaterial.color.lerp(this.glow, .12); this.halo.material.color.lerp(this.glow, .08);
+    this.rimMaterial.color.lerp(this.glow, this.toward(7.67)); this.ringMaterial.color.lerp(this.glow, this.toward(7.67)); this.halo.material.color.lerp(this.glow, this.toward(5));
     const flash = Math.max(0, 1 - (now - this.flashAt) / 450);
     this.ringMaterial.opacity = .75 + flash * .8; this.halo.material.opacity = .4 + flash * .4;
     if (!this.reducedMotion) {
@@ -654,11 +663,11 @@ export class DressingStage {
     this.camera.updateProjectionMatrix();
     // Rays faint while it is scanned, full on the reveal and turning; the bat's own lights while it is out of the spot.
     const rays = this.rays.material, want = moment.revealed ? (what.kind === 'bat' ? .85 : .7) : what.kind === 'bat' ? .18 : .1;
-    rays.opacity += (want - rays.opacity) * (moment.revealed ? .2 : .06); rays.color.copy(this.glow);
+    rays.opacity += (want - rays.opacity) * this.toward(moment.revealed ? 13.4 : 3.71); rays.color.copy(this.glow);
     this.rays.rotation.z = now / 9000 + (moment.revealed ? Math.max(0, 1 - after / 1500) * 1.2 : 0);
     this.rays.scale.setScalar(moment.revealed ? 1.1 + Math.max(0, 1 - after / 600) * .5 : 1);
     const lit = what.kind === 'bat' ? 1 : 0;
-    this.revealKey.intensity += (lit * 2.1 - this.revealKey.intensity) * .08;
-    this.revealRim.intensity += (lit * 2.2 - this.revealRim.intensity) * .08; this.revealRim.color.copy(this.glow);
+    this.revealKey.intensity += (lit * 2.1 - this.revealKey.intensity) * this.toward(5);
+    this.revealRim.intensity += (lit * 2.2 - this.revealRim.intensity) * this.toward(5); this.revealRim.color.copy(this.glow);
   }
 }

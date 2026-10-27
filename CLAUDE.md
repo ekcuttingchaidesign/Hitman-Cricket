@@ -351,6 +351,12 @@ branch. Wait on what the game says (`snapshot()`, its phase), not on how slow
 the machine is; and a box measured off a screenshot is in the page's pixels,
 so scale it by `devicePixelRatio`.
 
+Anything eased towards a target each frame is eased by the second, not the
+frame (`1 - Math.exp(-rate * seconds)`, or `MathUtils.damp`): a fixed share a
+frame runs twice as fast on a 120Hz phone. The Dressing Room's spin and
+lights, the cover's drift and Level Up's lean were, until the rates were
+taken from those shares at 60 frames a second.
+
 A check that seeds `hitman-whatsnew` seeds the current update key
 (`player-profiles`), or the stories stand in front of Choose a mode.
 
@@ -721,7 +727,11 @@ a link give: pulled one way only, link by link, the chain gained energy and
 never settled; and the colliders have the last word in a step, after the
 links' lengths are taken up, which had dragged points back inside. A clock that never
 runs (a preview posed by hand) hangs it afresh each frame, at rest. For the
-male build it is hidden, so his draw calls are what they were.
+male build it is hidden, so his draw calls are what they were. Nothing in the
+hair's frame is made new (`swingHair`, `curveAt`): drawn through three.js's
+own curve, which works out its arc lengths afresh each time, it more than
+doubled the garbage the batter leaves each frame, about 93KB, which the
+collector stops the game to clear.
 
 `batter-model.html` is her on a turntable — front, three-quarters, side,
 back, close on the ponytail — in her guard or playing strokes on a loop, in

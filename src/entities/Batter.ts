@@ -3173,6 +3173,11 @@ export class Batter {
   private shirt: BodyShape = SHAPES.male;
   private readonly torsoInverse = new THREE.Quaternion();
   private readonly inShirt = new THREE.Vector3();
+  /** Kept for the hair's every frame, which makes nothing new: see `swingHair`. */
+  private readonly hairTie = new THREE.Vector3();
+  private readonly hairOut = new THREE.Vector3();
+  private readonly hairSpine = new THREE.Vector3();
+  private readonly hairHandle = new THREE.Vector3();
   /** Whether the clothes fit the pose last applied: see `drape`. */
   private draped = false;
   private shapes = {
@@ -5228,9 +5233,11 @@ export class Batter {
    */
   private swingHair() {
     if (!this.ponytail.mesh.visible) return;
-    const q = this.head.quaternion, torso = this.torso, spine = UP.clone().applyQuaternion(torso.quaternion);
-    const tie = HAIR_TIE.clone().applyQuaternion(q).add(this.head.position);
-    const out = HAIR_OUT.clone().applyQuaternion(q);
+    // Every vector here is kept from frame to frame: what a frame makes new,
+    // the collector has to stop the game to clear.
+    const q = this.head.quaternion, torso = this.torso, spine = this.hairSpine.copy(UP).applyQuaternion(torso.quaternion);
+    const tie = this.hairTie.copy(HAIR_TIE).applyQuaternion(q).add(this.head.position);
+    const out = this.hairOut.copy(HAIR_OUT).applyQuaternion(q);
     const [shell, neck, trunk, shoulderL, shoulderR, upperL, upperR, foreL, foreR, bat] = this.hairColliders;
     shell.from.copy(SHELL.centre).applyQuaternion(q).add(this.head.position); shell.to.copy(shell.from); shell.radius = SHELL.radius;
     neck.from.copy(torso.position).addScaledVector(spine, .1); neck.to.copy(this.head.position); neck.radius = .06;
@@ -5239,16 +5246,15 @@ export class Batter {
     // hair through them.
     this.torsoInverse.copy(torso.quaternion).invert();
     trunk.push = this.outOfShirt;
-    [shoulderL, shoulderR].forEach((ball, i) => {
+    for (let i = 0; i < 2; i++) {
+      const ball = i === 0 ? shoulderL : shoulderR;
       ball.from.set(i === 0 ? -.163 : .163, .075, 0).applyQuaternion(torso.quaternion).add(torso.position); ball.to.copy(ball.from); ball.radius = .085;
-    });
-    // The arms and the bat, which the wraps take round behind her head, where the hair is.
-    this.arms.forEach((arm, i) => {
-      const upper = i === 0 ? upperL : upperR, fore = i === 0 ? foreL : foreR;
+      // The arms and the bat, which the wraps take round behind her head, where the hair is.
+      const arm = this.arms[i], upper = i === 0 ? upperL : upperR, fore = i === 0 ? foreL : foreR;
       upper.from.copy(arm.shoulder); upper.to.copy(arm.elbow.position); upper.radius = this.shirt.sleeve[0] * .8;
       fore.from.copy(arm.elbow.position); fore.to.copy(arm.wrist); fore.radius = this.shirt.sleeve[1] * .85;
-    });
-    const handle = UP.clone().applyQuaternion(this.bat.quaternion);
+    }
+    const handle = this.hairHandle.copy(UP).applyQuaternion(this.bat.quaternion);
     bat.from.copy(this.bat.position).addScaledVector(handle, .2); bat.to.copy(this.bat.position).addScaledVector(handle, -.8); bat.radius = .045;
     const seconds = Number.isFinite(this.lastNow) && Number.isFinite(this.hairAt) ? (this.lastNow - this.hairAt) / 1000 : NaN;
     this.hairAt = this.lastNow;

@@ -121,6 +121,8 @@ export class LevelUp {
   private rungAt: { x: number; y: number }[] = [];
   private want = { x: 0, y: 0 };
   private lean = { x: 0, y: 0 };
+  /** When the lean last eased, for easing it by the second rather than the frame. */
+  private leanAt = 0;
   private readonly layout = new ResizeObserver(() => this.measure());
 
   constructor(host: HTMLElement, private readonly view: LevelUpView, private readonly handlers: LevelUpHandlers) {
@@ -397,7 +399,11 @@ export class LevelUp {
     const facing = ((c.flip % 360) + 360) % 360;
     this.root.classList.toggle('is-flipped', facing > 90 && facing < 270);
     // The hover, once it stands: rising and falling a little, leaning, a finger leaning it further.
-    this.lean.x += (this.want.x - this.lean.x) * .08; this.lean.y += (this.want.y - this.lean.y) * .08;
+    // Eased by the second, not the frame: a fixed share a frame leaned twice
+    // as fast on a 120Hz phone. 5 a second is the old share at 60 frames.
+    const seconds = Math.min(.1, Math.max(0, (now - (this.leanAt || now)) / 1000)), share = 1 - Math.exp(-5 * seconds);
+    this.leanAt = now;
+    this.lean.x += (this.want.x - this.lean.x) * share; this.lean.y += (this.want.y - this.lean.y) * share;
     const on = this.reducedMotion ? 0 : end.hover;
     const ry = on * (Math.sin(now / 2300) * 6 + this.lean.x * 8), rx = on * (Math.sin(now / 1700) * 3.5 - this.lean.y * 6);
     this.tilt.style.transform = `translate3d(0,${(on * Math.sin(now / 1100) * 5 * u).toFixed(2)}px,0) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`;

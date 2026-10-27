@@ -54,6 +54,8 @@ export function radiusAt(t: number) {
   return tip + (full - tip) * Math.max(0, Math.cos(Math.min(1, (t - .2) / .8) * Math.PI / 2)) ** .95;
 }
 
+const AXES = ['x', 'y', 'z'] as const;
+
 /** A number from 0 to 1 for a strand, the same every time. */
 function strand(n: number) {
   const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
@@ -82,9 +84,12 @@ export class Ponytail {
   readonly mesh: THREE.Mesh;
   private readonly points = Array.from({ length: LINKS + 1 }, () => new THREE.Vector3());
   private readonly last = Array.from({ length: LINKS + 1 }, () => new THREE.Vector3());
-  private readonly curve: THREE.CatmullRomCurve3;
   /** Behind the tie, inside the gathered hair: where the tube begins. Drawn, never moved but with the tie. */
   private readonly root = new THREE.Vector3();
+  /** What the tube is drawn through: the root and then the links. */
+  private readonly through: THREE.Vector3[];
+  /** The four points either side of a span, the ends carried on straight past the chain. */
+  private readonly span = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
   private readonly rings = (LINKS + 1) * SPAN + 1;
   private hung = false;
   private carry = 0;
@@ -97,7 +102,7 @@ export class Ponytail {
   private readonly w = new THREE.Vector3();
 
   constructor(material: THREE.Material) {
-    this.curve = new THREE.CatmullRomCurve3([this.root, ...this.points], false, 'centripetal');
+    this.through = [this.root, ...this.points];
     // Every ring, then the tip's point and the root's.
     const count = this.rings * (SIDES + 1) + 2;
     const geometry = new THREE.BufferGeometry();
@@ -255,12 +260,16 @@ export class Ponytail {
    */
   private draw() {
     const positions = this.mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
-    this.curve.updateArcLengths();
-    const total = this.curve.getLength();
     for (let r = 0; r < this.rings; r++) {
-      const along = r / (this.rings - 1), t = Math.max(0, (along * total - ROOT) / (total - ROOT));
-      this.curve.getPointAt(along, this.at);
-      this.curve.getTangentAt(along, this.along).normalize();
+      // Each span between two points of the chain drawn SPAN rings long, as
+      // a Catmull-Rom curve through them, worked here into vectors kept for
+      // it: three.js's curve worked out its arc lengths afresh every frame,
+      // two hundred new vectors a time, and doubled what the batter left the
+      // collector each frame.
+      const segment = Math.min(Math.floor(r / SPAN), this.through.length - 2), s = r / SPAN - segment;
+      this.curveAt(segment, s);
+      // How far down from the tie, as a share of the ponytail: nothing yet in the root's span.
+      const t = Math.max(0, segment === 0 ? 0 : (segment - 1 + s) / LINKS);
       if (r === 0) {
         // Side to side across the first link; after that, carried along.
         this.normal.set(1, 0, 0).addScaledVector(this.along, -this.along.x);
@@ -276,7 +285,7 @@ export class Ponytail {
         positions.setXYZ(r * (SIDES + 1) + i, this.v.x, this.v.y, this.v.z);
       }
     }
-    this.curve.getPointAt(1, this.v).addScaledVector(this.along, .012);
+    this.v.copy(this.points[LINKS]).addScaledVector(this.along, .012);
     positions.setXYZ(positions.count - 2, this.v.x, this.v.y, this.v.z);
     positions.setXYZ(positions.count - 1, this.root.x, this.root.y, this.root.z);
     positions.needsUpdate = true;
@@ -288,6 +297,24 @@ export class Ponytail {
       this.v.fromBufferAttribute(normals, a).add(this.w.fromBufferAttribute(normals, b)).normalize();
       normals.setXYZ(a, this.v.x, this.v.y, this.v.z); normals.setXYZ(b, this.v.x, this.v.y, this.v.z);
     }
+  }
+
+  /** The point `s` along the chain's span from `segment` to the next, into `at`, and the way it runs, into `along`. */
+  private curveAt(segment: number, s: number) {
+    const [a, b, c, d] = this.span, last = this.through.length - 1;
+    b.copy(this.through[segment]); c.copy(this.through[segment + 1]);
+    if (segment > 0) a.copy(this.through[segment - 1]); else a.copy(b).multiplyScalar(2).sub(c);
+    if (segment + 2 <= last) d.copy(this.through[segment + 2]); else d.copy(c).multiplyScalar(2).sub(b);
+    const s2 = s * s, s3 = s2 * s;
+    // Uniform Catmull-Rom: the links are all one length, so it neither loops nor cusps.
+    for (const axis of AXES) {
+      const p0 = a[axis], p1 = b[axis], p2 = c[axis], p3 = d[axis];
+      const k1 = -p0 + p2, k2 = 2 * p0 - 5 * p1 + 4 * p2 - p3, k3 = -p0 + 3 * p1 - 3 * p2 + p3;
+      this.at[axis] = .5 * (2 * p1 + k1 * s + k2 * s2 + k3 * s3);
+      this.along[axis] = .5 * (k1 + 2 * k2 * s + 3 * k3 * s2);
+    }
+    if (this.along.lengthSq() < 1e-12) this.along.subVectors(c, b);
+    this.along.normalize();
   }
 
   dispose() { this.mesh.geometry.dispose(); }

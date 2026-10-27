@@ -131,7 +131,7 @@ export function coverParallax(intro: HTMLElement): () => void {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return () => {};
   const target = { x: 0, y: 0 };
   const now = { x: 0, y: 0 };
-  let frame = 0;
+  let frame = 0, last = 0;
   const aim = (x: number, y: number) => {
     target.x = Math.max(-1, Math.min(1, x));
     target.y = Math.max(-1, Math.min(1, y));
@@ -155,8 +155,12 @@ export function coverParallax(intro: HTMLElement): () => void {
     frame = requestAnimationFrame(step);
     if (document.hidden || intro.classList.contains('hidden')) return;
     const driftX = Math.sin(t / 5200) * 0.35, driftY = Math.sin(t / 3700) * 0.22;
-    now.x += (target.x + driftX - now.x) * 0.045;
-    now.y += (target.y + driftY - now.y) * 0.045;
+    // Eased by the second, not the frame: a fixed share a frame drifted twice
+    // as fast on a 120Hz phone. 2.76 a second is the old share at 60 frames.
+    const seconds = Math.min(.1, Math.max(0, (t - (last || t)) / 1000)), share = 1 - Math.exp(-2.76 * seconds);
+    last = t;
+    now.x += (target.x + driftX - now.x) * share;
+    now.y += (target.y + driftY - now.y) * share;
     intro.style.setProperty('--px', now.x.toFixed(3));
     intro.style.setProperty('--py', now.y.toFixed(3));
   };
