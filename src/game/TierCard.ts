@@ -1,6 +1,7 @@
 import { avatarSrc, kitColour } from '../config/board';
 import { measureName } from './tier';
 import type { StatsFacts } from './StatsCard';
+import { SUPER10_CARD_ART } from './super10-card-art';
 
 /**
  * The career card as My Stats draws it (UI v1), painted on a canvas for the
@@ -15,6 +16,7 @@ import type { StatsFacts } from './StatsCard';
 export const TIER_CARD = { width: 362, height: 214, radius: 24 } as const;
 
 const titleArt = new URL('../assets/title.webp', import.meta.url).href;
+const super10Art = new URL('../assets/super10/logo.svg', import.meta.url).href;
 const starArt = new URL('../assets/kit/card-star.svg', import.meta.url).href;
 const batsmanArt = new URL('../assets/kit/card-batsman.svg', import.meta.url).href;
 
@@ -43,7 +45,7 @@ export async function prepareTierCard() {
     document.fonts.load(display(13), 'A'), document.fonts.load(ui(700, 18), 'A'), document.fonts.load(ui(900, 40), '0'),
     document.fonts.load(ui(500, 12), 'a'),
   ]).catch(() => {});
-  await Promise.all([titleArt, starArt, batsmanArt].map(src => load(src).catch(() => null)));
+  await Promise.all([titleArt, super10Art, starArt, batsmanArt].map(src => load(src).catch(() => null)));
 }
 
 /** What each material is made of, in the same colours the page's CSS uses. */
@@ -115,6 +117,33 @@ function marathonOf(base: Material, tier: string): Material {
 }
 
 /**
+ * Super10's card, rung by rung, in the page's colours (`.st-card.is-super10`):
+ * ink, brushed violet, black chrome, and gold foil on ink with a Volt glint in
+ * the edge and the badge, the figure and the name pure gold.
+ */
+const SUPER10_MATERIALS: Record<string, Material> = {
+  debutant: {
+    stops: [[0, '#1e0b47'], [1, '#0b031d']], angle: 135, edge: '#8b5cf68c',
+    ink: '#ffffff', quiet: '#e4e1f299', pill: '#ffffff14', pillInk: '#e4e1f2', ring: '#8b5cf680', sheen: SHEEN,
+  },
+  emerging: {
+    stops: [[0, '#a27bff'], [0.45, '#7c4deb'], [1, '#4a1db0']], angle: 135, edge: '#e4d9ff',
+    ink: '#12052b', quiet: '#12052bb3', pill: '#12052bd9', pillInk: '#d9c9ff', ring: '#12052b40', sheen: SHEEN,
+  },
+  star: {
+    stops: [[0, '#22202b'], [0.5, '#0e0d13'], [1, '#17141f']], angle: 135, edge: '#cfc9e6',
+    ink: '#f5efe6', quiet: '#e4e1f28c', pill: ['#ffffff', '#b8b4c8', '#e3e0ee'], pillInk: '#12052b',
+    metal: ['#ffffff', '#b9b3cc', '#f2f0f8'], ring: '#ffffff40', sheen: [[0.1875, '#ffffff00'], [0.46875, '#ffffff1f'], [0.5625, '#ffffff00']],
+  },
+  hitman: {
+    stops: [[0, '#160738'], [0.6, '#0a031c'], [1, '#050109']], angle: 149, edge: '#f5c451',
+    ink: '#f5efe6', quiet: '#f5c451d9', pill: ['#fff1b8', '#f5c451', '#e2f27a'], pillInk: '#2a1a05',
+    metal: ['#fff4c7', '#f5c451', '#b8862b'], ring: '#f5c451',
+    sheen: [[0.1875, '#ffffff00'], [0.45, '#f5c4511a'], [0.6125, '#ffffff00']],
+  },
+};
+
+/**
  * The end card's chevrons as a faint field across a card, strongest at the
  * top left and gone by the foot — as the page's `.st-card-grain` is masked.
  */
@@ -177,7 +206,8 @@ export async function paintTierCard(
 ) {
   const tier = facts.tier.key;
   const base = MATERIALS[tier] ?? MATERIALS.debutant;
-  const m = facts.mode === 'marathon' ? marathonOf(base, tier) : base;
+  const s10 = facts.mode === 'super10';
+  const m = s10 ? SUPER10_MATERIALS[tier] ?? SUPER10_MATERIALS.debutant : facts.mode === 'marathon' ? marathonOf(base, tier) : base;
   const { width: W, height: H, radius: R } = TIER_CARD;
   ctx.save();
   ctx.translate(x, y);
@@ -201,8 +231,22 @@ export async function paintTierCard(
     red.addColorStop(0, '#c8102e5c'); red.addColorStop(0.62, '#c8102e00');
     ctx.fillStyle = red; ctx.fillRect(0, 0, W, H);
   }
-  // Each material's own grain: brushed lines on bronze, a faint weave on navy.
-  if (tier === 'emerging' && facts.mode !== 'marathon') {
+  // Each material's own grain: brushed lines on bronze (and on Super10's violet), a faint weave on navy.
+  if (s10) {
+    if (tier === 'emerging') { ctx.fillStyle = '#ffffff0d'; for (let row = 0; row < H; row += 4) ctx.fillRect(0, row, W, 1); }
+    if (tier === 'hitman') {
+      const glow = ctx.createRadialGradient(W * 0.88, H * 0.1, 0, W * 0.88, H * 0.1, W * 0.7);
+      glow.addColorStop(0, '#f5c45138'); glow.addColorStop(0.45, '#c6ff1a0d'); glow.addColorStop(1, '#f5c45100');
+      ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+    }
+    for (const shape of SUPER10_CARD_ART[tier] ?? []) {
+      const path = new Path2D(shape.d);
+      ctx.save(); ctx.globalAlpha = shape.opacity;
+      if (shape.fill) { ctx.fillStyle = shape.fill; ctx.fill(path); }
+      if (shape.stroke) { ctx.strokeStyle = shape.stroke; ctx.lineWidth = shape.width ?? 1; ctx.lineJoin = 'round'; ctx.stroke(path); }
+      ctx.restore();
+    }
+  } else if (tier === 'emerging' && facts.mode !== 'marathon') {
     for (let row = 0; row < H; row += 4) {
       ctx.fillStyle = (row / 4) % 2 ? '#ffffff0f' : '#3a1e0c0d';
       ctx.fillRect(0, row, W, 1);
@@ -212,8 +256,8 @@ export async function paintTierCard(
     for (let i = -H; i < W; i += 9) { ctx.beginPath(); ctx.moveTo(i, H); ctx.lineTo(i + H * 0.47, 0); ctx.stroke(); }
     ctx.restore();
   }
-  // The art behind the top two rungs, as the page places it.
-  if (tier === 'star') {
+  // The art behind the top two rungs, as the page places it (Super10's is its shapes, above).
+  if (s10) { /* drawn with the grain */ } else if (tier === 'star') {
     const star = await load(starArt).catch(() => null);
     if (star) {
       ctx.save();
@@ -231,14 +275,21 @@ export async function paintTierCard(
   ctx.restore();
 
   // The edge, and on a Hitman card its inner foil rim.
-  rounded(ctx, 0.75, 0.75, W - 1.5, H - 1.5, R); ctx.strokeStyle = m.edge; ctx.lineWidth = 1.5; ctx.stroke();
-  if (tier === 'hitman') { rounded(ctx, 7, 7, W - 14, H - 14, 18); ctx.strokeStyle = '#f3d27a47'; ctx.lineWidth = 1; ctx.stroke(); }
+  rounded(ctx, 0.75, 0.75, W - 1.5, H - 1.5, R);
+  if (s10 && tier === 'hitman') {
+    // Gold foil with a Volt glint running through it, as the page's edge.
+    const foil = angled(ctx, W, H, 135, [[0, '#fff1b8'], [0.28, '#f5c451'], [0.5, '#e2f27a'], [0.62, '#f0c248'], [1, '#a8741e']]);
+    ctx.strokeStyle = foil;
+  } else ctx.strokeStyle = m.edge;
+  ctx.lineWidth = 1.5; ctx.stroke();
+  if (tier === 'hitman') { rounded(ctx, 7, 7, W - 14, H - 14, 18); ctx.strokeStyle = s10 ? '#e7d36a5c' : '#f3d27a47'; ctx.lineWidth = 1; ctx.stroke(); }
 
   // Top: the logo, and the tier's pill.
-  const logo = await load(titleArt).catch(() => null);
+  const logo = await load(s10 ? super10Art : titleArt).catch(() => null);
   if (logo) {
-    const lw = 70, lh = 25, fit = Math.min(lw / logo.width, lh / logo.height);
-    ctx.drawImage(logo, 20, 16 + (lh - logo.height * fit) / 2, logo.width * fit, logo.height * fit);
+    const lw = s10 ? 66 : 70, lh = s10 ? 32 : 25, top = s10 ? 12 : 16;
+    const iw = logo.naturalWidth || logo.width, ih = logo.naturalHeight || logo.height, fit = Math.min(lw / iw, lh / ih);
+    ctx.drawImage(logo, 20, top + (lh - ih * fit) / 2, iw * fit, ih * fit);
   }
   ctx.font = display(13);
   const word = facts.tier.name;
@@ -288,10 +339,11 @@ export async function paintTierCard(
     const ty = 184;
     ctx.fillStyle = tier === 'hitman' ? '#f3d27a26' : '#ffffff1f';
     rounded(ctx, 20, ty, 150, 4, 2); ctx.fill();
-    ctx.fillStyle = tier === 'hitman' ? '#f3d27a' : '#dde3e8';
+    ctx.fillStyle = s10 && tier === 'hitman' ? angled(ctx, 150, 4, 90, [[0, '#ffe7a3'], [0.6, '#f5c451'], [1, '#d9f25a']])
+      : s10 ? '#ffffff' : tier === 'hitman' ? '#f3d27a' : '#dde3e8';
     rounded(ctx, 20, ty, Math.max(4, 150 * (next ? done : 1)), 4, 2); ctx.fill();
     ctx.font = ui(500, 12); ctx.fillStyle = m.quiet; ctx.textAlign = 'right';
-    ctx.fillText(next && toNext !== null ? `${toNext.toLocaleString('en-US')} ${measureName(facts.mode)} to ${next.short}` : 'Top of the game', W - 20, ty + 6);
+    ctx.fillText(next && toNext !== null ? `${toNext.toLocaleString('en-US')} ${measureName(facts.mode)} to ${next.short}` : s10 ? 'Top of Super10' : 'Top of the game', W - 20, ty + 6);
     ctx.textAlign = 'left';
   }
   ctx.restore();

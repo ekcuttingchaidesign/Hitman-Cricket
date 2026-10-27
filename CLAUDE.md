@@ -1678,7 +1678,17 @@ Blast's is sized to thirty balls and full). Its career (`Super10Career`,
 and fours, and counts the team totals of a hundred and two hundred, which
 the kits are earned on; its one career board is Runs. Its own tier ladder
 reads career runs: 750, 7,500 and, set by the designer for limited overs,
-25,000 (`TIERS`' `super10`). A named player's innings is posted by itself
+25,000 (`TIERS`' `super10`). Its career card is its own at every rung (Figma section 22,
+`613:5379`): the Super10 mark in place of the game's, ink with violet slashes
+at Debutant, brushed violet at Emerging Player, black chrome with lightning
+shards at Star, and at Hitman gold foil on ink, a Volt glint in the edge, the
+badge and the bar, the figure and the name pure gold, nested gold plates at
+the 12° lean out of the corner. The shapes are `SUPER10_CARD_ART`
+(`src/game/super10-card-art.ts`), drawn by the page (`cardMarkup`, so My
+Stats and Level Up's flip) and painted by the share card (`paintTierCard`,
+`SUPER10_MATERIALS`) from the one list; the colours are
+`.st-card.is-super10` and, for the walk-on's card and the profiles' ground,
+`.is-super10.tier-*` in `profile.css`. A named player's innings is posted by itself
 and counted, as every mode's is; the end card's rank hero, the Leaderboard's
 Super10 tab (`super10Body` in `Board.ts`, `showSuper10Board`, shown where
 Super10 can be played, `showSuper10Tab`), My Stats' figures

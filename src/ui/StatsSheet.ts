@@ -4,6 +4,7 @@ import { restoreLinkMarkup } from './Restore';
 import { escape, kitMarkup } from './Leaderboard';
 import { statsExplain, type StatsFacts } from '../game/StatsCard';
 import { measureName } from '../game/tier';
+import { super10ArtSvg } from '../game/super10-card-art';
 import { recordMarkup, type RivalsRecord } from './Record';
 import { cta, icon, roadToHitman, tierBadge } from './Kit';
 import { groundMarkup, rungLine, rungName } from './PlayerSheet';
@@ -75,6 +76,8 @@ export interface StatsSheetView {
 const SHORT: Record<string, string> = { classic: 'Blast', survive: 'Survival', marathon: 'Marathon', super10: 'Super10' };
 
 const TITLE = new URL('../assets/title.webp', import.meta.url).href;
+/** Super10's card carries its own mark (Figma section 22). */
+const SUPER10_MARK = new URL('../assets/super10/logo.svg', import.meta.url).href;
 
 /** The Star card's one big star, top right and turned (Figma 152:18122). */
 const STAR = new URL('../assets/kit/card-star.svg', import.meta.url).href;
@@ -187,9 +190,15 @@ export function cardMarkup(facts: StatsFacts, who: { name: string; avatar: numbe
   const edit = who ? `<button${first ? ' id="stats-edit"' : ''} class="st-edit" type="button" aria-label="Edit your name, kit and batting hand">${PENCIL}</button>` : '';
   const measure = facts.ladder.measure.toLocaleString('en-US');
   const unit = facts.mode === 'survive' ? 'balls faced' : `career ${measureName(facts.mode)}`;
+  // Behind the words: the star or the gold batsman on the top two rungs; Super10's its own shapes (`SUPER10_CARD_ART`).
+  const s10 = facts.mode === 'super10';
+  const rim = tier === 'hitman' ? '<i class="st-card-rim" aria-hidden="true"></i>' : '';
+  const art = s10 ? `${super10ArtSvg(tier)}${rim}`
+    : tier === 'star' ? `<img class="st-card-star" src="${STAR}" alt="" aria-hidden="true">`
+      : tier === 'hitman' ? `<img class="st-card-batsman" src="${BATSMAN}" alt="" aria-hidden="true">${rim}` : '';
   return `<article class="st-card tier-${escape(tier)} is-${escape(facts.mode)}" aria-label="${escape(`${who?.name ?? 'Guest'}, ${facts.tier.name}, ${facts.modeName}: ${measure} ${unit}`)}">
-          <i class="st-card-grain" aria-hidden="true"></i>${tier === 'star' ? `<img class="st-card-star" src="${STAR}" alt="" aria-hidden="true">` : ''}${tier === 'hitman' ? `<img class="st-card-batsman" src="${BATSMAN}" alt="" aria-hidden="true"><i class="st-card-rim" aria-hidden="true"></i>` : ''}<i class="st-card-sheen" aria-hidden="true"></i>
-          <div class="st-card-top"><img class="st-card-logo" src="${TITLE}" alt="" decoding="async"><span class="st-card-tier">${escape(facts.tier.name)}</span></div>
+          <i class="st-card-grain" aria-hidden="true"></i>${art}<i class="st-card-sheen" aria-hidden="true"></i>
+          <div class="st-card-top"><img class="st-card-logo" src="${s10 ? SUPER10_MARK : TITLE}" alt="" decoding="async"><span class="st-card-tier">${escape(facts.tier.name)}</span></div>
           <div class="st-card-who">${face}<span class="st-card-name"><b>${escape(who?.name ?? 'Guest')}</b><small>${escape(facts.modeName.toUpperCase())} &middot; CAREER</small></span>${edit}</div>
           <div class="st-card-foot"><div class="st-card-figure"><b>${measure}</b><span>${unit}</span></div>${tier === 'star' || tier === 'hitman' ? progressMarkup(facts) : ''}</div>
         </article>`;
@@ -228,7 +237,7 @@ function tilesMarkup(card: StatsSlide): string {
 function progressMarkup(facts: StatsFacts): string {
   const { progress, toNext, next } = facts.ladder;
   if (!next || toNext === null) {
-    return '<div class="st-card-progress"><span class="st-card-track"><i style="width:100%"></i></span><small>Top of the game</small></div>';
+    return `<div class="st-card-progress"><span class="st-card-track"><i style="width:100%"></i></span><small>${facts.mode === 'super10' ? 'Top of Super10' : 'Top of the game'}</small></div>`;
   }
   return `<div class="st-card-progress"><span class="st-card-track"><i style="width:${Math.round(progress * 100)}%"></i></span>
           <small>${toNext.toLocaleString('en-US')} ${measureName(facts.mode)} to ${escape(next.short)}</small></div>`;

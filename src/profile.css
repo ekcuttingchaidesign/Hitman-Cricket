@@ -51,6 +51,11 @@
 :is(.ps-sheet,.mp-stage,.mp-hero,.woc).is-marathon.tier-debutant{--ground:linear-gradient(170deg,#14553a 0%,#0b3524 50%,#06200f 100%);--light:#6fe0a64d;--ring:#7fc9a0}
 :is(.ps-sheet,.mp-stage,.mp-hero,.woc).is-marathon.tier-emerging{--ground:linear-gradient(170deg,#b3182f 0%,#86111f 45%,#4d0912 100%);--light:#ff9a9a52;--ring:#e7b48a;--pill:#2a0a0ed9;--pill-ink:#f0c79e}
 :is(.ps-sheet,.mp-stage,.mp-hero,.woc).is-marathon.tier-hitman{--ground:radial-gradient(90% 60% at 50% 20%,#1d5a3b 0%,#0b3a24 50%,#021009 100%)}
+/* Super10's, in its card's materials (Figma section 22): ink, brushed violet, black chrome, gold on ink. */
+:is(.ps-sheet,.mp-stage,.mp-hero,.woc).is-super10.tier-debutant{--ground:linear-gradient(170deg,#1e0b47 0%,#12052b 50%,#0b031d 100%);--light:#8b5cf64d;--ring:#b9a6ff;--pill:#8b5cf640;--pill-ink:#e4e1f2}
+:is(.ps-sheet,.mp-stage,.mp-hero,.woc).is-super10.tier-emerging{--ground:linear-gradient(160deg,#a27bff 0%,#7c4deb 40%,#4a1db0 100%);--light:#e4d9ff66;--ring:#e4d9ff;--pill:#12052bd9;--pill-ink:#d9c9ff}
+:is(.ps-sheet,.mp-stage,.mp-hero,.woc).is-super10.tier-star{--ground:linear-gradient(165deg,#2a2735 0%,#16141e 50%,#0e0d13 100%);--light:#b9a6ff40}
+:is(.ps-sheet,.mp-stage,.mp-hero,.woc).is-super10.tier-hitman{--ground:radial-gradient(90% 60% at 50% 20%,#2a1650 0%,#12052b 55%,#050109 100%)}
 .ps-was.tier-debutant{--ground:linear-gradient(170deg,#2f5689 0%,#1d375a 45%,#13223a 100%);--light:#7fb6f066}
 .ps-was.tier-emerging{--ground:linear-gradient(160deg,#e3ad7e 0%,#b97a4c 32%,#8f5530 64%,#5e341b 100%);--light:#ffe0bf80}
 .ps-was.tier-star{--ground:linear-gradient(165deg,#3a3f47 0%,#1f2227 50%,#121418 100%);--light:#ffffff40}

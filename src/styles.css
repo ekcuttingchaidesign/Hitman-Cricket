@@ -8213,6 +8213,34 @@ video.whatsnew-film.is-fit{height:auto;object-fit:contain;
    otherwise put it on their black. */
 .st-card.is-marathon.tier-hitman{--metal:radial-gradient(120% 75% at 85% 115%,#c8102e5c,#c8102e00 62%),linear-gradient(160deg,#0b3a24 0%,#052015 55%,#021009 100%);
   --quiet:#c9b47c;--pill:linear-gradient(90deg,#fff0b8,#c99a35 45%,#f7d774);--pill-ink:#1a1204}
+/* Super10's card (Figma section 22, its shapes SUPER10_CARD_ART): ink at
+   Debutant with violet slashes, brushed violet at Emerging Player, black
+   chrome with lightning shards at Star, and at Hitman gold foil on the ink,
+   a Volt glint run through the edge, the badge and the bar, the figure and
+   the name pure gold, nested gold plates out of the corner. */
+.st-card-s10{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.st-card.is-super10 .st-card-logo{width:calc(var(--u) * 66);height:calc(var(--u) * 32)}
+.st-card.is-super10 .st-card-grain{background:none}
+.st-card.is-super10.tier-debutant{--metal:linear-gradient(135deg,#1e0b47 0%,#0b031d 100%);--edge:#8b5cf68c;--ink:#fff;--quiet:#e4e1f299;--pill:#ffffff14;--pill-ink:#e4e1f2;--figure:#fff}
+.st-card.is-super10.tier-debutant .st-card-who .board-kit{box-shadow:0 0 0 2px #8b5cf680}
+.st-card.is-super10.tier-emerging{--metal:linear-gradient(135deg,#a27bff 0%,#7c4deb 45%,#4a1db0 100%);--edge:#e4d9ff;--ink:#12052b;--quiet:#12052bb3;--pill:#12052bd9;--pill-ink:#d9c9ff;--figure:#12052b}
+.st-card.is-super10.tier-emerging .st-card-grain{background:repeating-linear-gradient(180deg,#ffffff0d 0 1px,#fff0 1px 4px)}
+.st-card.is-super10.tier-emerging .st-card-who .board-kit{box-shadow:0 0 0 2px #12052b40}
+.st-card.is-super10.tier-emerging .st-card-track{background:#12052b38}
+.st-card.is-super10.tier-emerging .st-card-track i{background:#12052b}
+.st-card.is-super10.tier-star{--metal:linear-gradient(135deg,#22202b 0%,#0e0d13 50%,#17141f 100%);--edge:#cfc9e6;--quiet:#e4e1f28c;
+  --pill:linear-gradient(90deg,#fff,#b8b4c8 50%,#e3e0ee);--pill-ink:#12052b}
+.st-card.is-super10.tier-star .st-card-track i{background:linear-gradient(90deg,#fff,#b9a6ff)}
+.st-card.is-super10.tier-hitman{--metal:linear-gradient(149deg,#160738 0%,#0a031c 60%,#050109 100%);--quiet:#f5c451d9;
+  --pill:linear-gradient(90deg,#fff1b8,#f5c451 55%,#e2f27a 80%,#c79a32);--pill-ink:#2a1a05;border-color:#0000;
+  background:var(--metal) padding-box,linear-gradient(135deg,#fff1b8 0%,#f5c451 28%,#e2f27a 50%,#f0c248 62%,#a8741e 100%) border-box}
+.st-card.is-super10.tier-hitman::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(70% 90% at 88% 10%,#f5c45138,#c6ff1a0d 45%,#f5c45100 100%)}
+.st-card.is-super10.tier-hitman .st-card-name b,.st-card.is-super10.tier-hitman .st-card-figure b{
+  background:linear-gradient(180deg,#fff4c7 0%,#f5c451 45%,#e0a93a 75%,#b8862b 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.st-card.is-super10.tier-hitman .st-card-rim{border-color:#e7d36a5c}
+.st-card.is-super10.tier-hitman .st-card-track{background:#f5c45129}
+.st-card.is-super10.tier-hitman .st-card-track i{background:linear-gradient(90deg,#ffe7a3,#f5c451 60%,#d9f25a)}
+.st-card.is-super10.tier-hitman .st-card-who .board-kit{box-shadow:0 0 0 2px #f5c451}
 
 /* ── Rivals (UI v1, the handover's section 08) ───────────────────────────────
    Every Rivals screen stands on BG / Rivals: your blue bloom top left, their
