@@ -4,7 +4,8 @@
  * scoreboard and every key put out of sight between two black bars, the
  * bowler held at his mark; it ends by itself on the game's view and the first
  * ball follows; the next visit opens on the other film; PLAY AGAIN goes
- * straight to the ball; a tap skips it at once; and without the switch an
+ * straight to the ball, and another mode's first innings that visit has one
+ * of its own; a tap skips it at once; and without the switch an
  * innings opens as it always did. It photographs both films at their beats,
  * pinned on their own clocks (`__cricket.introAt`), into
  * test-results/intro-*.png.
@@ -104,6 +105,23 @@ console.log('ends by itself, and takes turns');
   await advance(300);
   check(!(await walking()), 'PLAY AGAIN goes straight to the ball, with no walk-on');
   check(await bowled(), 'and the bowler runs in');
+
+  // Another mode, the same visit: its first innings has one too.
+  await page.evaluate(() => window.__cricket.finish());
+  const change = page.locator('#card-change');
+  for (let i = 0; i < 60 && !(await change.isVisible().catch(() => false)); i++) await advance(250);
+  await change.click({ force: true });
+  await advance(600);
+  await page.locator('#mode-survive').click({ force: true, timeout: 15_000 });
+  await advance(100);
+  check(!!(await walking()), 'a mode not yet played this visit opens on a walk-on', await walking());
+  for (let i = 0; i < 40 && await walking(); i++) await advance(250);
+  check(await bowled(), 'and its first ball follows');
+  await page.evaluate(() => window.__cricket.finish());
+  for (let i = 0; i < 60 && !(await again.isVisible().catch(() => false)); i++) await advance(250);
+  await again.click({ force: true });
+  await advance(300);
+  check(!(await walking()), 'and its PLAY AGAIN goes straight to the ball');
 
   // The next visit, in the same browser, opens on the other film.
   await visit('&intro=1');

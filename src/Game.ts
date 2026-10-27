@@ -2201,12 +2201,12 @@ export class Game {
     (document.activeElement as HTMLElement | null)?.blur();
     // The coachmarks and the chase's card wait for the walk-on, where there is one.
     const told = () => { if (this.marathoning) this.introduce(); else this.teachShots(); this.startChase(); };
-    if (this.introAsked && !this.walkedOnce && !this.demoing) this.walkOn(told); else told();
+    if (this.introAsked && !this.walkedIn.has(this.mode) && !this.demoing) this.walkOn(told); else told();
   };
   /**
-   * `?intro=1`: the walk-on (`IntroReel.ts`), before the first innings of a
-   * visit and never again in it, so PLAY AGAIN and a restart go straight to
-   * the ball. One of two films, the other one from last time (`nextFilm`,
+   * `?intro=1`: the walk-on (`IntroReel.ts`), before the first innings of
+   * each mode in a visit (`walkedIn`): PLAY AGAIN and a restart go straight
+   * to the ball, and a mode chosen that has not had one yet gets one. One of two films, the other one from last time (`nextFilm`,
    * kept in `hitman-walk-on`, drawn from the page's dice and never from the
    * innings' seed); `?intro=bat` or `?intro=duel` asks for one. A prototype,
    * so only where it is asked for. The bowler waits at his mark until it is
@@ -2216,7 +2216,8 @@ export class Game {
     const asked = new URLSearchParams(location.search).get('intro');
     return asked === 'bat' || asked === 'duel' ? asked : asked === '1' ? true : null;
   })();
-  private walkedOnce = false;
+  /** The modes that have had their walk-on this visit. */
+  private readonly walkedIn = new Set<GameMode>();
   private walking: { start: number; film: Film; then: () => void } | null = null;
   /** Where the checks pin the walk-on's clock (`__cricket.introAt`), or null to let it run. */
   private introPin: number | null = null;
@@ -2225,7 +2226,7 @@ export class Game {
     try { const kept = localStorage.getItem(WALK_ON_KEY); last = kept === 'bat' || kept === 'duel' ? kept : null; } catch { /* Then a coin. */ }
     const film = this.introAsked === true ? nextFilm(last, Math.random()) : this.introAsked!;
     try { localStorage.setItem(WALK_ON_KEY, film); } catch { /* Then the same one may come round again. */ }
-    this.walkedOnce = true;
+    this.walkedIn.add(this.mode);
     this.walking = { start: this.elapsed, film, then };
     this.bannerUntil = Number.POSITIVE_INFINITY;
     this.scene.walkOn(this.elapsed, film); this.scene.introAt(this.introPin);

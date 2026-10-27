@@ -1513,8 +1513,9 @@ walks when it moves on. GoatCounter counts `newcomer-1` to `-3` a mode.
 
 ## The walk-on: `?intro=1`
 
-A prototype, only where the link asks for it: before the first innings of a
-visit — never on PLAY AGAIN or a restart (`walkedOnce` in `src/Game.ts`) — one
+A prototype, only where the link asks for it: before the first innings of
+each mode in a visit — never on PLAY AGAIN or a restart, and once for each
+mode chosen (`walkedIn` in `src/Game.ts`) — one
 of two slow films, each a function of its own clock (`src/game/IntroReel.ts`),
 drawn through `GameScene.cinematic`. They take turns: each visit opens on the
 other one from last time (`nextFilm`, kept in `hitman-walk-on`, the first a
