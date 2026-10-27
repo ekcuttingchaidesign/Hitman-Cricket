@@ -127,6 +127,7 @@ import {
 import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
 import { practiceSwitches } from './game/practice';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
+import { batting, readPlaytime, writePlaytime } from './game/playtime';
 import { ChallengeRun, ageOf, emptyList, noteResult, recentForm, rivalryView, roomView, type ListView, type Me, type RoomView } from './game/Challenge';
 import {
   CODE_PARAM, challengeLink, copy, fetchRivalsBoard, hideChallenge, rivalryEntries, seenHere, whatsapp, type Challenge, type RivalsRow,
@@ -272,6 +273,8 @@ const FIELD_WAIT_MS = 6000;
  * is about a second and a quarter, and one cut short by the run-up was a dip.
  */
 const TAP_WAIT_MS = 1400;
+/** How much play is kept in memory before it is added to the day's and week's totals: a mark goes out at most this late. */
+const BATTED_FOLD_MS = 5000;
 
 export class Game {
   private phase: GamePhase = 'START';
@@ -348,6 +351,13 @@ export class Game {
    * the cover all afternoon has not been played all afternoon.
    */
   private playedMs = 0;
+  /**
+   * Play not yet added to the day's and week's totals (`playtime.ts`), folded
+   * in every few seconds and when the tab is hidden, and whether this browser
+   * keeps those totals at all: not where it cannot remember or is not counted.
+   */
+  private batted = 0;
+  private timing = false;
   /** What that clock read when this innings began. */
   private inningsFrom = 0;
   /** What this innings did with the spinner's short ball and the pull off him, and with the bouncer to hook, counted at its end. */
@@ -2271,6 +2281,18 @@ export class Game {
     const { visits, events } = visiting(held, today());
     writeVisits(visits);
     events.forEach(event => track(event));
+    this.timing = true;
+    this.foldBatting();
+  }
+
+  /** The play since the last fold, onto today's and this week's totals, and any mark either has passed. */
+  private foldBatting() {
+    const ms = this.batted;
+    this.batted = 0;
+    if (!this.timing) return;
+    const { playtime, events } = batting(readPlaytime(), today(), ms);
+    writePlaytime(playtime);
+    events.forEach(event => track(event));
   }
 
   /** Test Survival: its rules, its board, its chase. */
@@ -3605,7 +3627,7 @@ export class Game {
 
   /** The Test innings just played, as its board ranks it. */
   private survived() { return asSurvive(this.score, this.health.blows.length, this.health.value); }
-  private visibility = () => { this.audio.background(document.hidden); if (document.hidden && !['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
+  private visibility = () => { this.audio.background(document.hidden); if (document.hidden) this.foldBatting(); if (document.hidden && !['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
   private blur = () => { if (!['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
   /**
    * Leaving a long Marathon asks first. Nothing of an innings is kept until it
@@ -3615,6 +3637,7 @@ export class Game {
    * reach of this, which is why it is a question and not a save.
    */
   private leaving = (event: BeforeUnloadEvent) => {
+    this.foldBatting();
     if (!this.marathoning || !this.marathon || this.marathon.ended || this.phase === 'INNINGS_END') return;
     if (this.marathon.balls < MARATHON.warnFrom) return;
     event.preventDefault();
@@ -3726,6 +3749,8 @@ export class Game {
       // into slow motion: a second of slow motion is still a second of playing.
       this.playedMs += dt;
       marksPassed(this.playedMs).forEach(mark => trackOnce(mark, `Played ${mark.slice(7)}`));
+      this.batted += dt;
+      if (this.batted >= BATTED_FOLD_MS) this.foldBatting();
     }
     if (this.phase !== 'PAUSED' && !document.hidden) {
       // A stroke's film held on one frame for its swipe, on the page's clock.
