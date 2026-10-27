@@ -5684,7 +5684,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .woc-figure+.woc-figure{border-left:1px solid var(--c-line);padding-left:calc(10 * var(--u))}
 .woc-figure b{font-family:var(--f-display);font-size:calc(22 * var(--u));line-height:1;font-weight:400}
 .woc-figure span{font-size:calc(10 * var(--u));font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-text-2)}
-.woc-debut{justify-self:start;font-family:var(--f-display);font-size:calc(22 * var(--u));letter-spacing:.14em;text-transform:uppercase;
+.woc.is-debut{width:max-content;max-width:100%}
+.woc-debut{flex:none;align-self:center;margin-left:calc(4 * var(--u));font-family:var(--f-display);font-size:calc(22 * var(--u));letter-spacing:.14em;text-transform:uppercase;
   color:#1a1206;background:linear-gradient(180deg,#ffd77a,var(--c-gold));padding:calc(4 * var(--u)) calc(12 * var(--u));border-radius:calc(3 * var(--u));
   animation:woc-stamp .45s .4s cubic-bezier(.3,1.6,.5,1) both}
 @keyframes woc-wipe{from{clip-path:inset(0 100% 0 0);transform:translateX(calc(-12 * var(--u)))}to{clip-path:inset(0 0 0 0);transform:none}}
