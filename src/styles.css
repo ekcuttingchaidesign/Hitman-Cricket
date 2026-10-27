@@ -1895,6 +1895,9 @@ body.start-screen #sound{pointer-events:auto}
 .mi-tag b{font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase;font-variation-settings:'opsz' 6}
 .mi-tag i{position:absolute;left:var(--point);top:calc(var(--u) * -7);width:calc(var(--u) * 12);height:calc(var(--u) * 6);margin-left:calc(var(--u) * -6);background:#fff;clip-path:polygon(50% 0,100% 100%,0 100%)}
 .mi-tag.is-above i{top:auto;bottom:calc(var(--u) * -6);clip-path:polygon(0 0,100% 0,50% 100%)}
+/* Beside the outline: the pointer on the side facing it, halfway down. */
+.mi-tag.is-beside i{left:auto;right:calc(var(--u) * -6);top:50%;width:calc(var(--u) * 6);height:calc(var(--u) * 12);margin:calc(var(--u) * -6) 0 0;clip-path:polygon(0 0,100% 50%,0 100%)}
+.mi-tag.is-beside.is-right i{right:auto;left:calc(var(--u) * -6);clip-path:polygon(100% 0,0 50%,100% 100%)}
 .mi-spot.hidden,.mi-tag.hidden{display:none}
 .mi-stage{position:absolute;inset:0;pointer-events:none}
 

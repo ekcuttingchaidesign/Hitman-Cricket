@@ -2566,25 +2566,38 @@ ${super10PageMarkup(excitedAlready())}
       this.$('mi-scrim-path').setAttribute('d', d);
       return;
     }
-    const pad = 8 * u;
-    const x = box.x - pad, y = box.y - pad, sw = box.w + pad * 2, sh = box.h + pad * 2;
+    // The outline kept inside the screen: round a widget in a corner it ran off the edge.
+    const pad = 8 * u, edge = 4 * u;
+    const x = Math.max(edge, box.x - pad), y = Math.max(edge, box.y - pad);
+    const sw = Math.min(w - edge, box.x + box.w + pad) - x, sh = Math.min(h - edge, box.y + box.h + pad) - y;
     const r = Math.min(20 * u, sh / 2, sw / 2);
     d += `M${x + r} ${y}H${x + sw - r}A${r} ${r} 0 0 1 ${x + sw} ${y + r}V${y + sh - r}A${r} ${r} 0 0 1 ${x + sw - r} ${y + sh}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + sh - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
     this.$('mi-scrim-path').setAttribute('d', d);
     Object.assign(spot.style, { left: `${x}px`, top: `${y}px`, width: `${sw}px`, height: `${sh}px`, borderRadius: `${r}px` });
     spot.classList.remove('hidden');
-    // The tag hangs under the outline on a pointer, kept inside the screen;
-    // over it for a widget in the lower half (Super10's field map in its
-    // corner), and the card is lifted clear of both.
+    // The tag hangs under the outline on a pointer, kept inside the screen.
+    // A widget low in a corner (Super10's field map) has it beside the
+    // outline instead, pointing in from the open side, and the card sits just
+    // over the outline at its usual margins: over the tag as well, it stood
+    // halfway up the screen with the tag squeezed against the edge under it.
     const low = box.y > h / 2;
+    const cx = x + sw / 2;
+    const beside = low && (cx > w * .6 || cx < w * .4) ? (cx > w / 2 ? 'left' : 'right') : null;
     tag.innerHTML = `<i></i><b>${step.tag ?? ''}</b>`;
     tag.classList.remove('hidden');
-    tag.classList.toggle('is-above', low);
-    const cx = x + sw / 2;
-    const width = tag.offsetWidth;
+    tag.classList.toggle('is-above', low && !beside);
+    tag.classList.toggle('is-beside', !!beside);
+    tag.classList.toggle('is-right', beside === 'right');
+    const width = tag.offsetWidth, height = tag.offsetHeight;
+    if (beside) {
+      const left = beside === 'left' ? x - width - 12 * u : x + sw + 12 * u;
+      Object.assign(tag.style, { left: `${left}px`, top: `${y + sh / 2 - height / 2}px` });
+      card.style.bottom = `${h - y + 14 * u}px`;
+      return;
+    }
     const left = Math.min(Math.max(cx - width / 2, 12 * u), w - width - 12 * u);
-    Object.assign(tag.style, { left: `${left}px`, top: `${low ? y - tag.offsetHeight - 14 * u : y + sh + 14 * u}px` });
-    if (low) card.style.bottom = `${h - y + tag.offsetHeight + 30 * u}px`;
+    Object.assign(tag.style, { left: `${left}px`, top: `${low ? y - height - 14 * u : y + sh + 14 * u}px` });
+    if (low) card.style.bottom = `${h - y + height + 30 * u}px`;
     tag.style.setProperty('--point', `${cx - left}px`);
   }
   /** The pause card's declaration, offered in a Marathon from twenty overs. */
