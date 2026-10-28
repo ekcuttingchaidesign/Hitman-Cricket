@@ -100,6 +100,8 @@ import { replayAnimation, replayClass } from './replay';
 import { activitySheetMarkup } from './Activity';
 import type { OwnActivity } from '../game/profile-api';
 import wifiOff from '../assets/board/wifi-off.svg?raw';
+/** Each poster on Choose a mode's rail, by its mode, to its dot in the pager under it. */
+const POSTER_DOTS: Record<string, string> = { CLASSIC: 'blast', MARATHON: 'marathon', SUPER10: 'super10', SURVIVE: 'survival' };
 /** OPENER to Opener and NO. 3 to No. 3: the batters' titles as a scorecard writes them. */
 const titleCase = (title: string) => title.charAt(0) + title.slice(1).toLowerCase();
 /** 1st, 2nd, 3rd, 12th. The board sheet spells them the same way. */
@@ -1757,6 +1759,10 @@ ${modeSelectMarkup()}
 
   /** How long one card holds before it moves on by itself. */
   static readonly STORY_MS = 7000;
+  /** How long a film's last frame holds, off the cover, before the stories go on to Choose a mode. */
+  static readonly FILM_LEAVE_MS = 4000;
+  /** A story's film fetched whole while the cover is up (`warmStories`), played from memory when it opens. */
+  private storyVideo: { src: string; url: string | null } | null = null;
 
   private storyLocked = false;
 
@@ -1803,8 +1809,23 @@ ${modeSelectMarkup()}
       if (story.film) this.storyFilm = playFilm(film, story.film, { fit: wide ? 'xMidYMid slice' : 'xMidYMax meet' });
       else if (film instanceof HTMLVideoElement) {
         // Played once and held on its last frame; under reduced motion, that frame and nothing played.
-        if (matchMedia('(prefers-reduced-motion: reduce)').matches && story.still) { film.removeAttribute('src'); film.poster = story.still; film.load(); }
+        const still = matchMedia('(prefers-reduced-motion: reduce)').matches && !!story.still;
+        // The film warmed on the cover (`warmStories`) plays from memory, with nothing to wait for.
+        const warmed = this.storyVideo?.src === story.video ? this.storyVideo?.url : null;
+        if (!still && warmed) film.src = warmed;
+        if (still) { film.removeAttribute('src'); film.poster = story.still!; film.load(); }
         else void film.play().catch(() => { if (story.still) film.poster = story.still; });
+        // Off the cover, the last card's film moves on to Choose a mode by itself a few
+        // seconds after it ends, its bar filling meanwhile; from the board it stays for its keys.
+        if (this.storyWhere === 'intro' && storyHolds(this.storyAt, this.storyRun)) {
+          const leave = () => {
+            window.clearTimeout(this.storyHold);
+            const bar = overlay.querySelector<HTMLElement>('.whatsnew-bar.is-live');
+            if (bar) { bar.style.setProperty('--hold', `${HUD.FILM_LEAVE_MS}ms`); bar.classList.remove('is-held'); }
+            this.storyHold = window.setTimeout(() => { if (this.storiesOpen) this.closeStories(); }, HUD.FILM_LEAVE_MS);
+          };
+          if (still) leave(); else film.addEventListener('ended', leave, { once: true });
+        }
       }
     }
     const stage = document.getElementById('whatsnew-stage');
@@ -1913,7 +1934,14 @@ ${modeSelectMarkup()}
 
   /** The stories' stage made ahead, while the cover is up, so the first story does not open on an empty room. */
   /** Only for an update told on the room's stage: building it for nothing costs a phone its first seconds. */
-  warmStories() { if (STORIES.some(one => one.stage)) (this.storyStage ??= new StoryStage()).warm(); }
+  warmStories() {
+    if (STORIES.some(one => one.stage)) (this.storyStage ??= new StoryStage()).warm();
+    // A film is fetched whole into memory, so it opens playing rather than buffering.
+    const video = STORIES.find(one => one.video)?.video;
+    if (!video || this.storyVideo) return;
+    const held = this.storyVideo = { src: video, url: null as string | null };
+    void fetch(video).then(r => (r.ok ? r.blob() : null)).then(blob => { if (blob) held.url = URL.createObjectURL(blob); }).catch(() => { /* Then it streams, as before. */ });
+  }
 
   /** `open` when the way in put them away, which is counted apart from leaving. */
   closeStories(how: 'leave' | 'open' = 'leave') {
@@ -2073,7 +2101,13 @@ ${modeSelectMarkup()}
   showMarathonTab(on: boolean) { this.marathonTab = on; }
   /** Super10's tab on the boards and its PLAY card on Choose a mode, where the mode can be reached (`SUPER10_OPEN`). */
   private super10Tab = false;
-  showSuper10Tab(on: boolean) { this.super10Tab = on; this.$('mode-super10').classList.toggle('hidden', !on); }
+  showSuper10Tab(on: boolean) {
+    this.super10Tab = on;
+    this.$('mode-super10').classList.toggle('hidden', !on);
+    // Its poster on the rail goes with it, and its dot.
+    this.$('mode-super10-poster').classList.toggle('hidden', !on);
+    this.viewport.querySelector('.ms-pager .is-super10')?.classList.toggle('hidden', !on);
+  }
   /** What a tab does. The game decides, because the rows are the game's. */
   onBoardTab: ((tab: SheetTab) => void) | null = null;
   /** What the sheet's What's New key does. */
@@ -4215,7 +4249,7 @@ ${modeSelectMarkup()}
       for (const poster of this.posters()) {
         const box = poster.getBoundingClientRect();
         poster.style.setProperty('--drift', String(Math.round((middle - (box.left + box.width / 2)) * 0.2)));
-        const dot = this.viewport.querySelector(`.ms-pager .is-${poster.classList.contains('is-blast') ? 'blast' : poster.classList.contains('is-marathon') ? 'marathon' : 'survival'}`);
+        const dot = this.viewport.querySelector(`.ms-pager .is-${POSTER_DOTS[poster.dataset.mode ?? ''] ?? 'blast'}`);
         dot?.classList.toggle('is-on', poster === settled);
       }
     };
@@ -4242,7 +4276,7 @@ ${modeSelectMarkup()}
   private super10Spark!: Super10Spark;
 
   /** The mode picker, settled on `at` (the mode played last). Skipped entirely when a link has already named the mode. */
-  modes(at: 'CLASSIC' | 'MARATHON' | 'SURVIVE' = 'CLASSIC') {
+  modes(at: 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' = 'CLASSIC') {
     // Whatever was over the ground goes first. The picker is a screen, and both
     // end cards sit later in the markup on the same layer — opened from one of
     // them the picker appeared *behind* it, which read as the key doing nothing.

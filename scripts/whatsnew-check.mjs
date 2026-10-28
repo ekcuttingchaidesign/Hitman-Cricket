@@ -108,11 +108,18 @@ check(film.above, 'and stops above the ways out', JSON.stringify(film));
 check(film.bars === 1 && film.unseen, 'one bar, its title read out rather than shown over the film', JSON.stringify(film));
 check(film.out === 'GOT IT' && film.open === 'PLAY SUPER10', 'GOT IT and PLAY SUPER10 under it', JSON.stringify(film));
 
-// It holds on the film's last frame: the last card with a way in never moves on by itself.
-await tick(20000, 200);
-check(!!(await page.$('.whatsnew-sheet')) && !(await page.$eval('#whatsnew-overlay', node => node.classList.contains('hidden'))),
-  'it holds, rather than moving on under a thumb reaching for PLAY SUPER10');
-await page.click('#whatsnew-done');
+// Fetched whole while the cover was up, so it plays from memory rather than buffering.
+check((await page.$eval('#whatsnew-film', v => v.currentSrc)).startsWith('blob:'), 'the film was fetched ahead, on the cover, and plays from memory',
+  await page.$eval('#whatsnew-film', v => v.currentSrc));
+// It plays to its end on the media clock, then holds on its last frame for a few
+// seconds of the page's clock, its bar filling, and goes on to Choose a mode by itself.
+for (let i = 0; i < 120 && !(await page.$eval('#whatsnew-film', v => v.ended)); i++) await page.waitForTimeout(250);
+check(await page.$eval('#whatsnew-film', v => v.ended), 'the film plays to its end');
+await tick(2500, 200);
+const holding = await page.evaluate(() => ({ up: !document.getElementById('whatsnew-overlay')?.classList.contains('hidden'),
+  filling: !!document.querySelector('.whatsnew-bar.is-live:not(.is-held)') }));
+check(holding.up && holding.filling, 'it holds on the last frame a moment, its bar filling', JSON.stringify(holding));
+await tick(2500, 200);
 await tick(700);
 // Where skipping goes is the build's: Choose a mode where there is one to
 // choose, the innings where the build has chosen. Either way, somewhere.
@@ -120,7 +127,19 @@ const landed = async () => ({ hidden: await page.$eval('#whatsnew-overlay', node
   picked: await page.$eval('#modes', node => !node.classList.contains('hidden')),
   batting: await page.$eval('#start', node => !node.offsetParent).catch(() => true) });
 const skippedTo = await landed();
-check(skippedTo.hidden && (skippedTo.picked || skippedTo.batting), 'and lands on Choose a mode or the innings', JSON.stringify(skippedTo));
+check(skippedTo.hidden && (skippedTo.picked || skippedTo.batting), 'then moves on by itself to Choose a mode or the innings', JSON.stringify(skippedTo));
+if (skippedTo.picked) {
+  const front = await page.evaluate(() => {
+    const rail = document.getElementById('modes-rail').getBoundingClientRect();
+    let best = null, most = -1;
+    for (const p of document.querySelectorAll('#modes-rail .ms-poster:not(.hidden)')) {
+      const box = p.getBoundingClientRect(), seen = Math.min(box.right, rail.right) - Math.max(box.left, rail.left);
+      if (seen > most + 1) { most = seen; best = p.dataset.mode; }
+    }
+    return best;
+  });
+  check(front === 'SUPER10', "settled on Super10's poster", front);
+}
 check(await seen() === `${UPDATE}:1`, 'the showing is counted', await seen());
 
 // ── Twice, and then never ──────────────────────────────────────────────────

@@ -55,7 +55,7 @@ import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
 import { cardShown, filmLength, introBars, nextFilm, type Film } from './game/IntroReel';
 import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
-import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
+import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type CameraPose, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
 import { boundaryCheer, boundaryStreak, GROAN, HUSH, milestoneCheer, MURMUR, nearMiss, RUNUP, SEND_OFF } from './game/crowd';
@@ -100,7 +100,7 @@ import type { LocalCareer } from './ui/Restore';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import { headline } from './ui/Activity';
 import type { BatterKit } from './entities/Batter';
-import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
+import { STORIES, markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, standingOf, tierMeasure, TIERS, type Granted } from './game/tier';
 import { LevelUp } from './ui/LevelUp';
@@ -250,10 +250,10 @@ const SUPER10_SHELF = SUPER10_OPEN && !SUPER10_ONLY;
 const LAST_MODE_KEY = 'hitman-last-mode';
 /** Which walk-on film this browser saw last, so the next visit opens on the other (`nextFilm`). */
 const WALK_ON_KEY = 'hitman-walk-on';
-function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' {
+function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' {
   try {
     const kept = localStorage.getItem(LAST_MODE_KEY);
-    return kept === 'MARATHON' || kept === 'SURVIVE' ? kept : 'CLASSIC';
+    return kept === 'MARATHON' || kept === 'SURVIVE' || (kept === 'SUPER10' && SUPER10_OPEN && !SUPER10_ONLY) ? kept : 'CLASSIC';
   } catch { return 'CLASSIC'; }
 }
 
@@ -776,7 +776,7 @@ export class Game {
     // second or two to make on a phone. Where they are due, it is made while the
     // cover is up, a moment after the game's own load, so the first story opens
     // on the batter rather than on an empty room.
-    if (!NO_BOARD && whatsNewDue()) window.setTimeout(() => { if (whatsNewDue() && this.phase === 'START' && !this.disposed) this.hud.warmStories(); }, 1500);
+    if (!NO_BOARD && whatsNewDue()) window.setTimeout(() => { if (whatsNewDue() && this.phase === 'START' && !this.disposed) this.hud.warmStories(); }, 800);
     this.hud.on('mode-classic', () => { this.hud.closeModes(); this.choose('CLASSIC'); });
     this.hud.on('mode-survive', () => { this.hud.closeModes(); this.choose('SURVIVE'); });
     this.hud.on('mode-marathon', () => { this.hud.closeModes(); this.choose('MARATHON'); });
@@ -794,6 +794,7 @@ export class Game {
     this.hud.on('modes-dressing', () => this.openDressing('modes'));
     // Super10's PLAY card: the whole card plays it.
     this.hud.on('mode-super10', () => { track('super10-play-card', 'Played Super10 from its card on Choose a mode'); this.choose('SUPER10'); });
+    this.hud.on('mode-super10-poster', () => { track('super10-play-poster', 'Played Super10 from its poster on Choose a mode'); this.choose('SUPER10'); });
     // My Stats from Choose a mode: the avatar at the top and the tier card in the bento.
     this.hud.on('modes-profile', this.showStats);
     this.hud.on('modes-stats', this.showStats);
@@ -841,7 +842,7 @@ export class Game {
     this.hud.on('room-card', () => this.hud.onRoomAct?.('card'));
     this.hud.on('modes-cancel', this.closePicker);
     this.hud.on('survive-again', this.start);
-    this.hud.on('survive-modes', this.modes);
+    this.hud.on('survive-modes', () => this.modes());
     this.hud.on('card-result', () => this.backToResult());
     this.hud.on('card-modes', () => { this.hud.hideScorecard(); this.leaveRoom(); });
     // The Marathon card's own two keys under its play-again key.
@@ -1118,6 +1119,10 @@ export class Game {
       /** The walk-on's clock pinned at `t` milliseconds, or let run again with null. */
       introAt: (t: number | null) => { this.introPin = t; this.scene.introAt(t); },
       walkingOn: () => this.walking?.film ?? null,
+      /** The camera held where it is put, for photographing a ground; null hands it back to the game. */
+      camera: (pose: CameraPose | null) => this.scene.cinematic(pose ? () => pose : null),
+      /** Fireworks over the far end for `ms`, on any ground after dark, for photographing. */
+      burst: (ms = 3000) => this.scene.fireworks(this.elapsed, ms),
       // New #1 by board, over a made-up board, for `topspot-check.mjs`: `topSpot('marathon')`.
       topSpot: (mode?: CareerMode) => this.previewTopSpot(mode),
       // Whether it is playing.
@@ -1136,14 +1141,14 @@ export class Game {
    * the Test card it is the card's music handing over to the screen that has
    * just replaced the card.
    */
-  private modes = () => {
+  private modes = (at = lastMode()) => {
     this.audio.music('cover');
     // The bar rides on the picker, capped at two showings. Nothing is issued
     // yet, so it only appears where a key exists to be saved.
     this.hud.careerKey(this.careerKeyHeld(), { panel: false, bar: true });
     // The picker replaces the card, and the stars were asked of the card.
     this.putRatingAway();
-    this.hud.modes(lastMode());
+    this.hud.modes(at);
     // What this browser already knows goes up with the screen, and the places
     // the store keeps are asked for behind it.
     const view = this.modeSelectView();
@@ -2210,7 +2215,7 @@ export class Game {
   choose = (mode: GameMode) => {
     this.mode = mode;
     // The mode played last, where Choose a mode's rail opens next time.
-    try { if (mode === 'CLASSIC' || mode === 'MARATHON' || mode === 'SURVIVE') localStorage.setItem(LAST_MODE_KEY, mode); } catch { /* Then it opens on the Blast. */ }
+    try { if (mode === 'CLASSIC' || mode === 'MARATHON' || mode === 'SURVIVE' || mode === 'SUPER10') localStorage.setItem(LAST_MODE_KEY, mode); } catch { /* Then it opens on the Blast. */ }
     this.walkOut();
   };
   /**
@@ -3137,7 +3142,9 @@ export class Game {
     // A build with nothing but one mode in it has no update to tell.
     if (NO_BOARD || !whatsNewDue()) return go();
     markWhatsNewShown();
-    this.showStories('intro', go);
+    // Put away, or moved on from by themselves, the Super10 film's stories land on its poster.
+    const told = STORIES.some(one => one.opens === 'super10') && SUPER10_OPEN && !SUPER10_ONLY;
+    this.showStories('intro', () => (this.locked ? this.walkOut() : this.modes(told ? 'SUPER10' : lastMode())));
   };
 
   /**

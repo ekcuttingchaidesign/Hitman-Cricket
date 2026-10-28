@@ -67,12 +67,14 @@ describe('Choose a mode', () => {
     }
   });
 
-  it("puts the three posters on one rail, the Blast first, with Super10's PLAY card under it", () => {
+  it("puts the four posters on one rail, the Blast first and Super10 third, with Super10's PLAY card under it", () => {
     const screen = modeSelectMarkup();
-    const order = ['mode-classic', 'mode-marathon', 'mode-survive', 'mode-super10'].map(id => screen.indexOf(`id="${id}"`));
+    const order = ['mode-classic', 'mode-marathon', 'mode-super10-poster', 'mode-survive', 'mode-super10'].map(id => screen.indexOf(`id="${id}"`));
     expect(order.every((at, i) => at > 0 && (i === 0 || at > order[i - 1]))).toBe(true);
     expect(screen).toContain('id="modes-rail"');
-    expect(screen.match(/class="ms-poster /g)).toHaveLength(3);
+    expect(screen.match(/class="ms-poster /g)).toHaveLength(4);
+    // Each poster has its dot in the pager under the rail.
+    expect(screen.match(/<i class="is-(blast|marathon|super10|survival)"><\/i>/g)).toHaveLength(4);
     expect(screen).not.toContain('COMING SOON');
     // The whole card plays it, its key saying so, with the canvas its motion is drawn on.
     const card = screen.slice(screen.indexOf('id="mode-super10"'));

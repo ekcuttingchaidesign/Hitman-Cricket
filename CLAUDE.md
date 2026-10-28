@@ -546,19 +546,27 @@ plays two devices for one player against the dev server's store; it passes
 otherwise keep nothing.
 
 The update's What's new is one story, Super10, as a video (`Story.video`,
-`public/stories/super10.mp4`, 720 by 1280 and fifteen seconds, about 3.4 MB;
+`public/stories/super10.mp4`, 720 by 1280 and fifteen seconds, about 2.8 MB;
 its last frame `super10-lockup.webp` is `Story.still`, shown in its place
-under reduced motion): the floodlights come on and the mark is built as it is
-named, shards in, SUPER slammed down a letter at a time and the 10 dropped in
-Volt with a crack of lightning; then the mode in three hits, 10 OVERS, 5
-BOWLERS on the speed gun and POWER SURGE, two men in and a six over them; then
-the team kits on the batter on the Dressing Room's turntable, each sweeping
-on over the last with its name; and he raises his bat under the mark, held.
-No count of kits in it. It plays muted down the sheet on the page's black and
-holds on its last frame with GOT IT and PLAY SUPER10 under it (`opens:
-'super10'`, `playFromStory`: straight out to a Super10 innings, Choose a mode
-passed by; from the board in the middle of an innings it only puts the
-stories away). It was made in Remotion, not committed, as the films before it
+under reduced motion): lightning strikes from the roof on the first frame and
+the mark is built where it lands, shards in, SUPER slammed down a letter at a
+time and the 10 dropped in Volt with a crack, a burst of speed lines and a
+shockwave, all inside the first second; then the mode in three hits, 10
+OVERS, NEW STADIUM (the canopy at night with SIX on its big screen, a
+photograph off the game through `__cricket.camera` and `__cricket.burst`,
+`wip/s10-stadium-shots.mjs`) and POWER SURGE, two men in and a six over
+them; then the team kits on the batter on the Dressing Room's turntable,
+each sweeping on over the last with its name; and he raises his bat just
+under the mark, held. No count of kits or bowlers in it. It is fetched whole
+into memory while the cover is up (`warmStories`, a blob URL), so it opens
+playing rather than buffering. It plays muted down the sheet on the page's
+black and holds on its last frame with GOT IT and PLAY SUPER10 under it
+(`opens: 'super10'`, `playFromStory`: straight out to a Super10 innings,
+Choose a mode passed by; from the board in the middle of an innings it only
+puts the stories away). Off the cover, four seconds after the film ends
+(`FILM_LEAVE_MS`, its bar filling meanwhile) it goes on to Choose a mode by
+itself, as GOT IT does, and both land on Super10's poster; opened from the
+board it waits for its keys. It was made in Remotion, not committed, as the films before it
 were not: `wip/super10-film/` on the machine that made it (`src/` the
 composition, `capture/` and `wip/s10-film-capture.mjs` the turntable frames
 off the real stage, rendered with `--sequence` through the system Chrome and
@@ -1834,8 +1842,9 @@ innings in the pick.
 
 ## Choose a mode's rail, and Super10's PLAY card
 
-Choose a mode puts the Blast, the Test Marathon and Test Survival on one
-swipeable rail of posters 240 wide (Figma 16E, `450:5037`; `#modes-rail` in
+Choose a mode puts the Blast, the Test Marathon, Super10 and Test Survival on one
+swipeable rail of posters 240 wide (Super10's `#mode-super10-poster`, its PLAY
+card's picture and logo, hidden with the card where Super10 cannot be played) (Figma 16E, `450:5037`; `#modes-rail` in
 `ModeSelect.ts`, `.ms-rail` in `src/super10-page.css`): CSS scroll snap, the
 first at the left gutter, the middle centred, the last at the right, a pager
 under it whose dot stretches in the colour of the poster settled on
@@ -1844,8 +1853,8 @@ slower than its card (`--drift`). A tap on a card half off the side brings it
 in rather than playing it (a capture-phase listener in `wireRail`), so PLAY
 is only pressed on the card in front; a Playwright click scrolls its target
 into view first, so the checks' `#mode-survive` clicks still play. The rail
-opens on the mode played last (`hitman-last-mode`, written in `choose`), the
-Blast for a new player, and the arrow keys move it on a desktop (`stepRail`).
+opens on the mode played last (`hitman-last-mode`, written in `choose`, Super10
+too), the Blast for a new player, and the arrow keys move it on a desktop (`stepRail`).
 The Marathon's poster has no NEW tag any more. Survival's poster keeps `#mode-survive-line` (its rules, or its best result,
 the Not played chip stepping aside, `is-played`).
 

@@ -1013,6 +1013,7 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `rivals-list`, `rivals-head-to-head` | Rival Matches opened, and a friend's row tapped for the tally. Whether the record is looked at, and whether rivalries form. |
 | `modes-board` | The boards opened from the Leaderboards card on the mode screen, rather than from the cover's trophy. |
 | `super10-play-card` | Super10 played from its PLAY card on Choose a mode. |
+| `super10-play-poster` | Super10 played from its poster on Choose a mode's rail. |
 | `super10-open-card`, `super10-got-it`, `super10-excited` | Before release: Super10's coming-soon card opened, its page put away, and **I'M EXCITED** pressed (the store's count of it is still read by `scripts/super10-report.ts`). |
 | `rivals-ranking` | The Rivals ranking opened from the trophy key on Rival Matches. Whether anybody looks for it now it is behind an icon. |
 | `restore-open-profile` | **Played before?** tapped on the name screen. Its siblings say where else the restore sheet was opened from: `-stats`, `-board`, `-card`, and `restore-open-taken`, the link under a name the gate was told is already held. |

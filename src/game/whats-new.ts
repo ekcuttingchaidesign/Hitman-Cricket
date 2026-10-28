@@ -10,7 +10,7 @@ import type { ReelShot } from './ShotReel';
  *
  * This update is Super10, told in one film (`public/stories/super10.mp4`,
  * made in Remotion by `wip/super10-film/`): the mark built as it is named, the
- * mode in three hits (ten overs, five bowlers, Power Surge), the team kits on
+ * mode in three hits (ten overs, the new stadium, Power Surge), the team kits on
  * the batter on the Dressing Room's turntable, and the lockup, held, with
  * PLAY SUPER10 beside the way out.
  * (The player profiles were told before it in a Lottie film, the two new
@@ -112,7 +112,7 @@ export const STORIES: readonly Story[] = [
     key: 'super10',
     eyebrow: 'WHAT’S NEW · SUPER10',
     title: 'SUPER10: TEN OVERS OF REAL T10',
-    alt: 'The floodlights come on and SUPER10 is built piece by piece, the 10 landing with a crack of lightning. Then the mode: 10 overs, 5 bowlers on the speed gun, and Power Surge bringing two fielders in before the ball goes over them for six. Then the team kits, sweeping one over another on the batter as he turns on the Dressing Room’s pedestal, and he raises his bat under the logo.',
+    alt: 'Lightning strikes and SUPER10 is built piece by piece, the 10 landing with a crack of lightning. Then the mode: 10 overs, the new stadium under its lights with SIX on the big screen, and Power Surge bringing two fielders in before the ball goes over them for six. Then the team kits, sweeping one over another on the batter as he turns on the Dressing Room’s pedestal, and he raises his bat under the logo.',
     video: 'stories/super10.mp4',
     still: 'stories/super10-lockup.webp',
     // The last card with a way in holds still (`storyHolds`), on the film's last frame.

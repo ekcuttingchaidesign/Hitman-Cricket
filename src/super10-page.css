@@ -22,6 +22,15 @@
 .ms-poster.is-survival::before{background:linear-gradient(180deg,#0000 0%,#0000 38%,#5e0c17c7 66%,#5e0c17fa 100%)}
 .ms-rail .ms-poster.is-survival .ms-art{object-position:62% 30%}
 .ms-poster.is-survival.is-played .ms-stat.is-unplayed{display:none}
+/* Super10's poster: its PLAY card's picture, the bat charged at the top, ink
+   coming up from the foot under its logo, a rim from violet to Volt. */
+.ms-poster.is-super10{border:1.5px solid #0000;
+  background:linear-gradient(#12052b,#12052b) padding-box,linear-gradient(160deg,#8b5cf6e6,#8b5cf699 55%,#c6ff1ae6) border-box}
+.ms-poster.is-super10::before{background:linear-gradient(180deg,#12052b00 0%,#12052b00 36%,#12052bbf 60%,#12052bf5 76%,#12052b 100%)}
+.ms-rail .ms-poster.is-super10 .ms-art{object-position:70% 0}
+.ms-tag.is-super10{background:#c6ff1a;color:#12052b}
+.ms-poster .ms-logo{width:calc(var(--u) * 168);height:auto;margin:0 0 calc(var(--u) * -2) calc(var(--u) * -6);
+  filter:drop-shadow(0 0 calc(var(--u) * 8) #c6ff1a40) drop-shadow(0 2px 10px #00000080)}
 @media (prefers-reduced-motion:reduce){.ms-rail{scroll-behavior:auto}.ms-rail .ms-art{transform:scale(1.12)}}
 
 .ms-pager{display:flex;justify-content:center;gap:calc(var(--u) * 6);height:calc(var(--u) * 6);margin-top:calc(var(--u) * -2);flex-shrink:0}
@@ -30,6 +39,7 @@
 .ms-pager i.is-blast.is-on{background:var(--c-blast)}
 .ms-pager i.is-marathon.is-on{background:#2fa36b}
 .ms-pager i.is-survival.is-on{background:var(--c-survival)}
+.ms-pager i.is-super10.is-on{background:#c6ff1a}
 .ms-pager i.hidden{display:none}
 
 /* Super10's PLAY card (Figma section 20; its motion is Super10Card.ts): ink to

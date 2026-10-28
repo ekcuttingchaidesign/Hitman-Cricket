@@ -1,9 +1,10 @@
 /**
  * Choose a mode, as UI v1 draws it: the hub between the cover and an innings.
  *
- * Three posters on one swipeable rail, the Blast, the Test Marathon and Test
- * Survival, with the player's best and place on each (Figma 16E, 450:5037);
- * under them Super10's PLAY card, the whole card playing it (`Super10Card.ts`,
+ * Four posters on one swipeable rail, the Blast, the Test Marathon, Super10
+ * and Test Survival, with the player's best and place on each (Figma 16E,
+ * 450:5037; Super10's is its PLAY card's picture and logo); under them
+ * Super10's PLAY card, the whole card playing it (`Super10Card.ts`,
  * Figma section 20); then the boards, My Stats in the material of the tier
  * the player is on, and Rivals. A new player sees the same screen with "Not
  * played" on the posters, the Debutant card and the Rivals invitation in
@@ -97,6 +98,7 @@ export function modeSelectParts(view: ModeSelectView): Record<string, string> {
     'mode-marathon-stat': escape(posterStat(view.marathon)),
     'mode-classic-stat': escape(posterStat(view.blast)),
     'mode-survive-line': escape(surviveLine(view.survive)),
+    'mode-super10-stat': escape(posterStat(view.super10)),
     'mode-super10-tag': escape(super10CardWords(view.super10.best, view.super10.rank).tag),
     'mode-super10-line': escape(super10CardWords(view.super10.best, view.super10.rank).line),
     'modes-podium-faces': podium,
@@ -147,6 +149,13 @@ export function modeSelectMarkup(): string {
                 <span class="ms-desc">One long innings, no over limit.</span>
                 <span class="ms-foot"><span id="mode-marathon-stat" class="ms-stat">Not played</span>${play('var(--c-marathon)', '#00301a')}</span>
               </button>
+              <button id="mode-super10-poster" class="ms-poster is-super10" type="button" data-mode="SUPER10">
+                <img class="ms-art" src="${SUPER10_PICTURE}" alt="" decoding="async">
+                <span class="ms-tag is-super10">10 OVERS</span>
+                <img class="ms-logo" src="${SUPER10_LOGO}" alt="SUPER10" decoding="async">
+                <span class="ms-desc">10 overs, 5 wickets, a real field.</span>
+                <span class="ms-foot"><span id="mode-super10-stat" class="ms-stat">Not played</span>${play('#4a1fb0', '#2a0e5c')}</span>
+              </button>
               <button id="mode-survive" class="ms-poster is-survival" type="button" data-mode="SURVIVE">
                 <img class="ms-art" src="${BANNER_SURVIVAL}" alt="" decoding="async">
                 <span class="ms-tag is-survival">LAST MAN IN</span>
@@ -155,7 +164,7 @@ export function modeSelectMarkup(): string {
                 <span class="ms-foot"><span class="ms-stat is-unplayed">Not played</span>${play('#8e1424', '#5e0c17')}</span>
               </button>
             </div>
-            <div class="ms-pager" aria-hidden="true"><i class="is-blast"></i><i class="is-marathon"></i><i class="is-survival"></i></div>
+            <div class="ms-pager" aria-hidden="true"><i class="is-blast"></i><i class="is-marathon"></i><i class="is-super10"></i><i class="is-survival"></i></div>
             ${super10CardMarkup(SUPER10_PICTURE, SUPER10_LOGO)}
             <button id="modes-dressing" class="ms-dressing" type="button">
               <img class="ms-art" src="${DRESSING_CARD}" alt="" decoding="async">
