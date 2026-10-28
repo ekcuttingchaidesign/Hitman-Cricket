@@ -95,7 +95,7 @@ const filmView = () => page.evaluate(() => {
     playing: host?.tagName === 'VIDEO' && host.currentTime > 0, muted: !!host?.muted,
     above: !!box && !!done && box.bottom <= done.top + 2,
     sheet: document.querySelector('.whatsnew-sheet')?.classList.contains('is-film') ?? false,
-    bars: document.querySelectorAll('.whatsnew-bar').length, unseen: document.querySelector('.whatsnew-title')?.classList.contains('is-unseen') ?? false,
+    bars: document.querySelectorAll('.whatsnew-bar').length, barSeen: getComputedStyle(document.querySelector('.whatsnew-bars')).visibility !== 'hidden', unseen: document.querySelector('.whatsnew-title')?.classList.contains('is-unseen') ?? false,
     open: document.getElementById('whatsnew-open')?.textContent.trim() ?? null, out: document.getElementById('whatsnew-done')?.textContent.trim() };
 });
 const first = await title();
@@ -105,21 +105,16 @@ let film = await filmView();
 for (let i = 0; i < 30 && !film.playing; i++) { await page.waitForTimeout(200); film = await filmView(); }
 check(film.sheet && film.video && film.playing && film.muted && film.fit.length === 1, 'the film plays down the sheet, muted', JSON.stringify(film));
 check(film.above, 'and stops above the ways out', JSON.stringify(film));
-check(film.bars === 1 && film.unseen, 'one bar, its title read out rather than shown over the film', JSON.stringify(film));
+check(film.bars === 1 && !film.barSeen && film.unseen, 'one story, so no bar over it, its title read out rather than shown over the film', JSON.stringify(film));
 check(film.out === 'GOT IT' && film.open === 'PLAY SUPER10', 'GOT IT and PLAY SUPER10 under it', JSON.stringify(film));
 
 // Fetched whole while the cover was up, so it plays from memory rather than buffering.
 check((await page.$eval('#whatsnew-film', v => v.currentSrc)).startsWith('blob:'), 'the film was fetched ahead, on the cover, and plays from memory',
   await page.$eval('#whatsnew-film', v => v.currentSrc));
-// It plays to its end on the media clock, then holds on its last frame for a few
-// seconds of the page's clock, its bar filling, and goes on to Choose a mode by itself.
-for (let i = 0; i < 120 && !(await page.$eval('#whatsnew-film', v => v.ended)); i++) await page.waitForTimeout(250);
-check(await page.$eval('#whatsnew-film', v => v.ended), 'the film plays to its end');
-await tick(2500, 200);
-const holding = await page.evaluate(() => ({ up: !document.getElementById('whatsnew-overlay')?.classList.contains('hidden'),
-  filling: !!document.querySelector('.whatsnew-bar.is-live:not(.is-held)') }));
-check(holding.up && holding.filling, 'it holds on the last frame a moment, its bar filling', JSON.stringify(holding));
-await tick(2500, 200);
+// It plays to its end on the media clock and goes straight on to Choose a mode.
+const playedOnce = await page.$eval('#whatsnew-film', v => !v.loop);
+check(playedOnce, 'off the cover it plays once, not round again');
+for (let i = 0; i < 120 && await page.$('#whatsnew-film'); i++) await page.waitForTimeout(250);
 await tick(700);
 // Where skipping goes is the build's: Choose a mode where there is one to
 // choose, the innings where the build has chosen. Either way, somewhere.
@@ -127,7 +122,7 @@ const landed = async () => ({ hidden: await page.$eval('#whatsnew-overlay', node
   picked: await page.$eval('#modes', node => !node.classList.contains('hidden')),
   batting: await page.$eval('#start', node => !node.offsetParent).catch(() => true) });
 const skippedTo = await landed();
-check(skippedTo.hidden && (skippedTo.picked || skippedTo.batting), 'then moves on by itself to Choose a mode or the innings', JSON.stringify(skippedTo));
+check(skippedTo.hidden && (skippedTo.picked || skippedTo.batting), 'and as it ends moves on by itself to Choose a mode or the innings', JSON.stringify(skippedTo));
 if (skippedTo.picked) {
   const front = await page.evaluate(() => {
     const rail = document.getElementById('modes-rail').getBoundingClientRect();
@@ -178,6 +173,7 @@ if (key) {
   const back = await page.waitForSelector('.whatsnew-sheet', { timeout: 10_000 })
     .then(() => true).catch(() => false);
   check(back, 'which opens the same stories however many times they have been read');
+  check(await page.$eval('#whatsnew-film', v => v.loop), 'and there, with nowhere to go on to, the film plays round until it is closed');
   check(await page.$eval('#whatsnew-done', one => one.textContent.trim()) === 'CLOSE',
     'and offers to close rather than to go somewhere');
   await page.click('#whatsnew-done');

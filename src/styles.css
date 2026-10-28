@@ -5583,6 +5583,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
     radial-gradient(120% 70% at 50% 0%,#1b4a72 0%,#0d2739 46%,#07121a 100%)
 }
 .whatsnew-bars{display:flex;gap:5px;flex:none}
+/* One story is not in pieces: no bar, its place kept so nothing under it moves. */
+.whatsnew-bars.is-single{visibility:hidden}
 .whatsnew-bar{
   position:relative;
   flex:1 1 0;

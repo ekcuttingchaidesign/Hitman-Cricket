@@ -563,10 +563,12 @@ playing rather than buffering. It plays muted down the sheet on the page's
 black and holds on its last frame with GOT IT and PLAY SUPER10 under it
 (`opens: 'super10'`, `playFromStory`: straight out to a Super10 innings,
 Choose a mode passed by; from the board in the middle of an innings it only
-puts the stories away). Off the cover, four seconds after the film ends
-(`FILM_LEAVE_MS`, its bar filling meanwhile) it goes on to Choose a mode by
-itself, as GOT IT does, and both land on Super10's poster; opened from the
-board it waits for its keys. It was made in Remotion, not committed, as the films before it
+puts the stories away). Off the cover it plays once and, the moment it ends,
+goes on to Choose a mode by itself, as GOT IT does, and both land on
+Super10's poster (its still, under reduced motion, stands `STILL_LEAVE_MS`
+first); opened from the board, with nowhere to go on to, it loops until it is
+closed. One story is not in pieces, so it has no bar across the top
+(`is-single` on `.whatsnew-bars`, its place kept). It was made in Remotion, not committed, as the films before it
 were not: `wip/super10-film/` on the machine that made it (`src/` the
 composition, `capture/` and `wip/s10-film-capture.mjs` the turntable frames
 off the real stage, rendered with `--sequence` through the system Chrome and

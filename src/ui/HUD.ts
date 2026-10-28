@@ -1759,8 +1759,8 @@ ${modeSelectMarkup()}
 
   /** How long one card holds before it moves on by itself. */
   static readonly STORY_MS = 7000;
-  /** How long a film's last frame holds, off the cover, before the stories go on to Choose a mode. */
-  static readonly FILM_LEAVE_MS = 4000;
+  /** How long a film's still (reduced motion) stands, off the cover, before the stories go on to Choose a mode. */
+  static readonly STILL_LEAVE_MS = 4000;
   /** A story's film fetched whole while the cover is up (`warmStories`), played from memory when it opens. */
   private storyVideo: { src: string; url: string | null } | null = null;
 
@@ -1815,17 +1815,14 @@ ${modeSelectMarkup()}
         if (!still && warmed) film.src = warmed;
         if (still) { film.removeAttribute('src'); film.poster = story.still!; film.load(); }
         else void film.play().catch(() => { if (story.still) film.poster = story.still; });
-        // Off the cover, the last card's film moves on to Choose a mode by itself a few
-        // seconds after it ends, its bar filling meanwhile; from the board it stays for its keys.
+        // Off the cover, the last card's film goes on to Choose a mode the moment it ends
+        // (its still, under reduced motion, after a few seconds' look). From the board,
+        // where there is nowhere to go on to, it plays round again until it is closed.
         if (this.storyWhere === 'intro' && storyHolds(this.storyAt, this.storyRun)) {
-          const leave = () => {
-            window.clearTimeout(this.storyHold);
-            const bar = overlay.querySelector<HTMLElement>('.whatsnew-bar.is-live');
-            if (bar) { bar.style.setProperty('--hold', `${HUD.FILM_LEAVE_MS}ms`); bar.classList.remove('is-held'); }
-            this.storyHold = window.setTimeout(() => { if (this.storiesOpen) this.closeStories(); }, HUD.FILM_LEAVE_MS);
-          };
-          if (still) leave(); else film.addEventListener('ended', leave, { once: true });
-        }
+          const leave = () => { window.clearTimeout(this.storyHold); if (this.storiesOpen) this.closeStories(); };
+          if (still) this.storyHold = window.setTimeout(leave, HUD.STILL_LEAVE_MS);
+          else film.addEventListener('ended', leave, { once: true });
+        } else if (!still) film.loop = true;
       }
     }
     const stage = document.getElementById('whatsnew-stage');

@@ -68,7 +68,7 @@ export function storiesMarkup(view: StoriesView): string {
       <div id="whatsnew-stage" class="whatsnew-stage" data-stage="${story.stage}" role="img" aria-label="${escape(story.alt)}"></div>` : ''}${
   story.reel ? `
       <div class="whatsnew-reel" data-reel="${story.reel}" role="img" aria-label="${escape(story.alt)}"></div>${shotCueMarkup(story.reel)}` : ''}
-      <div class="whatsnew-bars" aria-hidden="true">${stories.map((_, i) => `
+      <div class="whatsnew-bars${stories.length === 1 ? ' is-single' : ''}" aria-hidden="true">${stories.map((_, i) => `
         <span class="whatsnew-bar${i < at ? ' is-done' : live(i)}"${
   i === at && !holds ? ` style="--hold:${story.holdMs ?? holdMs}ms"` : ''}><i></i></span>`).join('')}
       </div>
