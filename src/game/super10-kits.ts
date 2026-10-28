@@ -9,8 +9,9 @@ import type { Super10GuardId } from '../entities/gloves';
  * up the ladder: Apex Vipers, Nova Kings, Frontier Falcons, Aura Farmers and,
  * at the top, Royal Mavericks (`SUPER10_KITS` runs easiest to hardest). The
  * side in the field wears any of the others, drawn afresh each innings
- * (`GameScene.dressBatter`). The LED stumps behind him are raspberry where his
- * trousers are navy and violet otherwise.
+ * (`GameScene.dressBatter`). The LED stumps behind him are cherry (raspberry)
+ * for the Panthers, the Vipers, the Kings and the Farmers, and violet for the
+ * Falcons and the Mavericks, whose kits are cherry and violet themselves.
  *
  * The designs are pictures made with an image model, so they are followed
  * for their colours and the lie of the bolts, not drawn stroke for stroke:
@@ -38,7 +39,7 @@ export interface Super10Kit {
   cap?: string;
   /** The gloves and pads that go with it. */
   guard: Super10GuardId;
-  /** The LED stumps behind him: raspberry behind navy trousers, violet otherwise. */
+  /** The LED stumps behind him: violet behind the Falcons' cherry and the Mavericks' violet, cherry (raspberry) behind the rest. */
   stumps: 'violet' | 'raspberry';
 }
 
@@ -154,7 +155,7 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
   {
     id: 's10-purple', name: 'Midnight Panthers', line: "Every Super10 batter's first kit.", shirt: PURPLE, helmet: PURPLE, trousers: PURPLE, trim: LIME, number: LIME, glow: LILAC,
     print: { number: LIME, chest: chest(LIME, LILAC), back: [], collar: { colour: LIME, inner: LILAC }, hem: { colour: LIME, line: LILAC }, leg: leg(LIME, LILAC) },
-    guard: 'super10', stumps: 'violet',
+    guard: 'super10', stumps: 'raspberry',
   },
   {
     id: 's10-neon', name: 'Apex Vipers', line: '10 Super10 innings.', shirt: LIME, helmet: PURPLE, trousers: PURPLE, trim: PURPLE, number: PURPLE, glow: LIME,
@@ -162,7 +163,7 @@ export const SUPER10_KITS: readonly Super10Kit[] = [
       number: PURPLE, numberEdge: LIME, shards: { bolt: PURPLE, streak: CHERRY, slash: YELLOW },
       chest: [], back: [], collar: { colour: PURPLE, inner: LIME }, hem: { colour: PURPLE, line: LILAC }, leg: viperLeg,
     },
-    guard: 'super10', stumps: 'violet',
+    guard: 'super10', stumps: 'raspberry',
   },
   {
     id: 's10-yellow', name: 'Nova Kings', line: '50 sixes and 1,500 runs in Super10.', shirt: BUTTER, helmet: ROYAL, trousers: ROYAL, trim: NAVY, number: NAVY, glow: GOLD,

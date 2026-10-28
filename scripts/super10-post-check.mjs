@@ -108,6 +108,10 @@ check(!(asked.blastCareer?.career?.innings > 0), 'and the Blast career is untouc
 check(await page.evaluate(() => localStorage.getItem('hitman-best')) === '77', 'nor is this browser\'s Blast best');
 check(Number(await page.evaluate(() => localStorage.getItem('hitman-best-super10'))) === 240, 'Super10 keeps a best of its own');
 
+// New #1 goes up only once the store has answered the post, so the answer is waited
+// for first: waited out before it had begun, the board key's click landed on it as a skip.
+for (let i = 0; i < 50 && !(await page.evaluate(() => window.__cricket.snapshot().standing)); i++) await page.waitForTimeout(200);
+await page.waitForTimeout(800);
 for (let i = 0; i < 40 && await page.evaluate(() => window.__cricket.topSpotOpen()); i++) await page.waitForTimeout(200);
 await page.addStyleTag({ content: '.debug{display:none!important}' });
 await page.evaluate(() => document.querySelector('#claim').click());
@@ -117,8 +121,10 @@ const boardNow = () => page.evaluate(() => {
   return { open: !!overlay && !overlay.classList.contains('hidden'), text: overlay?.textContent ?? '' };
 });
 let board = await boardNow();
-for (let i = 0; i < 40 && !/You entered the board at #\d+/.test(board.text); i++) { await page.waitForTimeout(200); board = await boardNow(); }
-check(board.open && /Super10/.test(board.text) && /You entered the board at #\d+/.test(board.text), "the board opens on Super10, on the player's own row", board.text.slice(0, 200));
+// Alone on it, as on a fresh server or launch day, it says so rather than where they entered.
+const placed = /You entered the board at #\d+|Top of the board/;
+for (let i = 0; i < 40 && !placed.test(board.text); i++) { await page.waitForTimeout(200); board = await boardNow(); }
+check(board.open && /Super10/.test(board.text) && placed.test(board.text), "the board opens on Super10, on the player's own row", board.text.slice(0, 200));
 await page.screenshot({ path: 'test-results/super10-board.png' }).catch(() => {});
 check(errors.length === 0, 'with nothing thrown', errors.join('\n'));
 void player;

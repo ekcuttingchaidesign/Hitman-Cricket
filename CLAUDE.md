@@ -1763,8 +1763,9 @@ number colour, painted the other way round on a mirrored stage as the bat's
 stickers are. The game's camera sees his back at an angle, so the number
 shows only in part there. The side in the field wears any other team's kit,
 drawn afresh each innings, printed too, the Falcons in cherry caps (`cap`);
-the LED stumps are raspberry behind navy or blue trousers (the Kings, the Farmers)
-and violet behind the rest (`stumps`, `STUMP_THEMES`, `colourway` on
+the LED stumps are raspberry (cherry red) behind the Panthers, the Vipers, the
+Kings and the Farmers, and violet behind the Falcons and the Mavericks, whose
+kits are cherry and violet themselves (`stumps`, `STUMP_THEMES`, `colourway` on
 `LedStumps`); the raspberry ones light white when the bails go, where the
 violet ones light raspberry (`stumpLight`). All of it is `GameScene.dressBatter`'s last argument, which
 `Game.super10Kit` hands it at the start of a Super10 innings. The designs
