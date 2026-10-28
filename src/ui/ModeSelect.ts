@@ -151,10 +151,10 @@ export function modeSelectMarkup(): string {
               </button>
             </div>
             <div class="ms-pager" aria-hidden="true"><i class="is-blast"></i><i class="is-marathon"></i><i class="is-survival"></i></div>
-            <button id="mode-super10" class="ms-super10" type="button" aria-label="Super10, coming soon">
+            <button id="mode-super10" class="ms-super10" type="button" aria-label="Super10, coming tomorrow">
               <img class="ms-art" src="${SUPER10_PICTURE}" alt="" decoding="async">
               <img class="ms-super10-logo" src="${SUPER10_LOGO}" alt="" decoding="async">
-              <span class="ms-super10-tag">COMING SOON</span>
+              <span class="ms-super10-tag">COMING TOMORROW</span>
               <span class="ms-super10-key" aria-hidden="true">${icon('chevron-right')}</span>
             </button>
             <button id="modes-dressing" class="ms-dressing" type="button">
