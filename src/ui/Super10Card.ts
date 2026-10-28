@@ -178,13 +178,13 @@ export class Super10Spark {
     this.play.classList.toggle('is-flash', t >= 960 && t < 1027);
     const pop = t < 990 ? 1 : 1 + 0.08 * Math.sin(Math.PI * clamp((t - 990) / 320));
     this.play.style.transform = `scale(${pop.toFixed(4)})`;
-    // The pulse: the ring out from the key; the sweep over the logo.
+    // The pulse: the ring out from the key; then a faint light across the whole card, end to end, slowly.
     const rp = ramp(t, 1050, 1600);
     this.ring.style.opacity = rp > 0 && rp < 1 ? (1 - easeOut(rp) * 0.85).toFixed(3) : '0';
     this.ring.style.transform = `scale(${(1 + 0.45 * easeOut(rp)).toFixed(3)}, ${(1 + 1.0 * easeOut(rp)).toFixed(3)})`;
-    const sw = ramp(t, 1100, 1700);
-    this.sweep.style.opacity = sw > 0 && sw < 1 ? '1' : '0';
-    this.sweep.style.left = `${-28 + 72 * (sw < 0.5 ? 2 * sw * sw : 1 - Math.pow(-2 * sw + 2, 2) / 2)}%`;
+    const sw = ramp(t, 1100, 3500);
+    this.sweep.style.opacity = (Math.sin(Math.PI * sw) ** 0.5).toFixed(3);
+    this.sweep.style.left = `${-45 + 160 * sw}%`;
     // The settle: sparks thrown up off the key and the blade, floating out.
     if (t >= 960 && t < 2500) {
       const r = seeded(77);

@@ -1844,7 +1844,8 @@ innings in the pick.
 
 Choose a mode puts the Blast, the Test Marathon, Super10 and Test Survival on one
 swipeable rail of posters 240 wide (Super10's `#mode-super10-poster`, its PLAY
-card's picture and logo, hidden with the card where Super10 cannot be played) (Figma 16E, `450:5037`; `#modes-rail` in
+card's picture raised a third of the card so his helmet stands clear above the
+logo, hidden with the card where Super10 cannot be played) (Figma 16E, `450:5037`; `#modes-rail` in
 `ModeSelect.ts`, `.ms-rail` in `src/super10-page.css`): CSS scroll snap, the
 first at the left gutter, the middle centred, the last at the right, a pager
 under it whose dot stretches in the colour of the poster settled on
@@ -1869,7 +1870,8 @@ colourway from `artifacts/super10-logo`). Every four seconds, while Choose a
 mode is open (`Super10Spark`, started in `modes` and stopped in `closeModes`),
 the bat in the picture charges with arcs on a canvas between the picture and
 the logo, an arc strikes the PLAY key, which flashes and pops, a ring goes
-out from it and a light crosses the logo, and sparks float off; the first
+out from it and a faint light crosses the whole card end to end over
+2.4 seconds, and sparks float off; the first
 time a browser sees the card (`hitman-super10-card`) it slams in with a ring
 of arcs round the logo, once. Every frame is drawn from one clock, the arcs
 redrawn every two frames as the stings' are; reduced motion stands it still.

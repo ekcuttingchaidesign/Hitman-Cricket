@@ -1052,6 +1052,10 @@ export class GameScene {
     // The size the renderer was given, not the canvas measured: measuring makes the page lay itself out there and then.
     const { width, height } = this.renderer.getSize(this.screenSize);
     this.batter.root.updateWorldMatrix(true, false);
+    // The camera as it stands now, not as it was last drawn: handed back by the
+    // walk-on a moment ago, it still held the film's last shot, and the
+    // coachmarks' lanes were drawn from where the batter stood in that.
+    this.camera.updateMatrixWorld();
     const at = (y: number) => {
       const p = this.batter.root.localToWorld(new THREE.Vector3(0, y, 0)).project(this.camera);
       return { x: (p.x + 1) / 2 * width, y: (1 - p.y) / 2 * height };
