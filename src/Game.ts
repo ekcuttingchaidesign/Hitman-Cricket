@@ -870,7 +870,7 @@ export class Game {
     // rather than a card, so it covers the pause card rather than replacing
     // it: pick a mode and the innings is walked out on, back out of it and the
     // card is exactly where it was.
-    this.hud.on('change-mode', () => { if (this.phase === 'PAUSED') this.modes(); });
+    this.hud.on('change-mode', () => { if (this.phase === 'PAUSED') { this.markQuit(); this.modes(); } });
     // Day or night, from the pause card, between balls. Remembered for the next Blast innings.
     for (const time of ['day', 'night'] as const) this.hud.on(`lights-${time}`, () => {
       if (this.phase !== 'PAUSED' || this.test) return;
@@ -1001,7 +1001,7 @@ export class Game {
     });
     this.hud.viewport.addEventListener('pointerdown', () => this.walkedOn(true));
     window.addEventListener('keydown', this.shortcuts); window.addEventListener('beforeunload', this.leaving); document.addEventListener('visibilitychange', this.visibility);
-    window.addEventListener('blur', this.blur);
+    window.addEventListener('blur', this.blur); window.addEventListener('pagehide', this.markQuit);
     // A bundle built survive-only plays one innings and offers no way out of
     // it — that is the whole of what makes it publishable somewhere with no
     // board behind it. A `?mode=` link does the same thing at runtime.
@@ -2235,8 +2235,9 @@ export class Game {
     }
     // A restart is an innings walked out on, and reads as nothing else: it is
     // the only way here that is not the cover, the tutorial, or the card.
-    if (!['START', 'INNINGS_END'].includes(this.phase) && this.lesson < 0) this.mark('innings-restart', 'Innings restarted');
+    if (!['START', 'INNINGS_END'].includes(this.phase) && this.lesson < 0) { this.mark('innings-restart', 'Innings restarted'); this.markQuit(); }
     this.innings++;
+    this.quitMarked = false; this.fieldLooked = false;
     this.putRatingAway();
     this.inningsFrom = this.playedMs;
     this.spinPulls = freshTally(); this.hooks = freshTally();
@@ -2857,8 +2858,24 @@ export class Game {
   /** F: the map enlarged from its corner, or put back. */
   private lookAtField() {
     if (!this.super10) return;
-    if (this.fieldUi.toggle()) this.mark('field-look', 'Looked at the field');
+    if (!this.fieldUi.toggle()) return;
+    this.mark('field-look', 'Looked at the field');
+    // Once an innings too, so the share of innings that ever enlarged it can be read beside the taps.
+    if (!this.fieldLooked) { this.fieldLooked = true; this.mark('field-look-innings', 'Looked at the field this innings'); }
   }
+  private fieldLooked = false;
+  /**
+   * A Super10 innings walked out on before its end, by the over it was in
+   * (`super10-quit-over-4`): restarted, left for Choose a mode from the pause
+   * sheet, or the page closed on it. Once an innings; a finished one, the
+   * tutorial and a demo are never a quit.
+   */
+  private markQuit = () => {
+    if (!this.super10 || this.quitMarked || this.demoing || this.lesson >= 0 || ['START', 'INNINGS_END'].includes(this.phase)) return;
+    this.quitMarked = true;
+    this.mark(`quit-over-${Math.min(SUPER10.overs, Math.floor(this.score.balls / 6) + 1)}`, 'Walked out on the innings, by the over it was in');
+  };
+  private quitMarked = false;
   /**
    * At the top of an over, whether it is the one the innings changes in: the
    * first over the pace bowler swings it, which brings the cloud over with it.
@@ -6218,7 +6235,7 @@ export class Game {
     onPlayerWritten(null);
     this.stopDressingSends?.(); window.clearTimeout(this.dressingTimer);
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();
-    window.removeEventListener('keydown', this.shortcuts); window.removeEventListener('beforeunload', this.leaving); window.removeEventListener('blur', this.blur); document.removeEventListener('visibilitychange', this.visibility);
+    window.removeEventListener('keydown', this.shortcuts); window.removeEventListener('beforeunload', this.leaving); window.removeEventListener('blur', this.blur); window.removeEventListener('pagehide', this.markQuit); document.removeEventListener('visibilitychange', this.visibility);
   }
 }
 
