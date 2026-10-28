@@ -73,7 +73,7 @@ describe('Choose a mode', () => {
     expect(order.every((at, i) => at > 0 && (i === 0 || at > order[i - 1]))).toBe(true);
     expect(screen).toContain('id="modes-rail"');
     expect(screen.match(/class="ms-poster /g)).toHaveLength(3);
-    expect(screen).toContain('COMING SOON');
+    expect(screen).toContain('COMING TOMORROW');
     // No PLAY on Super10's card: it opens its page.
     const card = screen.slice(screen.indexOf('id="mode-super10"'));
     expect(card.slice(0, card.indexOf('</button>'))).not.toContain('PLAY');

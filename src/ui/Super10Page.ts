@@ -18,7 +18,7 @@ import { cta, icon } from './Kit';
 import { SUPER10_LOGO, SUPER10_PICTURE } from './ModeSelect';
 
 /** The day it opens, said over the keys ('30 October'), or null until there is one. */
-export const SUPER10_OPENS: string | null = null;
+export const SUPER10_OPENS: string | null = '29 October';
 
 /** Kept in the browser once I'M EXCITED is pressed, so it is counted once a browser. */
 export const EXCITED_KEY = 'hitman-super10-excited';
@@ -79,7 +79,7 @@ export function super10PageMarkup(excited: boolean): string {
               <img class="sp-picture" src="${SUPER10_PICTURE}" alt="" decoding="async">
               <div class="sp-hero-top">
                 <button id="super10-back" class="k-icon-button" aria-label="Back" title="Back">${icon('arrow-left')}</button>
-                <span class="sp-tag">COMING SOON</span>
+                <span class="sp-tag">COMING TOMORROW</span>
               </div>
               <div class="sp-lockup">
                 <h2 id="super10-title" class="sp-logo"><img src="${SUPER10_LOGO}" alt="Super10"></h2>
