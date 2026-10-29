@@ -218,6 +218,24 @@ for (const lefty of [0, 1]) {
   await context.close();
 }
 
+// ── After the walk-on: the lanes from the bat, not from the film's last shot ──
+// The walk-on hands the camera back the moment before the coachmarks measure
+// him; measured off the camera as last drawn, the lanes fanned from where he
+// stood in the film, up and to the side of him.
+{
+  const { context, page } = await open(PHONE);
+  await walkOut(page, 'super10', '&intro=duel');
+  for (let i = 0; i < 80 && await page.evaluate(() => !!window.__cricket.walkingOn()); i++) { await advance(page, 200); await page.waitForTimeout(30); }
+  check(await upWithin(page), 'a first Super10 after the walk-on opens with how to hit');
+  const fan = await page.evaluate(() => {
+    const o = document.getElementById('marathon-intro'), s = getComputedStyle(o), box = o.getBoundingClientRect();
+    return { x: parseFloat(s.getPropertyValue('--x')), y: parseFloat(s.getPropertyValue('--y')), w: box.width, h: box.height };
+  });
+  check(fan.y > fan.h * 0.42 && Math.abs(fan.x - fan.w / 2) < fan.w * 0.2, 'its lanes fan from the bat in front of him, in the lower middle', JSON.stringify(fan));
+  await page.screenshot({ path: `${out}/super10-after-walk-on.png` });
+  await context.close();
+}
+
 await browser.close();
 console.log(failures ? `\n${failures} failed` : '\nall ok');
 process.exit(failures ? 1 : 0);

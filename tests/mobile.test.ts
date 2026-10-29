@@ -109,7 +109,7 @@ describe('touch input integration', () => {
   it('commits at threshold crossing, not when the thumb is placed or lifted', () => {
     const s = setup(); s.pointer('pointerdown', 100, 100); s.time(350); s.pointer('pointermove', 108, 92);
     expect(s.shoot).not.toHaveBeenCalled(); s.time(400); s.pointer('pointermove', 130, 70);
-    expect(s.shoot).toHaveBeenCalledExactlyOnceWith('COVER_LONG_OFF', 400);
+    expect(s.shoot).toHaveBeenCalledExactlyOnceWith('COVER_LONG_OFF', 400, 45);
     s.time(700); s.pointer('pointerup', 200, 0); expect(s.shoot).toHaveBeenCalledTimes(1); s.input.dispose();
   });
   it('reads which way past the first curl of the flick, but times it where it became a swipe', () => {
@@ -119,20 +119,20 @@ describe('touch input integration', () => {
     s.time(300); s.pointer('pointermove', 117, 117);
     expect(s.shoot).not.toHaveBeenCalled();
     s.time(310); s.pointer('pointermove', 140, 118);
-    expect(s.shoot).toHaveBeenCalledExactlyOnceWith('SQUARE_CUT', 300); s.input.dispose();
+    expect(s.shoot).toHaveBeenCalledExactlyOnceWith('SQUARE_CUT', 300, expect.closeTo(114.23, 1)); s.input.dispose();
   });
   it('plays a short flick from where the thumb lifted, timed where it became a swipe', () => {
     const s = setup(); s.pointer('pointerdown', 100, 100);
     s.time(350); s.pointer('pointermove', 70, 100);
     expect(s.shoot).not.toHaveBeenCalled();
     s.time(360); s.pointer('pointerup', 70, 100);
-    expect(s.shoot).toHaveBeenCalledExactlyOnceWith('LEG', 350); s.input.dispose();
+    expect(s.shoot).toHaveBeenCalledExactlyOnceWith('LEG', 350, -90); s.input.dispose();
   });
   it('permits only one swipe per delivery and resets for the next', () => {
     const s = setup();
     for (let i = 0; i < 3; i++) { s.pointer('pointerdown', 100, 100); s.pointer('pointermove', 60, 100); s.pointer('pointerup', 60, 100); }
     expect(s.shoot).toHaveBeenCalledTimes(1); s.input.reset(); s.pointer('pointerdown', 100, 100); s.pointer('pointerup', 100, 60);
-    expect(s.shoot).toHaveBeenLastCalledWith('STRAIGHT', 100); expect(s.shoot).toHaveBeenCalledTimes(2); s.input.dispose();
+    expect(s.shoot).toHaveBeenLastCalledWith('STRAIGHT', 100, 0); expect(s.shoot).toHaveBeenCalledTimes(2); s.input.dispose();
   });
   it('ignores taps, inactive play, and drags starting on controls', () => {
     const s = setup(); s.pointer('pointerdown', 100, 100); s.pointer('pointerup', 100, 100);
@@ -213,7 +213,7 @@ describe('arrow keys', () => {
   it('plays the hook off the down-left swipe and the keys at a bouncer he can hook, meter or none', () => {
     const swiped = setup(); swiped.hooks(true);
     swiped.pointer('pointerdown', 100, 100); swiped.pointer('pointermove', 50, 150);
-    expect(swiped.shoot).toHaveBeenCalledExactlyOnceWith('HOOK', 100); swiped.input.dispose();
+    expect(swiped.shoot).toHaveBeenCalledExactlyOnceWith('HOOK', 100, -135); swiped.input.dispose();
     // The block's key waits for its partner rather than committing at once,
     // and is still timed from the press, in either order.
     for (const keys of [['s', 'a'], ['a', 's'], ['ArrowDown', 'ArrowLeft']]) {

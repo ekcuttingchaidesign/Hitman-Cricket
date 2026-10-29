@@ -1012,8 +1012,11 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `challenge-players-2`, `…-3`, `…-4-plus` | How many were in the room when the result was read. Whether the forwarded link ever becomes a group. |
 | `rivals-list`, `rivals-head-to-head` | Rival Matches opened, and a friend's row tapped for the tally. Whether the record is looked at, and whether rivalries form. |
 | `modes-board` | The boards opened from the Leaderboards card on the mode screen, rather than from the cover's trophy. |
-| `super10-open-card`, `super10-got-it` | Super10's coming-soon card on Choose a mode opened, and its page put away with GOT IT. |
-| `super10-excited` | **I'M EXCITED** pressed on Super10's page, once a browser. The store counts the same, once a player and by day (`scripts/super10-report.ts`); against `super10-open-card` it is how much of the curiosity is wanting. |
+| `super10-play-card` | Super10 played from its PLAY card on Choose a mode. |
+| `super10-play-poster` | Super10 played from its poster on Choose a mode's rail. |
+| `super10-field-look`, `super10-field-look-innings` | The field map enlarged in a Super10 innings: every time, and once an innings (so the share of innings that ever enlarged it can be read). |
+| `super10-quit-over-1` … `-10` | A Super10 innings walked out on, by the over it was in: restarted, left for Choose a mode from the pause sheet, or the page closed on it. Once an innings. |
+| `super10-open-card`, `super10-got-it`, `super10-excited` | Before release: Super10's coming-soon card opened, its page put away, and **I'M EXCITED** pressed (the store's count of it is still read by `scripts/super10-report.ts`). |
 | `rivals-ranking` | The Rivals ranking opened from the trophy key on Rival Matches. Whether anybody looks for it now it is behind an icon. |
 | `restore-open-profile` | **Played before?** tapped on the name screen. Its siblings say where else the restore sheet was opened from: `-stats`, `-board`, `-card`, and `restore-open-taken`, the link under a name the gate was told is already held. |
 | `restore-find-listed`, `restore-find-none`, `restore-picked` | The restore sheet's search: a few letters that turned somebody up, ones that found nobody, and a player tapping themselves on the list. |

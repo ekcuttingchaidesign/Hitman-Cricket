@@ -38,11 +38,12 @@ export interface TopSpotView {
 /** How many rows the ladder shows above the player's own. */
 export const LADDER = 4;
 
-export const TOP_COLOURS: Record<CareerMode, string> = { classic: '#3f88f2', marathon: '#1f8a55', survive: '#ff5a4e' };
+export const TOP_COLOURS: Record<CareerMode, string> = { classic: '#3f88f2', marathon: '#1f8a55', survive: '#ff5a4e', super10: '#8b5cf6' };
 const BOARD: Record<CareerMode, { head: string; top: string }> = {
   classic: { head: 'THE BLAST · TOP OF THE BOARD', top: 'TOP OF THE BLAST' },
   marathon: { head: 'TEST MARATHON · THE TEAM BOARD', top: 'TOP OF THE MARATHON' },
   survive: { head: 'TEST SURVIVAL · THE BOARD', top: 'TOP OF TEST SURVIVAL' },
+  super10: { head: 'SUPER10 · THE BOARD', top: 'TOP OF SUPER10' },
 };
 
 /** Whether the store's answer is the top taken: first now, and not first before. */

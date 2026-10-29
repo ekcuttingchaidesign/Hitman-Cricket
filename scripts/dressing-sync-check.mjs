@@ -44,7 +44,7 @@ async function device(id, name, dressing) {
     localStorage.setItem('hitman-profile', '1');
     localStorage.setItem('hitman-shots-intro', 'done');
     // Past the update's stories.
-    localStorage.setItem('hitman-whatsnew', 'player-profiles:9');
+    localStorage.setItem('hitman-whatsnew', 'super10:9');
     localStorage.setItem('hitman-career', JSON.stringify(career));
     if (dressing) localStorage.setItem('hitman-dressing', JSON.stringify(dressing));
   }, [id, name, CAREER, dressing]);

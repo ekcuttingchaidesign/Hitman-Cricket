@@ -1,8 +1,8 @@
 import { Redis } from '@upstash/redis';
 import {
-  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SURVIVE_LADDER, type BoardStore, type StoredRow,
+  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SUPER10_LADDER, SURVIVE_LADDER, type BoardStore, type StoredRow,
 } from './board-store.js';
-import { BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER } from '../game/career.js';
+import { BLAST_CAREER, MARATHON_CAREER, SUPER10_CAREER, SURVIVE_CAREER } from '../game/career.js';
 import type { CareerStore, StoredCareer } from './career-store.js';
 import type { StoredKey } from './career-key.js';
 import type { StoredAnswer, StoredPassword } from './career-password.js';
@@ -674,11 +674,13 @@ export function upstashProfiles(redis: Redis): ProfileStores {
       survive: upstashStore(redis, SURVIVE_LADDER.scope),
       team: upstashStore(redis, MARATHON_TEAM_LADDER.scope),
       solo: upstashStore(redis, MARATHON_SOLO_LADDER.scope),
+      super10: upstashStore(redis, SUPER10_LADDER.scope),
     },
     careers: {
       classic: upstashCareer(redis, BLAST_CAREER.scope),
       survive: upstashCareer(redis, SURVIVE_CAREER.scope),
       marathon: upstashCareer(redis, MARATHON_CAREER.scope),
+      super10: upstashCareer(redis, SUPER10_CAREER.scope),
     },
   };
 }

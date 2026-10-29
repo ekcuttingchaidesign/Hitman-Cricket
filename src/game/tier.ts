@@ -1,4 +1,4 @@
-import type { BlastCareer, CareerMode, MarathonCareer, SurviveCareer } from './career';
+import type { BlastCareer, CareerMode, MarathonCareer, Super10Career, SurviveCareer } from './career';
 
 /**
  * What a player *is*, rather than what they have.
@@ -132,6 +132,10 @@ export interface Tier {
    * fifteen thousand twenty good days. Doubled, the top is a season again.
    * The day's rate is a guess until the mode has been played: when it has,
    * this is the line to change.
+   *
+   * Super10's is in runs too, the Marathon's 750 and 7,500 and, at the top,
+   * 25,000, set by the designer: ten overs a side is limited overs, and its
+   * innings bank about a hundred a time.
    */
   at: Record<CareerMode, number>;
   /** One line saying what it took, for the card and for a screen reader. */
@@ -180,7 +184,7 @@ export const TIERS: readonly Tier[] = [
     key: 'debutant',
     name: 'DEBUTANT',
     short: 'Debutant',
-    at: { classic: 0, survive: 0, marathon: 0 },
+    at: { classic: 0, survive: 0, marathon: 0, super10: 0 },
     blurb: 'First time out there.',
     // The game's own navy, which is the card everybody starts on and the only
     // one that is not trying to be a material.
@@ -199,7 +203,7 @@ export const TIERS: readonly Tier[] = [
     key: 'emerging',
     name: 'EMERGING PLAYER',
     short: 'Emerging',
-    at: { classic: 350, survive: 100, marathon: 750 },
+    at: { classic: 350, survive: 100, marathon: 750, super10: 750 },
     blurb: 'Making a name out there.',
     // Bronze, and dark. A warm ground rather than navy tinted brown, or the
     // copper has nothing to be warm against — but a long way below where it
@@ -220,7 +224,7 @@ export const TIERS: readonly Tier[] = [
     key: 'star',
     name: 'STAR',
     short: 'Star',
-    at: { classic: 3600, survive: 1000, marathon: 7500 },
+    at: { classic: 3600, survive: 1000, marathon: 7500, super10: 7500 },
     blurb: 'People turn up to watch.',
     // Black and silver, in that order. The ground is a neutral near-black with
     // just enough lift at the top to keep an edge; the silver is spent on the
@@ -241,7 +245,7 @@ export const TIERS: readonly Tier[] = [
     key: 'hitman',
     name: 'HITMAN',
     short: 'Hitman',
-    at: { classic: 15000, survive: 4250, marathon: 30000 },
+    at: { classic: 15000, survive: 4250, marathon: 30000, super10: 25000 },
     blurb: 'The one the game is named for.',
     // Black and gold, and the only card in the game that gets to be either.
     // The ground is black with the faintest warmth in it rather than a dark
@@ -302,8 +306,8 @@ export function cardTheme(mode: CareerMode, tier: Tier): Theme {
 }
 
 /** The figure a mode's tier is read off: its own headline number. */
-export function tierMeasure(mode: CareerMode, career: BlastCareer | SurviveCareer | MarathonCareer): number {
-  return mode === 'survive' ? career.balls : (career as BlastCareer | MarathonCareer).runs;
+export function tierMeasure(mode: CareerMode, career: BlastCareer | SurviveCareer | MarathonCareer | Super10Career): number {
+  return mode === 'survive' ? career.balls : (career as BlastCareer | MarathonCareer | Super10Career).runs;
 }
 
 export function measureName(mode: CareerMode): string {
@@ -341,7 +345,7 @@ export interface Standing {
  * for good is a worse reward than no bar.
  */
 export function standingOf(
-  mode: CareerMode, career: BlastCareer | SurviveCareer | MarathonCareer, granted: Granted | null = null,
+  mode: CareerMode, career: BlastCareer | SurviveCareer | MarathonCareer | Super10Career, granted: Granted | null = null,
 ): Standing {
   const measure = Math.max(0, Math.floor(tierMeasure(mode, career)));
   let index = 0;
@@ -441,8 +445,8 @@ export function roadOf(mode: CareerMode, standing: Standing): Road {
  */
 export function climbedTo(
   mode: CareerMode,
-  was: BlastCareer | SurviveCareer | MarathonCareer | null,
-  now: BlastCareer | SurviveCareer | MarathonCareer,
+  was: BlastCareer | SurviveCareer | MarathonCareer | Super10Career | null,
+  now: BlastCareer | SurviveCareer | MarathonCareer | Super10Career,
   granted: Granted | null = null,
 ): Tier | null {
   // Nothing to have climbed from. A first innings is an arrival rather than a

@@ -1,6 +1,6 @@
 import { ownsHandle } from '../game/handle';
 import { MarathonInnings } from '../game/Marathon';
-import { GAME } from '../config/gameplay';
+import { GAME, SOLID_SHOT } from '../config/gameplay';
 import { ScoreManager } from '../game/ScoreManager';
 import {
   gameLink, shareFileName, shareFileType, shareText, statsFileName,
@@ -48,12 +48,12 @@ import {
   passwordSheetMarkup, ruleStates, type NudgeFigures, type PasswordEntry, type PasswordMode, type PasswordSheetView,
 } from './Password';
 import {
-  BOARD_MODES, MODE_ORDER, NO_CONTEXT, blastBody, blurbOf, boardScreenMarkup, careerBody, ladderSheetMarkup, marathonBody, menuRank,
+  BOARD_MODES, MODE_ORDER, NO_CONTEXT, blastBody, blurbOf, boardScreenMarkup, careerBody, ladderSheetMarkup, marathonBody, menuRank, super10Body,
   modeMenuMarkup, rulesSheetMarkup, surviveBody, type BoardBody, type BoardContext, type BoardMode, type BoardScreen,
 } from './Board';
-import { battingCardMarkup, injuryRingMarkup, injuryWord, overChartMarkup, wormChartMarkup } from './EndCard';
+import { battingCardMarkup, battingOf, injuryRingMarkup, injuryWord, overChartMarkup, super10ChartMarkup, wormChartMarkup } from './EndCard';
 import { modeSelectMarkup, modeSelectParts, type ModeSelectView } from './ModeSelect';
-import { excitedAlready, opensLine, super10PageMarkup } from './Super10Page';
+import { Super10Spark } from './Super10Card';
 import { storiesMarkup, storyHolds, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
 import { applyNearing, endNearing, nearingMarkup } from './Nearing';
 import type { Nearing, NearingEnd } from '../game/milestone';
@@ -85,6 +85,9 @@ import type { NetsBowler } from '../game/DeliveryGenerator';
 const NETS_LABEL: Record<NetsBowler, string> = { PACE: 'PACE', SWING: 'SWING', SPIN: 'SPIN', EXPRESS: 'SLING' };
 import { HEALTH, SURVIVE } from '../config/survive';
 import { BATTERS, type LevelBanner } from '../config/marathon';
+import { BATTERS as SUPER10_BATTERS } from '../config/super10';
+import type { BoardState, Super10Row } from '../game/board-api';
+import type { Super10Innings } from '../game/super10-board';
 import { resultOf, type Result } from '../game/Survive';
 import type { SoundSetting } from '../game/Audio';
 import type { CareerMode } from '../game/career';
@@ -92,9 +95,13 @@ import { chaseStanding, chaseTarget, playedMode, playerSheetMarkup, soloOf, type
 import { cachedProfile, type ProfilePayload } from '../game/profile-api';
 import { chipLine, surviveGoal, type Chase, type Mine } from '../game/chase';
 import { chaseChipMarkup, chaseIntroMarkup, passedMarkup } from './ChaseUi';
+import { fieldLine } from '../game/super10-field';
+import { replayAnimation, replayClass } from './replay';
 import { activitySheetMarkup } from './Activity';
 import type { OwnActivity } from '../game/profile-api';
 import wifiOff from '../assets/board/wifi-off.svg?raw';
+/** Each poster on Choose a mode's rail, by its mode, to its dot in the pager under it. */
+const POSTER_DOTS: Record<string, string> = { CLASSIC: 'blast', MARATHON: 'marathon', SUPER10: 'super10', SURVIVE: 'survival' };
 /** OPENER to Opener and NO. 3 to No. 3: the batters' titles as a scorecard writes them. */
 const titleCase = (title: string) => title.charAt(0) + title.slice(1).toLowerCase();
 /** 1st, 2nd, 3rd, 12th. The board sheet spells them the same way. */
@@ -357,7 +364,7 @@ export class HUD {
         <div id="scoreboard" class="scoreboard" role="group" aria-label="Scoreboard">
           <span class="bug-tag" aria-hidden="true">HITMAN<br>OVAL</span>
           <span class="bug-total" id="total" role="img"><span id="runs"></span><span class="bug-slash">/</span><span class="bug-wkts" id="wickets"></span></span>
-          <span class="bug-cell"><b id="overs"></b><i>OVERS</i></span>
+          <span class="bug-cell" id="overs-cell"><b id="overs"></b><i>OVERS</i></span>
           <span class="bug-cell"><b id="last" class="bug-last" role="img"></b><i>LAST</i></span>
         </div>
         <div id="survive-card" class="survive-card hidden" role="group" aria-label="Match situation">
@@ -536,7 +543,6 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
             </div>
         </div>
 ${modeSelectMarkup()}
-${super10PageMarkup(excitedAlready())}
         <div id="challenge-room" class="modal-overlay room-screen hidden" role="dialog" aria-modal="true" aria-labelledby="room-title">
           <div class="room-sheet">
             <div class="mode-top room-top">
@@ -678,7 +684,7 @@ ${super10PageMarkup(excitedAlready())}
       <dialog id="help-dialog"><button class="close-help hud-button" aria-label="Close instructions">×</button><p class="eyebrow">WELCOME TO HITMAN OVAL</p><h2>Make every ball count.</h2><p>Face 30 balls, with three wickets to spare. Read the ball's position as it approaches the crease and press a shot key just as it reaches your bat.</p><div class="touch-only"><p>Swipe directly on the field when the ball reaches your bat. A short, decisive swipe is enough.</p><ul><li>← Left: leg-side shot</li><li>↖ Up-left: long-on drive</li><li>↑ Up: straight drive</li><li>↗ Up-right: cover drive</li><li>→ Right: square cut, behind point</li><li>↓ Down: forward defensive</li><li>↙ Down-left: the scoop, over the keeper (meter full)</li><li>↘ Down-right: the reverse scoop, over the slips (meter full)</li></ul><p>One swipe per ball. A tap plays no shot. The same timing and wicket rules apply.</p></div><ul class="keyboard-only"><li><kbd>A</kbd> plays left to leg; <kbd>D</kbd> cuts it square off the back foot.</li><li><kbd>W</kbd> drives straight back toward the bowler.</li><li>Press <kbd>A</kbd> + <kbd>W</kbd> or <kbd>W</kbd> + <kbd>D</kbd> within 100 ms for a diagonal drive.</li><li><kbd>S</kbd> blocks it: bat down, no runs, and nothing can be caught off it. With the meter full, <kbd>S</kbd> + <kbd>A</kbd> scoops it over the keeper and <kbd>S</kbd> + <kbd>D</kbd> reverse-scoops it over the slips.</li><li>The arrow keys play the same shots: <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd>, and pair up the same way.</li><li>One swing per ball. Wait for the ball to come to you.</li><li>Perfect timing can score four or six. Mistimed contact can be caught; missing the stumps' line can mean Bowled or LBW.</li></ul><p class="help-note"><b>The square cut.</b> Swipe out to the off (or press <kbd>D</kbd>) and he rocks onto the back foot and cuts square of the wicket, behind point. It wants width: the further outside off the ball is, the better it plays, and there is nothing in it against a ball at the stumps. It is also the one stroke that answers a bouncer outside off — the ball sits up with room to free the arms at it. Middled, it goes behind point for six or four. Anything else feathers the edge through to the keeper, and a bouncer outside off is exactly where that happens.</p><p class="help-note"><b>Defending.</b> Swipe down (or press <kbd>S</kbd>) and the batter blocks it: the ball dies at his feet for a dot, and a dead bat cannot be caught. Leave it too late, though, and the ball goes past — on the stumps, that bowls you. Blocking costs your confidence nothing, but go three balls without scoring and you will hear about it from the field.</p><p class="help-note"><b>The confidence meter.</b> Boundaries, twos and threes fill it; a ball that beats the bat drains it, a single or a block leaves it where it stands, and a wicket empties it. Full, it pulses — and when a ball you can walk at is coming, the whole field lights up gold from the bowler's run-up. Drive that one — straight, or either diagonal — and time it well, and you charge down the pitch and hit it out of the ground. Miss it and the call tells you which half you got wrong, with the meter still charged.</p><p class="help-note"><b>The scoops.</b> With the meter full, swipe down and to the left (or press <kbd>S</kbd> + <kbd>A</kbd>) at a ball on middle or leg and he crouches, gets the face under it and ramps it over the keeper's shoulder; swipe down and to the right (<kbd>S</kbd> + <kbd>D</kbd>) at one on or outside off and he kneels and reverses it over the slips. Timed perfectly it is six, a shade under is four, held back is ones and twos. Poor timing is a top edge to the keeper, and a ball missed altogether has only your pads between it and the stumps. Neither works on a bouncer, and playing one at the wrong line is playing at air. Either way the meter is spent.</p><p class="help-note">Play with swipes on a phone, or A, W, D, S — or the arrow keys — on a keyboard. Use Pause to take a break or restart.</p><button id="help-done" class="primary-button">GOT IT ${icon('arrow')}</button></dialog>`;
     this.viewport = this.$('viewport'); this.score(new ScoreManager());
     this.wireRail();
-    this.wireSuper10Header();
+    this.super10Spark = new Super10Spark(this.$('mode-super10'));
     if (!document.fullscreenEnabled) this.$('fullscreen').classList.add('hidden');
     this.$('card-career').addEventListener('click', () => this.onStatsOpen?.());
     const dialog = this.$('help-dialog') as HTMLDialogElement;
@@ -701,6 +707,11 @@ ${super10PageMarkup(excitedAlready())}
   /** The Test board: the same screen, its rows read for a result and a margin. */
   surviveBoard(view: SurviveBoardView) {
     this.drawBoard('survive', 'best', ctx => surviveBody(view.rows, view.youId ?? null, view.yours ?? null, ctx, view.atMs), view.state ?? 'ready', !!view.actions);
+  }
+
+  /** Super10's board: the best team totals, each with its wickets and sixes. */
+  super10Board(view: { rows: readonly Super10Row[]; youId?: string | null; yours?: Super10Innings | null; atMs?: number; state?: BoardState; actions?: boolean }) {
+    this.drawBoard('super10', 'best', ctx => super10Body(view.rows, view.youId ?? null, view.yours ?? null, ctx, view.atMs), view.state ?? 'ready', !!view.actions);
   }
 
   /** A career board: one big figure a row, and the rest under the name. */
@@ -741,7 +752,7 @@ ${super10PageMarkup(excitedAlready())}
   /** The modes this build plays, in the pager's order, and always the one on screen. */
   private boardModes(current: BoardMode): BoardMode[] {
     return MODE_ORDER.filter(mode => mode === current
-      || (mode === 'marathon' ? this.marathonTab : this.bothModes || mode === this.lastGame));
+      || (mode === 'marathon' ? this.marathonTab : mode === 'super10' ? this.super10Tab : this.bothModes || mode === this.lastGame));
   }
 
   private drawBoard(
@@ -1655,6 +1666,14 @@ ${super10PageMarkup(excitedAlready())}
         const on = Number(dot.dataset.slide) === at;
         dot.classList.toggle('is-on', on);
         dot.setAttribute('aria-selected', String(on));
+        // Four modes scroll on one line: the picked tab is brought into the row.
+        // Only the row moves: scrollIntoView would also scroll the page up to it.
+        const row = dot.parentElement;
+        if (on && row) {
+          const left = dot.getBoundingClientRect().left - row.getBoundingClientRect().left + row.scrollLeft;
+          if (left < row.scrollLeft) row.scrollTo({ left, behavior: 'smooth' });
+          else if (left + dot.offsetWidth > row.scrollLeft + row.clientWidth) row.scrollTo({ left: left + dot.offsetWidth - row.clientWidth, behavior: 'smooth' });
+        }
       }
     };
     for (const dot of document.querySelectorAll<HTMLButtonElement>('.stats-dot')) {
@@ -1744,10 +1763,14 @@ ${super10PageMarkup(excitedAlready())}
    * put away first, they would show whatever they close onto — Choose a mode —
    * for as long as the room takes to load.
    */
-  onStoriesOpen: ((shown: () => void) => void) | null = null;
+  onStoriesOpen: ((what: NonNullable<Story['opens']>, shown: () => void) => void) | null = null;
 
   /** How long one card holds before it moves on by itself. */
   static readonly STORY_MS = 7000;
+  /** How long a film's still (reduced motion) stands, off the cover, before the stories go on to Choose a mode. */
+  static readonly STILL_LEAVE_MS = 4000;
+  /** A story's film fetched whole while the cover is up (`warmStories`), played from memory when it opens. */
+  private storyVideo: { src: string; url: string | null } | null = null;
 
   private storyLocked = false;
 
@@ -1786,12 +1809,29 @@ ${super10PageMarkup(excitedAlready())}
     // bars on it — it is cut at the top and the foot instead, which are its
     // margins, never at the sides, where its words run nearly edge to edge.
     const film = document.getElementById('whatsnew-film');
-    if (story?.film && film) {
+    if ((story?.film || story?.video) && film) {
       const wide = film.clientWidth / Math.max(1, film.clientHeight) > FILM_ASPECT;
       // Measured across the whole room first; then cut to fill it, or shrunk to
       // the film's own shape so its fades land on its own edges.
       film.classList.add(wide ? 'is-cut' : 'is-fit');
-      this.storyFilm = playFilm(film, story.film, { fit: wide ? 'xMidYMid slice' : 'xMidYMax meet' });
+      if (story.film) this.storyFilm = playFilm(film, story.film, { fit: wide ? 'xMidYMid slice' : 'xMidYMax meet' });
+      else if (film instanceof HTMLVideoElement) {
+        // Played once and held on its last frame; under reduced motion, that frame and nothing played.
+        const still = matchMedia('(prefers-reduced-motion: reduce)').matches && !!story.still;
+        // The film warmed on the cover (`warmStories`) plays from memory, with nothing to wait for.
+        const warmed = this.storyVideo?.src === story.video ? this.storyVideo?.url : null;
+        if (!still && warmed) film.src = warmed;
+        if (still) { film.removeAttribute('src'); film.poster = story.still!; film.load(); }
+        else void film.play().catch(() => { if (story.still) film.poster = story.still; });
+        // Off the cover, the last card's film goes on to Choose a mode the moment it ends
+        // (its still, under reduced motion, after a few seconds' look). From the board,
+        // where there is nowhere to go on to, it plays round again until it is closed.
+        if (this.storyWhere === 'intro' && storyHolds(this.storyAt, this.storyRun)) {
+          const leave = () => { window.clearTimeout(this.storyHold); if (this.storiesOpen) this.closeStories(); };
+          if (still) this.storyHold = window.setTimeout(leave, HUD.STILL_LEAVE_MS);
+          else film.addEventListener('ended', leave, { once: true });
+        } else if (!still) film.loop = true;
+      }
     }
     const stage = document.getElementById('whatsnew-stage');
     const room = document.getElementById('whatsnew-room');
@@ -1822,7 +1862,7 @@ ${super10PageMarkup(excitedAlready())}
       window.clearTimeout(this.storyHold);
       (open as HTMLButtonElement).disabled = true;
       let shown = false;
-      go(() => { if (!shown && this.storiesOpen) { shown = true; this.closeStories('open'); } });
+      go(story!.opens!, () => { if (!shown && this.storiesOpen) { shown = true; this.closeStories('open'); } });
     };
     if (storyHolds(this.storyAt, this.storyRun)) return;
     this.storyHold = window.setTimeout(() => this.stepStory(1), story?.holdMs ?? HUD.STORY_MS);
@@ -1899,7 +1939,14 @@ ${super10PageMarkup(excitedAlready())}
 
   /** The stories' stage made ahead, while the cover is up, so the first story does not open on an empty room. */
   /** Only for an update told on the room's stage: building it for nothing costs a phone its first seconds. */
-  warmStories() { if (STORIES.some(one => one.stage)) (this.storyStage ??= new StoryStage()).warm(); }
+  warmStories() {
+    if (STORIES.some(one => one.stage)) (this.storyStage ??= new StoryStage()).warm();
+    // A film is fetched whole into memory, so it opens playing rather than buffering.
+    const video = STORIES.find(one => one.video)?.video;
+    if (!video || this.storyVideo) return;
+    const held = this.storyVideo = { src: video, url: null as string | null };
+    void fetch(video).then(r => (r.ok ? r.blob() : null)).then(blob => { if (blob) held.url = URL.createObjectURL(blob); }).catch(() => { /* Then it streams, as before. */ });
+  }
 
   /** `open` when the way in put them away, which is counted apart from leaving. */
   closeStories(how: 'leave' | 'open' = 'leave') {
@@ -1916,7 +1963,7 @@ ${super10PageMarkup(excitedAlready())}
     // the middle of one with the end of the other.
     // The way in is counted on its own, by the card it was taken from: it is
     // what the stories are for, and counted as leaving it would read as a skip.
-    if (how === 'open') track(`whatsnew-open-${this.storyAt + 1}`, 'Went to the Dressing Room from a What\u2019s new story');
+    if (how === 'open') track(`whatsnew-open-${this.storyAt + 1}`, 'Took the way in from a What\u2019s new story');
     else track(this.storyAt >= this.storyRun.length - 1 ? 'whatsnew-read-all' : `whatsnew-left-${this.storyAt + 1}`,
       'How far the What\u2019s new stories were read');
     this.$('whatsnew-overlay').classList.add('hidden');
@@ -2057,6 +2104,15 @@ ${super10PageMarkup(excitedAlready())}
    */
   private marathonTab = false;
   showMarathonTab(on: boolean) { this.marathonTab = on; }
+  /** Super10's tab on the boards and its PLAY card on Choose a mode, where the mode can be reached (`SUPER10_OPEN`). */
+  private super10Tab = false;
+  showSuper10Tab(on: boolean) {
+    this.super10Tab = on;
+    this.$('mode-super10').classList.toggle('hidden', !on);
+    // Its poster on the rail goes with it, and its dot.
+    this.$('mode-super10-poster').classList.toggle('hidden', !on);
+    this.viewport.querySelector('.ms-pager .is-super10')?.classList.toggle('hidden', !on);
+  }
   /** What a tab does. The game decides, because the rows are the game's. */
   onBoardTab: ((tab: SheetTab) => void) | null = null;
   /** What the sheet's What's New key does. */
@@ -2108,6 +2164,7 @@ ${super10PageMarkup(excitedAlready())}
       // that plays one of the other two takes the other one's tab off the row,
       // keeping the game it plays wherever the player is standing.
       if (other.tab === 'marathon' ? !this.marathonTab
+        : other.tab === 'super10' ? !this.super10Tab
         : other.tab !== 'mine' && !this.bothModes && other.tab !== this.lastGame) { key.remove(); continue; }
       key.onclick = () => { if (other.tab !== tab) this.onBoardTab?.(other.tab); };
     }
@@ -2348,7 +2405,10 @@ ${super10PageMarkup(excitedAlready())}
   speed(kph: number) {
     const gun = this.$('speed-gun');
     this.$('speed').textContent = String(kph);
-    gun.classList.remove('is-on'); void gun.offsetWidth; gun.classList.add('is-on');
+    // At the next frame: forcing the page's layout here, the instant the ball
+    // left the hand, held up the first frame of its flight in the two modes
+    // with a gun, and only them.
+    replayClass(gun, 'is-on');
   }
   /**
    * The Marathon's second meter, beside the injury: how settled the man in is,
@@ -2403,8 +2463,10 @@ ${super10PageMarkup(excitedAlready())}
    */
   marathonIntro(
     done: (how: 'finished' | 'skipped' | 'modes') => void, steps: readonly IntroStep[] = INTRO_STEPS,
-    { left = false, finish = false, game = { name: 'The Blast', tone: 'blast' }, at }: {
+    { left = false, finish = false, game = { name: 'The Blast', tone: 'blast' }, at, onStep }: {
       left?: boolean; finish?: boolean; game?: IntroGame; at?: () => BatterOnScreen | null;
+      /** Each card as it goes up, with how far over the foot of the screen its top stands; null as they are put away. */
+      onStep?: (step: IntroStep | null, over: number) => void;
     } = {},
   ) {
     const overlay = this.$('marathon-intro');
@@ -2417,13 +2479,18 @@ ${super10PageMarkup(excitedAlready())}
       this.$('mi-keys').innerHTML = introKeysMarkup(index, steps.length, finish);
       this.$('mi-stage').innerHTML = introStageMarkup(step, left);
       const key = (id: string, then: () => void) => { const node = document.getElementById(id); if (node) node.onclick = then; };
-      key('mi-modes', () => { this.closeIntro(); done('modes'); });
-      key('mi-skip', () => { this.closeIntro(); done('skipped'); });
+      const close = () => { this.closeIntro(); onStep?.(null, 0); };
+      key('mi-modes', () => { close(); done('modes'); });
+      key('mi-skip', () => { close(); done('skipped'); });
       key('mi-back', () => { index--; show(); });
       key('mi-next', () => {
         if (++index < steps.length) return show();
-        this.closeIntro(); done('finished');
+        close(); done('finished');
       });
+      if (onStep) {
+        const frame = overlay.getBoundingClientRect(), card = this.$('mi-card').getBoundingClientRect();
+        onStep(step, frame.bottom - card.top);
+      }
       this.stage(step, left, finish ? null : at?.() ?? null);
       this.$('mi-next').focus({ preventScroll: true });
     };
@@ -2542,25 +2609,43 @@ ${super10PageMarkup(excitedAlready())}
     }
     scrim.setAttribute('viewBox', `0 0 ${w} ${h}`);
     let d = `M0 0H${w}V${h}H0Z`;
+    const card = this.$('mi-card');
+    card.style.bottom = '';
     if (!box) {
       spot.classList.add('hidden'); tag.classList.add('hidden');
       this.$('mi-scrim-path').setAttribute('d', d);
       return;
     }
-    const pad = 8 * u;
-    const x = box.x - pad, y = box.y - pad, sw = box.w + pad * 2, sh = box.h + pad * 2;
+    // The outline kept inside the screen: round a widget in a corner it ran off the edge.
+    const pad = 8 * u, edge = 4 * u;
+    const x = Math.max(edge, box.x - pad), y = Math.max(edge, box.y - pad);
+    const sw = Math.min(w - edge, box.x + box.w + pad) - x, sh = Math.min(h - edge, box.y + box.h + pad) - y;
     const r = Math.min(20 * u, sh / 2, sw / 2);
     d += `M${x + r} ${y}H${x + sw - r}A${r} ${r} 0 0 1 ${x + sw} ${y + r}V${y + sh - r}A${r} ${r} 0 0 1 ${x + sw - r} ${y + sh}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + sh - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
     this.$('mi-scrim-path').setAttribute('d', d);
     Object.assign(spot.style, { left: `${x}px`, top: `${y}px`, width: `${sw}px`, height: `${sh}px`, borderRadius: `${r}px` });
     spot.classList.remove('hidden');
     // The tag hangs under the outline on a pointer, kept inside the screen.
+    // A widget low at a side (Super10's enlarged field map, held over the
+    // card) has it beside the outline instead, pointing in from the open
+    // side, and the card stays where every other card stands.
+    const low = box.y > h / 2;
+    const cx = x + sw / 2;
+    const beside = low && (cx > w * .6 || cx < w * .4) ? (cx > w / 2 ? 'left' : 'right') : null;
     tag.innerHTML = `<i></i><b>${step.tag ?? ''}</b>`;
     tag.classList.remove('hidden');
-    const cx = x + sw / 2;
-    const width = tag.offsetWidth;
+    tag.classList.toggle('is-above', low && !beside);
+    tag.classList.toggle('is-beside', !!beside);
+    tag.classList.toggle('is-right', beside === 'right');
+    const width = tag.offsetWidth, height = tag.offsetHeight;
+    if (beside) {
+      const left = beside === 'left' ? x - width - 12 * u : x + sw + 12 * u;
+      Object.assign(tag.style, { left: `${left}px`, top: `${y + sh / 2 - height / 2}px` });
+      return;
+    }
     const left = Math.min(Math.max(cx - width / 2, 12 * u), w - width - 12 * u);
-    Object.assign(tag.style, { left: `${left}px`, top: `${y + sh + 14 * u}px` });
+    Object.assign(tag.style, { left: `${left}px`, top: `${low ? y - height - 14 * u : y + sh + 14 * u}px` });
+    if (low) card.style.bottom = `${h - y + height + 30 * u}px`;
     tag.style.setProperty('--point', `${cx - left}px`);
   }
   /** The pause card's declaration, offered in a Marathon from twenty overs. */
@@ -2616,17 +2701,35 @@ ${super10PageMarkup(excitedAlready())}
     this.$('tutorial-done').classList.remove('hidden');
     this.$('tutorial-play').focus();
   }
+  /**
+   * A ground with a big screen over the far end, which the call over the
+   * field would sit on: the call is taken down onto the grass under the fence,
+   * and a boundary's or a wicket's word is left to the screen and the fence,
+   * which play it, the line under it (the timing, or who fielded it) kept.
+   */
+  bigScreen(on: boolean, moments = false) {
+    this.viewport.classList.toggle('has-screen', on);
+    this.viewport.classList.toggle('screen-moments', on && moments);
+  }
   /** A call, not a popup: the outcome rises off the field and fades on its own. */
   result(outcome: ShotOutcome, chargeMiss: string | null = null) {
     this.$('phase-label').textContent = '';
     const panel = this.$('result');
     panel.className = `result ${outcome.advance ? 'is-advance' : outcome.isWicket ? 'is-wicket' : outcome.runs >= 4 ? 'is-boundary' : ''}${chargeMiss ? ' is-missed-charge' : ''}`;
     this.$('result-text').textContent = outcome.feedback;
-    this.$('timing').textContent = outcome.advance ? 'DOWN THE PITCH'
+    // A Super10 fielder who got to it is named under the call. A ball that
+    // went up off a well-timed swing says why, not PERFECT TIMING over CAUGHT:
+    // steered too far and reached for, or a stroke the line did not suit.
+    const timed = outcome.timingGrade === 'PERFECT' || outcome.timingGrade === 'GOOD';
+    const why = !timed || !outcome.aerial || outcome.runs === 6 ? null
+      : outcome.stretched ? 'STRETCHED · OFF THE TOE'
+      : outcome.isWicket && outcome.compatibility < SOLID_SHOT ? 'WRONG SHOT FOR THE LINE' : null;
+    this.$('timing').textContent = why ?? fieldLine(outcome) ?? (outcome.advance ? 'DOWN THE PITCH'
       : chargeMiss ?? (outcome.timingGrade === 'PERFECT' || outcome.timingGrade === 'GOOD' ? `${outcome.timingGrade} TIMING`
-      : outcome.timingDeltaMs === null ? 'NO SHOT' : outcome.timingGrade === 'MISS' ? 'MISSED IT' : outcome.timingDeltaMs < 0 ? 'EARLY' : 'LATE');
-    // Restart the rise-and-fade from the top for back-to-back deliveries.
-    panel.style.animation = 'none'; void panel.offsetWidth; panel.style.animation = '';
+      : outcome.timingDeltaMs === null ? 'NO SHOT' : outcome.timingGrade === 'MISS' ? 'MISSED IT' : outcome.timingDeltaMs < 0 ? 'EARLY' : 'LATE'));
+    // Restart the rise-and-fade from the top for back-to-back deliveries, at
+    // the next frame rather than by forcing the page's layout in this one.
+    replayAnimation(panel);
   }
   /**
    * The pause card's day-or-night toggle, in a Blast innings only: a Test is
@@ -2675,9 +2778,9 @@ ${super10PageMarkup(excitedAlready())}
     this.$('ambience-switch').setAttribute('aria-checked', String(ambience));
     this.$('pause-sound-note').classList.toggle('hidden', !silent);
   }
-  end(score: ScoreManager, best: number, isRecord: boolean, track$: number = GAME.totalBalls) {
-    this.$('end').classList.remove('is-marathon');
-    this.$('end-mode').textContent = 'THE BLAST';
+  end(score: ScoreManager, best: number, isRecord: boolean, track$: number = GAME.totalBalls, mode = 'THE BLAST') {
+    this.$('end').classList.remove('is-marathon', 'is-super10');
+    this.$('end-mode').textContent = mode;
     this.$('end-label').textContent = `${Math.round(track$ / 6)} OVERS`;
     // As on the Test card: the card carries its own sound key, so the game's
     // floating one steps aside rather than sitting on the header.
@@ -2723,7 +2826,7 @@ ${super10PageMarkup(excitedAlready())}
     // already banked by the time this runs, so it is only worth quoting back
     // when the innings did not set it.
     // The band says how it ended; whether it was a best is the player card's to say.
-    this.$('end-title').textContent = score.wickets >= GAME.maxWickets ? 'All out' : 'Innings complete';
+    this.$('end-title').textContent = score.wickets >= score.limits.maxWickets ? 'All out' : 'Innings complete';
     this.cardNote = null;
     // The number is already the largest thing on the card, so the line under it
     // does not repeat it. It adds what the figures cannot: how long the innings
@@ -2868,6 +2971,12 @@ ${super10PageMarkup(excitedAlready())}
       this.$('card-board-head').innerHTML = 'Private window — this innings can’t go on the board';
       this.$('card-peek').innerHTML =
         '<p class="peek-note">Open the game in a normal tab to register a score.</p>';
+      key.innerHTML = door;
+    } else if (offer.kind === 'practice' && offer.why === 'building') {
+      // A mode still being built, with no board of its own to go on yet.
+      this.$('card-board-head').innerHTML = 'Super10 is still being built';
+      this.$('card-peek').innerHTML =
+        '<p class="peek-note">Its innings don’t go on a leaderboard or count toward a career yet.</p>';
       key.innerHTML = door;
     } else if (offer.kind === 'practice') {
       // Played with a switch in the link — the nets, a full meter, one bowler
@@ -4145,7 +4254,7 @@ ${super10PageMarkup(excitedAlready())}
       for (const poster of this.posters()) {
         const box = poster.getBoundingClientRect();
         poster.style.setProperty('--drift', String(Math.round((middle - (box.left + box.width / 2)) * 0.2)));
-        const dot = this.viewport.querySelector(`.ms-pager .is-${poster.classList.contains('is-blast') ? 'blast' : poster.classList.contains('is-marathon') ? 'marathon' : 'survival'}`);
+        const dot = this.viewport.querySelector(`.ms-pager .is-${POSTER_DOTS[poster.dataset.mode ?? ''] ?? 'blast'}`);
         dot?.classList.toggle('is-on', poster === settled);
       }
     };
@@ -4160,19 +4269,6 @@ ${super10PageMarkup(excitedAlready())}
     this.followRail = follow;
   }
   private followRail = () => {};
-  /** Super10's header in two layers, parting as its page scrolls (`--s` on the hero, `.sp-lockup` and `.sp-picture` in its CSS). */
-  private wireSuper10Header() {
-    const scroll = this.viewport.querySelector<HTMLElement>('.sp-scroll')!;
-    const hero = this.viewport.querySelector<HTMLElement>('.sp-hero')!;
-    let frame = 0;
-    scroll.addEventListener('scroll', () => {
-      if (frame || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        hero.style.setProperty('--s', String(Math.min(scroll.scrollTop, hero.offsetHeight)));
-      });
-    }, { passive: true });
-  }
   /** The next poster along the rail, or the one before, settled on as a swipe would. */
   stepRail(by: 1 | -1) {
     const posters = this.posters();
@@ -4181,33 +4277,11 @@ ${super10PageMarkup(excitedAlready())}
     if (next) this.$('modes-rail').scrollTo({ left: this.railLeft(next), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   }
 
-  /** Super10's page over Choose a mode, from its card, at the top of its scroll. */
-  super10Page() {
-    this.$('super10-page').classList.remove('hidden');
-    this.viewport.classList.add('modal-open');
-    this.viewport.querySelector('.sp-scroll')?.scrollTo({ top: 0 });
-    (this.$('super10-back') as HTMLButtonElement).focus({ preventScroll: true });
-  }
-  /** Put away, back to Choose a mode with the card in focus. */
-  closeSuper10() {
-    this.$('super10-page').classList.add('hidden');
-    (this.$('mode-super10') as HTMLButtonElement).focus({ preventScroll: true });
-  }
-  get super10Open() { return !this.$('super10-page').classList.contains('hidden'); }
-  /** I'M EXCITED, pressed: lit for good, with a burst of Volt the moment it is pressed (`burst`). */
-  super10Excited(burst: boolean) {
-    const key = this.$('super10-excited');
-    key.classList.add('is-done');
-    key.setAttribute('aria-pressed', 'true');
-    key.querySelector('.sp-excited-word')!.textContent = 'EXCITED!';
-    this.$('super10-when').textContent = opensLine(true);
-    if (!burst) return;
-    key.classList.remove('is-bursting'); void key.offsetWidth; key.classList.add('is-bursting');
-    window.setTimeout(() => key.classList.remove('is-bursting'), 700);
-  }
+  /** Super10's PLAY card's motion (`Super10Card.ts`), running while Choose a mode is open. */
+  private super10Spark!: Super10Spark;
 
   /** The mode picker, settled on `at` (the mode played last). Skipped entirely when a link has already named the mode. */
-  modes(at: 'CLASSIC' | 'MARATHON' | 'SURVIVE' = 'CLASSIC') {
+  modes(at: 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' = 'CLASSIC') {
     // Whatever was over the ground goes first. The picker is a screen, and both
     // end cards sit later in the markup on the same layer — opened from one of
     // them the picker appeared *behind* it, which read as the key doing nothing.
@@ -4228,8 +4302,10 @@ ${super10PageMarkup(excitedAlready())}
     const poster = this.posters().find(p => p.dataset.mode === at) ?? this.posters()[0];
     if (poster) rail.scrollLeft = this.railLeft(poster);
     this.followRail();
+    if (this.super10Tab) this.super10Spark.start();
   }
   closeModes() {
+    this.super10Spark.stop();
     this.$('modes').classList.add('hidden');
     this.viewport.classList.remove('picking-mode');
     if (this.$('end').classList.contains('hidden') && this.$('end-survive').classList.contains('hidden')) {
@@ -4267,7 +4343,7 @@ ${super10PageMarkup(excitedAlready())}
    * that mode, and offering to leave it is how a playtester ends up filing
    * feedback about the wrong game.
    */
-  lockMode(surviveOnly = false) {
+  lockMode(noBoard = false) {
     this.$('survive-modes').classList.add('hidden');
     // Including the way out of the pause card. A link that names one mode is a
     // link to that mode wherever the player is standing when they ask.
@@ -4277,7 +4353,7 @@ ${super10PageMarkup(excitedAlready())}
     // A build with no board behind it should not offer a way to one. The key is
     // on the cover under two different ids depending on whether the screen got
     // the phone layout or the desktop one.
-    if (surviveOnly) document.body.classList.add('survive-only');
+    if (noBoard) document.body.classList.add('no-board');
   }
 
   /**
@@ -4521,12 +4597,9 @@ ${super10PageMarkup(excitedAlready())}
   blow(where: string) {
     const burst = this.$('hit-burst');
     this.$('hit-where').textContent = where;
-    // Restarting a CSS animation needs the class off, a reflow, and the class on.
-    burst.classList.remove('is-on');
-    this.viewport.classList.remove('struck');
-    void burst.offsetWidth;
-    burst.classList.add('is-on');
-    this.viewport.classList.add('struck');
+    // Off now and on at the next frame (`replayClass`), not through a reflow.
+    replayClass(burst, 'is-on');
+    replayClass(this.viewport, 'struck');
     window.setTimeout(() => this.viewport.classList.remove('struck'), 920);
   }
 
@@ -4555,6 +4628,19 @@ ${super10PageMarkup(excitedAlready())}
     this.$('mcard-worm').innerHTML = wormChartMarkup(score.history.map(ball => ball.runs), fallsOf(batters), best && best > score.runs ? best : null);
     this.$('mcard-score').innerHTML = battingCardMarkup(batters.map(b => ({ ...b, title: b.title.toUpperCase() })));
     this.marathonShare = marathonShareText(total, batters, gameLink());
+  }
+  /**
+   * How a Super10 innings finished: the Blast's card in Super10's colours, its
+   * ten overs charted with the Power Surge over marked (`surge`, counted from
+   * nought), and the batting card the Marathon has, a row for each man who
+   * came in, worked out from the balls.
+   */
+  endSuper10(score: ScoreManager, isRecord: boolean, surge: number | null) {
+    this.end(score, 0, isRecord, score.limits.totalBalls, 'SUPER10');
+    this.$('end').classList.add('is-super10');
+    this.$('end-mode').innerHTML = 'SUPER<b>10</b>';
+    this.$('final-balls').innerHTML = super10ChartMarkup(score.history, score.limits.totalBalls, surge);
+    this.$('mcard-score').innerHTML = battingCardMarkup(battingOf(score.history, SUPER10_BATTERS.map(b => b.title)));
   }
   /** What Test Survival's share key sends: only a win has one. */
   private surviveShare = '';

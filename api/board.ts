@@ -6,7 +6,7 @@
 // beside it, and Vite and Vitest resolve it the same way, so this costs the rest
 // of the project nothing. `scripts/function-check.mjs` is what keeps it honest.
 import {
-  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SURVIVE_LADDER, isPlayerId, readBoard, readMarathon,
+  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SUPER10_LADDER, SURVIVE_LADDER, isPlayerId, readBoard, readMarathon,
   readMarathonStanding, readStanding,
 } from '../src/server/board-store.js';
 import { NoDatabase, redisFromEnv, upstashStore } from '../src/server/upstash.js';
@@ -36,6 +36,8 @@ import { modeAsked } from '../src/server/mode.js';
  * `{ team, solo }`: one sheet shows both behind a toggle, and two requests for
  * one tab would be two edge-cache misses for one look.
  *
+ * `?mode=super10` asks for Super10's: the best team totals.
+ *
  * `?player=<id>` asks a different question: where that one player stands on
  * the whole board — their place however far below the fifty, out of how many,
  * and their row — for the cover and the board to say "you are seventy-third"
@@ -57,6 +59,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         }, player)
         : mode === 'survive'
           ? await readStanding(upstashStore(read, SURVIVE_LADDER.scope), SURVIVE_LADDER, player)
+          : mode === 'super10'
+          ? await readStanding(upstashStore(read, SUPER10_LADDER.scope), SUPER10_LADDER, player)
           : await readStanding(upstashStore(read, CLASSIC_LADDER.scope), CLASSIC_LADDER, player);
       res.setHeader('Cache-Control', 'private, no-store');
       return res.status(200).json(standing);
@@ -67,6 +71,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       })
       : mode === 'survive'
         ? await readBoard(upstashStore(read, SURVIVE_LADDER.scope), SURVIVE_LADDER)
+        : mode === 'super10'
+        ? await readBoard(upstashStore(read, SUPER10_LADDER.scope), SUPER10_LADDER)
         : await readBoard(upstashStore(read, CLASSIC_LADDER.scope), CLASSIC_LADDER);
     // Ten seconds of edge cache, then a minute where a stale board is served
     // while a fresh one is fetched behind it. A leaderboard ten seconds old is

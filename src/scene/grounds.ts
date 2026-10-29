@@ -1,14 +1,34 @@
+import type { Turf } from './turf';
 import * as THREE from 'three';
 import { box, colors, cylinder, mat } from './build';
 import { stadium, type StadiumLights } from './stadium';
+import { arenaStands } from './arena';
+import { pavilionStands } from './pavilion';
+import { canopyStands } from './canopy';
 
 /**
  * The stands and everything over them: what a ground is, once the turf and
  * the boards along the rope are taken as given.
  *
- * Two are built. **The stadium** (`stadium.ts`) is the one every mode plays
+ * Five are built. **The stadium** (`stadium.ts`) is the one every mode plays
  * in: a two-tier bowl right round the ground under a cantilever roof, with the
  * commentary box over the far end and floodlight towers behind it.
+ *
+ * **The arena** (`arena.ts`) is Super10's: the stadium's bowl under a ring
+ * of lamps instead of towers, LED round the roof and the upper tier, a city
+ * behind it and a big screen over the far end, played at night only. For now
+ * it is asked for with `?ground=arena`.
+ *
+ * **The pavilion** (`pavilion.ts`) is the stadium's bowl with an old
+ * ground's far end: cream verandahs full of crowd under green roofs, a clock
+ * tower, trees behind and tall floodlight towers. A third of the Blast's
+ * innings and of the Tests' are played there, on a coin (`groundFor`), and
+ * `?ground=pavilion` asks for it any time.
+ *
+ * **The canopy** (`canopy.ts`) is Super10's ground, a modern one: a big
+ * screen over a glass-fronted block at the far end, shell canopies either
+ * side of it over two packed tiers, square floodlight heads over the
+ * corners. `?ground=canopy` asks for it in any mode.
  *
  * **The bowl** is the ground before it: one tier of stands in a full ring, flat
  * roofs, and the low clubhouse with the flags. It is kept whole, line for line,
@@ -19,27 +39,59 @@ import { stadium, type StadiumLights } from './stadium';
  * leg side reads left: the bowler's end is +z, and both are symmetric enough
  * across x that the mirror changes nothing anybody would notice.
  */
-export type GroundName = 'stadium' | 'bowl';
+export type GroundName = 'stadium' | 'bowl' | 'arena' | 'pavilion' | 'canopy';
 
-export const GROUNDS: readonly GroundName[] = ['stadium', 'bowl'];
+export const GROUNDS: readonly GroundName[] = ['stadium', 'bowl', 'arena', 'pavilion', 'canopy'];
 
 /** The ground every innings is played on unless the link asks for another. */
 export const DEFAULT_GROUND: GroundName = 'stadium';
 
-/** `?ground=bowl` puts the old ground back; anything else, or nothing, is the default. */
-export function groundFrom(search: string): GroundName {
+/** The ground a link asks for (`?ground=bowl`), or null. */
+export function askedGround(search: string): GroundName | null {
   const asked = new URLSearchParams(search).get('ground')?.toLowerCase();
-  return GROUNDS.find(name => name === asked) ?? DEFAULT_GROUND;
+  return GROUNDS.find(name => name === asked) ?? null;
+}
+/** The ground the link asks for, or the default: what the scene is built on at first. */
+export const groundFrom = (search: string): GroundName => askedGround(search) ?? DEFAULT_GROUND;
+
+/** What picks a ground for an innings, besides the lights: the game it is. */
+export type GroundGame = 'blast' | 'super10' | 'test';
+/**
+ * Which ground an innings is played at. A link's `?ground=` wins, in any
+ * mode. Super10 is the canopy's, always. Every other game is played at the
+ * pavilion, the stadium or the canopy, a third each: the Blast (a Rival Match
+ * with it) by day or night, all three having a night of their own, and a
+ * Test, Survival or the Marathon, by day. `coin` is drawn once a visit for
+ * the Blast and once for the Tests (`VENUE_COIN` in `src/Game.ts`), so the
+ * ground holds for the visit and the Lights switch changes the light, not the
+ * ground.
+ */
+export function groundFor(asked: GroundName | null, game: GroundGame, coin: number): GroundName {
+  if (asked) return asked;
+  if (game === 'super10') return 'canopy';
+  return coin < 1 / 3 ? 'pavilion' : coin < 2 / 3 ? DEFAULT_GROUND : 'canopy';
 }
 
-/** Builds a ground onto `world`; the stadium hands back its lamps, for the night. */
-export function buildGround(name: GroundName, world: THREE.Object3D): StadiumLights | null {
+/**
+ * Builds a ground onto `world`; the stadium and the arena hand back their
+ * lamps, for the night. `screen` is the arena's: its big screen, or the
+ * commentary box in its place.
+ */
+export function buildGround(name: GroundName, world: THREE.Object3D, { screen = true } = {}): StadiumLights | null {
   if (name === 'bowl') { bowl(world); return null; }
+  if (name === 'arena') return arenaStands(world, screen);
+  if (name === 'pavilion') return pavilionStands(world);
+  if (name === 'canopy') return canopyStands(world);
   return stadium(world);
 }
 
 /** Whether a ground brings its own floodlights, in place of the four poles `GameScene` stands up for the bowl. */
-export const ownFloodlights = (name: GroundName) => name === 'stadium';
+export const ownFloodlights = (name: GroundName) => name !== 'bowl';
+
+/** The arena is played under lights and nowhere else: whatever the clock or the pause card says. */
+export const nightOnly = (name: GroundName) => name === 'arena';
+/** Which turf a ground is laid with: the pavilion and the canopy the brighter one (`FRESH_TURF` in `turf.ts`), the rest the stadium's. */
+export const turfOf = (name: GroundName): Turf => name === 'pavilion' || name === 'canopy' ? 'fresh' : 'classic';
 
 /** The ground as it was, unchanged. */
 function bowl(world: THREE.Object3D) {

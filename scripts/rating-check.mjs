@@ -391,7 +391,7 @@ await page.goto(`${base}/?debug=1&rate=1`, { waitUntil: 'load' });
 await settle(2500);
 if (await anyway.count()) { await anyway.first().click(); await settle(1200); }
 const keys = page.locator('.rate-preview-key');
-check(await keys.count() === 5, 'the preview puts a key up for the game and each mode', String(await keys.count()));
+check(await keys.count() === 6, 'the preview puts a key up for the game and each mode, Super10 among them', String(await keys.count()));
 await page.locator('.rate-preview-key[data-thing="marathon"]').click();
 await settle(600);
 check(await popUp() && await pop.getAttribute('data-thing') === 'marathon', 'its MARATHON key puts the Marathon’s stars up');

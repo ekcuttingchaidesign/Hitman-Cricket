@@ -1,5 +1,5 @@
-import { GAME } from '../config/gameplay.js';
-import type { ShotOutcome } from '../game/types.js';
+import { ADVANCE, FLAT_SWEEP, GAME, PUNCH, SHOT_ANGLES, SPIN_PULL, SQUARE_DRIVE, SWEEP } from '../config/gameplay.js';
+import type { ShotOutcome, ShotType } from '../game/types.js';
 
 /**
  * What a struck ball does after it leaves the bat, as four numbers and two
@@ -43,6 +43,35 @@ export interface Flight {
   bounceAt: number;
 }
 
+/**
+ * Which way a struck ball goes, in degrees off straight, the off side
+ * positive: the stroke's sector, moved up to eight degrees by the timing — a
+ * shade early pulls it round to leg, a shade late pushes it to off.
+ *
+ * The sweep is hit where the sweep goes — midwicket — rather than out along
+ * the sector of the leg-side swipe that played it. The orthodox sweep goes
+ * squarer than the slog does: the blade is level and going across the line,
+ * so the ball leaves square of the wicket rather than in front of it. The
+ * back-foot punch goes through cover, squarer than the drive's sector. The
+ * pull off the spinner goes between midwicket and square leg. The charge over
+ * cover goes over extra cover, where the stroke sends it, rather than out
+ * along the long-off sector the cover input names.
+ *
+ * The scene draws the ball along it and the Super10 field judges it on it
+ * (`src/game/super10-field.ts`), so a ball a fielder is said to have stopped
+ * is one the player watched go to him. In Super10 the swipe steers the line
+ * inside the stroke's arc (`steer`), and it arrives here as `outcome.angle`.
+ */
+export function sectorOf(outcome: ShotOutcome, shot: ShotType | undefined): number {
+  const sector = outcome.swept ? SWEEP.angle
+    : outcome.sweptFlat ? FLAT_SWEEP.angle
+    : outcome.advance && shot === 'COVER_LONG_OFF' ? ADVANCE.coverAngle
+    : outcome.advance && shot === 'LONG_ON' ? ADVANCE.onAngle
+    : outcome.squared ? SQUARE_DRIVE.angle : outcome.punched ? PUNCH.angle : outcome.spinPulled ? SPIN_PULL.angle : SHOT_ANGLES[shot ?? 'STRAIGHT'];
+  // Steered (Super10), the swipe chose the line inside the stroke's arc.
+  return (outcome.angle ?? sector) + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28));
+}
+
 /** Runs to how far a ball that stayed down runs away from the bat. */
 const GROUND_REACH: Record<number, number> = { 0: 5, 1: 10, 2: 19, 3: 26, 4: 44, 6: 52 };
 
@@ -60,6 +89,17 @@ export function flightOf(outcome: ShotOutcome): Flight {
    */
   const toAFielder = (caught || !!outcome.dropped) && outcome.aerial;
 
+  if (outcome.fielder) {
+    // To the man who got to it: a six he caught comes down to him high on the
+    // rope; anything he stopped runs out to him along the ground and is in his
+    // hands a stride short of where he stood. One a boundary rider saves, a
+    // few metres off him, slows on the long way out, which gives him the time
+    // to run and dive across for it.
+    const { distance, how } = outcome.fielder;
+    return how === 'caught'
+      ? { distance, height: 15, flightMs: hang(outcome), endY: 2, takeAt: 0.9, dropAt: 0, bounceAt: 0 }
+      : shape(Math.max(6, distance - 1.2), 0.22, GAME.hitAnimationMs * (how === 'stopped' ? 0.7 : how === 'saved' ? 1.3 : 0.9), 0.1);
+  }
   if (outcome.advance) return shape(78, 32, 2200, 0.1);
   if (outcome.swept) {
     // Middled off the knee: over midwicket and into the crowd, flatter and

@@ -68,7 +68,8 @@ const open = async page => {
     'with the mode and the ladder as pills');
   check(await page.locator('.lb-step:not(.is-open)').count() === 3 && await page.locator('.lb-crown').count() === 1, 'a podium of three, the crown on the first');
   check(await page.locator('.lb-list .lb-row').count() >= 40, 'and the rest in the list', String(await page.locator('.lb-list .lb-row').count()));
-  check(await page.locator('.lb-pager i').count() === 3, 'the pager shows three modes');
+  // Four off production, where Super10 can be played and has its board; three on it.
+  check(await page.locator('.lb-pager i').count() === 4, 'the pager shows four modes, Super10 among them');
   check((await page.locator('#board-play').innerText()).trim() === 'PLAY THE BLAST', 'the key at the foot plays the Blast', await page.locator('#board-play').innerText());
   await page.screenshot({ path: 'test-results/board/blast.png' });
 
@@ -79,7 +80,8 @@ const open = async page => {
 
   await page.locator('#board-mode').click();
   await page.waitForTimeout(300);
-  check(await page.locator('#board-mode-menu .lb-menu-item').count() === 3, 'the mode pill opens a menu of the three');
+  const order = await page.locator('#board-mode-menu [data-mode]').evaluateAll(all => all.map(one => one.dataset.mode));
+  check(order.join() === 'classic,survive,super10,marathon', 'the mode pill opens a menu of the four, Super10 third and the Marathon last', order.join());
   await page.screenshot({ path: 'test-results/board/mode-menu.png' });
   await page.locator('[data-mode="marathon"]').click();
   await page.waitForTimeout(900);
@@ -95,14 +97,19 @@ const open = async page => {
   check((await page.locator('#board-ladder').innerText()).includes('Batters'), 'and Batters opens the batters’ ladder');
   await page.screenshot({ path: 'test-results/board/marathon-batters.png' });
 
-  // A swipe left goes on to the next mode.
+  // A swipe right goes back a mode: the Marathon is last, so Super10, then Test Survival.
   const box = await page.locator('#board-body').boundingBox();
-  await page.mouse.move(box.x + box.width * 0.8, box.y + 300);
-  await page.mouse.down();
-  for (let i = 1; i <= 8; i++) await page.mouse.move(box.x + box.width * (0.8 - i * 0.07), box.y + 302);
-  await page.mouse.up();
-  await page.waitForTimeout(900);
-  check((await page.locator('#board-mode').innerText()).includes('Test Survival'), 'a swipe goes on to Test Survival');
+  const swipeBack = async () => {
+    await page.mouse.move(box.x + box.width * 0.3, box.y + 300);
+    await page.mouse.down();
+    for (let i = 1; i <= 8; i++) await page.mouse.move(box.x + box.width * (0.3 + i * 0.075), box.y + 302);
+    await page.mouse.up();
+    await page.waitForTimeout(900);
+  };
+  await swipeBack();
+  check((await page.locator('#board-mode').innerText()).includes('Super10'), 'a swipe goes back to Super10', await page.locator('#board-mode').innerText());
+  await swipeBack();
+  check((await page.locator('#board-mode').innerText()).includes('Test Survival'), 'and another to Test Survival');
   check(await page.locator('.lb-result').count() > 10, 'whose rows carry their result', String(await page.locator('.lb-result').count()));
   await page.screenshot({ path: 'test-results/board/survival.png' });
 

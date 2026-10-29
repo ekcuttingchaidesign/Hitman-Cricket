@@ -4,6 +4,7 @@ import { readPlayer } from './player';
 import type { SurviveInnings, SurviveRow } from './survive-board';
 import type { MarathonFigures, SoloRow, TeamRow } from './marathon-board';
 import type { PostExtras } from './profile-api';
+import type { Super10Innings } from './super10-board';
 
 /**
  * The board, fetched.
@@ -31,7 +32,7 @@ const TIMEOUT_MS = 4000;
 const FRESH_MS = 20_000;
 
 /** Which board is being asked for. Each is its own ladder over its own keys. */
-export type BoardMode = 'classic' | 'survive' | 'marathon';
+export type BoardMode = 'classic' | 'survive' | 'marathon' | 'super10';
 
 export interface BoardPayload {
   rows: BoardRow[];
@@ -50,6 +51,22 @@ export interface SurvivePayload {
 export interface MarathonPayload {
   team: { rows: TeamRow[]; cutoff: number | null; size: number };
   solo: { rows: SoloRow[]; cutoff: number | null; size: number };
+}
+
+/** A row on Super10's board: the team total and what ranks it, and who made it. */
+export interface Super10Row extends Super10Innings {
+  handle: string;
+  name: string;
+  avatar: number;
+  score: number;
+  at?: number;
+}
+
+/** Super10's fifty, shaped as the Blast's answer is. */
+export interface Super10Payload {
+  rows: Super10Row[];
+  cutoff: number | null;
+  size: number;
 }
 
 /** What the sheet knows about the board it is drawing. */
@@ -129,7 +146,7 @@ const STILL_COUNTS = 'Your innings still counts on this device.';
  * rows have different figures on them and the sheet would draw whichever it was
  * given.
  */
-const cached: Partial<Record<BoardMode, { at: number; payload: BoardPayload | SurvivePayload | MarathonPayload }>> = {};
+const cached: Partial<Record<BoardMode, { at: number; payload: BoardPayload | SurvivePayload | MarathonPayload | Super10Payload }>> = {};
 
 /**
  * The fifty. A board fetched in the last few seconds is reused rather than
@@ -148,6 +165,11 @@ export async function fetchSurviveBoard(force = false): Promise<SurvivePayload |
 /** The Test Marathon's two ladders, fetched together. */
 export async function fetchMarathonBoard(force = false): Promise<MarathonPayload | null> {
   return await board(force, 'marathon') as MarathonPayload | null;
+}
+
+/** Super10's fifty: the best team totals. */
+export async function fetchSuper10Board(force = false): Promise<Super10Payload | null> {
+  return await board(force, 'super10') as Super10Payload | null;
 }
 
 async function board(force: boolean, mode: BoardMode) {
@@ -194,6 +216,13 @@ export function submitMarathon(
   return offer(playerId, name, avatar, innings, 'marathon') as Promise<SubmitResult<MarathonPayload>>;
 }
 
+/** A Super10 innings, offered to its board. */
+export function submitSuper10(
+  playerId: string, name: string, avatar: number, innings: Super10Innings,
+): Promise<SubmitResult<Super10Payload>> {
+  return offer(playerId, name, avatar, innings, 'super10') as Promise<SubmitResult<Super10Payload>>;
+}
+
 /**
  * The player whose best is being chased, a mode at a time: an innings of that
  * mode is posted with their handle, and the store judges it and tells them.
@@ -205,10 +234,10 @@ export function chaseFor(handle: string | null, mode: BoardMode = 'classic', lad
 }
 
 async function offer(
-  playerId: string, name: string, avatar: number, innings: Innings | SurviveInnings | MarathonFigures, mode: BoardMode,
-): Promise<SubmitResult<BoardPayload | SurvivePayload | MarathonPayload>> {
+  playerId: string, name: string, avatar: number, innings: Innings | SurviveInnings | MarathonFigures | Super10Innings, mode: BoardMode,
+): Promise<SubmitResult<BoardPayload | SurvivePayload | MarathonPayload | Super10Payload>> {
   const answer = await ask<{
-    improved: SubmitResult['improved']; score: SubmitResult['score']; board: BoardPayload | SurvivePayload | MarathonPayload;
+    improved: SubmitResult['improved']; score: SubmitResult['score']; board: BoardPayload | SurvivePayload | MarathonPayload | Super10Payload;
     standing?: SubmitResult['standing']; error?: string; retry?: boolean; status?: number; key?: string; held?: string;
     around?: SubmitResult['around']; chase?: SubmitResult['chase'];
   }>(
@@ -256,7 +285,7 @@ const standings: Partial<Record<BoardMode, { at: number; player: string; payload
  * the store directly and never cached at the edge: it is about who is asking.
  * Null with no player id yet, no answer, or no board behind the game.
  */
-export async function fetchStanding(player: string | null, mode: 'classic' | 'survive'): Promise<PlayerStanding | null>;
+export async function fetchStanding(player: string | null, mode: 'classic' | 'survive' | 'super10'): Promise<PlayerStanding | null>;
 export async function fetchStanding(
   player: string | null, mode: 'marathon',
 ): Promise<{ team: PlayerStanding; solo: PlayerStanding } | null>;
@@ -314,7 +343,7 @@ export async function claimName(playerId: string, name: string, avatar: number, 
 
 /** Throws away the board held from last time, so the next open asks again. */
 export function forgetBoard() {
-  for (const mode of ['classic', 'survive', 'marathon'] as const) { delete cached[mode]; delete standings[mode]; }
+  for (const mode of ['classic', 'survive', 'marathon', 'super10'] as const) { delete cached[mode]; delete standings[mode]; }
 }
 
 /**

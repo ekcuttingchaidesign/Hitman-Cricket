@@ -29,6 +29,8 @@ const ADS: Ad[] = [
 
 /** Boards per sponsor round the ground. */
 const LAPS = 5;
+/** How many boards make the ring: a word put up on all of them repeats this often. */
+export const BOARD_PANELS = ADS.length * LAPS;
 
 function boardTexture(anisotropy: number) {
   const panelW = 640, H = 128;

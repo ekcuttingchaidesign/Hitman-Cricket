@@ -54,7 +54,7 @@ for (const [name, options] of [
     try {
       localStorage.setItem('hitman-seen', day);
       // Past the update's stories.
-      localStorage.setItem('hitman-whatsnew', 'player-profiles:9');
+      localStorage.setItem('hitman-whatsnew', 'super10:9');
     } catch { /* Then the notices stand. */ }
     const later = window.setTimeout;
     window.__timerScale = 1;

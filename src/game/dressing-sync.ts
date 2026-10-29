@@ -1,4 +1,5 @@
 import { BAT_IDS, FREE_GUARD, OUTFIT_IDS, isBat, isGuard, isOutfit, type BatId, type GuardId, type OutfitId } from './dressing-ids.js';
+import { SUPER10_KIT_IDS, type Super10KitId } from './super10-kits.js';
 
 /**
  * The Dressing Room as it travels between a player's devices, and the one rule
@@ -21,6 +22,11 @@ export interface SavedDressing {
   bat: BatId;
   /** The guard, gloves and pads in one, every one free: a copy from before there were any wears the free one. */
   guard: GuardId;
+  /**
+   * The Super10 kit picked in the room, worn in Super10 alone; null until one
+   * is, when a Super10 innings draws one of those earned (`super10KitFor`).
+   */
+  super10: Super10KitId | null;
   /** When the pick was last changed, by the clock of the device that changed it: the later pick wins. */
   pickedAt: number;
   launch: Figures | null;
@@ -37,7 +43,8 @@ export interface SavedDressing {
 /** Shown before there was a record of it: Boom's key and the free pair are the only moments the first release played for history. */
 const SHOWN_BEFORE = new Set(['bat:boom', 'kit:home', 'kit:papaya', 'bat:plain']);
 
-const KNOWN = new Set<string>([...OUTFIT_IDS.map(id => `kit:${id}`), ...BAT_IDS.map(id => `bat:${id}`)]);
+const KNOWN = new Set<string>([...OUTFIT_IDS.map(id => `kit:${id}`), ...SUPER10_KIT_IDS.map(id => `kit:${id}`), ...BAT_IDS.map(id => `bat:${id}`)]);
+const isSuper10 = (id: unknown): id is Super10KitId => typeof id === 'string' && (SUPER10_KIT_IDS as readonly string[]).includes(id);
 const figure = (value: unknown) => { const n = Number(value); return Number.isFinite(n) && n >= 0 ? n : 0; };
 
 /** A copy as sent or as stored, or null if it is not one: an unknown kit or bat refuses the lot; an unknown guard is the free one. */
@@ -53,7 +60,7 @@ export function cleanDressing(raw: unknown): SavedDressing | null {
   // A copy from before `shown` was kept: everything its seen list took in
   // silently, a career's worth earned before the room, has never had its moment.
   const shown = Array.isArray(held.shown) ? keys(held.shown) : seen.filter(one => SHOWN_BEFORE.has(one));
-  return { outfit: held.outfit, bat: held.bat, guard: isGuard(held.guard) ? held.guard : FREE_GUARD, pickedAt: figure(held.pickedAt), launch, seen, shown, visited: held.visited === true };
+  return { outfit: held.outfit, bat: held.bat, guard: isGuard(held.guard) ? held.guard : FREE_GUARD, super10: isSuper10(held.super10) ? held.super10 : null, pickedAt: figure(held.pickedAt), launch, seen, shown, visited: held.visited === true };
 }
 
 /**
@@ -71,7 +78,7 @@ export function mergeDressing(held: SavedDressing | null, incoming: SavedDressin
     ? { classic: Math.min(held.launch.classic, incoming.launch.classic), survive: Math.min(held.launch.survive, incoming.launch.survive), marathon: Math.min(held.launch.marathon, incoming.launch.marathon) }
     : held.launch ?? incoming.launch;
   return {
-    outfit: pick.outfit, bat: pick.bat, guard: pick.guard, pickedAt: pick.pickedAt, launch,
+    outfit: pick.outfit, bat: pick.bat, guard: pick.guard, super10: pick.super10, pickedAt: pick.pickedAt, launch,
     seen: [...new Set([...held.seen, ...incoming.seen])],
     shown: [...new Set([...held.shown, ...incoming.shown])],
     visited: held.visited || incoming.visited,
@@ -81,7 +88,7 @@ export function mergeDressing(held: SavedDressing | null, incoming: SavedDressin
 /** Whether two copies say the same thing, so an answer that changes nothing is not written back. */
 export function sameDressing(a: SavedDressing | null, b: SavedDressing | null) {
   if (!a || !b) return a === b;
-  return a.outfit === b.outfit && a.bat === b.bat && a.guard === b.guard && a.pickedAt === b.pickedAt && a.visited === b.visited
+  return a.outfit === b.outfit && a.bat === b.bat && a.guard === b.guard && a.super10 === b.super10 && a.pickedAt === b.pickedAt && a.visited === b.visited
     && JSON.stringify(a.launch) === JSON.stringify(b.launch)
     && a.seen.length === b.seen.length && a.seen.every(one => b.seen.includes(one))
     && a.shown.length === b.shown.length && a.shown.every(one => b.shown.includes(one));

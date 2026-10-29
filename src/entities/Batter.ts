@@ -9,6 +9,7 @@ import { ConnectedTrousers } from './ConnectedTrousers';
 import { clothMaterial, willowMaterial } from './characterMaterials';
 import { GRILLE_MOUNT, helmetGeometry, helmetGrilleGeometry, helmetPeakGeometry, helmetRimGeometry } from './helmetGeometry';
 import { compactRigidParts } from './compactParts';
+import { NUMBER_FONT, paintKitPrint, printable, printSheet, TORSO_SHARE, type KitPrint, type PrintSheet } from './kitPrint';
 import { buildGloveCuff, buildGloveHand, DEFAULT_GLOVE, gloveHeelGeometry, gloveOf, WRIST_HOME, type GloveDesign } from './gloves';
 import type { BodyPart, ShotType } from '../game/types';
 import { BAT, DUEL, type Film } from '../game/IntroReel';
@@ -3160,6 +3161,42 @@ export class Batter {
    * the helmet). Colours as the catalogue writes them. The leg pads are not
    * the kit's: they go with the gloves (`wearGloves`).
    */
+  /** The shirt's and the trousers' print, the sheets it is painted on, and what is on them: see `printKit`. */
+  private printing = {
+    shirt: printable(this.palette.shirt, TORSO_SHARE), trousers: printable(this.palette.trousers, 1),
+    sheets: null as { shirt: PrintSheet; trousers: PrintSheet } | null, worn: '', mirrored: false,
+    wearing: null as { print: KitPrint; number: string | null } | null,
+  };
+  /**
+   * A kit's print over its colours (`kitPrint.ts`), the Super10 kits' bolts
+   * with `number` printed on the back, or none. Painted onto two sheets this
+   * batter keeps, and again only when the kit or the number changes: once an
+   * innings and once a wicket, between balls. Painted before the lettering
+   * has loaded, it is painted again once it has.
+   */
+  printKit(print: KitPrint | null, number: string | null = null) {
+    const { shirt, trousers } = this.printing;
+    shirt.uKitPrintOn.value = trousers.uKitPrintOn.value = print ? 1 : 0;
+    // The printed shirts carry their number in the print, not on the two blocks the others wear.
+    this.palette.number.visible = !print;
+    if (!print) { this.printing.worn = ''; return; }
+    const mirrored = this.printing.mirrored;
+    this.printing.wearing = { print, number };
+    const worn = `${JSON.stringify(print)}|${number}|${mirrored}`;
+    if (worn === this.printing.worn) return;
+    this.printing.worn = worn;
+    const sheets = this.printing.sheets ??= { shirt: printSheet(1024, 512), trousers: printSheet(512, 512) };
+    const paint = () => {
+      paintKitPrint(print, sheets.shirt.canvas, sheets.trousers.canvas, number, mirrored);
+      sheets.shirt.texture.needsUpdate = sheets.trousers.texture.needsUpdate = true;
+    };
+    paint();
+    shirt.uKitPrint.value = sheets.shirt.texture; trousers.uKitPrint.value = sheets.trousers.texture;
+    if (number && typeof document !== 'undefined' && document.fonts && !document.fonts.check(NUMBER_FONT(80))) {
+      void document.fonts.load(NUMBER_FONT(80)).then(() => { if (this.printing.worn === worn) paint(); }).catch(() => {});
+    }
+  }
+
   wear(look: Partial<Record<'shirt' | 'helmet' | 'trousers' | 'pads' | 'trim' | 'number', string>>) {
     if (look.shirt) this.palette.shirt.color.set(look.shirt);
     if (look.helmet) this.palette.helmet.color.set(look.helmet);
@@ -3192,7 +3229,7 @@ export class Batter {
    * cuff (`buildGloveHand`, `buildGloveCuff`), and the pads' colours. The
    * heel `update` re-aims at the wrist takes the padding's colour.
    */
-  wearGloves(design: GloveDesign | null) {
+  wearGloves(design: GloveDesign<string> | null) {
     for (const part of this.wornGloves) part.removeFromParent();
     this.wornGloves = [];
     const worn = design ?? gloveOf(DEFAULT_GLOVE);
@@ -3253,7 +3290,13 @@ export class Batter {
    * would print every word on the bat backwards. The blade is the same shape
    * either way round, so flipping it back changes nothing else.
    */
-  mirrorStickers(mirrored: boolean) { this.blade.scale.x = mirrored ? -1 : 1; }
+  mirrorStickers(mirrored: boolean) {
+    this.blade.scale.x = mirrored ? -1 : 1;
+    // And the number on a printed shirt's back, painted the other way round.
+    this.printing.mirrored = mirrored;
+    const wearing = this.printing.wearing;
+    if (wearing && this.printing.worn) this.printKit(wearing.print, wearing.number);
+  }
 
   /** The materials a kit colours, for the Dressing Room's scan that changes one kit into another. */
   get kitMaterials(): THREE.MeshStandardMaterial[] {

@@ -50,10 +50,10 @@ export interface PlayerSheetView {
 }
 
 /** The switch's words, and what the figures call each mode's board. */
-const SHORT: Record<CareerMode, string> = { classic: 'Blast', marathon: 'Marathon', survive: 'Survival' };
-const BOARD_NAME: Record<CareerMode, string> = { classic: 'The Blast', marathon: 'Marathon team', survive: 'Test Survival' };
-const IN_MODE: Record<CareerMode, string> = { classic: 'the Blast', marathon: 'the Test Marathon', survive: 'Test Survival' };
-const DOT: Record<CareerMode, string> = { classic: '#3f88f2', marathon: '#1f8a55', survive: '#ff5a4e' };
+const SHORT: Record<CareerMode, string> = { classic: 'Blast', marathon: 'Marathon', survive: 'Survival', super10: 'Super10' };
+const BOARD_NAME: Record<CareerMode, string> = { classic: 'The Blast', marathon: 'Marathon team', survive: 'Test Survival', super10: 'Super10' };
+const IN_MODE: Record<CareerMode, string> = { classic: 'the Blast', marathon: 'the Test Marathon', survive: 'Test Survival', super10: 'Super10' };
+const DOT: Record<CareerMode, string> = { classic: '#3f88f2', marathon: '#1f8a55', survive: '#ff5a4e', super10: '#8b5cf6' };
 
 const STAR = new URL('../assets/kit/card-star.svg', import.meta.url).href;
 

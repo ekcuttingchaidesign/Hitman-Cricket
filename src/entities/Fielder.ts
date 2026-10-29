@@ -666,6 +666,59 @@ export function gather(spot: Spot, start: number, ball: THREE.Vector3, end = Inf
   };
 }
 
+/** How long a man takes to get down behind a ball coming at him along the ground. */
+export const COLLECT_MS = 340;
+
+/**
+ * Getting down behind a ball coming at him along the ground and taking it in
+ * both hands, as a fielder in the ring does: stood behind its line and facing
+ * it, he sinks onto his haunches as it comes, knees bent and weight forward,
+ * both hands together on the turf in front of his feet where it is going,
+ * takes it at `at`, and comes up with it at his chest. Walking up to a ball
+ * that had already stopped read as a man fetching it, not fielding it.
+ */
+export function collect(spot: Spot, at: number, ball: THREE.Vector3, end = Infinity): Action {
+  const start = at - COLLECT_MS;
+  const stood = (body: Body, spread: number) => {
+    for (const [foot, side] of [[body.pose.leftFoot, -1], [body.pose.rightFoot, 1]] as const) {
+      foot.copy(fromField(body, outOfSpot(new THREE.Vector3(side * spread, SOLE, side > 0 ? .04 : -.04), spot)));
+    }
+  };
+  const upright = (() => {
+    const pose = standPose(NOWHERE);
+    const body: Body = { ...spot, pitch: 0, anchor: pose.hip.clone(), pose };
+    stood(body, .2);
+    return body;
+  })();
+  const low = (() => {
+    const pose = standPose(NOWHERE);
+    pose.hip.set(0, .9, 0); pose.chest.set(0, .9 + SPINE, 0);
+    // Down on his haunches, the chest over his knees and his head over the ball.
+    const body: Body = { ...spot, pitch: 1.1, anchor: new THREE.Vector3(0, .44, -.05), pose };
+    stood(body, .26);
+    const lying = ball.clone().setY(Math.max(ball.y, .07));
+    const local = intoSpot(lying, spot);
+    pose.rightHand.copy(fromField(body, outOfSpot(local.clone().add(new THREE.Vector3(.07, 0, 0)), spot).setY(lying.y)));
+    pose.leftHand.copy(fromField(body, outOfSpot(local.clone().add(new THREE.Vector3(-.07, 0, 0)), spot).setY(lying.y)));
+    pose.headPitch = .45;
+    return body;
+  })();
+  return {
+    name: 'Collecting it', start, end, blend: 140,
+    at(t, look) {
+      const down = ease(span(t, start, at - 30)), up = ease(span(t, at + 160, at + 560));
+      const body = mixBodies(mixBodies(upright, low, down), upright, up);
+      const pose = copyPose(body.pose);
+      // Up with it held at his chest in both hands, the right on it to throw.
+      pose.rightHand.lerp(new THREE.Vector3(.08, pose.hip.y + .4, .26), up);
+      pose.leftHand.lerp(new THREE.Vector3(-.06, pose.hip.y + .38, .24), up);
+      const out = aboveGround({ ...body, anchor: body.anchor.clone(), pose });
+      if (look && t < at) watch(out, look);
+      return out;
+    },
+  };
+}
+
 /**
  * Settled under a skied ball and taking it above his head. The hands go up as
  * it comes down; on `catch` they close round it and bring it in to the chest.
@@ -761,10 +814,18 @@ export function midpointOfHands(body: Body) {
 }
 
 /**
+ * The fastest a man runs in to take a catch on his feet, on average over the
+ * run (half as fast again at the most): any further than that in the time and
+ * he dives for it.
+ */
+export const RUNNING_CATCH = 4;
+
+/**
  * Plan a fielder's catch. He is on `home`, facing the bat. The ball is struck
  * at `hitAt` and will be at `ball` (on the field, at catching height) at
  * `arrives`. Close enough to settle under, he settles under it and takes it
- * high; further, he reads it, sprints, and dives the last of it.
+ * high; near enough to get there on his feet, he runs in and takes it on the
+ * move; further, he reads it, sprints, and dives the last of it.
  *
  * `ball` is where the ball is *going*. The plan answers with where his hands
  * actually are at that moment, and the flight should be bent to finish there.
@@ -784,12 +845,19 @@ export function planCatch(home: Spot, ball: THREE.Vector3, hitAt: number, arrive
   const window = arrives - go;
 
   // Near enough to walk under it, and with time to: no need to throw himself.
-  if (!options.ground && (away < 2.2 || away / Math.max(.2, (window - 450) / 1000) < 2.6)) {
+  // A little further, he runs in and takes it on the move, the hands coming
+  // up as he gets there: only dived for when his feet cannot get him there.
+  // Asked to be stood still under it four tenths of a second before it came,
+  // every catch but a dolly was a dive, ones he could have jogged to as well.
+  const settles = away < 2.2 || away / Math.max(.2, (window - 450) / 1000) < 2.6;
+  const onTheRun = (window - 150) / 1000;
+  if (!options.ground && (settles || (onTheRun > .3 && away / onTheRun <= RUNNING_CATCH))) {
     const heading = Math.atan2(batter.x - ball.x, batter.z - ball.z);
     const under: Spot = { x: ball.x, z: ball.z, heading };
     // He turns and goes, and squares up to the bat as he settles: holding his
     // heading while moving sideways crosses his legs.
-    const move = travel(home, under, go, Math.max(300, window - 420), 'stop');
+    const move = settles ? travel(home, under, go, Math.max(300, window - 420), 'stop')
+      : travel(home, under, go, window - 150, 'stop', { name: 'Running in' });
     const take = highCatch(under, move.end, arrives);
     actions.push(move, take);
     // Watching it into his hands and no further: once he holds it, the ball
@@ -875,8 +943,9 @@ export class Fielder {
   readonly figure: Cricketer;
   /** A contact shadow, kept under his hips — which in a dive are metres from his feet. */
   patch?: THREE.Object3D;
-  constructor(kit?: Kit) {
-    this.figure = new Cricketer(kit);
+  /** `connected`: the bowler's clean build, for Super10's captain. It wants `figure.drape()` before a frame is drawn. */
+  constructor(kit?: Kit, { connected = false } = {}) {
+    this.figure = new Cricketer(kit, { connected });
     this.root.name = 'Fielder';
     this.root.add(this.figure.root);
   }
@@ -984,3 +1053,42 @@ export function receive(spot: Spot, start: number, at: number, end = Infinity): 
   };
 }
 
+
+/** What the captain is telling a man to do. */
+export type Signal = 'point' | 'back' | 'in';
+/** How long the captain's signal takes, from turning to the man to dropping the arm. */
+export const SIGNAL_MS = 900;
+
+/**
+ * The captain at mid-off moving a man: turned towards him, and either the
+ * right arm out straight at where he wants him (`point`), up over his head
+ * and pushing him back twice (`back`), or both hands out low in front and
+ * beckoning him up twice (`in`). He does not walk: a captain points.
+ */
+export function signal(spot: Spot, toward: { x: number; z: number }, start: number, kind: Signal): Action {
+  const facing = Math.atan2(toward.x - spot.x, toward.z - spot.z);
+  return {
+    name: 'Signalling', start, end: start + SIGNAL_MS, blend: 220,
+    at(t) {
+      const ms = t - start;
+      const up = ease(span(ms, 60, 300)), down = ease(span(ms, 680, SIGNAL_MS));
+      const k = up * (1 - down);
+      // Two beats while the arm is up.
+      const beat = Math.sin(span(ms, 300, 680) * Math.PI * 4);
+      const p = standPose(NOWHERE);
+      p.hip.y += .03; p.chest.y += .03;
+      const shoulder = p.chest.y + BUILD.shoulderY;
+      if (kind === 'point') {
+        p.rightHand.lerp(new THREE.Vector3(.2, shoulder + .08 + beat * .025, .63), k);
+      } else if (kind === 'back') {
+        p.rightHand.lerp(new THREE.Vector3(.21, shoulder + .5, .18 + beat * .13), k);
+      } else {
+        p.leftHand.lerp(new THREE.Vector3(-.17, shoulder - .22 + beat * .12, .48), k);
+        p.rightHand.lerp(new THREE.Vector3(.17, shoulder - .22 + beat * .12, .48), k);
+      }
+      p.headPitch = -.04 * k;
+      const turned = ease(span(ms, 0, 240)) * (1 - ease(span(ms, 700, SIGNAL_MS)));
+      return upright({ x: spot.x, z: spot.z, heading: lerpAngle(spot.heading, facing, turned) }, p);
+    },
+  };
+}

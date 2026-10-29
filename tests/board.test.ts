@@ -526,9 +526,9 @@ describe('the two ladders, as tabs over the sheet', () => {
     expect(test).toContain('aria-selected="false">The Blast');
   });
 
-  it('names the three games the way the mode screen names them, and the card after them — Rivals has moved to Rival Matches', () => {
-    expect(BOARD_TABS.map(tab => tab.name)).toEqual(['The Blast', 'Test Survival', 'Test Marathon', 'My Stats']);
-    expect(BOARD_TABS.map(tab => tab.id)).toEqual(['board-tab-classic', 'board-tab-survive', 'board-tab-marathon', 'board-tab-mine']);
+  it('names the four games the way the mode screen names them, and the card after them — Rivals has moved to Rival Matches', () => {
+    expect(BOARD_TABS.map(tab => tab.name)).toEqual(['The Blast', 'Test Survival', 'Test Marathon', 'Super10', 'My Stats']);
+    expect(BOARD_TABS.map(tab => tab.id)).toEqual(['board-tab-classic', 'board-tab-survive', 'board-tab-marathon', 'board-tab-super10', 'board-tab-mine']);
   });
 
   it('gives the card no ladders, and every game a row of them', () => {

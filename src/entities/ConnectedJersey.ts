@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { jerseyGeometry } from './garment';
 import { SLEEVE_HEM, type BendingLimb } from './BendingLimb';
+import { setPrint } from './kitPrint';
 
 /** Torso, shoulder gussets and arms share vertices: no inserted tubes or joint caps. */
 export class ConnectedJersey {
@@ -58,6 +59,14 @@ export class ConnectedJersey {
       uv[n] = i / 24; uv[n + 1] = this.sourceRows[row] / 20;
     }
     geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    // Where each vertex is round its ring, for a kit's print (`kitPrint.ts`):
+    // the torso from the hem up, each sleeve from the shoulder down.
+    const print = new THREE.BufferAttribute(new Float32Array(count * 4), 4);
+    for (let j = 0; j <= 16; j++) for (let i = 0; i < 24; i++) setPrint(print, j * 24 + i, i / 24 * Math.PI * 2, j / 16, 0);
+    for (let arm = 0; arm < 2; arm++) for (let row = 1; row <= this.rows; row++) for (let i = 0; i < 24; i++) {
+      setPrint(print, this.armOffset(arm) + (row - 1) * 24 + i, i / 24 * Math.PI * 2, this.sourceRows[row] / 20, 1);
+    }
+    geometry.setAttribute('kitPrint', print);
     geometry.setIndex([...shirt, ...skin]);
     geometry.addGroup(0, shirt.length, 0); geometry.addGroup(shirt.length, skin.length, 1);
     geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 1, 0), 3);

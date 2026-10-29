@@ -103,7 +103,7 @@ if (slides.length > 1) {
   });
   await page.waitForTimeout(700);
   const now = await page.$eval('.stats-dot.is-on', dot => dot.getAttribute('aria-label'));
-  const second = { survive: 'Test Survival', marathon: 'Test Marathon' }[slides[1]];
+  const second = { survive: 'Test Survival', marathon: 'Test Marathon', super10: 'Super10' }[slides[1]];
   check(now === second, 'swiping moves which card is in front', `${now}, not ${second}`);
   await page.click('.stats-dot[data-slide="0"]');
   // Waited for rather than slept on: in software rendering a frame can take a
@@ -112,9 +112,12 @@ if (slides.length > 1) {
   check(await page.$eval('.stats-dot.is-on', dot => dot.getAttribute('aria-label')) === 'The Blast',
     'and the dots take you back without a swipe');
   // Wherever the Test Marathon can be played — every build off production —
-  // its card is the second, between the Blast's and Test Survival's.
+  // the cards run the Blast, Super10, the Marathon and Test Survival.
   if (slides.includes('marathon')) {
-    check(slides.join(' | ') === 'classic | marathon | survive', 'the Test Marathon\'s card comes second', slides.join(' | '));
+    check(slides.join(' | ') === 'classic | super10 | marathon | survive', 'the cards run the Blast, Super10, the Test Marathon, Test Survival', slides.join(' | '));
+    // Four tabs on one line, scrolling sideways rather than wrapping.
+    const tops = await page.$$eval('.stats-dot', dots => dots.map(dot => dot.getBoundingClientRect().top));
+    check(Math.max(...tops) - Math.min(...tops) < 4, 'and their tabs stand on one line', tops.join(', '));
     await page.click(`.stats-dot[data-slide="${slides.indexOf('marathon')}"]`);
     await page.waitForFunction(() => document.querySelector('.stats-dot.is-on')?.getAttribute('aria-label') === 'Test Marathon', null, { timeout: 10_000 }).catch(() => {});
     const marathon = await page.$eval('.stats-slide[data-mode="marathon"]', slide => slide.textContent);

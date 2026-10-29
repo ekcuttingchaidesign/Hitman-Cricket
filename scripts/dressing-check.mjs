@@ -36,6 +36,8 @@ const CAREER = {
   classic: { innings: 30, runs: 4000, balls: 2500, sixes: 182, fours: 300, wickets: 60, dots: 400, highest: 112, notOut: 2, individual: 112, hundreds: 1 },
   survive: { innings: 20, runs: 900, balls: 640, sixes: 20, fours: 60, blows: 10, wins: 18, draws: 1, losses: 1 },
   marathon: { innings: 6, runs: 900, balls: 1100, fours: 80, sixes: 10, highest: 142, individual: 142, fifties: 4, hundreds: 1, doubles: 0, longest: 300 },
+  // Twelve Super10 innings: the Apex Vipers earned, the rest of its ladder not, and too few sixes to tip Ice Cold's 250.
+  super10: { innings: 12, runs: 1200, balls: 700, wickets: 50, fours: 90, sixes: 30, highest: 150, hundreds: 4, doubles: 0 },
 };
 
 /** Every bat that career has earned, Boom unlocked as well: seen, so none goes up over Choose a mode. */
@@ -49,7 +51,7 @@ async function open(dressing) {
     try {
       localStorage.setItem('hitman-shots-intro', 'done');
       // Past the update's stories.
-      localStorage.setItem('hitman-whatsnew', 'player-profiles:9');
+      localStorage.setItem('hitman-whatsnew', 'super10:9');
       localStorage.setItem('hitman-career', JSON.stringify(career));
       if (dressing && !sessionStorage.getItem('seeded')) { localStorage.setItem('hitman-dressing', JSON.stringify(dressing)); sessionStorage.setItem('seeded', '1'); }
     } catch { /* Then it shows. */ }
@@ -83,7 +85,8 @@ await page.waitForTimeout(1500);
 check(await page.evaluate(() => window.__cricket.unlocking()) === null, 'a career arriving in the room is noted, not celebrated');
 const card = page.locator('#modes-dressing');
 check(await card.isVisible(), 'carries the Dressing Room card');
-check(await text(page, '#modes-dressing-line') === '10 of 20 earned', 'which says how much of the room is earned, Boom not yet among it', await text(page, '#modes-dressing-line'));
+// Off production Super10's six kits are on the shelf too: the Panthers and the Vipers earned.
+check(await text(page, '#modes-dressing-line') === '12 of 26 earned', 'which says how much of the room is earned, Boom not yet among it', await text(page, '#modes-dressing-line'));
 check(await card.locator('.ms-tag').isVisible(), 'with NEW on it before the room is opened');
 const order = await page.locator('.ms-content > *').evaluateAll(all => all.map(one => one.id || one.className.split(' ')[0]));
 check(order.indexOf('mode-super10') >= 0 && order.indexOf('mode-super10') < order.indexOf('modes-dressing') && order.indexOf('modes-dressing') < order.indexOf('ms-card') && order.indexOf('ms-card') < order.indexOf('ms-bento'),
@@ -120,11 +123,12 @@ check(await page.locator('.dr-item[data-id="boom"] .dr-badge.is-on').count() ===
 await page.locator('#dressing-tab-kit').click();
 await page.waitForTimeout(300);
 check(await text(page, '#dressing-name') === 'OG NAVY', 'the kits open on the one he wears', await text(page, '#dressing-name'));
-await page.waitForFunction(() => document.querySelectorAll('#dressing-items img').length === 8, null, { timeout: 30_000 }).catch(() => {});
+await page.waitForFunction(() => document.querySelectorAll('#dressing-items img').length === 14, null, { timeout: 30_000 }).catch(() => {});
 const pictures = await page.locator('#dressing-items img').evaluateAll(all => all.map(one => one.src.length));
-check(pictures.length === 8 && pictures.every(size => size > 4000), 'with a picture of every kit, drawn off the model', JSON.stringify(pictures));
+check(pictures.length === 14 && pictures.every(size => size > 4000), 'with a picture of every kit, Super10\'s six among them, drawn off the model', JSON.stringify(pictures));
+check(await page.locator('.dr-item .dr-s10').count() === 6 && await page.locator('.dr-item:last-child .dr-s10').count() === 1, 'Super10\'s at the foot of the shelf, each tagged S10');
 check(await page.locator('.dr-item[data-id="home"] .dr-badge.is-on').count() === 1, 'a tick on the one he wears');
-check(await page.locator('.dr-item.is-locked').count() === 4, 'and a lock on each of the four not earned');
+check(await page.locator('.dr-item.is-locked').count() === 8, 'and a lock on each of the eight not earned, four of them Super10\'s');
 const rail = await page.locator('#dressing-items').evaluate(one => ({ shown: one.clientHeight, all: one.scrollHeight }));
 check(rail.shown >= rail.all || (rail.shown + 20 < rail.all), 'the rail shows them all, or stops part-way down one', JSON.stringify(rail));
 check((await text(page, '#dressing-key')).includes('WEARING'), 'which is WEARING at the foot');
@@ -149,6 +153,29 @@ await page.locator('#unlock-take').click();
 await page.waitForTimeout(500);
 check((await text(page, '#dressing-key')).includes('WEARING') && await page.locator('.dr-item[data-id="forest"] .dr-badge.is-on').count() === 1, 'and puts it on, the tick moving with it');
 check((await page.evaluate(() => JSON.parse(localStorage.getItem('hitman-dressing')).shown)).includes('kit:forest'), 'never to wait again');
+
+// Super10's: earned off its own career, unlocked in the room, worn in Super10 alone.
+await page.locator('.dr-item[data-id="s10-violet"]').click();
+await page.waitForTimeout(300);
+const mavericks = await text(page, '#dressing-foot');
+check(await text(page, '#dressing-name') === 'ROYAL MAVERICKS' && /Only in Super10/i.test(mavericks) && mavericks.includes('Make 200 in a Super10 innings') && mavericks.includes('Score 10,000 runs in Super10'),
+  'a locked Super10 kit is tried on, only for Super10, with its team-total targets', mavericks.replace(/\s+/g, ' ').slice(0, 160));
+check((await text(page, '#dressing-key')).includes('PLAY SUPER10'), 'its key plays Super10');
+await shoot(page, '5a-super10-locked');
+await page.locator('.dr-item[data-id="s10-neon"]').click();
+await page.waitForTimeout(300);
+check((await text(page, '#dressing-key')).includes('UNLOCK APEX VIPERS'), 'a Super10 kit already earned waits for its key', await text(page, '#dressing-key'));
+await page.locator('#dressing-key').click();
+await page.waitForSelector('#unlock-overlay.is-revealed', { timeout: 30_000 }).catch(() => {});
+check(await page.evaluate(() => window.__cricket.unlocking()) === 'kit:s10-neon', 'which plays its unlock', await page.evaluate(() => window.__cricket.unlocking()));
+await shoot(page, '5b-super10-unlock');
+await page.locator('#unlock-take').click();
+await page.waitForTimeout(500);
+const picked = await page.evaluate(() => JSON.parse(localStorage.getItem('hitman-dressing')));
+check((await text(page, '#dressing-key')).includes('WEARING IN SUPER10') && await page.locator('.dr-item[data-id="s10-neon"] .dr-badge.is-on').count() === 1
+  && await page.locator('.dr-item[data-id="forest"] .dr-badge.is-on').count() === 1,
+'and puts it on for Super10, the kit he wears elsewhere still ticked');
+check(picked.super10 === 's10-neon' && picked.outfit === 'forest', 'kept as Super10\'s pick alone', JSON.stringify({ super10: picked.super10, outfit: picked.outfit }));
 
 await page.locator('#dressing-tab-bat').click();
 await page.waitForFunction(() => document.querySelectorAll('#dressing-items img').length === 12, null, { timeout: 30_000 }).catch(() => {});
@@ -192,11 +219,23 @@ await page.locator('#mode-classic').click({ force: true });
 const ready = await until(page, 'READY');
 check(ready.look === 'forest/savage/carbon', 'he goes out in British Racing Green with Savage, in Ember', ready.look);
 await shoot(page, '6-batting');
+console.log('Out to bat in Super10');
+await page.goto(`${base}/?debug=1&mode=super10`, { waitUntil: 'load' });
+await page.waitForTimeout(1200);
+await page.locator('#start').click({ force: true });
+for (let i = 0; i < 30 && (await page.evaluate(() => window.__cricket.snapshot())).phase !== 'READY'; i++) {
+  const done = page.locator('#whatsnew-done');
+  if (await done.isVisible().catch(() => false)) await done.click({ force: true }).catch(() => {});
+  await page.waitForTimeout(400);
+}
+const tenReady = await page.evaluate(() => window.__cricket.snapshot());
+check(/^s10-neon\/savage\/super10/.test(tenReady.look ?? ''), 'he goes out in the Apex Vipers, its gloves and pads, with Savage', tenReady.look);
+await shoot(page, '6b-super10');
 check(page.errors.length === 0, 'with nothing in the console', page.errors.join(' | '));
 await page.close();
 
 console.log('A pick no longer earned');
-const shownAll = ['kit:home', 'kit:crimson', 'kit:forest', ...EARNED_BATS];
+const shownAll = ['kit:home', 'kit:crimson', 'kit:forest', 'kit:s10-neon', ...EARNED_BATS];
 const other = await open({ outfit: 'lagoon', bat: 'hitman', guard: 'midnight', launch: null, seen: shownAll, shown: shownAll, visited: true });
 check(!(await other.locator('#modes-dressing .ms-tag').isVisible()), 'a room already opened has no NEW');
 await other.locator('#mode-classic').click({ force: true });
@@ -206,7 +245,7 @@ await other.close();
 
 console.log('An unlock');
 // Crimson is earned by this career and not yet celebrated; everything else has been.
-const seen = ['kit:home', 'kit:forest', ...EARNED_BATS];
+const seen = ['kit:home', 'kit:forest', 'kit:s10-neon', ...EARNED_BATS];
 const third = await open({ outfit: 'home', bat: 'boom', launch: { classic: 4000, survive: 640, marathon: 900 }, seen, shown: seen, visited: true });
 await third.waitForSelector('#unlock-overlay', { timeout: 30_000 }).catch(() => {});
 check(await third.evaluate(() => window.__cricket.unlocking()) === 'kit:crimson', 'goes up over Choose a mode for what was earned and not yet celebrated', await third.evaluate(() => window.__cricket.unlocking()));

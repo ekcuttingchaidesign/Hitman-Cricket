@@ -11,12 +11,15 @@ import {
 import {
   SURVIVE_BOARD_SIZE, packSurvive, standingOf, surviveQualifies, unpackSurvive, type SurviveInnings, type SurviveRow,
 } from '../game/survive-board';
+import { SUPER10_BOARD_SIZE, packSuper10, unpackSuper10, type Super10Innings } from '../game/super10-board';
+import type { Super10Row } from '../game/board-api';
 import type { AnyCareer } from './CareerBoard';
 import { cta, icon } from './Kit';
 import { escape, kitMarkup } from './Leaderboard';
 import artBlast from '../assets/board/art-blast.webp';
 import artMarathon from '../assets/entry/poster-marathon.webp';
 import artSurvive from '../assets/survive-cover.webp';
+import artSuper10 from '../assets/super10/picture.webp';
 import crown from '../assets/board/crown.svg?raw';
 import wifiOff from '../assets/board/wifi-off.svg?raw';
 
@@ -34,15 +37,16 @@ import wifiOff from '../assets/board/wifi-off.svg?raw';
  * is written, so a board can be checked in a unit test with no browser.
  */
 
-export type BoardMode = 'classic' | 'marathon' | 'survive';
+export type BoardMode = 'classic' | 'marathon' | 'survive' | 'super10';
 
 /** Each mode's name, colour, poster and key, in the pager's order. */
 export const BOARD_MODES: Record<BoardMode, { name: string; colour: string; art: string; play: string }> = {
   classic: { name: 'The Blast', colour: '#3f88f2', art: artBlast, play: 'PLAY THE BLAST' },
   marathon: { name: 'Test Marathon', colour: '#1f8a55', art: artMarathon, play: 'PLAY TEST MARATHON' },
   survive: { name: 'Test Survival', colour: '#ff5a4e', art: artSurvive, play: 'PLAY TEST SURVIVAL' },
+  super10: { name: 'Super10', colour: '#8b5cf6', art: artSuper10, play: 'PLAY SUPER10' },
 };
-export const MODE_ORDER: readonly BoardMode[] = ['classic', 'marathon', 'survive'];
+export const MODE_ORDER: readonly BoardMode[] = ['classic', 'survive', 'super10', 'marathon'];
 
 /**
  * One row, whichever board it came from: its place, who, the line under the
@@ -131,6 +135,7 @@ const BLURBS: Record<BoardMode, Record<string, string>> = {
     runs: 'All innings added up', boundaries: 'Most sixes and fours',
   },
   marathon: { team: 'Best team total', solo: 'Best innings by one of the three', runs: 'All innings added up' },
+  super10: { best: 'Best team total in ten overs', runs: 'All innings added up' },
 };
 
 export function blurbOf(mode: BoardMode, key: string, fallback = ''): string {
@@ -368,6 +373,32 @@ export function blastBody(
     lead: () => (entries.length > 1 ? `${Number(entries[0].score) - Number(entries[1].score)} runs clear of ${entries[1].name}.` : 'Nobody else has a score yet.'),
     size: BOARD_SIZE,
     rules: 'Each player’s best innings counts. Ties are broken by sixes, then fours, then wickets lost, then dot balls; if everything is level, whoever got there first stays ahead.',
+  }, ctx);
+}
+
+/** Super10's board: the best team total, each row its runs with the wickets and sixes that split a tie under the name. */
+export function super10Body(
+  rows: readonly Super10Row[], youId: string | null, yours: Super10Innings | null, ctx: BoardContext, atMs = Date.now(),
+): BoardBody {
+  const sub = (one: Pick<Super10Innings, 'wickets' | 'sixes'>) => `${plural(one.wickets, 'wicket')} · ${plural(one.sixes, 'six', 'sixes')}`;
+  const entries: BoardEntry[] = rows.map((row, i) => ({
+    place: i + 1, name: row.name, avatar: row.avatar, sub: sub(row), score: String(row.runs), you: ownsHandle(row.handle, youId), handle: row.handle,
+  }));
+  const mine = entries.findIndex(row => row.you);
+  const edge = rows.length >= SUPER10_BOARD_SIZE ? rows[SUPER10_BOARD_SIZE - 1] : null;
+  const wasRuns = ctx.posted?.was ? unpackSuper10(ctx.posted.was.score).runs : null;
+  const need = edge && yours ? Math.max(1, edge.runs - yours.runs + 1) : null;
+  const score = yours ? packSuper10(yours, atMs) : 0;
+  return finish(entries, mine, {
+    unit: 'runs', yours: yours ? { runs: yours.runs, label: `${yours.runs}`, sub: sub(yours) } : null,
+    wasLabel: wasRuns === null ? null : String(wasRuns),
+    needLine: need ? `${plural(need, 'more run')} would have made it.` : 'A bigger total gets you on.', need,
+    guestPlace: yours && mine < 0 && (rows.length < SUPER10_BOARD_SIZE || score > rows[SUPER10_BOARD_SIZE - 1].score)
+      ? rows.filter(row => row.score > score).length + 1 : null,
+    gap: i => (i > 0 ? `${Number(entries[i - 1].score) - Number(entries[i].score)} behind #${i}` : null),
+    lead: () => (entries.length > 1 ? `${Number(entries[0].score) - Number(entries[1].score)} runs clear of ${entries[1].name}.` : 'Nobody else has a total yet.'),
+    size: SUPER10_BOARD_SIZE,
+    rules: 'Each player’s best team total in ten overs counts. Level totals are split by fewer wickets lost, then more sixes; if everything is level, whoever got there first stays ahead.',
   }, ctx);
 }
 

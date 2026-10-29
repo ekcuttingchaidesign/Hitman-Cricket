@@ -46,6 +46,19 @@ export const LIGHTING: Record<SkyTime, {
 };
 
 /**
+ * The arena's night: the stadium's, under LED rather than metal halide. No
+ * towers behind the batter's end, a ring of lamps round the whole roof
+ * instead, so the key comes down steeper and a cleaner white, and the fill
+ * from the far end is the ring's too. The sky's light is the night's own: a
+ * lilac one turned the stands grey.
+ */
+export const ARENA_NIGHT: typeof LIGHTING.night = {
+  ...LIGHTING.night,
+  key: { colour: 0xfbfaf6, intensity: 3.4, position: [-8, 38, -22] },
+  fill: { colour: 0xeef2ff, intensity: 1.2 },
+};
+
+/**
  * What the ground reflects at night, besides the sky: the floodlights' heads,
  * the ring of lamps along the roof, and the lit stands under them. Without
  * these a helmet, the glass and the ball reflected nothing but a dark blue
@@ -53,10 +66,11 @@ export const LIGHTING: Record<SkyTime, {
  * full of glints. Drawn into the environment map only — they are never in
  * the scene itself.
  */
-export function nightReflections(): THREE.Object3D[] {
+export function nightReflections(towers = true): THREE.Object3D[] {
   const glare = (r: number, g: number, b: number) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b), side: THREE.DoubleSide, toneMapped: false });
   const objects: THREE.Object3D[] = [];
-  for (const [x, z] of [[-19, 58], [19, 58], [-19, -38], [19, -38]]) {
+  // The arena has no towers: its ring is all there is to see in a helmet.
+  for (const [x, z] of towers ? [[-19, 58], [19, 58], [-19, -38], [19, -38]] : []) {
     const head = new THREE.Mesh(new THREE.PlaneGeometry(7, 4.5), glare(7, 6.6, 6));
     head.position.set(x, 15.6, z - 10).normalize().multiplyScalar(40);
     head.lookAt(0, 0, 0);
@@ -136,11 +150,12 @@ function glowTexture() {
 }
 
 /**
- * The glow round the lamps: one cloud of points for the roof's lamps and one
- * for the towers' heads, added light, so the whole of it is two draw calls.
- * Hidden by day.
+ * The glow round the lamps: one cloud of points for the roof's lamps, one
+ * for the towers' heads, and where a ground has them one of small ones for
+ * its downlights, added light, so the whole of it is two or three draw
+ * calls. Hidden by day.
  */
-export function glows(roof: THREE.Vector3[], towers: THREE.Vector3[]) {
+export function glows(roof: THREE.Vector3[], towers: THREE.Vector3[], spots: THREE.Vector3[] = []) {
   const texture = glowTexture();
   const cloud = (at: THREE.Vector3[], size: number) => {
     const points = new THREE.Points(
@@ -150,5 +165,5 @@ export function glows(roof: THREE.Vector3[], towers: THREE.Vector3[]) {
     points.visible = false;
     return points;
   };
-  return { points: [cloud(roof, 4.2), cloud(towers, 16)], texture };
+  return { points: [cloud(roof, 4.2), cloud(towers, 16), ...spots.length ? [cloud(spots, 1.8)] : []], texture };
 }

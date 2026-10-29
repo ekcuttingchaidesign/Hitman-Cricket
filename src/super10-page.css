@@ -22,7 +22,18 @@
 .ms-poster.is-survival::before{background:linear-gradient(180deg,#0000 0%,#0000 38%,#5e0c17c7 66%,#5e0c17fa 100%)}
 .ms-rail .ms-poster.is-survival .ms-art{object-position:62% 30%}
 .ms-poster.is-survival.is-played .ms-stat.is-unplayed{display:none}
-@media (prefers-reduced-motion:reduce){.ms-rail{scroll-behavior:auto}.ms-rail .ms-art{transform:scale(1.12)}}
+/* Super10's poster: its PLAY card's picture, the bat charged at the top, ink
+   coming up from the foot under its logo, a rim from violet to Volt. */
+.ms-poster.is-super10{border:1.5px solid #0000;
+  background:linear-gradient(#12052b,#12052b) padding-box,linear-gradient(160deg,#8b5cf6e6,#8b5cf699 55%,#c6ff1ae6) border-box}
+.ms-poster.is-super10::before{background:linear-gradient(180deg,#12052b00 0%,#12052b00 36%,#12052bbf 60%,#12052bf5 76%,#12052b 100%)}
+/* The picture raised a quarter of the card, so his helmet stands clear above the logo
+   and the bat runs up off the top; under it the ink the foot fades to anyway. */
+.ms-rail .ms-poster.is-super10 .ms-art{object-position:40% 0;transform:translateX(calc(var(--drift, 0) * 1px)) translateY(-31%) scale(1.12)}
+.ms-tag.is-super10{background:#c6ff1a;color:#12052b}
+.ms-poster .ms-logo{width:calc(var(--u) * 168);height:auto;margin:0 0 calc(var(--u) * -2) calc(var(--u) * -6);
+  filter:drop-shadow(0 0 calc(var(--u) * 8) #c6ff1a40) drop-shadow(0 2px 10px #00000080)}
+@media (prefers-reduced-motion:reduce){.ms-rail{scroll-behavior:auto}.ms-rail .ms-art{transform:scale(1.12)}.ms-rail .ms-poster.is-super10 .ms-art{transform:translateY(-31%) scale(1.12)}}
 
 .ms-pager{display:flex;justify-content:center;gap:calc(var(--u) * 6);height:calc(var(--u) * 6);margin-top:calc(var(--u) * -2);flex-shrink:0}
 .ms-pager i{width:calc(var(--u) * 6);height:100%;border-radius:calc(var(--u) * 3);background:#ffffff38;transition:width .32s cubic-bezier(.2,0,0,1),background-color .32s}
@@ -30,19 +41,24 @@
 .ms-pager i.is-blast.is-on{background:var(--c-blast)}
 .ms-pager i.is-marathon.is-on{background:#2fa36b}
 .ms-pager i.is-survival.is-on{background:var(--c-survival)}
+.ms-pager i.is-super10.is-on{background:#c6ff1a}
 .ms-pager i.hidden{display:none}
 
-/* The Super10 card (Figma 488:591): ink to plate, a rim from violet to Volt,
-   the charged bat on the right fading into the ink under the logo. No PLAY:
-   the whole card and its Volt chevron open the mode's page. */
+/* Super10's PLAY card (Figma section 20; its motion is Super10Card.ts): ink to
+   plate, a rim from violet to Volt, the charged bat on the right fading into
+   the ink under the logo, NEW or its best over the logo and PLAY in Volt at
+   the foot. The whole card plays Super10. --charge (0 to 1) is the bat
+   charging, and lights the logo and the rim with it. */
 .ms-super10{
+  --charge:0;
   position:relative;display:block;flex-shrink:0;width:100%;height:calc(var(--u) * 110);
-  margin:0;padding:0;overflow:hidden;isolation:isolate;cursor:pointer;
+  margin:0;padding:0;overflow:hidden;isolation:isolate;cursor:pointer;transform-origin:50% 50%;
   border:1.5px solid #0000;border-radius:24px;
   background:linear-gradient(90deg,#12052b,#2a0e5c) padding-box,
     linear-gradient(90deg,#8b5cf6b3,#8b5cf680 55%,#c6ff1ae6) border-box;
-  box-shadow:0 14px 30px #00000080,0 0 24px #8b5cf62e
+  box-shadow:0 14px 30px #00000080,0 0 24px #8b5cf62e,0 0 calc(var(--u) * (10 + 26 * var(--charge))) rgb(198 255 26 / calc(.05 + .3 * var(--charge)))
 }
+.ms-super10.hidden{display:none}
 .ms-super10 .ms-art{
   position:absolute;inset:auto;z-index:0;
   left:calc(var(--u) * 140);top:calc(var(--u) * -108);width:calc(var(--u) * 222);height:calc(var(--u) * 277);object-fit:cover
@@ -53,167 +69,31 @@
     linear-gradient(90deg,#12052b 0%,#12052bfa 40%,#12052bdb 45%,#12052b9e 50%,#12052b5c 55%,#12052b29 60%,#12052b0a 66%,#12052b00 72%),
     linear-gradient(180deg,#12052b59 0%,#12052b00 22%,#12052b00 60%,#12052b99 100%)
 }
-.ms-super10-logo{position:absolute;z-index:2;left:calc(var(--u) * 9);top:calc(var(--u) * 29);width:calc(var(--u) * 148);height:calc(var(--u) * 71)}
+.ms-super10-fx{position:absolute;inset:0;z-index:2;width:100%;height:100%;pointer-events:none}
+.ms-super10-logo{position:absolute;z-index:3;left:calc(var(--u) * 9);top:calc(var(--u) * 31);width:calc(var(--u) * 148);height:calc(var(--u) * 71);
+  filter:drop-shadow(0 0 calc(var(--u) * (2 + 9 * var(--charge))) rgb(198 255 26 / calc(.12 + .5 * var(--charge))))}
+.ms-super10-sweep{position:absolute;z-index:4;top:-40%;left:-45%;width:34%;height:180%;pointer-events:none;opacity:0;
+  background:linear-gradient(90deg,#fff0,#ffffff1f 50%,#fff0);transform:rotate(16deg)}
+.ms-super10-row{position:absolute;z-index:4;left:calc(var(--u) * 19);top:calc(var(--u) * 10);display:flex;align-items:center;gap:calc(var(--u) * 7)}
 .ms-super10-tag{
-  position:absolute;z-index:2;left:calc(var(--u) * 19);top:calc(var(--u) * 10);
   padding:calc(var(--u) * 3) calc(var(--u) * 8);border-radius:999px;background:#c6ff1a;color:#12052b;
-  font:800 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em;white-space:nowrap
+  font:800 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em;white-space:nowrap;
+  animation:s10-breathe 2.4s ease-in-out infinite
 }
-.ms-super10-key{
-  position:absolute;z-index:2;right:calc(var(--u) * 14);bottom:calc(var(--u) * 12);
-  display:flex;align-items:center;justify-content:center;
-  width:calc(var(--u) * 24);height:calc(var(--u) * 24);border-radius:50%;background:#c6ff1a;color:#12052b
+.ms-super10-line{color:#e4e1f2e6;font:700 calc(var(--u) * 10)/1 var(--f-ui);white-space:nowrap;letter-spacing:.02em;text-shadow:0 1px 4px #12052b}
+.ms-super10-play{
+  position:absolute;z-index:5;right:calc(var(--u) * 13);bottom:calc(var(--u) * 12);display:flex;align-items:center;gap:calc(var(--u) * 5);
+  padding:calc(var(--u) * 5) calc(var(--u) * 13) calc(var(--u) * 5) calc(var(--u) * 11);border-radius:999px;
+  background:linear-gradient(180deg,#e9ff8a,#c6ff1a);border:1px solid #93d400;color:#12052b;
+  font:400 calc(var(--u) * 15)/1 var(--f-display);letter-spacing:.06em;
+  box-shadow:0 0 calc(var(--u) * 12) #c6ff1a73;transform-origin:50% 50%
 }
-.ms-super10-key .k-icon{width:calc(var(--u) * 15);height:calc(var(--u) * 15);stroke-width:3}
-/* A light across the logo every four seconds, and the tag breathing. */
-.ms-super10::after{
-  content:'';position:absolute;z-index:3;top:-40%;left:-60%;width:30%;height:180%;pointer-events:none;
-  background:linear-gradient(90deg,#fff0,#ffffff38 50%,#fff0);transform:rotate(16deg);
-  animation:s10-sweep 4s cubic-bezier(.45,0,.4,1) 1s infinite
-}
-@keyframes s10-sweep{0%{left:-60%}15%,100%{left:70%}}
-.ms-super10-tag{animation:s10-breathe 2.4s ease-in-out infinite}
+.ms-super10-play svg{width:calc(var(--u) * 9);height:calc(var(--u) * 10)}
+.ms-super10-play.is-flash,.ms-super10:active .ms-super10-play{background:#fff;border-color:#fff;box-shadow:0 0 calc(var(--u) * 30) #ffffffcc}
+.ms-super10-ring{position:absolute;z-index:4;pointer-events:none;border:calc(var(--u) * 2.5) solid #c6ff1a;border-radius:999px;opacity:0;
+  box-shadow:0 0 calc(var(--u) * 10) #c6ff1acc,inset 0 0 calc(var(--u) * 8) #c6ff1a80}
 @keyframes s10-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
-.ms-super10:active{transform:scale(.985)}
-@media (prefers-reduced-motion:reduce){.ms-super10::after{display:none}.ms-super10-tag{animation:none}}
-
-/* ── Super10's page (Figma 19B, the whole scroll 497:6198) ──────────────── */
-.modal-overlay.sp-screen{display:block;padding:0;overflow:hidden;z-index:9;background:#0a0b0d;font-family:var(--f-ui);color:var(--c-text)}
-.sp-glow{
-  position:absolute;inset:0 0 auto;height:calc(var(--u) * 320);pointer-events:none;
-  background:radial-gradient(50% 50% at 25% 15%,#8b5cf638,#8b5cf600),radial-gradient(50% 50% at 95% 20%,#8b5cf638,#8b5cf600)
-}
-.sp-scroll{position:relative;height:100%;overflow-y:auto;overscroll-behavior:contain;padding-bottom:calc(var(--u) * 150 + env(safe-area-inset-bottom,0px))}
-
-.sp-hero{position:relative;height:calc(var(--u) * 600);overflow:hidden}
-.sp-picture{position:absolute;left:calc(var(--u) * -6);top:calc(var(--u) * -125);width:calc(var(--u) * 540);height:calc(var(--u) * 675);max-width:none;object-fit:cover;z-index:0}
-.sp-hero::before,.sp-hero::after{content:'';position:absolute;z-index:1;left:0;right:0;top:calc(var(--u) * -60);pointer-events:none}
-.sp-hero::before{
-  height:calc(var(--u) * 900);
-  background:linear-gradient(180deg,#0a0b0dbf 0%,#0a0b0d00 12%,#0a0b0d00 40%,#0a0b0de6 58%,#0a0b0d 65%,#0a0b0d 74%,#0a0b0d00 88%)
-}
-.sp-hero::after{height:calc(var(--u) * 690);background:linear-gradient(90deg,#0a0b0d99 0%,#0a0b0d00 42%)}
-.sp-hero>*:not(.sp-picture){position:absolute;z-index:2}
-/* The header in two layers that part as the page scrolls (`--s`, the pixels
-   scrolled, set by the HUD): the picture held back, at under half the
-   scroll and growing a touch, the logo and its words carried up a little
-   faster than the page and fading, so they lift off the picture. Still
-   under reduced motion, where `--s` is never set. */
-.sp-lockup{inset:0;pointer-events:none;will-change:transform,opacity;
-  transform:translateY(calc(var(--s, 0) * -.14px));opacity:calc(1 - var(--s, 0) / 560)}
-.sp-lockup>*{position:absolute}
-.sp-picture{will-change:transform;transform-origin:50% 0;
-  transform:translateY(calc(var(--s, 0) * .42px)) scale(calc(1 + var(--s, 0) * .0003))}
-.sp-hero-top{top:var(--top-gap);left:calc(var(--u) * 20);right:calc(var(--u) * 20);display:flex;align-items:center;justify-content:space-between}
-.sp-hero-top .k-icon-button{background:#1b2027}
-.sp-tag{padding:calc(var(--u) * 5) calc(var(--u) * 12);border-radius:999px;background:#c6ff1a;color:#12052b;font:800 calc(var(--u) * 11)/1.25 var(--f-ui);letter-spacing:.08em}
-.sp-logo{left:calc(var(--u) * 10);top:calc(var(--u) * 360);width:calc(var(--u) * 277);height:calc(var(--u) * 133);margin:0}
-.sp-logo img{width:100%;height:100%}
-.sp-tagline{left:calc(var(--u) * 20);top:calc(var(--u) * 500);margin:0;font:italic 900 calc(var(--u) * 26)/1.15 Saira,'Arial Black',sans-serif;letter-spacing:.01em;color:#fff;white-space:nowrap}
-.sp-tagline b{color:#c6ff1a;font-weight:900}
-.sp-line{left:calc(var(--u) * 20);top:calc(var(--u) * 536);width:calc(var(--u) * 320);margin:0;font:400 calc(var(--u) * 16)/1.37 var(--f-ui);color:#e4e1f2d1}
-
-.sp-body{position:relative;display:flex;flex-direction:column;gap:calc(var(--u) * 14);padding:0 calc(var(--u) * 20)}
-.sp-card{border:1px solid #ffffff17;border-radius:24px;background:linear-gradient(#23282feb,#15181deb);box-shadow:0 12px 28px #00000073,inset 0 1px 0 #ffffff0f}
-.sp-head{display:flex;align-items:center;gap:calc(var(--u) * 6);margin:0;font:400 calc(var(--u) * 13)/1.2 var(--f-display);letter-spacing:.12em;color:#f5efe6;font-optical-sizing:none;font-variation-settings:'opsz' 6}
-.sp-note{margin:0;font:500 calc(var(--u) * 12)/1.33 var(--f-ui);color:#a3b3bd}
-.sp-bolt{width:calc(var(--u) * 12);height:calc(var(--u) * 12);fill:currentColor;flex:none}
-
-.sp-figures{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(var(--u) * 10)}
-.sp-figure{display:flex;flex-direction:column;justify-content:center;height:calc(var(--u) * 86);padding:0 calc(var(--u) * 17);border-radius:20px}
-.sp-figure b{font:400 calc(var(--u) * 34)/1.25 var(--f-display);color:#c6ff1a;font-optical-sizing:none;font-variation-settings:'opsz' 6}
-.sp-figure span{font:500 calc(var(--u) * 12)/1.25 var(--f-ui);color:#a3b3bd}
-
-.sp-innings{padding:calc(var(--u) * 15) calc(var(--u) * 17)}
-.sp-innings .sp-note{margin-top:calc(var(--u) * 12)}
-.sp-ladder{position:relative;margin-top:calc(var(--u) * 12);padding-top:calc(var(--u) * 32)}
-.sp-surge{position:absolute;top:0;left:39%;display:flex;align-items:center;gap:calc(var(--u) * 5);color:var(--c-gold);font:800 calc(var(--u) * 10)/1.3 var(--f-ui);letter-spacing:.1em;white-space:nowrap}
-.sp-bracket{position:absolute;top:calc(var(--u) * 21);left:50.6%;width:40.2%;height:calc(var(--u) * 7);border:2px solid var(--c-gold);border-bottom:0;border-radius:2px 2px 0 0}
-.sp-overs{display:grid;grid-template-columns:repeat(10,1fr);gap:calc(var(--u) * 4)}
-.sp-overs i{display:flex;align-items:center;justify-content:center;height:calc(var(--u) * 40);border-radius:8px;font:400 calc(var(--u) * 18)/1 var(--f-display);font-style:normal;font-optical-sizing:none;font-variation-settings:'opsz' 6}
-.sp-overs .is-powerplay{background:#c6ff1a;color:#12052b}
-.sp-overs .is-middle{background:#8b5cf6;color:#fff}
-.sp-overs .is-death{background:#f5efe6;color:#12052b}
-.sp-phases{display:grid;grid-template-columns:3fr 4fr 3fr;gap:calc(var(--u) * 4);margin-top:calc(var(--u) * 8)}
-.sp-phases>span{display:flex;flex-direction:column;gap:calc(var(--u) * 2);padding-top:calc(var(--u) * 6);border-top:2px solid;font:500 calc(var(--u) * 12)/1.25 var(--f-ui);color:#a3b3bd;white-space:nowrap}
-.sp-phases b{font:400 calc(var(--u) * 12)/1.25 var(--f-display);letter-spacing:.12em;font-optical-sizing:none;font-variation-settings:'opsz' 6}
-.sp-phases .is-powerplay{border-color:#c6ff1a80}.sp-phases .is-powerplay b{color:#c6ff1a}
-.sp-phases .is-middle{border-color:#b69cff80}.sp-phases .is-middle b{color:#b69cff}
-.sp-phases .is-death{border-color:#f5efe680}.sp-phases .is-death b{color:#f5efe6}
-
-.sp-fields{display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--u) * 10)}
-.sp-field{display:flex;flex-direction:column;gap:calc(var(--u) * 8);padding:calc(var(--u) * 15) calc(var(--u) * 17) calc(var(--u) * 15)}
-.sp-field.is-surge{border-color:#f5b83d59}
-.sp-field.is-surge .sp-head{color:var(--c-gold)}
-.sp-map{display:block;width:100%;height:auto;overflow:visible}
-.sp-grass{fill:#2c6b3c;fill-opacity:.4;stroke:#fff;stroke-width:1.4}
-.sp-map.is-surge .sp-grass{stroke:var(--c-gold)}
-.sp-circle{fill:none;stroke:#ffffff8c;stroke-width:1;stroke-dasharray:3 3}
-.sp-strip{fill:#e8dcc0}
-.sp-man{fill:#f08a3c;stroke:#0a0b0d;stroke-width:.8}
-.sp-you{fill:#3f88f2;stroke:#fff;stroke-width:1.2}
-.sp-gap{fill:#c6ff1a2e}
-.sp-aim{stroke:#c6ff1a;stroke-width:1.4;stroke-dasharray:3 3}
-.sp-ball{fill:#c6ff1a}
-.sp-ring{fill:none;stroke:var(--c-gold);stroke-width:1.4}
-.sp-in{fill:none;stroke:var(--c-gold);stroke-width:1.2;stroke-dasharray:2.5 2.5}
-
-.sp-rules{padding:calc(var(--u) * 15) calc(var(--u) * 17) calc(var(--u) * 4)}
-.sp-rule{display:flex;gap:calc(var(--u) * 16);padding:calc(var(--u) * 14) 0}
-.sp-rule+.sp-rule{border-top:1px solid #ffffff14}
-.sp-tile{display:flex;align-items:center;justify-content:center;flex:none;width:calc(var(--u) * 52);height:calc(var(--u) * 52);border:1px solid #8b5cf666;border-radius:14px;background:#8b5cf629;color:#c6ff1a}
-.sp-tile svg{width:calc(var(--u) * 24);height:calc(var(--u) * 24);fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
-.sp-five{font:400 calc(var(--u) * 30)/1 var(--f-display);font-optical-sizing:none;font-variation-settings:'opsz' 6}
-.sp-rule-text{display:flex;flex-direction:column;gap:calc(var(--u) * 3);min-width:0}
-.sp-rule-text b{font:800 calc(var(--u) * 17)/1.25 var(--f-ui);color:#f5efe6}
-.sp-rule-text span{font:500 calc(var(--u) * 14)/1.43 var(--f-ui);color:#a3b3bd}
-
-/* The keys, pinned: when it opens, then I'M EXCITED in Volt beside GOT IT. */
-.sp-keys{
-  position:absolute;left:0;right:0;bottom:0;z-index:2;
-  padding:calc(var(--u) * 44) calc(var(--u) * 20) calc(var(--u) * 18 + env(safe-area-inset-bottom,0px));
-  background:linear-gradient(180deg,#0a0b0d00 0%,#0a0b0de6 34%,#0a0b0d 100%);pointer-events:none
-}
-.sp-keys>*{pointer-events:auto}
-.sp-when{margin:0 0 calc(var(--u) * 10);text-align:center;font:500 calc(var(--u) * 12)/1.25 var(--f-ui);color:#a3b3bd}
-.sp-key-row{display:flex;gap:calc(var(--u) * 10)}
-.sp-key-row .k-cta--primary{flex:1 1 0;min-width:0;height:calc(var(--u) * 56)}
-.sp-key-row .k-cta--primary .k-cta-face{font-size:calc(var(--u) * 20)}
-.sp-excited{
-  position:relative;flex:1.15 1 0;min-width:0;height:calc(var(--u) * 56);margin:0;
-  padding:calc(var(--u) * 2) calc(var(--u) * 2) calc(var(--u) * 8);border:0;border-radius:calc(var(--u) * 14);
-  background:linear-gradient(180deg,#b4ef12,#93d400);color:#12052b;cursor:pointer;
-  box-shadow:0 0 22px #c6ff1a40
-}
-.sp-excited-face{
-  display:flex;align-items:center;justify-content:center;gap:calc(var(--u) * 8);height:100%;
-  border-radius:calc(var(--u) * 12);background:linear-gradient(180deg,#eaff9a 0%,#c6ff1a 55%);
-  font:400 calc(var(--u) * 20)/1 var(--f-display);letter-spacing:.08em;white-space:nowrap;
-  font-optical-sizing:none;font-variation-settings:'opsz' 6;transition:transform .08s
-}
-.sp-excited-face .sp-bolt{width:calc(var(--u) * 16);height:calc(var(--u) * 16)}
-.sp-excited:active .sp-excited-face{transform:translateY(calc(var(--u) * 3))}
-.sp-excited:focus-visible{outline:3px solid #c6ff1a;outline-offset:3px}
-/* Pressed for good: the key stays lit, set down on its ledge, and says so. */
-.sp-excited.is-done{padding-bottom:calc(var(--u) * 2);background:#c6ff1a;box-shadow:0 0 0 1px #c6ff1a,0 0 26px #c6ff1a59;cursor:default}
-.sp-excited.is-done .sp-excited-face{background:#12052b;color:#c6ff1a}
-.sp-excited.is-done:active .sp-excited-face{transform:none}
-.sp-excited:not(.is-done){animation:s10-call 2.6s ease-in-out 1.2s infinite}
-@keyframes s10-call{0%,100%{box-shadow:0 0 18px #c6ff1a33}50%{box-shadow:0 0 30px #c6ff1a73}}
-/* The burst as it is pressed: eight Volt shards flying out from the key. */
-.sp-sparks{position:absolute;inset:0;pointer-events:none}
-.sp-sparks i{position:absolute;left:50%;top:45%;width:calc(var(--u) * 6);height:calc(var(--u) * 12);margin:calc(var(--u) * -6) 0 0 calc(var(--u) * -3);background:#c6ff1a;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);opacity:0}
-.sp-excited.is-bursting .sp-sparks i{animation:s10-spark .62s cubic-bezier(.15,.7,.3,1) forwards}
-.sp-sparks i:nth-child(1){--a:0deg}.sp-sparks i:nth-child(2){--a:45deg}.sp-sparks i:nth-child(3){--a:90deg}.sp-sparks i:nth-child(4){--a:135deg}
-.sp-sparks i:nth-child(5){--a:180deg}.sp-sparks i:nth-child(6){--a:225deg}.sp-sparks i:nth-child(7){--a:270deg}.sp-sparks i:nth-child(8){--a:315deg}
-@keyframes s10-spark{
-  0%{opacity:1;transform:rotate(var(--a)) translateY(0) scale(.6)}
-  100%{opacity:0;transform:rotate(var(--a)) translateY(calc(var(--u) * -64)) scale(1)}
-}
-.sp-excited.is-bursting .sp-excited-face{animation:s10-pop .42s cubic-bezier(.2,1.6,.4,1)}
-@keyframes s10-pop{0%{transform:scale(.9)}100%{transform:scale(1)}}
-@media (prefers-reduced-motion:reduce){
-  .sp-excited:not(.is-done),.sp-excited.is-bursting .sp-excited-face{animation:none}
-  .sp-excited.is-bursting .sp-sparks i{animation:none}
-}
+.ms-super10:active{transform:scale(.97)}
+@media (prefers-reduced-motion:reduce){.ms-super10-tag{animation:none}}
+/* The rail is the frame its posters are measured from. */
 .ms-rail{position:relative}

@@ -1,20 +1,23 @@
 import * as THREE from 'three';
 import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt } from '../entities/Batter';
-import { ACTION_MS, Bowler, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
+import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
 import { bodyOf, showBody } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
-import { BLAST_FIELD, Field, TEST_FIELD } from './field';
-import { ADVANCE, FLAT_SWEEP, GAME, PUNCH, SHOT_ANGLES, SPIN_PULL, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
-import { ballPosition, drawnAt } from '../game/DeliveryTrajectory';
+import { BLAST_FIELD, Field, TEST_FIELD, mark, type Mark } from './field';
+import { nameOf, type Man } from '../game/super10-field';
+import type { Signal } from '../entities/Fielder';
+import { GAME } from '../config/gameplay';
+import { ballPosition, drawnAt, flightProgress } from '../game/DeliveryTrajectory';
 import { KIT, type Kit } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
-import { flightOf } from './flight';
+import { flightOf, sectorOf } from './flight';
 import { OVERCAST, SKY, Sky, type SkyTime } from './sky';
-import { FILL_POSITION, LIGHTING, glows, moon, nightReflections } from './night';
-import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture } from './turf';
-import { perimeterBoards } from './boards';
+import { ARENA_NIGHT, FILL_POSITION, LIGHTING, glows, moon, nightReflections } from './night';
+import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture, type Turf } from './turf';
+import { BOARD_PANELS, perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
-import { buildGround, groundFrom, ownFloodlights, type GroundName } from './grounds';
+import { buildGround, groundFrom, nightOnly, ownFloodlights, turfOf, type GroundName } from './grounds';
+import { Arena, LedStumps, MILESTONE_WORDS, Showboards, screenFrom, type ArenaCue, type ArenaMood, type Scoreboard } from './arena';
 import { buildWicket } from './wicket';
 import type { CrowdCelebration, CrowdMoment } from './CrowdCelebration';
 import { PerformanceReadout } from './performance';
@@ -24,11 +27,15 @@ import { Fireworks } from './fireworks';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 import type { Cutout } from '../ui/Milestone';
 import { OUTFITS, type BatSkin, type Outfit } from '../game/dressing';
-import type { GloveDesign } from '../entities/gloves';
+import { SUPER10_GLOVES, type GloveDesign } from '../entities/gloves';
+import type { KitPrint } from '../entities/kitPrint';
+import { SUPER10_KITS, super10Number, type Super10Kit } from '../game/super10-kits';
 import type { CameraPose } from '../game/ShotReel';
 import { introCamera, introSweep, type Film } from '../game/IntroReel';
 import { batSheet } from '../entities/batSkins';
 
+/** How long the arena's fireworks go up for, for a six and for a milestone. */
+const ARENA_FIREWORKS = { six: 3000, milestone: 4500 } as const;
 /** How much a kit glows in its own colour under the floodlights: see `kitsUnderLights`. */
 const KIT_GLOW = 0.32;
 /** Where a beaten ball runs out of steam: just short of the stumps. */
@@ -62,6 +69,13 @@ function mutable(material: THREE.Material, amount: { value: number }) {
   material.customProgramCacheKey = () => `${key()}|mute`;
   material.needsUpdate = true;
 }
+/**
+ * How often a moment's outline is drawn again, not every frame: it boils by
+ * its own clock nine times a second, and each drawing reads the picture back
+ * off the GPU. It is worked at CSS pixels: at half of them, it came out in
+ * steps on an iPhone, whose screen has three pixels to each.
+ */
+const OUTLINE_MS = 1000 / 30;
 /** How long the flash of grey round a special stroke lasts, from the hit. */
 export const POWER_MS = 1100;
 /** How far gone the colour is, a given time into a special stroke: in fast, out slower. */
@@ -96,6 +110,19 @@ const SWISH_EDGE = .55;
 /** Rows of points the band can need: the cap, and the smoothed path behind it. */
 const SWISH_ROWS = SWISH_CAP + 1 + (SWISH_SAMPLES - 1) * SWISH_SMOOTH + 1;
 /**
+ * The bowled ball's streak: this many ghosts of it, each this many
+ * milliseconds behind the last, so it always covers the last seventy of its
+ * flight. The Blast's average ball, 829 ms to the bat, gets about the trail it
+ * had; the sling bowler's, under 500, a streak half as long again, its ghosts
+ * still overlapping into one line. At sixty frames a second a fast ball
+ * jumps most of a metre between frames, and the streak is what joins them up.
+ * In the ball's own colour, as motion blur is: the pale trail the struck ball
+ * has was lost against the strip.
+ */
+export const STREAK = { ghosts: 14, stepMs: 5, opacity: 0.45 } as const;
+const streakSize = (i: number) => 0.115 * (1 - i / 20);
+
+/**
  * The colours the struck ball's tail is drawn in, head to tail. Fire for a
  * special stroke; red for a pulled bouncer, bright at the ball and going to
  * crimson, so it reads apart from the fire's yellow.
@@ -112,18 +139,33 @@ function muteAt(age: number, lasts = CELEBRATION_MS) {
   return Math.min(into, out);
 }
 
+/** A ground's stands, built once into a group of their own: see `GameScene.stands`. */
+interface Stands {
+  group: THREE.Group;
+  crowd?: CrowdCelebration;
+  lamps: THREE.MeshStandardMaterial | null;
+  /** Windows, soffits and screens lit only at night. */
+  warm: THREE.MeshStandardMaterial[];
+  /** What hangs in the scene rather than the mirrored stage, a screen's words, shown only while these stands are up. */
+  unmirrored?: THREE.Object3D[];
+  /** The brand's screen and LED boards, on a ground that has them (`Showboards`): the arena's, and the canopy's screen with the boards along the rope. */
+  show?: Showboards;
+}
+
 // The ball and its trail are the only things left that want a bare sphere;
 // every figure on the field is a Cricketer, which carries its own primitives.
 const SHAPES = { ball: new THREE.SphereGeometry(1, 24, 16) };
 
 /**
- * The ball, by format: the Blast's bright red, and the Test match's darker
- * Dukes. Both keep the faint glow of their own colour, which is what holds a
- * ball against the stands in the second it is in the air.
+ * The ball, by format: the Blast's bright red, which Super10 plays with too
+ * (a white ball was tried and lost against the pitch: players know a red
+ * one), and the Test match's darker Dukes. Each keeps the faint glow of its
+ * own colour, which is what holds a ball against the stands in the second it
+ * is in the air.
  */
 const BALL = {
-  blast: { color: 0xe84829, glow: 0x972708 },
-  test: { color: 0xa81c1c, glow: 0x5c0b07 },
+  blast: { color: 0xe84829, glow: 0x972708, seam: 0xffefd6 },
+  test: { color: 0xa81c1c, glow: 0x5c0b07, seam: 0xffefd6 },
   /**
    * How much grass the Test strip keeps, of `pitchTexture`'s nought to one. A
    * little greener, not a green top: at one the whole strip reads as grass.
@@ -160,6 +202,10 @@ export class GameScene {
   /** The strip's material, and the two surfaces it is laid with: see `testLook`. */
   private pitch!: THREE.MeshStandardMaterial;
   private dryPitch!: THREE.Texture;
+  /** Each turf's outfield and dry strip, painted the first time a ground laid with it is put up (`turfOf`). */
+  private turfs = new Map<Turf, THREE.Texture>();
+  private outfield!: THREE.MeshStandardMaterial;
+  private blades!: THREE.MeshStandardMaterial;
   private greenPitch: THREE.Texture | null = null;
   /** The Test strip worn to the current stage, painted when the stage comes; null while it is fresh. */
   private wornPitch: THREE.Texture | null = null;
@@ -170,6 +216,15 @@ export class GameScene {
   private catchRing: THREE.Mesh;
   private chargeRing: THREE.Mesh;
   private bails: THREE.Mesh[] = [];
+  /**
+   * Both wickets, plain and LED, built once: the LED pair stands for a
+   * Super10 innings (`brand`) and on the arena, the plain pair everywhere
+   * else. `bails` and `stumps` are the batter's of whichever is up.
+   */
+  private wickets = { plain: { meshes: [] as THREE.Mesh[], bails: [] as THREE.Mesh[], stumps: [] as THREE.Mesh[] }, led: { meshes: [] as THREE.Mesh[], bails: [] as THREE.Mesh[], stumps: [] as THREE.Mesh[] } };
+  private led!: LedStumps;
+  /** A Super10 innings: its stumps are the LED stumps, and the screen and the boards play its moments. */
+  private branded = false;
   /** His own stumps, the ones between the camera and him: drawn back over a moment's back layer with him. */
   private stumps: THREE.Mesh[] = [];
   /**
@@ -179,8 +234,21 @@ export class GameScene {
    */
   private readonly underlay = document.createElement('div');
   private readonly cutCanvas = document.createElement('canvas');
-  private cut: { spec: Cutout; until: number; him: Set<THREE.Object3D>; stumps: Set<THREE.Object3D>; sil: HTMLCanvasElement; ring: HTMLCanvasElement } | null = null;
+  private cut: {
+    spec: Cutout; until: number; him: Set<THREE.Object3D>; stumps: Set<THREE.Object3D>; sil: HTMLCanvasElement;
+    /** The outline's rings as last drawn (`OUTLINE_MS`), each a canvas and where it goes on the cut-out's, in its pixels. */
+    rings: { canvas: HTMLCanvasElement; x: number; y: number; w: number; h: number }[];
+    /** Which of the outline's beats they were drawn on. */
+    beat: number;
+  } | null = null;
   private trail: THREE.Mesh[] = [];
+  /**
+   * The bowled ball's streak (`STREAK`): ghosts of it set apart in time, not in
+   * share of the flight, so the faster the ball the longer the streak.
+   */
+  private streak: THREE.Mesh[] = [];
+  /** The ball's seam, recoloured with the ball (`testLook`). */
+  private seam!: THREE.Mesh;
   /**
    * The fire behind a ball struck with a special stroke: yellow at the ball,
    * red at the tail, glowing rather than lit, and flickering. Drawn instead of
@@ -235,8 +303,15 @@ export class GameScene {
   private runupProgress = 0;
   private reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   private sky = new Sky();
-  /** Which ground the stands are built for: see `grounds.ts`. */
-  readonly ground: GroundName = groundFrom(location.search);
+  /** Which ground's stands are up: see `grounds.ts` and `stands`. */
+  private current: GroundName = groundFrom(location.search);
+  get ground() { return this.current; }
+  /**
+   * Every ground's stands built so far, each in a group of its own: the one
+   * in use is shown and the rest kept, hidden, for when the lights change
+   * back (the Blast at night is the pavilion's, by day the stadium's).
+   */
+  private built = new Map<GroundName, Stands>();
   /** Day or night: see `time`. */
   private now: SkyTime = 'day';
   private hemisphere = new THREE.HemisphereLight(LIGHTING.day.hemisphere.sky, LIGHTING.day.hemisphere.ground, LIGHTING.day.hemisphere.intensity);
@@ -247,7 +322,11 @@ export class GameScene {
   private lamps: THREE.MeshStandardMaterial | null = null;
   private night: THREE.Object3D[] = [];
   /** The lights the ground reflects after dark: see `nightReflections`. */
-  private reflections = nightReflections();
+  private reflections = nightReflections(this.ground !== 'arena');
+  /** The arena's lights, stumps and torches: see `arena.ts`. */
+  private arena: Arena | null = null;
+  /** The screen and the boards of the stands in use, which every moment is cued through, or null on a ground with none. */
+  private show: Showboards | null = null;
   private environment: THREE.WebGLRenderTarget;
   /** Painted once at start-up; the scene's traversal finds materials, not their maps. */
   private textures: THREE.Texture[] = [];
@@ -299,15 +378,19 @@ export class GameScene {
     // Always in the scene, so switching to night recompiles no shader.
     this.fill.position.set(...FILL_POSITION); this.scene.add(this.fill);
     this.createGround();
-    this.wicket(0); this.wicket(18.7);
+    this.led = new LedStumps(this.anisotropy); this.textures.push(this.led.wrap);
+    for (const kind of ['plain', 'led'] as const) { this.wicket(0, kind); this.wicket(18.7, kind); }
+    this.raiseStumps();
+    // The stage starts mirrored for a right-hander: the LED stumps' wrap is turned over with it.
+    this.led.mirror(true);
     this.bowlerHolder.add(this.bowler.root);
     this.world.add(this.batter.root, this.bowlerHolder, ...this.field.fielders.map(f => f.root));
     this.ball = new THREE.Mesh(SHAPES.ball, soft(BALL.blast.color, 0.34));
     this.ball.scale.setScalar(0.115); this.ball.castShadow = true; this.world.add(this.ball);
     (this.ball.material as THREE.MeshStandardMaterial).emissive.setHex(BALL.blast.glow);
     (this.ball.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.2;
-    const seam = new THREE.Mesh(new THREE.TorusGeometry(0.98, 0.07, 10, 32), soft(0xffefd6));
-    this.ball.add(seam);
+    this.seam = new THREE.Mesh(new THREE.TorusGeometry(0.98, 0.07, 10, 32), soft(BALL.blast.seam));
+    this.ball.add(this.seam);
     this.shadow = new THREE.Mesh(new THREE.CircleGeometry(0.17, 16), new THREE.MeshBasicMaterial({ color: 0x243828, transparent: true, opacity: 0.35, depthWrite: false }));
     this.shadow.rotation.x = -Math.PI / 2; this.world.add(this.shadow);
     const ringMat = new THREE.MeshBasicMaterial({ color: 0xffe4a6, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false });
@@ -322,6 +405,10 @@ export class GameScene {
       const dot = new THREE.Mesh(this.ball.geometry, new THREE.MeshBasicMaterial({ color: 0xfff5cd, transparent: true, opacity: (1 - i / 9) * 0.32, depthWrite: false }));
       dot.scale.setScalar(0.115 * (1 - i / 12)); this.world.add(dot); this.trail.push(dot);
     }
+    for (let i = 0; i < STREAK.ghosts; i++) {
+      const dot = new THREE.Mesh(this.ball.geometry, new THREE.MeshBasicMaterial({ color: BALL.blast.color, transparent: true, opacity: (1 - i / STREAK.ghosts) * STREAK.opacity, depthWrite: false }));
+      dot.scale.setScalar(streakSize(i)); dot.visible = false; this.world.add(dot); this.streak.push(dot);
+    }
     // Solid colours rather than light added on: added light over a pale sky
     // comes out white, and this is meant to read as yellow going to red.
     const hot = new THREE.Color(0xffd23f), mid = new THREE.Color(0xff7a1f), cold = new THREE.Color(0xd7261b);
@@ -335,18 +422,18 @@ export class GameScene {
     }
     // Everything built so far, bar him, can be greyed for his hundred. Done
     // once, here, so the shaders are compiled with it before the first frame.
-    const his = new Set<THREE.Material>();
+    const his = this.his;
     this.batter.root.traverse(object => { if (object instanceof THREE.Mesh) [object.material].flat().forEach(m => his.add(m)); });
     // And the ball he hit, and its trail: a special stroke greys the ground
     // while the ball is still in the air, and the eye wants to follow it.
-    for (const mesh of [this.ball, ...this.trail, ...this.fire]) [mesh.material].flat().forEach(m => his.add(m));
-    this.scene.traverse(object => {
-      if (object instanceof THREE.Mesh) [object.material].flat().forEach(m => { if (!his.has(m)) mutable(m, this.mute); });
-    });
+    for (const mesh of [this.ball, ...this.trail, ...this.streak, ...this.fire]) [mesh.material].flat().forEach(m => his.add(m));
+    this.greyable(this.scene);
     // After the greying is wired, so a hundred never greys the swoosh.
     this.swish = this.createSwish();
     this.reset();
     this.resizeObserver = new ResizeObserver(this.resize); this.resizeObserver.observe(container); this.resize();
+    // The arena is lit from the first frame: there is no day there to start in.
+    if (nightOnly(this.ground)) this.time('night');
     if (new URLSearchParams(location.search).get('perf') === '1') this.performanceReadout = new PerformanceReadout(container);
   }
   /**
@@ -461,17 +548,21 @@ export class GameScene {
     // Relief only, the colour left to the turf: a blade's light and shade,
     // tiled, and fading into the flat as the mipmaps take over.
     const blades = grassDetail(140, anisotropy);
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(70, 96), new THREE.MeshStandardMaterial({ map: grass, normalMap: blades, normalScale: new THREE.Vector2(0.65, 0.65), roughness: 0.95 })); ground.rotation.x = -Math.PI / 2;
+    this.outfield = new THREE.MeshStandardMaterial({ map: grass, normalMap: blades, normalScale: new THREE.Vector2(0.65, 0.65), roughness: 0.95 });
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(70, 96), this.outfield); ground.rotation.x = -Math.PI / 2;
     ground.position.set(0, -0.035, 10); ground.receiveShadow = true; this.world.add(ground);
     // The strip, its wear painted on rather than built from boxes.
-    const surface = pitchTexture(2.8, 32, 4.3, anisotropy, { batting: 0, bowling: 18.7 });
+    const surface = pitchTexture(2.8, 32, 4.3, anisotropy, { batting: 0, bowling: 18.7 }, 0, 0);
     this.pitch = new THREE.MeshStandardMaterial({ map: surface, roughness: 0.9 });
     this.dryPitch = surface; this.anisotropy = anisotropy;
+    this.turfs.set('classic', grass);
     const strip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.025, 32), this.pitch);
     strip.position.set(0, 0, 4.3); strip.receiveShadow = true; this.world.add(strip);
     this.textures.push(grass, blades, surface);
     // And standing blades either side of the strip near the bat, one draw.
-    this.world.add(grassBlades(grass));
+    const standing = grassBlades(grass);
+    this.blades = standing.material as THREE.MeshStandardMaterial;
+    this.world.add(standing);
     // Popping creases, 1.2m in front of each wicket, with return creases running
     // back past the stumps.
     [GAME.creaseZ, 18.7 - GAME.creaseZ].forEach(z => {
@@ -495,7 +586,6 @@ export class GameScene {
     this.field.update(0);
   }
   private createStadium(anisotropy: number) {
-    const lights = buildGround(this.ground, this.world);
     // The boards along the foot of the stands. Added to the scene rather than
     // the mirrored stage, or every sponsor would read backwards.
     const boards = perimeterBoards(35.1, 1.2, 1.5, 10, anisotropy);
@@ -503,26 +593,149 @@ export class GameScene {
     boards.group.traverse(object => {
       if (object instanceof THREE.Mesh && (object.material as THREE.MeshStandardMaterial).emissiveMap) this.boardsMaterial = object.material as THREE.MeshStandardMaterial;
     });
-    // The night's own: the moon, and a glow on every lamp the stadium has.
+    // The night's own: the moon. Each ground brings its own glows.
     const theMoon = moon(this.camera.position);
     this.scene.add(theMoon.sprite); this.night.push(theMoon.sprite); this.textures.push(theMoon.texture);
+    this.raise(this.current);
+  }
+  /**
+   * The stands for `name` up, in place of the ones that were: built the
+   * first time they are asked for, and from then on only shown. The ground,
+   * the strip and the boards along the rope are every ground's, and stay.
+   */
+  stands(name: GroundName) {
+    if (name === this.current && this.built.has(name)) return;
+    this.raise(name);
+  }
+  private raise(name: GroundName) {
+    let stands = this.built.get(name);
+    if (!stands) { stands = this.buildStands(name); this.built.set(name, stands); }
+    for (const [other, built] of this.built) built.group.visible = other === name;
+    // The stands going out of sight leave the boards along the rope as they found them.
+    if (this.show && this.show !== stands.show) this.show.rest();
+    this.current = name;
+    this.crowd = stands.crowd; this.lamps = stands.lamps; this.show = stands.show ?? null;
+    this.lay(turfOf(name));
+    this.show?.branded(this.cued !== null);
+    this.warmShow();
+    this.raiseStumps();
+    this.lightStands();
+  }
+  private buildStands(name: GroundName): Stands {
+    const group = new THREE.Group(); group.name = `Stands: ${name}`;
+    this.world.add(group);
+    const screen = screenFrom(location.search);
+    const lights = buildGround(name, group, { screen });
+    const stands: Stands = { group, lamps: lights?.lamps ?? null, warm: lights?.warm ?? [] };
+    if (name === 'arena') {
+      this.arena = new Arena(this.scene, screen, this.anisotropy);
+      if (lights?.life && lights.seats) this.arena.crowd(lights.life, lights.seats, this.scene);
+      if (this.boardsMaterial) this.arena.boards(this.boardsMaterial, BOARD_PANELS);
+      this.textures.push(...this.arena.textures);
+      stands.show = this.arena.show;
+    } else if (lights?.screen) {
+      // A ground with a big screen plays the brand's moments on it and on the boards along the rope, which keep their sponsors between them.
+      stands.show = new Showboards(lights.screen);
+      if (this.boardsMaterial) stands.show.ring(this.boardsMaterial, BOARD_PANELS, true);
+    }
     if (lights) {
-      this.crowd = lights.createCrowd?.(this.reducedMotion);
-      if (this.crowd) { this.textures.push(...this.crowd.textures); this.crowd.setNight(this.now === 'night'); }
-      this.lamps = lights.lamps;
-      const glow = glows(lights.roof, lights.towers);
-      this.world.add(...glow.points); this.night.push(...glow.points); this.textures.push(glow.texture);
+      stands.crowd = lights.createCrowd?.(this.reducedMotion);
+      if (stands.crowd) this.textures.push(...stands.crowd.textures);
+      // A glow on every lamp the ground has, in its own group, so they go with it.
+      const glow = glows(lights.roof, lights.towers, lights.spots);
+      group.add(...glow.points); this.night.push(...glow.points); this.textures.push(glow.texture);
+      for (const points of glow.points) points.visible = this.now === 'night';
+      // The arena's floodlights answer the game, glows and all.
+      this.arena?.glows(glow.points[0].material as THREE.PointsMaterial);
+      lights.unmirrored?.forEach(object => this.scene.add(object));
+      if (lights.unmirrored) stands.unmirrored = lights.unmirrored;
+      this.textures.push(...lights.textures ?? []);
     }
-    if (!ownFloodlights(this.ground)) for (const [x, z] of [[-29, 35], [29, 35], [-32, -13], [32, -13]]) {
-      cylinder(this.world, 0.19, 18, 0x839697, x, 9, z);
-      box(this.world, 4, 2, 0.3, 0x304953, x, 17.5, z);
-      for (let row = 0; row < 2; row++) for (let col = 0; col < 5; col++) box(this.world, 0.55, 0.55, 0.1, 0xfff4d9, x - 1.5 + col * 0.75, 17.1 + row * 0.8, z - 0.21);
+    if (!ownFloodlights(name)) for (const [x, z] of [[-29, 35], [29, 35], [-32, -13], [32, -13]]) {
+      cylinder(group, 0.19, 18, 0x839697, x, 9, z);
+      box(group, 4, 2, 0.3, 0x304953, x, 17.5, z);
+      for (let row = 0; row < 2; row++) for (let col = 0; col < 5; col++) box(group, 0.55, 0.55, 0.1, 0xfff4d9, x - 1.5 + col * 0.75, 17.1 + row * 0.8, z - 0.21);
+    }
+    // Stands built after the scene was put together are greyed for a hundred as the rest of it is.
+    if (this.his.size) { this.greyable(group); stands.unmirrored?.forEach(object => this.greyable(object)); }
+    return stands;
+  }
+  /**
+   * The outfield and its standing blades in `turf`'s colours, painted the
+   * first time it is asked for. The strip is every ground's own.
+   */
+  private lay(turf: Turf) {
+    let grass = this.turfs.get(turf);
+    if (!grass) {
+      grass = grassTexture(70, 10, GAME.boundaryRadius, this.anisotropy, turf);
+      this.turfs.set(turf, grass); this.textures.push(grass);
+    }
+    this.outfield.map = grass; this.blades.map = grass;
+  }
+  /** For the checks: which turf is down. */
+  get turf(): Turf { return [...this.turfs].find(([, grass]) => grass === this.outfield.map)?.[0] ?? 'classic'; }
+  /** The stands in use lit for the time it is: their crowd, their lamps and their warm windows. */
+  private lightStands() {
+    const night = this.now === 'night', light = this.lighting;
+    this.crowd?.setNight(night);
+    if (this.lamps) this.lamps.emissiveIntensity = light.lamps;
+    for (const [name, built] of this.built) {
+      for (const material of built.warm) material.emissiveIntensity = night ? 1 : 0;
+      built.unmirrored?.forEach(object => { object.visible = name === this.current && (night || !object.userData.nightOnly); });
+      built.show?.lit(light.boards);
     }
   }
-  private wicket(z: number) {
-    const { timber, bails } = buildWicket(this.world, GAME.stumpHeight, z);
-    if (z === 0) { this.bails.push(...bails); this.stumps.push(...timber, ...bails); }
+  /** The batter's materials and the ball's, which a hundred never greys: see `greyable`. */
+  private his = new Set<THREE.Material>();
+  /** Everything under `root` but him and the ball made greyable for his hundred: the scene at first, and stands built later. */
+  private greyable(root: THREE.Object3D) {
+    root.traverse(object => {
+      if (object instanceof THREE.Mesh) [object.material].flat().forEach(m => { if (!this.his.has(m)) mutable(m, this.mute); });
+    });
   }
+  private get lighting() { return this.now === 'night' && this.current === 'arena' ? ARENA_NIGHT : LIGHTING[this.now]; }
+  private wicket(z: number, kind: 'plain' | 'led') {
+    const { timber, bails, lights } = buildWicket(this.world, GAME.stumpHeight, z, kind === 'led' ? { wrap: this.led.wrap } : undefined);
+    const set = this.wickets[kind];
+    set.meshes.push(...timber, ...bails);
+    if (z === 0) { set.bails.push(...bails); set.stumps.push(...timber, ...bails); }
+    if (lights) this.led.wire(lights, z === 0);
+  }
+  /** Whether the LED stumps are up: a Super10 innings, and the arena whatever is played on it. */
+  private get ledUp() { return this.branded || this.current === 'arena'; }
+  /** The wickets that go with the innings and the ground up, and the bails the ball breaks theirs. */
+  private raiseStumps() {
+    if (!this.led) return;
+    const led = this.ledUp;
+    for (const mesh of this.wickets.plain.meshes) mesh.visible = !led;
+    for (const mesh of this.wickets.led.meshes) mesh.visible = led;
+    const up = this.wickets[led ? 'led' : 'plain'];
+    this.bails = up.bails; this.stumps = up.stumps;
+  }
+  /**
+   * A Super10 innings, or not: the LED stumps go up for it, and the screen
+   * and the boards along the rope play its moments, on whatever ground has
+   * them. Any other innings at the canopy keeps its plain stumps, and its
+   * screen shows the score and nothing more.
+   */
+  brand(on: boolean) {
+    if (on === this.branded) return;
+    this.branded = on;
+    if (!on && this.current !== 'arena') this.show?.rest();
+    this.show?.branded(this.cued !== null);
+    this.warmShow();
+    this.raiseStumps();
+  }
+  /** A screen and boards that will play moments made ready for them before the first: see `Showboards.warm`. */
+  private warmShow() {
+    const show = this.cued;
+    if (!show || this.warmed.has(show)) return;
+    this.warmed.add(show);
+    for (const face of show.warm()) this.renderer.initTexture(face);
+  }
+  private warmed = new WeakSet<Showboards>();
+  /** The screen and the boards the moments go to: the stands' own, in a Super10 innings or on the arena. */
+  private get cued() { return this.branded || this.current === 'arena' ? this.show : null; }
   private resize = () => {
     const { width, height } = this.container.getBoundingClientRect();
     this.renderer.setSize(width, height);
@@ -556,12 +769,12 @@ export class GameScene {
    * pause menu between balls.
    */
   time(time: SkyTime) {
+    if (nightOnly(this.ground)) time = 'night';
     if (time === this.now) return;
     this.now = time;
-    this.crowd?.setNight(time === 'night');
     // Day breaking on a show takes it down: there are none by day.
     if (time !== 'night') this.bursts.stop();
-    const palette = this.sky.time(time), light = LIGHTING[time];
+    const palette = this.sky.time(time), light = this.lighting;
     this.scene.fog = new THREE.Fog(palette.horizon, 48, 125);
     this.renderer.setClearColor(palette.horizon);
     this.environment.dispose();
@@ -573,8 +786,8 @@ export class GameScene {
     this.sun.color.set(light.key.colour); this.sun.intensity = light.key.intensity * (1 - this.sky.cover * OVERCAST.sun); this.sun.position.set(...light.key.position);
     this.fill.intensity = light.fill.intensity;
     if (this.boardsMaterial) this.boardsMaterial.emissiveIntensity = light.boards;
-    if (this.lamps) this.lamps.emissiveIntensity = light.lamps;
     for (const object of this.night) object.visible = time === 'night';
+    this.lightStands();
     this.kitsUnderLights();
   }
   /**
@@ -619,6 +832,7 @@ export class GameScene {
    */
   leftHanded(on: boolean) {
     this.world.scale.x = on ? 1 : -1;
+    this.led.mirror(!on);
     this.batter.mirrorStickers(!on);
     this.bowlerHolder.scale.x = on ? -1 : 1;
   }
@@ -653,7 +867,35 @@ export class GameScene {
     this.bursts.show(now, ms, this.camera.aspect >= 1);
   }
   get fireworksUp() { return this.bursts.up; }
-  cheer(kind: CrowdMoment, now: number, mark = 0, streak = 1, name = '') { this.crowd?.trigger(kind, now, mark, streak, name); }
+  cheer(kind: CrowdMoment, now: number, mark = 0, streak = 1, name = '') {
+    this.crowd?.trigger(kind, now, mark, streak, name);
+    const show = this.cued;
+    if (!show) return;
+    if (kind === 'hit-four' || kind === 'hit-six') show.cue(kind === 'hit-six' ? 'six' : 'four', now);
+    else show.cue('milestone', now, MILESTONE_WORDS[kind]);
+    // Fireworks off the far end for a six and a milestone: the arena is always night.
+    if (this.arena && kind !== 'hit-four') this.fireworks(now, kind === 'hit-six' ? ARENA_FIREWORKS.six : ARENA_FIREWORKS.milestone);
+  }
+  /** The brand's mood: calm, Power Surge's gold or the death overs' red. Nothing on a ground without its boards. */
+  arenaMood(mood: ArenaMood) { this.cued?.mood(mood); }
+  /** A moment the screen and the boards light up for that the crowd has no part in: a wicket, Power Surge, the death overs. The wave and the stumps are the arena's alone. */
+  arenaCue(kind: ArenaCue | 'wave' | 'stumps', now: number, word?: string) {
+    if (kind === 'wave') this.arena?.wave(now);
+    else if (kind === 'stumps') this.led.light(now);
+    else this.cued?.cue(kind, now, word);
+  }
+  /** What the big screen shows between moments, where it shows the score. */
+  scoreboard(board: Scoreboard) { this.show?.scoreboard(board); }
+  /** For the checks: the mood and what the screen and the boards show, with the arena's lamps and torches there, or null on a ground with neither. */
+  get arenaState() { return this.arena?.state ?? this.show?.state ?? null; }
+  /** For the checks: whether the LED stumps are up. */
+  get ledStumps() { return this.ledUp; }
+  /** Whether the stands in use have a big screen: the call over the field comes down off it. */
+  get bigScreen() { return this.show?.hasScreen ?? false; }
+  /** Whether the moments play on it (Super10's): a boundary's word is then left to it. */
+  get screenMoments() { return this.cued?.hasScreen ?? false; }
+  /** Whether this is the arena, which is played at night whatever the lights say. */
+  get arenaGround() { return this.arena !== null; }
   get crowdState() { return this.crowd?.state ?? { kind: null, spectators: 0, banners: 0 }; }
   /**
    * A moment: his hundred or six sixes, the bat to the sky and the world gone
@@ -683,12 +925,18 @@ export class GameScene {
     if (!spec) { this.cut = null; this.cutCanvas.style.display = 'none'; return; }
     const him = new Set<THREE.Object3D>(), stumps = new Set<THREE.Object3D>(spec.stumps ? this.stumps : []);
     this.batter.root.traverse(o => him.add(o));
-    if (spec.ball) for (const o of [this.ball, ...this.trail, ...this.fire]) him.add(o);
-    this.cut = { spec, until: performance.now() + lasts, him, stumps, sil: document.createElement('canvas'), ring: document.createElement('canvas') };
+    if (spec.ball) for (const o of [this.ball, ...this.trail, ...this.streak, ...this.fire]) him.add(o);
+    this.cut = { spec, until: performance.now() + lasts, him, stumps, sil: document.createElement('canvas'), rings: [], beat: -1 };
   }
-  /** Him alone, then his stumps with him, into the cut-out's canvas, with the outline rings under. */
+  /**
+   * Him, and his stumps with him, into the cut-out's canvas, with the outline
+   * rings under. Every picture of him is a render more and a read back off the
+   * GPU, which an iPhone pays for by stopping to hand it over: the outline is
+   * drawn again only on its own beat (`OUTLINE_MS`), and him alone only for
+   * it, where the stumps go with him; between, he and they are one render.
+   */
   private drawCutout() {
-    const cut = this.cut!, left = cut.until - performance.now();
+    const cut = this.cut!, now = performance.now(), left = cut.until - now;
     if (left <= 0) { this.cutout(); return; }
     const gl = this.renderer.domElement, canvas = this.cutCanvas;
     if (canvas.width !== gl.width || canvas.height !== gl.height) { canvas.width = gl.width; canvas.height = gl.height; }
@@ -708,16 +956,20 @@ export class GameScene {
     // The shadow map is the last frame's: drawn again for him alone, he would
     // be lit as if nothing else stood on the ground.
     this.renderer.shadowMap.autoUpdate = false;
+    const beat = Math.floor(now / OUTLINE_MS), outlining = beat !== cut.beat;
     try {
-      only(o => cut.him.has(o));
-      this.renderer.render(this.scene, this.camera);
-      this.outline(context, gl);
-      context.drawImage(gl, 0, 0);
-      if (cut.stumps.size) {
-        hidden.forEach(o => { if (cut.stumps.has(o)) o.visible = true; });
+      if (outlining || !cut.stumps.size) {
+        only(o => cut.him.has(o));
         this.renderer.render(this.scene, this.camera);
-        context.drawImage(gl, 0, 0);
+        if (outlining) { this.outline(gl); cut.beat = beat; }
       }
+      for (const ring of cut.rings) context.drawImage(ring.canvas, 0, 0, ring.canvas.width, ring.canvas.height, ring.x, ring.y, ring.w, ring.h);
+      if (cut.stumps.size) {
+        if (hidden.length) hidden.forEach(o => { if (cut.stumps.has(o)) o.visible = true; });
+        else only(o => cut.him.has(o) || cut.stumps.has(o));
+        this.renderer.render(this.scene, this.camera);
+      }
+      context.drawImage(gl, 0, 0);
     } finally {
       hidden.forEach(o => { o.visible = true; });
       this.renderer.setClearColor(clear, alpha);
@@ -726,36 +978,42 @@ export class GameScene {
   }
   /**
    * The outline rings, biggest first: his silhouette stamped round a circle
-   * of each ring's radius and filled with its colour. Worked at CSS pixels in
-   * a box round him rather than across the whole screen, and the stamps are
+   * of each ring's radius and filled with its colour, into a canvas of each
+   * ring's own (`cut.rings`). Worked at CSS pixels in a
+   * box round him rather than across the whole screen, and the stamps are
    * jittered afresh nine times a second so the line boils like the pen's.
    */
-  private outline(context: CanvasRenderingContext2D, gl: HTMLCanvasElement) {
+  private outline(gl: HTMLCanvasElement) {
     const cut = this.cut!, at = this.batterOnScreen(), ratio = gl.width / Math.max(1, at.width);
     const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
     const x0 = Math.max(0, Math.min(at.head.x, at.feet.x) - s * 2.1), x1 = Math.min(at.width, Math.max(at.head.x, at.feet.x) + s * 2.1);
     const y0 = Math.max(0, at.head.y - s * 1.5), y1 = Math.min(at.height, at.feet.y + s * .45);
     const w = Math.ceil(x1 - x0), h = Math.ceil(y1 - y0);
     if (w <= 0 || h <= 0) return;
-    for (const c of [cut.sil, cut.ring]) if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
-    const sil = cut.sil.getContext('2d'), ring = cut.ring.getContext('2d');
-    if (!sil || !ring) return;
+    if (cut.sil.width !== w || cut.sil.height !== h) { cut.sil.width = w; cut.sil.height = h; }
+    const sil = cut.sil.getContext('2d');
+    if (!sil) return;
     sil.clearRect(0, 0, w, h);
     sil.drawImage(gl, x0 * ratio, y0 * ratio, w * ratio, h * ratio, 0, 0, w, h);
     let seed = Math.floor(performance.now() / 110) * 7919 >>> 0;
     const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-    for (const { r, colour, dx = 0, dy = 0 } of cut.spec.rings) {
+    cut.spec.rings.forEach(({ r, colour, dx = 0, dy = 0 }, i) => {
+      const slot = cut.rings[i] ??= { canvas: document.createElement('canvas'), x: 0, y: 0, w: 0, h: 0 };
+      const canvas = slot.canvas;
+      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+      const ring = canvas.getContext('2d');
+      if (!ring) return;
       ring.globalCompositeOperation = 'source-over';
       ring.clearRect(0, 0, w, h);
-      for (const [count, reach] of [[16, 1], [8, .55]] as const) for (let i = 0; i < count; i++) {
-        const a = (i + random() * .3) / count * Math.PI * 2, rr = r * reach * (1 + (random() - .5) * .16);
+      for (const [count, reach] of [[16, 1], [8, .55]] as const) for (let j = 0; j < count; j++) {
+        const a = (j + random() * .3) / count * Math.PI * 2, rr = r * reach * (1 + (random() - .5) * .16);
         ring.drawImage(cut.sil, Math.cos(a) * rr, Math.sin(a) * rr);
       }
       ring.globalCompositeOperation = 'source-in';
       ring.fillStyle = colour;
       ring.fillRect(0, 0, w, h);
-      context.drawImage(cut.ring, 0, 0, w, h, (x0 + dx) * ratio, (y0 + dy) * ratio, w * ratio, h * ratio);
-    }
+      Object.assign(slot, { x: (x0 + dx) * ratio, y: (y0 + dy) * ratio, w: w * ratio, h: h * ratio });
+    });
   }
   /**
    * A special stroke on a full meter, from the moment it is hit: the same
@@ -775,6 +1033,11 @@ export class GameScene {
   get swishing() { return this.swish.visible; }
   /** Which tail the struck ball has, for the checks: 'fire', 'pull', or null. */
   get tailKind() { return this.blaze; }
+  /** How many of the bowled ball's streak's ghosts are showing, and how far the streak reaches behind the ball in metres. For the checks. */
+  get streakShown() {
+    const on = this.streak.filter(dot => dot.visible);
+    return { ghosts: on.length, length: on.length ? Number(this.ball.position.distanceTo(on[on.length - 1].position).toFixed(2)) : 0 };
+  }
   /** How much of the fire trail is showing this frame. For the checks. */
   get burning() { return this.fire.filter(dot => dot.visible).length; }
   /** How grey the ground is this frame, nought to one. For the checks. */
@@ -784,9 +1047,15 @@ export class GameScene {
    * top of his helmet, and the height the bat reaches held up to the sky. The
    * doodles that go up round his hundred are drawn to these.
    */
+  private readonly screenSize = new THREE.Vector2();
   batterOnScreen() {
-    const { width, height } = this.renderer.domElement.getBoundingClientRect();
+    // The size the renderer was given, not the canvas measured: measuring makes the page lay itself out there and then.
+    const { width, height } = this.renderer.getSize(this.screenSize);
     this.batter.root.updateWorldMatrix(true, false);
+    // The camera as it stands now, not as it was last drawn: handed back by the
+    // walk-on a moment ago, it still held the film's last shot, and the
+    // coachmarks' lanes were drawn from where the batter stood in that.
+    this.camera.updateMatrixWorld();
     const at = (y: number) => {
       const p = this.batter.root.localToWorld(new THREE.Vector3(0, y, 0)).project(this.camera);
       return { x: (p.x + 1) / 2 * width, y: (1 - p.y) / 2 * height };
@@ -822,6 +1091,8 @@ export class GameScene {
     const ball = this.ball.material as THREE.MeshStandardMaterial;
     const look = on ? BALL.test : BALL.blast;
     ball.color.setHex(look.color); ball.emissive.setHex(look.glow);
+    this.streak.forEach(dot => (dot.material as THREE.MeshBasicMaterial).color.setHex(look.color));
+    this.seam.material = soft(look.seam);
     if (on && !this.greenPitch) {
       this.greenPitch = pitchTexture(2.8, 32, 4.3, this.anisotropy, { batting: 0, bowling: 18.7 }, BALL.testGrass);
       this.textures.push(this.greenPitch);
@@ -829,6 +1100,8 @@ export class GameScene {
     this.pitch.map = on ? this.greenPitch! : this.dryPitch;
     this.dropWear();
   }
+  /** The ball's colour, for the checks. */
+  get ballColour() { return `#${(this.ball.material as THREE.MeshStandardMaterial).color.getHexString()}`; }
   /** Which strip is down, for the checks. */
   get greenTop() { return this.pitch.map === this.greenPitch; }
   /** How worn the Test strip is, as a stage of `WEAR_STAGES`, for the checks. */
@@ -890,11 +1163,31 @@ export class GameScene {
    * batter is dressed for an innings, and the bat taken up at once. In the
    * Test match he keeps his whites, as a Test is played, and takes the kit's
    * helmet and his own bat out with him.
+   *
+   * In Super10 he bats in a Super10 kit instead (`super10`, from
+   * `super10-kits.ts`), printed, with its own gloves and pads, his own bat
+   * still in his hands; the side in the field wears any other team's,
+   * printed too, and the LED stumps take the colourway that goes with his.
    */
-  dressBatter(outfit: Outfit, bat: BatSkin, guard: GloveDesign) {
-    this.look = { outfit, bat, guard };
-    this.pickSide(outfit.id);
-    this.batter.wearGloves(guard);
+  dressBatter(outfit: Outfit, bat: BatSkin, guard: GloveDesign<string>, super10: Super10Kit | null = null) {
+    this.look = { outfit: super10 ?? outfit, bat, guard: super10 ? SUPER10_GLOVES[super10.guard] : guard };
+    if (super10) {
+      // Any of the other teams, drawn afresh each innings.
+      const others = SUPER10_KITS.filter(kit => kit.id !== super10.id);
+      const side = others[Math.floor(Math.random() * others.length)];
+      this.fieldingKit = side.id;
+      this.sideKit = this.kitOf({ ...side, helmet: side.cap ?? side.helmet });
+      this.sidePrint = side.print;
+      this.led.colourway(super10.stumps);
+    } else {
+      this.pickSide(outfit.id);
+      this.sidePrint = null;
+      this.led.colourway('violet');
+    }
+    this.super10Kit = super10;
+    this.shirt = super10 ? super10Number(0) : null;
+    this.batter.printKit(super10?.print ?? null, this.shirt);
+    this.batter.wearGloves(this.look.guard);
     this.wearLook();
     const asked = ++this.batAsked;
     this.batter.holdBat(bat.grip, null);
@@ -904,7 +1197,13 @@ export class GameScene {
       this.kitsUnderLights();
     });
   }
-  private look: { outfit: Outfit; bat: BatSkin; guard: GloveDesign } | null = null;
+  private look: { outfit: Outfit | Super10Kit; bat: BatSkin; guard: GloveDesign<string> } | null = null;
+  /** The Super10 kit he is batting in, if he is. */
+  private super10Kit: Super10Kit | null = null;
+  /** The number on a Super10 batter's back, for the man walking out (`super10Number`). Nothing outside Super10. */
+  shirtNumber(number: string) { if (this.super10Kit) { this.batter.printKit(this.super10Kit.print, number); this.shirt = number; } }
+  /** The number on his back, in a Super10 kit; for the checks. */
+  shirt: string | null = null;
   /** What he went out in, `kit/bat/guard`, for the checks. */
   get wearing() { return this.look ? `${this.look.outfit.id}/${this.look.bat.id}/${this.look.guard.id}` : null; }
   private inWhites = false;
@@ -914,7 +1213,7 @@ export class GameScene {
     if (!this.look) return;
     const { outfit } = this.look;
     this.batter.wear(this.inWhites ? { helmet: outfit.helmet } : outfit);
-    if (!this.inWhites) { this.bowler.figure.dress(this.sideKit); this.field.dress(this.sideKit); }
+    if (!this.inWhites) { this.bowler.figure.dress(this.sideKit, this.sidePrint); this.field.dress(this.sideKit, this.sidePrint); }
     this.kitsUnderLights();
   }
   /**
@@ -926,14 +1225,20 @@ export class GameScene {
    * in whites, as a Test is played.
    */
   private sideKit: Kit = KIT;
+  /** And its print, where it is a Super10 kit. */
+  private sidePrint: KitPrint | null = null;
   /** The fielding side's kit, as a Dressing Room id, for the checks. */
   fieldingKit: string | null = null;
   private pickSide(except: string) {
     const choices = OUTFITS.filter(o => o.id !== except);
     const outfit = choices[Math.floor(Math.random() * choices.length)];
-    const hex = (colour: string) => new THREE.Color(colour).getHex();
     this.fieldingKit = outfit.id;
-    this.sideKit = { ...KIT, shirt: hex(outfit.shirt), trousers: hex(outfit.trousers), cap: hex(outfit.helmet), trim: hex(outfit.trim) };
+    this.sideKit = this.kitOf(outfit);
+  }
+  /** A kit's colours as the figures wear them. */
+  private kitOf(outfit: Pick<Outfit, 'shirt' | 'trousers' | 'helmet' | 'trim'>): Kit {
+    const hex = (colour: string) => new THREE.Color(colour).getHex();
+    return { ...KIT, shirt: hex(outfit.shirt), trousers: hex(outfit.trousers), cap: hex(outfit.helmet), trim: hex(outfit.trim) };
   }
 
   /** A new ball. `carryOn`: see `Batter.reset`. */
@@ -942,7 +1247,7 @@ export class GameScene {
     this.crowd?.settle(this.clock);
     this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0; this.blaze = null; this.swishedAt = -Infinity; this.swish.visible = false;
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
-    this.trail.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset(carryOn);
+    this.trail.forEach(t => t.visible = false); this.streak.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset(carryOn);
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
     this.batter.root.visible = true;
     this.field.reset(); this.released = false; this.gathered = false;
@@ -969,13 +1274,42 @@ export class GameScene {
    */
   spinner(on: boolean) { this.bowler.spinner(on); }
   /**
-   * And whose action he bowls it with: the Marathon's express bowler in his
-   * overs, the fast bowler in everyone else's. Set beside `spinner`, every ball,
-   * so an over can never inherit the last one's.
+   * And whose action he bowls it with: the express bowler's in his overs (the
+   * Marathon's, and Super10's sling bowler), Super10's death bowler's in his,
+   * and the fast bowler's in everyone else's. Set beside `spinner`, every
+   * ball, so an over can never inherit the last one's.
    */
-  express(on: boolean) { this.bowler.action(on ? EXPRESS_ACTION : PACE_ACTION); }
+  express(on: boolean, death = false) { this.bowler.action(death ? DEATH_ACTION : on ? EXPRESS_ACTION : PACE_ACTION); }
+  /**
+   * Super10's field: the six men drawn of its nine, put on their marks at the
+   * start of an innings, and stood on the new ones when it changes in it.
+   */
+  super10Field(men: readonly Man[], changed: boolean) {
+    const marks: Mark[] = men.map((man, i) => {
+      const name = nameOf(man.angle, man.deep);
+      return { name: name[0].toUpperCase() + name.slice(1), spot: mark(man.angle, man.distance), style: i % 2 ? 'hips' : 'loose', deep: man.deep };
+    });
+    if (changed) this.field.standOn(marks); else this.field.setField(marks);
+  }
+  /**
+   * The bowler setting his field: turned, from wherever he stands, to the man
+   * he moves, and waving him back, beckoning him in or pointing. The next ball
+   * waits for it.
+   */
+  bowlerSignals(kind: Signal, man: Man) {
+    const routine = this.field.bowlerRoutine();
+    // Off his routine, wherever it has taken him; off his mark, where `reset`
+    // put him, with the holder's mirror for a left-hander.
+    const rest = routine ? routine.at(this.clock)
+      : bodyOf(this.bowler.figure.posed, this.bowlerHolder.position.x + this.bowlerHolder.scale.x * this.bowler.root.position.x, this.bowlerHolder.position.z + this.bowler.root.position.z);
+    const to = mark(man.angle, man.distance);
+    this.field.bowlerSignal(rest, this.clock, to, kind);
+  }
   /** Which action is at the top of the mark, for the checks. */
-  get bowlerAction() { return this.bowler.actionStyle === EXPRESS_ACTION ? 'express' : 'pace'; }
+  get bowlerAction() {
+    const style = this.bowler.actionStyle;
+    return style === EXPRESS_ACTION ? 'express' : style === DEATH_ACTION ? 'death' : 'pace';
+  }
   /**
    * And which side of the stumps he bowls it from: round the wicket in the
    * Marathon's overs that are, over it in everyone else's. Set beside
@@ -1006,16 +1340,26 @@ export class GameScene {
     const window = (GAME.timing.poor + GAME.comboMs) / delivery.durationMs;
     return 1 + Math.min(1, (progress - 1) / window) * (BEATEN_STOP - 1);
   }
-  delivery(delivery: Delivery, progress: number) {
+  /** The ball in flight, `progress` along it (`flightProgress`), `since` milliseconds out of his hand. */
+  delivery(delivery: Delivery, progress: number, since: number) {
     this.batter.prepare(progress); this.batter.runup(1);
     // Out of his hand: the field times its split step to the ball reaching the bat.
     if (!this.released) { this.released = true; this.field.set(this.clock, this.clock + Math.max(0, 1 - progress) * delivery.durationMs); }
     this.ball.visible = this.shadow.visible = true;
     const pos = this.flight(delivery, this.flightAt(delivery, progress)); this.ball.position.set(pos.x, pos.y, pos.z);
     this.groundShadow(this.ball.position, true);
-    this.trail.forEach((dot, i) => {
-      dot.visible = progress > 0.03;
-      const p = this.flight(delivery, this.flightAt(delivery, Math.max(0, progress - (i + 1) * 0.009))); dot.position.set(p.x, p.y, p.z);
+    // The streak: where the ball was a few milliseconds ago and a few before
+    // that, the same span of time behind every ball. Set a share of the flight
+    // apart, as the struck ball's trail is, the fastest ball's streak covered two
+    // frames of its travel and the eye saw it jump from frame to frame.
+    // Stepped back in time and then along the flight's own curve, which is not
+    // the clock's: a slower ball leaves at nearly full pace and dies late.
+    this.streak.forEach((dot, i) => {
+      const before = since - (i + 1) * STREAK.stepMs;
+      const behind = flightProgress(delivery, before);
+      dot.visible = progress > 0.03 && before > 0;
+      if (!dot.visible) return;
+      const p = this.flight(delivery, this.flightAt(delivery, behind)); dot.position.set(p.x, p.y, p.z);
     });
     const bounce = (GAME.releaseZ - delivery.bounceZ) / (GAME.releaseZ - GAME.contactZ);
     const age = (progress - bounce) * delivery.durationMs;
@@ -1042,27 +1386,17 @@ export class GameScene {
     this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging, lofted, sweeping, levelled, version, spinCut, spinPull);
   }
   hit(outcome: ShotOutcome, shot: ShotType | undefined, delivery: Delivery, now: number) {
+    this.streak.forEach(dot => dot.visible = false);
     this.hitStart = outcome.madeBatContact ? Math.max(now, this.batter.strikeAt) : now;
     this.contactDelay = this.hitStart - now;
     this.incomingPosition.copy(this.ball.position);
     this.hitOutcome = outcome;
     const p = this.flight(delivery, outcome.advance ? GameScene.meetsAt(true) : this.meeting); this.hitOrigin.set(p.x, p.y, p.z);
     this.meeting = 1;
-    // The sweep is hit where the sweep goes — midwicket — rather than out along
-    // the sector of the leg-side swipe that played it.
-    // The orthodox sweep goes squarer than the slog does: the blade is level and
-    // going across the line, so the ball leaves square of the wicket rather than
-    // in front of it.
-    // The back-foot punch goes through cover, squarer than the drive's sector.
-    // The pull off the spinner goes between midwicket and square leg.
-    // The charge over cover goes over extra cover, where the stroke sends it,
-    // rather than out along the long-off sector the cover input names.
-    const sector = outcome.swept ? SWEEP.angle
-      : outcome.sweptFlat ? FLAT_SWEEP.angle
-      : outcome.advance && shot === 'COVER_LONG_OFF' ? ADVANCE.coverAngle
-      : outcome.advance && shot === 'LONG_ON' ? ADVANCE.onAngle
-      : outcome.squared ? SQUARE_DRIVE.angle : outcome.punched ? PUNCH.angle : outcome.spinPulled ? SPIN_PULL.angle : SHOT_ANGLES[shot ?? 'STRAIGHT'];
-    let angle = (sector + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28))) * Math.PI / 180;
+    // Which way it goes: `sectorOf`, out of this file so the Super10 field
+    // reads the same line the ball is drawn along. A ball a boundary rider
+    // stopped or caught goes to him, wherever that is.
+    let angle = sectorOf(outcome, shot) * Math.PI / 180;
     const caught = outcome.wicketType === 'CAUGHT';
     /**
      * A ball that hit him rather than the bat. It has spent itself on his body,
@@ -1083,13 +1417,14 @@ export class GameScene {
     this.hitHeight = flight.height;
     // A ball going to a fielder is swept off the straight, so the take does not
     // happen directly behind the bowler where nothing can be seen of it.
-    if ((caught || toAFielder) && Math.abs(angle) < 0.2) angle = 0.22;
+    const rope = outcome.fielder;
+    if ((caught || toAFielder) && Math.abs(angle) < 0.2 && !rope) angle = 0.22;
     // A ball off the body drops away on the leg side, at his feet.
     if (struckBody || outcome.padded) angle = -0.85;
     // Along the ground and into the field: never between a fielder's boots.
     // Turned the least it takes to pass him by a stride and a half, which is
     // close enough that he dives for it and it beats him.
-    const along = outcome.madeBatContact && !outcome.aerial && !caught && !outcome.edged && !playedOn && !outcome.defended && !outcome.padded
+    const along = !rope && outcome.madeBatContact && !outcome.aerial && !caught && !outcome.edged && !playedOn && !outcome.defended && !outcome.padded
       && !struckBody && !outcome.advance && flight.height < 1 && outcome.runs >= 1;
     if (along) angle = this.field.clear(this.hitStart, angle, flight.distance);
     this.gathered = false;
@@ -1110,7 +1445,8 @@ export class GameScene {
     // hands, wherever they get to, so he is never put under it.
     const look = () => (this.ball.visible ? this.ball.position.clone() : null);
     const deadAt = this.hitStart + this.flightMs;
-    if ((caught || outcome.dropped) && !outcome.edged) {
+    if (rope) this.toRider(caught, flight.endY, deadAt, look, rope.how === 'saved');
+    else if ((caught || outcome.dropped) && !outcome.edged) {
       const plan = this.field.struck(this.hitStart, deadAt, look, {
         angle, height: flight.endY, arrives: this.hitStart + this.flightMs * this.takeAt, dropped: !!outcome.dropped,
         visible: point => this.inShot(point),
@@ -1126,6 +1462,33 @@ export class GameScene {
     if (outcome.advance) this.chargeRing.position.set(this.hitOrigin.x, 0.045, this.hitOrigin.z);
     // Hold the call back until a skied ball is taken, put down, or clears the rope.
     return { contactAt: this.hitStart, presentAt: this.hitStart + (outcome.aerial ? this.flightMs * 0.88 : 0), endAt: this.hitStart + this.flightMs };
+  }
+  /**
+   * A ball a Super10 fielder got to. It goes along its own line to his depth,
+   * and in the picture he gets across to it: a catch high on the rope, or a
+   * ball collected down behind its line or stopped full length, and thrown in. Out of it — he is at deep point,
+   * and the camera behind the bat sees twenty degrees either side of
+   * straight — it flies out of the frame towards him, the field watches it
+   * go, and the call and the side label say who.
+   */
+  private toRider(caught: boolean, height: number, deadAt: number, look: (t: number) => THREE.Vector3 | null, saving = false) {
+    if (!this.inShot(this.hitEnd.clone().setY(1.2))) { this.field.struck(this.hitStart, deadAt, look); return; }
+    if (caught) {
+      const plan = this.field.struck(this.hitStart, deadAt, look, {
+        angle: Math.atan2(this.hitEnd.x, this.hitEnd.z), height, arrives: this.hitStart + this.flightMs * this.takeAt, dropped: false,
+        visible: () => true, at: this.hitEnd.clone().setY(height),
+      });
+      if (plan) this.hitEnd.copy(plan.hands);
+      this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
+      return;
+    }
+    // Along the ground to him: down behind it and collected, or stopped full
+    // length — every save on the rope is — and thrown in to the bowler.
+    const taken = this.field.fielded(this.hitStart, deadAt, look,
+      { from: this.hitOrigin.clone(), to: this.hitEnd.clone(), flightMs: this.flightMs, dive: saving },
+      this.bowling ? this.bowlerAtRest() : undefined);
+    if (taken) { this.hitEnd.copy(taken.hands); this.gathered = true; }
+    else this.field.struck(this.hitStart, deadAt, look);
   }
   /**
    * The bails leave when the ball reaches them, not on a fixed delay. Called
@@ -1282,6 +1645,7 @@ export class GameScene {
     if (!view) {
       this.camera.position.set(0, 2.9, -5.15); this.resize();
       this.ball.scale.setScalar(0.115); this.trail.forEach((dot, i) => dot.scale.setScalar(0.115 * (1 - i / 12)));
+      this.streak.forEach((dot, i) => dot.scale.setScalar(streakSize(i)));
     }
   }
   render(now: number) {
@@ -1291,6 +1655,9 @@ export class GameScene {
     this.clock = now;
     this.crowd?.update(now);
     this.bursts.update(now);
+    const frame = this.show?.update(now, this.reducedMotion, this.bowling);
+    if (frame) this.arena?.update(now, frame, this.reducedMotion);
+    if (this.ledUp) this.led.update(now, this.bailsBrokeAt ? now - this.bailsBrokeAt : -1, this.reducedMotion);
     if (Number.isFinite(this.introFrom)) {
       const t = this.introClock(now), film = this.introFilm;
       this.batter.stage(t, film); this.batter.sweep(introSweep(film, t));
@@ -1332,6 +1699,7 @@ export class GameScene {
       const near = Math.min(1, Math.max(.4, this.camera.position.distanceTo(this.world.localToWorld(this.ball.position.clone())) / 10));
       this.ball.scale.setScalar(0.115 * near);
       this.trail.forEach((dot, i) => dot.scale.setScalar(0.115 * (1 - i / 12) * near));
+      this.streak.forEach((dot, i) => dot.scale.setScalar(streakSize(i) * near));
     } else {
       this.camera.position.x = Math.sin(now * 0.085) * shake;
       this.camera.position.y = 2.9 + Math.sin(now * 0.13) * shake * 0.6;
@@ -1362,6 +1730,12 @@ export class GameScene {
 
   /** Whether the field is back on its marks, so the next ball can be bowled. */
   get fieldSettled() { return this.field.settled(this.clock); }
+  /** The drawn man going for a catch this ball, by his place among the marks `super10Field` was given. */
+  get catcher() { return this.field.catcher; }
+  /** How far the man furthest from his mark is from it, in metres, for the checks: nobody walks to a new field. */
+  get fieldAway() { return Math.max(0, ...this.field.state(this.clock).fielders.map(f => f.home)); }
+  /** Whether the bowler is signalling a field change, for the checks. */
+  get signalling() { const routine = this.field.bowlerRoutine(); return !!routine && routine.actions[routine.current(this.clock)].name === 'Signalling'; }
   /** The batter tapping his bat down between balls, which the bowler waits out. */
   get batterTapping() { return this.batter.tapping; }
   /** The field as of the last frame, for `field-check.mjs`. */

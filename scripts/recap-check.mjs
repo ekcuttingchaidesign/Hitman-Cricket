@@ -43,7 +43,7 @@ await context.addInitScript(([id, name, career, dressing]) => {
   localStorage.setItem('hitman-marathon-intro', 'done');
   localStorage.setItem('hitman-hurt-seen', '1');
   // Past the update's stories.
-  localStorage.setItem('hitman-whatsnew', 'player-profiles:9');
+  localStorage.setItem('hitman-whatsnew', 'super10:9');
   localStorage.setItem('hitman-career', JSON.stringify(career));
   localStorage.setItem('hitman-dressing', JSON.stringify(dressing));
 }, [id, `Recap${letters(6)}`, CAREER, DRESSING]);

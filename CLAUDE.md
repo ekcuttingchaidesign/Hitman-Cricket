@@ -82,7 +82,9 @@ README's "Player profiles" is the long version.
   its end card takes it down sooner, won or not (`src/game/answered.ts`, kept
   in the browser by handle and mode), and the cover's line goes with it. The
   mode switch is quiet tabs, the badge and the name with the pick underlined
-  in its colour (Figma `367:12950`); no figures on them.
+  in its colour (Figma `367:12950`); no figures on them. They run the
+  Blast, Super10, the Marathon, Survival (`railStats`), on one line that
+  scrolls sideways, the picked one brought into the row.
   The cover's `beaten` line reads the same.
 - **D, the bio**: `bioFieldMarkup` in Your details, on the edit only, held to
   `bioProblem` (`src/server/bio-rules.ts`) in the browser and the store, and
@@ -352,13 +354,17 @@ the machine is; and a box measured off a screenshot is in the page's pixels,
 so scale it by `devicePixelRatio`.
 
 A check that seeds `hitman-whatsnew` seeds the current update key
-(`player-profiles`), or the stories stand in front of Choose a mode.
+(`super10`), or the stories stand in front of Choose a mode.
 
 `scripts/scene-check.mjs` is the ground itself: the sky and the painted turf
 are canvases and a shader no unit test runs, and it holds the draw-call budget
-a frame. Lower its `BUDGET` when a change brings the count down. It walks both
-grounds — the stadium every mode plays in, and the bowl before it,
-which `?ground=bowl` still builds and which is kept for that — and the stadium both by day and by night. The Blast follows the
+a frame. Lower its `BUDGET` when a change brings the count down. It walks all five
+grounds — the stadium every mode plays in, the bowl before it,
+which `?ground=bowl` still builds and which is kept for that, Super10's
+arena under its own `ARENA_BUDGET`, and the pavilion and the canopy under
+the stadium's — and the stadium, the pavilion and the canopy both by day and
+by night, and Super10 at the canopy under its own `SUPER10_BUDGET`
+(`ONLY=super10` walks that row alone). The Blast follows the
 device's clock — night from six in the evening to seven in the morning — so a
 check that judges the ground's colours in a Blast innings without saying
 which is judging whatever the machine's clock says; `?lights=day` or
@@ -541,25 +547,40 @@ plays two devices for one player against the dev server's store; it passes
 `?private=0`, because headless Chromium looks like a private window and would
 otherwise keep nothing.
 
-The update's What's new is one story, the player profiles, as a Lottie film
-(`public/lotties/player-profiles.json`, `Story.film`): a Blast board and a tap
-on Kabir's row, his face lifting out of it into his profile, CHASE THEIR 157
-pressed, the runs rolling up past it like an odometer and PASSED slammed down
-with his name under a wave of paper, then Kabir's own My profile, his place
-rolling from #2 to #3 on Rank down, and WIN IT BACK. The scenes change under
-the game's chevrons rushing up the screen, Level Up's move. Scores stay in the
-150s. It plays down the sheet on the page's black with the one way out under
-it, holds a beat past its ten seconds and moves on by itself out of the stories. It is
-drawn in code, every shape and word a vector from the game's own faces, with
-the five board faces its only pictures. What writes it is not committed, as
-the Dressing Room film's was not: `wip/profiles-film/build.mjs` on the machine
-that made it (assembled from its `head.part`, the Dressing Room film's helpers
-and `scenes.part`), held to Lottie's rules by `wip/dressing-film/lint.mjs`,
-with `stills.mjs` to photograph any frame. The update key is `player-profiles`, so
-everybody is shown it twice and then never (`whatsNewDue`); the strokes'
-launch week and its once a day went with their cards. `whatsnew-check` walks
-it: the film drawn above the way out, its hold, the twice and the never, and
-the board's key that opens it for ever.
+The update's What's new is one story, Super10, as a video (`Story.video`,
+`public/stories/super10.mp4`, 720 by 1280 and fifteen seconds, about 2.8 MB;
+its last frame `super10-lockup.webp` is `Story.still`, shown in its place
+under reduced motion): lightning strikes from the roof on the first frame and
+the mark is built where it lands, shards in, SUPER slammed down a letter at a
+time and the 10 dropped in Volt with a crack, a burst of speed lines and a
+shockwave, all inside the first second; then the mode in three hits, 10
+OVERS, NEW STADIUM (the canopy at night with SIX on its big screen, a
+photograph off the game through `__cricket.camera` and `__cricket.burst`,
+`wip/s10-stadium-shots.mjs`) and POWER SURGE, two men in and a six over
+them; then the team kits on the batter on the Dressing Room's turntable,
+each sweeping on over the last with its name; and he raises his bat just
+under the mark, held. No count of kits or bowlers in it. It is fetched whole
+into memory while the cover is up (`warmStories`, a blob URL), so it opens
+playing rather than buffering. It plays muted down the sheet on the page's
+black and holds on its last frame with GOT IT and PLAY SUPER10 under it
+(`opens: 'super10'`, `playFromStory`: straight out to a Super10 innings,
+Choose a mode passed by; from the board in the middle of an innings it only
+puts the stories away). Off the cover it plays once and, the moment it ends,
+goes on to Choose a mode by itself, as GOT IT does, and both land on
+Super10's poster (its still, under reduced motion, stands `STILL_LEAVE_MS`
+first); opened from the board, with nowhere to go on to, it loops until it is
+closed. One story is not in pieces, so it has no bar across the top
+(`is-single` on `.whatsnew-bars`, its place kept). It was made in Remotion, not committed, as the films before it
+were not: `wip/super10-film/` on the machine that made it (`src/` the
+composition, `capture/` and `wip/s10-film-capture.mjs` the turntable frames
+off the real stage, rendered with `--sequence` through the system Chrome and
+encoded in Chrome by its `encode.mjs`, Smart App Control blocking Remotion's
+own encoder). The update key is `super10`, so everybody is shown it twice and
+then never (`whatsNewDue`), and a check that seeds `hitman-whatsnew` seeds
+`super10:9`. `whatsnew-check` walks it: the video playing above the two keys,
+its hold, PLAY SUPER10 walking out, the twice and the never, and the board's
+key that opens it for ever. The player profiles' Lottie film before it is
+still `public/lotties/player-profiles.json`.
 
 The other ways a story is told are kept for the next update, and the unit
 tests hold them on made-up stories. A new stroke is filmed in the game
@@ -1448,10 +1469,388 @@ The orthodox sweep (`FLAT_SWEEP`) is still built on the kneel the slog was
 before (`KNEELING_SWEEP`) and meets the ball where the drives do. It is
 `sweep` in the batter tests' `PLAYS`, with its `meets`.
 
-## Choose a mode's rail, and Super10 coming soon
+## Super10: ten overs, five bowlers
 
-Choose a mode puts the Blast, the Test Marathon and Test Survival on one
-swipeable rail of posters 240 wide (Figma 16E, `450:5037`; `#modes-rail` in
+Super10 (`SUPER10` in `src/game/modes.ts`, its numbers in `src/config/super10.ts`)
+is the Blast's ball for ten overs: `resolveShot`, the confidence meter and the
+charge, coloured kit and the Blast field, played at the canopy (`groundFor`)
+and always under lights, whatever the clock says (`light` in `src/Game.ts`;
+no Lights row on its pause card), with the LED stumps (`brand` in
+`GameScene`, below).
+Five wickets and five batters, by how many are down (`batterAt`), each named
+walking out (`walkingOut`: OPENER, NO. 2 … NO. 5), each with the Test
+Marathon's own windows and nothing narrowed (`windowsAt`, read through
+`windows` in `src/Game.ts`): the first two the Marathon opener's, the third
+its No. 3's, the last two its tailender's, the same to the last ball. The
+first build had three wickets and cut the window for a six to six tenths
+(`SIX_WINDOW`, gone), because in the Blast's ladder a perfect swing is a six;
+with the field it was too strict, and the last two overs narrowing every
+window by fifteen per cent went too. The one difference left from the
+Marathon is a fast ball's: the Blast's ladder shrinks its windows by
+`GAME.fastTimingScale`, the Marathon by Survival's.
+
+Five bowlers bowl two overs each, never two running (`scheduleOf`): the swing
+bowler with the new ball in overs one and three (the Marathon's swing, late, no
+reverse: `SWING_LEVEL`, and the Marathon swing bowler's own balls at his speeds
+and time to the bat, about 150 and 0.55 seconds: `bowledAs` in the plan, where
+the Blast's arcade timing had the ball take 0.8), the seamer (the Blast's own over) in the second, the
+spinner always fourth and the sling bowler (the Marathon's express bowler)
+always fifth, the spinner and the seamer in the sixth and seventh in an order
+drawn off the seed, and the death bowler and the sling bowler closing it, eight,
+nine and ten. The generator takes it as a fixed schedule (`blocks.fixed` in
+`SUPER10_PLAN`, `src/game/DeliveryGenerator.ts`). The death bowler is new and
+bowls nowhere else: his over is planned at its top as the express bowler's is
+(`placeDeath`, `DEATH_OVER`): two yorkers, one of them often wide of off, a
+dipping slower ball, half the time a slower bouncer, the rest full and quick at
+145 to 158 (about 141 to 147 on the gun; at 135 to 145 a playtest found him
+too slow for the death), every ball flagged `death`.
+
+His action (`DEATH_ACTION`, `DEATH_RUN` in `src/entities/Bowler.ts`) was built
+from slow-motion clips of the most famous death bowler, from behind the batter
+and side on, and he is never named: no bowler is, in any mode, and players tell
+them apart by their actions and the speed gun, which Super10 shows on every
+ball. A short, choppy run (its own `stride` and `accel`) with the ball at his
+belly in both hands; the ball arm looping out wide to his side and up above his
+head before a low hop (`loop`: the one arm path in the game that leaves the
+carry before the bound), the front arm thrown straight up beside it from the
+take-off, so both arms are up through the hop; front-on all the way; then the ball arm once all the way round from
+over his head, straight — over in front of him, down past his hip, up behind
+him and over the top to the ball — slow from the top and quickening all the way
+to the release (`loop.turn`, `loop.spin`; it is behind him at `loopDrop`), the
+front arm pulled down straight in front of him from there, a little ahead of
+the ball arm (`FRONT_LEAD`), to hang straight down at his side, square to the
+ground, as the ball goes (`frontPull`), then carried on round, straight, back
+past his hip and up behind him until it points at the sky beside his head as
+he folds (`frontAfter`, on the ball arm's clock; the loop branch of
+`frontArmAngle`); a deep fold and the back
+leg kicked high. The first build only dropped the arm back and whipped it over,
+half a turn; the second held the front arm out level at the batter and turned
+it on round behind him like a windmill, which a playtest said was not his.
+The elbow's hyperextension is left out: the bowling arm is one straight limb.
+`tests/bowler.test.ts` holds him to every rule the other two actions keep, and
+`tests/super10.test.ts` to what makes him his.
+
+The field (`src/game/super10-field.ts`, in `tests/super10-field.test.ts`) is
+nine men, set from the fields T20 sides use: the claude.ai artifact "The T20
+Field Book" (https://claude.ai/artifact/C3YAV9BVN4v4QGCUHPEfZX), fourteen
+fields with the situation each is for. The positions (`POSITIONS`) are the
+book's angles but four: mid-off and mid-on stand eighteen degrees off
+straight, a little inside the picture (a phone's camera behind the bat sees
+about seventeen either side at their distance), where at the book's
+twenty-four nobody ever saw them; and long-off and long-on twelve off it on
+the rope, in the picture too, seven and a half metres off the line of the
+stumps and clear of the sight screen (`SIGHT_SCREEN`). Nobody within fifteen of another man at
+his depth, a man in the ring off the line of the man behind him (`IN_LINE`);
+no slips, gully or short leg, so the book's slip is a point or a backward
+point. The new-ball attack's two men back are deep third and long-off, where
+the book's deep fine leg put both behind the bat in the first over. Each bowler has two of the book's
+fields (`BOOK`, `PLANS`), his first and his other: the swing bowler New-ball
+attack and Square riders, the seamer Hard length and Square riders in the
+Powerplay and Cutters and the Straight field after it, the spinner Leg-spin
+strike and Spinner attacking, the sling bowler the Short-ball field and
+Cutters, the death bowler Wide yorker and the Straight field. Two men back in
+the Powerplay and five after it, as the book has them, but the spinner
+attacking with three. A field is set at the top of an over and kept for all
+six balls, its men stood straight on their marks (`Field.standOn`): nothing a
+ball does moves a man. The first build plugged the gap a boundary had gone
+through, and walked the men to every new field, and the player saw the field
+change every ball and men forever running about. Which of the two is his
+(`planFor`): the spinner attacks a new batter, a wicket in the over before his;
+any other bowler takes his other field only when it has men back on the lines
+of more of the batter's last eight boundaries than his first does, two at
+least. A bowler bowls to the field he set (`BOWL_TO` in
+`src/config/super10.ts`, by the field, told to the generator as `field`): the
+wide yorker wide of off, the straight field and the cutters at the stumps and
+the pads. There is no captain: the bowler signals a man (`signal` in
+`Fielder.ts`, chosen by `signalFor`, `GameScene.bowlerSignals`) only when he
+takes his other field or Power Surge brings two in, and the next ball waits
+for it (`Field.settled`).
+
+In Super10 the swipe steers the stroke (`steerOf`, `steer`): every ordinary
+stroke has an arc on the ground, and the swipe's place inside its zone is the
+ball's place along the arc; a key plays the middle. The leg side's one swipe
+is the flick, the pull, the hook, the pull off the spinner or the sweep by the
+ball, each with its own arc. Steering into the outer third either side
+stretches the stroke (`STRETCH`), which turns a clean hit into a mishit half
+the time. A stroke reached for that way is `stretched` on the outcome, and
+the call says STRETCHED · OFF THE TOE under it rather than the timing, as a
+well-timed stroke the line did not suit is WRONG SHOT FOR THE LINE: both
+read PERFECT TIMING over CAUGHT before. The meter's strokes — the charge, the slog sweep, the scoops — are
+not steered and the field never stops them. The steered line arrives on the
+outcome as `angle`, and `sectorOf` in `src/scene/flight.ts` lays the timing's
+bend on it, so what the field judges is the line the ball is drawn along.
+
+A ball is fielded by how far it passes the nearest man (`fieldRules`, laid on
+`resolveShot`'s answer in `resolve`): a four along the ground within
+`RING_REACH` of a man in the ring is stopped half the time, a middled one a
+quarter (`RING_STOPS`, the softened ring), and a two or three half the time;
+a ball a man in the ring fields is always a single, never a dot ball and
+never two. Within `DEEP_CLEAN` of a boundary rider a four is cut off, within
+`DEEP_REACH` saved or beaten, and one he fields is two or three, never one
+(`DEEP_TWO`); a six not middled is caught on the rope when he is under it, and a
+middled six clears everybody. The outcome carries the fielder (`fielder`) for
+the call (STOPPED · MID-OFF, CUT OFF · LONG-ON, LONG-OFF · ON THE ROPE,
+`fieldLine`) and the scene: in the picture he gets across to it (`toRider`),
+out of it the ball flies out of frame and the side label it went past says his
+name (`FieldUi.light`). Catches everywhere are dealt a step, a run or a dive
+(`findCatch`'s `running`), and a man who can get there on his feet runs in and
+takes it on the move (`RUNNING_CATCH` in `planCatch`): about half are taken
+standing under it, a third running in, the rest diving. Asked to be stood still
+under it four tenths of a second early, every catch but a dolly had been a
+dive. A ball along the ground that beats a man by more than a dive gets him
+across towards it a few strides (`NEAR_MISS` in `Field.ground`), where he used
+to stand and watch it go past. Straight at a man in the ring along the ground
+(`RING_STRAIGHT`, a metre and a half) it is a single at the most, however hard
+it was hit. A ball the field's rules give a man along the ground he fields
+(`Field.fielded`, from `toRider`): with time to get behind its line he gets
+down on his haunches and collects it in both hands as it comes (`collect` in
+`Fielder.ts`), and without, or saving it on the rope, he runs and dives full
+length and holds it, and gets up; then he throws it in to the bowler
+(`throwToBowler`, which a ball picked up in the field shares). He used to walk
+up to it once it had stopped. A save on the rope rolls the slower
+(`flightOf`'s `saved`) so he has the time to get to it. `fielder-sheet.html`
+(`src/fielder-sheet.ts`, `scripts/fielder-sheet.mjs out-dir side bat`) draws
+the collect, the dive saving it and a running catch frame by frame. Power Surge
+lights up at the end of the fifth over and is taken in the break before the
+sixth, seventh or eighth (`surgeOffered`; its chip, or P), the bowler waiting
+`SURGE_WAIT_MS` at his mark while it is offered; not taken, it goes on by
+itself in the ninth (`surgeAuto`), and the tenth never has it: the two men back
+nearest straight come in, each to the free place in the ring nearest his line
+(`up`), clear of every man there; brought straight in along his own line,
+long-on stood at mid-on's shoulder. `scripts/super10-sim.ts` plays all of it with a
+steering player: a pro about 190 (typically 196, the best near 255), a regular
+98, a beginner 36 with a boundary in twenty-four innings of twenty-five, and no
+meter strokes in any of it. With three wickets and the narrowed six it was 172,
+86 and 28; with the Marathon's three as they are, 155, 59 and 20.
+
+The scene draws six of the nine (`drawnOf`: the six nearest straight), stood
+on their new marks when the field changes (`Field.standOn`,
+`GameScene.super10Field`).
+
+The field is shown in two corners (`src/ui/FieldMap.ts`, Figma section 16A,
+`422:5003`), both live all innings. Bottom right, the field map: only the
+ground and the dots, never on a panel — a dark see-through ground under a
+white rope and a white dashed ring, the fielders red and the batter blue
+whatever either side wears (the kits' own colours lost the dots whenever a kit
+was near the other side's or the grass), the ball's line yellow on a dark
+edge; a new field has the dots slide to their places as a ring pulses twice
+and the field's name floats over it on a quiet dark glass chip (WIDE YORKER · 5
+OUT, FIELD CHANGE · …; it was a white pill in the display face every over,
+the loudest thing on the screen, and it is not put up over the enlarged map,
+which shows the new field itself);
+it is a plan of the ground, not a scale drawing (`onMap`): the ring's men
+inside the dashed circle, the boundary riders just inside the rope, which to
+scale stood a few points apart, the ground being twenty-eight metres square; after a shot the ball's line is drawn to where it went, and the man who
+caught it or got to it is lit with a yellow ring (`takerOf` in `src/Game.ts`:
+the field's rules' man, or the drawn man the scene sent for a catch,
+`Field.catcher`), until the next ball; a tap (or F) enlarges it from its
+corner, to 150 square over it, and it stays up, kept live, until it is tapped
+again or F is pressed, or the innings ends: the end card, the pause sheet and
+every other screen over the game hide it, and each innings starts with it in
+its corner (left up, it stood over the end card's keys); it passes every other touch through, so a ball can be
+played with it up. Put back by itself at the bowler's first stride, it was gone
+before anybody had read it, and at 264 square it covered most of the pitch;
+180 still sat over the batter's off side. It
+grows out of the corner map's own place and shrinks back into it
+(`s10-grow`, `s10-shrink`, the corner fading out and back in under it); it is
+redrawn from the corner's a frame after a shot or a new field (`drawBigSoon`),
+since the line and the men's new places go on the corner at the next frame and
+copied before them the enlarged map had no ball's line; and it
+has its own thinner lines and smaller dots: the corner's drawing scaled up two
+and a half times had lines two and a half times as thick. Nothing is written
+over it: the over, the men out and the field's name it once carried, with Tap
+to shrink, were taken off it, and a field change is said by the tag alone.
+Bottom left, Power Surge (`SurgeState`): locked to the end of the fifth over,
+gold and breathing in the breaks it can be taken in, its ring emptying over
+the bowler's wait; a ring filling a sixth a ball through its over, with POWER
+SURGE over the ground when it is taken and a SURGE badge under the scoreboard;
+a grey tick once used. A first Super10 in a browser opens with its rules
+(`SUPER10_STEPS` in `ShotsIntro.ts`, kept in `hitman-field-intro`), after how
+to hit and the meter where those are still due, on the coach cards in Volt:
+Ten overs (the overs box outlined, `overs-cell`), Five wickets, Watch the field
+(the map held up enlarged just over the card, `FieldUi.coach`, outlined and
+tagged beside it, then shrunk back to its corner: the corner map is under the
+card, and lifting the card clear of it made this one card jump up the screen)
+and Play in the gaps, drawn at the bat
+(`gaps`, `.mi-gaps`: two fielders in the map's red and the ball's line drawn out
+between them). The surge is taught by its tag when it first lights up.
+The pause sheet has no field map: it was there, drawn solid, and was taken out
+(`super10-check` holds that). The design's assets could not be
+downloaded into this build, so the bolt and the rings are drawn in code.
+
+Super10 is a mode of its own on the boards and in the careers, as the
+Blast, the Marathon and Survival are (`CareerMode` and `BoardMode`
+`'super10'`, `modeAsked` names it on the server, which took anything it did
+not know for the Blast). Its board (`src/game/super10-board.ts`,
+`SUPER10_LADDER`, keys under `super10:`) ranks each player's best team total
+in one innings, then fewer wickets, then more sixes, then whoever got there
+first, as the designer set it (`packSuper10`, its own packed key: the
+Blast's is sized to thirty balls and full). Its career (`Super10Career`,
+`SUPER10_CAREER`, keys under `super10career:`) adds up innings, runs, sixes
+and fours, and counts the team totals of a hundred and two hundred, which
+the kits are earned on; its one career board is Runs. Its own tier ladder
+reads career runs: 750, 7,500 and, set by the designer for limited overs,
+25,000 (`TIERS`' `super10`). Its career card is its own at every rung (Figma section 22,
+`613:5379`): the Super10 mark in place of the game's, ink with violet slashes
+at Debutant, brushed violet at Emerging Player, black chrome with lightning
+shards at Star, and at Hitman gold foil on ink, a Volt glint in the edge, the
+badge and the bar, the figure and the name pure gold, nested gold plates at
+the 12° lean out of the corner. The shapes are `SUPER10_CARD_ART`
+(`src/game/super10-card-art.ts`), drawn by the page (`cardMarkup`, so My
+Stats and Level Up's flip) and painted by the share card (`paintTierCard`,
+`SUPER10_MATERIALS`) from the one list; the colours are
+`.st-card.is-super10` and, for the walk-on's card and the profiles' ground,
+`.is-super10.tier-*` in `profile.css`. A named player's innings is posted by itself
+and counted, as every mode's is; the end card's rank hero, the Leaderboard's
+Super10 tab (`super10Body` in `Board.ts`, `showSuper10Board`, shown where
+Super10 can be played, `showSuper10Tab`), My Stats' figures
+(`super10Facts`), profiles and chases all carry it, and the year recap
+counts it. It keeps its own best in the browser (`hitman-best-super10`), so
+a Super10 total never moves the Blast's. Its star prompt asks about it by its logo after its first finished innings (`NEW_MODES`), with two follow-ups of its own, how ten overs felt and what made it (`tlength`, `tbest`); `?rate=1` has a SUPER10 key. The
+Pages tester build (`SUPER10_ONLY`) keeps nothing and its innings are
+practice, the card saying the mode is still being built. Super10 is played
+everywhere but the Survive-only build (`SUPER10_OPEN`): from its PLAY card on
+Choose a mode, from PLAY SUPER10 under its story and by `?mode=super10`. It
+was off production only until its release, which the merge to production is.
+`scripts/super10-post-check.mjs` follows a named player's innings onto its
+board and career and checks the Blast's are untouched.
+
+The card is the Blast's in the brand's colours (`endSuper10` in the HUD,
+`is-super10` on `#end`, its rules at the foot of `src/super10.css`): the band
+violet over ink with paler violet chevrons, the 10 of SUPER10 in Volt, and the
+over by over for ten overs (`super10ChartMarkup` in `EndCard.ts`) — bars half
+the Blast's width so ten fit, a six Volt, a four violet, a wicket raspberry,
+each over's runs over its number and the number in its phase's colour
+(`super10Phase`: the Powerplay Volt, the middle violet, the death white), and
+a gold bolt over the over Power Surge was taken in. Under it the Marathon's
+batting card, worked out from the balls alone (`battingOf`: each ball is the
+man in's, the next is listed once he faces one, the man still in starred).
+Super10's five all bat the player's way round, so no LH chip.
+`scripts/super10-check.mjs` plays one through on the dev server: the bowlers in
+the schedule's order, one real ball from each kind with his own action, the
+speed gun, the No. 2 named after a wicket, the field map and Power Surge in
+their corners, each over's field and the bowler signalling it, the ball's
+line on the enlarged map, the four rules cards once, the card's heading and
+its line, and nothing sent.
+The actions are looked at in `bowler-sheet.html`, every action a row at the
+same moments, from the batter's end or side on (`scripts/bowler-sheet.mjs
+out-dir batter side`): a software-rendered game's clock does not land a
+screenshot on the frame it was asked for, and the sheet does.
+`bowler.html` (`src/bowler-preview.ts`) has all three actions live in 3D, on a
+pitch with a batter at the far end, with a camera to turn round him, set views
+and one that follows his run; `scripts/bowler-artifact.mjs` builds it into
+one file, as `cover-drive-artifact.mjs` does the strokes.
+
+## Super10's kits
+
+In Super10 the batter always bats in a Super10 kit, never a Dressing Room
+kit (`src/game/super10-kits.ts`, from the designer's sheets on the Super10
+page: `524:616`, `525:618` and `532:625`). Each kit is a team's, and they run
+up a ladder (`SUPER10_KITS`, easiest first): Midnight Panthers (purple and
+lime), everybody's from the first innings, then Apex Vipers (neon), Nova
+Kings (butter yellow, royal blue trousers and helmet), Frontier Falcons (cherry), Aura
+Farmers (orange, navy trousers) and, at the top, Royal Mavericks (violet, a teal
+helmet). What earns each is `SUPER10_LADDER`, agreed with the designer and
+counted on team totals, never one batter's: the Vipers 10 innings, the Kings
+50 sixes and 1,500 runs, the Falcons 10 innings of 100 or more, the Farmers
+5,000 runs, the Mavericks an innings of 200 or more and 10,000 runs, all in
+Super10 (`super10Steps` in `dressing.ts`, read off the Super10 career alone).
+`?s10kit=neon`, `yellow`, `cherry`, `orange` or `violet` puts any of them on,
+earned or not, for looking at it, and is not practice. Each has its own gloves and pads
+(`SUPER10_GLOVES` in `gloves.ts`, never on the GUARD shelf), and its helmet
+is plain. Each of the five batters has his number on his back in the print
+(`SUPER10_NUMBERS`: 10, 17, 9, 23, 77, by how many are down; `shirtNumber`
+as he walks out, `snapshot().shirt`), in Saira Black Italic in the kit's
+number colour, painted the other way round on a mirrored stage as the bat's
+stickers are. The game's camera sees his back at an angle, so the number
+shows only in part there. The side in the field wears any other team's kit,
+drawn afresh each innings, printed too, the Falcons in cherry caps (`cap`);
+the LED stumps are raspberry (cherry red) behind the Panthers, the Vipers, the
+Kings and the Farmers, and violet behind the Falcons and the Mavericks, whose
+kits are cherry and violet themselves (`stumps`, `STUMP_THEMES`, `colourway` on
+`LedStumps`); the raspberry ones light white when the bails go, where the
+violet ones light raspberry (`stumpLight`). All of it is `GameScene.dressBatter`'s last argument, which
+`Game.super10Kit` hands it at the start of a Super10 innings. The designs
+came out of an image model, so they are followed for their colours and
+where the bolts lie, not stroke for stroke, and their palettes' printed hex
+codes do not always match their swatches: the swatches are taken, and the
+purple (#271473) and cherry (#E92568) were set by the designer after a look.
+
+The lightning bolts are the Panthers' alone, the first team's mark; each
+other team has a pattern of its own from its name (`Mark`'s `shape` in
+`kitPrint.ts`): the Vipers after the designer's concept shirt (`shards`),
+purple lightning, cherry streaks spattered along their edges and yellow
+slashes all over the lime, running up the diagonal, seeded so it is the same
+every time, the bolts kept apart (overlapping, they made one purple patch on
+the chest) and off the number; lime sleeves with a purple cuff (purple
+sleeves, `sleeves`, were tried), the number edged in lime (`numberEdge`), and a lime streak of barbs up
+each leg (columns of purple barbs, yoke stripes and hip spikes, a
+diamondback and angular blocks came first), the Kings a big four-pointed star on the chest with two small ones and a
+yellow stripe down each leg to a star at the knee, the Falcons three stacked
+V's across the chest like spread wings and two small ones down each leg, the
+Farmers after the designer's concept shirt (`squares`): the orange shirt
+and sleeves with a navy cuff, a grid of navy squares on the front alone,
+packed at the hem and fading up the chest into the orange, the back plain,
+and two orange stripes down each leg (three arcs from the shoulder came
+first, then the shirt half navy with the squares in orange, then a diagonal
+band of navy squares round his side), the Mavericks, the top of the ladder,
+an all-over print after the designer's reference (`swirl`): teal waves
+flowing round the whole violet shirt and its sleeves, fading into teal at
+the hem, the number edged in violet, and a teal stripe down each leg (a band
+of crown points and then a sash were tried, and read as bland for the top).
+
+The patterns are a print (`src/entities/kitPrint.ts`): drawn in a canvas and
+read by the jersey's and the trousers' own shaders (`printable`), so a print
+costs a texture and no mesh or draw call. The garments are rings of vertices
+whose first and last share a vertex, so a texture laid by ordinary
+coordinates wraps backwards across one strip; each vertex carries where it
+is round its ring as a point on a circle instead (`kitPrint`, set by
+`setPrint` in `ConnectedJersey` and `ConnectedTrousers`), and the shader
+turns it back into a place on the texture, its rate across the pixel taken
+from the circle too so the mipmaps see no jump. The torso is painted flat in
+metres up the cloth and its rows taken from where each really is
+(`CLOTH_UP`): the jersey's rows are even in its profile, whose top three
+eighths are the shoulders, and a print laid evenly on them was squeezed up
+into the shoulders. Under the floodlights each bolt glows in its own colour,
+as the shirt does in its (`kitsUnderLights`). Each part reads only its own
+stretch of the shirt's texture, with a clear strip between (`GUTTER`), and
+the first ring of each sleeve, laid between the torso's armhole and the
+sleeve, is left plain: read through, both drew lines down his back and
+round his shoulder. The bowler wears the same
+textures on materials of his own (`printed` in `Cricketer.ts`), one a
+print and garment however many wear it; the fielders, built of boxes and
+tubes and a few dozen pixels tall, wear the kit's colours without it. `kits.html` (`src/kits-preview.ts`)
+shows the three on the batter from the chest, side on, behind and from the
+game's camera, under lights or by day.
+
+Wherever Super10 is played beside the other modes (`SUPER10_SHELF`:
+every build but the two Pages tester builds), the six stand at the foot of the
+Dressing Room's kit shelf, each tile tagged S10 and the foot saying Only in
+Super10 (`kitsOf` in `DressingRoom.ts`), and count in the room's card ("N of
+26 earned"). A locked one is tried on with its targets and PLAY SUPER10; an
+earned one's key is WEAR IN SUPER10, which sets Super10's own pick
+(`super10` on the saved dressing, travelling and merged with the rest of the
+pick) and leaves the kit he wears everywhere else alone, so both carry a
+tick. A Super10 innings is batted in that pick while it is earned, and
+otherwise in one of the earned kits drawn once an innings
+(`super10KitFor`, `Game.super10Kit`): the Panthers alone for a new player.
+Earning one is an unlock like any kit's (`freshUnlocks`, `super10Moment`),
+from the kit he would have batted in to the new one, and one earned before it
+was seen waits in the room for its key; the Panthers are never celebrated
+(`FREE_SUPER10`). The room's stage prints a team's kit wherever it shows one,
+the opener's 10 on his back and the kit's own gloves (`put`, `guardFor` in
+`DressingStage.ts`), and the unlock's scan sweeps the new kit, print and all,
+up over the old one's colours: the scan's shader is added to the print's
+hook, never in its place, which dropped the print in the room. `dressing-check`
+unlocks the Vipers in the room, tries on the Mavericks and bats a Super10
+innings in the pick.
+
+## Choose a mode's rail, and Super10's PLAY card
+
+Choose a mode puts the Blast, the Test Marathon, Super10 and Test Survival on one
+swipeable rail of posters 240 wide (Super10's `#mode-super10-poster`, its PLAY
+card's picture raised a third of the card so his helmet stands clear above the
+logo, hidden with the card where Super10 cannot be played) (Figma 16E, `450:5037`; `#modes-rail` in
 `ModeSelect.ts`, `.ms-rail` in `src/super10-page.css`): CSS scroll snap, the
 first at the left gutter, the middle centred, the last at the right, a pager
 under it whose dot stretches in the colour of the poster settled on
@@ -1460,32 +1859,384 @@ slower than its card (`--drift`). A tap on a card half off the side brings it
 in rather than playing it (a capture-phase listener in `wireRail`), so PLAY
 is only pressed on the card in front; a Playwright click scrolls its target
 into view first, so the checks' `#mode-survive` clicks still play. The rail
-opens on the mode played last (`hitman-last-mode`, written in `choose`), the
-Blast for a new player, and the arrow keys move it on a desktop (`stepRail`).
+opens on the mode played last (`hitman-last-mode`, written in `choose`, Super10
+too), the Blast for a new player, and the arrow keys move it on a desktop (`stepRail`).
 The Marathon's poster has no NEW tag any more. Survival's poster keeps `#mode-survive-line` (its rules, or its best result,
 the Not played chip stepping aside, `is-played`).
 
-Under the rail, in the slot Survival's banner had, the Super10 card
-(`#mode-super10`, Figma 488:591): coming soon, no PLAY, opening Super10's
-page (`src/ui/Super10Page.ts`, Figma 19B whole scroll `497:6198`,
-`#super10-page`, over the picker, Escape and back put it away). The picture
-is `src/assets/super10/picture.webp` (exported from the Figma image fill)
-and the logo `logo.svg` (the Volt colourway from `artifacts/super10-logo`).
-Its header is two layers that part as the page scrolls (`wireSuper10Header`
-sets `--s`): the picture held back at under half the scroll, the logo and
-its words (`.sp-lockup`) lifting a little faster and fading.
-The page's foot has the day it opens (`SUPER10_OPENS`, null until there is one, when it says Coming soon) over I'M EXCITED in
-Volt beside GOT IT. I'M EXCITED lights for good (`hitman-super10-excited`,
-`excitedAlready`) and is counted once a browser: GoatCounter's
-`super10-excited` (preview and dev count nothing there) and the store's
-`POST /api/feedback { excited: 'super10', playerId }` (`sendExcited`), kept
-in a set so each player counts once and tallied by day (`countExcited`,
-`super10-excited` on the end of `TALLIES`); a private window sends nothing.
-It rides the feedback endpoint rather than a new one: the deployment is
-one function short of the Hobby plan's twelve. `scripts/super10-report.ts`
-reads the count, read-only. The mode itself is not in this build: it ships
-later, and the card is only its trailer. The tagline is Saira Black Italic
-(`src/assets/saira-latin-900-italic.woff2`, OFL), the brand's lettering.
+Under the rail, in the slot Survival's banner had, Super10's PLAY card
+(`#mode-super10`, `src/ui/Super10Card.ts`, Figma section 20 `616:5495`; the
+claude.ai artifact "Super10 PLAY Card" is the approved motion): the whole
+card plays Super10, NEW and the format for a browser that has not batted one,
+its best and its place once it has (`super10CardWords`, the best from the
+store's row as runs/wickets, `placeOnModes`). The picture is
+`src/assets/super10/picture.webp` and the logo `logo.svg` (the Volt
+colourway from `artifacts/super10-logo`). Every four seconds, while Choose a
+mode is open (`Super10Spark`, started in `modes` and stopped in `closeModes`),
+the bat in the picture charges with arcs on a canvas between the picture and
+the logo, an arc strikes the PLAY key, which flashes and pops, a ring goes
+out from it and a faint light crosses the whole card end to end over
+2.4 seconds, and sparks float off; the first
+time a browser sees the card (`hitman-super10-card`) it slams in with a ring
+of arcs round the logo, once. Every frame is drawn from one clock, the arcs
+redrawn every two frames as the stings' are; reduced motion stands it still.
+It is hidden where Super10 cannot be played (`showSuper10Tab`).
+
+It replaced the coming-soon card and its page (Super10Page, I'M EXCITED,
+GOT IT), which went at release. The store's count of I'M EXCITED stays
+(`countExcited`, `super10-excited` in `TALLIES`, `scripts/super10-report.ts`).
+
+## The bowled ball's streak
+
+The ball on its way to the bat carries a streak (`STREAK` in `GameScene.ts`):
+fourteen ghosts of it in its own colour, each five milliseconds further back
+along its flight (`flightProgress` at the time since release, which the game
+hands the scene with the progress), so it always covers the last seventy
+milliseconds. Set a share of the flight apart, as it was and as the struck
+ball's trail still is, a fast ball's streak covered two frames of its travel:
+Super10's sling bowler's ball, under half a second to the bat, jumped most of
+a metre between frames at sixty a second, and on an iPhone, which holds a page
+at sixty, it read as frames dropped while the frame-rate readout held at 59.
+Now it is about three and a half metres behind the fastest ball and a metre
+and a half behind the Blast's, about the trail it had. `snapshot().streak` is
+how many ghosts show and how far back they reach.
+
+## No forced layout in the middle of a ball
+
+Restarting a CSS animation by taking its class off, reading `offsetWidth`
+and putting it back makes the browser finish every pending style and layout
+change on the page in that frame. The speed gun did it the instant the ball
+left the hand, which only the Marathon and Super10 have, and the call, the
+field map's line, its men and its tag, and the body blow did it at the shot:
+thirty to sixty milliseconds a time at a quarter of a desktop's speed, frames
+a phone dropped while the eye was on the ball. `src/ui/replay.ts` takes the
+animation off now and puts it back at the next frame (`replayClass`,
+`replayAnimation`, the second holding the element out of sight for that
+frame). Use it for anything that restarts during play. The canopy's screen
+and its stings draw into canvases kept in memory (`willReadFrequently`) for
+their uploads to WebGL. `?perf=1` also shows the worst frame of the last five
+seconds and how many ran over 25 ms: a second's average hid them.
+
+A moment's cut-out (`drawCutout` in `GameScene.ts`: the special stroke's
+flash, the big hundreds) was the worst second on an iPhone: 29 to 40 frames a
+second in two playtests, the readout's only real drop. Every picture of him it
+takes is a render more and a read back off the GPU, which an iPhone pays for by
+stopping to hand it over. The outline is drawn again thirty times a second
+(`OUTLINE_MS`), not every frame, and him alone is rendered only for it (at
+half CSS pixels too it came out in steps on an iPhone, and went back): between, he and his stumps are one render and
+one read. Three reads a frame became one and a half, and the cut-out's own
+work about forty per cent less at a quarter of a desktop's speed.
+`batterOnScreen` takes the size the renderer was given rather than measuring
+the canvas, which laid the page out every frame of it.
+
+In Super10 the score bar, its keys, the nearing card and the field's tag are
+solid ink with a violet edge, with no `backdrop-filter` (`s10-solid` on the
+body, its rules at the foot of `src/super10.css`). The glass blurred the 3D
+picture under it every frame, which an iPhone's compositor pays for, and the
+bars being ninety-five per cent opaque already, the blur barely showed. It was
+tried behind `?glass=0` first and the designer kept it.
+
+Neither the bowler nor the fielders go grey in a special stroke's moment, in
+any mode: they are dressed for each innings on new materials, which the grey
+(`greyable`, made once when the scene is built) never reaches. The designer
+is happy with that.
+
+## Super10 on GitHub Pages, for testers
+
+`.github/workflows/pages.yml` publishes two serverless builds to the
+repository's Pages site: Survive at the root (`VITE_SURVIVE_ONLY`) and Super10
+at `super10/` (`VITE_SUPER10_ONLY`,
+https://ekcuttingchaidesign.github.io/Hitman-Cricket/super10/). The Super10 one
+plays Super10 and nothing else (PLAY and HOW TO PLAY both walk out into it), is
+practice as it is everywhere until it has a board, keeps the player in the
+browser as a private window does (`main.ts` passes `canRegister: false` and
+skips the private-window notice and the return ticket), and counts nothing:
+GoatCounter is off (`counting`) and its script is left off the page
+(`noCounter` in `vite.config.ts`). Both builds share `NO_BOARD` in `Game.ts`
+and `no-board` on the body, which hides every key that needs `/api` (the
+boards, My profile, Played before?, the feedback forms). The workflow runs on
+pushes to `codex/cricket-batting-game` and to the Super10 branch; Pages is
+one site, so whichever ran last is what is up, and a production merge before
+Super10's lands builds both from production.
+
+The workflow's test step had failed every run since 20 October on an
+unhandled "Timeout calling onTaskUpdate" with every test passed:
+`tests/batter.test.ts` is two minutes of synchronous work in one worker, and
+the runner never gave the event loop a turn between its tests. Its `afterEach`
+yields once (`setImmediate`); keep it.
+
+## The arena: Super10's ground
+
+Super10 was to have a ground of its own, so it does not feel like an old
+mode played again, and the arena (`src/scene/arena.ts`) was built for it:
+Super10's ground is the canopy now (below, `groundFor`), and the arena is
+kept behind `?ground=arena` in any mode. The screen's stings and the LED
+boards' states have moved across already (`Showboards`, below); the brand's
+other pieces built into it — the LED stumps, the floodlights that answer
+the game, the phone torches — are ready to. It is played at
+night only, whatever the clock or the link says (`nightOnly` in
+`grounds.ts`; its pause card has no Lights row).
+It is the stadium's own night first — its crowd, its white sightscreen, its
+sky, its grass and pitch, the red ball — and an improvement on it second,
+from real grounds: no towers, but one ring of LED floodlights along the
+roof's edge with a glow every three degrees, as the Narendra Modi Stadium has
+its 580 LEDs on the front of the canopy, a cleaner white than the stadium's
+metal halide (`ARENA_NIGHT` in `night.ts`); floodlights that answer the game,
+as Wankhede's DMX LEDs can (`lamps` in `arenaFrame`: struck once for a four,
+crackled for a six, taken down for a wicket, breathing for a milestone); phone
+torches twinkling in the stands (`torches` in `crowdLife.ts`, one draw: a few
+always, more in Power Surge and the death overs, most for a six or a
+milestone, none near the eyeline); a city skyline against the night's sky;
+and a big screen over the far end in place of the commentary box.
+
+What was tried first and taken down, so nobody builds it again: a violet LED
+halo along the roof's fascia, a sky tinted violet, the crowd in two sides'
+yellow and blue, an ink sightscreen, six violet searchlights over the far
+end, a white ball, and greener grass with a darker strip for it. The stadium's
+night looked better than all of it.
+
+The Super10 brand sheet, Figma section 17 (node `467:5197`), dresses what is
+the brand's: the screen, the LED boards and the stumps. Ink, plate slabs,
+violet, lime (volt) for the one thing that is charged, raspberry only when a
+batter is out, Saira Black Italic for the shouted words
+(`src/assets/saira-*`, OFL), and the mark itself
+(`src/assets/super10/mark.png`, and the one-colour lime for the LED boards),
+exported off the sheet. Its colours are `ARENA`, the sheet's names. The front
+of the upper tier and the fence along the rope are LED boards showing the
+sheet's board states (`boardPanel`: idle, the lime mark and violet slashes
+drifting at the lean, at 40% while the ball is live; FOUR +4 on full lime; SIX
+over MAXIMUM on plate; WICKET, or how he went, on raspberry; and a word on its
+plate for the rest — the sponsors are not up in the arena). The screen has
+the mark, and the score in the sheet's lettering (`lettering`: white faces
+cut in mist on the diagonal, a plate outline, on a plate slab rising 6° with
+a lime shard over and a violet one under, a figure's face lime) with the over
+and who is in tracked under it (`scoreboard` in `src/Game.ts`). It stands in
+the band between the score bar and the roof's edge: lower, its foot went
+behind the ring of lamps. `?screen=0` is its fallback, the commentary box
+back.
+
+The stumps are LED stumps (`buildWicket`'s `ledWicket`, Figma section 18),
+up for every Super10 innings wherever it is played and on the arena
+(`LedStumps` in `arena.ts`: the scene builds the plain pair and the LED pair
+once and shows the one the innings wants, `brand` and `raiseStumps` in
+`GameScene`), printed with SUPER10 reading up (`stumpWrap`, turned over with
+the mirrored stage, `mirror`), in violet (`483:5197`: plate timber, the rings lit lime
+at rest, the 10 in volt). A raspberry colourway (`485:5198`) was built with
+a switch on the pause card and taken out: violet was kept. The batter's light up
+once the bails go (`stumpLight`): a white strike, raspberry with one dip,
+held, and back to rest. `__cricket.arenaCue('stumps')` lights them with no
+wicket, for photographing.
+
+It reacts (`arenaFrame`, a function of the clock, every case in
+`tests/arena.test.ts`) by the sheet's ground rules: light, not paint (the
+grass, the pitch and the kits are never coloured); lime is a budget; no
+strobe (`MOST_FLASHES`: nothing flickers more than three times a second,
+which the tests count frame by frame for every mood and moment, and a mood
+alone never flashes the floodlights); a wicket means out. The word goes on
+the boards and on the screen, slammed on from big with one overshoot
+(`slamScale`) and let go up for good news and down for a wicket; a milestone
+is its figure (`MILESTONE_WORDS`: 50, 100, 150…). For a boundary and a
+wicket the screen plays the brand's stings over the drawn word — FOUR, SIX,
+BOWLED, OUT and DUCK, the design's own Lotties at 1024 by 384 and thirty
+frames a second, each a whole board on its ground, violet or raspberry
+(`public/lotties/super10-<name>.json`, `STINGS`, `stingOf`). Each is built
+into a canvas of its own and held still (`filmFrames` in `Lottie.ts`), and
+the screen draws every other frame of it, fifteen a second, at the frame the
+moment's clock has reached (`STING_FRAME_MS`, `STING_STEP`), repainting and
+laying it over only then: painted at every refresh, a SIX doubled the
+JavaScript a frame and an iPhone dropped to thirty or forty frames a second,
+and at thirty a second, lottie's own clock driving it, a sting cost twice
+what it does at fifteen. The screen is small and far off in a phone's
+picture, and nobody sees the difference. The screen is laid out 1024 wide whatever its
+canvas (`SCREEN_WIDTH`); the canopy's canvas is half that, with no mipmaps
+to rebuild on each upload and no pixel grid (`pixels`, kept for the arena's
+full-size screen), which at half size ran in bands across it. The stings are
+fetched and built, one every 300 ms, and every ring's FOUR, SIX and wicket
+faces painted and sent to the GPU when a ground is first cued (`warm`,
+`warmShow` in `GameScene`), not at the first moment: built at its first play,
+the first SIX of an innings froze a frame for fifty milliseconds at a quarter
+of a desktop's speed. So the drawn word shows only until a film is built,
+and under reduced motion, where no sting plays and the word stands still. A
+wicket is told how he went (`BOWLED`, `DUCK` for a batter out with none, else
+`OUT`).
+
+The screen and the boards are one piece any ground can carry, `Showboards`
+in `arena.ts`: the brand's states on every ring of board it is given
+(`ring`), the stings and the words on its screen (`BigScreen` in
+`stadium.ts`, handed over on the ground's lights as `screen`), every frame
+`arenaFrame`'s. `GameScene` cues the one belonging to the stands in use
+(`show`, through `cheer`, `arenaCue`, `arenaMood` and `scoreboard`), and the
+arena's own pieces — the lamps, the torches, the wave, the stumps — light by
+the frame it hands back. A board that is the brand's shows the brand's idle
+between moments (the arena's ribbon and rope); one with a face of its own
+keeps it, and takes the brand's only in a moment (`ring(…, true)`: the
+sponsors along the canopy's rope, back at the night's level, `lit`); the
+screen shows the mark and the score between moments. A ground going out of
+sight under another's lets its moment go and leaves the rope's boards as it
+found them (`rest`). On a ground with a screen (`bigScreen` on the scene,
+`has-screen` on the stage) the call over the field comes down onto the grass
+under the fence, where it sat on the screen; where the screen plays the
+moments (`screenMoments`, `screen-moments` on the stage: Super10's) a
+boundary's word is left to the screen and the fence, the line under it — the
+timing, or who fielded it — kept. A wicket's call is always on the grass: the
+screen says OUT, BOWLED or DUCK, and the call says how (CAUGHT BEHIND), which
+the first build left off and a caught behind read as nothing at all. `tests/arena.test.ts`
+holds the rings, and `super10-check` cues a four on the canopy at the end of
+its innings.
+
+The crowd is never still (`src/scene/crowdLife.ts`, `lively` on the stands):
+everybody bobs on their seat and sways from the hips to a rhythm of their own,
+in the crowd's vertex shaders off one clock, on materials of their own (the
+scenery's shared ones are drawn on boxes with no instances). A Mexican wave
+goes a lap and a bit round the bowl at the top of the third, sixth and eighth
+overs (`WAVE_OVERS` in `src/Game.ts`, `waveAt`), coming into a phone's picture
+a few seconds in. Flags on poles wave over the heads, in a home crowd's
+colours, and fans hold banners across a few seats (`BANNERS`, one painted
+sheet a row an instance), most of them at the far end and none near the
+eyeline, both hung in the scene's frame so the words read the right way
+round. Fireworks go up over the far end for a six and a milestone. Reduced
+motion keeps every word and stills every chase, strike, crackle, twinkle,
+sway and wave. The crowd's sound is the game's own clips, as everywhere.
+
+`__cricket.arena()` says what it is showing, and `__cricket.arenaCue('six')`
+(or `'wicket', 'BOWLED'`, or `'wave'`, or `'stumps'`) puts any moment up, for
+photographing.
+
+## Which ground, and the pavilion
+
+Three grounds are played on (`groundFor` in `grounds.ts`, every case in
+`tests/grounds.test.ts`):
+
+- **The Blast**, and a Rival Match with it: the pavilion, the stadium or the
+  canopy, a third each, by day or under lights by the player's clock — all
+  three have a day and a night of their own.
+- **A Test**, Survival or the Marathon: the pavilion, the stadium or the
+  canopy, a third each, always by day.
+- **Super10**: the canopy, always at night, with the LED stumps.
+
+The Blast's and the Tests' coins are tossed once a visit, one each
+(`VENUE_COIN` in `src/Game.ts`), so the ground holds for the visit, a reload
+may change it, and the Blast's says nothing about a Test's; the Lights
+switch changes the light, not the ground. A link's `?ground=` is every
+innings' ground in any mode, day or night, and a check that wants one names
+it: nothing else on a link leaves it to the coin. The scene builds each
+ground's stands the first time they are asked for, into a group of their own
+with their crowd, lamps and glows, and from then on only shows and hides them
+(`GameScene.stands`); the game asks for one wherever it sets the lights
+(`light` in `src/Game.ts`). The canopy's screen and the boards along its rope
+play the brand's moments only in a Super10 innings (`cued` in `GameScene`): a
+Blast or a Test there has the plain stumps and the game's own screen, never the Super10
+mark — the title down the left, and the game being played in gold, the score
+in Jaro and the overs under it on navy (`branded` and `paintPlain` on
+`Showboards`, `p|` in `__cricket.arena().screen` where the brand's is `b|`).
+
+The pavilion (`src/scene/pavilion.ts`) was drawn from a reference picture the designer gave: a members' pavilion behind the bowler,
+cream verandahs on white posts with fretwork, two decks over a raked lower
+tier, every one of them full of crowd, under green roofs, a clock tower with
+a flag over the middle and a turret with one over either end; a wing either
+side turned in from its corners, so a phone sees the pavilion in the middle
+of its picture and a wing at each edge; trees behind them; and a floodlight
+of round lamps on either wing's roof (and a pair of towers out of shot behind
+the batter). Lamps hang in
+every verandah bay and are lit at night with the stadium's.
+
+A Victorian pavilion behind the bowler was tried before and read on a phone
+as a banquet hall (the README's "How it got here"): a building's front. This
+one is a stand: there is crowd in front of every wall a phone sees. It is the
+stadium's bowl with its own far end (`StandsOptions.end`: the bowl's
+sections straight behind the bowler and two either side are left out,
+`pavilionSkips`, and the pavilion is built into the same batch and the same
+crowd), so it costs the stadium's draw calls and its crowd cheers and moves
+as the stadium's does. The middle of the lower tier and the first verandah's
+front row are left empty behind the bowler's arm, under a green cover (boarded
+black, it read as a slot cut in the stand), and the sightscreen stays white
+for the red ball (the reference has it dark). `tests/grounds.test.ts` holds it.
+
+The second pass, from photographs of the first: at night it was the day's
+stand under a dark sky, so the verandahs' back walls, their ceilings and the
+eaves' undersides glow warm after dark, as the canopy's do (`warm` on the
+lights), and a lamp in every bay and the towers' windows are dark glass by day
+and lit at night with a glow each (`spots`). The steps went grey and the crowd
+into a home crowd's colours (`CROWD` in `pavilion.ts`): cream on cream, crowd
+and stand had been one beige block. The roof is corrugated, ribs down its
+front slope, with a white fascia and cresting; the clock tower has pilasters,
+its hours marked and a belfry with two lit openings under the cap; the turrets
+are bigger with a lit window each. Where each wing turns in from the centre's
+corner the two stands' roofs and decks pulled apart behind their fronts and
+left a wedge of sky and trees: a stair tower stands over each join
+(`stairTower`), set back behind the lower tier and no wider than the gap —
+at the stands' full height and width it covered the wings. The trees are
+clusters of rounder crowns. The far floodlights stand on the wings' ridges a
+little out from the joins (`lampHead`, `CROWN`, `WING_LAMP`), small enough to
+clear the score bar and the keys: as towers behind the joins only their heads
+showed over the roofs, lamps with nothing under them; over the far corners
+taller they stood behind the score bar; and on the stair towers they took
+the towers' caps and flags, which the stand is not the same without.
+
+The pavilion and the canopy are laid with their own outfield (`turfOf` in
+`grounds.ts`, `FRESH_TURF` in `turf.ts`): its light stripe #6DA637 and its
+dark a shade under, brighter and yellower than the stadium's, which every
+other ground keeps. The strip is the same on every ground, in every mode and
+light: the stadium's #d3b683, and a Test's green and worn strips on it. A
+warmer strip was tried at these two (#DEAC67, #E5BD85, #FDC375) and taken
+back. The outfield and its standing blades are shared by every ground's
+stands, so the scene paints each turf the first time a ground laid with it
+goes up and lays it whenever the stands change (`lay` in `GameScene`,
+`__cricket.turf()`).
+
+## The canopy: Super10's ground
+
+The canopy (`src/scene/canopy.ts`) is where Super10 is played, always under
+lights, and a third of the Blast's innings, by day or night, and of the
+Tests', by day (`groundFor`; `?ground=canopy` asks for it in any mode): a third stadium, built from the designer's reference
+picture of a modern ground, for a ground with more in it than the
+stadium's. Over the far end a block the width of the section
+behind the bowler: dark glass behind the sightscreen, two VIP boxes (a white
+slab each, two rows of people on their feet at the front showing from the
+chest up, the upper behind a see-through glass balustrade on white mullions
+and the lower behind a solid parapet — the first build sat them behind panes
+drawn solid and nobody was seen — a back wall lit warm, lamps in the
+ceiling) and on its roof the big screen, in
+a dark frame with a white edge, a flag over each corner, painted by the
+brand (`Showboards`, above): the Super10 mark and the score between moments
+(it carried HITMAN CRICKET under a crown, which said nothing about the game
+under it), and in a moment the brand's sting or word, while the boards along
+the rope put the brand's state up over their sponsors for as long as it
+lasts, FOUR +4 on lime, SIX over MAXIMUM, OUT on raspberry, then go back to
+their sponsors. Round the rest of
+the ring a section of its own (`tiers`, the stadium's `section` option): a
+lower tier, a warm concourse band behind its last row under the upper deck,
+the deck's soffit with a lamp every couple of metres, its white fascia with
+glass on it, an upper tier of eight rows; a stair aisle down the middle of
+every tier with a white nosing on each step and handrails on posts; the
+crowd closer packed than the stadium's (`SEAT`) on darker steps, in the home
+side's greens and whites, every shirt drawn at random. The canopies are two
+shells (`SHELL`, `shellAt`): in section an arc that climbs back and up from
+its bottom edge over the upper tier, stands furthest back at mid height and
+curls forward to a lip, so its concave, lit inside faces straight down the
+ground at the camera; along the ring a petal, closed to a point low beside
+the screen and grown to full size by the edge of a phone's picture, the
+bottom edge easing down as it grows. A roof laid level along the ring, swept
+or tilted, was tried twice and read as two planks from the crease: the
+camera sees a roof's underside only edge on, and a shell stood on end is the
+one shape that shows it face on. Each stands on a column and beam behind
+every grown section. Square floodlight heads of twenty round lamps stand
+over the far corners, trees behind, and after dark the arena's city skyline
+(`skyline` in `arena.ts`, hung unmirrored and marked `nightOnly`) behind
+those.
+
+The lighting is what makes it at night, and none of it is on by day: the
+downlights in the soffits and the hospitality ceilings (a material of their
+own, grey fittings by day: the stadium's lamp material glows a little in
+daylight), the canopies' undersides, the concourse and hospitality walls and
+the soffits all glow warm only at night (`warm` on the lights, `lightStands`
+in `GameScene`), and each downlight has a small glow (`spots`, a third cloud
+in `glows`). The screen hangs in the
+scene, not the mirrored stage (`unmirrored`), so its words read the right
+way round for either hand. Every stand built after the scene was put
+together is made greyable for a hundred (`greyable`). It costs the
+stadium's budget in `scene-check`; `tests/grounds.test.ts` holds its crowd,
+towers, screen, lights and the empty seats behind the sightscreen.
 
 ## A newcomer's first innings
 

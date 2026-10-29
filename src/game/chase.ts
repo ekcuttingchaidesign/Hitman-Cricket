@@ -34,7 +34,7 @@ export interface Chase {
 /** What the player brings to it: their own best and place in the mode, where they have them. */
 export interface Mine { best: number | null; place: number | null }
 
-const MODE_NAME: Record<CareerMode, string> = { classic: 'The Blast', marathon: 'the Test Marathon', survive: 'Test Survival' };
+const MODE_NAME: Record<CareerMode, string> = { classic: 'The Blast', marathon: 'the Test Marathon', survive: 'Test Survival', super10: 'Super10' };
 
 /** Runs still wanted to beat it: one more than the target, less what is made. Nought once it is beaten. */
 export function wanted(chase: Pick<Chase, 'target'>, runs: number): number {

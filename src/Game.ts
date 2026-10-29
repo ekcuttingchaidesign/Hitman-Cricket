@@ -15,8 +15,17 @@ import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME, STYLES, SWIPE_ZONES } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro, type IntroGame } from './ui/MarathonIntro';
-import { CONFIDENCE_STEP, SHOTS_STEP, howToDue, noteHowTo, playedBefore } from './ui/ShotsIntro';
+import { CONFIDENCE_STEP, SHOTS_STEP, SUPER10_STEPS, fieldIntroDue, howToDue, noteFieldIntro, noteHowTo, playedBefore } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
+import type { ArenaCue } from './scene/arena';
+import { askedGround, groundFor } from './scene/grounds';
+import type { SkyTime } from './scene/sky';
+import { SUPER10, batterAt as super10Batter, windowsAt as super10Windows } from './config/super10';
+import {
+  SURGE, bowlerOf, drawnOf, fieldFor, fieldRules, offScreen, planFor, signalFor, steer, steerOf, surgeAuto, surgeOffered, type FieldSet,
+} from './game/super10-field';
+import { FieldUi } from './ui/FieldMap';
+import { sectorOf } from './scene/flight';
 import { MarathonInnings, leftHandersOf, marathonFigures, type Change } from './game/Marathon';
 import { soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
 import { marathonOffer, type MarathonLadder } from './ui/MarathonBoard';
@@ -26,7 +35,7 @@ import { Health } from './game/Health';
 import { TAILENDER, endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { EASE, easeFor, easedSkill, easedWindows, notePlayed, playedIn, seedPlayed } from './game/newcomer';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SURVIVE_PLAN, bouncersEvery, lateCutsEvery, spinCutsEvery, spinPullsEvery, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SUPER10_PLAN, SURVIVE_PLAN, bouncersEvery, lateCutsEvery, spinCutsEvery, spinPullsEvery, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -46,17 +55,18 @@ import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
 import { cardShown, filmLength, introBars, nextFilm, type Film } from './game/IntroReel';
 import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
-import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
+import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type CameraPose, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
 import { boundaryCheer, boundaryStreak, GROAN, HUSH, milestoneCheer, MURMUR, nearMiss, RUNUP, SEND_OFF } from './game/crowd';
 import { afterBall, disappointment, HABITS, outNearMilestone, PACES } from './game/afterBall';
 import type { AfterBall, CoverVersion, Hurt } from './entities/Batter';
 import {
-  chaseFor, claimName, fetchBoard, fetchMarathonBoard, fetchStanding, fetchSurviveBoard, forgetBoard, submitInnings, submitMarathon,
-  submitSurvive,
-  type BoardPayload, type SurvivePayload, type MarathonPayload, type SubmitResult,
+  chaseFor, claimName, fetchBoard, fetchMarathonBoard, fetchStanding, fetchSuper10Board, fetchSurviveBoard, forgetBoard, submitInnings,
+  submitMarathon, submitSuper10, submitSurvive,
+  type BoardPayload, type SurvivePayload, type MarathonPayload, type SubmitResult, type Super10Payload, type Super10Row,
 } from './game/board-api';
+import { super10From, type Super10Innings } from './game/super10-board';
 import {
   forgetPasswordKnown, markPasswordKnown, markProfileDone, onPlayerWritten, passwordKnown, profileDone,
   readHand, readPlayer, writeHand, writePlayer, type Hand,
@@ -65,7 +75,7 @@ import { leaveTicket } from './game/return-ticket';
 import {
   offerRestoreHere, restoreOfferDismissed, restoreOfferDone, restoreOfferShown,
 } from './game/restore-offer';
-import { cardOffer, type BoardTab, type CardOffer, type SheetTab } from './ui/Leaderboard';
+import { cardOffer, super10AsBoardRow, super10Offer, type BoardTab, type CardOffer, type SheetTab } from './ui/Leaderboard';
 import {
   bestStanding, careerBoardOf, placesOf, type AnyCareer, type LadderTab,
 } from './ui/CareerBoard';
@@ -76,7 +86,7 @@ import {
   countInnings, fetchCareerBoards, fetchMyCareer, forgetCareer, heldCareer, mintNonce,
   type CareerBoards, type CareerRow,
 } from './game/career-api';
-import { blastTally, emptyBlast, emptyMarathon, emptySurvive, type BlastTally, type CareerMode, type MarathonTally, type SurviveTally } from './game/career';
+import { blastTally, emptyBlast, emptyMarathon, emptySuper10, emptySurvive, type BlastTally, type CareerMode, type MarathonTally, type Super10Tally, type SurviveTally } from './game/career';
 import { demoBoard, demoCareers, demoMarathon, demoRivals, demoSurvive, demoWanted, fillMarathon, fillRivals } from './game/demo-board';
 import { forgetKey, keepKey, keyView, markKeySaved } from './game/recovery';
 import {
@@ -90,11 +100,11 @@ import type { LocalCareer } from './ui/Restore';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import { headline } from './ui/Activity';
 import type { BatterKit } from './entities/Batter';
-import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
+import { STORIES, markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, standingOf, tierMeasure, TIERS, type Granted } from './game/tier';
 import { LevelUp } from './ui/LevelUp';
-import { BATS, FREE_BAT, FREE_OUTFIT, FREE_OUTFITS, OUTFITS, WELCOME_BAT, batOf, batOwned, earned, outfitOf, outfitOwned, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
+import { BATS, FREE_BAT, FREE_OUTFIT, FREE_OUTFITS, FREE_SUPER10, OUTFITS, WELCOME_BAT, batOf, batOwned, earned, isSuper10Kit, outfitOf, outfitOwned, super10KitFor, super10KitOf, super10Owned, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
 import type { DressingRoom } from './ui/DressingRoom';
 import type { UnlockItem, UnlockMoment } from './ui/Unlock';
 import { onDressingWrite, readDressing, seenKey, writeDressing } from './game/dressing-store';
@@ -105,12 +115,12 @@ import type { ModeSelectView } from './ui/ModeSelect';
 import { RECENT_MS, coverParallax, type CoverBoard } from './ui/Cover';
 import { HEADLINE_MS, answeredBy, noteAnswered, readAnswered } from './game/answered';
 import { surviveLine as surviveResult } from './ui/SurviveBoard';
-import type { BlastCareer, MarathonCareer, SurviveCareer } from './game/career';
+import type { BlastCareer, MarathonCareer, Super10Career, SurviveCareer } from './game/career';
 import type { SurviveInnings } from './game/survive-board';
 import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
-import { sendExcited, sendFeedback } from './game/feedback-api';
-import { EXCITED_KEY, excitedAlready } from './ui/Super10Page';
+import { sendFeedback } from './game/feedback-api';
+import { SUPER10_KITS, super10Number, type Super10Kit, type Super10KitId } from './game/super10-kits';
 import { askRating, type RatingPrompt } from './ui/Rating';
 import {
   counted, dismissed, mintRef, nextAsk, rated, readMemory, writeMemory,
@@ -169,6 +179,15 @@ export type { GameMode } from './game/modes';
  * host cannot serve the board's two functions, and this build never asks it to.
  */
 const SURVIVE_ONLY = !!import.meta.env.VITE_SURVIVE_ONLY;
+/**
+ * Super10's playtest build for GitHub Pages, as Survive's is: Super10 and
+ * nothing else, practice as it is everywhere until it has a board, with no
+ * server behind it (`main.ts` keeps the player in the browser, as a private
+ * window does). The other modes, the boards and the stories are not reached.
+ */
+const SUPER10_ONLY = !!import.meta.env.VITE_SUPER10_ONLY;
+/** A build published where nothing answers `/api`: no board, and nothing that goes looking for one. */
+const NO_BOARD = SURVIVE_ONLY || SUPER10_ONLY;
 
 /**
  * Whether this build offers the Test match at all.
@@ -204,16 +223,37 @@ const SHOW_MARATHON = !SURVIVE_ONLY && (!!import.meta.env.VITE_SHOW_MARATHON
  * looking at, and a real innings still lands in its true place among them.
  */
 const PREVIEW_FILL = !SURVIVE_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production';
+/** The ground a link asks for (`?ground=`), which every innings is then played on: otherwise the game and the lights pick it (`groundFor`). */
+const ASKED_GROUND = askedGround(location.search);
+/**
+ * The visit's coins for the grounds, tossed once each so the venue holds for
+ * the visit (`groundFor`): the Blast's, the pavilion under a half and the
+ * stadium over; the Tests', the pavilion, the stadium and the canopy a third
+ * each. Two coins, so the Blast's ground says nothing about a Test's.
+ */
+const VENUE_COIN = { blast: Math.random(), test: Math.random() } as const;
 const MARATHON_OPEN = SHOW_MARATHON || (!SURVIVE_ONLY
   && new URLSearchParams(location.search).get('mode')?.toLowerCase() === 'marathon');
+/**
+ * Whether Super10 can be played here: everywhere but the Survive-only build,
+ * since its release, from its PLAY card, its story and `?mode=super10`. (While
+ * it was built it was off production only.)
+ */
+/** How long the bowler waits at his mark in a break Power Surge is offered in. */
+const SURGE_WAIT_MS = 1600;
+/** The overs a Super10 crowd sends a Mexican wave round the arena at the top of: the third, sixth and eighth. */
+const WAVE_OVERS = [2, 5, 7];
+const SUPER10_OPEN = SUPER10_ONLY || !SURVIVE_ONLY;
+/** Super10's kits on the Dressing Room's kit shelf: wherever Super10 is played beside the other modes. */
+const SUPER10_SHELF = SUPER10_OPEN && !SUPER10_ONLY;
 /** The mode a browser played last, which Choose a mode's rail opens on; a new player starts on the Blast. */
 const LAST_MODE_KEY = 'hitman-last-mode';
 /** Which walk-on film this browser saw last, so the next visit opens on the other (`nextFilm`). */
 const WALK_ON_KEY = 'hitman-walk-on';
-function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' {
+function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' {
   try {
     const kept = localStorage.getItem(LAST_MODE_KEY);
-    return kept === 'MARATHON' || kept === 'SURVIVE' ? kept : 'CLASSIC';
+    return kept === 'MARATHON' || kept === 'SURVIVE' || (kept === 'SUPER10' && SUPER10_OPEN && !SUPER10_ONLY) ? kept : 'CLASSIC';
   } catch { return 'CLASSIC'; }
 }
 
@@ -269,6 +309,10 @@ const SURVIVE_LIMITS: InningsLimits = {
 const MARATHON_LIMITS: InningsLimits = {
   totalBalls: MARATHON.maxBalls, maxWickets: MARATHON.batters, ballsPerOver: MARATHON.ballsPerOver,
 };
+/** Super10's: ten overs, three wickets, and `ScoreManager` ends it on either. */
+const SUPER10_LIMITS: InningsLimits = {
+  totalBalls: SUPER10.totalBalls, maxWickets: SUPER10.maxWickets, ballsPerOver: SUPER10.ballsPerOver,
+};
 
 /** The longest the bowler waits past `readyMs` for the field to be back on its marks. */
 const FIELD_WAIT_MS = 6000;
@@ -309,6 +353,19 @@ export class Game {
   private marathon: MarathonInnings | null = null;
   /** What the Marathon has put up this innings: the swing coming on, and the express bowler's first over. */
   private told = { swing: false };
+  /**
+   * Super10's field this innings: the over it was last set for, the over Power
+   * Surge was taken in, the field in play, the lines the batter's boundaries
+   * went along, which the bowlers read at the top of an over (`planFor`), and
+   * the wickets down when the last over began.
+   */
+  private s10 = Game.freshField();
+  private static freshField() {
+    return { over: -1, surged: null as number | null, field: null as FieldSet | null, boundaries: [] as number[], wicketsAtOver: 0 };
+  }
+  /** Whether the stroke just played was the flick, which has an arc of its own. */
+  private flickPlayed = false;
+  private fieldUi!: FieldUi;
   /** When the bowler may set off, if a level's banner is up: he waits for it as for the field. */
   private bannerUntil = 0;
   /** Where the batter who played the last ball came in, in the team's history: his fifty is his own. */
@@ -396,6 +453,11 @@ export class Game {
   /** The Test fifty, and whether that board has ever answered. Its own ladder. */
   private surviveRows: SurviveRow[] = [];
   private surviveSeen = false;
+  /** Super10's fifty, and whether that board has ever answered. Its own ladder: best team total. */
+  private super10Rows: Super10Row[] = [];
+  private super10Seen = false;
+  /** This browser's own best Super10 total, kept apart from the Blast's (`hitman-best-super10`). */
+  private super10Best = 0;
   /**
    * Whether the batter has been critical yet this innings, so the meter's own
    * lesson is shown once and the analytics count the innings rather than the
@@ -643,7 +705,10 @@ export class Game {
     // number, so while it is on, the board says so above the tabs.
     if (this.demo) document.documentElement.setAttribute('data-demo', '1');
     try { this.best = Math.max(0, Math.min(180, Number(localStorage.getItem('hitman-best')) || 0)); } catch { /* Storage may be disabled. */ }
+    try { this.super10Best = Math.max(0, Math.min(360, Number(localStorage.getItem('hitman-best-super10')) || 0)); } catch { /* Storage may be disabled. */ }
     this.hud = new HUD(root, this.best, { player: readPlayer() });
+    // Super10's field on the screen, in the version this link asks for.
+    this.fieldUi = new FieldUi(this.hud.viewport, { surge: () => this.armSurge() });
     this.hud.coverPlayer = () => readPlayer();
     this.noteLaunch();
     this.stopDressingSends = onDressingWrite(() => this.queueDressingSend());
@@ -676,7 +741,7 @@ export class Game {
     // 404 on every load — harmless, since a board that never answers is already
     // handled, but a console full of red is a bad first impression for somebody
     // who was handed the link to give an opinion on the batting.
-    if (!SURVIVE_ONLY) void this.loadBoard();
+    if (!NO_BOARD) void this.loadBoard();
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
     // Bowled or stumped, the wicket is heard when the ball reaches it.
     this.scene.onStumps = () => this.audio.play('stumps');
@@ -711,7 +776,7 @@ export class Game {
     // second or two to make on a phone. Where they are due, it is made while the
     // cover is up, a moment after the game's own load, so the first story opens
     // on the batter rather than on an empty room.
-    if (whatsNewDue()) window.setTimeout(() => { if (whatsNewDue() && this.phase === 'START' && !this.disposed) this.hud.warmStories(); }, 1500);
+    if (!NO_BOARD && whatsNewDue()) window.setTimeout(() => { if (whatsNewDue() && this.phase === 'START' && !this.disposed) this.hud.warmStories(); }, 800);
     this.hud.on('mode-classic', () => { this.hud.closeModes(); this.choose('CLASSIC'); });
     this.hud.on('mode-survive', () => { this.hud.closeModes(); this.choose('SURVIVE'); });
     this.hud.on('mode-marathon', () => { this.hud.closeModes(); this.choose('MARATHON'); });
@@ -727,17 +792,15 @@ export class Game {
     this.hud.onRoomAct = act => { void this.roomAct(act); };
     this.hud.on('modes-challenges', () => { void this.showChallenges(); });
     this.hud.on('modes-dressing', () => this.openDressing('modes'));
-    // Super10, coming soon: its card opens its page, and I'M EXCITED says how much it is wanted.
-    this.hud.on('mode-super10', () => { track('super10-open-card', 'Opened Super10 from Choose a mode'); this.hud.super10Page(); });
-    this.hud.on('super10-back', () => this.hud.closeSuper10());
-    this.hud.on('super10-got-it', () => { track('super10-got-it', 'Super10 page put away with GOT IT'); this.hud.closeSuper10(); });
-    this.hud.on('super10-excited', this.excited);
+    // Super10's PLAY card: the whole card plays it.
+    this.hud.on('mode-super10', () => { track('super10-play-card', 'Played Super10 from its card on Choose a mode'); this.choose('SUPER10'); });
+    this.hud.on('mode-super10-poster', () => { track('super10-play-poster', 'Played Super10 from its poster on Choose a mode'); this.choose('SUPER10'); });
     // My Stats from Choose a mode: the avatar at the top and the tier card in the bento.
     this.hud.on('modes-profile', this.showStats);
     this.hud.on('modes-stats', this.showStats);
     // The boards, from the mode screen: the same sheet the cover's trophy
     // opens, laid over the picker, which is still there when it is put away.
-    if (SURVIVE_ONLY) document.getElementById('modes-board')?.remove();
+    if (NO_BOARD) document.getElementById('modes-board')?.remove();
     else {
       this.hud.on('modes-board', () => {
         this.mark('modes-board', 'The boards opened from the mode screen');
@@ -779,7 +842,7 @@ export class Game {
     this.hud.on('room-card', () => this.hud.onRoomAct?.('card'));
     this.hud.on('modes-cancel', this.closePicker);
     this.hud.on('survive-again', this.start);
-    this.hud.on('survive-modes', this.modes);
+    this.hud.on('survive-modes', () => this.modes());
     this.hud.on('card-result', () => this.backToResult());
     this.hud.on('card-modes', () => { this.hud.hideScorecard(); this.leaveRoom(); });
     // The Marathon card's own two keys under its play-again key.
@@ -807,22 +870,24 @@ export class Game {
     // rather than a card, so it covers the pause card rather than replacing
     // it: pick a mode and the innings is walked out on, back out of it and the
     // card is exactly where it was.
-    this.hud.on('change-mode', () => { if (this.phase === 'PAUSED') this.modes(); });
+    this.hud.on('change-mode', () => { if (this.phase === 'PAUSED') { this.markQuit(); this.modes(); } });
     // Day or night, from the pause card, between balls. Remembered for the next Blast innings.
     for (const time of ['day', 'night'] as const) this.hud.on(`lights-${time}`, () => {
       if (this.phase !== 'PAUSED' || this.test) return;
-      keepLights(time); this.scene.time(time); this.hud.lightsSwitch(time);
+      keepLights(time); this.light(time); this.hud.lightsSwitch(time);
     });
     this.hud.on('share', () => { void this.hud.share(); });
     this.hud.on('board', this.showBoard);
     // Both ladders exist, so the sheet carries a way between them.
     this.hud.showBoardTabs(SHOW_SURVIVE && !SURVIVE_ONLY);
     this.hud.showMarathonTab(MARATHON_OPEN);
+    // Super10's board where Super10 can be played, and never in the tester build, which keeps nothing.
+    this.hud.showSuper10Tab(SUPER10_OPEN && !SUPER10_ONLY);
     this.hud.onBoardTab = this.tabBoard;
     this.hud.onBoardStories = () => this.showStories('board');
     // OPEN THE DRESSING ROOM, on the last story: after the stories, the room,
     // over Choose a mode where the stories were on the way to it.
-    this.hud.onStoriesOpen = shown => this.openDressing('story', shown);
+    this.hud.onStoriesOpen = (what, shown) => (what === 'super10' ? this.playFromStory(shown) : this.openDressing('story', shown));
     this.hud.onStoryReel = (shot, beat) => this.playReel(shot, beat);
     this.hud.onLadderTab = this.tabLadder;
     this.hud.onBoardFrame = (mode, ladder) => this.boardFrame(mode, ladder);
@@ -923,7 +988,7 @@ export class Game {
       event.preventDefault();
       void this.sendClaim();
     });
-    if (!SURVIVE_ONLY) this.hud.on('cover-board', this.showBoard);
+    if (!NO_BOARD) this.hud.on('cover-board', this.showBoard);
     // The chip on the cover is always the way to My Stats. Delegated, because
     // the chip is redrawn whenever the player behind it changes.
     this.hud.viewport.addEventListener('click', event => {
@@ -936,17 +1001,17 @@ export class Game {
     });
     this.hud.viewport.addEventListener('pointerdown', () => this.walkedOn(true));
     window.addEventListener('keydown', this.shortcuts); window.addEventListener('beforeunload', this.leaving); document.addEventListener('visibilitychange', this.visibility);
-    window.addEventListener('blur', this.blur);
+    window.addEventListener('blur', this.blur); window.addEventListener('pagehide', this.markQuit);
     // A bundle built survive-only plays one innings and offers no way out of
     // it — that is the whole of what makes it publishable somewhere with no
     // board behind it. A `?mode=` link does the same thing at runtime.
-    const named = SURVIVE_ONLY ? 'SURVIVE' : new URLSearchParams(location.search).get('mode')?.toUpperCase();
+    const named = SURVIVE_ONLY ? 'SURVIVE' : SUPER10_ONLY ? 'SUPER10' : new URLSearchParams(location.search).get('mode')?.toUpperCase();
     // Off production the Marathon has a card on the picker; on it, until it
     // ships, it is this link and nothing else. See `docs/MARATHON.md`.
-    if (named === 'SURVIVE' || named === 'CLASSIC' || named === 'MARATHON') {
+    if (named === 'SURVIVE' || named === 'CLASSIC' || named === 'MARATHON' || (named === 'SUPER10' && SUPER10_OPEN)) {
       this.mode = named as GameMode;
       this.locked = true;
-      this.hud.lockMode(SURVIVE_ONLY);
+      this.hud.lockMode(NO_BOARD);
     } else {
       // The picker opens whenever there is something to pick. Challenging a
       // friend is always on offer, so from here that is always — where before,
@@ -975,6 +1040,14 @@ export class Game {
       drawn: (progress: number) => this.delivery ? this.scene.drawnBall(this.delivery, progress) : null,
       // Which ground was built, for `scene-check.mjs`: `?ground=bowl` or the default.
       ground: () => this.scene.ground,
+      turf: () => this.scene.turf,
+      ledStumps: () => this.scene.ledStumps,
+      // The ball's colour: Super10's white, the Blast's red, the Test's cherry.
+      ball: () => this.scene.ballColour,
+      // The arena's mood and what it is showing, and any of its moments on
+      // demand, for photographing them without batting to them.
+      arena: () => this.scene.arenaState,
+      arenaCue: (kind: ArenaCue | 'wave' | 'stumps', word?: string) => this.scene.arenaCue(kind, this.elapsed, word),
       // The Test look, for the checks: the green strip down, or the Blast's.
       greenTop: () => this.scene.greenTop,
       // How worn the Marathon's strip is, a stage of `WEAR_STAGES`.
@@ -1020,6 +1093,7 @@ export class Game {
         if (this.unlock) return;
         const look = this.myLook();
         const item: UnlockItem = shelf === 'bat' ? { moment: { kind: 'bat', bat: batOf(id) } }
+          : isSuper10Kit(id) ? this.super10Moment(id)
           : { moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat, guard: look.guard } };
         this.playUnlocks([item], true);
       },
@@ -1030,7 +1104,8 @@ export class Game {
       // Each entry is bowled, so the plan moves on with it, and the next man
       // walks out at once. An entry that ends the innings ends it, card and all.
       marathon: (balls: (number | 'W' | 'H')[]) => this.writeMarathon(balls),
-      // A Blast innings written ball by ball, the same way, for looking at its card.
+      // A Blast innings written ball by ball, the same way, for looking at its card,
+      // and a Super10 one, for jumping to its later bowlers.
       blast: (balls: (number | 'W')[]) => this.writeBlast(balls),
       // The star prompt on demand, for `rating-check.mjs`: which thing, asked
       // as the end of an innings would ask it, and nothing about when.
@@ -1044,6 +1119,10 @@ export class Game {
       /** The walk-on's clock pinned at `t` milliseconds, or let run again with null. */
       introAt: (t: number | null) => { this.introPin = t; this.scene.introAt(t); },
       walkingOn: () => this.walking?.film ?? null,
+      /** The camera held where it is put, for photographing a ground; null hands it back to the game. */
+      camera: (pose: CameraPose | null) => this.scene.cinematic(pose ? () => pose : null),
+      /** Fireworks over the far end for `ms`, on any ground after dark, for photographing. */
+      burst: (ms = 3000) => this.scene.fireworks(this.elapsed, ms),
       // New #1 by board, over a made-up board, for `topspot-check.mjs`: `topSpot('marathon')`.
       topSpot: (mode?: CareerMode) => this.previewTopSpot(mode),
       // Whether it is playing.
@@ -1062,14 +1141,14 @@ export class Game {
    * the Test card it is the card's music handing over to the screen that has
    * just replaced the card.
    */
-  private modes = () => {
+  private modes = (at = lastMode()) => {
     this.audio.music('cover');
     // The bar rides on the picker, capped at two showings. Nothing is issued
     // yet, so it only appears where a key exists to be saved.
     this.hud.careerKey(this.careerKeyHeld(), { panel: false, bar: true });
     // The picker replaces the card, and the stars were asked of the card.
     this.putRatingAway();
-    this.hud.modes(lastMode());
+    this.hud.modes(at);
     // What this browser already knows goes up with the screen, and the places
     // the store keeps are asked for behind it.
     const view = this.modeSelectView();
@@ -1103,6 +1182,7 @@ export class Game {
       marathon: { best: marathon.innings > 0 && marathon.highest > 0 ? String(marathon.highest) : null, rank: null },
       blast: { best: this.best > 0 ? String(this.best) : null, rank: at >= 0 ? at + 1 : null },
       survive: { best: surviveBest, rank: null },
+      super10: { best: this.super10Best > 0 ? String(this.super10Best) : null, rank: null },
       podium: this.board.slice(0, 3).map(row => row.avatar),
       blastRank: at >= 0 ? at + 1 : null,
       stats: { runs: blast.runs, tier: { key: tier.key, name: tier.name } },
@@ -1129,11 +1209,18 @@ export class Game {
       if (this.dressing || this.disposed) return;
       this.dressing = new DressingRoom(this.hud.viewport, {
         shelf: 'kit', kit: look.outfit.id, bat: look.bat.id, guard: look.guard.id, wearing: look.outfit.id, holding: look.bat.id, wearingGuard: look.guard.id,
+        wearingSuper10: this.super10Pick(), super10: SUPER10_SHELF,
         record: this.dressingRecord(), pictures: {},
       }, {
         wear: (shelf, id) => {
           if (this.dressingPreview) return;
           const now = readDressing();
+          // A Super10 kit is Super10's pick alone: what he wears everywhere else stays on.
+          if (shelf === 'kit' && isSuper10Kit(id)) {
+            writeDressing({ ...now, super10: id });
+            this.dressingMark(`dressing-wear-kit-${id}`, `Picked the Super10 kit ${id}`);
+            return;
+          }
           writeDressing(shelf === 'kit' ? { ...now, outfit: id as OutfitId } : shelf === 'bat' ? { ...now, bat: id as BatId } : { ...now, guard: id as GuardId });
           const worn = this.myLook(); this.scene.dressBatter(worn.outfit, worn.bat, worn.guard);
           this.dressingMark(`dressing-wear-${shelf}-${id}`, `Put on the ${shelf} ${id}`);
@@ -1143,7 +1230,7 @@ export class Game {
           this.closeDressing();
           this.hud.closeModes();
           if (mode === 'rivals') { void this.showChallenges(); return; }
-          this.choose(mode === 'survival' ? 'SURVIVE' : mode === 'marathon' ? 'MARATHON' : 'CLASSIC');
+          this.choose(mode === 'survival' ? 'SURVIVE' : mode === 'marathon' ? 'MARATHON' : mode === 'super10' && SUPER10_OPEN ? 'SUPER10' : 'CLASSIC');
         },
         claim: (shelf, id) => {
           // Taken the moment the key is pressed, so a player who leaves mid-moment has it all the same.
@@ -1155,7 +1242,8 @@ export class Game {
           this.dressing?.update({ record: this.dressingRecord() });
           this.dressingMark(`dressing-claim-${shelf}-${id}`, `Unlocked the ${shelf} ${id} in the room`);
           const look = this.myLook();
-          this.playUnlocks([{ moment: shelf === 'bat' ? { kind: 'bat', bat: batOf(id) } : { kind: 'kit', from: look.outfit, to: outfitOf(id), bat: look.bat, guard: look.guard } }], !!this.dressingPreview);
+          this.playUnlocks([shelf === 'kit' && isSuper10Kit(id) ? this.super10Moment(id)
+            : { moment: shelf === 'bat' ? { kind: 'bat', bat: batOf(id) } : { kind: 'kit', from: look.outfit, to: outfitOf(id), bat: look.bat, guard: look.guard } }], !!this.dressingPreview);
         },
         close: () => this.closeDressing(),
       }, () => new DressingStage({ room: true }));
@@ -1197,6 +1285,11 @@ export class Game {
       }
       this.unlock = new UnlockMoment(this.hud.viewport, items, new DressingStage(), {
         wear: (shelf, id) => {
+          if (shelf === 'kit' && isSuper10Kit(id)) {
+            if (!preview) { writeDressing({ ...readDressing(), super10: id }); this.dressingMark(`dressing-wear-kit-${id}`, `Picked the Super10 kit ${id}`); }
+            this.dressing?.update({ kit: id, wearingSuper10: id, shelf });
+            return;
+          }
           if (!preview) {
             const now = readDressing();
             writeDressing(shelf === 'kit' ? { ...now, outfit: id as OutfitId } : { ...now, bat: id as BatId });
@@ -1238,13 +1331,15 @@ export class Game {
    */
   private freshUnlocks(): UnlockItem[] {
     const got = earned(this.dressingRecord()), held = readDressing();
-    const keys = [...got.outfits.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))];
+    const keys = [...got.outfits.map(id => seenKey('kit', id)), ...got.super10.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))];
     if (!held.seen.length) { writeDressing({ ...held, seen: keys }); return []; }
     const look = this.myLook();
     const items: UnlockItem[] = [];
     // The free kits are nobody's prize: Papaya arriving on an old record is not an unlock.
     for (const id of got.outfits) if (!FREE_OUTFITS.includes(id) && !held.seen.includes(seenKey('kit', id)))
       items.push({ moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat, guard: look.guard } });
+    // The Panthers are everybody's: never a prize either.
+    for (const id of got.super10) if (id !== FREE_SUPER10 && !held.seen.includes(seenKey('kit', id))) items.push(this.super10Moment(id));
     for (const id of got.bats) if (!held.seen.includes(seenKey('bat', id)))
       items.push({ moment: { kind: 'bat', bat: batOf(id) } });
     return items;
@@ -1327,7 +1422,7 @@ export class Game {
     if (sameDressing(merged, mine)) return;
     writeDressing(merged, { quiet: true });
     const look = this.myLook();
-    this.dressing?.update({ record: this.dressingRecord(), wearing: look.outfit.id, holding: look.bat.id, wearingGuard: look.guard.id });
+    this.dressing?.update({ record: this.dressingRecord(), wearing: look.outfit.id, holding: look.bat.id, wearingGuard: look.guard.id, wearingSuper10: this.super10Pick() });
     if (!this.hud.viewport.querySelector('#modes.hidden')) this.hud.modesFill(this.modeSelectView());
   }
 
@@ -1335,7 +1430,9 @@ export class Game {
   private dressingCount() {
     const record = this.dressingRecord(), got = earned(record);
     // The card's NEW stays until the room has been opened and Boom, waiting there, unlocked.
-    return { earned: got.outfits.length + got.bats.length, of: OUTFITS.length + BATS.length, visited: readDressing().visited && record.welcomed && !record.waiting?.length };
+    // Super10's kits count where they are on the shelf.
+    const super10 = SUPER10_SHELF ? { earned: got.super10.length, of: SUPER10_KITS.length } : { earned: 0, of: 0 };
+    return { earned: got.outfits.length + got.bats.length + super10.earned, of: OUTFITS.length + BATS.length + super10.of, visited: readDressing().visited && record.welcomed && !record.waiting?.length };
   }
 
   /**
@@ -1345,24 +1442,27 @@ export class Game {
    */
   private async placeOnModes(view: ModeSelectView) {
     if (!readPlayer() || !this.player) return;
-    const [blast, survive, marathon] = await Promise.all([
+    const [blast, survive, marathon, super10] = await Promise.all([
       fetchStanding(this.player, 'classic'), fetchStanding(this.player, 'survive'), fetchStanding(this.player, 'marathon'),
+      SUPER10_OPEN && !SUPER10_ONLY ? fetchStanding(this.player, 'super10') : Promise.resolve(null),
     ]);
     if (this.disposed || !this.hud.modesOpen) return;
     const row = survive?.row as SurviveInnings | null | undefined;
     const team = marathon?.team?.row as { runs?: number } | null | undefined;
+    const ten = super10?.row as Super10Innings | null | undefined;
     this.hud.modesFill({
       ...view,
       blast: { best: view.blast.best, rank: blast?.rank ?? view.blast.rank },
       blastRank: blast?.rank ?? view.blastRank,
       survive: row ? { best: surviveResult(row) === 'Drew the match' ? SURVIVED : surviveResult(row), rank: survive?.rank ?? null } : view.survive,
       marathon: team?.runs ? { best: String(team.runs), rank: marathon?.team?.rank ?? null } : view.marathon,
+      super10: ten ? { best: `${ten.runs}/${ten.wickets}`, rank: super10?.rank ?? null } : view.super10,
     });
   }
 
   /** The count on the hero card, refreshed without putting anything up. */
   private async refreshCount() {
-    if (!this.player) return;
+    if (!this.player || NO_BOARD) return;
     const list = await ChallengeRun.mine(this.player);
     if (!list) return;
     this.rooms = list;
@@ -1784,7 +1884,7 @@ export class Game {
   }
 
   /** Whose career the innings in play counts toward. */
-  private get careerMode(): CareerMode { return this.surviving ? 'survive' : this.marathoning ? 'marathon' : 'classic'; }
+  private get careerMode(): CareerMode { return this.surviving ? 'survive' : this.marathoning ? 'marathon' : this.super10 ? 'super10' : 'classic'; }
 
   /** My Stats, in whichever of its two presentations is on the screen. */
   private redrawStats() {
@@ -2115,21 +2215,8 @@ export class Game {
   choose = (mode: GameMode) => {
     this.mode = mode;
     // The mode played last, where Choose a mode's rail opens next time.
-    try { if (mode === 'CLASSIC' || mode === 'MARATHON' || mode === 'SURVIVE') localStorage.setItem(LAST_MODE_KEY, mode); } catch { /* Then it opens on the Blast. */ }
+    try { if (mode === 'CLASSIC' || mode === 'MARATHON' || mode === 'SURVIVE' || mode === 'SUPER10') localStorage.setItem(LAST_MODE_KEY, mode); } catch { /* Then it opens on the Blast. */ }
     this.walkOut();
-  };
-  /**
-   * I'M EXCITED on Super10's page: lit at once and for good, and counted once a
-   * browser, on GoatCounter and by the store (`sendExcited`). A private window
-   * keeps nothing, so it is counted on GoatCounter alone.
-   */
-  private excited = () => {
-    if (excitedAlready()) return;
-    try { localStorage.setItem(EXCITED_KEY, '1'); } catch { /* Lit for this visit, all the same. */ }
-    this.hud.super10Excited(true);
-    buzz([12, 40, 18]);
-    track('super10-excited', "Pressed I'M EXCITED on the Super10 page");
-    if (this.player && this.canRegister) sendExcited(this.player);
   };
   /**
    * An innings chosen, by whichever way a player chose it: the picker, a link
@@ -2148,8 +2235,9 @@ export class Game {
     }
     // A restart is an innings walked out on, and reads as nothing else: it is
     // the only way here that is not the cover, the tutorial, or the card.
-    if (!['START', 'INNINGS_END'].includes(this.phase) && this.lesson < 0) this.mark('innings-restart', 'Innings restarted');
+    if (!['START', 'INNINGS_END'].includes(this.phase) && this.lesson < 0) { this.mark('innings-restart', 'Innings restarted'); this.markQuit(); }
     this.innings++;
+    this.quitMarked = false; this.fieldLooked = false;
     this.putRatingAway();
     this.inningsFrom = this.playedMs;
     this.spinPulls = freshTally(); this.hooks = freshTally();
@@ -2192,15 +2280,21 @@ export class Game {
     if (this.coverDrill && !this.challenge.playing) this.generator.drill('NORMAL', 'OFF');
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
     this.input.reset(); this.scene.reset();
-    const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat, look.guard);
+    const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat, look.guard, this.super10 ? this.super10Kit() : null);
     this.scene.whites(this.test);
     // A Test by day; the Blast by the player's clock, or their own choice.
-    this.scene.time(this.test ? 'day' : blastLights());
+    this.light(this.test ? 'day' : blastLights());
     // Under a clear sky, with nothing yet told.
     this.told = { swing: false }; this.bannerUntil = 0; this.hud.closeIntro();
     this.scene.overcast(false, true); this.hud.levelBanner(null);
     this.hud.start(this.surviving, this.marathoning);
+    document.body.classList.toggle('s10-solid', this.super10);
     this.hand();
+    // Super10's field, and its captain at mid-off, put out before the first ball.
+    this.s10 = Game.freshField();
+    this.scene.arenaMood('calm');
+    this.fieldUi.show(this.super10, this.scene.mirrored);
+    if (this.super10) this.super10Over(false);
     this.nearing = null; this.hud.nearing(null, null);
     // The Test board is fetched when a Test innings starts rather than on every
     // load: a player who only ever picks the five-over innings never asks for
@@ -2298,16 +2392,23 @@ export class Game {
    * for a browser that has batted here before.
    */
   private teachShots() {
-    const steps = this.demoing ? [] : howToDue(!this.hurts);
+    const shots = this.demoing ? [] : howToDue(!this.hurts);
+    // And Super10's rules, the first time this browser bats one.
+    const field = !this.demoing && this.super10 && fieldIntroDue();
+    const steps = field ? [...shots, ...SUPER10_STEPS] : shots;
     if (!steps.length) return;
-    noteHowTo(steps.includes(CONFIDENCE_STEP));
+    if (shots.length) noteHowTo(shots.includes(CONFIDENCE_STEP));
+    if (field) noteFieldIntro();
     this.mark('shots-intro', 'How to hit shown');
     this.bannerUntil = Number.POSITIVE_INFINITY;
     this.hud.marathonIntro(how => {
       this.mark(how === 'skipped' ? 'shots-intro-skipped' : 'shots-intro-done', how === 'skipped' ? 'How to hit skipped' : 'How to hit put away');
       this.bannerUntil = this.elapsed;
     // Drawn the way round the player bats: a left-hander's swipes are mirrored, so are the lanes.
-    }, steps, { left: this.scene.mirrored, game: this.coachGame, at: () => this.scene.batterOnScreen() });
+    }, steps, {
+      left: this.scene.mirrored, game: this.coachGame, at: () => this.scene.batterOnScreen(),
+      onStep: (step, over) => this.fieldUi.coach(step?.spot === 's10-big-map' ? over : null),
+    });
   }
   /**
    * HOW TO PLAY on the cover: the coachmarks a first innings opens with (how
@@ -2321,7 +2422,9 @@ export class Game {
     noteHowTo(true);
     this.hud.marathonIntro(how => {
       if (how === 'skipped') return;
-      if (how === 'modes') return this.locked ? this.walkOut() : this.modes();
+      // A link or a build locked to one mode plays that mode either way: PLAY NOW started a Blast.
+      if (this.locked) return this.walkOut();
+      if (how === 'modes') return this.modes();
       this.choose('CLASSIC');
     // Drawn for the right-hander the picture of the ground shows.
     }, [SHOTS_STEP, CONFIDENCE_STEP], { finish: true });
@@ -2331,7 +2434,8 @@ export class Game {
   startTutorial = () => {
     track('tutorial-start', 'Tutorial started');
     this.mode = 'CLASSIC';
-    this.scene.whites(false); this.scene.overcast(false, true); this.hud.levelBanner(null); this.scene.time(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
+    this.scene.whites(false); this.scene.overcast(false, true); this.hud.levelBanner(null); this.light(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
+    this.fieldUi.show(false);
     this.audio.stop(); this.audio.music(null); this.audio.crowd(null); this.audio.unlock(); this.score = new ScoreManager();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = null; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     this.ease = 1; this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
@@ -2369,6 +2473,56 @@ export class Game {
   private get surviving() { return this.mode === 'SURVIVE'; }
   /** Test Marathon: three batters, and no end but theirs. */
   private get marathoning() { return this.mode === 'MARATHON'; }
+  /** Super10: the Blast's ball for ten overs, three batters and five bowlers. */
+  private get super10() { return this.mode === 'SUPER10'; }
+  /**
+   * The kit a Super10 innings is batted in (`super10KitFor`): the one picked
+   * for Super10 in the Dressing Room while it is earned, or else one of those
+   * earned, drawn once an innings — the Midnight Panthers for a new player.
+   * `?s10kit=neon`, `yellow`, `cherry`, `orange` or `violet` asks for any of
+   * them, earned or not, for looking at it; it changes nothing about the
+   * batting.
+   */
+  private super10Kit(): Super10Kit {
+    const asked = new URLSearchParams(location.search).get('s10kit');
+    const named = SUPER10_KITS.find(kit => kit.id === `s10-${asked}`);
+    if (named) return named;
+    if (this.super10Drawn?.innings !== this.innings)
+      this.super10Drawn = { innings: this.innings, kit: super10KitFor(readDressing().super10, this.dressingRecord(), Math.random()) };
+    return this.super10Drawn.kit;
+  }
+  private super10Drawn: { innings: number; kit: Super10Kit } | null = null;
+  /** The Super10 kit picked in the room, while it is still earned. */
+  private super10Pick() {
+    const pick = readDressing().super10;
+    return pick && super10Owned(pick, this.dressingRecord()) ? pick : null;
+  }
+  /** A Super10 kit's unlock: from the one he would have batted in, or the Panthers, to the new one. */
+  private super10Moment(id: Super10KitId): UnlockItem {
+    const look = this.myLook(), pick = this.super10Pick();
+    return { moment: { kind: 'kit', from: super10KitOf(pick && pick !== id ? pick : FREE_SUPER10), to: super10KitOf(id), bat: look.bat, guard: look.guard } };
+  }
+  /**
+   * Day or night for the innings, and the ground that goes with it
+   * (`groundFor`): Super10 at the canopy, always at night, its stumps the LED
+   * stumps (`brand`); a Test by day at the pavilion, the stadium or the
+   * canopy; the Blast at the pavilion or the stadium by the player's clock.
+   */
+  private light(time: SkyTime) {
+    const game = this.super10 ? 'super10' : this.test ? 'test' : 'blast';
+    if (game === 'super10') time = 'night';
+    this.scene.stands(groundFor(ASKED_GROUND, game, VENUE_COIN[game === 'test' ? 'test' : 'blast']));
+    this.scene.brand(this.super10);
+    this.scene.time(time);
+    this.hud.bigScreen(this.scene.bigScreen, this.scene.screenMoments);
+  }
+  /** What the arena's big screen says between moments: the game, the score, the over and, in Super10, who is in. */
+  private scoreboard() {
+    const { runs, wickets, balls } = this.score;
+    const title = this.super10 ? 'SUPER10' : this.marathoning ? 'TEST MARATHON' : this.surviving ? 'TEST SURVIVAL' : 'THE BLAST';
+    const overs = `${Math.floor(balls / 6)}.${balls % 6} OV`;
+    return { title, score: `${runs}/${wickets}`, detail: this.super10 ? `${overs} · ${super10Batter(wickets).title}` : overs };
+  }
   /**
    * Either Test mode: Survival's ball — its ladder, its injury meter, no
    * confidence and no charge. Which of the two decides everything else.
@@ -2376,19 +2530,29 @@ export class Game {
   private get hurts() { return this.surviving || this.marathoning; }
   /** A Test match of either kind: how it looks — whites, the Test field, by day. See `modes.ts`. */
   private get test() { return isTest(this.mode); }
-  private get limits() { return this.surviving ? SURVIVE_LIMITS : this.marathoning ? MARATHON_LIMITS : CLASSIC_LIMITS; }
+  private get limits() {
+    return this.surviving ? SURVIVE_LIMITS : this.marathoning ? MARATHON_LIMITS : this.super10 ? SUPER10_LIMITS : CLASSIC_LIMITS;
+  }
   /** The switches in this link that change the game: see `practice.ts`. */
   private readonly switches = practiceSwitches(location.search, { spinOnly: SPIN_ONLY, chargeOnly: CHARGE_ONLY });
   /**
    * This innings was played with one of them. Not in a Rival Match, where
    * they do nothing: a match has to send its innings to finish.
    */
-  private get practising() { return this.switches.length > 0 && !this.challenge.playing; }
+  /**
+   * Practice: an innings from a link carrying a switch that changes the game,
+   * and every innings of the Super10 tester build on GitHub Pages
+   * (`SUPER10_ONLY`), which keeps nothing. Super10 itself has a board and a
+   * career now, and counts everywhere else.
+   */
+  private get practising() { return (this.switches.length > 0 || (this.super10 && SUPER10_ONLY)) && !this.challenge.playing; }
   /**
    * What a card offers, once the innings is known to be practice or played in
    * a private window. An innings with nothing to offer stays quiet either way.
    */
   private shownOffer(offer: CardOffer): CardOffer {
+    // The tester build's Super10 has no board, and says so whatever the innings was worth.
+    if (this.super10 && SUPER10_ONLY && !this.challenge.playing) return { kind: 'practice', why: 'building' };
     // An innings with nothing for the boards still offers a name to a player
     // who has none — not from a private window, which cannot keep one, nor
     // practice, nor a Rival Match, whose card is the match's.
@@ -2481,8 +2645,13 @@ export class Game {
     const career = this.myCareer[mode]?.career ?? heldCareer(mode);
     return easeFor(playedIn(mode, readStored, career.innings));
   }
-  /** The Blast's windows for this innings, a newcomer's if it is helped. */
-  private get windows() { return easedWindows(GAME.timing, this.ease); }
+  /**
+   * The Blast's windows for this innings, a newcomer's if it is helped. In
+   * Super10, whoever is in, and narrower at the death.
+   */
+  private get windows() {
+    return easedWindows(this.super10 ? super10Windows(this.score.wickets, this.score.balls) : GAME.timing, this.ease);
+  }
   /**
    * The grade the mode that pays for this swing gives it: the Blast's windows,
    * or Survival's and the Marathon batter's own, so a stroke picked by its
@@ -2501,7 +2670,7 @@ export class Game {
       return marathonOnly({ swing: this.swingOnly, express: this.expressOnly, reverse: this.reverseOnly });
     }
     if (this.marathoning && this.wearFast) return marathonFastWear();
-    const plan = this.surviving ? SURVIVE_PLAN : this.marathoning ? MARATHON_PLAN : CLASSIC_PLAN;
+    const plan = this.surviving ? SURVIVE_PLAN : this.marathoning ? MARATHON_PLAN : this.super10 ? SUPER10_PLAN : CLASSIC_PLAN;
     if (this.bouncersOnly || this.hooksOnly) return bouncersEvery(plan, this.hooksOnly);
     if (this.spinCutsOnly) return spinCutsEvery(plan);
     if (this.spinPullsOnly) return spinPullsEvery(plan);
@@ -2525,7 +2694,7 @@ export class Game {
   /** How long after the ideal moment a swing still counts as a swing at all. */
   private get swingWindow() {
     if (this.marathon) return this.marathon.current.batter.timing.poor;
-    return this.surviving ? SURVIVE.timing.poor : GAME.timing.poor;
+    return this.surviving ? SURVIVE.timing.poor : this.super10 ? this.windows.poor : GAME.timing.poor;
   }
   /**
    * A moment, named for the innings it happened in.
@@ -2563,12 +2732,17 @@ export class Game {
   private named(name: string, title: string): [string, string] {
     const [moded, said]: [string, string] = this.surviving ? [`survive-${name}`, `Test match: ${title}`]
       : this.marathoning ? [`marathon-${name}`, `Test Marathon: ${title}`]
+      : this.super10 ? [`super10-${name}`, `Super10: ${title}`]
       : [name, title];
     return this.practising ? [`practice-${moded}`, `Practice: ${said}`] : [moded, said];
   }
   private setPhase(phase: GamePhase) {
     this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials);
     if (phase === 'READY' && this.marathon) this.tellLevel();
+    if (phase === 'READY' && this.super10 && this.lesson < 0) this.super10Over(true);
+    // As the bowler sets off: the surge's offer goes, the map goes back into
+    // its corner, and the last ball's line comes off it.
+    if (phase === 'BOWLER_RUNUP' && this.super10) { this.surgeShown(); this.fieldUi.shot(null, null); }
     if (phase === 'READY' && this.momentAsked) { const moment = this.momentAsked; this.momentAsked = null; this.askMoment(moment); }
     if (phase === 'READY' && this.actionAsked) { const kind = this.actionAsked; this.actionAsked = null; this.askAction(kind); }
   }
@@ -2601,6 +2775,108 @@ export class Game {
     else if (['BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'].includes(this.phase)) this.actionAsked = kind;
   }
   /**
+   * Super10, between balls: at the top of an over the bowler's field, his
+   * first or his other as he reads the innings (`planFor`), with Power Surge
+   * on it when this is its over by itself. Kept for the over: nothing a ball
+   * does moves a man.
+   */
+  private super10Over(signal: boolean) {
+    const s10 = this.s10;
+    const over = Math.min(Math.floor(this.score.balls / SUPER10.ballsPerOver), SUPER10.overs - 1);
+    if (s10.over === over) return this.surgeShown();
+    const newBatter = this.score.wickets > s10.wicketsAtOver;
+    s10.over = over; s10.wicketsAtOver = this.score.wickets;
+    const surge = surgeAuto(over, s10.surged !== null);
+    if (surge) { s10.surged = over; this.mark('surge-auto', 'Power Surge switched on by itself'); this.scene.arenaCue('surge', this.elapsed); }
+    // The arena tells the last two overs coming, unless Power Surge has the ninth.
+    else if (over === SUPER10.overs - 2) this.scene.arenaCue('death', this.elapsed);
+    // And the stands send a wave round in the breaks a crowd would.
+    if (WAVE_OVERS.includes(over)) this.scene.arenaCue('wave', this.elapsed);
+    const bowler = bowlerOf(this.generator.overKind(over), over);
+    const plan = planFor(bowler, over, { boundaries: s10.boundaries, newBatter });
+    if (plan) this.mark(`field-plan-${bowler.toLowerCase()}`, 'A bowler took his other field');
+    this.setSuper10Field(fieldFor({ bowler, over, surge, plan }), signal);
+    this.surgeShown();
+  }
+  /**
+   * A field into play: the men put straight on their marks (walked there
+   * every over, they were forever running about the ground), the bowler's
+   * signal when he has changed his mind or Power Surge brings men in, and the
+   * map.
+   */
+  private setSuper10Field(field: FieldSet, signal: boolean) {
+    const s10 = this.s10, prev = s10.field;
+    s10.field = field;
+    // The bowler bowls to it: the field book's id, Power Surge or not.
+    this.generator.field = field.id.split('+')[0];
+    this.scene.super10Field(drawnOf(field), prev !== null);
+    const told = signal && field.change ? signalFor(prev, field) : null;
+    if (told) this.scene.bowlerSignals(told.kind, told.man);
+    this.fieldUi.overBegins(field, s10.over, { prev });
+  }
+  /**
+   * Power Surge's corner: locked to the end of the fifth over, ready in the
+   * break before the sixth to the eighth, on through its over, used after.
+   */
+  private surgeShown() {
+    const s10 = this.s10, used = s10.surged !== null;
+    this.scene.arenaMood(s10.surged === s10.over ? 'surge' : s10.over >= SUPER10.overs - 2 ? 'death' : 'calm');
+    const between = this.phase === 'READY' && this.score.balls % SUPER10.ballsPerOver === 0;
+    const offered = between && surgeOffered(s10.over, used);
+    this.fieldUi.surge(s10.surged === s10.over ? 'on' : used ? 'used' : offered ? 'offer' : s10.over < SURGE.from ? 'locked' : 'rest',
+      { balls: this.score.balls % SUPER10.ballsPerOver, over: s10.over });
+    // The bowler gives it a moment at his mark, which the corner's ring counts down.
+    if (offered && this.phase === 'READY') this.bannerUntil = Math.max(this.bannerUntil, this.elapsed + SURGE_WAIT_MS);
+  }
+  /** Power Surge taken, in the break before an over it is offered for: the chip, or P. */
+  private armSurge() {
+    const s10 = this.s10;
+    if (!this.super10 || this.phase !== 'READY' || this.score.balls % SUPER10.ballsPerOver || !surgeOffered(s10.over, s10.surged !== null) || !s10.field) return;
+    s10.surged = s10.over;
+    const plan = s10.field.change === 'plan' ? 1 : 0;
+    this.setSuper10Field(fieldFor({ bowler: s10.field.bowler, over: s10.over, surge: true, plan }), true);
+    this.surgeShown();
+    this.scene.arenaCue('surge', this.elapsed);
+    this.mark(`surge-${s10.over + 1}`, 'Power Surge taken');
+  }
+  /**
+   * Who got to a Super10 ball, by his place in the field's men, for the map to
+   * light: the man the field's rules gave it to, or the man the scene sent
+   * for a catch (he is one of the drawn six, in their order).
+   */
+  private takerOf(outcome: ShotOutcome): number | null {
+    const field = this.s10.field;
+    if (!field) return null;
+    const f = outcome.fielder;
+    if (f) { const i = field.men.findIndex(m => m.angle === f.angle && m.deep === f.deep); return i < 0 ? null : i; }
+    const caught = (outcome.isWicket && outcome.wicketType === 'CAUGHT') || outcome.dropped;
+    const drawn = caught && !outcome.edged ? this.scene.catcher : null;
+    if (drawn === null) return null;
+    const man = drawnOf(field)[drawn];
+    return man ? field.men.indexOf(man) : null;
+  }
+  /** F: the map enlarged from its corner, or put back. */
+  private lookAtField() {
+    if (!this.super10) return;
+    if (!this.fieldUi.toggle()) return;
+    this.mark('field-look', 'Looked at the field');
+    // Once an innings too, so the share of innings that ever enlarged it can be read beside the taps.
+    if (!this.fieldLooked) { this.fieldLooked = true; this.mark('field-look-innings', 'Looked at the field this innings'); }
+  }
+  private fieldLooked = false;
+  /**
+   * A Super10 innings walked out on before its end, by the over it was in
+   * (`super10-quit-over-4`): restarted, left for Choose a mode from the pause
+   * sheet, or the page closed on it. Once an innings; a finished one, the
+   * tutorial and a demo are never a quit.
+   */
+  private markQuit = () => {
+    if (!this.super10 || this.quitMarked || this.demoing || this.lesson >= 0 || ['START', 'INNINGS_END'].includes(this.phase)) return;
+    this.quitMarked = true;
+    this.mark(`quit-over-${Math.min(SUPER10.overs, Math.floor(this.score.balls / 6) + 1)}`, 'Walked out on the innings, by the over it was in');
+  };
+  private quitMarked = false;
+  /**
    * At the top of an over, whether it is the one the innings changes in: the
    * first over the pace bowler swings it, which brings the cloud over with it.
    * Put up once an innings, and the bowler waits at his mark while it is.
@@ -2627,7 +2903,7 @@ export class Game {
     this.hud.levelBanner(banner, over + 1, LEVEL_BANNER_MS);
     this.bannerUntil = this.elapsed + LEVEL_BANNER_MS;
   }
-  private shoot = (shot: ShotType, inputTimeMs: number) => {
+  private shoot = (shot: ShotType, inputTimeMs: number, swipe?: number) => {
     if (this.phase !== 'BALL_IN_FLIGHT' || this.attempt) return;
     // The first swing of the session, tutorial or not: a player who never plays
     // one did not understand the controls, and that is a different problem from
@@ -2635,7 +2911,7 @@ export class Game {
     trackOnce('first-shot', 'First shot played');
     // A scoop with nothing to spend on it, or at a bouncer, is the block: the
     // rig and the score read the same answer.
-    this.attempt = playedAs(this.delivery!, { shotType: shot, inputTimeMs }, this.charged);
+    this.attempt = playedAs(this.delivery!, { shotType: shot, inputTimeMs, swipe }, this.charged);
     const shotType = this.attempt.shotType;
     const charging = advanceShot(this.delivery!, this.attempt, this.charged);
     const lofted = !charging && loftedDrive(this.delivery!, this.attempt);
@@ -2690,6 +2966,7 @@ export class Game {
     if ((driven && version >= 2) || punching) this.attempt = { ...this.attempt, grounded: true };
     // Versions two and three of the flick, worked off the pads with the wrists: four at the most (`FLICK`).
     if (flicking && version >= 2) this.attempt = { ...this.attempt, flicked: true };
+    this.flickPlayed = flicking;
     // At the spinner the cut is played making room for it: see `SPIN_CUT`.
     this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, version, this.meetsAt,
       !charging && spinCut(this.delivery!, this.attempt), spinPulling);
@@ -2763,7 +3040,7 @@ export class Game {
   /** What the coachmarks call the game they come before, and the colour of its dot: the mode's own, a Rival Match's orange. */
   private get coachGame(): IntroGame {
     if (this.challenge.playing) return { name: 'Rival Match', tone: 'rivals' };
-    return { name: PAUSE_NAMES[this.mode], tone: this.mode === 'CLASSIC' ? 'blast' : this.mode === 'SURVIVE' ? 'survival' : 'marathon' };
+    return { name: PAUSE_NAMES[this.mode], tone: this.mode === 'CLASSIC' ? 'blast' : this.mode === 'SURVIVE' ? 'survival' : this.mode === 'SUPER10' ? 'super10' : 'marathon' };
   }
   private togglePause = () => {
     if (this.phase === 'START' || this.phase === 'INNINGS_END' || this.hud.helpOpen) return;
@@ -2771,7 +3048,8 @@ export class Game {
     else {
       this.input.cancel(); this.audio.stop(); this.audio.holdCrowd(true); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true, this.pauseGame);
       this.soundSwitches();
-      this.hud.lightsSwitch(this.test ? null : this.scene.lit);
+      // The arena is played at night whatever the switch says, so it has none.
+      this.hud.lightsSwitch(this.test || this.super10 || this.scene.arenaGround ? null : this.scene.lit);
       // Twenty overs in, the Marathon can be declared — from here, and from
       // nowhere else, so it is never pressed by accident mid-ball. Before
       // that the key is there but shut, saying when it opens.
@@ -2878,10 +3156,26 @@ export class Game {
    */
   private play = () => {
     const go = () => (this.locked ? this.walkOut() : this.modes());
-    if (!whatsNewDue()) return go();
+    // A build with nothing but one mode in it has no update to tell.
+    if (NO_BOARD || !whatsNewDue()) return go();
     markWhatsNewShown();
-    this.showStories('intro', go);
+    // Put away, or moved on from by themselves, the Super10 film's stories land on its poster.
+    const told = STORIES.some(one => one.opens === 'super10') && SUPER10_OPEN && !SUPER10_ONLY;
+    this.showStories('intro', () => (this.locked ? this.walkOut() : this.modes(told ? 'SUPER10' : lastMode())));
   };
+
+  /**
+   * PLAY SUPER10 under the Super10 film: the stories put away and straight out
+   * to a Super10 innings, Choose a mode passed by. Opened from the board in
+   * the middle of an innings, it only puts them away: no innings is walked
+   * out on for it.
+   */
+  private playFromStory(shown: () => void) {
+    const between = (this.phase === 'START' || this.phase === 'INNINGS_END') && SUPER10_OPEN;
+    if (between) this.hud.onStoriesDone = null;
+    shown();
+    if (between) this.choose('SUPER10');
+  }
 
   /** The update's stories, and whatever happens when they are done with. */
   private showStories(where: StoriesWhere, then: (() => void) | null = null) {
@@ -2900,7 +3194,7 @@ export class Game {
     // other one is a tab away, and never the one they land on.
     this.boardActions = false;
     if (this.marathoning) return this.openMarathon(this.marathonLadder);
-    this.openBoard(this.surviving ? 'survive' : 'classic', 'best');
+    this.openBoard(this.surviving ? 'survive' : this.super10 ? 'super10' : 'classic', 'best');
   };
 
   /**
@@ -3173,12 +3467,13 @@ export class Game {
   private railStats(open: CareerMode, draw: (view: StatsSheetView) => void) {
     // Each card's Best rank reads the innings boards' places too.
     this.refreshRanks();
-    // The Test Marathon's card comes second, between the Blast's and Test
-    // Survival's, wherever the mode can be played.
+    // The Blast, Super10, the Test Marathon and Test Survival, each where it
+    // can be played; Super10's never in the tester build, which keeps nothing.
     const marathon: CareerMode[] = MARATHON_OPEN ? ['marathon'] : [];
+    const super10: CareerMode[] = SUPER10_OPEN && !SUPER10_ONLY ? ['super10'] : [];
     const modes: CareerMode[] = SHOW_SURVIVE && !SURVIVE_ONLY
-      ? ['classic', ...marathon, 'survive']
-      : [this.boardTab, ...marathon];
+      ? ['classic', ...super10, ...marathon, 'survive']
+      : [this.boardTab, ...marathon, ...super10];
     const at = Math.max(0, modes.indexOf(open));
     this.mineSlides = {};
     for (const mode of modes) {
@@ -3203,7 +3498,7 @@ export class Game {
     // The Rivals record rides on the same answer as the list. A screen opened
     // before that answer has arrived is drawn again when it does, with every
     // card already painted standing where it was.
-    if (!this.rooms && this.player) {
+    if (!this.rooms && this.player && !NO_BOARD) {
       void ChallengeRun.mine(this.player).then(list => {
         if (this.disposed || !list) return;
         this.rooms = list;
@@ -3463,6 +3758,7 @@ export class Game {
     this.boardLadder = ladder;
     if (ladder !== 'best') return this.showCareerBoard(mode, ladder);
     if (mode === 'survive') this.showSurviveBoard();
+    else if (mode === 'super10') this.showSuper10Board();
     else this.showClassicBoard();
   }
 
@@ -3695,6 +3991,21 @@ export class Game {
     });
   }
 
+  /** Super10's board: what was held goes up at once, and the fetch corrects it. */
+  private showSuper10Board() {
+    this.boardTab = 'super10';
+    this.boardLadder = 'best';
+    const mine = this.phase === 'INNINGS_END' && this.super10;
+    const view = { youId: this.player, yours: mine ? super10From(this.score) : null, actions: this.boardActions && mine };
+    this.hud.super10Board({ ...view, rows: this.super10Rows, state: this.super10Seen ? 'ready' : 'loading' });
+    void fetchSuper10Board().then(payload => {
+      if (this.disposed) return;
+      if (payload) { this.super10Seen = true; this.super10Rows = payload.rows; }
+      if (!this.hud.boardOpen || this.sheetTab !== 'super10' || this.boardLadder !== 'best') return;
+      this.hud.super10Board({ ...view, rows: this.super10Rows, state: payload ? 'ready' : 'offline' });
+    });
+  }
+
   /** The Test innings just played, as its board ranks it. */
   private survived() { return asSurvive(this.score, this.health.blows.length, this.health.value); }
   private visibility = () => { this.audio.background(document.hidden); if (document.hidden) this.foldBatting(); if (document.hidden && !['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
@@ -3767,11 +4078,6 @@ export class Game {
     }
     // The picker is the thing on top while it is open, so it answers first —
     // otherwise Enter starts an innings underneath a sheet nobody closed.
-    // Super10's page is over the picker, so it answers before it does.
-    if (this.hud.super10Open) {
-      if (key === 'ESCAPE') { event.preventDefault(); this.hud.closeSuper10(); }
-      return;
-    }
     if (this.hud.modesOpen) {
       if (key === 'ESCAPE') { event.preventDefault(); this.closePicker(); }
       // On a desktop the arrow keys move the rail of posters, as a swipe does.
@@ -3789,10 +4095,12 @@ export class Game {
       event.preventDefault();
       if (this.phase === 'INNINGS_END') this.start(); else if (this.locked) this.walkOut(); else this.modes();
     }
-    else if (key === 'B' && !SURVIVE_ONLY) { event.preventDefault(); this.showBoard(); }
+    else if (key === 'B' && !NO_BOARD) { event.preventDefault(); this.showBoard(); }
     else if (key === 'R' && this.phase !== 'START') { event.preventDefault(); this.start(); }
     else if (key === 'ESCAPE') { event.preventDefault(); this.togglePause(); }
     else if (key === 'M') { event.preventDefault(); this.toggleSound(); }
+    else if (key === 'P' && this.super10) { event.preventDefault(); this.armSurge(); }
+    else if (key === 'F' && this.super10) { event.preventDefault(); this.lookAtField(); }
   };
   /**
    * The innings clock at the moment an input actually happened.
@@ -3840,7 +4148,7 @@ export class Game {
     }
     // Level Up covers the whole screen, so the ground under it is not drawn:
     // a phone has one GPU, and the confetti wants it.
-    if (!document.hidden && !this.levelUp) this.scene.render(this.elapsed);
+    if (!document.hidden && !this.levelUp) { this.scene.scoreboard(this.scoreboard()); this.scene.render(this.elapsed); }
     // The sound first: on a phone the overlay is taller than the screen is.
     if (this.debug) this.hud.debug({ ...this.audio.describe(), ...this.snapshot() });
     this.frameId = requestAnimationFrame(this.frame);
@@ -3894,7 +4202,7 @@ export class Game {
       this.scene.reset(true); this.input.reset();
       // After the reset, which hands the ball back to the quick bowler.
       this.scene.spinner(spun(this.delivery));
-      this.scene.express(!!this.delivery.express);
+      this.scene.express(!!this.delivery.express, !!this.delivery.death);
       this.scene.round(!!this.delivery.round);
       this.showConfidence(); this.setPhase('BOWLER_RUNUP');
       // The stands lift as he runs in, and settle once the ball has gone.
@@ -3903,12 +4211,15 @@ export class Game {
       this.scene.runup(Math.min(1, age / GAME.runupMs));
       if (age >= GAME.runupMs) {
         this.delivery!.releaseTimeMs = this.elapsed; this.delivery!.idealContactTimeMs = this.elapsed + this.delivery!.durationMs; this.setPhase('BALL_IN_FLIGHT');
-        // Out of the hand, onto the gun. The Marathon's first; see `speed-gun.ts`.
-        if (this.marathon) this.hud.speed(shownKph(this.delivery!.speedKph));
+        // Out of the hand, onto the gun: the Marathon's, and Super10's, whose
+        // five bowlers are told apart by their pace as much as their actions.
+        // See `speed-gun.ts`.
+        if (this.marathon || this.super10) this.hud.speed(shownKph(this.delivery!.speedKph));
       }
     } else if (this.phase === 'BALL_IN_FLIGHT' && this.delivery) {
-      const progress = flightProgress(this.delivery, this.elapsed - this.delivery.releaseTimeMs);
-      this.scene.delivery(this.delivery, progress);
+      const since = this.elapsed - this.delivery.releaseTimeMs;
+      const progress = flightProgress(this.delivery, since);
+      this.scene.delivery(this.delivery, progress, since);
       const bounce = (GAME.releaseZ - this.delivery.bounceZ) / (GAME.releaseZ - GAME.contactZ);
       if (!this.bounced && progress >= bounce) { this.audio.play('bounce'); this.bounced = true; }
       if ((progress >= this.meetsAt && this.attempt) || this.elapsed >= this.delivery.idealContactTimeMs + this.swingWindow + GAME.comboMs) this.resolve();
@@ -3951,6 +4262,19 @@ export class Game {
       : this.marathon ? this.marathonBall()
       : this.surviving ? resolveSurvive(this.delivery!, this.attempt, this.rng, easedSkill(TAILENDER, this.ease))
       : resolveShot(this.delivery!, this.attempt, this.rng, this.charged, this.windows);
+    // Super10: the swipe steers the stroke inside its arc, and the field has
+    // its say on the line it went — stopped, cut off, saved, caught on the
+    // rope — and a boundary is remembered for the bowlers to read.
+    if (!step && this.super10 && this.s10.field) {
+      const shot = this.attempt?.shotType;
+      const lane = steerOf(shot, this.outcome, this.flickPlayed);
+      const steered = lane ? steer(lane, this.attempt?.swipe) : null;
+      if (steered) this.outcome = { ...this.outcome, angle: steered.angle };
+      const line = sectorOf(this.outcome, shot), struck = this.outcome.runs;
+      this.outcome = fieldRules(this.outcome, line, this.s10.field, this.rng, steered?.stretch ?? 0);
+      if (this.outcome.fielder) this.mark(`fielded-${this.outcome.fielder.how}`, 'A ball fielded');
+      if (lane && struck >= 4 && this.outcome.runs >= 4) this.s10.boundaries.push(line);
+    }
     if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);
     else {
       this.score.record(this.outcome); this.generator.record(this.outcome);
@@ -3992,6 +4316,9 @@ export class Game {
         }
       } else {
         this.confidence.record(this.outcome);
+        // Super10's next man walks out once this ball is dead, as the
+        // Marathon's does: the score says who, by the wickets down.
+        if (this.super10 && this.outcome.isWicket && !this.score.ended) this.changed = 'OUT';
       }
       this.showConfidence();
       // Not about a Marathon batter this ball has already taken out of the
@@ -4034,6 +4361,8 @@ export class Game {
       } as ShotOutcome;
       this.score.record(outcome); this.generator.record(outcome);
       this.chaseBall(outcome);
+      // Super10's next man walks out, as he would off a real ball.
+      if (this.super10 && outcome.isWicket && !this.score.ended) { this.changed = 'OUT'; this.nextBatter(); }
     }
     this.hud.score(this.score);
     if (this.chasePassDue && !this.score.ended) this.celebrateChase();
@@ -4084,12 +4413,12 @@ export class Game {
    * carried off was put on the ground, and nothing but a reset lifts him.
    */
   private nextBatter() {
-    const marathon = this.marathon!;
+    const marathon = this.marathon;
     this.mark(this.changed === 'OUT' ? 'batter-out' : 'batter-retired',
       this.changed === 'OUT' ? 'A batter dismissed' : 'A batter retired hurt');
     this.changed = null; this.felled = false;
     this.playedFrom = this.score.balls;
-    this.health = marathon.current.health;
+    if (marathon) this.health = marathon.current.health;
     this.wasCritical = false;
     this.nearing = null; this.hud.nearing(null, null);
     this.scene.newBatter();
@@ -4108,7 +4437,9 @@ export class Game {
     const left = man ? man.left : readHand() === 'left';
     this.scene.leftHanded(left);
     this.hud.sides(left);
-    this.hud.walkingOut(man?.batter.title ?? null);
+    this.hud.walkingOut(man?.batter.title ?? (this.super10 ? super10Batter(this.score.wickets).title : null));
+    // Each of Super10's five has his own number on his back.
+    if (this.super10) this.scene.shirtNumber(super10Number(this.score.wickets));
   }
   /**
    * The player has had enough, from the pause card. Refused before twenty
@@ -4190,8 +4521,9 @@ export class Game {
     if (t < times.runup) return;
     if (t < times.release) { this.scene.runup(Math.min(1, (t - times.runup) / GAME.runupMs)); return; }
     if (!reel.struck) {
-      const progress = flightProgress(delivery, this.elapsed - delivery.releaseTimeMs);
-      this.scene.delivery(delivery, progress);
+      const since = this.elapsed - delivery.releaseTimeMs;
+      const progress = flightProgress(delivery, since);
+      this.scene.delivery(delivery, progress, since);
       // The frame before the bat comes down: held, the swipe drawn over it, then on from here.
       if (!reel.cued && t >= times.swing) { reel.cued = true; reel.hold = CUE.ms; reel.beat('cue'); return; }
       if (!reel.swung && reel.cued && reel.hold <= 0) {
@@ -4258,6 +4590,11 @@ export class Game {
     const outcome = this.outcome!;
     if (this.lesson < 0) { this.hud.score(this.score); this.showNearing(this.batterHistory); this.chaseBall(outcome); }
     this.hud.result(outcome, this.chargeMiss);
+    // A boundary rider out of the picture: the side label it went past says who.
+    const away = outcome.fielder && offScreen(outcome.fielder.angle);
+    if (away && outcome.fielder) this.fieldUi.light({ side: (away === 'leg') !== this.scene.mirrored ? 'left' : 'right', name: outcome.fielder.name });
+    // And on the map, the line it went.
+    if (this.super10 && this.lesson < 0 && outcome.madeBatContact) this.fieldUi.shot(sectorOf(outcome, this.attempt?.shotType), outcome, this.takerOf(outcome));
     if (outcome.hit) {
       // The blow lands with the call rather than before it, so the flash, the
       // kick and the words are one event instead of three.
@@ -4312,6 +4649,9 @@ export class Game {
     // A wicket goes quiet under a groan; one that cost him a milestone, or a
     // man carried off, is sent off with a softer cheer once it has.
     if (outcome.isWicket || this.felled) {
+      // The screen's word for how he went: bowled, out for nothing, or out.
+      const runs = this.batterHistory.reduce((sum, ball) => sum + ball.runs, 0);
+      this.scene.arenaCue('wicket', this.elapsed, outcome.wicketType === 'BOWLED' ? 'BOWLED' : runs === 0 ? 'DUCK' : 'OUT');
       this.audio.groan(this.test ? GROAN.outTest : GROAN.out);
       this.audio.hushCrowd(HUSH.depth, HUSH.hold, HUSH.recover, HUSH.after);
       if (this.felled || (this.lesson < 0 && outNearMilestone(this.batterHistory))) this.audio.cheer(SEND_OFF, SEND_OFF.after);
@@ -4354,6 +4694,7 @@ export class Game {
   }
 
   private offerBoard() {
+    if (this.super10) return this.offerSuper10();
     const played = asInnings(this.score);
     this.hud.cardNote = this.cardNoteFor(this.board, played.runs);
     const offer = cardOffer(this.boardSeen, this.board, played, Date.now(), this.player);
@@ -4361,6 +4702,15 @@ export class Game {
     // the strip is there to say what is being missed, and a two-run innings was
     // missing nothing.
     this.hud.offerClaim(this.postedOffer(offer), readPlayer(), this.board, played, this.player);
+    this.drawHero();
+  }
+
+  /** The same, asked of Super10's board and answered on Super10's card. */
+  private offerSuper10() {
+    const played = super10From(this.score);
+    this.hud.cardNote = this.cardNoteFor(this.super10Rows, played.runs);
+    const offer = super10Offer(this.super10Seen, this.super10Rows, played, Date.now(), this.player);
+    this.hud.offerClaim(this.postedOffer(offer), readPlayer(), this.super10Rows.map(super10AsBoardRow), asInnings(this.score), this.player);
     this.drawHero();
   }
 
@@ -4430,6 +4780,8 @@ export class Game {
       ? await submitMarathon(this.player, entry.name, entry.avatar, marathonFigures(this.marathon))
       : this.surviving
       ? await submitSurvive(this.player, entry.name, entry.avatar, this.survived())
+      : this.super10
+      ? await submitSuper10(this.player, entry.name, entry.avatar, super10From(this.score))
       : await submitInnings(this.player, entry.name, entry.avatar, asInnings(this.score));
     if (this.disposed) return;
     if (!result.ok) {
@@ -4469,6 +4821,12 @@ export class Game {
     this.hud.claimDone();
     // Each call answers with its own ladder's board; which one came back is
     // decided by which one was asked, so the mode is what reads it.
+    if (this.super10) {
+      if (result.board) { this.super10Seen = true; this.super10Rows = (result.board as Super10Payload).rows; }
+      this.boardActions = true;
+      this.offerFirstKey();
+      return this.openBoard('super10', 'best');
+    }
     if (this.surviving) {
       if (result.board) {
         // The rows the claim answered with are newer than anything a fetch
@@ -4607,6 +4965,8 @@ export class Game {
       ? submitMarathon(player, mine.name, mine.avatar, marathonFigures(this.marathon))
       : this.surviving
       ? submitSurvive(player, mine.name, mine.avatar, this.survived())
+      : this.super10
+      ? submitSuper10(player, mine.name, mine.avatar, super10From(this.score))
       : submitInnings(player, mine.name, mine.avatar, asInnings(this.score));
     this.postFor = { innings, result };
     return result;
@@ -4648,7 +5008,8 @@ export class Game {
       this.hud.rankHero(null, null);
       return;
     }
-    const rows: readonly (BoardRow | TeamRow | SurviveRow)[] = this.marathoning ? this.marathonShown?.team ?? [] : this.surviving ? this.surviveRows : this.board;
+    const rows: readonly (BoardRow | TeamRow | SurviveRow | Super10Row)[] = this.marathoning ? this.marathonShown?.team ?? []
+      : this.surviving ? this.surviveRows : this.super10 ? this.super10Rows : this.board;
     const own = rows.find(row => ownsHandle(row.handle, this.player)) ?? null;
     const survive = this.surviving ? this.survived() : null;
     const runs = this.marathoning && this.marathon ? marathonFigures(this.marathon).runs : survive ? survive.runs : asInnings(this.score).runs;
@@ -4730,6 +5091,9 @@ export class Game {
         this.surviveRows = (result.board as SurvivePayload).rows;
       }
       rows = this.surviveRows;
+    } else if (this.super10) {
+      if (result.board) { this.super10Seen = true; this.super10Rows = (result.board as Super10Payload).rows; }
+      rows = this.super10Rows;
     } else {
       if (result.board) {
         this.boardEpoch++;
@@ -4827,8 +5191,9 @@ export class Game {
     // The career's own tally, not the board's row: it carries what each batsman
     // made, which the six totals on a row cannot say. The Marathon's is the very
     // innings its boards are sent, every batter's figures with it.
-    const tally: BlastTally | SurviveTally | MarathonTally = this.marathon ? marathonFigures(this.marathon)
+    const tally: BlastTally | SurviveTally | MarathonTally | Super10Tally = this.marathon ? marathonFigures(this.marathon)
       : this.surviving ? { ...this.survived(), sixes: this.score.sixes, fours: this.score.fours }
+      : this.super10 ? super10From(this.score)
       : blastTally(this.score);
     const nonce = mintNonce();
     const innings = this.innings;
@@ -5105,16 +5470,21 @@ export class Game {
       this.offerSurvive();
       return;
     }
-    // Practice does not move this browser's own best either.
-    const record = !this.practising && this.score.runs > this.best;
-    if (!this.practising) {
+    // Practice does not move this browser's own best either. Super10 keeps a
+    // best of its own: ten overs and five wickets is not the Blast's innings.
+    const best = this.super10 ? this.super10Best : this.best;
+    const record = !this.practising && this.score.runs > best;
+    if (!this.practising && this.super10) {
+      this.super10Best = Math.max(this.super10Best, this.score.runs);
+      try { localStorage.setItem('hitman-best-super10', String(this.super10Best)); } catch { /* A session remains playable without persistence. */ }
+    } else if (!this.practising) {
       this.best = Math.max(this.best, this.score.runs);
       try { localStorage.setItem('hitman-best', String(this.best)); } catch { /* A session remains playable without persistence. */ }
     }
     this.mark('innings-end', 'Innings completed');
     this.mark(inningsBand(this.playedMs - this.inningsFrom), 'How long the innings took');
-    this.mark(this.score.wickets >= GAME.maxWickets ? 'innings-all-out' : 'innings-overs-up',
-      this.score.wickets >= GAME.maxWickets ? 'Innings ended all out' : 'Innings ended, overs up');
+    this.mark(this.score.wickets >= this.score.limits.maxWickets ? 'innings-all-out' : 'innings-overs-up',
+      this.score.wickets >= this.score.limits.maxWickets ? 'Innings ended all out' : 'Innings ended, overs up');
     this.mark(scoreBand(this.score.runs), `Innings scored ${scoreBand(this.score.runs).replace('score-', '').replace(/-/g, ' to ')} runs`);
     // A chase answers itself the moment it ends, and the reveal replaces the
     // ordinary card: the scoreline is what the player has been waiting thirty
@@ -5125,7 +5495,10 @@ export class Game {
 
   /** The five-over card, with the strip, the key and the board under it. */
   private showBlastCard(record: boolean, fromMatch = false) {
-    this.hud.end(this.score, this.best, record);
+    // Super10's card is the Blast's in its own colours, with the batting card
+    // and no best of its own to quote yet.
+    if (this.super10) this.hud.endSuper10(this.score, record, this.s10.surged);
+    else this.hud.end(this.score, this.best, record);
     this.hud.matchScorecard(fromMatch);
     // The way to the career card from the innings card. Offered only where a
     // career is actually being kept: a private window counts nothing, so a
@@ -5144,6 +5517,16 @@ export class Game {
     // who play once play once.
     this.hud.offerFeedback({ card: true, cover: this.best > 0 });
     this.offerBoard();
+    // Super10's board, fresh, and the offer asked again once it is here, as the Marathon's is.
+    if (this.super10 && !this.practising) {
+      const innings = this.innings;
+      void fetchSuper10Board(true).then(payload => {
+        if (this.disposed || !payload || this.phase !== 'INNINGS_END' || this.innings !== innings) return;
+        this.super10Seen = true;
+        this.super10Rows = payload.rows;
+        if (!this.hud.claimOpen) this.offerSuper10();
+      });
+    }
   }
   /* ── The match room ────────────────────────────────────────────────── */
 
@@ -5646,21 +6029,28 @@ export class Game {
    */
   private dressingRecord(): DressingRecord {
     if (this.dressingPreview) return this.dressingPreview;
-    const careers = { classic: heldCareer('classic') as BlastCareer, survive: heldCareer('survive') as SurviveCareer, marathon: heldCareer('marathon') as MarathonCareer };
+    const careers = {
+      classic: heldCareer('classic') as BlastCareer, survive: heldCareer('survive') as SurviveCareer,
+      marathon: heldCareer('marathon') as MarathonCareer, super10: heldCareer('super10') as Super10Career,
+    };
     const wins = rivalryEntries().filter(one => one.outcome === 'W');
-    const now = { classic: tierMeasure('classic', careers.classic), survive: tierMeasure('survive', careers.survive), marathon: tierMeasure('marathon', careers.marathon) };
+    const now = {
+      classic: tierMeasure('classic', careers.classic), survive: tierMeasure('survive', careers.survive),
+      marathon: tierMeasure('marathon', careers.marathon), super10: tierMeasure('super10', careers.super10),
+    };
     const held = readDressing();
     const record: DressingRecord = {
       careers,
       rivals: { won: Math.max(wins.length, this.rooms?.record?.won ?? 0), beaten: new Set(wins.map(one => one.them.handle)).size },
-      launch: held.launch ?? now,
+      // Super10 arrived after the room, from nought for everybody, so its launch figure is nought.
+      launch: { ...(held.launch ?? now), super10: 0 },
       welcomed: held.seen.includes(seenKey('bat', WELCOME_BAT)),
     };
     // Earned and known, never shown: won before the room arrived, waiting there
     // for its key. One not yet seen is new, and goes up at the innings' end.
     const got = earned(record);
-    const free = new Set([...FREE_OUTFITS.map(id => seenKey('kit', id)), seenKey('bat', FREE_BAT), seenKey('bat', WELCOME_BAT)]);
-    const waiting = [...got.outfits.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))]
+    const free = new Set([...FREE_OUTFITS.map(id => seenKey('kit', id)), seenKey('kit', FREE_SUPER10), seenKey('bat', FREE_BAT), seenKey('bat', WELCOME_BAT)]);
+    const waiting = [...got.outfits.map(id => seenKey('kit', id)), ...got.super10.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))]
       .filter(key => !free.has(key) && held.seen.includes(key) && !held.shown.includes(key));
     return { ...record, waiting };
   }
@@ -5690,7 +6080,7 @@ export class Game {
       ...held,
       launch: { classic: tierMeasure('classic', careers.classic), survive: tierMeasure('survive', careers.survive), marathon: tierMeasure('marathon', careers.marathon) },
       // What a career already holds when the room arrives is noted, not celebrated: see `freshUnlocks`.
-      seen: held.seen.length ? held.seen : [...got.outfits.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))],
+      seen: held.seen.length ? held.seen : [...got.outfits.map(id => seenKey('kit', id)), ...got.super10.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))],
     });
   }
   private pending: Challenge[] = [];
@@ -5807,9 +6197,23 @@ export class Game {
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
-      pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, pullPen: this.pullPen,
-      mirrored: this.scene.mirrored, look: this.scene.wearing, fieldingKit: this.scene.fieldingKit, chase: this.chase ? { handle: this.chase.handle, mode: this.chase.mode, target: this.chase.target } : null, marathon: this.marathon ? this.marathonState() : null,
+      pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, streak: this.scene.streakShown, pullPen: this.pullPen,
+      mirrored: this.scene.mirrored, look: this.scene.wearing, shirt: this.scene.shirt, fieldingKit: this.scene.fieldingKit, chase: this.chase ? { handle: this.chase.handle, mode: this.chase.mode, target: this.chase.target } : null, marathon: this.marathon ? this.marathonState() : null,
+      super10: this.super10 ? this.super10State() : null,
       standing: this.standing, ease: this.ease };
+  }
+  /** Where a Super10 innings stands, for `super10-check.mjs`. */
+  private super10State() {
+    const over = Math.floor(this.score.balls / SUPER10.ballsPerOver);
+    return {
+      over, batter: super10Batter(this.score.wickets).title, bowler: this.generator.overKind(over),
+      express: !!this.delivery?.express, death: !!this.delivery?.death, action: this.scene.bowlerAction,
+      speed: this.delivery?.speedKph ?? null, windows: this.windows, practising: this.practising,
+      field: this.s10.field && { id: this.s10.field.id, change: this.s10.field.change, bowler: this.s10.field.bowler,
+        deep: this.s10.field.men.filter(m => m.deep).map(m => m.angle) },
+      surge: this.s10.surged, enlarged: this.fieldUi.enlargedOpen,
+      fielder: this.outcome?.fielder ?? null, angle: this.outcome?.angle ?? null, signalling: this.scene.signalling, away: this.scene.fieldAway,
+    };
   }
   /** Where a Marathon innings stands, for `marathon-check.mjs`. */
   private marathonState() {
@@ -5830,7 +6234,7 @@ export class Game {
     onPlayerWritten(null);
     this.stopDressingSends?.(); window.clearTimeout(this.dressingTimer);
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();
-    window.removeEventListener('keydown', this.shortcuts); window.removeEventListener('beforeunload', this.leaving); window.removeEventListener('blur', this.blur); document.removeEventListener('visibilitychange', this.visibility);
+    window.removeEventListener('keydown', this.shortcuts); window.removeEventListener('beforeunload', this.leaving); window.removeEventListener('blur', this.blur); window.removeEventListener('pagehide', this.markQuit); document.removeEventListener('visibilitychange', this.visibility);
   }
 }
 
@@ -5841,7 +6245,7 @@ const SURVIVED = 'Survived all 60 · drew';
 /** `?rate=1`'s keys: the game, then each mode in the order the picker shows them. */
 const RATE_KEYS: readonly { label: string; thing: RatedThing }[] = [
   { label: 'GAME', thing: 'game' }, { label: 'BLAST', thing: 'classic' }, { label: 'MARATHON', thing: 'marathon' },
-  { label: 'SURVIVAL', thing: 'survive' }, { label: 'RIVALS', thing: 'rivals' },
+  { label: 'SURVIVAL', thing: 'survive' }, { label: 'SUPER10', thing: 'super10' }, { label: 'RIVALS', thing: 'rivals' },
 ];
 /** `?levelup=1`'s keys: each rung a player can climb to, in the Blast's card and in the Marathon's green. */
 const LEVEL_UP_KEYS: readonly { label: string; tier: string; mode: CareerMode }[] = [
@@ -5870,16 +6274,16 @@ function previewRecord(scenario: 'new' | 'half' | 'all'): DressingRecord {
     Object.assign(blast, { innings: 30, runs: 4000, balls: 2500, sixes: 182, highest: 112, hundreds: 1 });
     Object.assign(survive, { innings: 20, runs: 900, balls: 640, sixes: 20, wins: 18, draws: 1, losses: 1 });
     Object.assign(marathon, { innings: 6, runs: 900, balls: 1100, sixes: 10, highest: 142, hundreds: 1 });
-    return { careers: { classic: blast, survive, marathon }, rivals: { won: 3, beaten: 2 }, launch: { classic: 4000, survive: 640, marathon: 900 }, welcomed: true };
+    return { careers: { classic: blast, survive, marathon, super10: emptySuper10() }, rivals: { won: 3, beaten: 2 }, launch: { classic: 4000, survive: 640, marathon: 900, super10: 0 }, welcomed: true };
   }
   if (scenario === 'all') {
     Object.assign(blast, { innings: 400, runs: 19000, balls: 12000, sixes: 900, highest: 160, hundreds: 20 });
     Object.assign(survive, { innings: 120, runs: 9000, balls: 5400, sixes: 100, wins: 60, draws: 20, losses: 40 });
     Object.assign(marathon, { innings: 40, runs: 9500, balls: 12000, sixes: 60, highest: 230, hundreds: 12, doubles: 2 });
-    return { careers: { classic: blast, survive, marathon }, rivals: { won: 14, beaten: 7 }, launch: { classic: 0, survive: 0, marathon: 0 }, welcomed: true };
+    return { careers: { classic: blast, survive, marathon, super10: emptySuper10() }, rivals: { won: 14, beaten: 7 }, launch: { classic: 0, survive: 0, marathon: 0, super10: 0 }, welcomed: true };
   }
   // As a new player walks in: Boom waiting on the bat shelf for its key.
-  return { careers: { classic: blast, survive, marathon }, rivals: { won: 0, beaten: 0 }, launch: { classic: 0, survive: 0, marathon: 0 }, welcomed: false };
+  return { careers: { classic: blast, survive, marathon, super10: emptySuper10() }, rivals: { won: 0, beaten: 0 }, launch: { classic: 0, survive: 0, marathon: 0, super10: 0 }, welcomed: false };
 }
 /** `?actions=1`'s keys. */
 /** A `?actions=1` key: one of the things he does after a ball, or the retired-hurt fall. */
@@ -5913,15 +6317,15 @@ const FIREWORKS_MS = { special: 3000, milestone: 3600 } as const;
 const STAR_KEYS = new Set(['Enter', ' ', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
 /** The games by name, as the pause sheet's chip says them. */
 /** What a chase's moments and strip call each mode. */
-const CHASE_MODE_NAMES: Record<CareerMode, string> = { classic: 'The Blast', marathon: 'Test Marathon', survive: 'Test Survival' };
+const CHASE_MODE_NAMES: Record<CareerMode, string> = { classic: 'The Blast', marathon: 'Test Marathon', survive: 'Test Survival', super10: 'Super10' };
 /** The board's name as the rank hero's eyebrow says it. */
-const HERO_MODE: Record<CareerMode, string> = { classic: 'THE BLAST', marathon: 'TEST MARATHON', survive: 'TEST SURVIVAL' };
+const HERO_MODE: Record<CareerMode, string> = { classic: 'THE BLAST', marathon: 'TEST MARATHON', survive: 'TEST SURVIVAL', super10: 'SUPER10' };
 /** `?topspot=1`'s keys: New #1 in each board's colours. */
 const TOP_SPOT_KEYS: readonly { label: string; mode: CareerMode }[] = [
   { label: 'BLAST', mode: 'classic' }, { label: 'MARATHON', mode: 'marathon' }, { label: 'SURVIVAL', mode: 'survive' },
 ];
 
-const PAUSE_NAMES: Record<GameMode, string> = { CLASSIC: 'The Blast', SURVIVE: 'Test Survival', MARATHON: 'Test Marathon' };
+const PAUSE_NAMES: Record<GameMode, string> = { CLASSIC: 'The Blast', SURVIVE: 'Test Survival', MARATHON: 'Test Marathon', SUPER10: 'Super10' };
 const CHEER: Record<Milestone, number> = { fifty: 2.3, raise: 2.3, century: 2.8, 'six-sixes': 2.8, double: 3.1, triple: 3.3, four: 3.5 };
 const MOMENT_SAID: Record<Milestone, string> = {
   fifty: 'Reached fifty', raise: 'Reached another fifty', century: 'Reached a hundred', 'six-sixes': 'Six sixes in a row',

@@ -12,7 +12,9 @@
  * what happened, it just does not move to say it.
  */
 
-export type Film = 'win' | 'lose' | 'draw' | 'waiting' | 'joined' | 'flame' | 'test-marathon' | 'fireworks' | 'player-profiles';
+export type Film = 'win' | 'lose' | 'draw' | 'waiting' | 'joined' | 'flame' | 'test-marathon' | 'fireworks' | 'player-profiles'
+  // The Super10 arena's stings on its big screen (`STINGS` in `scene/arena.ts`).
+  | 'super10-four' | 'super10-six' | 'super10-bowled' | 'super10-out' | 'super10-duck';
 
 export interface Playing {
   /** Takes the film down and frees what it was holding. */
@@ -36,6 +38,22 @@ function loadPainter(): Promise<Painter> {
 
 /** Where the films live. A bare relative path, for the same reason the kits use one. */
 const src = (film: Film) => `lotties/${film}.json`;
+
+/** Films fetched ahead (`prefetchFilms`), as their text: each play parses its own copy, which the player is free to change. */
+const fetched = new Map<Film, Promise<string | null>>();
+/**
+ * Fetches films, and the canvas player, before they are wanted, so the first
+ * play of each starts at once rather than after a download in the middle of
+ * the moment it is for.
+ */
+export function prefetchFilms(films: Film[]) {
+  if (typeof fetch === 'undefined') return;
+  void loadPainter().catch(() => {});
+  for (const film of films) {
+    if (fetched.has(film)) continue;
+    fetched.set(film, fetch(src(film)).then(r => (r.ok ? r.text() : null)).catch(() => { fetched.delete(film); return null; }));
+  }
+}
 
 /**
  * Plays a film into an element. The element is emptied first, so playing a
@@ -71,6 +89,41 @@ export function playFilm(host: HTMLElement, film: Film, options: { loop?: boolea
   };
 }
 
+/** A film built and held still, for its frames to be drawn when they are asked for: see `filmFrames`. */
+export interface Frames {
+  /** How many frames the film has. */
+  readonly total: number;
+  /** Draws one frame into the canvas, cleared first. */
+  show(frame: number): void;
+}
+
+/**
+ * Builds a film into a canvas and holds it still, so that whoever owns it
+ * draws a frame when it wants one rather than lottie's own clock drawing
+ * every frame the film has. Every layer is built here, by drawing the last
+ * frame once and then the first: built at its first play, the screen's first
+ * FOUR of an innings froze a frame while the film was read and put together.
+ * Null if the film cannot be had.
+ */
+export async function filmFrames(context: CanvasRenderingContext2D, film: Film): Promise<Frames | null> {
+  try {
+    const [lottie, text] = await Promise.all([loadPainter(), fetched.get(film) ?? fetch(src(film)).then(r => (r.ok ? r.text() : null))]);
+    if (!text) return null;
+    const animation = lottie.loadAnimation({
+      renderer: 'canvas', loop: false, autoplay: false,
+      animationData: JSON.parse(text),
+      rendererSettings: { context, clearCanvas: true, dpr: 1, preserveAspectRatio: 'xMidYMid meet' },
+    } as Parameters<Painter['loadAnimation']>[0]);
+    if (!animation.isLoaded) await new Promise<void>(done => animation.addEventListener('DOMLoaded', () => done()));
+    const total = Math.round(animation.totalFrames);
+    animation.goToAndStop(total - 1, true);
+    animation.goToAndStop(0, true);
+    return { total, show: frame => animation.goToAndStop(frame, true) };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Plays a film into a canvas of its own, for the ground to hang up as a
  * texture: the fireworks, which go off in the sky behind the stands and so
@@ -80,13 +133,13 @@ export function playFilm(host: HTMLElement, film: Film, options: { loop?: boolea
 export function paintFilm(context: CanvasRenderingContext2D, film: Film, options: { loop?: boolean } = {}): Playing {
   let gone = false;
   let animation: { destroy(): void } | null = null;
-  void loadPainter().then(lottie => {
+  void Promise.all([loadPainter(), fetched.get(film) ?? null]).then(([lottie, text]) => {
     if (gone) return;
     animation = lottie.loadAnimation({
       renderer: 'canvas',
       loop: options.loop ?? false,
       autoplay: true,
-      path: src(film),
+      ...(text ? { animationData: JSON.parse(text) } : { path: src(film) }),
       rendererSettings: { context, clearCanvas: true, dpr: 1, preserveAspectRatio: 'xMidYMid meet' },
     } as Parameters<Painter['loadAnimation']>[0]);
   }).catch(() => { /* No film: an empty sky. */ });

@@ -5,10 +5,18 @@ import {
 import {
   EXPRESS_OVER, MARATHON, BLOCK_OVERS, REVERSE, ROUND, SWING_FROM, SWING_LINES, isReverse, levelAt as marathonLevelAt, levelOf, type Level, type OverKind,
 } from '../config/marathon';
+import { BOWL_TO, DEATH_OVER, KIND, SEAM_LEVEL, SUPER10, SWING_LEVEL, scheduleOf } from '../config/super10';
+import { bookOf, bowlerOf } from './super10-field';
 import { SeededRandom } from './SeededRandom';
 import type { BallLine, Delivery, DeliveryStyle, ShotOutcome } from './types';
 /** The express bowler's over, with how many yorkers it holds left open: a newcomer is bowled none. */
 type ExpressOver = Omit<typeof EXPRESS_OVER, 'yorkers'> & { yorkers: number };
+/** And Super10's death bowler's, the same way. */
+type DeathOver = Omit<typeof DEATH_OVER, 'yorkers'> & { yorkers: number };
+/** What an over is bowled off: the table rolled on, the padding of the flight, and whether it is aimed. */
+export interface Bowled { styles: typeof STYLES; travelScale: number; aimed: boolean }
+/** One ball of the death bowler's plan: what it is, and its own line and pace where they are not the stock ball's. */
+interface DeathBall { style: DeliveryStyle; line?: BallLine; pace?: { min: number; max: number } }
 /** What a mode's bowling is made of: the table to roll on and the two counters. */
 export interface BowlingPlan {
   styles: typeof STYLES;
@@ -55,6 +63,27 @@ export interface BlockPlan {
   /** The level one over is bowled at, where it is not simply its block's. */
   levelAt?(over: number): Level;
   express: ExpressOver;
+  /** The death bowler's over, in a plan that has him: Super10's. */
+  death?: DeathOver;
+  /**
+   * Who bowls every over, when the plan names them rather than drawing them
+   * block by block: Super10's five bowlers, two overs each. Drawn once, up
+   * front, off the seed, where the blocks would have been.
+   */
+  fixed?: (rng: SeededRandom) => OverKind[];
+  /**
+   * An over bowled off another table and at another pace, where the plan says
+   * so: Super10's swing bowler bowls the Marathon swing bowler's balls, at his
+   * speeds and with his time to the bat. Null leaves the plan's own.
+   */
+  bowledAs?: (over: number) => Bowled | null;
+  /**
+   * The lines a bowler bowls to his field, and how much of the over: Super10's
+   * (`BOWL_TO`), by the field the game has set (`field` on the generator),
+   * or his first where none has been. A ball not aimed there is dealt from
+   * the bag as ever.
+   */
+  toField?: (over: number, kind: OverKind | null, field: string | null) => { lines: readonly BallLine[]; share: number } | null;
   /**
    * Which overs are bowled round the wicket: none before `from`, and each one
    * after it with this chance. Absent, every over is bowled over the wicket.
@@ -240,6 +269,32 @@ export const MARATHON_PLAN: BowlingPlan = {
 };
 
 /**
+ * Super10: the Blast's ball and the Blast's table, ten overs of it, with the
+ * five bowlers named over by over (`scheduleOf`). The swing bowler swings it
+ * as the Marathon's does from its sixth over; the seamer bowls the Blast's own
+ * over; the spinner, the sling bowler (the Marathon's express bowler) and the
+ * death bowler each plan theirs at the top of it.
+ */
+export const SUPER10_PLAN: BowlingPlan = {
+  styles: STYLES, specials: SPECIALS, travelScale: GAME.travelScale,
+  spin: { ...CLASSIC_SPIN, ofOvers: SUPER10.overs, ballsPerOver: SUPER10.ballsPerOver },
+  blocks: {
+    size: SUPER10.overs, ofOvers: SUPER10.overs,
+    levelOf: () => SEAM_LEVEL,
+    express: EXPRESS_OVER, death: DEATH_OVER,
+    fixed: rng => scheduleOf(rng).map(bowler => KIND[bowler]),
+  },
+};
+/** Which overs of a Super10 schedule are the swing bowler's: the first and the third, always. */
+const SUPER10_SWING = new Set([0, 2]);
+SUPER10_PLAN.blocks!.levelAt = over => SUPER10_SWING.has(over) ? SWING_LEVEL : SEAM_LEVEL;
+/** And he bowls them as the Marathon's swing bowler does: Survival's table, at its speeds and its time to the bat, aimed. */
+const MARATHON_SWING: Bowled = { styles: SURVIVE_STYLES, travelScale: SURVIVE.travelScale, aimed: true };
+SUPER10_PLAN.blocks!.bowledAs = over => SUPER10_SWING.has(over) ? MARATHON_SWING : null;
+/** Each bowling to his field (`BOWL_TO`): the one set, or the bowler's first for the over. */
+SUPER10_PLAN.blocks!.toField = (over, kind, field) => BOWL_TO[field ?? bookOf(bowlerOf(kind, over), over)[0]] ?? null;
+
+/**
  * Any mode's bowling with no yorker in it, for a newcomer's first innings (see
  * `newcomer.ts`): none owed for a run of sixes, and the express bowler's is a
  * full, fast ball in its place, so his over is every bit as quick. Nothing
@@ -249,7 +304,8 @@ export function withoutYorkers(plan: BowlingPlan): BowlingPlan {
   return {
     ...plan,
     specials: { ...plan.specials, sixesForYorker: Infinity },
-    blocks: plan.blocks && { ...plan.blocks, express: { ...plan.blocks.express, yorkers: 0 } },
+    blocks: plan.blocks && { ...plan.blocks, express: { ...plan.blocks.express, yorkers: 0 },
+      ...(plan.blocks.death ? { death: { ...plan.blocks.death, yorkers: 0 } } : {}) },
   };
 }
 
@@ -411,6 +467,10 @@ export class DeliveryGenerator {
   private reverseOver = -1;
   /** What each ball of the express bowler's over is. Drawn at its top. */
   private expressBalls = new Map<number, DeliveryStyle>();
+  /** And of the death bowler's: the ball, and where it is put and how fast when it is not his stock one. */
+  private deathBalls = new Map<number, DeathBall>();
+  /** The planned ball being bowled now, if he planned it. */
+  private deathBall: DeathBall | null = null;
   private readonly spinning: Set<number>;
   /** Who bowls every over, when the plan is by blocks. Drawn whole, up front. */
   private readonly schedule: OverKind[] = [];
@@ -418,6 +478,12 @@ export class DeliveryGenerator {
   private readonly sides: boolean[] = [];
   /** The nets' bowler and side, standing in for the plan's every over once asked for. */
   private netting: { kind: OverKind; level: Level; round: boolean } | null = null;
+  /**
+   * Super10's field in play, by its id in the field book (`PlanId`), for the
+   * bowler to bowl to: set by the game at the top of each over. Null, he
+   * bowls to his first.
+   */
+  field: string | null = null;
   /** One ball bowled every time, for working on the stroke it is bowled for: `drill`. */
   private drilled: { style: DeliveryStyle; line: BallLine } | null = null;
   constructor(private rng: SeededRandom, private plan: BowlingPlan = CLASSIC_PLAN) {
@@ -429,7 +495,8 @@ export class DeliveryGenerator {
     if (blocks) {
       // Every block now rather than each as it comes, so the draw sits at the
       // same place in the seed's sequence whatever is asked of it on the way.
-      for (let block = 0; block * blocks.size < blocks.ofOvers; block++) {
+      if (blocks.fixed) this.schedule.push(...blocks.fixed(rng));
+      else for (let block = 0; block * blocks.size < blocks.ofOvers; block++) {
         const before = this.schedule[this.schedule.length - 1] === 'EXPRESS';
         this.schedule.push(...drawBlock(blocks.levelOf(block), blocks.size, rng, before));
       }
@@ -484,6 +551,8 @@ export class DeliveryGenerator {
   }
   /** Whether it belongs to the express bowler. */
   get expressOn() { return this.overKind(this.over) === 'EXPRESS'; }
+  /** Whether it belongs to the death bowler. */
+  get deathOn() { return this.overKind(this.over) === 'DEATH' && !!this.plan.blocks?.death; }
   /** Whether over `over` is bowled round the wicket. */
   roundAt(over: number): boolean { return this.netting ? this.netting.round : this.sides[over] ?? false; }
   /** And the ball about to be bowled. */
@@ -497,14 +566,26 @@ export class DeliveryGenerator {
    * dealt it. Answers null for anything the bowler is not aiming, which is most
    * of the over.
    */
+  /** What the over now in progress is bowled off: the plan's own, unless it says another (`bowledAs`). */
+  private get bowledOff(): Bowled {
+    const as = this.netting ? null : this.plan.blocks?.bowledAs?.(this.over);
+    return as ?? { styles: this.plan.styles, travelScale: this.plan.travelScale, aimed: !!this.plan.aimed };
+  }
   private aim(style: DeliveryStyle): BallLine | null {
-    if (!this.plan.aimed) return null;
-    const shape = this.plan.styles[style];
+    const bowled = this.bowledOff;
+    if (!bowled.aimed) return null;
+    const shape = bowled.styles[style];
     if (shape.aimBody && this.rng.next() < shape.aimBody) return this.pick(BODY_LINES);
     if (shape.aimWide && this.rng.next() < shape.aimWide) return this.pick(WIDE_LINES);
     return null;
   }
   private pick(lines: BallLine[]): BallLine { return lines[Math.floor(this.rng.next() * lines.length)]; }
+  /** A ball bowled to the field, where the plan has the bowler do that: see `toField`. */
+  private toField(): BallLine | null {
+    const want = this.netting ? null : this.plan.blocks?.toField?.(this.over, this.overKind(this.over), this.field);
+    if (!want || this.rng.next() >= want.share) return null;
+    return this.pick([...want.lines]);
+  }
   /**
    * Where in the over the ball that goes straight on comes. Placed rather than
    * rolled for, so it is never the whole over and never absent from it — and at
@@ -554,6 +635,26 @@ export class DeliveryGenerator {
     return planned;
   }
   /**
+   * The death bowler's over, planned at the top of it: his yorkers, one of
+   * them often the wide one, the slower ball, and half the time the slower
+   * bouncer, at positions drawn fresh; the rest his stock ball, full and quick.
+   */
+  private placeDeath(death: DeathOver, ballsPerOver: number): Map<number, DeathBall> {
+    const positions = [];
+    for (let ball = 0; ball < ballsPerOver; ball++) positions.push(ball);
+    const order = this.rng.shuffle(positions);
+    const wide = death.yorkers > 0 && this.rng.next() < death.wideChance;
+    const bouncer = this.rng.next() < death.slowBouncerChance;
+    const plan: DeathBall[] = [
+      ...Array.from({ length: death.yorkers }, (_, i): DeathBall => ({ style: 'YORKER', ...(wide && i === 0 ? { line: death.wideLine } : {}) })),
+      { style: 'SLOWER', pace: death.slower },
+      ...(bouncer ? [{ style: 'SHORT', pace: death.slowBouncer } as DeathBall] : []),
+    ];
+    const planned = new Map<number, DeathBall>();
+    plan.slice(0, ballsPerOver).forEach((ball, i) => planned.set(order[i], ball));
+    return planned;
+  }
+  /**
    * Which balls of this over are reverse swing, and which way each goes. The
    * bouncer's ball is not on offer: it was placed first and keeps its place.
    */
@@ -566,8 +667,17 @@ export class DeliveryGenerator {
     return placed;
   }
   private chooseStyle(): DeliveryStyle {
-    const { specials, styles } = this.plan;
-    this.dragging = false;
+    const { specials } = this.plan;
+    const { styles } = this.bowledOff;
+    this.dragging = false; this.deathBall = null;
+    // His over is all his too, as the express bowler's is.
+    if (this.deathOn) {
+      const ballsPerOver = this.plan.spin?.ballsPerOver ?? GAME.ballsPerOver;
+      const ballInOver = this.bowled % ballsPerOver;
+      if (ballInOver === 0) this.deathBalls = this.placeDeath(this.plan.blocks!.death!, ballsPerOver);
+      this.deathBall = this.deathBalls.get(ballInOver) ?? null;
+      return this.deathBall?.style ?? 'FAST';
+    }
     // His over is all his. The owed yorker and the owed change-up wait for the
     // next bowler: he bowls his own of each, and only those.
     if (this.expressOn) {
@@ -654,14 +764,19 @@ export class DeliveryGenerator {
     const swingFrom = this.levelAt(this.over)?.swingShare !== undefined && !this.expressOn
       ? SWING_LINES[style] ?? REVERSE.lines[style] : undefined;
     const line = this.drilled ? this.drilled.line
+      : this.deathBall?.line ? this.deathBall.line
       : turning ? this.pick(turnable(sign, spell!))
       : swingFrom ? this.pick([...swingFrom])
-      : (this.aim(style) ?? this.bag.pop()!);
+      : (this.aim(style) ?? this.toField() ?? this.bag.pop()!);
     if (QUICK_STYLES.includes(style)) this.quick++;
-    const shape = this.plan.styles[style];
+    const bowled = this.bowledOff;
+    const shape = bowled.styles[style];
     const express = this.expressOn;
+    const death = this.deathOn;
     const round = this.roundOn;
-    const pace = express ? style === 'SLOWER' ? this.plan.blocks!.express.slower : this.plan.blocks!.express : shape;
+    const pace = express ? style === 'SLOWER' ? this.plan.blocks!.express.slower : this.plan.blocks!.express
+      : death ? this.deathBall?.pace ?? this.plan.blocks!.death!
+      : shape;
     const speedKph = Math.round(this.rng.range(pace.min, pace.max));
     // A plan by blocks swings it harder as the innings goes on, on the same
     // two deliveries: further, and later in the flight. Survival's level is
@@ -685,13 +800,14 @@ export class DeliveryGenerator {
       : reversing ? clampX(LINE_X[line] + movement, LINE_X.OUTSIDE_OFF)
       : swung ? clampX(LINE_X[line] + movement, LINE_X.OUTSIDE_OFF + GAME.movement)
       : LINE_X[line] + movement;
-    const durationMs = (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * this.plan.travelScale * (shape.rush ?? 1);
+    const durationMs = (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * bowled.travelScale * (shape.rush ?? 1);
     this.bowled++;
     return { line, style, speedKph, baseTargetX: LINE_X[line], finalTargetX,
       bounceZ: dragged ? DRAGGED.bounce : shape.bounce ?? GAME.bounceZ, rise: dragged ? DRAGGED.rise : shape.rise ?? GAME.rise,
       durationMs, releaseTimeMs, idealContactTimeMs: releaseTimeMs + durationMs,
       ...(swung && level!.late ? { late: level!.late } : {}),
       ...(express ? { express: true } : {}),
+      ...(death ? { death: true } : {}),
       ...(round ? { round: true } : {}),
       ...(dragged ? { dragged: true } : {}) };
   }

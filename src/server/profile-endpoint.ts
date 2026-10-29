@@ -4,9 +4,10 @@ import {
 } from './board-store.js';
 import type { CareerStore } from './career-store.js';
 import {
-  BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, type BlastCareer, type CareerLadder, type MarathonCareer,
-  type SurviveCareer,
+  BLAST_CAREER, MARATHON_CAREER, SUPER10_CAREER, SURVIVE_CAREER, type BlastCareer, type CareerLadder, type MarathonCareer,
+  type Super10Career, type SurviveCareer,
 } from '../game/career.js';
+import type { Super10Innings } from '../game/super10-board.js';
 import type { Granted } from '../game/tier.js';
 import type { Innings } from '../game/leaderboard.js';
 import type { SurviveInnings } from '../game/survive-board.js';
@@ -42,11 +43,13 @@ export interface ProfileStores {
     survive: BoardStore<SurviveInnings>;
     team: BoardStore<TeamInnings>;
     solo: BoardStore<SoloInnings>;
+    super10: BoardStore<Super10Innings>;
   };
   careers: {
     classic: CareerStore<BlastCareer>;
     survive: CareerStore<SurviveCareer>;
     marathon: CareerStore<MarathonCareer>;
+    super10: CareerStore<Super10Career>;
   };
 }
 
@@ -74,6 +77,7 @@ export interface ProfilePayload {
     classic: ProfileModeView<BlastCareer>;
     survive: ProfileModeView<SurviveCareer>;
     marathon: ProfileModeView<MarathonCareer>;
+    super10: ProfileModeView<Super10Career>;
   };
 }
 
@@ -141,13 +145,14 @@ export async function readProfile(
   const id = await stores.players.idOf(handle) ?? await findHandle(stores, handle);
   if (!id) return null;
   const { boards, careers } = stores;
-  const [classic, survive, marathon, bio] = await Promise.all([
+  const [classic, survive, marathon, super10, bio] = await Promise.all([
     modeView(careers.classic, BLAST_CAREER, [boards.classic], id),
     modeView(careers.survive, SURVIVE_CAREER, [boards.survive], id, row => surviveResultOf(row as unknown as SurviveInnings)),
     modeView(careers.marathon, MARATHON_CAREER, [boards.team, boards.solo], id),
+    modeView(careers.super10, SUPER10_CAREER, [boards.super10], id),
     stores.players.readBio(id),
   ]);
-  const held = [classic, survive, marathon].map(one => one.held);
+  const held = [classic, survive, marathon, super10].map(one => one.held);
   const named = held.find(one => one?.name) ?? null;
   const row = named ? null : await firstRow(stores, id);
   const name = named?.name ?? row?.name ?? '';
@@ -157,7 +162,7 @@ export async function readProfile(
   return {
     handle, name, avatar: named?.avatar ?? row?.avatar ?? 0, bio: bio?.text ?? null,
     lastAt: at.length ? Math.max(...at) : null,
-    modes: { classic: classic.view, survive: survive.view, marathon: marathon.view },
+    modes: { classic: classic.view, survive: survive.view, marathon: marathon.view, super10: super10.view },
   };
 }
 
@@ -175,10 +180,11 @@ export const FIND_DEPTH = 50;
 export async function findHandle(stores: ProfileStores, handle: string): Promise<string | null> {
   const { boards, careers } = stores;
   const tops = await Promise.all([
-    ...[boards.classic, boards.survive, boards.team, boards.solo].map(board => (board as Pick<BoardStore<unknown>, 'top'>).top(FIND_DEPTH)),
+    ...[boards.classic, boards.survive, boards.team, boards.solo, boards.super10].map(board => (board as Pick<BoardStore<unknown>, 'top'>).top(FIND_DEPTH)),
     ...BLAST_CAREER.boards.map(board => careers.classic.top(board.key, FIND_DEPTH)),
     ...SURVIVE_CAREER.boards.map(board => careers.survive.top(board.key, FIND_DEPTH)),
     ...MARATHON_CAREER.boards.map(board => careers.marathon.top(board.key, FIND_DEPTH)),
+    ...SUPER10_CAREER.boards.map(board => careers.super10.top(board.key, FIND_DEPTH)),
   ]);
   const seen = new Set<string>();
   for (const top of tops) {
@@ -222,7 +228,7 @@ async function modeView<C, T>(
 
 /** A name and kit off the boards, for a player whose careers carry none. */
 async function firstRow(stores: ProfileStores, id: string) {
-  for (const board of [stores.boards.classic, stores.boards.survive, stores.boards.team, stores.boards.solo] as Pick<BoardStore<unknown>, 'rows'>[]) {
+  for (const board of [stores.boards.classic, stores.boards.survive, stores.boards.team, stores.boards.solo, stores.boards.super10] as Pick<BoardStore<unknown>, 'rows'>[]) {
     const [row] = await board.rows([id]);
     if (row) return row;
   }
@@ -235,7 +241,7 @@ async function holdsName(stores: ProfileStores, playerId: string, name: unknown)
   return !!clean && await stores.boards.classic.nameOwner(foldName(clean)) === playerId;
 }
 
-const BOARD_OF = { classic: 'classic', survive: 'survive', marathon: 'team' } as const;
+const BOARD_OF = { classic: 'classic', survive: 'survive', marathon: 'team', super10: 'super10' } as const;
 
 /**
  * Your own activity, and for each player who beat you in a chase whether you

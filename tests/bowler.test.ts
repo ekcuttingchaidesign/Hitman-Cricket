@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { ACTION_MS, Bowler, EXPRESS_ACTION, PACE_ACTION, PHASES, RELEASE_Z, RUNUP_START_Z, type ActionStyle } from '../src/entities/Bowler';
+import { ACTION_MS, Bowler, DEATH_ACTION, loopDrop, EXPRESS_ACTION, PACE_ACTION, PHASES, RELEASE_Z, RUNUP_START_Z, type ActionStyle } from '../src/entities/Bowler';
 import { Cricketer } from '../src/entities/Cricketer';
 import { GAME } from '../src/config/gameplay';
 import { ballPosition } from '../src/game/DeliveryTrajectory';
@@ -22,7 +22,7 @@ const POPPING_CREASE = 18.7 - GAME.creaseZ;
  * same moment, the arm is as straight, and no limb is let past its length —
  * so every test of the action is a test of both.
  */
-const ACTIONS: [string, ActionStyle][] = [['the fast bowler', PACE_ACTION], ['the express bowler', EXPRESS_ACTION]];
+const ACTIONS: [string, ActionStyle][] = [['the fast bowler', PACE_ACTION], ['the express bowler', EXPRESS_ACTION], ['the death bowler', DEATH_ACTION]];
 
 describe.each(ACTIONS)('the bowling action — %s', (_, style) => {
   beforeEach(() => bowler.action(style));
@@ -60,15 +60,22 @@ describe.each(ACTIONS)('the bowling action — %s', (_, style) => {
       // ever dropping back, all the way to the top of the circle. Sampled finely,
       // because the sweep accelerates — most of the arc is in the last of it, and
       // a coarse grid misses the top entirely.
+      // An arm that looped up before the leap (the death bowler's) holds high
+      // through it and drops back behind him first: its one climb over the top
+      // starts from there.
+      const from = style.loop ? loopDrop(style) : PHASES.BACK_FOOT;
       const steps = 400;
       const heights = Array.from({ length: steps + 1 }, (_, i) =>
-        at(PHASES.BACK_FOOT + (1 - PHASES.BACK_FOOT) * (i / steps)).hands[1][1]);
+        at(from + (1 - from) * (i / steps)).hands[1][1]);
       const apex = heights.indexOf(Math.max(...heights));
       // To a tenth of a millimetre: an arm hanging straight down, as the express
     // bowler's does, climbs from a standstill, and the body settling under it
     // can outweigh the first instant of the climb by less than that.
     for (let i = 1; i <= apex; i++) expect(heights[i]).toBeGreaterThan(heights[i - 1] - 1e-4);
-      expect(heights[0]).toBeLessThan(1.2);
+      // Low at the gather, or for the looped arm back behind his shoulder, well
+      // under the top of the circle.
+      if (style.loop) expect(heights[0]).toBeLessThan(heights[apex] - .5);
+      else expect(heights[0]).toBeLessThan(1.2);
       // Release is the far side of the top — a ball let go at the very apex is one
       // that has not been bowled over the top of the arm at all — so the hand is a
       // shade below its highest point by the time the ball goes, and the top is
@@ -80,7 +87,7 @@ describe.each(ACTIONS)('the bowling action — %s', (_, style) => {
       // And behind him before it comes over: the hand is back past his hips.
       // Measured from the hips rather than the chest, which an action that
       // arches away from the target carries back with it.
-      const gather = at(.74);
+      const gather = at(style.loop ? loopDrop(style) : .74);
       expect(gather.hands[1][2]).toBeGreaterThan(gather.hip[2] + .3);
     });
 
@@ -160,8 +167,10 @@ describe.each(ACTIONS)('the bowling action — %s', (_, style) => {
     });
 
     it('runs in from the top of a mark and lands the front foot behind the crease', () => {
+      // From the top of his own mark: the death bowler's run is shorter than
+      // the fast bowler's, and everybody's ends in the same place.
       bowler.runup(0);
-      expect(bowler.root.position.z).toBeCloseTo(RUNUP_START_Z, 5);
+      expect(bowler.root.position.z).toBeCloseTo(style.run ? style.run.startZ : RUNUP_START_Z, 5);
       bowler.runup(1);
       expect(bowler.root.position.z).toBeCloseTo(RELEASE_Z, 5);
       // Landing in front of the popping crease is a no-ball, and the game has no

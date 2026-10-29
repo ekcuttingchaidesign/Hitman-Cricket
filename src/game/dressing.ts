@@ -1,5 +1,6 @@
-import type { BlastCareer, CareerMode, MarathonCareer, SurviveCareer } from './career';
+import type { BlastCareer, CareerMode, MarathonCareer, Super10Career, SurviveCareer } from './career';
 import { TIERS, tierMeasure } from './tier';
+import { SUPER10_KITS, SUPER10_KIT_IDS, SUPER10_LADDER, type Super10Kit, type Super10KitId } from './super10-kits';
 
 /**
  * The Dressing Room's shelves: seven kits and twelve bats.
@@ -88,7 +89,7 @@ export const outfitOf = (id: string | null | undefined): Outfit => OUTFITS.find(
 export const batOf = (id: string | null | undefined): BatSkin => BATS.find(b => b.id === id) ?? BATS.find(b => b.id === FREE_BAT)!;
 
 /** The game a step is played in, for the key under the list. */
-export type StepMode = 'blast' | 'survival' | 'marathon' | 'rivals';
+export type StepMode = 'blast' | 'survival' | 'marathon' | 'super10' | 'rivals';
 
 /**
  * One line of what an item takes. `best`: `now` is the best score so far, for
@@ -99,7 +100,7 @@ export interface Step { text: string; now: number; of: number; best?: true; mode
 
 /** Everything an unlock is read off. */
 export interface DressingRecord {
-  careers: { classic: BlastCareer; survive: SurviveCareer; marathon: MarathonCareer };
+  careers: { classic: BlastCareer; survive: SurviveCareer; marathon: MarathonCareer; super10: Super10Career };
   /** Rival Matches won, and how many different players were beaten in them. */
   rivals: { won: number; beaten: number };
   /**
@@ -118,16 +119,17 @@ export interface DressingRecord {
   waiting?: readonly string[];
 }
 
+/** The modes a Dressing Room goal can be set in: Super10's kits are its own (`super10-kits.ts`), and its runs, sixes and innings count toward the rest below. */
 const MODES: readonly CareerMode[] = ['classic', 'survive', 'marathon'];
-const STEP_MODE: Record<CareerMode, StepMode> = { classic: 'blast', survive: 'survival', marathon: 'marathon' };
-const MODE_NAME: Record<CareerMode, string> = { classic: 'the Blast', survive: 'Test Survival', marathon: 'Test Marathon' };
+const STEP_MODE: Record<CareerMode, StepMode> = { classic: 'blast', survive: 'survival', marathon: 'marathon', super10: 'super10' };
+const MODE_NAME: Record<CareerMode, string> = { classic: 'the Blast', survive: 'Test Survival', marathon: 'Test Marathon', super10: 'Super10' };
 const at = (key: string, mode: CareerMode) => TIERS.find(t => t.key === key)!.at[mode];
 const measure = (r: DressingRecord, mode: CareerMode) => Math.max(0, Math.floor(tierMeasure(mode, r.careers[mode])));
 /** How far past launch a mode's figure has come. */
 const since = (r: DressingRecord, mode: CareerMode) => Math.max(0, measure(r, mode) - Math.max(0, r.launch[mode] ?? 0));
-const innings = (r: DressingRecord) => r.careers.classic.innings + r.careers.survive.innings + r.careers.marathon.innings;
-const sixes = (r: DressingRecord) => r.careers.classic.sixes + r.careers.survive.sixes + r.careers.marathon.sixes;
-const runs = (r: DressingRecord) => r.careers.classic.runs + r.careers.survive.runs + r.careers.marathon.runs;
+const innings = (r: DressingRecord) => r.careers.classic.innings + r.careers.survive.innings + r.careers.marathon.innings + r.careers.super10.innings;
+const sixes = (r: DressingRecord) => r.careers.classic.sixes + r.careers.survive.sixes + r.careers.marathon.sixes + r.careers.super10.sixes;
+const runs = (r: DressingRecord) => r.careers.classic.runs + r.careers.survive.runs + r.careers.marathon.runs + r.careers.super10.runs;
 
 export const done = (s: Step) => s.now >= s.of;
 /** How far along a list is, all its lines together, nought to one. */
@@ -197,12 +199,53 @@ export function batSteps(id: BatId, r: DressingRecord): Step[] | null {
   }
 }
 
+/**
+ * What a Super10 kit takes (`SUPER10_LADDER`), every figure a team total off
+ * the Super10 career; null for the Midnight Panthers, everybody's.
+ */
+export function super10Steps(id: Super10KitId, r: DressingRecord): Step[] | null {
+  const target = SUPER10_LADDER[id], c = r.careers.super10;
+  if (!target) return null;
+  const n = (figure: number) => figure.toLocaleString('en-IN');
+  const steps: Step[] = [];
+  if (target.innings) steps.push({ text: `Play ${n(target.innings)} Super10 innings`, now: c.innings, of: target.innings, mode: 'super10' });
+  if (target.hundreds) steps.push({ text: `Make 100 or more in ${n(target.hundreds)} Super10 innings`, now: c.hundreds, of: target.hundreds, mode: 'super10' });
+  if (target.best) steps.push({ text: `Make ${n(target.best)} in a Super10 innings`, now: c.highest, of: target.best, best: true, mode: 'super10' });
+  if (target.sixes) steps.push({ text: `Hit ${n(target.sixes)} sixes in Super10`, now: c.sixes, of: target.sixes, mode: 'super10' });
+  if (target.runs) steps.push({ text: `Score ${n(target.runs)} runs in Super10`, now: c.runs, of: target.runs, mode: 'super10' });
+  return steps;
+}
+
+/** A kit on the kit shelf: one of the room's own, or a Super10 team's. */
+export type KitId = OutfitId | Super10KitId;
+export const isSuper10Kit = (id: unknown): id is Super10KitId => typeof id === 'string' && (SUPER10_KIT_IDS as readonly string[]).includes(id);
+export const super10KitOf = (id: string | null | undefined): Super10Kit => SUPER10_KITS.find(kit => kit.id === id) ?? SUPER10_KITS[0];
+/** The Super10 kit everybody has: no target, never celebrated. */
+export const FREE_SUPER10: Super10KitId = 's10-purple';
+/** What a kit on the kit shelf takes, whichever kind it is. */
+export const kitSteps = (id: KitId, r: DressingRecord) => isSuper10Kit(id) ? super10Steps(id, r) : outfitSteps(id, r);
+
 export const outfitOwned = (id: OutfitId, r: DressingRecord) => (outfitSteps(id, r) ?? []).every(done);
 export const batOwned = (id: BatId, r: DressingRecord) => (batSteps(id, r) ?? []).every(done);
+export const super10Owned = (id: Super10KitId, r: DressingRecord) => (super10Steps(id, r) ?? []).every(done);
 
-/** Everything on both shelves this record has earned, the free ones included. */
-export function earned(r: DressingRecord): { outfits: OutfitId[]; bats: BatId[] } {
-  return { outfits: OUTFITS.filter(o => outfitOwned(o.id, r)).map(o => o.id), bats: BATS.filter(b => batOwned(b.id, r)).map(b => b.id) };
+/** Everything on the shelves this record has earned, the free ones included. */
+export function earned(r: DressingRecord): { outfits: OutfitId[]; bats: BatId[]; super10: Super10KitId[] } {
+  return {
+    outfits: OUTFITS.filter(o => outfitOwned(o.id, r)).map(o => o.id), bats: BATS.filter(b => batOwned(b.id, r)).map(b => b.id),
+    super10: SUPER10_KITS.filter(kit => super10Owned(kit.id, r)).map(kit => kit.id),
+  };
+}
+
+/**
+ * The kit a Super10 innings is batted in: the one picked for Super10 in the
+ * room while it is still earned, or else any earned one at random — the
+ * Panthers alone for a new player. `random` is nought to one.
+ */
+export function super10KitFor(pick: Super10KitId | null | undefined, r: DressingRecord, random: number): Super10Kit {
+  if (pick && super10Owned(pick, r)) return super10KitOf(pick);
+  const owned = earned(r).super10;
+  return super10KitOf(owned[Math.min(owned.length - 1, Math.floor(random * owned.length))]);
 }
 
 /** The locked one on a shelf nearest done, for Next up; null once the shelf is full. */

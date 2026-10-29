@@ -57,6 +57,61 @@ export function overChartMarkup(history: readonly ChartBall[], totalBalls: numbe
     + `<div class="ec-columns" role="img" aria-label="Runs over by over">${columns}</div>`;
 }
 
+/** Super10's three phases, by the over counted from one: the Powerplay's three, the middle's four, the death's three. */
+export function super10Phase(over: number): 'powerplay' | 'middle' | 'death' {
+  return over <= 3 ? 'powerplay' : over <= 7 ? 'middle' : 'death';
+}
+
+const BOLT = '<svg class="ec-bolt" viewBox="0 0 12 12" aria-hidden="true"><path d="M7 .5 1.5 7H6l-1 4.5L10.5 5H6z"/></svg>';
+
+/**
+ * Super10's over by over, in its own colours: ten overs of six bars, narrower
+ * than the Blast's five so the ten fit the same width, each over's runs over
+ * its number, the number in its phase's colour (the Powerplay Volt, the middle
+ * violet, the death white, as Super10's page draws the innings), and a gold
+ * bolt over the over Power Surge was taken in.
+ */
+export function super10ChartMarkup(history: readonly ChartBall[], totalBalls: number, surge: number | null, perOver = 6): string {
+  const overs = Math.ceil(totalBalls / perOver);
+  const columns = Array.from({ length: overs }, (_, over) => {
+    const balls = Array.from({ length: perOver }, (_, i) => history[over * perOver + i]);
+    const runs = balls.reduce((sum, ball) => sum + (ball && !ball.isWicket ? ball.runs : 0), 0);
+    const faced = balls.some(Boolean);
+    const bars = balls.map(ball => ball
+      ? `<i class="ec-bar is-${barKind(ball)}" style="--h:${barHeight(ball)}"></i>`
+      : '<i class="ec-bar is-unfaced"></i>').join('');
+    return `<div class="ec-over is-${super10Phase(over + 1)}${faced ? '' : ' is-unbowled'}${surge === over ? ' is-surge' : ''}">`
+      + `${surge === over ? BOLT : ''}<div class="ec-bars">${bars}</div>`
+      + `<div class="ec-over-label"><b>${faced ? runs : ''}</b><span>${over + 1}</span></div></div>`;
+  }).join('');
+  return `<div class="ec-chart-head">${icon('chart')}<span class="ec-chart-title">Over by over</span>`
+    + '<span class="ec-key"><i class="is-six"></i>6</span><span class="ec-key"><i class="is-four"></i>4</span><span class="ec-key"><i class="is-out"></i>Wicket</span>'
+    + `${surge !== null ? `<span class="ec-key is-surge">${BOLT}Surge</span>` : ''}</div>`
+    + `<div class="ec-columns is-ten" role="img" aria-label="Runs over by over">${columns}</div>`;
+}
+
+/**
+ * Who made what, off the balls alone, for an innings whose batters come in
+ * one a wicket in a fixed order (Super10's five): each ball is the man in's
+ * until he is out, and the next is listed once he faces a ball, so a wicket
+ * with the last ball of the innings sends nobody out after it. The last man
+ * in is not out unless the innings ended all out on him.
+ */
+export function battingOf(history: readonly ChartBall[], titles: readonly string[]): BattingRow[] {
+  const rows: BattingRow[] = [];
+  let wickets = 0;
+  for (const ball of history) {
+    const at = Math.min(wickets, titles.length - 1);
+    const row = rows[at] ??= { title: titles[at], left: false, runs: 0, balls: 0, fours: 0, sixes: 0, notOut: true };
+    row.balls++;
+    if (ball.isWicket) { row.notOut = false; wickets++; continue; }
+    row.runs += ball.runs;
+    if (ball.runs === 4) row.fours++;
+    if (ball.runs >= 6) row.sixes++;
+  }
+  return rows;
+}
+
 /** A wicket on the worm: the ball it fell on. */
 export interface WormFall {
   ball: number;
@@ -113,6 +168,8 @@ export interface BattingRow {
   balls: number;
   fours: number;
   sixes: number;
+  /** Marked with a star by the runs, as a scorecard marks a man still in. Only Super10's card says so. */
+  notOut?: boolean;
 }
 
 /** The milestone a score reached, for the chip beside the name: 50, 100, 200 and on. */
@@ -136,7 +193,7 @@ export function battingCardMarkup(batters: readonly BattingRow[]): string {
     const chip = milestoneChip(b.runs);
     return `<tr><th scope="row"><span class="ec-bat-n">${i + 1}</span><span class="ec-bat-name">${b.title}</span>`
       + `${b.left ? '<i class="ec-chip">LH</i>' : ''}${chip ? `<i class="ec-chip is-milestone${b.runs >= 100 ? ' is-ton' : ''}">${chip}</i>` : ''}</th>`
-      + `<td class="is-runs">${b.runs}</td><td>${b.balls}</td><td>${b.fours}</td><td>${b.sixes}</td></tr>`;
+      + `<td class="is-runs">${b.runs}${b.notOut ? '<i class="ec-not-out">*</i>' : ''}</td><td>${b.balls}</td><td>${b.fours}</td><td>${b.sixes}</td></tr>`;
   }).join('');
   return `<table class="ec-batting"><thead><tr><th scope="col">BATTING</th><th scope="col" class="is-runs">R</th><th scope="col">B</th><th scope="col">4s</th><th scope="col">6s</th></tr></thead><tbody>${rows}</tbody></table>`;
 }

@@ -1,11 +1,12 @@
 import { cta, icon, iconButton } from './Kit';
 import { escape } from './Leaderboard';
 import {
-  BATS, OUTFITS, batSteps, done, nextUp, outfitSteps, ready, shareOf,
-  type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId, type Step, type StepMode,
+  BATS, OUTFITS, batSteps, done, isSuper10Kit, kitSteps, nextUp, ready, shareOf,
+  type BatId, type BatSkin, type DressingRecord, type KitId, type Outfit, type OutfitId, type Step, type StepMode,
 } from '../game/dressing';
-import type { DressingStage } from '../scene/DressingStage';
+import type { DressingStage, StageKit } from '../scene/DressingStage';
 import { GLOVES, gloveOf, type GloveDesign, type GuardId } from '../entities/gloves';
+import { SUPER10_KITS, type Super10Kit, type Super10KitId } from '../game/super10-kits';
 
 /**
  * The Dressing Room: the batter on his pedestal, the shelf of kits or bats
@@ -18,38 +19,59 @@ import { GLOVES, gloveOf, type GloveDesign, type GuardId } from '../entities/glo
  * bat; a locked one's key plays the game its next line is won in. The guard
  * — the gloves and the pads in one colourway — is a third shelf with nothing
  * to earn: every one is free to wear.
+ *
+ * Where Super10 is played, its six teams' kits stand at the foot of the kit
+ * shelf, each tagged S10: earned off the Super10 career alone and worn in
+ * Super10 alone, so wearing one there changes nothing about the kit he wears
+ * in the other modes.
  */
 export type Shelf = 'kit' | 'bat' | 'guard';
 
 export interface DressingView {
   shelf: Shelf;
   /** What is picked on each shelf: on show, not necessarily worn. */
-  kit: OutfitId; bat: BatId; guard: GuardId;
+  kit: KitId; bat: BatId; guard: GuardId;
   /** What the batter goes out in. */
   wearing: OutfitId; holding: BatId; wearingGuard: GuardId;
+  /** The Super10 kit picked for Super10, if one is: with none, a Super10 innings draws one of those earned. */
+  wearingSuper10: Super10KitId | null;
+  /** Whether Super10's kits are on the kit shelf: only where Super10 is played. */
+  super10: boolean;
   record: DressingRecord;
   /** The shelf's small pictures, `kit:home` to `bat:hitman`, once they are drawn. */
   pictures: Record<string, string>;
 }
 
 /** The key for a locked item: the game its first open line is played in. */
-export const PLAY: Record<StepMode, string> = { blast: 'PLAY THE BLAST', survival: 'PLAY TEST SURVIVAL', marathon: 'PLAY TEST MARATHON', rivals: 'START A RIVAL MATCH' };
+export const PLAY: Record<StepMode, string> = { blast: 'PLAY THE BLAST', survival: 'PLAY TEST SURVIVAL', marathon: 'PLAY TEST MARATHON', super10: 'PLAY SUPER10', rivals: 'START A RIVAL MATCH' };
 
 const fmt = (n: number) => Math.floor(n).toLocaleString('en-IN');
 const TICK = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M4.6 8.3l2.2 2.2 4.6-4.8" fill="none" stroke="#0B0F14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const OPEN = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>';
 const LOCK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 7V5.5a3 3 0 0 1 6 0V7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><rect x="3.5" y="7" width="9" height="6.5" rx="1.6" fill="currentColor"/></svg>';
 
+/** The kit shelf: the room's own, then Super10's where it is played. */
+const kitsOf = (super10: boolean): readonly StageKit[] => super10 ? [...OUTFITS, ...SUPER10_KITS] : OUTFITS;
+const kitOf = (id: string): StageKit => (isSuper10Kit(id) ? SUPER10_KITS : OUTFITS).find(one => one.id === id) ?? OUTFITS[0];
 const stepsOf = (shelf: Shelf, id: string, record: DressingRecord) =>
-  shelf === 'kit' ? outfitSteps(id as OutfitId, record) : shelf === 'bat' ? batSteps(id as BatId, record) : null;
-const itemOf = (shelf: Shelf, id: string): Outfit | BatSkin | GloveDesign =>
-  shelf === 'guard' ? gloveOf(id) : (shelf === 'kit' ? OUTFITS : BATS).find(one => one.id === id)!;
-const idsOf = (shelf: Shelf): readonly string[] => shelf === 'kit' ? OUTFITS.map(o => o.id) : shelf === 'bat' ? BATS.map(b => b.id) : GLOVES.map(g => g.id);
+  shelf === 'kit' ? kitSteps(id as KitId, record) : shelf === 'bat' ? batSteps(id as BatId, record) : null;
+const itemOf = (shelf: Shelf, id: string): Outfit | Super10Kit | BatSkin | GloveDesign =>
+  shelf === 'guard' ? gloveOf(id) : shelf === 'kit' ? kitOf(id) : BATS.find(one => one.id === id)!;
+const idsOf = (shelf: Shelf, view: DressingView): readonly string[] =>
+  shelf === 'kit' ? kitsOf(view.super10).map(o => o.id) : shelf === 'bat' ? BATS.map(b => b.id) : GLOVES.map(g => g.id);
 const pickedOn = (view: DressingView) => view.shelf === 'kit' ? view.kit : view.shelf === 'bat' ? view.bat : view.guard;
-const wornOn = (view: DressingView) => view.shelf === 'kit' ? view.wearing : view.shelf === 'bat' ? view.holding : view.wearingGuard;
+/** What is worn in the place the one picked would be: a Super10 kit stands against the Super10 pick, not the kit worn everywhere else. */
+const wornFor = (view: DressingView, id: string) =>
+  view.shelf === 'kit' ? (isSuper10Kit(id) ? view.wearingSuper10 : view.wearing) : view.shelf === 'bat' ? view.holding : view.wearingGuard;
+const wornOn = (view: DressingView) => wornFor(view, pickedOn(view));
+/** The tag on a Super10 kit's tile, and the line over its foot. */
+const S10_TAG = '<span class="dr-s10" aria-hidden="true">S10</span>';
+const ONLY_IN_SUPER10 = '<span class="dr-only">Only in Super10</span>';
 /** Something waits in the room only on the kit and bat shelves; nothing on the guard's is earned. */
 const waits = (shelf: Shelf, id: string, record: DressingRecord) => shelf !== 'guard' && ready(shelf, id, record);
 const WEAR: Record<Shelf, [string, string]> = { kit: ['WEAR IT', 'WEARING'], bat: ['PICK IT UP', 'IN HAND'], guard: ['WEAR IT', 'WEARING'] };
+const WEAR_SUPER10: [string, string] = ['WEAR IN SUPER10', 'WEARING IN SUPER10'];
+const wearOf = (shelf: Shelf, id: string) => shelf === 'kit' && isSuper10Kit(id) ? WEAR_SUPER10 : WEAR[shelf];
 
 /** The screen's frame, drawn once; its parts are filled by `DressingRoom.draw`. */
 export function dressingMarkup(): string {
@@ -68,16 +90,17 @@ export function dressingMarkup(): string {
 
 /** The shelf: a tile a kit or bat, the picture and a lock or a tick, nothing else. */
 export function shelfMarkup(view: DressingView): string {
-  const ids = idsOf(view.shelf), picked = pickedOn(view), worn = wornOn(view);
+  const ids = idsOf(view.shelf, view), picked = pickedOn(view);
   return ids.map(id => {
+    const worn = wornFor(view, id), super10 = view.shelf === 'kit' && isSuper10Kit(id);
     const item = itemOf(view.shelf, id), owned = (stepsOf(view.shelf, id, view.record) ?? []).every(done), waiting = waits(view.shelf, id, view.record);
     const picture = view.pictures[`${view.shelf}:${id}`];
     // One waiting to be unlocked has a dot where the lock would be, and a light round it: tap me.
     const badge = waiting ? '<span class="dr-badge is-ready" aria-hidden="true"></span>'
       : id === worn ? `<span class="dr-badge is-on" aria-hidden="true">${TICK}</span>` : owned ? ''
       : `<span class="dr-badge is-lock" aria-hidden="true">${LOCK}</span>`;
-    return `<button type="button" role="listitem" class="dr-item${id === picked ? ' is-picked' : ''}${owned ? '' : ' is-locked'}${waiting ? ' is-ready' : ''}" data-id="${id}" aria-pressed="${id === picked}" aria-label="${escape(item.name)}${waiting ? ', ready to unlock' : owned ? '' : ', locked'}${id === worn ? ', on' : ''}">`
-      + `${picture ? `<img src="${picture}" alt="">` : '<i class="dr-item-blank"></i>'}${badge}</button>`;
+    return `<button type="button" role="listitem" class="dr-item${id === picked ? ' is-picked' : ''}${owned ? '' : ' is-locked'}${waiting ? ' is-ready' : ''}" data-id="${id}" aria-pressed="${id === picked}" aria-label="${escape(item.name)}${super10 ? ', only in Super10' : ''}${waiting ? ', ready to unlock' : owned ? '' : ', locked'}${id === worn ? ', on' : ''}">`
+      + `${picture ? `<img src="${picture}" alt="">` : '<i class="dr-item-blank"></i>'}${super10 ? S10_TAG : ''}${badge}</button>`;
   }).join('');
 }
 
@@ -93,13 +116,15 @@ export function footMarkup(view: DressingView): string {
   const { shelf, record } = view;
   const id = pickedOn(view), item = itemOf(shelf, id);
   const steps = stepsOf(shelf, id, record);
+  const only = shelf === 'kit' && isSuper10Kit(id) ? ONLY_IN_SUPER10 : '';
+  const eye = (text: string, ready = false) => `<span class="dr-eyes"><span class="dr-eye${ready ? ' dr-eye-ready' : ''}">${text}</span>${only}</span>`;
   // Waiting in the room, earned or not: nothing to play for, only its key.
   if (waits(shelf, id, record))
-    return `<div class="dr-had"><span class="dr-eye dr-eye-ready">Ready to unlock</span><p>${escape(item.line)}</p></div>`
+    return `<div class="dr-had">${eye('Ready to unlock', true)}<p>${escape(item.line)}</p></div>`
       + cta({ kind: 'primary', label: `UNLOCK ${item.name.toUpperCase()}`, id: 'dressing-key', wide: true, moving: true });
   if (!steps || steps.every(done)) {
     const on = id === wornOn(view);
-    const ids = idsOf(shelf);
+    const ids = idsOf(shelf, view);
     // One waiting to be unlocked comes before anything still to be played for.
     const waiting = ids.find(one => waits(shelf, one, record));
     const next = waiting ?? nextUp<string>(ids, one => stepsOf(shelf, one, record));
@@ -113,9 +138,9 @@ export function footMarkup(view: DressingView): string {
         + `<span class="dr-next-value">${waiting ? '' : valueOf(line)}</span>${icon('chevron-right')}</button>`;
     }
     const key = on
-      ? `<button type="button" class="dr-worn" id="dressing-key" disabled>${WEAR[shelf][1]}</button>`
-      : cta({ kind: 'primary', label: WEAR[shelf][0], id: 'dressing-key', wide: true });
-    return `<div class="dr-had"><span class="dr-eye">${steps ? 'Earned' : 'Free'}</span><p>${escape(item.line)}</p></div>${card}${key}`;
+      ? `<button type="button" class="dr-worn" id="dressing-key" disabled>${wearOf(shelf, id)[1]}</button>`
+      : cta({ kind: 'primary', label: wearOf(shelf, id)[0], id: 'dressing-key', wide: true });
+    return `<div class="dr-had">${eye(steps ? 'Earned' : 'Free')}<p>${escape(item.line)}</p></div>${card}${key}`;
   }
   const first = steps.find(step => !done(step))!;
   let body: string;
@@ -128,7 +153,7 @@ export function footMarkup(view: DressingView): string {
   } else {
     body = `<ul class="dr-steps">${steps.map(step => `<li class="${done(step) ? 'is-done' : ''}">${done(step) ? TICK : OPEN}<span>${escape(step.text)}</span><b>${valueOf(step)}</b></li>`).join('')}</ul>`;
   }
-  return `<div class="dr-goal"><span class="dr-eye">To unlock</span>${body}</div>`
+  return `<div class="dr-goal">${eye('To unlock')}${body}</div>`
     + cta({ kind: 'primary', label: first.mode ? PLAY[first.mode] : 'PLAY', id: 'dressing-key', wide: true });
 }
 
@@ -166,7 +191,7 @@ export class DressingRoom {
     this.root.addEventListener('click', this.click);
     this.root.addEventListener('keydown', this.key);
     this.draw();
-    void stage.thumbnails(OUTFITS, BATS, this.bat(view.holding), GLOVES, gloveOf(view.wearingGuard)).then(pictures => {
+    void stage.thumbnails(kitsOf(view.super10), BATS, this.bat(view.holding), GLOVES, gloveOf(view.wearingGuard)).then(pictures => {
       if (!this.stage) return;
       // Drawing them dressed him in every kit in turn: dressed again in the one on show.
       this.view = { ...this.view, pictures }; this.draw();
@@ -195,7 +220,7 @@ export class DressingRoom {
     this.root.remove();
   }
 
-  private outfit = (id: string) => OUTFITS.find(o => o.id === id) ?? OUTFITS[0];
+  private outfit = (id: string) => kitOf(id);
   private bat = (id: string) => BATS.find(b => b.id === id) ?? BATS[0];
 
   /** The shelf last drawn, so a new one opens on its pick. */
@@ -206,7 +231,7 @@ export class DressingRoom {
     for (const shelf of ['kit', 'bat', 'guard'] as const) this.root.querySelector(`#dressing-tab-${shelf}`)!.setAttribute('aria-pressed', String(view.shelf === shelf));
     // A dot on a shelf's tab while something on it waits to be unlocked.
     for (const shelf of ['kit', 'bat'] as const) {
-      const ids: readonly string[] = shelf === 'kit' ? OUTFITS.map(o => o.id) : BATS.map(b => b.id);
+      const ids = idsOf(shelf, view);
       this.root.querySelector(`#dressing-tab-${shelf}`)!.classList.toggle('has-dot', ids.some(one => ready(shelf, one, view.record)));
     }
     const item = itemOf(view.shelf, pickedOn(view));
@@ -277,7 +302,7 @@ export class DressingRoom {
 
   private pick(id: string) {
     const view = this.view;
-    this.view = view.shelf === 'kit' ? { ...view, kit: id as OutfitId } : view.shelf === 'bat' ? { ...view, bat: id as BatId } : { ...view, guard: id as GuardId };
+    this.view = view.shelf === 'kit' ? { ...view, kit: id as KitId } : view.shelf === 'bat' ? { ...view, bat: id as BatId } : { ...view, guard: id as GuardId };
     this.draw();
   }
 
@@ -294,7 +319,7 @@ export class DressingRoom {
       if (view.shelf !== 'guard' && ready(view.shelf, id, view.record)) { this.handlers.claim(view.shelf, id); return; }
       if (steps && !steps.every(done)) { this.handlers.play(steps.find(step => !done(step))?.mode ?? null); return; }
       this.handlers.wear(view.shelf, id);
-      this.view = view.shelf === 'kit' ? { ...view, wearing: id as OutfitId } : view.shelf === 'bat' ? { ...view, holding: id as BatId } : { ...view, wearingGuard: id as GuardId };
+      this.view = view.shelf === 'kit' ? (isSuper10Kit(id) ? { ...view, wearingSuper10: id } : { ...view, wearing: id as OutfitId }) : view.shelf === 'bat' ? { ...view, holding: id as BatId } : { ...view, wearingGuard: id as GuardId };
       this.draw();
     }
   };

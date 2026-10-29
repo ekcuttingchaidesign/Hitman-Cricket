@@ -8,11 +8,13 @@ import type { ReelShot } from './ShotReel';
  * player once, in the shape every phone already knows how to read: a card, a
  * bar across the top, a tap to move on.
  *
- * This update is the player profiles, told in one film: a board, a tap on a
- * name, that player's profile and the chase of their best, then their own My
- * profile leading with Rank down and WIN IT BACK
- * (`public/lotties/player-profiles.json`, built by `wip/profiles-film/`).
- * (The two new strokes and the Dressing Room were told before it, the
+ * This update is Super10, told in one film (`public/stories/super10.mp4`,
+ * made in Remotion by `wip/super10-film/`): the mark built as it is named, the
+ * mode in three hits (ten overs, the new stadium, Power Surge), the team kits on
+ * the batter on the Dressing Room's turntable, and the lockup, held, with
+ * PLAY SUPER10 beside the way out.
+ * (The player profiles were told before it in a Lottie film, the two new
+ * strokes and the Dressing Room before them, the
  * Dressing Room's cards on their own first, and the Test Marathon's film and
  * the career key before that, each twice to everybody who played then. The
  * ways a story can be told — a picture, a film, the room's stage, a stroke
@@ -52,6 +54,13 @@ export interface Story {
    * under it. Its words are its own, so the story's are read out, not shown.
    */
   film?: Film;
+  /**
+   * A video instead, the whole of the story as a film is (`public/stories/`),
+   * played muted down the sheet and held on its last frame; `still` is that
+   * frame, shown in its place under reduced motion.
+   */
+  video?: string;
+  still?: string;
   /** How long the story holds before it moves on, where it is not the usual. */
   holdMs?: number;
   /**
@@ -66,7 +75,7 @@ export interface Story {
    * words. The last card holds still with it (`storyHolds`), so a player
    * tapping through lands on it.
    */
-  opens?: 'dressing';
+  opens?: 'dressing' | 'super10';
   /**
    * The Dressing Room's own stage, the whole of the screen behind the words,
    * playing the real models: every kit on the batter in turn, or every bat on
@@ -100,13 +109,14 @@ export type StoryStageKind = 'kits' | 'bats';
 
 export const STORIES: readonly Story[] = [
   {
-    key: 'player-profiles',
-    eyebrow: 'WHAT’S NEW · PLAYER PROFILES',
-    title: 'PLAYER PROFILES AND MY PROFILE',
-    alt: 'A Blast board. A tap on Kabir opens his profile: his face, his rung and his best. CHASE THEIR 157 is pressed, the runs roll up past it and SURPASSED is stamped with his name. Then Kabir’s own My profile, leading with Rank down, his place rolling from #2 to #3, and a key to win it back.',
-    film: 'player-profiles',
-    // The film runs ten seconds, and the story holds a beat past its end.
-    holdMs: 10200,
+    key: 'super10',
+    eyebrow: 'WHAT’S NEW · SUPER10',
+    title: 'SUPER10: TEN OVERS OF REAL T10',
+    alt: 'Lightning strikes and SUPER10 is built piece by piece, the 10 landing with a crack of lightning. Then the mode: 10 overs, the new stadium under its lights with SIX on the big screen, and Power Surge bringing two fielders in before the ball goes over them for six. Then the team kits, sweeping one over another on the batter as he turns on the Dressing Room’s pedestal, and he raises his bat under the logo.',
+    video: 'stories/super10.mp4',
+    still: 'stories/super10-lockup.webp',
+    // The last card with a way in holds still (`storyHolds`), on the film's last frame.
+    opens: 'super10',
   },
 ];
 
@@ -118,7 +128,7 @@ export const STORIES: readonly Story[] = [
  * "seen" flag would mean the second update in this game's life could never be
  * announced at all.
  */
-export const UPDATE = 'player-profiles';
+export const UPDATE = 'super10';
 
 /**
  * How many times one browser is shown it unasked.

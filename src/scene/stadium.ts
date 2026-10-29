@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Batch, mat, soft } from './build';
 import { CrowdCelebration } from './CrowdCelebration';
+import { crowdLife, livelyCrowd, type CrowdLife } from './crowdLife';
 
 /**
  * The stadium: one bowl of stands carried right round the ground, which is
@@ -56,6 +57,34 @@ export const STADIUM = {
  */
 const CROWD = [0xf2ede1, 0x2f5d46, 0xe0d8c4, 0xc9d7de, 0x4a7a5e, 0xefe2bf, 0xf7f4ec, 0x7d9a8c, 0x2b4a63];
 
+/**
+ * How the arena (`arena.ts`) differs from the stadium it is built on: no
+ * towers and no bank of lamps on every other section (its light is one ring
+ * round the roof's edge, which the arena hangs itself), and, where it has its
+ * big screen, no commentary box under it.
+ */
+export interface StandsOptions {
+  /** A far end of its own (the pavilion's, `pavilion.ts`): the sections it stands in are left out, and it is built into the same batch and crowd. */
+  end?: FarEnd;
+  /** A section of stand of its own (the canopy's, `canopy.ts`), in place of the stadium's, in the section's frame. */
+  section?: (b: Batch, seat: SeatFn, frame: THREE.Matrix4, section: number, lights: StadiumLights) => void;
+  /** Who is in the seats, in place of the stadium's summer whites. */
+  crowd?: readonly number[];
+  towers?: boolean;
+  roofLamps?: boolean;
+  commentary?: boolean;
+  /** A crowd that is never still (`crowdLife.ts`): its own materials, moved in their shaders. */
+  lively?: boolean;
+}
+
+/** Somebody in a seat: where, in a stand's frame, and a number that picks their shirt. */
+export type SeatFn = (frame: THREE.Matrix4, x: number, y: number, z: number, n: number) => void;
+export interface FarEnd {
+  /** Whether the bowl's section `section` (nought straight behind the bowler, 28 round) is the end's. */
+  skip: (section: number) => boolean;
+  build: (b: Batch, seat: SeatFn, lights: StadiumLights) => void;
+}
+
 /** The glass: smooth and a little metallic, so it catches the sky where the concrete is faceted and dry. */
 const glassFinish = () => new THREE.MeshStandardMaterial({ color: STADIUM.glass, roughness: 0.3, metalness: 0.3 });
 /** The lamps, lit. */
@@ -71,11 +100,11 @@ const lampFinish = () => new THREE.MeshStandardMaterial({ color: STADIUM.lamp, r
 const soffitFinish = () => new THREE.MeshStandardMaterial({ color: STADIUM.soffit, roughness: 0.85, flatShading: true, emissive: 0x4a4744 });
 
 /** The stands stand in a ring this far from the middle of the ground, cut into this many sections. */
-const RING = 39;
-const SECTIONS = 28;
-const CENTRE_Z = 10;
+export const RING = 39;
+export const SECTIONS = 28;
+export const CENTRE_Z = 10;
 /** How wide a section is at `z` behind its front, so the ring closes as it goes back. */
-const span = (z: number) => 2 * Math.PI * (RING + z) / SECTIONS + 0.12;
+export const span = (z: number) => 2 * Math.PI * (RING + z) / SECTIONS + 0.12;
 
 /** Rows in each tier, and the upper tier: where its front row stands, how high it starts, how it rakes. */
 const LOWER = 5, UPPER = 4;
@@ -87,6 +116,9 @@ const COVERED = 3.8;
 /** Half the width of the aisle down the middle of every section. */
 const AISLE = 0.4;
 
+/** A big screen painted in a canvas, which the brand paints (`Showboards` in `arena.ts`): its context and its texture. */
+export interface BigScreen { context: CanvasRenderingContext2D; texture: THREE.Texture }
+
 /**
  * What the scene needs to light the stadium up at night: the lamps' material,
  * to turn them up, and where the lamps are, in the stage's frame, to hang a
@@ -94,34 +126,51 @@ const AISLE = 0.4;
  */
 export interface StadiumLights {
   createCrowd?: (reducedMotion: boolean) => CrowdCelebration;
+  /** Every seat with somebody in it, and the clock their movement runs off, where the crowd is lively. */
+  seats?: THREE.Matrix4[];
+  life?: CrowdLife;
   lamps: THREE.MeshStandardMaterial;
   roof: THREE.Vector3[];
   towers: THREE.Vector3[];
+  /** Small lamps — downlights under a roof or a deck — each with a small glow at night. */
+  spots?: THREE.Vector3[];
+  /** Materials lit only at night (their emissive at one), dark by day: windows, soffits, downlights. */
+  warm?: THREE.MeshStandardMaterial[];
+  /** Pieces to hang in the scene's own frame, not the mirrored stage: anything with words on it. One marked `userData.nightOnly` is shown after dark alone. */
+  unmirrored?: THREE.Object3D[];
+  /** Textures painted for the ground, to be disposed of with the scene. */
+  textures?: THREE.Texture[];
+  /** The ground's big screen, where it has one the brand's moments can play on. */
+  screen?: BigScreen;
 }
 
 /** Builds the stadium onto `world`, the stage's own frame: the bowler's end is +z. */
-export function stadium(world: THREE.Object3D): StadiumLights {
+export function stadium(world: THREE.Object3D, options: StandsOptions = {}): StadiumLights {
+  const { end, section: own, crowd: shirts = CROWD, towers = true, roofLamps = true, commentary: box = true, lively = false } = options;
   const b = new Batch();
   const lights: StadiumLights = { lamps: lampFinish(), roof: [], towers: [] };
   const seats: THREE.Matrix4[] = [];
   const colours: number[] = [];
   const seat = (frame: THREE.Matrix4, x: number, y: number, z: number, n: number) => {
     seats.push(frame.clone().multiply(new THREE.Matrix4().makeTranslation(x, y, z)));
-    colours.push(CROWD[n % CROWD.length]);
+    colours.push(shirts[n % shirts.length]);
   };
 
   for (let section = 0; section < SECTIONS; section++) {
+    if (end?.skip(section)) continue;
     const a = section / SECTIONS * Math.PI * 2;
     const frame = new THREE.Matrix4().compose(
       new THREE.Vector3(Math.sin(a) * RING, 0, CENTRE_Z + Math.cos(a) * RING),
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), a),
       new THREE.Vector3(1, 1, 1),
     );
-    stand(b, seat, frame, section, lights);
+    if (own) own(b, seat, frame, section, lights);
+    else stand(b, seat, frame, section, lights, roofLamps);
   }
   sightscreen(b);
-  commentary(b);
-  floodlights(b, lights);
+  if (box) commentary(b);
+  if (towers) floodlights(b, lights);
+  end?.build(b, seat, lights);
 
   b.finish(STADIUM.glass, glassFinish());
   b.finish(STADIUM.lamp, lights.lamps);
@@ -135,8 +184,12 @@ export function stadium(world: THREE.Object3D): StadiumLights {
   const body = new THREE.CylinderGeometry(.23, .27, .43, 6).scale(1, 1, .78);
   // Seated torsos never expose their undersides. Keep the shoulders capped.
   body.setDrawRange(0, body.groups[2].start);
-  const crowd = new THREE.InstancedMesh(body, mat(0xffffff), seats.length);
-  const heads = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.15, 0).translate(0, .32, 0), soft(0xe0b692), seats.length);
+  // A lively crowd has materials of its own, which its shader moves: the shared ones are drawn on boxes too.
+  const bodyFinish = lively ? new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .85, flatShading: true }) : mat(0xffffff);
+  const headFinish = lively ? new THREE.MeshStandardMaterial({ color: 0xe0b692, roughness: .72 }) : soft(0xe0b692);
+  if (lively) { lights.life = crowdLife(); lights.seats = seats; livelyCrowd([bodyFinish, headFinish], lights.life); }
+  const crowd = new THREE.InstancedMesh(body, bodyFinish, seats.length);
+  const heads = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.15, 0).translate(0, .32, 0), headFinish, seats.length);
   seats.forEach((matrix, i) => { crowd.setMatrixAt(i, matrix); crowd.setColorAt(i, new THREE.Color(colours[i])); });
   seats.forEach((matrix, i) => heads.setMatrixAt(i, matrix));
   crowd.instanceMatrix.needsUpdate = true; heads.instanceMatrix.needsUpdate = true;
@@ -160,7 +213,7 @@ function across(w: number, skip: (x: number) => boolean, place: (x: number) => v
  * a tunnel into the middle of its lower tier, so the ring has the rhythm a
  * real stand has rather than one unbroken band of crowd.
  */
-function stand(b: Batch, seat: (frame: THREE.Matrix4, x: number, y: number, z: number, n: number) => void, frame: THREE.Matrix4, section: number, lights: StadiumLights) {
+function stand(b: Batch, seat: (frame: THREE.Matrix4, x: number, y: number, z: number, n: number) => void, frame: THREE.Matrix4, section: number, lights: StadiumLights, lamps: boolean) {
   const { concrete, paint, steel, glass, cover, tunnel } = STADIUM;
   const behindTheBowler = section === 0, tunnelled = section % 2 === 1;
   let n = section * 31;
@@ -202,7 +255,7 @@ function stand(b: Batch, seat: (frame: THREE.Matrix4, x: number, y: number, z: n
   const rear = UPPER_Z + UPPER * UPPER_STEP.z;
   b.box(span(rear), EAVES, 0.4, concrete, 0, EAVES / 2, rear, frame);
   for (const x of [-span(rear) / 2 + 0.3, span(rear) / 2 - 0.3]) b.post(0.12, EAVES + 1.2, steel, x, (EAVES + 1.2) / 2, rear - 0.2, frame);
-  roof(b, frame, rear, lights, section % 2 === 0);
+  roof(b, frame, rear, lights, lamps && section % 2 === 0);
 }
 
 /** A flat cantilever roof over a section, its fascia, and three lamps along its edge. */

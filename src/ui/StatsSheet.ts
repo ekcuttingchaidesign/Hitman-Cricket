@@ -4,6 +4,7 @@ import { restoreLinkMarkup } from './Restore';
 import { escape, kitMarkup } from './Leaderboard';
 import { statsExplain, type StatsFacts } from '../game/StatsCard';
 import { measureName } from '../game/tier';
+import { super10ArtSvg } from '../game/super10-card-art';
 import { recordMarkup, type RivalsRecord } from './Record';
 import { cta, icon, roadToHitman, tierBadge } from './Kit';
 import { groundMarkup, rungLine, rungName } from './PlayerSheet';
@@ -72,9 +73,11 @@ export interface StatsSheetView {
 }
 
 /** The switch's words, shorter than the modes' names: the switch is narrow. */
-const SHORT: Record<string, string> = { classic: 'Blast', survive: 'Survival', marathon: 'Marathon' };
+const SHORT: Record<string, string> = { classic: 'Blast', survive: 'Survival', marathon: 'Marathon', super10: 'Super10' };
 
 const TITLE = new URL('../assets/title.webp', import.meta.url).href;
+/** Super10's card carries its own mark (Figma section 22). */
+const SUPER10_MARK = new URL('../assets/super10/logo.svg', import.meta.url).href;
 
 /** The Star card's one big star, top right and turned (Figma 152:18122). */
 const STAR = new URL('../assets/kit/card-star.svg', import.meta.url).href;
@@ -145,7 +148,7 @@ function heroMarkup(card: StatsSlide, who: { name: string; avatar: number } | nu
 }
 
 /** What the glance calls each mode's board. */
-const BOARD_NAME: Record<string, string> = { classic: 'The Blast', marathon: 'Marathon team', survive: 'Test Survival' };
+const BOARD_NAME: Record<string, string> = { classic: 'The Blast', marathon: 'Marathon team', survive: 'Test Survival', super10: 'Super10' };
 
 /**
  * The mode switch as quiet tabs: the rung's badge and the mode's name, the
@@ -165,7 +168,7 @@ function switchMarkup(cards: StatsSlide[], at: number): string {
         </div>`;
 }
 
-const DOT: Record<string, string> = { classic: '#3f88f2', marathon: '#1f8a55', survive: '#ff5a4e' };
+const DOT: Record<string, string> = { classic: '#3f88f2', marathon: '#1f8a55', survive: '#ff5a4e', super10: '#8b5cf6' };
 
 /** One mode: the password card where it is asked for, the road to the next tier, and six figures. */
 function slideMarkup(card: StatsSlide, first: boolean, live: boolean, password: { runs: number } | null): string {
@@ -187,9 +190,15 @@ export function cardMarkup(facts: StatsFacts, who: { name: string; avatar: numbe
   const edit = who ? `<button${first ? ' id="stats-edit"' : ''} class="st-edit" type="button" aria-label="Edit your name, kit and batting hand">${PENCIL}</button>` : '';
   const measure = facts.ladder.measure.toLocaleString('en-US');
   const unit = facts.mode === 'survive' ? 'balls faced' : `career ${measureName(facts.mode)}`;
+  // Behind the words: the star or the gold batsman on the top two rungs; Super10's its own shapes (`SUPER10_CARD_ART`).
+  const s10 = facts.mode === 'super10';
+  const rim = tier === 'hitman' ? '<i class="st-card-rim" aria-hidden="true"></i>' : '';
+  const art = s10 ? `${super10ArtSvg(tier)}${rim}`
+    : tier === 'star' ? `<img class="st-card-star" src="${STAR}" alt="" aria-hidden="true">`
+      : tier === 'hitman' ? `<img class="st-card-batsman" src="${BATSMAN}" alt="" aria-hidden="true">${rim}` : '';
   return `<article class="st-card tier-${escape(tier)} is-${escape(facts.mode)}" aria-label="${escape(`${who?.name ?? 'Guest'}, ${facts.tier.name}, ${facts.modeName}: ${measure} ${unit}`)}">
-          <i class="st-card-grain" aria-hidden="true"></i>${tier === 'star' ? `<img class="st-card-star" src="${STAR}" alt="" aria-hidden="true">` : ''}${tier === 'hitman' ? `<img class="st-card-batsman" src="${BATSMAN}" alt="" aria-hidden="true"><i class="st-card-rim" aria-hidden="true"></i>` : ''}<i class="st-card-sheen" aria-hidden="true"></i>
-          <div class="st-card-top"><img class="st-card-logo" src="${TITLE}" alt="" decoding="async"><span class="st-card-tier">${escape(facts.tier.name)}</span></div>
+          <i class="st-card-grain" aria-hidden="true"></i>${art}<i class="st-card-sheen" aria-hidden="true"></i>
+          <div class="st-card-top"><img class="st-card-logo" src="${s10 ? SUPER10_MARK : TITLE}" alt="" decoding="async"><span class="st-card-tier">${escape(facts.tier.name)}</span></div>
           <div class="st-card-who">${face}<span class="st-card-name"><b>${escape(who?.name ?? 'Guest')}</b><small>${escape(facts.modeName.toUpperCase())} &middot; CAREER</small></span>${edit}</div>
           <div class="st-card-foot"><div class="st-card-figure"><b>${measure}</b><span>${unit}</span></div>${tier === 'star' || tier === 'hitman' ? progressMarkup(facts) : ''}</div>
         </article>`;
@@ -200,6 +209,7 @@ export const TILES: Record<string, readonly string[]> = {
   classic: ['Innings', 'Sixes', 'Highest', 'Fours', 'Balls', 'Best rank'],
   survive: ['Innings', 'Survived', 'Won', 'Runs', 'Blows', 'Best rank'],
   marathon: ['Innings', 'Highest', 'Best ind.', 'Hundreds', 'Fifties', 'Best rank'],
+  super10: ['Innings', 'Highest', 'Sixes', '100+ totals', '200+ totals', 'Best rank'],
 };
 
 /** A figure that means nothing before an innings is a dash, not a nought. */
@@ -227,7 +237,7 @@ function tilesMarkup(card: StatsSlide): string {
 function progressMarkup(facts: StatsFacts): string {
   const { progress, toNext, next } = facts.ladder;
   if (!next || toNext === null) {
-    return '<div class="st-card-progress"><span class="st-card-track"><i style="width:100%"></i></span><small>Top of the game</small></div>';
+    return `<div class="st-card-progress"><span class="st-card-track"><i style="width:100%"></i></span><small>${facts.mode === 'super10' ? 'Top of Super10' : 'Top of the game'}</small></div>`;
   }
   return `<div class="st-card-progress"><span class="st-card-track"><i style="width:${Math.round(progress * 100)}%"></i></span>
           <small>${toNext.toLocaleString('en-US')} ${measureName(facts.mode)} to ${escape(next.short)}</small></div>`;

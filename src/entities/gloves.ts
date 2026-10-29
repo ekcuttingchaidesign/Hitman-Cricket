@@ -34,8 +34,10 @@ export const DEFAULT_GLOVE: GuardId = FREE_GUARD;
 /** A print on some of the padding: a carbon-fibre weave in two greys. */
 export interface GlovePrint { kind: 'carbon'; ground: string; ink: string }
 
-export interface GloveDesign {
-  id: GuardId;
+/** The two pairs that go with the Super10 kits, worn only in Super10 and never on the GUARD shelf (`SUPER10_GLOVES`). */
+export type Super10GuardId = 'super10' | 'super10-cherry' | 'super10-yellow' | 'super10-orange' | 'super10-violet';
+export interface GloveDesign<Id extends string = GuardId> {
+  id: Id;
   name: string;
   /** What it is, in a line. */
   line: string;
@@ -204,6 +206,83 @@ export const GLOVES: readonly GloveDesign[] = [
   },
 ];
 
+/**
+ * The Super10 kits' gloves and pads (`src/game/super10-kits.ts`), off the
+ * designer's kit sheets: white padding with purple rolls and a lime index and
+ * cuff band, purple pads piped lime, with the Panthers' and the Vipers' kits;
+ * white with raspberry and purple, raspberry pads piped purple, with the
+ * Falcons'; and white with navy and yellow, navy and orange, or violet and
+ * teal, the pads in the first and piped in the second, with the Kings', the
+ * Farmers' and the Mavericks'.
+ * Worn by the batter in every Super10 innings with the kit, and nowhere else.
+ */
+export const SUPER10_GLOVES: Record<Super10GuardId, GloveDesign<Super10GuardId>> = {
+  super10: {
+    id: 'super10', name: 'Super10', line: 'White padding with purple rolls, a lime index roll and band, a purple cuff; purple pads piped lime.',
+    glow: '#B7FF3B',
+    pads: { body: '#271473', trim: '#B7FF3B' },
+    base: '#F4F2FA',
+    rolls: ['#271473', '#271473', '#271473', '#B7FF3B'],
+    index: ['#B7FF3B', '#271473', '#F4F2FA'],
+    sideBar: true,
+    tips: ['#F4F2FA', '#F4F2FA', '#F4F2FA', '#B7FF3B'],
+    knuckleBar: { colour: '#271473', badge: '#B7FF3B' },
+    thumb: '#F4F2FA', thumbTip: '#271473', ridges: '#A447FF',
+    cuff: { base: '#271473', bands: [{ at: .062, depth: .010, colour: '#B7FF3B' }], strap: '#0C0528', badge: '#B7FF3B', rim: '#271473' },
+  },
+  'super10-cherry': {
+    id: 'super10-cherry', name: 'Super10 Cherry', line: 'White padding with raspberry rolls and a purple index roll and band; raspberry pads piped purple.',
+    glow: '#E92568',
+    pads: { body: '#E92568', trim: '#271473' },
+    base: '#F7F2F6',
+    rolls: ['#E92568', '#E92568', '#E92568', '#271473'],
+    index: ['#271473', '#E92568', '#F7F2F6'],
+    sideBar: true,
+    tips: ['#F7F2F6', '#F7F2F6', '#F7F2F6', '#271473'],
+    knuckleBar: { colour: '#E92568', badge: '#271473' },
+    thumb: '#F7F2F6', thumbTip: '#E92568', ridges: '#271473',
+    cuff: { base: '#F7F2F6', bands: [{ at: .062, depth: .010, colour: '#271473' }], strap: '#E92568', badge: '#271473', rim: '#E92568' },
+  },  'super10-yellow': {
+    id: 'super10-yellow', name: 'Nova Kings', line: 'White padding with navy rolls and a butter-yellow index roll and band; royal blue pads piped yellow.',
+    glow: '#FDE17A',
+    pads: { body: '#112E80', trim: '#FDE17A' },
+    base: '#F4F2FA',
+    rolls: ['#0B1A36', '#0B1A36', '#0B1A36', '#FDE17A'],
+    index: ['#FDE17A', '#0B1A36', '#F4F2FA'],
+    sideBar: true,
+    tips: ['#F4F2FA', '#F4F2FA', '#F4F2FA', '#FDE17A'],
+    knuckleBar: { colour: '#0B1A36', badge: '#FDE17A' },
+    thumb: '#F4F2FA', thumbTip: '#0B1A36', ridges: '#FDE17A',
+    cuff: { base: '#0B1A36', bands: [{ at: .062, depth: .010, colour: '#FDE17A' }], strap: '#112E80', badge: '#FDE17A', rim: '#0B1A36' },
+  },
+  'super10-orange': {
+    id: 'super10-orange', name: 'Aura Farmers', line: 'White padding with navy rolls and an orange index roll and band; navy pads piped orange.',
+    glow: '#FE7701',
+    pads: { body: '#0B1A36', trim: '#FE7701' },
+    base: '#F4F2FA',
+    rolls: ['#0B1A36', '#0B1A36', '#0B1A36', '#FE7701'],
+    index: ['#FE7701', '#0B1A36', '#F4F2FA'],
+    sideBar: true,
+    tips: ['#F4F2FA', '#F4F2FA', '#F4F2FA', '#FE7701'],
+    knuckleBar: { colour: '#0B1A36', badge: '#FE7701' },
+    thumb: '#F4F2FA', thumbTip: '#0B1A36', ridges: '#FE7701',
+    cuff: { base: '#0B1A36', bands: [{ at: .062, depth: .010, colour: '#FE7701' }], strap: '#0B1A36', badge: '#FE7701', rim: '#0B1A36' },
+  },
+  'super10-violet': {
+    id: 'super10-violet', name: 'Royal Mavericks', line: 'White padding with violet rolls and a teal index roll and band; violet pads piped teal.',
+    glow: '#E78CFF',
+    pads: { body: '#E78CFF', trim: '#178C89' },
+    base: '#F4F2FA',
+    rolls: ['#E78CFF', '#E78CFF', '#E78CFF', '#178C89'],
+    index: ['#178C89', '#E78CFF', '#F4F2FA'],
+    sideBar: true,
+    tips: ['#F4F2FA', '#F4F2FA', '#F4F2FA', '#178C89'],
+    knuckleBar: { colour: '#E78CFF', badge: '#178C89' },
+    thumb: '#F4F2FA', thumbTip: '#E78CFF', ridges: '#178C89',
+    cuff: { base: '#E78CFF', bands: [{ at: .062, depth: .010, colour: '#178C89' }], strap: '#E78CFF', badge: '#178C89', rim: '#E78CFF' },
+  },
+};
+
 export const gloveOf = (id: string | null | undefined): GloveDesign => GLOVES.find(g => g.id === id) ?? GLOVES.find(g => g.id === DEFAULT_GLOVE)!;
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -311,7 +390,7 @@ function piece(parent: THREE.Object3D, paint: Paint, scale: [number, number, num
  * onto the palm's side, short of the fingertips, so it is on the hand rather
  * than in it.
  */
-export function buildGloveHand(design: GloveDesign, top: boolean) {
+export function buildGloveHand(design: GloveDesign<string>, top: boolean) {
   const hand = new THREE.Group();
   hand.name = `${design.name} glove`;
   const k = top ? -1 : 1;
@@ -380,7 +459,7 @@ export function buildGloveHand(design: GloveDesign, top: boolean) {
  * with the knitted bands round it, the strap closed over it with its badge on
  * the back of the wrist, and a soft rim at the top.
  */
-export function buildGloveCuff(design: GloveDesign) {
+export function buildGloveCuff(design: GloveDesign<string>) {
   const cuff = new THREE.Group(), c = design.cuff;
   cuff.name = `${design.name} gauntlet`;
   made(cuff, new THREE.CylinderGeometry(.051, .055, CUFF_HEIGHT, 24), c.base, TOWELLING).position.y = CUFF_HEIGHT / 2;

@@ -158,6 +158,49 @@ export const CONFIDENCE_STEP: IntroStep = {
   tag: 'Confidence meter',
 };
 
+/**
+ * Super10's rules, the first time a browser bats one, after how to hit and
+ * the meter where those are still due: ten overs and five wickets outlined on
+ * the score bar, the field map cut out of the scrim and tagged (Figma section
+ * 16A, M1), and the gaps drawn at the bat, two fielders and the line between
+ * them. Power Surge is taught when it first lights up, by its own tag.
+ */
+export const SUPER10_STEPS: readonly IntroStep[] = [
+  {
+    title: 'Ten overs',
+    line: 'Bat all ten. The powerplay, the middle overs and the death each bowl differently.',
+    spot: 'overs-cell',
+    tag: 'Overs',
+  },
+  {
+    title: 'Five wickets',
+    line: 'Five batters in your side. Each wicket sends the next one out.',
+    spot: 'wickets',
+    tag: 'Wickets',
+  },
+  {
+    title: 'Watch the field',
+    line: 'Their fielders in red, you in blue. It changes every over. Tap the map to see it big.',
+    // Its enlarged view, held over the card: the corner map is under the card.
+    spot: 's10-big-map',
+    tag: 'Field map',
+  },
+  {
+    title: 'Play in the gaps',
+    line: '<span class="touch-only">Your swipe steers the ball. Aim between the fielders for runs; swipe too wide and you reach for it.</span>'
+      + '<span class="keyboard-only">Find the gaps between the fielders for runs. Straight at one, it’s stopped.</span>',
+    gaps: true,
+  },
+];
+const FIELD_KEY = 'hitman-field-intro';
+/** Whether the field map's card is still to be shown in this browser. */
+export function fieldIntroDue() {
+  try { return !localStorage.getItem(FIELD_KEY); } catch { return false; }
+}
+export function noteFieldIntro() {
+  try { localStorage.setItem(FIELD_KEY, 'done'); } catch { /* Nothing to remember it in. */ }
+}
+
 const KEY = 'hitman-shots-intro';
 
 /**

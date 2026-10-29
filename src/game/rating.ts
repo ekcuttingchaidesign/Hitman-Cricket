@@ -11,7 +11,7 @@
  * So there are two moments and a set of brakes.
  *
  *  - **A new mode, after its first finished innings.** Test Survival, Test
- *    Marathon and Rival Matches each get asked about once, by name, right after
+ *    Marathon, Rival Matches and Super10 each get asked about once, by name, after
  *    the player has finished one — which is when the opinion is freshest and the
  *    only time it is about the mode rather than about what they remember of it.
  *  - **The game, after the third finished innings.** Enough to have an opinion,
@@ -29,7 +29,7 @@
  */
 
 /** What can be rated: the game as a whole, or one of its modes by name. */
-export type RatedThing = 'game' | 'classic' | 'survive' | 'marathon' | 'rivals';
+export type RatedThing = 'game' | 'classic' | 'survive' | 'marathon' | 'rivals' | 'super10';
 
 /** Everything an innings can be, for counting. A Rival Match is its own. */
 export type RatedMode = Exclude<RatedThing, 'game'>;
@@ -37,14 +37,14 @@ export type RatedMode = Exclude<RatedThing, 'game'>;
 /** What prompted it, kept with the stars so the two moments can be compared. */
 export type RatingMoment = 'mode' | 'innings' | 'form';
 
-const THINGS: readonly RatedThing[] = ['game', 'classic', 'survive', 'marathon', 'rivals'];
+const THINGS: readonly RatedThing[] = ['game', 'classic', 'survive', 'marathon', 'rivals', 'super10'];
 const MOMENTS: readonly RatingMoment[] = ['mode', 'innings', 'form'];
 
 /**
  * The modes asked about by name. The Blast is not among them: it is the game
  * most people have played, so asking about "the game" is already asking about it.
  */
-export const NEW_MODES: readonly RatedMode[] = ['survive', 'marathon', 'rivals'];
+export const NEW_MODES: readonly RatedMode[] = ['survive', 'marathon', 'rivals', 'super10'];
 
 /** What each is called on the prompt. */
 export const RATED_NAME: Record<RatedThing, string> = {
@@ -53,6 +53,7 @@ export const RATED_NAME: Record<RatedThing, string> = {
   survive: 'Test Survival',
   marathon: 'Test Marathon',
   rivals: 'Rival Matches',
+  super10: 'Super10',
 };
 
 /**

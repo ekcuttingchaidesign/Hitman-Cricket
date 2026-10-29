@@ -121,7 +121,7 @@ describe('the year recap, kept', () => {
 
   it('is told by a Dressing Room save which pieces it brought in for the first time', async () => {
     const dressing = memoryDressing();
-    const copy = (seen: string[]): SavedDressing => ({ outfit: 'home', bat: 'plain', guard: 'sterling', pickedAt: 0, launch: null, seen, shown: [], visited: false });
+    const copy = (seen: string[]): SavedDressing => ({ outfit: 'home', bat: 'plain', guard: 'sterling', super10: null, pickedAt: 0, launch: null, seen, shown: [], visited: false });
     const first = await saveDressing(dressing, { playerId: PLAYER, dressing: copy(['kit:home', 'bat:boom']), address: 'a' });
     expect(first.ok && first.won).toEqual(['kit:home', 'bat:boom']);
     const again = await saveDressing(dressing, { playerId: PLAYER, dressing: copy(['bat:boom', 'kit:crimson']), address: 'a' });

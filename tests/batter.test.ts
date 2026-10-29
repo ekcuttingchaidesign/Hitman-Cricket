@@ -1,10 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import { Batter, FLICK_CLOCK, FLICK_HOLD_MS, FLICK_MEETS_AT, FLICK_V3_CLOCK, FLICK_V3_CONTACT_MS, FLICK_V3_HOLD_MS, FLICK_V3_MEETS_AT, STRAIGHT_CHARGE_HOLD, PUNCH_CLOCK, PUNCH_CONTACT_MS, PUNCH_HIGHEST, PUNCH_HOLD_MS, PUNCH_MEETS_AT, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, DEFENCE_FRONT_MEETS_AT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_HEIGHT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_MEETS_AT, SPIN_PULL_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, pullVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
 const THREE_clamp = (v: number) => MathUtils.clamp(v, 0, 1);
 import { bladeGeometry } from '../src/entities/batGeometry';
+// This file runs two minutes of synchronous work in one worker, and between
+// tests the runner never gives the event loop a turn: the worker's messages to
+// vitest went unanswered past its sixty-second timeout, and every run ended on
+// an unhandled "Timeout calling onTaskUpdate" with all tests passed, which
+// failed the Pages workflow. One turn of the loop after each test answers them.
+afterEach(() => new Promise<void>(resolve => setImmediate(resolve)));
 // Every stroke the batter can be asked to play, defence included.
 const STROKES: ShotType[] = [...SHOTS, 'DEFEND'];
 

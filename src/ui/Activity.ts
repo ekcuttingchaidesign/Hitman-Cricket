@@ -17,6 +17,7 @@ const MODE: Record<Event['mode'], { word: string; colour: string }> = {
   classic: { word: 'BLAST', colour: '#3f88f2' },
   marathon: { word: 'MARATHON', colour: '#1f8a55' },
   survive: { word: 'SURVIVAL', colour: '#ff5a4e' },
+  super10: { word: 'SUPER10', colour: '#8b5cf6' },
 };
 
 const HOUR = 3_600_000, DAY = 24 * HOUR;
@@ -77,7 +78,7 @@ export function takenLine(event: Event): string {
   return event.kind === 'passed' ? `Someone surpassed your ${event.target}` : `Someone beat your ${event.target}`;
 }
 
-const MODE_IN: Record<Event['mode'], string> = { classic: 'the Blast', marathon: 'the Marathon', survive: 'Survival' };
+const MODE_IN: Record<Event['mode'], string> = { classic: 'the Blast', marathon: 'the Marathon', survive: 'Survival', super10: 'Super10' };
 
 /** Whether WIN IT BACK is offered: a beat or a pass not yet answered. */
 export function winnable(event: Event): boolean {

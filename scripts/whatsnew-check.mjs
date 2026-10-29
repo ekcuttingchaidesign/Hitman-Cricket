@@ -26,7 +26,7 @@
 import { chromium } from '@playwright/test';
 
 /** The update key in `src/game/whats-new.ts`. Bumped there, bumped here. */
-const UPDATE = 'player-profiles';
+const UPDATE = 'super10';
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:5199').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
@@ -87,39 +87,54 @@ for (let wound = 0; wound < 6000 && !opened; wound += 100) {
 check(opened, 'the play key stops at the stories the first time');
 if (!opened) { await browser.close(); process.exit(1); }
 
-// One film, the player profiles, played down the sheet with the one way out under it.
+// One film, Super10's, a video played down the sheet with GOT IT and PLAY SUPER10 under it.
 const filmView = () => page.evaluate(() => {
-  const host = document.getElementById('whatsnew-film'), svg = host?.querySelector('svg')?.getBoundingClientRect();
+  const host = document.getElementById('whatsnew-film'), box = host?.getBoundingClientRect();
   const done = document.getElementById('whatsnew-done')?.getBoundingClientRect();
-  return { film: host?.dataset.film ?? null, fit: host ? ['is-fit', 'is-cut'].filter(name => host.classList.contains(name)) : [],
-    drawn: !!svg && svg.width > 100 && svg.height > 100, above: !!svg && !!done && svg.bottom <= done.top + 2,
+  return { video: host?.tagName === 'VIDEO', fit: host ? ['is-fit', 'is-cut'].filter(name => host.classList.contains(name)) : [],
+    playing: host?.tagName === 'VIDEO' && host.currentTime > 0, muted: !!host?.muted,
+    above: !!box && !!done && box.bottom <= done.top + 2,
     sheet: document.querySelector('.whatsnew-sheet')?.classList.contains('is-film') ?? false,
-    bars: document.querySelectorAll('.whatsnew-bar').length, unseen: document.querySelector('.whatsnew-title')?.classList.contains('is-unseen') ?? false,
-    open: !!document.getElementById('whatsnew-open'), out: document.getElementById('whatsnew-done')?.textContent.trim() };
+    bars: document.querySelectorAll('.whatsnew-bar').length, barSeen: getComputedStyle(document.querySelector('.whatsnew-bars')).visibility !== 'hidden', unseen: document.querySelector('.whatsnew-title')?.classList.contains('is-unseen') ?? false,
+    open: document.getElementById('whatsnew-open')?.textContent.trim() ?? null, out: document.getElementById('whatsnew-done')?.textContent.trim() };
 });
 const first = await title();
-check(first === 'PLAYER PROFILES AND MY PROFILE', 'it opens on the player profiles', first);
+check(first === 'SUPER10: TEN OVERS OF REAL T10', 'it opens on Super10', first);
+// The video plays on the media clock, not the page's wound one: a little real time.
 let film = await filmView();
-for (let i = 0; i < 30 && !film.drawn; i++) { await tick(100, 200); film = await filmView(); }
-check(film.sheet && film.film === 'player-profiles' && film.drawn && film.fit.length === 1, 'the film plays down the sheet', JSON.stringify(film));
-check(film.above, 'and stops above the way out', JSON.stringify(film));
-check(film.bars === 1 && film.unseen, 'one bar, its title read out rather than shown over the film', JSON.stringify(film));
-check(!film.open && /^SKIP (TO MODE SELECTION|AND START BATTING)$/.test(film.out ?? ''), 'one way out under it', JSON.stringify(film));
+for (let i = 0; i < 30 && !film.playing; i++) { await page.waitForTimeout(200); film = await filmView(); }
+check(film.sheet && film.video && film.playing && film.muted && film.fit.length === 1, 'the film plays down the sheet, muted', JSON.stringify(film));
+check(film.above, 'and stops above the ways out', JSON.stringify(film));
+check(film.bars === 1 && !film.barSeen && film.unseen, 'one story, so no bar over it, its title read out rather than shown over the film', JSON.stringify(film));
+check(film.out === 'GOT IT' && film.open === 'PLAY SUPER10', 'GOT IT and PLAY SUPER10 under it', JSON.stringify(film));
 
-// It holds for the film and a beat over, then moves on by itself, out of the
-// stories. Wound in quarter-second steps: one long wind on a slow machine
-// carries past the hold before it can be measured.
-let held = 0;
-for (; held < 14000 && await page.$('.whatsnew-sheet') && !(await page.$eval('#whatsnew-overlay', node => node.classList.contains('hidden'))); held += 250) await tick(250, 80);
-check(held >= 9500 && held < 11500, 'holding for its film, then moving on by itself', `${held}ms`);
-check(!(await page.$('#whatsnew-film svg')), 'the film taken down with it');
+// Fetched whole while the cover was up, so it plays from memory rather than buffering.
+check((await page.$eval('#whatsnew-film', v => v.currentSrc)).startsWith('blob:'), 'the film was fetched ahead, on the cover, and plays from memory',
+  await page.$eval('#whatsnew-film', v => v.currentSrc));
+// It plays to its end on the media clock and goes straight on to Choose a mode.
+const playedOnce = await page.$eval('#whatsnew-film', v => !v.loop);
+check(playedOnce, 'off the cover it plays once, not round again');
+for (let i = 0; i < 120 && await page.$('#whatsnew-film'); i++) await page.waitForTimeout(250);
+await tick(700);
 // Where skipping goes is the build's: Choose a mode where there is one to
 // choose, the innings where the build has chosen. Either way, somewhere.
 const landed = async () => ({ hidden: await page.$eval('#whatsnew-overlay', node => node.classList.contains('hidden')),
   picked: await page.$eval('#modes', node => !node.classList.contains('hidden')),
   batting: await page.$eval('#start', node => !node.offsetParent).catch(() => true) });
 const skippedTo = await landed();
-check(skippedTo.hidden && (skippedTo.picked || skippedTo.batting), 'and lands on Choose a mode or the innings', JSON.stringify(skippedTo));
+check(skippedTo.hidden && (skippedTo.picked || skippedTo.batting), 'and as it ends moves on by itself to Choose a mode or the innings', JSON.stringify(skippedTo));
+if (skippedTo.picked) {
+  const front = await page.evaluate(() => {
+    const rail = document.getElementById('modes-rail').getBoundingClientRect();
+    let best = null, most = -1;
+    for (const p of document.querySelectorAll('#modes-rail .ms-poster:not(.hidden)')) {
+      const box = p.getBoundingClientRect(), seen = Math.min(box.right, rail.right) - Math.max(box.left, rail.left);
+      if (seen > most + 1) { most = seen; best = p.dataset.mode; }
+    }
+    return best;
+  });
+  check(front === 'SUPER10', "settled on Super10's poster", front);
+}
 check(await seen() === `${UPDATE}:1`, 'the showing is counted', await seen());
 
 // ── Twice, and then never ──────────────────────────────────────────────────
@@ -128,12 +143,13 @@ await arrive();
 await page.click('#start');
 await tick(800);
 check(!!(await page.$('.whatsnew-sheet')), 'it comes back a second time, because once is missed');
-// Put away this time by its key.
-await page.click('#whatsnew-done');
-await tick(700);
-const skipped = await landed();
-check(skipped.hidden && skipped.picked === skippedTo.picked && skipped.batting === skippedTo.batting,
-  'and its key lands where the film did by itself', JSON.stringify(skipped));
+// PLAY SUPER10 this time: straight out to a Super10 innings, by the name screen for a new player.
+await page.click('#whatsnew-open');
+await tick(900);
+const played = await page.evaluate(() => ({ stories: !document.querySelector('#whatsnew-overlay')?.classList.contains('hidden'),
+  s10: document.body.classList.contains('s10-solid'), gate: !document.querySelector('#profile-overlay')?.classList.contains('hidden'),
+  picker: !document.querySelector('#modes')?.classList.contains('hidden') }));
+check(!played.stories && (played.s10 || played.gate), 'and PLAY SUPER10 walks out to a Super10 innings', JSON.stringify(played));
 
 await page.reload({ waitUntil: 'load' });
 await arrive();
@@ -157,6 +173,7 @@ if (key) {
   const back = await page.waitForSelector('.whatsnew-sheet', { timeout: 10_000 })
     .then(() => true).catch(() => false);
   check(back, 'which opens the same stories however many times they have been read');
+  check(await page.$eval('#whatsnew-film', v => v.loop), 'and there, with nowhere to go on to, the film plays round until it is closed');
   check(await page.$eval('#whatsnew-done', one => one.textContent.trim()) === 'CLOSE',
     'and offers to close rather than to go somewhere');
   await page.click('#whatsnew-done');

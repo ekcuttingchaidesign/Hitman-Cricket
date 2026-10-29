@@ -14,6 +14,10 @@
  * this game has always been that it would be a copy with a dead board behind it,
  * and a mode that never asks the board anything does not have that problem.
  *
+ * `VITE_SUPER10_ONLY` is the same for Super10, built by the same workflow into
+ * the Pages site's `super10/`: Super10 and nothing else, practice, with the
+ * player kept in the browser and nothing sent anywhere, GoatCounter included.
+ *
  * `VITE_SPIN_ONLY` hands the spinner every over instead of one in five. It is
  * a playtest build and nothing else: the two sweeps and the leg-side flick all
  * turn on which way the ball is spinning, and waiting for over three to come
@@ -48,6 +52,7 @@
 interface ImportMetaEnv {
   readonly VITE_BOARD_API?: string;
   readonly VITE_SURVIVE_ONLY?: string;
+  readonly VITE_SUPER10_ONLY?: string;
   readonly VITE_SPIN_ONLY?: string;
   readonly VITE_CHARGE_ONLY?: string;
   readonly VITE_CHARGE_SLOWMO?: string;

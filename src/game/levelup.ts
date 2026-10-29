@@ -177,7 +177,7 @@ export interface LevelUpWords {
   label: string;
 }
 
-const MODE_NAMES: Record<CareerMode, string> = { classic: 'The Blast', survive: 'Test Survival', marathon: 'Test Marathon' };
+const MODE_NAMES: Record<CareerMode, string> = { classic: 'The Blast', survive: 'Test Survival', marathon: 'Test Marathon', super10: 'Super10' };
 
 export function levelUpWords(mode: CareerMode, tier: Tier, next: string): LevelUpWords {
   const rung = TIERS.findIndex(one => one.key === tier.key);

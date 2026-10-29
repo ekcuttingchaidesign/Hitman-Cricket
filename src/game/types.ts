@@ -38,6 +38,8 @@ export interface Delivery {
   late?: number;
   /** Bowled by the Marathon's express bowler, whatever its length. */
   express?: boolean;
+  /** Bowled by Super10's death bowler, whatever its length. */
+  death?: boolean;
   /**
    * Bowled round the wicket: from his right of the stumps, the ball leaving
    * his hand out wide and angling in. Only how it is drawn changes; see
@@ -60,6 +62,8 @@ export interface ShotAttempt {
    * scored on its own ladder (`FLICK`) in every mode.
    */
   flicked?: boolean;
+  /** Which way the swipe went, degrees off straight up the batter's way round; none off a key. Super10 steers by it. */
+  swipe?: number;
 }
 export interface ShotOutcome {
   runs: 0 | 1 | 2 | 3 | 4 | 6; isWicket: boolean; wicketType?: WicketType;
@@ -99,4 +103,14 @@ export interface ShotOutcome {
   hangMs?: number;
   /** Skied, reached, and put down: the fielder gets hands to it and it does not stick. */
   dropped?: boolean;
+  /**
+   * Super10: a fielder got to it — stopped it in the ring, cut it off or saved
+   * it on the rope, or caught it there (`isWicket` says so). Where he stands,
+   * in degrees off straight and metres from the bat, and what he is called.
+   */
+  fielder?: { name: string; angle: number; distance: number; deep: boolean; how: 'stopped' | 'cut' | 'saved' | 'caught' };
+  /** Super10: steered into the outer third of its zone and reached for, so it went up off the toe however it was timed (`fieldRules`). */
+  stretched?: boolean;
+  /** Super10: where the stroke was steered, in degrees off straight, before the timing bends it. */
+  angle?: number;
 }

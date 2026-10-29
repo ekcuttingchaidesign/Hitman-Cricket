@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { INTRO_SHOWINGS, INTRO_STEPS, introCardMarkup, introDue, introKeysMarkup, introStageMarkup } from '../src/ui/MarathonIntro';
-import { SHOTS_STEP } from '../src/ui/ShotsIntro';
+import { SHOTS_STEP, SUPER10_STEPS } from '../src/ui/ShotsIntro';
 
 describe('the Marathon’s rules, the first time', () => {
   it('open with how to hit, then four rules, two of them pointing at what they are about', () => {
@@ -55,6 +55,8 @@ describe('the Marathon’s rules, the first time', () => {
     expect(introStageMarkup(SHOTS_STEP, true)).not.toBe(introStageMarkup(SHOTS_STEP));
     expect(introStageMarkup(INTRO_STEPS[3])).toContain('mi-pitch');
     expect(introStageMarkup(INTRO_STEPS[1])).toBe('');
+    expect(introStageMarkup(SUPER10_STEPS[3])).toContain('mi-gaps');
+    expect(introStageMarkup(SUPER10_STEPS[3], true)).toContain('is-left');
   });
 
   it('are shown twice at most, never once skipped, and not at all where nothing can be remembered', () => {

@@ -1,0 +1,199 @@
+import type { KitPrint, Mark } from '../entities/kitPrint';
+import type { Super10GuardId } from '../entities/gloves';
+
+/**
+ * Super10's own kits, each a team's, off the designer's sheets (Figma, the
+ * Super10 page: `524:616` and `525:618`, then `532:625`). In Super10 the batter
+ * always bats in one of them, never a Dressing Room kit: Midnight Panthers,
+ * everybody's from the first innings, and the rest once earned, in this order
+ * up the ladder: Apex Vipers, Nova Kings, Frontier Falcons, Aura Farmers and,
+ * at the top, Royal Mavericks (`SUPER10_KITS` runs easiest to hardest). The
+ * side in the field wears any of the others, drawn afresh each innings
+ * (`GameScene.dressBatter`). The LED stumps behind him are cherry (raspberry)
+ * for the Panthers, the Vipers, the Kings and the Farmers, and violet for the
+ * Falcons and the Mavericks, whose kits are cherry and violet themselves.
+ *
+ * The designs are pictures made with an image model, so they are followed
+ * for their colours and the lie of the bolts, not drawn stroke for stroke:
+ * nothing on the helmet, the back's bolt given over to his number, and the
+ * fabric's weave left to the cloth's own. Their palettes' printed hex codes
+ * do not always match their swatches; the swatches are what is taken.
+ */
+export const SUPER10_KIT_IDS = ['s10-purple', 's10-neon', 's10-yellow', 's10-cherry', 's10-orange', 's10-violet'] as const;
+export type Super10KitId = typeof SUPER10_KIT_IDS[number];
+
+export interface Super10Kit {
+  id: Super10KitId;
+  /** The team's name. */
+  name: string;
+  /** What earned it, once it has been, as an outfit's line. */
+  line: string;
+  shirt: string; helmet: string; trousers: string;
+  /** The collar, the cuffs and the shoe flash. */
+  trim: string;
+  number: string;
+  /** The light the Dressing Room is lit in while it is on show. */
+  glow: string;
+  print: KitPrint;
+  /** The cap the side in the field wears in it, where it is not the helmet's colour. */
+  cap?: string;
+  /** The gloves and pads that go with it. */
+  guard: Super10GuardId;
+  /** The LED stumps behind him: violet behind the Falcons' cherry and the Mavericks' violet, cherry (raspberry) behind the rest. */
+  stumps: 'violet' | 'raspberry';
+}
+
+/**
+ * What a Super10 kit takes, counted over the player's Super10 innings, every
+ * score a team total (all five batters' runs, as the scoreboard shows them):
+ * finished innings, sixes, runs, innings of a hundred or more, and the best
+ * innings. Each figure given must be reached.
+ */
+export interface Super10Target { innings?: number; sixes?: number; runs?: number; hundreds?: number; best?: number }
+
+/**
+ * The ladder, agreed with the designer, easiest first: Midnight Panthers free;
+ * Apex Vipers for 10 innings; Nova Kings for 50 sixes and 1,500 runs; Frontier
+ * Falcons for 10 innings of 100 or more; Aura Farmers for 5,000 runs; Royal
+ * Mavericks for an innings of 200 or more and 10,000 runs. All in Super10, and
+ * all team totals: one batter's 200 would ask him to bat out the ten overs.
+ */
+export const SUPER10_LADDER: Record<Super10KitId, Super10Target | null> = {
+  's10-purple': null,
+  's10-neon': { innings: 10 },
+  's10-yellow': { sixes: 50, runs: 1500 },
+  's10-cherry': { hundreds: 10 },
+  's10-orange': { runs: 5000 },
+  's10-violet': { best: 200, runs: 10000 },
+};
+
+// Purple and cherry as the designer set them after a look at the first build, whose purple read too light.
+const PURPLE = '#271473', LILAC = '#A447FF', LIME = '#B7FF3B', CHERRY = '#E92568';
+const NAVY = '#0B1A36', WHITE = '#FFFFFF', ROYAL = '#112E80';
+const ORANGE = '#FE7701', BUTTER = '#FDE17A', GOLD = '#EDC562', VIOLET = '#E78CFF', TEAL = '#178C89';
+
+/** The lightning, the Panthers' alone, the first team's mark: the chest's two bolts, a main one and a smaller one beside it, and the leg's, in two colours. */
+const chest = (main: string, second: string): Mark[] => [{ x: .03, y: .27, w: .13, h: .44, lean: 38, colour: main }, { x: -.07, y: .3, w: .08, h: .3, lean: 38, colour: second }];
+const leg = (main: string, second: string): Mark[] => [{ x: 0, y: .3, w: .14, h: .5, lean: 8, colour: main }, { x: -.035, y: .24, w: .08, h: .32, lean: 8, colour: second }];
+
+/**
+ * The other four teams each have a pattern of their own, from their names,
+ * kept to a few bold shapes so it reads on a batter a few hundred pixels tall.
+ *
+ * Nova Kings, a star flaring up: a big four-pointed star on the chest, blue
+ * with a white heart, two small ones beside it, and a yellow stripe down each
+ * leg ending in a star at the knee.
+ */
+const novaChest: Mark[] = [
+  { shape: 'star', x: .03, y: .29, w: .29, h: .29, lean: 0, colour: ROYAL },
+  { shape: 'star', x: .03, y: .29, w: .09, h: .09, lean: 0, colour: WHITE },
+  { shape: 'star', x: -.1, y: .41, w: .08, h: .08, lean: 0, colour: ROYAL },
+  { shape: 'star', x: .14, y: .15, w: .06, h: .06, lean: 0, colour: ROYAL },
+];
+const novaLeg: Mark[] = [
+  { shape: 'bar', x: 0, y: .3, w: .045, h: .5, lean: 0, colour: BUTTER },
+  { shape: 'star', x: 0, y: .6, w: .1, h: .1, lean: 0, colour: BUTTER },
+];
+/** Frontier Falcons, wings: three stacked V's across the chest, a falcon's spread wings, purple, white and purple, and two small ones down each leg. */
+const falconChest: Mark[] = [
+  { shape: 'chevron', x: 0, y: .36, w: .32, h: .13, lean: 0, colour: PURPLE, thick: .2 },
+  { shape: 'chevron', x: 0, y: .3, w: .32, h: .13, lean: 0, colour: WHITE, thick: .2 },
+  { shape: 'chevron', x: 0, y: .24, w: .32, h: .13, lean: 0, colour: PURPLE, thick: .2 },
+];
+const falconLeg: Mark[] = [
+  { shape: 'chevron', x: 0, y: .34, w: .12, h: .06, lean: 0, colour: PURPLE, thick: .3 },
+  { shape: 'chevron', x: 0, y: .41, w: .12, h: .06, lean: 0, colour: WHITE, thick: .3 },
+];
+/**
+ * Aura Farmers, after the designer's concept shirt (`squares` in
+ * `kitPrint.ts`): the orange shirt and sleeves with a navy cuff, navy
+ * squares packed at the hem on the front and fading up the chest into the
+ * orange, the back plain; and two orange stripes down each leg. Three arcs
+ * from the shoulder came first, and read as too plain for the second tier
+ * from the top; then the shirt half navy with the squares in orange, then a
+ * diagonal band of navy squares round his side and onto his back.
+ */
+const auraLeg: Mark[] = [
+  { shape: 'bar', x: -.026, y: .32, w: .022, h: .56, lean: 0, colour: ORANGE },
+  { shape: 'bar', x: .026, y: .32, w: .022, h: .56, lean: 0, colour: ORANGE },
+];
+/**
+ * Royal Mavericks, the top of the ladder, an all-over print (`swirl`):
+ * teal waves flowing round the whole violet shirt and its sleeves, fading
+ * into teal at the hem, the number edged in violet over it; and a teal stripe
+ * with a white line down each leg. A sash across the chest was tried first
+ * and read as bland for the highest tier.
+ */
+const sashLeg: Mark[] = [
+  { shape: 'bar', x: 0, y: .32, w: .035, h: .56, lean: 0, colour: TEAL },
+  { shape: 'bar', x: .028, y: .32, w: .01, h: .56, lean: 0, colour: WHITE },
+];
+/**
+ * Apex Vipers, after the designer's concept shirt (`shards` in
+ * `kitPrint.ts`): purple lightning, cherry streaks spattered along their
+ * edges and yellow slashes all over the lime, running up the diagonal; lime
+ * sleeves with a purple cuff, the number edged in lime; and a lime streak of
+ * barbs up the outside of each leg. Before it: columns of purple barbs up the
+ * front, yoke stripes with spikes from the hip (a South Africa concept
+ * shirt), angular blocks and a diamondback.
+ */
+const VIPER_LEAN = 12;
+const YELLOW = '#F3EF1C';
+/** A streak of barbs from `from` to `to` up the cloth along a line through `x` at the hem, the same every time it is drawn. */
+const streak = (x: number, from: number, to: number, wide: number, seed: number, lean = VIPER_LEAN, colour = PURPLE): Mark[] => {
+  const marks: Mark[] = [], slope = Math.tan(lean * Math.PI / 180);
+  for (let y = from, k = 0; y < to; y += .022, k++) {
+    const r = (n: number) => Math.abs(Math.sin((seed * 31 + k) * 12.9898 + n * 78.233) * 43758.5453) % 1;
+    const h = .07 + .06 * r(1);
+    marks.push({ shape: 'spike', x: x + y * slope + (k % 2 ? 1 : -1) * wide * (.25 + .5 * r(2)), y: y + h / 2, w: .02 + .016 * r(3), h, lean: lean + 6 * (r(4) - .5), colour });
+  }
+  return marks;
+};
+const viperLeg: Mark[] = streak(0, .04, .56, .016, 8, 0, LIME);
+
+export const SUPER10_KITS: readonly Super10Kit[] = [
+  {
+    id: 's10-purple', name: 'Midnight Panthers', line: "Every Super10 batter's first kit.", shirt: PURPLE, helmet: PURPLE, trousers: PURPLE, trim: LIME, number: LIME, glow: LILAC,
+    print: { number: LIME, chest: chest(LIME, LILAC), back: [], collar: { colour: LIME, inner: LILAC }, hem: { colour: LIME, line: LILAC }, leg: leg(LIME, LILAC) },
+    guard: 'super10', stumps: 'raspberry',
+  },
+  {
+    id: 's10-neon', name: 'Apex Vipers', line: '10 Super10 innings.', shirt: LIME, helmet: PURPLE, trousers: PURPLE, trim: PURPLE, number: PURPLE, glow: LIME,
+    print: {
+      number: PURPLE, numberEdge: LIME, shards: { bolt: PURPLE, streak: CHERRY, slash: YELLOW },
+      chest: [], back: [], collar: { colour: PURPLE, inner: LIME }, hem: { colour: PURPLE, line: LILAC }, leg: viperLeg,
+    },
+    guard: 'super10', stumps: 'raspberry',
+  },
+  {
+    id: 's10-yellow', name: 'Nova Kings', line: '50 sixes and 1,500 runs in Super10.', shirt: BUTTER, helmet: ROYAL, trousers: ROYAL, trim: NAVY, number: NAVY, glow: GOLD,
+    print: { number: NAVY, chest: novaChest, back: [], collar: { colour: NAVY, inner: WHITE }, hem: { colour: NAVY, line: WHITE }, leg: novaLeg },
+    guard: 'super10-yellow', stumps: 'raspberry',
+  },
+  {
+    id: 's10-cherry', name: 'Frontier Falcons', line: '10 Super10 totals of 100 or more.', shirt: CHERRY, helmet: PURPLE, trousers: CHERRY, trim: WHITE, number: PURPLE, glow: CHERRY,
+    print: { number: PURPLE, chest: falconChest, back: [], collar: { colour: PURPLE, inner: WHITE }, hem: { colour: PURPLE, line: WHITE }, leg: falconLeg },
+    cap: CHERRY, guard: 'super10-cherry', stumps: 'violet',
+  },
+  {
+    id: 's10-orange', name: 'Aura Farmers', line: '5,000 Super10 runs.', shirt: ORANGE, helmet: NAVY, trousers: NAVY, trim: NAVY, number: NAVY, glow: ORANGE,
+    print: { number: NAVY, squares: { colour: NAVY }, chest: [], back: [], collar: { colour: NAVY, inner: WHITE }, hem: { colour: NAVY, line: WHITE }, leg: auraLeg },
+    guard: 'super10-orange', stumps: 'raspberry',
+  },
+  {
+    id: 's10-violet', name: 'Royal Mavericks', line: 'A Super10 total of 200, and 10,000 runs.', shirt: VIOLET, helmet: TEAL, trousers: VIOLET, trim: TEAL, number: WHITE, glow: VIOLET,
+    print: { number: WHITE, swirl: { colour: TEAL, fade: TEAL, edge: VIOLET }, chest: [], back: [], collar: { colour: TEAL, inner: WHITE }, hem: { colour: TEAL, line: WHITE }, leg: sashLeg },
+    guard: 'super10-violet', stumps: 'violet',
+  },
+];
+
+/**
+ * The numbers on the five batters' backs, by how many are down: the opener
+ * 10, then 17, 9, 23 and 77. Printed on whichever Super10 kit he wears, in
+ * its print's `number` colour (lime on the Panthers, purple on the Vipers
+ * and the Falcons, navy on the Kings and the Farmers, white on the Mavericks),
+ * where the back's bolt was.
+ */
+export const SUPER10_NUMBERS = ['10', '17', '9', '23', '77'] as const;
+export const super10Number = (down: number) => SUPER10_NUMBERS[Math.min(Math.max(0, down), SUPER10_NUMBERS.length - 1)];
+

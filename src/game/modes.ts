@@ -6,15 +6,17 @@
  * - **SURVIVE** — Test Survival: a tailender, one wicket, a hundred to chase in
  *   ten overs.
  * - **MARATHON** — Test Marathon: three wickets, as many balls as they last
- *   (`docs/MARATHON.md`). Not playable yet: the type is here so that the code
- *   can say "a Test match" and mean both Test modes, ahead of the rules.
+ *   (`docs/MARATHON.md`).
+ * - **SUPER10** — Super10: ten overs, three wickets, five bowlers, in coloured
+ *   kit (`config/super10.ts`). Off production only while it is built, and
+ *   counted for nothing until it has a board.
  *
  * Two questions get asked of a mode, and they are not the same question.
  * "Is this a Test match?" decides how it looks — whites, the Test field, a
  * day game — and both Test modes answer yes. "Is this Test Survival?" decides
  * its rules — the chase, its board, its injury note — and only one does.
  */
-export type GameMode = 'CLASSIC' | 'SURVIVE' | 'MARATHON';
+export type GameMode = 'CLASSIC' | 'SURVIVE' | 'MARATHON' | 'SUPER10';
 
 /** A Test match: played in whites, to the Test field, by day. */
 export const isTest = (mode: GameMode) => mode === 'SURVIVE' || mode === 'MARATHON';

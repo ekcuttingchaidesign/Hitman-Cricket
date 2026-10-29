@@ -65,15 +65,25 @@ function finish(c: HTMLCanvasElement, anisotropy: number) {
   return texture;
 }
 
-/** Outfield colours, in sRGB. */
+/** Outfield colours, in sRGB: the stadium's, and every ground's but the two below. */
 export const TURF = { light: '#6aa449', dark: '#5e9540', edge: 'rgba(38,70,30,1)' } as const;
+/**
+ * The pavilion's and the canopy's outfield (`turfOf` in `grounds.ts`): brighter
+ * and yellower, its light stripe #6DA637 and its dark a shade under. The strip
+ * is every ground's own, the stadium's #d3b683: a warmer one was tried at
+ * these two (#DEAC67, #E5BD85, #FDC375) and taken back.
+ */
+export const FRESH_TURF = { light: '#6da637', dark: '#629631', edge: TURF.edge } as const;
+export type Turf = 'classic' | 'fresh';
+const PALETTE = { classic: TURF, fresh: FRESH_TURF } as const;
 
 /**
  * The outfield, for a `CircleGeometry` of `radius` centred `centreZ` along
  * the wicket and laid flat. The circle's UVs are its bounding square, so a
  * metre is the same number of pixels in both directions.
  */
-export function grassTexture(radius: number, centreZ: number, boundary: number, anisotropy: number) {
+export function grassTexture(radius: number, centreZ: number, boundary: number, anisotropy: number, turf: Turf = 'classic') {
+  const TURF = PALETTE[turf];
   const size = 2048, scale = size / (radius * 2);
   const { c, ctx } = canvas(size, size);
   const random = seeded(11);

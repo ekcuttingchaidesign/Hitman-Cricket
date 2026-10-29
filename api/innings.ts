@@ -8,8 +8,8 @@ import { recordInnings } from '../src/server/recap-store.js';
 import { lookOf } from '../src/game/dressing-ids.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 import {
-  BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, readBlastTally, readMarathonTally, readSurviveTally,
-  type BlastCareer, type MarathonCareer, type SurviveCareer,
+  BLAST_CAREER, MARATHON_CAREER, SUPER10_CAREER, SURVIVE_CAREER, readBlastTally, readMarathonTally, readSuper10Tally,
+  readSurviveTally, type BlastCareer, type MarathonCareer, type Super10Career, type SurviveCareer,
 } from '../src/game/career.js';
 import { modeAsked } from '../src/server/mode.js';
 
@@ -56,6 +56,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   try {
     const tally = mode === 'survive' ? readSurviveTally(body.innings)
       : mode === 'marathon' ? readMarathonTally(body.innings)
+      : mode === 'super10' ? readSuper10Tally(body.innings)
       : readBlastTally(body.innings);
     const outcome = mode === 'survive'
       ? await countInnings(
@@ -68,6 +69,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         upstashCareer<MarathonCareer>(redisFromEnv(), MARATHON_CAREER.scope),
         MARATHON_CAREER,
         { ...who, tally: tally as ReturnType<typeof readMarathonTally> },
+      )
+      : mode === 'super10'
+      ? await countInnings(
+        upstashCareer<Super10Career>(redisFromEnv(), SUPER10_CAREER.scope),
+        SUPER10_CAREER,
+        { ...who, tally: tally as ReturnType<typeof readSuper10Tally> },
       )
       : await countInnings(
         upstashCareer<BlastCareer>(redisFromEnv(), BLAST_CAREER.scope),

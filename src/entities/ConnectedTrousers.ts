@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { BendingLimb } from './BendingLimb';
 import { updateGarmentNormals } from './ConnectedJersey';
+import { setPrint } from './kitPrint';
 
 /**
  * How many rows down each leg the trousers take to become the leg: the hip
@@ -80,6 +81,17 @@ export class ConnectedTrousers {
       }
     }
     geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geometry.setIndex(indices);
+    // Where each vertex is round its leg, for a kit's print (`kitPrint.ts`),
+    // the hip at the top: the second leg turned round, so the outside of
+    // each is the same place on the texture. The waist and the seat have
+    // none: the seat's rows are laid from the waist's opening, whose order
+    // round is not the leg's, and the top of the leg's bolt came out as a
+    // stripe across the back of the seat.
+    const print = new THREE.BufferAttribute(new Float32Array(count * 4), 4);
+    for (let leg = 0; leg < 2; leg++) for (let row = SEAT_ROWS + 1; row <= 20; row++) for (let i = 0; i < 16; i++) {
+      setPrint(print, this.offset(leg) + (row - 1) * 16 + i, (leg ? -1 : 1) * i / 16 * Math.PI * 2, 1 - row / 20, 0);
+    }
+    geometry.setAttribute('kitPrint', print);
     geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 1, 0), 3);
     this.mesh = new THREE.Mesh(geometry, material); this.mesh.name = 'Continuous tailored trousers';
     this.mesh.castShadow = this.mesh.receiveShadow = true;

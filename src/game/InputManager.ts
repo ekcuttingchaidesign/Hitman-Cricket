@@ -111,7 +111,7 @@ export class InputManager {
    * the right, exactly where his leg side now is.
    */
   /** `zones` says where the swipes split in this mode: see `SWIPE_ZONES`. */
-  constructor(private active: () => boolean, private now: (at?: number) => number, private shoot: (shot: ShotType, time: number) => void, private surface?: HTMLElement, private coverLean: () => number = () => 0, private scoops: () => boolean = () => false, private mirrored: () => boolean = () => false, private hooks: () => boolean = () => false, private zones: () => SwipeZones = () => SWIPE_ZONES.test) {
+  constructor(private active: () => boolean, private now: (at?: number) => number, private shoot: (shot: ShotType, time: number, swipe?: number) => void, private surface?: HTMLElement, private coverLean: () => number = () => 0, private scoops: () => boolean = () => false, private mirrored: () => boolean = () => false, private hooks: () => boolean = () => false, private zones: () => SwipeZones = () => SWIPE_ZONES.test) {
     window.addEventListener('keydown', this.down);
     window.addEventListener('keyup', this.up);
     surface?.addEventListener('pointerdown', this.pointerDown);
@@ -146,7 +146,10 @@ export class InputManager {
     // Commit at recognition: resting a thumb cannot bank an earlier shot, and
     // a longer swipe adds no delay after its direction is already clear.
     const time = this.gesture.crossed;
-    this.used = true; this.pending = null; this.cancelGesture(); this.shoot(shot, time);
+    // And where it pointed, in degrees off straight up the batter's way round:
+    // Super10 steers the stroke with it (`steer`). Keys have none.
+    const swipe = Math.atan2(across, -down) * 180 / Math.PI;
+    this.used = true; this.pending = null; this.cancelGesture(); this.shoot(shot, time, swipe);
   };
   private pointerUp = (event: PointerEvent) => {
     this.pointerMove(event, true); // Some devices coalesce a quick flick into pointerup.

@@ -350,6 +350,32 @@ export const FOLLOW_UPS: readonly Question[] = [
       { id: 'no', label: 'Probably not' },
     ],
   },
+  {
+    id: 'tlength',
+    ask: 'How did ten overs feel?',
+    who: 'rated',
+    about: ['super10'],
+    choices: [
+      { id: 'short', label: 'Over too soon' },
+      { id: 'right', label: 'About right' },
+      { id: 'long', label: 'A bit long' },
+    ],
+  },
+  {
+    id: 'tbest',
+    ask: 'What made Super10?',
+    who: 'rated',
+    about: ['super10'],
+    pick: 2,
+    choices: [
+      { id: 'surge', label: 'Power Surge' },
+      { id: 'field', label: 'Beating the field' },
+      { id: 'bowlers', label: 'Five different bowlers' },
+      { id: 'kits', label: 'The team kits' },
+      { id: 'ground', label: 'The ground under lights' },
+      { id: 'none', label: 'Nothing stood out' },
+    ],
+  },
 ];
 
 /** The follow-up to a rating, in order: why the stars, then the thing itself. */

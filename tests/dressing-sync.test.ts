@@ -3,7 +3,7 @@ import { cleanDressing, mergeDressing, sameDressing, type SavedDressing } from '
 import { SAVE_LIMIT, memoryDressing, readSaved, saveDressing } from '../src/server/dressing-save';
 
 const copy = (patch: Partial<SavedDressing> = {}): SavedDressing => ({
-  outfit: 'home', bat: 'plain', guard: 'sterling', pickedAt: 0, launch: null, seen: ['kit:home', 'bat:plain'], shown: ['kit:home', 'bat:plain'], visited: false, ...patch,
+  outfit: 'home', bat: 'plain', guard: 'sterling', super10: null, pickedAt: 0, launch: null, seen: ['kit:home', 'bat:plain'], shown: ['kit:home', 'bat:plain'], visited: false, ...patch,
 });
 const PLAYER = 'abc1234-0123456789ab';
 
@@ -45,6 +45,17 @@ describe('a Dressing Room as it travels', () => {
     expect(cleanDressing({ ...copy(), guard: 'gauntlets' })?.guard).toBe('sterling');
     expect(cleanDressing({ ...copy(), guard: 'midnight' })?.guard).toBe('midnight');
     expect(sameDressing(copy(), null)).toBe(false);
+  });
+
+  it('carries the Super10 pick with the rest of the pick, and its unlocks with the others', () => {
+    expect(cleanDressing({ ...copy(), super10: 's10-neon' })?.super10).toBe('s10-neon');
+    expect(cleanDressing({ ...copy(), super10: 's10-tartan' })?.super10).toBeNull();
+    const { super10: _dropped, ...before } = copy();
+    expect(cleanDressing(before)?.super10).toBeNull();
+    expect(cleanDressing({ ...copy(), seen: ['kit:s10-violet'] })?.seen).toEqual(['kit:s10-violet']);
+    const phone = copy({ super10: 's10-cherry', pickedAt: 200 }), laptop = copy({ outfit: 'forest', pickedAt: 100 });
+    expect(mergeDressing(laptop, phone)).toMatchObject({ outfit: 'home', super10: 's10-cherry' });
+    expect(sameDressing(copy(), copy({ super10: 's10-neon' }))).toBe(false);
   });
 });
 

@@ -1,5 +1,5 @@
 import {
-  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SURVIVE_LADDER, cleanName, refused, submitMarathon,
+  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SUPER10_LADDER, SURVIVE_LADDER, cleanName, refused, submitMarathon,
   submitScore, type Submission,
 } from '../src/server/board-store.js';
 import { nameCareer } from '../src/server/career-store.js';
@@ -9,8 +9,10 @@ import {
   NoDatabase, redisFromEnv, upstashCareer, upstashProfiles, upstashRecovery, upstashStore,
 } from '../src/server/upstash.js';
 import {
-  BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, type BlastCareer, type MarathonCareer, type SurviveCareer,
+  BLAST_CAREER, MARATHON_CAREER, SUPER10_CAREER, SURVIVE_CAREER, type BlastCareer, type MarathonCareer,
+  type Super10Career, type SurviveCareer,
 } from '../src/game/career.js';
+import { readSuper10, type Super10Innings } from '../src/game/super10-board.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 import type { Innings } from '../src/game/leaderboard.js';
 import type { SurviveInnings } from '../src/game/survive-board.js';
@@ -38,7 +40,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   // Which board is being offered an innings. The two are separate ladders over
   // separate keys, and the figures a row carries differ, so this decides both.
   const mode = modeAsked(body.mode);
-  const survive = mode === 'survive', marathon = mode === 'marathon';
+  const survive = mode === 'survive', marathon = mode === 'marathon', super10 = mode === 'super10';
   const who = {
     playerId: String(body.playerId ?? ''),
     name: String(body.name ?? ''),
@@ -50,11 +52,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const write = redisFromEnv();
     const marathonInnings = marathon ? readMarathonFigures(body.innings) : null;
     const surviveInnings = survive ? surviveFigures(body.innings) : null;
+    const super10Innings = super10 ? readSuper10(body.innings) : null;
     const blastInnings = figures(body.innings);
     const outcome = marathonInnings
       ? await submitMarathon(
         { team: upstashStore(write, MARATHON_TEAM_LADDER.scope), solo: upstashStore(write, MARATHON_SOLO_LADDER.scope) },
         { ...who, innings: marathonInnings } satisfies Submission<MarathonFigures>,
+      )
+      : super10Innings
+      ? await submitScore(
+        upstashStore<Super10Innings>(redisFromEnv(), SUPER10_LADDER.scope),
+        SUPER10_LADDER,
+        { ...who, innings: super10Innings } satisfies Submission<Super10Innings>,
       )
       : surviveInnings
       ? await submitScore(
@@ -89,6 +98,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         : marathon
         ? nameCareer(upstashCareer<MarathonCareer>(redisFromEnv(), MARATHON_CAREER.scope), MARATHON_CAREER,
           who.playerId, name, who.avatar)
+        : super10
+        ? nameCareer(upstashCareer<Super10Career>(redisFromEnv(), SUPER10_CAREER.scope), SUPER10_CAREER,
+          who.playerId, name, who.avatar)
         : nameCareer(upstashCareer<BlastCareer>(redisFromEnv(), BLAST_CAREER.scope), BLAST_CAREER,
           who.playerId, name, who.avatar));
     } catch (error) {
@@ -118,7 +130,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     // Who the innings went past and who is next, and the chase it was played
     // as, which leave their marks on other players' profiles. `afterPost`
     // never throws: the innings is on the board whatever happens here.
-    const runs = marathonInnings ? teamOf(marathonInnings).runs : (surviveInnings ?? blastInnings).runs;
+    const runs = marathonInnings ? teamOf(marathonInnings).runs : (surviveInnings ?? super10Innings ?? blastInnings).runs;
     const extras = await afterPost(upstashProfiles(write), {
       playerId: who.playerId, name: who.name, avatar: who.avatar, mode, runs, outcome, chase: body.chase,
       chaseLadder: body.chaseLadder, soloRuns: marathonInnings ? soloOf(marathonInnings).runs : undefined,

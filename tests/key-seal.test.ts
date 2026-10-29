@@ -180,8 +180,9 @@ describe('how much of a player there is', () => {
     const records: Record<string, unknown> = {
       'development:blast:careers': { career: { innings: 42 } },
       'development:marathoncareer:careers': { career: { innings: 3 } },
+      'development:super10career:careers': { career: { innings: 7 } },
     };
     const counted = await inningsOf(async field => records[field] ?? null, 'development:', 'p-dhruv');
-    expect(counted).toEqual({ blast: 42, survival: 0, marathon: 3 });
+    expect(counted).toEqual({ blast: 42, survival: 0, marathon: 3, super10: 7 });
   });
 });

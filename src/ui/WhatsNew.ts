@@ -57,23 +57,25 @@ export function storiesMarkup(view: StoriesView): string {
   // A stroke's film is the game's own ground under the whole screen, edge to
   // edge: the sheet is see-through and the room between the words is where
   // the camera has him.
-  const kind = story.film ? ' is-film' : story.stage ? ' is-stage' : story.reel ? ' is-reel' : '';
+  const kind = story.film || story.video ? ' is-film' : story.stage ? ' is-stage' : story.reel ? ' is-reel' : '';
   return `
     <div class="whatsnew-sheet${kind}" role="document" aria-roledescription="story">${
   story.film ? `
       <div id="whatsnew-film" class="whatsnew-film" role="img" aria-label="${escape(story.alt)}"></div>` : ''}${
+  story.video ? `
+      <video id="whatsnew-film" class="whatsnew-film is-video" src="${story.video}" muted playsinline preload="auto" aria-label="${escape(story.alt)}"></video>` : ''}${
   story.stage ? `
       <div id="whatsnew-stage" class="whatsnew-stage" data-stage="${story.stage}" role="img" aria-label="${escape(story.alt)}"></div>` : ''}${
   story.reel ? `
       <div class="whatsnew-reel" data-reel="${story.reel}" role="img" aria-label="${escape(story.alt)}"></div>${shotCueMarkup(story.reel)}` : ''}
-      <div class="whatsnew-bars" aria-hidden="true">${stories.map((_, i) => `
+      <div class="whatsnew-bars${stories.length === 1 ? ' is-single' : ''}" aria-hidden="true">${stories.map((_, i) => `
         <span class="whatsnew-bar${i < at ? ' is-done' : live(i)}"${
   i === at && !holds ? ` style="--hold:${story.holdMs ?? holdMs}ms"` : ''}><i></i></span>`).join('')}
       </div>
       <button id="whatsnew-back" class="whatsnew-half is-back" type="button" aria-label="Previous"></button>
       <button id="whatsnew-next" class="whatsnew-half is-next" type="button" aria-label="Next"></button>
       <div class="whatsnew-body">
-        ${story.film ? '' : `<p class="whatsnew-eyebrow">${escape(story.eyebrow)}</p>`}
+        ${story.film || story.video ? '' : `<p class="whatsnew-eyebrow">${escape(story.eyebrow)}</p>`}
         <h2 class="whatsnew-title${story.body ? '' : ' is-unseen'}">${escape(story.title)}</h2>${story.stage || story.reel ? `
         <div id="whatsnew-room" class="whatsnew-room" aria-hidden="true">${story.reel ? shotCallMarkup(story.reel) : ''}</div>` : ''}${art ? `
         <div class="whatsnew-art">
@@ -84,8 +86,8 @@ export function storiesMarkup(view: StoriesView): string {
   storyKeyMarkup(careerKey)}</div>` : ''}
       </div>${story.opens ? `
       <div class="whatsnew-foot is-pair">
-        ${cta({ kind: 'secondary', label: where === 'board' ? 'CLOSE' : 'SKIP', id: 'whatsnew-done' })}
-        ${cta({ kind: 'primary', label: 'GO TO DRESSING ROOM', id: 'whatsnew-open' })}
+        ${cta({ kind: 'secondary', label: where === 'board' ? 'CLOSE' : story.opens === 'super10' ? 'GOT IT' : 'SKIP', id: 'whatsnew-done' })}
+        ${cta({ kind: 'primary', label: story.opens === 'super10' ? 'PLAY SUPER10' : 'GO TO DRESSING ROOM', id: 'whatsnew-open' })}
       </div>` : `
       <div class="whatsnew-foot">
         <button id="whatsnew-done" class="key-button whatsnew-key" type="button">${

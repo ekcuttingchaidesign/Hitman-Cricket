@@ -35,6 +35,8 @@ export interface IntroStep {
   shots?: boolean;
   /** The pitch, marked in front of the batter where it wears. */
   pitch?: boolean;
+  /** Super10's gaps: two fielders up the ground from the bat and the line between them. */
+  gaps?: boolean;
 }
 
 /** The game a set of cards is for, named at the head of each in its colour. */
@@ -77,10 +79,22 @@ const CRACK = '<svg viewBox="0 0 56 56" fill="none" stroke="#F5EFE6" stroke-widt
   + '<path d="M35 4.66667H21C18.4227 4.66667 16.3333 6.756 16.3333 9.33333V46.6667C16.3333 49.244 18.4227 51.3333 21 51.3333H35C37.5773 51.3333 39.6667 49.244 39.6667 46.6667V9.33333C39.6667 6.756 37.5773 4.66667 35 4.66667Z"/>'
   + '<path d="M25.6667 14L30.3333 18.6667L25.6667 23.3333L30.3333 28L25.6667 32.6667L30.3333 37.3333"/></svg>';
 
+/**
+ * The gaps, drawn from the bat up the ground (Super10's last card): the ring
+ * as a dashed arc, two fielders in the field map's red, and the ball's line
+ * drawn out between them in the game's colour, again and again.
+ */
+const GAPS = '<svg viewBox="-160 -200 320 210" aria-hidden="true">'
+  + '<path d="M-150 -60A170 170 0 0 1 150 -60" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="2" stroke-dasharray="6 7"/>'
+  + '<circle class="mi-gap-man" cx="-74" cy="-142" r="9"/><circle class="mi-gap-man" cx="70" cy="-150" r="9"/>'
+  + '<path class="mi-gap-line" d="M0 0L-4 -186" pathLength="1"/><path class="mi-gap-head" d="M-14 -172L-4 -190L7 -173"/>'
+  + '<circle cx="0" cy="0" r="6" fill="#fff"/></svg>';
+
 /** What a card draws over the ground: the swipes, or the pitch marked. A spotlight is drawn by the HUD, which can see the target. */
 export function introStageMarkup(step: IntroStep, left = false): string {
   if (step.shots) return shotsCompass(left);
   if (step.pitch) return `<span class="mi-pitch">${CRACK}</span>`;
+  if (step.gaps) return `<span class="mi-gaps${left ? ' is-left' : ''}">${GAPS}</span>`;
   return '';
 }
 

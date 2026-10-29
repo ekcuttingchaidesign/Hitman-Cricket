@@ -46,7 +46,7 @@ async function crease(name, query = '', seed = {}) {
       localStorage.setItem('hitman-seen', new Date(Date.now() - 172_800_000).toISOString().slice(0, 10));
       localStorage.setItem('hitman-shots-intro', 'done');
       localStorage.setItem('hitman-marathon-intro', 'done');
-      localStorage.setItem('hitman-whatsnew', 'player-profiles:9');
+      localStorage.setItem('hitman-whatsnew', 'super10:9');
       localStorage.setItem('hitman-profile', '1');
       localStorage.setItem('hitman-rating', JSON.stringify({ rated: {}, finished: 0, played: {}, dismissals: 3, dismissedAt: Date.now() }));
       if (who && !localStorage.getItem('hitman-batter')) localStorage.setItem('hitman-batter', JSON.stringify({ name: who, avatar: 1 }));

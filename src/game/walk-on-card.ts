@@ -1,4 +1,4 @@
-import type { BlastCareer, CareerMode, MarathonCareer, SurviveCareer } from './career';
+import type { BlastCareer, CareerMode, MarathonCareer, Super10Career, SurviveCareer } from './career';
 import { statsFacts } from './StatsCard';
 
 /**
@@ -32,11 +32,12 @@ const PICKS: Record<CareerMode, readonly [label: string, shown: string][]> = {
   classic: [['Innings', 'Innings'], ['Runs', 'Runs'], ['Highest', 'Highest'], ['Sixes', 'Sixes']],
   marathon: [['Innings', 'Innings'], ['Runs', 'Runs'], ['Best ind.', 'Best'], ['Hundreds', '100s']],
   survive: [['Innings', 'Innings'], ['Survived', 'Survived'], ['Won', 'Won'], ['Runs', 'Runs']],
+  super10: [['Innings', 'Innings'], ['Runs', 'Runs'], ['Highest', 'Highest'], ['Sixes', 'Sixes']],
 };
 
 export function walkOnCard(
   mode: CareerMode,
-  career: BlastCareer | SurviveCareer | MarathonCareer,
+  career: BlastCareer | SurviveCareer | MarathonCareer | Super10Career,
   who: { name: string; avatar: number },
 ): WalkOnCard {
   const facts = statsFacts(mode, career, who);
