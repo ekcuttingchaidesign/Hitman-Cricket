@@ -81,7 +81,7 @@ const open = async page => {
   await page.locator('#board-mode').click();
   await page.waitForTimeout(300);
   const order = await page.locator('#board-mode-menu [data-mode]').evaluateAll(all => all.map(one => one.dataset.mode));
-  check(order.join() === 'classic,survive,super10,marathon', 'the mode pill opens a menu of the four, Super10 third and the Marathon last', order.join());
+  check(order.join() === 'classic,super10,marathon,survive', 'the mode pill opens a menu of the four: the Blast, Super10, the Marathon, Survival', order.join());
   await page.screenshot({ path: 'test-results/board/mode-menu.png' });
   await page.locator('[data-mode="marathon"]').click();
   await page.waitForTimeout(900);
@@ -97,21 +97,25 @@ const open = async page => {
   check((await page.locator('#board-ladder').innerText()).includes('Batters'), 'and Batters opens the batters’ ladder');
   await page.screenshot({ path: 'test-results/board/marathon-batters.png' });
 
-  // A swipe right goes back a mode: the Marathon is last, so Super10, then Test Survival.
+  // A swipe left goes on a mode and a swipe right comes back: the Marathon is
+  // third, so on to Test Survival, then back past it to Super10.
   const box = await page.locator('#board-body').boundingBox();
-  const swipeBack = async () => {
-    await page.mouse.move(box.x + box.width * 0.3, box.y + 300);
+  const swipe = async (back) => {
+    const from = back ? 0.3 : 0.9, step = back ? 0.075 : -0.075;
+    await page.mouse.move(box.x + box.width * from, box.y + 300);
     await page.mouse.down();
-    for (let i = 1; i <= 8; i++) await page.mouse.move(box.x + box.width * (0.3 + i * 0.075), box.y + 302);
+    for (let i = 1; i <= 8; i++) await page.mouse.move(box.x + box.width * (from + i * step), box.y + 302);
     await page.mouse.up();
     await page.waitForTimeout(900);
   };
-  await swipeBack();
-  check((await page.locator('#board-mode').innerText()).includes('Super10'), 'a swipe goes back to Super10', await page.locator('#board-mode').innerText());
-  await swipeBack();
-  check((await page.locator('#board-mode').innerText()).includes('Test Survival'), 'and another to Test Survival');
+  await swipe(false);
+  check((await page.locator('#board-mode').innerText()).includes('Test Survival'), 'a swipe goes on to Test Survival', await page.locator('#board-mode').innerText());
   check(await page.locator('.lb-result').count() > 10, 'whose rows carry their result', String(await page.locator('.lb-result').count()));
   await page.screenshot({ path: 'test-results/board/survival.png' });
+  // Back from a row's face: a swipe that starts on a picture still turns the board.
+  await swipe(true);
+  await swipe(true);
+  check((await page.locator('#board-mode').innerText()).includes('Super10'), 'and two back to Super10, starting on a row\'s face', await page.locator('#board-mode').innerText());
 
   await page.locator('#board-info').click();
   await page.waitForTimeout(300);

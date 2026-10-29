@@ -7695,6 +7695,9 @@ video.whatsnew-film.is-fit{height:auto;object-fit:contain;
   position:relative;display:flex;flex-direction:column;height:100%;overflow:hidden;
   background:var(--c-page);color:var(--c-text);font-family:var(--f-ui)
 }
+/* The faces in the rows are not dragged as pictures: with a mouse a swipe
+   that started on one was taken for dragging it, and the board never moved. */
+.lb-screen img{-webkit-user-drag:none;user-select:none}
 .lb-bg{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .lb-bg img{position:absolute;left:calc(var(--u) * -40);top:calc(var(--u) * -30);width:calc(var(--u) * 482);height:calc(var(--u) * 460);object-fit:cover;filter:blur(14px);opacity:.5}
 .lb-fade{position:absolute;inset:0;background:linear-gradient(180deg,#0a0b0d8c 0%,#0a0b0d33 18%,#0a0b0dbf 42%,#0a0b0d 55%,#0a0b0d 100%)}
