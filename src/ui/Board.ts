@@ -46,7 +46,8 @@ export const BOARD_MODES: Record<BoardMode, { name: string; colour: string; art:
   survive: { name: 'Test Survival', colour: '#ff5a4e', art: artSurvive, play: 'PLAY TEST SURVIVAL' },
   super10: { name: 'Super10', colour: '#8b5cf6', art: artSuper10, play: 'PLAY SUPER10' },
 };
-export const MODE_ORDER: readonly BoardMode[] = ['classic', 'survive', 'super10', 'marathon'];
+/** The mode menu's and the pager's order: the Blast, Super10, then the two Tests. */
+export const MODE_ORDER: readonly BoardMode[] = ['classic', 'super10', 'marathon', 'survive'];
 
 /**
  * One row, whichever board it came from: its place, who, the line under the
