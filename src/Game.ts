@@ -3467,13 +3467,12 @@ export class Game {
   private railStats(open: CareerMode, draw: (view: StatsSheetView) => void) {
     // Each card's Best rank reads the innings boards' places too.
     this.refreshRanks();
-    // The Test Marathon's card comes second, between the Blast's and Test
-    // Survival's, wherever the mode can be played.
+    // The Blast, Super10, the Test Marathon and Test Survival, each where it
+    // can be played; Super10's never in the tester build, which keeps nothing.
     const marathon: CareerMode[] = MARATHON_OPEN ? ['marathon'] : [];
-    // Super10's card last, wherever it can be played and is kept: never in the tester build.
     const super10: CareerMode[] = SUPER10_OPEN && !SUPER10_ONLY ? ['super10'] : [];
     const modes: CareerMode[] = SHOW_SURVIVE && !SURVIVE_ONLY
-      ? ['classic', ...marathon, 'survive', ...super10]
+      ? ['classic', ...super10, ...marathon, 'survive']
       : [this.boardTab, ...marathon, ...super10];
     const at = Math.max(0, modes.indexOf(open));
     this.mineSlides = {};

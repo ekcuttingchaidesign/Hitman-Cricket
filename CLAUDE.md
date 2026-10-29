@@ -82,7 +82,9 @@ README's "Player profiles" is the long version.
   its end card takes it down sooner, won or not (`src/game/answered.ts`, kept
   in the browser by handle and mode), and the cover's line goes with it. The
   mode switch is quiet tabs, the badge and the name with the pick underlined
-  in its colour (Figma `367:12950`); no figures on them.
+  in its colour (Figma `367:12950`); no figures on them. They run the
+  Blast, Super10, the Marathon, Survival (`railStats`), on one line that
+  scrolls sideways, the picked one brought into the row.
   The cover's `beaten` line reads the same.
 - **D, the bio**: `bioFieldMarkup` in Your details, on the edit only, held to
   `bioProblem` (`src/server/bio-rules.ts`) in the browser and the store, and

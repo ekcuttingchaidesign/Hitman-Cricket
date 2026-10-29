@@ -1666,6 +1666,14 @@ ${modeSelectMarkup()}
         const on = Number(dot.dataset.slide) === at;
         dot.classList.toggle('is-on', on);
         dot.setAttribute('aria-selected', String(on));
+        // Four modes scroll on one line: the picked tab is brought into the row.
+        // Only the row moves: scrollIntoView would also scroll the page up to it.
+        const row = dot.parentElement;
+        if (on && row) {
+          const left = dot.getBoundingClientRect().left - row.getBoundingClientRect().left + row.scrollLeft;
+          if (left < row.scrollLeft) row.scrollTo({ left, behavior: 'smooth' });
+          else if (left + dot.offsetWidth > row.scrollLeft + row.clientWidth) row.scrollTo({ left: left + dot.offsetWidth - row.clientWidth, behavior: 'smooth' });
+        }
       }
     };
     for (const dot of document.querySelectorAll<HTMLButtonElement>('.stats-dot')) {
