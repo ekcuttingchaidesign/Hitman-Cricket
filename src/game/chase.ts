@@ -48,13 +48,13 @@ export function beaten(chase: Pick<Chase, 'target'>, runs: number): boolean {
 
 /**
  * The chip's line under the scoreboard: what is wanted, and off how many where
- * the innings is counted in balls. The Blast has thirty; Survival and the
- * Marathon end on wickets and say only what is wanted.
+ * the innings is counted in balls. The Blast has thirty and Super10 sixty;
+ * Survival and the Marathon end on wickets and say only what is wanted.
  */
 export function chipLine(chase: Chase, runs: number, ballsLeft: number | null): { need: string; off: string | null; done: boolean } {
   if (beaten(chase, runs)) return { need: `Surpassed ${chase.name}`, off: null, done: true };
   const need = wanted(chase, runs);
-  return { need: String(need), off: ballsLeft !== null && chase.mode === 'classic' ? String(Math.max(0, ballsLeft)) : null, done: false };
+  return { need: String(need), off: ballsLeft !== null && (chase.mode === 'classic' || chase.mode === 'super10') ? String(Math.max(0, ballsLeft)) : null, done: false };
 }
 
 /** How far along the chip's bar is, nought to one. */
