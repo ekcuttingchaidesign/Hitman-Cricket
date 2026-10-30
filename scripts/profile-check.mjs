@@ -128,11 +128,15 @@ const snap = await page.evaluate(() => window.__cricket?.snapshot?.());
 check(snap?.chase?.target === 174 && snap?.chase?.mode === 'classic', 'CHASE holds their best as the target', JSON.stringify(snap?.chase));
 check(await page.locator('#board-overlay .lb-screen').count() === 0, 'and the board makes way for the innings');
 
-/** Writes balls once the bowler is at his mark: the debug hook writes only between balls. */
+/**
+ * Writes balls once the bowler is at his mark: the debug hook writes only
+ * between balls. Up to forty seconds, polled often: rendered in software a
+ * ball takes seconds and READY is a short moment between two of them.
+ */
 const write = async balls => {
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 400; i++) {
     if (await page.evaluate(b => window.__cricket.snapshot().phase === 'READY' && window.__cricket.blast(b), balls)) return true;
-    await page.waitForTimeout(150);
+    await page.waitForTimeout(100);
   }
   return false;
 };
@@ -376,6 +380,56 @@ check(events.events?.[0]?.kind === 'beat' && events.events[0].runs === 174, 'and
   const chip = (await s.locator('.ch-chip .ch-need').textContent().catch(() => '')).trim();
   check(chip === 'Survive 41 more', 'S · and the chip counts the balls still to survive', chip);
   await s.screenshot({ path: `${out}/s2-chip.png` });
+  await ctx.close();
+}
+
+// B in Super10: CHASE off a Super10 row walks out to a Super10 innings with
+// the chase on it. Every way into an innings from a mode once sent anything
+// but the Blast and the Marathon to Survival, which let the chase go.
+{
+  const ten = `Pten${run}`;
+  const tenId = idOf(ten);
+  // 254 for 3 off sixty: forty sixes and fourteen singles.
+  const tenInnings = { runs: 254, balls: 60, wickets: 3, fours: 0, sixes: 40 };
+  const posted = await post('/api/score', { playerId: tenId, name: ten, avatar: 3, mode: 'super10', innings: tenInnings });
+  check(posted.ok, 'T · a Super10 innings is on its board', JSON.stringify(posted).slice(0, 120));
+  const ctx = await browser.newContext({ viewport: { width: 402, height: 874 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  const t = await ctx.newPage();
+  t.on('pageerror', e => errors.push(`[super10] ${e.message}`));
+  await t.addInitScript(name => {
+    try {
+      localStorage.setItem('hitman-seen', new Date(Date.now() - 172_800_000).toISOString().slice(0, 10));
+      localStorage.setItem('hitman-shots-intro', 'done');
+      localStorage.setItem('hitman-field-intro', 'done');
+      localStorage.setItem('hitman-whatsnew', 'super10:9');
+      localStorage.setItem('hitman-profile', '1');
+      localStorage.setItem('hitman-batter', JSON.stringify({ name, avatar: 2 }));
+    } catch { /* The screens it skips stand in the way. */ }
+  }, `Ptch${run}`);
+  await t.goto(`${base}/?debug=1&private=0`, { waitUntil: 'load' });
+  await t.waitForTimeout(2000);
+  await t.addStyleTag({ content: '#debug{display:none!important}' });
+  await t.evaluate(() => document.getElementById('cover-board')?.click());
+  await t.waitForSelector('#board-overlay .lb-screen');
+  await t.locator('#board-mode').click();
+  await t.locator('[data-mode="super10"]').click();
+  await t.waitForTimeout(1200);
+  await t.locator('.lb-step[data-handle], .lb-row[data-handle]').filter({ hasText: ten }).first().click();
+  await t.waitForSelector('#player-sheet.is-ready', { timeout: 6000 });
+  const key = (await t.locator('#player-chase').textContent()).trim();
+  check(/254/.test(key), 'T · the key chases their 254', key);
+  await t.locator('#player-chase').click();
+  await t.waitForSelector('#chase-intro', { timeout: 8000 });
+  await t.waitForTimeout(900);
+  await t.screenshot({ path: `${out}/t1-intro.png` });
+  const walked = await t.evaluate(() => window.__cricket.snapshot());
+  check(!!walked.super10 && !walked.marathon && walked.chase?.mode === 'super10' && walked.chase?.target === 254,
+    'T · and walks out to a Super10 innings with the chase on it', JSON.stringify({ super10: !!walked.super10, marathon: !!walked.marathon, chase: walked.chase }));
+  await t.locator('#chase-bat').click();
+  await t.waitForTimeout(500);
+  const chip = (await t.locator('.ch-chip').textContent().catch(() => '')).trim();
+  check(/255|254/.test(chip) && /60/.test(chip), 'T · the chip counts the runs to beat and the sixty balls left', chip);
+  await t.screenshot({ path: `${out}/t2-chip.png` });
   await ctx.close();
 }
 
