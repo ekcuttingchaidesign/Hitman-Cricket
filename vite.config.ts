@@ -2,9 +2,9 @@ import { defineConfig, type Plugin } from 'vite';
 import { memoryChallenges, memoryStore } from './src/server/memory-store';
 import type { SurviveInnings } from './src/game/survive-board';
 import {
-  CLASSIC_LADDER, SUPER10_LADDER, SURVIVE_LADDER, claimOnly, cleanName, isPlayerId, nameRefused, readBoard, readMarathon,
-  readMarathonStanding, readStanding, refused, submitMarathon,
-  submitScore, type SubmitRefusal,
+  CLASSIC_LADDER, SURVIVE_LADDER, claimOnly, cleanName, isPlayerId, nameRefused, readBoard, readMarathon,
+  readMarathonStanding, readStanding, readSuper10Boards, readSuper10Standing, refused, submitMarathon,
+  submitScore, submitSuper10, type SubmitRefusal,
 } from './src/server/board-store';
 import { readMarathonFigures, type SoloInnings, type TeamInnings } from './src/game/marathon-board';
 import { FEEDBACK_KEPT, feedbackCsv, refusedFeedback, takeFeedback } from './src/server/feedback-store';
@@ -60,6 +60,8 @@ function boardEndpoints(): Plugin {
   const boards = { '': memoryStore(names), 'survive:': memoryStore<SurviveInnings>(names), 'super10:': memoryStore<Super10Innings>(names) };
   // The Marathon's two, sharing the names as every board does.
   const marathon = { team: memoryStore<TeamInnings>(names), solo: memoryStore<SoloInnings>(names) };
+  // Super10's two: the team total, and the best of the five.
+  const super10 = { team: boards['super10:'], solo: memoryStore<SoloInnings>(names) };
   // The questionnaire, backed the same way and for the same reason: the form can
   // be opened, filled in, sent and read back as a spreadsheet with no
   // credentials and no database. It is forgotten when the server stops, which is
@@ -88,7 +90,7 @@ function boardEndpoints(): Plugin {
   // The profiles, over the same boards and careers the endpoints above write.
   const profiles: ProfileStores = {
     players: memoryPlayers(),
-    boards: { classic: boards[''], survive: boards['survive:'], team: marathon.team, solo: marathon.solo, super10: boards['super10:'] },
+    boards: { classic: boards[''], survive: boards['survive:'], team: marathon.team, solo: marathon.solo, super10: super10.team, super10solo: super10.solo },
     careers,
   };
   return {
@@ -319,10 +321,11 @@ function boardEndpoints(): Plugin {
             if (nameRefused(claimed)) return turnedDown(claimed);
             const name = (claimed as { ok: true; name: string }).name;
             await Promise.all([
-              ...[boards[''], boards['survive:'], marathon.team, marathon.solo].map(board => board.rename(who.playerId, name)),
+              ...[boards[''], boards['survive:'], marathon.team, marathon.solo, super10.team, super10.solo].map(board => board.rename(who.playerId, name)),
               nameCareer(careers.classic, BLAST_CAREER, who.playerId, name, who.avatar),
               nameCareer(careers.survive, SURVIVE_CAREER, who.playerId, name, who.avatar),
               nameCareer(careers.marathon, MARATHON_CAREER, who.playerId, name, who.avatar),
+              nameCareer(careers.super10, SUPER10_CAREER, who.playerId, name, who.avatar),
             ]);
             await carryKey(recovery, { from: asked.previous, to: foldName(name), playerId: who.playerId });
             const key = await keyOnClaim(recovery, foldName(name));
@@ -337,13 +340,13 @@ function boardEndpoints(): Plugin {
             if (player !== null) {
               if (!isPlayerId(player)) return send(400, { error: 'That is not a player.' });
               if (mode === 'marathon') return send(200, await readMarathonStanding(marathon, player), 'private, no-store');
-              if (mode === 'super10') return send(200, await readStanding(boards['super10:'], SUPER10_LADDER, player), 'private, no-store');
+              if (mode === 'super10') return send(200, await readSuper10Standing(super10, player), 'private, no-store');
               return send(200, survive
                 ? await readStanding(boards['survive:'], SURVIVE_LADDER, player)
                 : await readStanding(boards[''], CLASSIC_LADDER, player), 'private, no-store');
             }
             if (mode === 'marathon') return send(200, await readMarathon(marathon), 'public, s-maxage=10, stale-while-revalidate=59');
-            if (mode === 'super10') return send(200, await readBoard(boards['super10:'], SUPER10_LADDER), 'public, s-maxage=10, stale-while-revalidate=59');
+            if (mode === 'super10') return send(200, await readSuper10Boards(super10), 'public, s-maxage=10, stale-while-revalidate=59');
             if (survive) {
               return send(200, await readBoard(boards['survive:'], SURVIVE_LADDER),
                 'public, s-maxage=10, stale-while-revalidate=59');
@@ -382,7 +385,7 @@ function boardEndpoints(): Plugin {
           if (submitted === 'super10') {
             // Super10's board and career, the way the deployed endpoint takes them.
             const ten = readSuper10(body.innings);
-            const taken = await submitScore(boards['super10:'], SUPER10_LADDER, { ...who, innings: ten });
+            const taken = await submitSuper10(super10, { ...who, innings: ten });
             if (refused(taken)) return turnedDown(taken);
             const tenExtras = await afterPost(profiles, {
               playerId: who.playerId, name: who.name, avatar: who.avatar, mode: 'super10', runs: ten.runs, outcome: taken, chase: body.chase,

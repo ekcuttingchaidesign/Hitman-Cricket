@@ -1,5 +1,6 @@
 import { ownsHandle } from '../game/handle';
 import { BATTERS } from '../config/marathon';
+import { BATTERS as SUPER10_BATTERS } from '../config/super10';
 import { SURVIVE } from '../config/survive';
 import type { CareerBoard } from '../game/career';
 import type { CareerRow } from '../game/career-api';
@@ -136,7 +137,7 @@ const BLURBS: Record<BoardMode, Record<string, string>> = {
     runs: 'All innings added up', boundaries: 'Most sixes and fours',
   },
   marathon: { team: 'Best team total', solo: 'Best innings by one of the three', runs: 'All innings added up' },
-  super10: { best: 'Best team total in ten overs', runs: 'All innings added up' },
+  super10: { best: 'Best team total in ten overs', solo: 'Best innings by one of the five', runs: 'All innings added up' },
 };
 
 export function blurbOf(mode: BoardMode, key: string, fallback = ''): string {
@@ -400,6 +401,37 @@ export function super10Body(
     lead: () => (entries.length > 1 ? `${Number(entries[0].score) - Number(entries[1].score)} runs clear of ${entries[1].name}.` : 'Nobody else has a total yet.'),
     size: SUPER10_BOARD_SIZE,
     rules: 'Each player’s best team total in ten overs counts. Level totals are split by fewer wickets lost, then more sixes; if everything is level, whoever got there first stays ahead.',
+  }, ctx);
+}
+
+/** Super10's Batters board: the best innings by one of the five, ranked as the Marathon's Batters are. */
+export function super10SoloBody(
+  rows: readonly SoloRow[], youId: string | null, yours: SoloInnings | null, ctx: BoardContext, atMs = Date.now(),
+): BoardBody {
+  const titled = (order: number) => {
+    const title = SUPER10_BATTERS[order - 1]?.title ?? `Batter ${order}`;
+    return title.charAt(0) + title.slice(1).toLowerCase();
+  };
+  const sub = (one: Pick<SoloInnings, 'order' | 'balls'>) => `${titled(one.order)} · ${plural(one.balls, 'ball')}`;
+  const entries: BoardEntry[] = rows.map((row, i) => ({
+    place: i + 1, name: row.name, avatar: row.avatar, sub: sub(row),
+    podiumSub: `${titled(row.order)} · SR ${strikeRate(row.runs, row.balls).toFixed(1)}`,
+    score: `${row.runs}${row.out ? '' : '*'}`, you: ownsHandle(row.handle, youId), handle: row.handle,
+  }));
+  const mine = entries.findIndex(row => row.you);
+  const wasRuns = ctx.posted?.was ? unpackSolo(ctx.posted.was.score).runs : null;
+  const mineScore = yours ? packSolo(yours, atMs) : null;
+  return finish(entries, mine, {
+    unit: 'runs',
+    yours: yours ? { runs: yours.runs, label: `${yours.runs}${yours.out ? '' : '*'}`, sub: sub(yours) } : null,
+    wasLabel: wasRuns === null ? null : String(wasRuns),
+    needLine: 'A bigger innings by one of the five gets you on.',
+    guestPlace: mineScore !== null && mine < 0 && (rows.length < SUPER10_BOARD_SIZE || mineScore > rows[SUPER10_BOARD_SIZE - 1].score)
+      ? rows.filter(row => row.score > mineScore).length + 1 : null,
+    gap: () => null,
+    lead: () => (entries.length > 1 ? `Ahead of ${entries[1].name}. Play to stretch the lead.` : 'Nobody else has an innings yet.'),
+    size: SUPER10_BOARD_SIZE,
+    rules: 'The best of the five batters in one innings. Ranked on runs, then not out above out, then fewer balls, then whoever got there first.',
   }, ctx);
 }
 

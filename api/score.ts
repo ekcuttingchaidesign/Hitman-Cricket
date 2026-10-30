@@ -1,6 +1,6 @@
 import {
-  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SUPER10_LADDER, SURVIVE_LADDER, cleanName, refused, submitMarathon,
-  submitScore, type Submission,
+  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SUPER10_LADDER, SUPER10_SOLO_LADDER, SURVIVE_LADDER, cleanName,
+  refused, submitMarathon, submitScore, submitSuper10, type Submission,
 } from '../src/server/board-store.js';
 import { nameCareer } from '../src/server/career-store.js';
 import { foldName } from '../src/server/board-store.js';
@@ -12,7 +12,7 @@ import {
   BLAST_CAREER, MARATHON_CAREER, SUPER10_CAREER, SURVIVE_CAREER, type BlastCareer, type MarathonCareer,
   type Super10Career, type SurviveCareer,
 } from '../src/game/career.js';
-import { readSuper10, type Super10Innings } from '../src/game/super10-board.js';
+import { readSuper10, type Super10Figures } from '../src/game/super10-board.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 import type { Innings } from '../src/game/leaderboard.js';
 import type { SurviveInnings } from '../src/game/survive-board.js';
@@ -60,10 +60,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         { ...who, innings: marathonInnings } satisfies Submission<MarathonFigures>,
       )
       : super10Innings
-      ? await submitScore(
-        upstashStore<Super10Innings>(redisFromEnv(), SUPER10_LADDER.scope),
-        SUPER10_LADDER,
-        { ...who, innings: super10Innings } satisfies Submission<Super10Innings>,
+      ? await submitSuper10(
+        { team: upstashStore(write, SUPER10_LADDER.scope), solo: upstashStore(write, SUPER10_SOLO_LADDER.scope) },
+        { ...who, innings: super10Innings } satisfies Submission<Super10Figures>,
       )
       : surviveInnings
       ? await submitScore(

@@ -64,9 +64,9 @@ import type { AfterBall, CoverVersion, Hurt } from './entities/Batter';
 import {
   chaseFor, claimName, fetchBoard, fetchMarathonBoard, fetchStanding, fetchSuper10Board, fetchSurviveBoard, forgetBoard, submitInnings,
   submitMarathon, submitSuper10, submitSurvive,
-  type BoardPayload, type SurvivePayload, type MarathonPayload, type SubmitResult, type Super10Payload, type Super10Row,
+  type BoardPayload, type BoardState, type PostStanding, type SurvivePayload, type MarathonPayload, type SubmitResult, type Super10Payload, type Super10Row,
 } from './game/board-api';
-import { super10From, type Super10Innings } from './game/super10-board';
+import { battersOf, super10FiguresFrom, super10From, super10SoloOf, type Super10Innings } from './game/super10-board';
 import {
   forgetPasswordKnown, markPasswordKnown, markProfileDone, onPlayerWritten, passwordKnown, profileDone,
   readHand, readPlayer, writeHand, writePlayer, type Hand,
@@ -456,6 +456,14 @@ export class Game {
   /** Super10's fifty, and whether that board has ever answered. Its own ladder: best team total. */
   private super10Rows: Super10Row[] = [];
   private super10Seen = false;
+  /** Super10's Batters board as last fetched: the best innings by one of the five. */
+  private super10Solo: SoloRow[] = [];
+  /** Both Super10 boards off one answer; one cached before the Batters were kept leaves theirs as it was. */
+  private takeSuper10(payload: Super10Payload) {
+    this.super10Seen = true;
+    this.super10Rows = payload.rows;
+    if (payload.solo) this.super10Solo = payload.solo.rows;
+  }
   /** This browser's own best Super10 total, kept apart from the Blast's (`hitman-best-super10`). */
   private super10Best = 0;
   /**
@@ -3712,9 +3720,12 @@ export class Game {
     let posted: BoardContext['posted'] = null;
     if (held) {
       const raw = held.standing;
-      const one = 'team' in raw ? (ladder === 'solo' ? raw.solo : raw.team) : raw;
-      const improved = held.by ? (ladder === 'solo' ? held.by.solo : held.by.team) : held.improved;
-      if (one.rank) {
+      // Super10's Batters ride beside its team standing rather than inside it,
+      // and an innings whose batters were not taken has no place there.
+      const beside = mode === 'super10' && ladder === 'solo';
+      const one = beside ? held.solo?.standing : 'team' in raw ? (ladder === 'solo' ? raw.solo : raw.team) : raw;
+      const improved = beside ? !!held.solo?.improved : held.by ? (ladder === 'solo' ? held.by.solo : held.by.team) : held.improved;
+      if (one?.rank) {
         posted = {
           rank: one.rank, total: one.total, was: one.was ?? null, improved, first: heldCareer(mode).innings <= 1,
         };
@@ -3756,6 +3767,7 @@ export class Game {
     this.boardTab = mode;
     this.sheetTab = mode;
     this.boardLadder = ladder;
+    if (mode === 'super10' && ladder === 'solo') return this.showSuper10Board('solo');
     if (ladder !== 'best') return this.showCareerBoard(mode, ladder);
     if (mode === 'survive') this.showSurviveBoard();
     else if (mode === 'super10') this.showSuper10Board();
@@ -3991,18 +4003,26 @@ export class Game {
     });
   }
 
-  /** Super10's board: what was held goes up at once, and the fetch corrects it. */
-  private showSuper10Board() {
+  /**
+   * Super10's board, on its Top score or its Batters: both come in one answer,
+   * so what was held goes up at once on either and the fetch corrects it.
+   */
+  private showSuper10Board(ladder: 'best' | 'solo' = 'best') {
     this.boardTab = 'super10';
-    this.boardLadder = 'best';
+    this.boardLadder = ladder;
     const mine = this.phase === 'INNINGS_END' && this.super10;
-    const view = { youId: this.player, yours: mine ? super10From(this.score) : null, actions: this.boardActions && mine };
-    this.hud.super10Board({ ...view, rows: this.super10Rows, state: this.super10Seen ? 'ready' : 'loading' });
+    const actions = this.boardActions && mine;
+    const draw = (state: BoardState) => (ladder === 'solo'
+      ? this.hud.super10SoloBoard({
+        youId: this.player, yours: mine ? super10SoloOf(battersOf(this.score.history)) : null, actions, rows: this.super10Solo, state,
+      })
+      : this.hud.super10Board({ youId: this.player, yours: mine ? super10From(this.score) : null, actions, rows: this.super10Rows, state }));
+    draw(this.super10Seen ? 'ready' : 'loading');
     void fetchSuper10Board().then(payload => {
       if (this.disposed) return;
-      if (payload) { this.super10Seen = true; this.super10Rows = payload.rows; }
-      if (!this.hud.boardOpen || this.sheetTab !== 'super10' || this.boardLadder !== 'best') return;
-      this.hud.super10Board({ ...view, rows: this.super10Rows, state: payload ? 'ready' : 'offline' });
+      if (payload) this.takeSuper10(payload);
+      if (!this.hud.boardOpen || this.sheetTab !== 'super10' || this.boardLadder !== ladder) return;
+      draw(payload ? 'ready' : 'offline');
     });
   }
 
@@ -4781,7 +4801,7 @@ export class Game {
       : this.surviving
       ? await submitSurvive(this.player, entry.name, entry.avatar, this.survived())
       : this.super10
-      ? await submitSuper10(this.player, entry.name, entry.avatar, super10From(this.score))
+      ? await submitSuper10(this.player, entry.name, entry.avatar, super10FiguresFrom(this.score))
       : await submitInnings(this.player, entry.name, entry.avatar, asInnings(this.score));
     if (this.disposed) return;
     if (!result.ok) {
@@ -4822,7 +4842,7 @@ export class Game {
     // Each call answers with its own ladder's board; which one came back is
     // decided by which one was asked, so the mode is what reads it.
     if (this.super10) {
-      if (result.board) { this.super10Seen = true; this.super10Rows = (result.board as Super10Payload).rows; }
+      if (result.board) this.takeSuper10(result.board as Super10Payload);
       this.boardActions = true;
       this.offerFirstKey();
       return this.openBoard('super10', 'best');
@@ -4920,6 +4940,8 @@ export class Game {
     innings: number; mode: CareerMode; standing: NonNullable<SubmitResult['standing']>; improved: boolean;
     /** The Marathon's two ladders, each improved or not. */
     by?: { team: boolean; solo: boolean } | null;
+    /** Super10's Batters board, beside its team total's standing above. */
+    solo?: { standing: PostStanding; improved: boolean } | null;
   } | null = null;
 
   /**
@@ -4966,7 +4988,7 @@ export class Game {
       : this.surviving
       ? submitSurvive(player, mine.name, mine.avatar, this.survived())
       : this.super10
-      ? submitSuper10(player, mine.name, mine.avatar, super10From(this.score))
+      ? submitSuper10(player, mine.name, mine.avatar, super10FiguresFrom(this.score))
       : submitInnings(player, mine.name, mine.avatar, asInnings(this.score));
     this.postFor = { innings, result };
     return result;
@@ -4981,7 +5003,8 @@ export class Game {
     }
     const improved = typeof result.improved === 'object' ? result.improved.team || result.improved.solo : !!result.improved;
     const by = typeof result.improved === 'object' ? { team: !!result.improved.team, solo: !!result.improved.solo } : null;
-    if (result.standing) this.standing = { innings, mode: this.careerMode, standing: result.standing, improved, by };
+    const solo = result.solo ? { standing: result.solo.standing, improved: result.solo.improved } : null;
+    if (result.standing) this.standing = { innings, mode: this.careerMode, standing: result.standing, improved, by, solo };
     if (result.around) this.aroundOf = { innings, around: result.around };
     if (innings === this.innings && this.phase === 'INNINGS_END') {
       this.chaseCard(result);
@@ -5092,7 +5115,7 @@ export class Game {
       }
       rows = this.surviveRows;
     } else if (this.super10) {
-      if (result.board) { this.super10Seen = true; this.super10Rows = (result.board as Super10Payload).rows; }
+      if (result.board) this.takeSuper10(result.board as Super10Payload);
       rows = this.super10Rows;
     } else {
       if (result.board) {
@@ -5522,8 +5545,7 @@ export class Game {
       const innings = this.innings;
       void fetchSuper10Board(true).then(payload => {
         if (this.disposed || !payload || this.phase !== 'INNINGS_END' || this.innings !== innings) return;
-        this.super10Seen = true;
-        this.super10Rows = payload.rows;
+        this.takeSuper10(payload);
         if (!this.hud.claimOpen) this.offerSuper10();
       });
     }

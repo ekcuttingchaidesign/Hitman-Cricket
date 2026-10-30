@@ -10,7 +10,9 @@
  * this browser's own Blast best are left as they were. The card says where it
  * landed, the store answers the same place when asked, the career holds the
  * team total and counts it a hundred and a double, and the board opens on its
- * own Super10 tab with the player's row on it.
+ * own Super10 tab with the player's row on it. The innings goes with each
+ * batter's figures, and the opener's 240 out is the player's row on the
+ * Batters board, which the ladder pill opens on the same row.
  */
 
 import { chromium } from '@playwright/test';
@@ -83,6 +85,9 @@ check(scores.length === 1 && scores[0].sent.mode === 'super10' && scores[0].stat
   JSON.stringify(scores.map(one => [one.sent.mode, one.status])));
 check(counted.length === 1 && counted[0].sent.mode === 'super10' && counted[0].status === 200, 'and counted toward the Super10 career, once',
   JSON.stringify(counted.map(one => [one.sent.mode, one.status])));
+const batters = scores[0]?.sent.innings?.batters ?? [];
+check(batters.length === 5 && batters[0].runs === 240 && batters[0].balls === 41 && batters.every(one => one.out),
+  'with each batter\'s figures beside the team\'s', JSON.stringify(batters));
 const head = await page.locator('#card-board-head').textContent();
 check(/You are #\d+ on the leaderboard/.test(head ?? ''), 'the card says where it landed', head);
 
@@ -101,6 +106,8 @@ const asked = await page.evaluate(async () => {
 const row = asked.board.rows?.find(one => one.name === name);
 check(row?.runs === 240 && row.wickets === 5, 'Super10\'s board holds the total with its wickets', JSON.stringify(row));
 check(!asked.blast.rows?.some(one => one.name === name), 'and the Blast\'s board does not');
+const solo = asked.board.solo?.rows?.find(one => one.name === name);
+check(solo?.runs === 240 && solo.balls === 41 && solo.out === true && solo.order === 1, 'and its Batters board the opener\'s 240', JSON.stringify(solo));
 const career = asked.career?.career;
 check(career?.innings === 1 && career.runs === 240 && career.hundreds === 1 && career.doubles === 1 && career.highest === 240,
   'the Super10 career counts it, a team hundred and a double', JSON.stringify(asked.career));
@@ -126,6 +133,18 @@ const placed = /You entered the board at #\d+|Top of the board/;
 for (let i = 0; i < 40 && !placed.test(board.text); i++) { await page.waitForTimeout(200); board = await boardNow(); }
 check(board.open && /Super10/.test(board.text) && placed.test(board.text), "the board opens on Super10, on the player's own row", board.text.slice(0, 200));
 await page.screenshot({ path: 'test-results/super10-board.png' }).catch(() => {});
+await page.locator('#board-ladder').click();
+await page.waitForTimeout(400);
+const picks = await page.locator('#board-ladder-sheet .lb-pick-item').allInnerTexts();
+check(picks.length === 3 && /Top score/.test(picks[0]) && /Batters/.test(picks[1]) && /Runs/.test(picks[2]),
+  'the ladder pill offers Top score, Batters and Runs', JSON.stringify(picks));
+await page.locator('#board-ladder-solo').click();
+for (let i = 0; i < 20 && !/Batters/.test(await page.locator('#board-ladder').innerText()); i++) await page.waitForTimeout(200);
+board = await boardNow();
+const own = await page.locator('.lb-row.is-you, .lb-podium .is-you').first().innerText().catch(() => '');
+check(/Batters/.test(await page.locator('#board-ladder').innerText()) && placed.test(board.text) && /Opener/.test(board.text),
+  'Batters opens on the player\'s own row, the opener\'s', `${own} | ${board.text.slice(0, 200)}`);
+await page.screenshot({ path: 'test-results/super10-batters.png' }).catch(() => {});
 check(errors.length === 0, 'with nothing thrown', errors.join('\n'));
 void player;
 

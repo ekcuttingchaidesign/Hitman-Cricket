@@ -7,7 +7,11 @@ import {
   type MarathonFigures, type SoloInnings, type TeamInnings,
 } from '../game/marathon-board.js';
 import { MARATHON } from '../config/marathon.js';
-import { SUPER10_BOARD_SIZE, packSuper10, super10Plausible, type Super10Innings } from '../game/super10-board.js';
+import {
+  SUPER10_BOARD_SIZE, packSuper10, super10BattersPlausible, super10Plausible, super10SoloOf,
+  type Super10Figures, type Super10Innings,
+} from '../game/super10-board.js';
+import { SUPER10 } from '../config/super10.js';
 import {
   nameProblem, renameReason, RENAME_WINDOW_MS, siblingBase, siblingReason, SIBLING_WINDOW_MS,
 } from './name-rules.js';
@@ -118,6 +122,19 @@ export const SUPER10_LADDER: Ladder<Super10Innings> = {
   plausible: super10Plausible,
   scope: 'super10:',
   figures: from => ({ runs: from.runs, balls: from.balls, wickets: from.wickets, fours: from.fours, sixes: from.sixes }),
+};
+/**
+ * Super10's Batters: the best innings by one of the five, on the Marathon's
+ * individual ladder (`super10SoloOf`). Only ever written beside a team row,
+ * by `submitSuper10`; its `plausible` is the floor a row read back stands on.
+ */
+export const SUPER10_SOLO_LADDER: Ladder<SoloInnings> = {
+  size: SUPER10_BOARD_SIZE,
+  pack: packSolo,
+  plausible: i => [i.runs, i.balls].every(n => Number.isInteger(n) && n >= 0) && i.balls <= SUPER10.totalBalls
+    && i.order >= 1 && i.order <= SUPER10.maxWickets,
+  scope: 'super10one:',
+  figures: from => ({ runs: from.runs, balls: from.balls, out: from.out, order: from.order, left: false }),
 };
 
 /** A row as it is kept: the figures that board ranks, plus who owns them and when. */
@@ -288,7 +305,7 @@ export type SubmitOutcome<I = Innings> = SubmitAccepted<I> | SubmitRefusal;
  * endpoints have not: they hand it whichever of the two outcomes the mode
  * chose, and inference settled on one of them and then rejected the other.
  */
-export function refused(outcome: SubmitOutcome<unknown> | MarathonOutcome): outcome is SubmitRefusal {
+export function refused(outcome: SubmitOutcome<unknown> | MarathonOutcome | Super10Outcome): outcome is SubmitRefusal {
   return !outcome.ok;
 }
 
@@ -533,6 +550,65 @@ export async function readMarathon(
     readBoard(stores.team, MARATHON_TEAM_LADDER), readBoard(stores.solo, MARATHON_SOLO_LADDER),
   ]);
   return { team, solo };
+}
+
+/** Both Super10 boards, as one answer: the team's fifty as it always was, and the Batters' beside it. */
+export type Super10Boards = BoardPayload<Super10Innings> & { solo: BoardPayload<SoloInnings> };
+
+/** Both Super10 boards, read side by side. */
+export async function readSuper10Boards(
+  stores: { team: BoardStore<Super10Innings>; solo: BoardStore<SoloInnings> },
+): Promise<Super10Boards> {
+  const [team, solo] = await Promise.all([readBoard(stores.team, SUPER10_LADDER), readBoard(stores.solo, SUPER10_SOLO_LADDER)]);
+  return { ...team, solo };
+}
+
+/** Both of a player's Super10 places: the team's as it always was, and the Batters' beside it. */
+export async function readSuper10Standing(
+  stores: { team: BoardStore<Super10Innings>; solo: BoardStore<SoloInnings> }, id: string,
+): Promise<PlayerStanding<Super10Innings> & { solo: PlayerStanding<SoloInnings> }> {
+  const [team, solo] = await Promise.all([
+    readStanding(stores.team, SUPER10_LADDER, id), readStanding(stores.solo, SUPER10_SOLO_LADDER, id),
+  ]);
+  return { ...team, solo };
+}
+
+/** Where a Super10 innings left its player on the Batters board, beside everything the team board answers. */
+export interface Super10Solo {
+  improved: boolean;
+  score: number;
+  standing: PostStanding;
+}
+export type Super10Accepted = SubmitAccepted<Super10Innings> & { board: Super10Boards; solo?: Super10Solo };
+export type Super10Outcome = Super10Accepted | SubmitRefusal;
+
+/**
+ * A Super10 innings: the team total checked and written exactly as
+ * `submitScore` writes it, and — where the batters' figures came with it and
+ * bear the team's out — the best of the five on the Batters board too. One
+ * submission and one rate-limit hit. The batters never cost the team row:
+ * an innings whose batters do not hold up, or one from a browser that sent
+ * none, is on the team board and simply not on the other.
+ */
+export async function submitSuper10(
+  stores: { team: BoardStore<Super10Innings>; solo: BoardStore<SoloInnings> },
+  input: Submission<Super10Figures>, now = Date.now(),
+): Promise<Super10Outcome> {
+  const { batters, ...team } = input.innings;
+  const taken = await submitScore(stores.team, SUPER10_LADDER, { ...input, innings: team }, now);
+  if (refused(taken)) return taken;
+  const accepted = taken as SubmitAccepted<Super10Innings>;
+  const one = super10BattersPlausible(team, batters) ? super10SoloOf(batters) : null;
+  if (!one) return { ...accepted, board: { ...accepted.board, solo: await readBoard(stores.solo, SUPER10_SOLO_LADDER) } };
+  const score = packSolo(one, now);
+  const was = await stores.solo.standing(input.playerId);
+  const improved = await stores.solo.record(input.playerId, score, {
+    ...SUPER10_SOLO_LADDER.figures(one), name: cleanName(input.name), avatar: input.avatar, at: now,
+  });
+  const [solo, standing] = await Promise.all([
+    readBoard(stores.solo, SUPER10_SOLO_LADDER), standingAfter(stores.solo, input.playerId, was, improved),
+  ]);
+  return { ...accepted, board: { ...accepted.board, solo }, solo: { improved, score, standing } };
 }
 
 /** A Marathon innings the boards took: where it landed on each. */

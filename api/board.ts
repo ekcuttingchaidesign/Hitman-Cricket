@@ -6,8 +6,8 @@
 // beside it, and Vite and Vitest resolve it the same way, so this costs the rest
 // of the project nothing. `scripts/function-check.mjs` is what keeps it honest.
 import {
-  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SUPER10_LADDER, SURVIVE_LADDER, isPlayerId, readBoard, readMarathon,
-  readMarathonStanding, readStanding,
+  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SUPER10_LADDER, SUPER10_SOLO_LADDER, SURVIVE_LADDER, isPlayerId,
+  readBoard, readMarathon, readMarathonStanding, readStanding, readSuper10Boards, readSuper10Standing,
 } from '../src/server/board-store.js';
 import { NoDatabase, redisFromEnv, upstashStore } from '../src/server/upstash.js';
 import { cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
@@ -36,7 +36,9 @@ import { modeAsked } from '../src/server/mode.js';
  * `{ team, solo }`: one sheet shows both behind a toggle, and two requests for
  * one tab would be two edge-cache misses for one look.
  *
- * `?mode=super10` asks for Super10's: the best team totals.
+ * `?mode=super10` asks for Super10's: the best team totals, shaped as the
+ * Blast's answer is, with its Batters board beside them under `solo`, one
+ * request for the two the way the Marathon's are.
  *
  * `?player=<id>` asks a different question: where that one player stands on
  * the whole board — their place however far below the fifty, out of how many,
@@ -60,7 +62,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         : mode === 'survive'
           ? await readStanding(upstashStore(read, SURVIVE_LADDER.scope), SURVIVE_LADDER, player)
           : mode === 'super10'
-          ? await readStanding(upstashStore(read, SUPER10_LADDER.scope), SUPER10_LADDER, player)
+          ? await readSuper10Standing({
+            team: upstashStore(read, SUPER10_LADDER.scope), solo: upstashStore(read, SUPER10_SOLO_LADDER.scope),
+          }, player)
           : await readStanding(upstashStore(read, CLASSIC_LADDER.scope), CLASSIC_LADDER, player);
       res.setHeader('Cache-Control', 'private, no-store');
       return res.status(200).json(standing);
@@ -72,7 +76,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       : mode === 'survive'
         ? await readBoard(upstashStore(read, SURVIVE_LADDER.scope), SURVIVE_LADDER)
         : mode === 'super10'
-        ? await readBoard(upstashStore(read, SUPER10_LADDER.scope), SUPER10_LADDER)
+        ? await readSuper10Boards({
+          team: upstashStore(read, SUPER10_LADDER.scope), solo: upstashStore(read, SUPER10_SOLO_LADDER.scope),
+        })
         : await readBoard(upstashStore(read, CLASSIC_LADDER.scope), CLASSIC_LADDER);
     // Ten seconds of edge cache, then a minute where a stale board is served
     // while a fresh one is fetched behind it. A leaderboard ten seconds old is

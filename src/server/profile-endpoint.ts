@@ -44,6 +44,8 @@ export interface ProfileStores {
     team: BoardStore<TeamInnings>;
     solo: BoardStore<SoloInnings>;
     super10: BoardStore<Super10Innings>;
+    /** Super10's Batters: counted toward a profile's best place, as the Marathon's is. */
+    super10solo: BoardStore<SoloInnings>;
   };
   careers: {
     classic: CareerStore<BlastCareer>;
@@ -149,7 +151,7 @@ export async function readProfile(
     modeView(careers.classic, BLAST_CAREER, [boards.classic], id),
     modeView(careers.survive, SURVIVE_CAREER, [boards.survive], id, row => surviveResultOf(row as unknown as SurviveInnings)),
     modeView(careers.marathon, MARATHON_CAREER, [boards.team, boards.solo], id),
-    modeView(careers.super10, SUPER10_CAREER, [boards.super10], id),
+    modeView(careers.super10, SUPER10_CAREER, [boards.super10, boards.super10solo], id),
     stores.players.readBio(id),
   ]);
   const held = [classic, survive, marathon, super10].map(one => one.held);
@@ -180,7 +182,7 @@ export const FIND_DEPTH = 50;
 export async function findHandle(stores: ProfileStores, handle: string): Promise<string | null> {
   const { boards, careers } = stores;
   const tops = await Promise.all([
-    ...[boards.classic, boards.survive, boards.team, boards.solo, boards.super10].map(board => (board as Pick<BoardStore<unknown>, 'top'>).top(FIND_DEPTH)),
+    ...[boards.classic, boards.survive, boards.team, boards.solo, boards.super10, boards.super10solo].map(board => (board as Pick<BoardStore<unknown>, 'top'>).top(FIND_DEPTH)),
     ...BLAST_CAREER.boards.map(board => careers.classic.top(board.key, FIND_DEPTH)),
     ...SURVIVE_CAREER.boards.map(board => careers.survive.top(board.key, FIND_DEPTH)),
     ...MARATHON_CAREER.boards.map(board => careers.marathon.top(board.key, FIND_DEPTH)),
@@ -228,7 +230,7 @@ async function modeView<C, T>(
 
 /** A name and kit off the boards, for a player whose careers carry none. */
 async function firstRow(stores: ProfileStores, id: string) {
-  for (const board of [stores.boards.classic, stores.boards.survive, stores.boards.team, stores.boards.solo, stores.boards.super10] as Pick<BoardStore<unknown>, 'rows'>[]) {
+  for (const board of [stores.boards.classic, stores.boards.survive, stores.boards.team, stores.boards.solo, stores.boards.super10, stores.boards.super10solo] as Pick<BoardStore<unknown>, 'rows'>[]) {
     const [row] = await board.rows([id]);
     if (row) return row;
   }

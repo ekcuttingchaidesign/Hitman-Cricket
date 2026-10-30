@@ -39,7 +39,7 @@ import { INTRO_STEPS, introCardMarkup, introKeysMarkup, introStageMarkup, type I
 import { LANE_ORDER, captionMarkup, laneFor } from './ShotsIntro';
 import { fallsOf, marathonShareText, type CardBatter, type CardTotal } from './MarathonCard';
 import { MARATHON_LADDERS, marathonBest, marathonLaddersMarkup, type MarathonBoardView, type MarathonLadder } from './MarathonBoard';
-import type { TeamRow } from '../game/marathon-board';
+import type { SoloInnings, SoloRow, TeamRow } from '../game/marathon-board';
 import { rivalsRecordMarkup, type RivalsRecord } from './Record';
 import { coverBoardLines, coverMarkup, profileChip, type CoverBoard } from './Cover';
 import { cta, fitLabels, icon as kitIcon } from './Kit';
@@ -49,6 +49,7 @@ import {
 } from './Password';
 import {
   BOARD_MODES, MODE_ORDER, NO_CONTEXT, blastBody, blurbOf, boardScreenMarkup, careerBody, ladderSheetMarkup, marathonBody, menuRank, super10Body,
+  super10SoloBody,
   modeMenuMarkup, rulesSheetMarkup, surviveBody, type BoardBody, type BoardContext, type BoardMode, type BoardScreen,
 } from './Board';
 import { battingCardMarkup, battingOf, injuryRingMarkup, injuryWord, overChartMarkup, super10ChartMarkup, wormChartMarkup } from './EndCard';
@@ -714,6 +715,11 @@ ${modeSelectMarkup()}
     this.drawBoard('super10', 'best', ctx => super10Body(view.rows, view.youId ?? null, view.yours ?? null, ctx, view.atMs), view.state ?? 'ready', !!view.actions);
   }
 
+  /** Super10's Batters: the best innings by one of the five. */
+  super10SoloBoard(view: { rows: readonly SoloRow[]; youId?: string | null; yours?: SoloInnings | null; atMs?: number; state?: BoardState; actions?: boolean }) {
+    this.drawBoard('super10', 'solo', ctx => super10SoloBody(view.rows, view.youId ?? null, view.yours ?? null, ctx, view.atMs), view.state ?? 'ready', !!view.actions);
+  }
+
   /** A career board: one big figure a row, and the rest under the name. */
   careerBoard(view: CareerBoardView & { actions?: boolean }) {
     this.drawBoard(view.mode, view.board.key, ctx => careerBody(view.board, view.rows, view.youId ?? null, ctx, view.size), view.state ?? 'ready', !!view.actions);
@@ -746,7 +752,10 @@ ${modeSelectMarkup()}
       return [{ key: 'team', name: 'Team' }, { key: 'solo', name: 'Batters' }, { key: 'runs', name: 'Runs' }]
         .map(one => ({ ...one, blurb: blurbOf('marathon', one.key) }));
     }
-    return laddersOf(mode).map(one => ({ ...one, blurb: blurbOf(mode, one.key, careerBoardOf(mode, one.key)?.blurb ?? '') }));
+    const ladders = laddersOf(mode);
+    // Super10's Batters stands beside its Top score: an innings ladder, not a career's.
+    if (mode === 'super10') ladders.splice(1, 0, { key: 'solo', name: 'Batters' });
+    return ladders.map(one => ({ ...one, blurb: blurbOf(mode, one.key, careerBoardOf(mode, one.key)?.blurb ?? '') }));
   }
 
   /** The modes this build plays, in the pager's order, and always the one on screen. */
