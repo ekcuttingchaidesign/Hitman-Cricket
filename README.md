@@ -1015,6 +1015,7 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `super10-play-card` | Super10 played from its PLAY card on Choose a mode. |
 | `super10-play-poster` | Super10 played from its poster on Choose a mode's rail. |
 | `super10-field-look`, `super10-field-look-innings` | The field map enlarged in a Super10 innings: every time, and once an innings (so the share of innings that ever enlarged it can be read). |
+| `super10-kit-s10-purple` … `-s10-violet` | A finished Super10 innings, by the team's kit it was batted in: the pick in the Dressing Room, or the earned kit drawn for it. The most-worn kit is the biggest of the six. |
 | `super10-quit-over-1` … `-10` | A Super10 innings walked out on, by the over it was in: restarted, left for Choose a mode from the pause sheet, or the page closed on it. Once an innings. |
 | `super10-open-card`, `super10-got-it`, `super10-excited` | Before release: Super10's coming-soon card opened, its page put away, and **I'M EXCITED** pressed (the store's count of it is still read by `scripts/super10-report.ts`). |
 | `rivals-ranking` | The Rivals ranking opened from the trophy key on Rival Matches. Whether anybody looks for it now it is behind an icon. |

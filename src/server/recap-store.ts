@@ -1,8 +1,7 @@
 import { isPlayerId } from './board-store.js';
 import type { BlastTally, CareerMode, MarathonTally, Super10Tally, SurviveTally } from '../game/career.js';
-import type { Look } from '../game/dressing-ids.js';
 import {
-  cleanRecap, factsOf, foldInnings, foldUnlocks, totalsOf, unlockTotals, whenOf, type YearRecap,
+  cleanRecap, factsOf, foldInnings, foldUnlocks, totalsOf, unlockTotals, whenOf, type InningsLook, type YearRecap,
 } from '../game/recap.js';
 
 /**
@@ -23,7 +22,7 @@ export interface RecapStore {
 
 /** A counted innings, into the player's year and the year's totals. */
 export async function recordInnings(store: RecapStore, input: {
-  playerId: string; mode: CareerMode; tally: BlastTally | SurviveTally | MarathonTally | Super10Tally; look: Look | null; at: number;
+  playerId: string; mode: CareerMode; tally: BlastTally | SurviveTally | MarathonTally | Super10Tally; look: InningsLook | null; at: number;
 }): Promise<void> {
   if (!isPlayerId(input.playerId)) return;
   const { year } = whenOf(input.at);

@@ -17,7 +17,7 @@ import {
 import { memoryCareer } from './src/server/memory-career';
 import { memoryDressing, readSaved, saveDressing } from './src/server/dressing-save';
 import { memoryRecap, recordInnings, recordUnlocks } from './src/server/recap-store';
-import { lookOf } from './src/game/dressing-ids';
+import { inningsLookOf } from './src/game/recap';
 import { memoryRecovery } from './src/server/memory-recovery';
 import { foldName } from './src/server/board-store';
 import {
@@ -249,7 +249,7 @@ function boardEndpoints(): Plugin {
             if (refusedCareer(counted)) return send(counted.status, { error: counted.reason });
             // What `api/innings.ts` does with a counted innings, over memory.
             if (counted.counted && tally) {
-              await recordInnings(recap, { playerId: counting.playerId, mode: countingMode, tally, look: lookOf(sent.look), at: Date.now() });
+              await recordInnings(recap, { playerId: counting.playerId, mode: countingMode, tally, look: inningsLookOf(sent.look, countingMode), at: Date.now() });
             }
             if (counted.name) await rememberHandle(profiles.players, counting.playerId);
             return send(200, counted);

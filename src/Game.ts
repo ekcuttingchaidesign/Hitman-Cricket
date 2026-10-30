@@ -5220,8 +5220,11 @@ export class Game {
       : blastTally(this.score);
     const nonce = mintNonce();
     const innings = this.innings;
-    // What he batted in, for the year recap: read now, as it was worn, not when the answer lands.
-    const worn = this.myLook(), look = { kit: worn.outfit.id, bat: worn.bat.id };
+    // What he batted in, for the year recap: read now, as it was worn, not when
+    // the answer lands. In Super10 that is the team's kit, gloves and pads and
+    // all, never the room's.
+    const worn = this.myLook();
+    const look = this.super10 ? { kit: this.super10Kit().id, bat: worn.bat.id } : { kit: worn.outfit.id, bat: worn.bat.id, guard: worn.guard.id };
     // The career as it stood before this innings, read before it is sent,
     // because the climb is the difference between the two and there is
     // nowhere else it is written down. Read here and not when the answer
@@ -5436,6 +5439,9 @@ export class Game {
     // them, but the screen it ends on is the same screen.
     this.audio.music('result');
     [...strokeMarks(this.spinPulls, COUNTED.spinPull), ...strokeMarks(this.hooks, COUNTED.hook)].forEach(([name, title]) => this.mark(name, title));
+    // Which team's kit a Super10 innings was played in (`super10-kit-s10-neon`):
+    // the pick in the room, or the earned kit drawn for it.
+    if (this.super10) this.mark(`kit-${this.super10Kit().id}`, `Batted in the Super10 kit ${this.super10Kit().name}`);
     if (this.marathon) {
       // The Blast's card with the worm and the batting card under the total,
       // the boards' strip on it, and the way to the career it has just added to.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  cleanRecap, factsOf, foldInnings, foldUnlocks, totalsOf, whenOf, type InningsFacts,
+  cleanRecap, factsOf, foldInnings, foldUnlocks, inningsLookOf, totalsOf, whenOf, type InningsFacts,
 } from '../src/game/recap';
 import { memoryRecap, recordInnings, recordUnlocks } from '../src/server/recap-store';
 import { memoryDressing, saveDressing } from '../src/server/dressing-save';
@@ -62,6 +62,26 @@ describe('the year recap, folded', () => {
     expect(year.kits).toEqual({});
     expect(year.bats).toEqual({});
     expect(year.innings).toBe(1);
+  });
+
+  it('counts a Super10 innings against the team kit he batted in, and no guard', () => {
+    const look = inningsLookOf({ kit: 's10-neon', bat: 'rage', guard: 'blaze' }, 'super10');
+    expect(look).toEqual({ kit: 's10-neon', bat: 'rage', guard: null });
+    let year = foldInnings(null, 'super10', facts(), look, MARCH);
+    year = foldInnings(year, 'super10', facts(), inningsLookOf({ kit: 's10-purple', bat: 'rage' }, 'super10'), MARCH);
+    expect(year.kits).toEqual({ 's10-neon': 1, 's10-purple': 1 });
+    expect(year.bats).toEqual({ rage: 2 });
+    expect(year.guard).toEqual({});
+    const totals = totalsOf('super10', facts(), look, MARCH, true);
+    expect(totals).toMatchObject({ 'kit:s10-neon': 1, 'bat:rage': 1 });
+    expect(Object.keys(totals).some(key => key.startsWith('guard:'))).toBe(false);
+  });
+
+  it('never counts a team kit outside Super10, nor the room\'s kit in it', () => {
+    expect(inningsLookOf({ kit: 'electric', bat: 'rage' }, 'super10')).toBeNull();
+    expect(inningsLookOf({ kit: 's10-neon', bat: 'rage' }, 'classic')).toBeNull();
+    expect(inningsLookOf({ kit: 'electric', bat: 'rage', guard: 'fern' }, 'classic')).toEqual({ kit: 'electric', bat: 'rage', guard: 'fern' });
+    expect(inningsLookOf({ kit: 's10-neon', bat: 'nope' }, 'super10')).toBeNull();
   });
 
   it('never dates the kit and bat everybody starts with', () => {
