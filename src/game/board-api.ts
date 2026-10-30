@@ -4,7 +4,7 @@ import { readPlayer } from './player';
 import type { SurviveInnings, SurviveRow } from './survive-board';
 import type { MarathonFigures, SoloRow, TeamRow } from './marathon-board';
 import type { PostExtras } from './profile-api';
-import type { Super10Innings } from './super10-board';
+import type { Super10Figures, Super10Innings } from './super10-board';
 
 /**
  * The board, fetched.
@@ -62,11 +62,16 @@ export interface Super10Row extends Super10Innings {
   at?: number;
 }
 
-/** Super10's fifty, shaped as the Blast's answer is. */
+/**
+ * Super10's fifty, shaped as the Blast's answer is, with its Batters board
+ * beside them: the best innings by one of the five, on the Marathon's
+ * individual ladder. Missing from an answer cached before it was kept.
+ */
 export interface Super10Payload {
   rows: Super10Row[];
   cutoff: number | null;
   size: number;
+  solo?: { rows: SoloRow[]; cutoff: number | null; size: number };
 }
 
 /** What the sheet knows about the board it is drawing. */
@@ -105,6 +110,12 @@ export interface SubmitResult<P = BoardPayload> {
    * innings — however far below the fifty. For the Marathon, `{ team, solo }`.
    */
   standing?: PostStanding | { team: PostStanding; solo: PostStanding };
+  /**
+   * Super10's Batters board, beside the team's figures above: whether the best
+   * of the five improved the player's row, and where it left them. Missing
+   * when the batters did not come with the innings or did not add up.
+   */
+  solo?: { improved: boolean; score: number; standing: PostStanding };
   /** Who the innings went past on the board and who stands next, by handle. */
   around?: PostExtras['around'];
   /** The chase it was played as, judged: see `chaseFor`. */
@@ -216,9 +227,9 @@ export function submitMarathon(
   return offer(playerId, name, avatar, innings, 'marathon') as Promise<SubmitResult<MarathonPayload>>;
 }
 
-/** A Super10 innings, offered to its board. */
+/** A Super10 innings, offered to its board: the team's figures, and each batter's for the Batters board. */
 export function submitSuper10(
-  playerId: string, name: string, avatar: number, innings: Super10Innings,
+  playerId: string, name: string, avatar: number, innings: Super10Figures,
 ): Promise<SubmitResult<Super10Payload>> {
   return offer(playerId, name, avatar, innings, 'super10') as Promise<SubmitResult<Super10Payload>>;
 }
@@ -238,7 +249,7 @@ async function offer(
 ): Promise<SubmitResult<BoardPayload | SurvivePayload | MarathonPayload | Super10Payload>> {
   const answer = await ask<{
     improved: SubmitResult['improved']; score: SubmitResult['score']; board: BoardPayload | SurvivePayload | MarathonPayload | Super10Payload;
-    standing?: SubmitResult['standing']; error?: string; retry?: boolean; status?: number; key?: string; held?: string;
+    standing?: SubmitResult['standing']; solo?: SubmitResult['solo']; error?: string; retry?: boolean; status?: number; key?: string; held?: string;
     around?: SubmitResult['around']; chase?: SubmitResult['chase'];
   }>(
     `${API}/api/score`,
@@ -272,7 +283,7 @@ async function offer(
   delete standings[mode];
   return {
     ok: true, improved: answer.improved, score: answer.score, board: answer.board, standing: answer.standing,
-    key: answer.key, around: answer.around, chase: answer.chase,
+    key: answer.key, around: answer.around, chase: answer.chase, ...(answer.solo ? { solo: answer.solo } : {}),
   };
 }
 
@@ -285,7 +296,10 @@ const standings: Partial<Record<BoardMode, { at: number; player: string; payload
  * the store directly and never cached at the edge: it is about who is asking.
  * Null with no player id yet, no answer, or no board behind the game.
  */
-export async function fetchStanding(player: string | null, mode: 'classic' | 'survive' | 'super10'): Promise<PlayerStanding | null>;
+export async function fetchStanding(player: string | null, mode: 'classic' | 'survive'): Promise<PlayerStanding | null>;
+export async function fetchStanding(
+  player: string | null, mode: 'super10',
+): Promise<(PlayerStanding & { solo?: PlayerStanding }) | null>;
 export async function fetchStanding(
   player: string | null, mode: 'marathon',
 ): Promise<{ team: PlayerStanding; solo: PlayerStanding } | null>;

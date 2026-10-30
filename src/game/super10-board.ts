@@ -1,5 +1,6 @@
 import { SUPER10 } from '../config/super10.js';
 import { LAUNCH_MS } from './leaderboard.js';
+import { soloRankKey, type SoloInnings } from './marathon-board.js';
 import type { ScoreManager } from './ScoreManager.js';
 
 /**
@@ -96,11 +97,112 @@ export function super10Plausible(innings: Super10Innings): boolean {
   return fromRest >= 0 && fromRest <= rest * 3;
 }
 
+/**
+ * Super10's second board, Batters: the best innings by one of the five, ranked
+ * as the Marathon's individual ladder is — runs, then not out above out, then
+ * fewer balls, then whoever got there first — and packed by the same function
+ * (`packSolo`), so a row is a `SoloInnings` with `left` always false: all five
+ * bat the player's way round.
+ *
+ * The innings is sent with each batter's figures beside the team's. They ride
+ * along rather than replace anything: the team total is checked and written as
+ * it always was, and the batters are only ever a second row. An innings whose
+ * batters do not hold up — or a browser from before they were sent — still
+ * goes on the team board, and simply puts nothing on this one.
+ */
+export interface Super10BatterFigures {
+  runs: number;
+  balls: number;
+  fours: number;
+  sixes: number;
+  out: boolean;
+}
+
+/** A Super10 innings as the game sends it: the team's figures, and each batter's in the order they went in. */
+export interface Super10Figures extends Super10Innings {
+  batters?: Super10BatterFigures[];
+}
+
+/**
+ * Each batter's figures off the innings ball by ball: every ball is the man
+ * in's, the next goes in after a wicket, and is listed once he faces a ball.
+ * Runs on a wicket ball are his too, so the five always add up to the side.
+ */
+export function battersOf(history: readonly { runs: number; isWicket: boolean }[]): Super10BatterFigures[] {
+  const rows: Super10BatterFigures[] = [];
+  let wickets = 0;
+  for (const ball of history) {
+    const at = Math.min(wickets, SUPER10.maxWickets - 1);
+    const row = rows[at] ??= { runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
+    row.balls++;
+    row.runs += ball.runs;
+    if (ball.runs === 4) row.fours++;
+    if (ball.runs === 6) row.sixes++;
+    if (ball.isWicket) { row.out = true; wickets++; }
+  }
+  return rows;
+}
+
+/** The whole innings as it is posted: the team, and the five. */
+export function super10FiguresFrom(score: ScoreManager): Super10Figures {
+  return { ...super10From(score), batters: battersOf(score.history) };
+}
+
+/**
+ * The Batters row an innings makes: whichever of the five ranks highest. The
+ * earliest in the order wins an exact tie, which no row could tell apart.
+ */
+export function super10SoloOf(batters: readonly Super10BatterFigures[]): SoloInnings {
+  let best: SoloInnings | null = null;
+  batters.forEach((b, i) => {
+    const candidate: SoloInnings = { runs: b.runs, balls: b.balls, out: b.out, order: i + 1, left: false };
+    if (!best || soloRankKey(candidate) > soloRankKey(best)) best = candidate;
+  });
+  return best ?? { runs: 0, balls: 0, out: false, order: 1, left: false };
+}
+
+/**
+ * Whether the batters bear out the team's figures: one to five of them, each
+ * having faced a ball, every one but the last out (the next man only goes in
+ * when one is gone), and runs, balls, fours, sixes and wickets adding up to
+ * the side's. The team's
+ * own figures are `super10Plausible`'s to judge, and are judged first.
+ */
+export function super10BattersPlausible(innings: Super10Innings, batters: unknown): batters is Super10BatterFigures[] {
+  if (!Array.isArray(batters) || batters.length < 1 || batters.length > SUPER10.maxWickets) return false;
+  const counts = (...values: number[]) => values.every(n => Number.isInteger(n) && n >= 0);
+  for (const b of batters as Super10BatterFigures[]) {
+    if (!b || typeof b !== 'object' || typeof b.out !== 'boolean') return false;
+    if (!counts(b.runs, b.balls, b.fours, b.sixes)) return false;
+    if (b.balls < 1 || b.runs > b.balls * 6 || b.fours * 4 + b.sixes * 6 > b.runs) return false;
+  }
+  const list = batters as Super10BatterFigures[];
+  const sum = (pick: (b: Super10BatterFigures) => number) => list.reduce((total, b) => total + pick(b), 0);
+  if (sum(b => b.runs) !== innings.runs || sum(b => b.balls) !== innings.balls) return false;
+  if (sum(b => b.fours) !== innings.fours || sum(b => b.sixes) !== innings.sixes) return false;
+  if (list.filter(b => b.out).length !== innings.wickets) return false;
+  // With the outs adding up to the wickets, this also holds the last man to
+  // being out only on the ball that ended it: all out, or the sixtieth.
+  return list.slice(0, -1).every(b => b.out);
+}
+
 /** The figures off an untrusted request body: nothing defaulted, so a missing one is `NaN` and refused. */
-export function readSuper10(raw: unknown): Super10Innings {
+export function readSuper10(raw: unknown): Super10Figures {
   const from = (raw ?? {}) as Record<string, unknown>;
   const read = (key: string) => Number(from[key]);
-  return { runs: read('runs'), balls: read('balls'), wickets: read('wickets'), fours: read('fours'), sixes: read('sixes') };
+  const team = { runs: read('runs'), balls: read('balls'), wickets: read('wickets'), fours: read('fours'), sixes: read('sixes') };
+  if (!Array.isArray(from.batters)) return team;
+  // Numbers and booleans and nothing else taken: anything that is not a
+  // boolean where one belongs arrives as null, which the check refuses.
+  const batters = from.batters.slice(0, SUPER10.maxWickets + 1).map((b): Super10BatterFigures => {
+    const one = (b ?? {}) as Record<string, unknown>;
+    const n = (key: string) => Number(one[key]);
+    return {
+      runs: n('runs'), balls: n('balls'), fours: n('fours'), sixes: n('sixes'),
+      out: (typeof one.out === 'boolean' ? one.out : null) as boolean,
+    };
+  });
+  return { ...team, batters };
 }
 
 function clamp(value: number, low: number, high: number) {

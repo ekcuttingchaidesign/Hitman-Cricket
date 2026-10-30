@@ -1685,7 +1685,19 @@ not know for the Blast). Its board (`src/game/super10-board.ts`,
 `SUPER10_LADDER`, keys under `super10:`) ranks each player's best team total
 in one innings, then fewer wickets, then more sixes, then whoever got there
 first, as the designer set it (`packSuper10`, its own packed key: the
-Blast's is sized to thirty balls and full). Its career (`Super10Career`,
+Blast's is sized to thirty balls and full). Beside it is Batters
+(`SUPER10_SOLO_LADDER`, keys under `super10one:`): the best innings by one of
+the five, ranked and packed as the Marathon's Batters are (`packSolo`, runs,
+then not out, then fewer balls). The innings is posted with each batter's
+figures (`super10FiguresFrom`, `battersOf` off the balls), and `submitSuper10`
+writes the team row exactly as before and the best of the five beside it
+(`super10SoloOf`) only where they add up to the side
+(`super10BattersPlausible`): batters that do not, or a browser from before
+they were sent, cost the team row nothing and put nothing on Batters. Both
+come in one answer (`?mode=super10` carries `solo` beside its rows, a post's
+answer `solo` beside its standing), and the ladder pill reads Top score,
+Batters, Runs. Innings played before it shipped were never split, so Batters
+starts empty. Its career (`Super10Career`,
 `SUPER10_CAREER`, keys under `super10career:`) adds up innings, runs, sixes
 and fours, and counts the team totals of a hundred and two hundred, which
 the kits are earned on; its one career board is Runs. Its own tier ladder
@@ -1713,7 +1725,7 @@ everywhere but the Survive-only build (`SUPER10_OPEN`): from its PLAY card on
 Choose a mode, from PLAY SUPER10 under its story and by `?mode=super10`. It
 was off production only until its release, which the merge to production is.
 `scripts/super10-post-check.mjs` follows a named player's innings onto its
-board and career and checks the Blast's are untouched.
+board, its Batters and its career, and checks the Blast's are untouched.
 
 The card is the Blast's in the brand's colours (`endSuper10` in the HUD,
 `is-super10` on `#end`, its rules at the foot of `src/super10.css`): the band

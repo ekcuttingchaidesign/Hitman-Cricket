@@ -1,5 +1,6 @@
 import {
-  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SURVIVE_LADDER, claimOnly, foldName, nameRefused,
+  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SUPER10_LADDER, SUPER10_SOLO_LADDER, SURVIVE_LADDER, claimOnly,
+  foldName, nameRefused,
 } from '../src/server/board-store.js';
 import { nameCareer } from '../src/server/career-store.js';
 import { carryKey, keyOnClaim, listOnClaim } from '../src/server/recovery-store.js';
@@ -8,7 +9,8 @@ import {
 } from '../src/server/upstash.js';
 import { rememberHandle } from '../src/server/player-store.js';
 import {
-  BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, type BlastCareer, type MarathonCareer, type SurviveCareer,
+  BLAST_CAREER, MARATHON_CAREER, SUPER10_CAREER, SURVIVE_CAREER, type BlastCareer, type MarathonCareer, type Super10Career,
+  type SurviveCareer,
 } from '../src/game/career.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 
@@ -55,11 +57,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     try {
       const write = redisFromEnv();
       await Promise.all([
-        ...[CLASSIC_LADDER, SURVIVE_LADDER, MARATHON_TEAM_LADDER, MARATHON_SOLO_LADDER]
+        ...[CLASSIC_LADDER, SURVIVE_LADDER, MARATHON_TEAM_LADDER, MARATHON_SOLO_LADDER, SUPER10_LADDER, SUPER10_SOLO_LADDER]
           .map(ladder => upstashStore(write, ladder.scope).rename(who.playerId, name)),
         nameCareer(upstashCareer<BlastCareer>(redisFromEnv(), BLAST_CAREER.scope), BLAST_CAREER, who.playerId, name, who.avatar),
         nameCareer(upstashCareer<SurviveCareer>(redisFromEnv(), SURVIVE_CAREER.scope), SURVIVE_CAREER, who.playerId, name, who.avatar),
         nameCareer(upstashCareer<MarathonCareer>(redisFromEnv(), MARATHON_CAREER.scope), MARATHON_CAREER, who.playerId, name, who.avatar),
+        nameCareer(upstashCareer<Super10Career>(redisFromEnv(), SUPER10_CAREER.scope), SUPER10_CAREER, who.playerId, name, who.avatar),
       ]);
     } catch (error) {
       console.error('The career boards did not take the name.', error);

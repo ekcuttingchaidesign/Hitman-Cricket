@@ -33,6 +33,7 @@ function stores(): ProfileStores {
     boards: {
       classic: memoryStore<Innings>(names), survive: memoryStore<SurviveInnings>(names),
       team: memoryStore<TeamInnings>(names), solo: memoryStore<SoloInnings>(names), super10: memoryStore<Super10Innings>(names),
+      super10solo: memoryStore<SoloInnings>(names),
     },
     careers: {
       classic: memoryCareer<BlastCareer>(names), survive: memoryCareer<SurviveCareer>(names),
