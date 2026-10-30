@@ -1,6 +1,29 @@
 import type { BlastTally, CareerMode, MarathonTally, Super10Tally, SurviveTally } from './career.js';
 import { standingOf } from './survive-board.js';
-import { FREE_BAT, FREE_OUTFITS, type Look } from './dressing-ids.js';
+import { FREE_BAT, FREE_OUTFITS, isBat, lookOf, type BatId, type GuardId, type OutfitId } from './dressing-ids.js';
+import { SUPER10_KIT_IDS, type Super10KitId } from './super10-kits.js';
+
+/**
+ * What an innings was played in, as the recap counts it: a Dressing Room kit,
+ * bat and guard — or, in Super10, the team's kit he batted in, with the bat he
+ * held. A team's kit has its own gloves and pads, so a Super10 innings counts
+ * no guard.
+ */
+export interface InningsLook { kit: OutfitId | Super10KitId; bat: BatId; guard: GuardId | null }
+
+/**
+ * A look as sent with an innings, or null if it names anything that is not on
+ * the shelves. Super10 takes only a team's kit and every other mode only the
+ * Dressing Room's, so neither is ever counted against the other: a Super10
+ * innings from a browser that still sent the room's kit counts no look at all.
+ */
+export function inningsLookOf(raw: unknown, mode: CareerMode): InningsLook | null {
+  if (mode !== 'super10') return lookOf(raw);
+  if (!raw || typeof raw !== 'object') return null;
+  const { kit, bat } = raw as Record<string, unknown>;
+  const team = typeof kit === 'string' && (SUPER10_KIT_IDS as readonly string[]).includes(kit);
+  return team && isBat(bat) ? { kit: kit as Super10KitId, bat, guard: null } : null;
+}
 
 /**
  * A player's year, kept for the recap at the end of it.
@@ -109,7 +132,7 @@ export function emptyRecap(at: number): YearRecap {
 const bump = (counts: Record<string, number>, key: string, by = 1) => ({ ...counts, [key]: (counts[key] ?? 0) + by });
 
 /** A counted innings, added to the player's year. */
-export function foldInnings(held: YearRecap | null, mode: CareerMode, facts: InningsFacts, look: Look | null, at: number): YearRecap {
+export function foldInnings(held: YearRecap | null, mode: CareerMode, facts: InningsFacts, look: InningsLook | null, at: number): YearRecap {
   const was = held ?? emptyRecap(at);
   const { day, hour } = whenOf(at);
   const m = was.modes[mode] ?? { innings: 0, runs: 0, balls: 0, fours: 0, sixes: 0, best: 0, fifties: 0, hundreds: 0, wins: 0 };
@@ -128,7 +151,7 @@ export function foldInnings(held: YearRecap | null, mode: CareerMode, facts: Inn
     },
     kits: look ? bump(was.kits, look.kit) : was.kits,
     bats: look ? bump(was.bats, look.bat) : was.bats,
-    guard: look ? bump(was.guard, look.guard) : was.guard,
+    guard: look?.guard ? bump(was.guard, look.guard) : was.guard,
     days: bump(was.days, day),
     hours: bump(was.hours, String(hour)),
   };
@@ -153,7 +176,7 @@ export function foldUnlocks(held: YearRecap | null, keys: readonly string[], at:
  * raise. Flat names, so the store can keep them as one hash of numbers and
  * raise each in place: two players counted at once both land.
  */
-export function totalsOf(mode: CareerMode, facts: InningsFacts, look: Look | null, at: number, firstOfYear: boolean): Record<string, number> {
+export function totalsOf(mode: CareerMode, facts: InningsFacts, look: InningsLook | null, at: number, firstOfYear: boolean): Record<string, number> {
   const { day, hour } = whenOf(at);
   const counts: Record<string, number> = {
     innings: 1, [`innings:${mode}`]: 1, runs: facts.runs, balls: facts.balls, fours: facts.fours, sixes: facts.sixes,
@@ -162,7 +185,7 @@ export function totalsOf(mode: CareerMode, facts: InningsFacts, look: Look | nul
   if (facts.fifties) counts.fifties = facts.fifties;
   if (facts.hundreds) counts.hundreds = facts.hundreds;
   if (facts.won) counts[`wins:${mode}`] = 1;
-  if (look) { counts[`kit:${look.kit}`] = 1; counts[`bat:${look.bat}`] = 1; counts[`guard:${look.guard}`] = 1; }
+  if (look) { counts[`kit:${look.kit}`] = 1; counts[`bat:${look.bat}`] = 1; if (look.guard) counts[`guard:${look.guard}`] = 1; }
   if (firstOfYear) counts.players = 1;
   return counts;
 }

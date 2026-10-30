@@ -1846,6 +1846,12 @@ pick) and leaves the kit he wears everywhere else alone, so both carry a
 tick. A Super10 innings is batted in that pick while it is earned, and
 otherwise in one of the earned kits drawn once an innings
 (`super10KitFor`, `Game.super10Kit`): the Panthers alone for a new player.
+That kit is what the innings is counted in: GoatCounter's
+`super10-kit-<id>` once a finished innings, and the year recap's kits, where
+`inningsLookOf` (`src/game/recap.ts`) takes a team's kit only in Super10 and
+the room's only elsewhere, and counts no guard for it (a team's gloves and
+pads are its own). Before, a Super10 innings was counted in the room's kit,
+and every innings's guard as the free one, the guard never being sent.
 Earning one is an unlock like any kit's (`freshUnlocks`, `super10Moment`),
 from the kit he would have batted in to the new one, and one earned before it
 was seen waits in the room for its key; the Panthers are never celebrated

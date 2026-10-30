@@ -12,7 +12,8 @@
  * team total and counts it a hundred and a double, and the board opens on its
  * own Super10 tab with the player's row on it. The innings goes with each
  * batter's figures, and the opener's 240 out is the player's row on the
- * Batters board, which the ladder pill opens on the same row.
+ * Batters board, which the ladder pill opens on the same row. The year recap
+ * counts the innings in the Super10 kit he wore, a new player's Panthers.
  */
 
 import { chromium } from '@playwright/test';
@@ -101,6 +102,7 @@ const asked = await page.evaluate(async () => {
     blast: await get('/api/board'),
     career: id ? await get(`/api/career?mode=super10&player=${encodeURIComponent(id)}`) : null,
     blastCareer: id ? await get(`/api/career?player=${encodeURIComponent(id)}`) : null,
+    recap: id ? await get(`/api/recap?player=${encodeURIComponent(id)}`) : null,
   };
 });
 const row = asked.board.rows?.find(one => one.name === name);
@@ -112,6 +114,9 @@ const career = asked.career?.career;
 check(career?.innings === 1 && career.runs === 240 && career.hundreds === 1 && career.doubles === 1 && career.highest === 240,
   'the Super10 career counts it, a team hundred and a double', JSON.stringify(asked.career));
 check(!(asked.blastCareer?.career?.innings > 0), 'and the Blast career is untouched', JSON.stringify(asked.blastCareer));
+const kits = asked.recap?.player?.kits;
+check(kits && kits['s10-purple'] === 1 && Object.keys(kits).length === 1,
+  'the year recap counts it in the team kit he batted in, the Panthers, not the room\'s', JSON.stringify(asked.recap));
 check(await page.evaluate(() => localStorage.getItem('hitman-best')) === '77', 'nor is this browser\'s Blast best');
 check(Number(await page.evaluate(() => localStorage.getItem('hitman-best-super10'))) === 240, 'Super10 keeps a best of its own');
 

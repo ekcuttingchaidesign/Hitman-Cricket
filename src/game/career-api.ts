@@ -85,7 +85,7 @@ export async function countInnings<C extends AnyCareer>(
   playerId: string, mode: CareerMode, innings: Innings | SurviveTally | MarathonTally | Super10Tally,
   who: { name: string; avatar: number } | null, nonce: string,
   /** What the innings was played in, for the year recap; the store checks it against the shelves. */
-  look: { kit: string; bat: string } | null = null,
+  look: { kit: string; bat: string; guard?: string } | null = null,
 ): Promise<MyCareer<C> | null> {
   const answer = await ask<{
     career: C; name: string; avatar: number; counted?: boolean;

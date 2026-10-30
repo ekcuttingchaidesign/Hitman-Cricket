@@ -5,7 +5,7 @@ import { countInnings, refusedCareer } from '../src/server/career-store.js';
 import { NoDatabase, redisFromEnv, upstashCareer, upstashPlayers, upstashRecap } from '../src/server/upstash.js';
 import { rememberHandle } from '../src/server/player-store.js';
 import { recordInnings } from '../src/server/recap-store.js';
-import { lookOf } from '../src/game/dressing-ids.js';
+import { inningsLookOf } from '../src/game/recap.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 import {
   BLAST_CAREER, MARATHON_CAREER, SUPER10_CAREER, SURVIVE_CAREER, readBlastTally, readMarathonTally, readSuper10Tally,
@@ -86,7 +86,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     // answered but not counted. Never the reason an innings fails.
     if (outcome.counted && tally) {
       await recordInnings(upstashRecap(redisFromEnv()), {
-        playerId: who.playerId, mode, tally, look: lookOf(body.look), at: Date.now(),
+        playerId: who.playerId, mode, tally, look: inningsLookOf(body.look, mode), at: Date.now(),
       }).catch(error => console.error('The year recap could not take an innings.', error));
     }
     // The handle a named career's rows go by, so they open its profile.
