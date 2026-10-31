@@ -143,4 +143,30 @@ describe('a challenge from a profile', () => {
     expect(took(await readMine(store, RIYA, T0 + HOUR)).challenges).toHaveLength(0);
     took(await createChallenge(store, { ...kabir, to: handleOf(RIYA) }, T0 + HOUR));
   });
+
+  it('holds a Super10 innings in a Super10 room: sixty balls or five wickets', async () => {
+    const store = setup();
+    const made = took(await createChallenge(store, { ...kabir, to: handleOf(RIYA), toName: 'Riya', mode: 'super10' }, T0));
+    // Thirty balls is half a Super10 innings: still batting, not sent.
+    took(await recordBalls(store, made.code, { ...kabir, card: card(64) }, T0 + 60_000));
+    expect(took(await readMine(store, RIYA, T0 + 61_000)).challenges).toHaveLength(0);
+    const sixty = card(64) + '6'.repeat(10) + '0'.repeat(20);
+    const set = took(await recordBalls(store, made.code, { ...kabir, card: sixty }, T0 + 120_000));
+    expect(set.challenge.players[0]).toMatchObject({ status: 'done', runs: 124, balls: 60 });
+    expect(set.challenge.invite?.state).toBe('waiting');
+    // Nothing past the sixtieth ball, and five wickets ends it early.
+    expect(refusal(await recordBalls(store, made.code, { ...kabir, card: sixty + '1' }, T0 + 130_000))?.status).toBe(400);
+    took(await joinChallenge(store, made.code, riya, T0 + HOUR));
+    const out = took(await recordBalls(store, made.code, { ...riya, card: '6W6WW6WW' }, T0 + HOUR + 60_000));
+    expect(out.challenge.players.find(row => row.handle === handleOf(RIYA))).toMatchObject({ status: 'done', wickets: 5 });
+    expect(out.challenge.state).toBe('done');
+  });
+
+  it('keeps the Blast’s room to thirty balls and three wickets', async () => {
+    const store = setup();
+    const made = took(await createChallenge(store, { ...kabir, to: handleOf(RIYA), toName: 'Riya' }, T0));
+    expect(refusal(await recordBalls(store, made.code, { ...kabir, card: card(64) + '6' }, T0 + 60_000))?.status).toBe(400);
+    const out = took(await recordBalls(store, made.code, { ...kabir, card: 'WWW' }, T0 + 60_000));
+    expect(out.challenge.players[0].status).toBe('done');
+  });
 });

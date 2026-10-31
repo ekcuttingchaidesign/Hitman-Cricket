@@ -17,6 +17,9 @@ import { escape, kitMarkup } from './Leaderboard';
 const COLOUR: Record<ChallengeMode, string> = { classic: '#3f88f2', super10: '#8b5cf6' };
 const FACTS: Record<ChallengeMode, string> = { classic: '5 OVERS · 30 BALLS', super10: '10 OVERS · 5 WICKETS' };
 const LINE: Record<ChallengeMode, string> = { classic: '5 overs · 3 wickets', super10: '10 overs · 5 wickets' };
+/** Super10 is named by its logo on a challenge's band, as the design draws it. */
+const LOGO = new URL('../assets/super10/logo.svg', import.meta.url).href;
+const named = (mode: ChallengeMode) => mode === 'classic' ? 'THE BLAST' : `<img class="cs-logo" src="${LOGO}" alt="Super10" width="64" height="24">`;
 const face = (avatar: number | null, name: string) =>
   avatar === null ? '<span class="board-kit is-empty" aria-hidden="true"></span>' : kitMarkup(avatar, name);
 
@@ -66,7 +69,7 @@ export function setCardMarkup(view: SetView): string {
         <small>${escape(view.them.name)} averages ${view.average} in ${view.mode === 'classic' ? 'the Blast' : 'Super10'}. Past ${view.aim} is a tough chase.</small></span></div>`
     : '';
   return `<div class="ch-intro cs-card is-${view.mode}" role="dialog" aria-modal="true" aria-labelledby="cs-title" style="--mode:${COLOUR[view.mode]}">
-      <div class="cs-band"><h2 id="cs-title" class="cs-eyebrow">CHALLENGE · ${view.mode === 'classic' ? 'THE BLAST' : '<span class="cs-s10">SUPER<em>10</em></span>'}</h2><small>${FACTS[view.mode]}</small></div>
+      <div class="cs-band"><h2 id="cs-title" class="cs-eyebrow">CHALLENGE · ${named(view.mode)}</h2><small>${FACTS[view.mode]}</small></div>
       <div class="ch-intro-body">
         <div class="ch-versus cs-versus">
           <div class="ch-side is-you">${face(view.you.avatar, 'You')}<b>You</b></div>
@@ -88,7 +91,7 @@ export function chaseCardMarkup(mode: ChallengeMode, them: Them, total: number, 
   return `<div class="ch-intro cs-card is-${mode}" role="dialog" aria-modal="true" aria-labelledby="cs-title" style="--mode:${COLOUR[mode]}">
       <div class="ch-intro-head">
         <i class="ch-chevrons" aria-hidden="true"></i>
-        <p class="ch-intro-eyebrow"><span>CHALLENGE · ${mode === 'classic' ? 'THE BLAST' : 'SUPER10'}</span><small>${FACTS[mode]}</small></p>
+        <p class="ch-intro-eyebrow"><span>CHALLENGE · ${named(mode)}</span><small>${FACTS[mode]}</small></p>
         <h2 id="cs-title" class="ch-intro-target"><b class="ch-count" data-to="${total}">${total}</b><span><em>TO BEAT</em><small data-short="Their total, same balls">${escape(them.name)}’s total, same balls</small></span></h2>
       </div>
       <div class="ch-intro-body">
@@ -127,8 +130,8 @@ export function inviteSheetMarkup(view: InviteSheetView, now = Date.now()): stri
     <section class="cc-sheet is-invite" role="dialog" aria-modal="true" aria-labelledby="iv-title">
       <i class="cc-grab" aria-hidden="true"></i>
       <div class="iv-who" data-handle-face>${face(view.them.avatar, view.them.name)}<span><h2 id="iv-title" class="cc-title">${title}</h2></span>${view.nudged && !view.ranOut ? '<i class="iv-chip">NUDGED</i>' : ''}</div>
-      <div class="iv-card" style="--mode:${COLOUR[view.mode]}">
-        <small>${view.mode === 'classic' ? 'THE BLAST' : 'SUPER10'} · ${escape(view.them.name.toUpperCase())} SET</small>
+      <div class="iv-card is-${view.mode}" style="--mode:${COLOUR[view.mode]}">
+        <small>${named(view.mode)} · ${escape(view.them.name.toUpperCase())} SET</small>
         <b>${view.total}</b>
         <p>${line}</p>
       </div>

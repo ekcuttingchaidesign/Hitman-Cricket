@@ -116,3 +116,13 @@
   font:500 calc(var(--u) * 14)/1.35 var(--f-ui);animation:ch-rise 260ms cubic-bezier(.2,.9,.25,1.08) both}
 .hud-notice>span{flex:1}
 .hud-notice-undo{flex:none;border:0;background:none;color:var(--c-accent);font:900 calc(var(--u) * 13)/1 var(--f-ui);letter-spacing:.08em;cursor:pointer}
+
+/* Super10's challenge (Figma 703:14486): the band violet with the logo for its name, the body deep violet. */
+.cs-logo{display:inline-block;height:1.25em;width:auto;margin-left:.15em;vertical-align:-.3em}
+.cs-eyebrow,.ch-intro-eyebrow span{display:inline-flex;align-items:center;gap:.3em;white-space:nowrap}
+.cs-card.is-super10{border-color:#8b5cf64d;background:linear-gradient(180deg,#1d1240,#120a2a)}
+.cs-card.is-super10 .ch-intro-head{background:linear-gradient(135deg,#8b5cf6,#6836de 55%,#41199e)}
+.cs-card.is-super10 .cs-aim{border-color:#8b5cf659;background:#8b5cf61a}
+.cs-card.is-super10 .cs-bar.is-none{background:#ffffff14}
+.iv-card.is-super10 small{display:inline-flex;align-items:center;gap:.4em}
+.iv-card.is-super10 .cs-logo{height:1.6em;margin:0}

@@ -192,8 +192,6 @@ const SURVIVE_ONLY = !!import.meta.env.VITE_SURVIVE_ONLY;
 const SUPER10_ONLY = !!import.meta.env.VITE_SUPER10_ONLY;
 /** A build published where nothing answers `/api`: no board, and nothing that goes looking for one. */
 const NO_BOARD = SURVIVE_ONLY || SUPER10_ONLY;
-/** Challenges from a profile in Super10: the room's innings is the Blast's until Super10's is built in. */
-const SUPER10_CHALLENGES = false;
 /** How often the list of matches is asked again while the cover or a card is up: a challenge sent mid-visit arrives within this. */
 const LIST_REFRESH_MS = 2 * 60_000;
 /** How long DECLINE can be taken back. */
@@ -254,6 +252,8 @@ const SURGE_WAIT_MS = 1600;
 /** The overs a Super10 crowd sends a Mexican wave round the arena at the top of: the third, sixth and eighth. */
 const WAVE_OVERS = [2, 5, 7];
 const SUPER10_OPEN = SUPER10_ONLY || !SURVIVE_ONLY;
+/** Challenges from a profile in Super10: wherever Super10 is played and a room can be reached. */
+const SUPER10_CHALLENGES = SUPER10_OPEN && !NO_BOARD;
 /** Super10's kits on the Dressing Room's kit shelf: wherever Super10 is played beside the other modes. */
 const SUPER10_SHELF = SUPER10_OPEN && !SUPER10_ONLY;
 /** The mode a browser played last, which Choose a mode's rail opens on; a new player starts on the Blast. */
@@ -2350,7 +2350,8 @@ export class Game {
     this.setPhase('READY');
     (document.activeElement as HTMLElement | null)?.blur();
     // The coachmarks and the chase's card wait for the walk-on, where there is one.
-    const told = () => { if (this.marathoning) this.introduce(); else this.teachShots(); this.startChase(); };
+    // A challenge's card goes first, and the coachmarks follow it on LET'S BAT (`afterCard`).
+    const told = () => { if (this.marathoning) this.introduce(); else if (!this.cardFirst) this.teachShots(); this.startChase(); };
     if (this.introAsked && !this.walkedIn.has(this.mode) && !this.demoing && !this.challenge.playing) this.walkOn(told); else told();
   };
   /**
@@ -2670,8 +2671,8 @@ export class Game {
   /** `?round=1`: every over of a Marathon bowled round the wicket, from the first. See `roundEvery`. */
   private roundOnly = new URLSearchParams(location.search).get('round') === '1';
   private get plan() {
-    // A Rival Match is bowled as the Blast is, whatever the link asks for.
-    if (this.challenge.playing) return CLASSIC_PLAN;
+    // A Rival Match is bowled as its room's mode is, whatever the link asks for.
+    if (this.challenge.playing) return this.challenge.room?.mode === 'super10' ? SUPER10_PLAN : CLASSIC_PLAN;
     const base = this.ease > 1 ? withoutYorkers(this.basePlan) : this.basePlan;
     return this.marathoning && (this.roundOnly || this.netsKeys) ? roundEvery(base) : base;
   }
@@ -3603,7 +3604,7 @@ export class Game {
   }
 
   /** Balls left, where the innings is counted in them. */
-  private get chaseBallsLeft() { return this.careerMode === 'classic' ? GAME.totalBalls - this.score.balls : null; }
+  private get chaseBallsLeft() { return this.careerMode === 'classic' || this.careerMode === 'super10' ? this.score.limits.totalBalls - this.score.balls : null; }
 
   /** What the player brings to it: their best and place in the mode, as far as this browser knows. */
   private chaseMine(): Mine {
@@ -5958,7 +5959,8 @@ export class Game {
     // polling exists for — or this is the innings that answers one played
     // earlier. The pair is what says which of the two ways people use it.
     if (!resume) track(this.challenge.ghostBatting ? 'challenge-live' : 'challenge-apart', this.challenge.ghostBatting ? 'Match batted together' : 'Match batted apart');
-    this.mode = 'CLASSIC';
+    this.mode = this.challenge.room?.mode === 'super10' ? 'SUPER10' : 'CLASSIC';
+    this.cardFirst = !resume && !!this.challenge.room?.invite;
     this.start();
     // Dressed by `start` like any innings: in his own Dressing Room kit and
     // bat, which the room keeps with his innings.
@@ -6240,6 +6242,8 @@ export class Game {
   private coverChallenge = false;
   /** Who the innings under way sets a total for, and what their profile said: the aim is read off it. */
   private setting: { them: { handle: string; name: string; avatar: number }; profile: ProfilePayload | null; mode: ChallengeMode } | null = null;
+  /** A challenge's card is up before the first ball, so the coachmarks wait for it. */
+  private cardFirst = false;
   /** The total being chased, for the chip under the scoreboard. */
   private inviteChase: Chase | null = null;
 
@@ -6293,7 +6297,7 @@ export class Game {
         mode, them: { name: invite.name, avatar: invite.avatar }, you,
         record: recordIn(rivalryEntries(), invite.to, mode), aim: aimFor(average, myBest || null, mode), average,
       } }, bat => {
-        if (bat) { this.bannerUntil = this.elapsed; track('challenge-set-bat', 'Challenge: setting a total'); return; }
+        if (bat) { this.afterCard(); track('challenge-set-bat', 'Challenge: setting a total'); return; }
         void this.leaveChallenge(true);
       });
       return;
@@ -6303,10 +6307,17 @@ export class Game {
       const joined = await this.challenge.join(this.me!);
       if (!joined.ok) { this.hud.notice(joined.reason ?? 'That challenge could not be accepted.'); void this.leaveChallenge(false); return; }
       track('challenge-chase-bat', 'Challenge: chasing');
-      this.inviteChase = { handle: host.handle, name: host.name, avatar: host.avatar, mode: 'classic', target: host.runs };
+      this.inviteChase = { handle: host.handle, name: host.name, avatar: host.avatar, mode, target: host.runs };
       this.hud.chaseChip(this.inviteChase, 0, this.chaseBallsLeft);
-      this.bannerUntil = this.elapsed;
+      this.afterCard();
     });
+  }
+
+  /** The card put away for the first ball: the coachmarks it held back, if any are due, and then the bowler. */
+  private afterCard() {
+    this.cardFirst = false;
+    this.bannerUntil = this.elapsed;
+    this.teachShots();
   }
 
   /** The chaser's chip moved on after a ball, as any chase's is. */
@@ -6321,7 +6332,7 @@ export class Game {
    */
   private async leaveChallenge(walk: boolean) {
     const me = this.me, room = this.challenge.room;
-    this.inviteChase = null; this.setting = null; this.hud.chaseChip(null); this.hud.closeChaseIntro();
+    this.inviteChase = null; this.setting = null; this.cardFirst = false; this.hud.chaseChip(null); this.hud.closeChaseIntro();
     const joined = !!room && !!me && room.players.some(one => ownsHandle(one.handle, me.playerId));
     if (me && room && (walk || joined)) await sendWalk(room.code, me.playerId, me.name, me.avatar).catch(() => null);
     this.challenge.clear(); this.pinRoom(null);
@@ -6483,7 +6494,7 @@ export class Game {
   }
 
   private snapshot() {
-    return { phase: this.phase, lesson: this.lesson, seed: this.seed, elapsed: Math.round(this.elapsed),
+    return { phase: this.phase, mode: this.mode, lesson: this.lesson, seed: this.seed, elapsed: Math.round(this.elapsed),
       // A stroke's film under its story: which, and how far into a go of it, on its own clock.
       reel: this.reel ? { shot: this.reel.shot, at: Math.round(this.elapsed - this.reel.start), struck: this.reel.struck } : null, balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
       line: this.delivery?.line ?? '—', dragged: !!this.delivery?.dragged, spinPulled: !!this.outcome?.spinPulled, spinPulls: this.spinPulls, hooks: this.hooks, effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',

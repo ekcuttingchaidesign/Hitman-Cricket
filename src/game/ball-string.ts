@@ -1,4 +1,5 @@
 import { GAME } from '../config/gameplay.js';
+import { SUPER10 } from '../config/super10.js';
 import type { Innings } from './leaderboard.js';
 
 /**
@@ -30,8 +31,19 @@ import type { Innings } from './leaderboard.js';
 export const WICKET = 'W';
 /** Every character a ball may be: the six run values, and the wicket. */
 export const BALL_CHARS = '012346' + WICKET;
-/** The longest an innings can be. Shorter means it ended early. */
+/** The longest a Blast innings can be. Shorter means it ended early. */
 export const MAX_BALLS = GAME.totalBalls;
+
+/**
+ * The innings a room can hold: the Blast's, and Super10's ten overs and five
+ * wickets for a challenge sent in it. A room with no mode is the Blast's.
+ */
+export type CardMode = 'classic' | 'super10';
+export const LIMITS: Record<CardMode, { balls: number; wickets: number }> = {
+  classic: { balls: GAME.totalBalls, wickets: GAME.maxWickets },
+  super10: { balls: SUPER10.totalBalls, wickets: SUPER10.maxWickets },
+};
+export const limitsOf = (mode: CardMode | null | undefined) => LIMITS[mode ?? 'classic'] ?? LIMITS.classic;
 
 /** The one ball this file reads, named structurally so nothing has to import it. */
 export interface Ball {
@@ -43,9 +55,9 @@ export interface Ball {
  * An innings written down. Anything past the thirtieth ball is dropped rather
  * than trusted: the innings is over by then whatever a caller believes.
  */
-export function encodeInnings(history: readonly Ball[]): string {
+export function encodeInnings(history: readonly Ball[], mode?: CardMode): string {
   return history
-    .slice(0, MAX_BALLS)
+    .slice(0, limitsOf(mode).balls)
     .map(ball => (ball.isWicket ? WICKET : String(ball.runs)))
     .join('');
 }
@@ -66,8 +78,8 @@ export function decodeInnings(balls: string): Ball[] {
  * Whether this is an innings at all: the right characters, and not longer than
  * one. It says nothing about whether the innings *ended* — see `ended`.
  */
-export function readable(balls: unknown): balls is string {
-  if (typeof balls !== 'string' || !balls.length || balls.length > MAX_BALLS) return false;
+export function readable(balls: unknown, mode?: CardMode): balls is string {
+  if (typeof balls !== 'string' || !balls.length || balls.length > limitsOf(mode).balls) return false;
   return [...balls].every(char => BALL_CHARS.includes(char));
 }
 
@@ -103,8 +115,9 @@ export function figuresOf(balls: string): Innings {
  * thing `figuresOf` cannot tell you, because those twelve balls add up perfectly
  * well.
  */
-export function ended(figures: Innings): boolean {
-  return figures.balls >= MAX_BALLS || figures.wickets >= GAME.maxWickets;
+export function ended(figures: Innings, mode?: CardMode): boolean {
+  const most = limitsOf(mode);
+  return figures.balls >= most.balls || figures.wickets >= most.wickets;
 }
 
 /**
@@ -113,9 +126,9 @@ export function ended(figures: Innings): boolean {
  * The one call the endpoint makes: it hands over whatever arrived in the body
  * and gets back either a score it can record or nothing at all.
  */
-export function completedInnings(balls: unknown): { balls: string; figures: Innings } | null {
-  if (!readable(balls)) return null;
+export function completedInnings(balls: unknown, mode?: CardMode): { balls: string; figures: Innings } | null {
+  if (!readable(balls, mode)) return null;
   const figures = figuresOf(balls);
-  if (figures.wickets > GAME.maxWickets) return null;
-  return ended(figures) ? { balls, figures } : null;
+  if (figures.wickets > limitsOf(mode).wickets) return null;
+  return ended(figures, mode) ? { balls, figures } : null;
 }

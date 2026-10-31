@@ -1,5 +1,5 @@
 import type { Innings } from '../game/leaderboard.js';
-import { BALL_CHARS, MAX_BALLS, ended, figuresOf } from '../game/ball-string.js';
+import { BALL_CHARS, ended, figuresOf, limitsOf } from '../game/ball-string.js';
 import { AVATARS, NAME_MAX, cleanName, foldName } from './board-store.js';
 import { NAME_BLOCKED_REASON, nameBlocked } from './name-filter.js';
 import { RIVALS_NEED_REGISTERED_RIVAL } from '../config/rivals.js';
@@ -252,7 +252,7 @@ export function inviteStateOf(challenge: StoredChallenge, now = Date.now()): Inv
   if (them?.declined) return 'declined';
   if (them) return 'accepted';
   const host = challenge.players[challenge.host];
-  const status = host ? statusOf(host, now) : 'joined';
+  const status = host ? statusOf(host, now, challenge.mode) : 'joined';
   if (status === 'forfeit') return 'withdrawn';
   if (status !== 'done') return 'setting';
   return now >= host.at + ANSWER_MS ? 'unanswered' : 'waiting';
@@ -261,7 +261,7 @@ export function inviteStateOf(challenge: StoredChallenge, now = Date.now()): Inv
 /** When the total was set and the challenge went out, or null before. */
 export function sentAt(challenge: StoredChallenge, now = Date.now()): number | null {
   const host = challenge.players[challenge.host];
-  return host && challenge.invite && statusOf(host, now) === 'done' ? host.at : null;
+  return host && challenge.invite && statusOf(host, now, challenge.mode) === 'done' ? host.at : null;
 }
 
 /** The fields of a room a write may change: some players' rows, and its challenge. */
@@ -455,11 +455,11 @@ export function cleanCode(raw: unknown): string | null {
 }
 
 /** Where one player is. Read off their balls and their last write, never stored. */
-export function statusOf(player: StoredPlayer, now = Date.now()): PlayerStatus {
+export function statusOf(player: StoredPlayer, now = Date.now(), mode?: ChallengeMode): PlayerStatus {
   if (player.declined) return 'declined';
   if (player.walked) return 'forfeit';
   if (!player.card) return 'joined';
-  if (ended(figuresOf(player.card))) return 'done';
+  if (ended(figuresOf(player.card), mode)) return 'done';
   return now - player.at > FORFEIT_AFTER_MS ? 'forfeit' : 'batting';
 }
 
@@ -477,7 +477,7 @@ export function stateOf(challenge: StoredChallenge, now = Date.now()): Challenge
   // A challenge that never became a chase is closed, and nothing counts.
   const invited = inviteStateOf(challenge, now);
   if (invited === 'declined' || invited === 'unanswered' || invited === 'withdrawn') return 'expired';
-  const statuses = Object.values(challenge.players).map(player => statusOf(player, now));
+  const statuses = Object.values(challenge.players).map(player => statusOf(player, now, challenge.mode));
   const settled = statuses.filter(status => status === 'done' || status === 'forfeit' || status === 'declined').length;
   const batting = statuses.some(status => status === 'batting');
   const waiting = statuses.some(status => status === 'joined');
@@ -679,7 +679,7 @@ export async function recordBalls(
   const held = challenge.players[input.playerId];
   if (!held) return { ok: false, status: 409, reason: 'Join the match before batting in it.' };
 
-  const card = cleanCard(input.card);
+  const card = cleanCard(input.card, challenge.mode);
   if (card === null) return { ok: false, status: 400, reason: 'That innings could not have happened.' };
 
   // Nothing new: the same balls again, or fewer. The room as it stands.
@@ -690,7 +690,7 @@ export async function recordBalls(
   if (!card.startsWith(held.card)) {
     return { ok: false, status: 409, reason: 'That innings does not match the one already in.' };
   }
-  const status = statusOf(held, now);
+  const status = statusOf(held, now, challenge.mode);
   if (status === 'done') return { ok: false, status: 409, reason: 'That innings is already over.' };
   if (status === 'forfeit') return { ok: false, status: 409, reason: 'That innings was given up a day ago.' };
   if (status === 'declined') return { ok: false, status: 409, reason: 'You declined this one.' };
@@ -705,7 +705,7 @@ export async function recordBalls(
   // The last ball of an innings may be the last ball of the match. Read back
   // before deciding, because two friends finishing in the same second each
   // hold a copy with the other still batting, and neither would settle it.
-  if (statusOf(player, now) === 'done') {
+  if (statusOf(player, now, challenge.mode) === 'done') {
     // The ball is in by now, and a failed read must not report it as lost —
     // the retry would find nothing new and settle nothing. The list read
     // catches the match up instead.
@@ -822,7 +822,7 @@ export async function walkOut(
   if (!isPlayerId(input.playerId)) return { ok: false, status: 400, reason: 'That is not a player.' };
   const held = challenge.players[input.playerId];
   if (!held) return { ok: false, status: 409, reason: 'You are not in this match.' };
-  const status = statusOf(held, now);
+  const status = statusOf(held, now, challenge.mode);
   if (status === 'done' || status === 'forfeit' || status === 'declined') {
     return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
   }
@@ -989,7 +989,7 @@ export function resultOf(
   const runs = figuresOf(challenge.players[playerId].card).runs;
   const ranked = !RIVALS_NEED_REGISTERED_RIVAL || Object.entries(challenge.players).some(([id, player]) => {
     if (id === playerId) return false;
-    const status = statusOf(player, now);
+    const status = statusOf(player, now, challenge.mode);
     return (status === 'done' || status === 'forfeit' || status === 'declined') && registered(holders, id, player);
   });
   return { outcome, runs, ranked };
@@ -1088,7 +1088,7 @@ export function outcomeOf(challenge: StoredChallenge, playerId: string, now = Da
   const state = stateOf(challenge, now);
   if (state !== 'done' && state !== 'expired') return null;
   const settled = Object.entries(challenge.players)
-    .map(([id, player]) => ({ id, status: statusOf(player, now), score: 0 }))
+    .map(([id, player]) => ({ id, status: statusOf(player, now, challenge.mode), score: 0 }))
     .filter(row => row.status === 'done' || row.status === 'forfeit' || row.status === 'declined')
     .map(row => ({ ...row, score: rankOf(row.status, figuresOf(challenge.players[row.id].card)) }))
     .sort((a, b) => b.score - a.score);
@@ -1126,7 +1126,7 @@ export function challengePayload(code: string, challenge: StoredChallenge, now =
   const players = Object.entries(challenge.players)
     .map(([playerId, player]) => {
       const figures = figuresOf(player.card);
-      const status = statusOf(player, now);
+      const status = statusOf(player, now, challenge.mode);
       return {
         ...figures,
         handle: handleOf(playerId),
@@ -1189,11 +1189,11 @@ export function rankOf(status: PlayerStatus, figures: Innings): number {
  * already ended before the last one: three wickets by ball nine and a tenth
  * ball is not an innings this game can bowl.
  */
-export function cleanCard(raw: unknown): string | null {
+export function cleanCard(raw: unknown, mode?: ChallengeMode): string | null {
   if (typeof raw !== 'string') return null;
-  if (raw.length > MAX_BALLS) return null;
+  if (raw.length > limitsOf(mode).balls) return null;
   if (![...raw].every(char => BALL_CHARS.includes(char))) return null;
-  if (raw.length > 1 && ended(figuresOf(raw.slice(0, -1)))) return null;
+  if (raw.length > 1 && ended(figuresOf(raw.slice(0, -1)), mode)) return null;
   return raw;
 }
 

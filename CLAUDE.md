@@ -160,21 +160,34 @@ three hours. Nothing in a room is an id: the invite answers with the handle.
 Both innings are bowled from the room's code (`roomSeed`), so the chaser faces
 the same balls; link rooms keep their own seed. Scores are never hidden.
 
+A challenge is the Blast or Super10, and the room keeps which (`mode`). A
+Super10 room's innings is ten overs and five wickets, read off the room's mode
+wherever a card is read (`limitsOf` in `ball-string.ts`, `cleanCard` and
+`statusOf` in the store); a room with no mode is the Blast's thirty balls and
+three wickets, as every link room is. Both sides bat it as Super10 proper —
+its ground, kits, field and bowlers (`startMatchInnings`, `plan`) — and it
+counts toward the Super10 career as a Blast match counts toward the Blast's.
+
 On screen (`src/game/invite.ts` says what each piece says, in
 `tests/invite.test.ts`; `src/ui/ChallengeCards.ts` draws it): CHALLENGE beside
 CHASE on a profile, or the one state between the two above CHASE (`footState`);
 the confirm sheet with the Blast and Super10 (`SUPER10_CHALLENGES` in
-`src/Game.ts` is off until a room can hold a Super10 innings); the card before
+`src/Game.ts`: wherever Super10 is played and there is a board); CHALLENGE on
+every row of Around now where a profile's foot would offer it; the card before
 the first ball, the setter's with the record between the two in that mode
-(`recordIn`, kept on the device per mode) and an aim (`aimFor`), the chaser's
-with the total and that leaving or closing the game is a loss; the cover's line
+(`recordIn`, kept on the device per mode) and an aim (`aimFor`, none without
+an average of theirs in the mode), the chaser's with the total and that
+leaving or closing the game is a loss, Super10's named by its logo on violet;
+the coachmarks a first innings or a first Super10 owes wait behind that card
+and come up on LET'S BAT (`cardFirst`, `afterCard`); the cover's line
 taken by a challenge waiting (`coverChallenge`); the invite sheet, decline with
 five seconds of UNDO; ANSWER, NUDGE and AGAIN on Rival Matches rows; the leave
 sheets on the pause sheet's keys (`guardLeave`). A challenge innings left by
 closing the game is walked out on the next time the list is read
 (`leftBehind`). The list is asked again every two minutes on the cover and the
 card, and retried when it fails. `scripts/invite-check.mjs` walks both sides
-in two browsers.
+in two browsers, and with `MODE=super10` does it in Super10, the two innings on
+one seed.
 
 ## The rank hero: the end card's player card
 

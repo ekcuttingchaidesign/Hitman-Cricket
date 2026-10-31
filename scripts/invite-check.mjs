@@ -10,6 +10,9 @@
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/invite-check.mjs http://127.0.0.1:5201
  *
+ * `MODE=super10` sends it in Super10 instead: both innings ten overs long,
+ * bowled as Super10 on the same seed.
+ *
  * It seeds both players under new letters each run, and photographs each
  * state into test-results/invite.
  */
@@ -18,7 +21,9 @@ import { mkdir } from 'node:fs/promises';
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:5201').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
-const out = 'test-results/invite';
+const MODE = process.env.MODE === 'super10' ? 'super10' : 'classic';
+const S10 = MODE === 'super10';
+const out = `test-results/invite${S10 ? '-super10' : ''}`;
 
 let failures = 0;
 const check = (ok, what, detail) => {
@@ -75,6 +80,16 @@ async function waitPhase(page, want, ms = 150000) {
   return false;
 }
 
+/** Super10's first-time rules, put away with SKIP: they follow the challenge's card in each browser. */
+async function rulesAway(page) {
+  await page.waitForSelector('#marathon-intro:not(.hidden)', { timeout: 15000 }).catch(() => null);
+  for (let i = 0; i < 8 && await page.locator('#marathon-intro').isVisible(); i++) {
+    await page.locator('#mi-skip').click({ noWaitAfter: true, timeout: 3000 }).catch(() => page.keyboard.press('Escape'));
+    await page.waitForTimeout(500);
+  }
+  await waitPhase(page, 'READY');
+}
+
 // ── The setter ──────────────────────────────────────────────────────────
 const a = await as(setterId, setter, 2);
 await a.evaluate(() => document.getElementById('cover-board')?.click());
@@ -89,18 +104,35 @@ await a.locator('#player-challenge').click();
 await a.waitForSelector('#cc-confirm .cc-sheet');
 check(await a.locator('#cc-confirm .cc-mode').count() === 2, 'the confirm sheet offers two modes');
 check(await a.locator('#cc-confirm .cc-mode.is-on[data-mode="classic"]').count() === 1, 'the Blast picked');
+if (S10) {
+  await a.locator('#cc-confirm .cc-mode[data-mode="super10"]').click();
+  check(await a.locator('#cc-confirm .cc-mode.is-on[data-mode="super10"]').count() === 1, 'Super10 picked');
+}
 await a.waitForTimeout(400);
 await a.screenshot({ path: `${out}/b1-confirm.png` });
-await a.locator('#cc-go').click();
-await a.waitForSelector('#chase-intro .cs-card', { timeout: 8000 });
+await a.locator('#cc-go').click({ noWaitAfter: true });
+await a.waitForSelector('#chase-intro .cs-card', { timeout: 90000 });
 await a.waitForTimeout(600);
 const setText = await a.locator('#chase-intro').innerText();
 check(/FIRST MATCH/.test(setText), 'the setter’s card says it is their first match', setText);
-check(/Aim for \d+/.test(setText), 'and suggests an aim', setText);
+// The aim comes from their average in the mode: the chaser is seeded with Blasts only.
+if (S10) check(!/Aim for/.test(setText), 'and no aim, with no Super10 innings of theirs to aim from', setText);
+else check(/Aim for \d+/.test(setText), 'and suggests an aim', setText);
+if (S10) check(await a.locator('#chase-intro .cs-band .cs-logo').count() === 1 && /10 OVERS/.test(setText), 'the band names Super10 by its logo, ten overs', setText);
+if (S10) check(!await a.locator('#marathon-intro').isVisible(), 'Super10’s rules wait behind the card');
 await a.screenshot({ path: `${out}/b3-set.png` });
-await a.locator('#cs-bat').click();
+await a.locator('#cs-bat').click({ noWaitAfter: true });
 check(await waitPhase(a, 'READY'), 'the innings starts on LET’S BAT');
-const total = [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 4, ...Array(19).fill(0)];
+const setSnap = await a.evaluate(() => window.__cricket.snapshot());
+check(setSnap.mode === (S10 ? 'SUPER10' : 'CLASSIC'), `the setter bats ${S10 ? 'Super10' : 'the Blast'}`, setSnap.mode);
+if (S10) {
+  await a.waitForSelector('#marathon-intro:not(.hidden)', { timeout: 15000 }).catch(() => null);
+  check(await a.locator('#marathon-intro').isVisible(), 'and its rules come up once the card is put away');
+  await a.screenshot({ path: `${out}/b3-rules.png` });
+  await rulesAway(a);
+}
+const BALLS = S10 ? 60 : 30;
+const total = [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 4, ...Array(BALLS - 11).fill(0)];
 check(await a.evaluate(balls => window.__cricket.blast(balls), total), 'the setter’s innings is written');
 await a.waitForSelector('#room-title', { timeout: 90000 });
 await a.waitForFunction(() => document.getElementById('room-title')?.textContent === 'Challenge sent', null, { timeout: 10000 }).catch(() => null);
@@ -132,25 +164,29 @@ const b = await as(chaserId, chaser, 3);
 await b.waitForFunction(() => document.getElementById('cover-board')?.classList.contains('is-challenge'), null, { timeout: 30000 }).catch(() => null);
 const line = await b.locator('#cover-board').innerText();
 if (!/CHALLENGED YOU/.test(line)) console.log('        errors:', b.errors.join(' | '), '\n        seen by the chaser:', await b.evaluate(async id => JSON.stringify({ me: localStorage.getItem('hitman-player'), id, phase: window.__cricket?.snapshot?.().phase, list: (await (await fetch('/api/challenge?player=' + localStorage.getItem('hitman-player'))).json()).challenges?.map(c => [c.code, c.invite?.state]) }), chaserId));
-check(/CHALLENGED YOU/.test(line) && /Chase\s*64/.test(line), 'the cover’s line is the challenge', line);
+check(/CHALLENGED YOU/.test(line) && /Chase\s*64/.test(line) && (!S10 || /Super10/.test(line)), 'the cover’s line is the challenge', line);
 await b.screenshot({ path: `${out}/c1-cover.png` });
 await b.locator('#cover-board').click();
 await b.waitForSelector('#cc-invite .cc-sheet');
 check((await b.locator('#cc-invite .iv-card b').textContent()) === '64', 'the invite shows their total in the open');
 await b.waitForTimeout(400);
 await b.screenshot({ path: `${out}/c2-invite.png` });
-await b.locator('#iv-accept').click();
-await b.waitForSelector('#chase-intro .cs-card', { timeout: 8000 });
+await b.locator('#iv-accept').click({ noWaitAfter: true });
+await b.waitForSelector('#chase-intro .cs-card', { timeout: 90000 });
 await b.waitForTimeout(800);
 check(/leaving or closing the game counts as a loss/.test(await b.locator('#chase-intro').innerText()), 'the chase card warns that leaving is a loss');
 await b.screenshot({ path: `${out}/c3-chase.png` });
-await b.locator('#cs-bat').click();
+await b.locator('#cs-bat').click({ noWaitAfter: true });
 check(await waitPhase(b, 'READY'), 'the chase starts on LET’S BAT');
+const chaseSnap = await b.evaluate(() => window.__cricket.snapshot());
+check(chaseSnap.mode === setSnap.mode, 'in the same mode', chaseSnap.mode);
+check(chaseSnap.seed === setSnap.seed, 'on the same seed, so the same balls', `${chaseSnap.seed} / ${setSnap.seed}`);
+if (S10) await rulesAway(b);
 await b.waitForTimeout(600);
 check(await b.locator('#chase-chip').isVisible().catch(() => false), 'with the chase chip under the scoreboard');
 await b.screenshot({ path: `${out}/c4-chip.png` });
 await waitPhase(b, 'READY');
-check(await b.evaluate(() => window.__cricket.blast(Array(30).fill(1))), 'the chaser’s innings is written');
+check(await b.evaluate(n => window.__cricket.blast(Array(n).fill(1)), BALLS), 'the chaser’s innings is written');
 await b.waitForSelector('#room-title', { timeout: 90000 }).catch(async () => {
   await b.screenshot({ path: `${out}/c5-fail.png` });
   console.log('        after the chase:', await b.evaluate(async () => JSON.stringify({ phase: window.__cricket?.snapshot?.().phase, url: location.search,

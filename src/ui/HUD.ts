@@ -1,3 +1,4 @@
+import { limitsOf } from '../game/ball-string';
 import { ownsHandle } from '../game/handle';
 import { MarathonInnings } from '../game/Marathon';
 import { GAME, SOLID_SHOT } from '../config/gameplay';
@@ -5744,8 +5745,8 @@ function roomSeat(row: ChallengeRow, view: RoomView): string {
         : '<span class="room-pill is-joined">JOINED</span>';
       break;
     case 'batting':
-      under = `<span class="room-under is-live">batting ball ${row.balls} of ${GAME.totalBalls}</span>`;
-      progress = String(row.balls / GAME.totalBalls);
+      under = `<span class="room-under is-live">batting ball ${row.balls} of ${limitsOf(view.mode).balls}</span>`;
+      progress = String(row.balls / limitsOf(view.mode).balls);
       break;
     case 'forfeit':
       under = `<span class="room-under">gave it up on ball ${row.balls}</span>`;
