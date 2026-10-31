@@ -50,6 +50,8 @@ export type CoverBoard =
   | { kind: 'top'; runs: number; name: string }
   | { kind: 'recent'; runs: number; name: string; ago: number }
   | { kind: 'beaten'; name: string; target: number; place: number | null; ago: number }
+  /** A challenge waiting on the player (Figma 23, C1, C7): it takes the line's place, and the line stops turning. */
+  | { kind: 'challenge'; name: string; total: number; mode: string; left: string; nudged: boolean; count: number }
   | { kind: 'none' };
 
 /** Within this long a score is "just now"; within a day, "today". */
@@ -68,6 +70,10 @@ export function coverBoardLines(view: CoverBoard): string {
   if (view.kind === 'recent') {
     const now = view.ago < JUST_NOW_MS;
     return `<span id="best-label">${now ? 'JUST NOW' : 'TODAY'} · THE BLAST</span><strong id="best">${escape(view.name)} ${now ? 'just scored' : 'scored'} ${view.runs}${now ? '' : ' today'}</strong>`;
+  }
+  if (view.kind === 'challenge') {
+    if (view.count > 1) return `<span id="best-label">${view.count} CHALLENGES WAITING</span><strong id="best">First ends in ${view.left}${view.nudged ? ' · nudged' : ''}</strong>`;
+    return `<span id="best-label">${view.nudged ? 'NUDGED · ' : ''}${escape(view.name.toUpperCase())} CHALLENGED YOU</span><strong id="best">Chase <big>${view.total}</big> · ${escape(view.mode)} · ${view.left} left</strong>`;
   }
   if (view.kind === 'beaten') {
     const hours = Math.floor(view.ago / 3_600_000);

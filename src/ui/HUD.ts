@@ -9,6 +9,9 @@ import {
 import { track, trackOnce } from '../game/analytics';
 import { livePlayers, onLive, refreshLive } from '../game/live-api';
 import { aroundCardMarkup, aroundOrder, aroundSheetMarkup, type AroundFilter } from './AroundNow';
+import { chaseCardMarkup, confirmSheetMarkup, inviteSheetMarkup, leaveSheetMarkup, setCardMarkup, type InviteSheetView, type SetView, type Them } from './ChallengeCards';
+import { left, type FootState } from '../game/invite';
+import type { ChallengeMode } from '../game/challenge-api';
 import { feedbackGiven } from '../game/feedback';
 import { RATED_NAME, type RatedThing } from '../game/rating';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage } from '../game/ShareCard';
@@ -94,7 +97,7 @@ import type { Super10Innings } from '../game/super10-board';
 import { resultOf, type Result } from '../game/Survive';
 import type { SoundSetting } from '../game/Audio';
 import type { CareerMode } from '../game/career';
-import { chaseStanding, chaseTarget, playedMode, playerSheetMarkup, soloOf, type PlayerSeed, type PlayerSheetView } from './PlayerSheet';
+import { chaseStanding, chaseTarget, playedMode, playerFootMarkup, playerSheetMarkup, soloOf, type PlayerSeed, type PlayerSheetView } from './PlayerSheet';
 import { cachedProfile, type ProfilePayload } from '../game/profile-api';
 import { chipLine, surviveGoal, type Chase, type Mine } from '../game/chase';
 import { chaseChipMarkup, chaseIntroMarkup, passedMarkup } from './ChaseUi';
@@ -1012,6 +1015,7 @@ ${modeSelectMarkup()}
     const view: PlayerSheetView = {
       seed, mode: seed.mode, modes: this.boardModes(seed.mode),
       state: held ? 'ready' : 'loading', profile: held,
+      challenge: this.onChallengeFoot ? { foot: this.onChallengeFoot(seed.handle) } : null,
     };
     if (held) view.mode = playedMode(held, view);
     const layer = document.createElement('div');
@@ -1138,6 +1142,7 @@ ${modeSelectMarkup()}
         ladder: 'solo', theirPlace: open.view.profile?.modes.marathon.solo?.place ?? null, theirRung: chaseStanding(open.view).theirRung,
       });
     });
+    this.wireFoot(sheet);
     // Swiped across, the next mode; pulled down by the top half, put away.
     let from: { x: number; y: number; id: number; top: boolean } | null = null;
     sheet.onpointerdown = event => {
@@ -1170,6 +1175,141 @@ ${modeSelectMarkup()}
       event.preventDefault();
       this.playerStep(event.key === 'ArrowRight' ? 1 : -1);
     };
+  }
+
+  /** The foot's challenge keys (Figma 23, D3). */
+  private wireFoot(sheet: HTMLElement) {
+    const open = this.playerOpen!;
+    const foot = open.view.challenge?.foot ?? null;
+    const them = () => ({
+      handle: open.view.seed.handle, name: open.view.profile?.name ?? open.view.seed.name,
+      avatar: open.view.profile?.avatar ?? open.view.seed.avatar ?? 0, profile: open.view.profile, mode: open.view.mode,
+    });
+    const key = sheet.querySelector<HTMLElement>('#player-challenge');
+    if (key) key.onclick = () => {
+      if (!foot) { this.notice('Can’t reach the game right now. Try again in a moment.'); return; }
+      if (foot.kind === 'full') { this.notice('You have 5 challenges out. Wait for one to finish.'); return; }
+      this.onPlayerChallenge?.(them());
+    };
+    if (foot && 'room' in foot) {
+      const code = foot.room.code;
+      sheet.querySelector<HTMLElement>('#player-answer')?.addEventListener('click', () => this.onInviteAnswer?.(code));
+      sheet.querySelector<HTMLElement>('#player-nudge')?.addEventListener('click', () => this.onInviteNudge?.(code));
+      sheet.querySelector<HTMLElement>('#player-room')?.addEventListener('click', () => this.onInviteRoom?.(code));
+    }
+  }
+
+  /** What the foot offers between this player and the one on show, from the game's list of matches. */
+  onChallengeFoot: ((handle: string) => FootState | null) | null = null;
+  /** CHALLENGE on a profile. */
+  onPlayerChallenge: ((them: { handle: string; name: string; avatar: number; profile: ProfilePayload | null; mode: CareerMode }) => void) | null = null;
+  /** ANSWER, NUDGE and OPEN on a challenge, wherever they stand. */
+  onInviteAnswer: ((code: string) => void) | null = null;
+  onInviteNudge: ((code: string) => void) | null = null;
+  onInviteRoom: ((code: string) => void) | null = null;
+
+  /** The profile's foot drawn again, when the challenge between the two has moved. */
+  refreshPlayerFoot() {
+    const open = this.playerOpen;
+    if (!open || !this.onChallengeFoot) return;
+    open.view.challenge = { foot: this.onChallengeFoot(open.view.seed.handle) };
+    const foot = open.layer.querySelector<HTMLElement>('.ps-foot');
+    if (!foot) return;
+    foot.outerHTML = playerFootMarkup(open.view);
+    const sheet = open.layer.querySelector<HTMLElement>('#player-sheet');
+    if (sheet) { this.wireFoot(sheet); fitLabels(sheet); }
+  }
+
+  /** A line at the foot of the screen for a few seconds, with UNDO where it can be taken back. */
+  notice(text: string, undo?: () => void, ms = 4000) {
+    document.getElementById('hud-notice')?.remove();
+    const note = document.createElement('div');
+    note.id = 'hud-notice';
+    note.className = 'hud-notice';
+    note.setAttribute('role', 'status');
+    note.innerHTML = `<span>${escape(text)}</span>${undo ? '<button type="button" class="hud-notice-undo">UNDO</button>' : ''}`;
+    this.viewport.append(note);
+    const timer = window.setTimeout(() => note.remove(), ms);
+    const back = note.querySelector<HTMLElement>('.hud-notice-undo');
+    if (back && undo) back.onclick = () => { window.clearTimeout(timer); note.remove(); undo(); };
+  }
+
+  /**
+   * A sheet over whatever is open: the confirm (B1), the invite (C2) and the
+   * leave sheets (B7, D4) are the same piece, a scrim and a sheet from the foot.
+   */
+  private sheetLayer(id: string, markup: string, host: HTMLElement): HTMLElement {
+    document.getElementById(id)?.remove();
+    const layer = document.createElement('div');
+    layer.id = id;
+    layer.className = 'cc-layer';
+    layer.innerHTML = markup;
+    host.append(layer);
+    const close = () => { layer.remove(); document.removeEventListener('keydown', escapeKey, true); };
+    const escapeKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || !layer.isConnected) return;
+      event.stopPropagation(); event.preventDefault(); close();
+    };
+    document.addEventListener('keydown', escapeKey, true);
+    layer.querySelector<HTMLElement>('[data-close]')!.onclick = close;
+    (layer as HTMLElement & { close?: () => void }).close = close;
+    fitLabels(layer);
+    return layer;
+  }
+  private shutLayer(layer: HTMLElement) { (layer as HTMLElement & { close?: () => void }).close?.(); }
+
+  /** CHALLENGE: the mode, and BAT FIRST (B1, B2). */
+  challengeConfirm(them: Them, super10: boolean, done: (mode: ChallengeMode) => void) {
+    let picked: ChallengeMode = 'classic';
+    const host = this.playerHost() ?? this.viewport;
+    const draw = () => {
+      const layer = this.sheetLayer('cc-confirm', confirmSheetMarkup(them, picked, super10), host);
+      for (const tile of layer.querySelectorAll<HTMLElement>('.cc-mode:not([disabled])')) {
+        tile.onclick = () => { picked = tile.dataset.mode as ChallengeMode; draw(); };
+      }
+      layer.querySelector<HTMLElement>('#cc-go')!.onclick = () => { this.shutLayer(layer); done(picked); };
+    };
+    draw();
+  }
+
+  /** The invite (C2), or the one that ran out (C6). */
+  answerSheet(view: InviteSheetView, on: { accept?: () => void; decline?: () => void; back?: () => void }) {
+    const layer = this.sheetLayer('cc-invite', inviteSheetMarkup(view), this.viewport);
+    const go = (id: string, act?: () => void) => {
+      const key = layer.querySelector<HTMLElement>(id);
+      if (key) key.onclick = () => { this.shutLayer(layer); act?.(); };
+    };
+    go('#iv-accept', on.accept); go('#iv-decline', on.decline); go('#iv-later'); go('#iv-back', on.back); go('#iv-close');
+  }
+
+  /** Leaving an innings that is part of a challenge (B7, D4): what it costs, asked first. */
+  leaveSheet(kind: 'set' | 'chase', name: string, leave: () => void) {
+    const layer = this.sheetLayer('cc-leave', leaveSheetMarkup(kind, name), this.viewport);
+    layer.querySelector<HTMLElement>('#lv-stay')!.onclick = () => this.shutLayer(layer);
+    layer.querySelector<HTMLElement>('#lv-go')!.onclick = () => { this.shutLayer(layer); leave(); };
+  }
+
+  /**
+   * The card before the first ball of a challenge (B3, C3), held in front of
+   * it as the chase card is: LET'S BAT drops it, BACK lets the innings go.
+   */
+  challengeIntro(view: { set: SetView } | { chase: { mode: ChallengeMode; them: Them; total: number; you: { avatar: number | null } } }, done: (bat: boolean) => void) {
+    this.closeChaseIntro();
+    const layer = document.createElement('div');
+    layer.className = 'ch-layer';
+    layer.id = 'chase-intro';
+    layer.innerHTML = 'set' in view ? setCardMarkup(view.set) : chaseCardMarkup(view.chase.mode, view.chase.them, view.chase.total, view.chase.you);
+    this.viewport.append(layer);
+    fitLabels(layer);
+    const finish = (bat: boolean) => {
+      if (!layer.isConnected) return;
+      layer.classList.add('is-leaving');
+      setTimeout(() => layer.remove(), matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 200);
+      done(bat);
+    };
+    layer.querySelector<HTMLElement>('#cs-bat')!.onclick = () => finish(true);
+    layer.querySelector<HTMLElement>('#cs-back')!.onclick = () => finish(false);
+    layer.querySelector<HTMLElement>('#cs-bat')!.focus({ preventScroll: true });
   }
 
   /** The mode beside the one on show, either way. */
@@ -2305,6 +2445,7 @@ ${modeSelectMarkup()}
     const text = this.viewport.querySelector<HTMLElement>('.cover-best-text');
     const line = this.coverLines[this.coverLine];
     if (!text || !line) return;
+    this.viewport.querySelector('#cover-board')?.classList.toggle('is-challenge', line.kind === 'challenge');
     if (!fade) { text.innerHTML = coverBoardLines(line); return; }
     text.classList.add('is-turning');
     window.setTimeout(() => {
@@ -5397,6 +5538,29 @@ function roomWords(
   const back = key('ghost', 'home', 'Back to the menu');
   const lobbyLead = 'Challenge your friends';
   const lobbySub = 'Send the link. They bat their 30, you bat yours, together now or whenever they get round to it.';
+  // A challenge from a profile says its own story (Figma section 23).
+  const invite = view.invite;
+  if (invite) {
+    const mode = view.mode === 'super10' ? 'Super10' : 'The Blast';
+    const host = !!you?.host;
+    if (view.kind === 'waiting' && host) {
+      return {
+        title: 'Challenge sent', tag: null, lead: `Waiting on ${invite.name}`,
+        sub: `${invite.name} has 24 hours to accept and chase your ${you!.runs} on the same balls.`,
+        note: `${left((invite.answerBy ?? Date.now()) - Date.now())} left to accept · ${invite.name} needs ${you!.runs + 1} · ${mode}`,
+        keys: [key('play', 'home', 'DONE'), key('ghost', 'list', 'Open Rival Matches')],
+      };
+    }
+    if (view.kind === 'expired' || view.kind === 'declined') {
+      const words: Record<string, [string, string]> = {
+        declined: host ? [`${invite.name} declined`, 'No result for either of you. You can challenge them again in a day.'] : ['You declined', 'No result for either of you.'],
+        unanswered: host ? ['No answer', `${invite.name} didn’t accept within the day, so nothing counts.`] : ['This one ran out', 'It wasn’t answered within the day, so nothing counts.'],
+        withdrawn: ['Not sent', 'The innings was left before the total was set, so nothing went out.'],
+      };
+      const said = words[invite.state];
+      if (said) return { title: 'Challenge', tag: null, lead: said[0], sub: said[1], note: null, keys: [key('ghost', 'list', 'Open Rival Matches'), back] };
+    }
+  }
 
   switch (view.kind) {
     case 'lobby': {
@@ -5544,7 +5708,10 @@ function roomGrid(view: RoomView): string {
   const ordered = [...view.players].sort((a, b) => Number(b.handle === you?.handle) - Number(a.handle === you?.handle) || a.joined - b.joined);
   const seats = ordered.map(row => roomSeat(row, view));
   const showEmpty = ordered.length < 2 && (view.kind === 'lobby' || view.kind === 'waiting');
-  if (showEmpty) {
+  if (showEmpty && view.invite) {
+    // A challenge from a profile: the player it is for, not an empty seat.
+    seats.push(`<div class="room-seat" data-rival="${escapeName(view.invite.to)}"><span class="room-face">${kitMarkup(view.invite.avatar, view.invite.name)}</span><b class="room-name">${escapeName(view.invite.name)}</b><span class="room-pill is-idle">TO ACCEPT</span></div>`);
+  } else if (showEmpty) {
     seats.push(`<div class="room-seat is-empty"><span class="room-face is-empty"><i>?</i></span><b class="room-name">Rival</b><span class="room-pill is-idle">WAITING</span></div>`);
   }
   const many = seats.length > 2;
@@ -5645,6 +5812,10 @@ export interface ListRowView {
   verdict?: string;
   /** How long ago it last moved: now, 12m, 5h, 3d. */
   age?: string;
+  /** A challenge from a profile: ANSWER (the invite sheet), NUDGE, or AGAIN (their profile). */
+  answer?: boolean;
+  nudge?: { ready: boolean; label: string };
+  again?: boolean;
 }
 
 /**
@@ -5661,7 +5832,13 @@ function listRow(row: ListRowView, me: number | null = null): string {
   const name = row.them ? `You vs ${escapeName(row.them.name)}${row.others > 1 ? ` <i>+${row.others - 1}</i>` : ''}` : 'Nobody yet';
   const line = [row.outcome ? row.verdict ?? '' : row.note, row.age].filter(Boolean).join(' \u00b7 ');
   const tone = row.outcome ? (row.outcome === '—' ? 'none' : row.outcome) : 'wait';
-  const right = row.actionable
+  const right = row.answer
+    ? `<span class="rival-row-acts"><button class="rival-act is-accept" type="button" data-answer="${row.code}">ANSWER</button></span>`
+    : row.nudge
+    ? `<span class="rival-row-acts"><button class="rival-act is-nudge" type="button" data-nudge="${row.code}"${row.nudge.ready ? '' : ' disabled'}>${escapeName(row.nudge.label.toUpperCase())}</button></span>`
+    : row.again && row.them
+    ? `<span class="rival-row-acts"><button class="rival-act is-again" type="button" data-again="${row.them.handle}" data-code="${row.code}">AGAIN</button></span>`
+    : row.actionable
     ? `<span class="rival-row-acts"><button class="rival-act is-accept" type="button" data-accept="${row.code}">ACCEPT</button><button class="rival-act is-decline" type="button" data-decline="${row.code}">DECLINE</button></span>`
     : `<span class="rival-row-badge is-${tone}">${row.outcome ? (row.outcome === '—' ? '–' : row.outcome) : '\u2026'}</span>`;
   return `<li class="rival-row" data-code="${row.code}">

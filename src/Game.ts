@@ -1,7 +1,7 @@
 import { handleOf, ownsHandle } from './game/handle';
 import { Presence, liveNow, onLive, type Doing } from './game/live-api';
 import { watchLive } from './ui/LiveMarks';
-import { fetchActivity, fetchProfile, saveBio } from './game/profile-api';
+import { fetchActivity, fetchProfile, saveBio, type ProfilePayload } from './game/profile-api';
 import { cleanBio } from './server/bio-rules';
 import {
   againLabel, beaten, close, placeOnPassing, surviveGoal, surviveResultOf, surviveSurely, surviveVerdict, verdict, type Chase, type Mine,
@@ -144,8 +144,10 @@ import { readVisits, today, visiting, writeVisits } from './game/visits';
 import { batting, readPlaytime, writePlaytime } from './game/playtime';
 import { ChallengeRun, ageOf, emptyList, noteResult, recentForm, rivalryView, roomView, type ListView, type Me, type RoomView } from './game/Challenge';
 import {
-  CODE_PARAM, challengeLink, copy, fetchRivalsBoard, hideChallenge, rivalryEntries, seenHere, whatsapp, type Challenge, type RivalsRow,
+  CODE_PARAM, challengeLink, copy, fetchRivalsBoard, hideChallenge, rivalryEntries, seenHere, sendDecline, sendNudge, sendWalk, whatsapp,
+  type Challenge, type ChallengeMode, type RivalsRow,
 } from './game/challenge-api';
+import { MODE_WORD, aimFor, footState, inviteRow, left as timeLeft, leftBehind, recordIn, roomSeed, waitingOnMe, type FootState } from './game/invite';
 import type { GhostBall, ListRowView, ListSections, RoomAct } from './ui/HUD';
 import { NAME_BLOCKED_REASON, nameBlocked } from './server/name-filter';
 import { nameProblem, renameReason, siblingReason } from './server/name-rules';
@@ -190,6 +192,12 @@ const SURVIVE_ONLY = !!import.meta.env.VITE_SURVIVE_ONLY;
 const SUPER10_ONLY = !!import.meta.env.VITE_SUPER10_ONLY;
 /** A build published where nothing answers `/api`: no board, and nothing that goes looking for one. */
 const NO_BOARD = SURVIVE_ONLY || SUPER10_ONLY;
+/** Challenges from a profile in Super10: the room's innings is the Blast's until Super10's is built in. */
+const SUPER10_CHALLENGES = false;
+/** How often the list of matches is asked again while the cover or a card is up: a challenge sent mid-visit arrives within this. */
+const LIST_REFRESH_MS = 2 * 60_000;
+/** How long DECLINE can be taken back. */
+const DECLINE_UNDO_MS = 5000;
 
 /**
  * Whether this build offers the Test match at all.
@@ -804,6 +812,17 @@ export class Game {
     this.hud.on('challenge-solo', () => { void this.declineMatch(); });
     this.hud.on('room-back', () => this.leaveRoom());
     this.hud.onRoomAct = act => { void this.roomAct(act); };
+    // Challenges from a profile (Figma section 23): never from a private window or a build with no board.
+    if (!NO_BOARD && this.canRegister) {
+      this.hud.onChallengeFoot = handle => this.footFor(handle);
+      this.hud.onPlayerChallenge = them => this.challengeFrom(them);
+      this.hud.onInviteAnswer = code => this.answerInvite(code);
+      this.hud.onInviteNudge = code => { void this.nudgeInvite(code); };
+      this.hud.onInviteRoom = code => { this.hud.closePlayer(); void this.listAct('open', code); };
+      window.setInterval(() => {
+        if (document.visibilityState === 'visible' && !this.challenge.playing && ['START', 'INNINGS_END'].includes(this.phase)) void this.syncChallenges();
+      }, LIST_REFRESH_MS);
+    }
     this.hud.on('modes-challenges', () => { void this.showChallenges(); });
     this.hud.on('modes-dressing', () => this.openDressing('modes'));
     // Super10's PLAY card: the whole card plays it.
@@ -832,7 +851,7 @@ export class Game {
     // listened for on the list itself rather than bound to buttons that will
     // not exist by the time anybody presses one. The room's keys likewise.
     this.hud.viewport.querySelector('#challenge-sections')!.addEventListener('click', event => {
-      const key = (event.target as HTMLElement).closest('[data-open],[data-rival],[data-drop],[data-accept],[data-decline]') as HTMLElement | null;
+      const key = (event.target as HTMLElement).closest('[data-open],[data-rival],[data-drop],[data-accept],[data-decline],[data-answer],[data-nudge],[data-again]') as HTMLElement | null;
       if (!key) {
         // Anywhere else on a card opens its match: the verdict, the badge, the
         // padding. Only the face and the accept and decline keys mean something
@@ -842,6 +861,9 @@ export class Game {
         return;
       }
       event.stopPropagation();
+      if (key.dataset.answer) { this.answerInvite(key.dataset.answer); return; }
+      if (key.dataset.nudge) { void this.nudgeInvite(key.dataset.nudge); return; }
+      if (key.dataset.again) { this.againFrom(key.dataset.code ?? '', key.dataset.again); return; }
       if (key.dataset.drop) void this.listAct('drop', key.dataset.drop);
       else if (key.dataset.accept) void this.listAct('accept', key.dataset.accept);
       else if (key.dataset.decline) void this.listAct('decline', key.dataset.decline);
@@ -875,7 +897,7 @@ export class Game {
     this.hud.on('survive-share', () => { void this.hud.shareSurvive(); });
     // The switch as it was left last visit.
     this.hud.sound(this.audio.setting);
-    this.hud.on('restart', this.start);
+    this.hud.on('restart', () => this.guardLeave(this.start));
     this.hud.on('declare', this.declare);
     // The pause sheet's sound switches: the crowd, and the ambience under it.
     this.hud.on('crowd-switch', () => { this.audio.setCrowd(!this.audio.crowdOn); this.soundSwitches(); });
@@ -884,7 +906,7 @@ export class Game {
     // rather than a card, so it covers the pause card rather than replacing
     // it: pick a mode and the innings is walked out on, back out of it and the
     // card is exactly where it was.
-    this.hud.on('change-mode', () => { if (this.phase === 'PAUSED') { this.markQuit(); this.modes(); } });
+    this.hud.on('change-mode', () => { if (this.phase === 'PAUSED') this.guardLeave(() => { this.markQuit(); this.modes(); }); });
     // Day or night, from the pause card, between balls. Remembered for the next Blast innings.
     for (const time of ['day', 'night'] as const) this.hud.on(`lights-${time}`, () => {
       if (this.phase !== 'PAUSED' || this.test) return;
@@ -1002,7 +1024,13 @@ export class Game {
       event.preventDefault();
       void this.sendClaim();
     });
-    if (!NO_BOARD) this.hud.on('cover-board', this.showBoard);
+    if (!NO_BOARD) this.hud.on('cover-board', () => {
+      // A challenge waiting has the line: one opens its invite, several Rival Matches.
+      const waiting = this.waitingOnMe();
+      if (waiting.length === 1) this.answerInvite(waiting[0].code);
+      else if (waiting.length > 1) void this.showChallenges();
+      else this.showBoard();
+    });
     // The chip on the cover is always the way to My Stats. Delegated, because
     // the chip is redrawn whenever the player behind it changes.
     this.hud.viewport.addEventListener('click', event => {
@@ -1481,6 +1509,7 @@ export class Game {
     if (!list) return;
     this.rooms = list;
     this.hud.challengesOpen(list.yourMove.length, list.waitingOnThem.length);
+    this.refreshChallenges();
   }
 
   /**
@@ -2272,6 +2301,8 @@ export class Game {
     const param = new URLSearchParams(location.search).get('seed');
     this.seed = param !== null && Number.isFinite(Number(param)) ? Number(param) >>> 0 : crypto.getRandomValues(new Uint32Array(1))[0];
     this.rng = new SeededRandom(this.seed);
+    // A challenge from a profile: both innings bowled from the room, so the chaser faces the same balls.
+    if (this.challenge.playing && this.challenge.room?.invite) { this.seed = roomSeed(this.challenge.room.code); this.rng = new SeededRandom(this.seed); }
     // The score at the other end is drawn first, off the innings seed, so that
     // the same seed always walks out to the same scoreboard. Drawing it from the
     // clock would have made a share card a lie the moment it was reloaded.
@@ -3139,7 +3170,7 @@ export class Game {
     const recent = rows.filter(row => row.at && now - row.at < RECENT_MS && !ownsHandle(row.handle, this.player))
       .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))[0];
     if (recent) lines.push({ kind: 'recent', runs: recent.runs, name: recent.name, ago: now - (recent.at ?? now) });
-    if (lines.length) this.hud.coverBoard(lines);
+    if (lines.length && !this.coverChallenge) this.hud.coverBoard(lines);
   }
 
   /** The Test fifty, the same way. The cover quotes the other one, not this. */
@@ -4615,7 +4646,7 @@ export class Game {
   private presentResult() {
     this.resultPresented = true;
     const outcome = this.outcome!;
-    if (this.lesson < 0) { this.hud.score(this.score); this.showNearing(this.batterHistory); this.chaseBall(outcome); }
+    if (this.lesson < 0) { this.hud.score(this.score); this.showNearing(this.batterHistory); this.chaseBall(outcome); this.inviteBall(); }
     this.hud.result(outcome, this.chargeMiss);
     // A boundary rider out of the picture: the side label it went past says who.
     const away = outcome.fielder && offScreen(outcome.fielder.angle);
@@ -5941,6 +5972,8 @@ export class Game {
       }
       this.hud.score(this.score); this.showConfidence();
     }
+    const room = this.challenge.room;
+    if (room?.invite && !resume) this.challengeCard(room);
     // Kept fresh while anybody else is still batting, so their balls arrive in
     // time to flash. Once they are all done, or nobody started, there is
     // nothing a poll could bring and it stops on its own.
@@ -5961,6 +5994,8 @@ export class Game {
     if (!me) return;
     if (this.demoing) { this.hud.end(this.score, this.best, false); this.challenge.playing = false; return; }
     const answer = await this.challenge.finishInnings(me, this.score.history);
+    this.inviteChase = null; this.setting = null; this.hud.chaseChip(null);
+    void this.syncChallenges();
     if (!answer.ok || !answer.challenge) {
       this.hud.end(this.score, this.best, false);
       this.hud.claimFailed(answer.reason ?? 'Your innings is saved and will be sent when you are back online.');
@@ -6046,9 +6081,16 @@ export class Game {
   private async syncChallenges() {
     if (!this.player) return;
     const list = await ChallengeRun.mine(this.player);
-    if (!list) return;
+    // Not reached: asked again shortly, a few times, so a challenge waiting
+    // on a slow connection is not left until the next refresh.
+    if (!list) {
+      if (this.listRetries++ < 3) window.setTimeout(() => { void this.syncChallenges(); }, 8000 * this.listRetries);
+      return;
+    }
+    this.listRetries = 0;
     this.rooms = list;
     this.hud.challengesOpen(list.yourMove.length, list.waitingOnThem.length);
+    this.refreshChallenges();
     if (list.unseen.length && !this.hud.modesOpen && this.phase === 'START') {
       this.pending = [...list.unseen];
       this.pendingTotal = this.pending.length;
@@ -6056,6 +6098,7 @@ export class Game {
     }
   }
   private rooms: ListView | null = null;
+  private listRetries = 0;
   /**
    * Everything the Dressing Room's unlocks are read off: the three careers
    * this browser holds, the Rival Matches won (the store's count or this
@@ -6180,6 +6223,223 @@ export class Game {
     // Somebody who left while it was fetching is not dragged back to it.
     if (wasShowing ? !this.hud.listOpen : fromPicker && !this.hud.modesOpen) return;
     draw(this.rooms ?? emptyList());
+  }
+
+  /* ── Challenges from a profile (Figma section 23) ─────────────────────── */
+
+  /** Every room in the list, whichever section it is in. */
+  private allRooms(): Challenge[] {
+    const rooms = this.rooms;
+    return rooms ? [...rooms.yourMove, ...rooms.waitingOnThem, ...rooms.done] : [];
+  }
+  /** Challenges waiting on this player, less any just declined and still undoable. */
+  private waitingOnMe(): Challenge[] {
+    return this.player ? waitingOnMe(this.allRooms(), this.player).filter(room => !this.declining.has(room.code)) : [];
+  }
+  private declining = new Set<string>();
+  private coverChallenge = false;
+  /** Who the innings under way sets a total for, and what their profile said: the aim is read off it. */
+  private setting: { them: { handle: string; name: string; avatar: number }; profile: ProfilePayload | null; mode: ChallengeMode } | null = null;
+  /** The total being chased, for the chip under the scoreboard. */
+  private inviteChase: Chase | null = null;
+
+  /** What a profile's foot offers between this player and that one; null when the list could not be had. */
+  private footFor(handle: string): FootState | null {
+    if (!this.player || !this.rooms) return null;
+    return footState(this.allRooms(), this.player, handle);
+  }
+
+  /** CHALLENGE, from a profile or AGAIN: the mode first (B1), then the innings that sets the total. */
+  private challengeFrom(them: { handle: string; name: string; avatar: number; profile: ProfilePayload | null }) {
+    if (!this.player) return;
+    if (!readPlayer()?.name) { this.hud.notice('Add your name first: open My profile from the cover.'); return; }
+    track('challenge-open', 'Challenge sheet opened');
+    this.hud.challengeConfirm({ name: them.name, avatar: them.avatar }, SUPER10_CHALLENGES, mode => { void this.sendChallenge(them, mode); });
+  }
+
+  /** The challenge made on the store, then the innings that sets the total, the card held in front of its first ball. */
+  private async sendChallenge(them: { handle: string; name: string; avatar: number; profile: ProfilePayload | null }, mode: ChallengeMode) {
+    const me = this.me;
+    if (!me) return;
+    const answer = await this.challenge.create(me, { to: them.handle, toName: them.name, toAvatar: them.avatar, mode });
+    if (!answer.ok || !answer.challenge) { this.hud.notice(answer.reason ?? 'That challenge could not be made. Try again in a moment.'); return; }
+    track(`challenge-made-${mode}`, 'Challenge made from a profile');
+    const profile = them.profile ?? await fetchProfile(them.handle, null).catch(() => null);
+    this.setting = { them, profile, mode };
+    this.hud.closePlayer(); this.hud.closeBoard(); this.hud.closeList(); this.hud.closeModes();
+    this.pinRoom(answer.challenge.code);
+    this.startMatchInnings(false);
+  }
+
+  /**
+   * The card before the first ball of a challenge (B3, C3): the setter's with
+   * the record between the two and an aim, the chaser's with the total and
+   * that leaving is a loss. The chaser joins on LET'S BAT, not before: backing
+   * out of the card costs nothing.
+   */
+  private challengeCard(room: Challenge) {
+    const me = this.player;
+    const invite = room.invite;
+    const host = room.players.find(one => one.host);
+    if (!me || !invite || !host) return;
+    const mode = room.mode ?? 'classic';
+    const you = { avatar: readPlayer()?.avatar ?? null };
+    this.bannerUntil = Number.POSITIVE_INFINITY;
+    if (ownsHandle(host.handle, me)) {
+      const career = this.setting?.profile?.modes[mode]?.career as { innings: number; runs: number } | null | undefined;
+      const average = career && career.innings > 0 ? Math.round(career.runs / career.innings) : null;
+      const myBest = mode === 'classic' ? this.best : (heldCareer('super10') as Super10Career).highest ?? null;
+      this.hud.challengeIntro({ set: {
+        mode, them: { name: invite.name, avatar: invite.avatar }, you,
+        record: recordIn(rivalryEntries(), invite.to, mode), aim: aimFor(average, myBest || null, mode), average,
+      } }, bat => {
+        if (bat) { this.bannerUntil = this.elapsed; track('challenge-set-bat', 'Challenge: setting a total'); return; }
+        void this.leaveChallenge(true);
+      });
+      return;
+    }
+    this.hud.challengeIntro({ chase: { mode, them: { name: host.name, avatar: host.avatar }, total: host.runs, you } }, async bat => {
+      if (!bat) { void this.leaveChallenge(false); return; }
+      const joined = await this.challenge.join(this.me!);
+      if (!joined.ok) { this.hud.notice(joined.reason ?? 'That challenge could not be accepted.'); void this.leaveChallenge(false); return; }
+      track('challenge-chase-bat', 'Challenge: chasing');
+      this.inviteChase = { handle: host.handle, name: host.name, avatar: host.avatar, mode: 'classic', target: host.runs };
+      this.hud.chaseChip(this.inviteChase, 0, this.chaseBallsLeft);
+      this.bannerUntil = this.elapsed;
+    });
+  }
+
+  /** The chaser's chip moved on after a ball, as any chase's is. */
+  private inviteBall() {
+    if (this.inviteChase && this.challenge.playing) this.hud.chaseChip(this.inviteChase, this.score.runs, this.chaseBallsLeft);
+  }
+
+  /**
+   * Out of a challenge's innings, said: the setter's total never sent, the
+   * chaser's chase a loss once it has begun. `walk` is whether the store is
+   * told; backing out of the card before joining tells it nothing.
+   */
+  private async leaveChallenge(walk: boolean) {
+    const me = this.me, room = this.challenge.room;
+    this.inviteChase = null; this.setting = null; this.hud.chaseChip(null); this.hud.closeChaseIntro();
+    const joined = !!room && !!me && room.players.some(one => ownsHandle(one.handle, me.playerId));
+    if (me && room && (walk || joined)) await sendWalk(room.code, me.playerId, me.name, me.avatar).catch(() => null);
+    this.challenge.clear(); this.pinRoom(null);
+    this.markQuit();
+    if (this.phase !== 'PAUSED') this.togglePause();
+    this.modes();
+    void this.syncChallenges();
+  }
+
+  /** A pause key that would leave a challenge's innings: what it costs, asked first (B7, D4). */
+  private guardLeave(next: () => void) {
+    const room = this.challenge.playing ? this.challenge.room : null;
+    const host = room?.players.find(one => one.host);
+    if (!room?.invite || !host || !this.player || this.phase === 'INNINGS_END') { next(); return; }
+    const setter = ownsHandle(host.handle, this.player);
+    this.hud.leaveSheet(setter ? 'set' : 'chase', setter ? room.invite.name : host.name, () => {
+      track(setter ? 'challenge-set-left' : 'challenge-chase-left', 'Challenge innings left');
+      void this.leaveChallenge(true);
+    });
+  }
+
+  /** ANSWER: the invite sheet, or the one that ran out (C2, C6). */
+  private answerInvite(code: string) {
+    const room = this.allRooms().find(one => one.code === code);
+    const host = room?.players.find(one => one.host);
+    if (!room?.invite || !host) { void this.listAct('open', code); return; }
+    const ranOut = room.invite.state === 'unanswered';
+    if (room.invite.state !== 'waiting' && !ranOut) { void this.listAct('open', code); return; }
+    const mode = room.mode ?? 'classic';
+    const record = recordIn(rivalryEntries(), host.handle, mode);
+    track('challenge-answer-open', 'Challenge invite opened');
+    this.hud.closePlayer();
+    this.hud.answerSheet({
+      mode, them: { name: host.name, avatar: host.avatar }, total: host.runs, answerBy: room.invite.answerBy,
+      nudged: !!room.invite.nudged, record: { won: record.won, lost: record.lost }, ranOut,
+    }, {
+      accept: () => {
+        track('challenge-accept', 'Challenge accepted');
+        this.hud.closeList(); this.hud.closeBoard(); this.hud.closeModes();
+        this.challenge.room = room; this.pinRoom(room.code);
+        this.startMatchInnings(false);
+      },
+      decline: () => this.declineInvite(room, host.name),
+      back: () => this.challengeFrom({ handle: host.handle, name: host.name, avatar: host.avatar, profile: null }),
+    });
+  }
+
+  /** DECLINE: gone from the cover at once, sent five seconds later unless UNDO is pressed. */
+  private declineInvite(room: Challenge, name: string) {
+    const me = this.me;
+    if (!me) return;
+    track('challenge-decline', 'Challenge declined');
+    this.declining.add(room.code);
+    this.refreshChallenges();
+    const timer = window.setTimeout(() => {
+      void sendDecline(room.code, me.playerId, me.name, me.avatar).finally(() => { this.declining.delete(room.code); void this.syncChallenges(); });
+    }, DECLINE_UNDO_MS);
+    this.hud.notice(`Declined. ${name} can’t challenge you again for a day.`, () => {
+      window.clearTimeout(timer);
+      this.declining.delete(room.code);
+      this.refreshChallenges();
+    }, DECLINE_UNDO_MS);
+  }
+
+  /** NUDGE: once, from three hours after it went. */
+  private async nudgeInvite(code: string) {
+    const me = this.me;
+    const room = this.allRooms().find(one => one.code === code);
+    if (!me || !room?.invite) return;
+    const answer = await sendNudge(code, me.playerId, me.name, me.avatar);
+    if (!answer.ok) { this.hud.notice(answer.reason ?? 'That nudge could not be sent.'); return; }
+    track('challenge-nudge', 'Challenge nudged');
+    this.hud.notice(`Nudged. ${room.invite.name} will see it at the top of their screen when they open the game.`);
+    await this.syncChallenges();
+  }
+
+  /** AGAIN on a row: the same player, challenged afresh. */
+  private againFrom(code: string, handle: string) {
+    const room = this.allRooms().find(one => one.code === code);
+    const invite = room?.invite;
+    const host = room?.players.find(one => one.host);
+    const them = invite && invite.to === handle ? { name: invite.name, avatar: invite.avatar } : host && host.handle === handle ? { name: host.name, avatar: host.avatar } : null;
+    if (them) this.challengeFrom({ handle, ...them, profile: null });
+  }
+
+  /**
+   * Everything that reads the list, after it moves: the cover's line, the
+   * profile's foot, an innings left mid-way walked out on, and Rival Matches
+   * if it is open.
+   */
+  private refreshChallenges() {
+    const me = this.player;
+    if (!me || NO_BOARD || !this.canRegister) return;
+    const waiting = this.waitingOnMe();
+    if (waiting.length && this.phase === 'START') {
+      const first = waiting[0];
+      const host = first.players.find(one => one.host)!;
+      this.coverChallenge = true;
+      this.hud.coverBoard({
+        kind: 'challenge', name: host.name, total: host.runs, mode: MODE_WORD[first.mode ?? 'classic'],
+        left: timeLeft((first.invite!.answerBy ?? Date.now()) - Date.now()), nudged: !!first.invite!.nudged, count: waiting.length,
+      });
+    } else if (this.coverChallenge) {
+      this.coverChallenge = false;
+      if (this.board.length) void this.quoteOnCover(this.board);
+      else if (this.best > 0) this.hud.coverBoard({ kind: 'best', runs: this.best, rank: null });
+    }
+    this.hud.refreshPlayerFoot();
+    if (this.hud.listOpen && this.rooms) {
+      this.hud.challengeList(listSections(this.rooms, me), this.rooms.record, this.rivalsRanking(), { form: recentForm(), me: readPlayer()?.avatar ?? null });
+    }
+    // Closed or reloaded mid-innings: a chase is lost, a total never set is not sent.
+    const left = leftBehind(this.allRooms(), me, this.challenge.playing ? this.challenge.code : null);
+    const mine = this.me;
+    if (left.length && mine) {
+      void Promise.all(left.map(room => sendWalk(room.code, mine.playerId, mine.name, mine.avatar).catch(() => null)))
+        .then(() => this.syncChallenges());
+    }
   }
 
   /** What a row of the list does. */
@@ -6404,11 +6664,16 @@ function listSections(list: ListView, me: string): ListSections {
     const view = roomView(room, me, false);
     const others = room.players.filter(one => !ownsHandle(one.handle, me));
     const lead = view.result?.them ?? others.find(one => one.status === 'done' || one.status === 'batting') ?? others[0] ?? null;
-    const them = lead ? { handle: lead.handle, name: lead.name, avatar: lead.avatar } : null;
-    const moved = Math.max(room.at, ...room.players.map(one => one.at ?? 0));
-    const base = { code: room.code, them, others: others.length, age: ageOf(moved) };
     const host = room.players.find(one => one.host);
     const fromThem = !!host && !ownsHandle(host.handle, me);
+    // A challenge from a profile is always about the other one of the two, joined or not.
+    const them = room.invite
+      ? fromThem && host ? { handle: host.handle, name: host.name, avatar: host.avatar } : { handle: room.invite.to, name: room.invite.name, avatar: room.invite.avatar }
+      : lead ? { handle: lead.handle, name: lead.name, avatar: lead.avatar } : null;
+    const moved = Math.max(room.at, ...room.players.map(one => one.at ?? 0));
+    const base = { code: room.code, them, others: room.invite ? 1 : others.length, age: ageOf(moved) };
+    const told = inviteRow(room, me);
+    if (told) return { ...base, ...told };
     switch (view.kind) {
       case 'chase': {
         const batting = others.find(one => one.status === 'batting');

@@ -100,7 +100,8 @@ check(await page.locator('.ps-bio').textContent().then(t => t.includes('Leg-side
 check(/^#\d+$/.test((await page.locator('.ps-glance-one.is-place b').textContent()).trim()), 'their place on the Blast board is at a glance');
 check(await page.locator('.ps-tile.is-target b').textContent() === '174', 'the figure a chase aims at is their best');
 const chaseWords = (await page.locator('#player-chase').textContent()).trim();
-check(chaseWords.includes(`${top.toUpperCase()}’S 174`), 'CHASE names them and their best', chaseWords);
+// Beside CHALLENGE the key is narrower, and a name that does not fit gives way to THEIR (`fitLabels`).
+check(chaseWords.includes(`${top.toUpperCase()}’S 174`) || chaseWords === 'CHASE THEIR 174', 'CHASE names them, or says THEIR, and their best', chaseWords);
 check((await sheet.getAttribute('class')).includes('tier-'), 'the sheet wears a rung');
 
 await page.locator('.ps-tab[data-mode="survive"]').click();

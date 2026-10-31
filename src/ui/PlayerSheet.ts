@@ -5,6 +5,8 @@ import { statsExplain, statsFacts, type StatsFacts } from '../game/StatsCard';
 import { measureName } from '../game/tier';
 import type { ProfilePayload } from '../game/profile-api';
 import { cta, icon, tierBadge } from './Kit';
+import type { FootState } from '../game/invite';
+import { footMarkup } from './ChallengeCards';
 import { escape, kitMarkup } from './Leaderboard';
 import { TILES } from './StatsSheet';
 
@@ -47,6 +49,12 @@ export interface PlayerSheetView {
   modes: readonly CareerMode[];
   state: 'loading' | 'ready' | 'offline';
   profile: ProfilePayload | null;
+  /**
+   * What the foot offers between this player and the one on show (Figma 23,
+   * D3): CHALLENGE, or the challenge already going between them. Null for no
+   * challenge at all: the player's own profile, or a build with no board.
+   */
+  challenge?: { foot: FootState | null } | null;
 }
 
 /** The switch's words, and what the figures call each mode's board. */
@@ -101,8 +109,23 @@ export function playerSheetMarkup(view: PlayerSheetView): string {
         <div id="player-body" class="ps-body">${bodyMarkup(view)}</div>
         ${soloLinkMarkup(view)}
       </div>
-      <div class="ps-foot">${target !== null ? cta({ kind: 'primary', ...keyLabel(view, target), id: 'player-chase', wide: true, moving: true }) : ''}</div>
+      ${footOf(view, target)}
     </section>`;
+}
+
+/** The foot alone, redrawn in place when the challenge between the two moves. */
+export function playerFootMarkup(view: PlayerSheetView): string {
+  return footOf(view, chaseTarget(view));
+}
+
+/** The foot: CHALLENGE beside CHASE, or the challenge between the two above CHASE. */
+function footOf(view: PlayerSheetView, target: number | null): string {
+  const chase = target !== null ? cta({ kind: 'primary', ...keyLabel(view, target), id: 'player-chase', wide: true, moving: true }) : '';
+  if (!view.challenge) return `<div class="ps-foot">${chase}</div>`;
+  const name = view.profile?.name ?? view.seed.name;
+  const mode = view.mode === 'super10' ? 'super10' : 'classic';
+  const { above, key } = footMarkup(view.challenge.foot, name, mode);
+  return `<div class="ps-foot has-challenge">${above}<div class="ps-keys${key && chase ? ' is-two' : ''}">${key}${chase}</div></div>`;
 }
 
 /** The rung's ground behind the face: its material, its light, and its mark. */

@@ -6,7 +6,7 @@ import {
   POLL_MS, challengeLink, clearUnsent, codeFromLocation, copy, createRoom, fetchChallenge, fetchMine,
   hiddenChallenges, holdUnsent, joinRoom, markSeenHere, readUnsent, recordResult, rivalryWith, seenHere,
   sendBalls, sendDecline, sendSeen, whatsapp,
-  type Challenge, type ChallengeResult, type ChallengeRow, type RivalryEntry, rivalryEntries,
+  type Challenge, type ChallengeMode, type ChallengeResult, type ChallengeRow, type InviteView, type RivalryEntry, rivalryEntries,
 } from './challenge-api';
 
 /**
@@ -74,11 +74,16 @@ export interface RoomView {
   result: ResultView | null;
   /** The person still batting, when this one has finished. */
   live: { row: ChallengeRow; needs: string } | null;
+  /** A challenge sent from a profile, or null for a link's room. */
+  invite: InviteView | null;
+  mode: ChallengeMode;
 }
 
 /** What the reveal says, and to whom. */
 export interface ResultView {
   code: string;
+  /** What it was batted in. */
+  mode: ChallengeMode;
   outcome: 'W' | 'L' | 'D';
   /** Whether the match was decided by somebody walking out. */
   forfeit: boolean;
@@ -142,7 +147,7 @@ export class ChallengeRun {
   }
 
   /** A room, made — empty, or from an innings that has just ended. */
-  async create(me: Me, extra: { card?: string; rematchOf?: string } = {}): Promise<ChallengeResult> {
+  async create(me: Me, extra: { card?: string; rematchOf?: string; to?: string; toName?: string; toAvatar?: number; mode?: ChallengeMode } = {}): Promise<ChallengeResult> {
     const answer = await createRoom(me.playerId, me.name, me.avatar, extra);
     if (answer.ok && answer.challenge) { this.take(answer.challenge); this.sent = false; }
     return answer;
@@ -430,6 +435,8 @@ export function roomView(room: Challenge, me: string, sent: boolean, now = Date.
     full: room.players.length >= room.size,
     result,
     live,
+    invite: room.invite ?? null,
+    mode: room.mode ?? 'classic',
   };
 }
 
@@ -519,6 +526,7 @@ export function resultView(room: Challenge, me: string): ResultView | null {
 
   return {
     code: room.code,
+    mode: room.mode ?? 'classic',
     outcome,
     forfeit,
     tag,
@@ -545,6 +553,7 @@ export function noteResult(view: ResultView) {
     theirs: { runs: them.runs, sixes: them.sixes, fours: them.fours },
     outcome: view.outcome,
     at: Date.now(),
+    mode: view.mode,
   });
 }
 

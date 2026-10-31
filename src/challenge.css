@@ -1,0 +1,118 @@
+/* ── Challenges from a profile (src/ui/ChallengeCards.ts; Figma section 23) ──
+   The confirm, invite and leave sheets; the card before the first ball;
+   the profile's foot; the cover's line; the rows' keys; the notice. */
+
+/* The sheets: a scrim and a sheet from the foot, over whatever is open. */
+.cc-layer{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;justify-content:flex-end}
+.cc-scrim{position:absolute;inset:0;background:#0a0b0dad;animation:ps-fade 200ms ease-out both}
+.cc-sheet{position:relative;display:flex;flex-direction:column;gap:calc(var(--u) * 14);padding:calc(var(--u) * 12) calc(var(--u) * 21) max(calc(var(--u) * 30),env(safe-area-inset-bottom,0px));
+  border:1px solid #ffffff14;border-bottom:0;border-radius:28px 28px 0 0;background:linear-gradient(180deg,#22272f,#13161a);color:var(--c-text);font-family:var(--f-ui);
+  box-shadow:0 -12px 40px #00000080;animation:ch-rise 300ms cubic-bezier(.2,.9,.25,1.08) both}
+.cc-grab{align-self:center;width:calc(var(--u) * 40);height:4px;border-radius:2px;background:#ffffff33}
+.cc-title{margin:0;font:400 calc(var(--u) * 28)/1.05 var(--f-display);letter-spacing:.04em;font-optical-sizing:none;font-variation-settings:'opsz' 6;overflow-wrap:anywhere}
+.cc-line{margin:calc(var(--u) * -6) 0 0;font:500 calc(var(--u) * 15)/1.4 var(--f-ui);color:var(--c-text-2)}
+.cc-modes{display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--u) * 10)}
+.cc-mode{--mode:#3f88f2;display:flex;flex-direction:column;align-items:flex-start;gap:calc(var(--u) * 4);padding:calc(var(--u) * 14) calc(var(--u) * 14) calc(var(--u) * 16) calc(var(--u) * 16);
+  border:1px solid #ffffff1a;border-radius:18px;background:#ffffff0a;color:var(--c-text);text-align:left;cursor:pointer}
+.cc-mode.is-on{border:2px solid var(--mode);background:color-mix(in srgb,var(--mode) 16%,transparent)}
+.cc-mode.is-shut{opacity:.45;cursor:default}
+.cc-mode-top{display:flex;align-items:center;justify-content:space-between;width:100%}
+.cc-dot{width:10px;height:10px;border-radius:50%;background:var(--mode)}
+.cc-tick{width:20px;height:20px;border-radius:50%;border:1.5px solid #ffffff33}
+.cc-mode.is-on .cc-tick{border:0;background:var(--mode) center/12px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E")}
+.cc-mode b{font:400 calc(var(--u) * 22)/1 var(--f-display);letter-spacing:.06em;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.cc-mode small{font:500 calc(var(--u) * 13)/1.3 var(--f-ui);color:var(--c-text-2)}
+.cc-ghost{height:calc(var(--u) * 52);border:1.5px solid #ffffff2e;border-radius:16px;background:#ffffff08;color:var(--c-text);
+  font:400 calc(var(--u) * 18)/1 var(--f-display);letter-spacing:.08em;font-optical-sizing:none;font-variation-settings:'opsz' 6;cursor:pointer}
+.cc-link{align-self:center;padding:calc(var(--u) * 4);border:0;background:none;color:var(--c-text-2);font:700 calc(var(--u) * 14)/1 var(--f-ui);cursor:pointer}
+.cc-link.is-loss{color:var(--c-loss)}
+
+/* The invite (C2). */
+.iv-who{display:flex;align-items:center;gap:calc(var(--u) * 12)}
+.iv-who .board-kit{width:calc(var(--u) * 52);height:calc(var(--u) * 52);flex:none}
+.iv-who>span{flex:1;min-width:0}
+.iv-who .cc-title{font-size:calc(var(--u) * 22)}
+.iv-chip{flex:none;padding:calc(var(--u) * 4) calc(var(--u) * 8);border-radius:8px;background:#f5b83d29;color:var(--c-gold);font:900 calc(var(--u) * 10)/1 var(--f-ui);font-style:normal;letter-spacing:.1em}
+.iv-card{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 4);padding:calc(var(--u) * 16);border:1px solid color-mix(in srgb,var(--mode) 50%,transparent);border-radius:18px;
+  background:color-mix(in srgb,var(--mode) 10%,transparent);text-align:center}
+.iv-card small{font:900 calc(var(--u) * 11)/1 var(--f-ui);letter-spacing:.12em;color:var(--mode)}
+.iv-card b{font:400 calc(var(--u) * 46)/1 var(--f-display);letter-spacing:.04em;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.iv-card p{margin:0;max-width:30ch;font:500 calc(var(--u) * 13)/1.4 var(--f-ui);color:var(--c-text-2)}
+.iv-meta{display:flex;justify-content:space-between;margin:0;font:500 calc(var(--u) * 13)/1 var(--f-ui);color:var(--c-text-2)}
+.iv-left{font-weight:700;color:var(--c-gold)}
+
+/* The card before the first ball (B3): a band in the mode's colour, the record, the aim. */
+.cs-band{display:flex;align-items:center;justify-content:space-between;gap:calc(var(--u) * 8);padding:calc(var(--u) * 15) calc(var(--u) * 18);
+  background:linear-gradient(135deg,color-mix(in srgb,var(--mode) 100%,#fff 12%),color-mix(in srgb,var(--mode) 70%,#000))}
+.cs-card.is-super10 .cs-band{background:linear-gradient(135deg,#8b5cf6,#6836de 55%,#41199e)}
+.cs-eyebrow{margin:0;font:400 calc(var(--u) * 19)/1 var(--f-display);letter-spacing:.06em;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.cs-s10 em{font-style:normal;color:#c6ff1a}
+.cs-band small{font:700 calc(var(--u) * 10)/1 var(--f-ui);letter-spacing:.12em;color:#ffffffcc;white-space:nowrap}
+.cs-versus{align-items:center}
+.cs-versus::before{display:none}
+.cs-versus .ch-side{width:calc(var(--u) * 100)}
+.cs-versus .ch-side b{max-width:100%}
+.cs-mid{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 4);min-width:0;flex:1}
+.cs-score{font:400 calc(var(--u) * 34)/1 var(--f-display);letter-spacing:.04em;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.cs-lead{font:900 calc(var(--u) * 10)/1.2 var(--f-ui);letter-spacing:.1em;color:var(--c-text-3);text-align:center;white-space:nowrap}
+.cs-lead.is-up{color:var(--c-win)}
+.cs-lead.is-down{color:var(--c-loss)}
+.cs-record{display:flex;flex-direction:column;gap:calc(var(--u) * 8);margin-top:calc(var(--u) * 14)}
+.cs-bar{display:flex;gap:3px;height:6px}
+.cs-bar i{display:block;border-radius:3px}
+.cs-bar .is-won{background:var(--c-win)}
+.cs-bar .is-lost{background:var(--c-loss)}
+.cs-bar.is-none i{flex:1;background:#ffffff1a}
+.cs-form{display:flex;align-items:center;justify-content:space-between;gap:calc(var(--u) * 8)}
+.cs-form>small{font:500 calc(var(--u) * 12)/1.3 var(--f-ui);color:var(--c-text-2)}
+.cs-chips{display:flex;align-items:center;gap:4px}
+.cs-chips small{margin-right:4px;font:900 calc(var(--u) * 9)/1 var(--f-ui);letter-spacing:.1em;color:var(--c-text-3)}
+.cs-chips i{display:grid;place-items:center;width:20px;height:20px;border-radius:5px;font:900 calc(var(--u) * 10)/1 var(--f-ui);font-style:normal}
+.cs-chips .is-W{background:#5bd08f38;color:var(--c-win)}
+.cs-chips .is-L{background:#ff6b5e38;color:var(--c-loss)}
+.cs-chips .is-D{background:#f2b54438;color:var(--c-draw)}
+.cs-aim{display:flex;align-items:center;gap:calc(var(--u) * 12);margin-top:calc(var(--u) * 14);padding:calc(var(--u) * 12) calc(var(--u) * 14);
+  border:1px solid #ed704459;border-radius:14px;background:#ffffff0d}
+.cs-aim-icon{flex:none;width:22px;height:22px;background:var(--c-accent);
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='8' cy='8' r='5'/%3E%3Ccircle cx='8' cy='8' r='1' fill='black'/%3E%3Cpath d='M8 1v3M8 12v3M1 8h3M12 8h3'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='8' cy='8' r='5'/%3E%3Ccircle cx='8' cy='8' r='1' fill='black'/%3E%3Cpath d='M8 1v3M8 12v3M1 8h3M12 8h3'/%3E%3C/svg%3E") center/contain no-repeat}
+.cs-aim>span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cs-aim b{font:900 calc(var(--u) * 16)/1.2 var(--f-ui)}
+.cs-aim small{font:500 calc(var(--u) * 13)/1.35 var(--f-ui);color:var(--c-text-2)}
+.cs-warn{color:var(--c-loss)!important}
+
+/* The profile's foot (D3): CHALLENGE beside CHASE, or the state above CHASE. */
+.ps-foot.has-challenge{display:flex;flex-direction:column;gap:calc(var(--u) * 10)}
+.ps-keys{display:flex;gap:calc(var(--u) * 8)}
+.ps-keys:empty{display:none}
+.ps-keys>.k-cta{flex:1;width:auto}
+.ps-keys.is-two>.ps-challenge{flex:0 0 38%}
+.ps-challenge.is-dim{opacity:.45}
+.ps-state{display:flex;align-items:center;gap:calc(var(--u) * 12);padding:calc(var(--u) * 12) calc(var(--u) * 12) calc(var(--u) * 12) calc(var(--u) * 16);
+  border:1px solid #ffffff1a;border-radius:16px;background:#ffffff0f}
+.ps-state>span{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.ps-state b{font:900 calc(var(--u) * 13)/1.2 var(--f-ui);letter-spacing:.06em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ps-state small{font:500 calc(var(--u) * 13)/1.3 var(--f-ui)}
+.ps-state small.is-gold{color:var(--c-gold)}
+.ps-state small.is-amber{color:var(--live-batting)}
+.ps-state small.is-dim{color:var(--c-text-2)}
+.ps-state-key{flex:none;padding:calc(var(--u) * 9) calc(var(--u) * 14);border:1.5px solid var(--c-accent);border-radius:12px;background:#ed704424;color:var(--c-accent);
+  font:900 calc(var(--u) * 12)/1 var(--f-ui);letter-spacing:.06em;cursor:pointer}
+.ps-state-key.is-solid{border-color:transparent;background:var(--c-accent);color:#fff}
+.ps-state-key.is-off{border-color:#ffffff29;background:none;color:var(--c-text-3);cursor:default}
+
+/* The cover's line, when a challenge has it (C1). */
+#cover-board.is-challenge{border-color:#1e7beae6;box-shadow:0 0 0 1px #1e7bea59}
+
+/* The rows' own keys on Rival Matches (D1). */
+#challenge-list .rival-act.is-nudge{border:1.5px solid var(--c-accent);background:none;color:var(--c-accent)}
+#challenge-list .rival-act.is-nudge:disabled{border-color:#ffffff26;color:var(--c-text-3)}
+#challenge-list .rival-act.is-again{border:1.5px solid #ffffff4d;background:none;color:var(--c-text)}
+#challenge-list .rival-act.is-accept[data-answer]{background:var(--c-accent);color:#fff}
+
+/* A line at the foot of the screen, with UNDO where it can be taken back (C5, D2). */
+.hud-notice{position:absolute;left:calc(var(--u) * 20);right:calc(var(--u) * 20);bottom:calc(var(--u) * 150);z-index:80;display:flex;align-items:center;gap:calc(var(--u) * 12);
+  padding:calc(var(--u) * 14) calc(var(--u) * 16);border-radius:16px;background:#2d3640;color:var(--c-text);box-shadow:0 10px 24px #00000073;
+  font:500 calc(var(--u) * 14)/1.35 var(--f-ui);animation:ch-rise 260ms cubic-bezier(.2,.9,.25,1.08) both}
+.hud-notice>span{flex:1}
+.hud-notice-undo{flex:none;border:0;background:none;color:var(--c-accent);font:900 calc(var(--u) * 13)/1 var(--f-ui);letter-spacing:.08em;cursor:pointer}

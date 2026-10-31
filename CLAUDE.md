@@ -145,6 +145,37 @@ Around now card and its sheet (`src/ui/AroundNow.ts`), a row opening the
 profile over Rival Matches (`playerHost` in the HUD). `scripts/live-check.mjs`
 walks it. A check-in is two Redis commands; the list is one per half minute.
 
+## Challenges from a profile
+
+Figma section 23, lanes B to D. A Rival Match room made for one player by
+their handle (`StoredInvite` in `src/server/challenge-store.ts`): the host bats
+first, the challenge is sent when that innings ends, and only that player can
+accept, within a day of it (`ANSWER_MS`). Declined, unanswered or withdrawn, it
+closes with no result for anybody (`inviteStateOf`; a link's room still counts
+a decline as a loss). Walking out of an accepted chase is a loss there and then
+(`walkOut`, `walked` on the player); a host who leaves before the total is set
+sends nothing. One challenge going between two players either way round, five
+waiting a sender (`INVITES_OPEN`), a day's wait after a decline, one nudge from
+three hours. Nothing in a room is an id: the invite answers with the handle.
+Both innings are bowled from the room's code (`roomSeed`), so the chaser faces
+the same balls; link rooms keep their own seed. Scores are never hidden.
+
+On screen (`src/game/invite.ts` says what each piece says, in
+`tests/invite.test.ts`; `src/ui/ChallengeCards.ts` draws it): CHALLENGE beside
+CHASE on a profile, or the one state between the two above CHASE (`footState`);
+the confirm sheet with the Blast and Super10 (`SUPER10_CHALLENGES` in
+`src/Game.ts` is off until a room can hold a Super10 innings); the card before
+the first ball, the setter's with the record between the two in that mode
+(`recordIn`, kept on the device per mode) and an aim (`aimFor`), the chaser's
+with the total and that leaving or closing the game is a loss; the cover's line
+taken by a challenge waiting (`coverChallenge`); the invite sheet, decline with
+five seconds of UNDO; ANSWER, NUDGE and AGAIN on Rival Matches rows; the leave
+sheets on the pause sheet's keys (`guardLeave`). A challenge innings left by
+closing the game is walked out on the next time the list is read
+(`leftBehind`). The list is asked again every two minutes on the cover and the
+card, and retried when it fails. `scripts/invite-check.mjs` walks both sides
+in two browsers.
+
 ## The rank hero: the end card's player card
 
 For a named player, once the store has said where the innings left them, the
