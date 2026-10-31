@@ -1128,10 +1128,10 @@ export class Game {
       introAt: (t: number | null) => { this.introPin = t; this.scene.introAt(t); },
       walkingOn: () => this.walking?.film ?? null,
       /** The podium mock-up: `podium('best', { score, line, name, mode })`, null to take it down; `podiumShot` puts the camera in the stage's frame. */
-      podium: (kind: 'best' | 'chase' | null, card?: { score: string; line: string; name: string; mode: string }) => {
+      podium: (kind: 'best' | 'chase' | null, card?: { score: string; line: string; name: string; mode: string; brand?: 'blast' | 'super10' }) => {
         this.bannerUntil = kind ? Number.POSITIVE_INFINITY : this.elapsed;
         this.hud.walkOn(kind ? 0 : null);
-        this.scene.podium(kind, card);
+        this.scene.podium(kind, card && { ...card, brand: card.brand ?? (this.super10 ? 'super10' : 'blast') });
       },
       podiumShot: (eye: [number, number, number], at: [number, number, number], fov = 40) => this.scene.podiumShot(eye, at, fov),
       /** The camera held where it is put, for photographing a ground; null hands it back to the game. */

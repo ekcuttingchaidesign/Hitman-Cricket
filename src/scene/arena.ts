@@ -365,14 +365,14 @@ function pixels(W: number, H: number, alpha: number) {
 }
 
 /** A slash: a parallelogram leaning 12°, corners sharp. */
-function slash(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, fill: string) {
+export function slash(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, fill: string) {
   const run = h * Math.tan(LEAN);
   ctx.fillStyle = fill;
   ctx.beginPath(); ctx.moveTo(x + run, y); ctx.lineTo(x + w + run, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
 }
 
 /** A lightning shard: a long wedge from a blunt tail to a point, leaning with the rise. */
-function shard(ctx: CanvasRenderingContext2D, x: number, y: number, length: number, thick: number, fill: string) {
+export function shard(ctx: CanvasRenderingContext2D, x: number, y: number, length: number, thick: number, fill: string) {
   ctx.fillStyle = fill;
   ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + length, y - thick * .35); ctx.lineTo(x + length * .18, y + thick); ctx.closePath(); ctx.fill();
 }
@@ -387,7 +387,7 @@ function shard(ctx: CanvasRenderingContext2D, x: number, y: number, length: numb
  * scaled down to `fit` across. `slab` is the plate's colour: raspberry for a
  * dismissal and nothing else.
  */
-function lettering(ctx: CanvasRenderingContext2D, word: string, x: number, y: number, size: number, fit: number, slab: number = ARENA.plate, scale = 1, alpha = 1) {
+export function lettering(ctx: CanvasRenderingContext2D, word: string, x: number, y: number, size: number, fit: number, slab: number = ARENA.plate, scale = 1, alpha = 1) {
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.font = SAIRA(size);
@@ -424,7 +424,7 @@ function lettering(ctx: CanvasRenderingContext2D, word: string, x: number, y: nu
 }
 
 /** The tracked line under a word: Saira Bold Italic, tracking 30%. */
-function sub(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, fill: string) {
+export function sub(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, fill: string) {
   ctx.save();
   ctx.font = SUB(size); ctx.fillStyle = fill; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
   (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${size * .3}px`;

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ARENA, lettering, shard, slash, sub } from './arena';
 
 /**
  * The podium: a stage put up on the outfield for an innings that made a new
@@ -21,6 +22,71 @@ export interface PodiumCard {
   name: string;
   /** The mode's colour, for the arch and the blocks. */
   mode: string;
+  /** Whose stage: the game's, for the Blast, or Super10's, in its brand (`ARENA`). */
+  brand: 'blast' | 'super10';
+}
+const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
+const S10 = { ink: hex(ARENA.ink), plate: hex(ARENA.plate), violet: hex(ARENA.violet), volt: hex(ARENA.volt), mist: hex(ARENA.mist), white: '#ffffff' } as const;
+const MARK = new URL('../assets/super10/mark.png', import.meta.url).href;
+
+/** Super10's deck front: ink, violet slashes off both ends, the line in the brand's lettering and the name tracked after it. */
+function fasciaS10(card: PodiumCard) {
+  const { element, context: g } = canvas(2048, 164);
+  g.fillStyle = S10.ink; g.fillRect(0, 0, 2048, 164);
+  g.fillStyle = S10.violet; g.fillRect(0, 0, 2048, 8); g.fillRect(0, 156, 2048, 8);
+  for (let i = 0; i < 8; i++) {
+    const tone = i % 3 === 0 ? S10.violet : S10.plate;
+    slash(g, 30 + i * 46, 30, 22, 104, tone); slash(g, 2048 - 70 - i * 46, 30, 22, 104, tone);
+  }
+  lettering(g, card.line.toUpperCase(), 860, 84, 104, 1180);
+  sub(g, card.name.toUpperCase(), 1660, 86, 64, S10.mist);
+  return textureOf(element);
+}
+/** The block's face: the score on its plate slab, the figure lime, the one charged thing on the stage. */
+function scoreS10(card: PodiumCard) {
+  const { element, context: g } = canvas(1024, 296);
+  g.fillStyle = S10.ink; g.fillRect(0, 0, 1024, 296);
+  g.strokeStyle = S10.violet; g.lineWidth = 10; g.strokeRect(14, 14, 996, 268);
+  lettering(g, card.score, 512, 150, 220, 900);
+  return textureOf(element);
+}
+/** The disc in the arch: violet rays on ink round the mark. */
+function emblemS10() {
+  const { element, context: g } = canvas(1024, 1024);
+  const texture = textureOf(element);
+  const draw = (mark: HTMLImageElement | null) => {
+    g.fillStyle = S10.ink; g.beginPath(); g.arc(512, 512, 512, 0, Math.PI * 2); g.fill();
+    for (let i = 0; i < 24; i++) {
+      const a = i / 24 * Math.PI * 2;
+      g.fillStyle = i % 2 ? S10.plate : '#1c0a40';
+      g.beginPath(); g.moveTo(512, 512); g.arc(512, 512, 512, a, a + Math.PI * 2 / 24); g.closePath(); g.fill();
+    }
+    g.lineWidth = 22; g.strokeStyle = S10.violet; g.beginPath(); g.arc(512, 512, 340, 0, Math.PI * 2); g.stroke();
+    g.lineWidth = 6; g.strokeStyle = S10.mist; g.beginPath(); g.arc(512, 512, 376, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = S10.ink; g.beginPath(); g.arc(512, 512, 326, 0, Math.PI * 2); g.fill();
+    if (mark) { const w = 600, h = w * mark.height / mark.width; g.drawImage(mark, 512 - w / 2, 512 - h / 2, w, h); }
+    texture.needsUpdate = true;
+  };
+  draw(null);
+  if (typeof Image !== 'undefined') { const mark = new Image(); mark.onload = () => draw(mark); mark.src = MARK; }
+  return texture;
+}
+/** Super10's printed blocks: ink, plate and violet, slashed and sharded, lime on two faces in sixteen. */
+function blocksS10() {
+  const size = 256, { element, context: g } = canvas(size * 4, size * 4);
+  const grounds = [S10.ink, S10.violet, S10.plate, S10.ink, S10.plate, S10.violet, S10.ink, S10.mist];
+  for (let tile = 0; tile < 16; tile++) {
+    const x = (tile % 4) * size, y = Math.floor(tile / 4) * size, ground = grounds[tile % grounds.length];
+    g.fillStyle = ground; g.fillRect(x, y, size, size);
+    g.save(); g.beginPath(); g.rect(x, y, size, size); g.clip();
+    const kind = tile % 4, ink = ground === S10.ink ? S10.violet : ground === S10.mist ? S10.violet : S10.ink;
+    if (kind === 0) for (let i = 0; i < 4; i++) slash(g, x + 20 + i * 58, y + 30, 26, size - 60, i % 2 ? ink : S10.plate);
+    else if (kind === 1) { shard(g, x + 20, y + size * .45, size * .95, 60, tile === 5 || tile === 13 ? S10.volt : ink); shard(g, x + 60, y + size * .78, size * .7, 34, S10.white); }
+    else if (kind === 2) { g.fillStyle = ink; g.beginPath(); g.moveTo(x, y + size); g.lineTo(x + size, y + size * .25); g.lineTo(x + size, y + size); g.fill(); slash(g, x + 70, y + 50, 40, 110, S10.white); }
+    else { g.fillStyle = ink; g.font = 'italic 900 180px Saira, Impact, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('10', x + size / 2, y + size / 2 + 8); }
+    g.restore();
+  }
+  return textureOf(element);
 }
 
 const C = {
@@ -190,7 +256,7 @@ function pointsMaterial(vertexShader: string, uniforms: Record<string, THREE.IUn
 const rand = (seed: number) => { const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
 /** Cold-spark fountains: `bases` the nozzles, each throwing a column of white-gold sparks a few metres up. */
-function fountains(bases: THREE.Vector3[], uniforms: Record<string, THREE.IUniform>) {
+function fountains(bases: THREE.Vector3[], uniforms: Record<string, THREE.IUniform>, cool = false) {
   const each = 260, base = new Float32Array(bases.length * each * 3), seed = new Float32Array(bases.length * each * 4);
   bases.forEach((at, f) => {
     for (let i = 0; i < each; i++) {
@@ -215,17 +281,17 @@ function fountains(bases: THREE.Vector3[], uniforms: Record<string, THREE.IUnifo
       vec4 mv = modelViewMatrix * vec4(p, 1.);
       gl_Position = projectionMatrix * mv;
       gl_PointSize = (.055 + .05 * (1. - phase)) * uPixels / -mv.z;
-      vColour = mix(vec3(1., .97, .85), vec3(1., .62, .22), phase);
+      vColour = mix(vec3(1., .97, .85), ${cool ? 'vec3(.62, .45, 1.)' : 'vec3(1., .62, .22)'}, phase);
       vAlpha = (1. - phase) * smoothstep(0., .04, phase);
     }`, uniforms);
   return new THREE.Points(geometry, material);
 }
 
 /** Fireworks over the stand behind: shells bursting in turn, each a sphere of stars that droops and fades. */
-function shells(uniforms: Record<string, THREE.IUniform>) {
+function shells(uniforms: Record<string, THREE.IUniform>, colours: string[]) {
   const places: [number, number, number, number, THREE.Color][] = [
-    [-9, 19, -24, 0, new THREE.Color(C.gold)], [7, 22, -27, .6, new THREE.Color(C.orange)], [0, 25, -30, 1.2, new THREE.Color(C.cream)],
-    [-14, 15, -22, 1.6, new THREE.Color(C.blue)], [13, 17, -23, 2.1, new THREE.Color(C.red)], [3, 18, -21, 2.6, new THREE.Color(C.gold)],
+    [-9, 19, -24, 0, new THREE.Color(colours[0])], [7, 22, -27, .6, new THREE.Color(colours[1])], [0, 25, -30, 1.2, new THREE.Color(colours[2])],
+    [-14, 15, -22, 1.6, new THREE.Color(colours[3])], [13, 17, -23, 2.1, new THREE.Color(colours[4])], [3, 18, -21, 2.6, new THREE.Color(colours[5])],
   ];
   const each = 340, n = places.length * each;
   const centre = new Float32Array(n * 3), dir = new Float32Array(n * 3), colour = new Float32Array(n * 3), start = new Float32Array(n);
@@ -388,12 +454,18 @@ export class Podium {
 
   constructor(card: PodiumCard, blade: [toe: THREE.Vector3, shoulder: THREE.Vector3], night: boolean) {
     const { group, uniforms } = this;
-    const fascia = fasciaTexture(card), score = scoreTexture(card), emblem = emblemTexture(card), blocks = blocksTexture(card);
+    const s10 = card.brand === 'super10';
+    const fascia = s10 ? fasciaS10(card) : fasciaTexture(card), score = s10 ? scoreS10(card) : scoreTexture(card);
+    const emblem = s10 ? emblemS10() : emblemTexture(card), blocks = s10 ? blocksS10() : blocksTexture(card);
     this.owned.push(fascia, score, emblem, blocks);
-    const navy = new THREE.MeshStandardMaterial({ color: 0x1a2c44, roughness: .5, metalness: .1 });
-    const mode = new THREE.MeshStandardMaterial({ color: card.mode, emissive: card.mode, emissiveIntensity: .35, roughness: .45 });
-    const orange = new THREE.MeshStandardMaterial({ color: C.orange, emissive: C.orange, emissiveIntensity: .3, roughness: .45 });
-    const gold = new THREE.MeshStandardMaterial({ color: C.gold, emissive: C.gold, emissiveIntensity: .25, roughness: .35, metalness: .3 });
+    // Super10's: an ink deck, a violet arch with a mist trim, the block's top violet, lime left to the score alone.
+    const navy = new THREE.MeshStandardMaterial({ color: s10 ? ARENA.ink : 0x1a2c44, roughness: .5, metalness: .1 });
+    const modeColour = s10 ? hex(ARENA.violet) : card.mode;
+    const mode = new THREE.MeshStandardMaterial({ color: modeColour, emissive: modeColour, emissiveIntensity: .35, roughness: .45 });
+    const trimColour = s10 ? S10.mist : C.orange;
+    const orange = new THREE.MeshStandardMaterial({ color: trimColour, emissive: trimColour, emissiveIntensity: .3, roughness: .45 });
+    const topColour = s10 ? S10.violet : C.gold;
+    const gold = new THREE.MeshStandardMaterial({ color: topColour, emissive: topColour, emissiveIntensity: .25, roughness: .35, metalness: .3 });
     // The deck, its top lip, and its printed front.
     const deck = new THREE.Mesh(new THREE.BoxGeometry(DECK.width, DECK.height, DECK.depth), navy);
     deck.position.set(0, DECK.height / 2, -DECK.depth / 2);
@@ -435,10 +507,10 @@ export class Podium {
     const sparks = fountains([
       new THREE.Vector3(-4.3, DECK.height, -.25), new THREE.Vector3(-2.6, DECK.height, -.25), new THREE.Vector3(2.6, DECK.height, -.25), new THREE.Vector3(4.3, DECK.height, -.25),
       new THREE.Vector3(-4.6, DECK.height, -4.6), new THREE.Vector3(4.6, DECK.height, -4.6),
-    ], uniforms);
+    ], uniforms, s10);
     sparks.frustumCulled = false; group.add(sparks);
     const haze = smoke(uniforms); haze.frustumCulled = false; group.add(haze);
-    this.night = shells(uniforms); this.night.frustumCulled = false; this.night.visible = night; group.add(this.night);
+    this.night = shells(uniforms, s10 ? [S10.violet, S10.white, S10.mist, S10.violet, S10.volt, S10.white] : [C.gold, C.orange, C.cream, C.blue, C.red, C.gold]); this.night.frustumCulled = false; this.night.visible = night; group.add(this.night);
     if (!night) uniforms.uSmoke.value.set(0xf1ece4);
     this.fire = flames(blade[0], blade[1], uniforms);
   }
