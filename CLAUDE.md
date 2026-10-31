@@ -2379,7 +2379,11 @@ it lies. A new best is the bat laid back over his shoulder and a hand on his
 hip; a chase won is the bat held straight up to the crowd
 (`PODIUM_POSES` in `Batter.ts`). Never in the Tests, practice, a Rival
 Match or a demo; not under `?debug=1` (its checks wait on the card) or
-reduced motion; `?podium=1` asks for it anyway and `?podium=0` for never.
+reduced motion; `?podium=0` turns it off. `?podium=1` is a row of keys,
+NEW BEST and CHASE WON, putting it up over a made-up innings in the mode
+being played, between balls or over the card (`&mode=super10` for Super10's
+stage), counting and sending nothing; it also lets the real one up under
+`?debug=1`.
 
 Super10's stage is in its brand, never the game's: an ink deck, a violet
 arch with a mist trim, the mark in the disc, the line and the score in the

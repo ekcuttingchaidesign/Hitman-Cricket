@@ -4491,6 +4491,22 @@ ${modeSelectMarkup()}
     for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
     this.viewport.append(row);
   }
+  /** `?podium=1`'s keys: the podium for a new best or a chase won, along the foot of the picture. The podium goes over them. */
+  podiumKeys(keys: readonly { label: string; kind: 'best' | 'chase' }[], pick: (kind: 'best' | 'chase') => void) {
+    const row = document.createElement('div');
+    row.className = 'rate-preview levelup-preview podium-preview';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Preview the podium');
+    for (const { label, kind } of keys) {
+      const key = document.createElement('button');
+      key.type = 'button'; key.className = 'rate-preview-key'; key.dataset.kind = kind; key.textContent = label;
+      key.setAttribute('aria-label', `Preview the podium for ${label.toLowerCase()}`);
+      key.addEventListener('click', () => pick(kind));
+      row.append(key);
+    }
+    for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
+    this.viewport.append(row);
+  }
   /** `?topspot=1`'s keys: one a board, in the same row as Level Up's preview. New #1 goes over them. */
   topSpotKeys(keys: readonly { label: string; mode: CareerMode }[], pick: (mode: CareerMode) => void) {
     const row = document.createElement('div');

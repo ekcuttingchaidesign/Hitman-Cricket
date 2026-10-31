@@ -595,6 +595,13 @@ export class Game {
    * Nothing is counted or sent.
    */
   private readonly topSpotKeys = new URLSearchParams(location.search).get('topspot') === '1';
+  /**
+   * `?podium=1`: NEW BEST and CHASE WON keys, putting the podium up over a
+   * made-up innings in the mode being played (`&mode=super10` for Super10's
+   * stage), between balls or over the card. Nothing is counted or sent. It
+   * also lets the real one up under `?debug=1`, for `podium-check.mjs`.
+   */
+  private readonly podiumKeys = new URLSearchParams(location.search).get('podium') === '1';
   /** The way `?welcome=1` has the welcome up, or null when it is the real one. */
   private welcomeScenario: WelcomeScenario | null = null;
   /**
@@ -759,6 +766,7 @@ export class Game {
     if (this.rateKeys) this.hud.rateKeys(RATE_KEYS, thing => this.previewRating(thing));
     if (this.levelUpKeys) this.hud.levelUpKeys(LEVEL_UP_KEYS, (tier, mode) => this.previewLevelUp(tier, mode));
     if (this.topSpotKeys) this.hud.topSpotKeys(TOP_SPOT_KEYS, mode => this.previewTopSpot(mode));
+    if (this.podiumKeys) this.hud.podiumKeys(PODIUM_KEYS, kind => this.previewPodium(kind));
     if (this.welcomeKeys) this.hud.welcomeKeys(WELCOME_KEYS, scenario => this.previewWelcome(scenario));
     if (this.dressingKeys) this.hud.dressingKeys(DRESSING_KEYS, scenario => this.previewDressing(scenario));
     if (this.momentKeys) this.hud.momentKeys(MOMENT_KEYS, moment => this.askMoment(moment));
@@ -5614,7 +5622,10 @@ export class Game {
   };
   /** The podium over a made-up innings, by name: nothing counted or sent, and the card it hands back to is whatever was up. */
   private previewPodium(kind: PodiumKind) {
+    // Never with a ball on its way: the stage clears the ground it is played on.
+    if (!['READY', 'INNINGS_END'].includes(this.phase)) return;
     if (this.podium) this.lowerPodium();
+    this.audio.cheer({ size: 'big', peak: .8, decay: 3.2, swell: .4 });
     const mine = readPlayer(), held = this.bannerUntil;
     this.scene.podium(kind, {
       score: podiumScore(this.careerMode, kind === 'chase' ? 158 : 181, 3),
@@ -6453,6 +6464,8 @@ const STAR_KEYS = new Set(['Enter', ' ', 'Escape', 'ArrowLeft', 'ArrowRight', 'A
 const CHASE_MODE_NAMES: Record<CareerMode, string> = { classic: 'The Blast', marathon: 'Test Marathon', survive: 'Test Survival', super10: 'Super10' };
 /** The board's name as the rank hero's eyebrow says it. */
 const HERO_MODE: Record<CareerMode, string> = { classic: 'THE BLAST', marathon: 'TEST MARATHON', survive: 'TEST SURVIVAL', super10: 'SUPER10' };
+/** `?podium=1`'s keys. */
+const PODIUM_KEYS: readonly { label: string; kind: PodiumKind }[] = [{ label: 'NEW BEST', kind: 'best' }, { label: 'CHASE WON', kind: 'chase' }];
 /** `?topspot=1`'s keys: New #1 in each board's colours. */
 const TOP_SPOT_KEYS: readonly { label: string; mode: CareerMode }[] = [
   { label: 'BLAST', mode: 'classic' }, { label: 'MARATHON', mode: 'marathon' }, { label: 'SURVIVAL', mode: 'survive' },
