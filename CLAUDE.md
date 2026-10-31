@@ -2361,6 +2361,61 @@ skips it, and no other key does anything while it plays. GoatCounter counts
 photographs their beats; `tests/intro-reel.test.ts` holds the landing, the
 light, the duel's framing and both cameras to a crane's pace.
 
+## The podium: a new best or a chase won, on a stage
+
+An innings in the Blast or Super10 that won a chase, or made a new best of
+this browser's over the floor (`PODIUM_FLOOR`: 50 in the Blast, a total of
+100 in Super10, since a new player beats their own every other innings),
+ends on a stage put up on the outfield before its card (`podiumDue` in
+`src/game/podium.ts`, every case in `tests/podium.test.ts`; the stage is
+`src/scene/podium.ts`), after the presentation stage at a final: a deck
+with NEW BEST or CHASED KABIR'S 157 and the player's name across its front
+(`podiumLine`), the score on the block he stands on (`podiumScore`, a
+Super10 total with its wickets), an arch round the game's emblem, printed
+blocks either side, cold-spark fountains, smoke, paper confetti from two
+cannons, fireworks over the stand after dark, and his bat on fire, drawn
+flames in the game's inked style that stand up off the blade whichever way
+it lies. Both poses are ones he already has, held still (`PODIUM_POSES` in
+`Batter.ts`): a new best is the walk-on's bat on the shoulder (`SCRUB.on`),
+head up and the free hand hanging straight; a chase won is the driven
+four's lean (`LEANING`), the bat planted at his side, legs crossed, a hand
+on his hip. A bat raised with a fist pumped down came first and its free
+arm read badly, then the triple hundred's arms flung wide, which read as a
+wave; so did a bat laid on the shoulder made up for the podium. Never in the Tests, practice, a Rival
+Match or a demo; not under `?debug=1` (its checks wait on the card) or
+reduced motion; `?podium=0` turns it off. `?podium=1` is a row of keys,
+NEW BEST and CHASE WON, putting it up over a made-up innings in the mode
+being played, between balls or over the card (`&mode=super10` for Super10's
+stage), counting and sending nothing; it also lets the real one up under
+`?debug=1`.
+
+Super10's stage is in its brand, never the game's: an ink deck, a violet
+arch with a mist trim, the mark in the disc, the line and the score in the
+brand's lettering (`lettering`, lent by `arena.ts`) with the figure the one
+lime thing on it, slashed and sharded blocks, violet sparks and fireworks.
+The flames are fire on both.
+
+The film (`podiumCamera`, about six and a half seconds, `PODIUM`): the stage
+whole from low on the outfield, pushing in; a cut round to his left at
+full-body distance; a cut to the foot of the block looking up at him, the
+score under his boots, held. Never near the gloves, as the walk-on. The
+stage stands square of the pitch with its back to the rope (`PODIUM_AT` in
+`GameScene.ts`), built when it goes up and thrown away when it comes down,
+its shaders compiled in the cut from the last ball (`renderer.compile`). The
+last ball is cleared off it, the bowler and the field are put out of sight,
+and the scoreboard and keys with them (`intro-on`).
+
+The innings is posted the moment it goes up, not after (`raisePodium`,
+`earlyPost`), so one left there is on the board all the same; New #1, Level
+Up and the stars wait for it to come down (`topAfter`, `levelUpAfter`), New
+#1 first. A tap after its first half second, Space, Enter or Escape takes it
+down onto the card. GoatCounter counts `podium-best`, `podium-chase` and
+`podium-skipped-…`. `__cricket.podium('best')` puts it up over a made-up
+innings, `podiumAt(t)` pins its clock and `podiumUp()` says which is up;
+`podiumShot(eye, at, fov)` holds a camera in the stage's frame for
+photographing it. `scripts/podium-check.mjs` writes innings onto it and off
+it, in both brands, and photographs the beats.
+
 ## `?moments=1`
 
 A row of keys along the foot of the picture, one a milestone — 50, 100, six

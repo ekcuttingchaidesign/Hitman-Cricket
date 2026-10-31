@@ -2757,6 +2757,23 @@ const CHAMPION_LOOK: Pose = { ...CHAMPION, face: CHAMPION.face + .4, headDown: -
 /** The fist up in front of his chest on the way down, ready to take the handle again. */
 const CHAMPION_DONE: Pose = champion({ ...CHAMPION, headDown: -.20 }, [.08, -.10, .30]);
 
+/**
+ * The podium (`src/scene/podium.ts`): stood on it, held still, in poses he
+ * already has. A new best is the walk-on's bat on the shoulder (`SCRUB`'s,
+ * the free hand hanging straight), his head up rather than down at his mark; a chase
+ * won is the driven four's lean (`LEANING`), the bat planted at his side, legs
+ * crossed and a hand on his hip. `turn` is how far he is turned from the pose's
+ * own facing to face the stage's front, a little short of square so the bat
+ * side shows.
+ */
+export type PodiumPose = 'best' | 'chase';
+const PODIUM_POSES: Record<PodiumPose, { pose: Pose; turn: number }> = {
+  best: { pose: { ...SCRUB.on, headDown: 0, look: -.08, fist: hangingFist(SCRUB.on) }, turn: Math.PI - .5 - SCRUB.on.yaw },
+  chase: { pose: { ...LEANING, headDown: -.08 }, turn: Math.PI - .35 - LEANING.yaw },
+};
+/** How far `kind` is turned about him to face the stage's front: see `PODIUM_POSES`. */
+export const podiumTurn = (kind: PodiumPose) => PODIUM_POSES[kind].turn;
+
 /** The five celebrations: the fifty's nod, the hundred, and the Marathon's three big ones. */
 export type Celebration = 'fifty' | 'hundred' | 'double' | 'triple' | 'four';
 /**
@@ -3833,9 +3850,31 @@ export class Batter {
    * to one at its toe; null puts it away. See the blade's material.
    */
   sweep(along: number | null) { this.sweepAt.value = along ?? -9; }
+  /**
+   * Stood on the podium (`src/scene/podium.ts`) in `kind`, breathing, at `t`
+   * on its clock; null hands him back to the crease in his guard.
+   */
+  podium(kind: PodiumPose | null, t = 0) {
+    if (kind === null) {
+      if (this.onPodium !== null) { this.onPodium = null; this.reset(); }
+      return;
+    }
+    this.onPodium = { kind, t };
+  }
+  private onPodium: { kind: PodiumPose; t: number } | null = null;
+  /** The blade's toe and its shoulder, in the bat's own frame: where the podium's flames run. */
+  bladeSpan(): [THREE.Vector3, THREE.Vector3] {
+    const geometry = this.blade.geometry; geometry.computeBoundingBox();
+    const box = geometry.boundingBox!; this.blade.updateMatrix();
+    return [new THREE.Vector3(0, box.min.y, 0).applyMatrix4(this.blade.matrix), new THREE.Vector3(0, box.max.y, 0).applyMatrix4(this.blade.matrix)];
+  }
 
   update(now: number) {
     this.lastNow = now;
+    if (this.onPodium !== null) {
+      const { kind, t } = this.onPodium, pose = PODIUM_POSES[kind].pose, breath = Math.sin(t * Math.PI * 2 / 2600) * .008;
+      return this.apply({ ...pose, chest: [pose.chest[0], pose.chest[1] + breath, pose.chest[2] - breath * .5] });
+    }
     if (this.staged !== null) return this.applyStaged(this.staged);
     if (this.runupFresh) { this.runupSeen = now; this.runupFresh = false; }
     if (Number.isFinite(this.felledAt)) return this.applyFall(now - this.felledAt);

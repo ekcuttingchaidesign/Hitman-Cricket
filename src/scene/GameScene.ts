@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt } from '../entities/Batter';
+import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt, type PodiumPose, podiumTurn } from '../entities/Batter';
 import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
 import { bodyOf, showBody } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
@@ -17,6 +17,10 @@ import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture, type Tur
 import { BOARD_PANELS, perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, nightOnly, ownFloodlights, turfOf, type GroundName } from './grounds';
+import { Podium, PODIUM_TOP, type PodiumCard } from './podium';
+import { podiumCamera } from '../game/podium';
+/** Where the podium's deck meets the grass, square of the pitch, its back to the rope, in the stage's frame. */
+const PODIUM_AT = { x: 23, z: 10 } as const;
 import { Arena, LedStumps, MILESTONE_WORDS, Showboards, screenFrom, type ArenaCue, type ArenaMood, type Scoreboard } from './arena';
 import { buildWicket } from './wicket';
 import type { CrowdCelebration, CrowdMoment } from './CrowdCelebration';
@@ -1629,6 +1633,51 @@ export class GameScene {
     this.cinematic(at => introCamera(film, this.introClock(at), this.homeView, mark, this.world.scale.x));
   }
   introAt(t: number | null) { this.introPinned = t; }
+  /**
+   * The podium (`podium.ts`, `src/game/podium.ts`): the stage put up on the
+   * outfield square of the pitch, him stood on it in `kind` with his bat
+   * alight, everybody else out of the way, and the camera on the film's own
+   * clock from `now`. Null takes it down and puts him back at the crease.
+   * `podiumAt` pins the clock, for the checks.
+   */
+  podium(kind: PodiumPose | null, card?: PodiumCard, now = this.clock) {
+    this.stagePodium?.dispose(); this.stagePodium = null; this.podiumPin = null;
+    if (!kind || !card) {
+      this.batter.podium(null); this.cinematic(null);
+      this.bowlerHolder.visible = true; this.field.fielders.forEach(f => f.root.visible = true);
+      return;
+    }
+    // The last ball cleared off first: the ball, its trail, a moment's cut-out.
+    this.reset();
+    const stage = new Podium(card, this.batter.bladeSpan(), this.now === 'night');
+    stage.group.position.set(PODIUM_AT.x, 0, PODIUM_AT.z); stage.group.rotation.y = -Math.PI / 2; stage.group.scale.x = this.world.scale.x;
+    this.world.add(stage.group); this.batter.bat.add(stage.fire);
+    this.stagePodium = stage; this.podiumFrom = now; this.podiumKind = kind;
+    this.scene.updateMatrixWorld(true);
+    // From the stage's frame to the stage's: the camera's keys are the stage's.
+    const into = this.world.matrixWorld.clone().invert().multiply(stage.group.matrixWorld);
+    const local = (v: readonly [number, number, number]) => { const p = new THREE.Vector3(...v).applyMatrix4(into); return [p.x, p.y, p.z] as const; };
+    this.cinematic(at => { const pose = podiumCamera(this.podiumClock(at)); return { eye: local(pose.eye), at: local(pose.at), fov: pose.fov }; });
+    // Its shaders compiled now, in the cut from the last ball, rather than a frame into the film.
+    this.renderer.compile(this.scene, this.camera);
+  }
+  podiumAt(t: number | null) { this.podiumPin = t; }
+  private podiumClock(now: number) { return this.podiumPin ?? now - this.podiumFrom; }
+  /** A camera held where it is put, in the stage's own frame, for photographing it. */
+  podiumShot(eye: readonly [number, number, number], at: readonly [number, number, number], fov: number) {
+    if (!this.stagePodium) return;
+    const local = (v: readonly [number, number, number]) => {
+      const p = this.world.worldToLocal(this.stagePodium!.group.localToWorld(new THREE.Vector3(...v)));
+      return [p.x, p.y, p.z] as const;
+    };
+    this.scene.updateMatrixWorld(true);
+    const e = local(eye), a = local(at);
+    this.cinematic(() => ({ eye: e, at: a, fov }));
+  }
+  private stagePodium: Podium | null = null;
+  private podiumFrom = 0;
+  private podiumPin: number | null = null;
+  private podiumKind: PodiumPose = 'best';
   private introFrom = -Infinity;
   private introPinned: number | null = null;
   private introFilm: Film = 'bat';
@@ -1658,6 +1707,15 @@ export class GameScene {
     const frame = this.show?.update(now, this.reducedMotion, this.bowling);
     if (frame) this.arena?.update(now, frame, this.reducedMotion);
     if (this.ledUp) this.led.update(now, this.bailsBrokeAt ? now - this.bailsBrokeAt : -1, this.reducedMotion);
+    if (this.stagePodium) {
+      const t = this.podiumClock(now), stage = this.stagePodium;
+      this.batter.podium(this.podiumKind, t);
+      this.world.updateMatrixWorld(true);
+      const top = this.world.worldToLocal(stage.group.localToWorld(PODIUM_TOP.clone()));
+      this.batter.root.position.copy(top); this.batter.root.rotation.set(0, Math.PI / 2 + podiumTurn(this.podiumKind), 0);
+      this.bowlerHolder.visible = false; this.field.fielders.forEach(f => f.root.visible = false);
+      stage.update(t / 1000, this.renderer.domElement.height / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2)));
+    }
     if (Number.isFinite(this.introFrom)) {
       const t = this.introClock(now), film = this.introFilm;
       this.batter.stage(t, film); this.batter.sweep(introSweep(film, t));
