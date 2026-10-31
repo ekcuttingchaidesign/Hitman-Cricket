@@ -1,5 +1,5 @@
 import {
-  createChallenge, declineChallenge, joinChallenge, markSeen, readChallenge, readMine, readRivalsBoard, recordBalls,
+  createChallenge, declineChallenge, joinChallenge, markSeen, nudgeChallenge, readChallenge, readMine, readRivalsBoard, recordBalls, walkOut,
   type Batter, type ChallengeListOutcome, type ChallengeOutcome, type ChallengeStore, type RivalsBoardOutcome,
 } from './challenge-store.js';
 
@@ -15,7 +15,10 @@ import {
  *   GET ?code=K7QPX2      the room as it stands — the same bytes for everybody
  *   GET ?player=…         every room this player is in, newest first
  *   GET ?board=rivals     the Rivals board, top fifty — the same for everybody
- *   POST {action: …}      create · join · ball · seen · decline
+ *   POST {action: …}      create · join · ball · seen · decline · nudge · walk
+ *
+ * A create with `to` (a handle) is a challenge from a profile: sent to that
+ * player once the host's innings is in (`StoredInvite`).
  */
 export interface ChallengeRequest {
   method?: string;
@@ -46,11 +49,16 @@ export async function challengeRequest(
   };
   const code = String(body.code ?? '');
   switch (String(body.action ?? '')) {
-    case 'create': return createChallenge(store, { ...who, card: body.card, rematchOf: body.rematchOf });
+    case 'create': return createChallenge(store, {
+      ...who, card: body.card, rematchOf: body.rematchOf,
+      ...(body.to !== undefined ? { to: body.to, toName: body.toName, toAvatar: body.toAvatar, mode: body.mode } : {}),
+    });
     case 'join': return joinChallenge(store, code, who);
     case 'ball': return recordBalls(store, code, { ...who, card: body.card });
     case 'seen': return markSeen(store, code, who);
     case 'decline': return declineChallenge(store, code, who);
+    case 'nudge': return nudgeChallenge(store, code, who);
+    case 'walk': return walkOut(store, code, who);
     default: return { ok: false, status: 400, reason: 'Say what to do with the match.' };
   }
 }

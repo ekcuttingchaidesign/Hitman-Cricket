@@ -128,6 +128,8 @@ export function memoryStore<I = Innings>(
  */
 export function memoryChallenges(
   names = new Map<string, string>(),
+  /** Handle to player id, as the profiles keep it. */
+  handles: (handle: string) => string | null | Promise<string | null> = () => null,
 ): ChallengeStore & { clear(): void; expire(code: string): void; names: Map<string, string> } {
   const challenges = new Map<string, { challenge: StoredChallenge; until: number }>();
   const rate = new Map<string, { count: number; until: number }>();
@@ -166,6 +168,7 @@ export function memoryChallenges(
       for (const [id, player] of Object.entries(change.players ?? {})) {
         held.challenge.players[id] = structuredClone(player);
       }
+      if (change.invite) held.challenge.invite = structuredClone(change.invite);
       held.until = now + ttlSeconds * 1000;
     },
     async hits(kind, address, windowSeconds) {
@@ -216,6 +219,7 @@ export function memoryChallenges(
         .slice(0, n)
         .flatMap(([id]) => (rows.has(id) ? [{ playerId: id, ...structuredClone(rows.get(id)!) }] : []));
     },
+    async idOf(handle) { return (await handles(handle)) ?? null; },
     names,
     clear() { challenges.clear(); rate.clear(); mine.clear(); results.clear(); ranking.clear(); rows.clear(); },
     /** Ages a room out on the spot, so a test does not wait a week. */
