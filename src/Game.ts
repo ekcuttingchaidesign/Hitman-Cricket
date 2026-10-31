@@ -55,6 +55,7 @@ import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
 import { cardShown, filmLength, introBars, nextFilm, type Film } from './game/IntroReel';
 import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
+import { PODIUM, podiumDue, podiumLine, podiumScore, type PodiumKind } from './game/podium';
 import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type CameraPose, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
@@ -1007,7 +1008,8 @@ export class Game {
       if (document.fullscreenElement) void document.exitFullscreen();
       else if (this.hud.viewport.requestFullscreen) void this.hud.viewport.requestFullscreen().catch(() => {});
     });
-    this.hud.viewport.addEventListener('pointerdown', () => this.walkedOn(true));
+    // A tap in the first half second is still the last ball's: the podium is skipped only after that.
+    this.hud.viewport.addEventListener('pointerdown', () => { this.walkedOn(true); if (this.podium && this.elapsed - this.podium.start > 500) this.lowerPodium(true); });
     window.addEventListener('keydown', this.shortcuts); window.addEventListener('beforeunload', this.leaving); document.addEventListener('visibilitychange', this.visibility);
     window.addEventListener('blur', this.blur); window.addEventListener('pagehide', this.markQuit);
     // A bundle built survive-only plays one innings and offers no way out of
@@ -1127,12 +1129,10 @@ export class Game {
       /** The walk-on's clock pinned at `t` milliseconds, or let run again with null. */
       introAt: (t: number | null) => { this.introPin = t; this.scene.introAt(t); },
       walkingOn: () => this.walking?.film ?? null,
-      /** The podium mock-up: `podium('best', { score, line, name, mode })`, null to take it down; `podiumShot` puts the camera in the stage's frame. */
-      podium: (kind: 'best' | 'chase' | null, card?: { score: string; line: string; name: string; mode: string; brand?: 'blast' | 'super10' }) => {
-        this.bannerUntil = kind ? Number.POSITIVE_INFINITY : this.elapsed;
-        this.hud.walkOn(kind ? 0 : null);
-        this.scene.podium(kind, card && { ...card, brand: card.brand ?? (this.super10 ? 'super10' : 'blast') });
-      },
+      /** The podium by name over a made-up innings (`best` or `chase`), for the checks; `podiumAt(t)` pins its clock, `podiumUp()` says which is up. */
+      podium: (kind: PodiumKind) => this.previewPodium(kind),
+      podiumAt: (t: number | null) => { this.podiumPin = t; this.scene.podiumAt(t); },
+      podiumUp: () => this.podium?.kind ?? null,
       podiumShot: (eye: [number, number, number], at: [number, number, number], fov = 40) => this.scene.podiumShot(eye, at, fov),
       /** The camera held where it is put, for photographing a ground; null hands it back to the game. */
       camera: (pose: CameraPose | null) => this.scene.cinematic(pose ? () => pose : null),
@@ -2251,6 +2251,7 @@ export class Game {
   private walkOut = () => this.start();
   start = () => {
     if (this.walking) { this.walking = null; this.scene.walkOn(null); this.hud.walkOn(null); this.hud.walkOnCard(null, true); }
+    if (this.podium) { this.podium = null; this.scene.podium(null); this.hud.walkOn(null); }
     if (this.chaseWon) { this.chaseWon = false; this.clearChase(); }
     // Who is batting, first: once, before the first innings there is.
     if (this.profileDue) {
@@ -3277,7 +3278,7 @@ export class Game {
       // the moment has passed; it is asked at the next one instead.
       if (this.disposed || this.innings !== innings || this.phase !== 'INNINGS_END') return;
       // An unlock is this innings' moment; the stars wait for another, and for the password sheet.
-      if (this.unlock || this.hud.passwordOpen) return;
+      if (this.unlock || this.hud.passwordOpen || this.podium) return;
       this.showRating(ask.thing, ask.moment);
     }, RATING_DELAY_MS);
   }
@@ -4088,6 +4089,11 @@ export class Game {
       if ([' ', 'Enter', 'Escape'].includes(event.key)) { event.preventDefault(); this.walkedOn(true); }
       return;
     }
+    // So does the podium: Enter would otherwise start the next innings under it.
+    if (this.podium) {
+      if ([' ', 'Enter', 'Escape'].includes(event.key)) { event.preventDefault(); this.lowerPodium(true); }
+      return;
+    }
     if (event.target instanceof Element && event.target.closest('.rate-pop') && STAR_KEYS.has(event.key)) return;
     const key = event.key.toUpperCase();
     // The stories sit over everything, including the board that may have opened
@@ -4185,6 +4191,7 @@ export class Game {
       this.update();
       if (this.reel) this.reelFrame();
       if (this.walking) this.walkOnFrame();
+      if (this.podium) this.podiumFrame();
     }
     // Level Up covers the whole screen, so the ground under it is not drawn:
     // a phone has one GPU, and the confetti wants it.
@@ -5088,7 +5095,9 @@ export class Game {
    */
   private async quietPost() {
     const innings = this.innings;
-    if (this.postFor?.innings === innings || !readPlayer() || !this.player) return;
+    // A post sent early, under the podium, is still this one's to answer.
+    if ((this.postFor?.innings === innings && this.earlyPost !== innings) || !readPlayer() || !this.player) return;
+    this.earlyPost = -1;
     const result = await this.postOnce();
     if (this.disposed || this.innings !== innings || !result.ok) return;
     this.tookPost(innings, result);
@@ -5315,7 +5324,7 @@ export class Game {
     if (this.levelUp || this.disposed) return;
     // New #1 goes first: a climb the same innings earned waits for it, and for
     // the store's answer to the post to say whether there is one, a few tries.
-    if (this.topSpot) { this.levelUpAfter = () => this.showLevelUp(mode, was, now, granted, preview); return; }
+    if (this.topSpot || this.podium) { this.levelUpAfter = () => this.showLevelUp(mode, was, now, granted, preview); return; }
     const answering = !preview && this.phase === 'INNINGS_END' && this.postFor?.innings === this.innings && this.standing?.innings !== this.innings;
     if (answering && tries < 10) {
       const innings = this.innings;
@@ -5396,7 +5405,7 @@ export class Game {
 
   private showTopSpot(view: TopSpotView) {
     if (this.topSpot || this.disposed) return;
-    if (this.levelUp) { this.topAfter = view; return; }
+    if (this.levelUp || this.podium) { this.topAfter = view; return; }
     // An unlock already up gives way: one celebration is the end of an innings.
     if (this.unlock) { this.unlock.close(); this.unlock = null; }
     this.putRatingAway();
@@ -5539,7 +5548,83 @@ export class Game {
     // ordinary card: the scoreline is what the player has been waiting thirty
     // balls for, and the card behind it would be the wrong first thing to see.
     if (this.challenge.playing) { this.matchCard = record; void this.finishMatch(); return; }
+    const podium = podiumDue({
+      mode: this.careerMode, real: !!this.podiumAsked && !this.practising && !this.demoing,
+      runs: this.score.runs, record, chaseWon: this.chaseWon && !!this.chaseLive,
+    });
+    if (podium) return this.raisePodium(podium, () => this.showBlastCard(record));
     this.showBlastCard(record);
+  }
+
+  /* ── The podium ────────────────────────────────────────────────────── */
+
+  /**
+   * Whether the podium goes up at all: not under `?debug=1`, whose checks
+   * wait on the card, nor for a player who has asked for less motion.
+   * `?podium=1` asks for it anyway and `?podium=0` for never.
+   */
+  private readonly podiumAsked: boolean = (() => {
+    const asked = new URLSearchParams(location.search).get('podium');
+    if (asked === '1') return true;
+    if (asked === '0' || this.debug) return false;
+    return !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  })();
+  private podium: { kind: PodiumKind; start: number; then: () => void } | null = null;
+  /** Where the checks pin the podium's clock, or null to let it run. */
+  private podiumPin: number | null = null;
+  /** The innings whose post went early, under the podium: see `quietPost`. */
+  private earlyPost = -1;
+  /**
+   * The podium (`src/game/podium.ts`, the stage `src/scene/podium.ts`): the
+   * innings that made a new best or won a chase ends stood on a stage on the
+   * outfield before its card. The post goes now, not after it, so an innings
+   * left there is on the board all the same; New #1, Level Up and the stars
+   * wait for it to come down.
+   */
+  private raisePodium(kind: PodiumKind, then: () => void) {
+    const chase = this.chaseLive;
+    const mine = readPlayer();
+    this.scene.podium(kind, {
+      score: podiumScore(this.careerMode, this.score.runs, this.score.wickets),
+      line: podiumLine(kind, chase ? { name: chase.name, target: chase.target } : null),
+      name: mine?.name ?? '', mode: '#3f88f2', brand: this.super10 ? 'super10' : 'blast',
+    }, this.elapsed);
+    this.scene.podiumAt(this.podiumPin);
+    this.hud.walkOn(0);
+    this.podium = { kind, start: this.elapsed, then };
+    if (this.autoPosting) { this.earlyPost = this.innings; void this.postOnce(); }
+    this.audio.cheer({ size: 'big', peak: .8, decay: 3.2, swell: .4 });
+    this.mark(`podium-${kind}`, kind === 'chase' ? 'Podium: chase won' : 'Podium: new best');
+  }
+  private podiumFrame() {
+    const podium = this.podium!, t = this.podiumPin ?? this.elapsed - podium.start;
+    if (this.podiumPin === null && t >= PODIUM.total) this.lowerPodium(false);
+  }
+  /** Over, or skipped: the stage down, the card up, and whatever waited for it let go, New #1 first. */
+  private lowerPodium = (skipped = false) => {
+    const podium = this.podium;
+    if (!podium) return;
+    this.podium = null;
+    this.scene.podium(null); this.hud.walkOn(null);
+    if (skipped) this.mark(`podium-skipped-${podium.kind}`, 'Podium skipped');
+    podium.then();
+    const top = this.topAfter, level = this.levelUpAfter;
+    if (top) { this.topAfter = null; this.showTopSpot(top); }
+    else if (level) { this.levelUpAfter = null; level(); }
+  };
+  /** The podium over a made-up innings, by name: nothing counted or sent, and the card it hands back to is whatever was up. */
+  private previewPodium(kind: PodiumKind) {
+    if (this.podium) this.lowerPodium();
+    const mine = readPlayer(), held = this.bannerUntil;
+    this.scene.podium(kind, {
+      score: podiumScore(this.careerMode, kind === 'chase' ? 158 : 181, 3),
+      line: podiumLine(kind, kind === 'chase' ? { name: 'Kabir', target: 157 } : null),
+      name: mine?.name || 'You', mode: '#3f88f2', brand: this.super10 ? 'super10' : 'blast',
+    }, this.elapsed);
+    this.scene.podiumAt(this.podiumPin);
+    this.hud.walkOn(0);
+    this.bannerUntil = Number.POSITIVE_INFINITY;
+    this.podium = { kind, start: this.elapsed, then: () => { this.bannerUntil = Math.min(held, this.elapsed); } };
   }
 
   /** The five-over card, with the strip, the key and the board under it. */

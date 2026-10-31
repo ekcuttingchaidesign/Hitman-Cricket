@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ARENA, lettering, shard, slash, sub } from './arena';
+import { PODIUM } from '../game/podium';
 
 /**
  * The podium: a stage put up on the outfield for an innings that made a new
@@ -38,8 +39,8 @@ function fasciaS10(card: PodiumCard) {
     const tone = i % 3 === 0 ? S10.violet : S10.plate;
     slash(g, 30 + i * 46, 30, 22, 104, tone); slash(g, 2048 - 70 - i * 46, 30, 22, 104, tone);
   }
-  lettering(g, card.line.toUpperCase(), 860, 84, 104, 1180);
-  sub(g, card.name.toUpperCase(), 1660, 86, 64, S10.mist);
+  lettering(g, card.line.toUpperCase(), card.name ? 860 : 1024, 84, 104, 1180);
+  if (card.name) sub(g, card.name.toUpperCase(), 1660, 86, 64, S10.mist);
   return textureOf(element);
 }
 /** The block's face: the score on its plate slab, the figure lime, the one charged thing on the stage. */
@@ -136,13 +137,32 @@ function fasciaTexture(card: PodiumCard) {
   const line = card.line.toUpperCase(), name = card.name.toUpperCase();
   const lineWidth = g.measureText(line).width;
   g.font = '64px Saira, sans-serif'; const nameWidth = g.measureText(name).width;
-  const gap = 56, total = lineWidth + gap + nameWidth, left = 1024 - total / 2;
+  const gap = name ? 56 : 0, total = lineWidth + gap + (name ? nameWidth : 0), left = 1024 - total / 2;
   g.font = '112px Jaro, Impact, sans-serif';
   const gold = g.createLinearGradient(0, 30, 0, 140);
   gold.addColorStop(0, '#fff3c4'); gold.addColorStop(.5, C.gold); gold.addColorStop(1, '#c98a1c');
   g.fillStyle = gold; g.fillText(line, left + lineWidth / 2, 88);
-  g.fillStyle = C.orange; g.beginPath(); g.arc(left + lineWidth + gap / 2, 84, 9, 0, Math.PI * 2); g.fill();
+  if (name) { g.fillStyle = C.orange; g.beginPath(); g.arc(left + lineWidth + gap / 2, 84, 9, 0, Math.PI * 2); g.fill(); }
   g.font = 'italic 900 64px Saira, sans-serif'; g.fillStyle = C.cream; g.fillText(name, left + lineWidth + gap + nameWidth / 2, 88);
+  return textureOf(element);
+}
+
+/**
+ * The wall at the back of the deck, as a real stage has, which stands in front
+ * of the boards along the rope: dark, with the brand's marks faint across it.
+ */
+function backdropTexture(card: PodiumCard) {
+  const { element, context: g } = canvas(2048, 384);
+  const s10 = card.brand === 'super10';
+  const fill = g.createLinearGradient(0, 0, 0, 384);
+  fill.addColorStop(0, s10 ? '#1d0b45' : '#132a40'); fill.addColorStop(1, s10 ? S10.ink : C.deep);
+  g.fillStyle = fill; g.fillRect(0, 0, 2048, 384);
+  for (let i = 0; i < 26; i++) {
+    const x = i * 80 + 10;
+    if (s10) slash(g, x, 60, 30, 264, i % 2 ? 'rgba(139,92,246,.22)' : 'rgba(42,14,92,.9)');
+    else { g.save(); g.translate(x + 30, 200); chevron(g, 0, -40, 30, i % 2 ? 'rgba(237,112,68,.18)' : 'rgba(63,136,242,.18)'); g.restore(); }
+  }
+  g.fillStyle = s10 ? S10.violet : card.mode; g.fillRect(0, 0, 2048, 8);
   return textureOf(element);
 }
 
@@ -326,6 +346,60 @@ function shells(uniforms: Record<string, THREE.IUniform>, colours: string[]) {
   return new THREE.Points(geometry, material);
 }
 
+/**
+ * Paper from a cannon at each front corner of the deck, at each of `bursts`
+ * seconds: shot up and in, slowed by the air to a flutter, turning over as it
+ * falls with its back a shade darker. By day it is what the fireworks are by
+ * night.
+ */
+function confetti(uniforms: Record<string, THREE.IUniform>, colours: string[], bursts: number[]) {
+  const each = 170, n = bursts.length * 2 * each;
+  const from = new Float32Array(n * 3), seed = new Float32Array(n * 4), colour = new Float32Array(n * 3), start = new Float32Array(n);
+  let k = 0;
+  for (const at of bursts) for (const side of [-1, 1]) for (let i = 0; i < each; i++, k++) {
+    from.set([side * 4.9, .85, -.2], k * 3);
+    seed.set([rand(k + .11), rand(k + .37), rand(k + .59), rand(k + .83)], k * 4);
+    const c = new THREE.Color(colours[Math.floor(rand(k + .97) * colours.length)]);
+    colour.set([c.r, c.g, c.b], k * 3); start[k] = at + rand(k + .23) * .12;
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(from, 3));
+  geometry.setAttribute('aSeed', new THREE.BufferAttribute(seed, 4));
+  geometry.setAttribute('aColour', new THREE.BufferAttribute(colour, 3));
+  geometry.setAttribute('aStart', new THREE.BufferAttribute(start, 1));
+  const points = new THREE.Points(geometry, new THREE.ShaderMaterial({ uniforms, transparent: true, depthWrite: false, fog: false,
+    vertexShader: /* glsl */`
+      uniform float uTime; uniform float uPixels;
+      attribute vec4 aSeed; attribute vec3 aColour; attribute float aStart;
+      varying vec3 vColour; varying float vFlip;
+      void main() {
+        float t = uTime - aStart;
+        float side = sign(position.x);
+        vec3 v0 = vec3(-side * (1.2 + 2.6 * aSeed.x), 8. + 5. * aSeed.y, (aSeed.z - .5) * 5.);
+        vec3 fall = vec3(0., -1.1 - .5 * aSeed.w, 0.);
+        float drag = 1.7;
+        vec3 p = position + (v0 - fall) * (1. - exp(-drag * t)) / drag + fall * t;
+        p.x += sin(t * 3. + aSeed.w * 6.3) * .35 * min(t, 1.);
+        p.z += cos(t * 2.3 + aSeed.x * 6.3) * .25 * min(t, 1.);
+        vec4 mv = modelViewMatrix * vec4(p, 1.);
+        gl_Position = projectionMatrix * mv;
+        bool shown = t > 0. && t < 5. && p.y > .02;
+        gl_PointSize = shown ? .13 * uPixels / -mv.z : 0.;
+        vColour = aColour; vFlip = cos(t * (5. + 7. * aSeed.z) + aSeed.y * 6.3);
+      }`,
+    fragmentShader: /* glsl */`
+      varying vec3 vColour; varying float vFlip;
+      void main() {
+        vec2 c = abs(gl_PointCoord - .5);
+        if (c.x > .08 + .34 * abs(vFlip) || c.y > .26) discard;
+        gl_FragColor = vec4(vColour * (vFlip < 0. ? .62 : 1.), 1.);
+        #include <colorspace_fragment>
+      }`,
+  }));
+  points.frustumCulled = false;
+  return points;
+}
+
 /** Low smoke drifting over the deck and round the fountains. */
 function smoke(uniforms: Record<string, THREE.IUniform>) {
   const n = 46, at = new Float32Array(n * 3), seed = new Float32Array(n);
@@ -457,7 +531,8 @@ export class Podium {
     const s10 = card.brand === 'super10';
     const fascia = s10 ? fasciaS10(card) : fasciaTexture(card), score = s10 ? scoreS10(card) : scoreTexture(card);
     const emblem = s10 ? emblemS10() : emblemTexture(card), blocks = s10 ? blocksS10() : blocksTexture(card);
-    this.owned.push(fascia, score, emblem, blocks);
+    const backdrop = backdropTexture(card);
+    this.owned.push(fascia, score, emblem, blocks, backdrop);
     // Super10's: an ink deck, a violet arch with a mist trim, the block's top violet, lime left to the score alone.
     const navy = new THREE.MeshStandardMaterial({ color: s10 ? ARENA.ink : 0x1a2c44, roughness: .5, metalness: .1 });
     const modeColour = s10 ? hex(ARENA.violet) : card.mode;
@@ -488,6 +563,10 @@ export class Podium {
     trim.position.set(0, DECK.height, archAt + .02);
     const disc = new THREE.Mesh(new THREE.CircleGeometry(2.45, 64), printed(emblem, .55));
     disc.position.set(0, DECK.height + 4.05, archAt - .2);
+    // The back wall, standing up from the deck's back edge to hide the rope's boards behind it.
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(DECK.width + 2.4, 2.6), printed(backdrop, .4));
+    wall.position.set(0, 1.3, -DECK.depth - .05);
+    group.add(wall);
     // The printed blocks, either side of the deck and on its back corners.
     const sheet = printed(blocks, .5), stacks = new THREE.Group();
     const cubes: [number, number, number, number, number, number[]][] = [
@@ -510,6 +589,8 @@ export class Podium {
     ], uniforms, s10);
     sparks.frustumCulled = false; group.add(sparks);
     const haze = smoke(uniforms); haze.frustumCulled = false; group.add(haze);
+    const paper = confetti(uniforms, s10 ? [S10.violet, S10.white, S10.mist, S10.plate, S10.volt] : [C.orange, C.blue, C.gold, C.cream, C.red, C.navy], [.25, PODIUM.cuts[1] / 1000 + .15]);
+    group.add(paper);
     this.night = shells(uniforms, s10 ? [S10.violet, S10.white, S10.mist, S10.violet, S10.volt, S10.white] : [C.gold, C.orange, C.cream, C.blue, C.red, C.gold]); this.night.frustumCulled = false; this.night.visible = night; group.add(this.night);
     if (!night) uniforms.uSmoke.value.set(0xf1ece4);
     this.fire = flames(blade[0], blade[1], uniforms);
