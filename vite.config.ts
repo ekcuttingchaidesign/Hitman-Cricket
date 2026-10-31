@@ -34,6 +34,7 @@ import { modeAsked } from './src/server/mode';
 import { memoryPlayers, rememberHandle } from './src/server/player-store';
 import { afterPost, profileRefused, profileRequest, type ProfileStores } from './src/server/profile-endpoint';
 import { soloOf, teamOf } from './src/game/marathon-board';
+import { checkIn, memoryLive, readLive } from './src/server/live-store';
 
 /**
  * The board's endpoints, served by the dev server.
@@ -87,6 +88,8 @@ function boardEndpoints(): Plugin {
   const challenges = memoryChallenges(names);
   const dressing = memoryDressing();
   const recap = memoryRecap();
+  // Who is around, checked against the same name registry.
+  const live = memoryLive(folded => names.get(folded) ?? null);
   // The profiles, over the same boards and careers the endpoints above write.
   const profiles: ProfileStores = {
     players: memoryPlayers(),
@@ -100,7 +103,7 @@ function boardEndpoints(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         const path = (req.url ?? '').split('?')[0];
         const known = ['/api/board', '/api/score', '/api/feedback', '/api/career', '/api/innings',
-          '/api/restore', '/api/challenge', '/api/name', '/api/dressing', '/api/recap', '/api/me', '/api/profile'];
+          '/api/restore', '/api/challenge', '/api/name', '/api/dressing', '/api/recap', '/api/me', '/api/profile', '/api/live'];
         if (!known.includes(path)) return next();
         // A refusal as the deployed endpoints write one, carrying the name
         // that is held when it is not the one typed.
@@ -151,6 +154,14 @@ function boardEndpoints(): Plugin {
             const outcome = await profileRequest(profiles, request);
             if (profileRefused(outcome)) return send(outcome.status, { error: outcome.reason, status: outcome.status, retry: outcome.status >= 500 });
             return send(200, outcome.body, outcome.cache);
+          }
+          if (path === '/api/live') {
+            // What `api/live.ts` does, over memory.
+            if (req.method === 'GET') return send(200, await readLive(live), 'public, s-maxage=30, stale-while-revalidate=30');
+            if (req.method !== 'POST') return send(405, { error: 'Use GET or POST.' });
+            const body = JSON.parse(await read(req)) as Record<string, unknown>;
+            const outcome = await checkIn(live, { playerId: body.playerId, name: body.name, avatar: body.avatar, state: body.state, mode: body.mode });
+            return outcome.ok ? send(200, { ok: true }) : send(outcome.status, { error: outcome.reason });
           }
           if (path === '/api/recap') {
             // The dev server's alone, for the checks: what the year recap holds

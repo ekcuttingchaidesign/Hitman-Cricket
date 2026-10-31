@@ -1032,6 +1032,7 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `password-welcome-offered` | Welcome back, after a career key, offering a password. |
 | `password-forgot`, `password-forgot-no-question`, `password-answer-wrong` | Forgot password? tapped, with no question to answer, and a wrong answer. |
 | `profile-open-row`, `-podium`, `-chip` | Another player's profile opened off a board, and by which of the three. Against `chase-start`, how often a look becomes a chase. Not under a mode's prefix: it is the board's, not the last innings'. |
+| `around-open`, `profile-open-around` | Around now opened on Rival Matches, and a profile opened from it: how often who is around becomes a look. |
 | `profile-failed` | A profile the store did not answer for, so the sheet stood on what the row knew. |
 | `stats-open`, `activity-open` | My profile opened, and the Your profile sheet opened from its headline. |
 | `activity-headline` | My profile led with Rank down, once an opening. Against `activity-open` and `activity-win-back`, how often being passed brings a player back. |

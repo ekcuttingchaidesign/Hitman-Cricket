@@ -16,6 +16,7 @@ import { tallyFields, type Tally } from './tally.js';
 import { FEEDBACK_KEPT, type FeedbackStore, type StoredFeedback } from './feedback-store.js';
 import type { ActivityEvent, PlayerStore, StoredBio } from './player-store.js';
 import type { ProfileStores } from './profile-endpoint.js';
+import type { LiveStore, StoredLive } from './live-store.js';
 import {
   packResult, unpackResult,
   type ChallengeStore, type RivalsResult, type StoredPlayer, type StoredRivalsRow,
@@ -615,6 +616,22 @@ export function upstashRecap(redis: Redis): RecapStore {
       for (const [field, by] of raised) pipe.hincrby(`${key(year)}:all`, field, by);
       await pipe.exec();
     },
+  };
+}
+
+/**
+ * Who is around (`live-store.ts`): one hash, handle to the last check-in. A
+ * check-in is two commands, the name's owner read and the field written; the
+ * list is one, and it sits in the edge cache, so a busy board costs what a
+ * quiet one does. Stale fields are dropped as a list finds them.
+ */
+export function upstashLive(redis: Redis): LiveStore {
+  const live = `${SCOPE}live`, names = `${SCOPE}names`;
+  return {
+    async nameOwner(folded) { return (await redis.hget<string>(names, folded)) ?? null; },
+    async write(handle, entry) { await redis.hset(live, { [handle]: entry }); },
+    async readAll() { return (await redis.hgetall<Record<string, StoredLive>>(live)) ?? {}; },
+    async remove(handles) { if (handles.length) await redis.hdel(live, ...handles); },
   };
 }
 

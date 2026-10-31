@@ -5,6 +5,7 @@
 @import './super10.css';
 @import './super10-page.css';
 @import './topspot.css';
+@import './live.css';
 /* Jaro, by Agyei Archer, Céline Hurka and Mirko Velimirović. SIL Open Font
    License 1.1 — the notice ships beside the file in src/assets/jaro-OFL.txt. */
 @font-face{
@@ -8258,13 +8259,13 @@ video.whatsnew-film.is-fit{height:auto;object-fit:contain;
    Every Rivals screen stands on BG / Rivals: your blue bloom top left, their
    orange bloom bottom right, a faint violet glow between, and a halftone dot
    field densest in those corners. Sizes in --u. */
-:is(#challenge-list,#challenge-room,#challenge-offline,#rivals-ranking){
+:is(#challenge-list,#challenge-room,#challenge-offline,#rivals-ranking,#rivals-around){
   --rv-bg:radial-gradient(calc(var(--u) * 280) calc(var(--u) * 280) at calc(var(--u) * 30) calc(var(--u) * 80),#2f6fe080,#2f6fe02d 55%,#2f6fe000 100%),
     radial-gradient(calc(var(--u) * 280) calc(var(--u) * 280) at calc(var(--u) * 370) calc(var(--u) * 840),#ed70446b,#ed704425 55%,#ed704400 100%),
     radial-gradient(calc(var(--u) * 210) calc(var(--u) * 150) at 50% calc(var(--u) * 330),#b8a6ff12,#b8a6ff00 100%),var(--c-page);
   background:var(--rv-bg);display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:0;overflow:hidden
 }
-:is(#challenge-list,#challenge-room,#challenge-offline,#rivals-ranking)::before{
+:is(#challenge-list,#challenge-room,#challenge-offline,#rivals-ranking,#rivals-around)::before{
   content:'';position:absolute;inset:0;pointer-events:none;opacity:.6;mix-blend-mode:screen;
   background:url('./assets/rivals/halftone.webp') center/cover no-repeat
 }

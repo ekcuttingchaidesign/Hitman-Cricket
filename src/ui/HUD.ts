@@ -7,6 +7,8 @@ import {
   statsStoryText, statsWhatsappLink, whatsappLink,
 } from '../game/Share';
 import { track, trackOnce } from '../game/analytics';
+import { livePlayers, onLive, refreshLive } from '../game/live-api';
+import { aroundCardMarkup, aroundOrder, aroundSheetMarkup, type AroundFilter } from './AroundNow';
 import { feedbackGiven } from '../game/feedback';
 import { RATED_NAME, type RatedThing } from '../game/rating';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage } from '../game/ShareCard';
@@ -326,6 +328,8 @@ export class HUD {
     // phone-shaped column — so the scoreboard, the meter, the field labels and
     // the button row all wait until there is an innings to describe.
     document.body.classList.add('start-screen');
+    // Around now on Rival Matches follows the live list as it moves.
+    onLive(() => { this.drawAround(); this.drawAroundSheet(); });
     // Everything lives inside the field itself: the ground is the whole screen,
     // and every control the game needs sits on top of it.
     root.innerHTML = `
@@ -608,6 +612,9 @@ ${modeSelectMarkup()}
         </div>
         <div id="rivals-ranking" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rivals-ranking-title">
           <div id="rivals-ranking-sheet" class="ranking-sheet"></div>
+        </div>
+        <div id="rivals-around" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="around-title">
+          <div id="rivals-around-sheet" class="ranking-sheet ar-sheet"></div>
         </div>
         <div id="challenge-rivalry" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rivalry-tally">
           <div class="rival-sheet rv-sheet is-h2h">
@@ -998,7 +1005,7 @@ ${modeSelectMarkup()}
    * rest arrives from the store. The face goes back to its row on the way out.
    */
   openPlayer(seed: PlayerSeed, from: HTMLElement | null) {
-    const shell = document.querySelector<HTMLElement>('#board-overlay .lb-screen');
+    const shell = this.playerHost();
     if (!shell) return;
     this.dropPlayer();
     const held = cachedProfile(seed.handle);
@@ -1026,6 +1033,14 @@ ${modeSelectMarkup()}
     this.drawPlayer('open');
     this.flyFace(from, layer.querySelector<HTMLElement>('.ps-face'), false);
     this.askPlayer();
+  }
+
+  /** Where a profile rises: over the board, or over Rival Matches when that is what is open. */
+  private playerHost(): HTMLElement | null {
+    const board = document.querySelector<HTMLElement>('#board-overlay .lb-screen');
+    if (board && !this.$('board-overlay').classList.contains('hidden')) return board;
+    const list = this.$('challenge-list');
+    return list.classList.contains('hidden') ? board : list;
   }
 
   /** The profile, asked for; drawn in when it comes if the same sheet is still up. */
@@ -1207,7 +1222,7 @@ ${modeSelectMarkup()}
    * under reduced motion, where the sheet only fades.
    */
   private flyFace(from: HTMLElement | null, to: HTMLElement | null, home: boolean) {
-    const shell = document.querySelector<HTMLElement>('#board-overlay .lb-screen');
+    const shell = this.playerHost();
     const source = from?.querySelector<HTMLElement>('.board-kit') ?? null;
     const target = to?.querySelector<HTMLElement>('.board-kit') ?? null;
     if (!shell || !source || !target || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -5113,6 +5128,54 @@ ${modeSelectMarkup()}
     this.settle('rivals-ranking');
   }
   closeRanking() { this.$('rivals-ranking').classList.add('hidden'); }
+
+  /** This player's own handle, so Around now leaves them out. */
+  ownHandle: () => string | null = () => null;
+  /** The players this one has played, from Rival Matches: first in Around now. */
+  private rivalHandles = new Set<string>();
+  private aroundFilter: AroundFilter = 'everyone';
+  private aroundPlayers() { return aroundOrder(livePlayers(), this.rivalHandles, this.ownHandle()); }
+  /** Who is around, at the top of Rival Matches; redrawn whenever the list moves. */
+  private drawAround() {
+    const card = document.getElementById('around-card');
+    if (!card || this.$('challenge-list').classList.contains('hidden')) return;
+    card.innerHTML = aroundCardMarkup(this.aroundPlayers());
+    for (const one of card.querySelectorAll<HTMLElement>('.ar-face[data-handle]')) one.onclick = () => this.openLivePlayer(one.dataset.handle!, one);
+    for (const id of ['around-all', 'around-more']) { const key = document.getElementById(id); if (key) key.onclick = () => this.openAround(); }
+  }
+  /** Everybody around, as a sheet over Rival Matches. */
+  openAround() {
+    track('around-open', 'Around now opened');
+    const overlay = this.$('rivals-around');
+    overlay.onclick = event => { if (event.target === overlay) this.closeAround(); };
+    overlay.classList.remove('hidden');
+    this.drawAroundSheet();
+    this.settle('rivals-around');
+    void refreshLive(true);
+  }
+  closeAround() { this.$('rivals-around').classList.add('hidden'); }
+  private drawAroundSheet() {
+    const overlay = this.$('rivals-around');
+    if (overlay.classList.contains('hidden')) return;
+    const sheet = this.$('rivals-around-sheet');
+    sheet.innerHTML = aroundSheetMarkup(this.aroundPlayers(), this.rivalHandles, this.aroundFilter);
+    sheet.querySelector<HTMLElement>('#around-close')!.onclick = () => this.closeAround();
+    for (const tab of sheet.querySelectorAll<HTMLElement>('[data-around]')) {
+      tab.onclick = () => { this.aroundFilter = tab.dataset.around as AroundFilter; this.drawAroundSheet(); };
+    }
+    for (const row of sheet.querySelectorAll<HTMLElement>('.ar-row')) {
+      const go = () => { this.closeAround(); this.openLivePlayer(row.dataset.handle!, null); };
+      row.onclick = go;
+      row.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); go(); } };
+    }
+  }
+  /** A profile opened from Around now: drawn from what the list knew, then the store's. */
+  private openLivePlayer(handle: string, from: HTMLElement | null) {
+    const player = livePlayers().find(one => one.handle === handle);
+    if (!player) return;
+    track('profile-open-around', 'A player’s profile opened');
+    this.openPlayer({ handle, name: player.name, avatar: player.avatar, mode: player.mode ?? 'classic', place: null, best: null }, from);
+  }
   private drawRanking() {
     if (!this.ranking) return;
     const sheet = this.$('rivals-ranking-sheet');
@@ -5141,7 +5204,8 @@ ${modeSelectMarkup()}
     this.ranking = ranking ?? null;
     this.$('challenge-list-ranking').classList.toggle('hidden', !ranking);
     if (this.rankingShown) this.drawRanking();
-    this.$('challenge-sections').innerHTML = (record ? rivalsRecordMarkup(record, extra.form ?? []) : '') + (total
+    this.rivalHandles = new Set(all.flatMap(row => (row.them ? [row.them.handle] : [])));
+    this.$('challenge-sections').innerHTML = (record ? rivalsRecordMarkup(record, extra.form ?? []) : '') + '<div id="around-card"></div>' + (total
       ? `<h3 class="rival-section-head rv-head">CHALLENGES</h3><ul class="rival-rows rv-rows">${all.map(row => listRow(row, me)).join('')}</ul>`
       : `<div class="rv-empty-card"><span class="rv-faces is-big">${me === null ? '<span class="board-kit is-empty" aria-hidden="true"></span>' : kitMarkup(me, '')}<span class="board-kit is-empty is-rival" aria-hidden="true">?</span></span>
           <h3>NO RIVALS YET</h3><p>Start a match and send the link to someone who thinks they can bat.</p></div>`);
@@ -5149,6 +5213,8 @@ ${modeSelectMarkup()}
     this.viewport.classList.add('modal-open', 'picking-mode');
     this.$('challenge-list').classList.remove('hidden');
     this.enter(this.$('challenge-sections').querySelectorAll('.rival-row'), 50);
+    this.drawAround();
+    void refreshLive();
     this.settle('challenge-list');
   }
 

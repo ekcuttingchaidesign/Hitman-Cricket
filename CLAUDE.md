@@ -124,6 +124,27 @@ do it), dated when the innings was posted if that is inside the card's two
 days and now otherwise, so the card shows. Run it after the merge: before,
 the live site has no profile to show it on.
 
+## Who's around: online and batting
+
+Figma section 23, lane A. A named player's browser checks in with `/api/live`
+every couple of minutes while the page is on screen, and at once when an
+innings starts or ends (`Presence` in `src/game/live-api.ts`, started in
+`startPresence` and told of every phase in `setPhase`); never from a private
+window or a build with no board. The store keeps the last check-in under the
+handle, with the name checked against the registry (`checkIn` in
+`src/server/live-store.ts`), and the list answers handles only, in the edge
+cache for half a minute. Around for five minutes; a batting check-in older
+than four is only online. No last seen, and nobody can hide yet.
+
+What it looks like is painted, not drawn: `watchLive` (`src/ui/LiveMarks.ts`)
+marks every face on the page that names a player (`data-handle`, `data-rival`,
+`data-mine`) with a green dot or an amber bat badge, and a profile's photo
+ring takes the colour with one line under the name. Boards keep their design
+and only gain the mark. Who is around, all of them, is on Rival Matches: the
+Around now card and its sheet (`src/ui/AroundNow.ts`), a row opening the
+profile over Rival Matches (`playerHost` in the HUD). `scripts/live-check.mjs`
+walks it. A check-in is two Redis commands; the list is one per half minute.
+
 ## The rank hero: the end card's player card
 
 For a named player, once the store has said where the innings left them, the

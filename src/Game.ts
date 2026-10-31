@@ -1,4 +1,6 @@
 import { handleOf, ownsHandle } from './game/handle';
+import { Presence, liveNow, onLive, type Doing } from './game/live-api';
+import { watchLive } from './ui/LiveMarks';
 import { fetchActivity, fetchProfile, saveBio } from './game/profile-api';
 import { cleanBio } from './server/bio-rules';
 import {
@@ -700,6 +702,9 @@ export class Game {
    */
   private locked = false;
   private disposed = false;
+  /** Who is around: this player checked in, and everybody's marks painted (`live-api.ts`, `LiveMarks.ts`). */
+  private presence: Presence | null = null;
+  private stopLive: (() => void) | null = null;
   /**
    * Whether an innings played here can be registered. False in a private
    * window, where the player id is minted fresh every session: a row claimed
@@ -731,6 +736,7 @@ export class Game {
     // failure for an afternoon.
     void playerId().then(id => {
       this.player = id;
+      this.startPresence();
       // The return ticket follows the id and whatever name is written under
       // it. Not from a private window, whose id is gone with the tab anyway.
       if (this.canRegister) {
@@ -2746,6 +2752,7 @@ export class Game {
   }
   private setPhase(phase: GamePhase) {
     this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials);
+    this.presence?.changed();
     if (phase === 'READY' && this.marathon) this.tellLevel();
     if (phase === 'READY' && this.super10 && this.lesson < 0) this.super10Over(true);
     // As the bowler sets off: the surge's offer goes, the map goes back into
@@ -6258,7 +6265,32 @@ export class Game {
       told: { ...this.told }, clouded: this.scene.clouded,
     };
   }
+  /**
+   * Who is around: a named player is checked in while the game is on screen
+   * (batting while an innings is under way), and every face on the page that
+   * names a player is marked. Never from a private window or a build with no
+   * board, and never for a player with no name.
+   */
+  private startPresence() {
+    if (this.presence || NO_BOARD || !this.canRegister || this.disposed) return;
+    this.presence = new Presence(() => {
+      const mine = readPlayer();
+      return this.player && mine ? { playerId: this.player, name: mine.name, avatar: mine.avatar } : null;
+    }, () => this.doing());
+    this.presence.start();
+    this.hud.ownHandle = () => (this.player ? handleOf(this.player) : null);
+    const marks = watchLive(document.body, liveNow, () => (this.player ? handleOf(this.player) : null));
+    const off = onLive(marks.repaint);
+    this.stopLive = () => { off(); marks.stop(); };
+  }
+  /** What this player is up to, as the live list tells it: batting a real innings, or only here. */
+  private doing(): Doing {
+    const batting = !['START', 'INNINGS_END'].includes(this.phase) && this.lesson < 0 && !this.demoing;
+    if (!batting) return { state: 'online', mode: null };
+    return { state: 'batting', mode: this.surviving ? 'survive' : this.marathoning ? 'marathon' : this.super10 ? 'super10' : 'classic' };
+  }
   dispose() {
+    this.presence?.stop(); this.stopLive?.();
     onPlayerWritten(null);
     this.stopDressingSends?.(); window.clearTimeout(this.dressingTimer);
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();
