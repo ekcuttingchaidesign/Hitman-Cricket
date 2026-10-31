@@ -2377,11 +2377,11 @@ cannons, fireworks over the stand after dark, and his bat on fire, drawn
 flames in the game's inked style that stand up off the blade whichever way
 it lies. Both poses are ones he already has, held still (`PODIUM_POSES` in
 `Batter.ts`): a new best is the walk-on's bat on the shoulder (`SCRUB.on`),
-head up and the free hand hanging straight; a chase won is the triple
-hundred's arms flung wide (`WIDE`), both hands up and the bat out along the
-right arm. A hand on the hip and a fist pumped down were tried first, and
-the free arm's curve read badly; so did a bat laid on the shoulder made up
-for the podium. Never in the Tests, practice, a Rival
+head up and the free hand hanging straight; a chase won is the driven
+four's lean (`LEANING`), the bat planted at his side, legs crossed, a hand
+on his hip. A bat raised with a fist pumped down came first and its free
+arm read badly, then the triple hundred's arms flung wide, which read as a
+wave; so did a bat laid on the shoulder made up for the podium. Never in the Tests, practice, a Rival
 Match or a demo; not under `?debug=1` (its checks wait on the card) or
 reduced motion; `?podium=0` turns it off. `?podium=1` is a row of keys,
 NEW BEST and CHASE WON, putting it up over a made-up innings in the mode
@@ -2398,8 +2398,7 @@ The flames are fire on both.
 The film (`podiumCamera`, about six and a half seconds, `PODIUM`): the stage
 whole from low on the outfield, pushing in; a cut round to his left at
 full-body distance; a cut to the foot of the block looking up at him, the
-score under his boots, held, wider for a chase won and aimed partly at the
-bat, wherever his hand puts it. Never near the gloves, as the walk-on. The
+score under his boots, held. Never near the gloves, as the walk-on. The
 stage stands square of the pitch with its back to the rope (`PODIUM_AT` in
 `GameScene.ts`), built when it goes up and thrown away when it comes down,
 its shaders compiled in the cut from the last ball (`renderer.compile`). The

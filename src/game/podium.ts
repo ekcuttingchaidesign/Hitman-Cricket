@@ -60,11 +60,9 @@ const BLOCK_Z = -2.4;
  * 1. The stage whole, low on the outfield, pushing in as the fountains go.
  * 2. Cut round to his left, turning about him a little at full-body distance.
  * 3. Cut to low at the foot of the block looking up at him, the score under
- *    his boots and the arch behind his head, rising a touch; held to the end,
- *    and wider for a chase won, whose arms and bat are flung out, aimed
- *    partly at the bat (`batX`: where it is across the stage from him).
+ *    his boots and the arch behind his head, rising a touch; held to the end.
  */
-export function podiumCamera(t: number, kind: PodiumKind = 'best', batX = 0): CameraPose {
+export function podiumCamera(t: number): CameraPose {
   const [one, two] = PODIUM.cuts;
   if (t < one) {
     const k = ease(t / one);
@@ -75,11 +73,5 @@ export function podiumCamera(t: number, kind: PodiumKind = 'best', batX = 0): Ca
     return { eye: [Math.sin(turn) * r, 2.3 + .4 * k, BLOCK_Z + Math.cos(turn) * r], at: [0, 2.9, BLOCK_Z], fov: 40 };
   }
   const k = ease((t - two) / (PODIUM.total - two));
-  // A chase won has his arms flung wide with the bat out along one of them, which wants the wider picture.
-  // Aimed partly at the bat, `batX` across the stage from him, which is his left or right by his hand.
-  if (kind === 'chase') {
-    const lean = batX * .45;
-    return { eye: mix([1.5 + lean, .95, 5.8], [1.1 + lean, 1.1, 5.2], k), at: mix([lean, 2.9, BLOCK_Z], [lean, 3.0, BLOCK_Z], k), fov: 48 - 2 * k };
-  }
   return { eye: mix([1.5, .95, 4.8], [1.1, 1.1, 4.2], k), at: mix([0, 3.0, BLOCK_Z], [0, 3.15, BLOCK_Z], k), fov: 42 - 2 * k };
 }

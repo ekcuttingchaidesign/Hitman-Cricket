@@ -2761,15 +2761,15 @@ const CHAMPION_DONE: Pose = champion({ ...CHAMPION, headDown: -.20 }, [.08, -.10
  * The podium (`src/scene/podium.ts`): stood on it, held still, in poses he
  * already has. A new best is the walk-on's bat on the shoulder (`SCRUB`'s,
  * the free hand hanging straight), his head up rather than down at his mark; a chase
- * won is the triple hundred's arms flung wide (`WIDE`), both hands up and the
- * bat out along the right arm. `turn` is how far he is turned from the pose's
+ * won is the driven four's lean (`LEANING`), the bat planted at his side, legs
+ * crossed and a hand on his hip. `turn` is how far he is turned from the pose's
  * own facing to face the stage's front, a little short of square so the bat
  * side shows.
  */
 export type PodiumPose = 'best' | 'chase';
 const PODIUM_POSES: Record<PodiumPose, { pose: Pose; turn: number }> = {
   best: { pose: { ...SCRUB.on, headDown: 0, look: -.08, fist: hangingFist(SCRUB.on) }, turn: Math.PI - .5 - SCRUB.on.yaw },
-  chase: { pose: { ...WIDE, headDown: -.3 }, turn: Math.PI - .2 - WIDE.yaw },
+  chase: { pose: { ...LEANING, headDown: -.08 }, turn: Math.PI - .35 - LEANING.yaw },
 };
 /** How far `kind` is turned about him to face the stage's front: see `PODIUM_POSES`. */
 export const podiumTurn = (kind: PodiumPose) => PODIUM_POSES[kind].turn;

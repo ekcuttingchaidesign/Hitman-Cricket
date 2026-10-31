@@ -1657,9 +1657,7 @@ export class GameScene {
     // From the stage's frame to the stage's: the camera's keys are the stage's.
     const into = this.world.matrixWorld.clone().invert().multiply(stage.group.matrixWorld);
     const local = (v: readonly [number, number, number]) => { const p = new THREE.Vector3(...v).applyMatrix4(into); return [p.x, p.y, p.z] as const; };
-    // Where the bat is across the stage from him, for a shot aimed partly at it.
-    const bat = new THREE.Vector3(), batX = () => stage.group.worldToLocal(this.batter.bat.getWorldPosition(bat)).x;
-    this.cinematic(at => { const pose = podiumCamera(this.podiumClock(at), this.podiumKind, batX()); return { eye: local(pose.eye), at: local(pose.at), fov: pose.fov }; });
+    this.cinematic(at => { const pose = podiumCamera(this.podiumClock(at)); return { eye: local(pose.eye), at: local(pose.at), fov: pose.fov }; });
     // Its shaders compiled now, in the cut from the last ball, rather than a frame into the film.
     this.renderer.compile(this.scene, this.camera);
   }
