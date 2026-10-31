@@ -2758,29 +2758,21 @@ const CHAMPION_LOOK: Pose = { ...CHAMPION, face: CHAMPION.face + .4, headDown: -
 const CHAMPION_DONE: Pose = champion({ ...CHAMPION, headDown: -.20 }, [.08, -.10, .30]);
 
 /**
- * The podium (`src/scene/podium.ts`): stood on it, held, facing whoever
- * looks. A new best is the bat laid back over his shoulder in the one hand,
- * the other on his hip, feet set and the chin up; a chase won is the bat held
- * straight up at the stretch of his arm to the crowd, the other fist down by
- * his hip. `yaw` is which way he faces, in his own frame.
+ * The podium (`src/scene/podium.ts`): stood on it, held still, in poses he
+ * already has. A new best is the walk-on's bat on the shoulder (`SCRUB`'s,
+ * the free hand hanging straight), his head up rather than down at his mark; a chase
+ * won is the triple hundred's arms flung wide (`WIDE`), both hands up and the
+ * bat out along the right arm. `turn` is how far he is turned from the pose's
+ * own facing to face the stage's front, a little short of square so the bat
+ * side shows.
  */
 export type PodiumPose = 'best' | 'chase';
-export const PODIUM_YAW = Math.PI;
-const PODIUM_POSES: Record<PodiumPose, Pose> = {
-  best: (() => {
-    const body: Pose = wide({ ...FACING, hip: [-.02, .98, -.02], chest: [.00, 1.33, -.03], yaw: PODIUM_YAW - .3, face: PODIUM_YAW - .05,
-      look: -.16, headDown: 0, shoulderLift: .12, release: 1 }, .27);
-    // The hand in front of the shoulder, the blade laid back over it, the toe
-    // behind him and up and out past his ear, its face to the sky.
-    const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw)), out = outwards(body, 1);
-    const grip = shoulderOf(body, 1).addScaledVector(ahead, .2).addScaledVector(UP, -.12).addScaledVector(out, .02);
-    const toe = ahead.clone().multiplyScalar(-.6).addScaledVector(UP, .55).addScaledVector(out, .5).normalize();
-    const face = UP.clone().addScaledVector(toe, -UP.dot(toe)).normalize();
-    return { ...body, grip: point(grip), batUp: point(toe.clone().negate()), batFace: point(face), ownFace: 1, fist: onHip(body) };
-  })(),
-  chase: champion(wide({ ...FACING, hip: [-.02, .96, -.02], chest: [.00, 1.31, .00], yaw: PODIUM_YAW - .25, face: PODIUM_YAW - .1,
-    headDown: -.38, shoulderLift: .14 }, .30), [.10, -.36, .24]),
+const PODIUM_POSES: Record<PodiumPose, { pose: Pose; turn: number }> = {
+  best: { pose: { ...SCRUB.on, headDown: 0, look: -.08, fist: hangingFist(SCRUB.on) }, turn: Math.PI - .5 - SCRUB.on.yaw },
+  chase: { pose: { ...WIDE, headDown: -.3 }, turn: Math.PI - .2 - WIDE.yaw },
 };
+/** How far `kind` is turned about him to face the stage's front: see `PODIUM_POSES`. */
+export const podiumTurn = (kind: PodiumPose) => PODIUM_POSES[kind].turn;
 
 /** The five celebrations: the fifty's nod, the hundred, and the Marathon's three big ones. */
 export type Celebration = 'fifty' | 'hundred' | 'double' | 'triple' | 'four';
@@ -3880,7 +3872,7 @@ export class Batter {
   update(now: number) {
     this.lastNow = now;
     if (this.onPodium !== null) {
-      const { kind, t } = this.onPodium, pose = PODIUM_POSES[kind], breath = Math.sin(t * Math.PI * 2 / 2600) * .008;
+      const { kind, t } = this.onPodium, pose = PODIUM_POSES[kind].pose, breath = Math.sin(t * Math.PI * 2 / 2600) * .008;
       return this.apply({ ...pose, chest: [pose.chest[0], pose.chest[1] + breath, pose.chest[2] - breath * .5] });
     }
     if (this.staged !== null) return this.applyStaged(this.staged);

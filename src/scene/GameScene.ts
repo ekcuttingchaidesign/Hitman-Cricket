@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt, type PodiumPose } from '../entities/Batter';
+import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt, type PodiumPose, podiumTurn } from '../entities/Batter';
 import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
 import { bodyOf, showBody } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
@@ -1657,7 +1657,9 @@ export class GameScene {
     // From the stage's frame to the stage's: the camera's keys are the stage's.
     const into = this.world.matrixWorld.clone().invert().multiply(stage.group.matrixWorld);
     const local = (v: readonly [number, number, number]) => { const p = new THREE.Vector3(...v).applyMatrix4(into); return [p.x, p.y, p.z] as const; };
-    this.cinematic(at => { const pose = podiumCamera(this.podiumClock(at)); return { eye: local(pose.eye), at: local(pose.at), fov: pose.fov }; });
+    // Where the bat is across the stage from him, for a shot aimed partly at it.
+    const bat = new THREE.Vector3(), batX = () => stage.group.worldToLocal(this.batter.bat.getWorldPosition(bat)).x;
+    this.cinematic(at => { const pose = podiumCamera(this.podiumClock(at), this.podiumKind, batX()); return { eye: local(pose.eye), at: local(pose.at), fov: pose.fov }; });
     // Its shaders compiled now, in the cut from the last ball, rather than a frame into the film.
     this.renderer.compile(this.scene, this.camera);
   }
@@ -1712,7 +1714,7 @@ export class GameScene {
       this.batter.podium(this.podiumKind, t);
       this.world.updateMatrixWorld(true);
       const top = this.world.worldToLocal(stage.group.localToWorld(PODIUM_TOP.clone()));
-      this.batter.root.position.copy(top); this.batter.root.rotation.set(0, Math.PI / 2, 0);
+      this.batter.root.position.copy(top); this.batter.root.rotation.set(0, Math.PI / 2 + podiumTurn(this.podiumKind), 0);
       this.bowlerHolder.visible = false; this.field.fielders.forEach(f => f.root.visible = false);
       stage.update(t / 1000, this.renderer.domElement.height / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2)));
     }

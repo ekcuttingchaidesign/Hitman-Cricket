@@ -34,18 +34,20 @@ describe('the podium: what it says', () => {
 
 describe('the podium: the camera', () => {
   it('moves slowly, no faster than a crane but at a cut', () => {
-    let last = podiumCamera(0);
-    for (let t = 16; t <= PODIUM.total; t += 16) {
-      const now = podiumCamera(t);
-      if (!PODIUM.cuts.some(cut => t - 16 < cut && t >= cut)) expect(Math.hypot(...now.eye.map((v, i) => v - last.eye[i])) / .016).toBeLessThan(3.5);
-      last = now;
+    for (const kind of ['best', 'chase'] as const) {
+      let last = podiumCamera(0, kind);
+      for (let t = 16; t <= PODIUM.total; t += 16) {
+        const now = podiumCamera(t, kind);
+        if (!PODIUM.cuts.some(cut => t - 16 < cut && t >= cut)) expect(Math.hypot(...now.eye.map((v, i) => v - last.eye[i])) / .016).toBeLessThan(3.5);
+        last = now;
+      }
     }
   });
 
   it('keeps off the gloves: never nearer him than full-body distance', () => {
     // He stands on the block, his chest about two metres over the deck's front edge and 2.4 back.
-    for (let t = 0; t <= PODIUM.total; t += 50) {
-      const { eye } = podiumCamera(t);
+    for (const kind of ['best', 'chase'] as const) for (let t = 0; t <= PODIUM.total; t += 50) {
+      const { eye } = podiumCamera(t, kind);
       expect(Math.hypot(eye[0], eye[1] - 2.6, eye[2] + 2.4)).toBeGreaterThan(6.5);
     }
   });
