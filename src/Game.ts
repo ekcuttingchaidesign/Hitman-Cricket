@@ -1127,6 +1127,13 @@ export class Game {
       /** The walk-on's clock pinned at `t` milliseconds, or let run again with null. */
       introAt: (t: number | null) => { this.introPin = t; this.scene.introAt(t); },
       walkingOn: () => this.walking?.film ?? null,
+      /** The podium mock-up: `podium('best', { score, line, name, mode })`, null to take it down; `podiumShot` puts the camera in the stage's frame. */
+      podium: (kind: 'best' | 'chase' | null, card?: { score: string; line: string; name: string; mode: string }) => {
+        this.bannerUntil = kind ? Number.POSITIVE_INFINITY : this.elapsed;
+        this.hud.walkOn(kind ? 0 : null);
+        this.scene.podium(kind, card);
+      },
+      podiumShot: (eye: [number, number, number], at: [number, number, number], fov = 40) => this.scene.podiumShot(eye, at, fov),
       /** The camera held where it is put, for photographing a ground; null hands it back to the game. */
       camera: (pose: CameraPose | null) => this.scene.cinematic(pose ? () => pose : null),
       /** Fireworks over the far end for `ms`, on any ground after dark, for photographing. */

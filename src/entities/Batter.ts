@@ -2757,6 +2757,31 @@ const CHAMPION_LOOK: Pose = { ...CHAMPION, face: CHAMPION.face + .4, headDown: -
 /** The fist up in front of his chest on the way down, ready to take the handle again. */
 const CHAMPION_DONE: Pose = champion({ ...CHAMPION, headDown: -.20 }, [.08, -.10, .30]);
 
+/**
+ * The podium (`src/scene/podium.ts`): stood on it, held, facing whoever
+ * looks. A new best is the bat laid back over his shoulder in the one hand,
+ * the other on his hip, feet set and the chin up; a chase won is the bat held
+ * straight up at the stretch of his arm to the crowd, the other fist down by
+ * his hip. `yaw` is which way he faces, in his own frame.
+ */
+export type PodiumPose = 'best' | 'chase';
+export const PODIUM_YAW = Math.PI;
+const PODIUM_POSES: Record<PodiumPose, Pose> = {
+  best: (() => {
+    const body: Pose = wide({ ...FACING, hip: [-.02, .98, -.02], chest: [.00, 1.33, -.03], yaw: PODIUM_YAW - .3, face: PODIUM_YAW - .05,
+      look: -.16, headDown: 0, shoulderLift: .12, release: 1 }, .27);
+    // The hand in front of the shoulder, the blade laid back over it, the toe
+    // behind him and up and out past his ear, its face to the sky.
+    const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw)), out = outwards(body, 1);
+    const grip = shoulderOf(body, 1).addScaledVector(ahead, .2).addScaledVector(UP, -.12).addScaledVector(out, .02);
+    const toe = ahead.clone().multiplyScalar(-.6).addScaledVector(UP, .55).addScaledVector(out, .5).normalize();
+    const face = UP.clone().addScaledVector(toe, -UP.dot(toe)).normalize();
+    return { ...body, grip: point(grip), batUp: point(toe.clone().negate()), batFace: point(face), ownFace: 1, fist: onHip(body) };
+  })(),
+  chase: champion(wide({ ...FACING, hip: [-.02, .96, -.02], chest: [.00, 1.31, .00], yaw: PODIUM_YAW - .25, face: PODIUM_YAW - .1,
+    headDown: -.38, shoulderLift: .14 }, .30), [.10, -.36, .24]),
+};
+
 /** The five celebrations: the fifty's nod, the hundred, and the Marathon's three big ones. */
 export type Celebration = 'fifty' | 'hundred' | 'double' | 'triple' | 'four';
 /**
@@ -3833,9 +3858,31 @@ export class Batter {
    * to one at its toe; null puts it away. See the blade's material.
    */
   sweep(along: number | null) { this.sweepAt.value = along ?? -9; }
+  /**
+   * Stood on the podium (`src/scene/podium.ts`) in `kind`, breathing, at `t`
+   * on its clock; null hands him back to the crease in his guard.
+   */
+  podium(kind: PodiumPose | null, t = 0) {
+    if (kind === null) {
+      if (this.onPodium !== null) { this.onPodium = null; this.reset(); }
+      return;
+    }
+    this.onPodium = { kind, t };
+  }
+  private onPodium: { kind: PodiumPose; t: number } | null = null;
+  /** The blade's toe and its shoulder, in the bat's own frame: where the podium's flames run. */
+  bladeSpan(): [THREE.Vector3, THREE.Vector3] {
+    const geometry = this.blade.geometry; geometry.computeBoundingBox();
+    const box = geometry.boundingBox!; this.blade.updateMatrix();
+    return [new THREE.Vector3(0, box.min.y, 0).applyMatrix4(this.blade.matrix), new THREE.Vector3(0, box.max.y, 0).applyMatrix4(this.blade.matrix)];
+  }
 
   update(now: number) {
     this.lastNow = now;
+    if (this.onPodium !== null) {
+      const { kind, t } = this.onPodium, pose = PODIUM_POSES[kind], breath = Math.sin(t * Math.PI * 2 / 2600) * .008;
+      return this.apply({ ...pose, chest: [pose.chest[0], pose.chest[1] + breath, pose.chest[2] - breath * .5] });
+    }
     if (this.staged !== null) return this.applyStaged(this.staged);
     if (this.runupFresh) { this.runupSeen = now; this.runupFresh = false; }
     if (Number.isFinite(this.felledAt)) return this.applyFall(now - this.felledAt);

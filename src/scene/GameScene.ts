@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt } from '../entities/Batter';
+import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt, type PodiumPose } from '../entities/Batter';
 import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
 import { bodyOf, showBody } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
@@ -17,6 +17,9 @@ import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture, type Tur
 import { BOARD_PANELS, perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, nightOnly, ownFloodlights, turfOf, type GroundName } from './grounds';
+import { Podium, PODIUM_TOP, type PodiumCard } from './podium';
+/** Where the podium's deck meets the grass, square of the pitch on the off side, in the stage's frame. */
+const PODIUM_AT = { x: 17, z: 10 } as const;
 import { Arena, LedStumps, MILESTONE_WORDS, Showboards, screenFrom, type ArenaCue, type ArenaMood, type Scoreboard } from './arena';
 import { buildWicket } from './wicket';
 import type { CrowdCelebration, CrowdMoment } from './CrowdCelebration';
@@ -1629,6 +1632,37 @@ export class GameScene {
     this.cinematic(at => introCamera(film, this.introClock(at), this.homeView, mark, this.world.scale.x));
   }
   introAt(t: number | null) { this.introPinned = t; }
+  /**
+   * The podium (`podium.ts`), a mock-up: the stage on the outfield square of
+   * the pitch, him stood on it in `kind` with his bat alight, and everybody
+   * else out of the way. Null takes it down and puts him back at the crease.
+   */
+  podium(kind: PodiumPose | null, card?: PodiumCard) {
+    this.stagePodium?.dispose(); this.stagePodium = null;
+    if (!kind || !card) {
+      this.batter.podium(null); this.cinematic(null);
+      this.bowlerHolder.visible = true; this.field.fielders.forEach(f => f.root.visible = true);
+      return;
+    }
+    const stage = new Podium(card, this.batter.bladeSpan(), this.now === 'night');
+    const side = this.world.scale.x;
+    stage.group.position.set(PODIUM_AT.x, 0, PODIUM_AT.z); stage.group.rotation.y = -Math.PI / 2; stage.group.scale.x = side;
+    this.world.add(stage.group); this.batter.bat.add(stage.fire);
+    this.stagePodium = stage; this.podiumFrom = this.clock; this.podiumKind = kind;
+  }
+  /** The camera for the podium, in the stage's own frame (`podium.ts`). */
+  podiumShot(eye: readonly [number, number, number], at: readonly [number, number, number], fov: number) {
+    const local = (v: readonly [number, number, number]) => {
+      const p = this.world.worldToLocal(this.stagePodium!.group.localToWorld(new THREE.Vector3(...v)));
+      return [p.x, p.y, p.z] as const;
+    };
+    this.scene.updateMatrixWorld(true);
+    const e = local(eye), a = local(at);
+    this.cinematic(() => ({ eye: e, at: a, fov }));
+  }
+  private stagePodium: Podium | null = null;
+  private podiumFrom = 0;
+  private podiumKind: PodiumPose = 'best';
   private introFrom = -Infinity;
   private introPinned: number | null = null;
   private introFilm: Film = 'bat';
@@ -1658,6 +1692,15 @@ export class GameScene {
     const frame = this.show?.update(now, this.reducedMotion, this.bowling);
     if (frame) this.arena?.update(now, frame, this.reducedMotion);
     if (this.ledUp) this.led.update(now, this.bailsBrokeAt ? now - this.bailsBrokeAt : -1, this.reducedMotion);
+    if (this.stagePodium) {
+      const t = now - this.podiumFrom, stage = this.stagePodium;
+      this.batter.podium(this.podiumKind, t);
+      this.world.updateMatrixWorld(true);
+      const top = this.world.worldToLocal(stage.group.localToWorld(PODIUM_TOP.clone()));
+      this.batter.root.position.copy(top); this.batter.root.rotation.set(0, Math.PI / 2, 0);
+      this.bowlerHolder.visible = false; this.field.fielders.forEach(f => f.root.visible = false);
+      stage.update(t / 1000, this.renderer.domElement.height / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2)));
+    }
     if (Number.isFinite(this.introFrom)) {
       const t = this.introClock(now), film = this.introFilm;
       this.batter.stage(t, film); this.batter.sweep(introSweep(film, t));
