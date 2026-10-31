@@ -1,4 +1,6 @@
 import { limitsOf } from '../game/ball-string';
+import { bellLabel, type Notice, type NoticeFilter } from '../game/notices';
+import { noticesBodyMarkup, noticesMarkup, type NoticesView } from './Notices';
 import { ownsHandle } from '../game/handle';
 import { MarathonInnings } from '../game/Marathon';
 import { GAME, SOLID_SHOT } from '../config/gameplay';
@@ -104,7 +106,6 @@ import { chipLine, surviveGoal, type Chase, type Mine } from '../game/chase';
 import { chaseChipMarkup, chaseIntroMarkup, passedMarkup } from './ChaseUi';
 import { fieldLine } from '../game/super10-field';
 import { replayAnimation, replayClass } from './replay';
-import { activitySheetMarkup } from './Activity';
 import type { OwnActivity } from '../game/profile-api';
 import wifiOff from '../assets/board/wifi-off.svg?raw';
 /** Each poster on Choose a mode's rail, by its mode, to its dot in the pager under it. */
@@ -302,6 +303,9 @@ const FILM_ASPECT = 1080 / 1920;
 /** What the restore sheet hands the game: a name, and a password or a key. */
 export type RestoreEntry = { name: string; password: string; key?: undefined } | { name: string; key: string; password?: undefined };
 
+
+/** How long the challenge banner on Choose a mode stands. */
+const ALERT_MS = 6000;
 
 export class HUD {
   readonly viewport: HTMLElement;
@@ -617,6 +621,7 @@ ${modeSelectMarkup()}
         <div id="rivals-ranking" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rivals-ranking-title">
           <div id="rivals-ranking-sheet" class="ranking-sheet"></div>
         </div>
+        <div id="notices" class="modal-overlay nt-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="notices-title"></div>
         <div id="rivals-around" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="around-title">
           <div id="rivals-around-sheet" class="ranking-sheet ar-sheet"></div>
         </div>
@@ -1042,6 +1047,8 @@ ${modeSelectMarkup()}
 
   /** Where a profile rises: over the board, or over Rival Matches when that is what is open. */
   private playerHost(): HTMLElement | null {
+    const notices = this.$('notices');
+    if (!notices.classList.contains('hidden')) return notices.querySelector<HTMLElement>('.nt-screen') ?? notices;
     const board = document.querySelector<HTMLElement>('#board-overlay .lb-screen');
     if (board && !this.$('board-overlay').classList.contains('hidden')) return board;
     const list = this.$('challenge-list');
@@ -1673,6 +1680,9 @@ ${modeSelectMarkup()}
     if (this.statsView && !this.$('stats-overlay').classList.contains('hidden')) this.stats(this.statsView);
   }
 
+  /** The headline on My profile, pressed: Notifications on Board where there is one. */
+  onActivityOpen: (() => void) | null = null;
+
   /** WIN IT BACK on the Your profile sheet: chase what was taken. */
   onWinBack: ((event: OwnActivity['events'][number]) => void) | null = null;
 
@@ -1683,37 +1693,9 @@ ${modeSelectMarkup()}
     const open = document.getElementById('mp-activity-open');
     if (!open || !this.activity) return;
     open.onclick = () => {
-      const activity = this.activity;
-      if (!activity) return;
-      track('activity-open', 'Your profile sheet opened');
-      const layer = document.createElement('div');
-      layer.className = 'lb-pop mp-layer';
-      layer.innerHTML = activitySheetMarkup(activity);
-      page.append(layer);
-      const escapeKey = (event: KeyboardEvent) => {
-        if (event.key !== 'Escape') return;
-        event.stopPropagation();
-        event.preventDefault();
-        shut();
-      };
-      const shut = () => {
-        document.removeEventListener('keydown', escapeKey, true);
-        layer.remove();
-        open.focus({ preventScroll: true });
-      };
-      document.addEventListener('keydown', escapeKey, true);
-      layer.querySelector<HTMLElement>('[data-close]')!.onclick = shut;
-      layer.querySelector<HTMLElement>('#activity-close')!.onclick = shut;
-      layer.querySelector<HTMLElement>('#activity-bio')?.addEventListener('click', () => { shut(); this.onProfileEdit?.(); });
-      for (const win of layer.querySelectorAll<HTMLElement>('.mp-win')) {
-        win.onclick = () => {
-          const event = activity.events[Number(win.dataset.event)];
-          if (!event) return;
-          shut();
-          this.onWinBack?.(event);
-        };
-      }
-      layer.querySelector<HTMLElement>('#activity-close')!.focus({ preventScroll: true });
+      // Notifications on Board holds what a sheet here once held (Figma 23, E3).
+      track('activity-open', 'Rank down opened Notifications');
+      this.onActivityOpen?.();
     };
   }
 
@@ -4473,6 +4455,7 @@ ${modeSelectMarkup()}
   }
   closeModes() {
     this.super10Spark.stop();
+    this.modesAlert(null);
     this.$('modes').classList.add('hidden');
     this.viewport.classList.remove('picking-mode');
     if (this.$('end').classList.contains('hidden') && this.$('end-survive').classList.contains('hidden')) {
@@ -5297,6 +5280,111 @@ ${modeSelectMarkup()}
     void refreshLive(true);
   }
   closeAround() { this.$('rivals-around').classList.add('hidden'); }
+
+  /** The bell on Choose a mode (Figma 23, E1): its count, or hidden for a player with nothing to be told. */
+  bell(count: number | null) {
+    const bell = document.getElementById('modes-bell');
+    if (!bell) return;
+    bell.classList.toggle('hidden', count === null);
+    const label = bellLabel(count ?? 0);
+    const badge = this.$('modes-bell-count');
+    badge.textContent = label;
+    badge.classList.toggle('hidden', !label);
+    bell.setAttribute('aria-label', label ? `Notifications, ${label} new` : 'Notifications');
+  }
+
+  /**
+   * A challenge arriving while Choose a mode is up (Figma 23, C8): a banner
+   * over the posters with ANSWER, gone after a few seconds or on a tap.
+   */
+  modesAlert(view: { code: string; name: string; avatar: number; line: string } | null) {
+    const alert = this.$('modes-alert');
+    window.clearTimeout(this.alertTimer);
+    if (!view) { alert.classList.add('hidden'); alert.innerHTML = ''; return; }
+    alert.innerHTML = `<span class="ms-alert-face" data-handle-face>${kitMarkup(view.avatar, view.name)}</span>
+      <span class="ms-alert-text"><b>${escape(view.name)} challenged you</b><small>${escape(view.line)}</small></span>
+      <button type="button" id="modes-alert-answer" class="nt-key is-answer">ANSWER</button>`;
+    alert.classList.remove('hidden');
+    replayClass(alert, 'is-in');
+    const answer = () => { this.modesAlert(null); this.onInviteAnswer?.(view.code); };
+    alert.querySelector<HTMLElement>('#modes-alert-answer')!.onclick = event => { event.stopPropagation(); track('modes-alert-answer', 'Challenge banner answered'); answer(); };
+    alert.onclick = answer;
+    this.alertTimer = window.setTimeout(() => this.modesAlert(null), ALERT_MS);
+  }
+  private alertTimer = 0;
+
+  /** A row's key: ANSWER, AGAIN or WIN IT BACK. */
+  onNoticeKey: ((notice: Notice) => void) | null = null;
+  /** A row itself: the room it is about, or the player's profile. */
+  onNoticeRow: ((notice: Notice) => void) | null = null;
+  /** OPEN THE LEADERBOARD, on the empty screen. */
+  onNoticesBoard: (() => void) | null = null;
+  private noticesView: NoticesView | null = null;
+  private noticesEscape = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape' || this.$('notices').classList.contains('hidden')) return;
+    // A sheet or a profile opened over it goes first, by its own Escape.
+    if (this.playerOpen || document.querySelector('.cc-layer')) return;
+    event.stopPropagation(); event.preventDefault();
+    this.closeNotices();
+  };
+
+  get noticesOpen() { return !this.$('notices').classList.contains('hidden'); }
+
+  /** The Notifications screen (E2 to E4): opened, or drawn again in place with what has arrived. */
+  notices(view: NoticesView) {
+    const overlay = this.$('notices');
+    const opening = overlay.classList.contains('hidden');
+    if (!opening && this.noticesView) view = { ...view, filter: this.noticesView.filter, seenAt: this.noticesView.seenAt };
+    this.noticesView = view;
+    if (!opening && (this.playerOpen || overlay.querySelector('.cc-layer'))) { this.drawNoticesBody(); return; }
+    overlay.innerHTML = noticesMarkup(view);
+    overlay.querySelector<HTMLElement>('#notices-back')!.onclick = () => this.closeNotices();
+    overlay.querySelector<HTMLElement>('#notices-board')?.addEventListener('click', () => { this.closeNotices(); this.onNoticesBoard?.(); });
+    for (const tab of overlay.querySelectorAll<HTMLElement>('[data-filter]')) {
+      tab.onclick = () => {
+        if (!this.noticesView) return;
+        this.noticesView = { ...this.noticesView, filter: tab.dataset.filter as NoticeFilter };
+        track(`notices-filter-${tab.dataset.filter}`, 'Notifications filtered');
+        for (const one of overlay.querySelectorAll<HTMLElement>('[data-filter]')) {
+          const on = one === tab;
+          one.classList.toggle('is-on', on);
+          one.setAttribute('aria-selected', String(on));
+        }
+        this.drawNoticesBody();
+      };
+    }
+    this.drawNoticesBody();
+    if (opening) {
+      overlay.classList.remove('hidden');
+      document.addEventListener('keydown', this.noticesEscape, true);
+      this.settle('notices');
+    }
+  }
+  private drawNoticesBody() {
+    const view = this.noticesView;
+    const body = document.getElementById('notices-body');
+    if (!view || !body) return;
+    body.innerHTML = noticesBodyMarkup(view);
+    for (const row of body.querySelectorAll<HTMLElement>('.nt-row')) {
+      const notice = view.notices[Number(row.dataset.row)];
+      if (!notice) continue;
+      const go = () => this.onNoticeRow?.(notice);
+      row.onclick = go;
+      row.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); go(); } };
+      row.querySelector<HTMLElement>('[data-key]')?.addEventListener('click', event => { event.stopPropagation(); this.onNoticeKey?.(notice); });
+    }
+  }
+  closeNotices() {
+    const overlay = this.$('notices');
+    overlay.classList.add('hidden');
+    overlay.innerHTML = '';
+    this.noticesView = null;
+    document.removeEventListener('keydown', this.noticesEscape, true);
+  }
+  /** A profile opened off a notification, over the screen. */
+  openNoticePlayer(face: { handle: string; name: string; avatar: number }, mode: CareerMode) {
+    this.openPlayer({ handle: face.handle, name: face.name, avatar: face.avatar, mode, place: null, best: null }, null);
+  }
   private drawAroundSheet() {
     const overlay = this.$('rivals-around');
     if (overlay.classList.contains('hidden')) return;

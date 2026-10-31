@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activityMarkup, activitySheetMarkup, agoOf, droppedBy, eventTitle, headline, rankLine, takenLine, winnable } from '../src/ui/Activity';
+import { activityMarkup, agoOf, droppedBy, eventTitle, headline, rankLine, takenLine, winnable } from '../src/ui/Activity';
 import type { OwnActivity } from '../src/game/profile-api';
 
 const NOW = Date.UTC(2026, 9, 18, 12);
@@ -98,23 +98,5 @@ describe('the headline and the quiet line', () => {
   it('is nothing at all for a profile nobody has touched', () => {
     expect(activityMarkup({ views: 0, bio: null, events: [] }, NOW)).toBe('');
     expect(activityMarkup(null, NOW)).toBe('');
-  });
-});
-
-describe('the Your profile sheet', () => {
-  it('groups by day, keeps who looked private, and asks for a bio where there is none', () => {
-    const html = activitySheetMarkup({ views: 14, bio: null, events: [event({}), event({ kind: 'passed', at: NOW - 2 * 24 * HOUR, wonBack: true })] }, NOW);
-    expect(html).toContain('TODAY');
-    expect(html).toContain('THIS WEEK');
-    expect(html).toContain('Who looked stays private');
-    expect(html).toContain('WIN IT BACK');
-    expect(html).toContain('You won it back');
-    expect(html).toContain('id="activity-bio"');
-    expect(activitySheetMarkup({ views: 1, bio: 'Six or nothing.', events: [] }, NOW)).not.toContain('id="activity-bio"');
-  });
-
-  it('writes a name in as text and never as markup', () => {
-    const html = activitySheetMarkup({ views: 0, bio: null, events: [event({ name: '<img src=x>' })] }, NOW);
-    expect(html).not.toContain('<img src=x>');
   });
 });

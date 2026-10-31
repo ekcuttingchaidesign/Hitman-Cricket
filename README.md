@@ -1035,6 +1035,7 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `around-open`, `profile-open-around` | Around now opened on Rival Matches, and a profile opened from it: how often who is around becomes a look. |
 | `challenge-open`, `challenge-made-<mode>`, `challenge-set-bat`, `challenge-set-left` | A challenge from a profile: the sheet opened, the challenge made, the total's innings started, and left before it was set (nothing sent). |
 | `around-challenge` | CHALLENGE pressed on an Around now row, before the confirm sheet's own `challenge-open`. |
+| `notices-open`, `notices-open-board`, `notices-filter-<filter>`, `notices-answer`, `notices-again`, `notices-winback`, `notices-room`, `notices-board`, `modes-alert`, `modes-alert-answer` | Notifications: opened from the bell (or on Board from My profile's Rank down), filtered, each key on a row, a match opened off a row, the leaderboard from the empty screen, and the banner on Choose a mode when a challenge arrives, and answered from it. |
 | `challenge-answer-open`, `challenge-accept`, `challenge-decline`, `challenge-chase-bat`, `challenge-chase-left`, `challenge-nudge` | The other side: the invite opened, accepted or declined, the chase started or walked out of (a loss), and a nudge sent. |
 | `profile-failed` | A profile the store did not answer for, so the sheet stood on what the row knew. |
 | `stats-open`, `activity-open` | My profile opened, and the Your profile sheet opened from its headline. |

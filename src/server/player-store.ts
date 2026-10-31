@@ -75,7 +75,7 @@ export interface PlayerStore {
 /** The days a view count covers. */
 export const VIEW_DAYS = 7;
 /** How many events a player keeps, and for how long. */
-export const EVENTS_KEPT = 10;
+export const EVENTS_KEPT = 50;
 export const EVENT_DAYS = 30;
 const DAY_MS = 86_400_000;
 /** Bio saves from one address an hour. A save is a tap on SAVE; this is for a loop, not a player. */

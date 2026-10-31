@@ -253,13 +253,14 @@ check(events.events?.[0]?.kind === 'beat' && events.events[0].runs === 174, 'and
   check(kept.bio === 'Six or nothing.', 'D · the store keeps the bio', JSON.stringify(kept.bio));
   const shown = await them.locator('.mp-hero.is-on .ps-bio').textContent().catch(() => '');
   check(/Six or nothing\./.test(shown ?? ''), 'D · and My profile says it under the name', shown);
+  // Rank down opens Notifications on Board, which holds what the old sheet did (Figma 23, E3).
   await them.locator('#mp-activity-open').click();
-  await them.waitForSelector('#activity-sheet');
+  await them.waitForSelector('#notices:not(.hidden) .nt-row', { timeout: 8000 });
   await them.waitForTimeout(500);
-  await them.screenshot({ path: `${out}/c4-sheet.png` });
-  check(await them.locator('#activity-sheet .mp-win').count() >= 1, 'the sheet offers WIN IT BACK');
-  check(/Who looked stays private/.test(await them.locator('#activity-sheet').innerText()), 'and keeps who looked private');
-  await them.locator('#activity-sheet .mp-win').first().click();
+  await them.screenshot({ path: `${out}/c4-notices.png` });
+  check(await them.locator('#notices .nt-filter.is-on[data-filter="board"]').count() === 1, 'Rank down opens Notifications on Board');
+  check(await them.locator('#notices .nt-key.is-win').count() >= 1, 'which offers WIN IT BACK');
+  await them.locator('#notices .nt-key.is-win').first().click();
   await them.waitForSelector('#chase-intro', { timeout: 8000 });
   check((await them.locator('.ch-intro-target b').getAttribute('data-to')) === '174', 'WIN IT BACK chases the runs that took it');
   // Played to the end and fallen short, the Rank down card still comes down.

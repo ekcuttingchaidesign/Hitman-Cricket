@@ -1,7 +1,8 @@
 import { handleOf, ownsHandle } from './game/handle';
 import { Presence, liveNow, onLive, type Doing } from './game/live-api';
 import { watchLive } from './ui/LiveMarks';
-import { fetchActivity, fetchProfile, saveBio, type ProfilePayload } from './game/profile-api';
+import { fetchActivity, fetchProfile, saveBio, type OwnActivity, type ProfilePayload } from './game/profile-api';
+import { noticesOf, readSeen, unseenCount, writeSeen, type Notice, type NoticeFilter } from './game/notices';
 import { cleanBio } from './server/bio-rules';
 import {
   againLabel, beaten, close, placeOnPassing, surviveGoal, surviveResultOf, surviveSurely, surviveVerdict, verdict, type Chase, type Mine,
@@ -260,6 +261,10 @@ const SUPER10_SHELF = SUPER10_OPEN && !SUPER10_ONLY;
 const LAST_MODE_KEY = 'hitman-last-mode';
 /** Which walk-on film this browser saw last, so the next visit opens on the other (`nextFilm`). */
 const WALK_ON_KEY = 'hitman-walk-on';
+/** A career's mode as the game plays it: Super10 is its own, never Survival's. */
+function gameModeOf(mode: CareerMode): 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' {
+  return mode === 'classic' ? 'CLASSIC' : mode === 'marathon' ? 'MARATHON' : mode === 'super10' && SUPER10_OPEN ? 'SUPER10' : mode === 'super10' ? 'CLASSIC' : 'SURVIVE';
+}
 function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' {
   try {
     const kept = localStorage.getItem(LAST_MODE_KEY);
@@ -830,6 +835,12 @@ export class Game {
     this.hud.on('mode-super10-poster', () => { track('super10-play-poster', 'Played Super10 from its poster on Choose a mode'); this.choose('SUPER10'); });
     // My Stats from Choose a mode: the avatar at the top and the tier card in the bento.
     this.hud.on('modes-profile', this.showStats);
+    this.hud.on('modes-bell', () => this.openNotices());
+    // My profile's Rank down card opens Notifications on Board, which replaced its sheet.
+    if (!NO_BOARD) this.hud.onActivityOpen = () => this.openNotices('board');
+    this.hud.onNoticeKey = notice => this.noticeKey(notice);
+    this.hud.onNoticeRow = notice => this.noticeRow(notice);
+    this.hud.onNoticesBoard = () => { track('notices-board', 'The boards opened from an empty Notifications'); this.showBoard(); };
     this.hud.on('modes-stats', this.showStats);
     // The boards, from the mode screen: the same sheet the cover's trophy
     // opens, laid over the picker, which is still there when it is put away.
@@ -929,7 +940,7 @@ export class Game {
     this.hud.onBoardFrame = (mode, ladder) => this.boardFrame(mode, ladder);
     this.hud.onBoardPlay = mode => {
       this.hud.closeBoard();
-      this.choose(mode === 'classic' ? 'CLASSIC' : mode === 'marathon' ? 'MARATHON' : 'SURVIVE');
+      this.choose(gameModeOf(mode));
     };
     this.hud.onBoardRetry = () => this.reopenBoard();
     // Another player's profile, from a row: a look counted for them only when
@@ -956,13 +967,13 @@ export class Game {
       chaseFor(chase.handle, chase.mode, chase.ladder);
       this.mark(chase.ladder === 'solo' ? 'chase-start-batter' : 'chase-start', 'Chase: started from a profile');
       this.hud.closeBoard();
-      this.choose(chase.mode === 'classic' ? 'CLASSIC' : chase.mode === 'marathon' ? 'MARATHON' : 'SURVIVE');
+      this.choose(gameModeOf(chase.mode));
     };
     this.hud.onBoardName = () => this.askProfile(false);
     this.hud.onStatsOpen = this.showStats;
     this.hud.onStatsPlay = mode => {
       this.hud.closeStats();
-      this.choose(mode === 'classic' ? 'CLASSIC' : mode === 'marathon' ? 'MARATHON' : 'SURVIVE');
+      this.choose(gameModeOf(mode));
     };
     // Either key in the sheet counts as saved. Which one was used is worth
     // knowing — one of them finishes the job and the other leaves homework —
@@ -1200,6 +1211,8 @@ export class Game {
     // for behind it so the next look is fresher.
     if (this.rooms) this.hud.challengesOpen(this.rooms.yourMove.length, this.rooms.waitingOnThem.length);
     void this.refreshCount();
+    this.askNotices();
+    if (this.noticed) this.bannerChallenge();
     // Anything earned away from an innings's end — a Rival Match settled while
     // the player was elsewhere — is celebrated here instead.
     this.celebrateUnlocks();
@@ -2269,6 +2282,8 @@ export class Game {
    */
   private walkOut = () => this.start();
   start = () => {
+    // Whatever led here — ANSWER, AGAIN or WIN IT BACK on Notifications — the innings is not played under it.
+    this.hud.closeNotices();
     if (this.walking) { this.walking = null; this.scene.walkOn(null); this.hud.walkOn(null); this.hud.walkOnCard(null, true); }
     if (this.chaseWon) { this.chaseWon = false; this.clearChase(); }
     // Who is batting, first: once, before the first innings there is.
@@ -3876,7 +3891,92 @@ export class Game {
       // My profile led with Rank down: against `activity-open` and `activity-win-back`, how often being passed brings a player back.
       if (headline(activity)) track('activity-headline', 'My profile led with Rank down');
       this.hud.statsActivity(activity);
+      this.ownActivity = activity;
+      this.activityAt = Date.now();
+      this.refreshBell();
     } catch { /* My profile without its activity is still My profile. */ }
+  }
+
+  /** On Choose a mode, a challenge waiting that the banner has not told of this visit gets it (C8). */
+  private bannerChallenge() {
+    if (!this.player || !this.hud.modesOpen || this.hud.noticesOpen) return;
+    const waiting = this.waitingOnMe();
+    const fresh = waiting.find(room => !this.alerted.has(room.code));
+    if (!fresh) return;
+    for (const room of waiting) this.alerted.add(room.code);
+    const host = fresh.players.find(one => one.host)!;
+    track('modes-alert', 'Challenge banner on Choose a mode');
+    this.hud.modesAlert({
+      code: fresh.code, name: host.name, avatar: host.avatar,
+      line: `Chase ${host.runs} · ${MODE_WORD[fresh.mode ?? 'classic']} · ${timeLeft((fresh.invite!.answerBy ?? Date.now()) - Date.now())} left`,
+    });
+  }
+
+  /** The challenges the banner on Choose a mode has already told of this visit. */
+  private alerted = new Set<string>();
+
+  /** The player's own activity, as last asked: the board's half of Notifications. */
+  private ownActivity: OwnActivity | null = null;
+  private activityAt = 0;
+
+  /** Whether this player is told anything: a name, a board and a window that keeps them. */
+  private get noticed() { return !!this.player && !!readPlayer()?.name && !NO_BOARD && this.canRegister; }
+
+  /** Everything Notifications holds now, from the rooms and the activity already asked for. */
+  private noticesNow(): Notice[] {
+    return this.player ? noticesOf(this.allRooms(), this.ownActivity, this.player) : [];
+  }
+
+  /** The bell's count, and the screen drawn again where it is up. */
+  private refreshBell() {
+    if (!this.noticed) { this.hud.bell(null); return; }
+    const notices = this.noticesNow();
+    this.hud.bell(unseenCount(notices, readSeen()));
+    if (this.hud.noticesOpen) this.hud.notices({ notices, filter: 'all', seenAt: 0, you: { avatar: readPlayer()?.avatar ?? null } });
+  }
+
+  /** The activity asked again once it is a minute old, for the bell on Choose a mode. */
+  private askNotices() {
+    if (!this.noticed) { this.hud.bell(null); return; }
+    this.refreshBell();
+    if (Date.now() - this.activityAt > 60_000) void this.askActivity();
+  }
+
+  /** Notifications (Figma 23, E2): opened on a filter; what is there now counts as seen. */
+  private openNotices = (filter: NoticeFilter = 'all') => {
+    if (!this.noticed) return;
+    track(`notices-open${filter === 'all' ? '' : `-${filter}`}`, 'Notifications opened');
+    const seenAt = readSeen();
+    this.hud.notices({ notices: this.noticesNow(), filter, seenAt, you: { avatar: readPlayer()?.avatar ?? null } });
+    writeSeen(Date.now());
+    this.refreshBell();
+    void this.askActivity();
+    void this.syncChallenges();
+  };
+
+  /** A row's key on Notifications. */
+  private noticeKey(notice: Notice) {
+    const key = notice.key;
+    if (!key) return;
+    track(`notices-${key.kind}`, 'A key on Notifications');
+    if (key.kind === 'answer') { this.answerInvite(key.code); return; }
+    if (key.kind === 'again') { this.challengeFrom({ handle: key.handle, name: notice.face.name, avatar: notice.face.avatar, profile: null }); return; }
+    const event = this.ownActivity?.events[key.event];
+    if (!event) return;
+    this.hud.closeNotices(); this.hud.closeModes();
+    this.hud.onWinBack?.(event);
+  }
+
+  /** A row itself: a challenge waiting opens its invite, a match its room, anything else the player's profile. */
+  private noticeRow(notice: Notice) {
+    if (notice.key?.kind === 'answer') { this.answerInvite(notice.key.code); return; }
+    if (notice.code && (notice.kind === 'results' || notice.kind === 'challenges')) {
+      track('notices-room', 'A match opened from Notifications');
+      this.hud.closeNotices(); this.hud.closeModes();
+      void this.listAct('open', notice.code);
+      return;
+    }
+    this.hud.openNoticePlayer(notice.face, notice.mode);
   }
 
   private showStats = () => {
@@ -6441,6 +6541,8 @@ export class Game {
       else if (this.best > 0) this.hud.coverBoard({ kind: 'best', runs: this.best, rank: null });
     }
     this.hud.refreshPlayerFoot();
+    this.refreshBell();
+    this.bannerChallenge();
     if (this.hud.listOpen && this.rooms) {
       this.hud.challengeList(listSections(this.rooms, me), this.rooms.record, this.rivalsRanking(), { form: recentForm(), me: readPlayer()?.avatar ?? null });
     }

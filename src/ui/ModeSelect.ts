@@ -129,10 +129,12 @@ export function modeSelectMarkup(): string {
           <div class="ms-glow" aria-hidden="true"><img src="${art('glow-left.svg')}" alt="" class="is-left"><img src="${art('glow-right.svg')}" alt="" class="is-right"></div>
           ${ground}
           <div class="ms-grain" aria-hidden="true"></div>
+          <div id="modes-alert" class="ms-alert hidden" role="status" aria-live="polite"></div>
           <div class="ms-content">
             <div class="ms-top">
               <button id="modes-cancel" class="k-icon-button" aria-label="Back" title="Back">${icon('arrow-left')}</button>
               <h2 id="modes-title" class="ms-title">CHOOSE A MODE</h2>
+              <button id="modes-bell" class="ms-bell hidden" type="button" aria-label="Notifications">${icon('bell')}<i id="modes-bell-count" class="ms-bell-count hidden"></i></button>
               <button id="modes-profile" class="ms-profile" type="button" aria-label="My profile"></button>
             </div>
             <div id="modes-rail" class="ms-rail" aria-label="Modes">

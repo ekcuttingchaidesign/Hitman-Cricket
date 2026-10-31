@@ -76,7 +76,8 @@ README's "Player profiles" is the long version.
   career cards keep `.stats-dot` and `data-slide`, so the rail's wiring is
   unchanged); the hero and ground per mode switch with it. The activity comes
   from `GET /api/profile?player=` when the page opens (`askActivity`), the
-  sheet is `src/ui/Activity.ts`, and WIN IT BACK chases the runs that took it.
+  headline is `src/ui/Activity.ts`, and behind it is Notifications on Board
+  (below), where WIN IT BACK chases the runs that took it.
   The headline is Rank down, about the player and never who did it, and it
   stands two days at most (`HEADLINE_MS`): a WIN IT BACK innings played to
   its end card takes it down sooner, won or not (`src/game/answered.ts`, kept
@@ -188,6 +189,28 @@ closing the game is walked out on the next time the list is read
 card, and retried when it fails. `scripts/invite-check.mjs` walks both sides
 in two browsers, and with `MODE=super10` does it in Super10, the two innings on
 one seed.
+
+## Notifications: the bell on Choose a mode
+
+Figma section 23, lane E. A bell beside the avatar on Choose a mode
+(`#modes-bell`) opens Notifications (`src/ui/Notices.ts`, `#notices`): All,
+Challenges, Results and Board, then NEEDS YOU, TODAY and EARLIER. Nothing new
+is stored for it: it is gathered in the browser from the player's rooms and
+their profile's activity (`noticesOf` in `src/game/notices.ts`, every case in
+`tests/notices.test.ts`), thirty days, newest fifty (`EVENTS_KEPT` is fifty
+for it). A challenge waiting on them is NEEDS YOU with ANSWER; theirs being
+batted, declined or unanswered (AGAIN) is Challenges; a settled match is a
+result with its W, L or D; chased, beaten, surpassed or the top taken is the
+Board, with WIN IT BACK. A row opens the room it is about, or the player's
+profile over the screen (`playerHost`). Seen is by time, in this browser
+(`hitman-notices-seen`): the bell counts what is newer than the last look and
+every challenge still waiting, 1 to 9 then 9+ (`unseenCount`, `bellLabel`),
+so opening clears the first and answering the second. My profile's Rank down
+card opens it on Board (`onActivityOpen`), which replaced the activity sheet
+behind it. A challenge waiting that the visit has not shown gets a banner over
+the posters with ANSWER for a few seconds (C8, `modesAlert`,
+`bannerChallenge`). Never for a player with no name, a private window or a
+build with no board (`noticed`). `scripts/notices-check.mjs` walks it.
 
 ## The rank hero: the end card's player card
 
