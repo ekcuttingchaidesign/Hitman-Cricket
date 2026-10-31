@@ -67,3 +67,5 @@
 .ar-row.is-batting .ar-who small{color:var(--live-batting)}
 .ar-go{color:var(--c-text-3);font:700 calc(var(--u) * 20)/1 var(--f-ui)}
 .ar-sheet .ar-quiet{margin-top:calc(var(--u) * 24);text-align:center}
+.ar-challenge{flex:none;padding:calc(var(--u) * 8) calc(var(--u) * 12);border:0;border-radius:10px;background:#1e7bea;color:#fff;
+  font:900 calc(var(--u) * 11)/1 var(--f-ui);letter-spacing:.06em;cursor:pointer}

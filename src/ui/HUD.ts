@@ -1261,7 +1261,8 @@ ${modeSelectMarkup()}
   /** CHALLENGE: the mode, and BAT FIRST (B1, B2). */
   challengeConfirm(them: Them, super10: boolean, done: (mode: ChallengeMode) => void) {
     let picked: ChallengeMode = 'classic';
-    const host = this.playerHost() ?? this.viewport;
+    const around = this.$('rivals-around');
+    const host = around.classList.contains('hidden') ? this.playerHost() ?? this.viewport : around;
     const draw = () => {
       const layer = this.sheetLayer('cc-confirm', confirmSheetMarkup(them, picked, super10), host);
       for (const tile of layer.querySelectorAll<HTMLElement>('.cc-mode:not([disabled])')) {
@@ -5299,10 +5300,19 @@ ${modeSelectMarkup()}
     const overlay = this.$('rivals-around');
     if (overlay.classList.contains('hidden')) return;
     const sheet = this.$('rivals-around-sheet');
-    sheet.innerHTML = aroundSheetMarkup(this.aroundPlayers(), this.rivalHandles, this.aroundFilter);
+    sheet.innerHTML = aroundSheetMarkup(this.aroundPlayers(), this.rivalHandles, this.aroundFilter, handle => !!this.onPlayerChallenge && this.onChallengeFoot?.(handle)?.kind === 'challenge');
     sheet.querySelector<HTMLElement>('#around-close')!.onclick = () => this.closeAround();
     for (const tab of sheet.querySelectorAll<HTMLElement>('[data-around]')) {
       tab.onclick = () => { this.aroundFilter = tab.dataset.around as AroundFilter; this.drawAroundSheet(); };
+    }
+    for (const key of sheet.querySelectorAll<HTMLElement>('.ar-challenge')) {
+      key.onclick = event => {
+        event.stopPropagation();
+        const player = livePlayers().find(one => one.handle === key.dataset.challenge);
+        if (!player) return;
+        track('around-challenge', 'Challenge from Around now');
+        this.onPlayerChallenge?.({ handle: player.handle, name: player.name, avatar: player.avatar, profile: null, mode: player.mode ?? 'classic' });
+      };
     }
     for (const row of sheet.querySelectorAll<HTMLElement>('.ar-row')) {
       const go = () => { this.closeAround(); this.openLivePlayer(row.dataset.handle!, null); };

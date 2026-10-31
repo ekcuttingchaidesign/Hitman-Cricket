@@ -48,21 +48,21 @@ export function aroundCardMarkup(players: readonly LivePlayer[]): string {
     </section>`;
 }
 
-function rowMarkup(p: LivePlayer, rival: boolean): string {
+function rowMarkup(p: LivePlayer, rival: boolean, challenge: boolean): string {
   const line = [liveLine(p), rival ? 'your rival' : ''].filter(Boolean).join(' · ');
   return `<li class="ar-row is-${p.state}" data-handle="${escape(p.handle)}" role="button" tabindex="0" aria-label="${escape(`See ${p.name}’s profile`)}">
       ${kitMarkup(p.avatar, p.name)}
       <span class="ar-who"><b>${escape(p.name)}</b><small>${escape(line)}</small></span>
-      <span class="ar-go" aria-hidden="true">›</span>
+      ${challenge ? `<button type="button" class="ar-challenge" data-challenge="${escape(p.handle)}">CHALLENGE</button>` : '<span class="ar-go" aria-hidden="true">›</span>'}
     </li>`;
 }
 
 /** The whole list, as a sheet over Rival Matches. */
-export function aroundSheetMarkup(players: readonly LivePlayer[], rivals: ReadonlySet<string>, filter: AroundFilter): string {
+export function aroundSheetMarkup(players: readonly LivePlayer[], rivals: ReadonlySet<string>, filter: AroundFilter, challenge: (handle: string) => boolean = () => false): string {
   const shown = filter === 'rivals' ? players.filter(p => rivals.has(p.handle)) : players;
   const playing = shown.filter(p => p.state === 'batting'), online = shown.filter(p => p.state !== 'batting');
   const group = (title: string, list: LivePlayer[]) => list.length
-    ? `<h3 class="ar-group">${title} · ${list.length}</h3><ul class="ar-list">${list.map(p => rowMarkup(p, rivals.has(p.handle))).join('')}</ul>` : '';
+    ? `<h3 class="ar-group">${title} · ${list.length}</h3><ul class="ar-list">${list.map(p => rowMarkup(p, rivals.has(p.handle), challenge(p.handle))).join('')}</ul>` : '';
   const tab = (key: AroundFilter, label: string, n: number) =>
     `<button type="button" class="ar-tab${filter === key ? ' is-on' : ''}" data-around="${key}" aria-pressed="${filter === key}">${label} · ${n}</button>`;
   const rivalsHere = players.filter(p => rivals.has(p.handle)).length;
