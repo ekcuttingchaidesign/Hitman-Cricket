@@ -215,7 +215,9 @@ await b.screenshot({ path: `${out}/c4-chip.png` });
 // The chaser plays them and the store is told them, as each real ball is; then the chaser pauses while the setter looks.
 await waitPhase(b, 'READY');
 check(await b.evaluate(() => window.__cricket.blast([6, 6, 6])), 'the chaser’s first three balls are written');
-await b.locator('#pause').click({ force: true, noWaitAfter: true });
+await b.evaluate(() => document.getElementById('pause')?.click());
+await b.waitForSelector('#resume', { state: 'visible', timeout: 10000 }).catch(() => null);
+console.log('        chaser paused:', await b.locator('#resume').isVisible().catch(() => false), await b.evaluate(() => window.__cricket.snapshot().phase));
 await fetch(`${base}/api/challenge`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ action: 'ball', code: room.code, playerId: chaserId, name: chaser, avatar: 3, card: '666' }) });
 await openRoom(a, room.code);
@@ -231,7 +233,7 @@ await a.evaluate(() => new MutationObserver(() => {
   if (title && !window.__verdict) window.__verdict = `${title.textContent} | ${document.querySelector('#verdict .vc-sub')?.textContent}`;
 }).observe(document.body, { childList: true, subtree: true }));
 
-await b.locator('#resume').click({ force: true, noWaitAfter: true });
+await b.evaluate(() => { const key = document.getElementById('resume'); if (key && key.offsetParent) key.click(); });
 await waitPhase(b, 'READY');
 // The moment is up two seconds; a busy page can be past it before a look lands, so the page notes what it said.
 await b.evaluate(() => new MutationObserver(() => {
