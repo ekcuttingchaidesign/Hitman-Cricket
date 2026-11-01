@@ -180,7 +180,9 @@ seen) its verdict plays over the result (`verdictOf`, `Verdict` in
 clashing — VICTORY crowns yours with paper, DRAW throws both back level in
 silver. DEFEAT is a scene of its own, a sting to bat again on, never the
 winner's scene turned round (`renderDefeat`): your face drops in alone, a
-big red L is stamped across it with a thud (a rain cloud was tried first and
+big red L is stamped across it with a thud, to its own sound
+(`src/assets/defeat.mp3`, a clip the owner supplied, started 0.81s in so
+its hit lands with the L; `audio.play('defeat')`, no crowd groan) (a rain cloud was tried first and
 looked bad) and it greys and sags, DEFEAT lands
 with a thud and its last letter comes loose and hangs, the winner pops up
 small in the corner, crowned and laughing, with a line in a bubble (`TAUNTS`,

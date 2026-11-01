@@ -6199,7 +6199,7 @@ export class Game {
     this.verdict = new Verdict(this.hud.viewport, view, {
       sound: (kind: VerdictKind) => {
         if (kind === 'won') this.audio.cheer({ size: 'big', peak: .8, decay: 2.6, swell: .3 });
-        else if (kind === 'lost') this.audio.groan(GROAN.out);
+        else if (kind === 'lost') this.audio.play('defeat');
         else this.audio.cheer(boundaryCheer(4, 1, false));
       },
       rematch,

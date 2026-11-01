@@ -363,8 +363,10 @@ export class Verdict {
     show(e.skip, t > .2 && t < LOST_IN && !this.still ? .8 : 0);
 
     this.once('in', .45, t, () => buzz(20));
+    // The defeat's sound starts a beat early so its hit lands with the L (0.19s into the clip).
+    this.once('sting', .81, t, () => this.hooks.sound('lost'));
     this.once('stamp', 1.0, t, () => buzz([50, 30, 20]));
-    this.once('thud', 1.85, t, () => { buzz(60); this.hooks.sound('lost'); });
+    this.once('thud', 1.85, t, () => buzz(60));
     this.once('laugh', 2.25, t, () => buzz([8, 40, 8, 40, 8]));
     this.drawPaper(t, out);
   }
