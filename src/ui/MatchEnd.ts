@@ -310,23 +310,24 @@ export class Verdict {
     this.stage.style.translate = `${shake(1.0, 7)}px ${shake(1.85, 5)}px`;
 
     // Yours: dropped in alone, then stamped, greyed and sagging, knocked back a touch by the stamp.
-    const d = 150, fy = 300;
+    // A little left of the middle, so the winner's line has the right of the screen to itself.
+    const d = 150, fy = 300, fx = CX - 36;
     const drop = outBack(prog(t, .1, .55), 1.2), sag = inOutCubic(prog(t, 1.05, 1.7));
     const knock = t > 1.0 ? 1 - spring(prog(t, 1.0, 1.4), 16, .35) : 0;
     const shiver = t > 1.7 ? Math.sin(t * 22) * .6 : 0;
     e.you.style.width = e.you.style.height = `${d}px`;
-    tf(e.you, CX - d / 2, lerp(-d - 40, fy, drop) - d / 2 + 16 * sag, 1 - .15 * inCubic(exit), -9 * sag + shiver, 1 + .03 * sag + .06 * knock, 1 - .06 * sag - .1 * knock);
+    tf(e.you, fx - d / 2, lerp(-d - 40, fy, drop) - d / 2 + 16 * sag, 1 - .15 * inCubic(exit), -9 * sag + shiver, 1 + .03 * sag + .06 * knock, 1 - .06 * sag - .1 * knock);
     e.you.style.filter = sag > 0 ? `grayscale(${.85 * sag}) brightness(${1 - .28 * sag})` : '';
     show(e.you, prog(t, .1, .18) * out);
 
     // The L, slammed down from big onto the face, and left there in the ink, riding the face as it sags.
     const sp = prog(t, .78, 1.0), sw = 124;
     const ss = sp < 1 ? lerp(2.6, 1, inCubic(sp)) : 1 + .08 * (1 - spring(prog(t, 1.0, 1.3), 18, .4));
-    tf(e.stamp, CX - sw / 2 + 4, lerp(-d - 40, fy, drop) - sw / 2 + 4 + 16 * sag, ss * (1 - .15 * inCubic(exit)), -14 - 9 * sag);
+    tf(e.stamp, fx - sw / 2 + 4, lerp(-d - 40, fy, drop) - sw / 2 + 4 + 16 * sag, ss * (1 - .15 * inCubic(exit)), -14 - 9 * sag);
     show(e.stamp, sp > 0 ? Math.min(1, sp * 2.5) * .92 * out : 0);
 
     // Theirs: small, in the corner below yours, crowned and laughing.
-    const td = 78, tx = 318, ty = 386;
+    const td = 78, tx = 328, ty = 386;
     const pop = outBack(prog(t, 1.95, 2.2), 2.4);
     const laugh = t > 2.2 ? Math.abs(Math.sin((t - 2.2) * 9)) * 5 * Math.max(.35, 1 - (t - 2.2) / 2) : 0;
     e.them.style.width = e.them.style.height = `${td}px`;
