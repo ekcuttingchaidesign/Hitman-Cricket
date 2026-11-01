@@ -179,7 +179,7 @@ big red L is stamped across it with a thud (a rain cloud was tried first and
 looked bad) and it greys and sags, DEFEAT lands
 with a thud and its last letter comes loose and hangs, the winner pops up
 small in the corner, crowned and laughing, with a line in a bubble (`TAUNTS`,
-cheeky and about the cricket, picked off the scores), and WIN IT BACK rises
+a roast about the game, never the player, picked off the scores), and WIN IT BACK rises
 under it (`winItBack`: a challenge straight back at the winner, the loser
 batting first, or a link room's REMATCH; its confirm sheet stands on the
 room). The chaser gets it straight off the gameplay

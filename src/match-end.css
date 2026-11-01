@@ -75,7 +75,7 @@
 .vc-stamp{width:124px;height:124px;transform-origin:50% 50%;mix-blend-mode:hard-light;filter:drop-shadow(0 3px 6px #00000066)}
 .vc-face.is-you{transform-origin:50% 50%}
 .vc.is-lost .vc-face.is-them{box-shadow:0 0 0 4px var(--c-gold),0 0 26px #f5b83d73}
-.vc-bubble{left:auto;right:18px;top:262px;max-width:200px;padding:9px 13px;border-radius:14px;background:#fff;color:#14181d;
+.vc-bubble{left:auto;right:18px;top:auto;bottom:574px;max-width:200px;padding:9px 13px;border-radius:14px;background:#fff;color:#14181d;
   font:400 17px/1.05 var(--f-display);letter-spacing:.03em;text-align:center;box-shadow:0 8px 20px #00000080;font-variation-settings:'opsz' 6}
 .vc-bubble::after{content:'';position:absolute;right:30px;bottom:-9px;border:10px solid transparent;border-bottom:0;border-top-color:#fff}
 .vc-again{width:240px;pointer-events:none}

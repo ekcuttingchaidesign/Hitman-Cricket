@@ -68,10 +68,11 @@ export interface VerdictView {
 }
 
 /**
- * What the winner says on a defeat. Cheeky, never cruel: about the cricket,
- * never the player, and every one an invitation to come back.
+ * What the winner says on a defeat: a roast, meant to sting enough to bat
+ * again. About the game and how it was played, never the player's looks,
+ * name or anything off the field.
  */
-export const TAUNTS = ['LMAO NOOB', 'IS THAT ALL?', 'SEE YOU IN THE NETS', 'THANKS FOR THE RUNS', 'BETTER LUCK NEXT TIME', 'COME BACK STRONGER'] as const;
+export const TAUNTS = ['LMAO NOOB', 'GG EZ', 'SKILL ISSUE', 'GET GOOD', 'L + RATIO', 'MY GRANNY BATS BETTER', 'BACK TO THE NETS', 'WAS THAT YOUR BEST?'] as const;
 
 /** One innings on a settled match, as much of it as the verdict reads. */
 export interface VerdictRow { name: string; avatar: number; runs: number; balls: number; status: string; at: number }
