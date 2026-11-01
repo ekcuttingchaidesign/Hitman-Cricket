@@ -15,7 +15,7 @@ const HOUR = 3_600_000;
 /** From the store: a nudge waits three hours, and a decline makes the sender wait a day. */
 export const NUDGE_AFTER_MS = 3 * HOUR;
 export const DECLINE_WAIT_MS = 24 * HOUR;
-export const INVITES_OPEN = 5;
+export const INVITES_OPEN = 10;
 
 export const MODE_WORD: Record<ChallengeMode, string> = { classic: 'The Blast', super10: 'Super10' };
 /** The most a mode can score: the aim is never above it. */

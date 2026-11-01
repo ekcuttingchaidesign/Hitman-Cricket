@@ -160,7 +160,7 @@ accept, within a day of it (`ANSWER_MS`). Declined, unanswered or withdrawn, it
 closes with no result for anybody (`inviteStateOf`; a link's room still counts
 a decline as a loss). Walking out of an accepted chase is a loss there and then
 (`walkOut`, `walked` on the player); a host who leaves before the total is set
-sends nothing. One challenge going between two players either way round, five
+sends nothing. One challenge going between two players either way round, ten
 waiting a sender (`INVITES_OPEN`), a day's wait after a decline, one nudge from
 three hours. Nothing in a room is an id: the invite answers with the handle.
 Both innings are bowled from the room's code (`roomSeed`), so the chaser faces

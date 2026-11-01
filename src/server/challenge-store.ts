@@ -238,7 +238,7 @@ export const NUDGE_AFTER_MS = 3 * 3600_000;
 /** After a decline, the same player waits this long to challenge again. */
 export const DECLINE_WAIT_MS = 24 * 3600_000;
 /** Challenges one player can have waiting at once. */
-export const INVITES_OPEN = 5;
+export const INVITES_OPEN = 10;
 
 /** Where a challenge from a profile is. Derived, never stored. */
 export type InviteState = 'setting' | 'waiting' | 'accepted' | 'declined' | 'unanswered' | 'withdrawn';
