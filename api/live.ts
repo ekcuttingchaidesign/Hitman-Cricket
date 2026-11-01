@@ -24,7 +24,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (req.method !== 'POST') return failed(res, 405, 'Use GET or POST.');
     const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {}) as Record<string, unknown>;
     const outcome = await checkIn(store, { playerId: body.playerId, name: body.name, avatar: body.avatar, state: body.state, mode: body.mode });
-    if (!outcome.ok) return failed(res, outcome.status, outcome.reason);
+    if (outcome.ok === false) return failed(res, outcome.status, outcome.reason);
     res.setHeader('Cache-Control', 'no-store');
     res.status(200).json({ ok: true });
   } catch (error) {
