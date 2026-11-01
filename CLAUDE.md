@@ -72,6 +72,11 @@ README's "Player profiles" is the long version.
   which stands in for the player card for a named player. A chase won is let go
   at the next start; one fallen short makes the key CHASE N AGAIN. The store
   judges it again, on runs, and that is what reaches the other player.
+  CHASE walks out to the mode's own innings through `inningsOf`, the one map
+  from a board's or profile's mode to an innings that board PLAY and My
+  Stats' key share too: each had its own, which sent Super10 to Survival and
+  let the chase go. In Super10 the chip counts the sixty balls, as the
+  Blast's counts thirty (`chipLine`); `profile-check`'s lane T walks it.
 - **C, My profile**: `statsSheetMarkup` is the page, still the rail it was (the
   career cards keep `.stats-dot` and `data-slide`, so the rail's wiring is
   unchanged); the hero and ground per mode switch with it. The activity comes

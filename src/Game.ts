@@ -263,10 +263,6 @@ const SUPER10_SHELF = SUPER10_OPEN && !SUPER10_ONLY;
 const LAST_MODE_KEY = 'hitman-last-mode';
 /** Which walk-on film this browser saw last, so the next visit opens on the other (`nextFilm`). */
 const WALK_ON_KEY = 'hitman-walk-on';
-/** A career's mode as the game plays it: Super10 is its own, never Survival's. */
-function gameModeOf(mode: CareerMode): 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' {
-  return mode === 'classic' ? 'CLASSIC' : mode === 'marathon' ? 'MARATHON' : mode === 'super10' && SUPER10_OPEN ? 'SUPER10' : mode === 'super10' ? 'CLASSIC' : 'SURVIVE';
-}
 function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' {
   try {
     const kept = localStorage.getItem(LAST_MODE_KEY);
@@ -942,7 +938,7 @@ export class Game {
     this.hud.onBoardFrame = (mode, ladder) => this.boardFrame(mode, ladder);
     this.hud.onBoardPlay = mode => {
       this.hud.closeBoard();
-      this.choose(gameModeOf(mode));
+      this.choose(this.inningsOf(mode));
     };
     this.hud.onBoardRetry = () => this.reopenBoard();
     // Another player's profile, from a row: a look counted for them only when
@@ -969,13 +965,13 @@ export class Game {
       chaseFor(chase.handle, chase.mode, chase.ladder);
       this.mark(chase.ladder === 'solo' ? 'chase-start-batter' : 'chase-start', 'Chase: started from a profile');
       this.hud.closeBoard();
-      this.choose(gameModeOf(chase.mode));
+      this.choose(this.inningsOf(chase.mode));
     };
     this.hud.onBoardName = () => this.askProfile(false);
     this.hud.onStatsOpen = this.showStats;
     this.hud.onStatsPlay = mode => {
       this.hud.closeStats();
-      this.choose(gameModeOf(mode));
+      this.choose(this.inningsOf(mode));
     };
     // Either key in the sheet counts as saved. Which one was used is worth
     // knowing — one of them finishes the job and the other leaves homework —
@@ -2283,6 +2279,15 @@ export class Game {
     this.hud.pause(true);
   };
   /** Pick an innings. The mode is remembered, so Play Again replays the same one. */
+  /**
+   * The innings a board, a profile or My Stats means by its mode. Every way in
+   * goes through this one: three had their own, which knew the Blast and the
+   * Marathon and sent everything else to Survival, so a Super10 chase walked
+   * out to a Test and the chase was let go at the first ball.
+   */
+  private inningsOf(mode: CareerMode): GameMode {
+    return mode === 'marathon' ? 'MARATHON' : mode === 'survive' ? 'SURVIVE' : mode === 'super10' && SUPER10_OPEN ? 'SUPER10' : 'CLASSIC';
+  }
   choose = (mode: GameMode) => {
     this.mode = mode;
     // The mode played last, where Choose a mode's rail opens next time.
@@ -3649,12 +3654,16 @@ export class Game {
   }
 
   /** Balls left, where the innings is counted in them. */
-  private get chaseBallsLeft() { return this.careerMode === 'classic' || this.careerMode === 'super10' ? this.score.limits.totalBalls - this.score.balls : null; }
+  private get chaseBallsLeft() {
+    return this.careerMode === 'classic' ? GAME.totalBalls - this.score.balls
+      : this.careerMode === 'super10' ? SUPER10.totalBalls - this.score.balls : null;
+  }
 
   /** What the player brings to it: their best and place in the mode, as far as this browser knows. */
   private chaseMine(): Mine {
     const place = this.modeRanks[this.careerMode] ?? null;
-    return { best: this.careerMode === 'classic' && this.best > 0 ? this.best : null, place };
+    const best = this.careerMode === 'classic' ? this.best : this.careerMode === 'super10' ? this.super10Best : 0;
+    return { best: best > 0 ? best : null, place };
   }
 
   /** The chase let go: by BACK, by another mode, or once it is won and the card has said so. */
