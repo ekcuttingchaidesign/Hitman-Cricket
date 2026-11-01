@@ -66,13 +66,13 @@
 .vc-paper{width:402px;height:874px;pointer-events:none}
 .vc-skip{left:auto;right:16px;top:calc(16px + env(safe-area-inset-top,0px));font:700 11px/1 var(--f-ui);letter-spacing:.1em;color:#ffffff99}
 
-/* DEFEAT, its own scene: rain on your face, the winner laughing in the corner, a letter loose, WIN IT BACK. */
+/* DEFEAT, its own scene: an L stamped on your face, the winner laughing in the corner, a letter loose, WIN IT BACK. */
 .vc.is-lost .vc-scrim{background:#0b0f15}
 .vc.is-lost .vc-bloom.is-mode{background:radial-gradient(closest-side,#4b5a6b66,transparent)}
 .vc.is-lost .vc-title{background:none;color:transparent;filter:drop-shadow(0 7px 0 #6b1022) drop-shadow(0 0 22px #00000099);transform-origin:50% 100%}
 .vc-w,.vc-t{display:inline-block;background-image:linear-gradient(180deg,#f3f6f9 0%,#aab4bf 50%,#6c7682 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .vc-t{transform-origin:8% 96%}
-.vc-cloud{width:220px;height:110px;filter:drop-shadow(0 10px 18px #00000080)}
+.vc-stamp{width:124px;height:124px;transform-origin:50% 50%;mix-blend-mode:hard-light;filter:drop-shadow(0 3px 6px #00000066)}
 .vc-face.is-you{transform-origin:50% 50%}
 .vc.is-lost .vc-face.is-them{box-shadow:0 0 0 4px var(--c-gold),0 0 26px #f5b83d73}
 .vc-bubble{left:auto;right:18px;top:262px;max-width:200px;padding:9px 13px;border-radius:14px;background:#fff;color:#14181d;

@@ -175,7 +175,8 @@ seen) its verdict plays over the result (`verdictOf`, `Verdict` in
 clashing — VICTORY crowns yours with paper, DRAW throws both back level in
 silver. DEFEAT is a scene of its own, a sting to bat again on, never the
 winner's scene turned round (`renderDefeat`): your face drops in alone, a
-rain cloud drifts over and rains on it and it greys and sags, DEFEAT lands
+big red L is stamped across it with a thud (a rain cloud was tried first and
+looked bad) and it greys and sags, DEFEAT lands
 with a thud and its last letter comes loose and hangs, the winner pops up
 small in the corner, crowned and laughing, with a line in a bubble (`TAUNTS`,
 cheeky and about the cricket, picked off the scores), and WIN IT BACK rises
