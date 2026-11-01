@@ -15,7 +15,7 @@ import { track, trackOnce } from '../game/analytics';
 import { livePlayers, onLive, refreshLive } from '../game/live-api';
 import { aroundCardMarkup, aroundOrder, aroundSheetMarkup, type AroundFilter } from './AroundNow';
 import { chaseCardMarkup, confirmSheetMarkup, inviteSheetMarkup, leaveSheetMarkup, setCardMarkup, type InviteSheetView, type SetView, type Them } from './ChallengeCards';
-import { left, type FootState } from '../game/invite';
+import { INVITES_OPEN, left, type FootState } from '../game/invite';
 import type { ChallengeMode } from '../game/challenge-api';
 import { feedbackGiven } from '../game/feedback';
 import { RATED_NAME, type RatedThing } from '../game/rating';
@@ -1198,7 +1198,7 @@ ${modeSelectMarkup()}
     const key = sheet.querySelector<HTMLElement>('#player-challenge');
     if (key) key.onclick = () => {
       if (!foot) { this.notice('Can’t reach the game right now. Try again in a moment.'); return; }
-      if (foot.kind === 'full') { this.notice('You have 5 challenges out. Wait for one to finish.'); return; }
+      if (foot.kind === 'full') { this.notice(`You have ${INVITES_OPEN} challenges out. Wait for one to finish.`); return; }
       this.onPlayerChallenge?.(them());
     };
     if (foot && 'room' in foot) {

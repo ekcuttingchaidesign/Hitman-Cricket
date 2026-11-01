@@ -100,18 +100,18 @@ describe('a challenge from a profile', () => {
     took(await createChallenge(store, { ...kabir, to: handleOf(RIYA) }, late));
   });
 
-  it('allows one going between two players, either way round, and five waiting a sender', async () => {
+  it('allows one going between two players, either way round, and ten waiting a sender', async () => {
     const store = setup();
     await sent(store);
     expect(refusal(await createChallenge(store, { ...kabir, to: handleOf(RIYA) }, T0 + HOUR))?.reason).toMatch(/already have a challenge/);
     expect(refusal(await createChallenge(store, { ...riya, to: handleOf(KABIR) }, T0 + HOUR))?.reason).toMatch(/already challenged you/);
     expect(refusal(await createChallenge(store, { ...kabir, to: handleOf(KABIR) }, T0))?.status).toBe(400);
     const many = setup();
-    const others = ['abcdei-aaaaaaaaaaaa', 'abcdej-aaaaaaaaaaaa', 'abcdek-aaaaaaaaaaaa', 'abcdel-aaaaaaaaaaaa', 'abcdem-aaaaaaaaaaaa', 'abcden-aaaaaaaaaaaa'];
+    const others = Array.from({ length: INVITES_OPEN + 1 }, (_, i) => `abcd${String.fromCharCode(97 + i)}x-aaaaaaaaaaaa`);
     const lookup = new Map(others.map(id => [handleOf(id), id]));
     const store6 = memoryChallenges(many.names, handle => lookup.get(handle) ?? null);
     for (const id of others.slice(0, INVITES_OPEN)) took(await createChallenge(store6, { ...kabir, to: handleOf(id) }, T0));
-    expect(refusal(await createChallenge(store6, { ...kabir, to: handleOf(others[INVITES_OPEN]) }, T0))?.reason).toMatch(/5 challenges out/);
+    expect(refusal(await createChallenge(store6, { ...kabir, to: handleOf(others[INVITES_OPEN]) }, T0))?.reason).toMatch(/10 challenges out/);
   });
 
   it('is nudged once, from three hours after it is sent', async () => {

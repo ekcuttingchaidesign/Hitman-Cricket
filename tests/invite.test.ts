@@ -46,8 +46,10 @@ describe('a challenge from a profile, on screen', () => {
     expect(footState([room(ME, KABIR, { state: 'accepted' })], ME, handleOf(KABIR), NOW).kind).toBe('batting');
     const declined = room(ME, KABIR, { state: 'declined' }, { players: [row(ME, { host: true, status: 'done' }), row(KABIR, { status: 'declined', at: NOW - HOUR })] });
     expect(footState([declined], ME, handleOf(KABIR), NOW)).toEqual({ kind: 'declined', wait: 23 * HOUR });
-    const five = Array.from({ length: 5 }, (_, i) => room(ME, `abcde${i}-aaaaaaaaaaaa`, {}, { code: `ROOM${i}A` }));
-    expect(footState(five, ME, handleOf(KABIR), NOW)).toEqual({ kind: 'full' });
+    const nine = Array.from({ length: 9 }, (_, i) => room(ME, `abcde${i}-aaaaaaaaaaaa`, {}, { code: `ROOM${i}A` }));
+    expect(footState(nine, ME, handleOf(KABIR), NOW)).toEqual({ kind: 'challenge' });
+    const ten = Array.from({ length: 10 }, (_, i) => room(ME, `abcde${i}-aaaaaaaaaaaa`, {}, { code: `ROOM${i}A` }));
+    expect(footState(ten, ME, handleOf(KABIR), NOW)).toEqual({ kind: 'full' });
   });
 
   it('aims a little past their average, near your best, never past the mode', () => {
