@@ -1,10 +1,10 @@
 import type { Innings } from './leaderboard';
 import { handleOf, isHandle } from './handle';
-import type { ChallengeState, PlayerStatus, RivalsRecord, RivalsRow } from '../server/challenge-store';
+import type { ChallengeMode, ChallengeState, InviteView, PlayerStatus, RivalsRecord, RivalsRow } from '../server/challenge-store';
 import type { Look } from './dressing-ids';
 import { readDressing } from './dressing-store';
 
-export type { RivalsRecord, RivalsRow } from '../server/challenge-store';
+export type { ChallengeMode, InviteState, InviteView, RivalsRecord, RivalsRow } from '../server/challenge-store';
 
 /**
  * The match room, from the browser's side.
@@ -71,6 +71,10 @@ export interface Challenge {
   size: number;
   /** Finished innings first, best first; then the ones still going; then the rest. */
   players: ChallengeRow[];
+  /** What it is batted in; a room from before modes is the Blast. */
+  mode?: ChallengeMode;
+  /** A challenge sent from a profile, or null for a link's room. */
+  invite?: InviteView | null;
 }
 
 /** What every call answers with: a room, or a reason there is none. */
@@ -112,13 +116,16 @@ export interface RivalryEntry {
   theirs: { runs: number; sixes: number; fours: number };
   outcome: 'W' | 'L' | 'D';
   at: number;
+  /** What it was batted in; one noted before modes is the Blast. */
+  mode?: ChallengeMode;
 }
 
 /* ── The calls ───────────────────────────────────────────────────────────── */
 
 /** A room, made. Empty unless an innings that just ended is handed in with it. */
 export function createRoom(
-  playerId: string, name: string, avatar: number, extra: { card?: string; rematchOf?: string } = {},
+  playerId: string, name: string, avatar: number,
+  extra: { card?: string; rematchOf?: string; to?: string; toName?: string; toAvatar?: number; mode?: ChallengeMode } = {},
 ): Promise<ChallengeResult> {
   return post({ action: 'create', playerId, name, avatar, ...extra });
 }
@@ -136,6 +143,16 @@ export function sendBalls(code: string, playerId: string, name: string, avatar: 
 /** The match turned down. Settles against the decliner, like a forfeit. */
 export function sendDecline(code: string, playerId: string, name: string, avatar: number): Promise<ChallengeResult> {
   return post({ action: 'decline', code, playerId, name, avatar });
+}
+
+/** A challenge's sender nudging the player it is for: once, from three hours after it went. */
+export function sendNudge(code: string, playerId: string, name: string, avatar: number): Promise<ChallengeResult> {
+  return post({ action: 'nudge', code, playerId, name, avatar });
+}
+
+/** Walking out of an innings: a chase accepted and left is lost; a total not yet set is never sent. */
+export function sendWalk(code: string, playerId: string, name: string, avatar: number): Promise<ChallengeResult> {
+  return post({ action: 'walk', code, playerId, name, avatar });
 }
 
 /** The result has been looked at. */

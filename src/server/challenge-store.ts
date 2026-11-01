@@ -1,10 +1,10 @@
 import type { Innings } from '../game/leaderboard.js';
-import { BALL_CHARS, MAX_BALLS, ended, figuresOf } from '../game/ball-string.js';
+import { BALL_CHARS, ended, figuresOf, limitsOf } from '../game/ball-string.js';
 import { AVATARS, NAME_MAX, cleanName, foldName } from './board-store.js';
 import { NAME_BLOCKED_REASON, nameBlocked } from './name-filter.js';
 import { RIVALS_NEED_REGISTERED_RIVAL } from '../config/rivals.js';
 import { lookOf, type Look } from '../game/dressing-ids.js';
-import { handleOf } from '../game/handle.js';
+import { handleOf, isHandle } from '../game/handle.js';
 
 /**
  * A match room: one link, and everybody who bats under it.
@@ -127,6 +127,8 @@ export interface StoredPlayer {
   seen?: boolean;
   /** Whether they turned the match down. A defeat, taken on the chin. */
   declined?: boolean;
+  /** When they walked out of an innings they had started: a loss there and then, not a day later. */
+  walked?: number;
   /**
    * Written by an earlier build that kept the record as running totals, and
    * read by nothing now. Left on old rooms, where it does no harm.
@@ -199,11 +201,73 @@ export interface StoredChallenge {
   /** The room this one is a rematch of, if it is one. */
   rematchOf: string | null;
   players: Record<string, StoredPlayer>;
+  /** A challenge sent from a profile to one player, rather than a link: see `StoredInvite`. */
+  invite?: StoredInvite;
+  /** What it is batted in. A link's room is always the Blast. */
+  mode?: ChallengeMode;
 }
 
-/** The fields of a room a write may change. Only ever some players' rows. */
+/** The modes a challenge can be sent in. */
+export type ChallengeMode = 'classic' | 'super10';
+export const CHALLENGE_MODES: readonly ChallengeMode[] = ['classic', 'super10'];
+
+/**
+ * A challenge from a profile (Figma section 23): one player challenges
+ * another by their handle. The host bats first, and it is sent when their
+ * innings ends; the other player has `ANSWER_MS` to accept and chase it on the
+ * same balls. Declined, unanswered or withdrawn, it closes with no result for
+ * anybody: only a chase that was played counts, and walking out of one is a
+ * loss there and then.
+ */
+export interface StoredInvite {
+  /** Who it is for, by player id. Never sent: the room answers with their handle. */
+  to: string;
+  /** Their name and kit as the profile showed them, checked against the registry. */
+  name: string;
+  avatar: number;
+  /** When the host nudged them, once. */
+  nudged?: number;
+  /** When the host walked out of the innings that would have set the total: nothing was sent. */
+  withdrawn?: number;
+}
+
+/** How long the other player has to accept, from the moment the total is set. */
+export const ANSWER_MS = 24 * 3600_000;
+/** A nudge waits this long after sending, and goes once. */
+export const NUDGE_AFTER_MS = 3 * 3600_000;
+/** After a decline, the same player waits this long to challenge again. */
+export const DECLINE_WAIT_MS = 24 * 3600_000;
+/** Challenges one player can have waiting at once. */
+export const INVITES_OPEN = 5;
+
+/** Where a challenge from a profile is. Derived, never stored. */
+export type InviteState = 'setting' | 'waiting' | 'accepted' | 'declined' | 'unanswered' | 'withdrawn';
+
+/** Where a room's challenge is, or null for a room made from a link. */
+export function inviteStateOf(challenge: StoredChallenge, now = Date.now()): InviteState | null {
+  const invite = challenge.invite;
+  if (!invite) return null;
+  if (invite.withdrawn) return 'withdrawn';
+  const them = challenge.players[invite.to];
+  if (them?.declined) return 'declined';
+  if (them) return 'accepted';
+  const host = challenge.players[challenge.host];
+  const status = host ? statusOf(host, now, challenge.mode) : 'joined';
+  if (status === 'forfeit') return 'withdrawn';
+  if (status !== 'done') return 'setting';
+  return now >= host.at + ANSWER_MS ? 'unanswered' : 'waiting';
+}
+
+/** When the total was set and the challenge went out, or null before. */
+export function sentAt(challenge: StoredChallenge, now = Date.now()): number | null {
+  const host = challenge.players[challenge.host];
+  return host && challenge.invite && statusOf(host, now, challenge.mode) === 'done' ? host.at : null;
+}
+
+/** The fields of a room a write may change: some players' rows, and its challenge. */
 export interface ChallengeChange {
   players?: Record<string, StoredPlayer>;
+  invite?: StoredInvite;
 }
 
 /** Everything a room needs from whatever is keeping it. */
@@ -247,6 +311,8 @@ export interface ChallengeStore {
   unrank(playerId: string): Promise<void>;
   /** The top of the Rivals board, best first. */
   topRivals(n: number): Promise<RankedRivals[]>;
+  /** The player a handle belongs to, or null: a challenge from a profile is sent by handle. */
+  idOf(handle: string): Promise<string | null>;
 }
 
 /** One innings in the room, as the endpoint sends it. */
@@ -292,6 +358,21 @@ export interface ChallengePayload {
   size: number;
   /** Finished innings first, best first; then the ones still going; then the rest. */
   players: ChallengeRow[];
+  /** What it is batted in. */
+  mode: ChallengeMode;
+  /** A challenge from a profile, as anybody may be told it: who it is for by handle, and where it is. */
+  invite: InviteView | null;
+}
+
+export interface InviteView {
+  to: string;
+  name: string;
+  avatar: number;
+  state: InviteState;
+  /** When the total was set, and the time the other player has to accept runs out. */
+  sentAt: number | null;
+  answerBy: number | null;
+  nudged: number | null;
 }
 
 /** A call the room took. */
@@ -374,11 +455,29 @@ export function cleanCode(raw: unknown): string | null {
 }
 
 /** Where one player is. Read off their balls and their last write, never stored. */
-export function statusOf(player: StoredPlayer, now = Date.now()): PlayerStatus {
+export function statusOf(player: StoredPlayer, now = Date.now(), mode?: ChallengeMode, target: number | null = null): PlayerStatus {
   if (player.declined) return 'declined';
+  if (player.walked) return 'forfeit';
   if (!player.card) return 'joined';
-  if (ended(figuresOf(player.card))) return 'done';
+  if (ended(figuresOf(player.card), mode, target)) return 'done';
   return now - player.at > FORFEIT_AFTER_MS ? 'forfeit' : 'batting';
+}
+
+/**
+ * The total a challenge's chaser is after, or null: the setter's runs once
+ * their innings is in, for anybody but the setter. A room made from a link has
+ * none, and plays every innings out.
+ */
+export function chaseTargetOf(challenge: StoredChallenge, playerId: string, now = Date.now()): number | null {
+  if (!challenge.invite || playerId === challenge.host) return null;
+  const host = challenge.players[challenge.host];
+  if (!host || statusOf(host, now, challenge.mode) !== 'done') return null;
+  return figuresOf(host.card).runs;
+}
+
+/** One player's status in their room, a chase ending on the ball it passes the total. */
+export function statusIn(challenge: StoredChallenge, playerId: string, now = Date.now()): PlayerStatus {
+  return statusOf(challenge.players[playerId], now, challenge.mode, chaseTargetOf(challenge, playerId, now));
 }
 
 /**
@@ -392,7 +491,10 @@ export function statusOf(player: StoredPlayer, now = Date.now()): PlayerStatus {
  */
 export function stateOf(challenge: StoredChallenge, now = Date.now()): ChallengeState {
   if (challenge.v !== SCORING_VERSION) return 'void';
-  const statuses = Object.values(challenge.players).map(player => statusOf(player, now));
+  // A challenge that never became a chase is closed, and nothing counts.
+  const invited = inviteStateOf(challenge, now);
+  if (invited === 'declined' || invited === 'unanswered' || invited === 'withdrawn') return 'expired';
+  const statuses = Object.keys(challenge.players).map(id => statusIn(challenge, id, now));
   const settled = statuses.filter(status => status === 'done' || status === 'forfeit' || status === 'declined').length;
   const batting = statuses.some(status => status === 'batting');
   const waiting = statuses.some(status => status === 'joined');
@@ -430,7 +532,7 @@ function isRefusal(value: unknown): value is ChallengeRefusal {
  */
 export async function createChallenge(
   store: ChallengeStore,
-  input: Batter & { card?: unknown; rematchOf?: unknown },
+  input: Batter & { card?: unknown; rematchOf?: unknown; to?: unknown; toName?: unknown; toAvatar?: unknown; mode?: unknown },
   now = Date.now(),
   random: () => number = Math.random,
 ): Promise<ChallengeOutcome> {
@@ -449,19 +551,72 @@ export async function createChallenge(
     card = innings;
   }
   const rematchOf = cleanCode(input.rematchOf);
+  // From a profile: sent to one player, the host batting first.
+  let invited: { invite: StoredInvite; mode: ChallengeMode } | null = null;
+  if (input.to !== undefined) {
+    const sent = await inviteFor(store, input, now);
+    if (isRefusal(sent)) return sent;
+    invited = sent;
+    card = '';
+  }
 
   const player: StoredPlayer = { name: who.name, avatar: input.avatar, card, joined: now, at: now, ...worn(input.look) };
   for (let attempt = 0; attempt < CODE_TRIES; attempt++) {
     const code = newCode(random);
     const challenge: StoredChallenge = {
       at: now, host: input.playerId, v: SCORING_VERSION, rematchOf, players: { [input.playerId]: player },
+      ...(invited ? { invite: invited.invite, mode: invited.mode } : {}),
     };
     if (await store.claim(code, challenge, CHALLENGE_TTL_SECONDS)) {
       await store.index(input.playerId, code, CHALLENGE_TTL_SECONDS);
+      // Theirs too, so it is in their list the moment the total is set.
+      if (invited) await store.index(invited.invite.to, code, CHALLENGE_TTL_SECONDS);
       return { ok: true, code, challenge: challengePayload(code, challenge, now) };
     }
   }
   return { ok: false, status: 503, reason: 'Could not make a match just now. Try again.' };
+}
+
+/**
+ * Who a challenge from a profile is for, checked: somebody who plays here and
+ * is not the sender, with nothing already going between the two of them, no
+ * decline from them in the last day, and the sender under their limit.
+ */
+async function inviteFor(
+  store: ChallengeStore,
+  input: Batter & { to?: unknown; toName?: unknown; toAvatar?: unknown; mode?: unknown },
+  now: number,
+): Promise<{ invite: StoredInvite; mode: ChallengeMode } | ChallengeRefusal> {
+  if (!isHandle(input.to)) return { ok: false, status: 400, reason: 'Pick somebody to challenge.' };
+  const mode = CHALLENGE_MODES.includes(input.mode as ChallengeMode) ? input.mode as ChallengeMode : 'classic';
+  const to = await store.idOf(input.to);
+  if (!to) return { ok: false, status: 404, reason: 'Nobody plays under that name yet.' };
+  if (to === input.playerId) return { ok: false, status: 400, reason: 'You can’t challenge yourself.' };
+  // Their name as the profile showed it, kept only if it is theirs.
+  const typed = cleanName(input.toName);
+  const [holder] = typed ? await store.nameHolders([foldName(typed)]) : [null];
+  const name = holder === to ? typed : 'Your rival';
+  const avatar = Number.isInteger(input.toAvatar) && (input.toAvatar as number) >= 0 && (input.toAvatar as number) < AVATARS ? input.toAvatar as number : 0;
+  // Every challenge either of them sent the other is in the sender's list.
+  const codes = (await store.indexed(input.playerId)).slice(0, LIST_MAX * 2);
+  const rooms = (await Promise.all(codes.map(code => store.read(code)))).filter((room): room is StoredChallenge => !!room?.invite);
+  let open = 0;
+  for (const room of rooms) {
+    const state = inviteStateOf(room, now);
+    const mine = room.host === input.playerId;
+    const pair = (mine && room.invite!.to === to) || (room.host === to && room.invite!.to === input.playerId);
+    const going = state === 'setting' || state === 'waiting' || (state === 'accepted' && stateOf(room, now) === 'live');
+    if (mine && (state === 'setting' || state === 'waiting')) open++;
+    if (pair && going) {
+      return { ok: false, status: 409, reason: mine ? `You already have a challenge with ${name} going.` : `${name} has already challenged you. Answer theirs first.` };
+    }
+    if (pair && mine && state === 'declined') {
+      const left = (room.players[to]?.at ?? 0) + DECLINE_WAIT_MS - now;
+      if (left > 0) return { ok: false, status: 409, reason: `${name} declined. Challenge them again in ${Math.ceil(left / 3_600_000)}h.` };
+    }
+  }
+  if (open >= INVITES_OPEN) return { ok: false, status: 409, reason: `You have ${INVITES_OPEN} challenges out. Wait for one to finish.` };
+  return { invite: { to, name, avatar }, mode };
 }
 
 /**
@@ -486,6 +641,14 @@ export async function joinChallenge(
 
   if (challenge.players[input.playerId]) {
     return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
+  }
+  // A challenge from a profile is accepted by the one player it is for, while it is waiting.
+  if (challenge.invite) {
+    if (challenge.invite.to !== input.playerId) return { ok: false, status: 403, reason: 'This challenge is for somebody else.' };
+    const invited = inviteStateOf(challenge, now);
+    if (invited === 'setting') return { ok: false, status: 409, reason: 'This challenge has not been sent yet.' };
+    if (invited === 'unanswered') return { ok: false, status: 410, reason: 'This challenge ran out.' };
+    if (invited !== 'waiting') return { ok: false, status: 410, reason: 'This challenge has closed.' };
   }
   const state = stateOf(challenge, now);
   if (state === 'void') return { ok: false, status: 409, reason: 'This match was made on an older version of the game.' };
@@ -533,7 +696,7 @@ export async function recordBalls(
   const held = challenge.players[input.playerId];
   if (!held) return { ok: false, status: 409, reason: 'Join the match before batting in it.' };
 
-  const card = cleanCard(input.card);
+  const card = cleanCard(input.card, challenge.mode, chaseTargetOf(challenge, input.playerId, now));
   if (card === null) return { ok: false, status: 400, reason: 'That innings could not have happened.' };
 
   // Nothing new: the same balls again, or fewer. The room as it stands.
@@ -544,7 +707,7 @@ export async function recordBalls(
   if (!card.startsWith(held.card)) {
     return { ok: false, status: 409, reason: 'That innings does not match the one already in.' };
   }
-  const status = statusOf(held, now);
+  const status = statusIn(challenge, input.playerId, now);
   if (status === 'done') return { ok: false, status: 409, reason: 'That innings is already over.' };
   if (status === 'forfeit') return { ok: false, status: 409, reason: 'That innings was given up a day ago.' };
   if (status === 'declined') return { ok: false, status: 409, reason: 'You declined this one.' };
@@ -559,7 +722,7 @@ export async function recordBalls(
   // The last ball of an innings may be the last ball of the match. Read back
   // before deciding, because two friends finishing in the same second each
   // hold a copy with the other still batting, and neither would settle it.
-  if (statusOf(player, now) === 'done') {
+  if (statusIn(challenge, input.playerId, now) === 'done') {
     // The ball is in by now, and a failed read must not report it as lost —
     // the retry would find nothing new and settle nothing. The list read
     // catches the match up instead.
@@ -613,6 +776,11 @@ export async function declineChallenge(
   const held = challenge.players[input.playerId];
   if (held?.declined) return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
   if (held?.card) return { ok: false, status: 409, reason: 'You have already started batting in this one.' };
+  // A challenge from a profile is turned down by the player it is for, at no cost.
+  if (challenge.invite) {
+    if (challenge.invite.to !== input.playerId) return { ok: false, status: 403, reason: 'This challenge is for somebody else.' };
+    if (inviteStateOf(challenge, now) !== 'waiting') return { ok: false, status: 410, reason: 'This challenge has closed.' };
+  }
   const state = stateOf(challenge, now);
   if (state === 'void' || state === 'expired') return { ok: false, status: 410, reason: 'This match has closed.' };
   if (!held && Object.keys(challenge.players).length >= PLAYERS_MAX) {
@@ -623,6 +791,65 @@ export async function declineChallenge(
     : { name: who.name, avatar: input.avatar, card: '', joined: now, at: now, declined: true };
   await store.write(key, { players: { [input.playerId]: player } }, CHALLENGE_TTL_SECONDS);
   if (!held) await store.index(input.playerId, key, CHALLENGE_TTL_SECONDS);
+  challenge.players[input.playerId] = player;
+  await settle(store, key, challenge, now);
+  return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
+}
+
+/**
+ * A challenge's sender nudging the player it is for: once, from three hours
+ * after it was sent. It does not buy more time; it puts the challenge at the
+ * top of their cover the next time they open the game.
+ */
+export async function nudgeChallenge(
+  store: ChallengeStore, code: string, input: Batter, now = Date.now(),
+): Promise<ChallengeOutcome> {
+  if (await store.hits('write', input.address, RATE_WINDOW_SECONDS) > WRITE_LIMIT) {
+    return { ok: false, status: 429, reason: 'Too many requests from here. Try again in an hour.' };
+  }
+  const found = await load(store, code);
+  if (isRefusal(found)) return found;
+  const { code: key, challenge } = found;
+  const invite = challenge.invite;
+  if (!invite || challenge.host !== input.playerId) return { ok: false, status: 403, reason: 'Only the challenger can nudge.' };
+  if (inviteStateOf(challenge, now) !== 'waiting') return { ok: false, status: 409, reason: 'There is nobody to nudge.' };
+  if (!invite.nudged) {
+    const left = (sentAt(challenge, now) ?? now) + NUDGE_AFTER_MS - now;
+    if (left > 0) return { ok: false, status: 409, reason: `You can nudge in ${Math.ceil(left / 3_600_000)}h.` };
+    challenge.invite = { ...invite, nudged: now };
+    await store.write(key, { invite: challenge.invite }, CHALLENGE_TTL_SECONDS);
+  }
+  return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
+}
+
+/**
+ * Walking out of an innings, said rather than left to a clock. A chase
+ * accepted and left is a loss there and then, and the challenger is told; a
+ * challenger leaving the innings that would have set the total sends nothing.
+ */
+export async function walkOut(
+  store: ChallengeStore, code: string, input: Batter, now = Date.now(),
+): Promise<ChallengeOutcome> {
+  if (await store.hits('write', input.address, RATE_WINDOW_SECONDS) > WRITE_LIMIT) {
+    return { ok: false, status: 429, reason: 'Too many requests from here. Try again in an hour.' };
+  }
+  const found = await load(store, code);
+  if (isRefusal(found)) return found;
+  const { code: key, challenge } = found;
+  if (!isPlayerId(input.playerId)) return { ok: false, status: 400, reason: 'That is not a player.' };
+  const held = challenge.players[input.playerId];
+  if (!held) return { ok: false, status: 409, reason: 'You are not in this match.' };
+  const status = statusIn(challenge, input.playerId, now);
+  if (status === 'done' || status === 'forfeit' || status === 'declined') {
+    return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
+  }
+  if (challenge.invite && challenge.host === input.playerId && inviteStateOf(challenge, now) === 'setting') {
+    challenge.invite = { ...challenge.invite, withdrawn: now };
+    await store.write(key, { invite: challenge.invite }, CHALLENGE_TTL_SECONDS);
+    return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
+  }
+  const player: StoredPlayer = { ...held, walked: now, at: now };
+  await store.write(key, { players: { [input.playerId]: player } }, CHALLENGE_TTL_SECONDS);
   challenge.players[input.playerId] = player;
   await settle(store, key, challenge, now);
   return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
@@ -658,6 +885,8 @@ export async function readMine(
   // match was shown an empty Rival Matches and a zero record.
   const record = await tally(store, playerId, found, now);
   const challenges = found
+    // A challenge for this player that has not been sent, or never will be, is not theirs to see.
+    .filter(room => room.challenge.invite?.to !== playerId || !['setting', 'withdrawn'].includes(inviteStateOf(room.challenge, now) ?? ''))
     .map(room => challengePayload(room.code, room.challenge, now))
     .sort((a, b) => b.at - a.at)
     .slice(0, LIST_MAX);
@@ -777,7 +1006,7 @@ export function resultOf(
   const runs = figuresOf(challenge.players[playerId].card).runs;
   const ranked = !RIVALS_NEED_REGISTERED_RIVAL || Object.entries(challenge.players).some(([id, player]) => {
     if (id === playerId) return false;
-    const status = statusOf(player, now);
+    const status = statusIn(challenge, id, now);
     return (status === 'done' || status === 'forfeit' || status === 'declined') && registered(holders, id, player);
   });
   return { outcome, runs, ranked };
@@ -872,10 +1101,11 @@ export function recordOf(results: Record<string, RivalsResult>): RivalsRecord {
  */
 export function outcomeOf(challenge: StoredChallenge, playerId: string, now = Date.now()): RivalsOutcome | null {
   if (!challenge.players[playerId]) return null;
+  if (challenge.invite && inviteStateOf(challenge, now) !== 'accepted') return null;
   const state = stateOf(challenge, now);
   if (state !== 'done' && state !== 'expired') return null;
   const settled = Object.entries(challenge.players)
-    .map(([id, player]) => ({ id, status: statusOf(player, now), score: 0 }))
+    .map(([id]) => ({ id, status: statusIn(challenge, id, now), score: 0 }))
     .filter(row => row.status === 'done' || row.status === 'forfeit' || row.status === 'declined')
     .map(row => ({ ...row, score: rankOf(row.status, figuresOf(challenge.players[row.id].card)) }))
     .sort((a, b) => b.score - a.score);
@@ -913,7 +1143,7 @@ export function challengePayload(code: string, challenge: StoredChallenge, now =
   const players = Object.entries(challenge.players)
     .map(([playerId, player]) => {
       const figures = figuresOf(player.card);
-      const status = statusOf(player, now);
+      const status = statusIn(challenge, playerId, now);
       return {
         ...figures,
         handle: handleOf(playerId),
@@ -938,8 +1168,21 @@ export function challengePayload(code: string, challenge: StoredChallenge, now =
     expiresAt: challenge.at + CHALLENGE_LIFE_MS,
     v: challenge.v,
     rematchOf: challenge.rematchOf,
-    size: PLAYERS_MAX,
+    size: challenge.invite ? 2 : PLAYERS_MAX,
     players,
+    mode: challenge.mode ?? 'classic',
+    invite: inviteView(challenge, now),
+  };
+}
+
+function inviteView(challenge: StoredChallenge, now: number): InviteView | null {
+  const invite = challenge.invite;
+  const state = inviteStateOf(challenge, now);
+  if (!invite || !state) return null;
+  const sent = sentAt(challenge, now);
+  return {
+    to: handleOf(invite.to), name: invite.name, avatar: invite.avatar, state,
+    sentAt: sent, answerBy: sent === null ? null : sent + ANSWER_MS, nudged: invite.nudged ?? null,
   };
 }
 
@@ -963,11 +1206,12 @@ export function rankOf(status: PlayerStatus, figures: Innings): number {
  * already ended before the last one: three wickets by ball nine and a tenth
  * ball is not an innings this game can bowl.
  */
-export function cleanCard(raw: unknown): string | null {
+export function cleanCard(raw: unknown, mode?: ChallengeMode, target: number | null = null): string | null {
   if (typeof raw !== 'string') return null;
-  if (raw.length > MAX_BALLS) return null;
+  if (raw.length > limitsOf(mode).balls) return null;
   if (![...raw].every(char => BALL_CHARS.includes(char))) return null;
-  if (raw.length > 1 && ended(figuresOf(raw.slice(0, -1)))) return null;
+  // No ball after the last one: the innings over, or the total it chased passed.
+  if (raw.length > 1 && ended(figuresOf(raw.slice(0, -1)), mode, target)) return null;
   return raw;
 }
 

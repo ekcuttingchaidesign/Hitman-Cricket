@@ -16,9 +16,10 @@ import { tallyFields, type Tally } from './tally.js';
 import { FEEDBACK_KEPT, type FeedbackStore, type StoredFeedback } from './feedback-store.js';
 import type { ActivityEvent, PlayerStore, StoredBio } from './player-store.js';
 import type { ProfileStores } from './profile-endpoint.js';
+import type { LiveStore, StoredLive } from './live-store.js';
 import {
   packResult, unpackResult,
-  type ChallengeStore, type RivalsResult, type StoredPlayer, type StoredRivalsRow,
+  type ChallengeStore, type RivalsResult, type StoredInvite, type StoredPlayer, type StoredRivalsRow,
 } from './challenge-store.js';
 
 /**
@@ -479,6 +480,8 @@ export function upstashChallenges(redis: Redis): ChallengeStore {
         // Left off rather than written as null: a null field reads back as the
         // string "null", and a room is not a rematch of a room called that.
         ...(challenge.rematchOf ? { rematchOf: challenge.rematchOf } : {}),
+        // A challenge from a profile: its own two fields, beside the innings.
+        ...(challenge.invite ? { invite: challenge.invite, mode: challenge.mode ?? 'classic' } : {}),
         ...challenge.players,
       });
       return true;
@@ -492,20 +495,22 @@ export function upstashChallenges(redis: Redis): ChallengeStore {
       for (const [field, value] of Object.entries(held)) {
         // Anything that is not one of the room's own fields is an innings, and
         // anything that is not an object is not an innings at all.
-        if (field === 'at' || field === 'host' || field === 'v' || field === 'rematchOf') continue;
+        if (field === 'at' || field === 'host' || field === 'v' || field === 'rematchOf' || field === 'invite' || field === 'mode') continue;
         if (value && typeof value === 'object') players[field] = value as StoredPlayer;
       }
+      const invite = held.invite && typeof held.invite === 'object' ? held.invite as StoredInvite : null;
       return {
         at: Number(held.at) || 0,
         host: String(held.host),
         v: Number(held.v) || 0,
         rematchOf: typeof held.rematchOf === 'string' && held.rematchOf ? held.rematchOf : null,
         players,
+        ...(invite ? { invite, mode: held.mode === 'super10' ? 'super10' as const : 'classic' as const } : {}),
       };
     },
 
     async write(code, change, ttlSeconds) {
-      const fields: Record<string, unknown> = { ...change.players };
+      const fields: Record<string, unknown> = { ...change.players, ...(change.invite ? { invite: change.invite } : {}) };
       // Nothing to say is nothing to send: a write with no fields is an error
       // from Redis rather than a no-op, and would cost a command to be told so.
       if (!Object.keys(fields).length) return;
@@ -576,6 +581,8 @@ export function upstashChallenges(redis: Redis): ChallengeStore {
       const found = await redis.hmget<Record<string, StoredRivalsRow>>(rows, ...ids);
       return ids.flatMap(id => (found?.[id] ? [{ playerId: id, ...found[id] }] : []));
     },
+    // The profiles' handle to id, read and never written from here.
+    async idOf(handle) { return (await redis.hget<string>(`${SCOPE}handles`, handle)) ?? null; },
   };
 }
 
@@ -615,6 +622,22 @@ export function upstashRecap(redis: Redis): RecapStore {
       for (const [field, by] of raised) pipe.hincrby(`${key(year)}:all`, field, by);
       await pipe.exec();
     },
+  };
+}
+
+/**
+ * Who is around (`live-store.ts`): one hash, handle to the last check-in. A
+ * check-in is two commands, the name's owner read and the field written; the
+ * list is one, and it sits in the edge cache, so a busy board costs what a
+ * quiet one does. Stale fields are dropped as a list finds them.
+ */
+export function upstashLive(redis: Redis): LiveStore {
+  const live = `${SCOPE}live`, names = `${SCOPE}names`;
+  return {
+    async nameOwner(folded) { return (await redis.hget<string>(names, folded)) ?? null; },
+    async write(handle, entry) { await redis.hset(live, { [handle]: entry }); },
+    async readAll() { return (await redis.hgetall<Record<string, StoredLive>>(live)) ?? {}; },
+    async remove(handles) { if (handles.length) await redis.hdel(live, ...handles); },
   };
 }
 

@@ -1,5 +1,8 @@
 import { handleOf, ownsHandle } from './game/handle';
-import { fetchActivity, fetchProfile, saveBio } from './game/profile-api';
+import { Presence, liveNow, onLive, type Doing } from './game/live-api';
+import { watchLive } from './ui/LiveMarks';
+import { fetchActivity, fetchProfile, saveBio, type OwnActivity, type ProfilePayload } from './game/profile-api';
+import { noticesOf, readSeen, unseenCount, writeSeen, type Notice, type NoticeFilter } from './game/notices';
 import { cleanBio } from './server/bio-rules';
 import {
   againLabel, beaten, close, placeOnPassing, surviveGoal, surviveResultOf, surviveSurely, surviveVerdict, verdict, type Chase, type Mine,
@@ -9,6 +12,8 @@ import { heroView } from './game/rank-hero';
 import { rankHeroMarkup } from './ui/RankHero';
 import { tookTheTop, topSpotView, type TopSpotView } from './game/top-spot';
 import { TopSpot } from './ui/TopSpot';
+import { chaseEndOf, verdictOf, type VerdictKind, type VerdictView } from './game/match-end';
+import { Verdict } from './ui/MatchEnd';
 import { buzz } from './game/haptics';
 import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
@@ -140,16 +145,18 @@ import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
 import { practiceSwitches } from './game/practice';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
 import { batting, readPlaytime, writePlaytime } from './game/playtime';
-import { ChallengeRun, ageOf, emptyList, noteResult, recentForm, rivalryView, roomView, type ListView, type Me, type RoomView } from './game/Challenge';
+import { ChallengeRun, ageOf, emptyList, noteResult, recentForm, rivalryView, roomView, type ListView, type Me, type ResultView, type RoomView } from './game/Challenge';
 import {
-  CODE_PARAM, challengeLink, copy, fetchRivalsBoard, hideChallenge, rivalryEntries, seenHere, whatsapp, type Challenge, type RivalsRow,
+  CODE_PARAM, challengeLink, copy, fetchRivalsBoard, hideChallenge, readUnsent, rivalryEntries, seenHere, sendDecline, sendNudge, sendWalk, whatsapp,
+  type Challenge, type ChallengeMode, type RivalsRow,
 } from './game/challenge-api';
+import { MODE_WORD, aimFor, footState, inviteRow, left as timeLeft, leftBehind, recordIn, roomSeed, waitingOnMe, type FootState } from './game/invite';
 import type { GhostBall, ListRowView, ListSections, RoomAct } from './ui/HUD';
 import { NAME_BLOCKED_REASON, nameBlocked } from './server/name-filter';
 import { nameProblem, renameReason, siblingReason } from './server/name-rules';
 import { cleanName, foldName } from './server/board-store';
 import { kitDeal } from './config/board';
-import { encodeInnings } from './game/ball-string';
+import { encodeInnings, limitsOf } from './game/ball-string';
 import { demoRoom, demoWanted as roomDemoWanted } from './game/room-demo';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
 const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'];
@@ -188,6 +195,10 @@ const SURVIVE_ONLY = !!import.meta.env.VITE_SURVIVE_ONLY;
 const SUPER10_ONLY = !!import.meta.env.VITE_SUPER10_ONLY;
 /** A build published where nothing answers `/api`: no board, and nothing that goes looking for one. */
 const NO_BOARD = SURVIVE_ONLY || SUPER10_ONLY;
+/** How often the list of matches is asked again while the cover or a card is up: a challenge sent mid-visit arrives within this. */
+const LIST_REFRESH_MS = 2 * 60_000;
+/** How long DECLINE can be taken back. */
+const DECLINE_UNDO_MS = 5000;
 
 /**
  * Whether this build offers the Test match at all.
@@ -244,6 +255,8 @@ const SURGE_WAIT_MS = 1600;
 /** The overs a Super10 crowd sends a Mexican wave round the arena at the top of: the third, sixth and eighth. */
 const WAVE_OVERS = [2, 5, 7];
 const SUPER10_OPEN = SUPER10_ONLY || !SURVIVE_ONLY;
+/** Challenges from a profile in Super10: wherever Super10 is played and a room can be reached. */
+const SUPER10_CHALLENGES = SUPER10_OPEN && !NO_BOARD;
 /** Super10's kits on the Dressing Room's kit shelf: wherever Super10 is played beside the other modes. */
 const SUPER10_SHELF = SUPER10_OPEN && !SUPER10_ONLY;
 /** The mode a browser played last, which Choose a mode's rail opens on; a new player starts on the Blast. */
@@ -700,6 +713,9 @@ export class Game {
    */
   private locked = false;
   private disposed = false;
+  /** Who is around: this player checked in, and everybody's marks painted (`live-api.ts`, `LiveMarks.ts`). */
+  private presence: Presence | null = null;
+  private stopLive: (() => void) | null = null;
   /**
    * Whether an innings played here can be registered. False in a private
    * window, where the player id is minted fresh every session: a row claimed
@@ -731,6 +747,7 @@ export class Game {
     // failure for an afternoon.
     void playerId().then(id => {
       this.player = id;
+      this.startPresence();
       // The return ticket follows the id and whatever name is written under
       // it. Not from a private window, whose id is gone with the tab anyway.
       if (this.canRegister) {
@@ -798,6 +815,17 @@ export class Game {
     this.hud.on('challenge-solo', () => { void this.declineMatch(); });
     this.hud.on('room-back', () => this.leaveRoom());
     this.hud.onRoomAct = act => { void this.roomAct(act); };
+    // Challenges from a profile (Figma section 23): never from a private window or a build with no board.
+    if (!NO_BOARD && this.canRegister) {
+      this.hud.onChallengeFoot = handle => this.footFor(handle);
+      this.hud.onPlayerChallenge = them => this.challengeFrom(them);
+      this.hud.onInviteAnswer = code => this.answerInvite(code);
+      this.hud.onInviteNudge = code => { void this.nudgeInvite(code); };
+      this.hud.onInviteRoom = code => { this.hud.closePlayer(); void this.listAct('open', code); };
+      window.setInterval(() => {
+        if (document.visibilityState === 'visible' && !this.challenge.playing && ['START', 'INNINGS_END'].includes(this.phase)) void this.syncChallenges();
+      }, LIST_REFRESH_MS);
+    }
     this.hud.on('modes-challenges', () => { void this.showChallenges(); });
     this.hud.on('modes-dressing', () => this.openDressing('modes'));
     // Super10's PLAY card: the whole card plays it.
@@ -805,6 +833,12 @@ export class Game {
     this.hud.on('mode-super10-poster', () => { track('super10-play-poster', 'Played Super10 from its poster on Choose a mode'); this.choose('SUPER10'); });
     // My Stats from Choose a mode: the avatar at the top and the tier card in the bento.
     this.hud.on('modes-profile', this.showStats);
+    this.hud.on('modes-bell', () => this.openNotices());
+    // My profile's Rank down card opens Notifications on Board, which replaced its sheet.
+    if (!NO_BOARD) this.hud.onActivityOpen = () => this.openNotices('board');
+    this.hud.onNoticeKey = notice => this.noticeKey(notice);
+    this.hud.onNoticeRow = notice => this.noticeRow(notice);
+    this.hud.onNoticesBoard = () => { track('notices-board', 'The boards opened from an empty Notifications'); this.showBoard(); };
     this.hud.on('modes-stats', this.showStats);
     // The boards, from the mode screen: the same sheet the cover's trophy
     // opens, laid over the picker, which is still there when it is put away.
@@ -826,7 +860,7 @@ export class Game {
     // listened for on the list itself rather than bound to buttons that will
     // not exist by the time anybody presses one. The room's keys likewise.
     this.hud.viewport.querySelector('#challenge-sections')!.addEventListener('click', event => {
-      const key = (event.target as HTMLElement).closest('[data-open],[data-rival],[data-drop],[data-accept],[data-decline]') as HTMLElement | null;
+      const key = (event.target as HTMLElement).closest('[data-open],[data-rival],[data-drop],[data-accept],[data-decline],[data-answer],[data-nudge],[data-again]') as HTMLElement | null;
       if (!key) {
         // Anywhere else on a card opens its match: the verdict, the badge, the
         // padding. Only the face and the accept and decline keys mean something
@@ -836,6 +870,9 @@ export class Game {
         return;
       }
       event.stopPropagation();
+      if (key.dataset.answer) { this.answerInvite(key.dataset.answer); return; }
+      if (key.dataset.nudge) { void this.nudgeInvite(key.dataset.nudge); return; }
+      if (key.dataset.again) { this.againFrom(key.dataset.code ?? '', key.dataset.again); return; }
       if (key.dataset.drop) void this.listAct('drop', key.dataset.drop);
       else if (key.dataset.accept) void this.listAct('accept', key.dataset.accept);
       else if (key.dataset.decline) void this.listAct('decline', key.dataset.decline);
@@ -869,7 +906,7 @@ export class Game {
     this.hud.on('survive-share', () => { void this.hud.shareSurvive(); });
     // The switch as it was left last visit.
     this.hud.sound(this.audio.setting);
-    this.hud.on('restart', this.start);
+    this.hud.on('restart', () => this.guardLeave(this.start));
     this.hud.on('declare', this.declare);
     // The pause sheet's sound switches: the crowd, and the ambience under it.
     this.hud.on('crowd-switch', () => { this.audio.setCrowd(!this.audio.crowdOn); this.soundSwitches(); });
@@ -878,7 +915,7 @@ export class Game {
     // rather than a card, so it covers the pause card rather than replacing
     // it: pick a mode and the innings is walked out on, back out of it and the
     // card is exactly where it was.
-    this.hud.on('change-mode', () => { if (this.phase === 'PAUSED') { this.markQuit(); this.modes(); } });
+    this.hud.on('change-mode', () => { if (this.phase === 'PAUSED') this.guardLeave(() => { this.markQuit(); this.modes(); }); });
     // Day or night, from the pause card, between balls. Remembered for the next Blast innings.
     for (const time of ['day', 'night'] as const) this.hud.on(`lights-${time}`, () => {
       if (this.phase !== 'PAUSED' || this.test) return;
@@ -895,7 +932,7 @@ export class Game {
     this.hud.onBoardStories = () => this.showStories('board');
     // OPEN THE DRESSING ROOM, on the last story: after the stories, the room,
     // over Choose a mode where the stories were on the way to it.
-    this.hud.onStoriesOpen = (what, shown) => (what === 'super10' ? this.playFromStory(shown) : this.openDressing('story', shown));
+    this.hud.onStoriesOpen = (what, shown) => (what === 'super10' ? this.playFromStory(shown) : what === 'rivals' ? this.rivalsFromStory(shown) : this.openDressing('story', shown));
     this.hud.onStoryReel = (shot, beat) => this.playReel(shot, beat);
     this.hud.onLadderTab = this.tabLadder;
     this.hud.onBoardFrame = (mode, ladder) => this.boardFrame(mode, ladder);
@@ -996,7 +1033,13 @@ export class Game {
       event.preventDefault();
       void this.sendClaim();
     });
-    if (!NO_BOARD) this.hud.on('cover-board', this.showBoard);
+    if (!NO_BOARD) this.hud.on('cover-board', () => {
+      // A challenge waiting has the line: one opens its invite, several Rival Matches.
+      const waiting = this.waitingOnMe();
+      if (waiting.length === 1) this.answerInvite(waiting[0].code);
+      else if (waiting.length > 1) void this.showChallenges();
+      else this.showBoard();
+    });
     // The chip on the cover is always the way to My Stats. Delegated, because
     // the chip is redrawn whenever the player behind it changes.
     this.hud.viewport.addEventListener('click', event => {
@@ -1135,6 +1178,19 @@ export class Game {
       topSpot: (mode?: CareerMode) => this.previewTopSpot(mode),
       // Whether it is playing.
       topSpotOpen: () => !!this.topSpot,
+      // The end of a challenge's chase, over a made-up one, for looking at: `chaseEnd('won')`, `'short'` or `'level'`, then its verdict.
+      chaseEnd: (kind: 'won' | 'short' | 'level' = 'won', mode: 'classic' | 'super10' = 'classic', hold = 2200) => {
+        const target = 31, limits = mode === 'super10' ? { balls: 60, wickets: 5 } : { balls: 30, wickets: 3 };
+        const runs = kind === 'won' ? 35 : kind === 'level' ? 31 : 27;
+        const end = chaseEndOf({ runs, balls: kind === 'won' ? 13 : limits.balls, wickets: kind === 'won' ? 1 : 2, limits }, target, 'Kabir');
+        void this.hud.chaseEnd(end, mode, hold).then(() => {
+          const outcome = kind === 'won' ? 'W' : kind === 'short' ? 'L' : 'D';
+          const row = (name: string, avatar: number, made: number, balls: number, at: number) => ({ name, avatar, runs: made, balls, status: 'done', at });
+          this.showVerdict(verdictOf({ outcome, forfeit: false, mine: row('You', 1, runs, kind === 'won' ? 13 : limits.balls, 2), them: row('Kabir', 3, target, limits.balls, 1),
+            mode, balls: limits.balls, youAvatar: readPlayer()?.avatar ?? 1 }), outcome === 'L' ? () => this.hud.notice('WIN IT BACK: the rematch would start here.') : undefined);
+        });
+      },
+      verdictOpen: () => !!this.verdict,
       // Where it has got to — 'rush' to 'ready' — or null when it is not up.
       levelingUp: () => this.levelUp?.at ?? null,
     } });
@@ -1166,6 +1222,8 @@ export class Game {
     // for behind it so the next look is fresher.
     if (this.rooms) this.hud.challengesOpen(this.rooms.yourMove.length, this.rooms.waitingOnThem.length);
     void this.refreshCount();
+    this.askNotices();
+    if (this.noticed) this.bannerChallenge();
     // Anything earned away from an innings's end — a Rival Match settled while
     // the player was elsewhere — is celebrated here instead.
     this.celebrateUnlocks();
@@ -1475,6 +1533,7 @@ export class Game {
     if (!list) return;
     this.rooms = list;
     this.hud.challengesOpen(list.yourMove.length, list.waitingOnThem.length);
+    this.refreshChallenges();
   }
 
   /**
@@ -2243,6 +2302,8 @@ export class Game {
    */
   private walkOut = () => this.start();
   start = () => {
+    // Whatever led here — ANSWER, AGAIN or WIN IT BACK on Notifications — the innings is not played under it.
+    this.hud.closeNotices(); this.hud.closeChaseEnd(); this.verdict?.close();
     if (this.walking) { this.walking = null; this.scene.walkOn(null); this.hud.walkOn(null); this.hud.walkOnCard(null, true); }
     if (this.chaseWon) { this.chaseWon = false; this.clearChase(); }
     // Who is batting, first: once, before the first innings there is.
@@ -2275,6 +2336,8 @@ export class Game {
     const param = new URLSearchParams(location.search).get('seed');
     this.seed = param !== null && Number.isFinite(Number(param)) ? Number(param) >>> 0 : crypto.getRandomValues(new Uint32Array(1))[0];
     this.rng = new SeededRandom(this.seed);
+    // A challenge from a profile: both innings bowled from the room, so the chaser faces the same balls.
+    if (this.challenge.playing && this.challenge.room?.invite) { this.seed = roomSeed(this.challenge.room.code); this.rng = new SeededRandom(this.seed); }
     // The score at the other end is drawn first, off the innings seed, so that
     // the same seed always walks out to the same scoreboard. Drawing it from the
     // clock would have made a share card a lie the moment it was reloaded.
@@ -2322,7 +2385,8 @@ export class Game {
     this.setPhase('READY');
     (document.activeElement as HTMLElement | null)?.blur();
     // The coachmarks and the chase's card wait for the walk-on, where there is one.
-    const told = () => { if (this.marathoning) this.introduce(); else this.teachShots(); this.startChase(); };
+    // A challenge's card goes first, and the coachmarks follow it on LET'S BAT (`afterCard`).
+    const told = () => { if (this.marathoning) this.introduce(); else if (!this.cardFirst) this.teachShots(); this.startChase(); };
     if (this.introAsked && !this.walkedIn.has(this.mode) && !this.demoing && !this.challenge.playing) this.walkOn(told); else told();
   };
   /**
@@ -2642,8 +2706,8 @@ export class Game {
   /** `?round=1`: every over of a Marathon bowled round the wicket, from the first. See `roundEvery`. */
   private roundOnly = new URLSearchParams(location.search).get('round') === '1';
   private get plan() {
-    // A Rival Match is bowled as the Blast is, whatever the link asks for.
-    if (this.challenge.playing) return CLASSIC_PLAN;
+    // A Rival Match is bowled as its room's mode is, whatever the link asks for.
+    if (this.challenge.playing) return this.challenge.room?.mode === 'super10' ? SUPER10_PLAN : CLASSIC_PLAN;
     const base = this.ease > 1 ? withoutYorkers(this.basePlan) : this.basePlan;
     return this.marathoning && (this.roundOnly || this.netsKeys) ? roundEvery(base) : base;
   }
@@ -2755,6 +2819,7 @@ export class Game {
   }
   private setPhase(phase: GamePhase) {
     this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials);
+    this.presence?.changed();
     if (phase === 'READY' && this.marathon) this.tellLevel();
     if (phase === 'READY' && this.super10 && this.lesson < 0) this.super10Over(true);
     // As the bowler sets off: the surge's offer goes, the map goes back into
@@ -3141,7 +3206,7 @@ export class Game {
     const recent = rows.filter(row => row.at && now - row.at < RECENT_MS && !ownsHandle(row.handle, this.player))
       .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))[0];
     if (recent) lines.push({ kind: 'recent', runs: recent.runs, name: recent.name, ago: now - (recent.at ?? now) });
-    if (lines.length) this.hud.coverBoard(lines);
+    if (lines.length && !this.coverChallenge) this.hud.coverBoard(lines);
   }
 
   /** The Test fifty, the same way. The cover quotes the other one, not this. */
@@ -3192,6 +3257,21 @@ export class Game {
     if (between) this.hud.onStoriesDone = null;
     shown();
     if (between) this.choose('SUPER10');
+  }
+
+  /**
+   * SEE WHO'S ONLINE under the Rivals film: the stories put away and Rival
+   * Matches opened over Choose a mode, Around now at its head, so its back key
+   * lands where every other way into it does. From the board in the middle of
+   * an innings it only puts them away.
+   */
+  private rivalsFromStory(shown: () => void) {
+    const between = this.phase === 'START' || this.phase === 'INNINGS_END';
+    if (between) this.hud.onStoriesDone = null;
+    shown();
+    if (!between) return;
+    this.modes();
+    void this.showChallenges();
   }
 
   /** The update's stories, and whatever happens when they are done with. */
@@ -3850,7 +3930,92 @@ export class Game {
       // My profile led with Rank down: against `activity-open` and `activity-win-back`, how often being passed brings a player back.
       if (headline(activity)) track('activity-headline', 'My profile led with Rank down');
       this.hud.statsActivity(activity);
+      this.ownActivity = activity;
+      this.activityAt = Date.now();
+      this.refreshBell();
     } catch { /* My profile without its activity is still My profile. */ }
+  }
+
+  /** On Choose a mode, a challenge waiting that the banner has not told of this visit gets it (C8). */
+  private bannerChallenge() {
+    if (!this.player || !this.hud.modesOpen || this.hud.noticesOpen) return;
+    const waiting = this.waitingOnMe();
+    const fresh = waiting.find(room => !this.alerted.has(room.code));
+    if (!fresh) return;
+    for (const room of waiting) this.alerted.add(room.code);
+    const host = fresh.players.find(one => one.host)!;
+    track('modes-alert', 'Challenge banner on Choose a mode');
+    this.hud.modesAlert({
+      code: fresh.code, name: host.name, avatar: host.avatar,
+      line: `Chase ${host.runs} · ${MODE_WORD[fresh.mode ?? 'classic']} · ${timeLeft((fresh.invite!.answerBy ?? Date.now()) - Date.now())} left`,
+    });
+  }
+
+  /** The challenges the banner on Choose a mode has already told of this visit. */
+  private alerted = new Set<string>();
+
+  /** The player's own activity, as last asked: the board's half of Notifications. */
+  private ownActivity: OwnActivity | null = null;
+  private activityAt = 0;
+
+  /** Whether this player is told anything: a name, a board and a window that keeps them. */
+  private get noticed() { return !!this.player && !!readPlayer()?.name && !NO_BOARD && this.canRegister; }
+
+  /** Everything Notifications holds now, from the rooms and the activity already asked for. */
+  private noticesNow(): Notice[] {
+    return this.player ? noticesOf(this.allRooms(), this.ownActivity, this.player) : [];
+  }
+
+  /** The bell's count, and the screen drawn again where it is up. */
+  private refreshBell() {
+    if (!this.noticed) { this.hud.bell(null); return; }
+    const notices = this.noticesNow();
+    this.hud.bell(unseenCount(notices, readSeen()));
+    if (this.hud.noticesOpen) this.hud.notices({ notices, filter: 'all', seenAt: 0, you: { avatar: readPlayer()?.avatar ?? null } });
+  }
+
+  /** The activity asked again once it is a minute old, for the bell on Choose a mode. */
+  private askNotices() {
+    if (!this.noticed) { this.hud.bell(null); return; }
+    this.refreshBell();
+    if (Date.now() - this.activityAt > 60_000) void this.askActivity();
+  }
+
+  /** Notifications (Figma 23, E2): opened on a filter; what is there now counts as seen. */
+  private openNotices = (filter: NoticeFilter = 'all') => {
+    if (!this.noticed) return;
+    track(`notices-open${filter === 'all' ? '' : `-${filter}`}`, 'Notifications opened');
+    const seenAt = readSeen();
+    this.hud.notices({ notices: this.noticesNow(), filter, seenAt, you: { avatar: readPlayer()?.avatar ?? null } });
+    writeSeen(Date.now());
+    this.refreshBell();
+    void this.askActivity();
+    void this.syncChallenges();
+  };
+
+  /** A row's key on Notifications. */
+  private noticeKey(notice: Notice) {
+    const key = notice.key;
+    if (!key) return;
+    track(`notices-${key.kind}`, 'A key on Notifications');
+    if (key.kind === 'answer') { this.answerInvite(key.code); return; }
+    if (key.kind === 'again') { this.challengeFrom({ handle: key.handle, name: notice.face.name, avatar: notice.face.avatar, profile: null }); return; }
+    const event = this.ownActivity?.events[key.event];
+    if (!event) return;
+    this.hud.closeNotices(); this.hud.closeModes();
+    this.hud.onWinBack?.(event);
+  }
+
+  /** A row itself: a challenge waiting opens its invite, a match its room, anything else the player's profile. */
+  private noticeRow(notice: Notice) {
+    if (notice.key?.kind === 'answer') { this.answerInvite(notice.key.code); return; }
+    if (notice.code && (notice.kind === 'results' || notice.kind === 'challenges')) {
+      track('notices-room', 'A match opened from Notifications');
+      this.hud.closeNotices(); this.hud.closeModes();
+      void this.listAct('open', notice.code);
+      return;
+    }
+    this.hud.openNoticePlayer(notice.face, notice.mode);
   }
 
   private showStats = () => {
@@ -4281,7 +4446,7 @@ export class Game {
         this.lesson++;
         if (this.lesson >= TUTORIAL.length) { this.lesson = -1; noteHowTo(false); track('tutorial-complete', 'Tutorial completed'); this.setPhase('START'); this.hud.tutorialComplete(); }
         else { this.setPhase('READY'); this.hud.coach(TUTORIAL[this.lesson], this.lesson + 1, TUTORIAL.length); }
-      } else if (this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended) this.end();
+      } else if (this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended || this.targetPassed) this.end();
       else {
         if (this.changed) this.nextBatter();
         if (this.noticeDue) { this.noticeDue = false; this.showHurtNote(); }
@@ -4386,7 +4551,7 @@ export class Game {
   private writeBlast(balls: (number | 'W')[]) {
     if (this.marathon || this.surviving || this.phase !== 'READY') return false;
     for (const ball of balls) {
-      if (this.score.ended) break;
+      if (this.score.ended || this.targetPassed) break;
       this.delivery = this.generator.next(0);
       const outcome = {
         runs: typeof ball === 'number' ? ball : 0, isWicket: ball === 'W', quality: 0, feedback: '',
@@ -4399,7 +4564,7 @@ export class Game {
     }
     this.hud.score(this.score);
     if (this.chasePassDue && !this.score.ended) this.celebrateChase();
-    if (this.score.ended) this.end(); else this.setPhase('READY');
+    if (this.score.ended || this.targetPassed) this.end(); else this.setPhase('READY');
     return true;
   }
   private writeMarathon(balls: (number | 'W' | 'H')[]) {
@@ -4621,7 +4786,7 @@ export class Game {
   private presentResult() {
     this.resultPresented = true;
     const outcome = this.outcome!;
-    if (this.lesson < 0) { this.hud.score(this.score); this.showNearing(this.batterHistory); this.chaseBall(outcome); }
+    if (this.lesson < 0) { this.hud.score(this.score); this.showNearing(this.batterHistory); this.chaseBall(outcome); this.inviteBall(); }
     this.hud.result(outcome, this.chargeMiss);
     // A boundary rider out of the picture: the side label it went past says who.
     const away = outcome.fielder && offScreen(outcome.fielder.angle);
@@ -5745,6 +5910,15 @@ export class Game {
     if (!me) return;
     noteResult(view.result);
     if (!view.mine?.seen && !seenHere(view.code)) {
+      // The first look at a settled match: its verdict over the result, from this player's side.
+      const result = view.result, mine = result.players.find(row => ownsHandle(row.handle, result.you)), them = result.them;
+      if (mine && them && !this.verdicts.has(view.code) && !this.demoing) {
+        this.verdicts.add(view.code);
+        this.showVerdict(verdictOf({
+          outcome: result.outcome, forfeit: result.forfeit, mine, them, mode: result.mode === 'super10' ? 'super10' : 'classic',
+          balls: limitsOf(result.mode).balls, youAvatar: readPlayer()?.avatar ?? mine.avatar,
+        }), result.outcome === 'L' ? () => this.winItBack(result) : undefined);
+      }
       track(`challenge-${view.result.outcome === 'W' ? 'won' : view.result.outcome === 'D' ? 'drew' : 'lost'}`, 'Match result seen');
       if (view.result.forfeit) track('challenge-by-forfeit', 'Match decided by a walkout or a decline');
       track(`challenge-players-${roomBand(view.result.players.length)}`, 'Match size at the result');
@@ -5803,6 +5977,13 @@ export class Game {
         return;
       case 'rematch': {
         const them = view?.result?.them;
+        // A challenge made for one player: CHALLENGE AGAIN, the same sheet a
+        // profile's CHALLENGE opens, at the same player. A new room with nobody
+        // in it would only be a link to send.
+        if (this.challenge.room?.invite && them) {
+          this.challengeFrom({ handle: them.handle, name: them.name, avatar: them.avatar, profile: null });
+          return;
+        }
         const tally = them ? rivalryView(them.handle, them)?.tally ?? null : null;
         this.rematchLine = them && tally ? { them: them.name, tally } : null;
         this.challenge.stopWatching();
@@ -5933,7 +6114,8 @@ export class Game {
     // polling exists for — or this is the innings that answers one played
     // earlier. The pair is what says which of the two ways people use it.
     if (!resume) track(this.challenge.ghostBatting ? 'challenge-live' : 'challenge-apart', this.challenge.ghostBatting ? 'Match batted together' : 'Match batted apart');
-    this.mode = 'CLASSIC';
+    this.mode = this.challenge.room?.mode === 'super10' ? 'SUPER10' : 'CLASSIC';
+    this.cardFirst = !resume && !!this.challenge.room?.invite;
     this.start();
     // Dressed by `start` like any innings: in his own Dressing Room kit and
     // bat, which the room keeps with his innings.
@@ -5946,6 +6128,14 @@ export class Game {
         this.score.record(outcome); this.generator.record(outcome); this.confidence.record(outcome);
       }
       this.hud.score(this.score); this.showConfidence();
+    }
+    const room = this.challenge.room;
+    if (room?.invite && !resume) this.challengeCard(room);
+    // A chase picked up again: its chip, as it was when it was left.
+    const host = room?.players.find(one => one.host);
+    if (resume && room?.invite && host && this.challengeTarget !== null) {
+      this.inviteChase = { handle: host.handle, name: host.name, avatar: host.avatar, mode: room.mode ?? 'classic', target: host.runs };
+      this.hud.chaseChip(this.inviteChase, this.score.runs, this.chaseBallsLeft);
     }
     // Kept fresh while anybody else is still batting, so their balls arrive in
     // time to flash. Once they are all done, or nobody started, there is
@@ -5966,14 +6156,62 @@ export class Game {
     const me = this.me;
     if (!me) return;
     if (this.demoing) { this.hud.end(this.score, this.best, false); this.challenge.playing = false; return; }
-    const answer = await this.challenge.finishInnings(me, this.score.history);
+    // A challenge's chase is said on the gameplay screen first, while the innings is on its way to the store.
+    const chase = this.inviteChase, target = this.challengeTarget;
+    const sending = this.challenge.finishInnings(me, this.score.history);
+    this.inviteChase = null; this.setting = null; this.hud.chaseChip(null);
+    if (chase && target !== null) await this.sayChaseEnd(chase, target);
+    const answer = await sending;
+    void this.syncChallenges();
     if (!answer.ok || !answer.challenge) {
       this.hud.end(this.score, this.best, false);
       this.hud.claimFailed(answer.reason ?? 'Your innings is saved and will be sent when you are back online.');
       return;
     }
     track('challenge-answered', 'Match innings sent');
+    // The result, and the first time it is opened, its verdict over it (`settle`).
     this.showRoom();
+  }
+
+  /**
+   * The ball a challenge's chase ended on, said over the ground: TARGET
+   * CHASED, FELL SHORT or SCORES LEVEL. The verdict follows over the result.
+   */
+  private async sayChaseEnd(chase: Chase, target: number) {
+    const mode = chase.mode === 'super10' ? 'super10' : 'classic';
+    const limits = this.score.limits;
+    const end = chaseEndOf({ runs: this.score.runs, balls: this.score.balls, wickets: this.score.wickets, limits: { balls: limits.totalBalls, wickets: limits.maxWickets } }, target, chase.name);
+    track(`challenge-end-${end.kind}`, 'Challenge chase ended');
+    if (end.kind === 'won') { buzz([0, 40, 30, 90]); this.audio.cheer(boundaryCheer(6, 1, false)); }
+    await this.hud.chaseEnd(end, mode, end.kind === 'won' ? 2200 : 1900);
+  }
+
+  /**
+   * WIN IT BACK, off a defeat: a challenge from a profile goes straight back
+   * at whoever won it, the loser batting first this time; a link's room is
+   * rematched as its own REMATCH key does.
+   */
+  private winItBack(result: ResultView) {
+    const them = result.them;
+    if (!them) return;
+    track('challenge-verdict-rematch', 'WIN IT BACK on a defeat');
+    void this.roomAct('rematch');
+  }
+
+  /** VICTORY, DEFEAT or DRAW over a result already up, handing over to it once its lockup is in. */
+  private showVerdict(view: VerdictView, rematch?: () => void) {
+    this.verdict?.close();
+    track(`challenge-verdict-${view.kind}`, 'Challenge verdict shown');
+    this.verdict = new Verdict(this.hud.viewport, view, {
+      sound: (kind: VerdictKind) => {
+        if (kind === 'won') this.audio.cheer({ size: 'big', peak: .8, decay: 2.6, swell: .3 });
+        else if (kind === 'lost') this.audio.play('defeat');
+        else this.audio.cheer(boundaryCheer(4, 1, false));
+      },
+      rematch,
+      done: () => { this.verdict = null; },
+    });
+    this.verdict.release();
   }
 
   /**
@@ -6052,9 +6290,16 @@ export class Game {
   private async syncChallenges() {
     if (!this.player) return;
     const list = await ChallengeRun.mine(this.player);
-    if (!list) return;
+    // Not reached: asked again shortly, a few times, so a challenge waiting
+    // on a slow connection is not left until the next refresh.
+    if (!list) {
+      if (this.listRetries++ < 3) window.setTimeout(() => { void this.syncChallenges(); }, 8000 * this.listRetries);
+      return;
+    }
+    this.listRetries = 0;
     this.rooms = list;
     this.hud.challengesOpen(list.yourMove.length, list.waitingOnThem.length);
+    this.refreshChallenges();
     if (list.unseen.length && !this.hud.modesOpen && this.phase === 'START') {
       this.pending = [...list.unseen];
       this.pendingTotal = this.pending.length;
@@ -6062,6 +6307,7 @@ export class Game {
     }
   }
   private rooms: ListView | null = null;
+  private listRetries = 0;
   /**
    * Everything the Dressing Room's unlocks are read off: the three careers
    * this browser holds, the Rival Matches won (the store's count or this
@@ -6188,6 +6434,249 @@ export class Game {
     draw(this.rooms ?? emptyList());
   }
 
+  /* ── Challenges from a profile (Figma section 23) ─────────────────────── */
+
+  /** Every room in the list, whichever section it is in. */
+  private allRooms(): Challenge[] {
+    const rooms = this.rooms;
+    return rooms ? [...rooms.yourMove, ...rooms.waitingOnThem, ...rooms.done] : [];
+  }
+  /** Challenges waiting on this player, less any just declined and still undoable. */
+  private waitingOnMe(): Challenge[] {
+    return this.player ? waitingOnMe(this.allRooms(), this.player).filter(room => !this.declining.has(room.code)) : [];
+  }
+  private declining = new Set<string>();
+  private coverChallenge = false;
+  /** Who the innings under way sets a total for, and what their profile said: the aim is read off it. */
+  private setting: { them: { handle: string; name: string; avatar: number }; profile: ProfilePayload | null; mode: ChallengeMode } | null = null;
+  /** A challenge's card is up before the first ball, so the coachmarks wait for it. */
+  private cardFirst = false;
+  /** The total being chased, for the chip under the scoreboard. */
+  private inviteChase: Chase | null = null;
+  /** A settled match's verdict, over its result, until it has handed over to it. */
+  private verdict: Verdict | null = null;
+  /** The matches whose verdict has played on this page, so a second look at the result does not play it again. */
+  private readonly verdicts = new Set<string>();
+
+  /** The setter's total while this player chases their challenge; null for anything else, a link's room included. */
+  private get challengeTarget(): number | null {
+    const room = this.challenge.room, me = this.player;
+    if (!this.challenge.playing || !room?.invite || !me) return null;
+    const host = room.players.find(one => one.host);
+    if (!host || ownsHandle(host.handle, me) || host.status !== 'done') return null;
+    return host.runs;
+  }
+  /** The total passed: the chase is won on this ball, and the innings is over (the store's rule too). */
+  private get targetPassed() { const target = this.challengeTarget; return target !== null && this.score.runs > target; }
+
+  /** What a profile's foot offers between this player and that one; null when the list could not be had. */
+  private footFor(handle: string): FootState | null {
+    if (!this.player || !this.rooms) return null;
+    return footState(this.allRooms(), this.player, handle);
+  }
+
+  /** CHALLENGE, from a profile or AGAIN: the mode first (B1), then the innings that sets the total. */
+  private challengeFrom(them: { handle: string; name: string; avatar: number; profile: ProfilePayload | null }) {
+    if (!this.player) return;
+    if (!readPlayer()?.name) { this.hud.notice('Add your name first: open My profile from the cover.'); return; }
+    track('challenge-open', 'Challenge sheet opened');
+    this.hud.challengeConfirm({ name: them.name, avatar: them.avatar }, SUPER10_CHALLENGES, mode => { void this.sendChallenge(them, mode); });
+  }
+
+  /** The challenge made on the store, then the innings that sets the total, the card held in front of its first ball. */
+  private async sendChallenge(them: { handle: string; name: string; avatar: number; profile: ProfilePayload | null }, mode: ChallengeMode) {
+    const me = this.me;
+    if (!me) return;
+    const answer = await this.challenge.create(me, { to: them.handle, toName: them.name, toAvatar: them.avatar, mode });
+    if (!answer.ok || !answer.challenge) { this.hud.notice(answer.reason ?? 'That challenge could not be made. Try again in a moment.'); return; }
+    track(`challenge-made-${mode}`, 'Challenge made from a profile');
+    const profile = them.profile ?? await fetchProfile(them.handle, null).catch(() => null);
+    this.setting = { them, profile, mode };
+    this.hud.closePlayer(); this.hud.closeBoard(); this.hud.closeList(); this.hud.closeModes();
+    this.pinRoom(answer.challenge.code);
+    this.startMatchInnings(false);
+  }
+
+  /**
+   * The card before the first ball of a challenge (B3, C3): the setter's with
+   * the record between the two and an aim, the chaser's with the total and
+   * that leaving is a loss. The chaser joins on LET'S BAT, not before: backing
+   * out of the card costs nothing.
+   */
+  private challengeCard(room: Challenge) {
+    const me = this.player;
+    const invite = room.invite;
+    const host = room.players.find(one => one.host);
+    if (!me || !invite || !host) return;
+    const mode = room.mode ?? 'classic';
+    const you = { avatar: readPlayer()?.avatar ?? null };
+    this.bannerUntil = Number.POSITIVE_INFINITY;
+    if (ownsHandle(host.handle, me)) {
+      const career = this.setting?.profile?.modes[mode]?.career as { innings: number; runs: number } | null | undefined;
+      const average = career && career.innings > 0 ? Math.round(career.runs / career.innings) : null;
+      const myBest = mode === 'classic' ? this.best : (heldCareer('super10') as Super10Career).highest ?? null;
+      this.hud.challengeIntro({ set: {
+        mode, them: { name: invite.name, avatar: invite.avatar }, you,
+        record: recordIn(rivalryEntries(), invite.to, mode), aim: aimFor(average, myBest || null, mode), average,
+      } }, bat => {
+        if (bat) { this.afterCard(); track('challenge-set-bat', 'Challenge: setting a total'); return; }
+        void this.leaveChallenge(true);
+      });
+      return;
+    }
+    this.hud.challengeIntro({ chase: { mode, them: { name: host.name, avatar: host.avatar }, total: host.runs, you } }, async bat => {
+      if (!bat) { void this.leaveChallenge(false); return; }
+      const joined = await this.challenge.join(this.me!);
+      if (!joined.ok) { this.hud.notice(joined.reason ?? 'That challenge could not be accepted.'); void this.leaveChallenge(false); return; }
+      track('challenge-chase-bat', 'Challenge: chasing');
+      this.inviteChase = { handle: host.handle, name: host.name, avatar: host.avatar, mode, target: host.runs };
+      this.hud.chaseChip(this.inviteChase, 0, this.chaseBallsLeft);
+      this.afterCard();
+    });
+  }
+
+  /** The card put away for the first ball: the coachmarks it held back, if any are due, and then the bowler. */
+  private afterCard() {
+    this.cardFirst = false;
+    this.bannerUntil = this.elapsed;
+    this.teachShots();
+  }
+
+  /** The chaser's chip moved on after a ball, as any chase's is. */
+  private inviteBall() {
+    if (this.inviteChase && this.challenge.playing) this.hud.chaseChip(this.inviteChase, this.score.runs, this.chaseBallsLeft);
+  }
+
+  /**
+   * Out of a challenge's innings, said: the setter's total never sent, the
+   * chaser's chase a loss once it has begun. `walk` is whether the store is
+   * told; backing out of the card before joining tells it nothing.
+   */
+  private async leaveChallenge(walk: boolean) {
+    const me = this.me, room = this.challenge.room;
+    this.inviteChase = null; this.setting = null; this.cardFirst = false; this.hud.chaseChip(null); this.hud.closeChaseIntro();
+    const joined = !!room && !!me && room.players.some(one => ownsHandle(one.handle, me.playerId));
+    if (me && room && (walk || joined)) await sendWalk(room.code, me.playerId, me.name, me.avatar).catch(() => null);
+    this.challenge.clear(); this.pinRoom(null);
+    this.markQuit();
+    if (this.phase !== 'PAUSED') this.togglePause();
+    this.modes();
+    void this.syncChallenges();
+  }
+
+  /** A pause key that would leave a challenge's innings: what it costs, asked first (B7, D4). */
+  private guardLeave(next: () => void) {
+    const room = this.challenge.playing ? this.challenge.room : null;
+    const host = room?.players.find(one => one.host);
+    if (!room?.invite || !host || !this.player || this.phase === 'INNINGS_END') { next(); return; }
+    const setter = ownsHandle(host.handle, this.player);
+    this.hud.leaveSheet(setter ? 'set' : 'chase', setter ? room.invite.name : host.name, () => {
+      track(setter ? 'challenge-set-left' : 'challenge-chase-left', 'Challenge innings left');
+      void this.leaveChallenge(true);
+    });
+  }
+
+  /** ANSWER: the invite sheet, or the one that ran out (C2, C6). */
+  private answerInvite(code: string) {
+    const room = this.allRooms().find(one => one.code === code);
+    const host = room?.players.find(one => one.host);
+    if (!room?.invite || !host) { void this.listAct('open', code); return; }
+    const ranOut = room.invite.state === 'unanswered';
+    if (room.invite.state !== 'waiting' && !ranOut) { void this.listAct('open', code); return; }
+    const mode = room.mode ?? 'classic';
+    const record = recordIn(rivalryEntries(), host.handle, mode);
+    track('challenge-answer-open', 'Challenge invite opened');
+    this.hud.closePlayer();
+    this.hud.answerSheet({
+      mode, them: { name: host.name, avatar: host.avatar }, total: host.runs, answerBy: room.invite.answerBy,
+      nudged: !!room.invite.nudged, record: { won: record.won, lost: record.lost }, ranOut,
+    }, {
+      accept: () => {
+        track('challenge-accept', 'Challenge accepted');
+        this.hud.closeList(); this.hud.closeBoard(); this.hud.closeModes();
+        this.challenge.room = room; this.pinRoom(room.code);
+        this.startMatchInnings(false);
+      },
+      decline: () => this.declineInvite(room, host.name),
+      back: () => this.challengeFrom({ handle: host.handle, name: host.name, avatar: host.avatar, profile: null }),
+    });
+  }
+
+  /** DECLINE: gone from the cover at once, sent five seconds later unless UNDO is pressed. */
+  private declineInvite(room: Challenge, name: string) {
+    const me = this.me;
+    if (!me) return;
+    track('challenge-decline', 'Challenge declined');
+    this.declining.add(room.code);
+    this.refreshChallenges();
+    const timer = window.setTimeout(() => {
+      void sendDecline(room.code, me.playerId, me.name, me.avatar).finally(() => { this.declining.delete(room.code); void this.syncChallenges(); });
+    }, DECLINE_UNDO_MS);
+    this.hud.notice(`Declined. ${name} can’t challenge you again for a day.`, () => {
+      window.clearTimeout(timer);
+      this.declining.delete(room.code);
+      this.refreshChallenges();
+    }, DECLINE_UNDO_MS);
+  }
+
+  /** NUDGE: once, from three hours after it went. */
+  private async nudgeInvite(code: string) {
+    const me = this.me;
+    const room = this.allRooms().find(one => one.code === code);
+    if (!me || !room?.invite) return;
+    const answer = await sendNudge(code, me.playerId, me.name, me.avatar);
+    if (!answer.ok) { this.hud.notice(answer.reason ?? 'That nudge could not be sent.'); return; }
+    track('challenge-nudge', 'Challenge nudged');
+    this.hud.notice(`Nudged. ${room.invite.name} will see it at the top of their screen when they open the game.`);
+    await this.syncChallenges();
+  }
+
+  /** AGAIN on a row: the same player, challenged afresh. */
+  private againFrom(code: string, handle: string) {
+    const room = this.allRooms().find(one => one.code === code);
+    const invite = room?.invite;
+    const host = room?.players.find(one => one.host);
+    const them = invite && invite.to === handle ? { name: invite.name, avatar: invite.avatar } : host && host.handle === handle ? { name: host.name, avatar: host.avatar } : null;
+    if (them) this.challengeFrom({ handle, ...them, profile: null });
+  }
+
+  /**
+   * Everything that reads the list, after it moves: the cover's line, the
+   * profile's foot, an innings left mid-way walked out on, and Rival Matches
+   * if it is open.
+   */
+  private refreshChallenges() {
+    const me = this.player;
+    if (!me || NO_BOARD || !this.canRegister) return;
+    const waiting = this.waitingOnMe();
+    if (waiting.length && this.phase === 'START') {
+      const first = waiting[0];
+      const host = first.players.find(one => one.host)!;
+      this.coverChallenge = true;
+      this.hud.coverBoard({
+        kind: 'challenge', name: host.name, total: host.runs, mode: MODE_WORD[first.mode ?? 'classic'],
+        left: timeLeft((first.invite!.answerBy ?? Date.now()) - Date.now()), nudged: !!first.invite!.nudged, count: waiting.length,
+      });
+    } else if (this.coverChallenge) {
+      this.coverChallenge = false;
+      if (this.board.length) void this.quoteOnCover(this.board);
+      else if (this.best > 0) this.hud.coverBoard({ kind: 'best', runs: this.best, rank: null });
+    }
+    this.hud.refreshPlayerFoot();
+    this.refreshBell();
+    this.bannerChallenge();
+    if (this.hud.listOpen && this.rooms) {
+      this.hud.challengeList(listSections(this.rooms, me), this.rooms.record, this.rivalsRanking(), { form: recentForm(), me: readPlayer()?.avatar ?? null });
+    }
+    // Closed or reloaded mid-innings: a chase is lost, a total never set is not sent.
+    const left = leftBehind(this.allRooms(), me, this.challenge.playing ? this.challenge.code : null, readUnsent());
+    const mine = this.me;
+    if (left.length && mine) {
+      void Promise.all(left.map(room => sendWalk(room.code, mine.playerId, mine.name, mine.avatar).catch(() => null)))
+        .then(() => this.syncChallenges());
+    }
+  }
+
   /** What a row of the list does. */
   private async listAct(act: 'open' | 'rival' | 'drop' | 'accept' | 'decline', code: string, playerId?: string) {
     if (!this.player) return;
@@ -6229,7 +6718,7 @@ export class Game {
   }
 
   private snapshot() {
-    return { phase: this.phase, lesson: this.lesson, seed: this.seed, elapsed: Math.round(this.elapsed),
+    return { phase: this.phase, mode: this.mode, lesson: this.lesson, seed: this.seed, elapsed: Math.round(this.elapsed),
       // A stroke's film under its story: which, and how far into a go of it, on its own clock.
       reel: this.reel ? { shot: this.reel.shot, at: Math.round(this.elapsed - this.reel.start), struck: this.reel.struck } : null, balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
       line: this.delivery?.line ?? '—', dragged: !!this.delivery?.dragged, spinPulled: !!this.outcome?.spinPulled, spinPulls: this.spinPulls, hooks: this.hooks, effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
@@ -6271,7 +6760,32 @@ export class Game {
       told: { ...this.told }, clouded: this.scene.clouded,
     };
   }
+  /**
+   * Who is around: a named player is checked in while the game is on screen
+   * (batting while an innings is under way), and every face on the page that
+   * names a player is marked. Never from a private window or a build with no
+   * board, and never for a player with no name.
+   */
+  private startPresence() {
+    if (this.presence || NO_BOARD || !this.canRegister || this.disposed) return;
+    this.presence = new Presence(() => {
+      const mine = readPlayer();
+      return this.player && mine ? { playerId: this.player, name: mine.name, avatar: mine.avatar } : null;
+    }, () => this.doing());
+    this.presence.start();
+    this.hud.ownHandle = () => (this.player ? handleOf(this.player) : null);
+    const marks = watchLive(document.body, liveNow, () => (this.player ? handleOf(this.player) : null));
+    const off = onLive(marks.repaint);
+    this.stopLive = () => { off(); marks.stop(); };
+  }
+  /** What this player is up to, as the live list tells it: batting a real innings, or only here. */
+  private doing(): Doing {
+    const batting = !['START', 'INNINGS_END'].includes(this.phase) && this.lesson < 0 && !this.demoing;
+    if (!batting) return { state: 'online', mode: null };
+    return { state: 'batting', mode: this.surviving ? 'survive' : this.marathoning ? 'marathon' : this.super10 ? 'super10' : 'classic' };
+  }
   dispose() {
+    this.presence?.stop(); this.stopLive?.();
     onPlayerWritten(null);
     this.stopDressingSends?.(); window.clearTimeout(this.dressingTimer);
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();
@@ -6385,11 +6899,16 @@ function listSections(list: ListView, me: string): ListSections {
     const view = roomView(room, me, false);
     const others = room.players.filter(one => !ownsHandle(one.handle, me));
     const lead = view.result?.them ?? others.find(one => one.status === 'done' || one.status === 'batting') ?? others[0] ?? null;
-    const them = lead ? { handle: lead.handle, name: lead.name, avatar: lead.avatar } : null;
-    const moved = Math.max(room.at, ...room.players.map(one => one.at ?? 0));
-    const base = { code: room.code, them, others: others.length, age: ageOf(moved) };
     const host = room.players.find(one => one.host);
     const fromThem = !!host && !ownsHandle(host.handle, me);
+    // A challenge from a profile is always about the other one of the two, joined or not.
+    const them = room.invite
+      ? fromThem && host ? { handle: host.handle, name: host.name, avatar: host.avatar } : { handle: room.invite.to, name: room.invite.name, avatar: room.invite.avatar }
+      : lead ? { handle: lead.handle, name: lead.name, avatar: lead.avatar } : null;
+    const moved = Math.max(room.at, ...room.players.map(one => one.at ?? 0));
+    const base = { code: room.code, them, others: room.invite ? 1 : others.length, age: ageOf(moved) };
+    const told = inviteRow(room, me);
+    if (told) return { ...base, ...told };
     switch (view.kind) {
       case 'chase': {
         const batting = others.find(one => one.status === 'batting');

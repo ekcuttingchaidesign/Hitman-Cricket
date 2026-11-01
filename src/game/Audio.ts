@@ -1,6 +1,6 @@
 import type { ShotOutcome } from './types';
 import { GROAN_SHAPE, type Cheer, type CheerSize, type Groan } from './crowd';
-type Sound = 'hit' | 'boundary' | 'bounce' | 'wicket' | 'sledge' | 'edge' | 'stumps';
+type Sound = 'hit' | 'boundary' | 'bounce' | 'wicket' | 'sledge' | 'edge' | 'stumps' | 'defeat';
 /**
  * The music, and the screen each piece belongs to.
  *
@@ -179,6 +179,8 @@ export class GameAudio {
     ['sledge', new URL('../assets/sledge.mp3', import.meta.url)],
     ['edge', new URL('../assets/bat-edge.mp3', import.meta.url)],
     ['stumps', new URL('../assets/stumps-rattle.aac', import.meta.url)],
+    // A challenge's DEFEAT: its hit lands with the L on the face (`Verdict`).
+    ['defeat', new URL('../assets/defeat.mp3', import.meta.url)],
   ] as const;
   // The setting a returning player left behind applies before anything plays.
   constructor() { this.share(); }
@@ -637,8 +639,8 @@ export class GameAudio {
       return;
     }
     // The synthesized fallback is an impact, not a voice: there is nothing
-    // sensible to make of a sledge without its clip, so it stays silent.
-    if (kind === 'sledge') return;
+    // sensible to make of a sledge or a defeat without its clip, so they stay silent.
+    if (kind === 'sledge' || kind === 'defeat') return;
     const now = ctx.currentTime, osc = ctx.createOscillator(), gain = ctx.createGain();
     osc.type = kind === 'hit' || kind === 'edge' ? 'triangle' : 'sine';
     osc.frequency.setValueAtTime(kind === 'edge' ? 1550 : kind === 'hit' ? 720 : kind === 'wicket' || kind === 'stumps' ? 170 : kind === 'boundary' ? 540 : 240, now);

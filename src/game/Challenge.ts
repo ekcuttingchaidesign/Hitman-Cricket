@@ -1,12 +1,12 @@
 import { ownsHandle } from './handle';
 import { GAME } from '../config/gameplay';
-import { decodeInnings, encodeInnings, ended, figuresOf, type Ball } from './ball-string';
+import { decodeInnings, encodeInnings, ended, figuresOf, limitsOf, type Ball, type CardMode } from './ball-string';
 import type { RivalsRecord } from './challenge-api';
 import {
   POLL_MS, challengeLink, clearUnsent, codeFromLocation, copy, createRoom, fetchChallenge, fetchMine,
   hiddenChallenges, holdUnsent, joinRoom, markSeenHere, readUnsent, recordResult, rivalryWith, seenHere,
   sendBalls, sendDecline, sendSeen, whatsapp,
-  type Challenge, type ChallengeResult, type ChallengeRow, type RivalryEntry, rivalryEntries,
+  type Challenge, type ChallengeMode, type ChallengeResult, type ChallengeRow, type InviteView, type RivalryEntry, rivalryEntries,
 } from './challenge-api';
 
 /**
@@ -74,11 +74,16 @@ export interface RoomView {
   result: ResultView | null;
   /** The person still batting, when this one has finished. */
   live: { row: ChallengeRow; needs: string } | null;
+  /** A challenge sent from a profile, or null for a link's room. */
+  invite: InviteView | null;
+  mode: ChallengeMode;
 }
 
 /** What the reveal says, and to whom. */
 export interface ResultView {
   code: string;
+  /** What it was batted in. */
+  mode: ChallengeMode;
   outcome: 'W' | 'L' | 'D';
   /** Whether the match was decided by somebody walking out. */
   forfeit: boolean;
@@ -142,7 +147,7 @@ export class ChallengeRun {
   }
 
   /** A room, made — empty, or from an innings that has just ended. */
-  async create(me: Me, extra: { card?: string; rematchOf?: string } = {}): Promise<ChallengeResult> {
+  async create(me: Me, extra: { card?: string; rematchOf?: string; to?: string; toName?: string; toAvatar?: number; mode?: ChallengeMode } = {}): Promise<ChallengeResult> {
     const answer = await createRoom(me.playerId, me.name, me.avatar, extra);
     if (answer.ok && answer.challenge) { this.take(answer.challenge); this.sent = false; }
     return answer;
@@ -252,7 +257,7 @@ export class ChallengeRun {
   /** Which ball a ghost was out on, or null if they batted the full thirty or are still going. */
   ghostEndedAt(ghost: ChallengeRow): number | null {
     if (ghost.status !== 'done') return null;
-    return ghost.card.length < GAME.totalBalls ? ghost.card.length : null;
+    return ghost.card.length < limitsOf(this.room?.mode).balls ? ghost.card.length : null;
   }
 
   /**
@@ -263,7 +268,7 @@ export class ChallengeRun {
   async ballPlayed(me: Me, history: readonly Ball[]): Promise<ChallengeResult> {
     const code = this.code;
     if (!code) return { ok: false, reason: 'No match.' };
-    const card = encodeInnings(history);
+    const card = encodeInnings(history, this.room?.mode);
     holdUnsent({ code, card, name: me.name, avatar: me.avatar, at: Date.now() });
     const answer = await sendBalls(code, me.playerId, me.name, me.avatar, card);
     if (answer.ok && answer.challenge) {
@@ -414,7 +419,7 @@ export function roomView(room: Challenge, me: string, sent: boolean, now = Date.
   const top = [mine, ...othersSettled].filter((row): row is ChallengeRow => !!row && settled(row))
     .sort((a, b) => b.score - a.score)[0] ?? mine;
   const live = kind === 'spectate' && battingNow && top
-    ? { row: battingNow, needs: needsLine(top, battingNow) }
+    ? { row: battingNow, needs: needsLine(top, battingNow, room.mode) }
     : null;
 
   return {
@@ -430,14 +435,17 @@ export function roomView(room: Challenge, me: string, sent: boolean, now = Date.
     full: room.players.length >= room.size,
     result,
     live,
+    invite: room.invite ?? null,
+    mode: room.mode ?? 'classic',
   };
 }
 
 /** What the person still batting needs, off the one who has finished. */
-function needsLine(done: ChallengeRow, batting: ChallengeRow): string {
-  const left = GAME.totalBalls - batting.balls;
+function needsLine(done: ChallengeRow, batting: ChallengeRow, mode?: CardMode): string {
+  const most = limitsOf(mode);
+  const left = most.balls - batting.balls;
   const need = done.runs - batting.runs + 1;
-  if (batting.wickets >= GAME.maxWickets) return 'all out';
+  if (batting.wickets >= most.wickets) return 'all out';
   if (need <= 0) return `already past you · ${left} ball${left === 1 ? '' : 's'} left`;
   return `needs ${need} off ${left} ball${left === 1 ? '' : 's'}`;
 }
@@ -475,7 +483,7 @@ export function resultView(room: Challenge, me: string): ResultView | null {
   const theirRuns = them.runs;
   const margin = Math.abs(myRuns - theirRuns);
   const name = them.name;
-  const allOut = (row: ChallengeRow) => row.wickets >= GAME.maxWickets;
+  const allOut = (row: ChallengeRow) => row.wickets >= limitsOf(room.mode).wickets;
   const overs = (row: ChallengeRow) => {
     const whole = Math.floor(row.balls / GAME.ballsPerOver);
     return whole <= 1 ? `${row.balls} balls` : `${whole} overs`;
@@ -519,6 +527,7 @@ export function resultView(room: Challenge, me: string): ResultView | null {
 
   return {
     code: room.code,
+    mode: room.mode ?? 'classic',
     outcome,
     forfeit,
     tag,
@@ -545,6 +554,7 @@ export function noteResult(view: ResultView) {
     theirs: { runs: them.runs, sixes: them.sixes, fours: them.fours },
     outcome: view.outcome,
     at: Date.now(),
+    mode: view.mode,
   });
 }
 
@@ -605,7 +615,7 @@ export function closesIn(expiresAt: number, now = Date.now(), state?: Challenge[
 }
 
 /** The figures of a card, for anything that has a string and wants numbers. */
-export function figures(card: string) {
+export function figures(card: string, mode?: CardMode) {
   const got = figuresOf(card);
-  return { ...got, over: ended(got) };
+  return { ...got, over: ended(got, mode) };
 }

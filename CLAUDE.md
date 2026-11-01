@@ -81,7 +81,8 @@ README's "Player profiles" is the long version.
   career cards keep `.stats-dot` and `data-slide`, so the rail's wiring is
   unchanged); the hero and ground per mode switch with it. The activity comes
   from `GET /api/profile?player=` when the page opens (`askActivity`), the
-  sheet is `src/ui/Activity.ts`, and WIN IT BACK chases the runs that took it.
+  headline is `src/ui/Activity.ts`, and behind it is Notifications on Board
+  (below), where WIN IT BACK chases the runs that took it.
   The headline is Rank down, about the player and never who did it, and it
   stands two days at most (`HEADLINE_MS`): a WIN IT BACK innings played to
   its end card takes it down sooner, won or not (`src/game/answered.ts`, kept
@@ -128,6 +129,126 @@ for Survival or the Marathon, `--write` and the passed name typed again to
 do it), dated when the innings was posted if that is inside the card's two
 days and now otherwise, so the card shows. Run it after the merge: before,
 the live site has no profile to show it on.
+
+## Who's around: online and batting
+
+Figma section 23, lane A. A named player's browser checks in with `/api/live`
+every couple of minutes while the page is on screen, and at once when an
+innings starts or ends (`Presence` in `src/game/live-api.ts`, started in
+`startPresence` and told of every phase in `setPhase`); never from a private
+window or a build with no board. The store keeps the last check-in under the
+handle, with the name checked against the registry (`checkIn` in
+`src/server/live-store.ts`), and the list answers handles only, in the edge
+cache for half a minute. Around for five minutes; a batting check-in older
+than four is only online. No last seen, and nobody can hide yet.
+
+What it looks like is painted, not drawn: `watchLive` (`src/ui/LiveMarks.ts`)
+marks every face on the page that names a player (`data-handle`, `data-rival`,
+`data-mine`) with a green dot or an amber bat badge, and a profile's photo
+ring takes the colour with one line under the name. Boards keep their design
+and only gain the mark. Who is around, all of them, is on Rival Matches: the
+Around now card and its sheet (`src/ui/AroundNow.ts`), a row opening the
+profile over Rival Matches (`playerHost` in the HUD). `scripts/live-check.mjs`
+walks it. A check-in is two Redis commands; the list is one per half minute.
+
+## Challenges from a profile
+
+Figma section 23, lanes B to D. A Rival Match room made for one player by
+their handle (`StoredInvite` in `src/server/challenge-store.ts`): the host bats
+first, the challenge is sent when that innings ends, and only that player can
+accept, within a day of it (`ANSWER_MS`). Declined, unanswered or withdrawn, it
+closes with no result for anybody (`inviteStateOf`; a link's room still counts
+a decline as a loss). Walking out of an accepted chase is a loss there and then
+(`walkOut`, `walked` on the player); a host who leaves before the total is set
+sends nothing. One challenge going between two players either way round, five
+waiting a sender (`INVITES_OPEN`), a day's wait after a decline, one nudge from
+three hours. Nothing in a room is an id: the invite answers with the handle.
+Both innings are bowled from the room's code (`roomSeed`), so the chaser faces
+the same balls; link rooms keep their own seed. Scores are never hidden.
+
+A chase is over on the ball that passes the setter's total, as well as when
+the balls or wickets run out: `ended` takes the total as its `target`, the
+store reads it through `chaseTargetOf` and `statusIn` and takes no ball after
+it, and the game ends the innings on `targetPassed`. Only a challenge's chase
+has a target; the setter and every link room play their innings out. On that
+ball the gameplay screen says it (`chaseEndOf` in `src/game/match-end.ts`,
+`#chase-end`): TARGET CHASED with the balls to spare, FELL SHORT by how many,
+or SCORES LEVEL when sixes and fours decide it. Then the first time each
+player opens the settled match (`settle`, the same first look that marks it
+seen) its verdict plays over the result (`verdictOf`, `Verdict` in
+`src/ui/MatchEnd.ts`, `#verdict`): VICTORY and DRAW open on the two faces
+clashing — VICTORY crowns yours with paper, DRAW throws both back level in
+silver. DEFEAT is a scene of its own, a sting to bat again on, never the
+winner's scene turned round (`renderDefeat`): your face drops in alone, a
+big red L is stamped across it with a thud, to its own sound
+(`src/assets/defeat.mp3`, a clip the owner supplied, started 0.81s in so
+its hit lands with the L; `audio.play('defeat')`, no crowd groan) (a rain cloud was tried first and
+looked bad) and it greys and sags, DEFEAT lands
+with a thud and its last letter comes loose and hangs, the winner pops up
+small in the corner, crowned and laughing, with a line in a bubble (`TAUNTS`,
+a roast about the game, never the player, picked off the scores), and WIN IT BACK rises
+under it (`winItBack`: a challenge straight back at the winner, the loser
+batting first, or a link room's REMATCH; its confirm sheet stands on the
+room). The chaser gets it straight off the gameplay
+screen, the setter whenever they next open it, from Rival Matches or
+Notifications; once a match, never on a second look. Drawn from one clock as
+New #1 is; a tap skips. `__cricket.chaseEnd('won' | 'short' | 'level')` puts
+up both over a made-up chase. An innings finished here whose last send failed
+is held to be sent again (`holdUnsent`) and is not walked out on by
+`leftBehind`, which spares a held card that is over.
+
+A challenge is the Blast or Super10, and the room keeps which (`mode`). A
+Super10 room's innings is ten overs and five wickets, read off the room's mode
+wherever a card is read (`limitsOf` in `ball-string.ts`, `cleanCard` and
+`statusOf` in the store); a room with no mode is the Blast's thirty balls and
+three wickets, as every link room is. Both sides bat it as Super10 proper —
+its ground, kits, field and bowlers (`startMatchInnings`, `plan`) — and it
+counts toward the Super10 career as a Blast match counts toward the Blast's.
+
+On screen (`src/game/invite.ts` says what each piece says, in
+`tests/invite.test.ts`; `src/ui/ChallengeCards.ts` draws it): CHALLENGE beside
+CHASE on a profile, or the one state between the two above CHASE (`footState`);
+the confirm sheet with the Blast and Super10 (`SUPER10_CHALLENGES` in
+`src/Game.ts`: wherever Super10 is played and there is a board); CHALLENGE on
+every row of Around now where a profile's foot would offer it; the card before
+the first ball, the setter's with the record between the two in that mode
+(`recordIn`, kept on the device per mode) and an aim (`aimFor`, none without
+an average of theirs in the mode), the chaser's with the total and that
+leaving or closing the game is a loss, Super10's named by its logo on violet;
+the coachmarks a first innings or a first Super10 owes wait behind that card
+and come up on LET'S BAT (`cardFirst`, `afterCard`); the cover's line
+taken by a challenge waiting (`coverChallenge`); the invite sheet, decline with
+five seconds of UNDO; ANSWER, NUDGE and AGAIN on Rival Matches rows; CHALLENGE AGAIN on a
+settled challenge's result, the same sheet at the same player (a link room's
+key is still REMATCH, a new room); the leave
+sheets on the pause sheet's keys (`guardLeave`). A challenge innings left by
+closing the game is walked out on the next time the list is read
+(`leftBehind`). The list is asked again every two minutes on the cover and the
+card, and retried when it fails. `scripts/invite-check.mjs` walks both sides
+in two browsers, and with `MODE=super10` does it in Super10, the two innings on
+one seed.
+
+## Notifications: the bell on Choose a mode
+
+Figma section 23, lane E. A bell beside the avatar on Choose a mode
+(`#modes-bell`) opens Notifications (`src/ui/Notices.ts`, `#notices`): All,
+Challenges, Results and Board, then NEEDS YOU, TODAY and EARLIER. Nothing new
+is stored for it: it is gathered in the browser from the player's rooms and
+their profile's activity (`noticesOf` in `src/game/notices.ts`, every case in
+`tests/notices.test.ts`), thirty days, newest fifty (`EVENTS_KEPT` is fifty
+for it). A challenge waiting on them is NEEDS YOU with ANSWER; theirs being
+batted, declined or unanswered (AGAIN) is Challenges; a settled match is a
+result with its W, L or D; chased, beaten, surpassed or the top taken is the
+Board, with WIN IT BACK. A row opens the room it is about, or the player's
+profile over the screen (`playerHost`). Seen is by time, in this browser
+(`hitman-notices-seen`): the bell counts what is newer than the last look and
+every challenge still waiting, 1 to 9 then 9+ (`unseenCount`, `bellLabel`),
+so opening clears the first and answering the second. My profile's Rank down
+card opens it on Board (`onActivityOpen`), which replaced the activity sheet
+behind it. A challenge waiting that the visit has not shown gets a banner over
+the posters with ANSWER for a few seconds (C8, `modesAlert`,
+`bannerChallenge`). Never for a player with no name, a private window or a
+build with no board (`noticed`). `scripts/notices-check.mjs` walks it.
 
 ## The rank hero: the end card's player card
 
@@ -359,7 +480,7 @@ the machine is; and a box measured off a screenshot is in the page's pixels,
 so scale it by `devicePixelRatio`.
 
 A check that seeds `hitman-whatsnew` seeds the current update key
-(`super10`), or the stories stand in front of Choose a mode.
+(`rivals`), or the stories stand in front of Choose a mode.
 
 `scripts/scene-check.mjs` is the ground itself: the sky and the painted turf
 are canvases and a shader no unit test runs, and it holds the draw-call budget
@@ -552,39 +673,40 @@ plays two devices for one player against the dev server's store; it passes
 `?private=0`, because headless Chromium looks like a private window and would
 otherwise keep nothing.
 
-The update's What's new is one story, Super10, as a video (`Story.video`,
-`public/stories/super10.mp4`, 720 by 1280 and fifteen seconds, about 2.8 MB;
-its last frame `super10-lockup.webp` is `Story.still`, shown in its place
-under reduced motion): lightning strikes from the roof on the first frame and
-the mark is built where it lands, shards in, SUPER slammed down a letter at a
-time and the 10 dropped in Volt with a crack, a burst of speed lines and a
-shockwave, all inside the first second; then the mode in three hits, 10
-OVERS, NEW STADIUM (the canopy at night with SIX on its big screen, a
-photograph off the game through `__cricket.camera` and `__cricket.burst`,
-`wip/s10-stadium-shots.mjs`) and POWER SURGE, two men in and a six over
-them; then the team kits on the batter on the Dressing Room's turntable,
-each sweeping on over the last with its name; and he raises his bat just
-under the mark, held. No count of kits or bowlers in it. It is fetched whole
-into memory while the cover is up (`warmStories`, a blob URL), so it opens
-playing rather than buffering. It plays muted down the sheet on the page's
-black and holds on its last frame with GOT IT and PLAY SUPER10 under it
-(`opens: 'super10'`, `playFromStory`: straight out to a Super10 innings,
-Choose a mode passed by; from the board in the middle of an innings it only
-puts the stories away). Off the cover it plays once and, the moment it ends,
-goes on to Choose a mode by itself, as GOT IT does, and both land on
-Super10's poster (its still, under reduced motion, stands `STILL_LEAVE_MS`
-first); opened from the board, with nowhere to go on to, it loops until it is
-closed. One story is not in pieces, so it has no bar across the top
-(`is-single` on `.whatsnew-bars`, its place kept). It was made in Remotion, not committed, as the films before it
-were not: `wip/super10-film/` on the machine that made it (`src/` the
-composition, `capture/` and `wip/s10-film-capture.mjs` the turntable frames
-off the real stage, rendered with `--sequence` through the system Chrome and
-encoded in Chrome by its `encode.mjs`, Smart App Control blocking Remotion's
-own encoder). The update key is `super10`, so everybody is shown it twice and
-then never (`whatsNewDue`), and a check that seeds `hitman-whatsnew` seeds
-`super10:9`. `whatsnew-check` walks it: the video playing above the two keys,
-its hold, PLAY SUPER10 walking out, the twice and the never, and the board's
-key that opens it for ever. The player profiles' Lottie film before it is
+The update's What's new is one story, Rivals live, as a video (`Story.video`,
+`public/stories/rivals.mp4`, 720 by 1280 and sixteen seconds; its last frame
+`rivals-lockup.webp` is `Story.still`, shown in its place under reduced
+motion), made to the Super10 film's standard: one subject at a time on the
+Rivals ground (your blue bloom, their orange, the halftone), the game's own
+Jaro and Satoshi, and every screen in it a real one, photographed off the dev
+server with believable names. WHO'S AROUND? over five faces popping in, each
+dot landing in turn and Riya's amber bat; her face carried straight onto her
+profile, which scrolls to CHALLENGE and the confirm sheet (CHALLENGE ANYONE);
+the bell ringing with Kabir's challenge and his 64 TO BEAT, pushed in on
+"same balls" (SAME BALLS. NO EXCUSES.); LET'S BAT, TARGET CHASED slammed over
+the ground and through it into VICTORY under WINNER GETS THE GLORY, the two
+faces clashing and yours crowned; then LOSER GETS THE L, Kabir's DEFEAT, the
+L stamped on his face, you laughing in the corner with LMAO NOOB and WIN IT
+BACK pressed; and BRING IT ON over everybody who is on, held. Nothing in it
+says whose phone it is. Everything sits up the frame (`SHIFT`), since the
+sheet stands the film on its keys and the spare room is above it. It is fetched whole into memory
+while the cover is up (`warmStories`), plays muted down the sheet and holds
+on its last frame with GOT IT and SEE WHO'S ONLINE under it (`opens:
+'rivals'`, `rivalsFromStory`: Rival Matches over Choose a mode, Around now at
+its head; from the board in the middle of an innings it only puts the
+stories away). Off the cover it plays once and, the moment it ends, goes on
+to Choose a mode by itself, as GOT IT does; opened from the board it loops
+until it is closed. One story has no bar across the top (`is-single`). It
+was made as a canvas film, a pure function of time rendered frame by frame,
+not committed: `rivals-film/` on the machine that made it (`film.js`, its
+screens from `scripts/.film-capture.mjs` and `.film-capture2.mjs`), rendered
+at 1080 by 1920 and scaled down to the story's size. The update key is
+`rivals`, so everybody is shown it twice and then never (`whatsNewDue`), and
+a check that seeds `hitman-whatsnew` seeds `rivals:9`. `whatsnew-check` walks
+it: the video playing above the two keys, its hold, SEE WHO'S ONLINE opening
+Rival Matches, the twice and the never, and the board's key that opens it
+for ever. Super10's film before it (made in Remotion, `wip/super10-film/`)
+was retired with its key and its files; the player profiles' Lottie film before that is
 still `public/lotties/player-profiles.json`.
 
 The other ways a story is told are kept for the next update, and the unit

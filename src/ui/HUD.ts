@@ -1,3 +1,8 @@
+import { limitsOf } from '../game/ball-string';
+import { chaseEndMarkup } from './MatchEnd';
+import type { ChaseEnd } from '../game/match-end';
+import { bellLabel, type Notice, type NoticeFilter } from '../game/notices';
+import { noticesBodyMarkup, noticesMarkup, type NoticesView } from './Notices';
 import { ownsHandle } from '../game/handle';
 import { MarathonInnings } from '../game/Marathon';
 import { GAME, SOLID_SHOT } from '../config/gameplay';
@@ -7,6 +12,11 @@ import {
   statsStoryText, statsWhatsappLink, whatsappLink,
 } from '../game/Share';
 import { track, trackOnce } from '../game/analytics';
+import { livePlayers, onLive, refreshLive } from '../game/live-api';
+import { aroundCardMarkup, aroundOrder, aroundSheetMarkup, type AroundFilter } from './AroundNow';
+import { chaseCardMarkup, confirmSheetMarkup, inviteSheetMarkup, leaveSheetMarkup, setCardMarkup, type InviteSheetView, type SetView, type Them } from './ChallengeCards';
+import { left, type FootState } from '../game/invite';
+import type { ChallengeMode } from '../game/challenge-api';
 import { feedbackGiven } from '../game/feedback';
 import { RATED_NAME, type RatedThing } from '../game/rating';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage } from '../game/ShareCard';
@@ -92,13 +102,12 @@ import type { Super10Innings } from '../game/super10-board';
 import { resultOf, type Result } from '../game/Survive';
 import type { SoundSetting } from '../game/Audio';
 import type { CareerMode } from '../game/career';
-import { chaseStanding, chaseTarget, playedMode, playerSheetMarkup, soloOf, type PlayerSeed, type PlayerSheetView } from './PlayerSheet';
+import { chaseStanding, chaseTarget, playedMode, playerFootMarkup, playerSheetMarkup, soloOf, type PlayerSeed, type PlayerSheetView } from './PlayerSheet';
 import { cachedProfile, type ProfilePayload } from '../game/profile-api';
 import { chipLine, surviveGoal, type Chase, type Mine } from '../game/chase';
 import { chaseChipMarkup, chaseIntroMarkup, passedMarkup } from './ChaseUi';
 import { fieldLine } from '../game/super10-field';
 import { replayAnimation, replayClass } from './replay';
-import { activitySheetMarkup } from './Activity';
 import type { OwnActivity } from '../game/profile-api';
 import wifiOff from '../assets/board/wifi-off.svg?raw';
 /** Each poster on Choose a mode's rail, by its mode, to its dot in the pager under it. */
@@ -297,6 +306,9 @@ const FILM_ASPECT = 1080 / 1920;
 export type RestoreEntry = { name: string; password: string; key?: undefined } | { name: string; key: string; password?: undefined };
 
 
+/** How long the challenge banner on Choose a mode stands. */
+const ALERT_MS = 6000;
+
 export class HUD {
   readonly viewport: HTMLElement;
   /** The innings the card is showing, for whatever the share buttons draw. */
@@ -326,6 +338,8 @@ export class HUD {
     // phone-shaped column — so the scoreboard, the meter, the field labels and
     // the button row all wait until there is an innings to describe.
     document.body.classList.add('start-screen');
+    // Around now on Rival Matches follows the live list as it moves.
+    onLive(() => { this.drawAround(); this.drawAroundSheet(); });
     // Everything lives inside the field itself: the ground is the whole screen,
     // and every control the game needs sits on top of it.
     root.innerHTML = `
@@ -608,6 +622,10 @@ ${modeSelectMarkup()}
         </div>
         <div id="rivals-ranking" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rivals-ranking-title">
           <div id="rivals-ranking-sheet" class="ranking-sheet"></div>
+        </div>
+        <div id="notices" class="modal-overlay nt-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="notices-title"></div>
+        <div id="rivals-around" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="around-title">
+          <div id="rivals-around-sheet" class="ranking-sheet ar-sheet"></div>
         </div>
         <div id="challenge-rivalry" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rivalry-tally">
           <div class="rival-sheet rv-sheet is-h2h">
@@ -998,13 +1016,14 @@ ${modeSelectMarkup()}
    * rest arrives from the store. The face goes back to its row on the way out.
    */
   openPlayer(seed: PlayerSeed, from: HTMLElement | null) {
-    const shell = document.querySelector<HTMLElement>('#board-overlay .lb-screen');
+    const shell = this.playerHost();
     if (!shell) return;
     this.dropPlayer();
     const held = cachedProfile(seed.handle);
     const view: PlayerSheetView = {
       seed, mode: seed.mode, modes: this.boardModes(seed.mode),
       state: held ? 'ready' : 'loading', profile: held,
+      challenge: this.onChallengeFoot ? { foot: this.onChallengeFoot(seed.handle) } : null,
     };
     if (held) view.mode = playedMode(held, view);
     const layer = document.createElement('div');
@@ -1026,6 +1045,16 @@ ${modeSelectMarkup()}
     this.drawPlayer('open');
     this.flyFace(from, layer.querySelector<HTMLElement>('.ps-face'), false);
     this.askPlayer();
+  }
+
+  /** Where a profile rises: over the board, or over Rival Matches when that is what is open. */
+  private playerHost(): HTMLElement | null {
+    const notices = this.$('notices');
+    if (!notices.classList.contains('hidden')) return notices.querySelector<HTMLElement>('.nt-screen') ?? notices;
+    const board = document.querySelector<HTMLElement>('#board-overlay .lb-screen');
+    if (board && !this.$('board-overlay').classList.contains('hidden')) return board;
+    const list = this.$('challenge-list');
+    return list.classList.contains('hidden') ? board : list;
   }
 
   /** The profile, asked for; drawn in when it comes if the same sheet is still up. */
@@ -1123,6 +1152,7 @@ ${modeSelectMarkup()}
         ladder: 'solo', theirPlace: open.view.profile?.modes.marathon.solo?.place ?? null, theirRung: chaseStanding(open.view).theirRung,
       });
     });
+    this.wireFoot(sheet);
     // Swiped across, the next mode; pulled down by the top half, put away.
     let from: { x: number; y: number; id: number; top: boolean } | null = null;
     sheet.onpointerdown = event => {
@@ -1155,6 +1185,144 @@ ${modeSelectMarkup()}
       event.preventDefault();
       this.playerStep(event.key === 'ArrowRight' ? 1 : -1);
     };
+  }
+
+  /** The foot's challenge keys (Figma 23, D3). */
+  private wireFoot(sheet: HTMLElement) {
+    const open = this.playerOpen!;
+    const foot = open.view.challenge?.foot ?? null;
+    const them = () => ({
+      handle: open.view.seed.handle, name: open.view.profile?.name ?? open.view.seed.name,
+      avatar: open.view.profile?.avatar ?? open.view.seed.avatar ?? 0, profile: open.view.profile, mode: open.view.mode,
+    });
+    const key = sheet.querySelector<HTMLElement>('#player-challenge');
+    if (key) key.onclick = () => {
+      if (!foot) { this.notice('Can’t reach the game right now. Try again in a moment.'); return; }
+      if (foot.kind === 'full') { this.notice('You have 5 challenges out. Wait for one to finish.'); return; }
+      this.onPlayerChallenge?.(them());
+    };
+    if (foot && 'room' in foot) {
+      const code = foot.room.code;
+      sheet.querySelector<HTMLElement>('#player-answer')?.addEventListener('click', () => this.onInviteAnswer?.(code));
+      sheet.querySelector<HTMLElement>('#player-nudge')?.addEventListener('click', () => this.onInviteNudge?.(code));
+      sheet.querySelector<HTMLElement>('#player-room')?.addEventListener('click', () => this.onInviteRoom?.(code));
+    }
+  }
+
+  /** What the foot offers between this player and the one on show, from the game's list of matches. */
+  onChallengeFoot: ((handle: string) => FootState | null) | null = null;
+  /** CHALLENGE on a profile. */
+  onPlayerChallenge: ((them: { handle: string; name: string; avatar: number; profile: ProfilePayload | null; mode: CareerMode }) => void) | null = null;
+  /** ANSWER, NUDGE and OPEN on a challenge, wherever they stand. */
+  onInviteAnswer: ((code: string) => void) | null = null;
+  onInviteNudge: ((code: string) => void) | null = null;
+  onInviteRoom: ((code: string) => void) | null = null;
+
+  /** The profile's foot drawn again, when the challenge between the two has moved. */
+  refreshPlayerFoot() {
+    const open = this.playerOpen;
+    if (!open || !this.onChallengeFoot) return;
+    open.view.challenge = { foot: this.onChallengeFoot(open.view.seed.handle) };
+    const foot = open.layer.querySelector<HTMLElement>('.ps-foot');
+    if (!foot) return;
+    foot.outerHTML = playerFootMarkup(open.view);
+    const sheet = open.layer.querySelector<HTMLElement>('#player-sheet');
+    if (sheet) { this.wireFoot(sheet); fitLabels(sheet); }
+  }
+
+  /** A line at the foot of the screen for a few seconds, with UNDO where it can be taken back. */
+  notice(text: string, undo?: () => void, ms = 4000) {
+    document.getElementById('hud-notice')?.remove();
+    const note = document.createElement('div');
+    note.id = 'hud-notice';
+    note.className = 'hud-notice';
+    note.setAttribute('role', 'status');
+    note.innerHTML = `<span>${escape(text)}</span>${undo ? '<button type="button" class="hud-notice-undo">UNDO</button>' : ''}`;
+    this.viewport.append(note);
+    const timer = window.setTimeout(() => note.remove(), ms);
+    const back = note.querySelector<HTMLElement>('.hud-notice-undo');
+    if (back && undo) back.onclick = () => { window.clearTimeout(timer); note.remove(); undo(); };
+  }
+
+  /**
+   * A sheet over whatever is open: the confirm (B1), the invite (C2) and the
+   * leave sheets (B7, D4) are the same piece, a scrim and a sheet from the foot.
+   */
+  private sheetLayer(id: string, markup: string, host: HTMLElement): HTMLElement {
+    document.getElementById(id)?.remove();
+    const layer = document.createElement('div');
+    layer.id = id;
+    layer.className = 'cc-layer';
+    layer.innerHTML = markup;
+    host.append(layer);
+    const close = () => { layer.remove(); document.removeEventListener('keydown', escapeKey, true); };
+    const escapeKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || !layer.isConnected) return;
+      event.stopPropagation(); event.preventDefault(); close();
+    };
+    document.addEventListener('keydown', escapeKey, true);
+    layer.querySelector<HTMLElement>('[data-close]')!.onclick = close;
+    (layer as HTMLElement & { close?: () => void }).close = close;
+    fitLabels(layer);
+    return layer;
+  }
+  private shutLayer(layer: HTMLElement) { (layer as HTMLElement & { close?: () => void }).close?.(); }
+
+  /** CHALLENGE: the mode, and BAT FIRST (B1, B2). */
+  challengeConfirm(them: Them, super10: boolean, done: (mode: ChallengeMode) => void) {
+    let picked: ChallengeMode = 'classic';
+    const around = this.$('rivals-around');
+    // Over the room when it is up (WIN IT BACK from a defeat), else over whatever the profile is on.
+    const room = this.$('challenge-room');
+    const host = !room.classList.contains('hidden') ? room : around.classList.contains('hidden') ? this.playerHost() ?? this.viewport : around;
+    const draw = () => {
+      const layer = this.sheetLayer('cc-confirm', confirmSheetMarkup(them, picked, super10), host);
+      for (const tile of layer.querySelectorAll<HTMLElement>('.cc-mode:not([disabled])')) {
+        tile.onclick = () => { picked = tile.dataset.mode as ChallengeMode; draw(); };
+      }
+      layer.querySelector<HTMLElement>('#cc-go')!.onclick = () => { this.shutLayer(layer); done(picked); };
+    };
+    draw();
+  }
+
+  /** The invite (C2), or the one that ran out (C6). */
+  answerSheet(view: InviteSheetView, on: { accept?: () => void; decline?: () => void; back?: () => void }) {
+    const layer = this.sheetLayer('cc-invite', inviteSheetMarkup(view), this.viewport);
+    const go = (id: string, act?: () => void) => {
+      const key = layer.querySelector<HTMLElement>(id);
+      if (key) key.onclick = () => { this.shutLayer(layer); act?.(); };
+    };
+    go('#iv-accept', on.accept); go('#iv-decline', on.decline); go('#iv-later'); go('#iv-back', on.back); go('#iv-close');
+  }
+
+  /** Leaving an innings that is part of a challenge (B7, D4): what it costs, asked first. */
+  leaveSheet(kind: 'set' | 'chase', name: string, leave: () => void) {
+    const layer = this.sheetLayer('cc-leave', leaveSheetMarkup(kind, name), this.viewport);
+    layer.querySelector<HTMLElement>('#lv-stay')!.onclick = () => this.shutLayer(layer);
+    layer.querySelector<HTMLElement>('#lv-go')!.onclick = () => { this.shutLayer(layer); leave(); };
+  }
+
+  /**
+   * The card before the first ball of a challenge (B3, C3), held in front of
+   * it as the chase card is: LET'S BAT drops it, BACK lets the innings go.
+   */
+  challengeIntro(view: { set: SetView } | { chase: { mode: ChallengeMode; them: Them; total: number; you: { avatar: number | null } } }, done: (bat: boolean) => void) {
+    this.closeChaseIntro();
+    const layer = document.createElement('div');
+    layer.className = 'ch-layer';
+    layer.id = 'chase-intro';
+    layer.innerHTML = 'set' in view ? setCardMarkup(view.set) : chaseCardMarkup(view.chase.mode, view.chase.them, view.chase.total, view.chase.you);
+    this.viewport.append(layer);
+    fitLabels(layer);
+    const finish = (bat: boolean) => {
+      if (!layer.isConnected) return;
+      layer.classList.add('is-leaving');
+      setTimeout(() => layer.remove(), matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 200);
+      done(bat);
+    };
+    layer.querySelector<HTMLElement>('#cs-bat')!.onclick = () => finish(true);
+    layer.querySelector<HTMLElement>('#cs-back')!.onclick = () => finish(false);
+    layer.querySelector<HTMLElement>('#cs-bat')!.focus({ preventScroll: true });
   }
 
   /** The mode beside the one on show, either way. */
@@ -1207,7 +1375,7 @@ ${modeSelectMarkup()}
    * under reduced motion, where the sheet only fades.
    */
   private flyFace(from: HTMLElement | null, to: HTMLElement | null, home: boolean) {
-    const shell = document.querySelector<HTMLElement>('#board-overlay .lb-screen');
+    const shell = this.playerHost();
     const source = from?.querySelector<HTMLElement>('.board-kit') ?? null;
     const target = to?.querySelector<HTMLElement>('.board-kit') ?? null;
     if (!shell || !source || !target || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -1310,6 +1478,23 @@ ${modeSelectMarkup()}
     setTimeout(() => moment.classList.add('is-leaving'), Math.max(0, lasts - 200));
     setTimeout(() => moment.remove(), lasts);
   }
+
+  /**
+   * The ball a challenge's chase ends on, said on the gameplay screen: TARGET
+   * CHASED, FELL SHORT or SCORES LEVEL, held for `lasts` ms and then gone.
+   */
+  chaseEnd(end: ChaseEnd, mode: 'classic' | 'super10', lasts: number): Promise<void> {
+    document.getElementById('chase-end')?.remove();
+    const holder = document.createElement('div');
+    holder.innerHTML = chaseEndMarkup(end, mode);
+    const moment = holder.firstElementChild as HTMLElement;
+    this.viewport.append(moment);
+    return new Promise(done => {
+      setTimeout(() => moment.classList.add('is-leaving'), Math.max(0, lasts - 240));
+      setTimeout(() => { moment.remove(); done(); }, lasts);
+    });
+  }
+  closeChaseEnd() { document.getElementById('chase-end')?.remove(); }
 
   /** The chase's strip on the end card (B4, B5), or nothing. */
   chaseStrip(markup: string | null, standsInForPlace = false) {
@@ -1516,6 +1701,9 @@ ${modeSelectMarkup()}
     if (this.statsView && !this.$('stats-overlay').classList.contains('hidden')) this.stats(this.statsView);
   }
 
+  /** The headline on My profile, pressed: Notifications on Board where there is one. */
+  onActivityOpen: (() => void) | null = null;
+
   /** WIN IT BACK on the Your profile sheet: chase what was taken. */
   onWinBack: ((event: OwnActivity['events'][number]) => void) | null = null;
 
@@ -1526,37 +1714,9 @@ ${modeSelectMarkup()}
     const open = document.getElementById('mp-activity-open');
     if (!open || !this.activity) return;
     open.onclick = () => {
-      const activity = this.activity;
-      if (!activity) return;
-      track('activity-open', 'Your profile sheet opened');
-      const layer = document.createElement('div');
-      layer.className = 'lb-pop mp-layer';
-      layer.innerHTML = activitySheetMarkup(activity);
-      page.append(layer);
-      const escapeKey = (event: KeyboardEvent) => {
-        if (event.key !== 'Escape') return;
-        event.stopPropagation();
-        event.preventDefault();
-        shut();
-      };
-      const shut = () => {
-        document.removeEventListener('keydown', escapeKey, true);
-        layer.remove();
-        open.focus({ preventScroll: true });
-      };
-      document.addEventListener('keydown', escapeKey, true);
-      layer.querySelector<HTMLElement>('[data-close]')!.onclick = shut;
-      layer.querySelector<HTMLElement>('#activity-close')!.onclick = shut;
-      layer.querySelector<HTMLElement>('#activity-bio')?.addEventListener('click', () => { shut(); this.onProfileEdit?.(); });
-      for (const win of layer.querySelectorAll<HTMLElement>('.mp-win')) {
-        win.onclick = () => {
-          const event = activity.events[Number(win.dataset.event)];
-          if (!event) return;
-          shut();
-          this.onWinBack?.(event);
-        };
-      }
-      layer.querySelector<HTMLElement>('#activity-close')!.focus({ preventScroll: true });
+      // Notifications on Board holds what a sheet here once held (Figma 23, E3).
+      track('activity-open', 'Rank down opened Notifications');
+      this.onActivityOpen?.();
     };
   }
 
@@ -2290,6 +2450,7 @@ ${modeSelectMarkup()}
     const text = this.viewport.querySelector<HTMLElement>('.cover-best-text');
     const line = this.coverLines[this.coverLine];
     if (!text || !line) return;
+    this.viewport.querySelector('#cover-board')?.classList.toggle('is-challenge', line.kind === 'challenge');
     if (!fade) { text.innerHTML = coverBoardLines(line); return; }
     text.classList.add('is-turning');
     window.setTimeout(() => {
@@ -4315,6 +4476,7 @@ ${modeSelectMarkup()}
   }
   closeModes() {
     this.super10Spark.stop();
+    this.modesAlert(null);
     this.$('modes').classList.add('hidden');
     this.viewport.classList.remove('picking-mode');
     if (this.$('end').classList.contains('hidden') && this.$('end-survive').classList.contains('hidden')) {
@@ -5113,6 +5275,168 @@ ${modeSelectMarkup()}
     this.settle('rivals-ranking');
   }
   closeRanking() { this.$('rivals-ranking').classList.add('hidden'); }
+
+  /** This player's own handle, so Around now leaves them out. */
+  ownHandle: () => string | null = () => null;
+  /** The players this one has played, from Rival Matches: first in Around now. */
+  private rivalHandles = new Set<string>();
+  private aroundFilter: AroundFilter = 'everyone';
+  private aroundPlayers() { return aroundOrder(livePlayers(), this.rivalHandles, this.ownHandle()); }
+  /** Who is around, at the top of Rival Matches; redrawn whenever the list moves. */
+  private drawAround() {
+    const card = document.getElementById('around-card');
+    if (!card || this.$('challenge-list').classList.contains('hidden')) return;
+    card.innerHTML = aroundCardMarkup(this.aroundPlayers());
+    for (const one of card.querySelectorAll<HTMLElement>('.ar-face[data-handle]')) one.onclick = () => this.openLivePlayer(one.dataset.handle!, one);
+    for (const id of ['around-all', 'around-more']) { const key = document.getElementById(id); if (key) key.onclick = () => this.openAround(); }
+  }
+  /** Everybody around, as a sheet over Rival Matches. */
+  openAround() {
+    track('around-open', 'Around now opened');
+    const overlay = this.$('rivals-around');
+    overlay.onclick = event => { if (event.target === overlay) this.closeAround(); };
+    overlay.classList.remove('hidden');
+    this.drawAroundSheet();
+    this.settle('rivals-around');
+    void refreshLive(true);
+  }
+  closeAround() { this.$('rivals-around').classList.add('hidden'); }
+
+  /** The bell on Choose a mode (Figma 23, E1): its count, or hidden for a player with nothing to be told. */
+  bell(count: number | null) {
+    const bell = document.getElementById('modes-bell');
+    if (!bell) return;
+    bell.classList.toggle('hidden', count === null);
+    const label = bellLabel(count ?? 0);
+    const badge = this.$('modes-bell-count');
+    badge.textContent = label;
+    badge.classList.toggle('hidden', !label);
+    bell.setAttribute('aria-label', label ? `Notifications, ${label} new` : 'Notifications');
+  }
+
+  /**
+   * A challenge arriving while Choose a mode is up (Figma 23, C8): a banner
+   * over the posters with ANSWER, gone after a few seconds or on a tap.
+   */
+  modesAlert(view: { code: string; name: string; avatar: number; line: string } | null) {
+    const alert = this.$('modes-alert');
+    window.clearTimeout(this.alertTimer);
+    if (!view) { alert.classList.add('hidden'); alert.innerHTML = ''; return; }
+    alert.innerHTML = `<span class="ms-alert-face" data-handle-face>${kitMarkup(view.avatar, view.name)}</span>
+      <span class="ms-alert-text"><b>${escape(view.name)} challenged you</b><small>${escape(view.line)}</small></span>
+      <button type="button" id="modes-alert-answer" class="nt-key is-answer">ANSWER</button>`;
+    alert.classList.remove('hidden');
+    replayClass(alert, 'is-in');
+    const answer = () => { this.modesAlert(null); this.onInviteAnswer?.(view.code); };
+    alert.querySelector<HTMLElement>('#modes-alert-answer')!.onclick = event => { event.stopPropagation(); track('modes-alert-answer', 'Challenge banner answered'); answer(); };
+    alert.onclick = answer;
+    this.alertTimer = window.setTimeout(() => this.modesAlert(null), ALERT_MS);
+  }
+  private alertTimer = 0;
+
+  /** A row's key: ANSWER, AGAIN or WIN IT BACK. */
+  onNoticeKey: ((notice: Notice) => void) | null = null;
+  /** A row itself: the room it is about, or the player's profile. */
+  onNoticeRow: ((notice: Notice) => void) | null = null;
+  /** OPEN THE LEADERBOARD, on the empty screen. */
+  onNoticesBoard: (() => void) | null = null;
+  private noticesView: NoticesView | null = null;
+  private noticesEscape = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape' || this.$('notices').classList.contains('hidden')) return;
+    // A sheet or a profile opened over it goes first, by its own Escape.
+    if (this.playerOpen || document.querySelector('.cc-layer')) return;
+    event.stopPropagation(); event.preventDefault();
+    this.closeNotices();
+  };
+
+  get noticesOpen() { return !this.$('notices').classList.contains('hidden'); }
+
+  /** The Notifications screen (E2 to E4): opened, or drawn again in place with what has arrived. */
+  notices(view: NoticesView) {
+    const overlay = this.$('notices');
+    const opening = overlay.classList.contains('hidden');
+    if (!opening && this.noticesView) view = { ...view, filter: this.noticesView.filter, seenAt: this.noticesView.seenAt };
+    this.noticesView = view;
+    if (!opening && (this.playerOpen || overlay.querySelector('.cc-layer'))) { this.drawNoticesBody(); return; }
+    overlay.innerHTML = noticesMarkup(view);
+    overlay.querySelector<HTMLElement>('#notices-back')!.onclick = () => this.closeNotices();
+    overlay.querySelector<HTMLElement>('#notices-board')?.addEventListener('click', () => { this.closeNotices(); this.onNoticesBoard?.(); });
+    for (const tab of overlay.querySelectorAll<HTMLElement>('[data-filter]')) {
+      tab.onclick = () => {
+        if (!this.noticesView) return;
+        this.noticesView = { ...this.noticesView, filter: tab.dataset.filter as NoticeFilter };
+        track(`notices-filter-${tab.dataset.filter}`, 'Notifications filtered');
+        for (const one of overlay.querySelectorAll<HTMLElement>('[data-filter]')) {
+          const on = one === tab;
+          one.classList.toggle('is-on', on);
+          one.setAttribute('aria-selected', String(on));
+        }
+        this.drawNoticesBody();
+      };
+    }
+    this.drawNoticesBody();
+    if (opening) {
+      overlay.classList.remove('hidden');
+      document.addEventListener('keydown', this.noticesEscape, true);
+      this.settle('notices');
+    }
+  }
+  private drawNoticesBody() {
+    const view = this.noticesView;
+    const body = document.getElementById('notices-body');
+    if (!view || !body) return;
+    body.innerHTML = noticesBodyMarkup(view);
+    for (const row of body.querySelectorAll<HTMLElement>('.nt-row')) {
+      const notice = view.notices[Number(row.dataset.row)];
+      if (!notice) continue;
+      const go = () => this.onNoticeRow?.(notice);
+      row.onclick = go;
+      row.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); go(); } };
+      row.querySelector<HTMLElement>('[data-key]')?.addEventListener('click', event => { event.stopPropagation(); this.onNoticeKey?.(notice); });
+    }
+  }
+  closeNotices() {
+    const overlay = this.$('notices');
+    overlay.classList.add('hidden');
+    overlay.innerHTML = '';
+    this.noticesView = null;
+    document.removeEventListener('keydown', this.noticesEscape, true);
+  }
+  /** A profile opened off a notification, over the screen. */
+  openNoticePlayer(face: { handle: string; name: string; avatar: number }, mode: CareerMode) {
+    this.openPlayer({ handle: face.handle, name: face.name, avatar: face.avatar, mode, place: null, best: null }, null);
+  }
+  private drawAroundSheet() {
+    const overlay = this.$('rivals-around');
+    if (overlay.classList.contains('hidden')) return;
+    const sheet = this.$('rivals-around-sheet');
+    sheet.innerHTML = aroundSheetMarkup(this.aroundPlayers(), this.rivalHandles, this.aroundFilter, handle => !!this.onPlayerChallenge && this.onChallengeFoot?.(handle)?.kind === 'challenge');
+    sheet.querySelector<HTMLElement>('#around-close')!.onclick = () => this.closeAround();
+    for (const tab of sheet.querySelectorAll<HTMLElement>('[data-around]')) {
+      tab.onclick = () => { this.aroundFilter = tab.dataset.around as AroundFilter; this.drawAroundSheet(); };
+    }
+    for (const key of sheet.querySelectorAll<HTMLElement>('.ar-challenge')) {
+      key.onclick = event => {
+        event.stopPropagation();
+        const player = livePlayers().find(one => one.handle === key.dataset.challenge);
+        if (!player) return;
+        track('around-challenge', 'Challenge from Around now');
+        this.onPlayerChallenge?.({ handle: player.handle, name: player.name, avatar: player.avatar, profile: null, mode: player.mode ?? 'classic' });
+      };
+    }
+    for (const row of sheet.querySelectorAll<HTMLElement>('.ar-row')) {
+      const go = () => { this.closeAround(); this.openLivePlayer(row.dataset.handle!, null); };
+      row.onclick = go;
+      row.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); go(); } };
+    }
+  }
+  /** A profile opened from Around now: drawn from what the list knew, then the store's. */
+  private openLivePlayer(handle: string, from: HTMLElement | null) {
+    const player = livePlayers().find(one => one.handle === handle);
+    if (!player) return;
+    track('profile-open-around', 'A player’s profile opened');
+    this.openPlayer({ handle, name: player.name, avatar: player.avatar, mode: player.mode ?? 'classic', place: null, best: null }, from);
+  }
   private drawRanking() {
     if (!this.ranking) return;
     const sheet = this.$('rivals-ranking-sheet');
@@ -5141,7 +5465,8 @@ ${modeSelectMarkup()}
     this.ranking = ranking ?? null;
     this.$('challenge-list-ranking').classList.toggle('hidden', !ranking);
     if (this.rankingShown) this.drawRanking();
-    this.$('challenge-sections').innerHTML = (record ? rivalsRecordMarkup(record, extra.form ?? []) : '') + (total
+    this.rivalHandles = new Set(all.flatMap(row => (row.them ? [row.them.handle] : [])));
+    this.$('challenge-sections').innerHTML = (record ? rivalsRecordMarkup(record, extra.form ?? []) : '') + '<div id="around-card"></div>' + (total
       ? `<h3 class="rival-section-head rv-head">CHALLENGES</h3><ul class="rival-rows rv-rows">${all.map(row => listRow(row, me)).join('')}</ul>`
       : `<div class="rv-empty-card"><span class="rv-faces is-big">${me === null ? '<span class="board-kit is-empty" aria-hidden="true"></span>' : kitMarkup(me, '')}<span class="board-kit is-empty is-rival" aria-hidden="true">?</span></span>
           <h3>NO RIVALS YET</h3><p>Start a match and send the link to someone who thinks they can bat.</p></div>`);
@@ -5149,6 +5474,8 @@ ${modeSelectMarkup()}
     this.viewport.classList.add('modal-open', 'picking-mode');
     this.$('challenge-list').classList.remove('hidden');
     this.enter(this.$('challenge-sections').querySelectorAll('.rival-row'), 50);
+    this.drawAround();
+    void refreshLive();
     this.settle('challenge-list');
   }
 
@@ -5331,6 +5658,29 @@ function roomWords(
   const back = key('ghost', 'home', 'Back to the menu');
   const lobbyLead = 'Challenge your friends';
   const lobbySub = 'Send the link. They bat their 30, you bat yours, together now or whenever they get round to it.';
+  // A challenge from a profile says its own story (Figma section 23).
+  const invite = view.invite;
+  if (invite) {
+    const mode = view.mode === 'super10' ? 'Super10' : 'The Blast';
+    const host = !!you?.host;
+    if (view.kind === 'waiting' && host) {
+      return {
+        title: 'Challenge sent', tag: null, lead: `Waiting on ${invite.name}`,
+        sub: `${invite.name} has 24 hours to accept and chase your ${you!.runs} on the same balls.`,
+        note: `${left((invite.answerBy ?? Date.now()) - Date.now())} left to accept · ${invite.name} needs ${you!.runs + 1} · ${mode}`,
+        keys: [key('play', 'home', 'DONE'), key('ghost', 'list', 'Open Rival Matches')],
+      };
+    }
+    if (view.kind === 'expired' || view.kind === 'declined') {
+      const words: Record<string, [string, string]> = {
+        declined: host ? [`${invite.name} declined`, 'No result for either of you. You can challenge them again in a day.'] : ['You declined', 'No result for either of you.'],
+        unanswered: host ? ['No answer', `${invite.name} didn’t accept within the day, so nothing counts.`] : ['This one ran out', 'It wasn’t answered within the day, so nothing counts.'],
+        withdrawn: ['Not sent', 'The innings was left before the total was set, so nothing went out.'],
+      };
+      const said = words[invite.state];
+      if (said) return { title: 'Challenge', tag: null, lead: said[0], sub: said[1], note: null, keys: [key('ghost', 'list', 'Open Rival Matches'), back] };
+    }
+  }
 
   switch (view.kind) {
     case 'lobby': {
@@ -5397,7 +5747,8 @@ function roomWords(
       const tag = away ? `WHILE YOU WERE AWAY${away.total > 1 ? ` · ${away.index} OF ${away.total}` : ''}` : null;
       const keys: RoomKey[] = [
         key('green', 'tell', result.tell, result.whatsapp),
-        key('play', 'rematch', 'REMATCH'),
+        // A challenge made for one player goes back at them; a link's room is rematched as a new room.
+        key('play', 'rematch', view.invite ? 'CHALLENGE AGAIN' : 'REMATCH'),
       ];
       if (away) keys.push(away.index < away.total ? key('ghost', 'next', 'Next result') : key('ghost', 'home', 'Done'));
       return { title: 'Result', tag, lead: result.title, sub: result.sub, note: null, keys };
@@ -5478,7 +5829,10 @@ function roomGrid(view: RoomView): string {
   const ordered = [...view.players].sort((a, b) => Number(b.handle === you?.handle) - Number(a.handle === you?.handle) || a.joined - b.joined);
   const seats = ordered.map(row => roomSeat(row, view));
   const showEmpty = ordered.length < 2 && (view.kind === 'lobby' || view.kind === 'waiting');
-  if (showEmpty) {
+  if (showEmpty && view.invite) {
+    // A challenge from a profile: the player it is for, not an empty seat.
+    seats.push(`<div class="room-seat" data-rival="${escapeName(view.invite.to)}"><span class="room-face">${kitMarkup(view.invite.avatar, view.invite.name)}</span><b class="room-name">${escapeName(view.invite.name)}</b><span class="room-pill is-idle">TO ACCEPT</span></div>`);
+  } else if (showEmpty) {
     seats.push(`<div class="room-seat is-empty"><span class="room-face is-empty"><i>?</i></span><b class="room-name">Rival</b><span class="room-pill is-idle">WAITING</span></div>`);
   }
   const many = seats.length > 2;
@@ -5501,8 +5855,8 @@ function roomSeat(row: ChallengeRow, view: RoomView): string {
         : '<span class="room-pill is-joined">JOINED</span>';
       break;
     case 'batting':
-      under = `<span class="room-under is-live">batting ball ${row.balls} of ${GAME.totalBalls}</span>`;
-      progress = String(row.balls / GAME.totalBalls);
+      under = `<span class="room-under is-live">batting ball ${row.balls} of ${limitsOf(view.mode).balls}</span>`;
+      progress = String(row.balls / limitsOf(view.mode).balls);
       break;
     case 'forfeit':
       under = `<span class="room-under">gave it up on ball ${row.balls}</span>`;
@@ -5579,6 +5933,10 @@ export interface ListRowView {
   verdict?: string;
   /** How long ago it last moved: now, 12m, 5h, 3d. */
   age?: string;
+  /** A challenge from a profile: ANSWER (the invite sheet), NUDGE, or AGAIN (their profile). */
+  answer?: boolean;
+  nudge?: { ready: boolean; label: string };
+  again?: boolean;
 }
 
 /**
@@ -5595,7 +5953,13 @@ function listRow(row: ListRowView, me: number | null = null): string {
   const name = row.them ? `You vs ${escapeName(row.them.name)}${row.others > 1 ? ` <i>+${row.others - 1}</i>` : ''}` : 'Nobody yet';
   const line = [row.outcome ? row.verdict ?? '' : row.note, row.age].filter(Boolean).join(' \u00b7 ');
   const tone = row.outcome ? (row.outcome === '—' ? 'none' : row.outcome) : 'wait';
-  const right = row.actionable
+  const right = row.answer
+    ? `<span class="rival-row-acts"><button class="rival-act is-accept" type="button" data-answer="${row.code}">ANSWER</button></span>`
+    : row.nudge
+    ? `<span class="rival-row-acts"><button class="rival-act is-nudge" type="button" data-nudge="${row.code}"${row.nudge.ready ? '' : ' disabled'}>${escapeName(row.nudge.label.toUpperCase())}</button></span>`
+    : row.again && row.them
+    ? `<span class="rival-row-acts"><button class="rival-act is-again" type="button" data-again="${row.them.handle}" data-code="${row.code}">AGAIN</button></span>`
+    : row.actionable
     ? `<span class="rival-row-acts"><button class="rival-act is-accept" type="button" data-accept="${row.code}">ACCEPT</button><button class="rival-act is-decline" type="button" data-decline="${row.code}">DECLINE</button></span>`
     : `<span class="rival-row-badge is-${tone}">${row.outcome ? (row.outcome === '—' ? '–' : row.outcome) : '\u2026'}</span>`;
   return `<li class="rival-row" data-code="${row.code}">

@@ -5,6 +5,10 @@
 @import './super10.css';
 @import './super10-page.css';
 @import './topspot.css';
+@import './live.css';
+@import './challenge.css';
+@import './notices.css';
+@import './match-end.css';
 /* Jaro, by Agyei Archer, Céline Hurka and Mirko Velimirović. SIL Open Font
    License 1.1 — the notice ships beside the file in src/assets/jaro-OFL.txt. */
 @font-face{
@@ -8258,13 +8262,13 @@ video.whatsnew-film.is-fit{height:auto;object-fit:contain;
    Every Rivals screen stands on BG / Rivals: your blue bloom top left, their
    orange bloom bottom right, a faint violet glow between, and a halftone dot
    field densest in those corners. Sizes in --u. */
-:is(#challenge-list,#challenge-room,#challenge-offline,#rivals-ranking){
+:is(#challenge-list,#challenge-room,#challenge-offline,#rivals-ranking,#rivals-around){
   --rv-bg:radial-gradient(calc(var(--u) * 280) calc(var(--u) * 280) at calc(var(--u) * 30) calc(var(--u) * 80),#2f6fe080,#2f6fe02d 55%,#2f6fe000 100%),
     radial-gradient(calc(var(--u) * 280) calc(var(--u) * 280) at calc(var(--u) * 370) calc(var(--u) * 840),#ed70446b,#ed704425 55%,#ed704400 100%),
     radial-gradient(calc(var(--u) * 210) calc(var(--u) * 150) at 50% calc(var(--u) * 330),#b8a6ff12,#b8a6ff00 100%),var(--c-page);
   background:var(--rv-bg);display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:0;overflow:hidden
 }
-:is(#challenge-list,#challenge-room,#challenge-offline,#rivals-ranking)::before{
+:is(#challenge-list,#challenge-room,#challenge-offline,#rivals-ranking,#rivals-around)::before{
   content:'';position:absolute;inset:0;pointer-events:none;opacity:.6;mix-blend-mode:screen;
   background:url('./assets/rivals/halftone.webp') center/cover no-repeat
 }
@@ -8307,6 +8311,9 @@ video.whatsnew-film.is-fit{height:auto;object-fit:contain;
 #challenge-room .room-face::before{content:'';position:absolute;inset:calc(var(--u) * -29);border-radius:50%;z-index:-1;
   background:radial-gradient(closest-side,color-mix(in srgb,var(--ring) 38%,transparent),transparent)}
 #challenge-room .room-face .board-kit{width:100%;height:100%}
+/* The batting ring is sized off the face, not in pixels: the face is in design units here,
+   so a fixed ring hung off its corner on every phone but the one it was drawn on. */
+#challenge-room .room-ring{inset:auto;left:-15%;top:-15%;width:130%;height:130%}
 #challenge-room .room-face.is-empty{display:grid;place-items:center;box-shadow:none;border:1.5px dashed #ffffff59;background:#ed70441a}
 #challenge-room .room-face.is-empty i{font:400 calc(var(--u) * 34)/1 var(--f-display);font-style:normal;color:#ffffff59;font-variation-settings:'opsz' 6}
 #challenge-room .room-name{margin-top:calc(var(--u) * 8);font:700 calc(var(--u) * 18)/1.2 var(--f-ui);color:var(--c-text)}

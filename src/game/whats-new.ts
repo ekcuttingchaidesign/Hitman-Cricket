@@ -8,12 +8,14 @@ import type { ReelShot } from './ShotReel';
  * player once, in the shape every phone already knows how to read: a card, a
  * bar across the top, a tap to move on.
  *
- * This update is Super10, told in one film (`public/stories/super10.mp4`,
- * made in Remotion by `wip/super10-film/`): the mark built as it is named, the
- * mode in three hits (ten overs, the new stadium, Power Surge), the team kits on
- * the batter on the Dressing Room's turntable, and the lockup, held, with
- * PLAY SUPER10 beside the way out.
- * (The player profiles were told before it in a Lottie film, the two new
+ * This update is Rivals live, told in one film (`public/stories/rivals.mp4`,
+ * made as a canvas film by `rivals-film/` on the machine that made it, from
+ * real screens of the game): who's around, a challenge sent from a profile,
+ * one arriving on the bell with its total on the same balls, TARGET CHASED,
+ * VICTORY (the winner gets the glory), DEFEAT (the loser gets the L) with
+ * WIN IT BACK, and BRING IT ON, held, with SEE WHO'S ONLINE beside the way out.
+ * (Super10 was told before it in a film made in Remotion, the player profiles
+ * before that in a Lottie film, the two new
  * strokes and the Dressing Room before them, the
  * Dressing Room's cards on their own first, and the Test Marathon's film and
  * the career key before that, each twice to everybody who played then. The
@@ -75,7 +77,7 @@ export interface Story {
    * words. The last card holds still with it (`storyHolds`), so a player
    * tapping through lands on it.
    */
-  opens?: 'dressing' | 'super10';
+  opens?: 'dressing' | 'super10' | 'rivals';
   /**
    * The Dressing Room's own stage, the whole of the screen behind the words,
    * playing the real models: every kit on the batter in turn, or every bat on
@@ -109,14 +111,14 @@ export type StoryStageKind = 'kits' | 'bats';
 
 export const STORIES: readonly Story[] = [
   {
-    key: 'super10',
-    eyebrow: 'WHAT’S NEW · SUPER10',
-    title: 'SUPER10: TEN OVERS OF REAL T10',
-    alt: 'Lightning strikes and SUPER10 is built piece by piece, the 10 landing with a crack of lightning. Then the mode: 10 overs, the new stadium under its lights with SIX on the big screen, and Power Surge bringing two fielders in before the ball goes over them for six. Then the team kits, sweeping one over another on the batter as he turns on the Dressing Room’s pedestal, and he raises his bat under the logo.',
-    video: 'stories/super10.mp4',
-    still: 'stories/super10-lockup.webp',
+    key: 'rivals',
+    eyebrow: 'WHAT’S NEW · RIVALS',
+    title: 'WHO’S AROUND? CHALLENGE ANYONE',
+    alt: 'Faces pop up with green dots for online and an amber bat for batting now: who is around. Riya’s profile opens and CHALLENGE sends her a match, the Blast or Super10, you batting first. The bell rings with Kabir’s challenge and his 64 to beat on the same balls. TARGET CHASED, then the winner gets the glory, VICTORY with a crown on your face; and the loser gets the L, DEFEAT with an L stamped on Kabir’s face, you laughing in the corner with LMAO NOOB, and WIN IT BACK. It ends on BRING IT ON over everybody who is on.',
+    video: 'stories/rivals.mp4',
+    still: 'stories/rivals-lockup.webp',
     // The last card with a way in holds still (`storyHolds`), on the film's last frame.
-    opens: 'super10',
+    opens: 'rivals',
   },
 ];
 
@@ -128,7 +130,7 @@ export const STORIES: readonly Story[] = [
  * "seen" flag would mean the second update in this game's life could never be
  * announced at all.
  */
-export const UPDATE = 'super10';
+export const UPDATE = 'rivals';
 
 /**
  * How many times one browser is shown it unasked.
