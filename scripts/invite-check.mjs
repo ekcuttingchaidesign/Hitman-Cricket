@@ -230,7 +230,7 @@ await a.screenshot({ path: `${out}/b7-live.png` });
 // The setter stays on the room: when the chase ends it turns into the result, and the verdict plays there and then.
 await a.evaluate(() => new MutationObserver(() => {
   const title = document.querySelector('#verdict .vc-title');
-  if (title && !window.__verdict) window.__verdict = `${title.textContent} | ${document.querySelector('#verdict .vc-sub')?.textContent}`;
+  if (title && !window.__verdict) window.__verdict = `${title.textContent} | ${document.querySelector('#verdict .vc-sub')?.textContent} | ${document.querySelector('#verdict .vc-bubble')?.textContent ?? ''} | ${document.querySelector('#verdict .vc-again') ? 'WIN IT BACK' : ''}`;
 }).observe(document.body, { childList: true, subtree: true }));
 
 await b.evaluate(() => { const key = document.getElementById('resume'); if (key && key.offsetParent) key.click(); });
@@ -275,6 +275,7 @@ await a.waitForFunction(() => !!window.__verdict, null, { timeout: 120000 }).cat
 const defeat = await a.evaluate(() => window.__verdict ?? '');
 check(/^DEFEAT/.test(defeat), 'the setter, on the room as the chase ends, gets DEFEAT', defeat);
 check(new RegExp(`${chaser} beat you · 66–64`).test(defeat), 'saying who beat them', defeat);
+check(/\| [A-Z ?]+ \| WIN IT BACK$/.test(defeat), 'with the winner’s line in a bubble and WIN IT BACK under it', defeat);
 if (await a.locator('#verdict').count()) await a.screenshot({ path: `${out}/b8-defeat.png` });
 await a.waitForSelector('#verdict', { state: 'detached', timeout: 90000 }).catch(() => null);
 await openRoom(a, room.code);

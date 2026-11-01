@@ -1272,7 +1272,9 @@ ${modeSelectMarkup()}
   challengeConfirm(them: Them, super10: boolean, done: (mode: ChallengeMode) => void) {
     let picked: ChallengeMode = 'classic';
     const around = this.$('rivals-around');
-    const host = around.classList.contains('hidden') ? this.playerHost() ?? this.viewport : around;
+    // Over the room when it is up (WIN IT BACK from a defeat), else over whatever the profile is on.
+    const room = this.$('challenge-room');
+    const host = !room.classList.contains('hidden') ? room : around.classList.contains('hidden') ? this.playerHost() ?? this.viewport : around;
     const draw = () => {
       const layer = this.sheetLayer('cc-confirm', confirmSheetMarkup(them, picked, super10), host);
       for (const tile of layer.querySelectorAll<HTMLElement>('.cc-mode:not([disabled])')) {

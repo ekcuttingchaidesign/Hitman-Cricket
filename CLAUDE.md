@@ -171,9 +171,17 @@ ball the gameplay screen says it (`chaseEndOf` in `src/game/match-end.ts`,
 or SCORES LEVEL when sixes and fours decide it. Then the first time each
 player opens the settled match (`settle`, the same first look that marks it
 seen) its verdict plays over the result (`verdictOf`, `Verdict` in
-`src/ui/MatchEnd.ts`, `#verdict`): the two faces clash, and VICTORY crowns
-yours with paper, DEFEAT crowns theirs in steel and raspberry, DRAW throws
-both back level in silver. The chaser gets it straight off the gameplay
+`src/ui/MatchEnd.ts`, `#verdict`): VICTORY and DRAW open on the two faces
+clashing — VICTORY crowns yours with paper, DRAW throws both back level in
+silver. DEFEAT is a scene of its own, a sting to bat again on, never the
+winner's scene turned round (`renderDefeat`): your face drops in alone, a
+rain cloud drifts over and rains on it and it greys and sags, DEFEAT lands
+with a thud and its last letter comes loose and hangs, the winner pops up
+small in the corner, crowned and laughing, with a line in a bubble (`TAUNTS`,
+cheeky and about the cricket, picked off the scores), and WIN IT BACK rises
+under it (`winItBack`: a challenge straight back at the winner, the loser
+batting first, or a link room's REMATCH; its confirm sheet stands on the
+room). The chaser gets it straight off the gameplay
 screen, the setter whenever they next open it, from Rival Matches or
 Notifications; once a match, never on a second look. Drawn from one clock as
 New #1 is; a tap skips. `__cricket.chaseEnd('won' | 'short' | 'level')` puts

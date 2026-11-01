@@ -63,7 +63,15 @@ export interface VerdictView {
   /** The mode's colour, for the bloom. */
   colour: string;
   mode: 'classic' | 'super10';
+  /** A defeat's one line from the winner, in a bubble over their face: a little sting to bat again on. */
+  taunt: string | null;
 }
+
+/**
+ * What the winner says on a defeat. Cheeky, never cruel: about the cricket,
+ * never the player, and every one an invitation to come back.
+ */
+export const TAUNTS = ['TOO EASY', 'IS THAT ALL?', 'SEE YOU IN THE NETS', 'THANKS FOR THE RUNS', 'BETTER LUCK NEXT TIME', 'COME BACK STRONGER'] as const;
 
 /** One innings on a settled match, as much of it as the verdict reads. */
 export interface VerdictRow { name: string; avatar: number; runs: number; balls: number; status: string; at: number }
@@ -104,5 +112,7 @@ export function verdictOf(result: {
     kind, title: TITLE[kind], sub, how, mode: result.mode,
     you: { avatar: result.youAvatar }, them: { name: them.name, avatar: them.avatar },
     colour: result.mode === 'super10' ? '#8b5cf6' : '#3f88f2',
+    // Picked off the scores, so a match always says the same thing to the same player.
+    taunt: kind === 'lost' ? TAUNTS[(mine.runs * 7 + them.runs * 3 + mine.balls) % TAUNTS.length] : null,
   };
 }

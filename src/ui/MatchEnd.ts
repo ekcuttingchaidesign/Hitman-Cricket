@@ -34,11 +34,16 @@ export function chaseEndMarkup(end: ChaseEnd, mode: 'classic' | 'super10'): stri
 export interface VerdictHooks {
   /** The crowd at the clash: a cheer, a groan, a murmur. */
   sound(kind: VerdictKind): void;
+  /** WIN IT BACK on a defeat: the rematch, straight away. */
+  rematch?(): void;
   done(): void;
 }
 
-/** When the lockup is all in; the hand-over waits on `release` from here. */
+/** When the lockup is all in; the hand-over waits on `release` from here. A defeat holds longer, for its key. */
 const HOLD = 3.4;
+const LOST_HOLD = 5.4;
+/** When a defeat is all in: a tap before it skips to it, after it hands over. */
+const LOST_IN = 2.9;
 const EXIT = 0.5;
 const W = 402, H = 874, CX = 201, FACE_Y = 330, TOP_Y = 290;
 
@@ -63,6 +68,9 @@ export class Verdict {
   private readonly sparks: { a: number; v: number; s: number; c: string }[] = [];
   private readonly still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly kind: VerdictKind;
+  private readonly hold: number;
+  /** A defeat's rain: where each drop starts across the cloud, and its own speed. */
+  private readonly drops: { x: number; v: number; ph: number }[] = [];
   private t = 0;
   private last = 0;
   private raf = 0;
@@ -91,10 +99,13 @@ export class Verdict {
         <img class="vc-face is-you" alt="" src="${avatarSrc(view.you.avatar)}">
         <b class="vc-vs">VS</b>
         ${CROWN.replace('ts-crown', 'vc-crown').replace(/ts-cg/g, 'vc-cg')}
-        <div class="vc-title">${escape(view.title)}</div>
+        ${view.kind === 'lost' ? `<svg class="vc-cloud" viewBox="0 0 220 110" aria-hidden="true"><path d="M48 98c-24 0-40-14-40-32s16-31 36-31c6-19 24-31 45-31 22 0 40 13 46 32 4-1 8-2 12-2 23 0 41 15 41 34s-18 30-41 30z" fill="#5d6773"/><path d="M48 98c-24 0-40-14-40-32 0-3 0-5 1-8 4 15 19 26 39 26h119c18 0 33-8 38-21 1 3 1 5 1 8 0 16-15 27-36 27z" fill="#454e59"/></svg>
+        <div class="vc-bubble">${escape(view.taunt ?? '')}</div>` : ''}
+        <div class="vc-title">${view.kind === 'lost' ? `<span class="vc-w">${escape(view.title.slice(0, -1))}</span><span class="vc-t">${escape(view.title.slice(-1))}</span>` : escape(view.title)}</div>
         <div class="vc-sub">${escape(view.sub)}</div>
         <div class="vc-how">${escape(view.how)}</div>
         <canvas class="vc-paper" width="${W * 2}" height="${H * 2}"></canvas>
+        ${view.kind === 'lost' && hooks.rematch ? '<button type="button" class="vc-again k-cta k-cta--primary"><span class="k-cta-face"><span>WIN IT BACK</span></span></button>' : ''}
         <div class="vc-skip">TAP TO SKIP</div>
       </div>
       <div class="vc-flash"></div>`;
@@ -102,9 +113,15 @@ export class Verdict {
     this.stage = root.querySelector('.vc-stage')!;
     for (const [key, sel] of [['scrim', '.vc-scrim'], ['bloomMode', '.vc-bloom.is-mode'], ['glow', '.vc-bloom.is-glow'], ['rays', '.vc-rays'],
       ['ring1', '.vc-ring.is-one'], ['ring2', '.vc-ring.is-two'], ['them', '.vc-face.is-them'], ['you', '.vc-face.is-you'], ['vs', '.vc-vs'],
-      ['crown', '.vc-crown'], ['title', '.vc-title'], ['sub', '.vc-sub'], ['how', '.vc-how'], ['skip', '.vc-skip'], ['flash', '.vc-flash']]) {
-      this.el[key] = root.querySelector<HTMLElement>(sel)!;
+      ['crown', '.vc-crown'], ['title', '.vc-title'], ['sub', '.vc-sub'], ['how', '.vc-how'], ['skip', '.vc-skip'], ['flash', '.vc-flash'],
+      ['cloud', '.vc-cloud'], ['bubble', '.vc-bubble'], ['tee', '.vc-t'], ['again', '.vc-again']]) {
+      const el = root.querySelector<HTMLElement>(sel);
+      if (el) this.el[key] = el;
     }
+    this.hold = view.kind === 'lost' ? LOST_HOLD : HOLD;
+    // WIN IT BACK: its own tap, never the skip the rest of the screen is.
+    this.el.again?.addEventListener('pointerdown', event => event.stopPropagation());
+    this.el.again?.addEventListener('click', () => { this.hooks.rematch?.(); this.close(); });
     this.ctx = root.querySelector<HTMLCanvasElement>('.vc-paper')!.getContext('2d');
     this.ctx?.scale(2, 2);
 
@@ -116,13 +133,14 @@ export class Verdict {
     }
     const spark = view.kind === 'lost' ? ['#c9d2db', '#ff6b7f'] : view.kind === 'drawn' ? ['#e9eef3', '#ffffff'] : ['#ffe1a3', '#ffffff'];
     for (let i = 0; i < 20; i++) this.sparks.push({ a: i / 20 * Math.PI * 2 + rnd() * .25, v: 150 + rnd() * 170, s: 2 + rnd() * 3, c: spark[i % 3 ? 0 : 1] });
+    if (view.kind === 'lost') for (let i = 0; i < 34; i++) this.drops.push({ x: CX - 82 + rnd() * 164, v: 1.3 + rnd() * .8, ph: rnd() });
 
     root.addEventListener('pointerdown', this.skip);
     addEventListener('keydown', this.key);
     addEventListener('resize', this.fit);
     host.append(root);
     this.fit();
-    this.render(this.still ? HOLD : 0);
+    this.render(this.still ? this.hold : 0);
     this.last = performance.now();
     this.raf = requestAnimationFrame(this.frame);
   }
@@ -135,7 +153,8 @@ export class Verdict {
   /** On to the lockup, or to the hand-over once the result is there, as a tap does. */
   skip = () => {
     if (this.still || this.leaving !== null) return;
-    this.t = Math.max(this.t, this.released ? HOLD : 2.3);
+    const allIn = this.kind === 'lost' ? LOST_IN : 2.3;
+    this.t = Math.max(this.t, this.released && this.t >= allIn ? this.hold : allIn);
   };
   private key = (event: KeyboardEvent) => { if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') this.skip(); };
 
@@ -153,10 +172,10 @@ export class Verdict {
     if (this.still) {
       // The lockup, still, for a moment once the result is there; then gone.
       if (this.released && this.leaving === null) this.leaving = this.t + 1.2;
-      this.render(HOLD, this.leaving !== null ? prog(this.t, this.leaving, this.leaving + .2) : 0);
+      this.render(this.hold, this.leaving !== null ? prog(this.t, this.leaving, this.leaving + .2) : 0);
       if (this.leaving !== null && this.t >= this.leaving + .2) return this.close();
     } else {
-      if (this.t >= HOLD && this.leaving === null && this.released) this.leaving = this.t;
+      if (this.t >= this.hold && this.leaving === null && this.released) this.leaving = this.t;
       const exit = this.leaving !== null ? prog(this.t, this.leaving, this.leaving + EXIT) : 0;
       // Held on the lockup while the result is on its way: the rays turn and the foil glints, nothing else moves.
       this.render(this.t, exit);
@@ -180,6 +199,7 @@ export class Verdict {
   }
 
   private render(t: number, exit = 0) {
+    if (this.kind === 'lost') return this.renderDefeat(t, exit);
     const e = this.el, kind = this.kind;
     const tf = (el: HTMLElement, x: number, y: number, s = 1, r = 0) => { el.style.transform = `translate(${x}px,${y}px) rotate(${r}deg) scale(${s})`; };
     const show = (el: HTMLElement, o: number) => { el.style.opacity = String(o); el.style.visibility = o <= .001 ? 'hidden' : 'visible'; };
@@ -188,7 +208,7 @@ export class Verdict {
     show(e.scrim, .9 * outCubic(prog(t, 0, .3)) * (1 - inOutCubic(exit)));
     show(e.bloomMode, outCubic(prog(t, 0, .4)) * (1 - .5 * prog(t, 1.4, 1.9)) * out);
     show(e.glow, outCubic(prog(t, 1.35, 1.8)) * (kind === 'won' ? 1 : .7) * out);
-    show(e.flash, t > .82 ? (kind === 'lost' ? .3 : .5) * (1 - outCubic(prog(t, .82, 1.05))) : 0);
+    show(e.flash, t > .82 ? .5 * (1 - outCubic(prog(t, .82, 1.05))) : 0);
     const shake = t > .82 && t < 1.0 ? Math.sin((t - .82) * 120) * 9 * (1 - (t - .82) / .18) : 0;
     this.stage.style.translate = `${shake}px 0`;
 
@@ -229,7 +249,6 @@ export class Verdict {
       show(el, prog(t, .1, .2) * out);
     };
     if (kind === 'won') { risen(e.you, -1); fallen(e.them, 1); }
-    else if (kind === 'lost') { risen(e.them, 1); fallen(e.you, -1); }
     else { level(e.you, -1); level(e.them, 1); }
 
     const vp = prog(t, .4, .6);
@@ -255,7 +274,7 @@ export class Verdict {
     show(e.crown, kind !== 'drawn' && crownP > 0 ? out : 0);
 
     const sp = prog(t, 1.6, 1.88);
-    tf(e.title, 0, 430, lerp(kind === 'lost' ? 1.6 : 2.4, 1, outBack(sp, kind === 'lost' ? 1.2 : 2.2)));
+    tf(e.title, 0, 430, lerp(2.4, 1, outBack(sp, 2.2)));
     show(e.title, clamp(sp * 5) * out);
     const sh = t > 2.0 ? ((t - 2.0) % 1.4) / .6 : 2;
     e.title.style.backgroundPosition = `${lerp(160, -60, clamp(sh))}% 0, 0 0`;
@@ -265,12 +284,106 @@ export class Verdict {
     const hb = outCubic(prog(t, 2.0, 2.3));
     tf(e.how, 0, 566 + 14 * (1 - hb));
     show(e.how, hb * out);
-    show(e.skip, t > .2 && t < HOLD - .1 && !this.still ? .8 : 0);
+    show(e.skip, t > .2 && t < this.hold - .1 && !this.still ? .8 : 0);
 
     this.once('in', .1, t, () => buzz(10));
-    this.once('clash', .82, t, () => { buzz(kind === 'lost' ? 40 : 70); this.hooks.sound(kind); });
+    this.once('clash', .82, t, () => { buzz(70); this.hooks.sound(kind); });
     this.once('lock', 1.6, t, () => buzz(kind === 'won' ? [14, 70, 14] : kind === 'drawn' ? [14, 60, 14, 60] : 30));
     this.drawPaper(t, out);
+  }
+
+  /**
+   * DEFEAT, its own scene: no clash and no crown for you. Your face drops in
+   * alone, a rain cloud drifts over and rains on it, and it greys and sags;
+   * DEFEAT lands with a thud and its last letter comes loose and hangs; the
+   * winner pops up small in the corner, crowned, laughing, with a line in a
+   * bubble; and WIN IT BACK rises under it all.
+   */
+  private renderDefeat(t: number, exit: number) {
+    const e = this.el;
+    const tf = (el: HTMLElement | undefined, x: number, y: number, s = 1, r = 0, sx = s, sy = s) => { if (el) el.style.transform = `translate(${x}px,${y}px) rotate(${r}deg) scale(${sx},${sy})`; };
+    const show = (el: HTMLElement | undefined, o: number) => { if (el) { el.style.opacity = String(o); el.style.visibility = o <= .001 ? 'hidden' : 'visible'; } };
+    const out = 1 - inCubic(exit);
+    for (const k of ['rays', 'ring1', 'ring2', 'vs', 'glow'] as const) show(e[k], 0);
+    show(e.scrim, .94 * outCubic(prog(t, 0, .3)) * (1 - inOutCubic(exit)));
+    show(e.bloomMode, .6 * outCubic(prog(t, 0, .5)) * out);
+    show(e.flash, t > 1.25 ? .22 * (1 - outCubic(prog(t, 1.25, 1.45))) : 0);
+    this.stage.style.translate = t > 1.85 && t < 1.97 ? `0 ${Math.sin((t - 1.85) * 130) * 5 * (1 - (t - 1.85) / .12)}px` : '0 0';
+
+    // Yours: dropped in alone, then rained on, greyed and sagging.
+    const d = 150, fy = 300;
+    const drop = outBack(prog(t, .1, .55), 1.2), sag = inOutCubic(prog(t, 1.0, 1.7));
+    const shiver = t > 1.7 ? Math.sin(t * 22) * .6 : 0;
+    e.you.style.width = e.you.style.height = `${d}px`;
+    tf(e.you, CX - d / 2, lerp(-d - 40, fy, drop) - d / 2 + 16 * sag, 1 - .15 * inCubic(exit), -9 * sag + shiver, 1 + .03 * sag, 1 - .06 * sag);
+    e.you.style.filter = sag > 0 ? `grayscale(${.85 * sag}) brightness(${1 - .28 * sag})` : '';
+    show(e.you, prog(t, .1, .18) * out);
+
+    // The cloud drifts in over it and stays, bobbing.
+    const cp = outCubic(prog(t, .5, 1.0));
+    tf(e.cloud, lerp(W + 30, CX - 110, cp), 108 + Math.sin(t * 2.4) * 3);
+    show(e.cloud, cp > 0 ? out : 0);
+
+    // Theirs: small, in the corner below yours, crowned and laughing.
+    const td = 78, tx = 318, ty = 386;
+    const pop = outBack(prog(t, 1.95, 2.2), 2.4);
+    const laugh = t > 2.2 ? Math.abs(Math.sin((t - 2.2) * 9)) * 5 * Math.max(.35, 1 - (t - 2.2) / 2) : 0;
+    e.them.style.width = e.them.style.height = `${td}px`;
+    e.them.style.filter = '';
+    tf(e.them, tx - td / 2, ty - td / 2 - laugh, pop * (1 - .15 * inCubic(exit)), Math.sin((t - 2.2) * 9) * (t > 2.2 ? 4 : 0));
+    show(e.them, pop > 0 ? out : 0);
+    const cw = td * .7, ch = cw * .6;
+    e.crown.style.width = `${cw}px`; e.crown.style.height = `${ch}px`;
+    tf(e.crown, tx - cw / 2 + 6, ty - td / 2 - ch * .74 - laugh, pop, 14);
+    show(e.crown, pop > 0 ? out : 0);
+    const bp = outBack(prog(t, 2.25, 2.45), 2.2);
+    if (e.bubble) { e.bubble.style.transformOrigin = '88% 100%'; tf(e.bubble, 0, 0, bp); }
+    show(e.bubble, bp > 0 ? out : 0);
+
+    // DEFEAT: dropped heavy, a thud, and the last letter comes loose.
+    const fall = prog(t, 1.6, 1.85), thud = prog(t, 1.85, 2.1);
+    const squash = t >= 1.85 ? (1 - spring(thud, 18, .35)) * .16 : 0;
+    tf(e.title, 0, 446 - 520 * (1 - fall * fall), 1, 0, 1 + squash * .6, 1 - squash);
+    show(e.title, fall > 0 ? out : 0);
+    e.title.style.backgroundPosition = '200% 0, 0 0';
+    if (e.tee) e.tee.style.transform = `rotate(${18 * spring(prog(t, 2.4, 3.1), 9, .28)}deg) translateY(${4 * prog(t, 2.4, 2.6)}px)`;
+    const sb = outCubic(prog(t, 2.0, 2.3));
+    tf(e.sub, 0, 548 + 14 * (1 - sb));
+    show(e.sub, sb * out);
+    const hb = outCubic(prog(t, 2.15, 2.45));
+    tf(e.how, 0, 584 + 14 * (1 - hb));
+    show(e.how, hb * out);
+    const kp = outCubic(prog(t, 2.6, 2.9));
+    const breathe = t > 3.2 ? 1 + .025 * Math.sin((t - 3.2) * 4) : 1;
+    tf(e.again, CX - 120, 650 + 40 * (1 - kp), breathe);
+    show(e.again, kp * out);
+    if (e.again) e.again.style.pointerEvents = kp > .5 && exit === 0 ? 'auto' : 'none';
+    show(e.skip, t > .2 && t < LOST_IN && !this.still ? .8 : 0);
+
+    this.once('in', .45, t, () => buzz(20));
+    this.once('thunder', 1.25, t, () => buzz([10, 30, 10]));
+    this.once('thud', 1.85, t, () => { buzz(60); this.hooks.sound('lost'); });
+    this.once('laugh', 2.25, t, () => buzz([8, 40, 8, 40, 8]));
+    this.drawRain(t, out);
+  }
+
+  /** The rain off the cloud onto your face, a line a drop, from the cloud's arrival on. */
+  private drawRain(t: number, fade: number) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    ctx.clearRect(0, 0, W, H);
+    const on = prog(t, .95, 1.25) * fade;
+    if (on <= 0 || this.still) return;
+    ctx.strokeStyle = '#a9c2dc';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    for (const d of this.drops) {
+      const p = (t * d.v + d.ph) % 1;
+      const y = lerp(186, 300, p), x = d.x - 10 * p;
+      ctx.globalAlpha = on * .75 * Math.sin(Math.PI * p);
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 3, y + 12); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
   }
 
   private drawPaper(t: number, fade: number) {

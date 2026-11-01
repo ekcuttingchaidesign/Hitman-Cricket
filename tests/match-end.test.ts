@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ended } from '../src/game/ball-string';
-import { chaseEndOf, verdictOf } from '../src/game/match-end';
+import { TAUNTS, chaseEndOf, verdictOf } from '../src/game/match-end';
 
 const BLAST = { balls: 30, wickets: 3 }, SUPER10 = { balls: 60, wickets: 5 };
 
@@ -49,6 +49,16 @@ describe('the end of a challenge’s chase', () => {
     expect(verdictOf({ outcome: 'D', forfeit: false, mine: setter, them: row('Riya', 31, 30, 2), mode: 'classic', balls: 30, youAvatar: 1 }))
       .toMatchObject({ kind: 'drawn', title: 'DRAW', sub: 'Level with Riya · 31–31' });
     expect(verdictOf({ outcome: 'L', forfeit: false, mine: row('Riya', 31, 30, 2), them: setter, mode: 'classic', balls: 30, youAvatar: 1 }).how).toBe('ON BOUNDARIES');
+  });
+
+  it('gives a defeat the winner’s line, the same every time, and nothing else one', () => {
+    const row = (name: string, runs: number, balls: number, at: number) => ({ name, avatar: 1, runs, balls, status: 'done', at });
+    const lost = { outcome: 'L' as const, forfeit: false, mine: row('Kabir', 31, 30, 1), them: row('Riya', 35, 13, 2), mode: 'classic' as const, balls: 30, youAvatar: 1 };
+    const taunt = verdictOf(lost).taunt;
+    expect(TAUNTS).toContain(taunt);
+    expect(verdictOf(lost).taunt).toBe(taunt);
+    expect(verdictOf({ ...lost, outcome: 'W', mine: lost.them, them: lost.mine }).taunt).toBeNull();
+    expect(verdictOf({ ...lost, outcome: 'D' }).taunt).toBeNull();
   });
 
   it('says a walkout as one', () => {

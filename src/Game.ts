@@ -145,7 +145,7 @@ import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
 import { practiceSwitches } from './game/practice';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
 import { batting, readPlaytime, writePlaytime } from './game/playtime';
-import { ChallengeRun, ageOf, emptyList, noteResult, recentForm, rivalryView, roomView, type ListView, type Me, type RoomView } from './game/Challenge';
+import { ChallengeRun, ageOf, emptyList, noteResult, recentForm, rivalryView, roomView, type ListView, type Me, type ResultView, type RoomView } from './game/Challenge';
 import {
   CODE_PARAM, challengeLink, copy, fetchRivalsBoard, hideChallenge, readUnsent, rivalryEntries, seenHere, sendDecline, sendNudge, sendWalk, whatsapp,
   type Challenge, type ChallengeMode, type RivalsRow,
@@ -1191,7 +1191,7 @@ export class Game {
           const outcome = kind === 'won' ? 'W' : kind === 'short' ? 'L' : 'D';
           const row = (name: string, avatar: number, made: number, balls: number, at: number) => ({ name, avatar, runs: made, balls, status: 'done', at });
           this.showVerdict(verdictOf({ outcome, forfeit: false, mine: row('You', 1, runs, kind === 'won' ? 13 : limits.balls, 2), them: row('Kabir', 3, target, limits.balls, 1),
-            mode, balls: limits.balls, youAvatar: readPlayer()?.avatar ?? 1 }));
+            mode, balls: limits.balls, youAvatar: readPlayer()?.avatar ?? 1 }), outcome === 'L' ? () => this.hud.notice('WIN IT BACK: the rematch would start here.') : undefined);
         });
       },
       verdictOpen: () => !!this.verdict,
@@ -5893,7 +5893,7 @@ export class Game {
         this.showVerdict(verdictOf({
           outcome: result.outcome, forfeit: result.forfeit, mine, them, mode: result.mode === 'super10' ? 'super10' : 'classic',
           balls: limitsOf(result.mode).balls, youAvatar: readPlayer()?.avatar ?? mine.avatar,
-        }));
+        }), result.outcome === 'L' ? () => this.winItBack(result) : undefined);
       }
       track(`challenge-${view.result.outcome === 'W' ? 'won' : view.result.outcome === 'D' ? 'drew' : 'lost'}`, 'Match result seen');
       if (view.result.forfeit) track('challenge-by-forfeit', 'Match decided by a walkout or a decline');
@@ -6155,8 +6155,21 @@ export class Game {
     await this.hud.chaseEnd(end, mode, end.kind === 'won' ? 2200 : 1900);
   }
 
+  /**
+   * WIN IT BACK, off a defeat: a challenge from a profile goes straight back
+   * at whoever won it, the loser batting first this time; a link's room is
+   * rematched as its own REMATCH key does.
+   */
+  private winItBack(result: ResultView) {
+    const them = result.them;
+    if (!them) return;
+    track('challenge-verdict-rematch', 'WIN IT BACK on a defeat');
+    if (this.challenge.room?.invite) this.challengeFrom({ handle: them.handle, name: them.name, avatar: them.avatar, profile: null });
+    else void this.roomAct('rematch');
+  }
+
   /** VICTORY, DEFEAT or DRAW over a result already up, handing over to it once its lockup is in. */
-  private showVerdict(view: VerdictView) {
+  private showVerdict(view: VerdictView, rematch?: () => void) {
     this.verdict?.close();
     track(`challenge-verdict-${view.kind}`, 'Challenge verdict shown');
     this.verdict = new Verdict(this.hud.viewport, view, {
@@ -6165,6 +6178,7 @@ export class Game {
         else if (kind === 'lost') this.audio.groan(GROAN.out);
         else this.audio.cheer(boundaryCheer(4, 1, false));
       },
+      rematch,
       done: () => { this.verdict = null; },
     });
     this.verdict.release();
