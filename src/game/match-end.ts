@@ -72,7 +72,7 @@ export interface VerdictView {
  * again. About the game and how it was played, never the player's looks,
  * name or anything off the field.
  */
-export const TAUNTS = ['LMAO NOOB', 'GG EZ', 'SKILL ISSUE', 'GET GOOD', 'L + RATIO', 'MY GRANNY BATS BETTER', 'BACK TO THE NETS', 'WAS THAT YOUR BEST?'] as const;
+export const TAUNTS = ['LMAO NOOB', '12TH MAN ENERGY', 'SKILL ISSUE', 'IS THAT A BAT OR A SPOON?', 'L + RATIO', 'MY GRANNY BATS BETTER', 'BACK TO THE NETS', 'WAS THAT YOUR BEST?'] as const;
 
 /** One innings on a settled match, as much of it as the verdict reads. */
 export interface VerdictRow { name: string; avatar: number; runs: number; balls: number; status: string; at: number }
