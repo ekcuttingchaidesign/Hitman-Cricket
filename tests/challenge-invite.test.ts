@@ -69,7 +69,8 @@ describe('a challenge from a profile', () => {
     const code = await sent(store, 64);
     expect(refusal(await joinChallenge(store, code, zoya, T0 + HOUR))?.status).toBe(403);
     took(await joinChallenge(store, code, riya, T0 + HOUR));
-    took(await recordBalls(store, code, { ...riya, card: card(70) }, T0 + 2 * HOUR));
+    // Eleven sixes passes 64, and the chase is over on that ball.
+    took(await recordBalls(store, code, { ...riya, card: '6'.repeat(11) }, T0 + 2 * HOUR));
     const mine = took(await readMine(store, RIYA, T0 + 3 * HOUR));
     expect(mine.record).toEqual({ won: 1, lost: 0, drawn: 0 });
     expect(took(await readMine(store, KABIR, T0 + 3 * HOUR)).record).toEqual({ won: 0, lost: 1, drawn: 0 });
@@ -160,6 +161,24 @@ describe('a challenge from a profile', () => {
     const out = took(await recordBalls(store, made.code, { ...riya, card: '6W6WW6WW' }, T0 + HOUR + 60_000));
     expect(out.challenge.players.find(row => row.handle === handleOf(RIYA))).toMatchObject({ status: 'done', wickets: 5 });
     expect(out.challenge.state).toBe('done');
+  });
+
+  it('ends a chase on the ball that passes the total, and takes no ball after it', async () => {
+    const store = setup();
+    const made = took(await createChallenge(store, { ...kabir, to: handleOf(RIYA), toName: 'Riya' }, T0));
+    took(await recordBalls(store, made.code, { ...kabir, card: card(31) }, T0 + 60_000));
+    took(await joinChallenge(store, made.code, riya, T0 + HOUR));
+    // Level on 31 off twelve: still batting. A four on the thirteenth wins it then and there.
+    const level = took(await recordBalls(store, made.code, { ...riya, card: '666661' + '0'.repeat(6) }, T0 + HOUR + 60_000));
+    expect(level.challenge.players.find(row => row.handle === handleOf(RIYA))?.status).toBe('batting');
+    const won = took(await recordBalls(store, made.code, { ...riya, card: '666661' + '0'.repeat(6) + '4' }, T0 + HOUR + 90_000));
+    expect(won.challenge.players.find(row => row.handle === handleOf(RIYA))).toMatchObject({ status: 'done', runs: 35, balls: 13 });
+    expect(won.challenge.state).toBe('done');
+    expect(refusal(await recordBalls(store, made.code, { ...riya, card: '666661' + '0'.repeat(6) + '41' }, T0 + HOUR + 95_000))?.status).toBe(400);
+    // The setter's own innings is never cut short by a total: there is none for them.
+    const other = took(await createChallenge(store, { ...riya, to: handleOf(ZOYA), toName: 'Zoya' }, T0 + 2 * HOUR));
+    const setting = took(await recordBalls(store, other.code, { ...riya, card: '6'.repeat(12) }, T0 + 2 * HOUR + 60_000));
+    expect(setting.challenge.players[0].status).toBe('batting');
   });
 
   it('keeps the Blast’s room to thirty balls and three wickets', async () => {

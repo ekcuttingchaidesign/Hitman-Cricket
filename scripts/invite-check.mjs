@@ -166,6 +166,31 @@ const line = await b.locator('#cover-board').innerText();
 if (!/CHALLENGED YOU/.test(line)) console.log('        errors:', b.errors.join(' | '), '\n        seen by the chaser:', await b.evaluate(async id => JSON.stringify({ me: localStorage.getItem('hitman-player'), id, phase: window.__cricket?.snapshot?.().phase, list: (await (await fetch('/api/challenge?player=' + localStorage.getItem('hitman-player'))).json()).challenges?.map(c => [c.code, c.invite?.state]) }), chaserId));
 check(/CHALLENGED YOU/.test(line) && /Chase\s*64/.test(line) && (!S10 || /Super10/.test(line)), 'the cover’s line is the challenge', line);
 await b.screenshot({ path: `${out}/c1-cover.png` });
+
+// The setter's room while the chaser has the game open: their face, marked online at its foot, never lost under the mark.
+const faceOf = (page, seat) => page.evaluate(sel => {
+  const box = el => { const r = el?.getBoundingClientRect(); return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height } : null; };
+  const s = document.querySelector(sel);
+  return { face: box(s?.querySelector('.room-face')), kit: box(s?.querySelector('.board-kit')), mark: box(s?.querySelector('.live-mark')), ring: box(s?.querySelector('.room-ring')) };
+}, seat);
+/** The room opened the way its setter does: Choose a mode, Rivals, then its row on Rival Matches. */
+async function openRoom(page, code) {
+  await page.goto(`${base}/?debug=1&private=0`, { waitUntil: 'load' });
+  await page.waitForTimeout(2500);
+  await page.addStyleTag({ content: '#debug{display:none!important}' });
+  await page.evaluate(() => document.getElementById('start')?.click());
+  await page.waitForTimeout(900);
+  await page.evaluate(() => document.getElementById('modes-challenges')?.click());
+  await page.waitForSelector(`#challenge-list .rival-row[data-code="${code}"]`, { timeout: 30000 }).catch(() => null);
+  await page.evaluate(c => document.querySelector(`#challenge-list .rival-row[data-code="${c}"]`)?.click(), code);
+  await page.waitForSelector('#challenge-room:not(.hidden) #room-title', { timeout: 30000 }).catch(() => null);
+}
+await openRoom(a, room.code);
+await a.waitForSelector('#challenge-room .room-seat[data-rival] .live-mark', { timeout: 60000 }).catch(() => null);
+const waiting = await faceOf(a, '#challenge-room .room-seat[data-rival]');
+check(!!waiting.mark && !!waiting.kit && waiting.kit.w > .9 * waiting.face.w && waiting.mark.x > waiting.face.x && waiting.mark.y > waiting.face.y,
+  'the setter’s room shows the player it is for, whole, with the online dot at the foot of their face', JSON.stringify(waiting));
+await a.screenshot({ path: `${out}/b6-online.png` });
 await b.locator('#cover-board').click();
 await b.waitForSelector('#cc-invite .cc-sheet');
 check((await b.locator('#cc-invite .iv-card b').textContent()) === '64', 'the invite shows their total in the open');
@@ -185,8 +210,40 @@ if (S10) await rulesAway(b);
 await b.waitForTimeout(600);
 check(await b.locator('#chase-chip').isVisible().catch(() => false), 'with the chase chip under the scoreboard');
 await b.screenshot({ path: `${out}/c4-chip.png` });
+
+// Three balls in, as the setter sees it live: the batting ring round the chaser's face, on its centre and just outside it.
+await fetch(`${base}/api/challenge`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ action: 'ball', code: room.code, playerId: chaserId, name: chaser, avatar: 3, card: '666' }) });
+await openRoom(a, room.code);
+await a.waitForSelector('#challenge-room .room-ring', { timeout: 60000 }).catch(() => null);
+await a.waitForTimeout(500);
+const live = await faceOf(a, '#challenge-room .room-seat.is-batting');
+check(!!live.ring && Math.abs(live.ring.x - live.face.x) < 2 && Math.abs(live.ring.y - live.face.y) < 2 && live.ring.w > live.face.w && live.ring.w < 1.4 * live.face.w,
+  'the setter’s live room rings the chaser’s face, centred on it', JSON.stringify(live));
+await a.screenshot({ path: `${out}/b7-live.png` });
+
 await waitPhase(b, 'READY');
-check(await b.evaluate(n => window.__cricket.blast(Array(n).fill(1)), BALLS), 'the chaser’s innings is written');
+// The moment is up two seconds; a busy page can be past it before a look lands, so the page notes what it said.
+await b.evaluate(() => new MutationObserver(() => {
+  const end = document.getElementById('chase-end');
+  if (end && !window.__chaseEnd) window.__chaseEnd = end.textContent.replace(/\s+/g, ' ').trim();
+}).observe(document.body, { childList: true, subtree: true }));
+// Sixes from here: the eleventh passes 64 and the chase is over on it, whatever balls are left.
+check(await b.evaluate(n => window.__cricket.blast(Array(n).fill(6)), BALLS), 'the chaser’s innings is written');
+await b.waitForFunction(() => !!window.__chaseEnd, null, { timeout: 60000 }).catch(() => null);
+const said = await b.evaluate(() => window.__chaseEnd ?? '');
+check(/TARGET CHASED/.test(said) && new RegExp(`WITH ${BALLS - 11} BALLS TO SPARE`).test(said), 'the chase ends on the ball that passes the total, said on the gameplay screen', said);
+if (await b.locator('#chase-end').count()) await b.screenshot({ path: `${out}/c5-chased.png`, animations: 'disabled' });
+await b.waitForSelector('#victory', { timeout: 60000 }).catch(() => null);
+check(await b.locator('#victory').count() === 1, 'then the victory plays');
+await b.waitForFunction(() => Number(document.querySelector('.vc-how')?.style.opacity) > .95, null, { timeout: 90000 }).catch(() => null);
+check(new RegExp(`You beat ${setter} · 66–64`).test(await b.locator('.vc-sub').textContent().catch(() => '')), 'saying who was beaten and by what', await b.locator('.vc-sub').textContent().catch(() => ''));
+await b.screenshot({ path: `${out}/c6-victory.png` });
+await b.waitForSelector('#victory', { state: 'detached', timeout: 90000 }).catch(() => null);
+check(await b.locator('#victory').count() === 0, 'and hands over to the result');
+const settled = (await (await fetch(`${base}/api/challenge?player=${chaserId}`)).json()).challenges?.find(one => one.code === room.code);
+const mineRow = settled?.players.find(one => !one.host);
+check(mineRow?.status === 'done' && mineRow?.balls === 11 && mineRow?.runs === 66, 'the store has the chase over on its eleventh ball', JSON.stringify(mineRow));
 await b.waitForSelector('#room-title', { timeout: 90000 }).catch(async () => {
   await b.screenshot({ path: `${out}/c5-fail.png` });
   console.log('        after the chase:', await b.evaluate(async () => JSON.stringify({ phase: window.__cricket?.snapshot?.().phase, url: location.search,

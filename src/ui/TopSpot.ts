@@ -38,7 +38,7 @@ const outBack = (p: number, s = 1.70158) => 1 + (s + 1) * Math.pow(p - 1, 3) + s
 /** A damped spring from 0 to 1: how a landing settles. */
 const spring = (p: number, k = 14, z = .32) => p <= 0 ? 0 : 1 - Math.exp(-z * k * p) * Math.cos(k * Math.sqrt(1 - z * z) * p);
 
-const CROWN = `<svg class="ts-crown" viewBox="0 0 120 72" aria-hidden="true">
+export const CROWN = `<svg class="ts-crown" viewBox="0 0 120 72" aria-hidden="true">
   <defs><linearGradient id="ts-cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9b0"/><stop offset=".55" stop-color="#f5b83d"/><stop offset="1" stop-color="#b8740f"/></linearGradient></defs>
   <path d="M8 64 L4 16 L34 40 L60 6 L86 40 L116 16 L112 64 Z" fill="url(#ts-cg)" stroke="#7a4a0a" stroke-width="3" stroke-linejoin="round"/>
   <rect x="8" y="58" width="104" height="10" rx="4" fill="#c77d16"/>

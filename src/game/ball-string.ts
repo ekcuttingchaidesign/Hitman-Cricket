@@ -109,15 +109,17 @@ export function figuresOf(balls: string): Innings {
 /**
  * Whether an innings ended the way one can.
  *
- * There are two ways and no others: thirty balls faced, or three wickets down.
+ * There are two ways, thirty balls faced or three wickets down, and a third for
+ * a challenge's chase: the total it chases passed (`target`, `chaseTargetOf`).
  * A player who claims to have finished on twelve balls with a wicket in hand has
  * a score, not a result, and the challenge turns it away — which is the one
  * thing `figuresOf` cannot tell you, because those twelve balls add up perfectly
  * well.
  */
-export function ended(figures: Innings, mode?: CardMode): boolean {
+export function ended(figures: Innings, mode?: CardMode, target?: number | null): boolean {
   const most = limitsOf(mode);
-  return figures.balls >= most.balls || figures.wickets >= most.wickets;
+  // A challenge's chase has a third: the setter's total passed, the match won on that ball.
+  return figures.balls >= most.balls || figures.wickets >= most.wickets || (target != null && figures.runs > target);
 }
 
 /**

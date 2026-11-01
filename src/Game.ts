@@ -12,6 +12,8 @@ import { heroView } from './game/rank-hero';
 import { rankHeroMarkup } from './ui/RankHero';
 import { tookTheTop, topSpotView, type TopSpotView } from './game/top-spot';
 import { TopSpot } from './ui/TopSpot';
+import { chaseEndOf, victoryOf, type VictoryView } from './game/match-end';
+import { Victory } from './ui/MatchEnd';
 import { buzz } from './game/haptics';
 import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
@@ -1180,6 +1182,17 @@ export class Game {
       topSpot: (mode?: CareerMode) => this.previewTopSpot(mode),
       // Whether it is playing.
       topSpotOpen: () => !!this.topSpot,
+      // The end of a challenge's chase, over a made-up one, for looking at: `chaseEnd('won')`, then the victory, released at once.
+      chaseEnd: (kind: 'won' | 'short' | 'level' = 'won', mode: 'classic' | 'super10' = 'classic') => {
+        const target = 31, limits = mode === 'super10' ? { balls: 60, wickets: 5 } : { balls: 30, wickets: 3 };
+        const runs = kind === 'won' ? 35 : kind === 'level' ? 31 : 27;
+        const end = chaseEndOf({ runs, balls: kind === 'won' ? 13 : limits.balls, wickets: kind === 'won' ? 1 : 2, limits }, target, 'Kabir');
+        void this.hud.chaseEnd(end, mode, 2200).then(() => {
+          const view = victoryOf(end, { runs, target, you: { avatar: readPlayer()?.avatar ?? 1 }, them: { name: 'Kabir', avatar: 3 }, mode });
+          if (view) { this.showVictory(view); this.victory?.release(); }
+        });
+      },
+      victoryOpen: () => !!this.victory,
       // Where it has got to — 'rush' to 'ready' — or null when it is not up.
       levelingUp: () => this.levelUp?.at ?? null,
     } });
@@ -2283,7 +2296,7 @@ export class Game {
   private walkOut = () => this.start();
   start = () => {
     // Whatever led here — ANSWER, AGAIN or WIN IT BACK on Notifications — the innings is not played under it.
-    this.hud.closeNotices();
+    this.hud.closeNotices(); this.hud.closeChaseEnd(); this.victory?.close();
     if (this.walking) { this.walking = null; this.scene.walkOn(null); this.hud.walkOn(null); this.hud.walkOnCard(null, true); }
     if (this.chaseWon) { this.chaseWon = false; this.clearChase(); }
     // Who is batting, first: once, before the first innings there is.
@@ -4407,7 +4420,7 @@ export class Game {
         this.lesson++;
         if (this.lesson >= TUTORIAL.length) { this.lesson = -1; noteHowTo(false); track('tutorial-complete', 'Tutorial completed'); this.setPhase('START'); this.hud.tutorialComplete(); }
         else { this.setPhase('READY'); this.hud.coach(TUTORIAL[this.lesson], this.lesson + 1, TUTORIAL.length); }
-      } else if (this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended) this.end();
+      } else if (this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended || this.targetPassed) this.end();
       else {
         if (this.changed) this.nextBatter();
         if (this.noticeDue) { this.noticeDue = false; this.showHurtNote(); }
@@ -4512,7 +4525,7 @@ export class Game {
   private writeBlast(balls: (number | 'W')[]) {
     if (this.marathon || this.surviving || this.phase !== 'READY') return false;
     for (const ball of balls) {
-      if (this.score.ended) break;
+      if (this.score.ended || this.targetPassed) break;
       this.delivery = this.generator.next(0);
       const outcome = {
         runs: typeof ball === 'number' ? ball : 0, isWicket: ball === 'W', quality: 0, feedback: '',
@@ -4525,7 +4538,7 @@ export class Game {
     }
     this.hud.score(this.score);
     if (this.chasePassDue && !this.score.ended) this.celebrateChase();
-    if (this.score.ended) this.end(); else this.setPhase('READY');
+    if (this.score.ended || this.targetPassed) this.end(); else this.setPhase('READY');
     return true;
   }
   private writeMarathon(balls: (number | 'W' | 'H')[]) {
@@ -6076,6 +6089,12 @@ export class Game {
     }
     const room = this.challenge.room;
     if (room?.invite && !resume) this.challengeCard(room);
+    // A chase picked up again: its chip, as it was when it was left.
+    const host = room?.players.find(one => one.host);
+    if (resume && room?.invite && host && this.challengeTarget !== null) {
+      this.inviteChase = { handle: host.handle, name: host.name, avatar: host.avatar, mode: room.mode ?? 'classic', target: host.runs };
+      this.hud.chaseChip(this.inviteChase, this.score.runs, this.chaseBallsLeft);
+    }
     // Kept fresh while anybody else is still batting, so their balls arrive in
     // time to flash. Once they are all done, or nobody started, there is
     // nothing a poll could bring and it stops on its own.
@@ -6095,16 +6114,48 @@ export class Game {
     const me = this.me;
     if (!me) return;
     if (this.demoing) { this.hud.end(this.score, this.best, false); this.challenge.playing = false; return; }
-    const answer = await this.challenge.finishInnings(me, this.score.history);
+    // A challenge's chase is said on the gameplay screen first, while the innings is on its way to the store.
+    const chase = this.inviteChase, target = this.challengeTarget;
+    const sending = this.challenge.finishInnings(me, this.score.history);
     this.inviteChase = null; this.setting = null; this.hud.chaseChip(null);
+    if (chase && target !== null) await this.sayChaseEnd(chase, target);
+    const answer = await sending;
     void this.syncChallenges();
     if (!answer.ok || !answer.challenge) {
+      this.victory?.release();
       this.hud.end(this.score, this.best, false);
       this.hud.claimFailed(answer.reason ?? 'Your innings is saved and will be sent when you are back online.');
       return;
     }
     track('challenge-answered', 'Match innings sent');
     this.showRoom();
+    // The result is under it now: the victory hands over once its lockup is in.
+    this.victory?.release();
+  }
+
+  /**
+   * The ball a challenge's chase ended on, said over the ground: TARGET
+   * CHASED, FELL SHORT or SCORES LEVEL. A chase won goes on into the victory,
+   * which holds its lockup until the result is up under it.
+   */
+  private async sayChaseEnd(chase: Chase, target: number) {
+    const mode = chase.mode === 'super10' ? 'super10' : 'classic';
+    const limits = this.score.limits;
+    const end = chaseEndOf({ runs: this.score.runs, balls: this.score.balls, wickets: this.score.wickets, limits: { balls: limits.totalBalls, wickets: limits.maxWickets } }, target, chase.name);
+    track(`challenge-end-${end.kind}`, 'Challenge chase ended');
+    if (end.kind === 'won') { buzz([0, 40, 30, 90]); this.audio.cheer(boundaryCheer(6, 1, false)); }
+    await this.hud.chaseEnd(end, mode, end.kind === 'won' ? 2200 : 1900);
+    const view = victoryOf(end, { runs: this.score.runs, target, you: { avatar: readPlayer()?.avatar ?? 0 }, them: { name: chase.name, avatar: chase.avatar ?? 0 }, mode });
+    if (view) this.showVictory(view);
+  }
+
+  private showVictory(view: VictoryView) {
+    this.victory?.close();
+    track('challenge-victory', 'Challenge victory shown');
+    this.victory = new Victory(this.hud.viewport, view, {
+      cheer: () => this.audio.cheer({ size: 'big', peak: .8, decay: 2.6, swell: .3 }),
+      done: () => { this.victory = null; },
+    });
   }
 
   /**
@@ -6346,6 +6397,19 @@ export class Game {
   private cardFirst = false;
   /** The total being chased, for the chip under the scoreboard. */
   private inviteChase: Chase | null = null;
+  /** The victory over a chase won, until it has handed over to the result. */
+  private victory: Victory | null = null;
+
+  /** The setter's total while this player chases their challenge; null for anything else, a link's room included. */
+  private get challengeTarget(): number | null {
+    const room = this.challenge.room, me = this.player;
+    if (!this.challenge.playing || !room?.invite || !me) return null;
+    const host = room.players.find(one => one.host);
+    if (!host || ownsHandle(host.handle, me) || host.status !== 'done') return null;
+    return host.runs;
+  }
+  /** The total passed: the chase is won on this ball, and the innings is over (the store's rule too). */
+  private get targetPassed() { const target = this.challengeTarget; return target !== null && this.score.runs > target; }
 
   /** What a profile's foot offers between this player and that one; null when the list could not be had. */
   private footFor(handle: string): FootState | null {

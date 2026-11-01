@@ -1,4 +1,6 @@
 import { limitsOf } from '../game/ball-string';
+import { chaseEndMarkup } from './MatchEnd';
+import type { ChaseEnd } from '../game/match-end';
 import { bellLabel, type Notice, type NoticeFilter } from '../game/notices';
 import { noticesBodyMarkup, noticesMarkup, type NoticesView } from './Notices';
 import { ownsHandle } from '../game/handle';
@@ -1474,6 +1476,23 @@ ${modeSelectMarkup()}
     setTimeout(() => moment.classList.add('is-leaving'), Math.max(0, lasts - 200));
     setTimeout(() => moment.remove(), lasts);
   }
+
+  /**
+   * The ball a challenge's chase ends on, said on the gameplay screen: TARGET
+   * CHASED, FELL SHORT or SCORES LEVEL, held for `lasts` ms and then gone.
+   */
+  chaseEnd(end: ChaseEnd, mode: 'classic' | 'super10', lasts: number): Promise<void> {
+    document.getElementById('chase-end')?.remove();
+    const holder = document.createElement('div');
+    holder.innerHTML = chaseEndMarkup(end, mode);
+    const moment = holder.firstElementChild as HTMLElement;
+    this.viewport.append(moment);
+    return new Promise(done => {
+      setTimeout(() => moment.classList.add('is-leaving'), Math.max(0, lasts - 240));
+      setTimeout(() => { moment.remove(); done(); }, lasts);
+    });
+  }
+  closeChaseEnd() { document.getElementById('chase-end')?.remove(); }
 
   /** The chase's strip on the end card (B4, B5), or nothing. */
   chaseStrip(markup: string | null, standsInForPlace = false) {

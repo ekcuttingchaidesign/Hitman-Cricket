@@ -4,7 +4,10 @@
    and the bat means colour is never the only sign. */
 :root{--live-online:#2fd06b;--live-batting:#ffa41b;--live-ink:#0d0f12}
 .live-face{position:relative;display:inline-flex;flex:none;border-radius:50%}
-.lb-face>.live-face,.lb-chip-face>.live-face{width:100%;height:100%}
+/* A holder that sizes its face to fill it hands that size on through the wrapper,
+   or the face collapses to nothing and the mark sits where it was. */
+.lb-face>.live-face,.lb-chip-face>.live-face,.room-face>.live-face,.room-hero-kit>.live-face,
+.rival-row-kit>.live-face,.rival-sheet-kit>.live-face{width:100%;height:100%}
 .lb-face>.live-face>.board-kit,.lb-chip-face>.live-face>.board-kit{width:100%;height:100%}
 .live-mark{position:absolute;right:-1px;bottom:-1px;width:30%;height:30%;min-width:9px;min-height:9px;max-width:18px;max-height:18px;
   border-radius:50%;background:var(--live-online);box-shadow:0 0 0 2px var(--live-ink);pointer-events:none}
