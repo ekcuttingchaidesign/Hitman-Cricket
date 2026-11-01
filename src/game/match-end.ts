@@ -5,9 +5,9 @@
  * balls or the wickets run out (`ended` in `ball-string.ts`, with the total as
  * its `target`). Then two moments: on the gameplay screen, what happened
  * (`chaseEndOf`: TARGET CHASED, FELL SHORT, or SCORES LEVEL when sixes and
- * fours are left to decide it); and for a chase won only, the victory that
- * hands over to the room's result (`victoryOf`, drawn by `Victory` in
- * `src/ui/MatchEnd.ts`).
+ * fours are left to decide it). Then, the first time either player opens the
+ * settled match, its verdict over the result: VICTORY, DEFEAT or DRAW
+ * (`verdictOf`, drawn by `Verdict` in `src/ui/MatchEnd.ts`).
  */
 
 export type ChaseEndKind = 'won' | 'short' | 'level';
@@ -48,25 +48,61 @@ export function chaseEndOf(figures: ChaseFigures, target: number, them: string):
   return { kind: 'short', title: 'FELL SHORT', chip: `BY ${plural(target - runs, 'run').toUpperCase()}`, line: `${how} · ${them} needed ${target + 1}` };
 }
 
-export interface VictoryView {
+export type VerdictKind = 'won' | 'lost' | 'drawn';
+
+export interface VerdictView {
+  kind: VerdictKind;
+  /** The lockup: VICTORY, DEFEAT, DRAW. */
+  title: string;
+  /** Under it: You beat Kabir · 35–31. */
+  sub: string;
+  /** Under that, how: CHASED WITH 17 BALLS TO SPARE. */
+  how: string;
   you: { avatar: number };
   them: { name: string; avatar: number };
-  /** The lockup's line: You beat Kabir · 35–31. */
-  sub: string;
-  /** Under it, how: TARGET CHASED WITH 17 BALLS TO SPARE. */
-  how: string;
   /** The mode's colour, for the bloom. */
   colour: string;
   mode: 'classic' | 'super10';
 }
 
-/** The victory after a chase won, or null for any other end. */
-export function victoryOf(end: ChaseEnd, view: { runs: number; target: number; you: { avatar: number }; them: { name: string; avatar: number }; mode: 'classic' | 'super10' }): VictoryView | null {
-  if (end.kind !== 'won') return null;
+/** One innings on a settled match, as much of it as the verdict reads. */
+export interface VerdictRow { name: string; avatar: number; runs: number; balls: number; status: string; at: number }
+
+const TITLE: Record<VerdictKind, string> = { won: 'VICTORY', lost: 'DEFEAT', drawn: 'DRAW' };
+
+/**
+ * The verdict a player is shown the first time they open a settled match:
+ * the setter opening Rival Matches later, or the chaser straight off the
+ * gameplay screen. Won, lost or drawn, by runs or by a walkout, said from
+ * this player's side.
+ */
+export function verdictOf(result: {
+  outcome: 'W' | 'L' | 'D'; forfeit: boolean; mine: VerdictRow; them: VerdictRow; mode: 'classic' | 'super10'; balls: number; youAvatar: number;
+}): VerdictView {
+  const { mine, them } = result;
+  const kind: VerdictKind = result.outcome === 'W' ? 'won' : result.outcome === 'L' ? 'lost' : 'drawn';
+  const margin = Math.abs(mine.runs - them.runs);
+  const runsWord = plural(margin, 'run').toUpperCase();
+  const spare = (row: VerdictRow) => {
+    const left = Math.max(0, result.balls - row.balls);
+    return left ? `WITH ${plural(left, 'ball').toUpperCase()} TO SPARE` : 'OFF THE LAST BALL';
+  };
+  // Who set it: whoever finished first.
+  const first = mine.at <= them.at;
+  let sub: string, how: string;
+  if (kind === 'won') {
+    sub = them.status === 'declined' ? `${them.name} declined` : them.status === 'forfeit' ? `${them.name} walked out` : `You beat ${them.name} · ${mine.runs}–${them.runs}`;
+    how = result.forfeit ? 'BY FORFEIT' : !margin ? 'ON BOUNDARIES' : first ? `DEFENDED BY ${runsWord}` : `CHASED ${spare(mine)}`;
+  } else if (kind === 'lost') {
+    sub = mine.status === 'forfeit' ? `You walked out on ${them.name}` : mine.status === 'declined' ? `You declined ${them.name}` : `${them.name} beat you · ${them.runs}–${mine.runs}`;
+    how = result.forfeit ? 'BY FORFEIT' : !margin ? 'ON BOUNDARIES' : first ? `CHASED DOWN ${spare(them)}` : `SHORT BY ${runsWord}`;
+  } else {
+    sub = `Level with ${them.name} · ${mine.runs}–${them.runs}`;
+    how = 'LEVEL ON RUNS, SIXES AND FOURS';
+  }
   return {
-    you: view.you, them: view.them, mode: view.mode,
-    sub: `You beat ${view.them.name} · ${view.runs}–${view.target}`,
-    how: `${end.title} ${end.chip}`,
-    colour: view.mode === 'super10' ? '#8b5cf6' : '#3f88f2',
+    kind, title: TITLE[kind], sub, how, mode: result.mode,
+    you: { avatar: result.youAvatar }, them: { name: them.name, avatar: them.avatar },
+    colour: result.mode === 'super10' ? '#8b5cf6' : '#3f88f2',
   };
 }

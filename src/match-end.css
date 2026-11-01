@@ -26,7 +26,7 @@
 .ce-line{position:relative;margin:0 calc(var(--u) * 24);font:700 calc(var(--u) * 15)/1.35 var(--f-ui);text-align:center;text-shadow:0 2px 8px #000000b3;animation:ch-fade 220ms ease-out 450ms both}
 @media (prefers-reduced-motion:reduce){.ce-rays,.ce-wave,.ce-stamp,.ce-line{animation:none}}
 
-/* The victory, after a chase won: over everything, then gone into the result under it. */
+/* The verdict, the first time a settled match is opened: over everything, then gone into the result under it. */
 .vc{--vc-mode:var(--c-blast);position:absolute;inset:0;z-index:48;overflow:hidden;color:var(--c-text);font-family:var(--f-ui);cursor:pointer;-webkit-tap-highlight-color:transparent}
 .vc-scrim,.vc-flash{position:absolute;inset:0;pointer-events:none}
 .vc-scrim{background:var(--c-page)}
@@ -35,12 +35,16 @@
 .vc-stage>*{position:absolute;left:0;top:0;box-sizing:border-box}
 .vc-bloom{border-radius:50%;pointer-events:none}
 .vc-bloom.is-mode{left:-180px;top:-60px;width:760px;height:620px;background:radial-gradient(closest-side,color-mix(in srgb,var(--vc-mode) 45%,transparent),transparent)}
-.vc-bloom.is-gold{left:-140px;top:-20px;width:680px;height:620px;background:radial-gradient(closest-side,#f5b83d73,#f5b83d00)}
+.vc-bloom.is-glow{left:-140px;top:-20px;width:680px;height:620px;background:radial-gradient(closest-side,#f5b83d73,#f5b83d00)}
+.vc.is-lost .vc-bloom.is-glow{background:radial-gradient(closest-side,#c42a4652,#c42a4600)}
+.vc.is-drawn .vc-bloom.is-glow{background:radial-gradient(closest-side,#dfe6ee40,#dfe6ee00)}
 .vc-rays{width:640px;height:640px;border-radius:50%;background:repeating-conic-gradient(from 0deg,#ffe1a32e 0deg 7deg,transparent 7deg 20deg);
   -webkit-mask:radial-gradient(closest-side,#000 18%,transparent 100%);mask:radial-gradient(closest-side,#000 18%,transparent 100%)}
 .vc-ring{border-radius:50%;border:6px solid var(--c-gold)}
 .vc-ring.is-one{width:340px;height:340px}
 .vc-ring.is-two{width:250px;height:250px;border-width:3px}
+.vc.is-lost .vc-ring{border-color:#ff6b7f}
+.vc.is-drawn .vc-ring{border-color:#dfe6ee}
 .vc-face{border-radius:50%;object-fit:cover;background:#2a3039}
 .vc-face.is-you{box-shadow:0 0 0 5px #3f88f2,0 0 40px #3f88f28c}
 .vc-face.is-them{box-shadow:0 0 0 5px #ed7044,0 0 40px #ed70448c}
@@ -51,7 +55,13 @@
   background-image:linear-gradient(105deg,transparent 40%,#ffffffd9 50%,transparent 60%),linear-gradient(180deg,#fff3c4 0%,#f5b83d 46%,#c77d16 100%);
   background-size:300% 100%,100% 100%;background-repeat:no-repeat;-webkit-background-clip:text;background-clip:text;color:transparent;
   filter:drop-shadow(0 7px 0 #7a4a0a) drop-shadow(0 0 28px #f5b83d66);transform-origin:50% 55%;font-variation-settings:'opsz' 6}
+.vc.is-lost .vc-title{background-image:linear-gradient(105deg,transparent 40%,#ffffff8c 50%,transparent 60%),linear-gradient(180deg,#f3f6f9 0%,#aab4bf 50%,#6c7682 100%);
+  filter:drop-shadow(0 7px 0 #6b1022) drop-shadow(0 0 24px #c42a4659)}
+.vc.is-drawn .vc-title{background-image:linear-gradient(105deg,transparent 40%,#ffffffd9 50%,transparent 60%),linear-gradient(180deg,#ffffff 0%,#dfe6ee 46%,#98a4b1 100%);
+  filter:drop-shadow(0 7px 0 #2a3039) drop-shadow(0 0 24px #dfe6ee4d)}
 .vc-sub{width:402px;padding:0 24px;text-align:center;font:700 19px/1.25 var(--f-ui);color:var(--c-text)}
 .vc-how{width:402px;padding:0 24px;text-align:center;font:700 11px/1.3 var(--f-ui);letter-spacing:.14em;color:var(--c-gold)}
+.vc.is-lost .vc-how{color:#ff8a9a}
+.vc.is-drawn .vc-how{color:#dfe6ee}
 .vc-paper{width:402px;height:874px;pointer-events:none}
 .vc-skip{left:auto;right:16px;top:calc(16px + env(safe-area-inset-top,0px));font:700 11px/1 var(--f-ui);letter-spacing:.1em;color:#ffffff99}

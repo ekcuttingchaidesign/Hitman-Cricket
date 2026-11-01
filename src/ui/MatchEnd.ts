@@ -1,22 +1,26 @@
 import { avatarSrc } from '../config/board';
 import { buzz } from '../game/haptics';
-import type { ChaseEnd, VictoryView } from '../game/match-end';
+import type { ChaseEnd, VerdictKind, VerdictView } from '../game/match-end';
 import { escape } from './Leaderboard';
 import { CROWN } from './TopSpot';
 
 /**
- * The end of a challenge's chase, on screen.
+ * The end of a challenge, on screen.
  *
- * `chaseEndMarkup` is the moment on the gameplay screen, the ball the chase
+ * `chaseEndMarkup` is the moment on the gameplay screen, the ball a chase
  * ends: TARGET CHASED in gold, FELL SHORT in raspberry, SCORES LEVEL in white,
  * with the plate under it and one line, over the ground as the PASSED moment
- * is. `Victory` is what follows a chase won and hands over to the room's
- * result: the two faces in from either side, a clash, theirs knocked down and
- * away, yours lifted to the middle and crowned, VICTORY slammed in under it,
- * paper up from both bottom corners. Every frame of it is drawn from one
- * clock, as New #1's is (`TopSpot`), on the same 402 by 874 stage scaled to
- * the screen; a tap, Escape or Enter skips to the hand-over, and reduced
- * motion is the lockup standing still for a moment.
+ * is.
+ *
+ * `Verdict` is what a player sees the first time they open the settled match,
+ * over its result: the two faces in from either side and a clash, then
+ * VICTORY (theirs knocked down and away, yours lifted to the middle and
+ * crowned, paper up from both bottom corners), DEFEAT (the same the other way
+ * round, in steel and raspberry, no paper), or DRAW (both thrown back level,
+ * side by side, in silver). Every frame of it is drawn from one clock, as New
+ * #1's is (`TopSpot`), on the same 402 by 874 stage scaled to the screen; a
+ * tap, Escape or Enter skips to the hand-over, and reduced motion is the
+ * lockup standing still for a moment.
  */
 
 export function chaseEndMarkup(end: ChaseEnd, mode: 'classic' | 'super10'): string {
@@ -27,16 +31,16 @@ export function chaseEndMarkup(end: ChaseEnd, mode: 'classic' | 'super10'): stri
     </div>`;
 }
 
-export interface VictoryHooks {
-  /** The crowd, at the clash. */
-  cheer(): void;
+export interface VerdictHooks {
+  /** The crowd at the clash: a cheer, a groan, a murmur. */
+  sound(kind: VerdictKind): void;
   done(): void;
 }
 
 /** When the lockup is all in; the hand-over waits on `release` from here. */
 const HOLD = 3.4;
 const EXIT = 0.5;
-const W = 402, H = 874, CX = 201, FACE_Y = 330;
+const W = 402, H = 874, CX = 201, FACE_Y = 330, TOP_Y = 290;
 
 const clamp = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const lerp = (a: number, b: number, p: number) => a + (b - a) * p;
@@ -50,7 +54,7 @@ const spring = (p: number, k = 14, z = .32) => p <= 0 ? 0 : 1 - Math.exp(-z * k 
 const PAPER = ['#f5b83d', '#ffe1a3', '#ffffff', '#ed7044', '#5bd08f', '#4fa3ff'];
 interface Paper { t0: number; x0: number; vx: number; vy: number; w: number; h: number; c: string; r0: number; spin: number; flip: number }
 
-export class Victory {
+export class Verdict {
   private readonly root: HTMLElement;
   private readonly stage: HTMLElement;
   private readonly el: Record<string, HTMLElement> = {};
@@ -58,6 +62,7 @@ export class Victory {
   private readonly papers: Paper[] = [];
   private readonly sparks: { a: number; v: number; s: number; c: string }[] = [];
   private readonly still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  private readonly kind: VerdictKind;
   private t = 0;
   private last = 0;
   private raf = 0;
@@ -68,24 +73,25 @@ export class Victory {
   private fired = new Set<string>();
   private closed = false;
 
-  constructor(private readonly host: HTMLElement, view: VictoryView, private readonly hooks: VictoryHooks) {
+  constructor(private readonly host: HTMLElement, view: VerdictView, private readonly hooks: VerdictHooks) {
+    this.kind = view.kind;
     const root = document.createElement('div');
-    root.className = `vc is-${view.mode}`;
-    root.id = 'victory';
+    root.className = `vc is-${view.kind} is-${view.mode}`;
+    root.id = 'verdict';
     root.setAttribute('role', 'dialog');
-    root.setAttribute('aria-label', `Victory. ${view.sub}`);
+    root.setAttribute('aria-label', `${view.title.toLowerCase()}. ${view.sub}`);
     root.style.setProperty('--vc-mode', view.colour);
     root.innerHTML = `
       <div class="vc-scrim"></div>
       <div class="vc-stage">
-        <div class="vc-bloom is-mode"></div><div class="vc-bloom is-gold"></div>
+        <div class="vc-bloom is-mode"></div><div class="vc-bloom is-glow"></div>
         <div class="vc-rays"></div>
         <div class="vc-ring is-one"></div><div class="vc-ring is-two"></div>
         <img class="vc-face is-them" alt="" src="${avatarSrc(view.them.avatar)}">
         <img class="vc-face is-you" alt="" src="${avatarSrc(view.you.avatar)}">
         <b class="vc-vs">VS</b>
         ${CROWN.replace('ts-crown', 'vc-crown').replace(/ts-cg/g, 'vc-cg')}
-        <div class="vc-title">VICTORY</div>
+        <div class="vc-title">${escape(view.title)}</div>
         <div class="vc-sub">${escape(view.sub)}</div>
         <div class="vc-how">${escape(view.how)}</div>
         <canvas class="vc-paper" width="${W * 2}" height="${H * 2}"></canvas>
@@ -94,7 +100,7 @@ export class Victory {
       <div class="vc-flash"></div>`;
     this.root = root;
     this.stage = root.querySelector('.vc-stage')!;
-    for (const [key, sel] of [['scrim', '.vc-scrim'], ['bloomMode', '.vc-bloom.is-mode'], ['bloomGold', '.vc-bloom.is-gold'], ['rays', '.vc-rays'],
+    for (const [key, sel] of [['scrim', '.vc-scrim'], ['bloomMode', '.vc-bloom.is-mode'], ['glow', '.vc-bloom.is-glow'], ['rays', '.vc-rays'],
       ['ring1', '.vc-ring.is-one'], ['ring2', '.vc-ring.is-two'], ['them', '.vc-face.is-them'], ['you', '.vc-face.is-you'], ['vs', '.vc-vs'],
       ['crown', '.vc-crown'], ['title', '.vc-title'], ['sub', '.vc-sub'], ['how', '.vc-how'], ['skip', '.vc-skip'], ['flash', '.vc-flash']]) {
       this.el[key] = root.querySelector<HTMLElement>(sel)!;
@@ -103,12 +109,13 @@ export class Victory {
     this.ctx?.scale(2, 2);
 
     let seed = 11; const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
-    for (const side of [-1, 1]) for (let i = 0; i < 40; i++) {
+    if (view.kind === 'won') for (const side of [-1, 1]) for (let i = 0; i < 40; i++) {
       const off = (6 + rnd() * 26) * Math.PI / 180, v = 1900 + rnd() * 850;
       this.papers.push({ t0: 1.5 + rnd() * .12, x0: side < 0 ? -10 : W + 10, vx: Math.sin(off) * v * -side, vy: -Math.cos(off) * v,
         w: 7 + rnd() * 6, h: 4 + rnd() * 4, c: PAPER[Math.floor(rnd() * PAPER.length)], r0: rnd() * 6, spin: (rnd() - .5) * 16, flip: 6 + rnd() * 10 });
     }
-    for (let i = 0; i < 20; i++) this.sparks.push({ a: i / 20 * Math.PI * 2 + rnd() * .25, v: 150 + rnd() * 170, s: 2 + rnd() * 3, c: i % 3 ? '#ffe1a3' : '#ffffff' });
+    const spark = view.kind === 'lost' ? ['#c9d2db', '#ff6b7f'] : view.kind === 'drawn' ? ['#e9eef3', '#ffffff'] : ['#ffe1a3', '#ffffff'];
+    for (let i = 0; i < 20; i++) this.sparks.push({ a: i / 20 * Math.PI * 2 + rnd() * .25, v: 150 + rnd() * 170, s: 2 + rnd() * 3, c: spark[i % 3 ? 0 : 1] });
 
     root.addEventListener('pointerdown', this.skip);
     addEventListener('keydown', this.key);
@@ -122,7 +129,7 @@ export class Victory {
 
   get open() { return !this.closed; }
 
-  /** The result is up underneath: the victory may hand over once its lockup is in. */
+  /** The result is up underneath: the verdict may hand over once its lockup is in. */
   release() { this.released = true; }
 
   /** On to the lockup, or to the hand-over once the result is there, as a tap does. */
@@ -149,11 +156,9 @@ export class Victory {
       this.render(HOLD, this.leaving !== null ? prog(this.t, this.leaving, this.leaving + .2) : 0);
       if (this.leaving !== null && this.t >= this.leaving + .2) return this.close();
     } else {
-      if (this.t >= HOLD && this.leaving === null) {
-        if (this.released) this.leaving = this.t;
-      }
+      if (this.t >= HOLD && this.leaving === null && this.released) this.leaving = this.t;
       const exit = this.leaving !== null ? prog(this.t, this.leaving, this.leaving + EXIT) : 0;
-      // Held on the lockup while the result is still on its way: the rays turn and the foil glints, nothing else moves.
+      // Held on the lockup while the result is on its way: the rays turn and the foil glints, nothing else moves.
       this.render(this.t, exit);
       if (exit >= 1) return this.close();
     }
@@ -175,60 +180,80 @@ export class Victory {
   }
 
   private render(t: number, exit = 0) {
-    const e = this.el;
+    const e = this.el, kind = this.kind;
     const tf = (el: HTMLElement, x: number, y: number, s = 1, r = 0) => { el.style.transform = `translate(${x}px,${y}px) rotate(${r}deg) scale(${s})`; };
     const show = (el: HTMLElement, o: number) => { el.style.opacity = String(o); el.style.visibility = o <= .001 ? 'hidden' : 'visible'; };
     const out = 1 - inCubic(exit);
 
     show(e.scrim, .9 * outCubic(prog(t, 0, .3)) * (1 - inOutCubic(exit)));
     show(e.bloomMode, outCubic(prog(t, 0, .4)) * (1 - .5 * prog(t, 1.4, 1.9)) * out);
-    show(e.bloomGold, outCubic(prog(t, 1.35, 1.8)) * out);
-    show(e.flash, t > .82 ? .5 * (1 - outCubic(prog(t, .82, 1.05))) : 0);
+    show(e.glow, outCubic(prog(t, 1.35, 1.8)) * (kind === 'won' ? 1 : .7) * out);
+    show(e.flash, t > .82 ? (kind === 'lost' ? .3 : .5) * (1 - outCubic(prog(t, .82, 1.05))) : 0);
     const shake = t > .82 && t < 1.0 ? Math.sin((t - .82) * 120) * 9 * (1 - (t - .82) / .18) : 0;
     this.stage.style.translate = `${shake}px 0`;
 
-    // In from either side, a wind-up, the clash.
+    // In from either side, a wind-up, the clash: each face's centre while they meet.
     const inP = outBack(prog(t, .1, .55), 1.3), wind = inOutCubic(prog(t, .55, .72)), rush = inCubic(prog(t, .72, .82));
     const gap = 81 + 14 * wind - 41 * rush;
+    const meet = (side: -1 | 1) => CX + side * lerp(W / 2 + 120, gap, inP);
     const d0 = 120;
-    // Theirs, after the clash: knocked back and down, turning, gone grey.
-    const fall = prog(t, .82, 1.7);
-    const tx = CX + lerp(W / 2 + 120, gap, inP) + 230 * outCubic(fall);
-    const ty = FACE_Y - 120 * fall + 520 * fall * fall;
-    e.them.style.width = e.them.style.height = `${d0}px`;
-    tf(e.them, tx - d0 / 2, ty - d0 / 2, 1 - .25 * fall, 75 * fall);
-    e.them.style.filter = fall > 0 ? `grayscale(${clamp(fall * 3)}) brightness(${1 - .4 * fall})` : '';
-    show(e.them, prog(t, .1, .2) * (1 - prog(t, 1.1, 1.6)));
-    // Yours: held at the clash a moment, then lifted to the middle and grown.
-    const lift = inOutCubic(prog(t, .95, 1.45)), settle = spring(prog(t, 1.25, 1.7), 15, .35);
     const recoil = t > .82 ? 10 * Math.sin(Math.PI * prog(t, .82, 1.0)) : 0;
-    const yx = lerp(CX - lerp(W / 2 + 120, gap, inP) - recoil, CX, lift);
-    const yy = lerp(FACE_Y, 290, lift);
-    const yd = lerp(d0, 168, lift) * (1 + .05 * (1 - settle) * (lift >= 1 ? 1 : 0));
-    e.you.style.width = e.you.style.height = `${yd}px`;
-    tf(e.you, yx - yd / 2, yy - yd / 2, 1 - .2 * inCubic(exit));
-    show(e.you, prog(t, .1, .2) * out);
+    const lift = inOutCubic(prog(t, .95, 1.45)), settle = spring(prog(t, 1.25, 1.7), 15, .35);
+    const fall = prog(t, .82, 1.7);
+
+    /** The one knocked down and away, off its own side, turning, gone grey. */
+    const fallen = (el: HTMLElement, side: -1 | 1) => {
+      const x = meet(side) + side * 230 * outCubic(fall), y = FACE_Y - 120 * fall + 520 * fall * fall;
+      el.style.width = el.style.height = `${d0}px`;
+      tf(el, x - d0 / 2, y - d0 / 2, 1 - .25 * fall, side * 75 * fall);
+      el.style.filter = fall > 0 ? `grayscale(${clamp(fall * 3)}) brightness(${1 - .4 * fall})` : '';
+      show(el, prog(t, .1, .2) * (1 - prog(t, 1.1, 1.6)));
+    };
+    /** The one lifted to the middle and grown, to be crowned. */
+    const risen = (el: HTMLElement, side: -1 | 1) => {
+      const x = lerp(meet(side) - side * recoil, CX, lift), y = lerp(FACE_Y, TOP_Y, lift);
+      const d = lerp(d0, 168, lift) * (1 + .05 * (1 - settle) * (lift >= 1 ? 1 : 0));
+      el.style.width = el.style.height = `${d}px`;
+      el.style.filter = '';
+      tf(el, x - d / 2, y - d / 2, 1 - .2 * inCubic(exit));
+      show(el, prog(t, .1, .2) * out);
+    };
+    /** Thrown back level: both to their own side, side by side under the lockup. */
+    const level = (el: HTMLElement, side: -1 | 1) => {
+      const back = spring(prog(t, .82, 1.5), 12, .4);
+      const x = lerp(meet(side), CX + side * 92, back), y = lerp(FACE_Y, TOP_Y, inOutCubic(prog(t, .95, 1.45)));
+      const d = lerp(d0, 140, inOutCubic(prog(t, .95, 1.45)));
+      el.style.width = el.style.height = `${d}px`;
+      el.style.filter = '';
+      tf(el, x - d / 2, y - d / 2, 1 - .2 * inCubic(exit));
+      show(el, prog(t, .1, .2) * out);
+    };
+    if (kind === 'won') { risen(e.you, -1); fallen(e.them, 1); }
+    else if (kind === 'lost') { risen(e.them, 1); fallen(e.you, -1); }
+    else { level(e.you, -1); level(e.them, 1); }
+
     const vp = prog(t, .4, .6);
     tf(e.vs, CX - 26, FACE_Y - 26, outBack(vp, 2.2) * (1 - .4 * prog(t, .82, .95)));
     show(e.vs, clamp(vp * 4) * (1 - prog(t, .82, .95)));
 
     ([[e.ring1, 1.4, 170], [e.ring2, 1.52, 125]] as const).forEach(([el, t0, r]) => {
       const p = prog(t, t0, t0 + .6);
-      tf(el, CX - r, 290 - r, .25 + 1.05 * outCubic(p));
+      tf(el, CX - r, TOP_Y - r, .25 + 1.05 * outCubic(p));
       show(el, p > 0 && p < 1 ? .9 * (1 - p) : 0);
     });
     const rp = outCubic(prog(t, 1.35, 1.9));
-    tf(e.rays, CX - 320, 290 - 320, .3 + .7 * rp, t * 14);
-    show(e.rays, .85 * rp * out);
+    tf(e.rays, CX - 320, TOP_Y - 320, .3 + .7 * rp, t * 14);
+    show(e.rays, (kind === 'won' ? .85 : kind === 'drawn' ? .35 : 0) * rp * out);
 
+    // A crown for whoever won, none for a draw.
     const cw = 168 * .66, ch = cw * .6, crownP = prog(t, 1.3, 1.8);
-    const cy = 290 - 84 - ch * .72 - 320 * (1 - spring(crownP, 15, .3));
+    const cy = TOP_Y - 84 - ch * .72 - 320 * (1 - spring(crownP, 15, .3));
     e.crown.style.width = `${cw}px`; e.crown.style.height = `${ch}px`;
     tf(e.crown, CX - cw / 2, cy, 1 - .2 * inCubic(exit), -14 * (1 - spring(crownP, 12, .3)));
-    show(e.crown, crownP > 0 ? out : 0);
+    show(e.crown, kind !== 'drawn' && crownP > 0 ? out : 0);
 
     const sp = prog(t, 1.6, 1.88);
-    tf(e.title, 0, 430, lerp(2.4, 1, outBack(sp, 2.2)));
+    tf(e.title, 0, 430, lerp(kind === 'lost' ? 1.6 : 2.4, 1, outBack(sp, kind === 'lost' ? 1.2 : 2.2)));
     show(e.title, clamp(sp * 5) * out);
     const sh = t > 2.0 ? ((t - 2.0) % 1.4) / .6 : 2;
     e.title.style.backgroundPosition = `${lerp(160, -60, clamp(sh))}% 0, 0 0`;
@@ -241,8 +266,8 @@ export class Victory {
     show(e.skip, t > .2 && t < HOLD - .1 && !this.still ? .8 : 0);
 
     this.once('in', .1, t, () => buzz(10));
-    this.once('clash', .82, t, () => { buzz(70); this.hooks.cheer(); });
-    this.once('crown', 1.62, t, () => buzz([14, 70, 14]));
+    this.once('clash', .82, t, () => { buzz(kind === 'lost' ? 40 : 70); this.hooks.sound(kind); });
+    this.once('lock', 1.62, t, () => buzz(kind === 'won' ? [14, 70, 14] : kind === 'drawn' ? [14, 60, 14, 60] : 30));
     this.drawPaper(t, out);
   }
 

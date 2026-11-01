@@ -1,4 +1,5 @@
 import { ownsHandle } from './handle';
+import { ended, figuresOf } from './ball-string';
 import type { Challenge, ChallengeMode, InviteView, RivalryEntry } from './challenge-api';
 
 /**
@@ -153,7 +154,21 @@ export function roomSeed(code: string): number {
  * was closed or reloaded mid-innings. Leaving is a loss, settled when they
  * next open the game; for the challenger it is a total never set.
  */
-export function leftBehind(rooms: readonly Challenge[], me: string, playing: string | null): Challenge[] {
+export function leftBehind(rooms: readonly Challenge[], me: string, playing: string | null, held: { code: string; card: string } | null = null): Challenge[] {
   return rooms.filter(room => room.invite && room.code !== playing
-    && room.players.some(one => ownsHandle(one.handle, me) && one.status === 'batting'));
+    && room.players.some(one => ownsHandle(one.handle, me) && one.status === 'batting')
+    && !heldOver(room, me, held));
+}
+
+/**
+ * An innings finished here whose last send did not land, held to be sent on
+ * the next open (`holdUnsent`): over, not walked out on. Only a finished one —
+ * out of balls or wickets, or the total passed — is spared; a chase left
+ * mid-innings still counts as a loss.
+ */
+function heldOver(room: Challenge, me: string, held: { code: string; card: string } | null): boolean {
+  if (!held || held.code !== room.code) return false;
+  const host = room.players.find(one => one.host);
+  const target = host && !ownsHandle(host.handle, me) && host.status === 'done' ? host.runs : null;
+  return ended(figuresOf(held.card), room.mode, target);
 }

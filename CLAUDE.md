@@ -161,6 +161,26 @@ three hours. Nothing in a room is an id: the invite answers with the handle.
 Both innings are bowled from the room's code (`roomSeed`), so the chaser faces
 the same balls; link rooms keep their own seed. Scores are never hidden.
 
+A chase is over on the ball that passes the setter's total, as well as when
+the balls or wickets run out: `ended` takes the total as its `target`, the
+store reads it through `chaseTargetOf` and `statusIn` and takes no ball after
+it, and the game ends the innings on `targetPassed`. Only a challenge's chase
+has a target; the setter and every link room play their innings out. On that
+ball the gameplay screen says it (`chaseEndOf` in `src/game/match-end.ts`,
+`#chase-end`): TARGET CHASED with the balls to spare, FELL SHORT by how many,
+or SCORES LEVEL when sixes and fours decide it. Then the first time each
+player opens the settled match (`settle`, the same first look that marks it
+seen) its verdict plays over the result (`verdictOf`, `Verdict` in
+`src/ui/MatchEnd.ts`, `#verdict`): the two faces clash, and VICTORY crowns
+yours with paper, DEFEAT crowns theirs in steel and raspberry, DRAW throws
+both back level in silver. The chaser gets it straight off the gameplay
+screen, the setter whenever they next open it, from Rival Matches or
+Notifications; once a match, never on a second look. Drawn from one clock as
+New #1 is; a tap skips. `__cricket.chaseEnd('won' | 'short' | 'level')` puts
+up both over a made-up chase. An innings finished here whose last send failed
+is held to be sent again (`holdUnsent`) and is not walked out on by
+`leftBehind`, which spares a held card that is over.
+
 A challenge is the Blast or Super10, and the room keeps which (`mode`). A
 Super10 room's innings is ten overs and five wickets, read off the room's mode
 wherever a card is read (`limitsOf` in `ball-string.ts`, `cleanCard` and

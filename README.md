@@ -1037,6 +1037,8 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `around-challenge` | CHALLENGE pressed on an Around now row, before the confirm sheet's own `challenge-open`. |
 | `notices-open`, `notices-open-board`, `notices-filter-<filter>`, `notices-answer`, `notices-again`, `notices-winback`, `notices-room`, `notices-board`, `modes-alert`, `modes-alert-answer` | Notifications: opened from the bell (or on Board from My profile's Rank down), filtered, each key on a row, a match opened off a row, the leaderboard from the empty screen, and the banner on Choose a mode when a challenge arrives, and answered from it. |
 | `challenge-answer-open`, `challenge-accept`, `challenge-decline`, `challenge-chase-bat`, `challenge-chase-left`, `challenge-nudge` | The other side: the invite opened, accepted or declined, the chase started or walked out of (a loss), and a nudge sent. |
+| `challenge-end-won`, `-short`, `-level` | The ball a challenge's chase ended on: the total passed (the innings over on that ball), fallen short, or level on runs. |
+| `challenge-verdict-won`, `-lost`, `-drawn` | VICTORY, DEFEAT or DRAW, played the first time a player opens a settled match: the chaser off the gameplay screen, the setter whenever they next open it. |
 | `profile-failed` | A profile the store did not answer for, so the sheet stood on what the row knew. |
 | `stats-open`, `activity-open` | My profile opened, and the Your profile sheet opened from its headline. |
 | `activity-headline` | My profile led with Rank down, once an opening. Against `activity-open` and `activity-win-back`, how often being passed brings a player back. |

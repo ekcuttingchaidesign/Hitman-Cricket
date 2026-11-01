@@ -73,5 +73,10 @@ describe('a challenge from a profile, on screen', () => {
     const accepted = room(KABIR, ME, { state: 'accepted' }, { players: [row(KABIR, { host: true, status: 'done' }), row(ME, { status: 'batting', card: '61' })] });
     expect(leftBehind([accepted], ME, null)).toHaveLength(1);
     expect(leftBehind([accepted], ME, 'ABCDEF')).toHaveLength(0);
+    // Finished here and held unsent is over, not walked out on; held mid-innings it is still a loss.
+    const chased = room(KABIR, ME, { state: 'accepted' }, { players: [row(KABIR, { host: true, status: 'done', runs: 10 }), row(ME, { status: 'batting', card: '61' })] });
+    expect(leftBehind([chased], ME, null, { code: 'ABCDEF', card: '616' })).toHaveLength(0);
+    expect(leftBehind([chased], ME, null, { code: 'ABCDEF', card: '61' })).toHaveLength(1);
+    expect(leftBehind([chased], ME, null, { code: 'OTHERS', card: '616' })).toHaveLength(1);
   });
 });

@@ -12,8 +12,8 @@ import { heroView } from './game/rank-hero';
 import { rankHeroMarkup } from './ui/RankHero';
 import { tookTheTop, topSpotView, type TopSpotView } from './game/top-spot';
 import { TopSpot } from './ui/TopSpot';
-import { chaseEndOf, victoryOf, type VictoryView } from './game/match-end';
-import { Victory } from './ui/MatchEnd';
+import { chaseEndOf, verdictOf, type VerdictKind, type VerdictView } from './game/match-end';
+import { Verdict } from './ui/MatchEnd';
 import { buzz } from './game/haptics';
 import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
@@ -147,7 +147,7 @@ import { readVisits, today, visiting, writeVisits } from './game/visits';
 import { batting, readPlaytime, writePlaytime } from './game/playtime';
 import { ChallengeRun, ageOf, emptyList, noteResult, recentForm, rivalryView, roomView, type ListView, type Me, type RoomView } from './game/Challenge';
 import {
-  CODE_PARAM, challengeLink, copy, fetchRivalsBoard, hideChallenge, rivalryEntries, seenHere, sendDecline, sendNudge, sendWalk, whatsapp,
+  CODE_PARAM, challengeLink, copy, fetchRivalsBoard, hideChallenge, readUnsent, rivalryEntries, seenHere, sendDecline, sendNudge, sendWalk, whatsapp,
   type Challenge, type ChallengeMode, type RivalsRow,
 } from './game/challenge-api';
 import { MODE_WORD, aimFor, footState, inviteRow, left as timeLeft, leftBehind, recordIn, roomSeed, waitingOnMe, type FootState } from './game/invite';
@@ -156,7 +156,7 @@ import { NAME_BLOCKED_REASON, nameBlocked } from './server/name-filter';
 import { nameProblem, renameReason, siblingReason } from './server/name-rules';
 import { cleanName, foldName } from './server/board-store';
 import { kitDeal } from './config/board';
-import { encodeInnings } from './game/ball-string';
+import { encodeInnings, limitsOf } from './game/ball-string';
 import { demoRoom, demoWanted as roomDemoWanted } from './game/room-demo';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
 const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'];
@@ -1182,17 +1182,19 @@ export class Game {
       topSpot: (mode?: CareerMode) => this.previewTopSpot(mode),
       // Whether it is playing.
       topSpotOpen: () => !!this.topSpot,
-      // The end of a challenge's chase, over a made-up one, for looking at: `chaseEnd('won')`, then the victory, released at once.
+      // The end of a challenge's chase, over a made-up one, for looking at: `chaseEnd('won')`, `'short'` or `'level'`, then its verdict.
       chaseEnd: (kind: 'won' | 'short' | 'level' = 'won', mode: 'classic' | 'super10' = 'classic') => {
         const target = 31, limits = mode === 'super10' ? { balls: 60, wickets: 5 } : { balls: 30, wickets: 3 };
         const runs = kind === 'won' ? 35 : kind === 'level' ? 31 : 27;
         const end = chaseEndOf({ runs, balls: kind === 'won' ? 13 : limits.balls, wickets: kind === 'won' ? 1 : 2, limits }, target, 'Kabir');
         void this.hud.chaseEnd(end, mode, 2200).then(() => {
-          const view = victoryOf(end, { runs, target, you: { avatar: readPlayer()?.avatar ?? 1 }, them: { name: 'Kabir', avatar: 3 }, mode });
-          if (view) { this.showVictory(view); this.victory?.release(); }
+          const outcome = kind === 'won' ? 'W' : kind === 'short' ? 'L' : 'D';
+          const row = (name: string, avatar: number, made: number, balls: number, at: number) => ({ name, avatar, runs: made, balls, status: 'done', at });
+          this.showVerdict(verdictOf({ outcome, forfeit: false, mine: row('You', 1, runs, kind === 'won' ? 13 : limits.balls, 2), them: row('Kabir', 3, target, limits.balls, 1),
+            mode, balls: limits.balls, youAvatar: readPlayer()?.avatar ?? 1 }));
         });
       },
-      victoryOpen: () => !!this.victory,
+      verdictOpen: () => !!this.verdict,
       // Where it has got to — 'rush' to 'ready' — or null when it is not up.
       levelingUp: () => this.levelUp?.at ?? null,
     } });
@@ -2296,7 +2298,7 @@ export class Game {
   private walkOut = () => this.start();
   start = () => {
     // Whatever led here — ANSWER, AGAIN or WIN IT BACK on Notifications — the innings is not played under it.
-    this.hud.closeNotices(); this.hud.closeChaseEnd(); this.victory?.close();
+    this.hud.closeNotices(); this.hud.closeChaseEnd(); this.verdict?.close();
     if (this.walking) { this.walking = null; this.scene.walkOn(null); this.hud.walkOn(null); this.hud.walkOnCard(null, true); }
     if (this.chaseWon) { this.chaseWon = false; this.clearChase(); }
     // Who is batting, first: once, before the first innings there is.
@@ -5884,6 +5886,15 @@ export class Game {
     if (!me) return;
     noteResult(view.result);
     if (!view.mine?.seen && !seenHere(view.code)) {
+      // The first look at a settled match: its verdict over the result, from this player's side.
+      const result = view.result, mine = result.players.find(row => ownsHandle(row.handle, result.you)), them = result.them;
+      if (mine && them && !this.verdicts.has(view.code) && !this.demoing) {
+        this.verdicts.add(view.code);
+        this.showVerdict(verdictOf({
+          outcome: result.outcome, forfeit: result.forfeit, mine, them, mode: result.mode === 'super10' ? 'super10' : 'classic',
+          balls: limitsOf(result.mode).balls, youAvatar: readPlayer()?.avatar ?? mine.avatar,
+        }));
+      }
       track(`challenge-${view.result.outcome === 'W' ? 'won' : view.result.outcome === 'D' ? 'drew' : 'lost'}`, 'Match result seen');
       if (view.result.forfeit) track('challenge-by-forfeit', 'Match decided by a walkout or a decline');
       track(`challenge-players-${roomBand(view.result.players.length)}`, 'Match size at the result');
@@ -6122,21 +6133,18 @@ export class Game {
     const answer = await sending;
     void this.syncChallenges();
     if (!answer.ok || !answer.challenge) {
-      this.victory?.release();
       this.hud.end(this.score, this.best, false);
       this.hud.claimFailed(answer.reason ?? 'Your innings is saved and will be sent when you are back online.');
       return;
     }
     track('challenge-answered', 'Match innings sent');
+    // The result, and the first time it is opened, its verdict over it (`settle`).
     this.showRoom();
-    // The result is under it now: the victory hands over once its lockup is in.
-    this.victory?.release();
   }
 
   /**
    * The ball a challenge's chase ended on, said over the ground: TARGET
-   * CHASED, FELL SHORT or SCORES LEVEL. A chase won goes on into the victory,
-   * which holds its lockup until the result is up under it.
+   * CHASED, FELL SHORT or SCORES LEVEL. The verdict follows over the result.
    */
   private async sayChaseEnd(chase: Chase, target: number) {
     const mode = chase.mode === 'super10' ? 'super10' : 'classic';
@@ -6145,17 +6153,21 @@ export class Game {
     track(`challenge-end-${end.kind}`, 'Challenge chase ended');
     if (end.kind === 'won') { buzz([0, 40, 30, 90]); this.audio.cheer(boundaryCheer(6, 1, false)); }
     await this.hud.chaseEnd(end, mode, end.kind === 'won' ? 2200 : 1900);
-    const view = victoryOf(end, { runs: this.score.runs, target, you: { avatar: readPlayer()?.avatar ?? 0 }, them: { name: chase.name, avatar: chase.avatar ?? 0 }, mode });
-    if (view) this.showVictory(view);
   }
 
-  private showVictory(view: VictoryView) {
-    this.victory?.close();
-    track('challenge-victory', 'Challenge victory shown');
-    this.victory = new Victory(this.hud.viewport, view, {
-      cheer: () => this.audio.cheer({ size: 'big', peak: .8, decay: 2.6, swell: .3 }),
-      done: () => { this.victory = null; },
+  /** VICTORY, DEFEAT or DRAW over a result already up, handing over to it once its lockup is in. */
+  private showVerdict(view: VerdictView) {
+    this.verdict?.close();
+    track(`challenge-verdict-${view.kind}`, 'Challenge verdict shown');
+    this.verdict = new Verdict(this.hud.viewport, view, {
+      sound: (kind: VerdictKind) => {
+        if (kind === 'won') this.audio.cheer({ size: 'big', peak: .8, decay: 2.6, swell: .3 });
+        else if (kind === 'lost') this.audio.groan(GROAN.out);
+        else this.audio.cheer(boundaryCheer(4, 1, false));
+      },
+      done: () => { this.verdict = null; },
     });
+    this.verdict.release();
   }
 
   /**
@@ -6397,8 +6409,10 @@ export class Game {
   private cardFirst = false;
   /** The total being chased, for the chip under the scoreboard. */
   private inviteChase: Chase | null = null;
-  /** The victory over a chase won, until it has handed over to the result. */
-  private victory: Victory | null = null;
+  /** A settled match's verdict, over its result, until it has handed over to it. */
+  private verdict: Verdict | null = null;
+  /** The matches whose verdict has played on this page, so a second look at the result does not play it again. */
+  private readonly verdicts = new Set<string>();
 
   /** The setter's total while this player chases their challenge; null for anything else, a link's room included. */
   private get challengeTarget(): number | null {
@@ -6611,7 +6625,7 @@ export class Game {
       this.hud.challengeList(listSections(this.rooms, me), this.rooms.record, this.rivalsRanking(), { form: recentForm(), me: readPlayer()?.avatar ?? null });
     }
     // Closed or reloaded mid-innings: a chase is lost, a total never set is not sent.
-    const left = leftBehind(this.allRooms(), me, this.challenge.playing ? this.challenge.code : null);
+    const left = leftBehind(this.allRooms(), me, this.challenge.playing ? this.challenge.code : null, readUnsent());
     const mine = this.me;
     if (left.length && mine) {
       void Promise.all(left.map(room => sendWalk(room.code, mine.playerId, mine.name, mine.avatar).catch(() => null)))
