@@ -678,7 +678,7 @@ the bell ringing with Kabir's challenge and his 64 TO BEAT, pushed in on
 the ground and through it into VICTORY under WINNER GETS THE GLORY, the two
 faces clashing and yours crowned; then LOSER GETS THE L, Kabir's DEFEAT, the
 L stamped on his face, you laughing in the corner with LMAO NOOB and WIN IT
-BACK pressed; and WHO'S NEXT? over everybody who is on, held. Nothing in it
+BACK pressed; and BRING IT ON over everybody who is on, held. Nothing in it
 says whose phone it is. Everything sits up the frame (`SHIFT`), since the
 sheet stands the film on its keys and the spare room is above it. It is fetched whole into memory
 while the cover is up (`warmStories`), plays muted down the sheet and holds
