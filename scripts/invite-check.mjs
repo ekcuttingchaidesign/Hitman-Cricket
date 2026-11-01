@@ -275,12 +275,31 @@ await a.waitForFunction(() => !!window.__verdict, null, { timeout: 120000 }).cat
 const defeat = await a.evaluate(() => window.__verdict ?? '');
 check(/^DEFEAT/.test(defeat), 'the setter, on the room as the chase ends, gets DEFEAT', defeat);
 check(new RegExp(`${chaser} beat you · 66–64`).test(defeat), 'saying who beat them', defeat);
-check(/\| [A-Z ?]+ \| WIN IT BACK$/.test(defeat), 'with the winner’s line in a bubble and WIN IT BACK under it', defeat);
+check(/\| [^|]+ \| WIN IT BACK$/.test(defeat), 'with the winner’s line in a bubble and WIN IT BACK under it', defeat);
 if (await a.locator('#verdict').count()) await a.screenshot({ path: `${out}/b8-defeat.png` });
 await a.waitForSelector('#verdict', { state: 'detached', timeout: 90000 }).catch(() => null);
 await openRoom(a, room.code);
 await a.waitForTimeout(1500);
 check(await a.locator('#verdict').count() === 0, 'and not again on a second look');
+
+// CHALLENGE AGAIN on the result: the challenge sheet at the same player, over the room, and not a new empty room.
+const again = a.locator('#room-keys [data-act="rematch"]');
+check((await again.textContent().catch(() => '')).trim() === 'CHALLENGE AGAIN', 'the result offers CHALLENGE AGAIN, not a new room', await again.textContent().catch(() => ''));
+await again.click();
+await a.waitForSelector('#cc-confirm .cc-sheet', { timeout: 8000 }).catch(() => null);
+await a.waitForTimeout(500);
+const sheet = await a.locator('#cc-confirm .cc-sheet').innerText().catch(() => '');
+check(new RegExp(`CHALLENGE ${chaser}`, 'i').test(sheet), 'which opens the challenge sheet at the same player', sheet.slice(0, 80));
+check(await a.locator('#room-title').textContent() === 'Result', 'over the result, with no new room made under it');
+await a.screenshot({ path: `${out}/b9-again.png` });
+await a.locator('#cc-go').click();
+let resent = null;
+for (let i = 0; i < 30 && !resent; i++) {
+  await a.waitForTimeout(500);
+  const mine = await (await fetch(`${base}/api/challenge?player=${setterId}`)).json();
+  resent = mine.challenges?.find(one => one.code !== room.code && one.invite) ?? null;
+}
+check(!!resent, 'and BAT FIRST makes a new challenge to them, the setter batting first', JSON.stringify(resent ?? {}).slice(0, 160));
 
 check(!a.errors.length && !b.errors.length, 'no errors on either page', [...a.errors, ...b.errors].join(' | '));
 await browser.close();

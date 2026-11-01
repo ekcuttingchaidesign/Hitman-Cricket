@@ -5747,7 +5747,8 @@ function roomWords(
       const tag = away ? `WHILE YOU WERE AWAY${away.total > 1 ? ` · ${away.index} OF ${away.total}` : ''}` : null;
       const keys: RoomKey[] = [
         key('green', 'tell', result.tell, result.whatsapp),
-        key('play', 'rematch', 'REMATCH'),
+        // A challenge made for one player goes back at them; a link's room is rematched as a new room.
+        key('play', 'rematch', view.invite ? 'CHALLENGE AGAIN' : 'REMATCH'),
       ];
       if (away) keys.push(away.index < away.total ? key('ghost', 'next', 'Next result') : key('ghost', 'home', 'Done'));
       return { title: 'Result', tag, lead: result.title, sub: result.sub, note: null, keys };

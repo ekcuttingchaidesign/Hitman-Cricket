@@ -5977,6 +5977,13 @@ export class Game {
         return;
       case 'rematch': {
         const them = view?.result?.them;
+        // A challenge made for one player: CHALLENGE AGAIN, the same sheet a
+        // profile's CHALLENGE opens, at the same player. A new room with nobody
+        // in it would only be a link to send.
+        if (this.challenge.room?.invite && them) {
+          this.challengeFrom({ handle: them.handle, name: them.name, avatar: them.avatar, profile: null });
+          return;
+        }
         const tally = them ? rivalryView(them.handle, them)?.tally ?? null : null;
         this.rematchLine = them && tally ? { them: them.name, tally } : null;
         this.challenge.stopWatching();
@@ -6188,8 +6195,7 @@ export class Game {
     const them = result.them;
     if (!them) return;
     track('challenge-verdict-rematch', 'WIN IT BACK on a defeat');
-    if (this.challenge.room?.invite) this.challengeFrom({ handle: them.handle, name: them.name, avatar: them.avatar, profile: null });
-    else void this.roomAct('rematch');
+    void this.roomAct('rematch');
   }
 
   /** VICTORY, DEFEAT or DRAW over a result already up, handing over to it once its lockup is in. */

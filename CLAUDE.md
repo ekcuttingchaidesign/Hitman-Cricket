@@ -218,7 +218,9 @@ leaving or closing the game is a loss, Super10's named by its logo on violet;
 the coachmarks a first innings or a first Super10 owes wait behind that card
 and come up on LET'S BAT (`cardFirst`, `afterCard`); the cover's line
 taken by a challenge waiting (`coverChallenge`); the invite sheet, decline with
-five seconds of UNDO; ANSWER, NUDGE and AGAIN on Rival Matches rows; the leave
+five seconds of UNDO; ANSWER, NUDGE and AGAIN on Rival Matches rows; CHALLENGE AGAIN on a
+settled challenge's result, the same sheet at the same player (a link room's
+key is still REMATCH, a new room); the leave
 sheets on the pause sheet's keys (`guardLeave`). A challenge innings left by
 closing the game is walked out on the next time the list is read
 (`leftBehind`). The list is asked again every two minutes on the cover and the
