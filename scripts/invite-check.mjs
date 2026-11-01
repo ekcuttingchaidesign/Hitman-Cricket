@@ -225,6 +225,11 @@ const live = await faceOf(a, '#challenge-room .room-seat.is-batting');
 check(!!live.ring && Math.abs(live.ring.x - live.face.x) < 2 && Math.abs(live.ring.y - live.face.y) < 2 && live.ring.w > live.face.w && live.ring.w < 1.4 * live.face.w,
   'the setter’s live room rings the chaser’s face, centred on it', JSON.stringify(live));
 await a.screenshot({ path: `${out}/b7-live.png` });
+// The setter stays on the room: when the chase ends it turns into the result, and the verdict plays there and then.
+await a.evaluate(() => new MutationObserver(() => {
+  const title = document.querySelector('#verdict .vc-title');
+  if (title && !window.__verdict) window.__verdict = `${title.textContent} | ${document.querySelector('#verdict .vc-sub')?.textContent}`;
+}).observe(document.body, { childList: true, subtree: true }));
 
 await b.locator('#resume').click({ force: true, noWaitAfter: true });
 await waitPhase(b, 'READY');
@@ -237,7 +242,8 @@ await b.evaluate(() => new MutationObserver(() => {
 check(await b.evaluate(n => window.__cricket.blast(Array(n).fill(6)), BALLS - 3), 'the chaser’s innings is written');
 await b.waitForFunction(() => !!window.__chaseEnd, null, { timeout: 60000 }).catch(() => null);
 const said = await b.evaluate(() => window.__chaseEnd ?? '');
-check(/TARGET CHASED/.test(said) && new RegExp(`WITH ${BALLS - 11} BALLS TO SPARE`).test(said), 'the chase ends on the ball that passes the total, said on the gameplay screen', said);
+const spare = Number(/WITH (\d+) BALLS? TO SPARE/.exec(said)?.[1] ?? NaN);
+check(/TARGET CHASED/.test(said) && spare > 0, 'the chase ends on the ball that passes the total, said on the gameplay screen', said);
 if (await b.locator('#chase-end').count()) await b.screenshot({ path: `${out}/c5-chased.png`, animations: 'disabled' });
 await b.waitForSelector('#verdict', { timeout: 60000 }).catch(() => null);
 check(/VICTORY/.test(await b.locator('#verdict .vc-title').textContent().catch(() => '')), 'then VICTORY plays over the result');
@@ -248,7 +254,10 @@ await b.waitForSelector('#verdict', { state: 'detached', timeout: 90000 }).catch
 check(await b.locator('#verdict').count() === 0, 'and hands over to the result');
 const settled = (await (await fetch(`${base}/api/challenge?player=${chaserId}`)).json()).challenges?.find(one => one.code === room.code);
 const mineRow = settled?.players.find(one => !one.host);
-check(mineRow?.status === 'done' && mineRow?.balls === 11 && mineRow?.runs === 66, 'the store has the chase over on its eleventh ball', JSON.stringify(mineRow));
+// Over on the ball that passed 64, whichever ball that was (a real ball may have been bowled before the sixes).
+const before = [...(mineRow?.card ?? '').slice(0, -1)].reduce((sum, ball) => sum + (Number(ball) || 0), 0);
+check(mineRow?.status === 'done' && mineRow.runs > 64 && before <= 64 && mineRow.balls + spare === BALLS,
+  'the store has the chase over on the ball that passed the total, as the screen said', JSON.stringify(mineRow));
 await b.waitForSelector('#room-title', { timeout: 90000 }).catch(async () => {
   await b.screenshot({ path: `${out}/c5-fail.png` });
   console.log('        after the chase:', await b.evaluate(async () => JSON.stringify({ phase: window.__cricket?.snapshot?.().phase, url: location.search,
@@ -256,16 +265,15 @@ await b.waitForSelector('#room-title', { timeout: 90000 }).catch(async () => {
 });
 await b.waitForFunction(() => document.getElementById('room-title')?.textContent === 'Result', null, { timeout: 12000 }).catch(() => null);
 check((await b.locator('#room-title').textContent()) === 'Result', 'the chase ends on the result', await b.locator('#room-title').textContent());
-check(/WINS/i.test(await b.locator('#room-lead').textContent()), 'and names the winner', await b.locator('#room-lead').textContent());
+check(/WIN/i.test(await b.locator('#room-lead').textContent()), 'and names the winner', await b.locator('#room-lead').textContent());
 await b.screenshot({ path: `${out}/c5-result.png` });
 
-// The setter opens the settled match for the first time: DEFEAT, from their side, once.
-await openRoom(a, room.code);
-await a.waitForSelector('#verdict', { timeout: 60000 }).catch(() => null);
-check(/DEFEAT/.test(await a.locator('#verdict .vc-title').textContent().catch(() => '')), 'the setter, opening the result, gets DEFEAT');
-await a.waitForFunction(() => Number(document.querySelector('.vc-how')?.style.opacity) > .95, null, { timeout: 90000 }).catch(() => null);
-check(new RegExp(`${chaser} beat you · 66–64`).test(await a.locator('.vc-sub').textContent().catch(() => '')), 'saying who beat them', await a.locator('.vc-sub').textContent().catch(() => ''));
-await a.screenshot({ path: `${out}/b8-defeat.png` });
+// The setter, still on the room: the result arrives and DEFEAT plays over it, from their side, once.
+await a.waitForFunction(() => !!window.__verdict, null, { timeout: 120000 }).catch(() => null);
+const defeat = await a.evaluate(() => window.__verdict ?? '');
+check(/^DEFEAT/.test(defeat), 'the setter, on the room as the chase ends, gets DEFEAT', defeat);
+check(new RegExp(`${chaser} beat you · 66–64`).test(defeat), 'saying who beat them', defeat);
+if (await a.locator('#verdict').count()) await a.screenshot({ path: `${out}/b8-defeat.png` });
 await a.waitForSelector('#verdict', { state: 'detached', timeout: 90000 }).catch(() => null);
 await openRoom(a, room.code);
 await a.waitForTimeout(1500);

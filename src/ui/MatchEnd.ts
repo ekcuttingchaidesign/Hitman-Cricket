@@ -246,10 +246,12 @@ export class Verdict {
     show(e.rays, (kind === 'won' ? .85 : kind === 'drawn' ? .35 : 0) * rp * out);
 
     // A crown for whoever won, none for a draw.
+    // Dropped under gravity and landed with a hop: never past the head, where a spring's overshoot put it over the face.
     const cw = 168 * .66, ch = cw * .6, crownP = prog(t, 1.3, 1.8);
-    const cy = TOP_Y - 84 - ch * .72 - 320 * (1 - spring(crownP, 15, .3));
+    const fallP = prog(t, 1.3, 1.6), hop = prog(t, 1.6, 1.85);
+    const cy = TOP_Y - 84 - ch * .72 - 320 * (1 - fallP * fallP) - 14 * Math.sin(Math.PI * hop) * (1 - hop);
     e.crown.style.width = `${cw}px`; e.crown.style.height = `${ch}px`;
-    tf(e.crown, CX - cw / 2, cy, 1 - .2 * inCubic(exit), -14 * (1 - spring(crownP, 12, .3)));
+    tf(e.crown, CX - cw / 2, cy, 1 - .2 * inCubic(exit), -14 * (1 - outCubic(fallP)) + 4 * Math.sin(Math.PI * hop) * (1 - hop));
     show(e.crown, kind !== 'drawn' && crownP > 0 ? out : 0);
 
     const sp = prog(t, 1.6, 1.88);
@@ -267,7 +269,7 @@ export class Verdict {
 
     this.once('in', .1, t, () => buzz(10));
     this.once('clash', .82, t, () => { buzz(kind === 'lost' ? 40 : 70); this.hooks.sound(kind); });
-    this.once('lock', 1.62, t, () => buzz(kind === 'won' ? [14, 70, 14] : kind === 'drawn' ? [14, 60, 14, 60] : 30));
+    this.once('lock', 1.6, t, () => buzz(kind === 'won' ? [14, 70, 14] : kind === 'drawn' ? [14, 60, 14, 60] : 30));
     this.drawPaper(t, out);
   }
 

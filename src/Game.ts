@@ -1183,11 +1183,11 @@ export class Game {
       // Whether it is playing.
       topSpotOpen: () => !!this.topSpot,
       // The end of a challenge's chase, over a made-up one, for looking at: `chaseEnd('won')`, `'short'` or `'level'`, then its verdict.
-      chaseEnd: (kind: 'won' | 'short' | 'level' = 'won', mode: 'classic' | 'super10' = 'classic') => {
+      chaseEnd: (kind: 'won' | 'short' | 'level' = 'won', mode: 'classic' | 'super10' = 'classic', hold = 2200) => {
         const target = 31, limits = mode === 'super10' ? { balls: 60, wickets: 5 } : { balls: 30, wickets: 3 };
         const runs = kind === 'won' ? 35 : kind === 'level' ? 31 : 27;
         const end = chaseEndOf({ runs, balls: kind === 'won' ? 13 : limits.balls, wickets: kind === 'won' ? 1 : 2, limits }, target, 'Kabir');
-        void this.hud.chaseEnd(end, mode, 2200).then(() => {
+        void this.hud.chaseEnd(end, mode, hold).then(() => {
           const outcome = kind === 'won' ? 'W' : kind === 'short' ? 'L' : 'D';
           const row = (name: string, avatar: number, made: number, balls: number, at: number) => ({ name, avatar, runs: made, balls, status: 'done', at });
           this.showVerdict(verdictOf({ outcome, forfeit: false, mine: row('You', 1, runs, kind === 'won' ? 13 : limits.balls, 2), them: row('Kabir', 3, target, limits.balls, 1),
