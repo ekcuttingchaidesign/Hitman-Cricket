@@ -99,7 +99,7 @@ const filmView = () => page.evaluate(() => {
     open: document.getElementById('whatsnew-open')?.textContent.trim() ?? null, out: document.getElementById('whatsnew-done')?.textContent.trim() };
 });
 const first = await title();
-check(first === 'WHO’S AROUND? CALL THEM OUT', 'it opens on Rivals live', first);
+check(first === 'WHO’S AROUND? CHALLENGE ANYONE', 'it opens on Rivals live', first);
 // The video plays on the media clock, not the page's wound one: a little real time.
 let film = await filmView();
 for (let i = 0; i < 30 && !film.playing; i++) { await page.waitForTimeout(200); film = await filmView(); }

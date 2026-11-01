@@ -672,13 +672,15 @@ Rivals ground (your blue bloom, their orange, the halftone), the game's own
 Jaro and Satoshi, and every screen in it a real one, photographed off the dev
 server with believable names. WHO'S AROUND? over five faces popping in, each
 dot landing in turn and Riya's amber bat; her face carried straight onto her
-profile, which scrolls to CHALLENGE and the confirm sheet (CALL ANYONE OUT);
+profile, which scrolls to CHALLENGE and the confirm sheet (CHALLENGE ANYONE);
 the bell ringing with Kabir's challenge and his 64 TO BEAT, pushed in on
 "same balls" (SAME BALLS. NO EXCUSES.); LET'S BAT, TARGET CHASED slammed over
-the ground and through it into VICTORY, the two faces clashing and yours
-crowned; then AND ON KABIR'S PHONE… his DEFEAT, the L stamped on his face,
-you laughing in the corner with LMAO NOOB and WIN IT BACK pressed; and CALL
-THEM OUT over everybody who is on, held. It is fetched whole into memory
+the ground and through it into VICTORY under WINNER GETS THE GLORY, the two
+faces clashing and yours crowned; then LOSER GETS THE L, Kabir's DEFEAT, the
+L stamped on his face, you laughing in the corner with LMAO NOOB and WIN IT
+BACK pressed; and WHO'S NEXT? over everybody who is on, held. Nothing in it
+says whose phone it is. Everything sits up the frame (`SHIFT`), since the
+sheet stands the film on its keys and the spare room is above it. It is fetched whole into memory
 while the cover is up (`warmStories`), plays muted down the sheet and holds
 on its last frame with GOT IT and SEE WHO'S ONLINE under it (`opens:
 'rivals'`, `rivalsFromStory`: Rival Matches over Choose a mode, Around now at

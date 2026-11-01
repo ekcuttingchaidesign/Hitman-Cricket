@@ -12,8 +12,8 @@ import type { ReelShot } from './ShotReel';
  * made as a canvas film by `rivals-film/` on the machine that made it, from
  * real screens of the game): who's around, a challenge sent from a profile,
  * one arriving on the bell with its total on the same balls, TARGET CHASED,
- * VICTORY, DEFEAT on the other phone with WIN IT BACK, and CALL THEM OUT,
- * held, with SEE WHO'S ONLINE beside the way out.
+ * VICTORY (the winner gets the glory), DEFEAT (the loser gets the L) with
+ * WIN IT BACK, and WHO'S NEXT?, held, with SEE WHO'S ONLINE beside the way out.
  * (Super10 was told before it in a film made in Remotion, the player profiles
  * before that in a Lottie film, the two new
  * strokes and the Dressing Room before them, the
@@ -113,8 +113,8 @@ export const STORIES: readonly Story[] = [
   {
     key: 'rivals',
     eyebrow: 'WHAT’S NEW · RIVALS',
-    title: 'WHO’S AROUND? CALL THEM OUT',
-    alt: 'Faces pop up with green dots for online and an amber bat for batting now: who is around. Riya’s profile opens and CHALLENGE sends her a match, the Blast or Super10, you batting first. The bell rings with Kabir’s challenge and his 64 to beat on the same balls. TARGET CHASED, then VICTORY with a crown on your face; and on Kabir’s phone DEFEAT, an L stamped on his face, you laughing in the corner with LMAO NOOB, and WIN IT BACK. It ends on CALL THEM OUT over everybody who is on.',
+    title: 'WHO’S AROUND? CHALLENGE ANYONE',
+    alt: 'Faces pop up with green dots for online and an amber bat for batting now: who is around. Riya’s profile opens and CHALLENGE sends her a match, the Blast or Super10, you batting first. The bell rings with Kabir’s challenge and his 64 to beat on the same balls. TARGET CHASED, then the winner gets the glory, VICTORY with a crown on your face; and the loser gets the L, DEFEAT with an L stamped on Kabir’s face, you laughing in the corner with LMAO NOOB, and WIN IT BACK. It ends on WHO’S NEXT? over everybody who is on.',
     video: 'stories/rivals.mp4',
     still: 'stories/rivals-lockup.webp',
     // The last card with a way in holds still (`storyHolds`), on the film's last frame.
