@@ -64,7 +64,7 @@ await page.addInitScript(who => {
     localStorage.setItem('hitman-shots-intro', 'done');
     localStorage.setItem('hitman-marathon-intro', 'done');
     localStorage.setItem('hitman-profile', '1');
-    localStorage.setItem('hitman-whatsnew', 'super10:9');
+    localStorage.setItem('hitman-whatsnew', 'rivals:9');
     localStorage.setItem('hitman-batter', JSON.stringify({ name: who, avatar: 2 }));
   } catch { /* The screens it skips stand in the way. */ }
 }, `Llook${run}`);

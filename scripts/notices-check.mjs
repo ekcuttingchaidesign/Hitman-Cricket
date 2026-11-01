@@ -78,7 +78,7 @@ async function as(playerId, name, avatar) {
       localStorage.setItem('hitman-shots-intro', 'done');
       localStorage.setItem('hitman-marathon-intro', 'done');
       localStorage.setItem('hitman-profile', '1');
-      localStorage.setItem('hitman-whatsnew', 'super10:9');
+      localStorage.setItem('hitman-whatsnew', 'rivals:9');
       localStorage.setItem('hitman-batter', JSON.stringify({ name: who, avatar: kit }));
     } catch { /* The screens it skips stand in the way. */ }
   }, [playerId, name, avatar]);

@@ -26,7 +26,7 @@
 import { chromium } from '@playwright/test';
 
 /** The update key in `src/game/whats-new.ts`. Bumped there, bumped here. */
-const UPDATE = 'super10';
+const UPDATE = 'rivals';
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:5199').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
@@ -87,7 +87,7 @@ for (let wound = 0; wound < 6000 && !opened; wound += 100) {
 check(opened, 'the play key stops at the stories the first time');
 if (!opened) { await browser.close(); process.exit(1); }
 
-// One film, Super10's, a video played down the sheet with GOT IT and PLAY SUPER10 under it.
+// One film, Rivals live's, a video played down the sheet with GOT IT and SEE WHO'S ONLINE under it.
 const filmView = () => page.evaluate(() => {
   const host = document.getElementById('whatsnew-film'), box = host?.getBoundingClientRect();
   const done = document.getElementById('whatsnew-done')?.getBoundingClientRect();
@@ -99,14 +99,14 @@ const filmView = () => page.evaluate(() => {
     open: document.getElementById('whatsnew-open')?.textContent.trim() ?? null, out: document.getElementById('whatsnew-done')?.textContent.trim() };
 });
 const first = await title();
-check(first === 'SUPER10: TEN OVERS OF REAL T10', 'it opens on Super10', first);
+check(first === 'WHO’S AROUND? CALL THEM OUT', 'it opens on Rivals live', first);
 // The video plays on the media clock, not the page's wound one: a little real time.
 let film = await filmView();
 for (let i = 0; i < 30 && !film.playing; i++) { await page.waitForTimeout(200); film = await filmView(); }
 check(film.sheet && film.video && film.playing && film.muted && film.fit.length === 1, 'the film plays down the sheet, muted', JSON.stringify(film));
 check(film.above, 'and stops above the ways out', JSON.stringify(film));
 check(film.bars === 1 && !film.barSeen && film.unseen, 'one story, so no bar over it, its title read out rather than shown over the film', JSON.stringify(film));
-check(film.out === 'GOT IT' && film.open === 'PLAY SUPER10', 'GOT IT and PLAY SUPER10 under it', JSON.stringify(film));
+check(film.out === 'GOT IT' && film.open === 'SEE WHO’S ONLINE', 'GOT IT and SEE WHO’S ONLINE under it', JSON.stringify(film));
 
 // Fetched whole while the cover was up, so it plays from memory rather than buffering.
 check((await page.$eval('#whatsnew-film', v => v.currentSrc)).startsWith('blob:'), 'the film was fetched ahead, on the cover, and plays from memory',
@@ -123,33 +123,25 @@ const landed = async () => ({ hidden: await page.$eval('#whatsnew-overlay', node
   batting: await page.$eval('#start', node => !node.offsetParent).catch(() => true) });
 const skippedTo = await landed();
 check(skippedTo.hidden && (skippedTo.picked || skippedTo.batting), 'and as it ends moves on by itself to Choose a mode or the innings', JSON.stringify(skippedTo));
-if (skippedTo.picked) {
-  const front = await page.evaluate(() => {
-    const rail = document.getElementById('modes-rail').getBoundingClientRect();
-    let best = null, most = -1;
-    for (const p of document.querySelectorAll('#modes-rail .ms-poster:not(.hidden)')) {
-      const box = p.getBoundingClientRect(), seen = Math.min(box.right, rail.right) - Math.max(box.left, rail.left);
-      if (seen > most + 1) { most = seen; best = p.dataset.mode; }
-    }
-    return best;
-  });
-  check(front === 'SUPER10', "settled on Super10's poster", front);
-}
 check(await seen() === `${UPDATE}:1`, 'the showing is counted', await seen());
 
 // ── Twice, and then never ──────────────────────────────────────────────────
 await page.reload({ waitUntil: 'load' });
 await arrive();
 await page.click('#start');
-await tick(800);
-check(!!(await page.$('.whatsnew-sheet')), 'it comes back a second time, because once is missed');
-// PLAY SUPER10 this time: straight out to a Super10 innings, by the name screen for a new player.
+// Waited for in real time: winding the page's clock with the film up runs the
+// film to its end too in headless Chromium, which puts the stories away.
+const again = await page.waitForSelector('.whatsnew-sheet', { timeout: 10_000 }).then(() => true).catch(() => false);
+check(again, 'it comes back a second time, because once is missed');
+// SEE WHO'S ONLINE this time: Rival Matches, Around now at its head.
 await page.click('#whatsnew-open');
-await tick(900);
-const played = await page.evaluate(() => ({ stories: !document.querySelector('#whatsnew-overlay')?.classList.contains('hidden'),
-  s10: document.body.classList.contains('s10-solid'), gate: !document.querySelector('#profile-overlay')?.classList.contains('hidden'),
-  picker: !document.querySelector('#modes')?.classList.contains('hidden') }));
-check(!played.stories && (played.s10 || played.gate), 'and PLAY SUPER10 walks out to a Super10 innings', JSON.stringify(played));
+let rivals = null;
+for (let i = 0; i < 30 && !rivals?.list; i++) {
+  await page.waitForTimeout(300);
+  rivals = await page.evaluate(() => ({ stories: !document.querySelector('#whatsnew-overlay')?.classList.contains('hidden'),
+    list: !document.querySelector('#challenge-list')?.classList.contains('hidden') }));
+}
+check(!rivals.stories && rivals.list, 'and SEE WHO’S ONLINE opens Rival Matches', JSON.stringify(rivals));
 
 await page.reload({ waitUntil: 'load' });
 await arrive();

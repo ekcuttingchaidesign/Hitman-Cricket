@@ -43,6 +43,11 @@ export interface StoriesView {
   stories?: readonly Story[];
 }
 
+/** What the way in under a story says, by where it goes. */
+const OPENS: Record<NonNullable<Story['opens']>, string> = {
+  dressing: 'GO TO DRESSING ROOM', super10: 'PLAY SUPER10', rivals: 'SEE WHO’S ONLINE',
+};
+
 export function storiesMarkup(view: StoriesView): string {
   const { at, where, holdMs, locked = false, careerKey = null, stories = STORIES } = view;
   const story = stories[at] ?? stories[0];
@@ -86,8 +91,8 @@ export function storiesMarkup(view: StoriesView): string {
   storyKeyMarkup(careerKey)}</div>` : ''}
       </div>${story.opens ? `
       <div class="whatsnew-foot is-pair">
-        ${cta({ kind: 'secondary', label: where === 'board' ? 'CLOSE' : story.opens === 'super10' ? 'GOT IT' : 'SKIP', id: 'whatsnew-done' })}
-        ${cta({ kind: 'primary', label: story.opens === 'super10' ? 'PLAY SUPER10' : 'GO TO DRESSING ROOM', id: 'whatsnew-open' })}
+        ${cta({ kind: 'secondary', label: where === 'board' ? 'CLOSE' : story.opens === 'dressing' ? 'SKIP' : 'GOT IT', id: 'whatsnew-done' })}
+        ${cta({ kind: 'primary', label: OPENS[story.opens], id: 'whatsnew-open' })}
       </div>` : `
       <div class="whatsnew-foot">
         <button id="whatsnew-done" class="key-button whatsnew-key" type="button">${

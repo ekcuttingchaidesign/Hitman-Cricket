@@ -936,7 +936,7 @@ export class Game {
     this.hud.onBoardStories = () => this.showStories('board');
     // OPEN THE DRESSING ROOM, on the last story: after the stories, the room,
     // over Choose a mode where the stories were on the way to it.
-    this.hud.onStoriesOpen = (what, shown) => (what === 'super10' ? this.playFromStory(shown) : this.openDressing('story', shown));
+    this.hud.onStoriesOpen = (what, shown) => (what === 'super10' ? this.playFromStory(shown) : what === 'rivals' ? this.rivalsFromStory(shown) : this.openDressing('story', shown));
     this.hud.onStoryReel = (shot, beat) => this.playReel(shot, beat);
     this.hud.onLadderTab = this.tabLadder;
     this.hud.onBoardFrame = (mode, ladder) => this.boardFrame(mode, ladder);
@@ -3252,6 +3252,21 @@ export class Game {
     if (between) this.hud.onStoriesDone = null;
     shown();
     if (between) this.choose('SUPER10');
+  }
+
+  /**
+   * SEE WHO'S ONLINE under the Rivals film: the stories put away and Rival
+   * Matches opened over Choose a mode, Around now at its head, so its back key
+   * lands where every other way into it does. From the board in the middle of
+   * an innings it only puts them away.
+   */
+  private rivalsFromStory(shown: () => void) {
+    const between = this.phase === 'START' || this.phase === 'INNINGS_END';
+    if (between) this.hud.onStoriesDone = null;
+    shown();
+    if (!between) return;
+    this.modes();
+    void this.showChallenges();
   }
 
   /** The update's stories, and whatever happens when they are done with. */

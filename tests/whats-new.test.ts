@@ -34,22 +34,22 @@ const kept = (at: number, over: { where?: 'intro' | 'board'; locked?: boolean; h
   storiesMarkup({ at, where: over.where ?? 'intro', holdMs: over.holdMs ?? 1, locked: over.locked, stories: KEPT });
 
 describe('what the update says it did', () => {
-  it('is Super10, one film', () => {
-    expect(STORIES.map(one => one.key)).toEqual(['super10']);
-    expect(STORIES[0].video).toBe('stories/super10.mp4');
-    expect(STORIES[0].opens).toBe('super10');
+  it('is Rivals live, one film', () => {
+    expect(STORIES.map(one => one.key)).toEqual(['rivals']);
+    expect(STORIES[0].video).toBe('stories/rivals.mp4');
+    expect(STORIES[0].opens).toBe('rivals');
   });
 
   it('is a new update, so everybody is shown it', () => {
-    expect(UPDATE).toBe('super10');
+    expect(UPDATE).toBe('rivals');
   });
 
   it('ships the film it plays and its last frame, light enough for a phone', () => {
-    const film = readFileSync('public/stories/super10.mp4');
+    const film = readFileSync('public/stories/rivals.mp4');
     // An MP4: its first box is ftyp.
     expect(film.subarray(4, 8).toString('latin1')).toBe('ftyp');
     expect(film.length).toBeLessThan(4_000_000);
-    expect(readFileSync('public/stories/super10-lockup.webp').subarray(8, 12).toString('latin1')).toBe('WEBP');
+    expect(readFileSync('public/stories/rivals-lockup.webp').subarray(8, 12).toString('latin1')).toBe('WEBP');
   });
 
   it('gives every card something to show, a name for it, and words for whoever cannot see it', () => {
@@ -62,14 +62,14 @@ describe('what the update says it did', () => {
     }
   });
 
-  it('plays the film down the sheet, muted, held on its last frame with GOT IT and PLAY SUPER10 under it', () => {
+  it('plays the film down the sheet, muted, held on its last frame with GOT IT and SEE WHO’S ONLINE under it', () => {
     const markup = storiesMarkup({ at: 0, where: 'intro', holdMs: 7000 });
     expect(markup).toContain('whatsnew-sheet is-film');
     expect(markup).toMatch(/<video id="whatsnew-film"[^>]*muted playsinline[^>]*aria-label="[^"]{40,}"/);
     expect(markup).toContain('whatsnew-title is-unseen');
     expect(markup).not.toContain('whatsnew-eyebrow');
     expect(markup).toContain('id="whatsnew-open"');
-    expect(markup).toContain('PLAY SUPER10');
+    expect(markup).toContain('SEE WHO’S ONLINE');
     expect(markup).toContain('GOT IT');
     // The last card with a way in holds still, so the film is not cut off by the bar running out.
     expect(storyHolds(0)).toBe(true);

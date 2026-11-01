@@ -471,7 +471,7 @@ the machine is; and a box measured off a screenshot is in the page's pixels,
 so scale it by `devicePixelRatio`.
 
 A check that seeds `hitman-whatsnew` seeds the current update key
-(`super10`), or the stories stand in front of Choose a mode.
+(`rivals`), or the stories stand in front of Choose a mode.
 
 `scripts/scene-check.mjs` is the ground itself: the sky and the painted turf
 are canvases and a shader no unit test runs, and it holds the draw-call budget
@@ -664,39 +664,38 @@ plays two devices for one player against the dev server's store; it passes
 `?private=0`, because headless Chromium looks like a private window and would
 otherwise keep nothing.
 
-The update's What's new is one story, Super10, as a video (`Story.video`,
-`public/stories/super10.mp4`, 720 by 1280 and fifteen seconds, about 2.8 MB;
-its last frame `super10-lockup.webp` is `Story.still`, shown in its place
-under reduced motion): lightning strikes from the roof on the first frame and
-the mark is built where it lands, shards in, SUPER slammed down a letter at a
-time and the 10 dropped in Volt with a crack, a burst of speed lines and a
-shockwave, all inside the first second; then the mode in three hits, 10
-OVERS, NEW STADIUM (the canopy at night with SIX on its big screen, a
-photograph off the game through `__cricket.camera` and `__cricket.burst`,
-`wip/s10-stadium-shots.mjs`) and POWER SURGE, two men in and a six over
-them; then the team kits on the batter on the Dressing Room's turntable,
-each sweeping on over the last with its name; and he raises his bat just
-under the mark, held. No count of kits or bowlers in it. It is fetched whole
-into memory while the cover is up (`warmStories`, a blob URL), so it opens
-playing rather than buffering. It plays muted down the sheet on the page's
-black and holds on its last frame with GOT IT and PLAY SUPER10 under it
-(`opens: 'super10'`, `playFromStory`: straight out to a Super10 innings,
-Choose a mode passed by; from the board in the middle of an innings it only
-puts the stories away). Off the cover it plays once and, the moment it ends,
-goes on to Choose a mode by itself, as GOT IT does, and both land on
-Super10's poster (its still, under reduced motion, stands `STILL_LEAVE_MS`
-first); opened from the board, with nowhere to go on to, it loops until it is
-closed. One story is not in pieces, so it has no bar across the top
-(`is-single` on `.whatsnew-bars`, its place kept). It was made in Remotion, not committed, as the films before it
-were not: `wip/super10-film/` on the machine that made it (`src/` the
-composition, `capture/` and `wip/s10-film-capture.mjs` the turntable frames
-off the real stage, rendered with `--sequence` through the system Chrome and
-encoded in Chrome by its `encode.mjs`, Smart App Control blocking Remotion's
-own encoder). The update key is `super10`, so everybody is shown it twice and
-then never (`whatsNewDue`), and a check that seeds `hitman-whatsnew` seeds
-`super10:9`. `whatsnew-check` walks it: the video playing above the two keys,
-its hold, PLAY SUPER10 walking out, the twice and the never, and the board's
-key that opens it for ever. The player profiles' Lottie film before it is
+The update's What's new is one story, Rivals live, as a video (`Story.video`,
+`public/stories/rivals.mp4`, 720 by 1280 and sixteen seconds; its last frame
+`rivals-lockup.webp` is `Story.still`, shown in its place under reduced
+motion), made to the Super10 film's standard: one subject at a time on the
+Rivals ground (your blue bloom, their orange, the halftone), the game's own
+Jaro and Satoshi, and every screen in it a real one, photographed off the dev
+server with believable names. WHO'S AROUND? over five faces popping in, each
+dot landing in turn and Riya's amber bat; her face carried straight onto her
+profile, which scrolls to CHALLENGE and the confirm sheet (CALL ANYONE OUT);
+the bell ringing with Kabir's challenge and his 64 TO BEAT, pushed in on
+"same balls" (SAME BALLS. NO EXCUSES.); LET'S BAT, TARGET CHASED slammed over
+the ground and through it into VICTORY, the two faces clashing and yours
+crowned; then AND ON KABIR'S PHONE… his DEFEAT, the L stamped on his face,
+you laughing in the corner with LMAO NOOB and WIN IT BACK pressed; and CALL
+THEM OUT over everybody who is on, held. It is fetched whole into memory
+while the cover is up (`warmStories`), plays muted down the sheet and holds
+on its last frame with GOT IT and SEE WHO'S ONLINE under it (`opens:
+'rivals'`, `rivalsFromStory`: Rival Matches over Choose a mode, Around now at
+its head; from the board in the middle of an innings it only puts the
+stories away). Off the cover it plays once and, the moment it ends, goes on
+to Choose a mode by itself, as GOT IT does; opened from the board it loops
+until it is closed. One story has no bar across the top (`is-single`). It
+was made as a canvas film, a pure function of time rendered frame by frame,
+not committed: `rivals-film/` on the machine that made it (`film.js`, its
+screens from `scripts/.film-capture.mjs` and `.film-capture2.mjs`), rendered
+at 1080 by 1920 and scaled down to the story's size. The update key is
+`rivals`, so everybody is shown it twice and then never (`whatsNewDue`), and
+a check that seeds `hitman-whatsnew` seeds `rivals:9`. `whatsnew-check` walks
+it: the video playing above the two keys, its hold, SEE WHO'S ONLINE opening
+Rival Matches, the twice and the never, and the board's key that opens it
+for ever. Super10's film before it (made in Remotion, `wip/super10-film/`)
+was retired with its key and its files; the player profiles' Lottie film before that is
 still `public/lotties/player-profiles.json`.
 
 The other ways a story is told are kept for the next update, and the unit
