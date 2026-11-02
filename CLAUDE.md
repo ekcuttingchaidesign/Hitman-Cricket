@@ -918,8 +918,8 @@ spend Rivals'; a count of nine or more is the checks' seed and keeps every
 update's stories away, so `rivals:9` still works. `whatsnew-check` walks
 Rivals live on a clock set after Diwali week. The Dressing Room card on
 Choose a mode carries NEW DIWALI KITS in its NEW tag's place
-(`.ms-diwali`, `has-diwali`, `diwaliBadgeDue`) until the room is first
-opened in Diwali week (`hitman-diwali-room`, written in `openDressing`).
+(`.ms-diwali`, `has-diwali`, `diwaliBadgeDue`) all Diwali week, till the
+end of 11 November, whether or not the room has been opened.
 
 ## Who's batting: the gate before the first innings
 

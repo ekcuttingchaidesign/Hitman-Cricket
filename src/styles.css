@@ -7365,7 +7365,7 @@ video.whatsnew-film.is-fit{height:auto;object-fit:contain;
 @media (prefers-reduced-motion:reduce){.ms-dressing::after{animation:none;display:none}}
 .ms-dressing .ms-tag{left:calc(var(--u) * 16);top:calc(var(--u) * 14);padding:calc(var(--u) * 4) calc(var(--u) * 8);border-radius:999px;background:var(--c-accent);color:#0b0f14;font:800 calc(var(--u) * 10)/1.3 var(--f-ui);letter-spacing:.14em}
 .ms-dressing.is-visited .ms-tag{display:none}
-/* Diwali week: NEW DIWALI KITS in the NEW tag's place until the room is opened (`diwaliBadgeDue`), gold on maroon with a slow glint. */
+/* Diwali week: NEW DIWALI KITS in the NEW tag's place till 11 November (`diwaliBadgeDue`), gold on maroon with a slow glint. */
 .ms-dressing .ms-diwali{display:none;position:absolute;left:calc(var(--u) * 16);top:calc(var(--u) * 14);padding:calc(var(--u) * 4) calc(var(--u) * 10);border-radius:999px;
   background:linear-gradient(135deg,#FFE9A0 0%,#E9B44A 45%,#B87400 100%);color:#4A0C16;font:800 calc(var(--u) * 10)/1.3 var(--f-ui);letter-spacing:.14em;white-space:nowrap;
   box-shadow:0 0 0 calc(var(--u) * 1.5) #7C2230,0 calc(var(--u) * 3) calc(var(--u) * 12) #FFB34766;animation:ms-diwali-glow 2.4s ease-in-out infinite}

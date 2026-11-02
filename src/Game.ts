@@ -106,7 +106,7 @@ import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import { headline } from './ui/Activity';
 import type { BatterKit } from './entities/Batter';
 import { STORIES, markWhatsNewShown, whatsNewDue } from './game/whats-new';
-import { diwaliBadgeDue, markDiwaliRoomSeen } from './game/diwali';
+import { diwaliBadgeDue } from './game/diwali';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, standingOf, tierMeasure, TIERS, type Granted } from './game/tier';
 import { LevelUp } from './ui/LevelUp';
@@ -1267,8 +1267,6 @@ export class Game {
    * `from` is the way in, counted: its card on Choose a mode or a story.
    */
   private openDressing(from: 'modes' | 'story', shown?: () => void) {
-    // The card's NEW DIWALI KITS badge has done its job once the room is opened.
-    markDiwaliRoomSeen();
     if (this.dressing) { shown?.(); return; }
     this.dressingMark(`dressing-open-${from}`, `The Dressing Room opened from ${from === 'story' ? 'a story' : 'Choose a mode'}`);
     const held = readDressing();
