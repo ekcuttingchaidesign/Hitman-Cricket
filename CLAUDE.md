@@ -850,8 +850,8 @@ in whites, as before.
 ## The Diwali kits: free for a week
 
 Five kits for Diwali 2026, each after a kurta the owner picked and named by
-the owner after a firework or a sweet, all with champagne gold trousers and
-no number. Royal Anaar (`diwali`): maroon with gold butis all over in
+the owner after a firework or a sweet, none with a number: champagne gold
+trousers on the first three, red on Sutli Bomb and Soan Papdi. Royal Anaar (`diwali`): maroon with gold butis all over in
 staggered rows (`butis` in `kitPrint.ts`), a gold placket from the collar
 and a maroon helmet. Sky Shot (`diwali-blue`): royal blue with a cream block
 print (`fronds`) of long feathers leaning up to his left shoulder, little
