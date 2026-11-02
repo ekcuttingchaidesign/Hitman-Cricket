@@ -106,6 +106,7 @@ import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import { headline } from './ui/Activity';
 import type { BatterKit } from './entities/Batter';
 import { STORIES, markWhatsNewShown, whatsNewDue } from './game/whats-new';
+import { diwaliBadgeDue, markDiwaliRoomSeen } from './game/diwali';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, standingOf, tierMeasure, TIERS, type Granted } from './game/tier';
 import { LevelUp } from './ui/LevelUp';
@@ -1266,6 +1267,8 @@ export class Game {
    * `from` is the way in, counted: its card on Choose a mode or a story.
    */
   private openDressing(from: 'modes' | 'story', shown?: () => void) {
+    // The card's NEW DIWALI KITS badge has done its job once the room is opened.
+    markDiwaliRoomSeen();
     if (this.dressing) { shown?.(); return; }
     this.dressingMark(`dressing-open-${from}`, `The Dressing Room opened from ${from === 'story' ? 'a story' : 'Choose a mode'}`);
     const held = readDressing();
@@ -1499,7 +1502,7 @@ export class Game {
     // The card's NEW stays until the room has been opened and Boom, waiting there, unlocked.
     // Super10's kits count where they are on the shelf.
     const super10 = SUPER10_SHELF ? { earned: got.super10.length, of: SUPER10_KITS.length } : { earned: 0, of: 0 };
-    return { earned: got.outfits.length + got.bats.length + super10.earned, of: OUTFITS.length + BATS.length + super10.of, visited: readDressing().visited && record.welcomed && !record.waiting?.length };
+    return { earned: got.outfits.length + got.bats.length + super10.earned, of: OUTFITS.length + BATS.length + super10.of, visited: readDressing().visited && record.welcomed && !record.waiting?.length, diwali: diwaliBadgeDue() };
   }
 
   /**

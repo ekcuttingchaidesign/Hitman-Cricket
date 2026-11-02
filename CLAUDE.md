@@ -903,6 +903,21 @@ drawing code and fonts in a headless browser and packed by
 `scripts/bat-sheets.mjs`; exporting the frames from Figma and running that
 script again replaces them.
 
+While they are up, What's new tells them (`DIWALI_STORIES`, update key
+`diwali`): DIWALI KITS ARE HERE, the five kits on the room's stage each with
+one of the Diwali bats (`'diwali-kits'` in `StoryStage.ts`), then
+FIRECRACKER BATS, the five on the stand (`'diwali-bats'`), both ending on GO
+TO DRESSING ROOM. Which run is told goes by the clock (`storiesAt`,
+`updateAt`, `diwaliOn` in `src/game/diwali.ts`): Rivals live comes back on
+12 November with nothing reverted. `hitman-whatsnew` now keeps a count per
+update side by side (`rivals:1,diwali:2`), so Diwali's two showings do not
+spend Rivals'; a count of nine or more is the checks' seed and keeps every
+update's stories away, so `rivals:9` still works. `whatsnew-check` walks
+Rivals live on a clock set after Diwali week. The Dressing Room card on
+Choose a mode carries NEW DIWALI KITS in its NEW tag's place
+(`.ms-diwali`, `has-diwali`, `diwaliBadgeDue`) until the room is first
+opened in Diwali week (`hitman-diwali-room`, written in `openDressing`).
+
 ## Who's batting: the gate before the first innings
 
 Before the first innings in a browser — a new player's or an old one's — the

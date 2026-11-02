@@ -5539,6 +5539,8 @@ ${modeSelectMarkup()}
     this.$('mode-marathon').classList.toggle('is-played', !!view.marathon.best);
     this.$('mode-survive').classList.toggle('is-played', !!view.survive.best);
     this.$('modes-dressing').classList.toggle('is-visited', view.dressing.visited);
+    this.$('modes-dressing').classList.toggle('has-diwali', !!view.dressing.diwali);
+    this.$('modes-dressing').setAttribute('aria-label', view.dressing.diwali ? 'Dressing Room, new Diwali kits' : 'Dressing Room');
     const stats = this.$('modes-stats');
     stats.className = stats.className.replace(/tier-\S+/g, '').trim() + ` tier-${view.stats.tier.key}`;
   }
