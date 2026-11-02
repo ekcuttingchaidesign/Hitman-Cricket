@@ -23,7 +23,7 @@ describe('the Dressing Room screen', () => {
 
   it('puts every kit on the shelf, a tick on the one worn and a lock on the ones not earned', () => {
     const shelf = shelfMarkup(view());
-    expect(shelf.match(/class="dr-item[ "]/g)).toHaveLength(diwaliUp ? 9 : 8);
+    expect(shelf.match(/class="dr-item[ "]/g)).toHaveLength(diwaliUp ? 10 : 8);
     expect(shelf).toMatch(/data-id="home"[^>]*aria-label="OG Navy, on"/);
     expect(shelf).toMatch(/data-id="lagoon"[^>]*aria-label="Lagoon, locked"/);
     expect(shelfMarkup(view({ shelf: 'bat' })).match(/class="dr-item[ "]/g)).toHaveLength(12);
@@ -32,7 +32,7 @@ describe('the Dressing Room screen', () => {
   it('puts Super10\'s six kits at the foot of the kit shelf where it is played, each tagged S10', () => {
     expect(shelfMarkup(view()).match(/class="dr-s10"/g)).toBeNull();
     const shelf = shelfMarkup(view({ super10: true, wearingSuper10: 's10-purple' }));
-    expect(shelf.match(/class="dr-item[ "]/g)).toHaveLength(diwaliUp ? 15 : 14);
+    expect(shelf.match(/class="dr-item[ "]/g)).toHaveLength(diwaliUp ? 16 : 14);
     expect(shelf.match(/class="dr-s10"/g)).toHaveLength(6);
     // The kit worn everywhere else and the one picked for Super10 each have their tick.
     expect(shelf).toMatch(/data-id="home"[^>]*aria-label="OG Navy, on"/);
@@ -40,8 +40,9 @@ describe('the Dressing Room screen', () => {
     expect(shelf).toMatch(/data-id="s10-violet"[^>]*aria-label="Royal Mavericks, only in Super10, locked"/);
   });
 
-  it.runIf(diwaliUp)('tags the Diwali kit while it is up, and says it is free till 11 November', () => {
-    expect(shelfMarkup(view())).toMatch(/data-id="diwali"[^>]*aria-label="Diwali, till 11 november"[^]*?class="dr-s10 dr-limited"[^>]*>DIWALI</);
+  it.runIf(diwaliUp)('tags the Diwali kits while they are up, and says it is free till 11 November', () => {
+    expect(shelfMarkup(view())).toMatch(/data-id="diwali"[^>]*aria-label="Diwali Maroon, till 11 november"[^]*?class="dr-s10 dr-limited"[^>]*>DIWALI</);
+    expect(shelfMarkup(view())).toMatch(/data-id="diwali-blue"[^>]*aria-label="Diwali Blue, till 11 november"/);
     const foot = footMarkup(view({ kit: 'diwali' }));
     expect(foot).toContain('Free');
     expect(foot).toContain('Till 11 November');

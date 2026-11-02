@@ -2,8 +2,8 @@ import * as THREE from 'three';
 
 /**
  * A kit's print: lightning bolts and trim drawn over the shirt and trousers,
- * for the Super10 kits (`src/game/super10-kits.ts`), and the Diwali kit's gold
- * butis (`dressing.ts`). Every other kit is plain colours, and wears none.
+ * for the Super10 kits (`src/game/super10-kits.ts`), and the Diwali kits' gold
+ * butis and block print (`dressing.ts`). Every other kit is plain colours, and wears none.
  *
  * The print rides the jersey and the trousers the batter already has, in
  * their own shaders: no mesh and no draw call more, one texture each. Both
@@ -93,6 +93,13 @@ export interface KitPrint {
    * the placket runs. See `butis` below.
    */
   butis?: { colour: string; clear?: number };
+  /**
+   * The blue Diwali kurta's block print: long feathers leaning over to his
+   * left shoulder, little flowering bushes between them, and diamonds in
+   * fours in the gaps, all in `colour`, all over the shirt and its sleeves.
+   * See `fronds` below.
+   */
+  fronds?: { colour: string };
   /** The sleeves in a colour of their own, down to the hem. */
   sleeves?: string;
   /** An outline round the number on the back, where it is worn over a pattern. */
@@ -348,6 +355,71 @@ function butis(ctx: CanvasRenderingContext2D, across: number, from: number, tall
   ctx.restore();
 }
 
+/**
+ * The blue Diwali kurta's motifs, drawn in metres on `ctx` (y up), `across`
+ * metres round and `tall` up from nought: a grid `count` to a row round him
+ * (even, so the rows meet themselves down his back), feathers and bushes
+ * taking turns along a row and the next row turned the other way, so the
+ * feathers run up the diagonal as on the cloth; and four little diamonds
+ * between each four motifs. The feather's spine and barbs are cut out of it,
+ * so the shirt's blue shows through them close to; from the game's camera
+ * it reads as a leaf. Bigger and fewer than the cloth's, as the butis are.
+ */
+const FROND = { row: .115, lean: 25, long: .118, wide: .032, bush: .023, diamond: .0075 };
+function fronds(ctx: CanvasRenderingContext2D, across: number, tall: number, count: number, colour: string) {
+  const step = across / count;
+  ctx.save();
+  ctx.fillStyle = colour; ctx.strokeStyle = colour;
+  const feather = (x: number, y: number) => {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(-FROND.lean * Math.PI / 180);
+    const L = FROND.long / 2, W = FROND.wide / 2;
+    // A long leaf, pointed at the top and rounded at the foot, with a ring under it.
+    ctx.beginPath(); ctx.moveTo(0, L);
+    ctx.bezierCurveTo(W * 1.3, L * .4, W * 1.1, -L * .7, 0, -L * .86);
+    ctx.bezierCurveTo(-W * 1.1, -L * .7, -W * 1.3, L * .4, 0, L);
+    ctx.fill();
+    ctx.lineWidth = W * .32;
+    ctx.beginPath(); ctx.arc(0, -L - W * .45, W * .42, 0, Math.PI * 2); ctx.stroke();
+    // The spine and the barbs, cut out of it.
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.lineWidth = W * .18; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, L * .8); ctx.lineTo(0, -L * .8); ctx.stroke();
+    ctx.lineWidth = W * .12;
+    for (let k = 0; k < 7; k++) {
+      const at = -L * .62 + k * L * .21, reach = W * .78 * Math.sin(Math.PI * (k + 1) / 8);
+      ctx.beginPath(); ctx.moveTo(-reach, at - W * .5); ctx.lineTo(0, at); ctx.lineTo(reach, at - W * .5); ctx.stroke();
+    }
+    ctx.restore();
+  };
+  const bush = (x: number, y: number) => {
+    // A flowering bush: a round head of blossoms over a short stem.
+    const r = FROND.bush;
+    ctx.save(); ctx.translate(x, y);
+    ctx.lineWidth = r * .16;
+    ctx.beginPath(); ctx.moveTo(0, -r * 1.25); ctx.lineTo(0, r * .2); ctx.stroke();
+    for (const [dx, dy, size] of [[0, .55, .34], [-.48, .25, .3], [.48, .25, .3], [-.3, -.2, .28], [.3, -.2, .28], [0, .05, .3], [-.68, -.25, .2], [.68, -.25, .2], [0, -.55, .22]]) {
+      ctx.beginPath(); ctx.arc(dx * r, dy * r, size * r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  };
+  const diamonds = (x: number, y: number) => {
+    const d = FROND.diamond;
+    for (const [dx, dy] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
+      const cx = x + dx * d * 1.2, cy = y + dy * d * 1.2;
+      ctx.beginPath(); ctx.moveTo(cx, cy + d / 2); ctx.lineTo(cx + d / 2, cy); ctx.lineTo(cx, cy - d / 2); ctx.lineTo(cx - d / 2, cy); ctx.closePath(); ctx.fill();
+    }
+  };
+  for (let r = 0; (r + .5) * FROND.row - FROND.bush <= tall; r++) {
+    const y = (r + .5) * FROND.row;
+    for (let i = -1; i <= count; i++) {
+      const x = (i + .5) * step;
+      if ((i + r) % 2 === 0) feather(x, y); else bush(x, y);
+      if (y + FROND.row / 2 < tall) diamonds(x + step / 2, y + FROND.row / 2);
+    }
+  }
+  ctx.restore();
+}
+
 /** The metres up the cloth at a height `v` on the torso's texture (nought at the hem). */
 function clothAt(v: number) {
   const at = Math.min(CLOTH_UP.length - 1.000001, Math.max(0, v * (CLOTH_UP.length - 1))), i = Math.floor(at);
@@ -396,6 +468,11 @@ export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trouser
     butis(f, CLOTH.round, 0, CLOTH.tall, BUTI.round, print.butis.colour, CLOTH.round / 2, print.butis.clear ?? 0);
     f.restore();
   }
+  if (print.fronds) {
+    f.save(); f.translate(0, FH); f.scale(W / CLOTH.round, -FH / CLOTH.tall);
+    fronds(f, CLOTH.round, CLOTH.tall, 12, print.fronds.colour);
+    f.restore();
+  }
   panel(.5, () => print.chest.forEach(b => bolt(f, b)));
   for (const round of [0, 1]) panel(round, () => print.back.forEach(b => bolt(f, b)));
   if (print.collar) panel(.5, () => {
@@ -438,6 +515,11 @@ export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trouser
     // Down the sleeve from the shoulder to the hem, in the sleeve's own metres, so the dots stay round.
     s.save(); s.translate(sx, H); s.scale(sw / SLEEVE.round, -H / SLEEVE.tall);
     butis(s, SLEEVE.round, 0, HEM * SLEEVE.tall, BUTI.sleeveRound, print.butis.colour);
+    s.restore();
+  }
+  if (print.fronds) {
+    s.save(); s.translate(sx, H); s.scale(sw / SLEEVE.round, -H / SLEEVE.tall);
+    fronds(s, SLEEVE.round, HEM * SLEEVE.tall, 6, print.fronds.colour);
     s.restore();
   }
   if (print.sleeves) { s.fillStyle = print.sleeves; s.fillRect(sx, down(HEM + .02), sw, H * (HEM + .02)); }

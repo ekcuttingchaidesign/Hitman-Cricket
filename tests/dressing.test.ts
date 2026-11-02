@@ -26,32 +26,37 @@ describe('a look as it travels', () => {
 });
 
 describe('the Dressing Room shelves', () => {
-  it('has nine kits and twelve bats, each named once, the bats from the easiest to Hitman', () => {
-    expect(ALL_OUTFITS.map(o => o.id)).toEqual(['home', 'papaya', 'diwali', 'crimson', 'forest', 'gold', 'violet', 'electric', 'lagoon']);
+  it('has ten kits and twelve bats, each named once, the bats from the easiest to Hitman', () => {
+    expect(ALL_OUTFITS.map(o => o.id)).toEqual(['home', 'papaya', 'diwali', 'diwali-blue', 'crimson', 'forest', 'gold', 'violet', 'electric', 'lagoon']);
     expect(BATS.map(b => b.id)).toEqual(['plain', 'boom', 'rage', 'venom', 'lonewolf', 'meg', 'icecold', 'roar', 'savage', 'reign', 'inferno', 'hitman']);
     expect(new Set(BATS.map(b => b.name)).size).toBe(12);
-    expect(new Set(ALL_OUTFITS.map(o => o.name)).size).toBe(9);
+    expect(new Set(ALL_OUTFITS.map(o => o.name)).size).toBe(10);
   });
 
   it('gives a new player OG Navy, Papaya, Plain and the Midnight Panthers, and nothing else', () => {
     expect(earned(record(), AFTER_DIWALI)).toEqual({ outfits: ['home', 'papaya'], bats: ['plain'], super10: ['s10-purple'] });
   });
 
-  describe('the Diwali kit', () => {
+  describe('the Diwali kits', () => {
     it('is free to everybody until the end of 11 November in India, and off the shelf after', () => {
       const r = record();
       expect(outfitSteps('diwali', r)).toBeNull();
-      expect(earned(r, DIWALI_WEEK).outfits).toEqual(['home', 'papaya', 'diwali']);
-      expect(outfitOwned('diwali', r, Date.parse('2026-11-11T23:59:00+05:30'))).toBe(true);
-      expect(outfitOwned('diwali', r, Date.parse('2026-11-12T00:00:00+05:30'))).toBe(false);
-      expect(outfitsAt(DIWALI_WEEK).map(o => o.id)).toContain('diwali');
-      expect(outfitsAt(AFTER_DIWALI).map(o => o.id)).not.toContain('diwali');
+      expect(earned(r, DIWALI_WEEK).outfits).toEqual(['home', 'papaya', 'diwali', 'diwali-blue']);
+      for (const id of ['diwali', 'diwali-blue'] as const) {
+        expect(outfitSteps(id, r)).toBeNull();
+        expect(outfitOwned(id, r, Date.parse('2026-11-11T23:59:00+05:30'))).toBe(true);
+        expect(outfitOwned(id, r, Date.parse('2026-11-12T00:00:00+05:30'))).toBe(false);
+        expect(outfitsAt(DIWALI_WEEK).map(o => o.id)).toContain(id);
+        expect(outfitsAt(AFTER_DIWALI).map(o => o.id)).not.toContain(id);
+      }
       expect(onShelf('home', AFTER_DIWALI)).toBe(true);
     });
 
     it('is never won or celebrated, and stays readable once it is gone', () => {
       expect(FREE_OUTFITS).toContain('diwali');
+      expect(FREE_OUTFITS).toContain('diwali-blue');
       expect(outfitOf('diwali').id).toBe('diwali');
+      expect(outfitOf('diwali-blue').id).toBe('diwali-blue');
       expect(lookOf({ kit: 'diwali', bat: 'plain' })).toEqual({ kit: 'diwali', bat: 'plain', guard: 'sterling' });
     });
 
@@ -61,6 +66,14 @@ describe('the Dressing Room shelves', () => {
       expect(kit.print?.number).toBeUndefined();
       expect(kit.print?.chest.map(m => m.shape)).toEqual(['bar']);
       expect(kit.limited?.tag).toBe('DIWALI');
+    });
+
+    it('has a blue one with a cream block print and the same gold trousers', () => {
+      const blue = outfitOf('diwali-blue');
+      expect(blue.print?.fronds).toBeTruthy();
+      expect(blue.print?.number).toBeUndefined();
+      expect(blue.trousers).toBe(outfitOf('diwali').trousers);
+      expect(blue.limited?.tag).toBe('DIWALI');
     });
   });
 

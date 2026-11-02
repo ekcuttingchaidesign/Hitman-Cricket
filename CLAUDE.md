@@ -847,25 +847,30 @@ used to wear the game's orange whatever he had on, which put a Papaya batter
 in the same shirt as the men fielding against him. In a Test both sides are
 in whites, as before.
 
-## The Diwali kit: free for a week
+## The Diwali kits: free for a week
 
-Diwali 2026's kit (`diwali` in `OUTFITS`, after a kurta the owner picked):
-maroon with gold butis all over in staggered rows, a gold placket from the
-collar, champagne gold trousers, a maroon helmet and no number. The butis are
-a print (`butis` in `kitPrint.ts`), the Super10 kits' machinery, so it costs
-a texture and no draw call; they are bigger and fewer than a kurta's so they
-read from the game's camera. It is free to everybody (`FREE_OUTFITS`, never
-won or celebrated) and on the shelf only until the end of 11 November 2026 in
-India (`LIMITED_UNTIL`, `onShelf` in `dressing-ids.ts`), by the browser's
-clock: after that it is off the shelf, a pick of it is worn as OG Navy
-(`outfitOwned` asks the time), and nothing needs reverting. `ALL_OUTFITS` is
-every kit there has been, so a saved pick or a Rival Match innings batted in
-it still reads (`outfitOf`); `OUTFITS` is the shelf as the page loaded. Its
-tile is tagged DIWALI and its foot says Till 11 November (`limited` on the
-outfit). Worn in the Blast and Rival Matches: a Test is in whites, which drop
-the print, and Super10 is in its team kits. The fielding side never wears it
-(`pickSide`). While it is up the room counts one more kit, so tests and
-`dressing-check` that count the shelf ask the date.
+Two kits for Diwali 2026, each after a kurta the owner picked, both with
+champagne gold trousers and no number. Diwali Maroon (`diwali`): maroon with
+gold butis all over in staggered rows (`butis` in `kitPrint.ts`), a gold
+placket from the collar and a maroon helmet. Diwali Blue (`diwali-blue`):
+royal blue with a cream block print (`fronds`) of long feathers leaning up to
+his left shoulder, little flowering bushes between them and diamonds in fours
+in the gaps, the feathers' spines and barbs cut out of them; a self placket,
+the collar a deeper blue, a blue helmet. Both are prints, the Super10 kits'
+machinery, so each costs a texture and no draw call, and the motifs are
+bigger and fewer than the cloth's so they read from the game's camera. Both
+are free to everybody (`FREE_OUTFITS`, never won or celebrated) and on the
+shelf only until the end of 11 November 2026 in India (`LIMITED_UNTIL`,
+`onShelf` in `dressing-ids.ts`), by the browser's clock: after that they are
+off the shelf, a pick of one is worn as OG Navy (`outfitOwned` asks the time),
+and nothing needs reverting. `ALL_OUTFITS` is every kit there has been, so a
+saved pick or a Rival Match innings batted in one still reads (`outfitOf`);
+`OUTFITS` is the shelf as the page loaded. Their tiles are tagged DIWALI and
+their foot says Till 11 November (`limited` on the outfit). Worn in the Blast
+and Rival Matches: a Test is in whites, which drop the print, and Super10 is
+in its team kits. The fielding side never wears them (`pickSide`). While they
+are up the room counts two more kits, so tests and `dressing-check` that
+count the shelf ask the date.
 
 ## Who's batting: the gate before the first innings
 
