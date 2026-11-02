@@ -139,6 +139,8 @@ export const DIWALI_STORIES: readonly Story[] = [
     body: 'Festive kurtas for the Blast and Rivals. Free all Diwali week.',
     alt: 'The batter turns on the Dressing Room pedestal in each Diwali kit in turn: maroon with gold butis, royal blue with feathers, ivory with pastel florals, bottle green with a red fuse, and mustard patola.',
     stage: 'diwali-kits',
+    // Five kits at 800ms each, once round and a beat on the last.
+    holdMs: 4500,
     opens: 'dressing',
   },
   {

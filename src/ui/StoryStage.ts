@@ -70,7 +70,7 @@ export class StoryStage {
       next();
       // Under reduced motion, a change every two seconds rather than a flicker of them.
       const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      this.timer = window.setInterval(next, still ? 2000 : kind === 'diwali-kits' ? 1300 : kits ? 1000 : kind === 'diwali-bats' ? 1200 : 620);
+      this.timer = window.setInterval(next, still ? 2000 : kind === 'diwali-kits' ? 800 : kits ? 1000 : kind === 'diwali-bats' ? 650 : 620);
     });
   }
 
