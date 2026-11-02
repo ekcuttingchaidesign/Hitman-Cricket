@@ -11,9 +11,11 @@ import type { Super10Kit } from '../game/super10-kits';
 
 /** A kit the stage can put on him: one of the room's own, or a Super10 team's, printed. */
 export type StageKit = Outfit | Super10Kit;
-const printOf = (kit: StageKit) => 'print' in kit ? kit.print : null;
+const printOf = (kit: StageKit) => kit.print ?? null;
+/** Whether it is a Super10 team's kit: the room's own may carry a print too (the Diwali kit), but never gloves of their own. */
+const teamKit = (kit: StageKit): kit is Super10Kit => 'guard' in kit;
 /** A Super10 team's kit is shown with its own gloves and pads, and the opener's number on the back. */
-export const guardFor = (kit: StageKit, guard?: GloveDesign<string>): GloveDesign<string> | undefined => 'print' in kit ? SUPER10_GLOVES[kit.guard] : guard;
+export const guardFor = (kit: StageKit, guard?: GloveDesign<string>): GloveDesign<string> | undefined => teamKit(kit) ? SUPER10_GLOVES[kit.guard] : guard;
 const SHOWN_NUMBER = '10';
 
 /**
@@ -345,7 +347,7 @@ export class DressingStage {
   private put(kit: StageKit) {
     this.batter.wear(kit);
     const print = printOf(kit);
-    this.batter.printKit(print, print ? SHOWN_NUMBER : null);
+    this.batter.printKit(print, teamKit(kit) ? SHOWN_NUMBER : null);
   }
   /** A bat on its own, on the stand. */
   showcase(bat: BatSkin) { void this.showBat.hold(bat); }

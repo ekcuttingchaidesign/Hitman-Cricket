@@ -847,6 +847,26 @@ used to wear the game's orange whatever he had on, which put a Papaya batter
 in the same shirt as the men fielding against him. In a Test both sides are
 in whites, as before.
 
+## The Diwali kit: free for a week
+
+Diwali 2026's kit (`diwali` in `OUTFITS`, after a kurta the owner picked):
+maroon with gold butis all over in staggered rows, a gold placket from the
+collar, champagne gold trousers, a maroon helmet and no number. The butis are
+a print (`butis` in `kitPrint.ts`), the Super10 kits' machinery, so it costs
+a texture and no draw call; they are bigger and fewer than a kurta's so they
+read from the game's camera. It is free to everybody (`FREE_OUTFITS`, never
+won or celebrated) and on the shelf only until the end of 11 November 2026 in
+India (`LIMITED_UNTIL`, `onShelf` in `dressing-ids.ts`), by the browser's
+clock: after that it is off the shelf, a pick of it is worn as OG Navy
+(`outfitOwned` asks the time), and nothing needs reverting. `ALL_OUTFITS` is
+every kit there has been, so a saved pick or a Rival Match innings batted in
+it still reads (`outfitOf`); `OUTFITS` is the shelf as the page loaded. Its
+tile is tagged DIWALI and its foot says Till 11 November (`limited` on the
+outfit). Worn in the Blast and Rival Matches: a Test is in whites, which drop
+the print, and Super10 is in its team kits. The fielding side never wears it
+(`pickSide`). While it is up the room counts one more kit, so tests and
+`dressing-check` that count the shelf ask the date.
+
 ## Who's batting: the gate before the first innings
 
 Before the first innings in a browser — a new player's or an old one's — the

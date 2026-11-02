@@ -67,6 +67,8 @@ const wornOn = (view: DressingView) => wornFor(view, pickedOn(view));
 /** The tag on a Super10 kit's tile, and the line over its foot. */
 const S10_TAG = '<span class="dr-s10" aria-hidden="true">S10</span>';
 const ONLY_IN_SUPER10 = '<span class="dr-only">Only in Super10</span>';
+/** A kit on the shelf for a while only (the Diwali kit): its tag, and its line over the foot. */
+const limitedOf = (shelf: Shelf, id: string) => shelf === 'kit' && !isSuper10Kit(id) ? (kitOf(id) as Outfit).limited ?? null : null;
 /** Something waits in the room only on the kit and bat shelves; nothing on the guard's is earned. */
 const waits = (shelf: Shelf, id: string, record: DressingRecord) => shelf !== 'guard' && ready(shelf, id, record);
 const WEAR: Record<Shelf, [string, string]> = { kit: ['WEAR IT', 'WEARING'], bat: ['PICK IT UP', 'IN HAND'], guard: ['WEAR IT', 'WEARING'] };
@@ -92,15 +94,15 @@ export function dressingMarkup(): string {
 export function shelfMarkup(view: DressingView): string {
   const ids = idsOf(view.shelf, view), picked = pickedOn(view);
   return ids.map(id => {
-    const worn = wornFor(view, id), super10 = view.shelf === 'kit' && isSuper10Kit(id);
+    const worn = wornFor(view, id), super10 = view.shelf === 'kit' && isSuper10Kit(id), limited = limitedOf(view.shelf, id);
     const item = itemOf(view.shelf, id), owned = (stepsOf(view.shelf, id, view.record) ?? []).every(done), waiting = waits(view.shelf, id, view.record);
     const picture = view.pictures[`${view.shelf}:${id}`];
     // One waiting to be unlocked has a dot where the lock would be, and a light round it: tap me.
     const badge = waiting ? '<span class="dr-badge is-ready" aria-hidden="true"></span>'
       : id === worn ? `<span class="dr-badge is-on" aria-hidden="true">${TICK}</span>` : owned ? ''
       : `<span class="dr-badge is-lock" aria-hidden="true">${LOCK}</span>`;
-    return `<button type="button" role="listitem" class="dr-item${id === picked ? ' is-picked' : ''}${owned ? '' : ' is-locked'}${waiting ? ' is-ready' : ''}" data-id="${id}" aria-pressed="${id === picked}" aria-label="${escape(item.name)}${super10 ? ', only in Super10' : ''}${waiting ? ', ready to unlock' : owned ? '' : ', locked'}${id === worn ? ', on' : ''}">`
-      + `${picture ? `<img src="${picture}" alt="">` : '<i class="dr-item-blank"></i>'}${super10 ? S10_TAG : ''}${badge}</button>`;
+    return `<button type="button" role="listitem" class="dr-item${id === picked ? ' is-picked' : ''}${owned ? '' : ' is-locked'}${waiting ? ' is-ready' : ''}" data-id="${id}" aria-pressed="${id === picked}" aria-label="${escape(item.name)}${super10 ? ', only in Super10' : ''}${limited ? `, ${escape(limited.line.toLowerCase())}` : ''}${waiting ? ', ready to unlock' : owned ? '' : ', locked'}${id === worn ? ', on' : ''}">`
+      + `${picture ? `<img src="${picture}" alt="">` : '<i class="dr-item-blank"></i>'}${super10 ? S10_TAG : ''}${limited ? `<span class="dr-s10 dr-limited" aria-hidden="true">${escape(limited.tag)}</span>` : ''}${badge}</button>`;
   }).join('');
 }
 
@@ -116,7 +118,8 @@ export function footMarkup(view: DressingView): string {
   const { shelf, record } = view;
   const id = pickedOn(view), item = itemOf(shelf, id);
   const steps = stepsOf(shelf, id, record);
-  const only = shelf === 'kit' && isSuper10Kit(id) ? ONLY_IN_SUPER10 : '';
+  const limited = limitedOf(shelf, id);
+  const only = shelf === 'kit' && isSuper10Kit(id) ? ONLY_IN_SUPER10 : limited ? `<span class="dr-only dr-limited">${escape(limited.line)}</span>` : '';
   const eye = (text: string, ready = false) => `<span class="dr-eyes"><span class="dr-eye${ready ? ' dr-eye-ready' : ''}">${text}</span>${only}</span>`;
   // Waiting in the room, earned or not: nothing to play for, only its key.
   if (waits(shelf, id, record))

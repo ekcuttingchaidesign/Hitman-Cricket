@@ -3,15 +3,16 @@ import { TIERS, tierMeasure } from './tier';
 import { SUPER10_KITS, SUPER10_KIT_IDS, SUPER10_LADDER, type Super10Kit, type Super10KitId } from './super10-kits';
 
 /**
- * The Dressing Room's shelves: seven kits and twelve bats.
+ * The Dressing Room's shelves: the kits (one, Diwali's, for a week only) and twelve bats.
  *
  * "Kit" already means the avatar picture elsewhere in the game (`KITS` in
  * `config/board.ts`), so what the batter wears is an outfit here. Nothing on
  * these shelves plays differently; they are looks, earned by playing.
  */
-import { FREE_BAT, FREE_GUARD, FREE_OUTFIT, FREE_OUTFITS, isBat, isGuard, isOutfit, type BatId, type GuardId, type OutfitId } from './dressing-ids';
+import { FREE_BAT, FREE_GUARD, FREE_OUTFIT, FREE_OUTFITS, LIMITED_UNTIL, isBat, isGuard, isOutfit, onShelf, type BatId, type GuardId, type OutfitId } from './dressing-ids';
+import type { KitPrint } from '../entities/kitPrint';
 
-export { isBat, isGuard, isOutfit, type BatId, type GuardId, type OutfitId };
+export { isBat, isGuard, isOutfit, onShelf, LIMITED_UNTIL, type BatId, type GuardId, type OutfitId };
 
 export interface Outfit {
   id: OutfitId;
@@ -27,7 +28,25 @@ export interface Outfit {
   line: string;
   /** What it takes, in a few words, for a chip. */
   short: string;
+  /** A print over its colours (`kitPrint.ts`), as the Super10 kits have; the room's kits are plain but for the Diwali kit. */
+  print?: KitPrint;
+  /** A kit on the shelf for a while only (`LIMITED_UNTIL`): the tag on its tile and the line over its foot. */
+  limited?: { tag: string; line: string };
 }
+
+/**
+ * The Diwali kit, after a festive kurta the owner picked: maroon silk with
+ * small gold butis all over in staggered rows, a gold placket from the
+ * mandarin collar (the collar and placket are the kit's trim), and champagne
+ * gold trousers. The butis are bigger and further apart than the cloth's,
+ * so they still read on a batter a few hundred pixels tall, and they stay
+ * off the placket. No number: it is a kurta.
+ */
+const DIWALI_PRINT: KitPrint = {
+  chest: [{ x: 0, y: .43, w: .03, h: .2, lean: 0, colour: '#D9AE55', shape: 'bar' }],
+  back: [],
+  butis: { colour: '#E2BE6E', clear: .035 },
+};
 
 export interface BatSkin {
   id: BatId;
@@ -40,11 +59,14 @@ export interface BatSkin {
   stickers: boolean;
 }
 
-export const OUTFITS: readonly Outfit[] = [
+/** Every kit there has ever been, the limited ones past their time too: `outfitOf` reads them all. */
+export const ALL_OUTFITS: readonly Outfit[] = [
   // Production's kit to the last colour (`BATTER_KITS.home`): the room is where it is shown off, not changed.
   { id: 'home', name: 'OG Navy', shirt: '#2F5A88', helmet: '#2A527C', trousers: '#F4F0E4', pads: '#FDFCF4', trim: '#ED7044', number: '#ED7044', glow: '#ED7044', line: 'Your kit from day one.', short: 'Free' },
   // Papaya: orange with white trousers, free beside OG Navy, for a player who wants colour from the first ball.
   { id: 'papaya', name: 'Papaya', shirt: '#F5782A', helmet: '#E86D1F', trousers: '#F4F0E4', pads: '#FDFCF4', trim: '#FDF8F0', number: '#FFFFFF', glow: '#FF8A3A', line: 'Free to wear, from the first ball.', short: 'Free' },
+  // Diwali 2026: free to everybody, and off the shelf after 11 November (`LIMITED_UNTIL`).
+  { id: 'diwali', name: 'Diwali', shirt: '#7C2230', helmet: '#6A1C28', trousers: '#D9BF8C', pads: '#FDFCF4', trim: '#D4A64A', number: '#D4A64A', glow: '#FFB347', line: 'Maroon and gold for Diwali week. Gone after 11 November.', short: 'Free till 11 Nov', print: DIWALI_PRINT, limited: { tag: 'DIWALI', line: 'Till 11 November' } },
   { id: 'crimson', name: 'Crimson', shirt: '#C51C25', helmet: '#B8171D', trousers: '#EFE3CF', pads: '#E9DCC6', trim: '#8F1D22', number: '#FFFFFF', glow: '#FF3B3B', line: '25 finished innings.', short: '25 innings' },
   { id: 'forest', name: 'British Racing Green', shirt: '#0A4A3E', helmet: '#135045', trousers: '#F1E5D5', pads: '#ECE0CC', trim: '#0A4A3E', number: '#FFFFFF', glow: '#25C28A', line: 'Emerging Player in all three modes.', short: 'Emerging in every mode' },
   { id: 'gold', name: 'Bumblebee', shirt: '#F2A31B', helmet: '#F2A31B', trousers: '#13284A', pads: '#1E3560', trim: '#F2A31B', number: '#13284A', glow: '#FFB52E', line: '10 Rival wins against 5 different players.', short: '10 Rival wins' },
@@ -69,6 +91,11 @@ export const BATS: readonly BatSkin[] = [
   { id: 'hitman', name: 'Hitman', grip: '#C8FF1E', glow: '#B6FF2E', line: 'Top of the game.', short: 'Hitman tier', stickers: true },
 ];
 
+/** The kits on the shelf, the limited ones only while they are up (as the page loaded). */
+export const OUTFITS: readonly Outfit[] = ALL_OUTFITS.filter(o => onShelf(o.id));
+/** The shelf at `now`. */
+export const outfitsAt = (now: number) => ALL_OUTFITS.filter(o => onShelf(o.id, now));
+
 export { FREE_OUTFIT, FREE_OUTFITS, FREE_BAT, FREE_GUARD };
 /**
  * The bat waiting in the Dressing Room for every player. Nothing has to be
@@ -85,7 +112,7 @@ export const WELCOME_BAT: BatId = 'boom';
 export const ready = (shelf: 'kit' | 'bat', id: string, r: DressingRecord) =>
   (shelf === 'bat' && id === WELCOME_BAT && !r.welcomed) || !!r.waiting?.includes(`${shelf}:${id}`);
 
-export const outfitOf = (id: string | null | undefined): Outfit => OUTFITS.find(o => o.id === id) ?? OUTFITS[0];
+export const outfitOf = (id: string | null | undefined): Outfit => ALL_OUTFITS.find(o => o.id === id) ?? ALL_OUTFITS[0];
 export const batOf = (id: string | null | undefined): BatSkin => BATS.find(b => b.id === id) ?? BATS.find(b => b.id === FREE_BAT)!;
 
 /** The game a step is played in, for the key under the list. */
@@ -138,7 +165,7 @@ export const shareOf = (steps: readonly Step[]) => steps.length ? steps.reduce((
 /** What a kit takes; null for the ones that come free (`FREE_OUTFITS`). */
 export function outfitSteps(id: OutfitId, r: DressingRecord): Step[] | null {
   switch (id) {
-    case 'home': case 'papaya': return null;
+    case 'home': case 'papaya': case 'diwali': return null;
     case 'crimson': return [{ text: 'Play 25 finished innings', now: innings(r), of: 25 }];
     case 'forest': return MODES.map(m => ({ text: `Emerging Player in ${MODE_NAME[m]}`, now: measure(r, m), of: at('emerging', m), mode: STEP_MODE[m] }));
     case 'gold': return [
@@ -225,14 +252,15 @@ export const FREE_SUPER10: Super10KitId = 's10-purple';
 /** What a kit on the kit shelf takes, whichever kind it is. */
 export const kitSteps = (id: KitId, r: DressingRecord) => isSuper10Kit(id) ? super10Steps(id, r) : outfitSteps(id, r);
 
-export const outfitOwned = (id: OutfitId, r: DressingRecord) => (outfitSteps(id, r) ?? []).every(done);
+/** A kit is theirs while it is on the shelf (a limited one only till its time) and its steps are done. */
+export const outfitOwned = (id: OutfitId, r: DressingRecord, now = Date.now()) => onShelf(id, now) && (outfitSteps(id, r) ?? []).every(done);
 export const batOwned = (id: BatId, r: DressingRecord) => (batSteps(id, r) ?? []).every(done);
 export const super10Owned = (id: Super10KitId, r: DressingRecord) => (super10Steps(id, r) ?? []).every(done);
 
 /** Everything on the shelves this record has earned, the free ones included. */
-export function earned(r: DressingRecord): { outfits: OutfitId[]; bats: BatId[]; super10: Super10KitId[] } {
+export function earned(r: DressingRecord, now = Date.now()): { outfits: OutfitId[]; bats: BatId[]; super10: Super10KitId[] } {
   return {
-    outfits: OUTFITS.filter(o => outfitOwned(o.id, r)).map(o => o.id), bats: BATS.filter(b => batOwned(b.id, r)).map(b => b.id),
+    outfits: ALL_OUTFITS.filter(o => outfitOwned(o.id, r, now)).map(o => o.id), bats: BATS.filter(b => batOwned(b.id, r)).map(b => b.id),
     super10: SUPER10_KITS.filter(kit => super10Owned(kit.id, r)).map(kit => kit.id),
   };
 }

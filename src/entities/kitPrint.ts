@@ -2,8 +2,8 @@ import * as THREE from 'three';
 
 /**
  * A kit's print: lightning bolts and trim drawn over the shirt and trousers,
- * for the Super10 kits (`src/game/super10-kits.ts`). Every other kit is plain
- * colours, and wears none.
+ * for the Super10 kits (`src/game/super10-kits.ts`), and the Diwali kit's gold
+ * butis (`dressing.ts`). Every other kit is plain colours, and wears none.
  *
  * The print rides the jersey and the trousers the batter already has, in
  * their own shaders: no mesh and no draw call more, one texture each. Both
@@ -86,6 +86,13 @@ export interface KitPrint {
   squares?: { colour: string };
   /** Lightning, streaks and slashes all over, the Apex Vipers': see `shards` below. */
   shards?: { bolt: string; streak: string; slash: string };
+  /**
+   * Small round butis all over the shirt and its sleeves, the Diwali kurta's:
+   * gold dots in staggered rows, each row half a step along from the one
+   * under it, kept `clear` metres either side of the chest's middle, where
+   * the placket runs. See `butis` below.
+   */
+  butis?: { colour: string; clear?: number };
   /** The sleeves in a colour of their own, down to the hem. */
   sleeves?: string;
   /** An outline round the number on the back, where it is worn over a pattern. */
@@ -317,6 +324,30 @@ function shards(ctx: CanvasRenderingContext2D, W: number, FH: number, colours: {
   ctx.restore();
 }
 
+/**
+ * The Diwali kurta's butis: dots `BUTI.size` across, `BUTI.round` to a row
+ * round him (a whole number, so the rows meet themselves down his back),
+ * rows `BUTI.row` apart up the cloth, every other row half a step along. A
+ * kurta's are a centimetre across and a hand apart; on a batter a few hundred
+ * pixels tall those vanish or shimmer, so these are bigger and fewer. Drawn
+ * in metres on `ctx`, `across` metres round and `tall` up, from `from` up.
+ */
+const BUTI = { size: .026, round: 16, row: .062, sleeveRound: 8 };
+function butis(ctx: CanvasRenderingContext2D, across: number, from: number, tall: number, count: number, colour: string, clearOf: number | null = null, clear = 0) {
+  const step = across / count;
+  ctx.save();
+  ctx.fillStyle = colour;
+  for (let r = 0; from + (r + .5) * BUTI.row + BUTI.size / 2 <= tall; r++) {
+    const y = from + (r + .5) * BUTI.row;
+    for (let i = -1; i <= count; i++) {
+      const x = (i + .5 + (r % 2) * .5) * step;
+      if (clearOf !== null && Math.abs(x - clearOf) < clear + BUTI.size / 2) continue;
+      ctx.beginPath(); ctx.arc(x, y, BUTI.size / 2, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
 /** The metres up the cloth at a height `v` on the torso's texture (nought at the hem). */
 function clothAt(v: number) {
   const at = Math.min(CLOTH_UP.length - 1.000001, Math.max(0, v * (CLOTH_UP.length - 1))), i = Math.floor(at);
@@ -360,6 +391,11 @@ export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trouser
   }
   if (print.squares) squares(f, W, FH, print.squares.colour);
   if (print.shards) shards(f, W, FH, print.shards);
+  if (print.butis) {
+    f.save(); f.translate(0, FH); f.scale(W / CLOTH.round, -FH / CLOTH.tall);
+    butis(f, CLOTH.round, 0, CLOTH.tall, BUTI.round, print.butis.colour, CLOTH.round / 2, print.butis.clear ?? 0);
+    f.restore();
+  }
   panel(.5, () => print.chest.forEach(b => bolt(f, b)));
   for (const round of [0, 1]) panel(round, () => print.back.forEach(b => bolt(f, b)));
   if (print.collar) panel(.5, () => {
@@ -398,6 +434,12 @@ export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trouser
   const down = (z: number) => H * (1 - z);
   // The waves down the sleeve too, from the shoulder to the hem.
   if (print.swirl) waves(s, sx, down(HEM), sw, H * HEM, print.swirl.colour, 3);
+  if (print.butis) {
+    // Down the sleeve from the shoulder to the hem, in the sleeve's own metres, so the dots stay round.
+    s.save(); s.translate(sx, H); s.scale(sw / SLEEVE.round, -H / SLEEVE.tall);
+    butis(s, SLEEVE.round, 0, HEM * SLEEVE.tall, BUTI.sleeveRound, print.butis.colour);
+    s.restore();
+  }
   if (print.sleeves) { s.fillStyle = print.sleeves; s.fillRect(sx, down(HEM + .02), sw, H * (HEM + .02)); }
   if (print.hem) {
     // The band just inside the hem, and the line on the shoulder's side of it.

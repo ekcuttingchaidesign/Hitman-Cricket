@@ -8659,6 +8659,8 @@ video.whatsnew-film.is-fit{height:auto;object-fit:contain;
 .dr-s10{position:absolute;left:calc(var(--u) * 4);bottom:calc(var(--u) * 4);padding:calc(var(--u) * 2) calc(var(--u) * 4);border-radius:calc(var(--u) * 4);background:#8b5cf6;color:#fff;font:900 italic calc(var(--u) * 8)/1 var(--f-ui);letter-spacing:.04em;pointer-events:none}
 .dr-eyes{display:flex;align-items:center;gap:calc(var(--u) * 8);flex-wrap:wrap}
 .dr-only{padding:calc(var(--u) * 3) calc(var(--u) * 6);border-radius:calc(var(--u) * 5);background:#8b5cf62e;border:calc(var(--u) * 1) solid #8b5cf6;color:#c9b4ff;font:800 calc(var(--u) * 9)/1 var(--f-ui);letter-spacing:.14em;text-transform:uppercase}
+.dr-limited{background:linear-gradient(135deg,#E9C46A,#B8862E);color:#3A0D14}
+.dr-only.dr-limited{background:#D4A64A2e;border-color:#D4A64A;color:#F2D58F}
 .dr-next.is-ready{border-color:#ff2e8866}
 @media (prefers-reduced-motion:reduce){.dr-item.is-ready{animation:none;box-shadow:0 0 calc(var(--u) * 12) #ff2e8866}}
 /* One height for every item, the content standing on its foot: the shelf and the

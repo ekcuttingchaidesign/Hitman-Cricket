@@ -1213,6 +1213,8 @@ export class GameScene {
     if (!this.look) return;
     const { outfit } = this.look;
     this.batter.wear(this.inWhites ? { helmet: outfit.helmet } : outfit);
+    // A room kit with a print (the Diwali kit) wears it, but not in whites; a Super10 kit's is put on in `dressBatter`.
+    if (!this.super10Kit) this.batter.printKit(!this.inWhites && 'print' in outfit ? outfit.print ?? null : null);
     if (!this.inWhites) { this.bowler.figure.dress(this.sideKit, this.sidePrint); this.field.dress(this.sideKit, this.sidePrint); }
     this.kitsUnderLights();
   }
@@ -1230,7 +1232,8 @@ export class GameScene {
   /** The fielding side's kit, as a Dressing Room id, for the checks. */
   fieldingKit: string | null = null;
   private pickSide(except: string) {
-    const choices = OUTFITS.filter(o => o.id !== except);
+    // Never a printed or limited kit: the Diwali kit is the batter's to wear, not the fielders'.
+    const choices = OUTFITS.filter(o => o.id !== except && !o.print && !o.limited);
     const outfit = choices[Math.floor(Math.random() * choices.length)];
     this.fieldingKit = outfit.id;
     this.sideKit = this.kitOf(outfit);
