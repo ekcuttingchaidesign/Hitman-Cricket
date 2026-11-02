@@ -849,19 +849,28 @@ in whites, as before.
 
 ## The Diwali kits: free for a week
 
-Three kits for Diwali 2026, each after a kurta the owner picked, all with
-champagne gold trousers and no number. Diwali Maroon (`diwali`): maroon with
-gold butis all over in staggered rows (`butis` in `kitPrint.ts`), a gold
-placket from the collar and a maroon helmet. Diwali Blue (`diwali-blue`):
-royal blue with a cream block print (`fronds`) of long feathers leaning up to
-his left shoulder, little flowering bushes between them and diamonds in fours
-in the gaps, the feathers' spines and barbs cut out of them; a self placket,
-the collar a deeper blue, a blue helmet. Diwali Ivory (`diwali-ivory`): ivory
-with a pastel print (`florals`) of flowers, paisleys, banded feathered leaves,
-buds and sprigs in pink, sky blue, butter yellow and sage, dealt off a seed so
-it is the same print every time, and stippled (`stipple` punches small holes
+Five kits for Diwali 2026, each after a kurta the owner picked and named by
+the owner after a firework or a sweet, all with champagne gold trousers and
+no number. Royal Anaar (`diwali`): maroon with gold butis all over in
+staggered rows (`butis` in `kitPrint.ts`), a gold placket from the collar
+and a maroon helmet. Sky Shot (`diwali-blue`): royal blue with a cream block
+print (`fronds`) of long feathers leaning up to his left shoulder, little
+flowering bushes between them and diamonds in fours in the gaps, the
+feathers' spines and barbs cut out of them; a self placket, the collar a
+deeper blue, a blue helmet. Kaju Katli (`diwali-ivory`): ivory with a pastel
+print (`florals`) of flowers, paisleys, banded feathered leaves, buds and
+sprigs in pink, sky blue, butter yellow and sage, dealt off a seed so it is
+the same print every time, and stippled (`stipple` punches small holes
 through it, as the cloth's dotted print is); a soft gold collar and an ivory
-helmet. All three are prints, the Super10 kits'
+helmet. Sutli Bomb (`diwali-green`): bottle green with small embroidered
+sprigs (`sprigs`), and red for the cracker's fuse, as the owner asked: each
+sprig's bloom, a red line down the gold placket, the collar, and a red band
+at each sleeve's hem under a gold line (`hem`); a green helmet. Soan Papdi
+(`diwali-yellow`): mustard with a patola ikat (`patola`), a lattice of
+diamonds in white dashes, a stepped red diamond in every other one and a
+teal cross where four meet; a gold placket set with red diamonds, a red
+collar and a mustard helmet. The ids are the colours, so the names can
+change without touching a saved pick. All five are prints, the Super10 kits'
 machinery, so each costs a texture and no draw call, and the motifs are
 bigger and fewer than the cloth's so they read from the game's camera. All
 are free to everybody (`FREE_OUTFITS`, never won or celebrated) and on the
@@ -874,7 +883,7 @@ saved pick or a Rival Match innings batted in one still reads (`outfitOf`);
 their foot says Till 11 November (`limited` on the outfit). Worn in the Blast
 and Rival Matches: a Test is in whites, which drop the print, and Super10 is
 in its team kits. The fielding side never wears them (`pickSide`). While they
-are up the room counts three more kits, so tests and `dressing-check` that
+are up the room counts five more kits, so tests and `dressing-check` that
 count the shelf ask the date.
 
 ## Who's batting: the gate before the first innings

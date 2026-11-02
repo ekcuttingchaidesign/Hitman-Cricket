@@ -86,9 +86,9 @@ check(await page.evaluate(() => window.__cricket.unlocking()) === null, 'a caree
 const card = page.locator('#modes-dressing');
 check(await card.isVisible(), 'carries the Dressing Room card');
 // Off production Super10's six kits are on the shelf too: the Panthers and the Vipers earned.
-// The three Diwali kits are free and on the shelf till the end of 11 November 2026 in India, three more of each.
+// The five Diwali kits are free and on the shelf till the end of 11 November 2026 in India, five more of each.
 const diwaliUp = Date.now() < Date.UTC(2026, 10, 11, 18, 30);
-check(await text(page, '#modes-dressing-line') === (diwaliUp ? '15 of 29 earned' : '12 of 26 earned'), 'which says how much of the room is earned, Boom not yet among it', await text(page, '#modes-dressing-line'));
+check(await text(page, '#modes-dressing-line') === (diwaliUp ? '17 of 31 earned' : '12 of 26 earned'), 'which says how much of the room is earned, Boom not yet among it', await text(page, '#modes-dressing-line'));
 check(await card.locator('.ms-tag').isVisible(), 'with NEW on it before the room is opened');
 const order = await page.locator('.ms-content > *').evaluateAll(all => all.map(one => one.id || one.className.split(' ')[0]));
 check(order.indexOf('mode-super10') >= 0 && order.indexOf('mode-super10') < order.indexOf('modes-dressing') && order.indexOf('modes-dressing') < order.indexOf('ms-card') && order.indexOf('ms-card') < order.indexOf('ms-bento'),

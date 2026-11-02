@@ -3,7 +3,8 @@ import * as THREE from 'three';
 /**
  * A kit's print: lightning bolts and trim drawn over the shirt and trousers,
  * for the Super10 kits (`src/game/super10-kits.ts`), and the Diwali kits' gold
- * butis, block print and florals (`dressing.ts`). Every other kit is plain colours, and wears none.
+ * butis, block print, florals,
+ * sprigs and ikat (`dressing.ts`). Every other kit is plain colours, and wears none.
  *
  * The print rides the jersey and the trousers the batter already has, in
  * their own shaders: no mesh and no draw call more, one texture each. Both
@@ -106,6 +107,19 @@ export interface KitPrint {
    * pastel `colours`, stippled as the cloth's are. See `florals` below.
    */
   florals?: { pink: string; blue: string; yellow: string; green: string };
+  /**
+   * The green Diwali kurta's embroidered butis (Sutli Bomb): small sprigs in
+   * staggered rows, each a `bloom` flower over two `leaf` leaves under a
+   * little gold tree of dots tipped with `tip`, kept `clear` metres either
+   * side of the placket. See `sprigs` below.
+   */
+  sprigs?: { bloom: string; leaf: string; gold: string; tip: string; clear?: number };
+  /**
+   * The yellow Diwali kurta's patola ikat (Soan Papdi): a lattice of
+   * diamonds in white dashes, a stepped `red` diamond in every other one, a
+   * `teal` cross where four meet between them. See `patola` below.
+   */
+  patola?: { line: string; red: string; teal: string; light: string; clear?: number };
   /** The sleeves in a colour of their own, down to the hem. */
   sleeves?: string;
   /** An outline round the number on the back, where it is worn over a pattern. */
@@ -513,6 +527,74 @@ function stipple(ctx: CanvasRenderingContext2D, x0: number, y0: number, w: numbe
   ctx.restore();
 }
 
+/**
+ * The green Diwali kurta's sprigs, drawn in metres on `ctx` (y up) in
+ * staggered rows as the butis are: a red bloom over two leaves, a little
+ * tree of gold dots above it and a tip at the top, about four centimetres
+ * tall, bigger than the cloth's so they read from the game's camera.
+ */
+const SPRIG = { size: .044, round: 12, row: .082, sleeveRound: 6 };
+function sprigs(ctx: CanvasRenderingContext2D, across: number, tall: number, count: number, c: NonNullable<KitPrint['sprigs']>, clearOf: number | null = null) {
+  const step = across / count, k = SPRIG.size, TAU = Math.PI * 2;
+  const dot = (x: number, y: number, r: number, colour: string) => { ctx.fillStyle = colour; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); };
+  const leaf = (x: number, y: number, turn: number) => { ctx.fillStyle = c.leaf; ctx.beginPath(); ctx.ellipse(x, y, k * .13, k * .06, turn, 0, TAU); ctx.fill(); };
+  for (let r = 0; (r + .5) * SPRIG.row + k / 2 <= tall; r++) {
+    const y = (r + .5) * SPRIG.row;
+    for (let i = -1; i <= count; i++) {
+      const x = (i + .5 + (r % 2) * .5) * step;
+      if (clearOf !== null && Math.abs(x - clearOf) < (c.clear ?? 0) + k / 2) continue;
+      // From the foot up: the leaves, the bloom, the gold tree, the tip.
+      leaf(x - k * .14, y - k * .3, .5); leaf(x + k * .14, y - k * .3, -.5);
+      for (let p = 0; p < 5; p++) { const a = p / 5 * TAU + .3; dot(x + Math.cos(a) * k * .1, y - k * .12 + Math.sin(a) * k * .1, k * .085, c.bloom); }
+      dot(x, y - k * .12, k * .06, c.gold);
+      for (const [dx, dy] of [[-.12, .1], [0, .1], [.12, .1], [-.07, .22], [.07, .22], [0, .33]]) dot(x + dx * k, y + dy * k, k * .045, c.gold);
+      dot(x, y + k * .45, k * .05, c.tip);
+    }
+  }
+}
+
+/**
+ * The yellow Diwali kurta's patola ikat, drawn in metres on `ctx` (y up):
+ * diamonds `count` to a row round him (even, so every other one meets
+ * itself down his back), their edges dashes of `line` as an ikat's threads
+ * are; a stepped red diamond with a `light` heart in every other diamond, a
+ * pair of red dashes in the rest, and a teal cross where four diamonds meet
+ * between the red ones. The placket's `clear` is left plain.
+ */
+const PATOLA = { round: 12, row: .1, sleeveRound: 6, dash: .0075, pixel: .0068 };
+function patola(ctx: CanvasRenderingContext2D, across: number, tall: number, count: number, c: NonNullable<KitPrint['patola']>, clearOf: number | null = null) {
+  const w = across / count, h = PATOLA.row, d = PATOLA.dash, p = PATOLA.pixel;
+  const square = (x: number, y: number, size: number, colour: string) => { ctx.fillStyle = colour; ctx.fillRect(x - size / 2, y - size / 2, size, size); };
+  const off = (x: number) => clearOf !== null && Math.abs(x - clearOf) < (c.clear ?? 0);
+  for (let j = 0; (j - .5) * h <= tall; j++) {
+    for (let i = -1; i <= count + 1; i++) {
+      const cx = i * w, cy = j * h;
+      // This diamond's four edges, five dashes each: together they draw the whole lattice.
+      for (const [sx, sy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        for (let n = 0; n < 5; n++) {
+          const t = (n + .5) / 5, x = cx + sx * w / 2 * t, y = cy + sy * h / 2 * (1 - t);
+          if (!off(x)) square(x, y, d, c.line);
+        }
+      }
+      if (!off(cx)) {
+        if ((i + j) % 2 === 0) {
+          // The stepped diamond, rows of one, three, five, three and one.
+          [1, 3, 5, 3, 1].forEach((n, row) => { for (let q = 0; q < n; q++) square(cx + (q - (n - 1) / 2) * p, cy + (2 - row) * p, p * 1.02, c.red); });
+          square(cx, cy, p * 1.02, c.light);
+        } else {
+          square(cx - p * 1.2, cy, p * 1.4, c.red); square(cx + p * 1.2, cy, p * 1.4, c.red);
+        }
+      }
+      // Where four diamonds meet, above and to the right: a teal cross on every other.
+      const mx = cx + w / 2, my = cy + h / 2;
+      if ((i + j) % 2 === 0 && !off(mx)) {
+        square(mx, my, p * 1.6, c.teal);
+        for (const [ax, ay] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { square(mx + ax * p * 1.7, my + ay * p * 1.7, p, c.teal); square(mx + ax * p * 2.7, my + ay * p * 2.7, p * .8, c.teal); }
+      }
+    }
+  }
+}
+
 /** The metres up the cloth at a height `v` on the torso's texture (nought at the hem). */
 function clothAt(v: number) {
   const at = Math.min(CLOTH_UP.length - 1.000001, Math.max(0, v * (CLOTH_UP.length - 1))), i = Math.floor(at);
@@ -559,6 +641,12 @@ export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trouser
   if (print.butis) {
     f.save(); f.translate(0, FH); f.scale(W / CLOTH.round, -FH / CLOTH.tall);
     butis(f, CLOTH.round, 0, CLOTH.tall, BUTI.round, print.butis.colour, CLOTH.round / 2, print.butis.clear ?? 0);
+    f.restore();
+  }
+  if (print.sprigs || print.patola) {
+    f.save(); f.translate(0, FH); f.scale(W / CLOTH.round, -FH / CLOTH.tall);
+    if (print.sprigs) sprigs(f, CLOTH.round, CLOTH.tall, SPRIG.round, print.sprigs, CLOTH.round / 2);
+    if (print.patola) patola(f, CLOTH.round, CLOTH.tall, PATOLA.round, print.patola, CLOTH.round / 2);
     f.restore();
   }
   if (print.florals) {
@@ -614,6 +702,13 @@ export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trouser
     // Down the sleeve from the shoulder to the hem, in the sleeve's own metres, so the dots stay round.
     s.save(); s.translate(sx, H); s.scale(sw / SLEEVE.round, -H / SLEEVE.tall);
     butis(s, SLEEVE.round, 0, HEM * SLEEVE.tall, BUTI.sleeveRound, print.butis.colour);
+    s.restore();
+  }
+  if (print.sprigs || print.patola) {
+    s.save(); s.translate(sx, H); s.scale(sw / SLEEVE.round, -H / SLEEVE.tall);
+    s.beginPath(); s.rect(0, 0, SLEEVE.round, HEM * SLEEVE.tall); s.clip();
+    if (print.sprigs) sprigs(s, SLEEVE.round, HEM * SLEEVE.tall, SPRIG.sleeveRound, print.sprigs);
+    if (print.patola) patola(s, SLEEVE.round, HEM * SLEEVE.tall, PATOLA.sleeveRound, print.patola);
     s.restore();
   }
   if (print.florals) {
