@@ -8,17 +8,5 @@ import { onShelf } from './dressing-ids';
  */
 export const diwaliOn = (now = Date.now()) => onShelf('diwali', now);
 
-const ROOM_KEY = 'hitman-diwali-room';
-
-/** Whether this browser has opened the Dressing Room since the Diwali kits arrived. */
-export function diwaliRoomSeen(): boolean {
-  try { return localStorage.getItem(ROOM_KEY) === '1'; } catch { return false; }
-}
-
-/** The room has been opened: the card's NEW DIWALI KITS badge has done its job. */
-export function markDiwaliRoomSeen() {
-  try { localStorage.setItem(ROOM_KEY, '1'); } catch { /* Then it shows again next time. */ }
-}
-
-/** The Dressing Room card's badge: while it is Diwali week, until the room is opened. */
-export const diwaliBadgeDue = (now = Date.now()) => diwaliOn(now) && !diwaliRoomSeen();
+/** The Dressing Room card's NEW DIWALI KITS: all Diwali week, opened or not. */
+export const diwaliBadgeDue = (now = Date.now()) => diwaliOn(now);
