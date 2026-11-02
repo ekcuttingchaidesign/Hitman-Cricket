@@ -3,8 +3,8 @@
  * check what a Rival Match player says they wear without pulling in the
  * catalogue and the careers behind it (`dressing.ts` has the rest).
  */
-export const OUTFIT_IDS = ['home', 'papaya', 'crimson', 'forest', 'gold', 'violet', 'electric', 'lagoon'] as const;
-export const BAT_IDS = ['plain', 'boom', 'rage', 'venom', 'lonewolf', 'meg', 'icecold', 'roar', 'savage', 'reign', 'inferno', 'hitman'] as const;
+export const OUTFIT_IDS = ['home', 'papaya', 'diwali', 'diwali-blue', 'diwali-ivory', 'diwali-green', 'diwali-yellow', 'crimson', 'forest', 'gold', 'violet', 'electric', 'lagoon'] as const;
+export const BAT_IDS = ['plain', 'boom', 'rage', 'venom', 'lonewolf', 'meg', 'icecold', 'roar', 'savage', 'reign', 'inferno', 'hitman', 'goldenarrow', 'dhoom', 'chainreaction', 'angaar', 'chakri'] as const;
 /** The guards — gloves and pads in one colourway — the one he is built wearing first (`src/entities/gloves.ts` has the designs). None is earned: every one is free to wear. */
 export const GUARD_IDS = ['sterling', 'glacier', 'fern', 'evergreen', 'carbon', 'blaze', 'midnight', 'volt'] as const;
 export type OutfitId = typeof OUTFIT_IDS[number];
@@ -13,9 +13,27 @@ export type GuardId = typeof GUARD_IDS[number];
 
 /** What every player has from the start, here so the server knows them without the catalogue. */
 export const FREE_OUTFIT: OutfitId = 'home';
-/** Every kit that comes free: the one he is built in, and Papaya. Never won, never celebrated. */
-export const FREE_OUTFITS: readonly OutfitId[] = ['home', 'papaya'];
+/** Every kit that comes free: the one he is built in, Papaya, and the five Diwali kits while they are up. Never won, never celebrated. */
+export const FREE_OUTFITS: readonly OutfitId[] = ['home', 'papaya', 'diwali', 'diwali-blue', 'diwali-ivory', 'diwali-green', 'diwali-yellow'];
+/** The end of 11 November 2026 in India. */
+const DIWALI_UNTIL = Date.UTC(2026, 10, 11, 18, 30);
+/**
+ * Kits on the shelf for a while only, and when they come off it: the Diwali
+ * kits (Royal Anaar, Sky Shot, Kaju Katli, Sutli Bomb, Soan Papdi) and bats
+ * (Golden Arrow, Dhoom, Chain Reaction, Angaar, Chakri), free to everybody until the end of 11 November 2026 in India
+ * (18:30 UTC). After that each is off the shelf, a pick of one is worn as
+ * the free kit, and nobody bats in it; the id stays known, so a saved pick or a
+ * Rival Match innings batted in it still reads.
+ */
+export const LIMITED_UNTIL: Partial<Record<OutfitId | BatId, number>> = {
+  diwali: DIWALI_UNTIL, 'diwali-blue': DIWALI_UNTIL, 'diwali-ivory': DIWALI_UNTIL, 'diwali-green': DIWALI_UNTIL, 'diwali-yellow': DIWALI_UNTIL,
+  goldenarrow: DIWALI_UNTIL, dhoom: DIWALI_UNTIL, chainreaction: DIWALI_UNTIL, angaar: DIWALI_UNTIL, chakri: DIWALI_UNTIL,
+};
+/** Whether a kit is on the shelf at `now`: always, but for a limited one past its time. */
+export const onShelf = (id: OutfitId | BatId, now = Date.now()) => !(LIMITED_UNTIL[id] !== undefined && now >= LIMITED_UNTIL[id]!);
 export const FREE_BAT: BatId = 'plain';
+/** Every bat that comes free: bare willow, and the five Diwali bats while they are up. Never won, never celebrated. */
+export const FREE_BATS: readonly BatId[] = ['plain', 'goldenarrow', 'dhoom', 'chainreaction', 'angaar', 'chakri'];
 export const FREE_GUARD: GuardId = 'sterling';
 
 export const isOutfit = (id: unknown): id is OutfitId => typeof id === 'string' && (OUTFIT_IDS as readonly string[]).includes(id);

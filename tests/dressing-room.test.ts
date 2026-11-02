@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { emptyBlast, emptyMarathon, emptySuper10, emptySurvive } from '../src/game/career';
 import { dressingMarkup, footMarkup, shelfMarkup, type DressingView } from '../src/ui/DressingRoom';
+import { BATS, OUTFITS } from '../src/game/dressing';
+
+/** The Diwali kit is on the shelf until 11 November 2026 only, so the shelf's length depends on the day. */
+const diwaliUp = OUTFITS.some(o => o.id === 'diwali');
 
 const view = (patch: Partial<DressingView> = {}): DressingView => ({
   shelf: 'kit', kit: 'home', bat: 'boom', guard: 'sterling', wearing: 'home', holding: 'boom', wearingGuard: 'sterling', wearingSuper10: null, super10: false, pictures: {},
@@ -19,21 +23,33 @@ describe('the Dressing Room screen', () => {
 
   it('puts every kit on the shelf, a tick on the one worn and a lock on the ones not earned', () => {
     const shelf = shelfMarkup(view());
-    expect(shelf.match(/class="dr-item[ "]/g)).toHaveLength(8);
+    expect(shelf.match(/class="dr-item[ "]/g)).toHaveLength(diwaliUp ? 13 : 8);
     expect(shelf).toMatch(/data-id="home"[^>]*aria-label="OG Navy, on"/);
     expect(shelf).toMatch(/data-id="lagoon"[^>]*aria-label="Lagoon, locked"/);
-    expect(shelfMarkup(view({ shelf: 'bat' })).match(/class="dr-item[ "]/g)).toHaveLength(12);
+    expect(shelfMarkup(view({ shelf: 'bat' })).match(/class="dr-item[ "]/g)).toHaveLength(BATS.some(b => b.id === 'chakri') ? 17 : 12);
   });
 
   it('puts Super10\'s six kits at the foot of the kit shelf where it is played, each tagged S10', () => {
     expect(shelfMarkup(view()).match(/class="dr-s10"/g)).toBeNull();
     const shelf = shelfMarkup(view({ super10: true, wearingSuper10: 's10-purple' }));
-    expect(shelf.match(/class="dr-item[ "]/g)).toHaveLength(14);
+    expect(shelf.match(/class="dr-item[ "]/g)).toHaveLength(diwaliUp ? 19 : 14);
     expect(shelf.match(/class="dr-s10"/g)).toHaveLength(6);
     // The kit worn everywhere else and the one picked for Super10 each have their tick.
     expect(shelf).toMatch(/data-id="home"[^>]*aria-label="OG Navy, on"/);
     expect(shelf).toMatch(/data-id="s10-purple"[^>]*aria-label="Midnight Panthers, only in Super10, on"/);
     expect(shelf).toMatch(/data-id="s10-violet"[^>]*aria-label="Royal Mavericks, only in Super10, locked"/);
+  });
+
+  it.runIf(diwaliUp)('tags the Diwali kits while they are up, and says it is free till 11 November', () => {
+    expect(shelfMarkup(view())).toMatch(/data-id="diwali"[^>]*aria-label="Royal Anaar, till 11 november"[^]*?class="dr-s10 dr-limited"[^>]*>DIWALI</);
+    expect(shelfMarkup(view())).toMatch(/data-id="diwali-blue"[^>]*aria-label="Sky Shot, till 11 november"/);
+    expect(shelfMarkup(view())).toMatch(/data-id="diwali-ivory"[^>]*aria-label="Kaju Katli, till 11 november"/);
+    expect(shelfMarkup(view())).toMatch(/data-id="diwali-green"[^>]*aria-label="Sutli Bomb, till 11 november"/);
+    expect(shelfMarkup(view())).toMatch(/data-id="diwali-yellow"[^>]*aria-label="Soan Papdi, till 11 november"/);
+    const foot = footMarkup(view({ kit: 'diwali' }));
+    expect(foot).toContain('Free');
+    expect(foot).toContain('Till 11 November');
+    expect(foot).toContain('WEAR IT');
   });
 
   it('says a Super10 kit is only for Super10, what it takes, and wears it there alone', () => {

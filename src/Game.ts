@@ -106,10 +106,11 @@ import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import { headline } from './ui/Activity';
 import type { BatterKit } from './entities/Batter';
 import { STORIES, markWhatsNewShown, whatsNewDue } from './game/whats-new';
+import { diwaliBadgeDue, markDiwaliRoomSeen } from './game/diwali';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, standingOf, tierMeasure, TIERS, type Granted } from './game/tier';
 import { LevelUp } from './ui/LevelUp';
-import { BATS, FREE_BAT, FREE_OUTFIT, FREE_OUTFITS, FREE_SUPER10, OUTFITS, WELCOME_BAT, batOf, batOwned, earned, isSuper10Kit, outfitOf, outfitOwned, super10KitFor, super10KitOf, super10Owned, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
+import { BATS, FREE_BAT, FREE_BATS, FREE_OUTFIT, FREE_OUTFITS, FREE_SUPER10, OUTFITS, WELCOME_BAT, batOf, batOwned, earned, isSuper10Kit, outfitOf, outfitOwned, super10KitFor, super10KitOf, super10Owned, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
 import type { DressingRoom } from './ui/DressingRoom';
 import type { UnlockItem, UnlockMoment } from './ui/Unlock';
 import { onDressingWrite, readDressing, seenKey, writeDressing } from './game/dressing-store';
@@ -1266,6 +1267,8 @@ export class Game {
    * `from` is the way in, counted: its card on Choose a mode or a story.
    */
   private openDressing(from: 'modes' | 'story', shown?: () => void) {
+    // The card's NEW DIWALI KITS badge has done its job once the room is opened.
+    markDiwaliRoomSeen();
     if (this.dressing) { shown?.(); return; }
     this.dressingMark(`dressing-open-${from}`, `The Dressing Room opened from ${from === 'story' ? 'a story' : 'Choose a mode'}`);
     const held = readDressing();
@@ -1319,7 +1322,7 @@ export class Game {
   /** One of `?dressing=1`'s keys. */
   private previewDressing(scenario: DressingScenario) {
     if (scenario === 'kit' || scenario === 'bat' || scenario === 'two') {
-      const kits = OUTFITS.filter(o => !FREE_OUTFITS.includes(o.id)), bats = BATS.filter(b => b.id !== FREE_BAT);
+      const kits = OUTFITS.filter(o => !FREE_OUTFITS.includes(o.id)), bats = BATS.filter(b => !FREE_BATS.includes(b.id));
       const items: UnlockItem[] = [];
       const look = this.myLook();
       if (scenario !== 'bat') {
@@ -1406,7 +1409,8 @@ export class Game {
       items.push({ moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat, guard: look.guard } });
     // The Panthers are everybody's: never a prize either.
     for (const id of got.super10) if (id !== FREE_SUPER10 && !held.seen.includes(seenKey('kit', id))) items.push(this.super10Moment(id));
-    for (const id of got.bats) if (!held.seen.includes(seenKey('bat', id)))
+    // Nor are the free bats: the Diwali bats arriving on a record are not an unlock.
+    for (const id of got.bats) if (!FREE_BATS.includes(id) && !held.seen.includes(seenKey('bat', id)))
       items.push({ moment: { kind: 'bat', bat: batOf(id) } });
     return items;
   }
@@ -1498,7 +1502,7 @@ export class Game {
     // The card's NEW stays until the room has been opened and Boom, waiting there, unlocked.
     // Super10's kits count where they are on the shelf.
     const super10 = SUPER10_SHELF ? { earned: got.super10.length, of: SUPER10_KITS.length } : { earned: 0, of: 0 };
-    return { earned: got.outfits.length + got.bats.length + super10.earned, of: OUTFITS.length + BATS.length + super10.of, visited: readDressing().visited && record.welcomed && !record.waiting?.length };
+    return { earned: got.outfits.length + got.bats.length + super10.earned, of: OUTFITS.length + BATS.length + super10.of, visited: readDressing().visited && record.welcomed && !record.waiting?.length, diwali: diwaliBadgeDue() };
   }
 
   /**
@@ -6336,7 +6340,7 @@ export class Game {
     // Earned and known, never shown: won before the room arrived, waiting there
     // for its key. One not yet seen is new, and goes up at the innings' end.
     const got = earned(record);
-    const free = new Set([...FREE_OUTFITS.map(id => seenKey('kit', id)), seenKey('kit', FREE_SUPER10), seenKey('bat', FREE_BAT), seenKey('bat', WELCOME_BAT)]);
+    const free = new Set([...FREE_OUTFITS.map(id => seenKey('kit', id)), seenKey('kit', FREE_SUPER10), ...FREE_BATS.map(id => seenKey('bat', id)), seenKey('bat', WELCOME_BAT)]);
     const waiting = [...got.outfits.map(id => seenKey('kit', id)), ...got.super10.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))]
       .filter(key => !free.has(key) && held.seen.includes(key) && !held.shown.includes(key));
     return { ...record, waiting };

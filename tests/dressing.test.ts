@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { emptyBlast, emptyMarathon, emptySuper10, emptySurvive } from '../src/game/career';
-import { BATS, OUTFITS, batOwned, batSteps, done, earned, isSuper10Kit, kitSteps, nextUp, outfitOwned, outfitSteps, ready, shareOf, super10KitFor, super10Owned, super10Steps, type DressingRecord } from '../src/game/dressing';
+import { ALL_BATS, ALL_OUTFITS, FREE_BATS, FREE_OUTFITS, batsAt, batOf, OUTFITS, batOwned, batSteps, done, earned, isSuper10Kit, kitSteps, nextUp, onShelf, outfitOf, outfitOwned, outfitSteps, outfitsAt, ready, shareOf, super10KitFor, super10Owned, super10Steps, type DressingRecord } from '../src/game/dressing';
 import { lookOf } from '../src/game/dressing-ids';
+
+/** A day in Diwali week, and the first moment after the Diwali kit comes off the shelf (midnight in India). */
+const DIWALI_WEEK = Date.parse('2026-11-08T20:00:00+05:30'), AFTER_DIWALI = Date.parse('2026-11-12T00:00:00+05:30');
 
 const record = (patch: {
   classic?: Partial<ReturnType<typeof emptyBlast>>; survive?: Partial<ReturnType<typeof emptySurvive>>; marathon?: Partial<ReturnType<typeof emptyMarathon>>;
@@ -23,15 +26,103 @@ describe('a look as it travels', () => {
 });
 
 describe('the Dressing Room shelves', () => {
-  it('has eight kits and twelve bats, each named once, the bats from the easiest to Hitman', () => {
-    expect(OUTFITS.map(o => o.id)).toEqual(['home', 'papaya', 'crimson', 'forest', 'gold', 'violet', 'electric', 'lagoon']);
-    expect(BATS.map(b => b.id)).toEqual(['plain', 'boom', 'rage', 'venom', 'lonewolf', 'meg', 'icecold', 'roar', 'savage', 'reign', 'inferno', 'hitman']);
-    expect(new Set(BATS.map(b => b.name)).size).toBe(12);
-    expect(new Set(OUTFITS.map(o => o.name)).size).toBe(8);
+  it('has thirteen kits and twelve bats, each named once, the bats from the easiest to Hitman', () => {
+    expect(ALL_OUTFITS.map(o => o.id)).toEqual(['home', 'papaya', 'diwali', 'diwali-blue', 'diwali-ivory', 'diwali-green', 'diwali-yellow', 'crimson', 'forest', 'gold', 'violet', 'electric', 'lagoon']);
+    expect(ALL_BATS.map(b => b.id)).toEqual(['plain', 'boom', 'goldenarrow', 'dhoom', 'chainreaction', 'angaar', 'chakri', 'rage', 'venom', 'lonewolf', 'meg', 'icecold', 'roar', 'savage', 'reign', 'inferno', 'hitman']);
+    expect(new Set(ALL_BATS.map(b => b.name)).size).toBe(17);
+    expect(new Set(ALL_OUTFITS.map(o => o.name)).size).toBe(13);
   });
 
   it('gives a new player OG Navy, Papaya, Plain and the Midnight Panthers, and nothing else', () => {
-    expect(earned(record())).toEqual({ outfits: ['home', 'papaya'], bats: ['plain'], super10: ['s10-purple'] });
+    expect(earned(record(), AFTER_DIWALI)).toEqual({ outfits: ['home', 'papaya'], bats: ['plain'], super10: ['s10-purple'] });
+  });
+
+  it('gives every player the five Diwali bats until the end of 11 November in India, and never after', () => {
+    const diwali = ['goldenarrow', 'dhoom', 'chainreaction', 'angaar', 'chakri'] as const;
+    expect(earned(record(), DIWALI_WEEK).bats).toEqual(['plain', ...diwali]);
+    for (const id of diwali) {
+      expect(FREE_BATS).toContain(id);
+      expect(batSteps(id, record())).toBeNull();
+      expect(batOwned(id, record(), Date.parse('2026-11-11T23:59:00+05:30'))).toBe(true);
+      expect(batOwned(id, record(), AFTER_DIWALI)).toBe(false);
+      expect(batsAt(DIWALI_WEEK).map(b => b.id)).toContain(id);
+      expect(batsAt(AFTER_DIWALI).map(b => b.id)).not.toContain(id);
+      expect(batOf(id).id).toBe(id);
+      expect(batOf(id).limited?.tag).toBe('DIWALI');
+    }
+    expect(diwali.map(id => batOf(id).name)).toEqual(['Golden Arrow', 'Dhoom', 'Chain Reaction', 'Angaar', 'Chakri']);
+    expect(lookOf({ kit: 'home', bat: 'chakri' })).toEqual({ kit: 'home', bat: 'chakri', guard: 'sterling' });
+  });
+
+  describe('the Diwali kits', () => {
+    it('is free to everybody until the end of 11 November in India, and off the shelf after', () => {
+      const r = record();
+      expect(outfitSteps('diwali', r)).toBeNull();
+      expect(earned(r, DIWALI_WEEK).outfits).toEqual(['home', 'papaya', 'diwali', 'diwali-blue', 'diwali-ivory', 'diwali-green', 'diwali-yellow']);
+      for (const id of ['diwali', 'diwali-blue', 'diwali-ivory', 'diwali-green', 'diwali-yellow'] as const) {
+        expect(outfitSteps(id, r)).toBeNull();
+        expect(outfitOwned(id, r, Date.parse('2026-11-11T23:59:00+05:30'))).toBe(true);
+        expect(outfitOwned(id, r, Date.parse('2026-11-12T00:00:00+05:30'))).toBe(false);
+        expect(outfitsAt(DIWALI_WEEK).map(o => o.id)).toContain(id);
+        expect(outfitsAt(AFTER_DIWALI).map(o => o.id)).not.toContain(id);
+      }
+      expect(onShelf('home', AFTER_DIWALI)).toBe(true);
+    });
+
+    it('is never won or celebrated, and stays readable once it is gone', () => {
+      expect(FREE_OUTFITS).toContain('diwali');
+      expect(FREE_OUTFITS).toContain('diwali-blue');
+      expect(FREE_OUTFITS).toContain('diwali-ivory');
+      expect(FREE_OUTFITS).toContain('diwali-green');
+      expect(FREE_OUTFITS).toContain('diwali-yellow');
+      expect(outfitOf('diwali').id).toBe('diwali');
+      expect(outfitOf('diwali-blue').id).toBe('diwali-blue');
+      expect(lookOf({ kit: 'diwali', bat: 'plain' })).toEqual({ kit: 'diwali', bat: 'plain', guard: 'sterling' });
+    });
+
+    it('is a maroon kurta with gold butis, a gold placket and champagne trousers, and no number', () => {
+      const kit = outfitOf('diwali');
+      expect(kit.print?.butis).toBeTruthy();
+      expect(kit.print?.number).toBeUndefined();
+      expect(kit.print?.chest.map(m => m.shape)).toEqual(['bar']);
+      expect(kit.limited?.tag).toBe('DIWALI');
+    });
+
+    it('has a blue one with a cream block print and the same gold trousers', () => {
+      const blue = outfitOf('diwali-blue');
+      expect(blue.print?.fronds).toBeTruthy();
+      expect(blue.print?.number).toBeUndefined();
+      expect(blue.trousers).toBe(outfitOf('diwali').trousers);
+      expect(blue.limited?.tag).toBe('DIWALI');
+    });
+
+    it('names them after Diwali: Royal Anaar, Sky Shot, Kaju Katli, Sutli Bomb and Soan Papdi', () => {
+      expect(['diwali', 'diwali-blue', 'diwali-ivory', 'diwali-green', 'diwali-yellow'].map(id => outfitOf(id).name))
+        .toEqual(['Royal Anaar', 'Sky Shot', 'Kaju Katli', 'Sutli Bomb', 'Soan Papdi']);
+    });
+
+    it('gives Sutli Bomb its red fuse: the blooms, the placket line, the collar and the sleeve hems', () => {
+      const green = outfitOf('diwali-green'), red = green.trim;
+      expect(green.print?.sprigs?.bloom).toBe(red);
+      expect(green.print?.hem?.colour).toBe(red);
+      expect(green.print?.chest.some(m => m.colour === red)).toBe(true);
+      expect(green.trousers).toBe('#711313');
+    });
+
+    it('gives Soan Papdi a patola ikat on mustard, with trousers in the shirt\'s mustard', () => {
+      const yellow = outfitOf('diwali-yellow');
+      expect(yellow.print?.patola).toBeTruthy();
+      expect(yellow.print?.number).toBeUndefined();
+      expect(yellow.trousers).toBe(yellow.shirt);
+    });
+
+    it('has an ivory one with pastel florals and the same gold trousers', () => {
+      const ivory = outfitOf('diwali-ivory');
+      expect(Object.keys(ivory.print?.florals ?? {})).toEqual(['pink', 'blue', 'yellow', 'green']);
+      expect(ivory.print?.number).toBeUndefined();
+      expect(ivory.trousers).toBe(outfitOf('diwali').trousers);
+      expect(ivory.limited?.tag).toBe('DIWALI');
+    });
   });
 
   it('keeps Boom waiting in the Dressing Room for its key, whatever has been played', () => {
@@ -39,7 +130,7 @@ describe('the Dressing Room shelves', () => {
     expect(batOwned('boom', record({ classic: { innings: 400, sixes: 900, highest: 160 } }))).toBe(false);
     expect(ready('bat', 'boom', record())).toBe(true);
     expect(ready('bat', 'icecold', record())).toBe(false);
-    expect(earned(record({ welcomed: true })).bats).toEqual(['plain', 'boom']);
+    expect(earned(record({ welcomed: true }), AFTER_DIWALI).bats).toEqual(['plain', 'boom']);
     expect(ready('bat', 'boom', record({ welcomed: true }))).toBe(false);
   });
 });

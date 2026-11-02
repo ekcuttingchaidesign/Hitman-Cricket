@@ -53,7 +53,7 @@ export interface ModeSelectView {
   stats: { runs: number; tier: { key: string; name: string } };
   rivals: RivalsRecord | null;
   /** The Dressing Room: how many of the kits and bats are earned, of how many, and whether it has been opened yet. */
-  dressing: { earned: number; of: number; visited: boolean };
+  dressing: { earned: number; of: number; visited: boolean; diwali?: boolean };
 }
 
 /** "Best 158 · #2", or "Not played". */
@@ -171,6 +171,7 @@ export function modeSelectMarkup(): string {
             <button id="modes-dressing" class="ms-dressing" type="button">
               <img class="ms-art" src="${DRESSING_CARD}" alt="" decoding="async">
               <span class="ms-tag is-new">NEW</span>
+              <span class="ms-diwali" aria-hidden="true">NEW DIWALI KITS</span>
               <span class="ms-dressing-text"><span class="ms-dressing-name">DRESSING ROOM${icon('chevron-right')}</span><span id="modes-dressing-line" class="ms-dressing-line">3 of 13 earned</span></span>
             </button>
             <div class="ms-card ms-rivals">

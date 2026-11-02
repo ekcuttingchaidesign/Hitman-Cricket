@@ -847,6 +847,80 @@ used to wear the game's orange whatever he had on, which put a Papaya batter
 in the same shirt as the men fielding against him. In a Test both sides are
 in whites, as before.
 
+## The Diwali kits: free for a week
+
+Five kits for Diwali 2026, each after a kurta the owner picked and named by
+the owner after a firework or a sweet, none with a number: champagne gold
+trousers on the first three, deep red on Sutli Bomb (#711313) and the
+shirt's own mustard on Soan Papdi, as the owner set them. Royal Anaar (`diwali`): maroon with gold butis all over in
+staggered rows (`butis` in `kitPrint.ts`), a gold placket from the collar
+and a maroon helmet. Sky Shot (`diwali-blue`): royal blue with a cream block
+print (`fronds`) of long feathers leaning up to his left shoulder, little
+flowering bushes between them and diamonds in fours in the gaps, the
+feathers' spines and barbs cut out of them; a self placket, the collar a
+deeper blue, a blue helmet. Kaju Katli (`diwali-ivory`): ivory with a pastel
+print (`florals`) of flowers, paisleys, banded feathered leaves, buds and
+sprigs in pink, sky blue, butter yellow and sage, dealt off a seed so it is
+the same print every time, and stippled (`stipple` punches small holes
+through it, as the cloth's dotted print is); a soft gold collar and an ivory
+helmet. Sutli Bomb (`diwali-green`): bottle green with small embroidered
+sprigs (`sprigs`), and red for the cracker's fuse, as the owner asked: each
+sprig's bloom, a red line down the gold placket, the collar, and a red band
+at each sleeve's hem under a gold line (`hem`); a green helmet. Soan Papdi
+(`diwali-yellow`): mustard with a patola ikat (`patola`), a lattice of
+diamonds in white dashes, a stepped red diamond in every other one and a
+teal cross where four meet; a gold placket set with red diamonds, a red
+collar and a mustard helmet. The ids are the colours, so the names can
+change without touching a saved pick. All five are prints, the Super10 kits'
+machinery, so each costs a texture and no draw call, and the motifs are
+bigger and fewer than the cloth's so they read from the game's camera. All
+are free to everybody (`FREE_OUTFITS`, never won or celebrated) and on the
+shelf only until the end of 11 November 2026 in India (`LIMITED_UNTIL`,
+`onShelf` in `dressing-ids.ts`), by the browser's clock: after that they are
+off the shelf, a pick of one is worn as OG Navy (`outfitOwned` asks the time),
+and nothing needs reverting. `ALL_OUTFITS` is every kit there has been, so a
+saved pick or a Rival Match innings batted in one still reads (`outfitOf`);
+`OUTFITS` is the shelf as the page loaded. Their tiles are tagged DIWALI and
+their foot says Till 11 November (`limited` on the outfit). Worn in the Blast
+and Rival Matches: a Test is in whites, which drop the print, and Super10 is
+in its team kits. The fielding side never wears them (`pickSide`). While they
+are up the room counts five more kits (and five more bats, below), so tests
+and `dressing-check` that count the shelf ask the date.
+
+Five bats go with them, on the same terms (`FREE_BATS`, `LIMITED_UNTIL`,
+`onShelf`, `batOwned` asking the time, `ALL_BATS` beside `BATS` and `batOf`
+reading them all): Golden Arrow (`goldenarrow`, the rocket), Dhoom (`dhoom`,
+the sutli bomb: a green rope-wound bundle with a red band, from the owner's
+photograph), Chain Reaction (`chainreaction`, the ladi), Angaar (`angaar`, the
+anaar) and Chakri (`chakri`, the ground spinner), each its name in a face of
+its own (Racing Sans One, Bangers, Black Ops One, Shrikhand, Bungee), drawn in
+the Figma file's Skin templates page, section "Bat skins — Diwali" (node
+`716:8376`), on pennants with their emblems as components. They stand after
+Boom on the bat shelf with the DIWALI tag, are never an unlock, never wait in
+the room and never count as won in the recap. The container these were made
+in could not reach figma.com, so their panels were rendered from the same
+drawing code and fonts in a headless browser and packed by
+`scripts/bat-sheets.mjs`; exporting the frames from Figma and running that
+script again replaces them.
+
+While they are up, What's new tells them (`DIWALI_STORIES`, update key
+`diwali`): DIWALI KITS ARE HERE, the five kits on the room's stage each with
+one of the Diwali bats (`'diwali-kits'` in `StoryStage.ts`), then
+FIRECRACKER BATS, the five on the stand (`'diwali-bats'`), both ending on GO
+TO DRESSING ROOM, then the Rivals live film, kept (`DIWALI_RUN`): it holds
+last and goes on to Choose a mode as ever, so the two Diwali cards move on by
+themselves (`holdMs` 4500 and 4000, a kit every 0.8s, a bat every 0.65s).
+Which run is told goes by the clock (`storiesAt`,
+`updateAt`, `diwaliOn` in `src/game/diwali.ts`): Rivals live comes back on
+12 November with nothing reverted. `hitman-whatsnew` now keeps a count per
+update side by side (`rivals:1,diwali:2`), so Diwali's two showings do not
+spend Rivals'; a count of nine or more is the checks' seed and keeps every
+update's stories away, so `rivals:9` still works. `whatsnew-check` walks
+Rivals live on a clock set after Diwali week. The Dressing Room card on
+Choose a mode carries NEW DIWALI KITS in its NEW tag's place
+(`.ms-diwali`, `has-diwali`, `diwaliBadgeDue`) until the room is first
+opened in Diwali week (`hitman-diwali-room`, written in `openDressing`).
+
 ## Who's batting: the gate before the first innings
 
 Before the first innings in a browser — a new player's or an old one's — the

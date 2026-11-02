@@ -46,7 +46,8 @@ await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro'
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 // Twice and then never, on a clock of its own.
-await page.clock.install({ time: new Date('2026-11-02T10:00:00+05:30') });
+// After Diwali week, whose kits' stories stand in Rivals live's place until the end of 11 November.
+await page.clock.install({ time: new Date('2026-11-12T10:00:00+05:30') });
 
 /** The page's own clock, wound on, then a beat of real time to draw in. */
 const tick = async (ms, draw = 200) => { await page.clock.runFor(ms); await page.waitForTimeout(draw); };

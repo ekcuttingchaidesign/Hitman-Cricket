@@ -1,6 +1,6 @@
 import type { BlastTally, CareerMode, MarathonTally, Super10Tally, SurviveTally } from './career.js';
 import { standingOf } from './survive-board.js';
-import { FREE_BAT, FREE_OUTFITS, isBat, lookOf, type BatId, type GuardId, type OutfitId } from './dressing-ids.js';
+import { FREE_BATS, FREE_OUTFITS, isBat, lookOf, type BatId, type GuardId, type OutfitId } from './dressing-ids.js';
 import { SUPER10_KIT_IDS, type Super10KitId } from './super10-kits.js';
 
 /**
@@ -158,7 +158,7 @@ export function foldInnings(held: YearRecap | null, mode: CareerMode, facts: Inn
 }
 
 /** What every player has from the start: in a seen list, never won. */
-const FREE = new Set([...FREE_OUTFITS.map(id => `kit:${id}`), `bat:${FREE_BAT}`]);
+const FREE = new Set([...FREE_OUTFITS.map(id => `kit:${id}`), ...FREE_BATS.map(id => `bat:${id}`)]);
 
 /**
  * Pieces of the Dressing Room newly won, dated. One already dated keeps its

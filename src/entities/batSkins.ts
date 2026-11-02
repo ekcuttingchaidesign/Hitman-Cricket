@@ -18,6 +18,11 @@ const SHEETS: Partial<Record<BatId, string>> = {
   savage: new URL('../assets/bats/savage.webp', import.meta.url).href,
   inferno: new URL('../assets/bats/inferno.webp', import.meta.url).href,
   hitman: new URL('../assets/bats/hitman.webp', import.meta.url).href,
+  goldenarrow: new URL('../assets/bats/goldenarrow.webp', import.meta.url).href,
+  dhoom: new URL('../assets/bats/dhoom.webp', import.meta.url).href,
+  chainreaction: new URL('../assets/bats/chainreaction.webp', import.meta.url).href,
+  angaar: new URL('../assets/bats/angaar.webp', import.meta.url).href,
+  chakri: new URL('../assets/bats/chakri.webp', import.meta.url).href,
 };
 
 /** The colour of the bare willow under and between the stickers. */

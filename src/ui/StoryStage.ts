@@ -52,19 +52,25 @@ export class StoryStage {
       };
       this.sized.disconnect(); this.sized.observe(host); this.sized.observe(room);
       this.fit();
-      const kit = (outfit: Outfit) => { stage.dress(outfit, batOf(WELCOME_BAT)); stage.show('kit', outfit.glow); };
+      // Diwali's kits each come out with one of Diwali's bats; every other kit with Boom.
+      const diwaliBats = BATS.filter(one => one.limited);
+      let held = 0;
+      const kit = (outfit: Outfit) => { stage.dress(outfit, kind === 'diwali-kits' && diwaliBats.length ? diwaliBats[held++ % diwaliBats.length] : batOf(WELCOME_BAT)); stage.show('kit', outfit.glow); };
       const bat = (skin: BatSkin) => { stage.showcase(skin); stage.show('bat', skin.glow); };
       // The whole shelf once in the story's seven seconds.
-      const shelf = kind === 'kits' ? OUTFITS : BATS.filter(one => one.id !== FREE_BAT);
+      const shelf = kind === 'kits' ? OUTFITS : kind === 'diwali-kits' ? OUTFITS.filter(one => one.limited)
+        : kind === 'diwali-bats' ? BATS.filter(one => one.limited) : BATS.filter(one => one.id !== FREE_BAT);
+      const kits = kind === 'kits' || kind === 'diwali-kits';
+      if (!shelf.length) return;
       let at = 0;
       const next = () => {
         const item = shelf[at++ % shelf.length];
-        if (kind === 'kits') kit(item as Outfit); else bat(item as BatSkin);
+        if (kits) kit(item as Outfit); else bat(item as BatSkin);
       };
       next();
       // Under reduced motion, a change every two seconds rather than a flicker of them.
       const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      this.timer = window.setInterval(next, still ? 2000 : kind === 'kits' ? 1000 : 620);
+      this.timer = window.setInterval(next, still ? 2000 : kind === 'diwali-kits' ? 800 : kits ? 1000 : kind === 'diwali-bats' ? 650 : 620);
     });
   }
 

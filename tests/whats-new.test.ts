@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  SHOT_CALLS, STORIES, TIMES, UPDATE, markWhatsNewShown, whatsNewDue, whatsNewShown, type Story,
+  DIWALI_STORIES, RIVALS_STORIES, SHOT_CALLS, STORIES, TIMES, UPDATE, storiesAt, updateAt, markWhatsNewShown, whatsNewDue, whatsNewShown, type Story,
 } from '../src/game/whats-new';
 import { shotCallMarkup, shotCueMarkup, storiesAlt, storiesMarkup, storyHolds, storyKeyMarkup } from '../src/ui/WhatsNew';
 import { CUE, reelSeconds } from '../src/game/ShotReel';
+const DIWALI_WEEK = Date.parse('2026-11-08T20:00:00+05:30'), AFTER_DIWALI = Date.parse('2026-11-12T00:00:00+05:30');
 
 /** localStorage, as a map, so the counting can be tested without a browser. */
 function fakeStorage(seed: Record<string, string> = {}) {
@@ -35,13 +36,23 @@ const kept = (at: number, over: { where?: 'intro' | 'board'; locked?: boolean; h
 
 describe('what the update says it did', () => {
   it('is Rivals live, one film', () => {
-    expect(STORIES.map(one => one.key)).toEqual(['rivals']);
-    expect(STORIES[0].video).toBe('stories/rivals.mp4');
-    expect(STORIES[0].opens).toBe('rivals');
+    expect(RIVALS_STORIES.map(one => one.key)).toEqual(['rivals']);
+    expect(RIVALS_STORIES[0].video).toBe('stories/rivals.mp4');
+    expect(RIVALS_STORIES[0].opens).toBe('rivals');
   });
 
-  it('is a new update, so everybody is shown it', () => {
-    expect(UPDATE).toBe('rivals');
+  it('is Diwali\'s kits and bats on the room\'s stage during Diwali week, and Rivals again after it', () => {
+    // Then the Rivals film, kept: it holds last, so the bats card moves on to it.
+    expect(storiesAt(DIWALI_WEEK).map(one => one.key)).toEqual(['diwali-kits', 'diwali-bats', 'rivals']);
+    expect(storiesAt(DIWALI_WEEK).map((_, at) => storyHolds(at, storiesAt(DIWALI_WEEK)))).toEqual([false, false, true]);
+    expect(updateAt(DIWALI_WEEK)).toBe('diwali');
+    expect(DIWALI_STORIES.map(one => one.stage)).toEqual(['diwali-kits', 'diwali-bats']);
+    expect(DIWALI_STORIES.every(one => one.opens === 'dressing')).toBe(true);
+    // The kits go off the shelf at midnight in India, 11 November ending; the stories with them.
+    expect(storiesAt(AFTER_DIWALI)).toBe(RIVALS_STORIES);
+    expect(updateAt(AFTER_DIWALI)).toBe('rivals');
+    expect(STORIES).toBe(storiesAt(Date.now()));
+    expect(UPDATE).toBe(updateAt(Date.now()));
   });
 
   it('ships the film it plays and its last frame, light enough for a phone', () => {
@@ -53,7 +64,7 @@ describe('what the update says it did', () => {
   });
 
   it('gives every card something to show, a name for it, and words for whoever cannot see it', () => {
-    for (const one of STORIES) {
+    for (const one of [...RIVALS_STORIES, ...DIWALI_STORIES]) {
       expect(one.title.length, one.key).toBeGreaterThan(6);
       expect(!!(one.art || one.film || one.video || one.stage || one.reel), one.key).toBe(true);
       // A film says its own words; anything else needs a line under it.
@@ -63,7 +74,7 @@ describe('what the update says it did', () => {
   });
 
   it('plays the film down the sheet, muted, held on its last frame with GOT IT and SEE WHO’S ONLINE under it', () => {
-    const markup = storiesMarkup({ at: 0, where: 'intro', holdMs: 7000 });
+    const markup = storiesMarkup({ at: 0, where: 'intro', holdMs: 7000, stories: RIVALS_STORIES });
     expect(markup).toContain('whatsnew-sheet is-film');
     expect(markup).toMatch(/<video id="whatsnew-film"[^>]*muted playsinline[^>]*aria-label="[^"]{40,}"/);
     expect(markup).toContain('whatsnew-title is-unseen');
@@ -72,13 +83,13 @@ describe('what the update says it did', () => {
     expect(markup).toContain('SEE WHO’S ONLINE');
     expect(markup).toContain('GOT IT');
     // The last card with a way in holds still, so the film is not cut off by the bar running out.
-    expect(storyHolds(0)).toBe(true);
+    expect(storyHolds(0, RIVALS_STORIES)).toBe(true);
     expect(markup).not.toContain('--hold:');
     expect(markup.match(/class="whatsnew-bar(?: is-\w+)*"/g)).toHaveLength(1);
   });
 
   it('says each in two lines at most, and never counts kits or bats, which only grow', () => {
-    for (const one of STORIES.filter(it => it.body)) {
+    for (const one of [...RIVALS_STORIES, ...DIWALI_STORIES].filter(it => it.body)) {
       // Two lines of a phone's width, at the story's size, is about sixty-four letters.
       expect(one.body!.length, one.key).toBeLessThanOrEqual(64);
       expect(one.body, one.key).not.toMatch(/\d|\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b (kits?|bats?)/i);
@@ -143,7 +154,7 @@ describe('the story screen', () => {
 
   it('asks a player with a name to save their key, and shows nobody else a card', () => {
     // The key's card, for a story that carries it (`Story.withKey`); none of this update's does.
-    expect(STORIES.some(one => one.withKey)).toBe(false);
+    expect([...RIVALS_STORIES, ...DIWALI_STORIES].some(one => one.withKey)).toBe(false);
     expect(storyKeyMarkup({ state: 'unsaved', code: 'brave-otter-lamp-07' })).toContain('brave-otter-lamp-07');
     expect(storyKeyMarkup({ state: 'saved', code: 'a-b-c-01' })).toContain('id="whatsnew-key-save"');
     expect(storyKeyMarkup({ state: 'lost' })).toMatch(/id="whatsnew-key-make"[^>]*>SAVE YOUR KEY</);
@@ -249,6 +260,22 @@ describe('how often it puts itself in front of somebody', () => {
     expect(whatsNewDue()).toBe(true);
     markWhatsNewShown();
     expect(localStorage.getItem('hitman-whatsnew')).toBe(`${UPDATE}:1`);
+  });
+
+  it('keeps Rivals\' count beside Diwali\'s, so one does not spend the other', () => {
+    const other = UPDATE === 'diwali' ? 'rivals' : 'diwali';
+    fakeStorage({ 'hitman-whatsnew': `${other}:1` });
+    expect(whatsNewShown()).toBe(0);
+    markWhatsNewShown();
+    expect(localStorage.getItem('hitman-whatsnew')).toBe(`${other}:1,${UPDATE}:1`);
+    expect(whatsNewShown()).toBe(1);
+  });
+
+  it('takes the checks\' seed of nine as every update seen', () => {
+    fakeStorage({ 'hitman-whatsnew': 'rivals:9' });
+    expect(whatsNewDue()).toBe(false);
+    fakeStorage({ 'hitman-whatsnew': 'diwali:9' });
+    expect(whatsNewDue()).toBe(false);
   });
 
   it('treats a count it cannot read as never having been shown', () => {

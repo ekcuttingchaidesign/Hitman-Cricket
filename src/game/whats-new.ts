@@ -1,4 +1,5 @@
 import type { Film } from '../ui/Lottie';
+import { diwaliOn } from './diwali';
 import type { ReelShot } from './ShotReel';
 
 /**
@@ -8,7 +9,8 @@ import type { ReelShot } from './ShotReel';
  * player once, in the shape every phone already knows how to read: a card, a
  * bar across the top, a tap to move on.
  *
- * This update is Rivals live, told in one film (`public/stories/rivals.mp4`,
+ * Diwali week tells the Diwali kits and bats on the room's stage (`DIWALI_STORIES`), and after
+ * it the update goes back to Rivals live, told in one film (`public/stories/rivals.mp4`,
  * made as a canvas film by `rivals-film/` on the machine that made it, from
  * real screens of the game): who's around, a challenge sent from a profile,
  * one arriving on the bell with its total on the same balls, TARGET CHASED,
@@ -107,9 +109,10 @@ export const SHOT_CALLS: Record<ReelShot, { way: 'leg' | 'off'; key: string; cal
   latecut: { way: 'off', key: 'D + S', call: 'FOUR', where: 'DOWN TO OFF, LATE' },
 };
 
-export type StoryStageKind = 'kits' | 'bats';
+/** The room's stage: every kit or every bat on the shelf, or only Diwali's. */
+export type StoryStageKind = 'kits' | 'bats' | 'diwali-kits' | 'diwali-bats';
 
-export const STORIES: readonly Story[] = [
+export const RIVALS_STORIES: readonly Story[] = [
   {
     key: 'rivals',
     eyebrow: 'WHAT’S NEW · RIVALS',
@@ -123,6 +126,48 @@ export const STORIES: readonly Story[] = [
 ];
 
 /**
+ * Diwali week: the five kits on the batter in turn, each with one of the
+ * firecracker bats, then the five bats on the stand, both on the room's own
+ * stage, so there is nothing to download and nothing to go stale, and both
+ * with GO TO DRESSING ROOM. The last holds still (`storyHolds`).
+ */
+export const DIWALI_STORIES: readonly Story[] = [
+  {
+    key: 'diwali-kits',
+    eyebrow: 'WHAT’S NEW · DIWALI',
+    title: 'DIWALI KITS ARE HERE',
+    body: 'Festive kurtas for the Blast and Rivals. Free all Diwali week.',
+    alt: 'The batter turns on the Dressing Room pedestal in each Diwali kit in turn: maroon with gold butis, royal blue with feathers, ivory with pastel florals, bottle green with a red fuse, and mustard patola.',
+    stage: 'diwali-kits',
+    // Five kits at 800ms each, once round and a beat on the last.
+    holdMs: 4500,
+    opens: 'dressing',
+  },
+  {
+    key: 'diwali-bats',
+    eyebrow: 'WHAT’S NEW · DIWALI',
+    title: 'FIRECRACKER BATS',
+    body: 'A rocket, a sutli bomb, a ladi and more. Free all Diwali week.',
+    alt: 'Each Diwali bat turns on the stand in turn: Golden Arrow the rocket, Dhoom the sutli bomb, Chain Reaction the ladi, Angaar the anaar and Chakri the ground spinner.',
+    stage: 'diwali-bats',
+    // Five bats at 650ms each, once round, then on to the Rivals film.
+    holdMs: 4000,
+    opens: 'dressing',
+  },
+];
+
+/**
+ * What the update tells at `now`: during Diwali week the Diwali kits and bats
+ * and then the Rivals film, still the latest thing in the game, which holds
+ * last and goes on to Choose a mode as it always has; Rivals alone after it.
+ */
+const DIWALI_RUN: readonly Story[] = [...DIWALI_STORIES, ...RIVALS_STORIES];
+export const storiesAt = (now: number): readonly Story[] => (diwaliOn(now) ? DIWALI_RUN : RIVALS_STORIES);
+export const updateAt = (now: number) => (diwaliOn(now) ? 'diwali' : 'rivals');
+/** The update's stories, as the page loaded. */
+export const STORIES: readonly Story[] = storiesAt(Date.now());
+
+/**
  * Which update this is.
  *
  * Kept in the key, so the next set of stories is a new key and shows itself to
@@ -130,7 +175,7 @@ export const STORIES: readonly Story[] = [
  * "seen" flag would mean the second update in this game's life could never be
  * announced at all.
  */
-export const UPDATE = 'rivals';
+export const UPDATE = updateAt(Date.now());
 
 /**
  * How many times one browser is shown it unasked.
@@ -143,16 +188,37 @@ export const UPDATE = 'rivals';
 export const TIMES = 2;
 
 const KEY = 'hitman-whatsnew';
+/**
+ * The updates whose counts are kept side by side (`rivals:1,diwali:2`), so
+ * Diwali's two showings do not use up Rivals' for a player who has seen it
+ * once, and Rivals comes back to them after Diwali week.
+ */
+const KEPT_UPDATES = ['rivals', 'diwali'];
+/**
+ * What the browser checks seed (`rivals:9`) to keep the stories out of their
+ * way. No player is ever shown an update more than `TIMES`, so a count this
+ * high is a check, and keeps every update's stories away, not only its own.
+ */
+const CHECKS = 9;
+
+/** The counts this browser holds, by update. */
+function held(): Map<string, number> {
+  const counts = new Map<string, number>();
+  const raw = localStorage.getItem(KEY);
+  for (const part of raw ? raw.split(',') : []) {
+    const [update, count] = part.split(':');
+    const times = Number(count);
+    if (update && Number.isInteger(times) && times > 0) counts.set(update, times);
+  }
+  return counts;
+}
 
 /** How many times this browser has been shown this update. */
 export function whatsNewShown(): number {
   try {
-    const held = localStorage.getItem(KEY);
-    if (!held) return 0;
-    const [update, count] = held.split(':');
-    if (update !== UPDATE) return 0;
-    const times = Number(count);
-    return Number.isInteger(times) && times > 0 ? times : 0;
+    const counts = held();
+    if ([...counts.values()].some(times => times >= CHECKS)) return Math.max(TIMES, counts.get(UPDATE) ?? 0);
+    return counts.get(UPDATE) ?? 0;
   } catch {
     // No storage: every visit is the first one, and the stories are two taps.
     return 0;
@@ -166,6 +232,10 @@ export function whatsNewDue(): boolean {
 
 export function markWhatsNewShown() {
   try {
-    localStorage.setItem(KEY, `${UPDATE}:${whatsNewShown() + 1}`);
+    const counts = held();
+    counts.set(UPDATE, whatsNewShown() + 1);
+    // Only the updates still told are kept; an older update's count goes.
+    const kept = [...counts].filter(([update]) => KEPT_UPDATES.includes(update) || update === UPDATE);
+    localStorage.setItem(KEY, kept.map(([update, times]) => `${update}:${times}`).join(','));
   } catch { /* Then it asks again. */ }
 }
