@@ -68,7 +68,8 @@ const wornOn = (view: DressingView) => wornFor(view, pickedOn(view));
 const S10_TAG = '<span class="dr-s10" aria-hidden="true">S10</span>';
 const ONLY_IN_SUPER10 = '<span class="dr-only">Only in Super10</span>';
 /** A kit on the shelf for a while only (the Diwali kit): its tag, and its line over the foot. */
-const limitedOf = (shelf: Shelf, id: string) => shelf === 'kit' && !isSuper10Kit(id) ? (kitOf(id) as Outfit).limited ?? null : null;
+const limitedOf = (shelf: Shelf, id: string) =>
+  shelf === 'kit' && !isSuper10Kit(id) ? (kitOf(id) as Outfit).limited ?? null : shelf === 'bat' ? BATS.find(b => b.id === id)?.limited ?? null : null;
 /** Something waits in the room only on the kit and bat shelves; nothing on the guard's is earned. */
 const waits = (shelf: Shelf, id: string, record: DressingRecord) => shelf !== 'guard' && ready(shelf, id, record);
 const WEAR: Record<Shelf, [string, string]> = { kit: ['WEAR IT', 'WEARING'], bat: ['PICK IT UP', 'IN HAND'], guard: ['WEAR IT', 'WEARING'] };

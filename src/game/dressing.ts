@@ -9,7 +9,7 @@ import { SUPER10_KITS, SUPER10_KIT_IDS, SUPER10_LADDER, type Super10Kit, type Su
  * `config/board.ts`), so what the batter wears is an outfit here. Nothing on
  * these shelves plays differently; they are looks, earned by playing.
  */
-import { FREE_BAT, FREE_GUARD, FREE_OUTFIT, FREE_OUTFITS, LIMITED_UNTIL, isBat, isGuard, isOutfit, onShelf, type BatId, type GuardId, type OutfitId } from './dressing-ids';
+import { FREE_BAT, FREE_BATS, FREE_GUARD, FREE_OUTFIT, FREE_OUTFITS, LIMITED_UNTIL, isBat, isGuard, isOutfit, onShelf, type BatId, type GuardId, type OutfitId } from './dressing-ids';
 import type { KitPrint } from '../entities/kitPrint';
 
 export { isBat, isGuard, isOutfit, onShelf, LIMITED_UNTIL, type BatId, type GuardId, type OutfitId };
@@ -101,6 +101,8 @@ export interface BatSkin {
   short: string;
   /** Whether it wears a sticker sheet (`src/assets/bats/<id>.webp`); Plain is bare willow. */
   stickers: boolean;
+  /** A bat on the shelf for a while only (`LIMITED_UNTIL`): the tag on its tile and the line over its foot. */
+  limited?: { tag: string; line: string };
 }
 
 /** Every kit there has ever been, the limited ones past their time too: `outfitOf` reads them all. */
@@ -123,9 +125,17 @@ export const ALL_OUTFITS: readonly Outfit[] = [
   { id: 'lagoon', name: 'Lagoon', shirt: '#0597B0', helmet: '#0197B0', trousers: '#0F2A52', pads: '#183868', trim: '#2B4F86', number: '#FFFFFF', glow: '#1FD1E6', line: '500 finished innings.', short: '500 innings' },
 ];
 
-export const BATS: readonly BatSkin[] = [
+/** Every bat there has ever been, the limited ones past their time too: `batOf` reads them all. */
+export const ALL_BATS: readonly BatSkin[] = [
   { id: 'plain', name: 'Plain', grip: '#777E80', glow: '#E0B77A', line: 'Bare English willow.', short: 'Free', stickers: false },
   { id: 'boom', name: 'Boom', grip: '#FF2E88', glow: '#FF2E88', line: 'Yours for walking in. Every batter starts with a Boom.', short: 'Unlock it in the Dressing Room', stickers: true },
+  // Diwali 2026: five firecrackers, free to everybody and off the shelf after 11 November (`LIMITED_UNTIL`),
+  // drawn on the Figma template (Skin templates → "Bat skins — Diwali").
+  { id: 'goldenarrow', name: 'Golden Arrow', grip: '#8B5CFF', glow: '#FFB347', line: 'The rocket, for Diwali week. Gone after 11 November.', short: 'Free till 11 Nov', stickers: true, limited: { tag: 'DIWALI', line: 'Till 11 November' } },
+  { id: 'dhoom', name: 'Dhoom', grip: '#1E9A5E', glow: '#2BD47F', line: 'The sutli bomb, for Diwali week. Gone after 11 November.', short: 'Free till 11 Nov', stickers: true, limited: { tag: 'DIWALI', line: 'Till 11 November' } },
+  { id: 'chainreaction', name: 'Chain Reaction', grip: '#FFC93C', glow: '#FF7A1A', line: 'The ladi, for Diwali week. Gone after 11 November.', short: 'Free till 11 Nov', stickers: true, limited: { tag: 'DIWALI', line: 'Till 11 November' } },
+  { id: 'angaar', name: 'Angaar', grip: '#FF3D7F', glow: '#FFC93C', line: 'The anaar, for Diwali week. Gone after 11 November.', short: 'Free till 11 Nov', stickers: true, limited: { tag: 'DIWALI', line: 'Till 11 November' } },
+  { id: 'chakri', name: 'Chakri', grip: '#FF6A00', glow: '#FF6A00', line: 'The ground spinner, for Diwali week. Gone after 11 November.', short: 'Free till 11 Nov', stickers: true, limited: { tag: 'DIWALI', line: 'Till 11 November' } },
   // The six from the second set of skins, ranked among the first by what they take.
   { id: 'rage', name: 'Rage', grip: '#B8327E', glow: '#B347FF', line: '100 career sixes. Head down, horns out.', short: '100 sixes', stickers: true },
   { id: 'venom', name: 'Venom', grip: '#6FE02A', glow: '#57E31F', line: '1,000 career runs. One bite is all it takes.', short: '1,000 runs', stickers: true },
@@ -144,7 +154,12 @@ export const OUTFITS: readonly Outfit[] = ALL_OUTFITS.filter(o => onShelf(o.id))
 /** The shelf at `now`. */
 export const outfitsAt = (now: number) => ALL_OUTFITS.filter(o => onShelf(o.id, now));
 
-export { FREE_OUTFIT, FREE_OUTFITS, FREE_BAT, FREE_GUARD };
+/** The bats on the shelf, the limited ones only while they are up (as the page loaded). */
+export const BATS: readonly BatSkin[] = ALL_BATS.filter(b => onShelf(b.id));
+/** The bat shelf at `now`. */
+export const batsAt = (now: number) => ALL_BATS.filter(b => onShelf(b.id, now));
+
+export { FREE_OUTFIT, FREE_OUTFITS, FREE_BAT, FREE_BATS, FREE_GUARD };
 /**
  * The bat waiting in the Dressing Room for every player. Nothing has to be
  * played for it: it is unlocked in the room, by its own key, so the player
@@ -161,7 +176,7 @@ export const ready = (shelf: 'kit' | 'bat', id: string, r: DressingRecord) =>
   (shelf === 'bat' && id === WELCOME_BAT && !r.welcomed) || !!r.waiting?.includes(`${shelf}:${id}`);
 
 export const outfitOf = (id: string | null | undefined): Outfit => ALL_OUTFITS.find(o => o.id === id) ?? ALL_OUTFITS[0];
-export const batOf = (id: string | null | undefined): BatSkin => BATS.find(b => b.id === id) ?? BATS.find(b => b.id === FREE_BAT)!;
+export const batOf = (id: string | null | undefined): BatSkin => ALL_BATS.find(b => b.id === id) ?? ALL_BATS.find(b => b.id === FREE_BAT)!;
 
 /** The game a step is played in, for the key under the list. */
 export type StepMode = 'blast' | 'survival' | 'marathon' | 'super10' | 'rivals';
@@ -229,11 +244,11 @@ export function outfitSteps(id: OutfitId, r: DressingRecord): Step[] | null {
   }
 }
 
-/** What a bat takes; null for the one that comes free. Boom takes its key in the room: see `WELCOME_BAT`. */
+/** What a bat takes; null for the ones that come free (`FREE_BATS`). Boom takes its key in the room: see `WELCOME_BAT`. */
 export function batSteps(id: BatId, r: DressingRecord): Step[] | null {
   const c = r.careers;
   switch (id) {
-    case 'plain': return null;
+    case 'plain': case 'goldenarrow': case 'dhoom': case 'chainreaction': case 'angaar': case 'chakri': return null;
     case 'boom': return [{ text: 'Unlock it here, in the Dressing Room', now: r.welcomed ? 1 : 0, of: 1 }];
     case 'rage': return [{ text: 'Hit 100 career sixes', now: sixes(r), of: 100, mode: 'blast' }];
     case 'venom': return [{ text: 'Score 1,000 career runs', now: runs(r), of: 1000, mode: 'blast' }];
@@ -302,13 +317,14 @@ export const kitSteps = (id: KitId, r: DressingRecord) => isSuper10Kit(id) ? sup
 
 /** A kit is theirs while it is on the shelf (a limited one only till its time) and its steps are done. */
 export const outfitOwned = (id: OutfitId, r: DressingRecord, now = Date.now()) => onShelf(id, now) && (outfitSteps(id, r) ?? []).every(done);
-export const batOwned = (id: BatId, r: DressingRecord) => (batSteps(id, r) ?? []).every(done);
+/** A bat is theirs while it is on the shelf (a limited one only till its time) and its steps are done. */
+export const batOwned = (id: BatId, r: DressingRecord, now = Date.now()) => onShelf(id, now) && (batSteps(id, r) ?? []).every(done);
 export const super10Owned = (id: Super10KitId, r: DressingRecord) => (super10Steps(id, r) ?? []).every(done);
 
 /** Everything on the shelves this record has earned, the free ones included. */
 export function earned(r: DressingRecord, now = Date.now()): { outfits: OutfitId[]; bats: BatId[]; super10: Super10KitId[] } {
   return {
-    outfits: ALL_OUTFITS.filter(o => outfitOwned(o.id, r, now)).map(o => o.id), bats: BATS.filter(b => batOwned(b.id, r)).map(b => b.id),
+    outfits: ALL_OUTFITS.filter(o => outfitOwned(o.id, r, now)).map(o => o.id), bats: ALL_BATS.filter(b => batOwned(b.id, r, now)).map(b => b.id),
     super10: SUPER10_KITS.filter(kit => super10Owned(kit.id, r)).map(kit => kit.id),
   };
 }

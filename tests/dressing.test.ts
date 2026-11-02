@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { emptyBlast, emptyMarathon, emptySuper10, emptySurvive } from '../src/game/career';
-import { ALL_OUTFITS, BATS, FREE_OUTFITS, OUTFITS, batOwned, batSteps, done, earned, isSuper10Kit, kitSteps, nextUp, onShelf, outfitOf, outfitOwned, outfitSteps, outfitsAt, ready, shareOf, super10KitFor, super10Owned, super10Steps, type DressingRecord } from '../src/game/dressing';
+import { ALL_BATS, ALL_OUTFITS, FREE_BATS, FREE_OUTFITS, batsAt, batOf, OUTFITS, batOwned, batSteps, done, earned, isSuper10Kit, kitSteps, nextUp, onShelf, outfitOf, outfitOwned, outfitSteps, outfitsAt, ready, shareOf, super10KitFor, super10Owned, super10Steps, type DressingRecord } from '../src/game/dressing';
 import { lookOf } from '../src/game/dressing-ids';
 
 /** A day in Diwali week, and the first moment after the Diwali kit comes off the shelf (midnight in India). */
@@ -28,13 +28,30 @@ describe('a look as it travels', () => {
 describe('the Dressing Room shelves', () => {
   it('has thirteen kits and twelve bats, each named once, the bats from the easiest to Hitman', () => {
     expect(ALL_OUTFITS.map(o => o.id)).toEqual(['home', 'papaya', 'diwali', 'diwali-blue', 'diwali-ivory', 'diwali-green', 'diwali-yellow', 'crimson', 'forest', 'gold', 'violet', 'electric', 'lagoon']);
-    expect(BATS.map(b => b.id)).toEqual(['plain', 'boom', 'rage', 'venom', 'lonewolf', 'meg', 'icecold', 'roar', 'savage', 'reign', 'inferno', 'hitman']);
-    expect(new Set(BATS.map(b => b.name)).size).toBe(12);
+    expect(ALL_BATS.map(b => b.id)).toEqual(['plain', 'boom', 'goldenarrow', 'dhoom', 'chainreaction', 'angaar', 'chakri', 'rage', 'venom', 'lonewolf', 'meg', 'icecold', 'roar', 'savage', 'reign', 'inferno', 'hitman']);
+    expect(new Set(ALL_BATS.map(b => b.name)).size).toBe(17);
     expect(new Set(ALL_OUTFITS.map(o => o.name)).size).toBe(13);
   });
 
   it('gives a new player OG Navy, Papaya, Plain and the Midnight Panthers, and nothing else', () => {
     expect(earned(record(), AFTER_DIWALI)).toEqual({ outfits: ['home', 'papaya'], bats: ['plain'], super10: ['s10-purple'] });
+  });
+
+  it('gives every player the five Diwali bats until the end of 11 November in India, and never after', () => {
+    const diwali = ['goldenarrow', 'dhoom', 'chainreaction', 'angaar', 'chakri'] as const;
+    expect(earned(record(), DIWALI_WEEK).bats).toEqual(['plain', ...diwali]);
+    for (const id of diwali) {
+      expect(FREE_BATS).toContain(id);
+      expect(batSteps(id, record())).toBeNull();
+      expect(batOwned(id, record(), Date.parse('2026-11-11T23:59:00+05:30'))).toBe(true);
+      expect(batOwned(id, record(), AFTER_DIWALI)).toBe(false);
+      expect(batsAt(DIWALI_WEEK).map(b => b.id)).toContain(id);
+      expect(batsAt(AFTER_DIWALI).map(b => b.id)).not.toContain(id);
+      expect(batOf(id).id).toBe(id);
+      expect(batOf(id).limited?.tag).toBe('DIWALI');
+    }
+    expect(diwali.map(id => batOf(id).name)).toEqual(['Golden Arrow', 'Dhoom', 'Chain Reaction', 'Angaar', 'Chakri']);
+    expect(lookOf({ kit: 'home', bat: 'chakri' })).toEqual({ kit: 'home', bat: 'chakri', guard: 'sterling' });
   });
 
   describe('the Diwali kits', () => {
@@ -113,7 +130,7 @@ describe('the Dressing Room shelves', () => {
     expect(batOwned('boom', record({ classic: { innings: 400, sixes: 900, highest: 160 } }))).toBe(false);
     expect(ready('bat', 'boom', record())).toBe(true);
     expect(ready('bat', 'icecold', record())).toBe(false);
-    expect(earned(record({ welcomed: true })).bats).toEqual(['plain', 'boom']);
+    expect(earned(record({ welcomed: true }), AFTER_DIWALI).bats).toEqual(['plain', 'boom']);
     expect(ready('bat', 'boom', record({ welcomed: true }))).toBe(false);
   });
 });

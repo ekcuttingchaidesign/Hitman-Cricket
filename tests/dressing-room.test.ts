@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptyBlast, emptyMarathon, emptySuper10, emptySurvive } from '../src/game/career';
 import { dressingMarkup, footMarkup, shelfMarkup, type DressingView } from '../src/ui/DressingRoom';
-import { OUTFITS } from '../src/game/dressing';
+import { BATS, OUTFITS } from '../src/game/dressing';
 
 /** The Diwali kit is on the shelf until 11 November 2026 only, so the shelf's length depends on the day. */
 const diwaliUp = OUTFITS.some(o => o.id === 'diwali');
@@ -26,7 +26,7 @@ describe('the Dressing Room screen', () => {
     expect(shelf.match(/class="dr-item[ "]/g)).toHaveLength(diwaliUp ? 13 : 8);
     expect(shelf).toMatch(/data-id="home"[^>]*aria-label="OG Navy, on"/);
     expect(shelf).toMatch(/data-id="lagoon"[^>]*aria-label="Lagoon, locked"/);
-    expect(shelfMarkup(view({ shelf: 'bat' })).match(/class="dr-item[ "]/g)).toHaveLength(12);
+    expect(shelfMarkup(view({ shelf: 'bat' })).match(/class="dr-item[ "]/g)).toHaveLength(BATS.some(b => b.id === 'chakri') ? 17 : 12);
   });
 
   it('puts Super10\'s six kits at the foot of the kit shelf where it is played, each tagged S10', () => {

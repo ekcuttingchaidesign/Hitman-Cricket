@@ -884,8 +884,24 @@ saved pick or a Rival Match innings batted in one still reads (`outfitOf`);
 their foot says Till 11 November (`limited` on the outfit). Worn in the Blast
 and Rival Matches: a Test is in whites, which drop the print, and Super10 is
 in its team kits. The fielding side never wears them (`pickSide`). While they
-are up the room counts five more kits, so tests and `dressing-check` that
-count the shelf ask the date.
+are up the room counts five more kits (and five more bats, below), so tests
+and `dressing-check` that count the shelf ask the date.
+
+Five bats go with them, on the same terms (`FREE_BATS`, `LIMITED_UNTIL`,
+`onShelf`, `batOwned` asking the time, `ALL_BATS` beside `BATS` and `batOf`
+reading them all): Golden Arrow (`goldenarrow`, the rocket), Dhoom (`dhoom`,
+the sutli bomb: a green rope-wound bundle with a red band, from the owner's
+photograph), Chain Reaction (`chainreaction`, the ladi), Angaar (`angaar`, the
+anaar) and Chakri (`chakri`, the ground spinner), each its name in a face of
+its own (Racing Sans One, Bangers, Black Ops One, Shrikhand, Bungee), drawn in
+the Figma file's Skin templates page, section "Bat skins — Diwali" (node
+`716:8376`), on pennants with their emblems as components. They stand after
+Boom on the bat shelf with the DIWALI tag, are never an unlock, never wait in
+the room and never count as won in the recap. The container these were made
+in could not reach figma.com, so their panels were rendered from the same
+drawing code and fonts in a headless browser and packed by
+`scripts/bat-sheets.mjs`; exporting the frames from Figma and running that
+script again replaces them.
 
 ## Who's batting: the gate before the first innings
 
