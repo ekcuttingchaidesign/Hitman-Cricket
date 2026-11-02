@@ -907,7 +907,10 @@ While they are up, What's new tells them (`DIWALI_STORIES`, update key
 `diwali`): DIWALI KITS ARE HERE, the five kits on the room's stage each with
 one of the Diwali bats (`'diwali-kits'` in `StoryStage.ts`), then
 FIRECRACKER BATS, the five on the stand (`'diwali-bats'`), both ending on GO
-TO DRESSING ROOM. Which run is told goes by the clock (`storiesAt`,
+TO DRESSING ROOM, then the Rivals live film, kept (`DIWALI_RUN`): it holds
+last and goes on to Choose a mode as ever, so the two Diwali cards move on by
+themselves (`holdMs` 4500 and 4000, a kit every 0.8s, a bat every 0.65s).
+Which run is told goes by the clock (`storiesAt`,
 `updateAt`, `diwaliOn` in `src/game/diwali.ts`): Rivals live comes back on
 12 November with nothing reverted. `hitman-whatsnew` now keeps a count per
 update side by side (`rivals:1,diwali:2`), so Diwali's two showings do not

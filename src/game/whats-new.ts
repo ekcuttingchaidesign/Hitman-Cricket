@@ -150,12 +150,19 @@ export const DIWALI_STORIES: readonly Story[] = [
     body: 'A rocket, a sutli bomb, a ladi and more. Free all Diwali week.',
     alt: 'Each Diwali bat turns on the stand in turn: Golden Arrow the rocket, Dhoom the sutli bomb, Chain Reaction the ladi, Angaar the anaar and Chakri the ground spinner.',
     stage: 'diwali-bats',
+    // Five bats at 650ms each, once round, then on to the Rivals film.
+    holdMs: 4000,
     opens: 'dressing',
   },
 ];
 
-/** What the update tells at `now`: Diwali's stories during Diwali week, Rivals' otherwise. */
-export const storiesAt = (now: number) => (diwaliOn(now) ? DIWALI_STORIES : RIVALS_STORIES);
+/**
+ * What the update tells at `now`: during Diwali week the Diwali kits and bats
+ * and then the Rivals film, still the latest thing in the game, which holds
+ * last and goes on to Choose a mode as it always has; Rivals alone after it.
+ */
+const DIWALI_RUN: readonly Story[] = [...DIWALI_STORIES, ...RIVALS_STORIES];
+export const storiesAt = (now: number): readonly Story[] => (diwaliOn(now) ? DIWALI_RUN : RIVALS_STORIES);
 export const updateAt = (now: number) => (diwaliOn(now) ? 'diwali' : 'rivals');
 /** The update's stories, as the page loaded. */
 export const STORIES: readonly Story[] = storiesAt(Date.now());

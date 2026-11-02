@@ -42,7 +42,9 @@ describe('what the update says it did', () => {
   });
 
   it('is Diwali\'s kits and bats on the room\'s stage during Diwali week, and Rivals again after it', () => {
-    expect(storiesAt(DIWALI_WEEK)).toBe(DIWALI_STORIES);
+    // Then the Rivals film, kept: it holds last, so the bats card moves on to it.
+    expect(storiesAt(DIWALI_WEEK).map(one => one.key)).toEqual(['diwali-kits', 'diwali-bats', 'rivals']);
+    expect(storiesAt(DIWALI_WEEK).map((_, at) => storyHolds(at, storiesAt(DIWALI_WEEK)))).toEqual([false, false, true]);
     expect(updateAt(DIWALI_WEEK)).toBe('diwali');
     expect(DIWALI_STORIES.map(one => one.stage)).toEqual(['diwali-kits', 'diwali-bats']);
     expect(DIWALI_STORIES.every(one => one.opens === 'dressing')).toBe(true);
