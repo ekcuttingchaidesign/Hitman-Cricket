@@ -89,14 +89,14 @@ describe('the Dressing Room shelves', () => {
       expect(green.print?.sprigs?.bloom).toBe(red);
       expect(green.print?.hem?.colour).toBe(red);
       expect(green.print?.chest.some(m => m.colour === red)).toBe(true);
-      expect(green.trousers).toBe('#C42028');
+      expect(green.trousers).toBe('#711313');
     });
 
-    it('gives Soan Papdi a patola ikat on mustard, with red trousers', () => {
+    it('gives Soan Papdi a patola ikat on mustard, with dark maroon trousers', () => {
       const yellow = outfitOf('diwali-yellow');
       expect(yellow.print?.patola).toBeTruthy();
       expect(yellow.print?.number).toBeUndefined();
-      expect(yellow.trousers).toBe('#C42028');
+      expect(yellow.trousers).toBe('#430E0E');
     });
 
     it('has an ivory one with pastel florals and the same gold trousers', () => {
