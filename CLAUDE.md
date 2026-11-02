@@ -849,16 +849,21 @@ in whites, as before.
 
 ## The Diwali kits: free for a week
 
-Two kits for Diwali 2026, each after a kurta the owner picked, both with
+Three kits for Diwali 2026, each after a kurta the owner picked, both with
 champagne gold trousers and no number. Diwali Maroon (`diwali`): maroon with
 gold butis all over in staggered rows (`butis` in `kitPrint.ts`), a gold
 placket from the collar and a maroon helmet. Diwali Blue (`diwali-blue`):
 royal blue with a cream block print (`fronds`) of long feathers leaning up to
 his left shoulder, little flowering bushes between them and diamonds in fours
 in the gaps, the feathers' spines and barbs cut out of them; a self placket,
-the collar a deeper blue, a blue helmet. Both are prints, the Super10 kits'
+the collar a deeper blue, a blue helmet. Diwali Ivory (`diwali-ivory`): ivory
+with a pastel print (`florals`) of flowers, paisleys, banded feathered leaves,
+buds and sprigs in pink, sky blue, butter yellow and sage, dealt off a seed so
+it is the same print every time, and stippled (`stipple` punches small holes
+through it, as the cloth's dotted print is); a soft gold collar and an ivory
+helmet. All three are prints, the Super10 kits'
 machinery, so each costs a texture and no draw call, and the motifs are
-bigger and fewer than the cloth's so they read from the game's camera. Both
+bigger and fewer than the cloth's so they read from the game's camera. All
 are free to everybody (`FREE_OUTFITS`, never won or celebrated) and on the
 shelf only until the end of 11 November 2026 in India (`LIMITED_UNTIL`,
 `onShelf` in `dressing-ids.ts`), by the browser's clock: after that they are
@@ -869,7 +874,7 @@ saved pick or a Rival Match innings batted in one still reads (`outfitOf`);
 their foot says Till 11 November (`limited` on the outfit). Worn in the Blast
 and Rival Matches: a Test is in whites, which drop the print, and Super10 is
 in its team kits. The fielding side never wears them (`pickSide`). While they
-are up the room counts two more kits, so tests and `dressing-check` that
+are up the room counts three more kits, so tests and `dressing-check` that
 count the shelf ask the date.
 
 ## Who's batting: the gate before the first innings

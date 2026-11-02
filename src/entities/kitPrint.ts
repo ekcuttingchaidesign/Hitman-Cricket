@@ -3,7 +3,7 @@ import * as THREE from 'three';
 /**
  * A kit's print: lightning bolts and trim drawn over the shirt and trousers,
  * for the Super10 kits (`src/game/super10-kits.ts`), and the Diwali kits' gold
- * butis and block print (`dressing.ts`). Every other kit is plain colours, and wears none.
+ * butis, block print and florals (`dressing.ts`). Every other kit is plain colours, and wears none.
  *
  * The print rides the jersey and the trousers the batter already has, in
  * their own shaders: no mesh and no draw call more, one texture each. Both
@@ -100,6 +100,12 @@ export interface KitPrint {
    * See `fronds` below.
    */
   fronds?: { colour: string };
+  /**
+   * The ivory Diwali kurta's floral print: flowers, paisleys, feathered
+   * leaves, buds and sprigs scattered all over the shirt and its sleeves in
+   * pastel `colours`, stippled as the cloth's are. See `florals` below.
+   */
+  florals?: { pink: string; blue: string; yellow: string; green: string };
   /** The sleeves in a colour of their own, down to the hem. */
   sleeves?: string;
   /** An outline round the number on the back, where it is worn over a pattern. */
@@ -420,6 +426,93 @@ function fronds(ctx: CanvasRenderingContext2D, across: number, tall: number, cou
   ctx.restore();
 }
 
+/**
+ * The ivory Diwali kurta's florals, drawn in metres on `ctx` (y up), `across`
+ * metres round and `tall` up: one big motif a cell, `count` cells to a row
+ * round him (each drawn a width either side too, so the print meets itself
+ * down his back), dealt and nudged off a seed so it is the same print every
+ * time, and a small one between each four. Big and few, as the other kurtas'
+ * are, so they read from the game's camera.
+ */
+type Florals = NonNullable<KitPrint['florals']>;
+const FLORAL = { row: .19, big: .165, small: .055 };
+function florals(ctx: CanvasRenderingContext2D, across: number, tall: number, count: number, c: Florals, seed: number) {
+  const rand = seeded(seed), step = across / count, TAU = Math.PI * 2;
+  const blob = (x: number, y: number, rx: number, ry: number, turn: number, colour: string) => {
+    ctx.fillStyle = colour; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, turn, 0, TAU); ctx.fill();
+  };
+  const stem = (points: [number, number][], width: number) => {
+    ctx.strokeStyle = c.green; ctx.lineWidth = width; ctx.lineCap = 'round';
+    ctx.beginPath(); points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
+  };
+  // Each motif is drawn about nought, `r` its size, upright.
+  const flower = (r: number) => {
+    for (let k = 0; k < 8; k++) { const a = k / 8 * TAU; blob(Math.cos(a) * r * .62, Math.sin(a) * r * .62, r * .36, r * .2, a, c.pink); }
+    for (let k = 0; k < 6; k++) { const a = (k + .5) / 6 * TAU; blob(Math.cos(a) * r * .32, Math.sin(a) * r * .32, r * .22, r * .14, a, c.blue); }
+    blob(0, 0, r * .2, r * .2, 0, c.yellow);
+  };
+  const paisley = (r: number) => {
+    ctx.fillStyle = c.blue; ctx.beginPath();
+    ctx.moveTo(0, r * .9); ctx.bezierCurveTo(r * .75, r * .55, r * .7, -r * .75, 0, -r * .8);
+    ctx.bezierCurveTo(-r * .7, -r * .75, -r * .55, r * .1, -r * .1, r * .45); ctx.bezierCurveTo(r * .05, r * .6, -r * .1, r * .8, 0, r * .9); ctx.fill();
+    ctx.fillStyle = c.pink; ctx.beginPath();
+    ctx.moveTo(0, r * .45); ctx.bezierCurveTo(r * .48, r * .25, r * .42, -r * .55, 0, -r * .58);
+    ctx.bezierCurveTo(-r * .42, -r * .55, -r * .35, r * .05, 0, r * .45); ctx.fill();
+    blob(0, -r * .25, r * .14, r * .14, 0, c.yellow);
+  };
+  const leaf = (r: number) => {
+    // A broad feathered leaf in bands, yellow, pink and green across it.
+    ctx.save(); ctx.beginPath();
+    ctx.moveTo(0, r); ctx.bezierCurveTo(r * .75, r * .4, r * .6, -r * .7, 0, -r); ctx.bezierCurveTo(-r * .6, -r * .7, -r * .75, r * .4, 0, r); ctx.clip();
+    const bands = [c.yellow, c.pink, c.yellow, c.green, c.pink, c.yellow];
+    bands.forEach((colour, k) => { ctx.fillStyle = colour; ctx.fillRect(-r, -r + k * r * 2 / bands.length, r * 2, r * 2 / bands.length + .001); });
+    ctx.restore();
+    stem([[0, -r * 1.15], [0, r * .9]], r * .06);
+  };
+  const bud = (r: number) => {
+    stem([[0, -r * 1.1], [0, -r * .3]], r * .07);
+    blob(-r * .35, -r * .75, r * .28, r * .12, .6, c.green); blob(r * .35, -r * .65, r * .28, r * .12, -.6, c.green);
+    ctx.fillStyle = c.pink; ctx.beginPath();
+    ctx.moveTo(0, r * .85); ctx.bezierCurveTo(r * .8, r * .2, r * .55, -r * .55, 0, -r * .35); ctx.bezierCurveTo(-r * .55, -r * .55, -r * .8, r * .2, 0, r * .85); ctx.fill();
+    ctx.fillStyle = c.blue; ctx.beginPath();
+    ctx.moveTo(0, r * .5); ctx.bezierCurveTo(r * .4, r * .1, r * .28, -r * .3, 0, -r * .2); ctx.bezierCurveTo(-r * .28, -r * .3, -r * .4, r * .1, 0, r * .5); ctx.fill();
+  };
+  const sprig = (r: number) => {
+    stem([[0, -r], [0, r]], r * .1);
+    for (let k = 0; k < 3; k++) { const y = -r * .5 + k * r * .5; blob(-r * .3, y, r * .28, r * .12, .5, c.green); blob(r * .3, y + r * .15, r * .28, r * .12, -.5, c.green); }
+    blob(0, r, r * .22, r * .22, 0, c.pink);
+  };
+  const star = (r: number) => {
+    for (let k = 0; k < 6; k++) { const a = k / 6 * TAU; blob(Math.cos(a) * r * .45, Math.sin(a) * r * .45, r * .32, r * .18, a, c.blue); }
+    blob(0, 0, r * .2, r * .2, 0, c.pink);
+  };
+  const BIG = [flower, paisley, leaf, bud, leaf, paisley], SMALL = [sprig, star, sprig];
+  const put = (draw: (r: number) => void, x: number, y: number, r: number, turn: number) => {
+    for (const shift of [-across, 0, across]) { ctx.save(); ctx.translate(x + shift, y); ctx.rotate(turn); draw(r); ctx.restore(); }
+  };
+  for (let row = 0; (row + .5) * FLORAL.row - FLORAL.big <= tall; row++) {
+    for (let i = 0; i < count; i++) {
+      const x = (i + .5 + (row % 2) * .5) * step + (rand() - .5) * step * .25, y = (row + .5) * FLORAL.row + (rand() - .5) * FLORAL.row * .2;
+      put(BIG[Math.floor(rand() * BIG.length)], x, y, FLORAL.big / 2 * (.85 + rand() * .3), (rand() - .5) * 1.2);
+      put(SMALL[Math.floor(rand() * SMALL.length)], x + step / 2, y + FLORAL.row / 2, FLORAL.small / 2 * (.85 + rand() * .3), (rand() - .5) * 1.4);
+    }
+  }
+}
+
+/**
+ * Small holes punched through everything drawn in a stretch of canvas, `pitch`
+ * pixels apart and staggered, so a print reads as the ivory kurta's stippled
+ * one close to; from the game's camera it reads as a softer pastel.
+ */
+function stipple(ctx: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, pitch: number) {
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = '#000';
+  for (let y = y0, r = 0; y < y0 + h; y += pitch * .87, r++)
+    for (let x = x0 + (r % 2) * pitch / 2; x < x0 + w; x += pitch) { ctx.beginPath(); ctx.arc(x, y, pitch * .22, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+}
+
 /** The metres up the cloth at a height `v` on the torso's texture (nought at the hem). */
 function clothAt(v: number) {
   const at = Math.min(CLOTH_UP.length - 1.000001, Math.max(0, v * (CLOTH_UP.length - 1))), i = Math.floor(at);
@@ -467,6 +560,12 @@ export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trouser
     f.save(); f.translate(0, FH); f.scale(W / CLOTH.round, -FH / CLOTH.tall);
     butis(f, CLOTH.round, 0, CLOTH.tall, BUTI.round, print.butis.colour, CLOTH.round / 2, print.butis.clear ?? 0);
     f.restore();
+  }
+  if (print.florals) {
+    f.save(); f.translate(0, FH); f.scale(W / CLOTH.round, -FH / CLOTH.tall);
+    florals(f, CLOTH.round, CLOTH.tall, 6, print.florals, 23);
+    f.restore();
+    stipple(f, 0, 0, W, FH, 5);
   }
   if (print.fronds) {
     f.save(); f.translate(0, FH); f.scale(W / CLOTH.round, -FH / CLOTH.tall);
@@ -516,6 +615,12 @@ export function paintKitPrint(print: KitPrint, shirt: HTMLCanvasElement, trouser
     s.save(); s.translate(sx, H); s.scale(sw / SLEEVE.round, -H / SLEEVE.tall);
     butis(s, SLEEVE.round, 0, HEM * SLEEVE.tall, BUTI.sleeveRound, print.butis.colour);
     s.restore();
+  }
+  if (print.florals) {
+    s.save(); s.translate(sx, H); s.scale(sw / SLEEVE.round, -H / SLEEVE.tall);
+    florals(s, SLEEVE.round, HEM * SLEEVE.tall, 3, print.florals, 41);
+    s.restore();
+    stipple(s, sx, down(HEM), sw, H * HEM, 5);
   }
   if (print.fronds) {
     s.save(); s.translate(sx, H); s.scale(sw / SLEEVE.round, -H / SLEEVE.tall);

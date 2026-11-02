@@ -3,7 +3,7 @@ import { TIERS, tierMeasure } from './tier';
 import { SUPER10_KITS, SUPER10_KIT_IDS, SUPER10_LADDER, type Super10Kit, type Super10KitId } from './super10-kits';
 
 /**
- * The Dressing Room's shelves: the kits (two, Diwali's, for a week only) and twelve bats.
+ * The Dressing Room's shelves: the kits (three, Diwali's, for a week only) and twelve bats.
  *
  * "Kit" already means the avatar picture elsewhere in the game (`KITS` in
  * `config/board.ts`), so what the batter wears is an outfit here. Nothing on
@@ -54,6 +54,13 @@ const DIWALI_PRINT: KitPrint = {
  * collar a deeper blue, and the same champagne gold trousers as the maroon.
  */
 const DIWALI_BLUE_PRINT: KitPrint = { chest: [], back: [], fronds: { colour: '#EADCBC' } };
+/**
+ * The ivory Diwali kit, after a third kurta the owner picked: ivory with a
+ * stippled pastel print of flowers, paisleys, feathered leaves, buds and
+ * sprigs in pink, sky blue, butter yellow and sage (`florals`), a soft gold
+ * collar, an ivory helmet and the same champagne gold trousers.
+ */
+const DIWALI_IVORY_PRINT: KitPrint = { chest: [], back: [], florals: { pink: '#E8879A', blue: '#8FC3D6', yellow: '#F0C46A', green: '#8DAA86' } };
 
 export interface BatSkin {
   id: BatId;
@@ -75,6 +82,7 @@ export const ALL_OUTFITS: readonly Outfit[] = [
   // Diwali 2026: free to everybody, and off the shelf after 11 November (`LIMITED_UNTIL`).
   { id: 'diwali', name: 'Diwali Maroon', shirt: '#7C2230', helmet: '#6A1C28', trousers: '#D9BF8C', pads: '#FDFCF4', trim: '#D4A64A', number: '#D4A64A', glow: '#FFB347', line: 'Maroon and gold for Diwali week. Gone after 11 November.', short: 'Free till 11 Nov', print: DIWALI_PRINT, limited: { tag: 'DIWALI', line: 'Till 11 November' } },
   { id: 'diwali-blue', name: 'Diwali Blue', shirt: '#2152BC', helmet: '#1C47A6', trousers: '#D9BF8C', pads: '#FDFCF4', trim: '#163A8C', number: '#EADCBC', glow: '#4F86FF', line: 'Royal blue and gold for Diwali week. Gone after 11 November.', short: 'Free till 11 Nov', print: DIWALI_BLUE_PRINT, limited: { tag: 'DIWALI', line: 'Till 11 November' } },
+  { id: 'diwali-ivory', name: 'Diwali Ivory', shirt: '#F6EEE2', helmet: '#EDE3D3', trousers: '#D9BF8C', pads: '#FDFCF4', trim: '#C9A55A', number: '#C9A55A', glow: '#FFC9D4', line: 'Ivory, pastel florals and gold for Diwali week. Gone after 11 November.', short: 'Free till 11 Nov', print: DIWALI_IVORY_PRINT, limited: { tag: 'DIWALI', line: 'Till 11 November' } },
   { id: 'crimson', name: 'Crimson', shirt: '#C51C25', helmet: '#B8171D', trousers: '#EFE3CF', pads: '#E9DCC6', trim: '#8F1D22', number: '#FFFFFF', glow: '#FF3B3B', line: '25 finished innings.', short: '25 innings' },
   { id: 'forest', name: 'British Racing Green', shirt: '#0A4A3E', helmet: '#135045', trousers: '#F1E5D5', pads: '#ECE0CC', trim: '#0A4A3E', number: '#FFFFFF', glow: '#25C28A', line: 'Emerging Player in all three modes.', short: 'Emerging in every mode' },
   { id: 'gold', name: 'Bumblebee', shirt: '#F2A31B', helmet: '#F2A31B', trousers: '#13284A', pads: '#1E3560', trim: '#F2A31B', number: '#13284A', glow: '#FFB52E', line: '10 Rival wins against 5 different players.', short: '10 Rival wins' },
@@ -173,7 +181,7 @@ export const shareOf = (steps: readonly Step[]) => steps.length ? steps.reduce((
 /** What a kit takes; null for the ones that come free (`FREE_OUTFITS`). */
 export function outfitSteps(id: OutfitId, r: DressingRecord): Step[] | null {
   switch (id) {
-    case 'home': case 'papaya': case 'diwali': case 'diwali-blue': return null;
+    case 'home': case 'papaya': case 'diwali': case 'diwali-blue': case 'diwali-ivory': return null;
     case 'crimson': return [{ text: 'Play 25 finished innings', now: innings(r), of: 25 }];
     case 'forest': return MODES.map(m => ({ text: `Emerging Player in ${MODE_NAME[m]}`, now: measure(r, m), of: at('emerging', m), mode: STEP_MODE[m] }));
     case 'gold': return [
