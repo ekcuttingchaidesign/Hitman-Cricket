@@ -849,7 +849,7 @@ in whites, as before.
 
 ## The Diwali kits: free for a week
 
-Three kits for Diwali 2026, each after a kurta the owner picked, both with
+Three kits for Diwali 2026, each after a kurta the owner picked, all with
 champagne gold trousers and no number. Diwali Maroon (`diwali`): maroon with
 gold butis all over in staggered rows (`butis` in `kitPrint.ts`), a gold
 placket from the collar and a maroon helmet. Diwali Blue (`diwali-blue`):
