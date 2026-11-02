@@ -851,8 +851,8 @@ in whites, as before.
 
 Five kits for Diwali 2026, each after a kurta the owner picked and named by
 the owner after a firework or a sweet, none with a number: champagne gold
-trousers on the first three, deep red on Sutli Bomb (#711313) and dark
-maroon on Soan Papdi (#430E0E), as the owner set them. Royal Anaar (`diwali`): maroon with gold butis all over in
+trousers on the first three, deep red on Sutli Bomb (#711313) and the
+shirt's own mustard on Soan Papdi, as the owner set them. Royal Anaar (`diwali`): maroon with gold butis all over in
 staggered rows (`butis` in `kitPrint.ts`), a gold placket from the collar
 and a maroon helmet. Sky Shot (`diwali-blue`): royal blue with a cream block
 print (`fronds`) of long feathers leaning up to his left shoulder, little

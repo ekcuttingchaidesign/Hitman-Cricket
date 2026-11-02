@@ -81,7 +81,7 @@ const DIWALI_GREEN_PRINT: KitPrint = {
  * Soan Papdi, after a fifth kurta the owner picked: mustard yellow printed
  * with a patola ikat (`patola`), the lattice in white dashes, stepped red
  * diamonds and teal crosses; a gold placket set with red diamonds, a red
- * collar, and dark maroon trousers (#430E0E, the owner's).
+ * collar, and trousers in the shirt's own mustard, as the owner asked.
  */
 const DIWALI_YELLOW_PRINT: KitPrint = {
   chest: [
@@ -114,7 +114,7 @@ export const ALL_OUTFITS: readonly Outfit[] = [
   { id: 'diwali-blue', name: 'Sky Shot', shirt: '#2152BC', helmet: '#1C47A6', trousers: '#D9BF8C', pads: '#FDFCF4', trim: '#163A8C', number: '#EADCBC', glow: '#4F86FF', line: 'Royal blue with streaks like rockets for Diwali week. Gone after 11 November.', short: 'Free till 11 Nov', print: DIWALI_BLUE_PRINT, limited: { tag: 'DIWALI', line: 'Till 11 November' } },
   { id: 'diwali-ivory', name: 'Kaju Katli', shirt: '#F6EEE2', helmet: '#EDE3D3', trousers: '#D9BF8C', pads: '#FDFCF4', trim: '#C9A55A', number: '#C9A55A', glow: '#FFC9D4', line: 'Ivory, pastel florals and gold for Diwali week. Gone after 11 November.', short: 'Free till 11 Nov', print: DIWALI_IVORY_PRINT, limited: { tag: 'DIWALI', line: 'Till 11 November' } },
   { id: 'diwali-green', name: 'Sutli Bomb', shirt: '#0F5A3C', helmet: '#0D4A32', trousers: '#711313', pads: '#FDFCF4', trim: '#D3262F', number: '#D4A64A', glow: '#FF5A3C', line: 'Bottle green with a red fuse for Diwali week. Gone after 11 November.', short: 'Free till 11 Nov', print: DIWALI_GREEN_PRINT, limited: { tag: 'DIWALI', line: 'Till 11 November' } },
-  { id: 'diwali-yellow', name: 'Soan Papdi', shirt: '#E8A53B', helmet: '#D58F26', trousers: '#430E0E', pads: '#FDFCF4', trim: '#C8302A', number: '#C8302A', glow: '#FFC23D', line: 'Mustard patola, flaky and sweet, for Diwali week. Gone after 11 November.', short: 'Free till 11 Nov', print: DIWALI_YELLOW_PRINT, limited: { tag: 'DIWALI', line: 'Till 11 November' } },
+  { id: 'diwali-yellow', name: 'Soan Papdi', shirt: '#E8A53B', helmet: '#D58F26', trousers: '#E8A53B', pads: '#FDFCF4', trim: '#C8302A', number: '#C8302A', glow: '#FFC23D', line: 'Mustard patola, flaky and sweet, for Diwali week. Gone after 11 November.', short: 'Free till 11 Nov', print: DIWALI_YELLOW_PRINT, limited: { tag: 'DIWALI', line: 'Till 11 November' } },
   { id: 'crimson', name: 'Crimson', shirt: '#C51C25', helmet: '#B8171D', trousers: '#EFE3CF', pads: '#E9DCC6', trim: '#8F1D22', number: '#FFFFFF', glow: '#FF3B3B', line: '25 finished innings.', short: '25 innings' },
   { id: 'forest', name: 'British Racing Green', shirt: '#0A4A3E', helmet: '#135045', trousers: '#F1E5D5', pads: '#ECE0CC', trim: '#0A4A3E', number: '#FFFFFF', glow: '#25C28A', line: 'Emerging Player in all three modes.', short: 'Emerging in every mode' },
   { id: 'gold', name: 'Bumblebee', shirt: '#F2A31B', helmet: '#F2A31B', trousers: '#13284A', pads: '#1E3560', trim: '#F2A31B', number: '#13284A', glow: '#FFB52E', line: '10 Rival wins against 5 different players.', short: '10 Rival wins' },
