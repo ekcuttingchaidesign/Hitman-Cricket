@@ -9,6 +9,7 @@
  */
 
 import { icon } from './Kit';
+import { escape } from './Leaderboard';
 
 /** A ball as the chart needs it: the runs off it, and whether it got him out. */
 export interface ChartBall {
@@ -191,7 +192,7 @@ export function milestoneChip(runs: number): string | null {
 export function battingCardMarkup(batters: readonly BattingRow[]): string {
   const rows = batters.map((b, i) => {
     const chip = milestoneChip(b.runs);
-    return `<tr><th scope="row"><span class="ec-bat-n">${i + 1}</span><span class="ec-bat-name">${b.title}</span>`
+    return `<tr><th scope="row"><span class="ec-bat-n">${i + 1}</span><span class="ec-bat-name">${escape(b.title)}</span>`
       + `${b.left ? '<i class="ec-chip">LH</i>' : ''}${chip ? `<i class="ec-chip is-milestone${b.runs >= 100 ? ' is-ton' : ''}">${chip}</i>` : ''}</th>`
       + `<td class="is-runs">${b.runs}${b.notOut ? '<i class="ec-not-out">*</i>' : ''}</td><td>${b.balls}</td><td>${b.fours}</td><td>${b.sixes}</td></tr>`;
   }).join('');

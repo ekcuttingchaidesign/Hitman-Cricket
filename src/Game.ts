@@ -126,6 +126,7 @@ import type { SurviveInnings } from './game/survive-board';
 import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
 import { sendFeedback } from './game/feedback-api';
+import { lineupOf } from './game/super10-squads';
 import { SUPER10_KITS, super10Number, type Super10Kit, type Super10KitId } from './game/super10-kits';
 import { askRating, type RatingPrompt } from './ui/Rating';
 import {
@@ -2575,6 +2576,12 @@ export class Game {
     return this.super10Drawn.kit;
   }
   private super10Drawn: { innings: number; kit: Super10Kit } | null = null;
+  /** Super10's five in batting order: the player by name, then the squad of the kit he bats in. */
+  private lineup() {
+    if (this.linedUp?.innings !== this.innings) this.linedUp = { innings: this.innings, five: lineupOf(this.super10Kit().id, readPlayer()?.name ?? null) };
+    return this.linedUp.five;
+  }
+  private linedUp: { innings: number; five: ReturnType<typeof lineupOf> } | null = null;
   /** The Super10 kit picked in the room, while it is still earned. */
   private super10Pick() {
     const pick = readDressing().super10;
@@ -4637,7 +4644,9 @@ export class Game {
     const left = man ? man.left : readHand() === 'left';
     this.scene.leftHanded(left);
     this.hud.sides(left);
-    this.hud.walkingOut(man?.batter.title ?? (this.super10 ? super10Batter(this.score.wickets).title : null));
+    // Super10's five are named: the player opens, the kit's squad follows.
+    if (this.super10) this.hud.callOut(this.lineup()[Math.min(this.score.wickets, 4)].walkOut);
+    else this.hud.walkingOut(man?.batter.title ?? null);
     // Each of Super10's five has his own number on his back.
     if (this.super10) this.scene.shirtNumber(super10Number(this.score.wickets));
   }
@@ -5706,7 +5715,7 @@ export class Game {
   private showBlastCard(record: boolean, fromMatch = false) {
     // Super10's card is the Blast's in its own colours, with the batting card
     // and no best of its own to quote yet.
-    if (this.super10) this.hud.endSuper10(this.score, record, this.s10.surged);
+    if (this.super10) this.hud.endSuper10(this.score, record, this.s10.surged, this.lineup().map(one => one.card));
     else this.hud.end(this.score, this.best, record);
     this.hud.matchScorecard(fromMatch);
     // The way to the career card from the innings card. Offered only where a
