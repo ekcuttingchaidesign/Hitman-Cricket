@@ -2069,21 +2069,26 @@ innings in the pick.
 Super10's five have names (`src/game/super10-squads.ts`, in
 `tests/super10-squads.test.ts`). The opener is the player, by the name they
 gave at the gate, with (c) on the batting card; a player with no name opens as
-OPENER. The other four are the squad of the team whose kit the innings is
-batted in (`SQUADS`, by `Super10KitId`; `lineup` in `src/Game.ts`, once an
-innings), each with the number already on his back: two batters, then two
-bowlers as the tail, one pace and one spin, which suits the last two batting on
-the tailender's windows. Every team has overseas players; every surname is
-used once. The names sound like real players and are never one — the first
+OPENER. The other four come from the squad of the team whose kit the innings
+is batted in (`SQUADS`, by `Super10KitId`), a pool of nine — five batters, two
+pace bowlers, two spinners — drawn from once an innings (`drawFrom`, `lineup`
+in `src/Game.ts`, on the page's dice and never the seed): two batters at No. 2
+and No. 3, then a pace bowler and a spinner either way round as the tail, which
+suits the last two batting on the tailender's windows. Forty sides a team; with
+one squad of four every card read the same. Each wears the number on his back
+for the place he bats in. Every team has overseas players; every surname is
+used once, and every name fits the card in fifteen letters (the tests hold
+both). The names sound like real players and are never one — the first
 name and the surname each a little off (Viraj Kohle, AJ de Viljoen, BroHit
 Sharma, DSP Siraj), chosen by the owner team by team; the Royal Mavericks, the
-top of the ladder, are the legends. The walk-out says NO. 3 · SHUBH GILANI #9
+top of the ladder, are the big names, their spinners modern ones (Wani
+Hasaranga, Varun Chakra, in place of Murali and Kumble). The walk-out says NO. 3 · SHUBH GILANI #9
 (`walkOut`, through `callOut`); the card prints the whole name (`card`):
 surnames alone, as a scorecard prints them, were tried and said nobody,
 the joke being in the pair (KOHLE, DHARAN). The big screen and the Batters
 board still say OPENER and NO. 2: a board row does not know the kit it was
-batted in. `super10-check` reads the Panthers' Butlin walking out and on the
-card.
+batted in. `super10-check` reads one of the Panthers' batters walking out at
+No. 2 and the same name on the card.
 
 ## Choose a mode's rail, and Super10's PLAY card
 

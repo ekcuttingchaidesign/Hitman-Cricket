@@ -61,6 +61,9 @@ page.on('request', request => {
   if (request.method() !== 'GET' && /^\/api\/(score|career|survive|innings|marathon)/.test(pathname)) sent.push(pathname);
 });
 
+// The Panthers' five batters (`SQUADS` in src/game/super10-squads.ts): No. 2 is drawn from them each innings.
+const PANTHERS_BATTERS = ['JOSH BUTLIN', 'SHUBH GILANI', 'RISHAV PANTH', 'HENRIK KLASSEN', 'TILOK VARMAN'];
+let walkedOut = null;
 const snap = () => page.evaluate(() => window.__cricket.snapshot());
 const advance = ms => page.clock.runFor(Math.max(16, Math.round(ms)));
 const until = async (phases, tries = 120, step = 150) => {
@@ -156,7 +159,8 @@ for (let over = 0; over < 10; over++) {
   }
   if (over === 2) {
     const label = await page.locator('#phase-label').textContent();
-    check(label === 'NO. 2 · JOSH BUTLIN #17', "after a wicket the No. 2 walks out by name, the Panthers' Butlin", label);
+    walkedOut = /^NO\. 2 · (.+) #17$/.exec(label ?? '')?.[1] ?? null;
+    check(PANTHERS_BATTERS.includes(walkedOut), "after a wicket the No. 2 walks out by name, one of the Panthers' batters", label);
     const shirt = (await snap()).shirt;
     check(shirt === '17', 'with 17 on his back', shirt);
   }
@@ -255,8 +259,8 @@ const drawn = await page.evaluate(() => ({
 }));
 check(drawn.themed && drawn.overs === 10, 'the card charts all ten overs in Super10\'s colours', JSON.stringify(drawn));
 check(drawn.surge === 5, 'with the bolt over the sixth, the over Power Surge was taken in', String(drawn.surge));
-check(drawn.shown && drawn.rows.length === final.wickets + (final.wickets < 5 ? 1 : 0) && drawn.rows[0] === 'OPENER' && drawn.rows[1] === 'JOSH BUTLIN',
-  'and a batting card under it, a row for each man who came in, the squad by name', drawn.rows.join(' · '));
+check(drawn.shown && drawn.rows.length === final.wickets + (final.wickets < 5 ? 1 : 0) && drawn.rows[0] === 'OPENER' && drawn.rows[1] === walkedOut,
+  'and a batting card under it, a row for each man who came in, the No. 2 by the name he walked out under', drawn.rows.join(' · '));
 check(drawn.balls === final.balls, 'whose balls add up to the innings\'', `${drawn.balls} of ${final.balls}`);
 await page.locator('#end .ec-content').screenshot({ path: 'test-results/super10-card.png' }).catch(() => {});
 check(sent.every(path => path === '/api/score' || path === '/api/innings'), 'what it sends goes to the board and the career (super10-post-check.mjs follows it there)', sent.join(', '));
