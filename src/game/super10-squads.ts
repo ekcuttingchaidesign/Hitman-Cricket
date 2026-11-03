@@ -13,15 +13,14 @@ import { SUPER10_NUMBERS } from './super10-kits';
  * one spin, which suits the last two batting on the tailender's windows
  * (`BATTERS` in `src/config/super10.ts`). Every surname is used once.
  *
- * `card` is what the batting card prints, the surname as a scorecard does
- * (DSP SIRAJ keeps his rank, which is the joke); `name` is the walk-out's.
+ * The card prints the whole name, not the surname a scorecard would: a made-up
+ * surname alone (KOHLE, DHARAN) says nobody, and the joke is in the pair.
  */
 export interface SquadMan {
   name: string;
-  card: string;
 }
 
-const man = (name: string, card = name.split(' ').slice(-1)[0]): SquadMan => ({ name, card });
+const man = (name: string): SquadMan => ({ name });
 
 export const SQUADS: Record<Super10KitId, readonly [SquadMan, SquadMan, SquadMan, SquadMan]> = {
   's10-purple': [man('Josh Butlin'), man('Shubh Gilani'), man('Rasheed Khaan'), man('Jaspreet Bumra')],
@@ -29,14 +28,14 @@ export const SQUADS: Record<Super10KitId, readonly [SquadMan, SquadMan, SquadMan
   's10-yellow': [man('Cain Williams'), man('Mahesh Dhoney'), man('Akshar Patil'), man('Trent Bolte')],
   's10-cherry': [man('BroHit Sharma'), man('K.L. Rahil'), man('Ravi Ashwath'), man('Kagiso Rabadi')],
   's10-orange': [man('Don Bavuma'), man('Suraj Yaadav'), man('Andrel Rassel'), man('Kishav Maharaj')],
-  's10-violet': [man('AJ de Viljoen', 'de Viljoen'), man('Viraj Kohle'), man('Murali Dharan'), man('DSP Siraj', 'DSP Siraj')],
+  's10-violet': [man('AJ de Viljoen'), man('Viraj Kohle'), man('Murali Dharan'), man('DSP Siraj')],
 };
 
 /** Where each of the five comes in, as the walk-out says it. */
 const PLACES = ['OPENER', 'NO. 2', 'NO. 3', 'NO. 4', 'NO. 5'] as const;
 
 export interface LinedUp {
-  /** The batting card's name: the surname, or the player's name with (c). */
+  /** The batting card's name: the whole name, the player's with (c). */
   card: string;
   /** What the walk-out says: NO. 3 · SHUBH GILANI #9. */
   walkOut: string;
@@ -52,7 +51,7 @@ export function lineupOf(kit: Super10KitId, player: string | null): LinedUp[] {
     ? { card: `${you.toUpperCase()} (c)`, walkOut: `OPENER · ${you.toUpperCase()} #${SUPER10_NUMBERS[0]}` }
     : { card: 'OPENER', walkOut: `OPENER IN · TAKE YOUR GUARD` };
   return [opener, ...SQUADS[kit].map((one, i) => ({
-    card: one.card.toUpperCase(),
+    card: one.name.toUpperCase(),
     walkOut: `${PLACES[i + 1]} · ${one.name.toUpperCase()} #${SUPER10_NUMBERS[i + 1]}`,
   }))];
 }

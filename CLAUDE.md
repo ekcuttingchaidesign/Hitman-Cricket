@@ -2078,8 +2078,9 @@ used once. The names sound like real players and are never one — the first
 name and the surname each a little off (Viraj Kohle, AJ de Viljoen, BroHit
 Sharma, DSP Siraj), chosen by the owner team by team; the Royal Mavericks, the
 top of the ladder, are the legends. The walk-out says NO. 3 · SHUBH GILANI #9
-(`walkOut`, through `callOut`); the card prints the surname as a scorecard
-does (`card`), DSP SIRAJ keeping his rank. The big screen and the Batters
+(`walkOut`, through `callOut`); the card prints the whole name (`card`):
+surnames alone, as a scorecard prints them, were tried and said nobody,
+the joke being in the pair (KOHLE, DHARAN). The big screen and the Batters
 board still say OPENER and NO. 2: a board row does not know the kit it was
 batted in. `super10-check` reads the Panthers' Butlin walking out and on the
 card.

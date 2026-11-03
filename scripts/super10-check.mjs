@@ -255,8 +255,8 @@ const drawn = await page.evaluate(() => ({
 }));
 check(drawn.themed && drawn.overs === 10, 'the card charts all ten overs in Super10\'s colours', JSON.stringify(drawn));
 check(drawn.surge === 5, 'with the bolt over the sixth, the over Power Surge was taken in', String(drawn.surge));
-check(drawn.shown && drawn.rows.length === final.wickets + (final.wickets < 5 ? 1 : 0) && drawn.rows[0] === 'OPENER' && drawn.rows[1] === 'BUTLIN',
-  'and a batting card under it, a row for each man who came in, the squad by surname', drawn.rows.join(' · '));
+check(drawn.shown && drawn.rows.length === final.wickets + (final.wickets < 5 ? 1 : 0) && drawn.rows[0] === 'OPENER' && drawn.rows[1] === 'JOSH BUTLIN',
+  'and a batting card under it, a row for each man who came in, the squad by name', drawn.rows.join(' · '));
 check(drawn.balls === final.balls, 'whose balls add up to the innings\'', `${drawn.balls} of ${final.balls}`);
 await page.locator('#end .ec-content').screenshot({ path: 'test-results/super10-card.png' }).catch(() => {});
 check(sent.every(path => path === '/api/score' || path === '/api/innings'), 'what it sends goes to the board and the career (super10-post-check.mjs follows it there)', sent.join(', '));
