@@ -4804,14 +4804,15 @@ ${modeSelectMarkup()}
    * How a Super10 innings finished: the Blast's card in Super10's colours, its
    * ten overs charted with the Power Surge over marked (`surge`, counted from
    * nought), and the batting card the Marathon has, a row for each man who
-   * came in, worked out from the balls.
+   * came in, worked out from the balls, by the names of the side that batted
+   * (`lineupOf`: the player, then the kit's squad).
    */
-  endSuper10(score: ScoreManager, isRecord: boolean, surge: number | null) {
+  endSuper10(score: ScoreManager, isRecord: boolean, surge: number | null, names: readonly string[] = SUPER10_BATTERS.map(b => b.title)) {
     this.end(score, 0, isRecord, score.limits.totalBalls, 'SUPER10');
     this.$('end').classList.add('is-super10');
     this.$('end-mode').innerHTML = 'SUPER<b>10</b>';
     this.$('final-balls').innerHTML = super10ChartMarkup(score.history, score.limits.totalBalls, surge);
-    this.$('mcard-score').innerHTML = battingCardMarkup(battingOf(score.history, SUPER10_BATTERS.map(b => b.title)));
+    this.$('mcard-score').innerHTML = battingCardMarkup(battingOf(score.history, names));
   }
   /** What Test Survival's share key sends: only a win has one. */
   private surviveShare = '';

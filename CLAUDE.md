@@ -2064,6 +2064,26 @@ hook, never in its place, which dropped the print in the room. `dressing-check`
 unlocks the Vipers in the room, tries on the Mavericks and bats a Super10
 innings in the pick.
 
+## Super10's squads: who bats with the player
+
+Super10's five have names (`src/game/super10-squads.ts`, in
+`tests/super10-squads.test.ts`). The opener is the player, by the name they
+gave at the gate, with (c) on the batting card; a player with no name opens as
+OPENER. The other four are the squad of the team whose kit the innings is
+batted in (`SQUADS`, by `Super10KitId`; `lineup` in `src/Game.ts`, once an
+innings), each with the number already on his back: two batters, then two
+bowlers as the tail, one pace and one spin, which suits the last two batting on
+the tailender's windows. Every team has overseas players; every surname is
+used once. The names sound like real players and are never one — the first
+name and the surname each a little off (Viraj Kohle, AJ de Viljoen, BroHit
+Sharma, DSP Siraj), chosen by the owner team by team; the Royal Mavericks, the
+top of the ladder, are the legends. The walk-out says NO. 3 · SHUBH GILANI #9
+(`walkOut`, through `callOut`); the card prints the surname as a scorecard
+does (`card`), DSP SIRAJ keeping his rank. The big screen and the Batters
+board still say OPENER and NO. 2: a board row does not know the kit it was
+batted in. `super10-check` reads the Panthers' Butlin walking out and on the
+card.
+
 ## Choose a mode's rail, and Super10's PLAY card
 
 Choose a mode puts the Blast, the Test Marathon, Super10 and Test Survival on one
