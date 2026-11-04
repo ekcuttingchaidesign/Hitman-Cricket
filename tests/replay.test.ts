@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   AFTER_MS, REPLAY_GAP, REPLAY_SLOW, REPLAYS_PER_INNINGS, RUNUP_FROM, SKIPS_TO_QUIET,
-  endedLog, freshLog, pickAngle, qualifies, replayCamera, replayDue, REPLAY_ANGLES, replayPace, replayTimes, shownLog, type ReplayBall, type ReplayLog,
+  endedLog, freshLog, pickAngle, qualifies, replayCamera, replayDue, REPLAY_ANGLES, REPLAY_STROKES, replayPace, replayTimes, shownLog, type ReplayBall, type ReplayLog,
 } from '../src/game/replay';
 
 const four = (index: number, over: Partial<ReplayBall> = {}): ReplayBall => ({ stroke: 'cover', grade: 'PERFECT', runs: 4, wicket: false, index, ...over });
@@ -16,6 +16,18 @@ describe('which balls are replayed', () => {
     expect(qualifies(four(0, { runs: 3 }))).toBe(false);
     expect(qualifies(four(0, { wicket: true }))).toBe(false);
     expect(qualifies(four(0, { stroke: null }))).toBe(false);
+  });
+  it('the pull, the cuts and the scoops too, the scoops only for six', () => {
+    for (const stroke of ['pull', 'cut', 'latecut'] as const) expect(qualifies(four(0, { stroke }))).toBe(true);
+    for (const stroke of ['scoop', 'reverse'] as const) {
+      expect(qualifies(four(0, { stroke }))).toBe(false);
+      expect(qualifies(four(0, { stroke, runs: 6 }))).toBe(true);
+    }
+  });
+  it('the first of each stroke, each its own', () => {
+    const log = shownLog(freshLog(), four(0));
+    expect(due(four(10, { stroke: 'pull' }), log, .99)).toBe(true);
+    expect(due(four(10), log, .99)).toBe(false);
   });
   it('the first of a stroke in an innings always, whatever the dice', () => {
     expect(due(four(0), freshLog(), .99)).toBe(true);
@@ -69,7 +81,7 @@ describe('the replay', () => {
     for (let t = -2000; t < 2000; t += 10) expect(Math.abs(replayPace(t + 10) - replayPace(t))).toBeLessThan(.06);
   });
   it('every camera keeps him small in the picture, the way the model reads well', () => {
-    for (const angle of REPLAY_ANGLES.cover) {
+    for (const angle of REPLAY_STROKES.flatMap(stroke => REPLAY_ANGLES[stroke])) {
       // His height over the height of the picture between the bars, where he stands.
       const away = Math.hypot(angle.eye[0] - angle.at[0], angle.eye[1] - angle.at[1], angle.eye[2] - angle.at[2]);
       const share = 1.78 / (2 * away * Math.tan(angle.fov * Math.PI / 360)) / .78;

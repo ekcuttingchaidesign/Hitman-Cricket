@@ -3079,8 +3079,15 @@ export class Game {
     const cutting = !charging && spinCut(this.delivery!, this.attempt);
     this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, version, this.meetsAt, cutting, spinPulling);
     // Kept, for a replay of it: everything the scene was told, and when.
-    this.keptSwing = { shot: shotType, at: this.elapsed, charging, lofted, sweeping, levelled, version, meets: this.meetsAt, cutting, spinPulling,
-      stroke: shotType === 'COVER_LONG_OFF' && !charging && !punching ? 'cover' : null };
+    // Which of the strokes a replay shows it is (`REPLAY_STROKES`), if any:
+    // the pull is the leg-side input neither swept nor flicked, the hook and
+    // the pull off the spinner with it.
+    const stroke: ReplayStroke | null = charging ? null
+      : shotType === 'COVER_LONG_OFF' ? (punching ? null : 'cover')
+      : shotType === 'HOOK' || spinPulling || (shotType === 'LEG' && !sweeping && !levelled && !flicking) ? 'pull'
+      : shotType === 'SQUARE_CUT' ? 'cut' : shotType === 'LATE_CUT' ? 'latecut'
+      : shotType === 'SCOOP' ? 'scoop' : shotType === 'REVERSE_SCOOP' ? 'reverse' : null;
+    this.keptSwing = { shot: shotType, at: this.elapsed, charging, lofted, sweeping, levelled, version, meets: this.meetsAt, cutting, spinPulling, stroke };
     this.hud.select(shotType, charging);
     // The charge is judged now rather than when the ball arrives, because the
     // ball is not going to arrive: he is going down the pitch to meet it, and

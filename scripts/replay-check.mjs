@@ -11,7 +11,7 @@
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/replay-check.mjs
  *
- * `MODE=super10` does it in Super10, and `ANGLE=spider-legslip` (any of
+ * `MODE=super10` does it in Super10, `STROKE=pull` pulls a bouncer every ball, and `ANGLE=spider-legslip` (any of
  * `REPLAY_ANGLES`) shows it from that camera.
  */
 
@@ -50,7 +50,10 @@ const advance = ms => page.clock.runFor(Math.max(16, Math.round(ms)));
 const snap = () => page.evaluate(() => window.__cricket.snapshot());
 await page.clock.install();
 const angle = process.env.ANGLE ? `&replayangle=${process.env.ANGLE}` : '';
-await page.goto(`${base}/?debug=1&seed=2718&cover=1&replay=1&lights=day${angle}`, { waitUntil: 'load' });
+// The cover drive at its own ball, or the pull at a bouncer every ball (`STROKE=pull`).
+const pulling = process.env.STROKE === 'pull';
+const keys = pulling ? ['a'] : ['w', 'd'];
+await page.goto(`${base}/?debug=1&seed=2718&${pulling ? 'bouncers' : 'cover'}=1&replay=1&lights=day${angle}`, { waitUntil: 'load' });
 await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 3000);
 await advance(2500);
 await page.waitForTimeout(800);
@@ -84,7 +87,7 @@ async function drive() {
   const seen = await nextBall();
   if (!seen) return null;
   await advance(seen.contactAt - seen.elapsed);
-  await press('w', 'd');
+  await press(...keys);
   let now = await snap();
   for (let i = 0; i < 80 && now.phase !== 'RESULT'; i++) { await advance(50); now = await snap(); }
   const outcome = now.outcome;
@@ -99,9 +102,9 @@ for (let ball = 0; ball < 12 && !shown; ball++) {
   console.log(`        ball ${ball + 1}: ${played.outcome} (${played.grade}) ${played.replay ? '→ replay' : ''}`);
   if (played.replay) shown = played;
 }
-check(!!shown, 'a cover drive for four is replayed once the ball is dead', shown && JSON.stringify(shown));
+check(!!shown, pulling ? 'a bouncer pulled for a boundary is replayed once the ball is dead' : 'a cover drive for four is replayed once the ball is dead', shown && JSON.stringify(shown));
 if (shown) {
-  check(shown.replay.stroke === 'cover', 'as the cover drive', JSON.stringify(shown.replay));
+  check(shown.replay.stroke === (pulling ? 'pull' : 'cover'), pulling ? 'as the pull' : 'as the cover drive', JSON.stringify(shown.replay));
   if (process.env.ANGLE) check(shown.replay.angle === process.env.ANGLE, 'from the camera asked for', JSON.stringify(shown.replay));
   else check(!!shown.replay.angle, 'from one of its cameras', JSON.stringify(shown.replay));
   // Through it, photographing as it goes.
@@ -114,7 +117,7 @@ if (shown) {
       if (!bars) bars = await page.evaluate(() => document.getElementById('viewport').classList.contains('intro-on'));
       if (!tag) tag = await page.locator('#replay-tag').isVisible().catch(() => false);
       if (now.replay.struck) struck = true;
-      if (moments.length && now.replay.at >= moments[0]) { moments.shift(); await page.screenshot({ path: `test-results/replay-${mode}-${++shots}.png` }); }
+      if (moments.length && now.replay.at >= moments[0]) { moments.shift(); await page.screenshot({ path: `test-results/replay-${mode}${pulling ? '-pull' : ''}-${++shots}.png` }); }
     }
     if (now.phase !== 'RESULT' && now.replay) { check(false, 'the next ball waits for it', now.phase); break; }
   }
@@ -131,7 +134,7 @@ if (shown) {
   // A second, skipped with a tap. Every ball is replayed here, so the next four is one.
   let second = null;
   if (next) {
-    await advance(next.contactAt - next.elapsed); await press('w', 'd');
+    await advance(next.contactAt - next.elapsed); await press(...keys);
     for (let ball = 0; ball < 10 && !second; ball++) {
       let at = await snap();
       for (let i = 0; i < 120 && !at.replay && at.phase !== 'BALL_IN_FLIGHT' && at.phase !== 'INNINGS_END'; i++) { await advance(50); at = await snap(); }

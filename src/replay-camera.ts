@@ -15,12 +15,13 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GameScene } from './scene/GameScene';
 import { GAME, LINE_X, STYLES } from './config/gameplay';
+import type { BallLine, DeliveryStyle, ShotType } from './game/types';
 import { flightProgress } from './game/DeliveryTrajectory';
 import { resolveShot } from './game/ShotResolver';
-import { COVER_V3_MEETS_AT, type CoverVersion } from './entities/Batter';
+import { COVER_V3_MEETS_AT, HOOK_MEETS_AT, LATE_CUT_MEETS_AT, PULL_MEETS_AT, type CoverVersion } from './entities/Batter';
 import { batOf, outfitOf, super10KitOf } from './game/dressing';
 import { gloveOf } from './entities/gloves';
-import { REPLAY_ANGLES, replayPace } from './game/replay';
+import { REPLAY_ANGLES, replayPace, type ReplayStroke } from './game/replay';
 import type { CameraPose } from './game/ShotReel';
 import type { Delivery } from './game/types';
 import type { GroundName } from './scene/grounds';
@@ -38,24 +39,42 @@ const scene = new GameScene(stage);
 const side = () => (scene.mirrored ? 1 : -1);
 
 // ── The ball, and when everything happens on the loop's clock ───────────────
+/**
+ * The strokes a replay shows, each at the ball it answers, played perfectly in
+ * time: the hook is the pull's replay family, here on its own so it can be
+ * looked at. `ahead` is how far down the pitch the stroke meets the ball
+ * (`Game.shoot`'s `meetsAt`); the scoops are played on a full meter.
+ */
+type LabStroke = 'cover' | 'pull' | 'hook' | 'cut' | 'latecut' | 'scoop' | 'reverse';
+const BALLS: Record<LabStroke, { name: string; family: ReplayStroke; shot: ShotType; style: DeliveryStyle; line: BallLine; kph: number; ahead: number; charged?: boolean }> = {
+  cover: { name: 'Cover drive', family: 'cover', shot: 'COVER_LONG_OFF', style: 'NORMAL', line: 'OFF', kph: 134, ahead: 0 },
+  pull: { name: 'Pull', family: 'pull', shot: 'LEG', style: 'SHORT', line: 'MIDDLE', kph: 142, ahead: PULL_MEETS_AT },
+  hook: { name: 'Hook', family: 'pull', shot: 'HOOK', style: 'SHORT', line: 'OUTSIDE_OFF', kph: 142, ahead: HOOK_MEETS_AT },
+  cut: { name: 'Square cut', family: 'cut', shot: 'SQUARE_CUT', style: 'NORMAL', line: 'OUTSIDE_OFF', kph: 132, ahead: 0 },
+  latecut: { name: 'Late cut', family: 'latecut', shot: 'LATE_CUT', style: 'NORMAL', line: 'OUTSIDE_OFF', kph: 134, ahead: LATE_CUT_MEETS_AT },
+  scoop: { name: 'Scoop', family: 'scoop', shot: 'SCOOP', style: 'YORKER', line: 'MIDDLE', kph: 150, ahead: 0, charged: true },
+  reverse: { name: 'Reverse scoop', family: 'reverse', shot: 'REVERSE_SCOOP', style: 'YORKER', line: 'OFF', kph: 150, ahead: 0, charged: true },
+};
 const LEAD = 700, AFTER = 2600;
+let stroke: LabStroke = 'cover';
 let version: CoverVersion = 2;
 let delivery: Delivery, times: { runup: number; release: number; swing: number; hit: number; end: number };
 let outcome: ReturnType<typeof resolveShot>;
 let meets = 1;
 
 function plan() {
-  const shape = STYLES.NORMAL, kph = 134;
+  const ball = BALLS[stroke], shape = STYLES[ball.style], kph = ball.kph;
   const runup = LEAD, release = LEAD + GAME.runupMs;
   const durationMs = (GAME.releaseZ - GAME.contactZ) / (kph / 3.6) * 1000 * GAME.travelScale * (shape.rush ?? 1);
   delivery = {
-    line: 'OFF', style: 'NORMAL', speedKph: kph, baseTargetX: LINE_X.OFF, finalTargetX: LINE_X.OFF,
+    line: ball.line, style: ball.style, speedKph: kph, baseTargetX: LINE_X[ball.line], finalTargetX: LINE_X[ball.line],
     bounceZ: shape.bounce ?? GAME.bounceZ, rise: shape.rise ?? GAME.rise,
     durationMs, releaseTimeMs: release, idealContactTimeMs: release + durationMs,
   } as Delivery;
-  meets = version === 3 ? 1 - COVER_V3_MEETS_AT / (GAME.releaseZ - GAME.contactZ) : 1;
+  const ahead = stroke === 'cover' ? (version === 3 ? COVER_V3_MEETS_AT : 0) : ball.ahead;
+  meets = 1 - ahead / (GAME.releaseZ - GAME.contactZ);
   // Played as a perfect press of the keys: the swing at the ideal moment, the
-  // ball resolved once it reaches where this version meets it.
+  // ball resolved once it reaches where the stroke meets it.
   const swing = delivery.idealContactTimeMs;
   let hit = swing;
   if (flightProgress(delivery, swing - release) < meets) {
@@ -63,11 +82,13 @@ function plan() {
     for (let i = 0; i < 40; i++) { const mid = (low + high) / 2; if (flightProgress(delivery, mid) < meets) low = mid; else high = mid; }
     hit = release + high;
   }
-  outcome = resolveShot(delivery, { shotType: 'COVER_LONG_OFF', inputTimeMs: swing, grounded: version >= 2 }, { next: () => .5 });
+  outcome = resolveShot(delivery, { shotType: ball.shot, inputTimeMs: swing, grounded: stroke === 'cover' && version >= 2 }, { next: () => .5 }, !!ball.charged);
   times = { runup, release, swing, hit, end: hit + AFTER };
   $('scrub').setAttribute('max', String(Math.round(times.end)));
+  $('ball-out').textContent = `${outcome.feedback || (outcome.runs ? `${outcome.runs} runs` : 'No run')}`;
   restart();
 }
+const swingNow = () => scene.swing(BALLS[stroke].shot, times.swing, delivery, false, false, false, false, stroke === 'cover' ? version : 2, meets, false, false);
 
 // ── Playing it, from any moment on the loop ─────────────────────────────────
 let clock = 0, last = -1, anchored = false, swung = false, struck = false;
@@ -81,12 +102,11 @@ function stageAt(t: number) {
   }
   if (t >= times.release && !struck) {
     if (!swung && t >= times.swing) {
-      swung = true;
-      scene.swing('COVER_LONG_OFF', times.swing, delivery, false, false, false, false, version, meets, false, false);
+      swung = true; swingNow();
     }
     if (t >= times.hit) {
-      if (!swung) { swung = true; scene.swing('COVER_LONG_OFF', times.swing, delivery, false, false, false, false, version, meets, false, false); }
-      scene.hit(outcome, 'COVER_LONG_OFF', delivery, times.hit); struck = true;
+      if (!swung) { swung = true; swingNow(); }
+      scene.hit(outcome, BALLS[stroke].shot, delivery, times.hit); struck = true;
     } else {
       const since = t - times.release;
       scene.delivery(delivery, flightProgress(delivery, since), since);
@@ -215,6 +235,7 @@ onGroup('ground', v => { super10 = v === 'super10'; if (!super10) ground = v as 
 onGroup('light', v => { night = v === 'night'; dress(); });
 onGroup('hand', v => { left = v === 'left'; dress(); });
 onGroup('version', v => { version = Number(v) as CoverVersion; plan(); });
+onGroup('stroke', v => { stroke = v as LabStroke; $('version-row').hidden = stroke !== 'cover'; plan(); });
 // The replay's own cameras, the ones the game shows a cover drive from, first.
 const inGame = $('in-game');
 for (const angle of REPLAY_ANGLES.cover) {
@@ -250,7 +271,7 @@ $('set-end').addEventListener('click', () => { end = toGame(); flash('End set');
 // ── Copying it out ──────────────────────────────────────────────────────────
 const json = (shot: Shot) => `{ "eye": ${vec(shot.eye)}, "at": ${vec(shot.at)}, "fov": ${Math.round(shot.fov)} }`;
 function cameraText() {
-  const lines = [`Replay camera (cover drive v${version}, game frame, right-hander's numbers)`, `camera: ${json(moveAt(clock) ?? toGame())}`];
+  const lines = [`Replay camera — ${strokeLabel()} (game frame, right-hander's numbers)`, `camera: ${json(moveAt(clock) ?? toGame())}`];
   if (start) lines.push(`start:  ${json(start)}`);
   if (end) lines.push(`end:    ${json(end)}`);
   return lines.join('\n');
@@ -265,7 +286,8 @@ $('copy').addEventListener('click', () => void copy(cameraText(), 'Camera'));
 
 // Saved angles, kept in this browser.
 const KEY = 'replay-camera-angles';
-interface Saved { name: string; shot: Shot; start: Shot | null; end: Shot | null; version: CoverVersion }
+interface Saved { name: string; shot: Shot; start: Shot | null; end: Shot | null; version: CoverVersion; stroke?: string }
+const strokeLabel = () => stroke === 'cover' ? `cover drive v${version}` : `${BALLS[stroke].name.toLowerCase()} (${BALLS[stroke].family})`;
 let saved: Saved[] = [];
 try { saved = JSON.parse(localStorage.getItem(KEY) ?? '[]'); } catch { saved = []; }
 const keep = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch { /* For this visit, then. */ } };
@@ -285,12 +307,12 @@ function drawSaved() {
 }
 $('save').addEventListener('click', () => {
   const name = ($('save-name') as HTMLInputElement).value.trim() || `Angle ${saved.length + 1}`;
-  saved.push({ name, shot: toGame(), start, end, version }); keep(); drawSaved();
+  saved.push({ name, shot: toGame(), start, end, version, stroke: strokeLabel() }); keep(); drawSaved();
   ($('save-name') as HTMLInputElement).value = ''; flash(`Saved “${name}”`);
 });
 $('copy-all').addEventListener('click', () => void copy(
   [`Replay camera angles (game frame, right-hander's numbers)`, ...saved.map(s =>
-    `${s.name} (v${s.version}): ${json(s.shot)}${s.start ? `\n  start: ${json(s.start)}` : ''}${s.end ? `\n  end:   ${json(s.end)}` : ''}`)].join('\n'),
+    `${s.name} (${s.stroke ?? `cover drive v${s.version}`}): ${json(s.shot)}${s.start ? `\n  start: ${json(s.start)}` : ''}${s.end ? `\n  end:   ${json(s.end)}` : ''}`)].join('\n'),
   'All angles'));
 
 let toast = 0;
@@ -300,7 +322,7 @@ function flash(text: string) {
 }
 
 // ── Go ──────────────────────────────────────────────────────────────────────
-pressed('ground', 'stadium'); pressed('light', 'day'); pressed('hand', 'right'); pressed('version', '2'); pressed('preset', 'midoff');
+pressed('stroke', 'cover'); pressed('ground', 'stadium'); pressed('light', 'day'); pressed('hand', 'right'); pressed('version', '2'); pressed('preset', 'midoff');
 plan(); dress(); put(PRESETS.midoff.shot);
 drawSaved(); readout();
 requestAnimationFrame(frame);

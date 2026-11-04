@@ -22,8 +22,19 @@ import type { CameraPose } from './ShotReel';
  * milestone, a chase passed, a new batter, the innings' last ball — which the
  * game says with `blocked`.
  */
-export type ReplayStroke = 'cover';
-export const REPLAY_STROKES: readonly ReplayStroke[] = ['cover'];
+export type ReplayStroke = 'cover' | 'pull' | 'cut' | 'latecut' | 'scoop' | 'reverse';
+/**
+ * The strokes worth seeing again: the cover drive; the pull, with the hook and
+ * the pull off the spinner; the square cut, at pace or off the spinner; the
+ * late cut; and the two scoops. The charge, the drives down the ground, the
+ * flick and the sweeps are not replayed.
+ */
+export const REPLAY_STROKES: readonly ReplayStroke[] = ['cover', 'pull', 'cut', 'latecut', 'scoop', 'reverse'];
+/**
+ * The runs a stroke has to make to be replayed: four, but six for the scoops,
+ * which have had the special stroke's flash live already.
+ */
+export const REPLAY_RUNS: Record<ReplayStroke, number> = { cover: 4, pull: 4, cut: 4, latecut: 4, scoop: 6, reverse: 6 };
 
 /** What the game says about the ball just played. `stroke` is null for one that is not on the list. */
 export interface ReplayBall {
@@ -56,7 +67,7 @@ export const REPLAY_ODDS = 1 / 3;
 export const SKIPS_TO_QUIET = 2;
 
 export function qualifies(ball: ReplayBall) {
-  return !!ball.stroke && !ball.wicket && ball.runs >= 4 && (ball.grade === 'PERFECT' || ball.grade === 'GOOD');
+  return !!ball.stroke && !ball.wicket && ball.runs >= REPLAY_RUNS[ball.stroke] && (ball.grade === 'PERFECT' || ball.grade === 'GOOD');
 }
 
 /**
@@ -108,12 +119,12 @@ export function replayTimes(kept: { swingAfter: number; contactAfter: number }, 
 
 /**
  * How fast the game's clock runs through a replay against the page's, at
- * `since` milliseconds from contact: full speed in, a quarter through the bat
+ * `since` milliseconds from contact: full speed in, two fifths through the bat
  * meeting the ball, his follow-through and the finish held, and full speed
  * again for the wipe out.
  * Smooth both ways.
  */
-export const REPLAY_SLOW = { pace: .26, inFrom: -460, inTo: -180, outFrom: 900, outTo: 1400 } as const;
+export const REPLAY_SLOW = { pace: .42, inFrom: -460, inTo: -180, outFrom: 900, outTo: 1400 } as const;
 export function replayPace(since: number) {
   const ease = (x: number) => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 - 2 * k); };
   const into = ease((since - REPLAY_SLOW.inFrom) / (REPLAY_SLOW.inTo - REPLAY_SLOW.inFrom));
@@ -144,16 +155,21 @@ export interface ReplayAngle { id: string; name: string; eye: Vec; at: Vec; fov:
  * square ones are side on from either side. None turns after the ball.
  */
 const AT: Vec = [-.2, .85, 1.6];
+const SEVEN: readonly ReplayAngle[] = [
+  { id: 'midoff', name: 'Mid-off', eye: [3.89, 2.30, 21.88], at: AT, fov: 40 },
+  { id: 'spider-umpire', name: 'Spider cam over the umpire', eye: [.21, 5.28, 23.51], at: AT, fov: 40 },
+  { id: 'spider-legslip', name: 'Spider cam over leg slip', eye: [-8.98, 8.14, -9.39], at: AT, fov: 40 },
+  { id: 'leg-side', name: 'Leg side', eye: [-20.58, 3.91, -.18], at: AT, fov: 40 },
+  { id: 'off-side', name: 'Off side', eye: [20.38, 2.83, 1.6], at: AT, fov: 40 },
+  { id: 'midon-ground', name: 'Mid-on, at ground level', eye: [-1.12, .51, 28.41], at: AT, fov: 26 },
+  { id: 'midoff-ground', name: 'Mid-off, at ground level', eye: [2.5, .39, 28.28], at: AT, fov: 26 },
+];
+/**
+ * The other strokes share the cover drive's seven until the owner sets their
+ * own in the lab: all seven look at him from well back, so any stroke reads.
+ */
 export const REPLAY_ANGLES: Record<ReplayStroke, readonly ReplayAngle[]> = {
-  cover: [
-    { id: 'midoff', name: 'Mid-off', eye: [3.89, 2.30, 21.88], at: AT, fov: 40 },
-    { id: 'spider-umpire', name: 'Spider cam over the umpire', eye: [.21, 5.28, 23.51], at: AT, fov: 40 },
-    { id: 'spider-legslip', name: 'Spider cam over leg slip', eye: [-8.98, 8.14, -9.39], at: AT, fov: 40 },
-    { id: 'leg-side', name: 'Leg side', eye: [-20.58, 3.91, -.18], at: AT, fov: 40 },
-    { id: 'off-side', name: 'Off side', eye: [20.38, 2.83, 1.6], at: AT, fov: 40 },
-    { id: 'midon-ground', name: 'Mid-on, at ground level', eye: [-1.12, .51, 28.41], at: AT, fov: 26 },
-    { id: 'midoff-ground', name: 'Mid-off, at ground level', eye: [2.5, .39, 28.28], at: AT, fov: 26 },
-  ],
+  cover: SEVEN, pull: SEVEN, cut: SEVEN, latecut: SEVEN, scoop: SEVEN, reverse: SEVEN,
 };
 
 /**

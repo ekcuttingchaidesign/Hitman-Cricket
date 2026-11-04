@@ -2141,15 +2141,20 @@ and when, the outcome once resolved (`Kept`, `keepForReplay` in
 `src/Game.ts`) — and tells it the same again shifted on to now
 (`stageReplay`, `replayFrame`), picking the bowler up a stride or two from
 the crease (`RUNUP_FROM`), under one of the stroke's cameras (`REPLAY_ANGLES`,
-through `GameScene.cinematic`) and on a clock slowed to a quarter through the
-bat meeting the ball and out on his held finish (`replayPace`, `AFTER_MS`). Nothing is scored, counted or sent again.
+through `GameScene.cinematic`) and on a clock slowed to two fifths through
+the bat meeting the ball and out on his held finish (`replayPace`,
+`AFTER_MS`; a quarter was too slow, the owner said). Nothing is scored, counted or sent again.
 Who goes for the ball is judged from the game's own view whatever the camera
 is doing (`judge` in `GameScene.inShot`), so the replay's field does what the
 real one did.
 
-Which balls (`qualifies`): a stroke on `REPLAY_STROKES` — the cover drive
-only, for now, the pull, the cuts and the scoops to follow — timed GOOD or
-PERFECT, for four or six. How often (`replayDue`): the first of each stroke
+Which balls (`qualifies`): a stroke on `REPLAY_STROKES` — the cover drive,
+the pull (the hook and the pull off the spinner with it), the square cut (at
+pace or off the spinner), the late cut, and the two scoops — timed GOOD or
+PERFECT, for four or six, the scoops only for six (`REPLAY_RUNS`: they have
+had the special stroke's flash live). Which one a ball was is decided in
+`Game.shoot` beside the swing it keeps (`stroke` on `Kept`); the charge, the
+drives down the ground, the flick and the sweeps are not replayed. How often (`replayDue`): the first of each stroke
 an innings always; then one in three, off the page's dice and never the
 seed; never within an over of the last (`REPLAY_GAP`); at most five a
 Super10 innings and three a Blast (`REPLAYS_PER_INNINGS`); and a player who
@@ -2160,8 +2165,8 @@ Blast only; not a Rival Match (the other innings flashes up between balls),
 the tutorial or a demo. It plays in the RESULT phase, which waits for it, so
 the next ball is bowled after it and nothing about the batting moves.
 
-The cameras are the owner's, set in the replay camera lab: the cover drive
-has seven — mid-off, a spider cam over the umpire and one over leg slip,
+The cameras are the owner's, set in the replay camera lab for the cover
+drive, and every stroke shares them until the owner sets its own: seven — mid-off, a spider cam over the umpire and one over leg slip,
 square on either side, and mid-on and mid-off at ground level on long lenses
 — all held still, all well back, so he fills a sixth or so of the picture
 (`tests/replay.test.ts` holds every camera under a third). The first build
@@ -2171,7 +2176,8 @@ looked at the turf at its own feet. Each replay is shown from one of them,
 never the one the last used (`pickAngle`, off the page's dice);
 `?replayangle=midoff` (any id) asks for one and is not practice.
 `replay-camera.html` (`src/replay-camera.ts`) is the lab: the game's own
-scene playing a cover drive for four on a loop in a phone's frame, the bars
+scene playing any of the strokes on a loop in a phone's frame (`BALLS`: each
+at the ball it answers, perfectly in time, the hook beside the pull), the bars
 on, a free camera, how much of the picture he fills, the stroke's cameras and
 other ideas to start from, a move from a start to an end, saved angles, and
 Copy camera, which gives the numbers in the game's frame as `REPLAY_ANGLES`
@@ -2191,7 +2197,7 @@ debug or not, and `?replay=0` none; neither is practice.
 camera on the end (`replay-cover-midoff`), so the cameras players skip show. `scripts/replay-check.mjs`
 drives a cover drive for four on `?cover=1&replay=1`, photographs the replay
 through and skips a second with a tap (`MODE=super10` for Super10,
-`ANGLE=<id>` for one camera).
+`ANGLE=<id>` for one camera, `STROKE=pull` for the pull at a bouncer).
 
 ## The bowled ball's streak
 

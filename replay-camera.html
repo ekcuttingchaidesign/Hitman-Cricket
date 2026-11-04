@@ -91,7 +91,7 @@ label.check input{width:18px;height:18px;accent-color:var(--orange)}
   <header>
     <p class="eyebrow">Hitman Cricket · Action replay</p>
     <h1>Replay Camera Lab</h1>
-    <p class="lede">The game's own ground, batter and ball, playing a cover drive for four on a loop in a phone's frame. <b>Drag</b> to swing the camera round, <b>scroll or pinch</b> to move in and out, <b>right-drag or two fingers</b> to slide it. When an angle looks right, <b>Copy camera</b> and paste it to Claude.</p>
+    <p class="lede">The game's own ground, batter and ball, playing a stroke on a loop in a phone's frame, slowed through contact as the replay is. <b>Drag</b> to swing the camera round, <b>scroll or pinch</b> to move in and out, <b>right-drag or two fingers</b> to slide it. When an angle looks right, <b>Copy camera</b> and paste it to Claude.</p>
   </header>
 
   <div class="layout">
@@ -124,9 +124,23 @@ label.check input{width:18px;height:18px;accent-color:var(--orange)}
         <textarea id="copy-box" hidden readonly aria-label="Camera numbers to copy"></textarea>
       </section>
 
+      <section class="card" aria-labelledby="h-stroke">
+        <h2 id="h-stroke">Stroke</h2>
+        <div class="row">
+          <button type="button" data-group="stroke" data-value="cover">Cover drive</button>
+          <button type="button" data-group="stroke" data-value="pull">Pull</button>
+          <button type="button" data-group="stroke" data-value="hook">Hook</button>
+          <button type="button" data-group="stroke" data-value="cut">Square cut</button>
+          <button type="button" data-group="stroke" data-value="latecut">Late cut</button>
+          <button type="button" data-group="stroke" data-value="scoop">Scoop</button>
+          <button type="button" data-group="stroke" data-value="reverse">Reverse scoop</button>
+        </div>
+        <p class="small">Played perfectly in time at the ball it answers: <b id="ball-out">—</b>. Copy camera says which stroke the numbers are for.</p>
+      </section>
+
       <section class="card" aria-labelledby="h-start">
         <h2 id="h-start">Start from</h2>
-        <p class="small">In the game now: each replay of a cover drive is shown from one of these, never the same one twice running.</p>
+        <p class="small">In the game now: each replay is shown from one of these, never the same one twice running. Every stroke shares them until you set its own.</p>
         <div id="in-game" class="row"></div>
         <p class="small">Other ideas</p>
         <div class="row">
@@ -186,7 +200,7 @@ label.check input{width:18px;height:18px;accent-color:var(--orange)}
           <button type="button" data-group="hand" data-value="right">Right-hander</button>
           <button type="button" data-group="hand" data-value="left">Left-hander</button>
         </div>
-        <div class="row"><span class="label">Drive</span>
+        <div id="version-row" class="row"><span class="label">Drive</span>
           <button type="button" data-group="version" data-value="1">Version 1</button>
           <button type="button" data-group="version" data-value="2">Version 2</button>
           <button type="button" data-group="version" data-value="3">Version 3</button>
