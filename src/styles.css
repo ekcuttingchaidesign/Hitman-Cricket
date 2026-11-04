@@ -2440,6 +2440,7 @@ button.pause-row:focus-visible{outline:3px solid #ec754a;outline-offset:-3px}
 .pause-row-icon.is-crowd{background:#e9582b2b;color:#ff9566}
 .pause-row-icon.is-ambience{background:#087bff2e;color:#77b9ff}
 .pause-row-icon.is-lights{background:#f5c8422b;color:#f7d36a}
+.pause-row-icon.is-replay{background:#8b5cf62e;color:#b79bff}
 .pause-row-say{display:flex;flex-direction:column;min-width:0}
 .pause-row-say b{font-weight:700;font-size:15.5px;line-height:1.25}
 .pause-row-say em{font-style:normal;font-weight:500;font-size:12.5px;line-height:1.3;color:#8fa2af}
@@ -5718,7 +5719,27 @@ video.whatsnew-film.is-fit{height:auto;object-fit:contain;
 #viewport.reel-on>:not(canvas):not(#whatsnew-overlay){visibility:hidden}
 /* The walk-on before the first ball (`IntroReel.ts`): the ground alone, between
    two black bars that come in as it starts and go as it lands on the game's view. */
-#viewport.intro-on>:not(canvas):not(#walkon-card){visibility:hidden}
+#viewport.intro-on>:not(canvas):not(#walkon-card):not(#replay-tag):not(#replay-wipe){visibility:hidden}
+/* The action replay (`replay.ts`): under the walk-on's bars, a REPLAY tag top
+   left, and the cut in and out made under a band that sweeps across the whole
+   screen — Super10's violet with its logo, or the game's orange — covering it
+   for the middle of its WIPE_MS (560ms), when the camera is changed. */
+#replay-wipe{position:absolute;inset:0;z-index:70;overflow:hidden;pointer-events:none}
+#replay-wipe .rw-band{position:absolute;top:-10%;bottom:-10%;left:0;width:220%;display:grid;place-items:center;
+  background:linear-gradient(100deg,#ff8a3d 0 6%,#e9582b 6% 94%,#ff8a3d 94%);transform:translateX(-200%) skewX(-12deg);animation:rw-sweep .56s cubic-bezier(.6,.05,.4,.95) both}
+#replay-wipe.is-super10 .rw-band{background:linear-gradient(100deg,#c6ff1a 0 4%,#5b2fc0 4% 96%,#c6ff1a 96%)}
+#replay-wipe .rw-mark{width:calc(var(--u) * 150);transform:skewX(12deg)}
+#replay-wipe .rw-word{transform:skewX(12deg);color:#fff;font:400 calc(var(--u) * 44)/1 var(--f-display);letter-spacing:.08em;font-variation-settings:'opsz' 6}
+@keyframes rw-sweep{0%{transform:translateX(-200%) skewX(-12deg)}42%,58%{transform:translateX(-40%) skewX(-12deg)}100%{transform:translateX(110%) skewX(-12deg)}}
+#replay-tag{position:absolute;z-index:60;top:calc(11% + var(--u) * 12);left:calc(var(--u) * 16);display:flex;align-items:center;gap:calc(var(--u) * 8);padding:calc(var(--u) * 7) calc(var(--u) * 12);border-radius:calc(var(--u) * 8);
+  background:#e9582b;color:#fff;font:400 calc(var(--u) * 15)/1 var(--f-display);letter-spacing:.12em;font-variation-settings:'opsz' 6;pointer-events:none;animation:rt-in .3s ease both}
+#replay-tag.is-super10{background:#5b2fc0;box-shadow:inset 0 0 0 1.5px #c6ff1a}
+#replay-tag .rt-dot{width:calc(var(--u) * 8);height:calc(var(--u) * 8);border-radius:50%;background:#fff;animation:rt-blink 1s steps(2,start) infinite}
+#replay-tag.is-super10 .rt-dot{background:#c6ff1a}
+#replay-tag .rt-skip{margin-left:calc(var(--u) * 4);opacity:.7;font-size:calc(var(--u) * 11)}
+@keyframes rt-in{from{opacity:0;transform:translateX(-12px)}}
+@keyframes rt-blink{to{visibility:hidden}}
+@media (prefers-reduced-motion:reduce){#replay-tag,#replay-tag .rt-dot{animation:none}}
 #viewport.intro-on::before,#viewport.intro-on::after{content:'';position:absolute;left:0;right:0;z-index:50;height:calc(var(--intro-bars,0) * 11%);background:#000;pointer-events:none}
 #viewport.intro-on::before{top:0}
 #viewport.intro-on::after{bottom:0}

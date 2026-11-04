@@ -2131,6 +2131,48 @@ It replaced the coming-soon card and its page (Super10Page, I'M EXCITED,
 GOT IT), which went at release. The store's count of I'M EXCITED stays
 (`countExcited`, `super10-excited` in `TALLIES`, `scripts/super10-report.ts`).
 
+## The action replay
+
+A stroke worth seeing again is played again once the ball is dead, from an
+angle the camera behind the bat never has (`src/game/replay.ts`, in
+`tests/replay.test.ts`). It is the ball itself, told to the scene again: the
+game keeps what it told the scene — the ball, the swing with every argument
+and when, the outcome once resolved (`Kept`, `keepForReplay` in
+`src/Game.ts`) — and tells it the same again shifted on to now
+(`stageReplay`, `replayFrame`), picking the bowler up a stride or two from
+the crease (`RUNUP_FROM`), under the replay's camera (`replayCamera`, through
+`GameScene.cinematic`) and on a clock slowed to a quarter through the bat
+meeting the ball (`replayPace`). Nothing is scored, counted or sent again.
+Who goes for the ball is judged from the game's own view whatever the camera
+is doing (`judge` in `GameScene.inShot`), so the replay's field does what the
+real one did.
+
+Which balls (`qualifies`): a stroke on `REPLAY_STROKES` — the cover drive
+only, for now, the pull, the cuts and the scoops to follow — timed GOOD or
+PERFECT, for four or six. How often (`replayDue`): the first of each stroke
+an innings always; then one in three, off the page's dice and never the
+seed; never within an over of the last (`REPLAY_GAP`); at most five a
+Super10 innings and three a Blast (`REPLAYS_PER_INNINGS`); and a player who
+skips two running sees only a stroke not yet replayed that innings
+(`SKIPS_TO_QUIET`). Never over anything else the ball brings: a milestone, a
+moment, a new batter, a chase passed, the innings' last ball. Super10 and the
+Blast only; not a Rival Match (the other innings flashes up between balls),
+the tutorial or a demo. It plays in the RESULT phase, which waits for it, so
+the next ball is bowled after it and nothing about the batting moves.
+
+It is cut into and out of under a wipe (`WIPE_MS`, `#replay-wipe`: Super10's
+violet with its logo, or the game's orange with REPLAY), between the walk-on's
+bars with everything else put out of sight (`intro-on`), a REPLAY tag top left
+(`#replay-tag`). A tap, Space, Enter or Escape skips to the wipe out; a pause
+or a new innings cuts it short with none (`stopReplay`). The pause sheet has a
+Replays switch (`#replay-switch`, kept in `hitman-replays`). Off under
+`?debug=1` and reduced motion; `?replay=1` replays every ball that qualifies,
+debug or not, and `?replay=0` none; neither is practice.
+`__cricket.snapshot().replay` says what is playing. GoatCounter counts
+`replay-<stroke>` and `replay-skipped-<stroke>`. `scripts/replay-check.mjs`
+drives a cover drive for four on `?cover=1&replay=1`, photographs the replay
+through and skips a second with a tap (`MODE=super10` for Super10).
+
 ## The bowled ball's streak
 
 The ball on its way to the bat carries a streak (`STREAK` in `GameScene.ts`):

@@ -740,11 +740,16 @@ export class GameScene {
     const { width, height } = this.container.getBoundingClientRect();
     this.renderer.setSize(width, height);
     this.camera.aspect = width / height;
-    const { at, fov } = this.homeView;
+    const { eye, at, fov } = this.homeView;
     this.camera.fov = fov;
     this.camera.lookAt(...at);
     this.camera.updateProjectionMatrix();
+    this.judge.aspect = width / height; this.judge.fov = fov;
+    this.judge.position.set(...eye); this.judge.lookAt(...at);
+    this.judge.updateProjectionMatrix(); this.judge.updateMatrixWorld();
   };
+  /** The game's own view, kept still beside the camera: what is in the picture is judged from it (`inShot`). */
+  private readonly judge = new THREE.PerspectiveCamera(53, 1, 0.1, 180);
   /** The game's own view for this screen's shape: where every film's camera hands back to. */
   get homeView(): CameraPose {
     // Below 16:9 the view widens towards a constant horizontal field of view, so
@@ -1735,6 +1740,8 @@ export class GameScene {
   get fieldSettled() { return this.field.settled(this.clock); }
   /** The drawn man going for a catch this ball, by his place among the marks `super10Field` was given. */
   get catcher() { return this.field.catcher; }
+  /** The field back on its marks at once, as a replay's cut finds it and leaves it. */
+  homeField() { this.field.home(); }
   /** How far the man furthest from his mark is from it, in metres, for the checks: nobody walks to a new field. */
   get fieldAway() { return Math.max(0, ...this.field.state(this.clock).fielders.map(f => f.home)); }
   /** Whether the bowler is signalling a field change, for the checks. */
@@ -1755,7 +1762,10 @@ export class GameScene {
    */
   private inShot(point: THREE.Vector3) {
     this.world.updateMatrixWorld();
-    const p = this.world.localToWorld(point.clone()).project(this.camera);
+    // Judged from the game's own view whatever the camera is doing: a replay
+    // tells the scene the same ball again under its own camera, and the man
+    // who goes for it must be the one who went for it the first time.
+    const p = this.world.localToWorld(point.clone()).project(this.cinema ? this.judge : this.camera);
     return p.z < 1 && Math.abs(p.x) < .8 && p.y > -.7 && p.y < .55;
   }
   inspectBowler() {

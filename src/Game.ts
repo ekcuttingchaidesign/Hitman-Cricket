@@ -60,6 +60,7 @@ import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
 import { cardShown, filmLength, introBars, nextFilm, type Film } from './game/IntroReel';
 import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
+import { endedLog, freshLog, replayCamera, replayDue, replayPace, replayTimes, shownLog, REPLAYS_PER_INNINGS, RUNUP_FROM, WIPE_MS, type ReplayBall, type ReplayStroke, type ReplayTimes } from './game/replay';
 import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type CameraPose, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
@@ -265,6 +266,19 @@ const SUPER10_SHELF = SUPER10_OPEN && !SUPER10_ONLY;
 const LAST_MODE_KEY = 'hitman-last-mode';
 /** Which walk-on film this browser saw last, so the next visit opens on the other (`nextFilm`). */
 const WALK_ON_KEY = 'hitman-walk-on';
+/** The pause sheet's replays switch: 'off', or anything else for on. */
+const REPLAYS_KEY = 'hitman-replays';
+/** A ball as the scene was told it, kept for its replay: see `Game.keepForReplay`. */
+interface Kept {
+  delivery: Delivery;
+  swing: {
+    shot: ShotType; at: number; charging: boolean; lofted: boolean; sweeping: boolean; levelled: boolean;
+    version: CoverVersion; meets: number; cutting: boolean; spinPulling: boolean; stroke: ReplayStroke | null;
+  };
+  outcome: ShotOutcome;
+  /** From release: the swing, the ball resolved, and the bat on it. */
+  swingAfter: number; resolveAfter: number; contactAfter: number;
+}
 function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' {
   try {
     const kept = localStorage.getItem(LAST_MODE_KEY);
@@ -1052,7 +1066,9 @@ export class Game {
       if (document.fullscreenElement) void document.exitFullscreen();
       else if (this.hud.viewport.requestFullscreen) void this.hud.viewport.requestFullscreen().catch(() => {});
     });
-    this.hud.viewport.addEventListener('pointerdown', () => this.walkedOn(true));
+    this.hud.viewport.addEventListener('pointerdown', () => { this.walkedOn(true); this.skipReplay(); });
+    // The pause sheet's replays switch (`replay.ts`), kept across visits.
+    this.hud.on('replay-switch', () => { this.replaysOn = !this.replaysOn; try { localStorage.setItem(REPLAYS_KEY, this.replaysOn ? 'on' : 'off'); } catch { /* For this visit, then. */ } this.hud.replaySwitch(this.replaysOn); });
     window.addEventListener('keydown', this.shortcuts); window.addEventListener('beforeunload', this.leaving); document.addEventListener('visibilitychange', this.visibility);
     window.addEventListener('blur', this.blur); window.addEventListener('pagehide', this.markQuit);
     // A bundle built survive-only plays one innings and offers no way out of
@@ -2308,6 +2324,7 @@ export class Game {
     // Whatever led here — ANSWER, AGAIN or WIN IT BACK on Notifications — the innings is not played under it.
     this.hud.closeNotices(); this.hud.closeChaseEnd(); this.verdict?.close();
     if (this.walking) { this.walking = null; this.scene.walkOn(null); this.hud.walkOn(null); this.hud.walkOnCard(null, true); }
+    this.stopReplay(); this.replayLog = freshLog(); this.kept = null; this.replayQueued = null;
     if (this.chaseWon) { this.chaseWon = false; this.clearChase(); }
     // Who is batting, first: once, before the first innings there is.
     if (this.profileDue) {
@@ -3059,8 +3076,11 @@ export class Game {
     if (flicking && version >= 2) this.attempt = { ...this.attempt, flicked: true };
     this.flickPlayed = flicking;
     // At the spinner the cut is played making room for it: see `SPIN_CUT`.
-    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, version, this.meetsAt,
-      !charging && spinCut(this.delivery!, this.attempt), spinPulling);
+    const cutting = !charging && spinCut(this.delivery!, this.attempt);
+    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, version, this.meetsAt, cutting, spinPulling);
+    // Kept, for a replay of it: everything the scene was told, and when.
+    this.keptSwing = { shot: shotType, at: this.elapsed, charging, lofted, sweeping, levelled, version, meets: this.meetsAt, cutting, spinPulling,
+      stroke: shotType === 'COVER_LONG_OFF' && !charging && !punching ? 'cover' : null };
     this.hud.select(shotType, charging);
     // The charge is judged now rather than when the ball arrives, because the
     // ball is not going to arrive: he is going down the pitch to meet it, and
@@ -3137,8 +3157,10 @@ export class Game {
     if (this.phase === 'START' || this.phase === 'INNINGS_END' || this.hud.helpOpen) return;
     if (this.phase === 'PAUSED') { this.audio.unlock(); this.audio.holdCrowd(false); this.phase = this.previousPhase; this.hud.pause(false); (document.activeElement as HTMLElement | null)?.blur(); }
     else {
+      // A replay is cut short, not paused: the sheet would be hidden under it.
+      this.stopReplay();
       this.input.cancel(); this.audio.stop(); this.audio.holdCrowd(true); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true, this.pauseGame);
-      this.soundSwitches();
+      this.soundSwitches(); this.hud.replaySwitch(this.replaysOn);
       // The arena is played at night whatever the switch says, so it has none.
       this.hud.lightsSwitch(this.test || this.super10 || this.scene.arenaGround ? null : this.scene.lit);
       // Twenty overs in, the Marathon can be declared — from here, and from
@@ -4255,6 +4277,11 @@ export class Game {
       if ([' ', 'Enter', 'Escape'].includes(event.key)) { event.preventDefault(); this.walkedOn(true); }
       return;
     }
+    // So does a replay: the same three skip it, and nothing else is pressed under it.
+    if (this.replay) {
+      if ([' ', 'Enter', 'Escape'].includes(event.key)) { event.preventDefault(); this.skipReplay(); }
+      return;
+    }
     if (event.target instanceof Element && event.target.closest('.rate-pop') && STAR_KEYS.has(event.key)) return;
     const key = event.key.toUpperCase();
     // The stories sit over everything, including the board that may have opened
@@ -4351,6 +4378,7 @@ export class Game {
       this.input.flush(this.elapsed);
       this.update();
       if (this.reel) this.reelFrame();
+      if (this.replay) this.replayFrame();
       if (this.walking) this.walkOnFrame();
     }
     // Level Up covers the whole screen, so the ground under it is not drawn:
@@ -4371,6 +4399,8 @@ export class Game {
     // A stroke's film slows through the bat meeting the ball (`reelPace`).
     // Stopped dead while the swipe is drawn over it.
     if (this.reel) return this.reel.hold > 0 ? 0 : reelPace(this.elapsed - this.reel.start - this.reel.times.contact);
+    // A replay slows through the bat meeting the ball (`replayPace`).
+    if (this.replay) return this.replay.start === null ? 1 : replayPace(this.elapsed - this.replay.start - this.replay.times.contact);
     if (this.phase !== 'SHOT_RESOLVE' || !this.outcome?.advance) return 1;
     const since = this.elapsed - this.contactAt;
     // Two thirds speed, chosen from three playtest builds side by side. It
@@ -4390,6 +4420,7 @@ export class Game {
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
         : this.chargeable(this.generator.next(this.elapsed + GAME.runupMs));
       this.attempt = null; this.outcome = null; this.bounced = false; this.specials = []; this.primed = null; this.chargeBall = false; this.meetsAt = 1;
+      this.kept = null; this.keptSwing = null;
       // The ball is settled before the bowler moves, so the call goes out with
       // him. Held to the flight it gave the player under a second to see the
       // cue, change the shot he had in mind and time it — and that was most of
@@ -4450,6 +4481,15 @@ export class Game {
         if (this.sledgeDue) { this.sledgeDue = false; this.audio.play('sledge'); }
       }
     } else if (this.phase === 'RESULT' && age >= this.resultMs) {
+      // The ball is dead: a stroke worth seeing again is replayed now, and
+      // the next ball waits for it (`replay.ts`).
+      if (this.replay) return;
+      if (this.replayQueued) {
+        const queued = this.replayQueued; this.replayQueued = null;
+        if (!this.chasePassDue && !this.noticeDue && !this.changed && !(this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended || this.targetPassed)) {
+          this.beginReplay(queued); return;
+        }
+      }
       this.celebrating = 0; this.afterBallUntil = -Infinity;
       if (this.lesson >= 0) {
         this.lesson++;
@@ -4543,6 +4583,7 @@ export class Game {
     this.input.reset();
     const flight = this.scene.hit(this.outcome, this.attempt?.shotType, this.delivery!, this.elapsed);
     this.contactAt = flight.contactAt; this.presentationAt = flight.presentAt; this.resolveEndsAt = flight.endAt;
+    if (!step) this.keepForReplay(flight.contactAt);
     this.resultPresented = false; this.contactPlayed = false;
     this.setPhase('SHOT_RESOLVE');
     if (this.outcome.aerial) this.hud.airborne();
@@ -4754,6 +4795,125 @@ export class Game {
       this.scene.cheer(runs === 6 ? 'hit-six' : 'hit-four', this.elapsed, 0, 1, '');
       this.audio.cheer(boundaryCheer(runs, 1, false));
     }
+  }
+  /**
+   * The action replay (`replay.ts`). What the scene was told about the ball in
+   * play — the swing as it was played, and once it is resolved the ball and
+   * its outcome — kept so that it can be told again.
+   */
+  private keptSwing: Kept['swing'] | null = null;
+  private kept: Kept | null = null;
+  /** A replay due once this ball is dead. */
+  private replayQueued: Kept | null = null;
+  private replayLog = freshLog();
+  /** The pause sheet's switch: off, nothing is ever replayed. */
+  private replaysOn = (() => { try { return localStorage.getItem(REPLAYS_KEY) !== 'off'; } catch { return true; } })();
+  /**
+   * `?replay=1` replays every ball that qualifies, under `?debug=1` too, for
+   * looking at it; `?replay=0` none. Otherwise not under `?debug=1`, whose
+   * checks time their innings to the ball, nor for a player who asked for less
+   * motion.
+   */
+  private readonly replayAsked: 'every' | 'off' | null = (() => {
+    const asked = new URLSearchParams(location.search).get('replay');
+    if (asked === '1') return 'every';
+    if (asked === '0' || this.debug) return 'off';
+    return matchMedia('(prefers-reduced-motion: reduce)').matches ? 'off' : null;
+  })();
+  /** The replay playing: wiping in (`start` null), playing from `start`, or wiping out from `ending`. */
+  private replay: {
+    kept: Kept; begun: number; start: number | null; ending: number | null; times: ReplayTimes; delivery: Delivery;
+    swung: boolean; struck: boolean; played: boolean; skipped: boolean;
+  } | null = null;
+  /** The ball just resolved, kept; and replayed once it is dead if it is one to replay. */
+  private keepForReplay(contactAt: number) {
+    const swing = this.keptSwing, delivery = this.delivery, outcome = this.outcome;
+    if (!swing || !delivery || !outcome) return;
+    const release = delivery.releaseTimeMs;
+    this.kept = { delivery: { ...delivery }, swing, outcome, swingAfter: swing.at - release, resolveAfter: this.elapsed - release, contactAfter: contactAt - release };
+    // Super10 and the Blast, not a Rival Match, whose other innings flashes up between balls, nor practice's tutorial or a demo.
+    if (!(this.super10 || this.mode === 'CLASSIC') || this.challenge.playing || this.demoing || this.lesson >= 0) return;
+    if (!this.replaysOn || this.replayAsked === 'off') return;
+    const ball: ReplayBall = { stroke: swing.stroke, grade: outcome.timingGrade, runs: outcome.runs, wicket: outcome.isWicket, index: this.score.balls - 1 };
+    const due = replayDue(ball, this.replayLog, {
+      cap: this.super10 ? REPLAYS_PER_INNINGS.super10 : REPLAYS_PER_INNINGS.blast,
+      // The ball brings something of its own to celebrate: that, and no replay over it.
+      blocked: !!this.milestoneDue || !!this.momentAsked || !!this.changed || this.score.ended || this.targetPassed,
+      roll: Math.random(), every: this.replayAsked === 'every',
+    });
+    if (!due) return;
+    this.replayLog = shownLog(this.replayLog, ball);
+    this.replayQueued = this.kept;
+  }
+  /** The wipe in: the cut to the replay is made under it (`stageReplay`). */
+  private beginReplay(kept: Kept) {
+    const times = replayTimes(kept, GAME.runupMs);
+    this.replay = { kept, begun: this.elapsed, start: null, ending: null, times, delivery: kept.delivery, swung: false, struck: false, played: false, skipped: false };
+    this.hud.replayWipe(this.super10);
+    this.mark(`replay-${kept.swing.stroke}`, 'A stroke replayed');
+  }
+  /** Under the wipe: the scene set back to the bowler a stride or two from the crease, the camera the replay's. */
+  private stageReplay() {
+    const replay = this.replay!, { kept, times } = replay;
+    this.scene.reset(); this.scene.homeField();
+    this.scene.spinner(spun(kept.delivery));
+    this.scene.express(!!kept.delivery.express, !!kept.delivery.death);
+    this.scene.round(!!kept.delivery.round);
+    const start = this.elapsed, shift = start + times.release - kept.delivery.releaseTimeMs;
+    replay.start = start;
+    replay.delivery = { ...kept.delivery, releaseTimeMs: kept.delivery.releaseTimeMs + shift, idealContactTimeMs: kept.delivery.idealContactTimeMs + shift };
+    const stroke = kept.swing.stroke!;
+    this.scene.cinematic((now, ball) => this.replay?.start != null ? replayCamera(stroke, now - this.replay.start, this.replay.times, ball) : replayCamera(stroke, 0, times, null));
+    this.hud.walkOn(1); this.hud.replayTag(true, this.super10);
+  }
+  /** One frame of it, as `update` plays a ball: the rest of the run-up, the flight, the stroke, the ball away. */
+  private replayFrame() {
+    const replay = this.replay!, { kept, times, delivery } = replay;
+    if (replay.start === null) { if (this.elapsed >= replay.begun + WIPE_MS / 2) this.stageReplay(); return; }
+    if (replay.ending !== null) { if (this.elapsed >= replay.ending + WIPE_MS / 2) this.endReplay(); return; }
+    const t = this.elapsed - replay.start;
+    if (t >= times.end) { replay.ending = this.elapsed; this.hud.replayWipe(this.super10); return; }
+    if (t < times.release) { this.scene.runup(Math.min(1, RUNUP_FROM + t / GAME.runupMs)); return; }
+    if (!replay.struck) {
+      const since = this.elapsed - delivery.releaseTimeMs;
+      this.scene.delivery(delivery, flightProgress(delivery, since), since);
+      const swing = kept.swing;
+      if (!replay.swung && since >= kept.swingAfter) {
+        replay.swung = true;
+        this.scene.swing(swing.shot, this.elapsed, delivery, swing.charging, swing.lofted, swing.sweeping, swing.levelled, swing.version, swing.meets, swing.cutting, swing.spinPulling);
+      }
+      if (since < kept.resolveAfter) return;
+      this.scene.hit(kept.outcome, swing.shot, delivery, this.elapsed);
+      replay.struck = true;
+    }
+    if (!replay.played && this.elapsed >= delivery.releaseTimeMs + kept.contactAfter) { replay.played = true; this.audio.play('hit'); }
+    this.scene.result(this.elapsed);
+  }
+  /** A tap, Space, Enter or Escape: straight to the wipe out. */
+  private skipReplay() {
+    const replay = this.replay;
+    if (!replay || replay.ending !== null || replay.skipped) return;
+    replay.skipped = true;
+    this.mark(`replay-skipped-${replay.kept.swing.stroke}`, 'A replay skipped');
+    if (replay.start === null) { this.endReplay(); return; }
+    replay.ending = this.elapsed; this.hud.replayWipe(this.super10);
+  }
+  /** Over, under the wipe out: the game's camera, the batter in his guard and the field on its marks. */
+  private endReplay() {
+    const replay = this.replay;
+    if (!replay) return;
+    this.replay = null;
+    this.replayLog = endedLog(this.replayLog, replay.skipped);
+    if (replay.start !== null) { this.scene.cinematic(null); this.scene.reset(); this.scene.homeField(); }
+    this.hud.walkOn(null); this.hud.replayTag(false);
+  }
+  /** Cut short with no wipe, by a pause or a new innings. */
+  private stopReplay() {
+    if (!this.replay) return;
+    const started = this.replay.start !== null;
+    this.replay = null;
+    if (started) { this.scene.cinematic(null); this.scene.reset(); this.scene.homeField(); }
+    this.hud.walkOn(null); this.hud.replayTag(false); this.hud.replayWipe(null);
   }
   private pullUp() {
     this.scene.pull(this.elapsed, PULL_PENS[this.pullPen].swish);
@@ -6731,7 +6891,10 @@ export class Game {
   private snapshot() {
     return { phase: this.phase, mode: this.mode, lesson: this.lesson, seed: this.seed, elapsed: Math.round(this.elapsed),
       // A stroke's film under its story: which, and how far into a go of it, on its own clock.
-      reel: this.reel ? { shot: this.reel.shot, at: Math.round(this.elapsed - this.reel.start), struck: this.reel.struck } : null, balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
+      reel: this.reel ? { shot: this.reel.shot, at: Math.round(this.elapsed - this.reel.start), struck: this.reel.struck } : null,
+      // The replay playing: its stroke, how far in (null while it wipes in), whether it is wiping out; and how many this innings.
+      replay: this.replay ? { stroke: this.replay.kept.swing.stroke, at: this.replay.start === null ? null : Math.round(this.elapsed - this.replay.start), struck: this.replay.struck, ending: this.replay.ending !== null } : null,
+      replays: this.replayLog.shown, balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
       line: this.delivery?.line ?? '—', dragged: !!this.delivery?.dragged, spinPulled: !!this.outcome?.spinPulled, spinPulls: this.spinPulls, hooks: this.hooks, effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
       baseX: this.delivery?.baseTargetX.toFixed(3) ?? '—', finalX: this.delivery?.finalTargetX.toFixed(3) ?? '—',
       contactAt: Math.round(this.delivery?.idealContactTimeMs ?? 0), timingDelta: this.outcome?.timingDeltaMs?.toFixed(0) ?? '—', timingGrade: this.outcome?.timingGrade ?? '—',
