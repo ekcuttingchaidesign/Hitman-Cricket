@@ -2147,9 +2147,24 @@ found odd), under one of the stroke's cameras (`REPLAY_ANGLES`,
 through `GameScene.cinematic`) and on a clock slowed to two fifths through
 the bat meeting the ball and out on his held finish (`replayPace`,
 `AFTER_MS`; a quarter was too slow, the owner said). Nothing is scored, counted or sent again.
-Who goes for the ball is judged from the game's own view whatever the camera
-is doing (`judge` in `GameScene.inShot`), so the replay's field does what the
-real one did. A replay has a wicketkeeper (`keeper`, `keeperIn` in
+After his finish it cuts to the ball going away (`CUT_AFTER`, `fieldCamera`,
+the owner's choice of stroke then fielder): a camera up high behind the bat
+on the side towards the bowler's end, looking down at the ball and following
+it, zoomed so about fourteen metres of ground is always in the picture
+(`FOLLOW_FRAME`), the ball crossing it against the grass with whoever goes
+for it; past the rope (`ropeAt`: forty metres straight, thirty-five square —
+a four runs on to the boards at forty-four, `flightOf`) it holds wider just
+inside the rope, and a six it follows into the front of the stand. Stood near
+the rope looking out, the first build had the stands behind the ball and lost
+it in them. The replay holds `ARRIVED_MS` on where the ball got to
+(`replayTimes`' `arrives`, from the live ball). A replay's field has every
+man there is (`replayField`): Super10's nine, or the field in play and four
+men behind square, fine leg, deep square leg, third man and deep point
+(`REPLAY_DEEP`), whom play never shows because its camera sees nothing there;
+the field holds up to ten (`MOST_MEN`, those past the marks hidden), and in a
+replay anybody may go for the ball wherever it is (`everywhere`).
+Outside a replay who goes for the ball is judged from the game's own view
+whatever the camera is doing (`judge` in `GameScene.inShot`). A replay has a wicketkeeper (`keeper`, `keeperIn` in
 `GameScene`): the game's camera stands where he would, so in play he is never
 drawn, and a replay's cameras, looking at the batter from round the ground,
 showed the stumps with nobody behind them. He stands a little to the off
@@ -2194,7 +2209,8 @@ at the ball it answers, perfectly in time, the hook beside the pull, and the
 cut and the pull off the spinner on balls the game's own spinner bowls,
 `spinBall`), from
 the swing as the replay is, the bars
-on, a free camera, how much of the picture he fills, the stroke's cameras and
+on, a free camera, the cut to the ball going away (Cut to the ball going
+away, on as the game has it), how much of the picture he fills, the stroke's cameras and
 other ideas to start from, a move from a start to an end, saved angles, and
 Copy camera, which gives the numbers in the game's frame as `REPLAY_ANGLES`
 takes them. `scripts/replay-camera-artifact.mjs` builds it into one file; it

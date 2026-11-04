@@ -3,7 +3,7 @@ import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT
 import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
 import { Fielder, bodyOf, mixBodies, readyPose, showBody, type Body } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
-import { BLAST_FIELD, Field, TEST_FIELD, mark, type Mark } from './field';
+import { BLAST_FIELD, Field, REPLAY_DEEP, TEST_FIELD, mark, type Mark } from './field';
 import { nameOf, type Man } from '../game/super10-field';
 import type { Signal } from '../entities/Fielder';
 import { GAME } from '../config/gameplay';
@@ -155,6 +155,15 @@ interface Stands {
 // The ball and its trail are the only things left that want a bare sphere;
 // every figure on the field is a Cricketer, which carries its own primitives.
 const SHAPES = { ball: new THREE.SphereGeometry(1, 24, 16) };
+
+/** Super10's men as the field's marks. */
+function marksOf(men: readonly Man[]): Mark[] {
+  return men.map((man, i) => {
+    const name = nameOf(man.angle, man.deep);
+    return { name: name[0].toUpperCase() + name.slice(1), spot: mark(man.angle, man.distance), style: i % 2 ? 'hips' : 'loose', deep: man.deep };
+  });
+}
+
 
 /**
  * The ball, by format: the Blast's bright red, which Super10 plays with too
@@ -1296,11 +1305,34 @@ export class GameScene {
    * start of an innings, and stood on the new ones when it changes in it.
    */
   super10Field(men: readonly Man[], changed: boolean) {
-    const marks: Mark[] = men.map((man, i) => {
-      const name = nameOf(man.angle, man.deep);
-      return { name: name[0].toUpperCase() + name.slice(1), spot: mark(man.angle, man.distance), style: i % 2 ? 'hips' : 'loose', deep: man.deep };
-    });
+    const marks = marksOf(men);
     if (changed) this.field.standOn(marks); else this.field.setField(marks);
+  }
+  /**
+   * A replay's field: every man there is, so a ball sent behind square is
+   * fielded there — Super10's nine, given as `men`, or the field in play and
+   * the replay's men behind square (`REPLAY_DEEP`) — each judged able to go
+   * for it wherever it is (`everywhere`), since nothing in a replay has to
+   * match the game's view. Null puts the field in play back as it was.
+   */
+  replayField(on: boolean, men: readonly Man[] | null = null) {
+    if (on) {
+      this.playing ??= this.field.standing;
+      this.field.standOn(men ? marksOf(men) : [...this.playing, ...REPLAY_DEEP]);
+    } else if (this.playing) { this.field.standOn(this.playing); this.playing = null; }
+    this.everywhere = on;
+  }
+  private playing: readonly Mark[] | null = null;
+  private everywhere = false;
+  /**
+   * Where the ball last struck is going, in the game's frame: off the bat,
+   * where it finishes (on the rope, in the stands, in a man's hands), and how
+   * long after the bat met it it gets there. For a replay's second camera.
+   */
+  struckTo() {
+    if (!this.hitOutcome) return null;
+    const v = (p: THREE.Vector3) => [p.x, p.y, p.z] as [number, number, number];
+    return { from: v(this.hitOrigin), to: v(this.hitEnd), arrives: this.flightMs * this.takeAt };
   }
   /**
    * The bowler setting his field: turned, from wherever he stands, to the man
@@ -1799,6 +1831,7 @@ export class GameScene {
    * it can be seen.
    */
   private inShot(point: THREE.Vector3) {
+    if (this.everywhere) return true;
     this.world.updateMatrixWorld();
     // Judged from the game's own view whatever the camera is doing: a replay
     // tells the scene the same ball again under its own camera, and the man

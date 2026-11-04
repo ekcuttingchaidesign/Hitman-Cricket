@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  AFTER_MS, LEAD_IN, REPLAY_GAP, REPLAY_SLOW, REPLAYS_PER_INNINGS, SKIPS_TO_QUIET,
-  endedLog, freshLog, pickAngle, qualifies, replayCamera, replayDue, REPLAY_ANGLES, REPLAY_STROKES, replayPace, replayTimes, shownLog, type ReplayBall, type ReplayLog,
+  AFTER_MS, ARRIVED_MS, CUT_AFTER, LEAD_IN, REPLAY_GAP, REPLAY_SLOW, REPLAYS_PER_INNINGS, SKIPS_TO_QUIET,
+  endedLog, fieldCamera, freshLog, pickAngle, qualifies, replayCamera, replayDue, REPLAY_ANGLES, REPLAY_STROKES, replayPace, replayTimes, shownLog, type ReplayBall, type ReplayLog,
 } from '../src/game/replay';
 
 const four = (index: number, over: Partial<ReplayBall> = {}): ReplayBall => ({ stroke: 'cover', grade: 'PERFECT', runs: 4, wicket: false, index, ...over });
@@ -75,6 +75,32 @@ describe('the replay', () => {
     expect(times.contact).toBe(LEAD_IN + 280);
     expect(times.end).toBe(times.contact + AFTER_MS);
     expect(LEAD_IN).toBeLessThan(250);
+  });
+  it('holds on where the ball went, however long it takes to get there', () => {
+    const quick = replayTimes({ swingAfter: 900, resolveAfter: 1150, contactAfter: 1180, arrives: 100 });
+    expect(quick.end).toBe(quick.contact + AFTER_MS);
+    const long = replayTimes({ swingAfter: 900, resolveAfter: 1150, contactAfter: 1180, arrives: 1250 });
+    expect(long.end).toBe(long.contact + 1250 + ARRIVED_MS);
+    expect(CUT_AFTER).toBeLessThan(AFTER_MS);
+  });
+  it("cuts to a camera up high off the ball's line that follows it, never past the rope", () => {
+    for (const to of [[30, .1, 22], [-25, .1, -24], [3, .1, 44], [-34, .1, 2], [28, .1, -30]] as const) {
+      const pose = fieldCamera(to, null);
+      expect(pose.eye[1]).toBeGreaterThan(8);
+      expect(Math.hypot(pose.eye[0], pose.eye[2])).toBeLessThan(20);
+      // Off the ball's line, not on it: the ball comes across the picture.
+      const len = Math.hypot(to[0], to[2]), along = (pose.eye[0] * to[0] + pose.eye[2] * to[2]) / len;
+      const across = Math.hypot(pose.eye[0] - to[0] / len * along, pose.eye[2] - to[2] / len * along);
+      expect(across).toBeGreaterThan(5);
+      // A four held on where it crossed the rope, never on the boards beyond.
+      expect(Math.hypot(pose.at[0], pose.at[2])).toBeLessThanOrEqual(40);
+      // Following the ball while it is inside the rope.
+      expect(fieldCamera(to, [5, 1, 4]).at).toEqual([5, 1, 4]);
+      expect(fieldCamera(to, [to[0] * 1.4, .1, to[2] * 1.4]).at).toEqual(pose.at);
+    }
+    // Zoomed so the patch of ground in the picture stays the same size, near or far.
+    const near = fieldCamera([30, .1, 22], [3, .5, 3]), far = fieldCamera([30, .1, 22], [24, .5, 18]);
+    expect(far.fov).toBeLessThan(near.fov);
   });
   it('slows through contact and is back to full speed either side', () => {
     expect(replayPace(-2000)).toBe(1);

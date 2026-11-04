@@ -23,7 +23,7 @@ import { resolveShot } from './game/ShotResolver';
 import { COVER_V3_MEETS_AT, HOOK_MEETS_AT, LATE_CUT_MEETS_AT, PULL_MEETS_AT, SPIN_PULL_MEETS_AT, type CoverVersion } from './entities/Batter';
 import { batOf, outfitOf, super10KitOf } from './game/dressing';
 import { gloveOf } from './entities/gloves';
-import { CAMERAS, LEAD_IN, REPLAY_STROKES, STROKE_CAMERAS, replayPace, type ReplayStroke } from './game/replay';
+import { ARRIVED_MS, CAMERAS, CUT_AFTER, LEAD_IN, fieldCamera, REPLAY_STROKES, STROKE_CAMERAS, replayPace, type ReplayStroke } from './game/replay';
 import type { CameraPose } from './game/ShotReel';
 import type { Delivery } from './game/types';
 import type { GroundName } from './scene/grounds';
@@ -110,7 +110,9 @@ function spinBall(kind: 'cut' | 'pull', release: number): Delivery {
 
 // ── Playing it, from any moment on the loop ─────────────────────────────────
 let clock = 0, last = -1, anchored = false, swung = false, struck = false, contactAt = Infinity;
-function restart() { scene.reset(); scene.spinner(!!BALLS[stroke].spin); last = -1; anchored = false; swung = false; struck = false; contactAt = Infinity; }
+/** Where the struck ball is going, for the cut to it (`fieldCamera`). */
+let going: [number, number, number] | null = null;
+function restart() { scene.reset(); scene.homeField(); scene.spinner(!!BALLS[stroke].spin); last = -1; anchored = false; swung = false; struck = false; contactAt = Infinity; going = null; }
 function stageAt(t: number) {
   if (t < last) restart();
   if (t >= times.runup && t < times.release) scene.runup(Math.min(1, (t - times.runup) / GAME.runupMs));
@@ -125,6 +127,13 @@ function stageAt(t: number) {
     if (t >= times.hit) {
       if (!swung) { swung = true; swingNow(); }
       contactAt = scene.hit(outcome, BALLS[stroke].shot, delivery, times.hit).contactAt; struck = true;
+      // Held on where the ball goes for as long as the game's replay holds it.
+      const away = scene.struckTo();
+      if (away) {
+        going = away.to;
+        const end = Math.max(times.end, contactAt + away.arrives + ARRIVED_MS);
+        if (end !== times.end) { times.end = end; $('scrub').setAttribute('max', String(Math.round(end))); }
+      }
     } else {
       const since = t - times.release;
       scene.delivery(delivery, flightProgress(delivery, since), since);
@@ -179,7 +188,9 @@ function moveAt(t: number): Shot | null {
   return { eye: lerp(start.eye, end.eye, k), at: lerp(start.at, end.at, k), fov: start.fov + (end.fov - start.fov) * k };
 }
 
-scene.cinematic(() => {
+scene.cinematic((now, ball) => {
+  // After his finish, the game's replay cuts to the ball going away.
+  if (cutting && going && now >= contactAt + CUT_AFTER) return fieldCamera(going, ball, outcome.runs === 6);
   const move = moveAt(clock);
   const shot = move ?? toGame();
   return { eye: shot.eye, at: shot.at, fov: shot.fov } satisfies CameraPose;
@@ -197,7 +208,7 @@ function batterShare() {
 }
 
 // ── The loop ────────────────────────────────────────────────────────────────
-let playing = true, speed = .5, replayTiming = true, bars = true, previous = 0, sinceReadout = 0;
+let playing = true, speed = .5, replayTiming = true, cutting = true, bars = true, previous = 0, sinceReadout = 0;
 function frame(now: number) {
   const dt = previous ? Math.min(now - previous, 50) : 0; previous = now;
   if (playing && !dragging) {
@@ -247,8 +258,8 @@ function dress() {
   scene.time(super10 || night ? 'night' : 'day');
   scene.dressBatter(outfitOf('home'), batOf('plain'), gloveOf('sterling'), super10 ? super10KitOf('s10-purple') : null);
   scene.leftHanded(left);
-  // The keeper, as a replay has him.
-  scene.keeperIn(true);
+  // The keeper, and the men behind square, as a replay has them.
+  scene.keeperIn(true); scene.replayField(true);
   put(shot);
   restart();
 }
@@ -306,6 +317,7 @@ $('to-contact').addEventListener('click', () => { clock = times.hit - 40; playin
 const speedInput = $('speed') as HTMLInputElement;
 speedInput.addEventListener('input', () => { speed = Number(speedInput.value); $('speed-out').textContent = `${speed.toFixed(2)}×`; });
 ($('replay-timing') as HTMLInputElement).addEventListener('change', e => { replayTiming = (e.target as HTMLInputElement).checked; });
+($('cut') as HTMLInputElement).addEventListener('change', e => { cutting = (e.target as HTMLInputElement).checked; });
 ($('bars') as HTMLInputElement).addEventListener('change', e => { bars = (e.target as HTMLInputElement).checked; stage.classList.toggle('no-bars', !bars); });
 ($('fov') as HTMLInputElement).addEventListener('input', e => { setMoving(false); setFov(Number((e.target as HTMLInputElement).value)); });
 
@@ -376,4 +388,6 @@ function flash(text: string) {
 pressed('stroke', 'cover'); pressed('ground', 'stadium'); pressed('light', 'day'); pressed('hand', 'right'); pressed('version', '2'); pressed('preset', 'midoff');
 plan(); dress(); put(PRESETS.midoff.shot);
 drawSaved(); drawChoices(); readout();
+/** For the checks: where the struck ball is going, and where the camera stands. */
+(window as unknown as { __lab: unknown }).__lab = { going: () => going, camera: () => scene.camera.position.toArray(), contactAt: () => contactAt };
 requestAnimationFrame(frame);

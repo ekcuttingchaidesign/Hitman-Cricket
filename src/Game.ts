@@ -60,7 +60,7 @@ import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
 import { cardShown, filmLength, introBars, nextFilm, type Film } from './game/IntroReel';
 import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
-import { endedLog, freshLog, pickAngle, replayCamera, replayDue, replayPace, replayTimes, shownLog, REPLAYS_PER_INNINGS, WIPE_MS, type ReplayAngle, type ReplayBall, type ReplayStroke, type ReplayTimes } from './game/replay';
+import { endedLog, fieldCamera, freshLog, pickAngle, replayCamera, CUT_AFTER, replayDue, replayPace, replayTimes, shownLog, REPLAYS_PER_INNINGS, WIPE_MS, type ReplayAngle, type ReplayBall, type ReplayStroke, type ReplayTimes } from './game/replay';
 import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type CameraPose, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
@@ -276,8 +276,8 @@ interface Kept {
     version: CoverVersion; meets: number; cutting: boolean; spinPulling: boolean; stroke: ReplayStroke | null;
   };
   outcome: ShotOutcome;
-  /** From release: the swing, the ball resolved, and the bat on it. */
-  swingAfter: number; resolveAfter: number; contactAfter: number;
+  /** From release: the swing, the ball resolved, and the bat on it; and from the bat, the ball where it was going. */
+  swingAfter: number; resolveAfter: number; contactAfter: number; arrives: number;
 }
 function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' {
   try {
@@ -4591,7 +4591,7 @@ export class Game {
     this.input.reset();
     const flight = this.scene.hit(this.outcome, this.attempt?.shotType, this.delivery!, this.elapsed);
     this.contactAt = flight.contactAt; this.presentationAt = flight.presentAt; this.resolveEndsAt = flight.endAt;
-    if (!step) this.keepForReplay(flight.contactAt);
+    if (!step) this.keepForReplay(flight.contactAt, this.scene.struckTo()?.arrives ?? 0);
     this.resultPresented = false; this.contactPlayed = false;
     this.setPhase('SHOT_RESOLVE');
     if (this.outcome.aerial) this.hud.airborne();
@@ -4836,13 +4836,15 @@ export class Game {
   private replay: {
     kept: Kept; angle: ReplayAngle; begun: number; start: number | null; ending: number | null; times: ReplayTimes; delivery: Delivery;
     swung: boolean; struck: boolean; played: boolean; skipped: boolean;
+    /** Where the struck ball is going, once it is struck: the second camera's. */
+    to: readonly [number, number, number] | null;
   } | null = null;
   /** The ball just resolved, kept; and replayed once it is dead if it is one to replay. */
-  private keepForReplay(contactAt: number) {
+  private keepForReplay(contactAt: number, arrives: number) {
     const swing = this.keptSwing, delivery = this.delivery, outcome = this.outcome;
     if (!swing || !delivery || !outcome) return;
     const release = delivery.releaseTimeMs;
-    this.kept = { delivery: { ...delivery }, swing, outcome, swingAfter: swing.at - release, resolveAfter: this.elapsed - release, contactAfter: contactAt - release };
+    this.kept = { delivery: { ...delivery }, swing, outcome, swingAfter: swing.at - release, resolveAfter: this.elapsed - release, contactAfter: contactAt - release, arrives };
     // Super10 and the Blast, not a Rival Match, whose other innings flashes up between balls, nor practice's tutorial or a demo.
     if (!(this.super10 || this.mode === 'CLASSIC') || this.challenge.playing || this.demoing || this.lesson >= 0) return;
     if (!this.replaysOn || this.replayAsked === 'off') return;
@@ -4861,7 +4863,7 @@ export class Game {
     const times = replayTimes(kept);
     const angle = pickAngle(kept.swing.stroke!, this.lastAngle, Math.random(), this.angleAsked);
     this.lastAngle = angle.id;
-    this.replay = { kept, angle, begun: this.elapsed, start: null, ending: null, times, delivery: kept.delivery, swung: false, struck: false, played: false, skipped: false };
+    this.replay = { kept, angle, begun: this.elapsed, start: null, ending: null, times, delivery: kept.delivery, swung: false, struck: false, played: false, skipped: false, to: null };
     this.hud.replayWipe(this.super10);
     this.mark(`replay-${kept.swing.stroke}`, 'A stroke replayed');
     this.mark(`replay-${kept.swing.stroke}-${angle.id}`, 'A stroke replayed, by its camera');
@@ -4869,6 +4871,8 @@ export class Game {
   /** Under the wipe: the scene set to a moment before he swings, the camera the replay's. */
   private stageReplay() {
     const replay = this.replay!, { kept, times } = replay;
+    // Every man there is, so a ball sent behind square has somebody to go for it.
+    this.scene.replayField(true, this.super10 ? this.s10.field?.men ?? null : null);
     this.scene.reset(); this.scene.homeField();
     this.scene.spinner(spun(kept.delivery));
     this.scene.express(!!kept.delivery.express, !!kept.delivery.death);
@@ -4879,8 +4883,10 @@ export class Game {
     // The ball is already on its way: the bowler's action set running as if
     // his run-up had been watched, so he is in his follow-through.
     this.scene.runup((start - replay.delivery.releaseTimeMs + GAME.runupMs) / GAME.runupMs);
-    const pose = replayCamera(replay.angle);
-    this.scene.cinematic(() => pose); this.scene.keeperIn(true);
+    // The stroke from its camera, then, once his finish is reached, the ball going away.
+    const pose = replayCamera(replay.angle), cut = times.contact + CUT_AFTER;
+    this.scene.cinematic((now, ball) => this.replay?.to && now - start >= cut ? fieldCamera(this.replay.to, ball, kept.outcome.runs === 6) : pose);
+    this.scene.keeperIn(true);
     this.hud.walkOn(1); this.hud.replayTag(true, this.super10);
   }
   /** One frame of it, as `update` plays a ball: the stroke, and the ball only from the bat on. */
@@ -4898,7 +4904,7 @@ export class Game {
         replay.swung = true;
         this.scene.swing(swing.shot, this.elapsed, delivery, swing.charging, swing.lofted, swing.sweeping, swing.levelled, swing.version, swing.meets, swing.cutting, swing.spinPulling);
       }
-      if (since >= kept.resolveAfter) { this.scene.hit(kept.outcome, swing.shot, delivery, this.elapsed); replay.struck = true; }
+      if (since >= kept.resolveAfter) { this.scene.hit(kept.outcome, swing.shot, delivery, this.elapsed); replay.struck = true; replay.to = this.scene.struckTo()?.to ?? null; }
     }
     const contact = delivery.releaseTimeMs + kept.contactAfter;
     if (!replay.played && this.elapsed >= contact) { replay.played = true; this.audio.play('hit'); }
@@ -4922,7 +4928,7 @@ export class Game {
     if (!replay) return;
     this.replay = null;
     this.replayLog = endedLog(this.replayLog, replay.skipped);
-    if (replay.start !== null) { this.scene.cinematic(null); this.scene.keeperIn(false); this.scene.reset(); this.scene.homeField(); }
+    if (replay.start !== null) { this.scene.cinematic(null); this.scene.keeperIn(false); this.scene.replayField(false); this.scene.reset(); this.scene.homeField(); }
     this.hud.walkOn(null); this.hud.replayTag(false);
   }
   /** Cut short with no wipe, by a pause or a new innings. */
@@ -4930,7 +4936,7 @@ export class Game {
     if (!this.replay) return;
     const started = this.replay.start !== null;
     this.replay = null;
-    if (started) { this.scene.cinematic(null); this.scene.keeperIn(false); this.scene.reset(); this.scene.homeField(); }
+    if (started) { this.scene.cinematic(null); this.scene.keeperIn(false); this.scene.replayField(false); this.scene.reset(); this.scene.homeField(); }
     this.hud.walkOn(null); this.hud.replayTag(false); this.hud.replayWipe(null);
   }
   private pullUp() {

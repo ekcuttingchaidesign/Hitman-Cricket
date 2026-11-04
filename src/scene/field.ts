@@ -47,6 +47,20 @@ export const BLAST_FIELD: readonly Mark[] = [
 ];
 
 /**
+ * The men a replay adds behind square, where play has nobody because the
+ * game's camera sees nothing there: fine leg, deep square leg, third man and
+ * deep point, a few metres inside the rope. Only a replay's cameras see them
+ * (`GameScene.replayField`), so a ball sent there is fielded, chased or
+ * caught by somebody rather than crossing an empty field.
+ */
+export const REPLAY_DEEP: readonly Mark[] = [
+  { name: 'Fine leg', spot: mark(-150, 31), style: 'loose', deep: true },
+  { name: 'Deep square leg', spot: mark(-98, 31), style: 'hips', deep: true },
+  { name: 'Third man', spot: mark(148, 31), style: 'hips', deep: true },
+  { name: 'Deep point', spot: mark(100, 31), style: 'loose', deep: true },
+];
+
+/**
  * The Test match: an attacking field for a batter trying to survive. Four on
  * the ring to stop him getting off strike and catch anything in the air, two
  * back for the one he does middle.
@@ -60,7 +74,13 @@ export const TEST_FIELD: readonly Mark[] = [
   { name: 'Long-off', spot: mark(20, 33), style: 'hips', deep: true },
 ];
 
-const SEEDS = [.4, 1.9, 3.1, 4.4, 5.2, 6.6];
+const SEEDS = [.4, 1.9, 3.1, 4.4, 5.2, 6.6, 2.5, 3.7, 5.8, .9];
+/**
+ * The most men the field can hold: six in play, and a replay's men behind
+ * square besides (`REPLAY_DEEP`), or Super10's nine and one more. Those past
+ * the marks in use are hidden.
+ */
+export const MOST_MEN = 10;
 /** How far either side of his own mark, seen from the bat, a man in the deep covers the rope. */
 const AREA = 35 * Math.PI / 180;
 /** And no further than this from where it crosses, whatever the angle. */
@@ -91,9 +111,9 @@ function deal(fielder: number, ball: number, salt: number) {
 export type Visible = (point: THREE.Vector3) => boolean;
 
 export class Field {
-  readonly fielders = BLAST_FIELD.map(() => new Fielder());
+  readonly fielders = Array.from({ length: MOST_MEN }, () => new Fielder());
   private marks: readonly Mark[] = BLAST_FIELD;
-  private routines = this.marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i])]));
+  private routines = this.marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i % SEEDS.length])]));
   /** Who is under the ball this delivery, and the catch he is taking. */
   private catching: { index: number; plan: CatchPlan; dropped: boolean } | null = null;
   /**
@@ -118,7 +138,7 @@ export class Field {
    */
   standOn(marks: readonly Mark[]) {
     this.marks = marks;
-    this.routines = marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i])]));
+    this.routines = marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i % SEEDS.length])]));
     this.catching = null; this.gathering = null;
   }
 
@@ -139,10 +159,12 @@ export class Field {
   setField(marks: readonly Mark[]) {
     if (marks === this.marks) return;
     this.marks = marks;
-    this.routines = marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i])]));
+    this.routines = marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i % SEEDS.length])]));
     this.catching = null; this.gathering = null; this.bowling = null;
   }
 
+  /** The marks the field stands on now: a replay adds its men behind square to them and puts them back after. */
+  get standing() { return this.marks; }
   /** One man's plan, as it stands: for the rig lab, which plans a ball up front and plays it back. */
   routine(i: number) { return this.routines[i]; }
 
@@ -153,13 +175,17 @@ export class Field {
    * half a minute later — and the bowler waits for a field that never comes.
    */
   home() {
-    this.routines = this.marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i])]));
+    this.routines = this.marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i % SEEDS.length])]));
     this.catching = null; this.gathering = null; this.bowling = null;
   }
 
   /** Pose everyone for this instant. */
   update(now: number) {
-    this.fielders.forEach((fielder, i) => fielder.show(this.routines[i].at(now)));
+    this.fielders.forEach((fielder, i) => {
+      const routine = this.routines[i];
+      fielder.root.visible = !!routine;
+      if (routine) fielder.show(routine.at(now));
+    });
   }
 
   /**

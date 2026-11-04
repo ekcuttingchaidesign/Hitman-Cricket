@@ -108,8 +108,16 @@ export const WIPE_MS = 560;
  * pace and hung in front of him before the bat came down, which looked wrong.
  */
 export const LEAD_IN = 160;
-/** After the bat meets the ball: the ball away and his finish held, and out on it, before he is home in his guard. */
+/** After the bat meets the ball, at the least: his finish, and the ball on its way. */
 export const AFTER_MS = 800;
+/**
+ * Then it cuts to the ball going away (`fieldCamera`), this long after the
+ * bat met it on the game's clock — the bat through the ball — and holds where the
+ * ball got to this long: the fielder's take, dive or chase, the rope, the
+ * stand.
+ */
+export const CUT_AFTER = 260;
+export const ARRIVED_MS = 650;
 
 /**
  * When things happen in a replay, on the game's clock from its start: the
@@ -117,20 +125,24 @@ export const AFTER_MS = 800;
  * ball resolved, the bat on it, the end.
  */
 export interface ReplayTimes { release: number; swing: number; resolve: number; contact: number; end: number }
-/** From what was kept of the ball: how long after release he swung, it was resolved and the bat met it. */
-export function replayTimes(kept: { swingAfter: number; resolveAfter: number; contactAfter: number }): ReplayTimes {
-  const release = LEAD_IN - kept.swingAfter;
-  return { release, swing: LEAD_IN, resolve: release + kept.resolveAfter, contact: release + kept.contactAfter, end: release + kept.contactAfter + AFTER_MS };
+/**
+ * From what was kept of the ball: how long after release he swung, it was
+ * resolved and the bat met it, and how long after the bat it got where it
+ * was going (`arrives`).
+ */
+export function replayTimes(kept: { swingAfter: number; resolveAfter: number; contactAfter: number; arrives?: number }): ReplayTimes {
+  const release = LEAD_IN - kept.swingAfter, contact = release + kept.contactAfter;
+  return { release, swing: LEAD_IN, resolve: release + kept.resolveAfter, contact, end: contact + Math.max(AFTER_MS, (kept.arrives ?? 0) + ARRIVED_MS) };
 }
 
 /**
  * How fast the game's clock runs through a replay against the page's, at
  * `since` milliseconds from contact: full speed in, two fifths through the bat
- * meeting the ball, his follow-through and the finish held, and full speed
- * again for the wipe out.
+ * meeting the ball and his follow-through, and back to full speed by the cut
+ * to the ball going away.
  * Smooth both ways.
  */
-export const REPLAY_SLOW = { pace: .42, inFrom: -460, inTo: -180, outFrom: 900, outTo: 1400 } as const;
+export const REPLAY_SLOW = { pace: .42, inFrom: -460, inTo: -180, outFrom: 380, outTo: 700 } as const;
 export function replayPace(since: number) {
   const ease = (x: number) => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 - 2 * k); };
   const into = ease((since - REPLAY_SLOW.inFrom) / (REPLAY_SLOW.inTo - REPLAY_SLOW.inFrom));
@@ -208,3 +220,44 @@ export function pickAngle(stroke: ReplayStroke, last: string | null, roll: numbe
 
 /** The replay's camera: the angle, held. */
 export const replayCamera = (angle: ReplayAngle): CameraPose => ({ eye: angle.eye, at: angle.at, fov: angle.fov });
+
+/**
+ * How far out the rope is along a line from the bat: forty metres straight and
+ * thirty-five square (`BLAST_FIELD`), an oval between. A four runs on past it
+ * to the boards, forty-four out, and a six lands in the stand at fifty-two
+ * (`flightOf`), so where the ball crosses the rope is worked out, not read off
+ * where it stops.
+ */
+export const ropeAt = (dx: number, dz: number) => 35 + 5 * (dz * dz) / (dx * dx + dz * dz || 1);
+/**
+ * The second camera: after the stroke, the ball going away. A camera up high
+ * behind the bat on the side towards the bowler's end, looking down at the
+ * ball and following it, zoomed so that a patch of ground about fourteen
+ * metres high is always in the picture (`FOLLOW_FRAME`): the ball crosses it
+ * against the grass, with the man who goes for it — the chase, the dive, the
+ * take — and the rope ahead of it. Stood near the rope looking out, the stand
+ * was behind the ball and the ball was lost in it. Past the rope a four has
+ * stopped at the boards and gone, and the camera holds, wider, inside the rope;
+ * a six is followed into the stand, never higher than its front rows. `to` is
+ * where the ball finishes, `ball` where it is now, in the game's frame.
+ */
+export const FOLLOW_FRAME = 14;
+export function fieldCamera(to: Vec, ball: Vec | null, six = false): CameraPose {
+  const length = Math.hypot(to[0], to[2]) || 1;
+  const dx = to[0] / length, dz = to[2] / length;
+  const rope = ropeAt(dx, dz), r = Math.min(length, rope - .5);
+  // Across the ball's line, on the side towards the bowler's end.
+  let px = dz, pz = -dx;
+  if (pz < 0) { px = -px; pz = -pz; }
+  const eye: Vec = [-dx * 8 + px * 10, 14, -dz * 8 + pz * 10];
+  // Held once the ball has gone: a four a little inside the rope it crossed,
+  // wider, so the rope and the man who chased it are in the picture and not
+  // the boards; a six on the front of the stand it landed in.
+  const there: Vec = six ? [dx * (rope + 4), 4, dz * (rope + 4)] : [dx * (r - 4), .4, dz * (r - 4)];
+  const inside = ball && Math.hypot(ball[0], ball[2]) < rope - .5;
+  const at: Vec = inside ? [ball[0], Math.min(Math.max(ball[1], .3), 8), ball[2]] : there;
+  const away = Math.hypot(at[0] - eye[0], at[1] - eye[1], at[2] - eye[2]);
+  const frame = inside || six ? FOLLOW_FRAME : FOLLOW_FRAME * 1.6;
+  const fov = Math.min(40, Math.max(12, 2 * Math.atan(frame / 2 / away) * 180 / Math.PI));
+  return { eye, at, fov };
+}
