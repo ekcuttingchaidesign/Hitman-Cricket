@@ -21,7 +21,7 @@ import { resolveShot } from './game/ShotResolver';
 import { COVER_V3_MEETS_AT, HOOK_MEETS_AT, LATE_CUT_MEETS_AT, PULL_MEETS_AT, type CoverVersion } from './entities/Batter';
 import { batOf, outfitOf, super10KitOf } from './game/dressing';
 import { gloveOf } from './entities/gloves';
-import { REPLAY_ANGLES, replayPace, type ReplayStroke } from './game/replay';
+import { LEAD_IN, REPLAY_ANGLES, replayPace, type ReplayStroke } from './game/replay';
 import type { CameraPose } from './game/ShotReel';
 import type { Delivery } from './game/types';
 import type { GroundName } from './scene/grounds';
@@ -58,7 +58,7 @@ const BALLS: Record<LabStroke, { name: string; family: ReplayStroke; shot: ShotT
 const LEAD = 700, AFTER = 2600;
 let stroke: LabStroke = 'cover';
 let version: CoverVersion = 2;
-let delivery: Delivery, times: { runup: number; release: number; swing: number; hit: number; end: number };
+let delivery: Delivery, times: { start: number; runup: number; release: number; swing: number; hit: number; end: number };
 let outcome: ReturnType<typeof resolveShot>;
 let meets = 1;
 
@@ -83,16 +83,19 @@ function plan() {
     hit = release + high;
   }
   outcome = resolveShot(delivery, { shotType: ball.shot, inputTimeMs: swing, grounded: stroke === 'cover' && version >= 2 }, { next: () => .5 }, !!ball.charged);
-  times = { runup, release, swing, hit, end: hit + AFTER };
+  // As the replay plays it: from just before the swing, the ball unseen until the bat meets it.
+  times = { start: swing - LEAD_IN, runup, release, swing, hit, end: hit + AFTER };
+  $('scrub').setAttribute('min', String(Math.round(times.start)));
   $('scrub').setAttribute('max', String(Math.round(times.end)));
+  clock = times.start;
   $('ball-out').textContent = `${outcome.feedback || (outcome.runs ? `${outcome.runs} runs` : 'No run')}`;
   restart();
 }
 const swingNow = () => scene.swing(BALLS[stroke].shot, times.swing, delivery, false, false, false, false, stroke === 'cover' ? version : 2, meets, false, false);
 
 // ── Playing it, from any moment on the loop ─────────────────────────────────
-let clock = 0, last = -1, anchored = false, swung = false, struck = false;
-function restart() { scene.reset(); last = -1; anchored = false; swung = false; struck = false; }
+let clock = 0, last = -1, anchored = false, swung = false, struck = false, contactAt = Infinity;
+function restart() { scene.reset(); last = -1; anchored = false; swung = false; struck = false; contactAt = Infinity; }
 function stageAt(t: number) {
   if (t < last) restart();
   if (t >= times.runup && t < times.release) scene.runup(Math.min(1, (t - times.runup) / GAME.runupMs));
@@ -106,13 +109,14 @@ function stageAt(t: number) {
     }
     if (t >= times.hit) {
       if (!swung) { swung = true; swingNow(); }
-      scene.hit(outcome, BALLS[stroke].shot, delivery, times.hit); struck = true;
+      contactAt = scene.hit(outcome, BALLS[stroke].shot, delivery, times.hit).contactAt; struck = true;
     } else {
       const since = t - times.release;
       scene.delivery(delivery, flightProgress(delivery, since), since);
     }
   }
   if (struck) scene.result(t);
+  if (t < contactAt) scene.hideBall();
   last = t;
 }
 
@@ -156,7 +160,7 @@ let start: Shot | null = null, end: Shot | null = null, moving = false;
 const lerp = (a: Vec, b: Vec, k: number): Vec => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
 function moveAt(t: number): Shot | null {
   if (!moving || !start || !end) return null;
-  const k = smooth(t / times.end);
+  const k = smooth((t - times.start) / (times.end - times.start));
   return { eye: lerp(start.eye, end.eye, k), at: lerp(start.at, end.at, k), fov: start.fov + (end.fov - start.fov) * k };
 }
 
@@ -184,7 +188,7 @@ function frame(now: number) {
   if (playing && !dragging) {
     const pace = replayTiming ? replayPace(clock - times.hit) : 1;
     clock += dt * speed * pace;
-    if (clock > times.end) clock = 0;
+    if (clock > times.end) clock = times.start;
   }
   if (!moving) controls.update();
   stageAt(clock);

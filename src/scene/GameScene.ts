@@ -1740,6 +1740,15 @@ export class GameScene {
   get fieldSettled() { return this.field.settled(this.clock); }
   /** The drawn man going for a catch this ball, by his place among the marks `super10Field` was given. */
   get catcher() { return this.field.catcher; }
+  /**
+   * The ball, its shadow, its streak and the bounce out of sight for this
+   * frame: a replay shows the stroke from the swing, and the ball only once
+   * the bat meets it (`Game.replayFrame`).
+   */
+  hideBall() {
+    this.ball.visible = this.shadow.visible = this.bounceRing.visible = false;
+    this.streak.forEach(dot => dot.visible = false);
+  }
   /** The field back on its marks at once, as a replay's cut finds it and leaves it. */
   homeField() { this.field.home(); }
   /** How far the man furthest from his mark is from it, in metres, for the checks: nobody walks to a new field. */

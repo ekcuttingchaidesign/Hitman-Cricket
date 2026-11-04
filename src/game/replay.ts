@@ -101,20 +101,26 @@ export const endedLog = (log: ReplayLog, skipped: boolean): ReplayLog => ({ ...l
  * game's view is never seen jumping to the replay's or back.
  */
 export const WIPE_MS = 560;
-/** It picks the ball up this far into the bowler's run, a stride or two from the crease. */
-export const RUNUP_FROM = .6;
+/**
+ * It opens on the stroke: this long before he starts the swing, with the
+ * bowler already in his follow-through and the ball out of sight until the bat
+ * meets it. Picked up in the run-up, the ball came in slowed to the replay's
+ * pace and hung in front of him before the bat came down, which looked wrong.
+ */
+export const LEAD_IN = 160;
 /** After the bat meets the ball: the ball away and his finish held, and out on it, before he is home in his guard. */
 export const AFTER_MS = 800;
 
-/** When things happen in a replay, on the game's clock from its start: the run-up picked up, the ball out, the bat on it, the end. */
-export interface ReplayTimes { release: number; swing: number; contact: number; end: number }
 /**
- * From what was kept of the ball: how long after release he swung and the
- * bat met it, and the bowler's run-up.
+ * When things happen in a replay, on the game's clock from its start: the
+ * ball out of the hand (before the start, so less than nought), the swing, the
+ * ball resolved, the bat on it, the end.
  */
-export function replayTimes(kept: { swingAfter: number; contactAfter: number }, runupMs: number): ReplayTimes {
-  const release = (1 - RUNUP_FROM) * runupMs, contact = release + kept.contactAfter;
-  return { release, swing: release + kept.swingAfter, contact, end: contact + AFTER_MS };
+export interface ReplayTimes { release: number; swing: number; resolve: number; contact: number; end: number }
+/** From what was kept of the ball: how long after release he swung, it was resolved and the bat met it. */
+export function replayTimes(kept: { swingAfter: number; resolveAfter: number; contactAfter: number }): ReplayTimes {
+  const release = LEAD_IN - kept.swingAfter;
+  return { release, swing: LEAD_IN, resolve: release + kept.resolveAfter, contact: release + kept.contactAfter, end: release + kept.contactAfter + AFTER_MS };
 }
 
 /**

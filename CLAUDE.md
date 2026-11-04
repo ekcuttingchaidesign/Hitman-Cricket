@@ -2139,8 +2139,11 @@ angle the camera behind the bat never has (`src/game/replay.ts`, in
 game keeps what it told the scene — the ball, the swing with every argument
 and when, the outcome once resolved (`Kept`, `keepForReplay` in
 `src/Game.ts`) — and tells it the same again shifted on to now
-(`stageReplay`, `replayFrame`), picking the bowler up a stride or two from
-the crease (`RUNUP_FROM`), under one of the stroke's cameras (`REPLAY_ANGLES`,
+(`stageReplay`, `replayFrame`), opening on the stroke `LEAD_IN` before he
+swings, the bowler already in his follow-through and the ball out of sight
+until the bat meets it (`hideBall`: picked up in the run-up, the ball came in
+slowed and hung in front of him before the bat came down, which the owner
+found odd), under one of the stroke's cameras (`REPLAY_ANGLES`,
 through `GameScene.cinematic`) and on a clock slowed to two fifths through
 the bat meeting the ball and out on his held finish (`replayPace`,
 `AFTER_MS`; a quarter was too slow, the owner said). Nothing is scored, counted or sent again.
@@ -2177,7 +2180,8 @@ never the one the last used (`pickAngle`, off the page's dice);
 `?replayangle=midoff` (any id) asks for one and is not practice.
 `replay-camera.html` (`src/replay-camera.ts`) is the lab: the game's own
 scene playing any of the strokes on a loop in a phone's frame (`BALLS`: each
-at the ball it answers, perfectly in time, the hook beside the pull), the bars
+at the ball it answers, perfectly in time, the hook beside the pull), from
+the swing as the replay is, the bars
 on, a free camera, how much of the picture he fills, the stroke's cameras and
 other ideas to start from, a move from a start to an end, saved angles, and
 Copy camera, which gives the numbers in the game's frame as `REPLAY_ANGLES`

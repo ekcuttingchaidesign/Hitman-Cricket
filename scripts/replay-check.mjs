@@ -109,7 +109,7 @@ if (shown) {
   else check(!!shown.replay.angle, 'from one of its cameras', JSON.stringify(shown.replay));
   // Through it, photographing as it goes.
   let now = await snap(), staged = false, struck = false, bars = false, tag = false;
-  const moments = [400, 900, 1250, 1450, 1700, 1950];
+  const moments = [0, 150, 300, 500, 800, 1100];
   for (let i = 0; i < 400 && now.replay; i++) {
     await advance(40); now = await snap();
     if (now.replay?.at != null) {

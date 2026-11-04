@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  AFTER_MS, REPLAY_GAP, REPLAY_SLOW, REPLAYS_PER_INNINGS, RUNUP_FROM, SKIPS_TO_QUIET,
+  AFTER_MS, LEAD_IN, REPLAY_GAP, REPLAY_SLOW, REPLAYS_PER_INNINGS, SKIPS_TO_QUIET,
   endedLog, freshLog, pickAngle, qualifies, replayCamera, replayDue, REPLAY_ANGLES, REPLAY_STROKES, replayPace, replayTimes, shownLog, type ReplayBall, type ReplayLog,
 } from '../src/game/replay';
 
@@ -67,12 +67,14 @@ describe('which balls are replayed', () => {
 });
 
 describe('the replay', () => {
-  it('picks the run-up up a stride or two out and runs on past the bat meeting the ball', () => {
-    const times = replayTimes({ swingAfter: 500, contactAfter: 900 }, 840);
-    expect(times.release).toBeCloseTo((1 - RUNUP_FROM) * 840);
-    expect(times.swing).toBeCloseTo(times.release + 500);
-    expect(times.contact).toBeCloseTo(times.release + 900);
-    expect(times.end).toBeCloseTo(times.contact + AFTER_MS);
+  it('opens on the stroke, a moment before he swings, and goes out on his finish', () => {
+    const times = replayTimes({ swingAfter: 900, resolveAfter: 1150, contactAfter: 1180 });
+    expect(times.swing).toBe(LEAD_IN);
+    expect(times.release).toBe(LEAD_IN - 900);
+    expect(times.resolve).toBe(LEAD_IN + 250);
+    expect(times.contact).toBe(LEAD_IN + 280);
+    expect(times.end).toBe(times.contact + AFTER_MS);
+    expect(LEAD_IN).toBeLessThan(250);
   });
   it('slows through contact and is back to full speed either side', () => {
     expect(replayPace(-2000)).toBe(1);
