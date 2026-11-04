@@ -2147,7 +2147,10 @@ found odd), under one of the stroke's cameras (`REPLAY_ANGLES`,
 through `GameScene.cinematic`) and on a clock slowed to two fifths through
 the bat meeting the ball and out on his held finish (`replayPace`,
 `AFTER_MS`; a quarter was too slow, the owner said). Nothing is scored, counted or sent again.
-After his finish it cuts to the ball going away (`CUT_AFTER`, `fieldCamera`,
+After his finish it cuts to the ball going away (`CUT_AFTERS`, a time for each
+stroke from when its finish is there: the square cut's wrap is three tenths
+of a second after the ball, and cut at a quarter of a second it read as a
+stroke left unfinished; `fieldCamera`,
 the owner's choice of stroke then fielder): a camera up high behind the bat
 on the side towards the bowler's end, looking down at the ball and following
 it, zoomed so about fourteen metres of ground is always in the picture
@@ -2156,8 +2159,14 @@ for it; past the rope (`ropeAt`: forty metres straight, thirty-five square —
 a four runs on to the boards at forty-four, `flightOf`) it holds wider just
 inside the rope, and a six it follows into the front of the stand. Stood near
 the rope looking out, the first build had the stands behind the ball and lost
-it in them. The replay holds `ARRIVED_MS` on where the ball got to
-(`replayTimes`' `arrives`, from the live ball). A replay's field has every
+it in them. A six is not followed down into the stand, where a long lens
+showed up the crowd's few polygons: its camera stands low by the rope it is
+going over, a little off its line, and looks back up at it against the sky
+(`sixCamera`), follows it to `SIX_HOLD` short of the rope and holds there as
+it climbs out of the top of the picture, and the replay lets it go
+`OVER_MS` after it is over the rope (`overRope`). Anything else is held
+`ARRIVED_MS` on where the ball got to (`replayTimes`' `arrives`, from the
+live ball). A replay's field has every
 man there is (`replayField`): Super10's nine, or the field in play and four
 men behind square, fine leg, deep square leg, third man and deep point
 (`REPLAY_DEEP`), whom play never shows because its camera sees nothing there;
@@ -2174,11 +2183,15 @@ after, in the fielding side's kit.
 
 Which balls (`qualifies`): a stroke on `REPLAY_STROKES` — the cover drive,
 the pull (the hook and the pull off the spinner with it), the square cut (at
-pace or off the spinner), the late cut, and the two scoops — timed GOOD or
-PERFECT, for four or six, the scoops only for six (`REPLAY_RUNS`: they have
-had the special stroke's flash live). Which one a ball was is decided in
-`Game.shoot` beside the swing it keeps (`stroke` on `Kept`); the charge, the
-drives down the ground, the flick and the sweeps are not replayed. How often (`replayDue`): the first of each stroke
+pace or off the spinner), the late cut, the two scoops, the lofted straight
+drive in either version (`straight`), the on drive's six (`on`), the flick
+version two, the orthodox sweep, the slog sweep and the charge — timed GOOD
+or PERFECT, for four or six; the lofted drives and the charge are only ever
+six (`REPLAY_RUNS`). The meter's strokes are replayed for four as well: for
+six alone a scoop's replay was so rare the owner never saw one. Which one a
+ball was is decided in `Game.shoot` beside the swing it keeps (`stroke` on
+`Kept`); the drives along the ground down the ground, the punch and flicks
+one and three are not replayed. How often (`replayDue`): the first of each stroke
 an innings always; then one in three, off the page's dice and never the
 seed; never within an over of the last (`REPLAY_GAP`); at most five a
 Super10 innings and three a Blast (`REPLAYS_PER_INNINGS`); and a player who
@@ -2190,7 +2203,10 @@ the tutorial or a demo. It plays in the RESULT phase, which waits for it, so
 the next ball is bowled after it and nothing about the batting moves.
 
 The cameras are the owner's, set in the replay camera lab for the cover
-drive, and each stroke is shown from the ones that suit it
+drive, two more from the bowler's end straight down the ground at him for the
+sixes down it, as the owner asked — over the sightscreen and higher, from
+where Super10's big screen stands (`BEHIND`: `sightscreen`, `big-screen`,
+long lenses short of the stand) — and each stroke is shown from the ones that suit it
 (`STROKE_CAMERAS`: on the side the ball goes, or in front of him, never one
 that sees his back as the ball goes away from it — the square cut from the
 leg side did not look good, the owner said), two at least, switched in the
@@ -2229,7 +2245,10 @@ debug or not, and `?replay=0` none; neither is practice.
 camera on the end (`replay-cover-midoff`), so the cameras players skip show. `scripts/replay-check.mjs`
 drives a cover drive for four on `?cover=1&replay=1`, photographs the replay
 through and skips a second with a tap (`MODE=super10` for Super10,
-`ANGLE=<id>` for one camera, `STROKE=pull` for the pull at a bouncer).
+`ANGLE=<id>` for one camera, `STROKE=pull` for the pull at a bouncer, `STROKE=straight` for the straight
+six, `STROKE=cut` for the square cut at `?latecut=1`'s ball). The lab has the
+straight six, the on drive's six, the flick, the sweep and the slog sweep
+beside the first strokes.
 
 ## The catch camera
 
@@ -2270,11 +2289,17 @@ fine leg now, where before every catch was put where the game's camera
 could see it, in the V. The wicketkeeper is in the picture. A ball put down
 is never replayed after.
 
+In Super10 a ball a boundary rider cut off or saved out of the game's
+picture (`offScreen`: a sweep or a pull fielded in the deep, square or
+behind) is followed to him the same way (`'field'`): the camera on him and
+the ball together, slowed through his collect or his dive, the call on the
+cut back.
+
 Off with the pause sheet's Replays switch, under `?debug=1` and reduced
 motion, in the tutorial and a demo; `?catchcam=1` shows every one, debug or
 not, and every spillable skier put down, and `?catchcam=0` none. Neither is
 practice. `snapshot().catchCam` says what is on. GoatCounter counts
-`catch-cam-catch`, `-drop` and `-spill`. `scripts/catch-check.mjs` skies a
+`catch-cam-catch`, `-drop`, `-spill` and `-field`. `scripts/catch-check.mjs` skies a
 cover drive on `?cover=1&catchcam=1` and photographs it through
 (`MODE=survive` bats seeds until it has a drop as well, `MODE=super10`).
 

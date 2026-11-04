@@ -15,8 +15,13 @@ import { ropeAt } from './replay';
 
 type Vec = readonly [number, number, number];
 
-/** A catch held, one put down where he stands, and one put down that runs on to the rope for four. */
-export type CatchShot = 'catch' | 'drop' | 'spill';
+/**
+ * A catch held, one put down where he stands, one put down that runs on to
+ * the rope for four, and Super10's ball a boundary rider cut off or saved out
+ * of the game's picture — a sweep or a pull fielded in the deep — followed to
+ * him (`Game.catchShot`).
+ */
+export type CatchShot = 'catch' | 'drop' | 'spill' | 'field';
 
 /**
  * Which balls it goes with: one skied off the bat to a fielder, caught or put

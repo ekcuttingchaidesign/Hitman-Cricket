@@ -19,11 +19,11 @@ import type { BallLine, DeliveryStyle, ShotType } from './game/types';
 import { effectiveLine, flightProgress } from './game/DeliveryTrajectory';
 import { CLASSIC_PLAN, DeliveryGenerator, spinCutsEvery, spinPullsEvery } from './game/DeliveryGenerator';
 import { SeededRandom } from './game/SeededRandom';
-import { resolveShot } from './game/ShotResolver';
-import { COVER_V3_MEETS_AT, HOOK_MEETS_AT, LATE_CUT_MEETS_AT, PULL_MEETS_AT, SPIN_PULL_MEETS_AT, type CoverVersion } from './entities/Batter';
+import { resolveShot, sweepable } from './game/ShotResolver';
+import { COVER_V3_MEETS_AT, FLICK_MEETS_AT, HOOK_MEETS_AT, LATE_CUT_MEETS_AT, ON_DRIVE_MEETS_AT, PULL_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, type CoverVersion } from './entities/Batter';
 import { batOf, outfitOf, super10KitOf } from './game/dressing';
 import { gloveOf } from './entities/gloves';
-import { ARRIVED_MS, CAMERAS, CUT_AFTER, LEAD_IN, fieldCamera, REPLAY_STROKES, STROKE_CAMERAS, replayPace, type ReplayStroke } from './game/replay';
+import { ARRIVED_MS, CAMERAS, CUT_AFTERS, LEAD_IN, fieldCamera, REPLAY_STROKES, STROKE_CAMERAS, replayPace, type ReplayStroke } from './game/replay';
 import type { CameraPose } from './game/ShotReel';
 import type { Delivery } from './game/types';
 import type { GroundName } from './scene/grounds';
@@ -47,8 +47,9 @@ const side = () => (scene.mirrored ? 1 : -1);
  * looked at. `ahead` is how far down the pitch the stroke meets the ball
  * (`Game.shoot`'s `meetsAt`); the scoops are played on a full meter.
  */
-type LabStroke = 'cover' | 'pull' | 'hook' | 'cut' | 'spincut' | 'spinpull' | 'latecut' | 'scoop' | 'reverse';
-const BALLS: Record<LabStroke, { name: string; family: ReplayStroke; shot: ShotType; style: DeliveryStyle; line: BallLine; kph: number; ahead: number; charged?: boolean; spin?: 'cut' | 'pull' }> = {
+type LabStroke = 'cover' | 'pull' | 'hook' | 'cut' | 'spincut' | 'spinpull' | 'latecut' | 'scoop' | 'reverse' | 'straight' | 'on' | 'flick' | 'sweep' | 'slog';
+const BALLS: Record<LabStroke, { name: string; family: ReplayStroke; shot: ShotType; style: DeliveryStyle; line: BallLine; kph: number; ahead: number; charged?: boolean;
+  spin?: 'cut' | 'pull' | 'sweep'; lofted?: boolean; sweeping?: boolean; levelled?: boolean; flicked?: boolean }> = {
   cover: { name: 'Cover drive', family: 'cover', shot: 'COVER_LONG_OFF', style: 'NORMAL', line: 'OFF', kph: 134, ahead: 0 },
   pull: { name: 'Pull', family: 'pull', shot: 'LEG', style: 'SHORT', line: 'MIDDLE', kph: 142, ahead: PULL_MEETS_AT },
   hook: { name: 'Hook', family: 'pull', shot: 'HOOK', style: 'SHORT', line: 'OUTSIDE_OFF', kph: 142, ahead: HOOK_MEETS_AT },
@@ -59,6 +60,13 @@ const BALLS: Record<LabStroke, { name: string; family: ReplayStroke; shot: ShotT
   latecut: { name: 'Late cut', family: 'latecut', shot: 'LATE_CUT', style: 'NORMAL', line: 'OUTSIDE_OFF', kph: 134, ahead: LATE_CUT_MEETS_AT },
   scoop: { name: 'Scoop', family: 'scoop', shot: 'SCOOP', style: 'YORKER', line: 'MIDDLE', kph: 150, ahead: 0, charged: true },
   reverse: { name: 'Reverse scoop', family: 'reverse', shot: 'REVERSE_SCOOP', style: 'YORKER', line: 'OFF', kph: 150, ahead: 0, charged: true },
+  // The sixes down the ground: the lofted straight drive (version two) and the on drive's.
+  straight: { name: 'Straight six', family: 'straight', shot: 'STRAIGHT', style: 'NORMAL', line: 'MIDDLE', kph: 134, ahead: 0, lofted: true },
+  on: { name: 'On drive six', family: 'on', shot: 'LONG_ON', style: 'NORMAL', line: 'LEG', kph: 134, ahead: ON_DRIVE_MEETS_AT, lofted: true },
+  flick: { name: 'Flick', family: 'flick', shot: 'LEG', style: 'NORMAL', line: 'LEG', kph: 134, ahead: FLICK_MEETS_AT, flicked: true },
+  // The spinner's full ball, swept along the ground or slog-swept on a full meter.
+  sweep: { name: 'Sweep', family: 'sweep', shot: 'LEG', style: 'OFF_SPIN', line: 'MIDDLE', kph: 90, ahead: 0, spin: 'sweep', levelled: true },
+  slog: { name: 'Slog sweep', family: 'slog', shot: 'LEG', style: 'OFF_SPIN', line: 'MIDDLE', kph: 90, ahead: SLOG_MEETS_AT, spin: 'sweep', sweeping: true, charged: true },
 };
 const LEAD = 700, AFTER = 2600;
 let stroke: LabStroke = 'cover';
@@ -87,7 +95,7 @@ function plan() {
     for (let i = 0; i < 40; i++) { const mid = (low + high) / 2; if (flightProgress(delivery, mid) < meets) low = mid; else high = mid; }
     hit = release + high;
   }
-  outcome = resolveShot(delivery, { shotType: ball.shot, inputTimeMs: swing, grounded: stroke === 'cover' && version >= 2 }, { next: () => .5 }, !!ball.charged);
+  outcome = resolveShot(delivery, { shotType: ball.shot, inputTimeMs: swing, grounded: stroke === 'cover' && version >= 2, flicked: !!ball.flicked }, { next: () => .5 }, !!ball.charged);
   // As the replay plays it: from just before the swing, the ball unseen until the bat meets it.
   times = { start: swing - LEAD_IN, runup, release, swing, hit, end: hit + AFTER };
   $('scrub').setAttribute('min', String(Math.round(times.start)));
@@ -96,14 +104,18 @@ function plan() {
   $('ball-out').textContent = `${outcome.feedback || (outcome.runs ? `${outcome.runs} runs` : 'No run')}`;
   restart();
 }
-const swingNow = () => scene.swing(BALLS[stroke].shot, times.swing, delivery, false, false, false, false, stroke === 'cover' ? version : 2, meets, BALLS[stroke].spin === 'cut', BALLS[stroke].spin === 'pull');
-/** The spinner's ball off the game's own plan: one he would cut, outside off and turning in, or one dropped short. */
-function spinBall(kind: 'cut' | 'pull', release: number): Delivery {
+const swingNow = () => {
+  const ball = BALLS[stroke];
+  scene.swing(ball.shot, times.swing, delivery, false, !!ball.lofted, !!ball.sweeping, !!ball.levelled, stroke === 'cover' ? version : 2, meets, ball.spin === 'cut', ball.spin === 'pull');
+};
+/** The spinner's ball off the game's own plan: one he would cut, outside off and turning in, one dropped short, or a full one on the stumps to sweep. */
+function spinBall(kind: 'cut' | 'pull' | 'sweep', release: number): Delivery {
   const bowler = new DeliveryGenerator(new SeededRandom(7), kind === 'pull' ? spinPullsEvery(CLASSIC_PLAN) : spinCutsEvery(CLASSIC_PLAN));
   for (let i = 0; i < 400; i++) {
     const ball = bowler.next(release);
     if (ball.style === 'ARM_BALL') continue;
-    if (kind === 'pull' ? ball.dragged : !ball.dragged && ['OFF', 'OUTSIDE_OFF'].includes(effectiveLine(ball))) return ball;
+    if (kind === 'sweep' ? !ball.dragged && ball.style === 'OFF_SPIN' && sweepable(ball) && ['MIDDLE', 'LEG'].includes(effectiveLine(ball))
+      : kind === 'pull' ? ball.dragged : !ball.dragged && ['OFF', 'OUTSIDE_OFF'].includes(effectiveLine(ball))) return ball;
   }
   return bowler.next(release);
 }
@@ -190,7 +202,7 @@ function moveAt(t: number): Shot | null {
 
 scene.cinematic((now, ball) => {
   // After his finish, the game's replay cuts to the ball going away.
-  if (cutting && going && now >= contactAt + CUT_AFTER) return fieldCamera(going, ball, outcome.runs === 6);
+  if (cutting && going && now >= contactAt + CUT_AFTERS[BALLS[stroke].family]) return fieldCamera(going, ball, outcome.runs === 6);
   const move = moveAt(clock);
   const shot = move ?? toGame();
   return { eye: shot.eye, at: shot.at, fov: shot.fov } satisfies CameraPose;
@@ -284,7 +296,8 @@ const CHOICES_KEY = 'replay-camera-choices';
 let choices: Record<ReplayStroke, string[]> = Object.fromEntries(REPLAY_STROKES.map(f => [f, [...STROKE_CAMERAS[f]]])) as unknown as Record<ReplayStroke, string[]>;
 try { const kept = JSON.parse(localStorage.getItem(CHOICES_KEY) ?? 'null'); if (kept) choices = { ...choices, ...kept }; } catch { /* The game's, then. */ }
 const keepChoices = () => { try { localStorage.setItem(CHOICES_KEY, JSON.stringify(choices)); } catch { /* For this visit. */ } };
-const FAMILY_NAMES: Record<ReplayStroke, string> = { cover: 'Cover drive', pull: 'Pull, hook and pull off the spinner', cut: 'Square cut and cut off the spinner', latecut: 'Late cut', scoop: 'Scoop', reverse: 'Reverse scoop' };
+const FAMILY_NAMES: Record<ReplayStroke, string> = { cover: 'Cover drive', pull: 'Pull, hook and pull off the spinner', cut: 'Square cut and cut off the spinner', latecut: 'Late cut', scoop: 'Scoop', reverse: 'Reverse scoop',
+  straight: 'Straight six', on: 'On drive six', flick: 'Flick', sweep: 'Sweep', slog: 'Slog sweep', charge: 'The charge' };
 function drawChoices() {
   const family = BALLS[stroke].family, row = $('choices');
   $('choices-for').textContent = FAMILY_NAMES[family];

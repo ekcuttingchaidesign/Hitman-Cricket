@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  AFTER_MS, ARRIVED_MS, CUT_AFTER, LEAD_IN, REPLAY_GAP, REPLAY_SLOW, REPLAYS_PER_INNINGS, SKIPS_TO_QUIET,
+  AFTER_MS, ARRIVED_MS, CUT_AFTER, CUT_AFTERS, LEAD_IN, OVER_MS, overRope, ropeAt, SIX_HOLD, REPLAY_GAP, REPLAY_SLOW, REPLAYS_PER_INNINGS, SKIPS_TO_QUIET,
   endedLog, fieldCamera, freshLog, pickAngle, qualifies, replayCamera, replayDue, REPLAY_ANGLES, REPLAY_STROKES, replayPace, replayTimes, shownLog, type ReplayBall, type ReplayLog,
 } from '../src/game/replay';
 
@@ -17,11 +17,16 @@ describe('which balls are replayed', () => {
     expect(qualifies(four(0, { wicket: true }))).toBe(false);
     expect(qualifies(four(0, { stroke: null }))).toBe(false);
   });
-  it('the pull, the cuts and the scoops too, the scoops only for six', () => {
-    for (const stroke of ['pull', 'cut', 'latecut'] as const) expect(qualifies(four(0, { stroke }))).toBe(true);
-    for (const stroke of ['scoop', 'reverse'] as const) {
-      expect(qualifies(four(0, { stroke }))).toBe(false);
-      expect(qualifies(four(0, { stroke, runs: 6 }))).toBe(true);
+  it('the pull, the cuts, the flick, the sweeps and the scoops for four or six', () => {
+    for (const stroke of ['pull', 'cut', 'latecut', 'flick', 'sweep', 'slog', 'scoop', 'reverse'] as const) {
+      expect(qualifies(four(0, { stroke })), stroke).toBe(true);
+      expect(qualifies(four(0, { stroke, runs: 6 })), stroke).toBe(true);
+    }
+  });
+  it('the sixes down the ground and the charge only for six', () => {
+    for (const stroke of ['straight', 'on', 'charge'] as const) {
+      expect(qualifies(four(0, { stroke })), stroke).toBe(false);
+      expect(qualifies(four(0, { stroke, runs: 6 })), stroke).toBe(true);
     }
   });
   it('the first of each stroke, each its own', () => {
@@ -83,6 +88,36 @@ describe('the replay', () => {
     expect(long.end).toBe(long.contact + 1250 + ARRIVED_MS);
     expect(CUT_AFTER).toBeLessThan(AFTER_MS);
   });
+  it('holds on each stroke until his finish is there, and cuts before the replay ends', () => {
+    for (const stroke of REPLAY_STROKES) {
+      expect(CUT_AFTERS[stroke], stroke).toBeGreaterThanOrEqual(CUT_AFTER);
+      expect(CUT_AFTERS[stroke], stroke).toBeLessThan(AFTER_MS);
+    }
+    // The square cut wraps over the shoulder three tenths of a second after the ball.
+    expect(CUT_AFTERS.cut).toBeGreaterThan(300);
+  });
+  it('lets a six go once it is over the rope', () => {
+    const to = [0, 2, 78] as const, from = [0, 1, 1] as const;
+    const over = overRope(from, to, 2200);
+    expect(over).toBeCloseTo(2200 * (ropeAt(0, 1) - 1) / 77);
+    const times = replayTimes({ swingAfter: 900, resolveAfter: 1150, contactAfter: 1180, arrives: over, held: OVER_MS });
+    expect(times.end).toBe(times.contact + Math.max(AFTER_MS, over + OVER_MS));
+  });
+  it('watches a six from down by the rope, looking up at it, never into the stand', () => {
+    for (const to of [[0, 2, 78], [-50, 2, 20], [40, 2, 40]] as const) {
+      const length = Math.hypot(to[0], to[2]), dx = to[0] / length, dz = to[2] / length, rope = ropeAt(dx, dz);
+      // A ball on its way up, and one high over the rope.
+      const rising: [number, number, number] = [dx * 15, 12, dz * 15], over: [number, number, number] = [dx * (rope - 1), 11, dz * (rope - 1)];
+      for (const ball of [rising, over]) {
+        const pose = fieldCamera(to, ball, true);
+        expect(pose.eye[1]).toBeLessThan(2);
+        // Inside the rope, and looking back up at the ball, away from the stand.
+        expect(Math.hypot(pose.eye[0], pose.eye[2])).toBeLessThan(rope);
+        expect(pose.at[1]).toBeGreaterThan(pose.eye[1]);
+        expect(pose.at[0] * dx + pose.at[2] * dz).toBeLessThanOrEqual(rope - SIX_HOLD + 1e-6);
+      }
+    }
+  });
   it("cuts to a camera up high off the ball's line that follows it, never past the rope", () => {
     for (const to of [[30, .1, 22], [-25, .1, -24], [3, .1, 44], [-34, .1, 2], [28, .1, -30]] as const) {
       const pose = fieldCamera(to, null);
@@ -125,6 +160,8 @@ describe('the replay', () => {
     // The cuts go to the off side: never the camera on the leg side, which sees his back.
     expect(REPLAY_ANGLES.cut.map(angle => angle.id)).not.toContain('leg-side');
     expect(REPLAY_ANGLES.pull.map(angle => angle.id)).not.toContain('off-side');
+    // The sixes down the ground from the bowler's end, over the sightscreen or from the big screen.
+    for (const stroke of ['straight', 'on'] as const) expect(REPLAY_ANGLES[stroke].map(angle => angle.id)).toEqual(['sightscreen', 'big-screen']);
   });
   it('never shows the same camera twice running, and takes one asked for by name', () => {
     const ids = REPLAY_ANGLES.cover.map(angle => angle.id);

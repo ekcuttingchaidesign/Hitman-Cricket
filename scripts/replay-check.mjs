@@ -50,10 +50,19 @@ const advance = ms => page.clock.runFor(Math.max(16, Math.round(ms)));
 const snap = () => page.evaluate(() => window.__cricket.snapshot());
 await page.clock.install();
 const angle = process.env.ANGLE ? `&replayangle=${process.env.ANGLE}` : '';
-// The cover drive at its own ball, or the pull at a bouncer every ball (`STROKE=pull`).
-const pulling = process.env.STROKE === 'pull';
-const keys = pulling ? ['a'] : ['w', 'd'];
-await page.goto(`${base}/?debug=1&seed=2718&${pulling ? 'bouncers' : 'cover'}=1&replay=1&lights=day${angle}`, { waitUntil: 'load' });
+// The cover drive at its own ball, the pull at a bouncer every ball
+// (`STROKE=pull`), the straight drive at the cover drive's ball, lofted when
+// it is perfectly timed (`STROKE=straight`), or the square cut at pace wide of
+// off (`STROKE=cut`).
+const STROKES = {
+  cover: { ball: 'cover', keys: ['w', 'd'], said: 'a cover drive for four' },
+  pull: { ball: 'bouncers', keys: ['a'], said: 'a bouncer pulled for a boundary' },
+  straight: { ball: 'cover', keys: ['w'], said: 'a straight six' },
+  cut: { ball: 'latecut', keys: ['d'], said: 'a square cut for four' },
+};
+const asked = STROKES[process.env.STROKE] ? process.env.STROKE : 'cover', played = STROKES[asked];
+const keys = played.keys;
+await page.goto(`${base}/?debug=1&seed=2718&${played.ball}=1&replay=1&lights=day${angle}`, { waitUntil: 'load' });
 await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 3000);
 await advance(2500);
 await page.waitForTimeout(800);
@@ -102,14 +111,14 @@ for (let ball = 0; ball < 12 && !shown; ball++) {
   console.log(`        ball ${ball + 1}: ${played.outcome} (${played.grade}) ${played.replay ? '→ replay' : ''}`);
   if (played.replay) shown = played;
 }
-check(!!shown, pulling ? 'a bouncer pulled for a boundary is replayed once the ball is dead' : 'a cover drive for four is replayed once the ball is dead', shown && JSON.stringify(shown));
+check(!!shown, `${played.said} is replayed once the ball is dead`, shown && JSON.stringify(shown));
 if (shown) {
-  check(shown.replay.stroke === (pulling ? 'pull' : 'cover'), pulling ? 'as the pull' : 'as the cover drive', JSON.stringify(shown.replay));
+  check(shown.replay.stroke === asked, `as the ${asked}`, JSON.stringify(shown.replay));
   if (process.env.ANGLE) check(shown.replay.angle === process.env.ANGLE, 'from the camera asked for', JSON.stringify(shown.replay));
   else check(!!shown.replay.angle, 'from one of its cameras', JSON.stringify(shown.replay));
   // Through it, photographing as it goes.
   let now = await snap(), staged = false, struck = false, bars = false, tag = false;
-  const moments = [0, 300, 600, 900, 1300, 1800];
+  const moments = [0, 300, 600, 900, 1300, 1800, 2400, 3000];
   for (let i = 0; i < 400 && now.replay; i++) {
     await advance(40); now = await snap();
     if (now.replay?.at != null) {
@@ -117,7 +126,7 @@ if (shown) {
       if (!bars) bars = await page.evaluate(() => document.getElementById('viewport').classList.contains('intro-on'));
       if (!tag) tag = await page.locator('#replay-tag').isVisible().catch(() => false);
       if (now.replay.struck) struck = true;
-      if (moments.length && now.replay.at >= moments[0]) { moments.shift(); await page.screenshot({ path: `test-results/replay-${mode}${pulling ? '-pull' : ''}-${++shots}.png` }); }
+      if (moments.length && now.replay.at >= moments[0]) { moments.shift(); await page.screenshot({ path: `test-results/replay-${mode}${asked === 'cover' ? '' : `-${asked}`}-${++shots}.png` }); }
     }
     if (now.phase !== 'RESULT' && now.replay) { check(false, 'the next ball waits for it', now.phase); break; }
   }

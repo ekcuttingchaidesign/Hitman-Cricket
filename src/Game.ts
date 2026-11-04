@@ -61,7 +61,7 @@ import { GameScene } from './scene/GameScene';
 import { cardShown, filmLength, introBars, nextFilm, type Film } from './game/IntroReel';
 import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
 import { catchCamera, catchPace, catchShotOf, catchTimes, spillable, SPILL_ODDS, type CatchShot } from './game/catch-cam';
-import { endedLog, fieldCamera, freshLog, pickAngle, replayCamera, CUT_AFTER, replayDue, replayPace, replayTimes, shownLog, REPLAYS_PER_INNINGS, WIPE_MS, type ReplayAngle, type ReplayBall, type ReplayStroke, type ReplayTimes } from './game/replay';
+import { endedLog, fieldCamera, freshLog, overRope, OVER_MS, pickAngle, replayCamera, CUT_AFTERS, replayDue, replayPace, replayTimes, shownLog, REPLAYS_PER_INNINGS, WIPE_MS, type ReplayAngle, type ReplayBall, type ReplayStroke, type ReplayTimes } from './game/replay';
 import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type CameraPose, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
@@ -278,7 +278,7 @@ interface Kept {
   };
   outcome: ShotOutcome;
   /** From release: the swing, the ball resolved, and the bat on it; and from the bat, the ball where it was going. */
-  swingAfter: number; resolveAfter: number; contactAfter: number; arrives: number;
+  swingAfter: number; resolveAfter: number; contactAfter: number; arrives: number; held?: number;
 }
 function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' {
   try {
@@ -3083,9 +3083,11 @@ export class Game {
     // Which of the strokes a replay shows it is (`REPLAY_STROKES`), if any:
     // the pull is the leg-side input neither swept nor flicked, the hook and
     // the pull off the spinner with it.
-    const stroke: ReplayStroke | null = charging ? null
+    const stroke: ReplayStroke | null = charging ? 'charge' : sweeping ? 'slog' : levelled ? 'sweep'
       : shotType === 'COVER_LONG_OFF' ? (punching ? null : 'cover')
-      : shotType === 'HOOK' || spinPulling || (shotType === 'LEG' && !sweeping && !levelled && !flicking) ? 'pull'
+      : shotType === 'STRAIGHT' ? (lofted ? 'straight' : null) : shotType === 'LONG_ON' ? (lofted ? 'on' : null)
+      : flicking ? (version === 2 ? 'flick' : null)
+      : shotType === 'HOOK' || spinPulling || shotType === 'LEG' ? 'pull'
       : shotType === 'SQUARE_CUT' ? 'cut' : shotType === 'LATE_CUT' ? 'latecut'
       : shotType === 'SCOOP' ? 'scoop' : shotType === 'REVERSE_SCOOP' ? 'reverse' : null;
     this.keptSwing = { shot: shotType, at: this.elapsed, charging, lofted, sweeping, levelled, version, meets: this.meetsAt, cutting, spinPulling, stroke };
@@ -4598,7 +4600,11 @@ export class Game {
     const catching = step ? null : this.catchShot();
     const flight = this.scene.hit(this.outcome, this.attempt?.shotType, this.delivery!, this.elapsed);
     this.contactAt = flight.contactAt; this.presentationAt = flight.presentAt; this.resolveEndsAt = flight.endAt;
-    if (!step) this.keepForReplay(flight.contactAt, this.scene.struckTo()?.arrives ?? 0);
+    if (!step) {
+      // A six is let go once it is over the rope (`overRope`): the camera is looking up after it.
+      const away = this.scene.struckTo(), six = this.outcome.runs === 6 && !!away;
+      this.keepForReplay(flight.contactAt, !away ? 0 : six ? overRope(away.from, away.to, away.arrives) : away.arrives, six ? OVER_MS : undefined);
+    }
     if (catching) this.beginCatchCam(catching, flight);
     this.resultPresented = false; this.contactPlayed = false;
     this.setPhase('SHOT_RESOLVE');
@@ -4848,11 +4854,11 @@ export class Game {
     to: readonly [number, number, number] | null;
   } | null = null;
   /** The ball just resolved, kept; and replayed once it is dead if it is one to replay. */
-  private keepForReplay(contactAt: number, arrives: number) {
+  private keepForReplay(contactAt: number, arrives: number, held?: number) {
     const swing = this.keptSwing, delivery = this.delivery, outcome = this.outcome;
     if (!swing || !delivery || !outcome) return;
     const release = delivery.releaseTimeMs;
-    this.kept = { delivery: { ...delivery }, swing, outcome, swingAfter: swing.at - release, resolveAfter: this.elapsed - release, contactAfter: contactAt - release, arrives };
+    this.kept = { delivery: { ...delivery }, swing, outcome, swingAfter: swing.at - release, resolveAfter: this.elapsed - release, contactAfter: contactAt - release, arrives, held };
     // Super10 and the Blast, not a Rival Match, whose other innings flashes up between balls, nor practice's tutorial or a demo.
     if (!(this.super10 || this.mode === 'CLASSIC') || this.challenge.playing || this.demoing || this.lesson >= 0) return;
     if (!this.replaysOn || this.replayAsked === 'off') return;
@@ -4893,7 +4899,7 @@ export class Game {
     // his run-up had been watched, so he is in his follow-through.
     this.scene.runup((start - replay.delivery.releaseTimeMs + GAME.runupMs) / GAME.runupMs);
     // The stroke from its camera, then, once his finish is reached, the ball going away.
-    const pose = replayCamera(replay.angle), cut = times.contact + CUT_AFTER;
+    const pose = replayCamera(replay.angle), cut = times.contact + CUT_AFTERS[kept.swing.stroke!];
     this.scene.cinematic((now, ball) => this.replay?.to && now - start >= cut ? fieldCamera(this.replay.to, ball, kept.outcome.runs === 6) : pose);
     this.scene.keeperIn(true);
     this.hud.walkOn(1); this.hud.replayTag(true, this.super10);
@@ -4978,7 +4984,11 @@ export class Game {
     if (this.lesson >= 0 || this.demoing || !this.replaysOn || this.catchAsked === 'off') return null;
     if ((this.super10 || this.mode === 'CLASSIC') && spillable(this.outcome!) && (this.catchAsked === 'every' || Math.random() < SPILL_ODDS))
       this.outcome = { ...this.outcome!, dropped: true, spilled: true, feedback: 'DROPPED · FOUR' };
-    const shot = catchShotOf(this.outcome!);
+    // Super10: a ball a boundary rider got to out of the game's picture — a
+    // sweep or a pull cut off or saved in the deep — followed to him too.
+    const rider = this.outcome!.fielder;
+    const shot = catchShotOf(this.outcome!)
+      ?? (this.super10 && rider?.deep && (rider.how === 'cut' || rider.how === 'saved') && offScreen(rider.angle) ? 'field' : null);
     if (!shot) return null;
     const field = this.super10 ? this.s10.field : null;
     if (field) { const drawn = drawnOf(field); this.scene.catchField(true, field.men.filter(man => !drawn.includes(man))); }

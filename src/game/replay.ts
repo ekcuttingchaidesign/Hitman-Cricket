@@ -1,6 +1,8 @@
 import type { TimingGrade } from './types';
 import type { CameraPose } from './ShotReel';
 
+type Vec = readonly [number, number, number];
+
 /**
  * The action replay: a stroke worth watching again, played again once the
  * ball is dead, from an angle the game's camera behind the bat never has.
@@ -22,19 +24,27 @@ import type { CameraPose } from './ShotReel';
  * milestone, a chase passed, a new batter, the innings' last ball — which the
  * game says with `blocked`.
  */
-export type ReplayStroke = 'cover' | 'pull' | 'cut' | 'latecut' | 'scoop' | 'reverse';
+export type ReplayStroke = 'cover' | 'pull' | 'cut' | 'latecut' | 'scoop' | 'reverse'
+  | 'straight' | 'on' | 'flick' | 'sweep' | 'slog' | 'charge';
 /**
- * The strokes worth seeing again: the cover drive; the pull, with the hook and
- * the pull off the spinner; the square cut, at pace or off the spinner; the
- * late cut; and the two scoops. The charge, the drives down the ground, the
- * flick and the sweeps are not replayed.
+ * The strokes worth seeing again: the cover drive, lofted or along the
+ * ground; the pull, with the hook and the pull off the spinner; the square
+ * cut, at pace or off the spinner; the late cut; the two scoops; the lofted
+ * straight drive (`straight`, either version) and the on drive's six (`on`);
+ * the flick, version two; the orthodox sweep and the slog sweep; and the
+ * charge, lofted over cover or straight. The drives along the ground down the
+ * ground, the punch and the other flicks are not replayed.
  */
-export const REPLAY_STROKES: readonly ReplayStroke[] = ['cover', 'pull', 'cut', 'latecut', 'scoop', 'reverse'];
+export const REPLAY_STROKES: readonly ReplayStroke[] = ['cover', 'pull', 'cut', 'latecut', 'scoop', 'reverse', 'straight', 'on', 'flick', 'sweep', 'slog', 'charge'];
 /**
- * The runs a stroke has to make to be replayed: four, but six for the scoops,
- * which have had the special stroke's flash live already.
+ * The runs a stroke has to make to be replayed: four, and six for the lofted
+ * drives, which are only ever played for it. The meter's strokes — the scoops,
+ * the slog sweep, the charge — are replayed for four as well as six: shown
+ * for six alone, a scoop's replay was so rare nobody saw one.
  */
-export const REPLAY_RUNS: Record<ReplayStroke, number> = { cover: 4, pull: 4, cut: 4, latecut: 4, scoop: 6, reverse: 6 };
+export const REPLAY_RUNS: Record<ReplayStroke, number> = {
+  cover: 4, pull: 4, cut: 4, latecut: 4, scoop: 4, reverse: 4, straight: 6, on: 6, flick: 4, sweep: 4, slog: 4, charge: 6,
+};
 
 /** What the game says about the ball just played. `stroke` is null for one that is not on the list. */
 export interface ReplayBall {
@@ -117,7 +127,30 @@ export const AFTER_MS = 800;
  * stand.
  */
 export const CUT_AFTER = 260;
+/**
+ * Each stroke's cut, after the bat met the ball, on the game's clock: once he
+ * has reached his finish and held it a beat. The square cut wraps over the
+ * front shoulder three tenths of a second after the ball, and cut at 260 it
+ * went before the wrap was there, which read as a stroke left unfinished; the
+ * sixes down the ground and the slog sweep finish later still.
+ */
+export const CUT_AFTERS: Record<ReplayStroke, number> = {
+  cover: CUT_AFTER, pull: 320, cut: 380, latecut: 320, scoop: 300, reverse: 300,
+  straight: 380, on: 400, flick: 300, sweep: 340, slog: 420, charge: 380,
+};
 export const ARRIVED_MS = 650;
+/** A six is let go sooner once it is over the rope: the camera looks up after it, and there is nothing but sky to hold on. */
+export const OVER_MS = 300;
+/**
+ * How long after the bat a six is over the rope, from how long it takes to
+ * land and where it lands (`to`, from `from`): its line is laid out evenly in
+ * time, so the share of the way to the rope is the share of the time.
+ */
+export function overRope(from: Vec, to: Vec, arrives: number) {
+  const length = Math.hypot(to[0], to[2]) || 1, rope = ropeAt(to[0] / length, to[2] / length);
+  const along = Math.hypot(to[0] - from[0], to[2] - from[2]) || 1, start = Math.hypot(from[0], from[2]);
+  return arrives * Math.min(1, Math.max(0, (rope - start) / along));
+}
 
 /**
  * When things happen in a replay, on the game's clock from its start: the
@@ -130,9 +163,9 @@ export interface ReplayTimes { release: number; swing: number; resolve: number; 
  * resolved and the bat met it, and how long after the bat it got where it
  * was going (`arrives`).
  */
-export function replayTimes(kept: { swingAfter: number; resolveAfter: number; contactAfter: number; arrives?: number }): ReplayTimes {
+export function replayTimes(kept: { swingAfter: number; resolveAfter: number; contactAfter: number; arrives?: number; held?: number }): ReplayTimes {
   const release = LEAD_IN - kept.swingAfter, contact = release + kept.contactAfter;
-  return { release, swing: LEAD_IN, resolve: release + kept.resolveAfter, contact, end: contact + Math.max(AFTER_MS, (kept.arrives ?? 0) + ARRIVED_MS) };
+  return { release, swing: LEAD_IN, resolve: release + kept.resolveAfter, contact, end: contact + Math.max(AFTER_MS, (kept.arrives ?? 0) + (kept.held ?? ARRIVED_MS)) };
 }
 
 /**
@@ -153,8 +186,6 @@ export function replayPace(since: number) {
 // ---------------------------------------------------------------------------
 // The camera
 // ---------------------------------------------------------------------------
-
-type Vec = readonly [number, number, number];
 
 /** One camera a replay can be shown from, held still for the whole of it. */
 export interface ReplayAngle { id: string; name: string; eye: Vec; at: Vec; fov: number }
@@ -183,6 +214,18 @@ const SEVEN: readonly ReplayAngle[] = [
   { id: 'midoff-ground', name: 'Mid-off, at ground level', eye: [2.5, .39, 28.28], at: AT, fov: 26 },
 ];
 /**
+ * Two from the bowler's end, straight down the ground at him, for the sixes
+ * down it (the owner's ask): over the sightscreen, and higher, where the big
+ * screen stands over Super10's ground. Long lenses from forty-odd metres
+ * away, so he is a fifth of the picture as from the lab's seven, and high
+ * enough to see over the bowler in his follow-through. Short of the stand, so
+ * no ground's far end is ever in front of the lens.
+ */
+const BEHIND: readonly ReplayAngle[] = [
+  { id: 'sightscreen', name: 'Over the sightscreen', eye: [0, 7, 43], at: AT, fov: 12 },
+  { id: 'big-screen', name: 'From the big screen', eye: [0, 16, 45], at: AT, fov: 13 },
+];
+/**
  * Which of the seven each stroke is shown from: a camera on the side the ball
  * goes, or in front of him, never one that sees his back while the ball goes
  * away from it (the square cut from the leg side, the owner said, does not
@@ -198,11 +241,18 @@ export const STROKE_CAMERAS: Record<ReplayStroke, readonly string[]> = {
   latecut: ['off-side', 'spider-legslip', 'midoff'],
   scoop: ['spider-legslip', 'leg-side', 'spider-umpire'],
   reverse: ['off-side', 'spider-legslip', 'midoff'],
+  // Down the ground, from the bowler's end, as the owner asked.
+  straight: ['sightscreen', 'big-screen'],
+  on: ['sightscreen', 'big-screen'],
+  charge: ['sightscreen', 'big-screen', 'midoff'],
+  flick: ['leg-side', 'midon-ground', 'spider-umpire'],
+  sweep: ['leg-side', 'spider-legslip', 'midon-ground'],
+  slog: ['leg-side', 'midon-ground', 'spider-umpire'],
 };
 /** Every camera there is, by its id. */
-export const CAMERAS: readonly ReplayAngle[] = SEVEN;
+export const CAMERAS: readonly ReplayAngle[] = [...SEVEN, ...BEHIND];
 export const REPLAY_ANGLES: Record<ReplayStroke, readonly ReplayAngle[]> = Object.fromEntries(
-  REPLAY_STROKES.map(stroke => [stroke, STROKE_CAMERAS[stroke].map(id => SEVEN.find(angle => angle.id === id)!)]),
+  REPLAY_STROKES.map(stroke => [stroke, STROKE_CAMERAS[stroke].map(id => CAMERAS.find(angle => angle.id === id)!)]),
 ) as unknown as Record<ReplayStroke, readonly ReplayAngle[]>;
 
 /**
@@ -249,6 +299,7 @@ export function fieldCamera(to: Vec, ball: Vec | null, six = false): CameraPose 
   // Across the ball's line, on the side towards the bowler's end.
   let px = dz, pz = -dx;
   if (pz < 0) { px = -px; pz = -pz; }
+  if (six) return sixCamera(dx, dz, px, pz, rope, ball);
   const eye: Vec = [-dx * 8 + px * 10, 14, -dz * 8 + pz * 10];
   // Held once the ball has gone: a four a little inside the rope it crossed,
   // wider, so the rope and the man who chased it are in the picture and not
@@ -259,5 +310,27 @@ export function fieldCamera(to: Vec, ball: Vec | null, six = false): CameraPose 
   const away = Math.hypot(at[0] - eye[0], at[1] - eye[1], at[2] - eye[2]);
   const frame = inside || six ? FOLLOW_FRAME : FOLLOW_FRAME * 1.6;
   const fov = Math.min(40, Math.max(12, 2 * Math.atan(frame / 2 / away) * 180 / Math.PI));
+  return { eye, at, fov };
+}
+
+/**
+ * A six's camera: down by the rope it is going over, a little off its line,
+ * low, looking back up at it as it comes — so behind the ball is the sky, and
+ * the stand it lands in is behind the lens. Followed into the sky until it is
+ * a few strides short of the rope, then held there as it climbs out of the
+ * top of the picture and over. Followed from up behind the bat, it went down
+ * into the stand on a long lens and showed the crowd up close, which a crowd
+ * of this detail does not stand. Not zoomed in: a picture about twenty metres
+ * high where the ball is, wide when it is near.
+ */
+export const SIX_HOLD = 9;
+function sixCamera(dx: number, dz: number, px: number, pz: number, rope: number, ball: Vec | null): CameraPose {
+  const eye: Vec = [dx * (rope - 3) + px * 5, 1.3, dz * (rope - 3) + pz * 5];
+  const near = rope - SIX_HOLD;
+  const along = ball ? ball[0] * dx + ball[2] * dz : near;
+  const at: Vec = !ball ? [dx * near, 8, dz * near]
+    : along < near ? [ball[0], Math.max(ball[1], 1), ball[2]] : [dx * near, Math.max(ball[1], 1), dz * near];
+  const away = Math.hypot(at[0] - eye[0], at[1] - eye[1], at[2] - eye[2]);
+  const fov = Math.min(55, Math.max(24, 2 * Math.atan(22 / 2 / away) * 180 / Math.PI));
   return { eye, at, fov };
 }

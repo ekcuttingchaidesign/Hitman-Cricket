@@ -12,6 +12,9 @@
  *
  * `MODE=survive` does it in Test Survival, where a skier not held is put
  * down (`skied` in `Survive.ts`): it bats until it has seen one of each.
+ * `MODE=super10 FIELD=1` pulls every bouncer (`?bouncers=1`) a shade early
+ * instead, until a boundary rider cuts one off or saves it out of the game's
+ * picture and the camera follows it to him (`'field'`).
  */
 
 import { chromium } from '@playwright/test';
@@ -20,6 +23,7 @@ import { mkdir } from 'node:fs/promises';
 const base = (process.argv[2] ?? 'http://127.0.0.1:5201').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
 const mode = ['survive', 'super10'].includes(process.env.MODE) ? process.env.MODE : 'classic';
+const fielding = mode === 'super10' && process.env.FIELD === '1';
 
 let failures = 0;
 const check = (ok, what, detail) => {
@@ -50,7 +54,7 @@ const snap = () => page.evaluate(() => window.__cricket.snapshot());
 await page.clock.install();
 /** A new innings on `seed`: Survival has one wicket, so a seed whose first skier is held is put down for another. */
 async function open(seed) {
-  await page.goto(`${base}/?debug=1&seed=${seed}&cover=1&catchcam=1&replay=0&lights=day`, { waitUntil: 'load' });
+  await page.goto(`${base}/?debug=1&seed=${seed}&${fielding ? 'bouncers' : 'cover'}=1&catchcam=1&replay=0&lights=day`, { waitUntil: 'load' });
   await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 3000);
   await advance(2500);
   await page.waitForTimeout(800);
@@ -86,8 +90,8 @@ const said = () => page.evaluate(() => document.getElementById('result-text')?.t
 async function sky(name) {
   const seen = await nextBall();
   if (!seen) return null;
-  await advance(seen.contactAt - seen.elapsed - (mode === 'survive' ? 120 : 150));
-  await press('w', 'd');
+  await advance(seen.contactAt - seen.elapsed - (fielding ? 45 : mode === 'survive' ? 120 : 150));
+  await press(...(fielding ? ['a'] : ['w', 'd']));
   let now = await snap();
   for (let i = 0; i < 80 && now.phase === 'BALL_IN_FLIGHT'; i++) { await advance(30); now = await snap(); }
   const outcome = now.outcome;
@@ -108,7 +112,7 @@ async function sky(name) {
       const field = await page.evaluate(() => window.__cricket.field());
       cam.men = Math.max(cam.men, field.fielders?.length ?? field.men?.length ?? 0);
       if (Math.abs(now.catchCam.sinceTake) < 200 && now.elapsed - was < 30) cam.slowed = true;
-      if (/CAUGHT|DROPPED/.test(await said()) && await page.locator('#result').isVisible()) cam.calledEarly = true;
+      if (/CAUGHT|DROPPED|RUN/.test(await said()) && await page.locator('#result').isVisible()) cam.calledEarly = true;
       if (moments.length && now.catchCam.sinceTake >= moments[0]) { moments.shift(); await page.screenshot({ path: `test-results/catch-${mode}-${name}-${++cam.shots}.png` }); }
     }
     if (now.phase === 'RESULT' || now.phase === 'READY') { cam.held = false; break; }
@@ -121,21 +125,21 @@ async function sky(name) {
 }
 
 const seen = {};
-const done = () => seen.catch && (mode !== 'survive' || seen.drop);
+const done = () => fielding ? seen.field : seen.catch && (mode !== 'survive' || seen.drop);
 for (const seed of [2718, 31, 577, 1009, 4242, 8, 919, 3141]) {
   if (done()) break;
   await open(seed);
   await page.addStyleTag({ content: '[class*=debug]{display:none!important}' });
-  for (let ball = 0; ball < 30 && !done(); ball++) {
+  for (let ball = 0; ball < (fielding ? 60 : 30) && !done(); ball++) {
     const played = await sky(`${seed}-${ball + 1}`);
     if (!played) break;
     console.log(`        seed ${seed} ball ${ball + 1}: ${played.outcome} ${played.cam ? `→ ${played.cam.shot} ${JSON.stringify(played.cam)}` : ''}`);
     if (played.cam && !seen[played.cam.shot]) seen[played.cam.shot] = played.cam;
   }
 }
-for (const shot of mode === 'survive' ? ['catch', 'drop'] : ['catch']) {
+for (const shot of fielding ? ['field'] : mode === 'survive' ? ['catch', 'drop'] : ['catch']) {
   const cam = seen[shot];
-  check(!!cam, `a skier ${shot === 'catch' ? 'caught' : 'put down'} has the camera go with it`);
+  check(!!cam, shot === 'field' ? 'a ball a boundary rider got to out of the picture has the camera go with it' : `a skier ${shot === 'catch' ? 'caught' : 'put down'} has the camera go with it`);
   if (!cam) continue;
   check(cam.cutAfterBat, 'the game\'s own picture off the bat, before the cut');
   check(cam.onBars, 'between the bars');
@@ -143,7 +147,7 @@ for (const shot of mode === 'survive' ? ['catch', 'drop'] : ['catch']) {
   check(cam.held, 'the ball is not dead while it is up');
   check(!cam.calledEarly, 'the call waits for the cut back');
   check(cam.back, 'and it cuts back to the game');
-  check(shot === 'catch' ? /CAUGHT/.test(cam.call) : /DROPPED/.test(cam.call), 'with the call up then', cam.call);
+  check(shot === 'field' ? /RUN/.test(cam.call) : shot === 'catch' ? /CAUGHT/.test(cam.call) : /DROPPED/.test(cam.call), 'with the call up then', cam.call);
 }
 const next = await nextBall();
 check(!!next || (await snap()).phase === 'INNINGS_END', 'and the next ball is bowled');
