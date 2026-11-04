@@ -23,7 +23,7 @@ import { resolveShot } from './game/ShotResolver';
 import { COVER_V3_MEETS_AT, HOOK_MEETS_AT, LATE_CUT_MEETS_AT, PULL_MEETS_AT, SPIN_PULL_MEETS_AT, type CoverVersion } from './entities/Batter';
 import { batOf, outfitOf, super10KitOf } from './game/dressing';
 import { gloveOf } from './entities/gloves';
-import { LEAD_IN, REPLAY_ANGLES, replayPace, type ReplayStroke } from './game/replay';
+import { CAMERAS, LEAD_IN, REPLAY_STROKES, STROKE_CAMERAS, replayPace, type ReplayStroke } from './game/replay';
 import type { CameraPose } from './game/ShotReel';
 import type { Delivery } from './game/types';
 import type { GroundName } from './scene/grounds';
@@ -256,16 +256,46 @@ onGroup('ground', v => { super10 = v === 'super10'; if (!super10) ground = v as 
 onGroup('light', v => { night = v === 'night'; dress(); });
 onGroup('hand', v => { left = v === 'left'; dress(); });
 onGroup('version', v => { version = Number(v) as CoverVersion; plan(); });
-onGroup('stroke', v => { stroke = v as LabStroke; $('version-row').hidden = stroke !== 'cover'; plan(); });
-// The replay's own cameras, the ones the game shows a cover drive from, first.
+onGroup('stroke', v => { stroke = v as LabStroke; $('version-row').hidden = stroke !== 'cover'; plan(); drawChoices(); });
+// The replay's own cameras, the ones the game shows strokes from, first.
 const inGame = $('in-game');
-for (const angle of REPLAY_ANGLES.cover) {
+for (const angle of CAMERAS) {
   PRESETS[angle.id] = { name: angle.name, shot: { eye: [...angle.eye] as Vec, at: [...angle.at] as Vec, fov: angle.fov } };
   const key = document.createElement('button');
   key.type = 'button'; key.dataset.group = 'preset'; key.dataset.value = angle.id; key.textContent = angle.name;
   inGame.append(key);
 }
 onGroup('preset', v => { setMoving(false); put(PRESETS[v].shot); });
+
+// Which cameras each stroke is shown from: the game's (`STROKE_CAMERAS`) to
+// start with, switched here, kept in this browser, and copied out to hand over.
+const CHOICES_KEY = 'replay-camera-choices';
+let choices: Record<ReplayStroke, string[]> = Object.fromEntries(REPLAY_STROKES.map(f => [f, [...STROKE_CAMERAS[f]]])) as unknown as Record<ReplayStroke, string[]>;
+try { const kept = JSON.parse(localStorage.getItem(CHOICES_KEY) ?? 'null'); if (kept) choices = { ...choices, ...kept }; } catch { /* The game's, then. */ }
+const keepChoices = () => { try { localStorage.setItem(CHOICES_KEY, JSON.stringify(choices)); } catch { /* For this visit. */ } };
+const FAMILY_NAMES: Record<ReplayStroke, string> = { cover: 'Cover drive', pull: 'Pull, hook and pull off the spinner', cut: 'Square cut and cut off the spinner', latecut: 'Late cut', scoop: 'Scoop', reverse: 'Reverse scoop' };
+function drawChoices() {
+  const family = BALLS[stroke].family, row = $('choices');
+  $('choices-for').textContent = FAMILY_NAMES[family];
+  row.replaceChildren(...CAMERAS.map(angle => {
+    const key = document.createElement('button');
+    key.type = 'button'; key.className = 'choice'; key.textContent = angle.name;
+    key.setAttribute('aria-pressed', String(choices[family].includes(angle.id)));
+    key.addEventListener('click', () => {
+      const on = choices[family].includes(angle.id);
+      if (on && choices[family].length <= 2) { flash('A stroke needs two cameras at least'); return; }
+      choices[family] = on ? choices[family].filter(id => id !== angle.id) : CAMERAS.map(c => c.id).filter(id => id === angle.id || choices[family].includes(id));
+      keepChoices(); drawChoices();
+    });
+    return key;
+  }));
+}
+$('copy-choices').addEventListener('click', () => void copy(
+  ['Replay cameras by stroke', ...REPLAY_STROKES.map(f => `${f}: ${choices[f].join(', ')}`)].join('\n'), 'Camera choices'));
+$('reset-choices').addEventListener('click', () => {
+  choices = Object.fromEntries(REPLAY_STROKES.map(f => [f, [...STROKE_CAMERAS[f]]])) as unknown as Record<ReplayStroke, string[]>;
+  keepChoices(); drawChoices(); flash('Back to the game\'s cameras');
+});
 
 $('play').addEventListener('click', () => { playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; $('play').setAttribute('aria-pressed', String(!playing)); });
 const scrub = $('scrub') as HTMLInputElement;
@@ -345,5 +375,5 @@ function flash(text: string) {
 // ── Go ──────────────────────────────────────────────────────────────────────
 pressed('stroke', 'cover'); pressed('ground', 'stadium'); pressed('light', 'day'); pressed('hand', 'right'); pressed('version', '2'); pressed('preset', 'midoff');
 plan(); dress(); put(PRESETS.midoff.shot);
-drawSaved(); readout();
+drawSaved(); drawChoices(); readout();
 requestAnimationFrame(frame);

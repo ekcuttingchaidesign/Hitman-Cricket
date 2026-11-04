@@ -82,6 +82,9 @@ label.check input{width:18px;height:18px;accent-color:var(--orange)}
 .saved-go{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:10px}
 .saved-meta{font:12px var(--f-mono);color:var(--text-3)}
 .saved-del{min-width:40px;padding:0;border-radius:10px;color:var(--text-3)}
+button.choice[aria-pressed="true"]{background:var(--orange);border-color:var(--orange);color:#0b0f14}
+button.choice[aria-pressed="true"]::before{content:'✓ '}
+button.choice[aria-pressed="false"]{color:var(--text-3);text-decoration:line-through}
 .notes{margin:0;padding-left:18px;color:var(--text-2);font-size:14px;display:flex;flex-direction:column;gap:4px}
 .notes b{color:var(--text)}
 @media (prefers-reduced-motion:reduce){#toast,#stage::before,#stage::after{transition:none}}
@@ -142,7 +145,7 @@ label.check input{width:18px;height:18px;accent-color:var(--orange)}
 
       <section class="card" aria-labelledby="h-start">
         <h2 id="h-start">Start from</h2>
-        <p class="small">In the game now: each replay is shown from one of these, never the same one twice running. Every stroke shares them until you set its own.</p>
+        <p class="small">The game's replay cameras. Each replay is shown from one of its stroke's cameras, never the same one twice running.</p>
         <div id="in-game" class="row"></div>
         <p class="small">Other ideas</p>
         <div class="row">
@@ -153,6 +156,16 @@ label.check input{width:18px;height:18px;accent-color:var(--orange)}
           <button type="button" data-group="preset" data-value="squareleg">Square leg</button>
           <button type="button" data-group="preset" data-value="keeper">Behind keeper</button>
           <button type="button" data-group="preset" data-value="crane">Crane over cover</button>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="h-choices">
+        <h2 id="h-choices">Cameras for this stroke</h2>
+        <p class="small"><b id="choices-for">Cover drive</b>: switch a camera off where the stroke does not look good from it. Two at least.</p>
+        <div id="choices" class="row"></div>
+        <div class="row">
+          <button id="copy-choices" class="primary" type="button">Copy camera choices</button>
+          <button id="reset-choices" type="button">Back to the game's</button>
         </div>
       </section>
 

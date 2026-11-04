@@ -2175,7 +2175,11 @@ the tutorial or a demo. It plays in the RESULT phase, which waits for it, so
 the next ball is bowled after it and nothing about the batting moves.
 
 The cameras are the owner's, set in the replay camera lab for the cover
-drive, and every stroke shares them until the owner sets its own: seven — mid-off, a spider cam over the umpire and one over leg slip,
+drive, and each stroke is shown from the ones that suit it
+(`STROKE_CAMERAS`: on the side the ball goes, or in front of him, never one
+that sees his back as the ball goes away from it — the square cut from the
+leg side did not look good, the owner said), two at least, switched in the
+lab's Cameras for this stroke and copied out with Copy camera choices: seven — mid-off, a spider cam over the umpire and one over leg slip,
 square on either side, and mid-on and mid-off at ground level on long lenses
 — all held still, all well back, so he fills a sixth or so of the picture
 (`tests/replay.test.ts` holds every camera under a third). The first build

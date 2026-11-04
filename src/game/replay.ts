@@ -171,12 +171,27 @@ const SEVEN: readonly ReplayAngle[] = [
   { id: 'midoff-ground', name: 'Mid-off, at ground level', eye: [2.5, .39, 28.28], at: AT, fov: 26 },
 ];
 /**
- * The other strokes share the cover drive's seven until the owner sets their
- * own in the lab: all seven look at him from well back, so any stroke reads.
+ * Which of the seven each stroke is shown from: a camera on the side the ball
+ * goes, or in front of him, never one that sees his back while the ball goes
+ * away from it (the square cut from the leg side, the owner said, does not
+ * look good). The cover drive keeps all seven, as the owner chose them; the
+ * rest are a first cut, set again in the lab (`replay-camera.html`, Shown
+ * for this stroke). Every stroke has two at least, so `pickAngle` can always
+ * show another than the last.
  */
-export const REPLAY_ANGLES: Record<ReplayStroke, readonly ReplayAngle[]> = {
-  cover: SEVEN, pull: SEVEN, cut: SEVEN, latecut: SEVEN, scoop: SEVEN, reverse: SEVEN,
+export const STROKE_CAMERAS: Record<ReplayStroke, readonly string[]> = {
+  cover: ['midoff', 'spider-umpire', 'spider-legslip', 'leg-side', 'off-side', 'midon-ground', 'midoff-ground'],
+  pull: ['leg-side', 'midon-ground', 'spider-umpire', 'spider-legslip'],
+  cut: ['off-side', 'midoff', 'midoff-ground', 'spider-umpire'],
+  latecut: ['off-side', 'spider-legslip', 'midoff'],
+  scoop: ['spider-legslip', 'leg-side', 'spider-umpire'],
+  reverse: ['off-side', 'spider-legslip', 'midoff'],
 };
+/** Every camera there is, by its id. */
+export const CAMERAS: readonly ReplayAngle[] = SEVEN;
+export const REPLAY_ANGLES: Record<ReplayStroke, readonly ReplayAngle[]> = Object.fromEntries(
+  REPLAY_STROKES.map(stroke => [stroke, STROKE_CAMERAS[stroke].map(id => SEVEN.find(angle => angle.id === id)!)]),
+) as unknown as Record<ReplayStroke, readonly ReplayAngle[]>;
 
 /**
  * Which camera a replay is shown from: any of the stroke's but the one the

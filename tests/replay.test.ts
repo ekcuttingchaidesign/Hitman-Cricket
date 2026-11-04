@@ -91,6 +91,15 @@ describe('the replay', () => {
       expect(replayCamera(angle)).toEqual({ eye: angle.eye, at: angle.at, fov: angle.fov });
     }
   });
+  it('every stroke has two cameras at least, each a real one', () => {
+    for (const stroke of REPLAY_STROKES) {
+      expect(REPLAY_ANGLES[stroke].length, stroke).toBeGreaterThanOrEqual(2);
+      expect(REPLAY_ANGLES[stroke].every(Boolean), stroke).toBe(true);
+    }
+    // The cuts go to the off side: never the camera on the leg side, which sees his back.
+    expect(REPLAY_ANGLES.cut.map(angle => angle.id)).not.toContain('leg-side');
+    expect(REPLAY_ANGLES.pull.map(angle => angle.id)).not.toContain('off-side');
+  });
   it('never shows the same camera twice running, and takes one asked for by name', () => {
     const ids = REPLAY_ANGLES.cover.map(angle => angle.id);
     expect(new Set(ids).size).toBe(ids.length);
