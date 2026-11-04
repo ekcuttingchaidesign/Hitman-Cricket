@@ -4400,7 +4400,8 @@ export class Game {
     // Stopped dead while the swipe is drawn over it.
     if (this.reel) return this.reel.hold > 0 ? 0 : reelPace(this.elapsed - this.reel.start - this.reel.times.contact);
     // A replay slows through the bat meeting the ball (`replayPace`).
-    if (this.replay) return this.replay.start === null ? 1 : replayPace(this.elapsed - this.replay.start - this.replay.times.contact);
+    // Full speed under the wipes, which are timed on the page's clock.
+    if (this.replay) return this.replay.start === null || this.replay.ending !== null ? 1 : replayPace(this.elapsed - this.replay.start - this.replay.times.contact);
     if (this.phase !== 'SHOT_RESOLVE' || !this.outcome?.advance) return 1;
     const since = this.elapsed - this.contactAt;
     // Two thirds speed, chosen from three playtest builds side by side. It
@@ -4803,8 +4804,8 @@ export class Game {
    */
   private keptSwing: Kept['swing'] | null = null;
   private kept: Kept | null = null;
-  /** A replay due once this ball is dead. */
-  private replayQueued: Kept | null = null;
+  /** A replay due once this ball is dead, and the ball as `replayDue` read it. */
+  private replayQueued: { kept: Kept; ball: ReplayBall } | null = null;
   private replayLog = freshLog();
   /** The pause sheet's switch: off, nothing is ever replayed. */
   private replaysOn = (() => { try { return localStorage.getItem(REPLAYS_KEY) !== 'off'; } catch { return true; } })();
@@ -4841,12 +4842,11 @@ export class Game {
       blocked: !!this.milestoneDue || !!this.momentAsked || !!this.changed || this.score.ended || this.targetPassed,
       roll: Math.random(), every: this.replayAsked === 'every',
     });
-    if (!due) return;
-    this.replayLog = shownLog(this.replayLog, ball);
-    this.replayQueued = this.kept;
+    if (due) this.replayQueued = { kept: this.kept, ball };
   }
   /** The wipe in: the cut to the replay is made under it (`stageReplay`). */
-  private beginReplay(kept: Kept) {
+  private beginReplay({ kept, ball }: { kept: Kept; ball: ReplayBall }) {
+    this.replayLog = shownLog(this.replayLog, ball);
     const times = replayTimes(kept, GAME.runupMs);
     this.replay = { kept, begun: this.elapsed, start: null, ending: null, times, delivery: kept.delivery, swung: false, struck: false, played: false, skipped: false };
     this.hud.replayWipe(this.super10);

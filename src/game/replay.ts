@@ -93,7 +93,7 @@ export const WIPE_MS = 560;
 /** It picks the ball up this far into the bowler's run, a stride or two from the crease. */
 export const RUNUP_FROM = .6;
 /** After the bat meets the ball: the ball away and his finish held, and out on it, before he is home in his guard. */
-export const AFTER_MS = 1350;
+export const AFTER_MS = 800;
 
 /** When things happen in a replay, on the game's clock from its start: the run-up picked up, the ball out, the bat on it, the end. */
 export interface ReplayTimes { release: number; swing: number; contact: number; end: number }
@@ -113,7 +113,7 @@ export function replayTimes(kept: { swingAfter: number; contactAfter: number }, 
  * again for the wipe out.
  * Smooth both ways.
  */
-export const REPLAY_SLOW = { pace: .26, inFrom: -460, inTo: -180, outFrom: 650, outTo: 1100 } as const;
+export const REPLAY_SLOW = { pace: .26, inFrom: -460, inTo: -180, outFrom: 900, outTo: 1400 } as const;
 export function replayPace(since: number) {
   const ease = (x: number) => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 - 2 * k); };
   const into = ease((since - REPLAY_SLOW.inFrom) / (REPLAY_SLOW.inTo - REPLAY_SLOW.inFrom));

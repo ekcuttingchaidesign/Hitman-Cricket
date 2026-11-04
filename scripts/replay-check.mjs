@@ -102,7 +102,7 @@ if (shown) {
   check(shown.replay.stroke === 'cover', 'as the cover drive', JSON.stringify(shown.replay));
   // Through it, photographing as it goes.
   let now = await snap(), staged = false, struck = false, bars = false, tag = false;
-  const moments = [400, 900, 1300, 1700, 2300, 3200];
+  const moments = [400, 900, 1250, 1450, 1700, 1950];
   for (let i = 0; i < 400 && now.replay; i++) {
     await advance(40); now = await snap();
     if (now.replay?.at != null) {
