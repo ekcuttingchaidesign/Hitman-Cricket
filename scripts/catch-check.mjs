@@ -90,7 +90,7 @@ const said = () => page.evaluate(() => document.getElementById('result-text')?.t
 async function sky(name) {
   const seen = await nextBall();
   if (!seen) return null;
-  await advance(seen.contactAt - seen.elapsed - (fielding ? 45 : mode === 'survive' ? 120 : 150));
+  await advance(seen.contactAt - seen.elapsed - (fielding ? 62 : mode === 'survive' ? 120 : 150));
   await press(...(fielding ? ['a'] : ['w', 'd']));
   let now = await snap();
   for (let i = 0; i < 80 && now.phase === 'BALL_IN_FLIGHT'; i++) { await advance(30); now = await snap(); }
