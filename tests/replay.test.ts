@@ -1,6 +1,7 @@
+import { ropeAt as fieldRope } from '../src/game/super10-field';
 import { describe, expect, it } from 'vitest';
 import {
-  AFTER_MS, ARRIVED_MS, CUT_AFTER, CUT_AFTERS, LEAD_IN, OVER_MS, overRope, ropeAt, SIX_HOLD, REPLAY_GAP, REPLAY_SLOW, REPLAYS_PER_INNINGS, SKIPS_TO_QUIET,
+  ALWAYS, BOWLED_AFTER, BOWLED_LEAD, AFTER_MS, ARRIVED_MS, CUT_AFTER, CUT_AFTERS, LEAD_IN, OVER_MS, overRope, ropeAt, SIX_HOLD, REPLAY_GAP, REPLAY_SLOW, REPLAYS_PER_INNINGS, SKIPS_TO_QUIET,
   endedLog, fieldCamera, freshLog, pickAngle, qualifies, replayCamera, replayDue, REPLAY_ANGLES, REPLAY_STROKES, replayPace, replayTimes, shownLog, type ReplayBall, type ReplayLog,
 } from '../src/game/replay';
 
@@ -37,10 +38,24 @@ describe('which balls are replayed', () => {
   it('the first of a stroke in an innings always, whatever the dice', () => {
     expect(due(four(0), freshLog(), .99)).toBe(true);
   });
-  it('after that one in three', () => {
+  it('after that two in three', () => {
     const log = shownLog(freshLog(), four(0));
-    expect(due(four(10), log, .2)).toBe(true);
-    expect(due(four(10), log, .5)).toBe(false);
+    expect(due(four(10), log, .5)).toBe(true);
+    expect(due(four(10), log, .8)).toBe(false);
+  });
+  it('the special strokes and a batter bowled every time, whatever the dice, the gap or the cap', () => {
+    for (const stroke of ALWAYS) {
+      const ball = stroke === 'bowled' ? four(1, { stroke, runs: 0, wicket: true, grade: 'MISS' }) : four(1, { stroke, runs: 6 });
+      let log = shownLog(freshLog(), { ...ball, index: 0 });
+      log = { ...log, shown: 99, skipped: 5 };
+      expect(due(ball, log, .99, { cap: 0 }), stroke).toBe(true);
+      expect(due(ball, log, .99, { blocked: true }), stroke).toBe(false);
+    }
+    for (const stroke of ['scoop', 'reverse', 'slog', 'charge', 'bowled'] as const) expect(ALWAYS).toContain(stroke);
+  });
+  it('bowled is replayed only when he is out', () => {
+    expect(qualifies(four(0, { stroke: 'bowled', runs: 0, wicket: true, grade: 'MISS' }))).toBe(true);
+    expect(qualifies(four(0, { stroke: 'bowled', runs: 0, wicket: false, grade: 'MISS' }))).toBe(false);
   });
   it('never within an over of the last', () => {
     const log = shownLog(freshLog(), four(3));
@@ -88,8 +103,14 @@ describe('the replay', () => {
     expect(long.end).toBe(long.contact + 1250 + ARRIVED_MS);
     expect(CUT_AFTER).toBeLessThan(AFTER_MS);
   });
+  it('opens a batter bowled on the bowler before he lets it go, and holds on the stumps', () => {
+    const times = replayTimes({ swingAfter: Infinity, resolveAfter: 780, contactAfter: 780, bowled: true });
+    expect(times.release).toBe(BOWLED_LEAD);
+    expect(times.contact).toBe(BOWLED_LEAD + 780);
+    expect(times.end).toBe(times.contact + BOWLED_AFTER);
+  });
   it('holds on each stroke until his finish is there, and cuts before the replay ends', () => {
-    for (const stroke of REPLAY_STROKES) {
+    for (const stroke of REPLAY_STROKES.filter(stroke => stroke !== 'bowled')) {
       expect(CUT_AFTERS[stroke], stroke).toBeGreaterThanOrEqual(CUT_AFTER);
       expect(CUT_AFTERS[stroke], stroke).toBeLessThan(AFTER_MS);
     }
@@ -103,8 +124,17 @@ describe('the replay', () => {
     const times = replayTimes({ swingAfter: 900, resolveAfter: 1150, contactAfter: 1180, arrives: over, held: OVER_MS });
     expect(times.end).toBe(times.contact + Math.max(AFTER_MS, over + OVER_MS));
   });
+  it('knows the rope the ground has: forty straight, twenty-eight square, twenty behind', () => {
+    for (let angle = -180; angle <= 180; angle += 15) {
+      const a = angle * Math.PI / 180;
+      expect(ropeAt(Math.sin(a), Math.cos(a))).toBeCloseTo(fieldRope(angle));
+    }
+    expect(ropeAt(0, 1)).toBeCloseTo(40);
+    expect(ropeAt(0, -1)).toBeCloseTo(20);
+  });
   it('watches a six from down by the rope, looking up at it, never into the stand', () => {
-    for (const to of [[0, 2, 78], [-50, 2, 20], [40, 2, 40]] as const) {
+    // Straight, square on either side, and behind: the reverse scoop and the square drive put it in the stand.
+    for (const to of [[0, 2, 78], [-50, 2, 20], [40, 2, 40], [52, 2, 2], [30, 2, -45], [-25, 2, -50]] as const) {
       const length = Math.hypot(to[0], to[2]), dx = to[0] / length, dz = to[2] / length, rope = ropeAt(dx, dz);
       // A ball on its way up, and one high over the rope.
       const rising: [number, number, number] = [dx * 15, 12, dz * 15], over: [number, number, number] = [dx * (rope - 1), 11, dz * (rope - 1)];
@@ -113,6 +143,8 @@ describe('the replay', () => {
         expect(pose.eye[1]).toBeLessThan(2);
         // Inside the rope, and looking back up at the ball, away from the stand.
         expect(Math.hypot(pose.eye[0], pose.eye[2])).toBeLessThan(rope);
+        // Inside the boards, thirty-five metres round the middle of the pitch.
+        expect(Math.hypot(pose.eye[0], pose.eye[2] - 10)).toBeLessThan(35);
         expect(pose.at[1]).toBeGreaterThan(pose.eye[1]);
         expect(pose.at[0] * dx + pose.at[2] * dz).toBeLessThanOrEqual(rope - SIX_HOLD + 1e-6);
       }
@@ -161,7 +193,8 @@ describe('the replay', () => {
     expect(REPLAY_ANGLES.cut.map(angle => angle.id)).not.toContain('leg-side');
     expect(REPLAY_ANGLES.pull.map(angle => angle.id)).not.toContain('off-side');
     // The sixes down the ground from the bowler's end, over the sightscreen or from the big screen.
-    for (const stroke of ['straight', 'on'] as const) expect(REPLAY_ANGLES[stroke].map(angle => angle.id)).toEqual(['sightscreen', 'big-screen']);
+    for (const stroke of ['straight', 'on'] as const) expect(REPLAY_ANGLES[stroke].map(angle => angle.id)).toEqual(['sightscreen', 'umpire']);
+    expect(REPLAY_ANGLES.bowled.map(angle => angle.id)).toEqual(['umpire', 'sightscreen']);
   });
   it('never shows the same camera twice running, and takes one asked for by name', () => {
     const ids = REPLAY_ANGLES.cover.map(angle => angle.id);

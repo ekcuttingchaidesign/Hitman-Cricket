@@ -2155,8 +2155,11 @@ the owner's choice of stroke then fielder): a camera up high behind the bat
 on the side towards the bowler's end, looking down at the ball and following
 it, zoomed so about fourteen metres of ground is always in the picture
 (`FOLLOW_FRAME`), the ball crossing it against the grass with whoever goes
-for it; past the rope (`ropeAt`: forty metres straight, thirty-five square —
-a four runs on to the boards at forty-four, `flightOf`) it holds wider just
+for it; past the rope (`ropeAt`: thirty metres round a point ten up the pitch, as
+the field's `ropeAlong` has it, so forty straight, twenty-eight square and
+twenty behind; it was taken for forty and thirty-five all round, which stood
+a six's camera inside the boards and the stand for the reverse scoop and the
+square drive) it holds wider just
 inside the rope, and a six it follows into the front of the stand. Stood near
 the rope looking out, the first build had the stands behind the ball and lost
 it in them. A six is not followed down into the stand, where a long lens
@@ -2169,7 +2172,8 @@ it climbs out of the top of the picture, and the replay lets it go
 live ball). A replay's field has every
 man there is (`replayField`): Super10's nine, or the field in play and four
 men behind square, fine leg, deep square leg, third man and deep point
-(`REPLAY_DEEP`), whom play never shows because its camera sees nothing there;
+(`REPLAY_DEEP`, three metres inside the rope; at thirty-one they stood in the
+stand), whom play never shows because its camera sees nothing there;
 the field holds up to ten (`MOST_MEN`, those past the marks hidden), and in a
 replay anybody may go for the ball wherever it is (`everywhere`).
 Outside a replay who goes for the ball is judged from the game's own view
@@ -2191,22 +2195,32 @@ six (`REPLAY_RUNS`). The meter's strokes are replayed for four as well: for
 six alone a scoop's replay was so rare the owner never saw one. Which one a
 ball was is decided in `Game.shoot` beside the swing it keeps (`stroke` on
 `Kept`); the drives along the ground down the ground, the punch and flicks
-one and three are not replayed. How often (`replayDue`): the first of each stroke
-an innings always; then one in three, off the page's dice and never the
-seed; never within an over of the last (`REPLAY_GAP`); at most five a
-Super10 innings and three a Blast (`REPLAYS_PER_INNINGS`); and a player who
-skips two running sees only a stroke not yet replayed that innings
-(`SKIPS_TO_QUIET`). Never over anything else the ball brings: a milestone, a
-moment, a new batter, a chase passed, the innings' last ball. Super10 and the
+one and three are not replayed. A batter bowled (`bowled`, played on, beaten
+or leaving it) is replayed too, from the bowler's end: opened on the
+bowler's last strides (`BOWLED_LEAD`, his action wound on through the
+replay's frames), the ball seen all the way to the stumps, and held on the
+bails and him (`BOWLED_AFTER`), with no cut to the field. How often
+(`replayDue`): the special strokes — the scoops, the slog sweep, the charge
+— and a batter bowled every time (`ALWAYS`, as the owner asked); the rest
+the first of each stroke an innings always, then two in three, off the
+page's dice and never the seed; never within two balls of the last
+(`REPLAY_GAP`); at most ten a Super10 innings and six a Blast
+(`REPLAYS_PER_INNINGS`; it was one in three, an over apart, five and three,
+and the owner found replays too rare); and a player who skips two running
+sees only a stroke not yet replayed that innings (`SKIPS_TO_QUIET`). Never
+over anything else the ball brings: a milestone, a moment, a chase passed,
+nor a new batter or the innings' last ball, but for bowled, which plays
+before the next man walks out or the card comes up. Super10 and the
 Blast only; not a Rival Match (the other innings flashes up between balls),
 the tutorial or a demo. It plays in the RESULT phase, which waits for it, so
 the next ball is bowled after it and nothing about the batting moves.
 
 The cameras are the owner's, set in the replay camera lab for the cover
 drive, two more from the bowler's end straight down the ground at him for the
-sixes down it, as the owner asked — over the sightscreen and higher, from
-where Super10's big screen stands (`BEHIND`: `sightscreen`, `big-screen`,
-long lenses short of the stand) — and each stroke is shown from the ones that suit it
+sixes down it, the charge and bowled, as the owner asked — at the
+sightscreen, low and a little to leg of the line, and the umpire's eyes
+behind the stumps (`BEHIND`: `sightscreen`, `umpire`; a first pair high over
+the sightscreen and from the big screen did not look good) — and each stroke is shown from the ones that suit it
 (`STROKE_CAMERAS`: on the side the ball goes, or in front of him, never one
 that sees his back as the ball goes away from it — the square cut from the
 leg side did not look good, the owner said), two at least, switched in the
@@ -2246,7 +2260,8 @@ camera on the end (`replay-cover-midoff`), so the cameras players skip show. `sc
 drives a cover drive for four on `?cover=1&replay=1`, photographs the replay
 through and skips a second with a tap (`MODE=super10` for Super10,
 `ANGLE=<id>` for one camera, `STROKE=pull` for the pull at a bouncer, `STROKE=straight` for the straight
-six, `STROKE=cut` for the square cut at `?latecut=1`'s ball). The lab has the
+six, `STROKE=cut` for the square cut at `?latecut=1`'s ball, `STROKE=bowled`
+for late cuts at that ball until one is bowled). The lab has the
 straight six, the on drive's six, the flick, the sweep and the slog sweep
 beside the first strokes.
 
@@ -2274,9 +2289,12 @@ in as it comes down, never nearer than `CATCH_MIN_FRAME` (he is a quarter of
 the picture at most; at seven metres he was nearly half), and widening again
 for a spilled ball running away. Slowed to under half through the take
 (`catchPace`, `CATCH_SLOW`), held `CATCH_HOLD` on him with it or on the ball
-on the turf, and cut back; the call, the score and everything else the ball
-brings go up on the cut back (`presentationAt`, `resolveEndsAt` carried to
-`until`), so nothing is said under the bars. A pause or a new innings cuts
+on the turf, and cut back. The call, the crowd and the score go up the
+moment he takes it, puts it down or gets to it (`presentationAt` at the
+take), the call standing over the camera's picture between the bars
+(`is-catching`, `HUD.catching`); held to the cut back, the owner found it
+late. The next ball waits for the cut back (`resolveEndsAt` carried to
+`until`). A pause or a new innings cuts
 it short.
 
 The field is set before the ball is struck so the catch is planned on it

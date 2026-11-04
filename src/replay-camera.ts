@@ -297,7 +297,7 @@ let choices: Record<ReplayStroke, string[]> = Object.fromEntries(REPLAY_STROKES.
 try { const kept = JSON.parse(localStorage.getItem(CHOICES_KEY) ?? 'null'); if (kept) choices = { ...choices, ...kept }; } catch { /* The game's, then. */ }
 const keepChoices = () => { try { localStorage.setItem(CHOICES_KEY, JSON.stringify(choices)); } catch { /* For this visit. */ } };
 const FAMILY_NAMES: Record<ReplayStroke, string> = { cover: 'Cover drive', pull: 'Pull, hook and pull off the spinner', cut: 'Square cut and cut off the spinner', latecut: 'Late cut', scoop: 'Scoop', reverse: 'Reverse scoop',
-  straight: 'Straight six', on: 'On drive six', flick: 'Flick', sweep: 'Sweep', slog: 'Slog sweep', charge: 'The charge' };
+  straight: 'Straight six', on: 'On drive six', flick: 'Flick', sweep: 'Sweep', slog: 'Slog sweep', charge: 'The charge', bowled: 'Bowled' };
 function drawChoices() {
   const family = BALLS[stroke].family, row = $('choices');
   $('choices-for').textContent = FAMILY_NAMES[family];

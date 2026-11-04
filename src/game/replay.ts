@@ -25,7 +25,7 @@ type Vec = readonly [number, number, number];
  * game says with `blocked`.
  */
 export type ReplayStroke = 'cover' | 'pull' | 'cut' | 'latecut' | 'scoop' | 'reverse'
-  | 'straight' | 'on' | 'flick' | 'sweep' | 'slog' | 'charge';
+  | 'straight' | 'on' | 'flick' | 'sweep' | 'slog' | 'charge' | 'bowled';
 /**
  * The strokes worth seeing again: the cover drive, lofted or along the
  * ground; the pull, with the hook and the pull off the spinner; the square
@@ -35,7 +35,13 @@ export type ReplayStroke = 'cover' | 'pull' | 'cut' | 'latecut' | 'scoop' | 'rev
  * charge, lofted over cover or straight. The drives along the ground down the
  * ground, the punch and the other flicks are not replayed.
  */
-export const REPLAY_STROKES: readonly ReplayStroke[] = ['cover', 'pull', 'cut', 'latecut', 'scoop', 'reverse', 'straight', 'on', 'flick', 'sweep', 'slog', 'charge'];
+export const REPLAY_STROKES: readonly ReplayStroke[] = ['cover', 'pull', 'cut', 'latecut', 'scoop', 'reverse', 'straight', 'on', 'flick', 'sweep', 'slog', 'charge', 'bowled'];
+/**
+ * Shown every time: the meter's strokes — the scoops, the slog sweep, the
+ * charge — whenever they come off, and a batter bowled, from the bowler's
+ * end. No dice, no gap and no cap for these, as the owner asked.
+ */
+export const ALWAYS: readonly ReplayStroke[] = ['scoop', 'reverse', 'slog', 'charge', 'bowled'];
 /**
  * The runs a stroke has to make to be replayed: four, and six for the lofted
  * drives, which are only ever played for it. The meter's strokes — the scoops,
@@ -43,7 +49,7 @@ export const REPLAY_STROKES: readonly ReplayStroke[] = ['cover', 'pull', 'cut', 
  * for six alone, a scoop's replay was so rare nobody saw one.
  */
 export const REPLAY_RUNS: Record<ReplayStroke, number> = {
-  cover: 4, pull: 4, cut: 4, latecut: 4, scoop: 4, reverse: 4, straight: 6, on: 6, flick: 4, sweep: 4, slog: 4, charge: 6,
+  cover: 4, pull: 4, cut: 4, latecut: 4, scoop: 4, reverse: 4, straight: 6, on: 6, flick: 4, sweep: 4, slog: 4, charge: 6, bowled: 0,
 };
 
 /** What the game says about the ball just played. `stroke` is null for one that is not on the list. */
@@ -68,15 +74,17 @@ export interface ReplayLog {
 }
 export const freshLog = (): ReplayLog => ({ shown: 0, lastAt: -Infinity, seen: [], skipped: 0 });
 
-export const REPLAYS_PER_INNINGS = { super10: 5, blast: 3 } as const;
-/** Balls from one replay to the next at the least: an over. */
-export const REPLAY_GAP = 6;
+/** Raised from five and three when the owner found replays too rare. */
+export const REPLAYS_PER_INNINGS = { super10: 10, blast: 6 } as const;
+/** Balls from one replay to the next at the least. It was an over, which the owner found too few. */
+export const REPLAY_GAP = 2;
 /** A stroke already replayed this innings comes round again this often. */
-export const REPLAY_ODDS = 1 / 3;
+export const REPLAY_ODDS = 2 / 3;
 /** Skipped this many running, only a stroke not yet replayed is shown. */
 export const SKIPS_TO_QUIET = 2;
 
 export function qualifies(ball: ReplayBall) {
+  if (ball.stroke === 'bowled') return ball.wicket;
   return !!ball.stroke && !ball.wicket && ball.runs >= REPLAY_RUNS[ball.stroke] && (ball.grade === 'PERFECT' || ball.grade === 'GOOD');
 }
 
@@ -86,7 +94,7 @@ export function qualifies(ball: ReplayBall) {
  */
 export function replayDue(ball: ReplayBall, log: ReplayLog, opts: { cap: number; blocked: boolean; roll: number; every?: boolean }) {
   if (!qualifies(ball) || opts.blocked) return false;
-  if (opts.every) return true;
+  if (opts.every || ALWAYS.includes(ball.stroke!)) return true;
   if (log.shown >= opts.cap || ball.index - log.lastAt < REPLAY_GAP) return false;
   const fresh = !log.seen.includes(ball.stroke!);
   if (fresh) return true;
@@ -136,7 +144,7 @@ export const CUT_AFTER = 260;
  */
 export const CUT_AFTERS: Record<ReplayStroke, number> = {
   cover: CUT_AFTER, pull: 320, cut: 380, latecut: 320, scoop: 300, reverse: 300,
-  straight: 380, on: 400, flick: 300, sweep: 340, slog: 420, charge: 380,
+  straight: 380, on: 400, flick: 300, sweep: 340, slog: 420, charge: 380, bowled: Infinity,
 };
 export const ARRIVED_MS = 650;
 /** A six is let go sooner once it is over the rope: the camera looks up after it, and there is nothing but sky to hold on. */
@@ -163,7 +171,18 @@ export interface ReplayTimes { release: number; swing: number; resolve: number; 
  * resolved and the bat met it, and how long after the bat it got where it
  * was going (`arrives`).
  */
-export function replayTimes(kept: { swingAfter: number; resolveAfter: number; contactAfter: number; arrives?: number; held?: number }): ReplayTimes {
+/**
+ * A batter bowled is shown from the bowler's last strides, the ball out of
+ * his hand and all the way to the stumps, and held on the bails going and the
+ * batter after.
+ */
+export const BOWLED_LEAD = 520;
+export const BOWLED_AFTER = 1300;
+export function replayTimes(kept: { swingAfter: number; resolveAfter: number; contactAfter: number; arrives?: number; held?: number; bowled?: boolean }): ReplayTimes {
+  if (kept.bowled) {
+    const release = BOWLED_LEAD, contact = release + kept.contactAfter;
+    return { release, swing: release + kept.swingAfter, resolve: release + kept.resolveAfter, contact, end: contact + BOWLED_AFTER };
+  }
   const release = LEAD_IN - kept.swingAfter, contact = release + kept.contactAfter;
   return { release, swing: LEAD_IN, resolve: release + kept.resolveAfter, contact, end: contact + Math.max(AFTER_MS, (kept.arrives ?? 0) + (kept.held ?? ARRIVED_MS)) };
 }
@@ -215,15 +234,15 @@ const SEVEN: readonly ReplayAngle[] = [
 ];
 /**
  * Two from the bowler's end, straight down the ground at him, for the sixes
- * down it (the owner's ask): over the sightscreen, and higher, where the big
- * screen stands over Super10's ground. Long lenses from forty-odd metres
- * away, so he is a fifth of the picture as from the lab's seven, and high
- * enough to see over the bowler in his follow-through. Short of the stand, so
- * no ground's far end is ever in front of the lens.
+ * down it and for a batter bowled: at the sightscreen, low, where it stands
+ * on the rope, a long lens a little to leg of the line so the bowler's
+ * follow-through to the off side is not in front of it; and the umpire's
+ * eyes, behind the stumps at the bowler's end. The first pair, high over the
+ * sightscreen and from the big screen, did not look good, the owner said.
  */
 const BEHIND: readonly ReplayAngle[] = [
-  { id: 'sightscreen', name: 'Over the sightscreen', eye: [0, 7, 43], at: AT, fov: 12 },
-  { id: 'big-screen', name: 'From the big screen', eye: [0, 16, 45], at: AT, fov: 13 },
+  { id: 'sightscreen', name: 'At the sightscreen', eye: [-1.2, 3.2, 44], at: AT, fov: 14 },
+  { id: 'umpire', name: "The umpire's eyes", eye: [-.9, 1.75, 22.6], at: AT, fov: 20 },
 ];
 /**
  * Which of the seven each stroke is shown from: a camera on the side the ball
@@ -242,9 +261,10 @@ export const STROKE_CAMERAS: Record<ReplayStroke, readonly string[]> = {
   scoop: ['spider-legslip', 'leg-side', 'spider-umpire'],
   reverse: ['off-side', 'spider-legslip', 'midoff'],
   // Down the ground, from the bowler's end, as the owner asked.
-  straight: ['sightscreen', 'big-screen'],
-  on: ['sightscreen', 'big-screen'],
-  charge: ['sightscreen', 'big-screen', 'midoff'],
+  straight: ['sightscreen', 'umpire'],
+  on: ['sightscreen', 'umpire'],
+  charge: ['sightscreen', 'umpire', 'midoff'],
+  bowled: ['umpire', 'sightscreen'],
   flick: ['leg-side', 'midon-ground', 'spider-umpire'],
   sweep: ['leg-side', 'spider-legslip', 'midon-ground'],
   slog: ['leg-side', 'midon-ground', 'spider-umpire'],
@@ -272,13 +292,17 @@ export function pickAngle(stroke: ReplayStroke, last: string | null, roll: numbe
 export const replayCamera = (angle: ReplayAngle): CameraPose => ({ eye: angle.eye, at: angle.at, fov: angle.fov });
 
 /**
- * How far out the rope is along a line from the bat: forty metres straight and
- * thirty-five square (`BLAST_FIELD`), an oval between. A four runs on past it
- * to the boards, forty-four out, and a six lands in the stand at fifty-two
- * (`flightOf`), so where the ball crosses the rope is worked out, not read off
- * where it stops.
+ * How far out the rope is along a line from the bat: thirty metres round a
+ * point ten up the pitch (`ropeAlong` in `field.ts`, `ropeAt` in
+ * `super10-field.ts`), so forty straight, twenty-eight square and twenty
+ * behind. It was taken for forty straight and thirty-five square all round,
+ * which put the six's camera inside the boards and the stand for a ball sent
+ * square or behind — the reverse scoop's, the square drive's.
  */
-export const ropeAt = (dx: number, dz: number) => 35 + 5 * (dz * dz) / (dx * dx + dz * dz || 1);
+export const ropeAt = (dx: number, dz: number) => {
+  const c = dz / (Math.hypot(dx, dz) || 1);
+  return 10 * c + Math.sqrt(100 * c * c + 800);
+};
 /**
  * The second camera: after the stroke, the ball going away. A camera up high
  * behind the bat on the side towards the bowler's end, looking down at the

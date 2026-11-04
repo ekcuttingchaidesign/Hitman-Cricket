@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Kit } from '../entities/Cricketer';
 import type { KitPrint } from '../entities/kitPrint';
+import { ropeAt } from '../game/super10-field';
 import {
   COLLECT_MS, DIVE, Fielder, PICKED_UP, REACTION_MS, RELEASED, Routine, collect, diveReach, furthest, gather, idle, midpointOfHands, onField,
   planCatch, receive, signal, splitStep, still, throwIn, travel, type Action, type Body, type CatchPlan, type Idle, type Signal,
@@ -53,11 +54,13 @@ export const BLAST_FIELD: readonly Mark[] = [
  * (`GameScene.replayField`), so a ball sent there is fielded, chased or
  * caught by somebody rather than crossing an empty field.
  */
+// Three metres inside the rope, which is twenty behind the bat and
+// twenty-eight square (`ropeAt`): at thirty-one they stood in the stand.
 export const REPLAY_DEEP: readonly Mark[] = [
-  { name: 'Fine leg', spot: mark(-150, 31), style: 'loose', deep: true },
-  { name: 'Deep square leg', spot: mark(-98, 31), style: 'hips', deep: true },
-  { name: 'Third man', spot: mark(148, 31), style: 'hips', deep: true },
-  { name: 'Deep point', spot: mark(100, 31), style: 'loose', deep: true },
+  { name: 'Fine leg', spot: mark(-150, ropeAt(-150) - 3), style: 'loose', deep: true },
+  { name: 'Deep square leg', spot: mark(-98, ropeAt(-98) - 3), style: 'hips', deep: true },
+  { name: 'Third man', spot: mark(148, ropeAt(148) - 3), style: 'hips', deep: true },
+  { name: 'Deep point', spot: mark(100, ropeAt(100) - 3), style: 'loose', deep: true },
 ];
 
 /**

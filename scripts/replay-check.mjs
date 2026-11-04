@@ -59,6 +59,8 @@ const STROKES = {
   pull: { ball: 'bouncers', keys: ['a'], said: 'a bouncer pulled for a boundary' },
   straight: { ball: 'cover', keys: ['w'], said: 'a straight six' },
   cut: { ball: 'latecut', keys: ['d'], said: 'a square cut for four' },
+  // Late cuts at pace on off stump or wider, until one on the stumps bowls him.
+  bowled: { ball: 'latecut', keys: ['d', 's'], said: 'a batter bowled' },
 };
 const asked = STROKES[process.env.STROKE] ? process.env.STROKE : 'cover', played = STROKES[asked];
 const keys = played.keys;
@@ -105,11 +107,11 @@ async function drive() {
 }
 
 console.log("        at the crease"); let shown = null, shots = 0;
-for (let ball = 0; ball < 12 && !shown; ball++) {
+for (let ball = 0; ball < (asked === 'bowled' ? 30 : 12) && !shown; ball++) {
   const played = await drive();
   if (!played) break;
   console.log(`        ball ${ball + 1}: ${played.outcome} (${played.grade}) ${played.replay ? '→ replay' : ''}`);
-  if (played.replay) shown = played;
+  if (played.replay && (asked !== 'bowled' || played.replay.stroke === 'bowled')) shown = played;
 }
 check(!!shown, `${played.said} is replayed once the ball is dead`, shown && JSON.stringify(shown));
 if (shown) {
@@ -142,7 +144,7 @@ if (shown) {
 
   // A second, skipped with a tap. Every ball is replayed here, so the next four is one.
   let second = null;
-  if (next) {
+  if (next && asked !== 'bowled') {
     await advance(next.contactAt - next.elapsed); await press(...keys);
     for (let ball = 0; ball < 10 && !second; ball++) {
       let at = await snap();
@@ -153,7 +155,7 @@ if (shown) {
       if (played.replay) second = await snap();
     }
   }
-  check(!!second, 'another four is replayed');
+  if (asked !== 'bowled') check(!!second, 'another four is replayed');
   if (second) {
     for (let i = 0; i < 40 && (await snap()).replay?.at == null; i++) await advance(40);
     await advance(300);

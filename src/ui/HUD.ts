@@ -2680,6 +2680,8 @@ ${modeSelectMarkup()}
    * The walk-on (`IntroReel.ts`): everything over the ground put out of sight
    * and the bars drawn `bars` of the way in, or all of it put back with null.
    */
+  /** The catch camera's picture: the call stands over it, between the bars, as he takes it. */
+  catching(on: boolean) { this.viewport.classList.toggle('is-catching', on); }
   walkOn(bars: number | null) {
     this.viewport.classList.toggle('intro-on', bars !== null);
     this.viewport.style.setProperty('--intro-bars', String(bars ?? 0));

@@ -4,7 +4,8 @@
  * (POOR), and the camera on under `?debug=1` (`?catchcam=1`). The game's own
  * picture off the bat, then the cut to the camera between the bars, slowed
  * round the take, the field with men behind square, and the cut back to the
- * game with the call going up only then and the next ball after it.
+ * game, the call going up over the camera's picture as he takes it and the
+ * next ball after the cut back.
  * Photographed through, into `test-results/catch-*.png`.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
@@ -99,7 +100,7 @@ async function sky(name) {
     for (let i = 0; i < 120 && now.phase !== 'READY' && now.phase !== 'INNINGS_END'; i++) { await advance(80); now = await snap(); }
     return { outcome, cam: null };
   }
-  const cam = { shot: now.catchCam.shot, cutAfterBat: false, onBars: false, slowed: false, held: false, men: 0, calledEarly: false, shots: 0 };
+  const cam = { shot: now.catchCam.shot, cutAfterBat: false, onBars: false, slowed: false, held: false, men: 0, calledEarly: false, calledAtTake: false, shots: 0 };
   // The game's picture off the bat, before the cut.
   cam.cutAfterBat = !now.catchCam.on;
   const moments = [-900, -450, -120, 150, 500];
@@ -112,7 +113,9 @@ async function sky(name) {
       const field = await page.evaluate(() => window.__cricket.field());
       cam.men = Math.max(cam.men, field.fielders?.length ?? field.men?.length ?? 0);
       if (Math.abs(now.catchCam.sinceTake) < 200 && now.elapsed - was < 30) cam.slowed = true;
-      if (/CAUGHT|DROPPED|RUN/.test(await said()) && await page.locator('#result').isVisible()) cam.calledEarly = true;
+      const up = /CAUGHT|DROPPED|RUN/.test(await said()) && await page.locator('#result').isVisible();
+      if (up && now.catchCam.sinceTake < -80) cam.calledEarly = true;
+      if (up && now.catchCam.sinceTake >= 0) cam.calledAtTake = true;
       if (moments.length && now.catchCam.sinceTake >= moments[0]) { moments.shift(); await page.screenshot({ path: `test-results/catch-${mode}-${name}-${++cam.shots}.png` }); }
     }
     if (now.phase === 'RESULT' || now.phase === 'READY') { cam.held = false; break; }
@@ -145,7 +148,7 @@ for (const shot of fielding ? ['field'] : mode === 'survive' ? ['catch', 'drop']
   check(cam.onBars, 'between the bars');
   check(cam.slowed, 'slowed round the take');
   check(cam.held, 'the ball is not dead while it is up');
-  check(!cam.calledEarly, 'the call waits for the cut back');
+  check(!cam.calledEarly && cam.calledAtTake, 'the call goes up as he takes it, over the camera\'s picture', JSON.stringify({ early: cam.calledEarly, atTake: cam.calledAtTake }));
   check(cam.back, 'and it cuts back to the game');
   check(shot === 'field' ? /RUN/.test(cam.call) : shot === 'catch' ? /CAUGHT/.test(cam.call) : /DROPPED/.test(cam.call), 'with the call up then', cam.call);
 }

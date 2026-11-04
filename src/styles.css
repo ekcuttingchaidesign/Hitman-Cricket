@@ -5720,6 +5720,8 @@ video.whatsnew-film.is-fit{height:auto;object-fit:contain;
 /* The walk-on before the first ball (`IntroReel.ts`): the ground alone, between
    two black bars that come in as it starts and go as it lands on the game's view. */
 #viewport.intro-on>:not(canvas):not(#walkon-card):not(#replay-tag):not(#replay-wipe){visibility:hidden}
+/* The catch camera's call, up as he takes it (`HUD.catching`). */
+#viewport.intro-on.is-catching>#result{visibility:visible}
 /* The action replay (`replay.ts`): under the walk-on's bars, a REPLAY tag top
    left, and the cut in and out made under a band that sweeps across the whole
    screen — Super10's violet with its logo, or the game's orange — covering it

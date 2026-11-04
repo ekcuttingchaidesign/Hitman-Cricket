@@ -270,6 +270,8 @@ const WALK_ON_KEY = 'hitman-walk-on';
 /** The pause sheet's replays switch: 'off', or anything else for on. */
 const REPLAYS_KEY = 'hitman-replays';
 /** A ball as the scene was told it, kept for its replay: see `Game.keepForReplay`. */
+/** A ball he never swung at, kept for a replay of it all the same: bowled leaving it. Never told to the scene. */
+const NO_SWING: Kept['swing'] = { shot: 'DEFEND', at: Infinity, charging: false, lofted: false, sweeping: false, levelled: false, version: 2, meets: 1, cutting: false, spinPulling: false, stroke: null };
 interface Kept {
   delivery: Delivery;
   swing: {
@@ -278,7 +280,7 @@ interface Kept {
   };
   outcome: ShotOutcome;
   /** From release: the swing, the ball resolved, and the bat on it; and from the bat, the ball where it was going. */
-  swingAfter: number; resolveAfter: number; contactAfter: number; arrives: number; held?: number;
+  swingAfter: number; resolveAfter: number; contactAfter: number; arrives: number; held?: number; bowled?: boolean;
 }
 function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' {
   try {
@@ -4501,7 +4503,8 @@ export class Game {
       if (this.replay) return;
       if (this.replayQueued) {
         const queued = this.replayQueued; this.replayQueued = null;
-        if (!this.chasePassDue && !this.noticeDue && !this.changed && !(this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended || this.targetPassed)) {
+        const over = !!this.changed || (this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended || this.targetPassed);
+        if (!this.chasePassDue && !this.noticeDue && (!over || queued.kept.bowled)) {
           this.beginReplay(queued); return;
         }
       }
@@ -4855,10 +4858,13 @@ export class Game {
   } | null = null;
   /** The ball just resolved, kept; and replayed once it is dead if it is one to replay. */
   private keepForReplay(contactAt: number, arrives: number, held?: number) {
-    const swing = this.keptSwing, delivery = this.delivery, outcome = this.outcome;
+    const delivery = this.delivery, outcome = this.outcome;
+    // Bowled — played on, or beaten, or left alone — is shown from the bowler's end, the ball all the way.
+    const bowled = outcome?.wicketType === 'BOWLED';
+    const swing = bowled ? { ...(this.keptSwing ?? NO_SWING), stroke: 'bowled' as const } : this.keptSwing;
     if (!swing || !delivery || !outcome) return;
     const release = delivery.releaseTimeMs;
-    this.kept = { delivery: { ...delivery }, swing, outcome, swingAfter: swing.at - release, resolveAfter: this.elapsed - release, contactAfter: contactAt - release, arrives, held };
+    this.kept = { delivery: { ...delivery }, swing, outcome, swingAfter: swing.at - release, resolveAfter: this.elapsed - release, contactAfter: contactAt - release, arrives, held, bowled };
     // Super10 and the Blast, not a Rival Match, whose other innings flashes up between balls, nor practice's tutorial or a demo.
     if (!(this.super10 || this.mode === 'CLASSIC') || this.challenge.playing || this.demoing || this.lesson >= 0) return;
     if (!this.replaysOn || this.replayAsked === 'off') return;
@@ -4866,8 +4872,9 @@ export class Game {
     const due = replayDue(ball, this.replayLog, {
       cap: this.super10 ? REPLAYS_PER_INNINGS.super10 : REPLAYS_PER_INNINGS.blast,
       // The ball brings something of its own to celebrate: that, and no replay over it.
-      // A skier put down has had the catch camera on it already.
-      blocked: !!this.milestoneDue || !!this.momentAsked || !!this.changed || this.score.ended || this.targetPassed || !!outcome.dropped,
+      // A skier put down has had the catch camera on it already. A batter
+      // bowled is shown before the next man walks out or the card comes up.
+      blocked: !!this.milestoneDue || !!this.momentAsked || (!bowled && (!!this.changed || this.score.ended || this.targetPassed)) || !!outcome.dropped,
       roll: Math.random(), every: this.replayAsked === 'every',
     });
     if (due) this.replayQueued = { kept: this.kept, ball };
@@ -4900,7 +4907,8 @@ export class Game {
     this.scene.runup((start - replay.delivery.releaseTimeMs + GAME.runupMs) / GAME.runupMs);
     // The stroke from its camera, then, once his finish is reached, the ball going away.
     const pose = replayCamera(replay.angle), cut = times.contact + CUT_AFTERS[kept.swing.stroke!];
-    this.scene.cinematic((now, ball) => this.replay?.to && now - start >= cut ? fieldCamera(this.replay.to, ball, kept.outcome.runs === 6) : pose);
+    const follows = !kept.bowled && kept.outcome.madeBatContact;
+    this.scene.cinematic((now, ball) => follows && this.replay?.to && now - start >= cut ? fieldCamera(this.replay.to, ball, kept.outcome.runs === 6) : pose);
     this.scene.keeperIn(true);
     this.hud.walkOn(1); this.hud.replayTag(true, this.super10);
   }
@@ -4913,6 +4921,8 @@ export class Game {
     if (t >= times.end) { replay.ending = this.elapsed; this.hud.replayWipe(this.super10); return; }
     if (!replay.struck) {
       const since = this.elapsed - delivery.releaseTimeMs;
+      // Bowled opens on the bowler's last strides: his action until the ball is out of his hand.
+      if (since < 0) { this.scene.runup((since + GAME.runupMs) / GAME.runupMs); return; }
       this.scene.delivery(delivery, flightProgress(delivery, since), since);
       const swing = kept.swing;
       if (!replay.swung && since >= kept.swingAfter) {
@@ -4924,8 +4934,8 @@ export class Game {
     const contact = delivery.releaseTimeMs + kept.contactAfter;
     if (!replay.played && this.elapsed >= contact) { replay.played = true; this.audio.play('hit'); }
     if (replay.struck) this.scene.result(this.elapsed);
-    // Nothing of the ball coming in: it is seen from the bat on.
-    if (this.elapsed < contact) this.scene.hideBall();
+    // Nothing of the ball coming in: it is seen from the bat on. Bowled is the ball, all the way.
+    if (this.elapsed < contact && !kept.bowled) this.scene.hideBall();
   }
   /** A tap, Space, Enter or Escape: straight to the wipe out. */
   private skipReplay() {
@@ -5000,9 +5010,11 @@ export class Game {
     if (!struck) { this.scene.catchField(false); return; }
     const times = catchTimes(shot, flight.contactAt, flight.contactAt + struck.arrives, flight.endAt);
     this.catchCam = { shot, ...times, hands: struck.to, on: false };
-    // The ball is dead, and the call goes up, when the game's picture is back.
+    // The call and the crowd go up the moment he takes it (or puts it down,
+    // or gets to it), over the camera's picture; the ball is dead, and the
+    // next ball comes, once the game's picture is back.
     this.resolveEndsAt = Math.max(this.resolveEndsAt, times.until);
-    this.presentationAt = Math.max(this.presentationAt, times.until);
+    this.presentationAt = times.take;
     this.mark(`catch-cam-${shot}`, 'A skier followed');
   }
   /** Before the frame's `update`: the cut to it, and the cut back. */
@@ -5011,7 +5023,7 @@ export class Game {
     if (!cam.on && this.elapsed >= cam.cut && this.elapsed < cam.until) {
       cam.on = true;
       this.scene.cinematic((_, ball) => catchCamera(cam.hands, ball));
-      this.scene.keeperIn(true); this.hud.walkOn(1);
+      this.scene.keeperIn(true); this.hud.walkOn(1); this.hud.catching(true);
     }
     if (this.elapsed >= cam.until) this.endCatchCam();
   }
@@ -5020,7 +5032,7 @@ export class Game {
     const cam = this.catchCam;
     if (!cam) return;
     this.catchCam = null;
-    if (cam.on) { this.scene.cinematic(null); this.scene.keeperIn(false); this.hud.walkOn(null); }
+    if (cam.on) { this.scene.cinematic(null); this.scene.keeperIn(false); this.hud.walkOn(null); this.hud.catching(false); }
     this.scene.catchField(false);
   }
   private pullUp() {
