@@ -16,9 +16,11 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GameScene } from './scene/GameScene';
 import { GAME, LINE_X, STYLES } from './config/gameplay';
 import type { BallLine, DeliveryStyle, ShotType } from './game/types';
-import { flightProgress } from './game/DeliveryTrajectory';
+import { effectiveLine, flightProgress } from './game/DeliveryTrajectory';
+import { CLASSIC_PLAN, DeliveryGenerator, spinCutsEvery, spinPullsEvery } from './game/DeliveryGenerator';
+import { SeededRandom } from './game/SeededRandom';
 import { resolveShot } from './game/ShotResolver';
-import { COVER_V3_MEETS_AT, HOOK_MEETS_AT, LATE_CUT_MEETS_AT, PULL_MEETS_AT, type CoverVersion } from './entities/Batter';
+import { COVER_V3_MEETS_AT, HOOK_MEETS_AT, LATE_CUT_MEETS_AT, PULL_MEETS_AT, SPIN_PULL_MEETS_AT, type CoverVersion } from './entities/Batter';
 import { batOf, outfitOf, super10KitOf } from './game/dressing';
 import { gloveOf } from './entities/gloves';
 import { LEAD_IN, REPLAY_ANGLES, replayPace, type ReplayStroke } from './game/replay';
@@ -45,12 +47,15 @@ const side = () => (scene.mirrored ? 1 : -1);
  * looked at. `ahead` is how far down the pitch the stroke meets the ball
  * (`Game.shoot`'s `meetsAt`); the scoops are played on a full meter.
  */
-type LabStroke = 'cover' | 'pull' | 'hook' | 'cut' | 'latecut' | 'scoop' | 'reverse';
-const BALLS: Record<LabStroke, { name: string; family: ReplayStroke; shot: ShotType; style: DeliveryStyle; line: BallLine; kph: number; ahead: number; charged?: boolean }> = {
+type LabStroke = 'cover' | 'pull' | 'hook' | 'cut' | 'spincut' | 'spinpull' | 'latecut' | 'scoop' | 'reverse';
+const BALLS: Record<LabStroke, { name: string; family: ReplayStroke; shot: ShotType; style: DeliveryStyle; line: BallLine; kph: number; ahead: number; charged?: boolean; spin?: 'cut' | 'pull' }> = {
   cover: { name: 'Cover drive', family: 'cover', shot: 'COVER_LONG_OFF', style: 'NORMAL', line: 'OFF', kph: 134, ahead: 0 },
   pull: { name: 'Pull', family: 'pull', shot: 'LEG', style: 'SHORT', line: 'MIDDLE', kph: 142, ahead: PULL_MEETS_AT },
   hook: { name: 'Hook', family: 'pull', shot: 'HOOK', style: 'SHORT', line: 'OUTSIDE_OFF', kph: 142, ahead: HOOK_MEETS_AT },
   cut: { name: 'Square cut', family: 'cut', shot: 'SQUARE_CUT', style: 'NORMAL', line: 'OUTSIDE_OFF', kph: 132, ahead: 0 },
+  // The spinner's, bowled by the game's own spinner (`spinner`): his ball for the cut, and his ball dropped short for the pull.
+  spincut: { name: 'Cut off the spinner', family: 'cut', shot: 'SQUARE_CUT', style: 'OFF_SPIN', line: 'OUTSIDE_OFF', kph: 90, ahead: 0, spin: 'cut' },
+  spinpull: { name: 'Pull off the spinner', family: 'pull', shot: 'LEG', style: 'OFF_SPIN', line: 'MIDDLE', kph: 90, ahead: SPIN_PULL_MEETS_AT, spin: 'pull' },
   latecut: { name: 'Late cut', family: 'latecut', shot: 'LATE_CUT', style: 'NORMAL', line: 'OUTSIDE_OFF', kph: 134, ahead: LATE_CUT_MEETS_AT },
   scoop: { name: 'Scoop', family: 'scoop', shot: 'SCOOP', style: 'YORKER', line: 'MIDDLE', kph: 150, ahead: 0, charged: true },
   reverse: { name: 'Reverse scoop', family: 'reverse', shot: 'REVERSE_SCOOP', style: 'YORKER', line: 'OFF', kph: 150, ahead: 0, charged: true },
@@ -66,7 +71,7 @@ function plan() {
   const ball = BALLS[stroke], shape = STYLES[ball.style], kph = ball.kph;
   const runup = LEAD, release = LEAD + GAME.runupMs;
   const durationMs = (GAME.releaseZ - GAME.contactZ) / (kph / 3.6) * 1000 * GAME.travelScale * (shape.rush ?? 1);
-  delivery = {
+  delivery = ball.spin ? spinBall(ball.spin, release) : {
     line: ball.line, style: ball.style, speedKph: kph, baseTargetX: LINE_X[ball.line], finalTargetX: LINE_X[ball.line],
     bounceZ: shape.bounce ?? GAME.bounceZ, rise: shape.rise ?? GAME.rise,
     durationMs, releaseTimeMs: release, idealContactTimeMs: release + durationMs,
@@ -78,7 +83,7 @@ function plan() {
   const swing = delivery.idealContactTimeMs;
   let hit = swing;
   if (flightProgress(delivery, swing - release) < meets) {
-    let low = swing - release, high = durationMs * 2;
+    let low = swing - release, high = delivery.durationMs * 2;
     for (let i = 0; i < 40; i++) { const mid = (low + high) / 2; if (flightProgress(delivery, mid) < meets) low = mid; else high = mid; }
     hit = release + high;
   }
@@ -91,11 +96,21 @@ function plan() {
   $('ball-out').textContent = `${outcome.feedback || (outcome.runs ? `${outcome.runs} runs` : 'No run')}`;
   restart();
 }
-const swingNow = () => scene.swing(BALLS[stroke].shot, times.swing, delivery, false, false, false, false, stroke === 'cover' ? version : 2, meets, false, false);
+const swingNow = () => scene.swing(BALLS[stroke].shot, times.swing, delivery, false, false, false, false, stroke === 'cover' ? version : 2, meets, BALLS[stroke].spin === 'cut', BALLS[stroke].spin === 'pull');
+/** The spinner's ball off the game's own plan: one he would cut, outside off and turning in, or one dropped short. */
+function spinBall(kind: 'cut' | 'pull', release: number): Delivery {
+  const bowler = new DeliveryGenerator(new SeededRandom(7), kind === 'pull' ? spinPullsEvery(CLASSIC_PLAN) : spinCutsEvery(CLASSIC_PLAN));
+  for (let i = 0; i < 400; i++) {
+    const ball = bowler.next(release);
+    if (ball.style === 'ARM_BALL') continue;
+    if (kind === 'pull' ? ball.dragged : !ball.dragged && ['OFF', 'OUTSIDE_OFF'].includes(effectiveLine(ball))) return ball;
+  }
+  return bowler.next(release);
+}
 
 // ── Playing it, from any moment on the loop ─────────────────────────────────
 let clock = 0, last = -1, anchored = false, swung = false, struck = false, contactAt = Infinity;
-function restart() { scene.reset(); last = -1; anchored = false; swung = false; struck = false; contactAt = Infinity; }
+function restart() { scene.reset(); scene.spinner(!!BALLS[stroke].spin); last = -1; anchored = false; swung = false; struck = false; contactAt = Infinity; }
 function stageAt(t: number) {
   if (t < last) restart();
   if (t >= times.runup && t < times.release) scene.runup(Math.min(1, (t - times.runup) / GAME.runupMs));
@@ -232,6 +247,8 @@ function dress() {
   scene.time(super10 || night ? 'night' : 'day');
   scene.dressBatter(outfitOf('home'), batOf('plain'), gloveOf('sterling'), super10 ? super10KitOf('s10-purple') : null);
   scene.leftHanded(left);
+  // The keeper, as a replay has him.
+  scene.keeperIn(true);
   put(shot);
   restart();
 }

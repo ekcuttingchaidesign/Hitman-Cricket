@@ -2149,7 +2149,13 @@ the bat meeting the ball and out on his held finish (`replayPace`,
 `AFTER_MS`; a quarter was too slow, the owner said). Nothing is scored, counted or sent again.
 Who goes for the ball is judged from the game's own view whatever the camera
 is doing (`judge` in `GameScene.inShot`), so the replay's field does what the
-real one did.
+real one did. A replay has a wicketkeeper (`keeper`, `keeperIn` in
+`GameScene`): the game's camera stands where he would, so in play he is never
+drawn, and a replay's cameras, looking at the batter from round the ground,
+showed the stumps with nobody behind them. He stands a little to the off
+side, eleven metres back to pace and up at the stumps to the spinner
+(`spinning`), crouched until the ball is played and standing up out of it
+after, in the fielding side's kit.
 
 Which balls (`qualifies`): a stroke on `REPLAY_STROKES` — the cover drive,
 the pull (the hook and the pull off the spinner with it), the square cut (at
@@ -2180,7 +2186,9 @@ never the one the last used (`pickAngle`, off the page's dice);
 `?replayangle=midoff` (any id) asks for one and is not practice.
 `replay-camera.html` (`src/replay-camera.ts`) is the lab: the game's own
 scene playing any of the strokes on a loop in a phone's frame (`BALLS`: each
-at the ball it answers, perfectly in time, the hook beside the pull), from
+at the ball it answers, perfectly in time, the hook beside the pull, and the
+cut and the pull off the spinner on balls the game's own spinner bowls,
+`spinBall`), from
 the swing as the replay is, the bars
 on, a free camera, how much of the picture he fills, the stroke's cameras and
 other ideas to start from, a move from a start to an end, saved angles, and

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt } from '../entities/Batter';
 import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
-import { bodyOf, showBody } from '../entities/Fielder';
+import { Fielder, bodyOf, mixBodies, readyPose, showBody, type Body } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
 import { BLAST_FIELD, Field, TEST_FIELD, mark, type Mark } from './field';
 import { nameOf, type Man } from '../game/super10-field';
@@ -384,7 +384,8 @@ export class GameScene {
     // The stage starts mirrored for a right-hander: the LED stumps' wrap is turned over with it.
     this.led.mirror(true);
     this.bowlerHolder.add(this.bowler.root);
-    this.world.add(this.batter.root, this.bowlerHolder, ...this.field.fielders.map(f => f.root));
+    this.world.add(this.batter.root, this.bowlerHolder, ...this.field.fielders.map(f => f.root), this.keeper.root);
+    this.keeper.root.visible = false;
     this.ball = new THREE.Mesh(SHAPES.ball, soft(BALL.blast.color, 0.34));
     this.ball.scale.setScalar(0.115); this.ball.castShadow = true; this.world.add(this.ball);
     (this.ball.material as THREE.MeshStandardMaterial).emissive.setHex(BALL.blast.glow);
@@ -582,7 +583,7 @@ export class GameScene {
     this.bowler.figure.root.add(under());
     // A fielder's goes on the man standing on the turf, not on the figure that
     // tips over in a dive, and follows his hips wherever they go.
-    for (const fielder of this.field.fielders) { fielder.patch = under(); fielder.root.add(fielder.patch); }
+    for (const fielder of [...this.field.fielders, this.keeper]) { fielder.patch = under(); fielder.root.add(fielder.patch); }
     this.field.update(0);
   }
   private createStadium(anisotropy: number) {
@@ -806,7 +807,7 @@ export class GameScene {
    */
   private kitsUnderLights() {
     const night = this.now === 'night';
-    const roots = [this.batter.root, this.bowler.root, ...this.field.fielders.map(f => f.root)];
+    const roots = [this.batter.root, this.bowler.root, ...this.field.fielders.map(f => f.root), this.keeper.root];
     for (const root of roots) root.traverse(object => {
       if (!(object instanceof THREE.Mesh)) return;
       for (const material of [object.material].flat()) {
@@ -1077,7 +1078,7 @@ export class GameScene {
     this.bowler.figure.dress(kit);
     // The fielding side too. Leaving them in coloured clothing while the two
     // men in the middle wore whites read as a bug rather than as a mode.
-    this.field.dress(kit);
+    this.field.dress(kit); this.keeper.figure.dress(kit);
     // And set the field for the game: the Test match's attacking ring, or
     // the Blast's men back on the rope.
     this.field.setField(on ? TEST_FIELD : BLAST_FIELD);
@@ -1220,7 +1221,7 @@ export class GameScene {
     this.batter.wear(this.inWhites ? { helmet: outfit.helmet } : outfit);
     // A room kit with a print (the Diwali kit) wears it, but not in whites; a Super10 kit's is put on in `dressBatter`.
     if (!this.super10Kit) this.batter.printKit(!this.inWhites && 'print' in outfit ? outfit.print ?? null : null);
-    if (!this.inWhites) { this.bowler.figure.dress(this.sideKit, this.sidePrint); this.field.dress(this.sideKit, this.sidePrint); }
+    if (!this.inWhites) { this.bowler.figure.dress(this.sideKit, this.sidePrint); this.field.dress(this.sideKit, this.sidePrint); this.keeper.figure.dress(this.sideKit, this.sidePrint); }
     this.kitsUnderLights();
   }
   /**
@@ -1280,7 +1281,9 @@ export class GameScene {
    * action starts, because `reset` puts the ball back in the quick bowler's
    * hand and the spinner has to take it again each ball of his over.
    */
-  spinner(on: boolean) { this.bowler.spinner(on); }
+  spinner(on: boolean) { this.spinning = on; this.bowler.spinner(on); }
+  /** Whether the spinner is on: the keeper stands up to him. */
+  private spinning = false;
   /**
    * And whose action he bowls it with: the express bowler's in his overs (the
    * Marathon's, and Super10's sling bowler), Super10's death bowler's in his,
@@ -1672,6 +1675,7 @@ export class GameScene {
     }
     this.batter.update(now);
     this.field.update(now);
+    if (this.keeper.root.visible) this.keeper.show(this.keeperAt(now));
     // Held, the ball goes where his hands go: through the slide, and up with
     // him when he stands.
     const held = this.field.held(now);
@@ -1748,6 +1752,31 @@ export class GameScene {
   hideBall() {
     this.ball.visible = this.shadow.visible = this.bounceRing.visible = false;
     this.streak.forEach(dot => dot.visible = false);
+  }
+  /**
+   * The wicketkeeper. The game's own camera stands where he would be, so in
+   * play he is never drawn — he would stand between the lens and the batter —
+   * and a replay, whose cameras look at the batter from round the ground,
+   * puts him in (`keeperIn`, `Game.stageReplay`): behind the stumps, a little
+   * to the off side, stood back to pace and up at the stumps to the spinner,
+   * crouched until the ball has been played and standing up out of it after.
+   */
+  private readonly keeper = new Fielder();
+  keeperIn(on: boolean) { this.keeper.root.visible = on; if (on) this.keeper.show(this.keeperAt(this.clock)); }
+  private keeperAt(now: number): Body {
+    const up = this.spinning;
+    const spot = { x: up ? .3 : .45, z: up ? -1.15 : -11, heading: 0 };
+    const crouch = readyPose(1);
+    // Down on his haunches, deeper than any fielder's ready position, gloves together in front of his knees.
+    crouch.hip.y = .5; crouch.chest.set(0, .5 + .5, .12);
+    crouch.leftFoot.set(-.3, .06, .02); crouch.rightFoot.set(.3, .06, .02);
+    crouch.leftHand.set(-.07, .42, .42); crouch.rightHand.set(.07, .42, .42);
+    crouch.headPitch = -.05;
+    const stand = readyPose(.45);
+    const body = (pose: typeof crouch): Body => ({ ...spot, pitch: 0, anchor: pose.hip.clone(), pose });
+    const since = this.hitOutcome ? now - this.hitStart : -Infinity;
+    const rising = Math.min(1, Math.max(0, (since - 120) / 520));
+    return mixBodies(body(crouch), body(stand), rising * rising * (3 - 2 * rising));
   }
   /** The field back on its marks at once, as a replay's cut finds it and leaves it. */
   homeField() { this.field.home(); }

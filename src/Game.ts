@@ -4880,7 +4880,7 @@ export class Game {
     // his run-up had been watched, so he is in his follow-through.
     this.scene.runup((start - replay.delivery.releaseTimeMs + GAME.runupMs) / GAME.runupMs);
     const pose = replayCamera(replay.angle);
-    this.scene.cinematic(() => pose);
+    this.scene.cinematic(() => pose); this.scene.keeperIn(true);
     this.hud.walkOn(1); this.hud.replayTag(true, this.super10);
   }
   /** One frame of it, as `update` plays a ball: the stroke, and the ball only from the bat on. */
@@ -4922,7 +4922,7 @@ export class Game {
     if (!replay) return;
     this.replay = null;
     this.replayLog = endedLog(this.replayLog, replay.skipped);
-    if (replay.start !== null) { this.scene.cinematic(null); this.scene.reset(); this.scene.homeField(); }
+    if (replay.start !== null) { this.scene.cinematic(null); this.scene.keeperIn(false); this.scene.reset(); this.scene.homeField(); }
     this.hud.walkOn(null); this.hud.replayTag(false);
   }
   /** Cut short with no wipe, by a pause or a new innings. */
@@ -4930,7 +4930,7 @@ export class Game {
     if (!this.replay) return;
     const started = this.replay.start !== null;
     this.replay = null;
-    if (started) { this.scene.cinematic(null); this.scene.reset(); this.scene.homeField(); }
+    if (started) { this.scene.cinematic(null); this.scene.keeperIn(false); this.scene.reset(); this.scene.homeField(); }
     this.hud.walkOn(null); this.hud.replayTag(false); this.hud.replayWipe(null);
   }
   private pullUp() {
