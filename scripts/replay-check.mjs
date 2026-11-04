@@ -11,7 +11,8 @@
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/replay-check.mjs
  *
- * `MODE=super10` does it in Super10.
+ * `MODE=super10` does it in Super10, and `ANGLE=spider-legslip` (any of
+ * `REPLAY_ANGLES`) shows it from that camera.
  */
 
 import { chromium } from '@playwright/test';
@@ -48,7 +49,8 @@ await page.route('**/api/board**', route => route.fulfill({
 const advance = ms => page.clock.runFor(Math.max(16, Math.round(ms)));
 const snap = () => page.evaluate(() => window.__cricket.snapshot());
 await page.clock.install();
-await page.goto(`${base}/?debug=1&seed=2718&cover=1&replay=1&lights=day`, { waitUntil: 'load' });
+const angle = process.env.ANGLE ? `&replayangle=${process.env.ANGLE}` : '';
+await page.goto(`${base}/?debug=1&seed=2718&cover=1&replay=1&lights=day${angle}`, { waitUntil: 'load' });
 await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 3000);
 await advance(2500);
 await page.waitForTimeout(800);
@@ -100,6 +102,8 @@ for (let ball = 0; ball < 12 && !shown; ball++) {
 check(!!shown, 'a cover drive for four is replayed once the ball is dead', shown && JSON.stringify(shown));
 if (shown) {
   check(shown.replay.stroke === 'cover', 'as the cover drive', JSON.stringify(shown.replay));
+  if (process.env.ANGLE) check(shown.replay.angle === process.env.ANGLE, 'from the camera asked for', JSON.stringify(shown.replay));
+  else check(!!shown.replay.angle, 'from one of its cameras', JSON.stringify(shown.replay));
   // Through it, photographing as it goes.
   let now = await snap(), staged = false, struck = false, bars = false, tag = false;
   const moments = [400, 900, 1250, 1450, 1700, 1950];

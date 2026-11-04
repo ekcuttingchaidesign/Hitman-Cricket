@@ -2140,9 +2140,9 @@ game keeps what it told the scene — the ball, the swing with every argument
 and when, the outcome once resolved (`Kept`, `keepForReplay` in
 `src/Game.ts`) — and tells it the same again shifted on to now
 (`stageReplay`, `replayFrame`), picking the bowler up a stride or two from
-the crease (`RUNUP_FROM`), under the replay's camera (`replayCamera`, through
-`GameScene.cinematic`) and on a clock slowed to a quarter through the bat
-meeting the ball (`replayPace`). Nothing is scored, counted or sent again.
+the crease (`RUNUP_FROM`), under one of the stroke's cameras (`REPLAY_ANGLES`,
+through `GameScene.cinematic`) and on a clock slowed to a quarter through the
+bat meeting the ball and out on his held finish (`replayPace`, `AFTER_MS`). Nothing is scored, counted or sent again.
 Who goes for the ball is judged from the game's own view whatever the camera
 is doing (`judge` in `GameScene.inShot`), so the replay's field does what the
 real one did.
@@ -2160,6 +2160,24 @@ Blast only; not a Rival Match (the other innings flashes up between balls),
 the tutorial or a demo. It plays in the RESULT phase, which waits for it, so
 the next ball is bowled after it and nothing about the batting moves.
 
+The cameras are the owner's, set in the replay camera lab: the cover drive
+has seven — mid-off, a spider cam over the umpire and one over leg slip,
+square on either side, and mid-on and mid-off at ground level on long lenses
+— all held still, all well back, so he fills a sixth or so of the picture
+(`tests/replay.test.ts` holds every camera under a third). The first build
+crept in from in front on the off side until he filled two thirds of it, and
+a model of this detail does not stand that; a camera turning after the ball
+looked at the turf at its own feet. Each replay is shown from one of them,
+never the one the last used (`pickAngle`, off the page's dice);
+`?replayangle=midoff` (any id) asks for one and is not practice.
+`replay-camera.html` (`src/replay-camera.ts`) is the lab: the game's own
+scene playing a cover drive for four on a loop in a phone's frame, the bars
+on, a free camera, how much of the picture he fills, the stroke's cameras and
+other ideas to start from, a move from a start to an end, saved angles, and
+Copy camera, which gives the numbers in the game's frame as `REPLAY_ANGLES`
+takes them. `scripts/replay-camera-artifact.mjs` builds it into one file; it
+is published as the claude.ai artifact "Replay Camera Lab".
+
 It is cut into and out of under a wipe (`WIPE_MS`, `#replay-wipe`: Super10's
 violet with its logo, or the game's orange with REPLAY), between the walk-on's
 bars with everything else put out of sight (`intro-on`), a REPLAY tag top left
@@ -2169,9 +2187,11 @@ Replays switch (`#replay-switch`, kept in `hitman-replays`). Off under
 `?debug=1` and reduced motion; `?replay=1` replays every ball that qualifies,
 debug or not, and `?replay=0` none; neither is practice.
 `__cricket.snapshot().replay` says what is playing. GoatCounter counts
-`replay-<stroke>` and `replay-skipped-<stroke>`. `scripts/replay-check.mjs`
+`replay-<stroke>` and `replay-skipped-<stroke>`, and each again with the
+camera on the end (`replay-cover-midoff`), so the cameras players skip show. `scripts/replay-check.mjs`
 drives a cover drive for four on `?cover=1&replay=1`, photographs the replay
-through and skips a second with a tap (`MODE=super10` for Super10).
+through and skips a second with a tap (`MODE=super10` for Super10,
+`ANGLE=<id>` for one camera).
 
 ## The bowled ball's streak
 

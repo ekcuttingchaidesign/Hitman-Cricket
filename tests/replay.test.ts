@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   AFTER_MS, REPLAY_GAP, REPLAY_SLOW, REPLAYS_PER_INNINGS, RUNUP_FROM, SKIPS_TO_QUIET,
-  endedLog, freshLog, qualifies, replayCamera, replayDue, replayPace, replayTimes, shownLog, type ReplayBall, type ReplayLog,
+  endedLog, freshLog, pickAngle, qualifies, replayCamera, replayDue, REPLAY_ANGLES, replayPace, replayTimes, shownLog, type ReplayBall, type ReplayLog,
 } from '../src/game/replay';
 
 const four = (index: number, over: Partial<ReplayBall> = {}): ReplayBall => ({ stroke: 'cover', grade: 'PERFECT', runs: 4, wicket: false, index, ...over });
@@ -68,21 +68,23 @@ describe('the replay', () => {
     expect(replayPace(1500)).toBe(1);
     for (let t = -2000; t < 2000; t += 10) expect(Math.abs(replayPace(t + 10) - replayPace(t))).toBeLessThan(.06);
   });
-  it('the camera stands in front of him on the off side, looks at him at the end, and never jumps', () => {
-    const times = replayTimes({ swingAfter: 500, contactAfter: 900 }, 840);
-    const ball = [3, 1.5, 12] as const;
-    let last = replayCamera('cover', 0, times, null);
-    expect(last.eye[0]).toBeGreaterThan(1);
-    expect(last.eye[2]).toBeGreaterThan(3);
-    for (let t = 0; t <= times.end; t += 16) {
-      const now = replayCamera('cover', t, times, t > times.contact ? ball : null);
-      const moved = Math.hypot(now.eye[0] - last.eye[0], now.eye[1] - last.eye[1], now.eye[2] - last.eye[2]);
-      const turned = Math.hypot(now.at[0] - last.at[0], now.at[1] - last.at[1], now.at[2] - last.at[2]);
-      expect(moved).toBeLessThan(.05);
-      expect(turned).toBeLessThan(.25);
-      last = now;
+  it('every camera keeps him small in the picture, the way the model reads well', () => {
+    for (const angle of REPLAY_ANGLES.cover) {
+      // His height over the height of the picture between the bars, where he stands.
+      const away = Math.hypot(angle.eye[0] - angle.at[0], angle.eye[1] - angle.at[1], angle.eye[2] - angle.at[2]);
+      const share = 1.78 / (2 * away * Math.tan(angle.fov * Math.PI / 360)) / .78;
+      expect(share, angle.id).toBeLessThan(.35);
+      expect(replayCamera(angle)).toEqual({ eye: angle.eye, at: angle.at, fov: angle.fov });
     }
-    const end = replayCamera('cover', times.end, times, ball), start = replayCamera('cover', 0, times, null);
-    expect(end.at).toEqual(start.at);
+  });
+  it('never shows the same camera twice running, and takes one asked for by name', () => {
+    const ids = REPLAY_ANGLES.cover.map(angle => angle.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const last of ids) for (let roll = 0; roll < 1; roll += .05) expect(pickAngle('cover', last, roll).id).not.toBe(last);
+    const seen = new Set<string>();
+    for (let roll = 0; roll < 1; roll += .01) seen.add(pickAngle('cover', null, roll).id);
+    expect(seen.size).toBe(ids.length);
+    expect(pickAngle('cover', 'midoff', .5, 'midoff').id).toBe('midoff');
+    expect(pickAngle('cover', null, .5, 'nowhere').id).toBe(pickAngle('cover', null, .5).id);
   });
 });

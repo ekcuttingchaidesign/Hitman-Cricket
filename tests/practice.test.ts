@@ -49,6 +49,7 @@ describe('every switch the game reads', () => {
     topspot: 'New #1 on demand, over a made-up board, counting and sending nothing',
     intro: 'the walk-on before the first ball, a camera and a pose: nothing bowled, scored or counted until it has landed',
     replay: 'the action replay once a ball is dead, a camera and the same ball told again: nothing bowled, scored or counted under it',
+    replayangle: 'which camera the action replay is shown from; nothing about the ball',
     actions: 'what the batter does after a ball, on demand, at no ball and counting nothing',
     demo: 'made-up rows on the boards, in this browser only',
     feedback: 'the feedback sheet',

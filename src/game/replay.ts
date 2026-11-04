@@ -126,45 +126,48 @@ export function replayPace(since: number) {
 // ---------------------------------------------------------------------------
 
 type Vec = readonly [number, number, number];
-const mix = (a: Vec, b: Vec, k: number): Vec => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
-const smooth = (x: number) => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 - 2 * k); };
 
-interface Angle {
-  /** Where the lens stands as the replay picks up, and where it has crept to by the end. */
-  from: Vec; to: Vec;
-  /** What it looks at: him, about the waist, where his stride takes him. */
-  at: Vec;
-  fov: number;
-  /** How far it turns after the ball once it is struck, nought to one, and how high it looks at most. */
-  follow: number; ceiling: number;
-}
+/** One camera a replay can be shown from, held still for the whole of it. */
+export interface ReplayAngle { id: string; name: string; eye: Vec; at: Vec; fov: number }
 
 /**
- * Each stroke's angle, in the game's frame (+x the off side, +z towards the
- * bowler), for a right-hander; the scene mirrors it for a left-hander.
+ * Each stroke's cameras, in the game's frame (+x the off side, +z towards the
+ * bowler), for a right-hander; the scene mirrors them for a left-hander.
  *
- * The cover drive from in front on the off side, low, between mid-off and
- * extra cover: the stride comes towards the lens, the bat comes down straight
- * and through, the ball goes away past the lens's shoulder, and the finish is
- * held facing it. It does not turn after the ball: going past the lens, a
- * camera turning after it ended up looking at the turf at its own feet. Side on from point, the shot a broadcast uses, a phone held
- * upright sees a slice of him a metre wide and loses the stride.
+ * The cover drive's seven were set by the owner in the replay camera lab
+ * (`replay-camera.html`), all looking at him where his stride takes him, all
+ * well back: the batter fills a sixth or so of the picture, where a model of
+ * this detail reads well (the first build crept in from in front on the off
+ * side until he filled two thirds of it, and showed him up). Mid-off and the
+ * two at ground level are long lenses from near the rope, a broadcast's; the
+ * spider cams look down from over the umpire and over leg slip; the two
+ * square ones are side on from either side. None turns after the ball.
  */
-const ANGLES: Record<ReplayStroke, Angle> = {
-  cover: { from: [3.3, 1.25, 7.0], to: [2.5, 1.05, 5.6], at: [-.3, .92, 1.35], fov: 33, follow: 0, ceiling: 2.2 },
+const AT: Vec = [-.2, .85, 1.6];
+export const REPLAY_ANGLES: Record<ReplayStroke, readonly ReplayAngle[]> = {
+  cover: [
+    { id: 'midoff', name: 'Mid-off', eye: [3.89, 2.30, 21.88], at: AT, fov: 40 },
+    { id: 'spider-umpire', name: 'Spider cam over the umpire', eye: [.21, 5.28, 23.51], at: AT, fov: 40 },
+    { id: 'spider-legslip', name: 'Spider cam over leg slip', eye: [-8.98, 8.14, -9.39], at: AT, fov: 40 },
+    { id: 'leg-side', name: 'Leg side', eye: [-20.58, 3.91, -.18], at: AT, fov: 40 },
+    { id: 'off-side', name: 'Off side', eye: [20.38, 2.83, 1.6], at: AT, fov: 40 },
+    { id: 'midon-ground', name: 'Mid-on, at ground level', eye: [-1.12, .51, 28.41], at: AT, fov: 26 },
+    { id: 'midoff-ground', name: 'Mid-off, at ground level', eye: [2.5, .39, 28.28], at: AT, fov: 26 },
+  ],
 };
 
 /**
- * The replay's camera at `t` on the game's clock from its start, `ball` where
- * the ball is now or was last drawn. Creeping in on him all the way; once the
- * ball is struck, turning a little after it and back to him by the time his
- * finish is held, so a replay ends on the batter and not on an empty field.
+ * Which camera a replay is shown from: any of the stroke's but the one the
+ * last replay of it used, off `roll` in [0, 1) — the page's dice, never the
+ * seed. `asked` (`?replayangle=`) names one, for looking at it.
  */
-export function replayCamera(stroke: ReplayStroke, t: number, times: ReplayTimes, ball: Vec | null): CameraPose {
-  const a = ANGLES[stroke];
-  const eye = mix(a.from, a.to, smooth(t / times.end));
-  const since = t - times.contact;
-  const chase = ball && since > 0 ? smooth(since / 450) * a.follow * (1 - smooth((since - 700) / 700)) : 0;
-  const at = ball ? mix(a.at, [ball[0], Math.min(ball[1], a.ceiling), ball[2]], chase) : a.at;
-  return { eye, at, fov: a.fov + chase * 6 };
+export function pickAngle(stroke: ReplayStroke, last: string | null, roll: number, asked: string | null = null): ReplayAngle {
+  const all = REPLAY_ANGLES[stroke];
+  const named = asked ? all.find(angle => angle.id === asked) : undefined;
+  if (named) return named;
+  const left = all.length > 1 ? all.filter(angle => angle.id !== last) : all;
+  return left[Math.min(left.length - 1, Math.floor(roll * left.length))];
 }
+
+/** The replay's camera: the angle, held. */
+export const replayCamera = (angle: ReplayAngle): CameraPose => ({ eye: angle.eye, at: angle.at, fov: angle.fov });

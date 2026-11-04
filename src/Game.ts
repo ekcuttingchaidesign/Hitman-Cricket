@@ -60,7 +60,7 @@ import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
 import { cardShown, filmLength, introBars, nextFilm, type Film } from './game/IntroReel';
 import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
-import { endedLog, freshLog, replayCamera, replayDue, replayPace, replayTimes, shownLog, REPLAYS_PER_INNINGS, RUNUP_FROM, WIPE_MS, type ReplayBall, type ReplayStroke, type ReplayTimes } from './game/replay';
+import { endedLog, freshLog, pickAngle, replayCamera, replayDue, replayPace, replayTimes, shownLog, REPLAYS_PER_INNINGS, RUNUP_FROM, WIPE_MS, type ReplayAngle, type ReplayBall, type ReplayStroke, type ReplayTimes } from './game/replay';
 import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type CameraPose, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
@@ -4807,6 +4807,10 @@ export class Game {
   /** A replay due once this ball is dead, and the ball as `replayDue` read it. */
   private replayQueued: { kept: Kept; ball: ReplayBall } | null = null;
   private replayLog = freshLog();
+  /** The camera the last replay was shown from, so the next is another (`pickAngle`). */
+  private lastAngle: string | null = null;
+  /** `?replayangle=midoff` and the like: every replay from that camera, for looking at it. */
+  private readonly angleAsked = new URLSearchParams(location.search).get('replayangle');
   /** The pause sheet's switch: off, nothing is ever replayed. */
   private replaysOn = (() => { try { return localStorage.getItem(REPLAYS_KEY) !== 'off'; } catch { return true; } })();
   /**
@@ -4823,7 +4827,7 @@ export class Game {
   })();
   /** The replay playing: wiping in (`start` null), playing from `start`, or wiping out from `ending`. */
   private replay: {
-    kept: Kept; begun: number; start: number | null; ending: number | null; times: ReplayTimes; delivery: Delivery;
+    kept: Kept; angle: ReplayAngle; begun: number; start: number | null; ending: number | null; times: ReplayTimes; delivery: Delivery;
     swung: boolean; struck: boolean; played: boolean; skipped: boolean;
   } | null = null;
   /** The ball just resolved, kept; and replayed once it is dead if it is one to replay. */
@@ -4848,9 +4852,12 @@ export class Game {
   private beginReplay({ kept, ball }: { kept: Kept; ball: ReplayBall }) {
     this.replayLog = shownLog(this.replayLog, ball);
     const times = replayTimes(kept, GAME.runupMs);
-    this.replay = { kept, begun: this.elapsed, start: null, ending: null, times, delivery: kept.delivery, swung: false, struck: false, played: false, skipped: false };
+    const angle = pickAngle(kept.swing.stroke!, this.lastAngle, Math.random(), this.angleAsked);
+    this.lastAngle = angle.id;
+    this.replay = { kept, angle, begun: this.elapsed, start: null, ending: null, times, delivery: kept.delivery, swung: false, struck: false, played: false, skipped: false };
     this.hud.replayWipe(this.super10);
     this.mark(`replay-${kept.swing.stroke}`, 'A stroke replayed');
+    this.mark(`replay-${kept.swing.stroke}-${angle.id}`, 'A stroke replayed, by its camera');
   }
   /** Under the wipe: the scene set back to the bowler a stride or two from the crease, the camera the replay's. */
   private stageReplay() {
@@ -4862,8 +4869,8 @@ export class Game {
     const start = this.elapsed, shift = start + times.release - kept.delivery.releaseTimeMs;
     replay.start = start;
     replay.delivery = { ...kept.delivery, releaseTimeMs: kept.delivery.releaseTimeMs + shift, idealContactTimeMs: kept.delivery.idealContactTimeMs + shift };
-    const stroke = kept.swing.stroke!;
-    this.scene.cinematic((now, ball) => this.replay?.start != null ? replayCamera(stroke, now - this.replay.start, this.replay.times, ball) : replayCamera(stroke, 0, times, null));
+    const pose = replayCamera(replay.angle);
+    this.scene.cinematic(() => pose);
     this.hud.walkOn(1); this.hud.replayTag(true, this.super10);
   }
   /** One frame of it, as `update` plays a ball: the rest of the run-up, the flight, the stroke, the ball away. */
@@ -4895,6 +4902,7 @@ export class Game {
     if (!replay || replay.ending !== null || replay.skipped) return;
     replay.skipped = true;
     this.mark(`replay-skipped-${replay.kept.swing.stroke}`, 'A replay skipped');
+    this.mark(`replay-skipped-${replay.kept.swing.stroke}-${replay.angle.id}`, 'A replay skipped, by its camera');
     if (replay.start === null) { this.endReplay(); return; }
     replay.ending = this.elapsed; this.hud.replayWipe(this.super10);
   }
@@ -6893,7 +6901,7 @@ export class Game {
       // A stroke's film under its story: which, and how far into a go of it, on its own clock.
       reel: this.reel ? { shot: this.reel.shot, at: Math.round(this.elapsed - this.reel.start), struck: this.reel.struck } : null,
       // The replay playing: its stroke, how far in (null while it wipes in), whether it is wiping out; and how many this innings.
-      replay: this.replay ? { stroke: this.replay.kept.swing.stroke, at: this.replay.start === null ? null : Math.round(this.elapsed - this.replay.start), struck: this.replay.struck, ending: this.replay.ending !== null } : null,
+      replay: this.replay ? { stroke: this.replay.kept.swing.stroke, angle: this.replay.angle.id, at: this.replay.start === null ? null : Math.round(this.elapsed - this.replay.start), struck: this.replay.struck, ending: this.replay.ending !== null } : null,
       replays: this.replayLog.shown, balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
       line: this.delivery?.line ?? '—', dragged: !!this.delivery?.dragged, spinPulled: !!this.outcome?.spinPulled, spinPulls: this.spinPulls, hooks: this.hooks, effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
       baseX: this.delivery?.baseTargetX.toFixed(3) ?? '—', finalX: this.delivery?.finalTargetX.toFixed(3) ?? '—',

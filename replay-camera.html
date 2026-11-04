@@ -68,7 +68,7 @@ label.check input{width:18px;height:18px;accent-color:var(--orange)}
 .pose{margin:0;padding:12px;border-radius:12px;background:#0b0f14;border:1px solid var(--line);font:13px/1.6 var(--f-mono);color:var(--text);white-space:pre;overflow-x:auto}
 .share{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center}
 .share b{font:400 26px/1 var(--f-display);min-width:58px}
-.meter{position:relative;height:8px;border-radius:99px;background:linear-gradient(90deg,var(--green) 0 35%,var(--gold) 35% 55%,var(--red) 55%);opacity:.35}
+.meter{position:relative;height:8px;border-radius:99px;background:linear-gradient(90deg,var(--green) 0 30%,var(--gold) 30% 50%,var(--red) 50%);opacity:.35}
 .meter::after{content:'';position:absolute;top:-4px;left:calc(var(--k,0) * 100%);width:4px;height:16px;border-radius:2px;background:var(--text);transform:translateX(-2px)}
 .share-wrap{position:relative}
 #share-bar{position:relative;height:8px}
@@ -126,10 +126,12 @@ label.check input{width:18px;height:18px;accent-color:var(--orange)}
 
       <section class="card" aria-labelledby="h-start">
         <h2 id="h-start">Start from</h2>
+        <p class="small">In the game now: each replay of a cover drive is shown from one of these, never the same one twice running.</p>
+        <div id="in-game" class="row"></div>
+        <p class="small">Other ideas</p>
         <div class="row">
           <button type="button" data-group="preset" data-value="game">Game view</button>
-          <button type="button" data-group="preset" data-value="shipped">Shipped replay</button>
-          <button type="button" data-group="preset" data-value="midoff">Mid-off, wide</button>
+          <button type="button" data-group="preset" data-value="idea-midoff">Mid-off, wide</button>
           <button type="button" data-group="preset" data-value="point">Point, square</button>
           <button type="button" data-group="preset" data-value="broadcast">Behind bowler</button>
           <button type="button" data-group="preset" data-value="squareleg">Square leg</button>

@@ -20,7 +20,7 @@ import { resolveShot } from './game/ShotResolver';
 import { COVER_V3_MEETS_AT, type CoverVersion } from './entities/Batter';
 import { batOf, outfitOf, super10KitOf } from './game/dressing';
 import { gloveOf } from './entities/gloves';
-import { replayPace } from './game/replay';
+import { REPLAY_ANGLES, replayPace } from './game/replay';
 import type { CameraPose } from './game/ShotReel';
 import type { Delivery } from './game/types';
 import type { GroundName } from './scene/grounds';
@@ -123,8 +123,7 @@ function setFov(value: number) {
 const home = scene.homeView;
 const PRESETS: Record<string, { name: string; shot: Shot }> = {
   game: { name: 'Game view', shot: { eye: [...home.eye] as Vec, at: [...home.at] as Vec, fov: home.fov } },
-  shipped: { name: 'Shipped replay', shot: { eye: [2.9, 1.15, 6.3], at: [-.3, .92, 1.35], fov: 33 } },
-  midoff: { name: 'Mid-off, wide', shot: { eye: [6.5, 2.4, 12.5], at: [-.2, .85, 1.6], fov: 26 } },
+  'idea-midoff': { name: 'Mid-off, wide', shot: { eye: [6.5, 2.4, 12.5], at: [-.2, .85, 1.6], fov: 26 } },
   point: { name: 'Point, square', shot: { eye: [13, 2.2, 1.8], at: [-.3, .9, 1.3], fov: 24 } },
   broadcast: { name: 'Behind bowler', shot: { eye: [.8, 5.2, 34], at: [-.2, .8, 1.2], fov: 11 } },
   squareleg: { name: 'Square leg', shot: { eye: [-11, 2.2, 2.4], at: [-.3, .9, 1.3], fov: 26 } },
@@ -183,7 +182,7 @@ function readout() {
   const share = batterShare();
   $('share').textContent = `${Math.round(share * 100)}%`;
   ($('share-bar') as HTMLElement).style.setProperty('--k', String(Math.min(1, share)));
-  const label = share > .55 ? 'Close — shows the model up' : share > .35 ? 'Medium' : share > .18 ? 'Wide — reads well' : 'Very wide';
+  const label = share > .5 ? 'Close — shows the model up' : share > .3 ? 'Medium' : share > .1 ? 'Wide — reads well' : 'Very wide';
   $('share-say').textContent = label;
   $('t-out').textContent = `${(clock / 1000).toFixed(2)}s${Math.abs(clock - times.hit) < 60 ? ' · contact' : ''}`;
   $('move-out').textContent = start || end
@@ -216,6 +215,14 @@ onGroup('ground', v => { super10 = v === 'super10'; if (!super10) ground = v as 
 onGroup('light', v => { night = v === 'night'; dress(); });
 onGroup('hand', v => { left = v === 'left'; dress(); });
 onGroup('version', v => { version = Number(v) as CoverVersion; plan(); });
+// The replay's own cameras, the ones the game shows a cover drive from, first.
+const inGame = $('in-game');
+for (const angle of REPLAY_ANGLES.cover) {
+  PRESETS[angle.id] = { name: angle.name, shot: { eye: [...angle.eye] as Vec, at: [...angle.at] as Vec, fov: angle.fov } };
+  const key = document.createElement('button');
+  key.type = 'button'; key.dataset.group = 'preset'; key.dataset.value = angle.id; key.textContent = angle.name;
+  inGame.append(key);
+}
 onGroup('preset', v => { setMoving(false); put(PRESETS[v].shot); });
 
 $('play').addEventListener('click', () => { playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; $('play').setAttribute('aria-pressed', String(!playing)); });
