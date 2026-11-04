@@ -59,7 +59,7 @@ const STROKES = {
   pull: { ball: 'bouncers', keys: ['a'], said: 'a bouncer pulled for a boundary' },
   straight: { ball: 'cover', keys: ['w'], said: 'a straight six' },
   cut: { ball: 'latecut', keys: ['d'], said: 'a square cut for four' },
-  // Late cuts at pace on off stump or wider, until one on the stumps bowls him.
+  // Late cuts at pace on off stump or wider, played too late, until one on the stumps bowls him.
   bowled: { ball: 'latecut', keys: ['d', 's'], said: 'a batter bowled' },
 };
 const asked = STROKES[process.env.STROKE] ? process.env.STROKE : 'cover', played = STROKES[asked];
@@ -97,7 +97,8 @@ async function nextBall() {
 async function drive() {
   const seen = await nextBall();
   if (!seen) return null;
-  await advance(seen.contactAt - seen.elapsed);
+  // Bowled: swung at late, so a ball on the stumps beats the bat and hits them.
+  await advance(seen.contactAt - seen.elapsed + (asked === 'bowled' ? 140 : 0));
   await press(...keys);
   let now = await snap();
   for (let i = 0; i < 80 && now.phase !== 'RESULT'; i++) { await advance(50); now = await snap(); }
