@@ -2231,6 +2231,53 @@ drives a cover drive for four on `?cover=1&replay=1`, photographs the replay
 through and skips a second with a tap (`MODE=super10` for Super10,
 `ANGLE=<id>` for one camera, `STROKE=pull` for the pull at a bouncer).
 
+## The catch camera
+
+A ball skied to somebody is not replayed: the camera goes with it live
+(`src/game/catch-cam.ts`, in `tests/catch-cam.test.ts`). Which balls
+(`catchShotOf`): one off the bat that goes up to a fielder and is caught,
+on the rope or under a skier, or put down — never an edge to the keeper, a
+ball off the body, or a ball caught flat in the ring. Survival's and the
+Marathon's skiers not held are put down already (`skied` in `Survive.ts`);
+in the Blast and Super10 a skier that fell safe for four (`spillable`: a
+stroke played to keep it down that went up, or one reached for) is shown
+put down half the time (`SPILL_ODDS`), off his hands and running on over
+the rope (`spilled` on the outcome, `spillTo`, `SPILL_ROLL_MS`, the scene's
+`spillEnd`), the call DROPPED · FOUR. Its four is the four it was: only the
+picture and the call change, off the page's dice and never the seed.
+
+The game's own picture off the bat (`CATCH_CUT_IN`), so the stroke and the
+ball going up are seen as they always were; then the cut, between the
+walk-on's bars, to a camera up behind the bat and off the ball's line
+(`catchCamera`), looking at the ball and the man under it together and
+zoomed on the two of them: wide while it climbs and he gets there, closing
+in as it comes down, never nearer than `CATCH_MIN_FRAME` (he is a quarter of
+the picture at most; at seven metres he was nearly half), and widening again
+for a spilled ball running away. Slowed to under half through the take
+(`catchPace`, `CATCH_SLOW`), held `CATCH_HOLD` on him with it or on the ball
+on the turf, and cut back; the call, the score and everything else the ball
+brings go up on the cut back (`presentationAt`, `resolveEndsAt` carried to
+`until`), so nothing is said under the bars. A pause or a new innings cuts
+it short.
+
+The field is set before the ball is struck so the catch is planned on it
+(`catchShot` in `src/Game.ts`, `GameScene.catchField`): the men the game's
+view never shows joined to the field in play — the replay's men behind
+square (`REPLAY_DEEP`), or Super10's men not drawn — each on his mark and the
+rest left to what they are doing (`Field.join`, `leave`), and every man able
+to go for it wherever it is (`everywhere`). A skier to fine leg is caught at
+fine leg now, where before every catch was put where the game's camera
+could see it, in the V. The wicketkeeper is in the picture. A ball put down
+is never replayed after.
+
+Off with the pause sheet's Replays switch, under `?debug=1` and reduced
+motion, in the tutorial and a demo; `?catchcam=1` shows every one, debug or
+not, and every spillable skier put down, and `?catchcam=0` none. Neither is
+practice. `snapshot().catchCam` says what is on. GoatCounter counts
+`catch-cam-catch`, `-drop` and `-spill`. `scripts/catch-check.mjs` skies a
+cover drive on `?cover=1&catchcam=1` and photographs it through
+(`MODE=survive` bats seeds until it has a drop as well, `MODE=super10`).
+
 ## The bowled ball's streak
 
 The ball on its way to the bat carries a streak (`STREAK` in `GameScene.ts`):

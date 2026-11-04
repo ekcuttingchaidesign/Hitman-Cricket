@@ -1,5 +1,6 @@
 import { ADVANCE, FLAT_SWEEP, GAME, PUNCH, SHOT_ANGLES, SPIN_PULL, SQUARE_DRIVE, SWEEP } from '../config/gameplay.js';
 import type { ShotOutcome, ShotType } from '../game/types.js';
+import { SPILL_ROLL_MS } from '../game/catch-cam.js';
 
 /**
  * What a struck ball does after it leaves the bat, as four numbers and two
@@ -139,6 +140,12 @@ export function flightOf(outcome: ShotOutcome): Flight {
   if (outcome.defended) return shape(1.9, 0.05, 700, 0.1);
   if (outcome.padded) return shape(1.2, 0.1, 560, 0.1);
   if (outcome.edged) return shape(1.6, 0.18, 460, 0.42);
+  if (toAFielder && outcome.spilled) {
+    // Put down on the rope: it comes down to him as any skier does, then off
+    // his hands and on over the rope (`spillTo`), which takes as long again.
+    const take = hang(outcome) * 0.86, flightMs = take + SPILL_ROLL_MS;
+    return { distance: 19, height: 14, flightMs, endY: 1.5, takeAt: take / flightMs, dropAt: (take + 40) / flightMs, bounceAt: 0 };
+  }
   if (toAFielder) {
     // Far enough out to need a fielder, near enough that the take happens where
     // the camera can see it — twenty-seven metres put it half out of frame.

@@ -60,6 +60,7 @@ import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
 import { cardShown, filmLength, introBars, nextFilm, type Film } from './game/IntroReel';
 import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
+import { catchCamera, catchPace, catchShotOf, catchTimes, spillable, SPILL_ODDS, type CatchShot } from './game/catch-cam';
 import { endedLog, fieldCamera, freshLog, pickAngle, replayCamera, CUT_AFTER, replayDue, replayPace, replayTimes, shownLog, REPLAYS_PER_INNINGS, WIPE_MS, type ReplayAngle, type ReplayBall, type ReplayStroke, type ReplayTimes } from './game/replay';
 import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type CameraPose, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
@@ -2324,7 +2325,7 @@ export class Game {
     // Whatever led here — ANSWER, AGAIN or WIN IT BACK on Notifications — the innings is not played under it.
     this.hud.closeNotices(); this.hud.closeChaseEnd(); this.verdict?.close();
     if (this.walking) { this.walking = null; this.scene.walkOn(null); this.hud.walkOn(null); this.hud.walkOnCard(null, true); }
-    this.stopReplay(); this.replayLog = freshLog(); this.kept = null; this.replayQueued = null;
+    this.stopReplay(); this.endCatchCam(); this.replayLog = freshLog(); this.kept = null; this.replayQueued = null;
     if (this.chaseWon) { this.chaseWon = false; this.clearChase(); }
     // Who is batting, first: once, before the first innings there is.
     if (this.profileDue) {
@@ -3165,7 +3166,8 @@ export class Game {
     if (this.phase === 'PAUSED') { this.audio.unlock(); this.audio.holdCrowd(false); this.phase = this.previousPhase; this.hud.pause(false); (document.activeElement as HTMLElement | null)?.blur(); }
     else {
       // A replay is cut short, not paused: the sheet would be hidden under it.
-      this.stopReplay();
+      // So is the catch camera.
+      this.stopReplay(); this.endCatchCam();
       this.input.cancel(); this.audio.stop(); this.audio.holdCrowd(true); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true, this.pauseGame);
       this.soundSwitches(); this.hud.replaySwitch(this.replaysOn);
       // The arena is played at night whatever the switch says, so it has none.
@@ -4383,6 +4385,7 @@ export class Game {
       if (this.reel && this.reel.hold > 0) this.reel.hold -= dt;
       this.elapsed += dt * this.timeScale;
       this.input.flush(this.elapsed);
+      if (this.catchCam) this.catchCamFrame();
       this.update();
       if (this.reel) this.reelFrame();
       if (this.replay) this.replayFrame();
@@ -4409,6 +4412,8 @@ export class Game {
     // A replay slows through the bat meeting the ball (`replayPace`).
     // Full speed under the wipes, which are timed on the page's clock.
     if (this.replay) return this.replay.start === null || this.replay.ending !== null ? 1 : replayPace(this.elapsed - this.replay.start - this.replay.times.contact);
+    // The catch camera slows through the take (`catchPace`).
+    if (this.catchCam?.on) return catchPace(this.elapsed - this.catchCam.take);
     if (this.phase !== 'SHOT_RESOLVE' || !this.outcome?.advance) return 1;
     const since = this.elapsed - this.contactAt;
     // Two thirds speed, chosen from three playtest builds side by side. It
@@ -4589,9 +4594,12 @@ export class Game {
       }
     }
     this.input.reset();
+    // Before the ball is struck, so the catch is planned on the camera's field.
+    const catching = step ? null : this.catchShot();
     const flight = this.scene.hit(this.outcome, this.attempt?.shotType, this.delivery!, this.elapsed);
     this.contactAt = flight.contactAt; this.presentationAt = flight.presentAt; this.resolveEndsAt = flight.endAt;
     if (!step) this.keepForReplay(flight.contactAt, this.scene.struckTo()?.arrives ?? 0);
+    if (catching) this.beginCatchCam(catching, flight);
     this.resultPresented = false; this.contactPlayed = false;
     this.setPhase('SHOT_RESOLVE');
     if (this.outcome.aerial) this.hud.airborne();
@@ -4852,7 +4860,8 @@ export class Game {
     const due = replayDue(ball, this.replayLog, {
       cap: this.super10 ? REPLAYS_PER_INNINGS.super10 : REPLAYS_PER_INNINGS.blast,
       // The ball brings something of its own to celebrate: that, and no replay over it.
-      blocked: !!this.milestoneDue || !!this.momentAsked || !!this.changed || this.score.ended || this.targetPassed,
+      // A skier put down has had the catch camera on it already.
+      blocked: !!this.milestoneDue || !!this.momentAsked || !!this.changed || this.score.ended || this.targetPassed || !!outcome.dropped,
       roll: Math.random(), every: this.replayAsked === 'every',
     });
     if (due) this.replayQueued = { kept: this.kept, ball };
@@ -4938,6 +4947,71 @@ export class Game {
     this.replay = null;
     if (started) { this.scene.cinematic(null); this.scene.keeperIn(false); this.scene.replayField(false); this.scene.reset(); this.scene.homeField(); }
     this.hud.walkOn(null); this.hud.replayTag(false); this.hud.replayWipe(null);
+  }
+  /**
+   * The catch camera going with a skied ball (`catch-cam.ts`): the game's
+   * picture until `cut`, then its own, slowed round the take, and the game's
+   * again at `until`, when the call goes up.
+   */
+  private catchCam: { shot: CatchShot; cut: number; take: number; until: number; hands: readonly [number, number, number]; on: boolean } | null = null;
+  /**
+   * `?catchcam=1` shows every ball it can, under `?debug=1` too and every
+   * skier that fell safe for four put down (`spillable`); `?catchcam=0`
+   * none. Otherwise not under `?debug=1`, nor for a player who asked for less
+   * motion, nor with the pause sheet's Replays switched off.
+   */
+  private readonly catchAsked: 'every' | 'off' | null = (() => {
+    const asked = new URLSearchParams(location.search).get('catchcam');
+    if (asked === '1') return 'every';
+    if (asked === '0' || this.debug) return 'off';
+    return matchMedia('(prefers-reduced-motion: reduce)').matches ? 'off' : null;
+  })();
+  /**
+   * Whether this ball goes up to somebody with the camera after it, decided
+   * before it is struck. A skier that fell safe for four in the Blast or
+   * Super10 is shown put down on the rope half the time (`SPILL_ODDS`): its
+   * four is the four it was, and only the call and the picture say otherwise.
+   * The field gets the men the game's view never shows, so a skier to fine
+   * leg is caught at fine leg.
+   */
+  private catchShot(): CatchShot | null {
+    if (this.lesson >= 0 || this.demoing || !this.replaysOn || this.catchAsked === 'off') return null;
+    if ((this.super10 || this.mode === 'CLASSIC') && spillable(this.outcome!) && (this.catchAsked === 'every' || Math.random() < SPILL_ODDS))
+      this.outcome = { ...this.outcome!, dropped: true, spilled: true, feedback: 'DROPPED · FOUR' };
+    const shot = catchShotOf(this.outcome!);
+    if (!shot) return null;
+    const field = this.super10 ? this.s10.field : null;
+    if (field) { const drawn = drawnOf(field); this.scene.catchField(true, field.men.filter(man => !drawn.includes(man))); }
+    else this.scene.catchField(true);
+    return shot;
+  }
+  private beginCatchCam(shot: CatchShot, flight: { contactAt: number; endAt: number }) {
+    const struck = this.scene.struckTo();
+    if (!struck) { this.scene.catchField(false); return; }
+    const times = catchTimes(shot, flight.contactAt, flight.contactAt + struck.arrives, flight.endAt);
+    this.catchCam = { shot, ...times, hands: struck.to, on: false };
+    // The ball is dead, and the call goes up, when the game's picture is back.
+    this.resolveEndsAt = Math.max(this.resolveEndsAt, times.until);
+    this.presentationAt = Math.max(this.presentationAt, times.until);
+    this.mark(`catch-cam-${shot}`, 'A skier followed');
+  }
+  /** Before the frame's `update`: the cut to it, and the cut back. */
+  private catchCamFrame() {
+    const cam = this.catchCam!;
+    if (!cam.on && this.elapsed >= cam.cut && this.elapsed < cam.until) {
+      cam.on = true;
+      this.scene.cinematic((_, ball) => catchCamera(cam.hands, ball));
+      this.scene.keeperIn(true); this.hud.walkOn(1);
+    }
+    if (this.elapsed >= cam.until) this.endCatchCam();
+  }
+  /** The game's picture back, and the field as it was in play; or cut short by a pause or a new innings. */
+  private endCatchCam() {
+    const cam = this.catchCam;
+    if (!cam) return;
+    this.catchCam = null;
+    if (cam.on) { this.scene.cinematic(null); this.scene.keeperIn(false); this.hud.walkOn(null); }
+    this.scene.catchField(false);
   }
   private pullUp() {
     this.scene.pull(this.elapsed, PULL_PENS[this.pullPen].swish);
@@ -6917,6 +6991,7 @@ export class Game {
       // A stroke's film under its story: which, and how far into a go of it, on its own clock.
       reel: this.reel ? { shot: this.reel.shot, at: Math.round(this.elapsed - this.reel.start), struck: this.reel.struck } : null,
       // The replay playing: its stroke, how far in (null while it wipes in), whether it is wiping out; and how many this innings.
+      catchCam: this.catchCam ? { shot: this.catchCam.shot, on: this.catchCam.on, sinceTake: Math.round(this.elapsed - this.catchCam.take) } : null,
       replay: this.replay ? { stroke: this.replay.kept.swing.stroke, angle: this.replay.angle.id, at: this.replay.start === null ? null : Math.round(this.elapsed - this.replay.start), struck: this.replay.struck, ending: this.replay.ending !== null } : null,
       replays: this.replayLog.shown, balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
       line: this.delivery?.line ?? '—', dragged: !!this.delivery?.dragged, spinPulled: !!this.outcome?.spinPulled, spinPulls: this.spinPulls, hooks: this.hooks, effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',

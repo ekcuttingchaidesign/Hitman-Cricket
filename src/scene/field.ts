@@ -137,7 +137,7 @@ export class Field {
    * (`bowlerSignal`) when he signals it at all.
    */
   standOn(marks: readonly Mark[]) {
-    this.marks = marks;
+    this.marks = marks; this.joined = 0;
     this.routines = marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i % SEEDS.length])]));
     this.catching = null; this.gathering = null;
   }
@@ -158,10 +158,31 @@ export class Field {
    */
   setField(marks: readonly Mark[]) {
     if (marks === this.marks) return;
-    this.marks = marks;
+    this.marks = marks; this.joined = 0;
     this.routines = marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i % SEEDS.length])]));
     this.catching = null; this.gathering = null; this.bowling = null;
   }
+
+  /**
+   * Men the game's view never shows, joined to the field in play for a camera
+   * that does (`GameScene.catchField`): each on his mark and waiting, and the
+   * men already there left to what they are doing. `leave` takes them off
+   * again; a catch one of them was taking goes with him.
+   */
+  join(extra: readonly Mark[]) {
+    this.leave();
+    const men = extra.slice(0, Math.max(0, MOST_MEN - this.marks.length)), from = this.routines.length;
+    this.joined = men.length;
+    this.marks = [...this.marks, ...men];
+    this.routines = [...this.routines, ...men.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[(from + i) % SEEDS.length])]))];
+  }
+  leave() {
+    if (!this.joined) return;
+    const keep = this.marks.length - this.joined;
+    this.marks = this.marks.slice(0, keep); this.routines = this.routines.slice(0, keep); this.joined = 0;
+    if (this.catching && this.catching.index >= keep) this.catching = null;
+  }
+  private joined = 0;
 
   /** The marks the field stands on now: a replay adds its men behind square to them and puts them back after. */
   get standing() { return this.marks; }

@@ -31,6 +31,7 @@ import { SUPER10_GLOVES, type GloveDesign } from '../entities/gloves';
 import type { KitPrint } from '../entities/kitPrint';
 import { SUPER10_KITS, super10Number, type Super10Kit } from '../game/super10-kits';
 import type { CameraPose } from '../game/ShotReel';
+import { SPILL_FALL, spillTo } from '../game/catch-cam';
 import { introCamera, introSweep, type Film } from '../game/IntroReel';
 import { batSheet } from '../entities/batSkins';
 
@@ -295,6 +296,8 @@ export class GameScene {
   private hitHeight = 0;
   /** Where in a skied ball's flight it is spilled, or 0 when it is not. */
   private dropAt = 0;
+  /** Where a ball put down on the rope runs on to, over it: see `struckAt`. */
+  private spillEnd: THREE.Vector3 | null = null;
   private bounceAt = 0;
   /**
    * Where in the flight the ball arrives at whoever is under it. One for
@@ -1325,6 +1328,18 @@ export class GameScene {
   private playing: readonly Mark[] | null = null;
   private everywhere = false;
   /**
+   * The catch camera's field (`Game.catchCam`), set before the ball is struck
+   * so the catch is planned on it: the men the game's view never shows joined
+   * to the field in play — the replay's men behind square (`REPLAY_DEEP`), or
+   * Super10's men not drawn, given as `men` — and every man able to go for
+   * the ball wherever it is, since the camera going with it sees him there.
+   * Off takes them off again and leaves the rest where they are.
+   */
+  catchField(on: boolean, men: readonly Man[] | null = null) {
+    if (on) this.field.join(men ? marksOf(men) : REPLAY_DEEP); else this.field.leave();
+    this.everywhere = on;
+  }
+  /**
    * Where the ball last struck is going, in the game's frame: off the bat,
    * where it finishes (on the rope, in the stands, in a man's hands), and how
    * long after the bat met it it gets there. For a replay's second camera.
@@ -1470,7 +1485,7 @@ export class GameScene {
     const along = !rope && outcome.madeBatContact && !outcome.aerial && !caught && !outcome.edged && !playedOn && !outcome.defended && !outcome.padded
       && !struckBody && !outcome.advance && flight.height < 1 && outcome.runs >= 1;
     if (along) angle = this.field.clear(this.hitStart, angle, flight.distance);
-    this.gathered = false;
+    this.gathered = false; this.spillEnd = null;
     this.hitEnd.set(Math.sin(angle) * flight.distance, flight.endY, Math.cos(angle) * flight.distance);
     // Played on and edged are both placed rather than swept out along the
     // stroke's angle: one finishes in his own stumps, the other in the keeper's
@@ -1478,7 +1493,7 @@ export class GameScene {
     if (playedOn) this.hitEnd.set(0.1, flight.endY, -1.5);
     if (outcome.edged) this.hitEnd.set(0.58, flight.endY, -1.6);
     // The take lines up with the fielder's hands closing — see `takeAt`.
-    this.takeAt = (caught || outcome.dropped) && !outcome.edged ? 0.86 : 1;
+    this.takeAt = outcome.spilled ? flight.takeAt : (caught || outcome.dropped) && !outcome.edged ? 0.86 : 1;
     // An edge is taken behind the stumps with nobody in the frame: the ball
     // simply deflects off the face and dies back past him. A fielder placed
     // there stands between the camera and the batter and fills the shot.
@@ -1496,6 +1511,8 @@ export class GameScene {
       });
       if (plan) this.hitEnd.copy(plan.hands);
       this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
+      // Put down on the rope: off his hands and on over it.
+      if (outcome.spilled) this.spillEnd = new THREE.Vector3(...spillTo([this.hitEnd.x, this.hitEnd.y, this.hitEnd.z]));
     } else if (along) {
       this.gathered = this.field.ground(this.hitStart, deadAt, look,
         { from: this.hitOrigin.clone(), to: this.hitEnd.clone(), flightMs: this.flightMs, four: outcome.runs === 4 },
@@ -1566,6 +1583,16 @@ export class GameScene {
       : Math.sin(flown * Math.PI) * this.hitHeight;
     // A dropped catch. The ball is in his hands and then it is not: past the
     // take it leaves them and goes to the turf, accelerating, just beyond him.
+    if (this.dropAt > 0 && t > this.dropAt && this.spillEnd) {
+      // Put down on the rope: off his hands to the turf, and on, bouncing
+      // lower each time, over the rope (`spillTo`).
+      const u = Math.min(1, (t - this.dropAt) / (1 - this.dropAt));
+      into.lerpVectors(this.hitEnd, this.spillEnd, 1 - (1 - u) * (1 - u));
+      into.y = u < SPILL_FALL
+        ? THREE.MathUtils.lerp(this.hitEnd.y, 0.12, (u / SPILL_FALL) ** 2)
+        : 0.12 + Math.abs(Math.sin((u - SPILL_FALL) / (1 - SPILL_FALL) * Math.PI * 3)) * 0.5 * (1 - u);
+      return into;
+    }
     if (this.dropAt > 0 && t > this.dropAt) {
       const fall = Math.min(1, (t - this.dropAt) / (1 - this.dropAt));
       into.y = THREE.MathUtils.lerp(this.hitEnd.y, 0.12, fall * fall);
