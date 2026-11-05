@@ -1,0 +1,245 @@
+<meta charset="utf-8">
+<title>Replay Camera Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jaro&family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a phone's picture on the left, exactly as the replay frames it (the
+   bars included), and the camera's desk beside it; stacked on a phone. One
+   dark look, the game's night navy, with its orange for what is live. */
+:root{
+  color-scheme:dark;
+  --bg:#0a0d12; --card:#131922; --card-2:#1b232d; --line:#ffffff1a; --line-2:#ffffff2e;
+  --text:#f5efe6; --text-2:#a9b6c0; --text-3:#7f8e9a;
+  --orange:#ed7044; --gold:#f5b83d; --violet:#8b5cf6; --green:#5ec27a; --red:#e2574c;
+  --f-display:Jaro,'Arial Narrow',Impact,sans-serif; --f-ui:Figtree,'Segoe UI',Arial,sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--text)}
+body{margin:0;font:15px/1.5 var(--f-ui);padding-block:20px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-direction:column;gap:6px}
+.eyebrow{margin:0;font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--orange)}
+h1{margin:0;font:400 clamp(34px,6vw,52px)/1 var(--f-display);text-wrap:balance}
+.lede{margin:0;color:var(--text-2);max-width:70ch}
+.lede b{color:var(--text)}
+
+.layout{--phone-w:min(390px,calc(84vh * 390 / 844));display:grid;grid-template-columns:var(--phone-w) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:820px){.layout{--phone-w:min(100%,calc(76vh * 390 / 844));grid-template-columns:minmax(0,1fr)}}
+
+/* The phone: 390 by 844, the game's own shape. */
+.phone{position:sticky;top:max(12px,env(safe-area-inset-top,0px));width:var(--phone-w);max-width:100%;aspect-ratio:390/844;justify-self:center;border-radius:28px;padding:8px;background:#05070a;border:1px solid var(--line-2);box-shadow:0 20px 50px #0008}
+@media (max-width:820px){.phone{position:relative;top:0}}
+#stage{position:relative;width:100%;height:100%;border-radius:20px;overflow:hidden;background:#9fc3dc;touch-action:none;cursor:grab}
+#stage:active{cursor:grabbing}
+#stage>canvas{position:absolute;inset:0;display:block}
+#stage .stage-underlay{position:absolute;inset:0;z-index:1;pointer-events:none}
+#stage>canvas.stage-cut{z-index:1;pointer-events:none}
+#stage::before,#stage::after{content:'';position:absolute;left:0;right:0;height:11%;background:#000;z-index:3;pointer-events:none;transition:opacity .2s}
+#stage::before{top:0}#stage::after{bottom:0}
+#stage.no-bars::before,#stage.no-bars::after{opacity:0}
+.tag{position:absolute;z-index:4;top:calc(11% + 10px);left:12px;display:flex;align-items:center;gap:7px;padding:5px 10px;border-radius:7px;background:var(--orange);color:#fff;font:400 13px/1 var(--f-display);letter-spacing:.12em;pointer-events:none}
+.tag i{width:7px;height:7px;border-radius:50%;background:#fff}
+#stage.no-bars~.tag{top:10px}
+.hint{position:absolute;z-index:4;left:50%;bottom:calc(11% + 10px);transform:translateX(-50%);white-space:nowrap;font-size:11px;font-weight:700;color:#0b0f14;background:#ffffffd0;border-radius:999px;padding:4px 10px;pointer-events:none}
+#toast{position:absolute;z-index:5;left:50%;top:50%;transform:translate(-50%,-50%) scale(.96);padding:8px 14px;border-radius:10px;background:#0b0f14e8;color:var(--text);font-weight:700;font-size:14px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none}
+#toast.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+
+.desk{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{display:flex;flex-direction:column;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
+.card h2{margin:0;font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row .label{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);min-width:64px}
+button{font:inherit;font-weight:700;font-size:14px;color:var(--text);background:var(--card-2);border:1px solid var(--line);border-radius:999px;padding:8px 13px;min-height:40px;cursor:pointer}
+button:hover{border-color:var(--line-2)}
+button[aria-pressed="true"]{background:var(--text);border-color:var(--text);color:#0b0f14}
+button.primary{background:var(--orange);border-color:var(--orange);color:#0b0f14}
+button:disabled{opacity:.4;cursor:default}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+input[type=range]{flex:1;min-width:120px;accent-color:var(--orange)}
+.out{font:600 13px/1 var(--f-mono);color:var(--text-2);min-width:58px;text-align:right;font-variant-numeric:tabular-nums}
+label.check{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;color:var(--text-2);cursor:pointer}
+label.check input{width:18px;height:18px;accent-color:var(--orange)}
+
+.pose{margin:0;padding:12px;border-radius:12px;background:#0b0f14;border:1px solid var(--line);font:13px/1.6 var(--f-mono);color:var(--text);white-space:pre;overflow-x:auto}
+.share{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center}
+.share b{font:400 26px/1 var(--f-display);min-width:58px}
+.meter{position:relative;height:8px;border-radius:99px;background:linear-gradient(90deg,var(--green) 0 30%,var(--gold) 30% 50%,var(--red) 50%);opacity:.35}
+.meter::after{content:'';position:absolute;top:-4px;left:calc(var(--k,0) * 100%);width:4px;height:16px;border-radius:2px;background:var(--text);transform:translateX(-2px)}
+.share-wrap{position:relative}
+#share-bar{position:relative;height:8px}
+#share-bar .meter{opacity:1;filter:saturate(.8)}
+#share-say{font-size:13px;font-weight:700;color:var(--text-2);white-space:nowrap}
+.small{margin:0;font-size:13px;color:var(--text-3)}
+#copy-box{width:100%;min-height:110px;padding:10px;border-radius:10px;background:#0b0f14;border:1px solid var(--line);color:var(--text);font:12px/1.5 var(--f-mono)}
+#save-name{flex:1;min-width:140px;min-height:40px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:#0b0f14;color:var(--text);font:inherit}
+#saved{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+#saved li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center}
+.saved-go{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:10px}
+.saved-meta{font:12px var(--f-mono);color:var(--text-3)}
+.saved-del{min-width:40px;padding:0;border-radius:10px;color:var(--text-3)}
+button.choice[aria-pressed="true"]{background:var(--orange);border-color:var(--orange);color:#0b0f14}
+button.choice[aria-pressed="true"]::before{content:'✓ '}
+button.choice[aria-pressed="false"]{color:var(--text-3);text-decoration:line-through}
+.notes{margin:0;padding-left:18px;color:var(--text-2);font-size:14px;display:flex;flex-direction:column;gap:4px}
+.notes b{color:var(--text)}
+@media (prefers-reduced-motion:reduce){#toast,#stage::before,#stage::after{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Hitman Cricket · Action replay</p>
+    <h1>Replay Camera Lab</h1>
+    <p class="lede">The game's own ground, batter and ball, playing a stroke on a loop in a phone's frame, slowed through contact as the replay is. <b>Drag</b> to swing the camera round, <b>scroll or pinch</b> to move in and out, <b>right-drag or two fingers</b> to slide it. When an angle looks right, <b>Copy camera</b> and paste it to Claude.</p>
+  </header>
+
+  <div class="layout">
+    <div class="phone">
+      <div id="stage" class="stage" aria-label="The replay's picture: drag to move the camera"></div>
+      <div class="tag" aria-hidden="true"><i></i>REPLAY</div>
+      <div class="hint" aria-hidden="true">Drag · pinch · two fingers to slide</div>
+      <div id="toast" role="status" aria-live="polite"></div>
+    </div>
+
+    <div class="desk">
+      <section class="card" aria-labelledby="h-camera">
+        <h2 id="h-camera">Camera</h2>
+        <pre id="pose" class="pose" aria-live="off">eye: …</pre>
+        <div class="share">
+          <b id="share">—</b>
+          <div id="share-bar"><div class="meter"></div></div>
+          <span id="share-say">—</span>
+        </div>
+        <p class="small">How much of the picture's height the batter fills. The model reads best wide; past about half, his low detail starts to show.</p>
+        <div class="row">
+          <span class="label">Lens</span>
+          <input id="fov" type="range" min="5" max="80" step="1" value="33" aria-label="Field of view, degrees">
+          <span id="fov-out" class="out">33°</span>
+        </div>
+        <p class="small">A narrow lens from further away flattens him and the ground together, the way a broadcast does; a wide lens up close exaggerates him.</p>
+        <div class="row">
+          <button id="copy" class="primary" type="button">Copy camera</button>
+        </div>
+        <textarea id="copy-box" hidden readonly aria-label="Camera numbers to copy"></textarea>
+      </section>
+
+      <section class="card" aria-labelledby="h-stroke">
+        <h2 id="h-stroke">Stroke</h2>
+        <div class="row">
+          <button type="button" data-group="stroke" data-value="cover">Cover drive</button>
+          <button type="button" data-group="stroke" data-value="pull">Pull</button>
+          <button type="button" data-group="stroke" data-value="hook">Hook</button>
+          <button type="button" data-group="stroke" data-value="cut">Square cut</button>
+          <button type="button" data-group="stroke" data-value="spincut">Cut off the spinner</button>
+          <button type="button" data-group="stroke" data-value="spinpull">Pull off the spinner</button>
+          <button type="button" data-group="stroke" data-value="latecut">Late cut</button>
+          <button type="button" data-group="stroke" data-value="scoop">Scoop</button>
+          <button type="button" data-group="stroke" data-value="reverse">Reverse scoop</button>
+          <button type="button" data-group="stroke" data-value="straight">Straight six</button>
+          <button type="button" data-group="stroke" data-value="on">On drive six</button>
+          <button type="button" data-group="stroke" data-value="flick">Flick</button>
+          <button type="button" data-group="stroke" data-value="sweep">Sweep</button>
+          <button type="button" data-group="stroke" data-value="slog">Slog sweep</button>
+        </div>
+        <p class="small">Played perfectly in time at the ball it answers: <b id="ball-out">—</b>. Copy camera says which stroke the numbers are for.</p>
+      </section>
+
+      <section class="card" aria-labelledby="h-start">
+        <h2 id="h-start">Start from</h2>
+        <p class="small">The game's replay cameras. Each replay is shown from one of its stroke's cameras, never the same one twice running.</p>
+        <div id="in-game" class="row"></div>
+        <p class="small">Other ideas</p>
+        <div class="row">
+          <button type="button" data-group="preset" data-value="game">Game view</button>
+          <button type="button" data-group="preset" data-value="idea-midoff">Mid-off, wide</button>
+          <button type="button" data-group="preset" data-value="point">Point, square</button>
+          <button type="button" data-group="preset" data-value="broadcast">Behind bowler</button>
+          <button type="button" data-group="preset" data-value="squareleg">Square leg</button>
+          <button type="button" data-group="preset" data-value="keeper">Behind keeper</button>
+          <button type="button" data-group="preset" data-value="crane">Crane over cover</button>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="h-choices">
+        <h2 id="h-choices">Cameras for this stroke</h2>
+        <p class="small"><b id="choices-for">Cover drive</b>: switch a camera off where the stroke does not look good from it. Two at least.</p>
+        <div id="choices" class="row"></div>
+        <div class="row">
+          <button id="copy-choices" class="primary" type="button">Copy camera choices</button>
+          <button id="reset-choices" type="button">Back to the game's</button>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="h-time">
+        <h2 id="h-time">Playback</h2>
+        <div class="row">
+          <button id="play" type="button" aria-pressed="false">Pause</button>
+          <button id="to-contact" type="button">Freeze at contact</button>
+          <span id="t-out" class="out" style="text-align:left">0.00s</span>
+        </div>
+        <div class="row"><input id="scrub" type="range" min="0" max="4000" step="1" value="0" aria-label="Time through the ball"></div>
+        <div class="row">
+          <span class="label">Speed</span>
+          <input id="speed" type="range" min="0.1" max="1" step="0.05" value="0.5" aria-label="Playback speed">
+          <span id="speed-out" class="out">0.50×</span>
+        </div>
+        <div class="row">
+          <label class="check"><input id="replay-timing" type="checkbox" checked> Replay slow motion through contact</label>
+          <label class="check"><input id="cut" type="checkbox" checked> Cut to the ball going away</label>
+          <label class="check"><input id="bars" type="checkbox" checked> Bars</label>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="h-move">
+        <h2 id="h-move">Camera move</h2>
+        <p class="small">The replay can creep from one camera to another while it plays. Set a start and an end, then play the move to see it.</p>
+        <div class="row">
+          <button id="set-start" type="button">Set start</button>
+          <button id="set-end" type="button">Set end</button>
+          <label class="check"><input id="move" type="checkbox"> Play the move</label>
+        </div>
+        <p id="move-out" class="small">No start or end set</p>
+      </section>
+
+      <section class="card" aria-labelledby="h-scene">
+        <h2 id="h-scene">Ground</h2>
+        <div class="row"><span class="label">Ground</span>
+          <button type="button" data-group="ground" data-value="stadium">Stadium</button>
+          <button type="button" data-group="ground" data-value="pavilion">Pavilion</button>
+          <button type="button" data-group="ground" data-value="canopy">Canopy</button>
+          <button type="button" data-group="ground" data-value="super10">Super10</button>
+        </div>
+        <div class="row"><span class="label">Light</span>
+          <button type="button" data-group="light" data-value="day">Day</button>
+          <button type="button" data-group="light" data-value="night">Night</button>
+        </div>
+        <div class="row"><span class="label">Batter</span>
+          <button type="button" data-group="hand" data-value="right">Right-hander</button>
+          <button type="button" data-group="hand" data-value="left">Left-hander</button>
+        </div>
+        <div id="version-row" class="row"><span class="label">Drive</span>
+          <button type="button" data-group="version" data-value="1">Version 1</button>
+          <button type="button" data-group="version" data-value="2">Version 2</button>
+          <button type="button" data-group="version" data-value="3">Version 3</button>
+        </div>
+        <p class="small">The numbers are always the right-hander's: the game turns them round for a left-hander.</p>
+      </section>
+
+      <section class="card" aria-labelledby="h-saved">
+        <h2 id="h-saved">Saved angles</h2>
+        <div class="row">
+          <input id="save-name" type="text" placeholder="Name this angle" aria-label="Name for the angle" maxlength="40">
+          <button id="save" type="button">Save angle</button>
+        </div>
+        <ul id="saved"></ul>
+        <p id="saved-empty" class="small">Nothing saved yet. Saved angles stay in this browser.</p>
+        <div class="row"><button id="copy-all" type="button" disabled>Copy all angles</button></div>
+      </section>
+    </div>
+  </div>
+</div>
+<script type="module" src="/src/replay-camera.ts"></script>

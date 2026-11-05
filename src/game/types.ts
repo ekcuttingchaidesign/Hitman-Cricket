@@ -104,6 +104,12 @@ export interface ShotOutcome {
   /** Skied, reached, and put down: the fielder gets hands to it and it does not stick. */
   dropped?: boolean;
   /**
+   * Put down on the rope and run on over it: a skier that fell safe for four,
+   * shown that way by the catch camera (`spillable` in `catch-cam.ts`). The
+   * four is the four it was; only the picture changes.
+   */
+  spilled?: boolean;
+  /**
    * Super10: a fielder got to it — stopped it in the ring, cut it off or saved
    * it on the rope, or caught it there (`isWicket` says so). Where he stands,
    * in degrees off straight and metres from the bat, and what he is called.

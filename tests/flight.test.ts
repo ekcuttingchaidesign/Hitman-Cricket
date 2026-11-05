@@ -284,3 +284,16 @@ describe('a scooped ball', () => {
     }
   });
 });
+
+describe('a four stops at the boards', () => {
+  it('forty-five metres straight, thirty-three and a half square, twenty-five behind him', async () => {
+    const { boardsAlong } = await import('../src/scene/flight');
+    expect(boardsAlong(0)).toBeCloseTo(45.1);
+    expect(boardsAlong(Math.PI / 2)).toBeCloseTo(Math.sqrt(35.1 ** 2 - 100));
+    expect(boardsAlong(Math.PI)).toBeCloseTo(25.1);
+    // A scoop's four lands inside the rope behind him before it runs to the boards.
+    const scoop = flightOf({ runs: 4, isWicket: false, quality: 1, feedback: '', timingGrade: 'GOOD', timingDeltaMs: 0, compatibility: 1,
+      madeBatContact: true, aerial: false, scooped: true });
+    expect(scoop.bounceAt * Math.min(scoop.distance, boardsAlong(Math.PI) - .6)).toBeLessThan(20);
+  });
+});

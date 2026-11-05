@@ -2440,6 +2440,10 @@ button.pause-row:focus-visible{outline:3px solid #ec754a;outline-offset:-3px}
 .pause-row-icon.is-crowd{background:#e9582b2b;color:#ff9566}
 .pause-row-icon.is-ambience{background:#087bff2e;color:#77b9ff}
 .pause-row-icon.is-lights{background:#f5c8422b;color:#f7d36a}
+.pause-row-icon.is-replay{background:#8b5cf62e;color:#b79bff}
+/* NEW beside Replays (`HUD.replayNew`), the poster's NEW tag on a pause row. */
+.pause-new{display:inline-block;margin-left:calc(var(--u) * 8);padding:calc(var(--u) * 2) calc(var(--u) * 6);border-radius:calc(var(--u) * 6);background:var(--c-survival);color:#fff;font:700 calc(var(--u) * 9.5)/1.3 var(--f-ui);letter-spacing:.1em;vertical-align:calc(var(--u) * 2)}
+.pause-new.hidden{display:none}
 .pause-row-say{display:flex;flex-direction:column;min-width:0}
 .pause-row-say b{font-weight:700;font-size:15.5px;line-height:1.25}
 .pause-row-say em{font-style:normal;font-weight:500;font-size:12.5px;line-height:1.3;color:#8fa2af}
@@ -5718,7 +5722,60 @@ video.whatsnew-film.is-fit{height:auto;object-fit:contain;
 #viewport.reel-on>:not(canvas):not(#whatsnew-overlay){visibility:hidden}
 /* The walk-on before the first ball (`IntroReel.ts`): the ground alone, between
    two black bars that come in as it starts and go as it lands on the game's view. */
-#viewport.intro-on>:not(canvas):not(#walkon-card){visibility:hidden}
+#viewport.intro-on>:not(canvas):not(#walkon-card):not(#replay-tag):not(#replay-wipe){visibility:hidden}
+/* The catch camera's call, up as he takes it (`HUD.catching`). Important: each :not(#id) above counts as an id, which outranked it. */
+#viewport.intro-on.is-catching>#result{visibility:visible!important}
+/* The action replay (`replay.ts`): under the walk-on's bars, a REPLAY tag top
+   left, and the cut in and out made under a wipe in the end card's band
+   (`HUD.replayWipe`, WIPE_MS long, handed in as --rw): the mode's band
+   gradient as one great chevron — the band's own shape, its point the way it
+   goes and its back notched — on a train with the band's two paler chevrons
+   ahead of it and two behind, all one piece gliding across, easing to a stop
+   while the panel covers the screen (the cut is made there) and easing away
+   again. Over it the game's title or Super10's mark over ACTION REPLAY in the
+   card's lettering, over the band's chevrons across the whole screen. The Blast's
+   in its card's blue, Super10's in violet over ink. Measures are in widths of
+   the screen: a chevron's point runs .72 of one ahead of its back corners.
+   The panel covers the screen while the train is within .28 of centre. */
+#replay-wipe{--band-a:#3f88f2;--band-b:#1a3a8c;--chev:#9cc8ff;
+  position:absolute;inset:0;z-index:70;overflow:hidden;pointer-events:none;animation:rw-life var(--rw,900ms) linear both}
+#replay-wipe.is-super10{--band-a:#5b2fc0;--band-b:#1d0848;--chev:#b79bff}
+#replay-wipe .rw-train{position:absolute;inset:0;transform:translateX(-285%);animation:rw-train var(--rw,900ms) both;will-change:transform}
+#replay-wipe .rw-train>i{position:absolute;top:0;bottom:0}
+#replay-wipe .rw-chev{width:102%;background:var(--chev);clip-path:polygon(0 0,29.4% 0,100% 50%,29.4% 100%,0 100%,70.6% 50%)}
+#replay-wipe .rw-c1{left:178%;opacity:.3}
+#replay-wipe .rw-c2{left:138%;opacity:.5}
+#replay-wipe .rw-c3{left:-140%;opacity:.5}
+#replay-wipe .rw-c4{left:-180%;opacity:.3}
+#replay-wipe .rw-panel{left:-100%;width:300%;background:linear-gradient(170deg,var(--band-a) 30%,var(--band-b) 70%);clip-path:polygon(0 0,76% 0,100% 50%,76% 100%,0 100%,24% 50%)}
+/* The band's two chevrons over the whole screen behind the lockup, stretched
+   to its height and width: the panel is three screens wide and stands a
+   screen to the left while it covers, so its middle third is the screen.
+   Small and up to the right, as they stand on the card, they were lost, and
+   at most of the screen's width they were still too small, the owner said. */
+#replay-wipe .rw-band-chevrons{position:absolute;left:33.34%;top:0;width:33.33%;height:100%;fill:var(--chev)}
+#replay-wipe .rw-lock{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u) * 14);opacity:0;animation:rw-lock var(--rw,900ms) linear both}
+#replay-wipe .rw-title{width:calc(var(--u) * 250);filter:drop-shadow(0 calc(var(--u) * 4) calc(var(--u) * 12) rgba(0,0,0,.35))}
+#replay-wipe .rw-mark{width:calc(var(--u) * 200)}
+#replay-wipe .rw-word{font:400 calc(var(--u) * 30)/1 var(--f-display);letter-spacing:.06em;color:#ffffffeb;font-variation-settings:'opsz' 6}
+@keyframes rw-life{from,to{opacity:1}}
+@keyframes rw-train{0%{transform:translateX(-285%);animation-timing-function:cubic-bezier(.25,.6,.3,1)}
+  40%,60%{transform:translateX(0);animation-timing-function:cubic-bezier(.7,0,.75,.4)}100%{transform:translateX(285%)}}
+@keyframes rw-lock{0%,30%{opacity:0;transform:translateY(calc(var(--u) * 10))}40%,58%{opacity:1;transform:none}66%,100%{opacity:0;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  #replay-wipe .rw-train{transform:none;animation-name:rw-fade}
+  #replay-wipe .rw-chev{display:none}
+  #replay-wipe .rw-lock{animation-name:rw-fade}}
+@keyframes rw-fade{0%,100%{opacity:0}35%,65%{opacity:1}}
+#replay-tag{position:absolute;z-index:60;top:calc(11% + var(--u) * 12);left:calc(var(--u) * 16);display:flex;align-items:center;gap:calc(var(--u) * 8);padding:calc(var(--u) * 7) calc(var(--u) * 12);border-radius:calc(var(--u) * 8);
+  background:linear-gradient(161deg,#3f88f2,#1a3a8c);color:#fff;font:400 calc(var(--u) * 15)/1 var(--f-display);letter-spacing:.12em;font-variation-settings:'opsz' 6;pointer-events:none;animation:rt-in .3s ease both}
+#replay-tag.is-super10{background:#5b2fc0;box-shadow:inset 0 0 0 1.5px #c6ff1a}
+#replay-tag .rt-dot{width:calc(var(--u) * 8);height:calc(var(--u) * 8);border-radius:50%;background:#fff;animation:rt-blink 1s steps(2,start) infinite}
+#replay-tag.is-super10 .rt-dot{background:#c6ff1a}
+#replay-tag .rt-skip{margin-left:calc(var(--u) * 4);opacity:.7;font-size:calc(var(--u) * 11)}
+@keyframes rt-in{from{opacity:0;transform:translateX(-12px)}}
+@keyframes rt-blink{to{visibility:hidden}}
+@media (prefers-reduced-motion:reduce){#replay-tag,#replay-tag .rt-dot{animation:none}}
 #viewport.intro-on::before,#viewport.intro-on::after{content:'';position:absolute;left:0;right:0;z-index:50;height:calc(var(--intro-bars,0) * 11%);background:#000;pointer-events:none}
 #viewport.intro-on::before{top:0}
 #viewport.intro-on::after{bottom:0}

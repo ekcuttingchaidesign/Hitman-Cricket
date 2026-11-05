@@ -1,16 +1,16 @@
 import * as THREE from 'three';
 import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt } from '../entities/Batter';
 import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
-import { bodyOf, showBody } from '../entities/Fielder';
+import { Fielder, bodyOf, mixBodies, readyPose, showBody, type Body } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
-import { BLAST_FIELD, Field, TEST_FIELD, mark, type Mark } from './field';
+import { BLAST_FIELD, Field, REPLAY_DEEP, TEST_FIELD, mark, type Mark } from './field';
 import { nameOf, type Man } from '../game/super10-field';
 import type { Signal } from '../entities/Fielder';
 import { GAME } from '../config/gameplay';
 import { ballPosition, drawnAt, flightProgress } from '../game/DeliveryTrajectory';
 import { KIT, type Kit } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
-import { flightOf, sectorOf } from './flight';
+import { BOARDS, boardsAlong, flightOf, sectorOf } from './flight';
 import { OVERCAST, SKY, Sky, type SkyTime } from './sky';
 import { ARENA_NIGHT, FILL_POSITION, LIGHTING, glows, moon, nightReflections } from './night';
 import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture, type Turf } from './turf';
@@ -31,6 +31,7 @@ import { SUPER10_GLOVES, type GloveDesign } from '../entities/gloves';
 import type { KitPrint } from '../entities/kitPrint';
 import { SUPER10_KITS, super10Number, type Super10Kit } from '../game/super10-kits';
 import type { CameraPose } from '../game/ShotReel';
+import { SPILL_FALL, spillTo } from '../game/catch-cam';
 import { introCamera, introSweep, type Film } from '../game/IntroReel';
 import { batSheet } from '../entities/batSkins';
 
@@ -155,6 +156,15 @@ interface Stands {
 // The ball and its trail are the only things left that want a bare sphere;
 // every figure on the field is a Cricketer, which carries its own primitives.
 const SHAPES = { ball: new THREE.SphereGeometry(1, 24, 16) };
+
+/** Super10's men as the field's marks. */
+function marksOf(men: readonly Man[]): Mark[] {
+  return men.map((man, i) => {
+    const name = nameOf(man.angle, man.deep);
+    return { name: name[0].toUpperCase() + name.slice(1), spot: mark(man.angle, man.distance), style: i % 2 ? 'hips' : 'loose', deep: man.deep };
+  });
+}
+
 
 /**
  * The ball, by format: the Blast's bright red, which Super10 plays with too
@@ -286,6 +296,8 @@ export class GameScene {
   private hitHeight = 0;
   /** Where in a skied ball's flight it is spilled, or 0 when it is not. */
   private dropAt = 0;
+  /** Where a ball put down on the rope runs on to, over it: see `struckAt`. */
+  private spillEnd: THREE.Vector3 | null = null;
   private bounceAt = 0;
   /**
    * Where in the flight the ball arrives at whoever is under it. One for
@@ -384,7 +396,8 @@ export class GameScene {
     // The stage starts mirrored for a right-hander: the LED stumps' wrap is turned over with it.
     this.led.mirror(true);
     this.bowlerHolder.add(this.bowler.root);
-    this.world.add(this.batter.root, this.bowlerHolder, ...this.field.fielders.map(f => f.root));
+    this.world.add(this.batter.root, this.bowlerHolder, ...this.field.fielders.map(f => f.root), this.keeper.root);
+    this.keeper.root.visible = false;
     this.ball = new THREE.Mesh(SHAPES.ball, soft(BALL.blast.color, 0.34));
     this.ball.scale.setScalar(0.115); this.ball.castShadow = true; this.world.add(this.ball);
     (this.ball.material as THREE.MeshStandardMaterial).emissive.setHex(BALL.blast.glow);
@@ -582,13 +595,13 @@ export class GameScene {
     this.bowler.figure.root.add(under());
     // A fielder's goes on the man standing on the turf, not on the figure that
     // tips over in a dive, and follows his hips wherever they go.
-    for (const fielder of this.field.fielders) { fielder.patch = under(); fielder.root.add(fielder.patch); }
+    for (const fielder of [...this.field.fielders, this.keeper]) { fielder.patch = under(); fielder.root.add(fielder.patch); }
     this.field.update(0);
   }
   private createStadium(anisotropy: number) {
     // The boards along the foot of the stands. Added to the scene rather than
     // the mirrored stage, or every sponsor would read backwards.
-    const boards = perimeterBoards(35.1, 1.2, 1.5, 10, anisotropy);
+    const boards = perimeterBoards(BOARDS, 1.2, 1.5, 10, anisotropy);
     this.scene.add(boards.group); this.textures.push(boards.texture);
     boards.group.traverse(object => {
       if (object instanceof THREE.Mesh && (object.material as THREE.MeshStandardMaterial).emissiveMap) this.boardsMaterial = object.material as THREE.MeshStandardMaterial;
@@ -740,11 +753,16 @@ export class GameScene {
     const { width, height } = this.container.getBoundingClientRect();
     this.renderer.setSize(width, height);
     this.camera.aspect = width / height;
-    const { at, fov } = this.homeView;
+    const { eye, at, fov } = this.homeView;
     this.camera.fov = fov;
     this.camera.lookAt(...at);
     this.camera.updateProjectionMatrix();
+    this.judge.aspect = width / height; this.judge.fov = fov;
+    this.judge.position.set(...eye); this.judge.lookAt(...at);
+    this.judge.updateProjectionMatrix(); this.judge.updateMatrixWorld();
   };
+  /** The game's own view, kept still beside the camera: what is in the picture is judged from it (`inShot`). */
+  private readonly judge = new THREE.PerspectiveCamera(53, 1, 0.1, 180);
   /** The game's own view for this screen's shape: where every film's camera hands back to. */
   get homeView(): CameraPose {
     // Below 16:9 the view widens towards a constant horizontal field of view, so
@@ -801,7 +819,7 @@ export class GameScene {
    */
   private kitsUnderLights() {
     const night = this.now === 'night';
-    const roots = [this.batter.root, this.bowler.root, ...this.field.fielders.map(f => f.root)];
+    const roots = [this.batter.root, this.bowler.root, ...this.field.fielders.map(f => f.root), this.keeper.root];
     for (const root of roots) root.traverse(object => {
       if (!(object instanceof THREE.Mesh)) return;
       for (const material of [object.material].flat()) {
@@ -1072,7 +1090,7 @@ export class GameScene {
     this.bowler.figure.dress(kit);
     // The fielding side too. Leaving them in coloured clothing while the two
     // men in the middle wore whites read as a bug rather than as a mode.
-    this.field.dress(kit);
+    this.field.dress(kit); this.keeper.figure.dress(kit);
     // And set the field for the game: the Test match's attacking ring, or
     // the Blast's men back on the rope.
     this.field.setField(on ? TEST_FIELD : BLAST_FIELD);
@@ -1215,7 +1233,7 @@ export class GameScene {
     this.batter.wear(this.inWhites ? { helmet: outfit.helmet } : outfit);
     // A room kit with a print (the Diwali kit) wears it, but not in whites; a Super10 kit's is put on in `dressBatter`.
     if (!this.super10Kit) this.batter.printKit(!this.inWhites && 'print' in outfit ? outfit.print ?? null : null);
-    if (!this.inWhites) { this.bowler.figure.dress(this.sideKit, this.sidePrint); this.field.dress(this.sideKit, this.sidePrint); }
+    if (!this.inWhites) { this.bowler.figure.dress(this.sideKit, this.sidePrint); this.field.dress(this.sideKit, this.sidePrint); this.keeper.figure.dress(this.sideKit, this.sidePrint); }
     this.kitsUnderLights();
   }
   /**
@@ -1275,7 +1293,9 @@ export class GameScene {
    * action starts, because `reset` puts the ball back in the quick bowler's
    * hand and the spinner has to take it again each ball of his over.
    */
-  spinner(on: boolean) { this.bowler.spinner(on); }
+  spinner(on: boolean) { this.spinning = on; this.bowler.spinner(on); }
+  /** Whether the spinner is on: the keeper stands up to him. */
+  private spinning = false;
   /**
    * And whose action he bowls it with: the express bowler's in his overs (the
    * Marathon's, and Super10's sling bowler), Super10's death bowler's in his,
@@ -1288,11 +1308,46 @@ export class GameScene {
    * start of an innings, and stood on the new ones when it changes in it.
    */
   super10Field(men: readonly Man[], changed: boolean) {
-    const marks: Mark[] = men.map((man, i) => {
-      const name = nameOf(man.angle, man.deep);
-      return { name: name[0].toUpperCase() + name.slice(1), spot: mark(man.angle, man.distance), style: i % 2 ? 'hips' : 'loose', deep: man.deep };
-    });
+    const marks = marksOf(men);
     if (changed) this.field.standOn(marks); else this.field.setField(marks);
+  }
+  /**
+   * A replay's field: every man there is, so a ball sent behind square is
+   * fielded there — Super10's nine, given as `men`, or the field in play and
+   * the replay's men behind square (`REPLAY_DEEP`) — each judged able to go
+   * for it wherever it is (`everywhere`), since nothing in a replay has to
+   * match the game's view. Null puts the field in play back as it was.
+   */
+  replayField(on: boolean, men: readonly Man[] | null = null) {
+    if (on) {
+      this.playing ??= this.field.standing;
+      this.field.standOn(men ? marksOf(men) : [...this.playing, ...REPLAY_DEEP]);
+    } else if (this.playing) { this.field.standOn(this.playing); this.playing = null; }
+    this.everywhere = on;
+  }
+  private playing: readonly Mark[] | null = null;
+  private everywhere = false;
+  /**
+   * The catch camera's field (`Game.catchCam`), set before the ball is struck
+   * so the catch is planned on it: the men the game's view never shows joined
+   * to the field in play — the replay's men behind square (`REPLAY_DEEP`), or
+   * Super10's men not drawn, given as `men` — and every man able to go for
+   * the ball wherever it is, since the camera going with it sees him there.
+   * Off takes them off again and leaves the rest where they are.
+   */
+  catchField(on: boolean, men: readonly Man[] | null = null) {
+    if (on) this.field.join(men ? marksOf(men) : REPLAY_DEEP); else this.field.leave();
+    this.everywhere = on;
+  }
+  /**
+   * Where the ball last struck is going, in the game's frame: off the bat,
+   * where it finishes (on the rope, in the stands, in a man's hands), and how
+   * long after the bat met it it gets there. For a replay's second camera.
+   */
+  struckTo() {
+    if (!this.hitOutcome) return null;
+    const v = (p: THREE.Vector3) => [p.x, p.y, p.z] as [number, number, number];
+    return { from: v(this.hitOrigin), to: v(this.hitEnd), arrives: this.flightMs * this.takeAt };
   }
   /**
    * The bowler setting his field: turned, from wherever he stands, to the man
@@ -1429,16 +1484,28 @@ export class GameScene {
     // close enough that he dives for it and it beats him.
     const along = !rope && outcome.madeBatContact && !outcome.aerial && !caught && !outcome.edged && !playedOn && !outcome.defended && !outcome.padded
       && !struckBody && !outcome.advance && flight.height < 1 && outcome.runs >= 1;
-    if (along) angle = this.field.clear(this.hitStart, angle, flight.distance);
-    this.gathered = false;
-    this.hitEnd.set(Math.sin(angle) * flight.distance, flight.endY, Math.cos(angle) * flight.distance);
+    // A four that pitches on its way to the rope — scooped, swept, hooked, or
+    // skied off a stroke played to keep it down — is fielded as one along the
+    // ground is once it lands: passed by a stride and a half, the man there
+    // diving or chasing it to the rope. It went past the men behind the bat
+    // close enough to touch while they stood and watched.
+    const bounced = !rope && outcome.madeBatContact && outcome.runs === 4 && flight.bounceAt > 0 && !caught && !outcome.dropped
+      && !struckBody && !outcome.advance;
+    if (along || bounced) angle = this.field.clear(this.hitStart, angle, flight.distance);
+    this.gathered = false; this.spillEnd = null;
+    // A four stops at the boards, wherever it was hit. Its flight runs forty-
+    // four metres from the bat, which is the boards straight; square they are
+    // thirty-three away and behind him twenty-five, and a scooped four went on
+    // through them into the stand as if it were a six.
+    const reach = outcome.runs === 4 && !rope ? Math.min(flight.distance, boardsAlong(angle) - .6) : flight.distance;
+    this.hitEnd.set(Math.sin(angle) * reach, flight.endY, Math.cos(angle) * reach);
     // Played on and edged are both placed rather than swept out along the
     // stroke's angle: one finishes in his own stumps, the other in the keeper's
     // gloves before the stroke is over.
     if (playedOn) this.hitEnd.set(0.1, flight.endY, -1.5);
     if (outcome.edged) this.hitEnd.set(0.58, flight.endY, -1.6);
     // The take lines up with the fielder's hands closing — see `takeAt`.
-    this.takeAt = (caught || outcome.dropped) && !outcome.edged ? 0.86 : 1;
+    this.takeAt = outcome.spilled ? flight.takeAt : (caught || outcome.dropped) && !outcome.edged ? 0.86 : 1;
     // An edge is taken behind the stumps with nobody in the frame: the ball
     // simply deflects off the face and dies back past him. A fielder placed
     // there stands between the camera and the batter and fills the shot.
@@ -1456,9 +1523,11 @@ export class GameScene {
       });
       if (plan) this.hitEnd.copy(plan.hands);
       this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
-    } else if (along) {
+      // Put down on the rope: off his hands and on over it.
+      if (outcome.spilled) this.spillEnd = new THREE.Vector3(...spillTo([this.hitEnd.x, this.hitEnd.y, this.hitEnd.z]));
+    } else if (along || bounced) {
       this.gathered = this.field.ground(this.hitStart, deadAt, look,
-        { from: this.hitOrigin.clone(), to: this.hitEnd.clone(), flightMs: this.flightMs, four: outcome.runs === 4 },
+        { from: this.hitOrigin.clone(), to: this.hitEnd.clone(), flightMs: this.flightMs, four: outcome.runs === 4, airborne: bounced ? flight.bounceAt : 0 },
         this.bowling ? this.bowlerAtRest() : undefined).gathered;
     } else this.field.struck(this.hitStart, deadAt, look);
     this.bounceRing.visible = false;
@@ -1526,6 +1595,16 @@ export class GameScene {
       : Math.sin(flown * Math.PI) * this.hitHeight;
     // A dropped catch. The ball is in his hands and then it is not: past the
     // take it leaves them and goes to the turf, accelerating, just beyond him.
+    if (this.dropAt > 0 && t > this.dropAt && this.spillEnd) {
+      // Put down on the rope: off his hands to the turf, and on, bouncing
+      // lower each time, over the rope (`spillTo`).
+      const u = Math.min(1, (t - this.dropAt) / (1 - this.dropAt));
+      into.lerpVectors(this.hitEnd, this.spillEnd, 1 - (1 - u) * (1 - u));
+      into.y = u < SPILL_FALL
+        ? THREE.MathUtils.lerp(this.hitEnd.y, 0.12, (u / SPILL_FALL) ** 2)
+        : 0.12 + Math.abs(Math.sin((u - SPILL_FALL) / (1 - SPILL_FALL) * Math.PI * 3)) * 0.5 * (1 - u);
+      return into;
+    }
     if (this.dropAt > 0 && t > this.dropAt) {
       const fall = Math.min(1, (t - this.dropAt) / (1 - this.dropAt));
       into.y = THREE.MathUtils.lerp(this.hitEnd.y, 0.12, fall * fall);
@@ -1667,6 +1746,7 @@ export class GameScene {
     }
     this.batter.update(now);
     this.field.update(now);
+    if (this.keeper.root.visible) this.keeper.show(this.keeperAt(now));
     // Held, the ball goes where his hands go: through the slide, and up with
     // him when he stands.
     const held = this.field.held(now);
@@ -1735,6 +1815,42 @@ export class GameScene {
   get fieldSettled() { return this.field.settled(this.clock); }
   /** The drawn man going for a catch this ball, by his place among the marks `super10Field` was given. */
   get catcher() { return this.field.catcher; }
+  /**
+   * The ball, its shadow, its streak and the bounce out of sight for this
+   * frame: a replay shows the stroke from the swing, and the ball only once
+   * the bat meets it (`Game.replayFrame`).
+   */
+  hideBall() {
+    this.ball.visible = this.shadow.visible = this.bounceRing.visible = false;
+    this.streak.forEach(dot => dot.visible = false);
+  }
+  /**
+   * The wicketkeeper. The game's own camera stands where he would be, so in
+   * play he is never drawn — he would stand between the lens and the batter —
+   * and a replay, whose cameras look at the batter from round the ground,
+   * puts him in (`keeperIn`, `Game.stageReplay`): behind the stumps, a little
+   * to the off side, stood back to pace and up at the stumps to the spinner,
+   * crouched until the ball has been played and standing up out of it after.
+   */
+  private readonly keeper = new Fielder();
+  keeperIn(on: boolean) { this.keeper.root.visible = on; if (on) this.keeper.show(this.keeperAt(this.clock)); }
+  private keeperAt(now: number): Body {
+    const up = this.spinning;
+    const spot = { x: up ? .3 : .45, z: up ? -1.15 : -11, heading: 0 };
+    const crouch = readyPose(1);
+    // Down on his haunches, deeper than any fielder's ready position, gloves together in front of his knees.
+    crouch.hip.y = .5; crouch.chest.set(0, .5 + .5, .12);
+    crouch.leftFoot.set(-.3, .06, .02); crouch.rightFoot.set(.3, .06, .02);
+    crouch.leftHand.set(-.07, .42, .42); crouch.rightHand.set(.07, .42, .42);
+    crouch.headPitch = -.05;
+    const stand = readyPose(.45);
+    const body = (pose: typeof crouch): Body => ({ ...spot, pitch: 0, anchor: pose.hip.clone(), pose });
+    const since = this.hitOutcome ? now - this.hitStart : -Infinity;
+    const rising = Math.min(1, Math.max(0, (since - 120) / 520));
+    return mixBodies(body(crouch), body(stand), rising * rising * (3 - 2 * rising));
+  }
+  /** The field back on its marks at once, as a replay's cut finds it and leaves it. */
+  homeField() { this.field.home(); }
   /** How far the man furthest from his mark is from it, in metres, for the checks: nobody walks to a new field. */
   get fieldAway() { return Math.max(0, ...this.field.state(this.clock).fielders.map(f => f.home)); }
   /** Whether the bowler is signalling a field change, for the checks. */
@@ -1754,8 +1870,12 @@ export class GameScene {
    * it can be seen.
    */
   private inShot(point: THREE.Vector3) {
+    if (this.everywhere) return true;
     this.world.updateMatrixWorld();
-    const p = this.world.localToWorld(point.clone()).project(this.camera);
+    // Judged from the game's own view whatever the camera is doing: a replay
+    // tells the scene the same ball again under its own camera, and the man
+    // who goes for it must be the one who went for it the first time.
+    const p = this.world.localToWorld(point.clone()).project(this.cinema ? this.judge : this.camera);
     return p.z < 1 && Math.abs(p.x) < .8 && p.y > -.7 && p.y < .55;
   }
   inspectBowler() {

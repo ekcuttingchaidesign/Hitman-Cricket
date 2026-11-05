@@ -163,6 +163,19 @@ describe('the field', () => {
       expect(routines[midOff].actions.map(a => a.name)).toContain('Up, hands on head');
     });
 
+    it('never dives under a four still in the air, only where it has pitched', () => {
+      // The same line past mid-off: pitching beyond him, he lets it go over;
+      // pitching before him, he dives for it as for one along the ground.
+      const over = new Field(), on = new Field();
+      const end = line(over, 24, 44);
+      line(on, 24, 44);
+      over.ground(HIT, HIT + 1250, look, { from: origin, to: end, flightMs: 1250, four: true, airborne: .9 });
+      on.ground(HIT, HIT + 1250, look, { from: origin, to: end, flightMs: 1250, four: true, airborne: .2 });
+      const midOff = BLAST_FIELD.findIndex(m => m.name === 'Mid-off');
+      expect(routinesOf(over)[midOff].actions.map(a => a.name)).not.toContain('Diving catch');
+      expect(routinesOf(on)[midOff].actions.map(a => a.name)).toContain('Diving catch');
+    });
+
     it('has a man it passes a few metres off, too far to dive, get across towards it', () => {
       const field = new Field();
       // Eleven degrees off mid-off at 24°: four metres wide of him at his depth.
@@ -374,6 +387,23 @@ describe('a Super10 fielder getting to a ball along the ground', () => {
   /** Where a ball along `angle` ends, a stride short of the man at that depth. */
   const toward = (angle: number, distance: number) => new THREE.Vector3(Math.sin(deg(angle)) * distance, .1, Math.cos(deg(angle)) * distance);
 
+  it('lets a man joined for the catch camera go with the ball in his hands, and goes on', () => {
+    // The game froze here: a deep man joined for the camera fielded it, was
+    // taken off when the camera cut back, and the throw read his plan after.
+    const field = new Field();
+    const drawn = drawnOf(seam), undrawn = seam.men.filter(m => !drawn.includes(m));
+    field.setField(marksOf(seam));
+    field.join(undrawn.map((m, i) => ({ name: `j${i}`, spot: mark(m.angle, m.distance), style: 'loose' as const, deep: m.deep })));
+    const deepIndex = 6, man = routinesOf(field)[deepIndex].at(HIT);
+    const to = new THREE.Vector3(man.x, .1, man.z).multiplyScalar(.97), arrives = HIT + 900;
+    const taken = field.fielded(HIT, arrives, look, { from: origin, to, flightMs: 900 }, bowler());
+    expect(taken).not.toBeNull();
+    expect(field.held(arrives + 200)).not.toBeNull();
+    field.leave();
+    expect(() => { field.update(arrives + 400); field.held(arrives + 400); field.settled(arrives + 400); }).not.toThrow();
+    expect(field.held(arrives + 400)).toBeNull();
+    expect(routinesOf(field)).toHaveLength(6);
+  });
   it('gets down behind one hit straight at him and collects it in both hands, then throws it to the bowler', () => {
     const field = new Field();
     field.setField(marksOf(seam));

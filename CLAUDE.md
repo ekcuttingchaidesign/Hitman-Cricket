@@ -2131,6 +2131,232 @@ It replaced the coming-soon card and its page (Super10Page, I'M EXCITED,
 GOT IT), which went at release. The store's count of I'M EXCITED stays
 (`countExcited`, `super10-excited` in `TALLIES`, `scripts/super10-report.ts`).
 
+## The action replay
+
+A stroke worth seeing again is played again once the ball is dead, from an
+angle the camera behind the bat never has (`src/game/replay.ts`, in
+`tests/replay.test.ts`). It is the ball itself, told to the scene again: the
+game keeps what it told the scene — the ball, the swing with every argument
+and when, the outcome once resolved (`Kept`, `keepForReplay` in
+`src/Game.ts`) — and tells it the same again shifted on to now
+(`stageReplay`, `replayFrame`), opening on the stroke `LEAD_IN` before he
+swings, the bowler already in his follow-through and the ball out of sight
+until the bat meets it (`hideBall`: picked up in the run-up, the ball came in
+slowed and hung in front of him before the bat came down, which the owner
+found odd), under one of the stroke's cameras (`REPLAY_ANGLES`,
+through `GameScene.cinematic`) and on a clock slowed to two fifths through
+the bat meeting the ball and out on his held finish (`replayPace`,
+`AFTER_MS`; a quarter was too slow, the owner said). Nothing is scored, counted or sent again.
+After his finish it cuts to the ball going away (`CUT_AFTERS`, a time for each
+stroke from when its finish is there: the square cut's wrap is three tenths
+of a second after the ball, and cut at a quarter of a second it read as a
+stroke left unfinished; `fieldCamera`,
+the owner's choice of stroke then fielder): a camera up high behind the bat
+on the side towards the bowler's end, looking down at the ball and following
+it, zoomed so about fourteen metres of ground is always in the picture
+(`FOLLOW_FRAME`), the ball crossing it against the grass with whoever goes
+for it; past the rope (`ropeAt`: thirty metres round a point ten up the pitch, as
+the field's `ropeAlong` has it, so forty straight, twenty-eight square and
+twenty behind; it was taken for forty and thirty-five all round, which stood
+a six's camera inside the boards and the stand for the reverse scoop and the
+square drive) it holds wider just
+inside the rope, and a six it follows into the front of the stand. Stood near
+the rope looking out, the first build had the stands behind the ball and lost
+it in them. A six is not followed down into the stand, where a long lens
+showed up the crowd's few polygons: its camera stands low by the rope it is
+going over, a little off its line, and looks back up at it against the sky
+(`sixCamera`), follows it to `SIX_HOLD` short of the rope and holds there as
+it climbs out of the top of the picture, and the replay lets it go
+`OVER_MS` after it is over the rope (`overRope`). Anything else is held
+`ARRIVED_MS` on where the ball got to (`replayTimes`' `arrives`, from the
+live ball). A replay's field has every
+man there is (`replayField`): Super10's nine, or the field in play and four
+men behind square, fine leg, deep square leg, third man and deep point
+(`REPLAY_DEEP`, three metres inside the rope; at thirty-one they stood in the
+stand), whom play never shows because its camera sees nothing there;
+the field holds up to ten (`MOST_MEN`, those past the marks hidden), and in a
+replay anybody may go for the ball wherever it is (`everywhere`).
+Outside a replay who goes for the ball is judged from the game's own view
+whatever the camera is doing (`judge` in `GameScene.inShot`). A replay has a wicketkeeper (`keeper`, `keeperIn` in
+`GameScene`): the game's camera stands where he would, so in play he is never
+drawn, and a replay's cameras, looking at the batter from round the ground,
+showed the stumps with nobody behind them. He stands a little to the off
+side, eleven metres back to pace and up at the stumps to the spinner
+(`spinning`), crouched until the ball is played and standing up out of it
+after, in the fielding side's kit.
+
+Which balls (`qualifies`): a stroke on `REPLAY_STROKES` — the cover drive,
+the pull (the hook and the pull off the spinner with it), the square cut (at
+pace or off the spinner), the late cut, the two scoops, the lofted straight
+drive in either version (`straight`), the on drive's six (`on`), the flick
+versions two and three (off the back foot), the back-foot punch (`punch`),
+the orthodox sweep, the slog sweep and the charge — for four or six however
+it was timed, short of a miss; the lofted drives and the charge are only
+ever six (`REPLAY_RUNS`). Any other stroke a shade mistimed or off the edge
+that still went for four or six is replayed too (`mistimed`, from above:
+`keepForReplay` names it, the owner wanting the camera on those as well).
+The meter's strokes are replayed for four as well: for six alone a scoop's
+replay was so rare the owner never saw one. Which one a ball was is decided
+in `Game.shoot` beside the swing it keeps (`stroke` on `Kept`); a well-timed
+drive along the ground down the ground and flick version one are not
+replayed. A batter bowled (`bowled`, played on, beaten
+or leaving it) is replayed too, from the bowler's end: opened on the
+bowler's last strides (`BOWLED_LEAD`, his action wound on through the
+replay's frames), the ball seen all the way to the stumps, and held on the
+bails and him (`BOWLED_AFTER`), with no cut to the field. How often
+(`replayDue`): the special strokes — the scoops, the slog sweep, the charge
+— a batter bowled, and a pull or hook for six every time (`always`, as the
+owner asked); the rest every one that qualifies, the next ball too, with
+no cap (`REPLAYS_PER_INNINGS` is every ball; it was one in three, an over
+apart, five and three, then two in three, two balls apart, ten and six,
+then sixteen and ten, which a good Blast used up by its fourth over, and the
+owner found each too rare); and a player who
+skips two running sees only a stroke not yet replayed that innings
+(`SKIPS_TO_QUIET`), the page's dice deciding nothing any more. Never
+over anything else the ball brings: a milestone, a moment, a chase passed,
+nor a new batter or the innings' last ball, but for bowled, which plays
+before the next man walks out or the card comes up. Super10 and the
+Blast only; not a Rival Match (the other innings flashes up between balls),
+the tutorial or a demo. It plays in the RESULT phase, which waits for it, so
+the next ball is bowled after it and nothing about the batting moves.
+
+The cameras are the owner's, set in the replay camera lab for the cover
+drive, two more from the bowler's end straight down the ground at him for the
+sixes down it, the charge and bowled, as the owner asked — at the
+sightscreen, low and a little to leg of the line, and the umpire's eyes
+behind the stumps (`BEHIND`: `sightscreen`, `umpire`; a first pair high over
+the sightscreen and from the big screen did not look good) — and each stroke is shown from the ones that suit it
+(`STROKE_CAMERAS`: on the side the ball goes, or in front of him, never one
+that sees his back as the ball goes away from it — the square cut from the
+leg side did not look good, the owner said; nor the square cut at pace from
+point, square on the off side, which the cut off the spinner keeps: they are
+`cut` and `spincut`), two at least, switched in the
+lab's Cameras for this stroke and copied out with Copy camera choices: seven — mid-off, a spider cam over the umpire and one over leg slip,
+square on either side, and mid-on and mid-off at ground level on long lenses
+— all held still, all well back, so he fills a sixth or so of the picture
+(`tests/replay.test.ts` holds every camera under a third). The first build
+crept in from in front on the off side until he filled two thirds of it, and
+a model of this detail does not stand that; a camera turning after the ball
+looked at the turf at its own feet. Each replay is shown from one of them,
+never the one the last used (`pickAngle`, off the page's dice);
+`?replayangle=midoff` (any id) asks for one and is not practice.
+`replay-camera.html` (`src/replay-camera.ts`) is the lab: the game's own
+scene playing any of the strokes on a loop in a phone's frame (`BALLS`: each
+at the ball it answers, perfectly in time, the hook beside the pull, and the
+cut and the pull off the spinner on balls the game's own spinner bowls,
+`spinBall`), from
+the swing as the replay is, the bars
+on, a free camera, the cut to the ball going away (Cut to the ball going
+away, on as the game has it), how much of the picture he fills, the stroke's cameras and
+other ideas to start from, a move from a start to an end, saved angles, and
+Copy camera, which gives the numbers in the game's frame as `REPLAY_ANGLES`
+takes them. `scripts/replay-camera-artifact.mjs` builds it into one file; it
+is published as the claude.ai artifact "Replay Camera Lab".
+
+It is cut into and out of under a wipe in the end card's band (`WIPE_MS`,
+900ms, `#replay-wipe`, `HUD.replayWipe`): the mode's band gradient as one great
+chevron, the band's own shape with its point the way it goes, on a train with
+the band's two paler chevrons ahead of it and two behind, gliding across and
+easing to a stop while it covers the screen, where the cut is made, then
+easing away; over it the game's title or Super10's mark above ACTION REPLAY in
+the card's lettering, over the band's two chevrons stretched across the whole
+screen (small and to the right, as on the card, they were lost, and at most
+of its width still too small). The Blast's in
+its card's blue, Super10's in violet over ink, and the REPLAY tag the same. A
+broadcast stinger of slanted slabs, a light on the edge, racing lines and a
+slammed plate came first and was too aggressive, the owner said; a plain
+orange or violet band before that. Between the walk-on's
+bars with everything else put out of sight (`intro-on`), a REPLAY tag top left
+(`#replay-tag`). A tap, Space, Enter or Escape skips to the wipe out; a pause
+or a new innings cuts it short with none (`stopReplay`). The pause sheet has a
+Replays switch (`#replay-switch`, kept in `hitman-replays`), with a NEW tag
+beside its name (`#replay-new`, `newTagDue`) on a browser's first three pause
+sheets, gone for good once the switch is used (`hitman-replays-new`). Off under
+`?debug=1` and reduced motion; `?replay=1` replays every ball that qualifies,
+debug or not, and `?replay=0` none; neither is practice.
+`__cricket.snapshot().replay` says what is playing. GoatCounter counts
+`replay-<stroke>` and `replay-skipped-<stroke>`, and each again with the
+camera on the end (`replay-cover-midoff`), so the cameras players skip show. `scripts/replay-check.mjs`
+drives a cover drive for four on `?cover=1&replay=1`, photographs the replay
+through and skips a second with a tap (`MODE=super10` for Super10,
+`ANGLE=<id>` for one camera, `STROKE=pull` for the pull at a bouncer, `STROKE=straight` for the straight
+six, `STROKE=cut` for the square cut at `?latecut=1`'s ball, `STROKE=bowled`
+for late cuts at that ball until one is bowled, `STROKE=punch` for cover swipes at that ball until a back-foot punch goes
+for four). The lab has the
+straight six, the on drive's six, the flick, the sweep and the slog sweep
+beside the first strokes.
+
+## The catch camera
+
+A ball skied to somebody is not replayed: the camera goes with it live
+(`src/game/catch-cam.ts`, in `tests/catch-cam.test.ts`). Which balls
+(`catchShotOf`): one off the bat that goes up to a fielder and is caught,
+on the rope or under a skier, or put down — never an edge to the keeper, a
+ball off the body, or a ball caught flat in the ring. Survival's and the
+Marathon's skiers not held are put down already (`skied` in `Survive.ts`);
+in the Blast and Super10 a skier that fell safe for four (`spillable`: a
+stroke played to keep it down that went up, or one reached for) is shown
+put down half the time (`SPILL_ODDS`), off his hands and running on over
+the rope (`spilled` on the outcome, `spillTo`, `SPILL_ROLL_MS`, the scene's
+`spillEnd`), the call DROPPED · FOUR. Its four is the four it was: only the
+picture and the call change, off the page's dice and never the seed.
+
+The game's own picture off the bat (`CATCH_CUT_IN`), so the stroke and the
+ball going up are seen as they always were; then the cut, between the
+walk-on's bars, to a camera up behind the bat and off the ball's line
+(`catchCamera`), looking at the ball and the man under it together and
+zoomed on the two of them: wide while it climbs and he gets there, closing
+in as it comes down, never nearer than `CATCH_MIN_FRAME` (he is a quarter of
+the picture at most; at seven metres he was nearly half), and widening again
+for a spilled ball running away. Slowed to under half through the take
+(`catchPace`, `CATCH_SLOW`), held `CATCH_HOLD` on him with it or on the ball
+on the turf, and cut back. The call, the crowd and the score go up the
+moment he takes it, puts it down or gets to it (`presentationAt` at the
+take), the call standing over the camera's picture between the bars
+(`is-catching`, `HUD.catching`); held to the cut back, the owner found it
+late. The next ball waits for the cut back (`resolveEndsAt` carried to
+`until`). A pause or a new innings cuts
+it short.
+
+The field is set before the ball is struck so the catch is planned on it
+(`catchShot` in `src/Game.ts`, `GameScene.catchField`): the men the game's
+view never shows joined to the field in play — the replay's men behind
+square (`REPLAY_DEEP`), or Super10's men not drawn — each on his mark and the
+rest left to what they are doing (`Field.join`, `leave`), and every man able
+to go for it wherever it is (`everywhere`). A skier to fine leg is caught at
+fine leg now, where before every catch was put where the game's camera
+could see it, in the V. The wicketkeeper is in the picture. A ball put down
+is never replayed after.
+
+In Super10 a ball a boundary rider cut off or saved out of the game's
+picture (`offScreen`: a sweep or a pull fielded in the deep, square or
+behind) is followed to him the same way (`'field'`): the camera on him and
+the ball together, slowed through his collect or his dive. He is one of the
+men joined for the camera, and taken off again at the cut back with the ball
+on its way in from him: `Field.leave` lets the ball go with him (`gatherer`),
+where the throw went on reading his plan after he had gone, threw, and froze
+the game (`tests/field.test.ts` holds it).
+
+A four stops at the boards wherever it is hit (`boardsAlong` in
+`flight.ts`, 35.1 metres round a point ten up the pitch): its flight ran
+forty-four metres from the bat, the boards straight, and behind him, where
+they are twenty-five away, a scooped four went through them into the stand
+as if it were a six. And a four that pitches on its way (scooped, swept,
+hooked, or skied off a stroke played to keep it down: `bounced` in
+`GameScene.hit`) is fielded as one along the ground is: steered a stride and
+a half past the man there (`Field.clear`) and dived at or chased to the rope
+(`Field.ground`), but never dived under while it is still in the air
+(`airborne`, the share of the way it flies) — it went past the men behind
+the bat close enough to touch while they stood and watched.
+
+Off with the pause sheet's Replays switch, under `?debug=1` and reduced
+motion, in the tutorial and a demo; `?catchcam=1` shows every one, debug or
+not, and every spillable skier put down, and `?catchcam=0` none. Neither is
+practice. `snapshot().catchCam` says what is on. GoatCounter counts
+`catch-cam-catch`, `-drop`, `-spill` and `-field`. `scripts/catch-check.mjs` skies a
+cover drive on `?cover=1&catchcam=1` and photographs it through
+(`MODE=survive` bats seeds until it has a drop as well, `MODE=super10`).
+
 ## The bowled ball's streak
 
 The ball on its way to the bat carries a streak (`STREAK` in `GameScene.ts`):

@@ -1,4 +1,5 @@
 import { limitsOf } from '../game/ball-string';
+import { WIPE_MS } from '../game/replay';
 import { chaseEndMarkup } from './MatchEnd';
 import type { ChaseEnd } from '../game/match-end';
 import { bellLabel, type Notice, type NoticeFilter } from '../game/notices';
@@ -108,6 +109,9 @@ import { chipLine, surviveGoal, type Chase, type Mine } from '../game/chase';
 import { chaseChipMarkup, chaseIntroMarkup, passedMarkup } from './ChaseUi';
 import { fieldLine } from '../game/super10-field';
 import { replayAnimation, replayClass } from './replay';
+/** Super10's mark, on the band a replay is wiped in and out under. */
+const REPLAY_MARK = new URL('../assets/super10/logo.svg', import.meta.url).href;
+const REPLAY_TITLE = new URL('../assets/title.webp', import.meta.url).href;
 import type { OwnActivity } from '../game/profile-api';
 import wifiOff from '../assets/board/wifi-off.svg?raw';
 /** Each poster on Choose a mode's rail, by its mode, to its dot in the pager under it. */
@@ -193,6 +197,8 @@ const icon = (name: string) => {
     modes: '<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>',
     flag: '<path d="M6 21V4m0 1h11l-2.5 4L17 13H6"/>',
     crowd: '<circle cx="9" cy="8.5" r="3"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9.5" r="2.3"/><path d="M15.8 14.3a4.5 4.5 0 0 1 4.9 4.7"/>',
+    /* The replays switch: the restart arrow round a play mark. */
+    replay: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v4h4"/><path d="m10.5 9.3 4.2 2.7-4.2 2.7z"/>',
     ambience: '<path d="M3 9.5c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/><path d="M3 14.5c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/>',
   };
   return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
@@ -464,6 +470,11 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
               <button id="ambience-switch" class="pause-row" type="button" role="switch" aria-checked="true">
                 <span class="pause-row-icon is-ambience">${icon('ambience')}</span>
                 <span class="pause-row-say"><b>Ambience</b><em>The stadium in the background</em></span>
+                <span class="pause-switch" aria-hidden="true"></span>
+              </button>
+              <button id="replay-switch" class="pause-row" type="button" role="switch" aria-checked="true">
+                <span class="pause-row-icon is-replay">${icon('replay')}</span>
+                <span class="pause-row-say"><b>Replays<span id="replay-new" class="pause-new hidden">NEW</span></b><em>Your best strokes, played again</em></span>
                 <span class="pause-switch" aria-hidden="true"></span>
               </button>
               <div id="lights-row" class="pause-row is-static hidden">
@@ -2671,6 +2682,8 @@ ${modeSelectMarkup()}
    * The walk-on (`IntroReel.ts`): everything over the ground put out of sight
    * and the bars drawn `bars` of the way in, or all of it put back with null.
    */
+  /** The catch camera's picture: the call stands over it, between the bars, as he takes it. */
+  catching(on: boolean) { this.viewport.classList.toggle('is-catching', on); }
   walkOn(bars: number | null) {
     this.viewport.classList.toggle('intro-on', bars !== null);
     this.viewport.style.setProperty('--intro-bars', String(bars ?? 0));
@@ -2943,6 +2956,47 @@ ${modeSelectMarkup()}
    * key they still say what they are set to, and a line under them says why
    * nothing is heard.
    */
+  /** The pause sheet's replays switch, as it is set. */
+  replaySwitch(on: boolean) { this.$('replay-switch').setAttribute('aria-checked', String(on)); }
+  /** The NEW tag beside Replays on the pause sheet (`newTagDue`). */
+  replayNew(on: boolean) { this.$('replay-new').classList.toggle('hidden', !on); }
+  /**
+   * The wipe a replay is cut into and out of under (`replay.ts`, `WIPE_MS`),
+   * in the end card's band: the mode's gradient as one great chevron sweeping
+   * across, the band's two paler chevrons running in ahead of it and out
+   * behind it, and while it covers the screen (its middle, when the camera is
+   * changed) the game's title or Super10's mark over ACTION REPLAY in the
+   * card's lettering, with the band's chevrons faint beside them. A new one
+   * each time, so it runs from its first frame with nothing forced; null
+   * takes it away.
+   */
+  replayWipe(super10: boolean | null) {
+    document.getElementById('replay-wipe')?.remove();
+    if (super10 === null) return;
+    const wipe = document.createElement('div');
+    wipe.id = 'replay-wipe'; wipe.setAttribute('aria-hidden', 'true');
+    wipe.className = super10 ? 'is-super10' : '';
+    wipe.style.setProperty('--rw', `${WIPE_MS}ms`);
+    const mark = super10 ? `<img class="rw-mark" src="${REPLAY_MARK}" alt="">` : `<img class="rw-title" src="${REPLAY_TITLE}" alt="">`;
+    wipe.innerHTML = '<i class="rw-train"><i class="rw-chev rw-c4"></i><i class="rw-chev rw-c3"></i>'
+      + `<i class="rw-panel">${BAND_CHEVRONS.replace('class="ec-chevrons"', 'class="rw-band-chevrons" preserveAspectRatio="none"')}</i><i class="rw-chev rw-c2"></i><i class="rw-chev rw-c1"></i></i>`
+      + `<span class="rw-lock">${mark}<span class="rw-word">ACTION REPLAY</span></span>`;
+    // Its children's animations bubble up here too: only its own end takes it away.
+    wipe.addEventListener('animationend', event => { if (event.target === wipe) wipe.remove(); });
+    this.viewport.append(wipe);
+  }
+  /** The REPLAY tag in the corner while one plays, Super10's in its colours. */
+  replayTag(on: boolean, super10 = false) {
+    let tag = document.getElementById('replay-tag');
+    if (!on) { tag?.remove(); return; }
+    if (!tag) {
+      tag = document.createElement('div');
+      tag.id = 'replay-tag';
+      tag.innerHTML = '<span class="rt-dot" aria-hidden="true"></span><span>REPLAY</span><span class="rt-skip">TAP TO SKIP</span>';
+      this.viewport.append(tag);
+    }
+    tag.classList.toggle('is-super10', super10);
+  }
   crowdSwitches(crowd: boolean, ambience: boolean, silent: boolean) {
     this.$('crowd-switch').setAttribute('aria-checked', String(crowd));
     this.$('ambience-switch').setAttribute('aria-checked', String(ambience));
