@@ -5730,7 +5730,7 @@ video.whatsnew-film.is-fit{height:auto;object-fit:contain;
    ahead of it and two behind, all one piece gliding across, easing to a stop
    while the panel covers the screen (the cut is made there) and easing away
    again. Over it the game's title or Super10's mark over ACTION REPLAY in the
-   card's lettering, over the band's chevrons big in the middle. The Blast's
+   card's lettering, over the band's chevrons across the whole screen. The Blast's
    in its card's blue, Super10's in violet over ink. Measures are in widths of
    the screen: a chevron's point runs .72 of one ahead of its back corners.
    The panel covers the screen while the train is within .28 of centre. */
@@ -5745,12 +5745,12 @@ video.whatsnew-film.is-fit{height:auto;object-fit:contain;
 #replay-wipe .rw-c3{left:-140%;opacity:.5}
 #replay-wipe .rw-c4{left:-180%;opacity:.3}
 #replay-wipe .rw-panel{left:-100%;width:300%;background:linear-gradient(170deg,var(--band-a) 30%,var(--band-b) 70%);clip-path:polygon(0 0,76% 0,100% 50%,76% 100%,0 100%,24% 50%)}
-/* The band's two chevrons, big in the middle of the screen behind the lockup:
-   the panel is three screens wide and stands a screen to the left while it
-   covers, so the screen's middle is the panel's, and 28% of it is .84 of the
-   screen's width. Small up and to the right, as they stand on the card, they
-   were lost, the owner said. */
-#replay-wipe .rw-band-chevrons{position:absolute;left:36%;top:50%;width:28%;height:auto;transform:translateY(-50%);fill:var(--chev)}
+/* The band's two chevrons over the whole screen behind the lockup, stretched
+   to its height and width: the panel is three screens wide and stands a
+   screen to the left while it covers, so its middle third is the screen.
+   Small and up to the right, as they stand on the card, they were lost, and
+   at most of the screen's width they were still too small, the owner said. */
+#replay-wipe .rw-band-chevrons{position:absolute;left:33.34%;top:0;width:33.33%;height:100%;fill:var(--chev)}
 #replay-wipe .rw-lock{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u) * 14);opacity:0;animation:rw-lock var(--rw,900ms) linear both}
 #replay-wipe .rw-title{width:calc(var(--u) * 250);filter:drop-shadow(0 calc(var(--u) * 4) calc(var(--u) * 12) rgba(0,0,0,.35))}
 #replay-wipe .rw-mark{width:calc(var(--u) * 200)}

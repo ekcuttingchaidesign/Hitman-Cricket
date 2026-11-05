@@ -2259,8 +2259,9 @@ chevron, the band's own shape with its point the way it goes, on a train with
 the band's two paler chevrons ahead of it and two behind, gliding across and
 easing to a stop while it covers the screen, where the cut is made, then
 easing away; over it the game's title or Super10's mark above ACTION REPLAY in
-the card's lettering, over the band's two chevrons big in the middle of the
-screen (small and to the right, as on the card, they were lost). The Blast's in
+the card's lettering, over the band's two chevrons stretched across the whole
+screen (small and to the right, as on the card, they were lost, and at most
+of its width still too small). The Blast's in
 its card's blue, Super10's in violet over ink, and the REPLAY tag the same. A
 broadcast stinger of slanted slabs, a light on the edge, racing lines and a
 slammed plate came first and was too aggressive, the owner said; a plain

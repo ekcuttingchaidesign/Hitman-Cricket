@@ -2977,7 +2977,7 @@ ${modeSelectMarkup()}
     wipe.style.setProperty('--rw', `${WIPE_MS}ms`);
     const mark = super10 ? `<img class="rw-mark" src="${REPLAY_MARK}" alt="">` : `<img class="rw-title" src="${REPLAY_TITLE}" alt="">`;
     wipe.innerHTML = '<i class="rw-train"><i class="rw-chev rw-c4"></i><i class="rw-chev rw-c3"></i>'
-      + `<i class="rw-panel">${BAND_CHEVRONS.replace('ec-chevrons', 'rw-band-chevrons')}</i><i class="rw-chev rw-c2"></i><i class="rw-chev rw-c1"></i></i>`
+      + `<i class="rw-panel">${BAND_CHEVRONS.replace('class="ec-chevrons"', 'class="rw-band-chevrons" preserveAspectRatio="none"')}</i><i class="rw-chev rw-c2"></i><i class="rw-chev rw-c1"></i></i>`
       + `<span class="rw-lock">${mark}<span class="rw-word">ACTION REPLAY</span></span>`;
     // Its children's animations bubble up here too: only its own end takes it away.
     wipe.addEventListener('animationend', event => { if (event.target === wipe) wipe.remove(); });
