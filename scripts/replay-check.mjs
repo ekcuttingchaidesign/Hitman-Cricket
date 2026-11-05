@@ -43,6 +43,7 @@ await page.addInitScript(() => {
 });
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
+page.on('crash', () => console.log('        THE PAGE CRASHED'));
 page.on('console', message => { if (message.type() === 'error' && !message.text().startsWith('Failed to load resource')) errors.push(message.text()); });
 await page.route('**/api/board**', route => route.fulfill({
   status: 200, contentType: 'application/json', body: JSON.stringify({ rows: [], cutoff: null, size: 50 }),
