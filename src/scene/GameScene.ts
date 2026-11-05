@@ -10,7 +10,7 @@ import { GAME } from '../config/gameplay';
 import { ballPosition, drawnAt, flightProgress } from '../game/DeliveryTrajectory';
 import { KIT, type Kit } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
-import { flightOf, sectorOf } from './flight';
+import { BOARDS, boardsAlong, flightOf, sectorOf } from './flight';
 import { OVERCAST, SKY, Sky, type SkyTime } from './sky';
 import { ARENA_NIGHT, FILL_POSITION, LIGHTING, glows, moon, nightReflections } from './night';
 import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture, type Turf } from './turf';
@@ -601,7 +601,7 @@ export class GameScene {
   private createStadium(anisotropy: number) {
     // The boards along the foot of the stands. Added to the scene rather than
     // the mirrored stage, or every sponsor would read backwards.
-    const boards = perimeterBoards(35.1, 1.2, 1.5, 10, anisotropy);
+    const boards = perimeterBoards(BOARDS, 1.2, 1.5, 10, anisotropy);
     this.scene.add(boards.group); this.textures.push(boards.texture);
     boards.group.traverse(object => {
       if (object instanceof THREE.Mesh && (object.material as THREE.MeshStandardMaterial).emissiveMap) this.boardsMaterial = object.material as THREE.MeshStandardMaterial;
@@ -1486,7 +1486,12 @@ export class GameScene {
       && !struckBody && !outcome.advance && flight.height < 1 && outcome.runs >= 1;
     if (along) angle = this.field.clear(this.hitStart, angle, flight.distance);
     this.gathered = false; this.spillEnd = null;
-    this.hitEnd.set(Math.sin(angle) * flight.distance, flight.endY, Math.cos(angle) * flight.distance);
+    // A four stops at the boards, wherever it was hit. Its flight runs forty-
+    // four metres from the bat, which is the boards straight; square they are
+    // thirty-three away and behind him twenty-five, and a scooped four went on
+    // through them into the stand as if it were a six.
+    const reach = outcome.runs === 4 && !rope ? Math.min(flight.distance, boardsAlong(angle) - .6) : flight.distance;
+    this.hitEnd.set(Math.sin(angle) * reach, flight.endY, Math.cos(angle) * reach);
     // Played on and edged are both placed rather than swept out along the
     // stroke's angle: one finishes in his own stumps, the other in the keeper's
     // gloves before the stroke is over.

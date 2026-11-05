@@ -2206,10 +2206,11 @@ replay's frames), the ball seen all the way to the stumps, and held on the
 bails and him (`BOWLED_AFTER`), with no cut to the field. How often
 (`replayDue`): the special strokes — the scoops, the slog sweep, the charge
 — a batter bowled, and a pull or hook for six every time (`always`, as the
-owner asked); the rest every one that qualifies, the next ball too, up to
-sixteen a Super10 innings and ten a Blast (`REPLAYS_PER_INNINGS`; it was
-one in three, an over apart, five and three, then two in three, two balls
-apart, ten and six, and the owner found both too rare); and a player who
+owner asked); the rest every one that qualifies, the next ball too, with
+no cap (`REPLAYS_PER_INNINGS` is every ball; it was one in three, an over
+apart, five and three, then two in three, two balls apart, ten and six,
+then sixteen and ten, which a good Blast used up by its fourth over, and the
+owner found each too rare); and a player who
 skips two running sees only a stroke not yet replayed that innings
 (`SKIPS_TO_QUIET`), the page's dice deciding nothing any more. Never
 over anything else the ball brings: a milestone, a moment, a chase passed,
@@ -2315,8 +2316,17 @@ is never replayed after.
 In Super10 a ball a boundary rider cut off or saved out of the game's
 picture (`offScreen`: a sweep or a pull fielded in the deep, square or
 behind) is followed to him the same way (`'field'`): the camera on him and
-the ball together, slowed through his collect or his dive, the call on the
-cut back.
+the ball together, slowed through his collect or his dive. He is one of the
+men joined for the camera, and taken off again at the cut back with the ball
+on its way in from him: `Field.leave` lets the ball go with him (`gatherer`),
+where the throw went on reading his plan after he had gone, threw, and froze
+the game (`tests/field.test.ts` holds it).
+
+A four stops at the boards wherever it is hit (`boardsAlong` in
+`flight.ts`, 35.1 metres round a point ten up the pitch): its flight ran
+forty-four metres from the bat, the boards straight, and behind him, where
+they are twenty-five away, a scooped four went through them into the stand
+as if it were a six.
 
 Off with the pause sheet's Replays switch, under `?debug=1` and reduced
 motion, in the tutorial and a demo; `?catchcam=1` shows every one, debug or

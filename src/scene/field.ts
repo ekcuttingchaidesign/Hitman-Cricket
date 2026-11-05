@@ -142,7 +142,7 @@ export class Field {
   standOn(marks: readonly Mark[]) {
     this.marks = marks; this.joined = 0;
     this.routines = marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i % SEEDS.length])]));
-    this.catching = null; this.gathering = null;
+    this.catching = null; this.gathering = null; this.gatherer = -1;
   }
 
   /**
@@ -163,7 +163,7 @@ export class Field {
     if (marks === this.marks) return;
     this.marks = marks; this.joined = 0;
     this.routines = marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i % SEEDS.length])]));
-    this.catching = null; this.gathering = null; this.bowling = null;
+    this.catching = null; this.gathering = null; this.gatherer = -1; this.bowling = null;
   }
 
   /**
@@ -184,8 +184,15 @@ export class Field {
     const keep = this.marks.length - this.joined;
     this.marks = this.marks.slice(0, keep); this.routines = this.routines.slice(0, keep); this.joined = 0;
     if (this.catching && this.catching.index >= keep) this.catching = null;
+    // One of them had the ball, picked up off the rope and on its way in to the
+    // bowler: the ball goes with him. Left reading his plan after it had gone,
+    // the next frame threw and the game stood still (Super10, a ball fielded in
+    // the deep out of the game's picture).
+    if (this.gatherer >= keep) { this.gathering = null; this.bowling = null; this.gatherer = -1; }
   }
   private joined = 0;
+  /** Who has the ball, picked up and on its way in (`throwToBowler`), or -1. */
+  private gatherer = -1;
 
   /** The marks the field stands on now: a replay adds its men behind square to them and puts them back after. */
   get standing() { return this.marks; }
@@ -200,7 +207,7 @@ export class Field {
    */
   home() {
     this.routines = this.marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i % SEEDS.length])]));
-    this.catching = null; this.gathering = null; this.bowling = null;
+    this.catching = null; this.gathering = null; this.gatherer = -1; this.bowling = null;
   }
 
   /** Pose everyone for this instant. */
@@ -230,7 +237,7 @@ export class Field {
   }
 
   /** A fresh delivery: whoever was under the last one is no longer catching it. */
-  reset() { this.catching = null; this.gathering = null; this.bowling = null; }
+  reset() { this.catching = null; this.gathering = null; this.gatherer = -1; this.bowling = null; }
   /** Which man is taking (or putting down) a catch this ball, by his place in the marks: Super10's map lights him. */
   get catcher() { return this.catching?.index ?? null; }
 
@@ -622,8 +629,11 @@ export class Field {
   private throwToBowler(i: number, at: { x: number; z: number }, before: Action[], had: number, has: number, now: number,
     look: (t: number) => THREE.Vector3 | null, bowler?: { rest: Body; free: number }, both = false) {
     const routine = this.routines[i];
+    this.gatherer = i;
     const holding = (t: number) => {
-      const body = this.routines[i].at(t);
+      const plan = this.routines[i];
+      if (!plan) return null;
+      const body = plan.at(t);
       return both && t < has ? midpointOfHands(body) : onField(body, body.pose.rightHand);
     };
     if (!bowler) {
@@ -675,6 +685,7 @@ export class Field {
     const pick = gather({ x: stand.x, z: stand.z, heading: Math.atan2(toward.x, toward.z) }, walk.end, ball);
     const pickedAt = walk.end + PICKED_UP;
     this.bowling = new Routine([still(bowler.rest, bowler.free), walk, pick]);
+    this.gatherer = -1;
     this.gathering = t => (t < pickedAt ? null : (b => onField(b, b.pose.rightHand))(this.bowling!.at(t)));
   }
 

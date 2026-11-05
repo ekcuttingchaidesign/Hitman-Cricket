@@ -170,3 +170,15 @@ const hang = (outcome: ShotOutcome) => outcome.hangMs ?? GAME.aerialFlightMs;
 
 const shape = (distance: number, height: number, flightMs: number, endY: number, takeAt = 1): Flight =>
   ({ distance, height, flightMs, endY, takeAt, dropAt: 0, bounceAt: 0 });
+
+/** The boards' radius, round a point ten metres up the pitch from the bat (`perimeterBoards`). */
+export const BOARDS = 35.1;
+/**
+ * How far the boards are from the bat along a line `angle` (radians) off
+ * straight: forty-five straight, thirty-three and a half square, twenty-five
+ * behind him. A four stops there (`GameScene.hit`).
+ */
+export function boardsAlong(angle: number) {
+  const c = Math.cos(angle);
+  return 10 * c + Math.sqrt(100 * c * c - 100 + BOARDS * BOARDS);
+}

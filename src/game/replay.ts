@@ -77,11 +77,13 @@ export interface ReplayLog {
 export const freshLog = (): ReplayLog => ({ shown: 0, lastAt: -Infinity, seen: [], skipped: 0 });
 
 /**
- * Raised twice when the owner found replays too rare: from five and three,
- * one in three and an over apart, to ten and six, two in three and two balls
- * apart, and now every one that qualifies, on the next ball as well.
+ * Raised three times when the owner found replays too rare: from five and
+ * three, one in three and an over apart, to ten and six, two in three and two
+ * balls apart, then every one that qualifies up to sixteen and ten — which a
+ * good Blast used up by its fourth over, and the fourth and fifth went
+ * without. Now no cap at all: an innings' every ball.
  */
-export const REPLAYS_PER_INNINGS = { super10: 16, blast: 10 } as const;
+export const REPLAYS_PER_INNINGS = { super10: 60, blast: 30 } as const;
 /** Balls from one replay to the next at the least: none between them now. */
 export const REPLAY_GAP = 1;
 /** A stroke already replayed this innings comes round again this often: every time. */

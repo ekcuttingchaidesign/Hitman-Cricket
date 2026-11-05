@@ -70,11 +70,13 @@ describe('which balls are replayed', () => {
     expect(due(four(3 + REPLAY_GAP - 1), log, 0)).toBe(false);
     expect(due(four(3 + REPLAY_GAP), log, 0)).toBe(true);
   });
-  it('no more than an innings allows', () => {
+  it('as many as an innings has balls: no cap the owner would meet', () => {
+    expect(REPLAYS_PER_INNINGS.blast).toBeGreaterThanOrEqual(30);
+    expect(REPLAYS_PER_INNINGS.super10).toBeGreaterThanOrEqual(60);
     let log = freshLog();
-    for (let i = 0; i < REPLAYS_PER_INNINGS.blast; i++) log = endedLog(shownLog(log, four(i * 10)), false);
-    expect(due(four(100), log, 0, { cap: REPLAYS_PER_INNINGS.blast })).toBe(false);
-    expect(due(four(100), log, 0, { cap: REPLAYS_PER_INNINGS.super10 })).toBe(true);
+    for (let i = 0; i < REPLAYS_PER_INNINGS.blast; i++) log = endedLog(shownLog(log, four(i)), false);
+    expect(due(four(1000), log, 0, { cap: REPLAYS_PER_INNINGS.blast })).toBe(false);
+    expect(due(four(1000), log, 0, { cap: REPLAYS_PER_INNINGS.super10 })).toBe(true);
   });
   it('a player who skips two running sees only a stroke not yet replayed', () => {
     let log = freshLog();
