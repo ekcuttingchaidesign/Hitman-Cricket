@@ -2269,7 +2269,9 @@ orange or violet band before that. Between the walk-on's
 bars with everything else put out of sight (`intro-on`), a REPLAY tag top left
 (`#replay-tag`). A tap, Space, Enter or Escape skips to the wipe out; a pause
 or a new innings cuts it short with none (`stopReplay`). The pause sheet has a
-Replays switch (`#replay-switch`, kept in `hitman-replays`). Off under
+Replays switch (`#replay-switch`, kept in `hitman-replays`), with a NEW tag
+beside its name (`#replay-new`, `newTagDue`) on a browser's first three pause
+sheets, gone for good once the switch is used (`hitman-replays-new`). Off under
 `?debug=1` and reduced motion; `?replay=1` replays every ball that qualifies,
 debug or not, and `?replay=0` none; neither is practice.
 `__cricket.snapshot().replay` says what is playing. GoatCounter counts

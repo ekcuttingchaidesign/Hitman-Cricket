@@ -123,6 +123,15 @@ export const endedLog = (log: ReplayLog, skipped: boolean): ReplayLog => ({ ...l
 // ---------------------------------------------------------------------------
 
 /**
+ * The NEW tag beside the pause sheet's Replays switch: there for the first
+ * pause sheets a browser sees (`NEW_TAG_SHOWS`) and gone for good once the
+ * switch has been used, kept in `hitman-replays-new` as the count of sheets
+ * seen, the switch's use writing it past the end.
+ */
+export const NEW_TAG_SHOWS = 3;
+export function newTagDue(seen: number) { return seen < NEW_TAG_SHOWS; }
+
+/**
  * The stinger that cuts into it and out of it, on the page's clock: ink
  * covers the screen at its middle, which is where the cut is made, so the
  * game's view is never seen jumping to the replay's or back.

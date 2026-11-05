@@ -1,7 +1,7 @@
 import { ropeAt as fieldRope } from '../src/game/super10-field';
 import { describe, expect, it } from 'vitest';
 import {
-  ALWAYS, BOWLED_AFTER, BOWLED_LEAD, AFTER_MS, ARRIVED_MS, CUT_AFTER, CUT_AFTERS, LEAD_IN, OVER_MS, overRope, ropeAt, SIX_HOLD, REPLAY_GAP, REPLAY_SLOW, REPLAYS_PER_INNINGS, SKIPS_TO_QUIET,
+  ALWAYS, NEW_TAG_SHOWS, newTagDue, BOWLED_AFTER, BOWLED_LEAD, AFTER_MS, ARRIVED_MS, CUT_AFTER, CUT_AFTERS, LEAD_IN, OVER_MS, overRope, ropeAt, SIX_HOLD, REPLAY_GAP, REPLAY_SLOW, REPLAYS_PER_INNINGS, SKIPS_TO_QUIET,
   endedLog, fieldCamera, freshLog, pickAngle, qualifies, replayCamera, replayDue, REPLAY_ANGLES, REPLAY_STROKES, replayPace, replayTimes, shownLog, type ReplayBall, type ReplayLog,
 } from '../src/game/replay';
 
@@ -219,5 +219,14 @@ describe('the replay', () => {
     expect(seen.size).toBe(ids.length);
     expect(pickAngle('cover', 'midoff', .5, 'midoff').id).toBe('midoff');
     expect(pickAngle('cover', null, .5, 'nowhere').id).toBe(pickAngle('cover', null, .5).id);
+  });
+});
+
+describe('the NEW tag beside the Replays switch', () => {
+  it('shows on the first pause sheets and then never', () => {
+    expect(NEW_TAG_SHOWS).toBe(3);
+    for (let seen = 0; seen < NEW_TAG_SHOWS; seen++) expect(newTagDue(seen), String(seen)).toBe(true);
+    expect(newTagDue(NEW_TAG_SHOWS)).toBe(false);
+    expect(newTagDue(99)).toBe(false);
   });
 });

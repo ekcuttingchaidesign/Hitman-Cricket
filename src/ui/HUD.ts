@@ -474,7 +474,7 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
               </button>
               <button id="replay-switch" class="pause-row" type="button" role="switch" aria-checked="true">
                 <span class="pause-row-icon is-replay">${icon('replay')}</span>
-                <span class="pause-row-say"><b>Replays</b><em>Your best strokes, played again</em></span>
+                <span class="pause-row-say"><b>Replays<span id="replay-new" class="pause-new hidden">NEW</span></b><em>Your best strokes, played again</em></span>
                 <span class="pause-switch" aria-hidden="true"></span>
               </button>
               <div id="lights-row" class="pause-row is-static hidden">
@@ -2958,6 +2958,8 @@ ${modeSelectMarkup()}
    */
   /** The pause sheet's replays switch, as it is set. */
   replaySwitch(on: boolean) { this.$('replay-switch').setAttribute('aria-checked', String(on)); }
+  /** The NEW tag beside Replays on the pause sheet (`newTagDue`). */
+  replayNew(on: boolean) { this.$('replay-new').classList.toggle('hidden', !on); }
   /**
    * The wipe a replay is cut into and out of under (`replay.ts`, `WIPE_MS`),
    * in the end card's band: the mode's gradient as one great chevron sweeping
