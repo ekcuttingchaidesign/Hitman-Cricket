@@ -2189,25 +2189,29 @@ Which balls (`qualifies`): a stroke on `REPLAY_STROKES` — the cover drive,
 the pull (the hook and the pull off the spinner with it), the square cut (at
 pace or off the spinner), the late cut, the two scoops, the lofted straight
 drive in either version (`straight`), the on drive's six (`on`), the flick
-version two, the orthodox sweep, the slog sweep and the charge — timed GOOD
-or PERFECT, for four or six; the lofted drives and the charge are only ever
-six (`REPLAY_RUNS`). The meter's strokes are replayed for four as well: for
-six alone a scoop's replay was so rare the owner never saw one. Which one a
-ball was is decided in `Game.shoot` beside the swing it keeps (`stroke` on
-`Kept`); the drives along the ground down the ground, the punch and flicks
-one and three are not replayed. A batter bowled (`bowled`, played on, beaten
+versions two and three (off the back foot), the back-foot punch (`punch`),
+the orthodox sweep, the slog sweep and the charge — for four or six however
+it was timed, short of a miss; the lofted drives and the charge are only
+ever six (`REPLAY_RUNS`). Any other stroke a shade mistimed or off the edge
+that still went for four or six is replayed too (`mistimed`, from above:
+`keepForReplay` names it, the owner wanting the camera on those as well).
+The meter's strokes are replayed for four as well: for six alone a scoop's
+replay was so rare the owner never saw one. Which one a ball was is decided
+in `Game.shoot` beside the swing it keeps (`stroke` on `Kept`); a well-timed
+drive along the ground down the ground and flick version one are not
+replayed. A batter bowled (`bowled`, played on, beaten
 or leaving it) is replayed too, from the bowler's end: opened on the
 bowler's last strides (`BOWLED_LEAD`, his action wound on through the
 replay's frames), the ball seen all the way to the stumps, and held on the
 bails and him (`BOWLED_AFTER`), with no cut to the field. How often
 (`replayDue`): the special strokes — the scoops, the slog sweep, the charge
-— and a batter bowled every time (`ALWAYS`, as the owner asked); the rest
-the first of each stroke an innings always, then two in three, off the
-page's dice and never the seed; never within two balls of the last
-(`REPLAY_GAP`); at most ten a Super10 innings and six a Blast
-(`REPLAYS_PER_INNINGS`; it was one in three, an over apart, five and three,
-and the owner found replays too rare); and a player who skips two running
-sees only a stroke not yet replayed that innings (`SKIPS_TO_QUIET`). Never
+— a batter bowled, and a pull or hook for six every time (`always`, as the
+owner asked); the rest every one that qualifies, the next ball too, up to
+sixteen a Super10 innings and ten a Blast (`REPLAYS_PER_INNINGS`; it was
+one in three, an over apart, five and three, then two in three, two balls
+apart, ten and six, and the owner found both too rare); and a player who
+skips two running sees only a stroke not yet replayed that innings
+(`SKIPS_TO_QUIET`), the page's dice deciding nothing any more. Never
 over anything else the ball brings: a milestone, a moment, a chase passed,
 nor a new batter or the innings' last ball, but for bowled, which plays
 before the next man walks out or the card comes up. Super10 and the
@@ -2261,7 +2265,8 @@ drives a cover drive for four on `?cover=1&replay=1`, photographs the replay
 through and skips a second with a tap (`MODE=super10` for Super10,
 `ANGLE=<id>` for one camera, `STROKE=pull` for the pull at a bouncer, `STROKE=straight` for the straight
 six, `STROKE=cut` for the square cut at `?latecut=1`'s ball, `STROKE=bowled`
-for late cuts at that ball until one is bowled). The lab has the
+for late cuts at that ball until one is bowled, `STROKE=punch` for cover swipes at that ball until a back-foot punch goes
+for four). The lab has the
 straight six, the on drive's six, the flick, the sweep and the slog sweep
 beside the first strokes.
 

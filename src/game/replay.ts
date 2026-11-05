@@ -15,17 +15,17 @@ type Vec = readonly [number, number, number];
  * and no ball of the innings moves: whether one is shown is drawn off the
  * page's dice, never the seed.
  *
- * Which balls: a stroke on `REPLAY_STROKES`, timed GOOD or PERFECT, that went
- * for four or six. How often (`replayDue`): the first of each stroke an
- * innings always, after that one in three (`REPLAY_ODDS`), never within an
- * over of the last (`REPLAY_GAP`) and no more than `REPLAYS_PER_INNINGS`; a
- * player who skips two running is shown only a stroke they have not had
- * replayed yet that innings. Never over anything else the ball brings — a
- * milestone, a chase passed, a new batter, the innings' last ball — which the
+ * Which balls: a stroke on `REPLAY_STROKES`, timed any way but missed, that
+ * went for four or six, or a batter bowled. How often (`replayDue`): every
+ * one, up to `REPLAYS_PER_INNINGS`; the special strokes, bowled and a pull or
+ * hook for six past that too (`always`); a player who skips two running is
+ * shown only a stroke they have not had replayed yet that innings. Never over
+ * anything else the ball brings — a milestone, a chase passed, a new batter,
+ * the innings' last ball, bowled aside — which the
  * game says with `blocked`.
  */
 export type ReplayStroke = 'cover' | 'pull' | 'cut' | 'latecut' | 'scoop' | 'reverse'
-  | 'straight' | 'on' | 'flick' | 'sweep' | 'slog' | 'charge' | 'bowled';
+  | 'straight' | 'on' | 'flick' | 'sweep' | 'slog' | 'charge' | 'bowled' | 'punch' | 'mistimed';
 /**
  * The strokes worth seeing again: the cover drive, lofted or along the
  * ground; the pull, with the hook and the pull off the spinner; the square
@@ -35,13 +35,15 @@ export type ReplayStroke = 'cover' | 'pull' | 'cut' | 'latecut' | 'scoop' | 'rev
  * charge, lofted over cover or straight. The drives along the ground down the
  * ground, the punch and the other flicks are not replayed.
  */
-export const REPLAY_STROKES: readonly ReplayStroke[] = ['cover', 'pull', 'cut', 'latecut', 'scoop', 'reverse', 'straight', 'on', 'flick', 'sweep', 'slog', 'charge', 'bowled'];
+export const REPLAY_STROKES: readonly ReplayStroke[] = ['cover', 'pull', 'cut', 'latecut', 'scoop', 'reverse', 'straight', 'on', 'flick', 'sweep', 'slog', 'charge', 'bowled', 'punch', 'mistimed'];
 /**
  * Shown every time: the meter's strokes — the scoops, the slog sweep, the
  * charge — whenever they come off, and a batter bowled, from the bowler's
  * end. No dice, no gap and no cap for these, as the owner asked.
  */
 export const ALWAYS: readonly ReplayStroke[] = ['scoop', 'reverse', 'slog', 'charge', 'bowled'];
+/** And a pull or a hook for six, every time (the owner's ask). */
+export const always = (ball: ReplayBall) => ALWAYS.includes(ball.stroke!) || (ball.stroke === 'pull' && ball.runs === 6);
 /**
  * The runs a stroke has to make to be replayed: four, and six for the lofted
  * drives, which are only ever played for it. The meter's strokes — the scoops,
@@ -49,7 +51,7 @@ export const ALWAYS: readonly ReplayStroke[] = ['scoop', 'reverse', 'slog', 'cha
  * for six alone, a scoop's replay was so rare nobody saw one.
  */
 export const REPLAY_RUNS: Record<ReplayStroke, number> = {
-  cover: 4, pull: 4, cut: 4, latecut: 4, scoop: 4, reverse: 4, straight: 6, on: 6, flick: 4, sweep: 4, slog: 4, charge: 6, bowled: 0,
+  cover: 4, pull: 4, cut: 4, latecut: 4, scoop: 4, reverse: 4, straight: 6, on: 6, flick: 4, sweep: 4, slog: 4, charge: 6, bowled: 0, punch: 4, mistimed: 4,
 };
 
 /** What the game says about the ball just played. `stroke` is null for one that is not on the list. */
@@ -74,18 +76,23 @@ export interface ReplayLog {
 }
 export const freshLog = (): ReplayLog => ({ shown: 0, lastAt: -Infinity, seen: [], skipped: 0 });
 
-/** Raised from five and three when the owner found replays too rare. */
-export const REPLAYS_PER_INNINGS = { super10: 10, blast: 6 } as const;
-/** Balls from one replay to the next at the least. It was an over, which the owner found too few. */
-export const REPLAY_GAP = 2;
-/** A stroke already replayed this innings comes round again this often. */
-export const REPLAY_ODDS = 2 / 3;
+/**
+ * Raised twice when the owner found replays too rare: from five and three,
+ * one in three and an over apart, to ten and six, two in three and two balls
+ * apart, and now every one that qualifies, on the next ball as well.
+ */
+export const REPLAYS_PER_INNINGS = { super10: 16, blast: 10 } as const;
+/** Balls from one replay to the next at the least: none between them now. */
+export const REPLAY_GAP = 1;
+/** A stroke already replayed this innings comes round again this often: every time. */
+export const REPLAY_ODDS = 1;
 /** Skipped this many running, only a stroke not yet replayed is shown. */
 export const SKIPS_TO_QUIET = 2;
 
 export function qualifies(ball: ReplayBall) {
   if (ball.stroke === 'bowled') return ball.wicket;
-  return !!ball.stroke && !ball.wicket && ball.runs >= REPLAY_RUNS[ball.stroke] && (ball.grade === 'PERFECT' || ball.grade === 'GOOD');
+  // Any timing: a stroke a shade mistimed that still went for four or six is worth the camera too.
+  return !!ball.stroke && !ball.wicket && ball.grade !== 'MISS' && ball.runs >= REPLAY_RUNS[ball.stroke];
 }
 
 /**
@@ -94,7 +101,7 @@ export function qualifies(ball: ReplayBall) {
  */
 export function replayDue(ball: ReplayBall, log: ReplayLog, opts: { cap: number; blocked: boolean; roll: number; every?: boolean }) {
   if (!qualifies(ball) || opts.blocked) return false;
-  if (opts.every || ALWAYS.includes(ball.stroke!)) return true;
+  if (opts.every || always(ball)) return true;
   if (log.shown >= opts.cap || ball.index - log.lastAt < REPLAY_GAP) return false;
   const fresh = !log.seen.includes(ball.stroke!);
   if (fresh) return true;
@@ -144,7 +151,7 @@ export const CUT_AFTER = 260;
  */
 export const CUT_AFTERS: Record<ReplayStroke, number> = {
   cover: CUT_AFTER, pull: 320, cut: 380, latecut: 320, scoop: 300, reverse: 300,
-  straight: 380, on: 400, flick: 300, sweep: 340, slog: 420, charge: 380, bowled: Infinity,
+  straight: 380, on: 400, flick: 300, sweep: 340, slog: 420, charge: 380, bowled: Infinity, punch: 340, mistimed: CUT_AFTER,
 };
 export const ARRIVED_MS = 650;
 /** A six is let go sooner once it is over the rope: the camera looks up after it, and there is nothing but sky to hold on. */
@@ -265,6 +272,10 @@ export const STROKE_CAMERAS: Record<ReplayStroke, readonly string[]> = {
   on: ['sightscreen', 'umpire'],
   charge: ['sightscreen', 'umpire', 'midoff'],
   bowled: ['umpire', 'sightscreen'],
+  // Through cover off the back foot, so from the off side.
+  punch: ['off-side', 'midoff', 'midoff-ground', 'spider-umpire'],
+  // Any other stroke a shade mistimed that went for four or six: from above, wherever it went.
+  mistimed: ['spider-umpire', 'spider-legslip', 'midoff'],
   flick: ['leg-side', 'midon-ground', 'spider-umpire'],
   sweep: ['leg-side', 'spider-legslip', 'midon-ground'],
   slog: ['leg-side', 'midon-ground', 'spider-umpire'],

@@ -10,10 +10,12 @@ const due = (ball: ReplayBall, log: ReplayLog, roll = .99, extra: { cap?: number
   replayDue(ball, log, { cap: extra.cap ?? REPLAYS_PER_INNINGS.super10, blocked: extra.blocked ?? false, roll, every: extra.every });
 
 describe('which balls are replayed', () => {
-  it('a cover drive timed good or perfect that went for four or six', () => {
+  it('a cover drive that went for four or six, however it was timed', () => {
     expect(qualifies(four(0))).toBe(true);
     expect(qualifies(four(0, { grade: 'GOOD', runs: 6 }))).toBe(true);
-    expect(qualifies(four(0, { grade: 'OK' }))).toBe(false);
+    expect(qualifies(four(0, { grade: 'OK' }))).toBe(true);
+    expect(qualifies(four(0, { grade: 'POOR', runs: 6 }))).toBe(true);
+    expect(qualifies(four(0, { grade: 'MISS' }))).toBe(false);
     expect(qualifies(four(0, { runs: 3 }))).toBe(false);
     expect(qualifies(four(0, { wicket: true }))).toBe(false);
     expect(qualifies(four(0, { stroke: null }))).toBe(false);
@@ -30,18 +32,24 @@ describe('which balls are replayed', () => {
       expect(qualifies(four(0, { stroke, runs: 6 })), stroke).toBe(true);
     }
   });
-  it('the first of each stroke, each its own', () => {
-    const log = shownLog(freshLog(), four(0));
-    expect(due(four(10, { stroke: 'pull' }), log, .99)).toBe(true);
-    expect(due(four(10), log, .99)).toBe(false);
+  it('the first of each stroke, each its own, even for a player who has been skipping', () => {
+    let log = freshLog();
+    for (let i = 0; i < SKIPS_TO_QUIET; i++) log = endedLog(shownLog(log, four(i * 10)), true);
+    expect(due(four(50, { stroke: 'pull' }), log, .99)).toBe(true);
+    expect(due(four(50), log, .99)).toBe(false);
   });
   it('the first of a stroke in an innings always, whatever the dice', () => {
     expect(due(four(0), freshLog(), .99)).toBe(true);
   });
-  it('after that two in three', () => {
+  it('after that every time, on the very next ball too', () => {
     const log = shownLog(freshLog(), four(0));
-    expect(due(four(10), log, .5)).toBe(true);
-    expect(due(four(10), log, .8)).toBe(false);
+    expect(due(four(1), log, .99)).toBe(true);
+  });
+  it('the punch, the back-foot flick and a mistimed boundary for four, a pull or hook for six every time', () => {
+    for (const stroke of ['punch', 'flick', 'mistimed'] as const) expect(qualifies(four(0, { stroke, grade: 'OK' })), stroke).toBe(true);
+    const capped = { ...shownLog(freshLog(), four(0, { stroke: 'pull' })), shown: 99, skipped: 5 };
+    expect(due(four(1, { stroke: 'pull', runs: 6 }), capped, .99, { cap: 0 })).toBe(true);
+    expect(due(four(1, { stroke: 'pull', runs: 4 }), capped, .99, { cap: 0 })).toBe(false);
   });
   it('the special strokes and a batter bowled every time, whatever the dice, the gap or the cap', () => {
     for (const stroke of ALWAYS) {
@@ -82,7 +90,7 @@ describe('which balls are replayed', () => {
   it('every ball that qualifies when asked, gap and cap or not', () => {
     const log = shownLog(freshLog(), four(0));
     expect(due(four(1), log, .99, { every: true, cap: 0 })).toBe(true);
-    expect(due(four(1, { grade: 'POOR' }), log, 0, { every: true })).toBe(false);
+    expect(due(four(1, { grade: 'MISS' }), log, 0, { every: true })).toBe(false);
   });
 });
 

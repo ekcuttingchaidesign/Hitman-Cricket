@@ -3084,11 +3084,14 @@ export class Game {
     // Kept, for a replay of it: everything the scene was told, and when.
     // Which of the strokes a replay shows it is (`REPLAY_STROKES`), if any:
     // the pull is the leg-side input neither swept nor flicked, the hook and
-    // the pull off the spinner with it.
+    // the pull off the spinner with it; the punch is the cover swipe at a ball
+    // short of a length; the flick is versions two and three (off the back
+    // foot). Any other stroke a shade mistimed for four or six is `mistimed`
+    // (`keepForReplay`).
     const stroke: ReplayStroke | null = charging ? 'charge' : sweeping ? 'slog' : levelled ? 'sweep'
-      : shotType === 'COVER_LONG_OFF' ? (punching ? null : 'cover')
+      : shotType === 'COVER_LONG_OFF' ? (punching ? 'punch' : 'cover')
       : shotType === 'STRAIGHT' ? (lofted ? 'straight' : null) : shotType === 'LONG_ON' ? (lofted ? 'on' : null)
-      : flicking ? (version === 2 ? 'flick' : null)
+      : flicking ? (version === 1 ? null : 'flick')
       : shotType === 'HOOK' || spinPulling || shotType === 'LEG' ? 'pull'
       : shotType === 'SQUARE_CUT' ? 'cut' : shotType === 'LATE_CUT' ? 'latecut'
       : shotType === 'SCOOP' ? 'scoop' : shotType === 'REVERSE_SCOOP' ? 'reverse' : null;
@@ -4861,7 +4864,11 @@ export class Game {
     const delivery = this.delivery, outcome = this.outcome;
     // Bowled — played on, or beaten, or left alone — is shown from the bowler's end, the ball all the way.
     const bowled = outcome?.wicketType === 'BOWLED';
-    const swing = bowled ? { ...(this.keptSwing ?? NO_SWING), stroke: 'bowled' as const } : this.keptSwing;
+    // Any other stroke a shade mistimed, or off the edge, that still went for
+    // four or six gets the camera too, as a stroke of its own (`mistimed`).
+    const mistimed = !!outcome && outcome.runs >= 4 && (!!outcome.edged || (outcome.timingGrade !== 'PERFECT' && outcome.timingGrade !== 'GOOD'));
+    const swing = bowled ? { ...(this.keptSwing ?? NO_SWING), stroke: 'bowled' as const }
+      : this.keptSwing && !this.keptSwing.stroke && mistimed ? { ...this.keptSwing, stroke: 'mistimed' as const } : this.keptSwing;
     if (!swing || !delivery || !outcome) return;
     const release = delivery.releaseTimeMs;
     this.kept = { delivery: { ...delivery }, swing, outcome, swingAfter: swing.at - release, resolveAfter: this.elapsed - release, contactAfter: contactAt - release, arrives, held, bowled };
