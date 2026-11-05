@@ -2273,13 +2273,16 @@ Replays switch (`#replay-switch`, kept in `hitman-replays`), with a NEW tag
 beside its name (`#replay-new`, `newTagDue`) on a browser's first three pause
 sheets, gone for good once the switch is used (`hitman-replays-new`). Off under
 `?debug=1` and reduced motion; `?replay=1` replays every ball that qualifies,
-debug or not, and `?replay=0` none; neither is practice.
+debug or not, `?replay=due` the ones a player would get, debug or not, and
+`?replay=0` none; none of them is practice. `snapshot()` carries `kept`, the
+`replayLog` and `changed`, for a check to see why a ball was not replayed.
 `__cricket.snapshot().replay` says what is playing. GoatCounter counts
 `replay-<stroke>` and `replay-skipped-<stroke>`, and each again with the
 camera on the end (`replay-cover-midoff`), so the cameras players skip show. `scripts/replay-check.mjs`
 drives a cover drive for four on `?cover=1&replay=1`, photographs the replay
 through and skips a second with a tap (`MODE=super10` for Super10,
-`ANGLE=<id>` for one camera, `STROKE=pull` for the pull at a bouncer, `STROKE=straight` for the straight
+`ANGLE=<id>` for one camera, `DUE=1` for the replays a player would get
+rather than every one, `EXTRA=&…` for more of the link, `STROKE=pull` for the pull at a bouncer, `STROKE=straight` for the straight
 six, `STROKE=cut` for the square cut at `?latecut=1`'s ball, `STROKE=bowled`
 for late cuts at that ball until one is bowled, `STROKE=punch` for cover swipes at that ball until a back-foot punch goes
 for four). The lab has the

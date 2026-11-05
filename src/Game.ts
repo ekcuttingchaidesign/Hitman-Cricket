@@ -4856,13 +4856,15 @@ export class Game {
   private replaysOn = (() => { try { return localStorage.getItem(REPLAYS_KEY) !== 'off'; } catch { return true; } })();
   /**
    * `?replay=1` replays every ball that qualifies, under `?debug=1` too, for
-   * looking at it; `?replay=0` none. Otherwise not under `?debug=1`, whose
+   * looking at it; `?replay=due` as a player would get them, under `?debug=1`
+   * too, for the checks; `?replay=0` none. Otherwise not under `?debug=1`, whose
    * checks time their innings to the ball, nor for a player who asked for less
    * motion.
    */
   private readonly replayAsked: 'every' | 'off' | null = (() => {
     const asked = new URLSearchParams(location.search).get('replay');
     if (asked === '1') return 'every';
+    if (asked === 'due') return null;
     if (asked === '0' || this.debug) return 'off';
     return matchMedia('(prefers-reduced-motion: reduce)').matches ? 'off' : null;
   })();
@@ -5000,6 +5002,7 @@ export class Game {
   private readonly catchAsked: 'every' | 'off' | null = (() => {
     const asked = new URLSearchParams(location.search).get('catchcam');
     if (asked === '1') return 'every';
+    if (asked === 'due') return null;
     if (asked === '0' || this.debug) return 'off';
     return matchMedia('(prefers-reduced-motion: reduce)').matches ? 'off' : null;
   })();
@@ -7035,6 +7038,7 @@ export class Game {
       reel: this.reel ? { shot: this.reel.shot, at: Math.round(this.elapsed - this.reel.start), struck: this.reel.struck } : null,
       // The replay playing: its stroke, how far in (null while it wipes in), whether it is wiping out; and how many this innings.
       catchCam: this.catchCam ? { shot: this.catchCam.shot, on: this.catchCam.on, sinceTake: Math.round(this.elapsed - this.catchCam.take) } : null,
+      kept: this.kept ? { stroke: this.kept.swing.stroke, runs: this.kept.outcome.runs, dropped: !!this.kept.outcome.dropped } : null, replayLog: { ...this.replayLog }, changed: this.changed, milestone: !!this.milestoneDue,
       replay: this.replay ? { stroke: this.replay.kept.swing.stroke, angle: this.replay.angle.id, at: this.replay.start === null ? null : Math.round(this.elapsed - this.replay.start), struck: this.replay.struck, ending: this.replay.ending !== null } : null,
       replays: this.replayLog.shown, balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
       line: this.delivery?.line ?? '—', dragged: !!this.delivery?.dragged, spinPulled: !!this.outcome?.spinPulled, spinPulls: this.spinPulls, hooks: this.hooks, effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',

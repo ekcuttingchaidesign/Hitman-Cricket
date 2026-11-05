@@ -67,7 +67,7 @@ const STROKES = {
 };
 const asked = STROKES[process.env.STROKE] ? process.env.STROKE : 'cover', played = STROKES[asked];
 const keys = played.keys;
-await page.goto(`${base}/?debug=1&seed=2718&${played.ball}=1&replay=1&lights=day${angle}`, { waitUntil: 'load' });
+await page.goto(`${base}/?debug=1&seed=2718&${played.ball}=1&replay=${process.env.DUE ? "due" : "1"}&lights=day${angle}${process.env.EXTRA ?? ""}`, { waitUntil: 'load' });
 await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 3000);
 await advance(2500);
 await page.waitForTimeout(800);
