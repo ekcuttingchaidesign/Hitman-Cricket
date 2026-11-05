@@ -5723,16 +5723,54 @@ video.whatsnew-film.is-fit{height:auto;object-fit:contain;
 /* The catch camera's call, up as he takes it (`HUD.catching`). Important: each :not(#id) above counts as an id, which outranked it. */
 #viewport.intro-on.is-catching>#result{visibility:visible!important}
 /* The action replay (`replay.ts`): under the walk-on's bars, a REPLAY tag top
-   left, and the cut in and out made under a band that sweeps across the whole
-   screen — Super10's violet with its logo, or the game's orange — covering it
-   for the middle of its WIPE_MS (560ms), when the camera is changed. */
-#replay-wipe{position:absolute;inset:0;z-index:70;overflow:hidden;pointer-events:none}
-#replay-wipe .rw-band{position:absolute;top:-10%;bottom:-10%;left:0;width:220%;display:grid;place-items:center;
-  background:linear-gradient(100deg,#ff8a3d 0 6%,#e9582b 6% 94%,#ff8a3d 94%);transform:translateX(-200%) skewX(-12deg);animation:rw-sweep .56s cubic-bezier(.6,.05,.4,.95) both}
-#replay-wipe.is-super10 .rw-band{background:linear-gradient(100deg,#c6ff1a 0 4%,#5b2fc0 4% 96%,#c6ff1a 96%)}
-#replay-wipe .rw-mark{width:calc(var(--u) * 150);transform:skewX(12deg)}
-#replay-wipe .rw-word{transform:skewX(12deg);color:#fff;font:400 calc(var(--u) * 44)/1 var(--f-display);letter-spacing:.08em;font-variation-settings:'opsz' 6}
-@keyframes rw-sweep{0%{transform:translateX(-200%) skewX(-12deg)}42%,58%{transform:translateX(-40%) skewX(-12deg)}100%{transform:translateX(110%) skewX(-12deg)}}
+   left, and the cut in and out made under a broadcast stinger (`HUD.replayWipe`,
+   WIPE_MS long, its length handed in as --rw). Three slabs on the slant sweep
+   across one after another — the accent with a light on its edge, the colour,
+   then ink with lines racing through it — and leave ink first, so the picture
+   comes back through the colour and the accent. Ink alone covers the screen
+   from 40% to 60%, the cut at 50%; over it the lockup slams on (the game's
+   title or Super10's mark, ACTION REPLAY on a slanted plate with a light run
+   across it, a rule over and under) and flies off before ink goes. */
+#replay-wipe{--rw-a:#ffc23a;--rw-b:#e9582b;--rw-c:#0c1020;--rw-glow:rgba(233,88,43,.65);
+  position:absolute;inset:0;z-index:70;overflow:hidden;pointer-events:none;animation:rw-life var(--rw,780ms) linear both}
+#replay-wipe.is-super10{--rw-a:#c6ff1a;--rw-b:#5b2fc0;--rw-c:#120a2a;--rw-glow:rgba(120,72,240,.6)}
+#replay-wipe .rw-slab{position:absolute;top:-6%;bottom:-6%;left:-35%;width:170%;transform:translateX(-101%) skewX(-14deg);animation:var(--rw,780ms) linear both;will-change:transform}
+#replay-wipe .rw-s1{background:var(--rw-a);animation-name:rw-s1}
+#replay-wipe .rw-s1::after{content:'';position:absolute;top:0;bottom:0;right:0;width:calc(var(--u) * 5);background:#fff;box-shadow:0 0 calc(var(--u) * 24) calc(var(--u) * 6) rgba(255,255,255,.75)}
+#replay-wipe .rw-s2{background:linear-gradient(90deg,var(--rw-b) 0 97%,color-mix(in srgb,var(--rw-b),#fff 35%) 97%);animation-name:rw-s2}
+#replay-wipe .rw-s3{overflow:hidden;background:radial-gradient(ellipse 34% 40% at 50% 50%,var(--rw-glow),transparent 70%),var(--rw-c);animation-name:rw-s3}
+#replay-wipe .rw-lines{position:absolute;inset:0 -100% 0 0;opacity:.55;animation:rw-lines var(--rw,780ms) linear both;
+  background:repeating-linear-gradient(90deg,transparent 0 calc(var(--u) * 26),rgba(255,255,255,.06) calc(var(--u) * 26) calc(var(--u) * 28),transparent calc(var(--u) * 28) calc(var(--u) * 61),color-mix(in srgb,var(--rw-b),transparent 65%) calc(var(--u) * 61) calc(var(--u) * 64))}
+#replay-wipe .rw-lock{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u) * 16);opacity:0;animation:rw-lock var(--rw,780ms) linear both}
+#replay-wipe .rw-title{width:calc(var(--u) * 300);filter:drop-shadow(0 calc(var(--u) * 6) calc(var(--u) * 14) rgba(0,0,0,.55))}
+#replay-wipe .rw-mark{width:calc(var(--u) * 230);filter:drop-shadow(0 0 calc(var(--u) * 18) var(--rw-glow))}
+#replay-wipe .rw-plate{position:relative;overflow:hidden;display:flex;align-items:center;gap:calc(var(--u) * 10);padding:calc(var(--u) * 10) calc(var(--u) * 28) calc(var(--u) * 8);background:var(--rw-b);transform:skewX(-14deg);
+  box-shadow:calc(var(--u) * -7) 0 0 var(--rw-a),0 calc(var(--u) * 10) calc(var(--u) * 28) rgba(0,0,0,.5)}
+#replay-wipe .rw-kicker,#replay-wipe .rw-word{transform:skewX(14deg)}
+#replay-wipe .rw-kicker{color:var(--rw-a);font:700 calc(var(--u) * 16)/1 var(--f-ui);letter-spacing:.3em}
+#replay-wipe .rw-word{color:#fff;font:400 calc(var(--u) * 58)/1 var(--f-display);letter-spacing:.06em;font-variation-settings:'opsz' 6}
+#replay-wipe.is-super10 .rw-word{font:italic 900 calc(var(--u) * 52)/1 Saira,var(--f-display);letter-spacing:.02em}
+#replay-wipe .rw-shine{position:absolute;top:0;bottom:0;left:0;width:45%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);transform:translateX(-120%);animation:rw-shine var(--rw,780ms) linear both}
+#replay-wipe .rw-rule{width:calc(var(--u) * 320);height:calc(var(--u) * 2);background:linear-gradient(90deg,transparent,var(--rw-a) 30% 70%,transparent);transform:scaleX(0);animation:rw-rule var(--rw,780ms) linear both}
+@keyframes rw-life{from,to{opacity:1}}
+@keyframes rw-s1{0%{transform:translateX(-101%) skewX(-14deg);animation-timing-function:cubic-bezier(.3,0,.2,1)}
+  28%,72%{transform:translateX(0) skewX(-14deg);animation-timing-function:cubic-bezier(.7,0,.6,1)}100%{transform:translateX(101%) skewX(-14deg)}}
+@keyframes rw-s2{0%,5%{transform:translateX(-101%) skewX(-14deg);animation-timing-function:cubic-bezier(.3,0,.2,1)}
+  34%,66%{transform:translateX(0) skewX(-14deg);animation-timing-function:cubic-bezier(.7,0,.6,1)}95%,100%{transform:translateX(101%) skewX(-14deg)}}
+@keyframes rw-s3{0%,10%{transform:translateX(-101%) skewX(-14deg);animation-timing-function:cubic-bezier(.3,0,.2,1)}
+  40%,60%{transform:translateX(0) skewX(-14deg);animation-timing-function:cubic-bezier(.7,0,.6,1)}90%,100%{transform:translateX(101%) skewX(-14deg)}}
+@keyframes rw-lines{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+@keyframes rw-lock{0%,30%{opacity:0;transform:translateX(-14%) scale(1.3)}
+  38%{opacity:1;transform:translateX(1%) scale(.96)}42%{transform:translateX(0) scale(1.01)}
+  45%,57%{opacity:1;transform:translateX(0) scale(1)}64%,100%{opacity:0;transform:translateX(16%) scale(1.04)}}
+@keyframes rw-shine{0%,38%{transform:translateX(-120%)}56%,100%{transform:translateX(260%)}}
+@keyframes rw-rule{0%,34%{transform:scaleX(0)}46%,56%{transform:scaleX(1)}62%,100%{transform:scaleX(0)}}
+@media (prefers-reduced-motion:reduce){
+  #replay-wipe .rw-slab{transform:translateX(0) skewX(-14deg);animation-name:rw-fade}
+  #replay-wipe .rw-lock{animation-name:rw-fade}
+  #replay-wipe .rw-lines,#replay-wipe .rw-shine,#replay-wipe .rw-rule{animation:none;transform:none}
+  #replay-wipe .rw-shine{display:none}}
+@keyframes rw-fade{0%,100%{opacity:0}35%,65%{opacity:1}}
 #replay-tag{position:absolute;z-index:60;top:calc(11% + var(--u) * 12);left:calc(var(--u) * 16);display:flex;align-items:center;gap:calc(var(--u) * 8);padding:calc(var(--u) * 7) calc(var(--u) * 12);border-radius:calc(var(--u) * 8);
   background:#e9582b;color:#fff;font:400 calc(var(--u) * 15)/1 var(--f-display);letter-spacing:.12em;font-variation-settings:'opsz' 6;pointer-events:none;animation:rt-in .3s ease both}
 #replay-tag.is-super10{background:#5b2fc0;box-shadow:inset 0 0 0 1.5px #c6ff1a}

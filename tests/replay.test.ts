@@ -21,7 +21,7 @@ describe('which balls are replayed', () => {
     expect(qualifies(four(0, { stroke: null }))).toBe(false);
   });
   it('the pull, the cuts, the flick, the sweeps and the scoops for four or six', () => {
-    for (const stroke of ['pull', 'cut', 'latecut', 'flick', 'sweep', 'slog', 'scoop', 'reverse'] as const) {
+    for (const stroke of ['pull', 'cut', 'spincut', 'latecut', 'flick', 'sweep', 'slog', 'scoop', 'reverse'] as const) {
       expect(qualifies(four(0, { stroke })), stroke).toBe(true);
       expect(qualifies(four(0, { stroke, runs: 6 })), stroke).toBe(true);
     }
@@ -201,6 +201,10 @@ describe('the replay', () => {
     }
     // The cuts go to the off side: never the camera on the leg side, which sees his back.
     expect(REPLAY_ANGLES.cut.map(angle => angle.id)).not.toContain('leg-side');
+    expect(REPLAY_ANGLES.spincut.map(angle => angle.id)).not.toContain('leg-side');
+    // The square cut at pace never from point, the owner said; the cut off the spinner may be.
+    expect(REPLAY_ANGLES.cut.map(angle => angle.id)).not.toContain('off-side');
+    expect(REPLAY_ANGLES.spincut.map(angle => angle.id)).toContain('off-side');
     expect(REPLAY_ANGLES.pull.map(angle => angle.id)).not.toContain('off-side');
     // The sixes down the ground from the bowler's end, over the sightscreen or from the big screen.
     for (const stroke of ['straight', 'on'] as const) expect(REPLAY_ANGLES[stroke].map(angle => angle.id)).toEqual(['sightscreen', 'umpire']);

@@ -2228,7 +2228,9 @@ behind the stumps (`BEHIND`: `sightscreen`, `umpire`; a first pair high over
 the sightscreen and from the big screen did not look good) — and each stroke is shown from the ones that suit it
 (`STROKE_CAMERAS`: on the side the ball goes, or in front of him, never one
 that sees his back as the ball goes away from it — the square cut from the
-leg side did not look good, the owner said), two at least, switched in the
+leg side did not look good, the owner said; nor the square cut at pace from
+point, square on the off side, which the cut off the spinner keeps: they are
+`cut` and `spincut`), two at least, switched in the
 lab's Cameras for this stroke and copied out with Copy camera choices: seven — mid-off, a spider cam over the umpire and one over leg slip,
 square on either side, and mid-on and mid-off at ground level on long lenses
 — all held still, all well back, so he fills a sixth or so of the picture
@@ -2251,8 +2253,16 @@ Copy camera, which gives the numbers in the game's frame as `REPLAY_ANGLES`
 takes them. `scripts/replay-camera-artifact.mjs` builds it into one file; it
 is published as the claude.ai artifact "Replay Camera Lab".
 
-It is cut into and out of under a wipe (`WIPE_MS`, `#replay-wipe`: Super10's
-violet with its logo, or the game's orange with REPLAY), between the walk-on's
+It is cut into and out of under a broadcast stinger (`WIPE_MS`, 780ms,
+`#replay-wipe`, `HUD.replayWipe`): three slabs on the slant sweep across one
+after another — the accent with a light on its edge, the colour, then ink with
+lines racing through it — and leave ink first, the picture coming back through
+the colour; ink alone covers the screen through its middle fifth, where the cut
+is made, and over it the lockup slams on and flies off: the game's title, or
+Super10's mark, over ACTION REPLAY on a slanted plate with a light run across
+it, a rule over and under. The Blast's in its orange and gold on navy ink,
+Super10's in violet and Volt (a plain orange or violet band with the logo was
+the first build, and the owner wanted a broadcast's). Between the walk-on's
 bars with everything else put out of sight (`intro-on`), a REPLAY tag top left
 (`#replay-tag`). A tap, Space, Enter or Escape skips to the wipe out; a pause
 or a new innings cuts it short with none (`stopReplay`). The pause sheet has a

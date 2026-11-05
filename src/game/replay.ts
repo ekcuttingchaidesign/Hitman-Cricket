@@ -24,18 +24,18 @@ type Vec = readonly [number, number, number];
  * the innings' last ball, bowled aside — which the
  * game says with `blocked`.
  */
-export type ReplayStroke = 'cover' | 'pull' | 'cut' | 'latecut' | 'scoop' | 'reverse'
+export type ReplayStroke = 'cover' | 'pull' | 'cut' | 'spincut' | 'latecut' | 'scoop' | 'reverse'
   | 'straight' | 'on' | 'flick' | 'sweep' | 'slog' | 'charge' | 'bowled' | 'punch' | 'mistimed';
 /**
  * The strokes worth seeing again: the cover drive, lofted or along the
  * ground; the pull, with the hook and the pull off the spinner; the square
- * cut, at pace or off the spinner; the late cut; the two scoops; the lofted
+ * cut at pace (`cut`) or off the spinner (`spincut`); the late cut; the two scoops; the lofted
  * straight drive (`straight`, either version) and the on drive's six (`on`);
  * the flick, version two; the orthodox sweep and the slog sweep; and the
  * charge, lofted over cover or straight. The drives along the ground down the
  * ground, the punch and the other flicks are not replayed.
  */
-export const REPLAY_STROKES: readonly ReplayStroke[] = ['cover', 'pull', 'cut', 'latecut', 'scoop', 'reverse', 'straight', 'on', 'flick', 'sweep', 'slog', 'charge', 'bowled', 'punch', 'mistimed'];
+export const REPLAY_STROKES: readonly ReplayStroke[] = ['cover', 'pull', 'cut', 'spincut', 'latecut', 'scoop', 'reverse', 'straight', 'on', 'flick', 'sweep', 'slog', 'charge', 'bowled', 'punch', 'mistimed'];
 /**
  * Shown every time: the meter's strokes — the scoops, the slog sweep, the
  * charge — whenever they come off, and a batter bowled, from the bowler's
@@ -51,7 +51,7 @@ export const always = (ball: ReplayBall) => ALWAYS.includes(ball.stroke!) || (ba
  * for six alone, a scoop's replay was so rare nobody saw one.
  */
 export const REPLAY_RUNS: Record<ReplayStroke, number> = {
-  cover: 4, pull: 4, cut: 4, latecut: 4, scoop: 4, reverse: 4, straight: 6, on: 6, flick: 4, sweep: 4, slog: 4, charge: 6, bowled: 0, punch: 4, mistimed: 4,
+  cover: 4, pull: 4, cut: 4, spincut: 4, latecut: 4, scoop: 4, reverse: 4, straight: 6, on: 6, flick: 4, sweep: 4, slog: 4, charge: 6, bowled: 0, punch: 4, mistimed: 4,
 };
 
 /** What the game says about the ball just played. `stroke` is null for one that is not on the list. */
@@ -123,11 +123,11 @@ export const endedLog = (log: ReplayLog, skipped: boolean): ReplayLog => ({ ...l
 // ---------------------------------------------------------------------------
 
 /**
- * The wipe that cuts into it and out of it, on the page's clock: the band
+ * The stinger that cuts into it and out of it, on the page's clock: ink
  * covers the screen at its middle, which is where the cut is made, so the
  * game's view is never seen jumping to the replay's or back.
  */
-export const WIPE_MS = 560;
+export const WIPE_MS = 780;
 /**
  * It opens on the stroke: this long before he starts the swing, with the
  * bowler already in his follow-through and the ball out of sight until the bat
@@ -152,7 +152,7 @@ export const CUT_AFTER = 260;
  * sixes down the ground and the slog sweep finish later still.
  */
 export const CUT_AFTERS: Record<ReplayStroke, number> = {
-  cover: CUT_AFTER, pull: 320, cut: 380, latecut: 320, scoop: 300, reverse: 300,
+  cover: CUT_AFTER, pull: 320, cut: 380, spincut: 380, latecut: 320, scoop: 300, reverse: 300,
   straight: 380, on: 400, flick: 300, sweep: 340, slog: 420, charge: 380, bowled: Infinity, punch: 340, mistimed: CUT_AFTER,
 };
 export const ARRIVED_MS = 650;
@@ -265,7 +265,10 @@ const BEHIND: readonly ReplayAngle[] = [
 export const STROKE_CAMERAS: Record<ReplayStroke, readonly string[]> = {
   cover: ['midoff', 'spider-umpire', 'spider-legslip', 'leg-side', 'off-side', 'midon-ground', 'midoff-ground'],
   pull: ['leg-side', 'midon-ground', 'spider-umpire', 'spider-legslip'],
-  cut: ['off-side', 'midoff', 'midoff-ground', 'spider-umpire'],
+  // The square cut at pace never from point (`off-side`), the owner said;
+  // the cut off the spinner keeps it.
+  cut: ['midoff', 'midoff-ground', 'spider-umpire'],
+  spincut: ['off-side', 'midoff', 'midoff-ground', 'spider-umpire'],
   latecut: ['off-side', 'spider-legslip', 'midoff'],
   scoop: ['spider-legslip', 'leg-side', 'spider-umpire'],
   reverse: ['off-side', 'spider-legslip', 'midoff'],

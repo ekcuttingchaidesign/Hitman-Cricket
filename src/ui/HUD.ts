@@ -1,4 +1,5 @@
 import { limitsOf } from '../game/ball-string';
+import { WIPE_MS } from '../game/replay';
 import { chaseEndMarkup } from './MatchEnd';
 import type { ChaseEnd } from '../game/match-end';
 import { bellLabel, type Notice, type NoticeFilter } from '../game/notices';
@@ -110,6 +111,7 @@ import { fieldLine } from '../game/super10-field';
 import { replayAnimation, replayClass } from './replay';
 /** Super10's mark, on the band a replay is wiped in and out under. */
 const REPLAY_MARK = new URL('../assets/super10/logo.svg', import.meta.url).href;
+const REPLAY_TITLE = new URL('../assets/title.webp', import.meta.url).href;
 import type { OwnActivity } from '../game/profile-api';
 import wifiOff from '../assets/board/wifi-off.svg?raw';
 /** Each poster on Choose a mode's rail, by its mode, to its dot in the pager under it. */
@@ -2957,19 +2959,28 @@ ${modeSelectMarkup()}
   /** The pause sheet's replays switch, as it is set. */
   replaySwitch(on: boolean) { this.$('replay-switch').setAttribute('aria-checked', String(on)); }
   /**
-   * The wipe a replay is cut into and out of under (`replay.ts`, `WIPE_MS`):
-   * a band across the screen in Super10's violet with its mark, or the
-   * game's orange, played once from the start; null takes it away.
+   * The stinger a replay is cut into and out of under (`replay.ts`,
+   * `WIPE_MS`), as a broadcast does it: three slabs on the slant sweep across
+   * one after another — the accent, the colour, then ink — and leave ink
+   * first, so the picture comes back through the colour; while ink covers the
+   * whole screen (its middle fifth, when the camera is changed) the lockup is
+   * slammed on over it, the game's title or Super10's mark over an ACTION
+   * REPLAY plate with a light run across it. Super10's in violet and Volt,
+   * the Blast's in its orange and gold. A new one each time, so it runs from
+   * its first frame with nothing forced; null takes it away.
    */
   replayWipe(super10: boolean | null) {
     document.getElementById('replay-wipe')?.remove();
     if (super10 === null) return;
-    // A new one each time, so its animation runs from its first frame with nothing forced.
     const wipe = document.createElement('div');
     wipe.id = 'replay-wipe'; wipe.setAttribute('aria-hidden', 'true');
     wipe.className = super10 ? 'is-super10' : '';
-    wipe.innerHTML = `<span class="rw-band">${super10 ? `<img class="rw-mark" src="${REPLAY_MARK}" alt="">` : '<span class="rw-word">REPLAY</span>'}</span>`;
-    wipe.addEventListener('animationend', () => wipe.remove(), { once: true });
+    wipe.style.setProperty('--rw', `${WIPE_MS}ms`);
+    const mark = super10 ? `<img class="rw-mark" src="${REPLAY_MARK}" alt="">` : `<img class="rw-title" src="${REPLAY_TITLE}" alt="">`;
+    wipe.innerHTML = '<i class="rw-slab rw-s1"></i><i class="rw-slab rw-s2"></i><i class="rw-slab rw-s3"><i class="rw-lines"></i></i>'
+      + `<span class="rw-lock"><i class="rw-rule"></i>${mark}<span class="rw-plate"><span class="rw-kicker">ACTION</span><span class="rw-word">REPLAY</span><i class="rw-shine"></i></span><i class="rw-rule"></i></span>`;
+    // Its children's animations bubble up here too: only its own end takes it away.
+    wipe.addEventListener('animationend', event => { if (event.target === wipe) wipe.remove(); });
     this.viewport.append(wipe);
   }
   /** The REPLAY tag in the corner while one plays, Super10's in its colours. */

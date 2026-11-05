@@ -55,7 +55,7 @@ const BALLS: Record<LabStroke, { name: string; family: ReplayStroke; shot: ShotT
   hook: { name: 'Hook', family: 'pull', shot: 'HOOK', style: 'SHORT', line: 'OUTSIDE_OFF', kph: 142, ahead: HOOK_MEETS_AT },
   cut: { name: 'Square cut', family: 'cut', shot: 'SQUARE_CUT', style: 'NORMAL', line: 'OUTSIDE_OFF', kph: 132, ahead: 0 },
   // The spinner's, bowled by the game's own spinner (`spinner`): his ball for the cut, and his ball dropped short for the pull.
-  spincut: { name: 'Cut off the spinner', family: 'cut', shot: 'SQUARE_CUT', style: 'OFF_SPIN', line: 'OUTSIDE_OFF', kph: 90, ahead: 0, spin: 'cut' },
+  spincut: { name: 'Cut off the spinner', family: 'spincut', shot: 'SQUARE_CUT', style: 'OFF_SPIN', line: 'OUTSIDE_OFF', kph: 90, ahead: 0, spin: 'cut' },
   spinpull: { name: 'Pull off the spinner', family: 'pull', shot: 'LEG', style: 'OFF_SPIN', line: 'MIDDLE', kph: 90, ahead: SPIN_PULL_MEETS_AT, spin: 'pull' },
   latecut: { name: 'Late cut', family: 'latecut', shot: 'LATE_CUT', style: 'NORMAL', line: 'OUTSIDE_OFF', kph: 134, ahead: LATE_CUT_MEETS_AT },
   scoop: { name: 'Scoop', family: 'scoop', shot: 'SCOOP', style: 'YORKER', line: 'MIDDLE', kph: 150, ahead: 0, charged: true },
@@ -296,7 +296,7 @@ const CHOICES_KEY = 'replay-camera-choices';
 let choices: Record<ReplayStroke, string[]> = Object.fromEntries(REPLAY_STROKES.map(f => [f, [...STROKE_CAMERAS[f]]])) as unknown as Record<ReplayStroke, string[]>;
 try { const kept = JSON.parse(localStorage.getItem(CHOICES_KEY) ?? 'null'); if (kept) choices = { ...choices, ...kept }; } catch { /* The game's, then. */ }
 const keepChoices = () => { try { localStorage.setItem(CHOICES_KEY, JSON.stringify(choices)); } catch { /* For this visit. */ } };
-const FAMILY_NAMES: Record<ReplayStroke, string> = { cover: 'Cover drive', pull: 'Pull, hook and pull off the spinner', cut: 'Square cut and cut off the spinner', latecut: 'Late cut', scoop: 'Scoop', reverse: 'Reverse scoop',
+const FAMILY_NAMES: Record<ReplayStroke, string> = { cover: 'Cover drive', pull: 'Pull, hook and pull off the spinner', cut: 'Square cut', spincut: 'Cut off the spinner', latecut: 'Late cut', scoop: 'Scoop', reverse: 'Reverse scoop',
   straight: 'Straight six', on: 'On drive six', flick: 'Flick', sweep: 'Sweep', slog: 'Slog sweep', charge: 'The charge', bowled: 'Bowled', punch: 'Back-foot punch', mistimed: 'Mistimed for four or six' };
 function drawChoices() {
   const family = BALLS[stroke].family, row = $('choices');

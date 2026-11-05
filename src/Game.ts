@@ -3093,7 +3093,7 @@ export class Game {
       : shotType === 'STRAIGHT' ? (lofted ? 'straight' : null) : shotType === 'LONG_ON' ? (lofted ? 'on' : null)
       : flicking ? (version === 1 ? null : 'flick')
       : shotType === 'HOOK' || spinPulling || shotType === 'LEG' ? 'pull'
-      : shotType === 'SQUARE_CUT' ? 'cut' : shotType === 'LATE_CUT' ? 'latecut'
+      : shotType === 'SQUARE_CUT' ? (cutting ? 'spincut' : 'cut') : shotType === 'LATE_CUT' ? 'latecut'
       : shotType === 'SCOOP' ? 'scoop' : shotType === 'REVERSE_SCOOP' ? 'reverse' : null;
     this.keptSwing = { shot: shotType, at: this.elapsed, charging, lofted, sweeping, levelled, version, meets: this.meetsAt, cutting, spinPulling, stroke };
     this.hud.select(shotType, charging);
