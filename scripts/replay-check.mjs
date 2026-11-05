@@ -11,7 +11,7 @@
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/replay-check.mjs
  *
- * `MODE=super10` does it in Super10, `STROKE=pull` pulls a bouncer every ball, and `ANGLE=spider-legslip` (any of
+ * `MODE=super10` does it in Super10, `MODE=marathon` in the Test Marathon, `STROKE=pull` pulls a bouncer every ball, and `ANGLE=spider-legslip` (any of
  * `REPLAY_ANGLES`) shows it from that camera.
  */
 
@@ -20,7 +20,7 @@ import { mkdir } from 'node:fs/promises';
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:5201').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
-const mode = process.env.MODE === 'super10' ? 'super10' : 'classic';
+const mode = ['super10', 'marathon'].includes(process.env.MODE) ? process.env.MODE : 'classic';
 
 let failures = 0;
 const check = (ok, what, detail) => {
@@ -36,6 +36,7 @@ await page.addInitScript(() => {
   try {
     localStorage.setItem('hitman-shots-intro', 'done');
     localStorage.setItem('hitman-field-intro', 'done');
+    localStorage.setItem('hitman-marathon-intro', 'done');
     localStorage.setItem('hitman-seen', day);
     localStorage.setItem('hitman-whatsnew', 'rivals:9');
   } catch { /* Then the notices stand. */ }
@@ -75,7 +76,7 @@ const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });
 if (await anyway.count()) { await anyway.first().click(); await advance(1200); }
 await page.locator('#start').click({ force: true, timeout: 15_000 });
 await advance(600);
-console.log("        cover up"); await page.locator(`#mode-${mode === 'super10' ? 'super10' : 'classic'}`).click({ force: true, timeout: 15_000 });
+console.log("        cover up"); await page.locator(`#mode-${mode}`).click({ force: true, timeout: 15_000 });
 await advance(600);
 await page.addStyleTag({ content: '[class*=debug]{display:none!important}' });
 
