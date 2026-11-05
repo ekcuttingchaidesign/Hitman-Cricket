@@ -127,7 +127,7 @@ export const endedLog = (log: ReplayLog, skipped: boolean): ReplayLog => ({ ...l
  * covers the screen at its middle, which is where the cut is made, so the
  * game's view is never seen jumping to the replay's or back.
  */
-export const WIPE_MS = 780;
+export const WIPE_MS = 900;
 /**
  * It opens on the stroke: this long before he starts the swing, with the
  * bowler already in his follow-through and the ball out of sight until the bat

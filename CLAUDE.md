@@ -2253,16 +2253,17 @@ Copy camera, which gives the numbers in the game's frame as `REPLAY_ANGLES`
 takes them. `scripts/replay-camera-artifact.mjs` builds it into one file; it
 is published as the claude.ai artifact "Replay Camera Lab".
 
-It is cut into and out of under a broadcast stinger (`WIPE_MS`, 780ms,
-`#replay-wipe`, `HUD.replayWipe`): three slabs on the slant sweep across one
-after another — the accent with a light on its edge, the colour, then ink with
-lines racing through it — and leave ink first, the picture coming back through
-the colour; ink alone covers the screen through its middle fifth, where the cut
-is made, and over it the lockup slams on and flies off: the game's title, or
-Super10's mark, over ACTION REPLAY on a slanted plate with a light run across
-it, a rule over and under. The Blast's in its orange and gold on navy ink,
-Super10's in violet and Volt (a plain orange or violet band with the logo was
-the first build, and the owner wanted a broadcast's). Between the walk-on's
+It is cut into and out of under a wipe in the end card's band (`WIPE_MS`,
+900ms, `#replay-wipe`, `HUD.replayWipe`): the mode's band gradient as one great
+chevron, the band's own shape with its point the way it goes, on a train with
+the band's two paler chevrons ahead of it and two behind, gliding across and
+easing to a stop while it covers the screen, where the cut is made, then
+easing away; over it the game's title or Super10's mark above ACTION REPLAY in
+the card's lettering, the band's chevrons faint beside them. The Blast's in
+its card's blue, Super10's in violet over ink, and the REPLAY tag the same. A
+broadcast stinger of slanted slabs, a light on the edge, racing lines and a
+slammed plate came first and was too aggressive, the owner said; a plain
+orange or violet band before that. Between the walk-on's
 bars with everything else put out of sight (`intro-on`), a REPLAY tag top left
 (`#replay-tag`). A tap, Space, Enter or Escape skips to the wipe out; a pause
 or a new innings cuts it short with none (`stopReplay`). The pause sheet has a

@@ -2959,15 +2959,14 @@ ${modeSelectMarkup()}
   /** The pause sheet's replays switch, as it is set. */
   replaySwitch(on: boolean) { this.$('replay-switch').setAttribute('aria-checked', String(on)); }
   /**
-   * The stinger a replay is cut into and out of under (`replay.ts`,
-   * `WIPE_MS`), as a broadcast does it: three slabs on the slant sweep across
-   * one after another — the accent, the colour, then ink — and leave ink
-   * first, so the picture comes back through the colour; while ink covers the
-   * whole screen (its middle fifth, when the camera is changed) the lockup is
-   * slammed on over it, the game's title or Super10's mark over an ACTION
-   * REPLAY plate with a light run across it. Super10's in violet and Volt,
-   * the Blast's in its orange and gold. A new one each time, so it runs from
-   * its first frame with nothing forced; null takes it away.
+   * The wipe a replay is cut into and out of under (`replay.ts`, `WIPE_MS`),
+   * in the end card's band: the mode's gradient as one great chevron sweeping
+   * across, the band's two paler chevrons running in ahead of it and out
+   * behind it, and while it covers the screen (its middle, when the camera is
+   * changed) the game's title or Super10's mark over ACTION REPLAY in the
+   * card's lettering, with the band's chevrons faint beside them. A new one
+   * each time, so it runs from its first frame with nothing forced; null
+   * takes it away.
    */
   replayWipe(super10: boolean | null) {
     document.getElementById('replay-wipe')?.remove();
@@ -2977,8 +2976,9 @@ ${modeSelectMarkup()}
     wipe.className = super10 ? 'is-super10' : '';
     wipe.style.setProperty('--rw', `${WIPE_MS}ms`);
     const mark = super10 ? `<img class="rw-mark" src="${REPLAY_MARK}" alt="">` : `<img class="rw-title" src="${REPLAY_TITLE}" alt="">`;
-    wipe.innerHTML = '<i class="rw-slab rw-s1"></i><i class="rw-slab rw-s2"></i><i class="rw-slab rw-s3"><i class="rw-lines"></i></i>'
-      + `<span class="rw-lock"><i class="rw-rule"></i>${mark}<span class="rw-plate"><span class="rw-kicker">ACTION</span><span class="rw-word">REPLAY</span><i class="rw-shine"></i></span><i class="rw-rule"></i></span>`;
+    wipe.innerHTML = '<i class="rw-train"><i class="rw-chev rw-c4"></i><i class="rw-chev rw-c3"></i>'
+      + `<i class="rw-panel">${BAND_CHEVRONS.replace('ec-chevrons', 'rw-band-chevrons')}</i><i class="rw-chev rw-c2"></i><i class="rw-chev rw-c1"></i></i>`
+      + `<span class="rw-lock">${mark}<span class="rw-word">ACTION REPLAY</span></span>`;
     // Its children's animations bubble up here too: only its own end takes it away.
     wipe.addEventListener('animationend', event => { if (event.target === wipe) wipe.remove(); });
     this.viewport.append(wipe);
