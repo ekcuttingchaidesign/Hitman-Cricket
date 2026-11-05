@@ -163,6 +163,19 @@ describe('the field', () => {
       expect(routines[midOff].actions.map(a => a.name)).toContain('Up, hands on head');
     });
 
+    it('never dives under a four still in the air, only where it has pitched', () => {
+      // The same line past mid-off: pitching beyond him, he lets it go over;
+      // pitching before him, he dives for it as for one along the ground.
+      const over = new Field(), on = new Field();
+      const end = line(over, 24, 44);
+      line(on, 24, 44);
+      over.ground(HIT, HIT + 1250, look, { from: origin, to: end, flightMs: 1250, four: true, airborne: .9 });
+      on.ground(HIT, HIT + 1250, look, { from: origin, to: end, flightMs: 1250, four: true, airborne: .2 });
+      const midOff = BLAST_FIELD.findIndex(m => m.name === 'Mid-off');
+      expect(routinesOf(over)[midOff].actions.map(a => a.name)).not.toContain('Diving catch');
+      expect(routinesOf(on)[midOff].actions.map(a => a.name)).toContain('Diving catch');
+    });
+
     it('has a man it passes a few metres off, too far to dive, get across towards it', () => {
       const field = new Field();
       // Eleven degrees off mid-off at 24°: four metres wide of him at his depth.

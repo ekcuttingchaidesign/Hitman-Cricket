@@ -2326,7 +2326,13 @@ A four stops at the boards wherever it is hit (`boardsAlong` in
 `flight.ts`, 35.1 metres round a point ten up the pitch): its flight ran
 forty-four metres from the bat, the boards straight, and behind him, where
 they are twenty-five away, a scooped four went through them into the stand
-as if it were a six.
+as if it were a six. And a four that pitches on its way (scooped, swept,
+hooked, or skied off a stroke played to keep it down: `bounced` in
+`GameScene.hit`) is fielded as one along the ground is: steered a stride and
+a half past the man there (`Field.clear`) and dived at or chased to the rope
+(`Field.ground`), but never dived under while it is still in the air
+(`airborne`, the share of the way it flies) — it went past the men behind
+the bat close enough to touch while they stood and watched.
 
 Off with the pause sheet's Replays switch, under `?debug=1` and reduced
 motion, in the tutorial and a demo; `?catchcam=1` shows every one, debug or

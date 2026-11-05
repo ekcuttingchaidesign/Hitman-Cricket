@@ -1484,7 +1484,14 @@ export class GameScene {
     // close enough that he dives for it and it beats him.
     const along = !rope && outcome.madeBatContact && !outcome.aerial && !caught && !outcome.edged && !playedOn && !outcome.defended && !outcome.padded
       && !struckBody && !outcome.advance && flight.height < 1 && outcome.runs >= 1;
-    if (along) angle = this.field.clear(this.hitStart, angle, flight.distance);
+    // A four that pitches on its way to the rope — scooped, swept, hooked, or
+    // skied off a stroke played to keep it down — is fielded as one along the
+    // ground is once it lands: passed by a stride and a half, the man there
+    // diving or chasing it to the rope. It went past the men behind the bat
+    // close enough to touch while they stood and watched.
+    const bounced = !rope && outcome.madeBatContact && outcome.runs === 4 && flight.bounceAt > 0 && !caught && !outcome.dropped
+      && !struckBody && !outcome.advance;
+    if (along || bounced) angle = this.field.clear(this.hitStart, angle, flight.distance);
     this.gathered = false; this.spillEnd = null;
     // A four stops at the boards, wherever it was hit. Its flight runs forty-
     // four metres from the bat, which is the boards straight; square they are
@@ -1518,9 +1525,9 @@ export class GameScene {
       this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
       // Put down on the rope: off his hands and on over it.
       if (outcome.spilled) this.spillEnd = new THREE.Vector3(...spillTo([this.hitEnd.x, this.hitEnd.y, this.hitEnd.z]));
-    } else if (along) {
+    } else if (along || bounced) {
       this.gathered = this.field.ground(this.hitStart, deadAt, look,
-        { from: this.hitOrigin.clone(), to: this.hitEnd.clone(), flightMs: this.flightMs, four: outcome.runs === 4 },
+        { from: this.hitOrigin.clone(), to: this.hitEnd.clone(), flightMs: this.flightMs, four: outcome.runs === 4, airborne: bounced ? flight.bounceAt : 0 },
         this.bowling ? this.bowlerAtRest() : undefined).gathered;
     } else this.field.struck(this.hitStart, deadAt, look);
     this.bounceRing.visible = false;

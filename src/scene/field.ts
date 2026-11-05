@@ -413,7 +413,7 @@ export class Field {
    * ball should stay in sight where it stops until he does.
    */
   ground(now: number, deadAt: number, look: (t: number) => THREE.Vector3 | null,
-    path: { from: THREE.Vector3; to: THREE.Vector3; flightMs: number; four: boolean },
+    path: { from: THREE.Vector3; to: THREE.Vector3; flightMs: number; four: boolean; airborne?: number },
     bowler?: { rest: Body; free: number }): { gathered: boolean } {
     const dir = path.to.clone().sub(path.from).setY(0);
     const length = dir.length();
@@ -433,6 +433,11 @@ export class Field {
      * is past before he is down — which is what being beaten looks like.
      */
     const late = (at: number) => Math.max(at + 10, now + REACTION_MS * .6 + DIVE.catch);
+    // A ball that pitches on its way (a scooped, swept or hooked four, one
+    // skied off a stroke played to keep it down) is in the air for this much
+    // of the way, and nobody dives under it there: where it passes him above
+    // his head he chases it instead.
+    const landed = (pass: { along: number }) => pass.along >= (path.airborne ?? 0) * length;
     const busy = new Set<number>();
     const dives: number[] = [];
 
@@ -440,7 +445,7 @@ export class Field {
     spots.forEach((spot, i) => {
       const pass = passing(spot);
       // Past him before it stops, and close enough to throw himself at.
-      if (pass.along > length - .8 || pass.gap > reachBy(late(pass.at))) return;
+      if (pass.along > length - .8 || pass.gap > reachBy(late(pass.at)) || !landed(pass)) return;
       dives.push(i);
     });
     dives.sort((a, b) => passing(spots[a]).gap - passing(spots[b]).gap);
@@ -470,7 +475,7 @@ export class Field {
       });
       if (chaser >= 0) {
         const spot = spots[chaser], pass = passing(spot);
-        if (pass.gap <= reachBy(late(pass.at)) && pass.along < length - .8) this.diveAt(chaser, spot, { ...pass, at: late(pass.at) - 40 }, now, look);
+        if (pass.gap <= reachBy(late(pass.at)) && pass.along < length - .8 && landed(pass)) this.diveAt(chaser, spot, { ...pass, at: late(pass.at) - 40 }, now, look);
         else this.chase(chaser, spot, rope, now, path.flightMs * (ropeAlong(path.from, dir) / length), look);
         busy.add(chaser);
       }
