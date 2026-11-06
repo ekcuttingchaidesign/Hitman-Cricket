@@ -11,7 +11,7 @@
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/replay-check.mjs
  *
- * `MODE=super10` does it in Super10, `STROKE=pull` pulls a bouncer every ball, and `ANGLE=spider-legslip` (any of
+ * `MODE=super10` does it in Super10, `MODE=marathon` in the Test Marathon, `STROKE=pull` pulls a bouncer every ball, and `ANGLE=spider-legslip` (any of
  * `REPLAY_ANGLES`) shows it from that camera.
  */
 
@@ -20,7 +20,7 @@ import { mkdir } from 'node:fs/promises';
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:5201').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
-const mode = process.env.MODE === 'super10' ? 'super10' : 'classic';
+const mode = ['super10', 'marathon'].includes(process.env.MODE) ? process.env.MODE : 'classic';
 
 let failures = 0;
 const check = (ok, what, detail) => {
@@ -36,12 +36,14 @@ await page.addInitScript(() => {
   try {
     localStorage.setItem('hitman-shots-intro', 'done');
     localStorage.setItem('hitman-field-intro', 'done');
+    localStorage.setItem('hitman-marathon-intro', 'done');
     localStorage.setItem('hitman-seen', day);
     localStorage.setItem('hitman-whatsnew', 'rivals:9');
   } catch { /* Then the notices stand. */ }
 });
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
+page.on('crash', () => console.log('        THE PAGE CRASHED'));
 page.on('console', message => { if (message.type() === 'error' && !message.text().startsWith('Failed to load resource')) errors.push(message.text()); });
 await page.route('**/api/board**', route => route.fulfill({
   status: 200, contentType: 'application/json', body: JSON.stringify({ rows: [], cutoff: null, size: 50 }),
@@ -67,7 +69,7 @@ const STROKES = {
 };
 const asked = STROKES[process.env.STROKE] ? process.env.STROKE : 'cover', played = STROKES[asked];
 const keys = played.keys;
-await page.goto(`${base}/?debug=1&seed=2718&${played.ball}=1&replay=1&lights=day${angle}`, { waitUntil: 'load' });
+await page.goto(`${base}/?debug=1&seed=2718&${played.ball}=1&replay=${process.env.DUE ? "due" : "1"}&lights=day${angle}${process.env.EXTRA ?? ""}`, { waitUntil: 'load' });
 await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 3000);
 await advance(2500);
 await page.waitForTimeout(800);
@@ -75,7 +77,7 @@ const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });
 if (await anyway.count()) { await anyway.first().click(); await advance(1200); }
 await page.locator('#start').click({ force: true, timeout: 15_000 });
 await advance(600);
-console.log("        cover up"); await page.locator(`#mode-${mode === 'super10' ? 'super10' : 'classic'}`).click({ force: true, timeout: 15_000 });
+console.log("        cover up"); await page.locator(`#mode-${mode}`).click({ force: true, timeout: 15_000 });
 await advance(600);
 await page.addStyleTag({ content: '[class*=debug]{display:none!important}' });
 

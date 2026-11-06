@@ -1,5 +1,5 @@
 import { limitsOf } from '../game/ball-string';
-import { WIPE_MS } from '../game/replay';
+import { WIPE_MS, type ReplayLook } from '../game/replay';
 import { chaseEndMarkup } from './MatchEnd';
 import type { ChaseEnd } from '../game/match-end';
 import { bellLabel, type Notice, type NoticeFilter } from '../game/notices';
@@ -2966,16 +2966,18 @@ ${modeSelectMarkup()}
    * across, the band's two paler chevrons running in ahead of it and out
    * behind it, and while it covers the screen (its middle, when the camera is
    * changed) the game's title or Super10's mark over ACTION REPLAY in the
-   * card's lettering, with the band's chevrons faint beside them. A new one
-   * each time, so it runs from its first frame with nothing forced; null
-   * takes it away.
+   * card's lettering, over the band's chevrons. The Blast's blue (and a Rival
+   * Match's), Super10's violet, the Marathon's green with its Dukes-red
+   * chevrons. A new one each time, so it runs from its first frame with
+   * nothing forced; null takes it away.
    */
-  replayWipe(super10: boolean | null) {
+  replayWipe(look: ReplayLook | null) {
     document.getElementById('replay-wipe')?.remove();
-    if (super10 === null) return;
+    if (look === null) return;
+    const super10 = look === 'super10';
     const wipe = document.createElement('div');
     wipe.id = 'replay-wipe'; wipe.setAttribute('aria-hidden', 'true');
-    wipe.className = super10 ? 'is-super10' : '';
+    wipe.className = look === 'blast' ? '' : `is-${look}`;
     wipe.style.setProperty('--rw', `${WIPE_MS}ms`);
     const mark = super10 ? `<img class="rw-mark" src="${REPLAY_MARK}" alt="">` : `<img class="rw-title" src="${REPLAY_TITLE}" alt="">`;
     wipe.innerHTML = '<i class="rw-train"><i class="rw-chev rw-c4"></i><i class="rw-chev rw-c3"></i>'
@@ -2985,8 +2987,8 @@ ${modeSelectMarkup()}
     wipe.addEventListener('animationend', event => { if (event.target === wipe) wipe.remove(); });
     this.viewport.append(wipe);
   }
-  /** The REPLAY tag in the corner while one plays, Super10's in its colours. */
-  replayTag(on: boolean, super10 = false) {
+  /** The REPLAY tag in the corner while one plays, in the mode's colours. */
+  replayTag(on: boolean, look: ReplayLook = 'blast') {
     let tag = document.getElementById('replay-tag');
     if (!on) { tag?.remove(); return; }
     if (!tag) {
@@ -2995,7 +2997,8 @@ ${modeSelectMarkup()}
       tag.innerHTML = '<span class="rt-dot" aria-hidden="true"></span><span>REPLAY</span><span class="rt-skip">TAP TO SKIP</span>';
       this.viewport.append(tag);
     }
-    tag.classList.toggle('is-super10', super10);
+    tag.classList.toggle('is-super10', look === 'super10');
+    tag.classList.toggle('is-marathon', look === 'marathon');
   }
   crowdSwitches(crowd: boolean, ambience: boolean, silent: boolean) {
     this.$('crowd-switch').setAttribute('aria-checked', String(crowd));

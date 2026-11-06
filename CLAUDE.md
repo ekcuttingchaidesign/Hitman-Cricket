@@ -2215,9 +2215,16 @@ skips two running sees only a stroke not yet replayed that innings
 (`SKIPS_TO_QUIET`), the page's dice deciding nothing any more. Never
 over anything else the ball brings: a milestone, a moment, a chase passed,
 nor a new batter or the innings' last ball, but for bowled, which plays
-before the next man walks out or the card comes up. Super10 and the
-Blast only; not a Rival Match (the other innings flashes up between balls),
-the tutorial or a demo. It plays in the RESULT phase, which waits for it, so
+before the next man walks out or the card comes up. Super10, the Blast
+and a Rival Match in either, where a replay waits for the other innings'
+flash after the ball to go (`ghostDownAt`), or the bars would hide it; never
+the tutorial, a demo or Survival. The Test Marathon has them at a pace of
+its own, its innings running over after over, three batters long
+(`MARATHON_PACE`): the first of each stroke, then never two balls running
+and four in five of those, forty an innings (one an over, half of those and
+twenty was too rare, the owner said), and bowled, the meter's strokes and a pull
+or hook for six every time as everywhere; its wipe and tag wear its end
+card's green with Dukes-red chevrons (`ReplayLook`). It plays in the RESULT phase, which waits for it, so
 the next ball is bowled after it and nothing about the batting moves.
 
 The cameras are the owner's, set in the replay camera lab for the cover
@@ -2273,13 +2280,16 @@ Replays switch (`#replay-switch`, kept in `hitman-replays`), with a NEW tag
 beside its name (`#replay-new`, `newTagDue`) on a browser's first three pause
 sheets, gone for good once the switch is used (`hitman-replays-new`). Off under
 `?debug=1` and reduced motion; `?replay=1` replays every ball that qualifies,
-debug or not, and `?replay=0` none; neither is practice.
+debug or not, `?replay=due` the ones a player would get, debug or not, and
+`?replay=0` none; none of them is practice. `snapshot()` carries `kept`, the
+`replayLog` and `changed`, for a check to see why a ball was not replayed.
 `__cricket.snapshot().replay` says what is playing. GoatCounter counts
 `replay-<stroke>` and `replay-skipped-<stroke>`, and each again with the
 camera on the end (`replay-cover-midoff`), so the cameras players skip show. `scripts/replay-check.mjs`
 drives a cover drive for four on `?cover=1&replay=1`, photographs the replay
 through and skips a second with a tap (`MODE=super10` for Super10,
-`ANGLE=<id>` for one camera, `STROKE=pull` for the pull at a bouncer, `STROKE=straight` for the straight
+`MODE=marathon` for the Test Marathon, `ANGLE=<id>` for one camera, `DUE=1` for the replays a player would get
+rather than every one, `EXTRA=&…` for more of the link, `STROKE=pull` for the pull at a bouncer, `STROKE=straight` for the straight
 six, `STROKE=cut` for the square cut at `?latecut=1`'s ball, `STROKE=bowled`
 for late cuts at that ball until one is bowled, `STROKE=punch` for cover swipes at that ball until a back-foot punch goes
 for four). The lab has the

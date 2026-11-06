@@ -61,7 +61,7 @@ import { GameScene } from './scene/GameScene';
 import { cardShown, filmLength, introBars, nextFilm, type Film } from './game/IntroReel';
 import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
 import { catchCamera, catchPace, catchShotOf, catchTimes, spillable, SPILL_ODDS, type CatchShot } from './game/catch-cam';
-import { endedLog, fieldCamera, freshLog, overRope, OVER_MS, pickAngle, replayCamera, CUT_AFTERS, replayDue, replayPace, replayTimes, shownLog, REPLAYS_PER_INNINGS, WIPE_MS, NEW_TAG_SHOWS, newTagDue, type ReplayAngle, type ReplayBall, type ReplayStroke, type ReplayTimes } from './game/replay';
+import { endedLog, fieldCamera, freshLog, overRope, OVER_MS, pickAngle, replayCamera, CUT_AFTERS, replayDue, replayPace, replayTimes, shownLog, REPLAYS_PER_INNINGS, MARATHON_PACE, WIPE_MS, NEW_TAG_SHOWS, newTagDue, type ReplayAngle, type ReplayBall, type ReplayLook, type ReplayStroke, type ReplayTimes } from './game/replay';
 import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type CameraPose, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
@@ -4518,6 +4518,9 @@ export class Game {
       // The ball is dead: a stroke worth seeing again is replayed now, and
       // the next ball waits for it (`replay.ts`).
       if (this.replay) return;
+      // A Rival Match's other innings flashes up after each ball: a replay
+      // waits for it to go, or the bars would hide it.
+      if (this.replayQueued && performance.now() < this.ghostDownAt) return;
       if (this.replayQueued) {
         const queued = this.replayQueued; this.replayQueued = null;
         const over = !!this.changed || (this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended || this.targetPassed);
@@ -4856,13 +4859,15 @@ export class Game {
   private replaysOn = (() => { try { return localStorage.getItem(REPLAYS_KEY) !== 'off'; } catch { return true; } })();
   /**
    * `?replay=1` replays every ball that qualifies, under `?debug=1` too, for
-   * looking at it; `?replay=0` none. Otherwise not under `?debug=1`, whose
+   * looking at it; `?replay=due` as a player would get them, under `?debug=1`
+   * too, for the checks; `?replay=0` none. Otherwise not under `?debug=1`, whose
    * checks time their innings to the ball, nor for a player who asked for less
    * motion.
    */
   private readonly replayAsked: 'every' | 'off' | null = (() => {
     const asked = new URLSearchParams(location.search).get('replay');
     if (asked === '1') return 'every';
+    if (asked === 'due') return null;
     if (asked === '0' || this.debug) return 'off';
     return matchMedia('(prefers-reduced-motion: reduce)').matches ? 'off' : null;
   })();
@@ -4886,12 +4891,14 @@ export class Game {
     if (!swing || !delivery || !outcome) return;
     const release = delivery.releaseTimeMs;
     this.kept = { delivery: { ...delivery }, swing, outcome, swingAfter: swing.at - release, resolveAfter: this.elapsed - release, contactAfter: contactAt - release, arrives, held, bowled };
-    // Super10 and the Blast, not a Rival Match, whose other innings flashes up between balls, nor practice's tutorial or a demo.
-    if (!(this.super10 || this.mode === 'CLASSIC') || this.challenge.playing || this.demoing || this.lesson >= 0) return;
+    // Super10, the Blast and a Rival Match in either, and the Test Marathon at
+    // a pace of its own (`MARATHON_PACE`); not Survival, practice's tutorial or a demo.
+    if (!(this.super10 || this.mode === 'CLASSIC' || this.marathon) || this.demoing || this.lesson >= 0) return;
     if (!this.replaysOn || this.replayAsked === 'off') return;
     const ball: ReplayBall = { stroke: swing.stroke, grade: outcome.timingGrade, runs: outcome.runs, wicket: outcome.isWicket, index: this.score.balls - 1 };
     const due = replayDue(ball, this.replayLog, {
-      cap: this.super10 ? REPLAYS_PER_INNINGS.super10 : REPLAYS_PER_INNINGS.blast,
+      cap: this.super10 ? REPLAYS_PER_INNINGS.super10 : this.marathon ? REPLAYS_PER_INNINGS.marathon : REPLAYS_PER_INNINGS.blast,
+      ...(this.marathon ? MARATHON_PACE : {}),
       // The ball brings something of its own to celebrate: that, and no replay over it.
       // A skier put down has had the catch camera on it already. A batter
       // bowled is shown before the next man walks out or the card comes up.
@@ -4900,6 +4907,8 @@ export class Game {
     });
     if (due) this.replayQueued = { kept: this.kept, ball };
   }
+  /** Whose colours the replay's wipe and tag wear: the end card's band for the mode. */
+  private get replayLook(): ReplayLook { return this.super10 ? 'super10' : this.marathon ? 'marathon' : 'blast'; }
   /** The wipe in: the cut to the replay is made under it (`stageReplay`). */
   private beginReplay({ kept, ball }: { kept: Kept; ball: ReplayBall }) {
     this.replayLog = shownLog(this.replayLog, ball);
@@ -4907,7 +4916,7 @@ export class Game {
     const angle = pickAngle(kept.swing.stroke!, this.lastAngle, Math.random(), this.angleAsked);
     this.lastAngle = angle.id;
     this.replay = { kept, angle, begun: this.elapsed, start: null, ending: null, times, delivery: kept.delivery, swung: false, struck: false, played: false, skipped: false, to: null };
-    this.hud.replayWipe(this.super10);
+    this.hud.replayWipe(this.replayLook);
     this.mark(`replay-${kept.swing.stroke}`, 'A stroke replayed');
     this.mark(`replay-${kept.swing.stroke}-${angle.id}`, 'A stroke replayed, by its camera');
   }
@@ -4931,7 +4940,7 @@ export class Game {
     const follows = !kept.bowled && kept.outcome.madeBatContact;
     this.scene.cinematic((now, ball) => follows && this.replay?.to && now - start >= cut ? fieldCamera(this.replay.to, ball, kept.outcome.runs === 6) : pose);
     this.scene.keeperIn(true);
-    this.hud.walkOn(1); this.hud.replayTag(true, this.super10);
+    this.hud.walkOn(1); this.hud.replayTag(true, this.replayLook);
   }
   /** One frame of it, as `update` plays a ball: the stroke, and the ball only from the bat on. */
   private replayFrame() {
@@ -4939,7 +4948,7 @@ export class Game {
     if (replay.start === null) { if (this.elapsed >= replay.begun + WIPE_MS / 2) this.stageReplay(); return; }
     if (replay.ending !== null) { if (this.elapsed >= replay.ending + WIPE_MS / 2) this.endReplay(); return; }
     const t = this.elapsed - replay.start;
-    if (t >= times.end) { replay.ending = this.elapsed; this.hud.replayWipe(this.super10); return; }
+    if (t >= times.end) { replay.ending = this.elapsed; this.hud.replayWipe(this.replayLook); return; }
     if (!replay.struck) {
       const since = this.elapsed - delivery.releaseTimeMs;
       // Bowled opens on the bowler's last strides: his action until the ball is out of his hand.
@@ -4966,7 +4975,7 @@ export class Game {
     this.mark(`replay-skipped-${replay.kept.swing.stroke}`, 'A replay skipped');
     this.mark(`replay-skipped-${replay.kept.swing.stroke}-${replay.angle.id}`, 'A replay skipped, by its camera');
     if (replay.start === null) { this.endReplay(); return; }
-    replay.ending = this.elapsed; this.hud.replayWipe(this.super10);
+    replay.ending = this.elapsed; this.hud.replayWipe(this.replayLook);
   }
   /** Over, under the wipe out: the game's camera, the batter in his guard and the field on its marks. */
   private endReplay() {
@@ -5000,6 +5009,7 @@ export class Game {
   private readonly catchAsked: 'every' | 'off' | null = (() => {
     const asked = new URLSearchParams(location.search).get('catchcam');
     if (asked === '1') return 'every';
+    if (asked === 'due') return null;
     if (asked === '0' || this.debug) return 'off';
     return matchMedia('(prefers-reduced-motion: reduce)').matches ? 'off' : null;
   })();
@@ -6083,6 +6093,8 @@ export class Game {
    * friend who is behind shows nothing yet — and nothing on this screen ever
    * says how far along they are.
    */
+  /** When the other innings' flash after the last ball is down again, on the page's clock. */
+  private ghostDownAt = -Infinity;
   private flashGhost(index: number) {
     const balls: GhostBall[] = [];
     for (const ghost of this.challenge.ghosts) {
@@ -6102,6 +6114,8 @@ export class Game {
       }
     }
     if (!balls.length) return;
+    // When it is down again, which a replay waits for.
+    this.ghostDownAt = performance.now() + GHOST_AFTER_MS + GHOST_FOR_MS + Math.min(300, (balls.length - 1) * 150) + 240;
     window.setTimeout(() => {
       this.hud.ghost(balls);
       // A little longer for a stack, but never into the next run-up.
@@ -7035,6 +7049,7 @@ export class Game {
       reel: this.reel ? { shot: this.reel.shot, at: Math.round(this.elapsed - this.reel.start), struck: this.reel.struck } : null,
       // The replay playing: its stroke, how far in (null while it wipes in), whether it is wiping out; and how many this innings.
       catchCam: this.catchCam ? { shot: this.catchCam.shot, on: this.catchCam.on, sinceTake: Math.round(this.elapsed - this.catchCam.take) } : null,
+      kept: this.kept ? { stroke: this.kept.swing.stroke, runs: this.kept.outcome.runs, dropped: !!this.kept.outcome.dropped } : null, replayLog: { ...this.replayLog }, changed: this.changed, milestone: !!this.milestoneDue,
       replay: this.replay ? { stroke: this.replay.kept.swing.stroke, angle: this.replay.angle.id, at: this.replay.start === null ? null : Math.round(this.elapsed - this.replay.start), struck: this.replay.struck, ending: this.replay.ending !== null } : null,
       replays: this.replayLog.shown, balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
       line: this.delivery?.line ?? '—', dragged: !!this.delivery?.dragged, spinPulled: !!this.outcome?.spinPulled, spinPulls: this.spinPulls, hooks: this.hooks, effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
