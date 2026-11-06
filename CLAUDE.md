@@ -2220,8 +2220,9 @@ and a Rival Match in either, where a replay waits for the other innings'
 flash after the ball to go (`ghostDownAt`), or the bars would hide it; never
 the tutorial, a demo or Survival. The Test Marathon has them at a pace of
 its own, its innings running over after over, three batters long
-(`MARATHON_PACE`): the first of each stroke, then at most one an over and
-half of those, twenty an innings, and bowled, the meter's strokes and a pull
+(`MARATHON_PACE`): the first of each stroke, then never two balls running
+and four in five of those, forty an innings (one an over, half of those and
+twenty was too rare, the owner said), and bowled, the meter's strokes and a pull
 or hook for six every time as everywhere; its wipe and tag wear its end
 card's green with Dukes-red chevrons (`ReplayLook`). It plays in the RESULT phase, which waits for it, so
 the next ball is bowled after it and nothing about the batting moves.

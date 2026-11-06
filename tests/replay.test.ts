@@ -234,17 +234,17 @@ describe('the NEW tag beside the Replays switch', () => {
 describe("the Test Marathon's pace", () => {
   const pace = (ball: ReplayBall, log: ReplayLog, roll: number) =>
     replayDue(ball, log, { cap: REPLAYS_PER_INNINGS.marathon, blocked: false, roll, ...MARATHON_PACE });
-  it('the first of a stroke is shown, and nothing else inside the over after it', () => {
+  it('the first of a stroke is shown, and nothing on the ball after it', () => {
     let log = freshLog();
     expect(pace(four(0), log, .99)).toBe(true);
     log = endedLog(shownLog(log, four(0)), false);
     for (let index = 1; index < MARATHON_PACE.gap; index++) expect(pace(four(index, { stroke: 'pull' }), log, 0), String(index)).toBe(false);
     expect(pace(four(MARATHON_PACE.gap, { stroke: 'pull' }), log, .99)).toBe(true);
   });
-  it('a stroke already seen, an over on, half the time', () => {
+  it('a stroke already seen, a ball between, four times in five', () => {
     const log = endedLog(shownLog(freshLog(), four(0)), false);
-    expect(pace(four(6), log, .49)).toBe(true);
-    expect(pace(four(6), log, .51)).toBe(false);
+    expect(pace(four(MARATHON_PACE.gap), log, .79)).toBe(true);
+    expect(pace(four(MARATHON_PACE.gap), log, .81)).toBe(false);
   });
   it("bowled, the meter's strokes and a pull for six every time, an over or not", () => {
     const log = endedLog(shownLog(freshLog(), four(0)), false);
@@ -252,9 +252,9 @@ describe("the Test Marathon's pace", () => {
     expect(pace(four(2, { stroke: 'scoop' }), log, .99)).toBe(true);
     expect(pace(four(3, { stroke: 'pull', runs: 6 }), log, .99)).toBe(true);
   });
-  it('twenty an innings at the most', () => {
-    expect(REPLAYS_PER_INNINGS.marathon).toBe(20);
-    const log = { ...freshLog(), shown: 20 };
+  it('forty an innings at the most', () => {
+    expect(REPLAYS_PER_INNINGS.marathon).toBe(40);
+    const log = { ...freshLog(), shown: 40 };
     expect(pace(four(100, { stroke: 'cut' }), log, 0)).toBe(false);
   });
 });

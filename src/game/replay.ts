@@ -83,16 +83,17 @@ export const freshLog = (): ReplayLog => ({ shown: 0, lastAt: -Infinity, seen: [
  * good Blast used up by its fourth over, and the fourth and fifth went
  * without. Now no cap at all: an innings' every ball.
  */
-export const REPLAYS_PER_INNINGS = { super10: 60, blast: 30, marathon: 20 } as const;
+export const REPLAYS_PER_INNINGS = { super10: 60, blast: 30, marathon: 40 } as const;
 /**
  * The Test Marathon's own pace. Its innings runs over after over, three
  * batters long, and a replay after every boundary would stop it every few
- * balls: at most one an over (`gap`, six balls), half of those that qualify
+ * balls: never two balls running (`gap`), four in five of those that qualify
  * once a stroke has been seen (`odds`; the first of each is always shown),
- * and twenty an innings. Bowled, the meter's strokes and a pull or hook for
- * six are still every time, as everywhere.
+ * and forty an innings. Bowled, the meter's strokes and a pull or hook for
+ * six are still every time, as everywhere. It was one an over, half of
+ * those and twenty an innings, which the owner found too rare.
  */
-export const MARATHON_PACE = { gap: 6, odds: .5 } as const;
+export const MARATHON_PACE = { gap: 2, odds: .8 } as const;
 /** Balls from one replay to the next at the least: none between them now. */
 export const REPLAY_GAP = 1;
 /** A stroke already replayed this innings comes round again this often: every time. */
