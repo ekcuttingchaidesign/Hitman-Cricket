@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { diwaliBadgeDue, diwaliOn } from '../src/game/diwali';
+import { DIWALI_SIX_MS } from '../src/scene/diwaliSix';
+import { CUES } from '../src/scene/arena';
 
 const DIWALI_WEEK = Date.parse('2026-11-08T20:00:00+05:30');
 const LAST_MINUTE = Date.parse('2026-11-11T23:59:00+05:30');
@@ -16,5 +18,11 @@ describe('the Dressing Room card\'s NEW DIWALI KITS', () => {
     expect(diwaliBadgeDue(DIWALI_WEEK)).toBe(true);
     expect(diwaliBadgeDue(LAST_MINUTE)).toBe(true);
     expect(diwaliBadgeDue(AFTER_DIWALI)).toBe(false);
+  });
+});
+
+describe('the Diwali six on the big screen', () => {
+  it('lasts exactly the six\'s moment, so the screen hands back to the score on time', () => {
+    expect(DIWALI_SIX_MS).toBe(CUES.six.ms);
   });
 });
