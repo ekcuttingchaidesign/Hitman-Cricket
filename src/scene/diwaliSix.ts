@@ -1,42 +1,49 @@
 /**
- * Diwali's six on the big screen: HAPPY DIWALI in gold under a marigold
- * toran, rockets going up and bursting behind it, and a row of diyas lit
- * along the foot from the middle out. It is drawn as the screen's own
- * moments are, on a screen laid out 1024 by 384 (the caller scales the
- * context to its canvas), and it is a function of how long ago the six was
- * hit and nothing else, so the screen can paint it at its fifteen frames a
- * second and any moment of it can be drawn on its own.
+ * Diwali's six on the big screen. "Happy" in an italic serif, written in by
+ * a travelling spark, over DIWALI in wide gold foil whose letters rise in one
+ * by one; behind them a rangoli mandala drawing itself and turning slowly,
+ * drifting aurora light and bokeh, glowing fireworks at the sides and gold
+ * dust falling; SIX · MAXIMUM in a glass pill under it so the six is still
+ * told, and a row of small diyas lit from the middle out along the foot.
  *
- * It keeps the screen's rules: nothing flashes the whole screen, a burst's
- * glow is its own and a few of them never come closer together than a
- * third of a second (`MOST_FLASHES`), and under reduced motion one settled
- * frame stands still (`STILL_AT`). It lasts the six's moment
- * (`DIWALI_SIX_MS`, the `six` cue's), and lifts away up at the end as the
- * screen's good news does.
+ * It is drawn as the screen's own moments are, on a screen laid out 1024 by
+ * 384 (the caller scales the context to its canvas), and it is a function of
+ * how long ago the six was hit and nothing else, so the screen can paint it
+ * at its fifteen frames a second and any moment can be drawn on its own.
+ *
+ * It keeps the screen's rules: nothing flashes the whole screen, the bursts
+ * are each their own size and never closer together than a third of a
+ * second (`MOST_FLASHES`), and under reduced motion one settled frame stands
+ * still (`STILL_AT`). It lasts the six's moment (`DIWALI_SIX_MS`, the `six`
+ * cue's) and lifts away up at the end as the screen's good news does. Its two
+ * faces, Instrument Serif Italic and Unbounded, are OFL and in `src/assets`;
+ * they must be loaded before it is painted (`DIWALI_FONTS`).
  */
 export const DIWALI_SIX_MS = 2900;
 
 const W = 1024, H = 384;
-const JARO = (size: number) => `${size}px Jaro, "Arial Narrow", Impact, sans-serif`;
-const SATOSHI = (size: number) => `800 ${size}px Satoshi, "Segoe UI", Arial, sans-serif`;
+const SERIF = (size: number) => `italic 400 ${size}px "Instrument Serif", Georgia, serif`;
+const WIDE = (size: number) => `800 ${size}px Unbounded, "Arial Black", sans-serif`;
+/** What to hand `document.fonts.load` before the first paint. */
+export const DIWALI_FONTS = [SERIF(96), WIDE(116)];
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const fade = (t: number, from: number, to: number) => clamp01((t - from) / (to - from));
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
+/** Out with a little overshoot, for the letters settling. */
+const easeBack = (t: number) => { const c = 1.6; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
 
-/** When the words land, and when the whole lot starts to lift away. */
-const WORDS_AT = 380, LINE_AT = 760, LEAVE_MS = 470;
-/** The frame stood still under reduced motion: the words settled, every diya lit, bursts in the air. */
-const STILL_AT = 1300;
+/** The beats: the letters, the word over them, the pill, the shimmer, the leave. */
+const LETTERS_AT = 260, LETTER_GAP = 60, LETTER_MS = 440;
+const HAPPY_AT = 640, HAPPY_MS = 520;
+const PILL_AT = 1020;
+const SHIMMER = [1300, 1900] as const;
+const LEAVE_MS = 470;
+/** The frame stood still under reduced motion: everything in, the bursts in the air. */
+const STILL_AT = 1500;
 
-/** The screen's slam, as `slamScale` in `arena.ts`: from big, overshooting once, settled in 370ms. */
-const SLAM_MS = 370;
-function slam(since: number) {
-  if (since >= SLAM_MS) return 1;
-  const t = since / SLAM_MS;
-  const out = 1 - Math.pow(2, -10 * Math.min(1, t / .75));
-  return t < .75 ? 2.2 - (2.2 - .94) * out : .94 + .06 * ((t - .75) / .25);
-}
+const CX = 512, CY = 192;
+const GOLD_STOPS: [number, string][] = [[0, '#fff7da'], [.38, '#ffd98a'], [.7, '#f4ab42'], [1, '#c8741f']];
 
 /** The same scatter every time: a six on any phone is the same film. */
 function seeded(seed: number) {
@@ -50,73 +57,79 @@ function seeded(seed: number) {
   };
 }
 
-const GOLD = '#ffd34d', MAGENTA = '#ff4fa3', CYAN = '#4fe3ff', GREEN = '#7dff8a', ORANGE = '#ff8a2b';
+/** A colour at an alpha. */
+function tint(colour: string, alpha: number) {
+  const n = parseInt(colour.slice(1), 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
 
 /**
- * Each rocket: when it leaves the foot of the screen, where from, and where
- * it bursts. Bursts stand at least 340ms apart (three a second at the
- * most), the first three behind the words, the later, smaller ones up in
- * the corners.
+ * The rockets, at the sides where the words are not: when each leaves the
+ * foot, where from, and where it bursts. A third of a second apart at least.
  */
 const ROCKETS = [
-  { launch: 40, from: 250, x: 212, y: 116, colour: GOLD, size: 1 },
-  { launch: 380, from: 790, x: 816, y: 102, colour: MAGENTA, size: 1 },
-  { launch: 720, from: 520, x: 512, y: 72, colour: CYAN, size: 1.15 },
-  { launch: 1120, from: 150, x: 120, y: 86, colour: GREEN, size: .8 },
-  { launch: 1470, from: 880, x: 906, y: 80, colour: GOLD, size: .8 },
-  { launch: 1820, from: 330, x: 330, y: 58, colour: ORANGE, size: .7 },
+  { launch: 0, from: 190, x: 150, y: 112, colour: '#ffcf5a', size: 1 },
+  { launch: 340, from: 840, x: 880, y: 100, colour: '#ff4fa3', size: 1 },
+  { launch: 680, from: 300, x: 290, y: 64, colour: '#3fe0d0', size: .85 },
+  { launch: 1020, from: 720, x: 740, y: 58, colour: '#ffcf5a', size: .85 },
+  { launch: 1360, from: 120, x: 104, y: 236, colour: '#c58bff', size: .75 },
+  { launch: 1700, from: 930, x: 924, y: 226, colour: '#ff9a3c', size: .75 },
 ];
-/** How long a rocket climbs, and how long its burst lasts. */
-const RISE = 380, BURST = 1050;
+const RISE = 360, BURST = 1100;
 
 interface Spark { angle: number; speed: number; white: boolean }
 const sparks: Spark[][] = ROCKETS.map((rocket, r) => {
-  const random = seeded(101 + r * 17);
-  const count = Math.round(44 * rocket.size);
-  // An outer ring and a slower inner one, so a burst is a full flower rather than a ring of dashes.
+  const random = seeded(301 + r * 29);
+  const count = Math.round(40 * rocket.size);
+  // An outer ring and a slower inner one, so each burst is a flower.
   return Array.from({ length: count }, (_, i) => {
     const inner = i % 3 === 2;
     return {
-      angle: (i / count) * Math.PI * 2 + (random() - .5) * .18,
-      speed: (inner ? 120 + random() * 60 : 240 + random() * 110) * rocket.size,
-      white: inner || random() < .22,
+      angle: (i / count) * Math.PI * 2 + (random() - .5) * .16,
+      speed: (inner ? 110 + random() * 50 : 220 + random() * 100) * rocket.size,
+      white: inner || random() < .2,
     };
   });
 });
-
-/** Where a spark has got to `age` milliseconds into its burst: thrown out, slowed by the air, falling. */
 function sparkAt(spark: Spark, age: number) {
   const s = age / 1000, drag = 2.1;
   const travel = spark.speed * (1 - Math.exp(-drag * s)) / drag;
-  return { x: Math.cos(spark.angle) * travel, y: Math.sin(spark.angle) * travel + 34 * s * s };
+  return { x: Math.cos(spark.angle) * travel, y: Math.sin(spark.angle) * travel + 30 * s * s };
 }
 
-/** A few points of light in the sky, twinkling slowly. */
-const stars = (() => {
-  const random = seeded(7);
-  return Array.from({ length: 46 }, () => ({ x: random() * W, y: random() * H * .7, r: .8 + random() * 1.6, phase: random() * Math.PI * 2 }));
+/** Soft discs of warm light drifting up behind everything. */
+const bokeh = (() => {
+  const random = seeded(17);
+  const warm = ['#ffcf7a', '#ff8fb8', '#ffb15a', '#ffe7b0'];
+  return Array.from({ length: 22 }, () => ({
+    x: random() * W, y: random() * (H + 60), r: 8 + random() * 26,
+    rise: 8 + random() * 18, alpha: .07 + random() * .14, colour: warm[Math.floor(random() * warm.length)],
+  }));
+})();
+
+/** Gold dust falling slowly and swaying. */
+const dust = (() => {
+  const random = seeded(23);
+  return Array.from({ length: 30 }, () => ({
+    x: random() * W, y: random() * (H + 20), fall: 16 + random() * 26, sway: 5 + random() * 10,
+    phase: random() * Math.PI * 2, size: 1.6 + random() * 2.6,
+  }));
 })();
 
 /** The diyas along the foot, lit from the middle out. */
-const DIYAS = Array.from({ length: 7 }, (_, i) => ({
-  x: 112 + i * (800 / 6),
-  width: i % 2 ? 56 : 68,
-  lit: 640 + 95 * Math.abs(i - 3),
-}));
+const DIYAS = Array.from({ length: 9 }, (_, i) => ({ x: 80 + i * 108, lit: 560 + 70 * Math.abs(i - 4) }));
 
-/** The sparkles that pop round the words once they have landed. */
+/** Little stars that pop round the lockup once it has landed. */
 const GLINTS = [
-  { x: 156, y: 128, at: 980, r: 14 }, { x: 872, y: 214, at: 1160, r: 12 },
-  { x: 560, y: 96, at: 1420, r: 10 }, { x: 246, y: 230, at: 1640, r: 11 },
-  { x: 790, y: 112, at: 1900, r: 13 }, { x: 430, y: 236, at: 2120, r: 9 },
+  { x: 176, y: 152, at: 1080, r: 12 }, { x: 858, y: 250, at: 1240, r: 11 },
+  { x: 650, y: 86, at: 1480, r: 9 }, { x: 214, y: 262, at: 1700, r: 10 },
+  { x: 826, y: 140, at: 1960, r: 12 }, { x: 420, y: 92, at: 2180, r: 8 },
 ];
 
 /** The words drawn on a canvas of their own, so the shimmer runs over the letters and nowhere else. */
 let wordsCanvas: HTMLCanvasElement | OffscreenCanvas | null = null;
 function wordsLayer(width: number, height: number) {
-  if (!wordsCanvas) {
-    wordsCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(width, height);
-  }
+  if (!wordsCanvas) wordsCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(width, height);
   if (wordsCanvas.width !== width || wordsCanvas.height !== height) { wordsCanvas.width = width; wordsCanvas.height = height; }
   return wordsCanvas;
 }
@@ -131,255 +144,300 @@ export function paintDiwaliSix(ctx: CanvasRenderingContext2D, since: number, sti
   const leaving = still ? 0 : fade(t, DIWALI_SIX_MS - LEAVE_MS, DIWALI_SIX_MS);
   const shown = 1 - leaving;
   ctx.save();
-  sky(ctx, t);
+  sky(ctx, t, still);
   ctx.globalAlpha = shown;
+  ctx.globalCompositeOperation = 'lighter';
+  for (const disc of bokeh) bokehDisc(ctx, disc, t, still);
+  mandala(ctx, t, still);
   for (let r = 0; r < ROCKETS.length; r++) rocket(ctx, r, t, still);
-  diyaGlow(ctx, t);
-  toran(ctx, t, still);
-  for (let i = 0; i < DIYAS.length; i++) diya(ctx, i, t, still);
+  for (const mote of dust) dustMote(ctx, mote, t, still);
+  ctx.globalCompositeOperation = 'source-over';
+  diyas(ctx, t, still);
   ctx.globalAlpha = 1;
-  words(ctx, t, shown, -90 * easeOut(leaving), still);
+  words(ctx, t, shown, -70 * easeOut(leaving), still);
+  ctx.globalCompositeOperation = 'lighter';
   for (const glint of GLINTS) sparkle(ctx, glint, t, shown, still);
   ctx.restore();
 }
 
-/** A night sky going warm at the foot, and its stars. */
-function sky(ctx: CanvasRenderingContext2D, t: number) {
+/** Midnight going to plum at the foot, with two slow pools of colour drifting across it. */
+function sky(ctx: CanvasRenderingContext2D, t: number, still: boolean) {
   const ground = ctx.createLinearGradient(0, 0, 0, H);
-  ground.addColorStop(0, '#120a33'); ground.addColorStop(.62, '#2a0c36'); ground.addColorStop(1, '#4a1024');
+  ground.addColorStop(0, '#090519'); ground.addColorStop(.55, '#1d0834'); ground.addColorStop(1, '#3d0f2c');
   ctx.fillStyle = ground; ctx.fillRect(0, 0, W, H);
-  for (const star of stars) {
-    ctx.globalAlpha = .35 + .3 * Math.sin(t * .003 + star.phase);
-    ctx.fillStyle = '#fff4d6';
-    ctx.beginPath(); ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2); ctx.fill();
-  }
-  ctx.globalAlpha = 1;
+  const a = still ? 0 : t * .0005;
+  pool(ctx, 210 + 70 * Math.sin(a * 2.2), 70 + 24 * Math.cos(a * 1.7), 360, 'rgba(255,79,163,.20)');
+  pool(ctx, 820 - 70 * Math.sin(a * 1.8), 340, 400, 'rgba(255,150,50,.22)');
+  pool(ctx, CX, CY, 300 * (.6 + .4 * (still ? 1 : easeOut(fade(t, 200, 900)))), 'rgba(255,186,90,.16)');
+}
+function pool(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, colour: string) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, colour); g.addColorStop(1, colour.replace(/[\d.]+\)$/, '0)'));
+  ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
 }
 
-/** A rocket climbing on its trail, then its burst: sparks thrown out with short tails, falling and fading. */
+function bokehDisc(ctx: CanvasRenderingContext2D, disc: typeof bokeh[number], t: number, still: boolean) {
+  const span = H + 60;
+  const y = ((disc.y - (still ? 0 : disc.rise * t / 1000)) % span + span) % span - 30;
+  const g = ctx.createRadialGradient(disc.x, y, 0, disc.x, y, disc.r);
+  g.addColorStop(0, tint(disc.colour, disc.alpha)); g.addColorStop(.65, tint(disc.colour, disc.alpha * .7)); g.addColorStop(1, tint(disc.colour, 0));
+  ctx.fillStyle = g; ctx.fillRect(disc.x - disc.r, y - disc.r, disc.r * 2, disc.r * 2);
+}
+
+/** A rangoli mandala behind the words, drawing itself round once and then turning slowly. */
+function mandala(ctx: CanvasRenderingContext2D, t: number, still: boolean) {
+  const drawn = still ? 1 : easeOut(fade(t, 120, 1150));
+  if (drawn <= 0) return;
+  const turn = Math.PI * 2 * drawn;
+  ctx.save();
+  ctx.translate(CX, CY);
+  ctx.rotate(-Math.PI / 2 + (still ? 0 : t * .00011));
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(255,206,130,.2)'; ctx.lineWidth = 1.5;
+  for (const r of [58, 172]) { ctx.beginPath(); ctx.arc(0, 0, r, 0, turn); ctx.stroke(); }
+  const petals = 16;
+  for (let k = 0; k < petals; k++) {
+    const at = (k / petals) * Math.PI * 2;
+    if (at > turn) break;
+    ctx.save(); ctx.rotate(at);
+    // A long petal, and a short one between it and the next.
+    ctx.strokeStyle = 'rgba(255,206,130,.22)';
+    ctx.beginPath(); ctx.moveTo(66, 0); ctx.quadraticCurveTo(108, 24, 152, 0); ctx.quadraticCurveTo(108, -24, 66, 0); ctx.stroke();
+    ctx.rotate(Math.PI / petals);
+    ctx.strokeStyle = 'rgba(255,150,190,.18)';
+    ctx.beginPath(); ctx.moveTo(66, 0); ctx.quadraticCurveTo(88, 12, 112, 0); ctx.quadraticCurveTo(88, -12, 66, 0); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.fillStyle = 'rgba(255,214,150,.42)';
+  for (let k = 0; k < 40; k++) {
+    const at = (k / 40) * Math.PI * 2;
+    if (at > turn) break;
+    ctx.beginPath(); ctx.arc(Math.cos(at) * 184, Math.sin(at) * 184, k % 2 ? 1.4 : 2.4, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** A rocket climbing on its trail, then its burst: sparks thrown out glowing, falling and fading. */
 function rocket(ctx: CanvasRenderingContext2D, r: number, t: number, still: boolean) {
   const { launch, from, x, y, colour, size } = ROCKETS[r];
   const age = t - launch;
   if (age < 0) return;
-  // Under reduced motion only the bursts already in the air stand, as dots of light.
-  if (age < RISE && !still) {
-    const p = easeOut(age / RISE), back = easeOut(Math.max(0, age - 90) / RISE);
-    const headX = from + (x - from) * p, headY = H + 10 + (y - H - 10) * p;
-    const tailX = from + (x - from) * back, tailY = H + 10 + (y - H - 10) * back;
-    const trail = ctx.createLinearGradient(tailX, tailY, headX, headY);
-    trail.addColorStop(0, 'rgba(255,190,90,0)'); trail.addColorStop(1, 'rgba(255,230,170,.9)');
-    ctx.strokeStyle = trail; ctx.lineWidth = 3; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(tailX, tailY); ctx.lineTo(headX, headY); ctx.stroke();
-    ctx.fillStyle = '#fff6dc';
-    ctx.beginPath(); ctx.arc(headX, headY, 3.2, 0, Math.PI * 2); ctx.fill();
+  if (age < RISE) {
+    if (still) return;
+    const p = easeOut(age / RISE), back = easeOut(Math.max(0, age - 110) / RISE);
+    const at = (q: number) => ({ x: from + (x - from) * q, y: H + 10 + (y - H - 10) * q });
+    const head = at(p), tail = at(back);
+    const trail = ctx.createLinearGradient(tail.x, tail.y, head.x, head.y);
+    trail.addColorStop(0, tint(colour, 0)); trail.addColorStop(1, tint('#fff1d0', .9));
+    ctx.strokeStyle = trail; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(tail.x, tail.y); ctx.lineTo(head.x, head.y); ctx.stroke();
+    ctx.fillStyle = '#fff6dc'; ctx.beginPath(); ctx.arc(head.x, head.y, 3, 0, Math.PI * 2); ctx.fill();
     return;
   }
   const burst = age - RISE;
-  if (burst > BURST || burst < 0) return;
+  if (burst > BURST) return;
   const life = burst / BURST;
   const saved = ctx.globalAlpha;
-  // Sparks are light: they add to what is behind them and glow where they cross.
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  // The burst's own glow in its colour, soft and its own size: a bloom where it went off, never the whole screen.
-  if (burst < 320) {
-    const reach = 95 * size;
+  // Its own bloom in its own colour: never the whole screen.
+  if (burst < 300) {
+    const reach = 84 * size;
     const bloom = ctx.createRadialGradient(x, y, 0, x, y, reach);
-    bloom.addColorStop(0, tint(colour, .42 * (1 - burst / 320))); bloom.addColorStop(1, tint(colour, 0));
+    bloom.addColorStop(0, tint(colour, .4 * (1 - burst / 300))); bloom.addColorStop(1, tint(colour, 0));
     ctx.fillStyle = bloom; ctx.fillRect(x - reach, y - reach, reach * 2, reach * 2);
   }
   ctx.lineCap = 'round';
+  const fadeOut = 1 - Math.pow(life, 1.5);
   for (const spark of sparks[r]) {
-    const head = sparkAt(spark, burst), tail = sparkAt(spark, Math.max(0, burst - (still ? 60 : 150)));
-    ctx.globalAlpha = saved * (1 - Math.pow(life, 1.6));
-    ctx.strokeStyle = spark.white ? '#fff3cf' : colour;
-    ctx.lineWidth = 3.4 * size * (1 - life * .5);
+    const head = sparkAt(spark, burst), tail = sparkAt(spark, Math.max(0, burst - (still ? 70 : 140)));
+    // A wide faint stroke under a fine bright one: a glow without a blur.
+    ctx.globalAlpha = saved * fadeOut * .22;
+    ctx.strokeStyle = colour; ctx.lineWidth = 6 * size;
     ctx.beginPath(); ctx.moveTo(x + tail.x, y + tail.y); ctx.lineTo(x + head.x, y + head.y); ctx.stroke();
-    // Late in the burst the tips glitter, slowly, as the sparks fall.
-    if (life > .55) {
-      ctx.globalAlpha = saved * (1 - life) * (.5 + .5 * Math.sin(burst * .02 + spark.angle * 5));
-      ctx.fillStyle = '#fff3cf';
-      ctx.beginPath(); ctx.arc(x + head.x, y + head.y, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = saved * fadeOut;
+    ctx.strokeStyle = spark.white ? '#fff4d8' : colour; ctx.lineWidth = 2 * size;
+    ctx.beginPath(); ctx.moveTo(x + tail.x, y + tail.y); ctx.lineTo(x + head.x, y + head.y); ctx.stroke();
+    if (life > .5) {
+      ctx.globalAlpha = saved * (1 - life) * (.5 + .5 * Math.sin(burst * .018 + spark.angle * 7));
+      ctx.fillStyle = '#fff4d8';
+      ctx.beginPath(); ctx.arc(x + head.x, y + head.y, 1.8, 0, Math.PI * 2); ctx.fill();
     }
   }
-  ctx.restore();
   ctx.globalAlpha = saved;
 }
 
-/** A colour of the bursts' at an alpha. */
-function tint(colour: string, alpha: number) {
-  const n = parseInt(colour.slice(1), 16);
-  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${alpha})`;
+function dustMote(ctx: CanvasRenderingContext2D, mote: typeof dust[number], t: number, still: boolean) {
+  const span = H + 20;
+  const y = ((mote.y + (still ? 0 : mote.fall * t / 1000)) % span) - 10;
+  const x = mote.x + mote.sway * Math.sin((still ? 0 : t * .0016) + mote.phase);
+  const saved = ctx.globalAlpha;
+  ctx.globalAlpha = saved * (still ? .7 : fade(t, 150, 700) * (.45 + .4 * Math.sin(t * .004 + mote.phase)));
+  star(ctx, x, y, mote.size * 1.6, '#ffe2a0');
+  ctx.globalAlpha = saved;
 }
 
-/**
- * The marigold toran over the top: four swags of orange and yellow flowers
- * with mango leaves where they are tied, dropping in from above and then
- * swaying a little.
- */
-function toran(ctx: CanvasRenderingContext2D, t: number, still: boolean) {
-  // Dropped in on a spring: down past its place, back, settled by about 600ms.
-  const drop = still ? 0 : -96 * Math.exp(-t / 140) * Math.cos(t / 95);
-  const ties = [-24, 244, 512, 780, 1048];
-  ctx.save();
-  ctx.translate(0, drop);
-  for (let s = 0; s < ties.length - 1; s++) {
-    const a = ties[s], b = ties[s + 1];
-    const sag = 34 + (still ? 0 : 3 * Math.sin(t * .004 + s * 1.3));
-    const yAt = (u: number) => 10 + sag * Math.sin(Math.PI * u);
-    ctx.strokeStyle = '#8a5a12'; ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (let k = 0; k <= 20; k++) { const u = k / 20; ctx[k ? 'lineTo' : 'moveTo'](a + (b - a) * u, yAt(u)); }
-    ctx.stroke();
-    const flowers = 12;
-    for (let k = 0; k <= flowers; k++) {
-      const u = k / flowers, fx = a + (b - a) * u, fy = yAt(u);
-      ctx.fillStyle = k % 2 ? '#ffc21a' : '#ff7a00';
-      ctx.beginPath(); ctx.arc(fx, fy, 9.5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = k % 2 ? '#e09400' : '#d65800';
-      ctx.beginPath(); ctx.arc(fx, fy, 3.4, 0, Math.PI * 2); ctx.fill();
-    }
+/** Small modern diyas: a flat gold bowl and a glowing flame, lit from the middle out. */
+function diyas(ctx: CanvasRenderingContext2D, t: number, still: boolean) {
+  const base = H - 22;
+  // The light along the foot, coming up as they are lit.
+  const lit = DIYAS.reduce((sum, d) => sum + (still ? 1 : easeOut(fade(t, d.lit, d.lit + 240))), 0) / DIYAS.length;
+  if (lit > 0) {
+    const glow = ctx.createLinearGradient(0, H, 0, H - 110);
+    glow.addColorStop(0, `rgba(255,150,60,${.3 * lit})`); glow.addColorStop(1, 'rgba(255,150,60,0)');
+    ctx.fillStyle = glow; ctx.fillRect(0, H - 110, W, 110);
   }
-  // Mango leaves hanging where each swag is tied.
-  for (let s = 1; s < ties.length - 1; s++) {
-    const x = ties[s];
-    for (const lean of [-.42, 0, .42]) {
+  DIYAS.forEach((diya, i) => {
+    const up = still ? 1 : easeOut(fade(t, diya.lit, diya.lit + 240));
+    const { x } = diya;
+    if (up > 0) {
+      const breathe = still ? 1 : 1 + .08 * Math.sin(t * .012 + i * 1.9);
+      const height = 20 * up * breathe;
       ctx.save();
-      ctx.translate(x, 14); ctx.rotate(lean + (still ? 0 : .05 * Math.sin(t * .005 + s)));
-      ctx.fillStyle = lean ? '#1f7a37' : '#2a9a46';
-      ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(11, 22, 0, 46); ctx.quadraticCurveTo(-11, 22, 0, 0); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0, 4); ctx.lineTo(0, 40); ctx.stroke();
+      ctx.globalCompositeOperation = 'lighter';
+      const halo = ctx.createRadialGradient(x, base - 8, 0, x, base - 8, 34 * up);
+      halo.addColorStop(0, 'rgba(255,175,70,.55)'); halo.addColorStop(1, 'rgba(255,175,70,0)');
+      ctx.fillStyle = halo; ctx.fillRect(x - 34, base - 42, 68, 68);
       ctx.restore();
+      const flame = ctx.createLinearGradient(x, base - height - 4, x, base - 3);
+      flame.addColorStop(0, '#ff8a2b'); flame.addColorStop(.5, '#ffd86a'); flame.addColorStop(1, '#fffbe8');
+      ctx.fillStyle = flame;
+      const lean = still ? 0 : 1.6 * Math.sin(t * .008 + i);
+      ctx.beginPath();
+      ctx.moveTo(x + lean, base - height - 3);
+      ctx.bezierCurveTo(x + 7 * up, base - height * .4, x + 6 * up, base - 3, x, base - 3);
+      ctx.bezierCurveTo(x - 6 * up, base - 3, x - 7 * up, base - height * .4, x + lean, base - height - 3);
+      ctx.fill();
     }
-    ctx.fillStyle = '#ffc21a';
-    ctx.beginPath(); ctx.arc(x, 12, 12, 0, Math.PI * 2); ctx.fill();
-  }
-  ctx.restore();
+    const bowl = ctx.createLinearGradient(x - 18, 0, x + 18, 0);
+    bowl.addColorStop(0, '#b8651e'); bowl.addColorStop(.5, '#ffd27a'); bowl.addColorStop(1, '#b8651e');
+    ctx.fillStyle = bowl;
+    ctx.beginPath(); ctx.moveTo(x - 19, base - 2); ctx.quadraticCurveTo(x, base + 16, x + 19, base - 2); ctx.closePath(); ctx.fill();
+  });
 }
 
-/** How far a diya's flame has come up, nought to one. */
-const flameUp = (i: number, t: number) => easeOut(fade(t, DIYAS[i].lit, DIYAS[i].lit + 260));
-
-/** The warm light along the foot, coming up as the diyas are lit. */
-function diyaGlow(ctx: CanvasRenderingContext2D, t: number) {
-  let lit = 0;
-  for (let i = 0; i < DIYAS.length; i++) lit += flameUp(i, t);
-  if (!lit) return;
-  const glow = ctx.createLinearGradient(0, H, 0, H - 150);
-  glow.addColorStop(0, `rgba(255,140,40,${.28 * lit / DIYAS.length})`); glow.addColorStop(1, 'rgba(255,140,40,0)');
-  ctx.fillStyle = glow; ctx.fillRect(0, H - 150, W, 150);
-}
-
-/** A clay diya with its flame: the bowl always there, the flame coming up when its turn comes and moving gently. */
-function diya(ctx: CanvasRenderingContext2D, i: number, t: number, still: boolean) {
-  const { x, width } = DIYAS[i];
-  const base = H - 30;
-  const up = flameUp(i, t);
-  if (up > 0) {
-    // Moves, never flashes: a slow sway in its height, about twice a second.
-    const breathe = still ? 1 : 1 + .07 * Math.sin(t * .013 + i * 1.7);
-    const height = 36 * up * breathe, wide = 12 * up;
-    const halo = ctx.createRadialGradient(x, base - height * .5, 0, x, base - height * .5, 52 * up);
-    halo.addColorStop(0, 'rgba(255,170,60,.5)'); halo.addColorStop(1, 'rgba(255,170,60,0)');
-    ctx.fillStyle = halo; ctx.fillRect(x - 52, base - height * .5 - 52, 104, 104);
-    const flame = ctx.createLinearGradient(x, base - height, x, base);
-    flame.addColorStop(0, '#ff7a1a'); flame.addColorStop(.45, '#ffd34d'); flame.addColorStop(1, '#fff8e0');
-    ctx.fillStyle = flame;
-    const lean = still ? 0 : 2.5 * Math.sin(t * .009 + i);
-    ctx.beginPath();
-    ctx.moveTo(x + lean, base - height);
-    ctx.bezierCurveTo(x + wide, base - height * .45, x + wide * .9, base - 2, x, base - 2);
-    ctx.bezierCurveTo(x - wide * .9, base - 2, x - wide, base - height * .45, x + lean, base - height);
-    ctx.fill();
-  }
-  // The bowl: a lip, then the clay under it, painted with three dots.
-  const bowl = ctx.createLinearGradient(x, base, x, base + 24);
-  bowl.addColorStop(0, '#d0621f'); bowl.addColorStop(1, '#6a1f08');
-  ctx.fillStyle = bowl;
-  ctx.beginPath(); ctx.ellipse(x, base, width / 2, 22, 0, 0, Math.PI); ctx.fill();
-  ctx.fillStyle = '#f2a34c';
-  ctx.beginPath(); ctx.ellipse(x, base, width / 2, 5.5, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#3b1206';
-  ctx.beginPath(); ctx.ellipse(x, base, width / 2 - 6, 3, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#ffe2a8';
-  for (const dx of [-12, 0, 12]) { ctx.beginPath(); ctx.arc(x + dx, base + 11, 2.2, 0, Math.PI * 2); ctx.fill(); }
-}
-
-/**
- * HAPPY DIWALI in gold, slammed on as the screen's words are, with a
- * shimmer run across the letters once they have landed; and SIX ✦ MAXIMUM
- * under it, so the six is still told.
- */
+/** The lockup: "Happy" over DIWALI, the pill under, drawn on the words' layer with the shimmer, then laid on. */
 function words(ctx: CanvasRenderingContext2D, t: number, alpha: number, drift: number, still: boolean) {
-  const since = t - WORDS_AT;
-  if (since < 0 || alpha <= 0) return;
-  const scale = still ? 1 : slam(since);
-  // The words' own canvas at the screen's pixels, so they are as sharp as everything else on it.
+  if (alpha <= 0 || (!still && t < LETTERS_AT)) return;
   const m = ctx.getTransform();
   const px = Math.hypot(m.a, m.b) || 1;
   const layer = wordsLayer(Math.ceil(W * px), Math.ceil(H * px));
   const w = layer.getContext('2d') as CanvasRenderingContext2D;
   w.setTransform(1, 0, 0, 1, 0, 0);
   w.clearRect(0, 0, layer.width, layer.height);
-  w.setTransform(px, 0, 0, px, 0, 0);
-  const cx = W / 2, cy = 166 + drift;
-  w.save();
-  w.translate(cx, cy); w.scale(scale, scale);
-  w.font = JARO(128); w.textAlign = 'center'; w.textBaseline = 'middle';
-  const text = 'HAPPY DIWALI';
-  const fit = Math.min(1, 880 / w.measureText(text).width);
-  w.scale(fit, fit);
-  w.lineJoin = 'round';
-  w.shadowColor = 'rgba(255,130,20,.8)'; w.shadowBlur = 26;
-  w.strokeStyle = '#3b0716'; w.lineWidth = 14;
-  w.strokeText(text, 0, 0);
-  w.shadowBlur = 0;
-  const gold = w.createLinearGradient(0, -56, 0, 56);
-  gold.addColorStop(0, '#fff6c4'); gold.addColorStop(.42, '#ffcb3d'); gold.addColorStop(.75, '#f08a00'); gold.addColorStop(1, '#c45a00');
-  w.fillStyle = gold;
-  w.fillText(text, 0, 0);
-  // The shimmer: a pale band across the letters, once, after they land.
-  const run = still ? -1 : fade(t, 1250, 1850);
+  w.setTransform(px, 0, 0, px, 0, drift * px);
+  diwali(w, t, px, still);
+  happy(w, t, px, still);
+  pill(w, t, still);
+  // A pale band across everything on the layer, once, after it has landed.
+  const run = still ? -1 : fade(t, SHIMMER[0], SHIMMER[1]);
   if (run > 0 && run < 1) {
+    w.save();
     w.globalCompositeOperation = 'source-atop';
-    const at = -620 + run * 1240;
-    const band = w.createLinearGradient(at - 90, 0, at + 90, 0);
-    band.addColorStop(0, 'rgba(255,255,255,0)'); band.addColorStop(.5, 'rgba(255,255,240,.85)'); band.addColorStop(1, 'rgba(255,255,255,0)');
+    const at = 40 + run * (W - 80);
+    const band = w.createLinearGradient(at - 110, 0, at + 110, 0);
+    band.addColorStop(0, 'rgba(255,255,255,0)'); band.addColorStop(.5, 'rgba(255,255,245,.75)'); band.addColorStop(1, 'rgba(255,255,255,0)');
     w.fillStyle = band;
-    w.save(); w.transform(1, 0, -.35, 1, 0, 0); w.fillRect(at - 120, -90, 240, 180); w.restore();
-    w.globalCompositeOperation = 'source-over';
+    w.transform(1, 0, -.4, 1, CY * .4, 0);
+    w.fillRect(at - 140, 0, 280, H);
+    w.restore();
   }
-  w.restore();
-  line(w, t, drift, still);
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = alpha;
   ctx.drawImage(layer as CanvasImageSource, 0, 0);
   ctx.restore();
 }
 
-/** SIX ✦ MAXIMUM, rising into place under the words. */
-function line(w: CanvasRenderingContext2D, t: number, drift: number, still: boolean) {
-  const up = still ? 1 : easeOut(fade(t, LINE_AT, LINE_AT + 240));
-  if (up <= 0) return;
-  const y = 262 + drift + 14 * (1 - up);
+/** Where DIWALI's baseline sits, and how its letters are spread. */
+const DIWALI_BASE = 238, TRACKING = 16;
+function goldFill(w: CanvasRenderingContext2D, top: number, bottom: number) {
+  const gold = w.createLinearGradient(0, top, 0, bottom);
+  for (const [at, colour] of GOLD_STOPS) gold.addColorStop(at, colour);
+  return gold;
+}
+
+/** DIWALI in wide gold, each letter rising in a beat after the last and settling with a little overshoot. */
+function diwali(w: CanvasRenderingContext2D, t: number, px: number, still: boolean) {
+  const text = 'DIWALI';
   w.save();
-  w.globalAlpha = up;
-  w.font = SATOSHI(34); w.textBaseline = 'middle';
-  const spaced = w as CanvasRenderingContext2D & { letterSpacing?: string };
-  spaced.letterSpacing = '10px';
-  const left = 'SIX', right = 'MAXIMUM', gap = 64;
-  const lw = w.measureText(left).width, rw = w.measureText(right).width;
-  const start = W / 2 - (lw + gap + rw) / 2;
-  w.fillStyle = '#ffe7b0';
-  w.shadowColor = 'rgba(0,0,0,.55)'; w.shadowBlur = 8;
-  w.textAlign = 'left';
-  w.fillText(left, start, y);
-  w.fillText(right, start + lw + gap, y);
+  w.font = WIDE(116); w.textAlign = 'center'; w.textBaseline = 'alphabetic';
+  const widths = [...text].map(letter => w.measureText(letter).width);
+  const total = widths.reduce((a, b) => a + b, 0) + TRACKING * (text.length - 1);
+  const fit = Math.min(1, 820 / total);
+  let left = CX - total * fit / 2;
+  [...text].forEach((letter, i) => {
+    const centre = left + widths[i] * fit / 2;
+    left += (widths[i] + TRACKING) * fit;
+    const p = still ? 1 : clamp01((t - LETTERS_AT - i * LETTER_GAP) / LETTER_MS);
+    if (p <= 0) return;
+    const settle = easeBack(p);
+    w.save();
+    w.globalAlpha = easeOut(Math.min(1, p * 1.8));
+    w.translate(centre, DIWALI_BASE + (1 - settle) * 54);
+    const grow = 1 + (1 - settle) * .3;
+    w.scale(fit * grow, fit * grow);
+    w.shadowColor = 'rgba(255,150,50,.65)'; w.shadowBlur = 30 * px;
+    w.fillStyle = goldFill(w, -92, 4);
+    w.fillText(letter, 0, 0);
+    w.shadowBlur = 0;
+    w.fillText(letter, 0, 0);
+    w.restore();
+  });
+  w.restore();
+}
+
+/** "Happy" in the italic serif, written in left to right behind a travelling spark. */
+function happy(w: CanvasRenderingContext2D, t: number, px: number, still: boolean) {
+  const p = still ? 1 : easeOut(fade(t, HAPPY_AT, HAPPY_AT + HAPPY_MS));
+  if (p <= 0) return;
+  w.save();
+  w.font = SERIF(100); w.textAlign = 'center'; w.textBaseline = 'alphabetic';
+  const width = w.measureText('Happy').width;
+  const x = CX, y = 138, left = x - width / 2 - 14;
+  const edge = left + (width + 36) * p;
+  w.beginPath(); w.rect(0, 0, edge, H); w.clip();
+  w.shadowColor = 'rgba(255,90,170,.55)'; w.shadowBlur = 24 * px;
+  w.fillStyle = goldFill(w, y - 70, y + 20);
+  w.fillText('Happy', x, y);
   w.shadowBlur = 0;
-  star(w, start + lw + gap / 2 - 5, y, 13, '#ffcb3d');
+  w.fillText('Happy', x, y);
+  w.restore();
+  if (p < 1) {
+    // The spark writing it.
+    w.save();
+    w.globalCompositeOperation = 'lighter';
+    const glow = w.createRadialGradient(edge, y - 30, 0, edge, y - 30, 40);
+    glow.addColorStop(0, 'rgba(255,230,170,.75)'); glow.addColorStop(1, 'rgba(255,230,170,0)');
+    w.fillStyle = glow; w.fillRect(edge - 40, y - 70, 80, 80);
+    star(w, edge, y - 30, 16, '#fffaf0');
+    w.restore();
+  }
+}
+
+/** SIX · MAXIMUM in a glass pill with a gold edge. */
+function pill(w: CanvasRenderingContext2D, t: number, still: boolean) {
+  const p = still ? 1 : easeOut(fade(t, PILL_AT, PILL_AT + 280));
+  if (p <= 0) return;
+  w.save();
+  w.globalAlpha = p;
+  w.translate(CX, 292 + (1 - p) * 12);
+  w.font = WIDE(21); w.textBaseline = 'middle'; w.textAlign = 'left';
+  const spaced = w as CanvasRenderingContext2D & { letterSpacing?: string };
+  spaced.letterSpacing = '6px';
+  const left = 'SIX', right = 'MAXIMUM', gap = 38;
+  const lw = w.measureText(left).width, rw = w.measureText(right).width;
+  const inner = lw + gap + rw, wide = inner + 64, tall = 44;
+  w.beginPath(); w.roundRect(-wide / 2, -tall / 2, wide, tall, tall / 2);
+  w.fillStyle = 'rgba(28,10,48,.62)'; w.fill();
+  const edge = w.createLinearGradient(-wide / 2, 0, wide / 2, 0);
+  edge.addColorStop(0, 'rgba(255,210,120,.25)'); edge.addColorStop(.5, 'rgba(255,224,160,.95)'); edge.addColorStop(1, 'rgba(255,210,120,.25)');
+  w.strokeStyle = edge; w.lineWidth = 1.6; w.stroke();
+  w.fillStyle = '#fff1d6';
+  const start = -inner / 2 + 3;
+  w.fillText(left, start, 1);
+  w.fillText(right, start + lw + gap, 1);
   spaced.letterSpacing = '0px';
+  star(w, start + lw + gap / 2 - 3, 0, 8, '#ffcb5c');
   w.restore();
 }
 
@@ -395,13 +453,13 @@ function star(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, co
   ctx.fill();
 }
 
-/** A glint popping up and away round the words, half a second each. */
+/** A glint popping up and away round the lockup, half a second each. */
 function sparkle(ctx: CanvasRenderingContext2D, glint: typeof GLINTS[number], t: number, alpha: number, still: boolean) {
   const age = still ? 250 : t - glint.at;
-  if (age < 0 || age > 500 || alpha <= 0) return;
-  const size = Math.sin(Math.PI * age / 500);
-  ctx.save();
+  if (age < 0 || age > 520 || alpha <= 0) return;
+  const size = Math.sin(Math.PI * age / 520);
+  const saved = ctx.globalAlpha;
   ctx.globalAlpha = alpha * size;
   star(ctx, glint.x, glint.y, glint.r * size, '#fff3cf');
-  ctx.restore();
+  ctx.globalAlpha = saved;
 }

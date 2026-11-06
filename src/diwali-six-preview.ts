@@ -2,7 +2,7 @@
 // built into one page by scripts/diwali-six-artifact.mjs. The screen's
 // canvases are the game's: 1024 by 384 laid out, painted at fifteen frames a
 // second, and a copy at half that, the canopy's own size, shown small.
-import { DIWALI_SIX_MS, paintDiwaliSix } from './scene/diwaliSix';
+import { DIWALI_FONTS, DIWALI_SIX_MS, paintDiwaliSix } from './scene/diwaliSix';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const big = $<HTMLCanvasElement>('six-big');
@@ -91,9 +91,10 @@ for (const beat of document.querySelectorAll<HTMLButtonElement>('[data-at]')) {
 fpsBox.addEventListener('change', draw);
 stillBox.addEventListener('change', draw);
 
-if (matchMedia('(prefers-reduced-motion: reduce)').matches) { stillBox.checked = true; setPlaying(false); at = 1300; }
+if (matchMedia('(prefers-reduced-motion: reduce)').matches) { stillBox.checked = true; setPlaying(false); at = 1500; }
 
 void Promise.all([
-  document.fonts.load('128px Jaro'),
+  ...DIWALI_FONTS.map(font => document.fonts.load(font)),
+  document.fonts.load('96px Jaro'),
   document.fonts.load('800 34px Satoshi'),
 ]).finally(() => { last = performance.now(); requestAnimationFrame(tick); });

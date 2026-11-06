@@ -22,13 +22,14 @@ rmSync(dir, { recursive: true, force: true });
 const font = (file) => `data:font/woff2;base64,${readFileSync(file).toString('base64')}`;
 
 const beats = [
-  [0, '0.00', 'Rockets go up and the toran drops in'],
-  [380, '0.38', 'HAPPY DIWALI slams on'],
-  [440, '0.42', 'Three bursts behind the words, a third of a second apart'],
-  [700, '0.64', 'Diyas light from the middle out'],
-  [800, '0.76', 'SIX ✦ MAXIMUM rises in under it'],
-  [1400, '1.25', 'A shimmer runs across the letters'],
-  [1700, '1.50', 'Smaller bursts in the corners'],
+  [200, '0.00', 'Rockets go up at the sides; the mandala starts drawing itself'],
+  [420, '0.26', 'DIWALI rises in, one gold letter at a time'],
+  [560, '0.36', 'Bursts at the sides, a third of a second apart'],
+  [700, '0.56', 'Diyas light along the foot from the middle out'],
+  [860, '0.64', 'A spark writes "Happy" in over it'],
+  [1200, '1.02', 'SIX · MAXIMUM in its pill'],
+  [1560, '1.30', 'A shimmer runs across the lockup'],
+  [2000, '1.70', 'Late bursts low on either side; gold dust keeps falling'],
   [2550, '2.43', 'Everything lifts away'],
   [2950, '2.90', 'Back to the score'],
 ];
@@ -40,18 +41,20 @@ const page = `<title>Diwali Six Screen</title>
 :root {
   --night: #0d0920; --panel: #17112e; --edge: rgba(255,255,255,.10);
   --ink: #f6ead2; --muted: #b3a6c9; --gold: #f5b83d; --marigold: #ff8a1c;
-  --display: Jaro, Impact, "Arial Narrow", sans-serif;
+  --display: 'Instrument Serif', Georgia, serif;
   --ui: Satoshi, "Segoe UI", system-ui, sans-serif;
   color-scheme: dark;
 }
 @font-face { font-family: Jaro; src: url(${font('src/assets/jaro-latin.woff2')}) format('woff2'); font-display: block; }
 @font-face { font-family: Satoshi; src: url(${font('src/assets/satoshi-latin.woff2')}) format('woff2'); font-weight: 300 900; font-display: block; }
+@font-face { font-family: 'Instrument Serif'; font-style: italic; font-weight: 400; src: url(${font('src/assets/instrument-serif-latin-400-italic.woff2')}) format('woff2'); font-display: block; }
+@font-face { font-family: Unbounded; font-weight: 800; src: url(${font('src/assets/unbounded-latin-800-normal.woff2')}) format('woff2'); font-display: block; }
 html, body { background: var(--night); color: var(--ink); }
 body { font: 16px/1.5 var(--ui); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 48px; }
 .wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 22px; }
 header { display: grid; gap: 6px; }
 .eyebrow { font-weight: 800; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--marigold); }
-h1 { font: 400 clamp(36px, 6vw, 60px)/1 var(--display); color: var(--gold); margin: 0; text-wrap: balance; letter-spacing: .01em; }
+h1 { font: italic 400 clamp(40px, 7vw, 68px)/1 var(--display); color: var(--gold); margin: 0; text-wrap: balance; }
 .lede { color: var(--muted); margin: 0; max-width: 62ch; }
 .bezel { background: #050409; border: 1px solid var(--edge); border-radius: 14px; padding: clamp(8px, 1.6vw, 16px); box-shadow: 0 30px 80px -30px rgba(255,138,28,.35); }
 .bezel canvas { display: block; width: 100%; height: auto; aspect-ratio: 1024 / 384; border-radius: 4px; }
@@ -87,7 +90,7 @@ ol .at { font-weight: 800; color: var(--marigold); font-variant-numeric: tabular
     <h1>Happy Diwali, on every six</h1>
     <p class="lede">What the stadium's big screen plays when a batter hits a six during Diwali week, in place of the usual SIX. It is drawn on the screen's own 1024 by 384 canvas and runs the six's full 2.9 seconds, then the screen goes back to the score.</p>
   </header>
-  <div class="bezel"><canvas id="six-big" aria-label="The big screen playing the Diwali six: rockets bursting, HAPPY DIWALI in gold under a marigold toran, SIX MAXIMUM under it and seven diyas lit along the foot."></canvas></div>
+  <div class="bezel"><canvas id="six-big" aria-label="The big screen playing the Diwali six: Happy written in an italic serif over DIWALI in wide gold letters, a rangoli mandala and fireworks behind, SIX MAXIMUM in a pill under it and nine small diyas lit along the foot."></canvas></div>
   <div class="controls">
     <button type="button" id="six-play" aria-pressed="false">Pause</button>
     <button type="button" id="six-replay">Replay</button>
@@ -100,7 +103,7 @@ ol .at { font-weight: 800; color: var(--marigold); font-variant-numeric: tabular
     <section class="card">
       <h2>Beats</h2>
       <ol>${beats.map(([at, s, what]) => `<li><button type="button" data-at="${at}"><span class="at">${s}s</span><span>${what}</span></button></li>`).join('')}</ol>
-      <p class="note">Tap a beat to stop on it. Nothing flashes the whole screen, and no two bursts come closer than a third of a second, the screen's no-strobe rule.</p>
+      <p class="note">Tap a beat to stop on it. Nothing flashes the whole screen, and no two bursts come closer than a third of a second, the screen's no-strobe rule. The type is Instrument Serif Italic over Unbounded, both free to ship (SIL Open Font License).</p>
     </section>
     <section class="card">
       <h2>In a phone's picture</h2>
