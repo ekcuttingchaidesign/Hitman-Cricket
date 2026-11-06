@@ -55,6 +55,22 @@
   font-style:italic;
   font-display:swap
 }
+/* Instrument Serif Italic and Unbounded, both SIL Open Font License 1.1 — the
+   notices ship beside the files in src/assets. Diwali week's six on the big
+   screen (src/scene/diwaliSix.ts): "Happy" in the serif over DIWALI. */
+@font-face{
+  font-family:'Instrument Serif';
+  src:url('./assets/instrument-serif-latin-400-italic.woff2') format('woff2');
+  font-weight:400;
+  font-style:italic;
+  font-display:swap
+}
+@font-face{
+  font-family:Unbounded;
+  src:url('./assets/unbounded-latin-800-normal.woff2') format('woff2');
+  font-weight:800;
+  font-display:swap
+}
 @font-face{
   font-family:Display;
   src:local('Bahnschrift Condensed'),local('Bahnschrift');

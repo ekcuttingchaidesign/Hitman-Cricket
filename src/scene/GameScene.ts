@@ -33,6 +33,7 @@ import { SUPER10_KITS, super10Number, type Super10Kit } from '../game/super10-ki
 import type { CameraPose } from '../game/ShotReel';
 import { SPILL_FALL, spillTo } from '../game/catch-cam';
 import { introCamera, introSweep, type Film } from '../game/IntroReel';
+import { diwaliOn } from '../game/diwali';
 import { batSheet } from '../entities/batSkins';
 
 /** How long the arena's fireworks go up for, for a six and for a milestone. */
@@ -631,6 +632,7 @@ export class GameScene {
     this.lay(turfOf(name));
     this.show?.branded(this.cued !== null);
     this.warmShow();
+    if (diwaliOn()) this.show?.warmDiwali();
     this.raiseStumps();
     this.lightStands();
   }
@@ -888,17 +890,22 @@ export class GameScene {
   cheer(kind: CrowdMoment, now: number, mark = 0, streak = 1, name = '') {
     this.crowd?.trigger(kind, now, mark, streak, name);
     const show = this.cued;
+    if (show) {
+      if (kind === 'hit-four' || kind === 'hit-six') show.cue(kind === 'hit-six' ? 'six' : 'four', now);
+      else show.cue('milestone', now, MILESTONE_WORDS[kind]);
+    }
+    // Diwali week: every six on a big screen, the brand's or the game's own, is the Diwali six.
+    if (kind === 'hit-six' && diwaliOn()) this.show?.diwaliSix(now);
     if (!show) return;
-    if (kind === 'hit-four' || kind === 'hit-six') show.cue(kind === 'hit-six' ? 'six' : 'four', now);
-    else show.cue('milestone', now, MILESTONE_WORDS[kind]);
     // Fireworks off the far end for a six and a milestone: the arena is always night.
     if (this.arena && kind !== 'hit-four') this.fireworks(now, kind === 'hit-six' ? ARENA_FIREWORKS.six : ARENA_FIREWORKS.milestone);
   }
   /** The brand's mood: calm, Power Surge's gold or the death overs' red. Nothing on a ground without its boards. */
   arenaMood(mood: ArenaMood) { this.cued?.mood(mood); }
   /** A moment the screen and the boards light up for that the crowd has no part in: a wicket, Power Surge, the death overs. The wave and the stumps are the arena's alone. */
-  arenaCue(kind: ArenaCue | 'wave' | 'stumps', now: number, word?: string) {
+  arenaCue(kind: ArenaCue | 'wave' | 'stumps' | 'diwali', now: number, word?: string) {
     if (kind === 'wave') this.arena?.wave(now);
+    else if (kind === 'diwali') this.show?.diwaliSix(now);
     else if (kind === 'stumps') this.led.light(now);
     else this.cued?.cue(kind, now, word);
   }

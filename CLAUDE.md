@@ -921,6 +921,23 @@ Choose a mode carries NEW DIWALI KITS in its NEW tag's place
 (`.ms-diwali`, `has-diwali`, `diwaliBadgeDue`) all Diwali week, till the
 end of 11 November, whether or not the room has been opened.
 
+Every six on a big screen that week is the Diwali six (`src/scene/diwaliSix.ts`,
+`paintDiwaliSix`): "Happy" in Instrument Serif Italic written in by a spark
+over DIWALI in Unbounded gold, its letters rising one by one, a rangoli
+mandala drawing itself behind, aurora light, bokeh, glowing bursts at the
+sides, gold dust, SIX · MAXIMUM in a glass pill and nine small diyas lit
+along the foot. It is a function of the time since the six, 2.9 seconds
+(`DIWALI_SIX_MS`, held to the `six` cue's length in `tests/diwali.test.ts`),
+painted on the screen alone at fifteen frames a second (`diwaliSix` on
+`Showboards`, from the scene's `cheer` while `diwaliOn()`): in Super10 it
+plays in place of the brand's SIX sting while the boards keep theirs, and in
+the Blast and the Tests at the canopy over the game's own screen, the rope's
+sponsors untouched. Its two faces (OFL, in `src/assets`) are declared in
+`styles.css` and fetched when a ground with a screen goes up (`warmDiwali`).
+`__cricket.arenaCue('diwali')` puts it up, and `__cricket.arena().diwali`
+says it is up; `scripts/diwali-six-artifact.mjs` builds it into a page of
+its own with a scrubber (the claude.ai artifact "Diwali Six Screen").
+
 ## Who's batting: the gate before the first innings
 
 Before the first innings in a browser — a new player's or an old one's — the

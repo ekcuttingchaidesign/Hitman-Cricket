@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DIWALI_FONTS, DIWALI_SIX_MS, paintDiwaliSix } from './diwaliSix';
 import { Batch, mat } from './build';
 import { EAVES, STADIUM, stadium, type BigScreen, type StadiumLights } from './stadium';
 import { seeded } from './turf';
@@ -582,6 +583,10 @@ interface LedBoard {
  */
 export class Showboards {
   readonly textures: THREE.Texture[] = [];
+  /** When Diwali week's six went up on the screen (`diwaliSix`), and the clock the screen was last painted at. */
+  private diwaliAt: number | null = null;
+  private nowAt = 0;
+  private diwaliFonts = false;
   private shown = '';
   private board: Scoreboard = { title: 'SUPER10', score: '0/0', detail: '' };
   private moodNow: ArenaMood = 'calm';
@@ -646,13 +651,30 @@ export class Showboards {
     this.plain = !on; this.shown = '';
     if (this.screen) this.paintScreen(this.last);
   }
+  /**
+   * Diwali week's six (`paintDiwaliSix`): on the screen alone, for the six's
+   * 2.9 seconds, in place of the brand's SIX sting in Super10 and over the
+   * game's own screen anywhere else. The boards are left to the moment, if
+   * the innings cued one.
+   */
+  diwaliSix(now: number) {
+    if (!this.screen) return;
+    this.warmDiwali();
+    this.diwaliAt = now; this.stopSting(); this.shown = '';
+  }
+  /** The Diwali six's two faces, fetched before the first six so it never paints in the fallbacks. */
+  warmDiwali() {
+    if (this.diwaliFonts || typeof document === 'undefined' || !this.screen) return;
+    this.diwaliFonts = true;
+    void Promise.all(DIWALI_FONTS.map(font => document.fonts?.load(font))).then(() => { this.shown = ''; }).catch(() => {});
+  }
   /** Whether there is a screen for the moments to play on, which the call over the field then leaves them to. */
   get hasScreen() { return this.screen !== null; }
   /** For the checks: the mood, the moment up, what the boards and the screen show. */
   get state() {
     const f = this.last;
     return { mood: this.moodNow, word: f?.word ?? null, board: f?.board ?? 'idle', boards: f?.boards ?? 1,
-      screen: this.screen ? this.shown.split('|').slice(0, 2).join('|') : null, sting: this.playing?.name ?? null };
+      screen: this.screen ? this.shown.split('|').slice(0, 2).join('|') : null, sting: this.playing?.name ?? null, diwali: this.diwaliAt !== null };
   }
 
   /** The boards and the screen at `now`, and the frame they were drawn from, for a ground with more to light by it. `live` is a ball on its way. */
@@ -660,7 +682,8 @@ export class Showboards {
     // A new innings starts the clock again from nought: a moment from the last one is let go.
     if (this.cued && now < this.cued.at) { this.cued = null; this.stopSting(); }
     const f = arenaFrame(this.moodNow, this.cued, now, still, live);
-    this.last = f; this.still = still;
+    this.last = f; this.still = still; this.nowAt = now;
+    if (this.diwaliAt !== null && (now < this.diwaliAt || now - this.diwaliAt >= DIWALI_SIX_MS)) { this.diwaliAt = null; this.shown = ''; }
     // A moment over, its sting goes with it.
     if (!f.word && this.playing) this.stopSting();
     this.offset = (this.offset + f.chase * .016) % 1;
@@ -671,7 +694,7 @@ export class Showboards {
 
   /** The moment let go and every board back to what it shows between them: for a ground going out of sight under another's, which shares the rope's boards with it. */
   rest() {
-    this.cued = null; this.stopSting(); this.last = null;
+    this.cued = null; this.stopSting(); this.last = null; this.diwaliAt = null;
     this.ledBoards(arenaFrame(this.moodNow, null, 0));
     if (this.screen) this.paintScreen(null);
   }
@@ -766,6 +789,18 @@ export class Showboards {
     const ctx = screen.context;
     // Drawn as if 1024 wide, onto a canvas of whatever size the ground gave it.
     const S = ctx.canvas.width / SCREEN_WIDTH, W = SCREEN_WIDTH, H = ctx.canvas.height / S;
+    // Diwali week's six, over anything else: painted fifteen times a second, as a sting is.
+    if (this.diwaliAt !== null) {
+      const since = this.nowAt - this.diwaliAt;
+      const key = `d|${this.still ? 'held' : Math.floor(since / STING_FRAME_MS)}`;
+      if (key === this.shown) return;
+      this.shown = key;
+      ctx.setTransform(S, 0, 0, S, 0, 0);
+      paintDiwaliSix(ctx, since, this.still);
+      this.grid(ctx, .22);
+      screen.texture.needsUpdate = true;
+      return;
+    }
     const word = f?.word ?? null, since = f?.since ?? Infinity;
     const kind = this.cued?.kind;
     const ms = kind ? CUES[kind].ms : 0;

@@ -1121,7 +1121,7 @@ export class Game {
       // The arena's mood and what it is showing, and any of its moments on
       // demand, for photographing them without batting to them.
       arena: () => this.scene.arenaState,
-      arenaCue: (kind: ArenaCue | 'wave' | 'stumps', word?: string) => this.scene.arenaCue(kind, this.elapsed, word),
+      arenaCue: (kind: ArenaCue | 'wave' | 'stumps' | 'diwali', word?: string) => this.scene.arenaCue(kind, this.elapsed, word),
       // The Test look, for the checks: the green strip down, or the Blast's.
       greenTop: () => this.scene.greenTop,
       // How worn the Marathon's strip is, a stage of `WEAR_STAGES`.
