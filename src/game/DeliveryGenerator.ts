@@ -1,4 +1,4 @@
-import { CLASSIC_SPIN, DRAGGED, GAME, LINES, LINE_X, QUICK_STYLES, SPECIALS, STYLES } from '../config/gameplay';
+import { CLASSIC_SPIN, DRAGGED, FLIGHT, GAME, LINES, LINE_X, QUICK_STYLES, SPECIALS, STYLES } from '../config/gameplay';
 import {
   BOUNCERS, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES as SURVIVE_STYLES, SURVIVE,
 } from '../config/survive';
@@ -138,6 +138,8 @@ export interface SpinSpell {
   secondArmBallChance: number;
   /** How many of the rest he drops short (`DRAGGED`). */
   draggedPerOver: number;
+  /** How many of what is left after that he tosses up (`FLIGHT`). */
+  flightedPerOver: number;
 }
 
 /** The two that turn. The arm ball is his too, and does neither. */
@@ -362,6 +364,16 @@ export function spinPullsEvery(plan: BowlingPlan): BowlingPlan {
 }
 
 /**
+ * Every ball the spinner's and every one but the arm ball tossed up, for
+ * `?flight=1`, for trying the flighted ball every ball: his overs from the
+ * first, as `spinCutsEvery` gives them, with none dropped short.
+ */
+export function flightsEvery(plan: BowlingPlan): BowlingPlan {
+  const every = spinCutsEvery(plan);
+  return every.spin ? { ...every, spin: { ...every.spin, draggedPerOver: 0, flightedPerOver: every.spin.ballsPerOver } } : every;
+}
+
+/**
  * The Marathon with every over bowled round the wicket, from the first, for
  * `?round=1`: the side is otherwise drawn, from the sixth over, so seeing it
  * the honest way takes some batting.
@@ -458,6 +470,10 @@ export class DeliveryGenerator {
   private draggedBalls = new Set<number>();
   private dragging = false;
   private readonly drags: SeededRandom;
+  /** The same for the ones he tosses up (`FLIGHT`), off a stream of their own (`flights`). */
+  private flightedBalls = new Set<number>();
+  private flighting = false;
+  private readonly flights: SeededRandom;
   /** Which balls of the over now in progress are short. Drawn at its top. */
   private shortBalls = new Set<number>();
   /** The over those were drawn for, so they are drawn once and not per ball. */
@@ -491,6 +507,7 @@ export class DeliveryGenerator {
     // forked from the seed rather than drawn from it, as the side is: taken
     // from the seed it would have moved every ball bowled after it.
     this.drags = rng.fork(DRAGGED.salt);
+    this.flights = rng.fork(FLIGHT.salt);
     const blocks = plan.blocks;
     if (blocks) {
       // Every block now rather than each as it comes, so the draw sits at the
@@ -603,6 +620,12 @@ export class DeliveryGenerator {
     for (let ball = 0; ball < spell.ballsPerOver; ball++) if (!this.armBalls.has(ball)) free.push(ball);
     return new Set(this.drags.shuffle(free).slice(0, spell.draggedPerOver));
   }
+  /** Which of the balls left once those two are placed he tosses up: off `flights`, never the seed. */
+  private placeFlighted(spell: SpinSpell): Set<number> {
+    const free = [];
+    for (let ball = 0; ball < spell.ballsPerOver; ball++) if (!this.armBalls.has(ball) && !this.draggedBalls.has(ball)) free.push(ball);
+    return new Set(this.flights.shuffle(free).slice(0, spell.flightedPerOver ?? 0));
+  }
   /**
    * Which balls of this over are short. The arm ball's idiom exactly: a count
    * placed at positions drawn fresh, so the over always has its quota and never
@@ -669,7 +692,7 @@ export class DeliveryGenerator {
   private chooseStyle(): DeliveryStyle {
     const { specials } = this.plan;
     const { styles } = this.bowledOff;
-    this.dragging = false; this.deathBall = null;
+    this.dragging = false; this.flighting = false; this.deathBall = null;
     // His over is all his too, as the express bowler's is.
     if (this.deathOn) {
       const ballsPerOver = this.plan.spin?.ballsPerOver ?? GAME.ballsPerOver;
@@ -694,9 +717,13 @@ export class DeliveryGenerator {
       const ballInOver = this.bowled % spell.ballsPerOver;
       // The over is planned at the top of it rather than ball by ball, which is
       // the only way to promise the quicker one is in there somewhere.
-      if (ballInOver === 0) { this.armBalls = this.placeArmBalls(spell); this.draggedBalls = this.placeDragged(spell); }
+      if (ballInOver === 0) {
+        this.armBalls = this.placeArmBalls(spell); this.draggedBalls = this.placeDragged(spell);
+        this.flightedBalls = this.placeFlighted(spell);
+      }
       if (this.armBalls.has(ballInOver)) return 'ARM_BALL';
       this.dragging = this.draggedBalls.has(ballInOver);
+      this.flighting = this.flightedBalls.has(ballInOver);
       // And which way it turns is a coin, every ball. Nothing carries over from
       // the last one: two off breaks say nothing about the third.
       return this.rng.next() < 0.5 ? 'OFF_SPIN' : 'LEG_SPIN';
@@ -749,6 +776,7 @@ export class DeliveryGenerator {
     const spell = this.plan.spin;
     const turning = !!spell && TURNING.includes(style);
     const dragged = !this.drilled && turning && this.dragging;
+    const flighted = !this.drilled && turning && this.flighting;
     const sign = style === 'SWING_IN' || style === 'OFF_SPIN' || style === 'REVERSE_IN' ? -1
       : style === 'SWING_OUT' || style === 'LEG_SPIN' || style === 'REVERSE_OUT' ? 1 : 0;
     // A turning ball picks its line from the ones with somewhere to turn *to*,
@@ -765,7 +793,9 @@ export class DeliveryGenerator {
       ? SWING_LINES[style] ?? REVERSE.lines[style] : undefined;
     const line = this.drilled ? this.drilled.line
       : this.deathBall?.line ? this.deathBall.line
-      : turning ? this.pick(turnable(sign, spell!))
+      // Tossed up, off stump, a little outside it or middle, never leg: the
+      // same one draw from a shorter list, so the seed's stream is unmoved.
+      : turning ? this.pick(flighted ? turnable(sign, spell!).filter(l => FLIGHT.lines.includes(l)) : turnable(sign, spell!))
       : swingFrom ? this.pick([...swingFrom])
       : (this.aim(style) ?? this.toField() ?? this.bag.pop()!);
     if (QUICK_STYLES.includes(style)) this.quick++;
@@ -777,7 +807,9 @@ export class DeliveryGenerator {
     const pace = express ? style === 'SLOWER' ? this.plan.blocks!.express.slower : this.plan.blocks!.express
       : death ? this.deathBall?.pace ?? this.plan.blocks!.death!
       : shape;
-    const speedKph = Math.round(this.rng.range(pace.min, pace.max));
+    // The flighted ball takes the speed he would have bowled and gives some of
+    // it up for the height, from the same draw.
+    const speedKph = Math.round(this.rng.range(pace.min, pace.max) * (flighted ? FLIGHT.pace : 1));
     // A plan by blocks swings it harder as the innings goes on, on the same
     // two deliveries: further, and later in the flight. Survival's level is
     // one and nought, which leaves its ball exactly as it was.
@@ -803,12 +835,13 @@ export class DeliveryGenerator {
     const durationMs = (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * bowled.travelScale * (shape.rush ?? 1);
     this.bowled++;
     return { line, style, speedKph, baseTargetX: LINE_X[line], finalTargetX,
-      bounceZ: dragged ? DRAGGED.bounce : shape.bounce ?? GAME.bounceZ, rise: dragged ? DRAGGED.rise : shape.rise ?? GAME.rise,
+      bounceZ: dragged ? DRAGGED.bounce : flighted ? FLIGHT.bounce : shape.bounce ?? GAME.bounceZ, rise: dragged ? DRAGGED.rise : shape.rise ?? GAME.rise,
       durationMs, releaseTimeMs, idealContactTimeMs: releaseTimeMs + durationMs,
       ...(swung && level!.late ? { late: level!.late } : {}),
       ...(express ? { express: true } : {}),
       ...(death ? { death: true } : {}),
       ...(round ? { round: true } : {}),
-      ...(dragged ? { dragged: true } : {}) };
+      ...(dragged ? { dragged: true } : {}),
+      ...(flighted ? { flighted: true } : {}) };
   }
 }

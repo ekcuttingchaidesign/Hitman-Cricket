@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, FLAT_SWEEP, GAME, HOOK, PUNCH, SPIN_CUT, LINES, LINE_X, QUICK_STYLES, SCOOP, SHOTS, SHOT_ANGLES, SPIN_BOWLING, SQUARE_DRIVE, STYLES, SWEEP } from '../src/config/gameplay';
+import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, FLAT_SWEEP, FLIGHT, GAME, HOOK, PUNCH, SPIN_CUT, LINES, LINE_X, QUICK_STYLES, SCOOP, SHOTS, SHOT_ANGLES, SPIN_BOWLING, SQUARE_DRIVE, STYLES, SWEEP } from '../src/config/gameplay';
 import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
@@ -326,7 +326,9 @@ describe('delivery fairness and determinism', () => {
     let pace = 0;
     for (let i = 0; i < 30; i++) {
       const d = gen.next(0);
-      expect(d.speedKph).toBeGreaterThanOrEqual(STYLES[d.style].min);
+      // The flighted ball gives up some of his pace for the height (`FLIGHT.pace`).
+      const slowed = d.flighted ? FLIGHT.pace : 1;
+      expect(d.speedKph).toBeGreaterThanOrEqual(Math.round(STYLES[d.style].min * slowed));
       expect(d.speedKph).toBeLessThanOrEqual(STYLES[d.style].max);
       if (d.style === 'OFF_SPIN' || d.style === 'LEG_SPIN') {
         // A turning ball moves far more than the seamer does, and is the one

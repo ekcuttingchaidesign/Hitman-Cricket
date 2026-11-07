@@ -1,4 +1,4 @@
-import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, FLICK, GAME, GROUND_RUNS, HOOK, LATE_CUT, PUNCH, SCOOP, SOLID_SHOT, SPIN_CUT, SPIN_PULL, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
+import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, FLICK, FLIGHT, GAME, GROUND_RUNS, HOOK, LATE_CUT, PUNCH, SCOOP, SOLID_SHOT, SPIN_CUT, SPIN_PULL, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory';
 import { spun } from './DeliveryGenerator';
 import type { Delivery, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './types';
@@ -183,7 +183,8 @@ export function advanceShot(delivery: Delivery, attempt: ShotAttempt | null, cha
  * a quick at all.
  */
 export function sweepable(delivery: Delivery) {
-  return SWEEP.styles.includes(delivery.style) && delivery.bounceZ >= SWEEP.minBounceZ;
+  // The flighted ball is pitched up, the sweeper's ball, whatever its figure.
+  return SWEEP.styles.includes(delivery.style) && (delivery.bounceZ >= SWEEP.minBounceZ || !!delivery.flighted);
 }
 /**
  * The slog sweep: a full meter, the spinner's ball, a leg-side input, and
@@ -337,6 +338,30 @@ export function cuttable(delivery: Delivery) {
 /** Feathered off the face and taken behind. */
 const edge = (outcome: ShotOutcome, feedback: string): ShotOutcome =>
   ({ ...outcome, madeBatContact: true, edged: true, isWicket: true, wicketType: 'CAUGHT', feedback });
+/** Driven at the flighted ball: the stroke its height invites (`FLIGHT`). */
+export function droveFlighted(delivery: Delivery, attempt: Pick<ShotAttempt, 'shotType'> | null) {
+  return !!delivery.flighted && !!attempt && FLIGHT.shots.includes(attempt.shotType);
+}
+/**
+ * What the flighted ball takes off a drive in the Blast, or null where it is
+ * the drive it always was. Beaten, he was drawn out of his crease to it and is
+ * stumped half the time; timed OK but early, the dip has him through the
+ * stroke before it arrives and it goes up off the bat; timed OK but late, the
+ * drift has it on the outside edge. Poor timing goes up as every poor stroke
+ * does, early held in the deep and late off the edge. A drive middled or a
+ * shade under is left alone: the flighted ball is the one with something to
+ * hit, and pays the six and the four it always did.
+ */
+function flightedDrive(outcome: ShotOutcome, delta: number | null, rng: { next(): number }): ShotOutcome | null {
+  const deceived = { ...outcome, aerial: true, madeBatContact: true, isWicket: true, wicketType: 'CAUGHT' as const, feedback: FLIGHT.feedback.deceived };
+  if (!outcome.madeBatContact) return rng.next() < FLIGHT.stumped
+    ? { ...outcome, isWicket: true, wicketType: 'STUMPED', feedback: FLIGHT.feedback.stumped } : null;
+  const early = delta !== null && delta < 0;
+  if (outcome.timingGrade === 'POOR') return early ? deceived : edge(outcome, FLIGHT.feedback.drift);
+  if (outcome.timingGrade !== 'OK') return null;
+  if (early) return rng.next() < FLIGHT.miscued ? deceived : null;
+  return rng.next() < FLIGHT.drifted ? edge(outcome, FLIGHT.feedback.drift) : null;
+}
 /**
  * A stroke played at a ball wide enough to free the arms at, once it is settled
  * that this IS that ball. Timing alone names the result — the line has already
@@ -573,6 +598,13 @@ export function resolveShot(
   if (attempt?.shotType === 'LATE_CUT' && lateCutMeets(outcome)) return lateCut(outcome, rng, false);
   // Cut at the spinner's ball going on down the leg side: cramped.
   if (crampedCut(delivery, attempt)) return cramped(outcome, rng, 2);
+  // Driven at the ball tossed up: lured out, deceived in the flight or
+  // beaten by the drift. Asked before the square drive, which a flighted
+  // ball wide of off is otherwise, so the drift reaches that stroke too.
+  if (droveFlighted(delivery, attempt)) {
+    const taken = flightedDrive(outcome, delta, rng);
+    if (taken) return taken;
+  }
   // Wide of off and full: the half-volley. Until now this was the one ball in
   // the game with no stroke worth full value — the cut owns the wide line but
   // only answers a short ball, so a full one left the drive's 0.9 as the

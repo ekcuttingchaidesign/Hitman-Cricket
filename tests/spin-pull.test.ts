@@ -54,8 +54,9 @@ describe("the spinner's ball dropped short", () => {
   });
   it('moves no other ball of any innings: it is placed off a stream of its own', () => {
     for (const [, plan] of plans) for (let seed = 1; seed <= 10; seed++) {
-      const without = innings({ ...plan, spin: plan.spin && { ...plan.spin, draggedPerOver: 0 } }, seed, 200);
-      const withIt = innings(plan, seed, 200);
+      // The flighted ball is placed in what the short ball leaves, so it is held off on both sides.
+      const without = innings({ ...plan, spin: plan.spin && { ...plan.spin, draggedPerOver: 0, flightedPerOver: 0 } }, seed, 200);
+      const withIt = innings({ ...plan, spin: plan.spin && { ...plan.spin, flightedPerOver: 0 } }, seed, 200);
       withIt.forEach((ball, i) => {
         const { bounceZ: _b, rise: _r, dragged: _d, ...rest } = ball;
         const { bounceZ: _b2, rise: _r2, dragged: _d2, ...was } = without[i];
