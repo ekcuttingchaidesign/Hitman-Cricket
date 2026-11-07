@@ -40,7 +40,7 @@ import { Health } from './game/Health';
 import { TAILENDER, endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { EASE, easeFor, easedSkill, easedWindows, notePlayed, playedIn, seedPlayed } from './game/newcomer';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SUPER10_PLAN, SURVIVE_PLAN, bouncersEvery, lateCutsEvery, spinCutsEvery, spinPullsEvery, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SUPER10_PLAN, SURVIVE_PLAN, bouncersEvery, lateCutsEvery, spinCutsEvery, spinPullsEvery, flightsEvery, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -2720,6 +2720,11 @@ export class Game {
    * dropped short, for trying the pull off the spinner. See `spinPullsEvery`.
    */
   private spinPullsOnly = new URLSearchParams(location.search).get('spinpull') === '1';
+  /**
+   * `?flight=1`: every ball the spinner's and every one but the arm ball
+   * tossed up, for trying the flighted ball every ball. See `flightsEvery`.
+   */
+  private flightsOnly = new URLSearchParams(location.search).get('flight') === '1';
   /** `?latecut=1`: every ball the late cut's, pitched up outside off. See `lateCutsEvery`. */
   private lateCutsOnly = new URLSearchParams(location.search).get('latecut') === '1';
   /**
@@ -2786,6 +2791,7 @@ export class Game {
     if (this.bouncersOnly || this.hooksOnly) return bouncersEvery(plan, this.hooksOnly);
     if (this.spinCutsOnly) return spinCutsEvery(plan);
     if (this.spinPullsOnly) return spinPullsEvery(plan);
+    if (this.flightsOnly) return flightsEvery(plan);
     if (this.lateCutsOnly) return lateCutsEvery(plan);
     if (!this.spinOnly || !plan.spin) return plan;
     // Every over his, from the first: `spinOvers` always gives him `notBefore`
@@ -7052,7 +7058,7 @@ export class Game {
       kept: this.kept ? { stroke: this.kept.swing.stroke, runs: this.kept.outcome.runs, dropped: !!this.kept.outcome.dropped } : null, replayLog: { ...this.replayLog }, changed: this.changed, milestone: !!this.milestoneDue,
       replay: this.replay ? { stroke: this.replay.kept.swing.stroke, angle: this.replay.angle.id, at: this.replay.start === null ? null : Math.round(this.elapsed - this.replay.start), struck: this.replay.struck, ending: this.replay.ending !== null } : null,
       replays: this.replayLog.shown, balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
-      line: this.delivery?.line ?? '—', dragged: !!this.delivery?.dragged, spinPulled: !!this.outcome?.spinPulled, spinPulls: this.spinPulls, hooks: this.hooks, effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
+      line: this.delivery?.line ?? '—', dragged: !!this.delivery?.dragged, flighted: !!this.delivery?.flighted, spinPulled: !!this.outcome?.spinPulled, spinPulls: this.spinPulls, hooks: this.hooks, effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
       baseX: this.delivery?.baseTargetX.toFixed(3) ?? '—', finalX: this.delivery?.finalTargetX.toFixed(3) ?? '—',
       contactAt: Math.round(this.delivery?.idealContactTimeMs ?? 0), timingDelta: this.outcome?.timingDeltaMs?.toFixed(0) ?? '—', timingGrade: this.outcome?.timingGrade ?? '—',
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',

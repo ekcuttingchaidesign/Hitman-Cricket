@@ -1,4 +1,4 @@
-import { GAME, LINES, LINE_X } from '../config/gameplay';
+import { FLIGHT, GAME, LINES, LINE_X } from '../config/gameplay';
 import { REVERSE } from '../config/marathon';
 import type { BallLine, Delivery } from './types';
 const smooth = (t: number) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3 - 2 * x); };
@@ -57,11 +57,21 @@ export function ballPosition(delivery: Delivery, progress: number) {
   const movementT = spin ? smooth((t - bounceT) / (settled - bounceT))
     : reverse ? smooth((t - bounceT) / (REVERSE.settled - bounceT))
     : smooth(late ? (pre - late) / (1 - late) : pre);
-  const x = delivery.baseTargetX + (delivery.finalTargetX - delivery.baseTargetX) * movementT;
+  // Tossed up, it drifts in the air the other way to its turn and comes back
+  // onto its line late, by the pitch: an off break away from the right-hander,
+  // a leg break into him. Nothing after the pitch moves, so every rule that
+  // meets the ball at the bat or the stumps meets the same ball.
+  const drift = delivery.flighted && t < bounceT
+    ? Math.sign(delivery.finalTargetX - delivery.baseTargetX) * FLIGHT.drift * (1 - pre * pre) : 0;
+  const x = delivery.baseTargetX + (delivery.finalTargetX - delivery.baseTargetX) * movementT + drift;
   // The climb off the pitch is the delivery's length: a yorker barely leaves the
   // ground, a bouncer is at the chest by the time it arrives.
   const rise = delivery.rise;
-  const y = t <= bounceT ? 0.09 + 2.05 * (1 - pre) + 0.55 * Math.sin(Math.PI * pre)
+  // The flighted ball's arc climbs higher and peaks earlier, so it comes down
+  // steeper: the dip, landing on the length it always had.
+  const y = t <= bounceT ? delivery.flighted
+      ? 0.09 + 2.05 * (1 - pre) + FLIGHT.loop * Math.sin(Math.PI * Math.pow(pre, FLIGHT.dip))
+      : 0.09 + 2.05 * (1 - pre) + 0.55 * Math.sin(Math.PI * pre)
     : Math.max(0.09, 0.09 + rise * post - rise * 0.64 * post * post);
   return { x, y, z: GAME.releaseZ - t * (GAME.releaseZ - GAME.contactZ) };
 }

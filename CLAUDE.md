@@ -1063,6 +1063,7 @@ An innings played from a link carrying a switch that changes the game —
 (every ball a bouncer on off stump or wider, the hook's ball), `?spincut=1`
 (every ball the spinner's, for the cut off him), `?spinpull=1` (every ball
 the spinner's and all but the arm ball dropped short, for the pull off him),
+`?flight=1` (every ball the spinner's and all but the arm ball tossed up),
 `?latecut=1` (every ball
 pace outside off, for the late cut), `?cover=1`
 (every ball the cover drive's own: a stock ball pitched up on off stump),
@@ -1617,6 +1618,43 @@ to out to leg nothing turns in his hands. Held at the wrap
 his head and let down into his guard. It is `spinPull` and `spinPullLow` in
 the batter tests' `PLAYS`, `tests/spin-pull.test.ts` holds the ball and the
 rules, and `cover-drive.html` has it.
+
+## The flighted ball
+
+The spinner tosses one ball up every over (`FLIGHT` in
+`src/config/gameplay.ts`, `flighted` on the delivery, `flightedPerOver` in
+`SPIN_BOWLING`): an off break or a leg break on the same coin as the rest, on
+a good length (`GAME.bounceZ`, his stock length), on off stump, a little
+outside it or middle and never on leg (`FLIGHT.lines`), at `FLIGHT.pace` of
+the speed he would have bowled. Never the arm ball and never the ball dropped
+short. Its place in the over comes off a stream forked from the seed
+(`flights`, `placeFlighted`), and its line and pace off the same draws an
+ordinary ball of his makes, so no other ball of any innings moved when it
+arrived; a Rival Match begun before it shipped and finished after would see
+the spinner differently. Its arc (`ballPosition`) climbs `FLIGHT.loop` higher
+than the stock ball's and peaks early (`FLIGHT.dip`), so it comes down
+steeper onto the same spot, and it drifts in the air against its turn
+(`FLIGHT.drift`: an off break away from the right-hander, a leg break into
+him) and is back on its line by the pitch. From the pitch on it is the ball
+it would have been, so nothing that meets it at the bat or the stumps moves.
+
+How it gets a batter out is the research behind it: the height invites the
+drive, the dip has an early stroke through before the ball arrives, the drift
+finds the edge of a late one, and a batter drawn out of his crease and beaten
+is stumped. Only the drives are asked (`droveFlighted`: straight, on and
+cover). In the Blast (`flightedDrive`): beaten, stumped half the time
+(`FLIGHT.stumped`), LURED OUT — STUMPED!; timed OK but early, up and held
+three times in ten (`miscued`), DECEIVED IN FLIGHT — CAUGHT!; OK but late,
+edged a quarter of the time (`drifted`), BEATEN BY DRIFT — EDGED!; poor goes
+up as ever, early held and late off the edge; middled or a shade under it is
+the six and the four it always was. In a Test (`surviveBall`), off the mode's
+own windows: beaten, stumped four in ten (`testStumped`) before the turn's
+own chance; poor and early, skied; poor and late, the drift's nick on any
+line; and a drive timed GOOD is four, where every other ball of his is worked
+for ones and twos. The sims barely move: Survival's expert 59.7 to 59.8,
+Super10's pro 191 either way. `?flight=1` (`flightsEvery`) bowls it every ball
+but the arm ball, in any mode, and is practice. `snapshot().flighted` says
+the ball is one; `tests/flight.test.ts` holds all of it.
 
 ## The late cut
 

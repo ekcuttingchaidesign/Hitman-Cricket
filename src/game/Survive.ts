@@ -1,10 +1,10 @@
-import { CUT, FLICK, HOOK, PUNCH, SOLID_SHOT } from '../config/gameplay.js';
+import { CUT, FLICK, FLIGHT, HOOK, PUNCH, SOLID_SHOT } from '../config/gameplay.js';
 import {
   BANDS, BODY_ZONE, CLOSE, OFF_WIDTH, PITCH, RISK, SAFE_MISHIT, SIX, SPIN, STYLES, SURVIVE, SURVIVE_TIMING, damageFor,
 } from '../config/survive.js';
 import { ballPosition, stumpIntersection } from './DeliveryTrajectory.js';
 import { spun } from './DeliveryGenerator.js';
-import { cramped, crampedCut, droveShort, fitOf, flicked, gradeTiming, hookable, lateCut, lateCutMeets, punch, spinPull, squareDrive, sweeps } from './ShotResolver.js';
+import { cramped, crampedCut, droveFlighted, droveShort, fitOf, flicked, gradeTiming, hookable, lateCut, lateCutMeets, punch, spinPull, squareDrive, sweeps } from './ShotResolver.js';
 
 export { spun };
 import type { BodyPart, Delivery, Ending, ShotAttempt, ShotOutcome, TimingSide } from './types.js';
@@ -467,7 +467,9 @@ export function surviveBall(
       const runs = inTheSlot(delivery, compatibility) && !attempt.grounded && !punch(delivery, attempt) && !droveShort(delivery, attempt) ? 6 : 4;
       return { ...base, runs, madeBatContact: true, feedback: award(runs) };
     }
-    if (timingGrade === 'GOOD' && !spin) return { ...base, runs: 4, madeBatContact: true, feedback: award(4) };
+    // Except the ball he tosses up and is driven: the one he gives the
+    // batter something to hit, and a drive timed well beats the field.
+    if (timingGrade === 'GOOD' && (!spin || droveFlighted(delivery, attempt))) return { ...base, runs: 4, madeBatContact: true, feedback: award(4) };
     return nudged(base, rng);
   }
 
@@ -482,6 +484,21 @@ export function surviveBall(
   // second thing tried and it was wrong twice over: they are far wider than the
   // attacking windows, so a shot could be graded POOR and read CLEAN at the same
   // time, and fall through to being bowled with the bat on the ball.
+  // Driven at the ball tossed up and mistimed (`FLIGHT`): beaten, he is out
+  // of his crease and stumped more often than the turn alone would have him;
+  // early, the dip has him through the stroke and it goes up; late, the drift
+  // takes the edge on any line, not only outside off.
+  if (droveFlighted(delivery, attempt)) {
+    if (timingGrade === 'MISS') return rng.next() < FLIGHT.testStumped
+      ? { ...base, madeBatContact: false, isWicket: true, wicketType: 'STUMPED', feedback: FLIGHT.feedback.stumped }
+      : beaten({ ...base, feedback: 'PLAYED AND MISSED' }, delivery, rng);
+    if (delta !== null && delta < 0) {
+      const up = skied(base, rng);
+      return up.isWicket ? { ...up, feedback: FLIGHT.feedback.deceived } : up;
+    }
+    const edged = nick(base, rng, FLIGHT.feedback.drift);
+    return edged.isWicket ? edged : insideEdge(base, delivery, rng);
+  }
   if (timingGrade === 'MISS') return beaten({ ...base, feedback: 'PLAYED AND MISSED' }, delivery, rng);
   if (delta !== null && delta < 0) {
     // Through the shot at one aimed at him: the bat is past and the ball is

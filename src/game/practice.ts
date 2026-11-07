@@ -26,6 +26,7 @@ const ON: Record<string, (value: string) => boolean> = {
   hooks: v => v === '1',
   spincut: v => v === '1',
   spinpull: v => v === '1',
+  flight: v => v === '1',
   latecut: v => v === '1',
   swing: v => v === '1',
   express: v => v === '1',

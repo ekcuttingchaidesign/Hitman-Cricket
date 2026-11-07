@@ -96,6 +96,8 @@ export const SPIN_BOWLING = {
   secondArmBallChance: 0.25,
   /** And how many he drops short (`DRAGGED`): one, never the arm ball. */
   draggedPerOver: 1,
+  /** And how many he tosses up (`FLIGHT`): one, never the arm ball nor the one dropped short. */
+  flightedPerOver: 1,
 } as const;
 /**
  * The spinner's ball dropped short: an off break or a leg break pitched well
@@ -106,6 +108,57 @@ export const SPIN_BOWLING = {
  * forked off the seed, so no other ball of any innings moved when it arrived.
  */
 export const DRAGGED = { bounce: 7.0, rise: 2.0, salt: 0x64726167 } as const;
+/**
+ * The flighted ball: the spinner's off break or leg break tossed up, higher
+ * and a little slower, on a good length (`GAME.bounceZ`, where he lands the
+ * rest), on off stump, a little outside it or middle, never on leg. It turns
+ * either way, the same coin as every other ball of his.
+ *
+ * How a spinner uses it, from the coaching books and the commentary box: the
+ * height and the loop invite the batter forward to drive, and the ball gets
+ * him out three ways. It dips, landing shorter than it looked from the hand,
+ * so a drive played early is through before the ball arrives and goes up off
+ * the bat, caught in the deep or by the bowler. It drifts in the air the
+ * opposite way to its turn (an off break away from the right-hander, a leg
+ * break into him), so a batter covering the line it set out on is late to
+ * where it is, and it finds the outside edge. And it lures him out of his
+ * crease: drawn forward to the pitch of it and beaten, he is stumped. Against
+ * all of that it is the ball with something to hit: a drive middled is the
+ * Blast's six as always, and in a Test it is the one ball of his a well-timed
+ * drive beats the field off for four.
+ *
+ * Where it falls in his over is drawn off a stream of its own (`salt`),
+ * forked off the seed as the ball dropped short is, and its line, pace and
+ * turn are taken from the same draws an ordinary ball of his makes, so no
+ * other ball of any innings moved when it arrived.
+ */
+export const FLIGHT = {
+  lines: ['MIDDLE', 'OFF', 'OUTSIDE_OFF'] as readonly BallLine[],
+  /** His speed for it, a share of the speed he would have bowled. */
+  pace: 0.88,
+  /** How far its arc rises over the stock ball's flat one, in metres: the stock ball's is 0.55. */
+  loop: 1.35,
+  /** The arc's peak is drawn early and its fall steep (under 1): the dip. */
+  dip: 0.7,
+  /** How far it drifts in the air before it pitches, metres, against its turn. */
+  drift: 0.1,
+  salt: 0x666c6974,
+  /** The drives it tempts. */
+  shots: ['STRAIGHT', 'LONG_ON', 'COVER_LONG_OFF'] as readonly ShotType[],
+  /** The Blast: driven at and beaten, the chance he is stumped. */
+  stumped: 0.5,
+  /** The Blast: a drive timed OK but early, the chance it goes up and is held. */
+  miscued: 0.3,
+  /** The Blast: a drive timed OK but late, the chance the drift takes the edge. */
+  drifted: 0.25,
+  /** A Test: driven at and beaten, the chance he is stumped, before the turn's own. */
+  testStumped: 0.4,
+  feedback: {
+    stumped: 'LURED OUT — STUMPED!',
+    deceived: 'DECEIVED IN FLIGHT — CAUGHT!',
+    drift: 'BEATEN BY DRIFT — EDGED!',
+  },
+} as const;
 /**
  * The pull off the spinner, from a net session filmed from the bowler's end:
  * the leg-side input at the spinner's short ball, and at the arm ball timed

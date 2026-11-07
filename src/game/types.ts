@@ -48,6 +48,8 @@ export interface Delivery {
   round?: boolean;
   /** The spinner's ball dropped short, up at the waist: see `DRAGGED`. */
   dragged?: boolean;
+  /** The spinner's ball tossed up, high, slower and dipping: see `FLIGHT`. */
+  flighted?: boolean;
 }
 export interface ShotAttempt {
   shotType: ShotType; inputTimeMs: number;
