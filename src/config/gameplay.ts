@@ -137,6 +137,9 @@ export const FLIGHT = {
   lines: ['MIDDLE', 'OFF', 'OUTSIDE_OFF'] as readonly BallLine[],
   /** Where it pitches, metres from the batter's end: fuller than his stock ball's 8.3. */
   bounce: 5.0,
+  /** Or fuller still, at 4, half the time (`fullerShare`): a coin off its own stream. */
+  fuller: 4.0,
+  fullerShare: 0.5,
   /**
    * How much of its way after the pitch it takes to turn, as a share of the
    * flight: it lands past the point his stock ball has finished turning by.

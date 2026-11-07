@@ -44,12 +44,20 @@ describe('the flighted ball: when and how he bowls it', () => {
         expect(['OFF_SPIN', 'LEG_SPIN']).toContain(ball.style);
         expect(FLIGHT.lines).toContain(ball.line);
         expect(ball.dragged).toBeFalsy();
-        expect(ball.bounceZ).toBe(FLIGHT.bounce);
+        expect([FLIGHT.bounce, FLIGHT.fuller]).toContain(ball.bounceZ);
         expect(ball.speedKph).toBeLessThanOrEqual(Math.round(STYLES[ball.style].max * FLIGHT.pace));
       }
       for (const ball of balls) if (!spun(ball)) expect(ball.flighted).toBeFalsy();
     }
     expect(overs).toBeGreaterThan(plan === SUPER10_PLAN ? 15 : 20);
+  });
+  it('pitches at five metres or four, about half and half', () => {
+    const lengths: number[] = [];
+    for (let seed = 1; seed <= 200; seed++) for (const ball of innings(CLASSIC_PLAN, seed, 30)) if (ball.flighted) lengths.push(ball.bounceZ);
+    const fuller = lengths.filter(z => z === FLIGHT.fuller).length / lengths.length;
+    expect(lengths.length).toBeGreaterThan(150);
+    expect(fuller).toBeGreaterThan(0.4);
+    expect(fuller).toBeLessThan(0.6);
   });
   it('turns both ways', () => {
     const styles = new Set<string>();

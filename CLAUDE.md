@@ -1627,7 +1627,9 @@ The spinner tosses one ball up every over (`FLIGHT` in
 `src/config/gameplay.ts`, `flighted` on the delivery, `flightedPerOver` in
 `SPIN_BOWLING`): an off break or a leg break on the same coin as the rest, pitched
 up (`FLIGHT.bounce`, 5 metres from the batter's end where his stock ball
-lands at 8.3, which read as halfway down the pitch; 6.5 was tried first), on off stump, a little
+lands at 8.3, which read as halfway down the pitch; 6.5 was tried first;
+or at 4, `FLIGHT.fuller`, half the time, a coin each off the `flights`
+stream, `flightFull`), on off stump, a little
 outside it or middle and never on leg (`FLIGHT.lines`), at `FLIGHT.pace` of
 the speed he would have bowled. Never the arm ball and never the ball dropped
 short. Its place in the over comes off a stream forked from the seed
@@ -1660,7 +1662,7 @@ line; and a drive timed GOOD is four, where every other ball of his is worked
 for ones and twos. The sims barely move: Survival's expert 59.7 to 59.8,
 Super10's pro 191 either way. `?flight=1` (`flightsEvery`) bowls it every ball
 but the arm ball, in any mode, and is practice. `?flightlen=4` (`flightAt`,
-`flightLengthOf`) pitches it that many metres from the batter's end instead,
+`flightLengthOf`) pitches it that many metres from the batter's end every time instead,
 held between `FLIGHT.lengths` (3 to 8.3), for trying lengths side by side
 with `?flight=1`; it is practice too. However full it is pitched it has
 turned by `FLIGHT.turnedBy` of the flight, before the charge, the stroke

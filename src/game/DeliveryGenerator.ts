@@ -140,7 +140,7 @@ export interface SpinSpell {
   draggedPerOver: number;
   /** How many of what is left after that he tosses up (`FLIGHT`). */
   flightedPerOver: number;
-  /** Where the tossed-up ball pitches, when a link asks (`flightAt`); `FLIGHT.bounce` otherwise. */
+  /** Where the tossed-up ball pitches, when a link asks (`flightAt`); `FLIGHT.bounce` or `FLIGHT.fuller` otherwise. */
   flightBounce?: number;
 }
 
@@ -491,6 +491,8 @@ export class DeliveryGenerator {
   /** The same for the ones he tosses up (`FLIGHT`), off a stream of their own (`flights`). */
   private flightedBalls = new Set<number>();
   private flighting = false;
+  /** And whether the one being chosen is pitched at `FLIGHT.fuller`, the coin off `flights`. */
+  private flightFull = false;
   private readonly flights: SeededRandom;
   /** Which balls of the over now in progress are short. Drawn at its top. */
   private shortBalls = new Set<number>();
@@ -742,6 +744,9 @@ export class DeliveryGenerator {
       if (this.armBalls.has(ballInOver)) return 'ARM_BALL';
       this.dragging = this.draggedBalls.has(ballInOver);
       this.flighting = this.flightedBalls.has(ballInOver);
+      // Five metres or four, a coin each: off the same forked stream, so the
+      // seed's own stream and every other ball stay where they were.
+      this.flightFull = this.flighting && this.flights.next() < FLIGHT.fullerShare;
       // And which way it turns is a coin, every ball. Nothing carries over from
       // the last one: two off breaks say nothing about the third.
       return this.rng.next() < 0.5 ? 'OFF_SPIN' : 'LEG_SPIN';
@@ -853,7 +858,7 @@ export class DeliveryGenerator {
     const durationMs = (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * bowled.travelScale * (shape.rush ?? 1);
     this.bowled++;
     return { line, style, speedKph, baseTargetX: LINE_X[line], finalTargetX,
-      bounceZ: dragged ? DRAGGED.bounce : flighted ? spell?.flightBounce ?? FLIGHT.bounce : shape.bounce ?? GAME.bounceZ, rise: dragged ? DRAGGED.rise : shape.rise ?? GAME.rise,
+      bounceZ: dragged ? DRAGGED.bounce : flighted ? spell?.flightBounce ?? (this.flightFull ? FLIGHT.fuller : FLIGHT.bounce) : shape.bounce ?? GAME.bounceZ, rise: dragged ? DRAGGED.rise : shape.rise ?? GAME.rise,
       durationMs, releaseTimeMs, idealContactTimeMs: releaseTimeMs + durationMs,
       ...(swung && level!.late ? { late: level!.late } : {}),
       ...(express ? { express: true } : {}),
