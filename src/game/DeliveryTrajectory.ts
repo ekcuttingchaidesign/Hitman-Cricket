@@ -52,7 +52,8 @@ export function ballPosition(delivery: Delivery, progress: number) {
   // The flighted ball pitches fuller than that point (`FLIGHT.bounce`), so
   // it does its turning over a stretch of its own after it lands
   // (`FLIGHT.settle`): what is left of the way is shorter, and it turns late.
-  const settled = delivery.flighted ? bounceT + FLIGHT.settle : 0.66;
+  // However full it is pitched it has turned by `FLIGHT.turnedBy`, before any stroke meets it.
+  const settled = delivery.flighted ? Math.min(bounceT + FLIGHT.settle, FLIGHT.turnedBy) : 0.66;
   // A ball that swings late holds its line for the first part of the way.
   const late = delivery.late ?? 0;
   // Reverse swing goes to the pitch straight and does all of its moving off it.

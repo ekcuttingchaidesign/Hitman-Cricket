@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { FLIGHT, GAME, LINE_X, STYLES } from '../src/config/gameplay';
 import { SURVIVE } from '../src/config/survive';
-import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN, SUPER10_PLAN, SURVIVE_PLAN, flightsEvery, spun, type BowlingPlan } from '../src/game/DeliveryGenerator';
+import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN, SUPER10_PLAN, SURVIVE_PLAN, flightAt, flightLengthOf, flightsEvery, spun, type BowlingPlan } from '../src/game/DeliveryGenerator';
+import { practiceSwitches } from '../src/game/practice';
 import { ballPosition, flightProgress } from '../src/game/DeliveryTrajectory';
 import { SeededRandom } from '../src/game/SeededRandom';
 import { resolveShot } from '../src/game/ShotResolver';
@@ -122,6 +123,34 @@ describe('the flighted ball: its flight', () => {
   it('is slower, so it arrives later, and still arrives on time', () => {
     const ball = tossed();
     expect(flightProgress(ball, ball.durationMs)).toBeCloseTo(1, 9);
+  });
+});
+
+describe('`?flightlen=`: the flighted ball at another length', () => {
+  it('pitches it where the link says, and moves no other ball', () => {
+    expect(flightLengthOf('?flight=1&flightlen=4')).toBe(4);
+    expect(flightLengthOf('?flightlen=abc')).toBeNull();
+    expect(flightLengthOf('?flight=1')).toBeNull();
+    const plain = innings(CLASSIC_PLAN, 5, 30);
+    innings(flightAt(CLASSIC_PLAN, 4), 5, 30).forEach((ball, i) => {
+      if (ball.flighted) expect(ball.bounceZ).toBe(4);
+      else expect(ball).toEqual(plain[i]);
+    });
+  });
+  it('is held between the fullest and the shortest it can be', () => {
+    expect(flightAt(CLASSIC_PLAN, 1).spin?.flightBounce).toBe(FLIGHT.lengths.fullest);
+    expect(flightAt(CLASSIC_PLAN, 12).spin?.flightBounce).toBe(FLIGHT.lengths.shortest);
+  });
+  it('has turned before any stroke meets it, however full', () => {
+    for (const bounceZ of [FLIGHT.lengths.fullest, 4, FLIGHT.bounce]) {
+      const ball = tossed({ bounceZ, baseTargetX: 0, finalTargetX: -0.3 });
+      expect(ballPosition(ball, FLIGHT.turnedBy).x, `${bounceZ}`).toBeCloseTo(-0.3, 9);
+      const bounceT = (GAME.releaseZ - bounceZ) / (GAME.releaseZ - GAME.contactZ);
+      expect(ballPosition(ball, bounceT + 1e-6).x).toBeCloseTo(0, 4);
+    }
+  });
+  it('is practice', () => {
+    expect(practiceSwitches('?flightlen=4')).toEqual(['flightlen']);
   });
 });
 

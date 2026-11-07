@@ -140,6 +140,8 @@ export interface SpinSpell {
   draggedPerOver: number;
   /** How many of what is left after that he tosses up (`FLIGHT`). */
   flightedPerOver: number;
+  /** Where the tossed-up ball pitches, when a link asks (`flightAt`); `FLIGHT.bounce` otherwise. */
+  flightBounce?: number;
 }
 
 /** The two that turn. The arm ball is his too, and does neither. */
@@ -371,6 +373,22 @@ export function spinPullsEvery(plan: BowlingPlan): BowlingPlan {
 export function flightsEvery(plan: BowlingPlan): BowlingPlan {
   const every = spinCutsEvery(plan);
   return every.spin ? { ...every, spin: { ...every.spin, draggedPerOver: 0, flightedPerOver: every.spin.ballsPerOver } } : every;
+}
+
+/**
+ * The tossed-up ball pitched `metres` from the batter's end, for
+ * `?flightlen=`, held between `FLIGHT.lengths`. Every other ball is as it was.
+ */
+export function flightAt(plan: BowlingPlan, metres: number): BowlingPlan {
+  const { fullest, shortest } = FLIGHT.lengths;
+  const bounce = Math.min(shortest, Math.max(fullest, metres));
+  return plan.spin ? { ...plan, spin: { ...plan.spin, flightBounce: bounce } } : plan;
+}
+/** The length `?flightlen=` asks for, or null where it asks for none it can give. */
+export function flightLengthOf(search: string): number | null {
+  const raw = new URLSearchParams(search).get('flightlen');
+  const metres = raw === null ? NaN : Number(raw);
+  return Number.isFinite(metres) && metres > 0 ? metres : null;
 }
 
 /**
@@ -835,7 +853,7 @@ export class DeliveryGenerator {
     const durationMs = (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * bowled.travelScale * (shape.rush ?? 1);
     this.bowled++;
     return { line, style, speedKph, baseTargetX: LINE_X[line], finalTargetX,
-      bounceZ: dragged ? DRAGGED.bounce : flighted ? FLIGHT.bounce : shape.bounce ?? GAME.bounceZ, rise: dragged ? DRAGGED.rise : shape.rise ?? GAME.rise,
+      bounceZ: dragged ? DRAGGED.bounce : flighted ? spell?.flightBounce ?? FLIGHT.bounce : shape.bounce ?? GAME.bounceZ, rise: dragged ? DRAGGED.rise : shape.rise ?? GAME.rise,
       durationMs, releaseTimeMs, idealContactTimeMs: releaseTimeMs + durationMs,
       ...(swung && level!.late ? { late: level!.late } : {}),
       ...(express ? { express: true } : {}),

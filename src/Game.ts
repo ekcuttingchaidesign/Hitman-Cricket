@@ -40,7 +40,7 @@ import { Health } from './game/Health';
 import { TAILENDER, endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { EASE, easeFor, easedSkill, easedWindows, notePlayed, playedIn, seedPlayed } from './game/newcomer';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SUPER10_PLAN, SURVIVE_PLAN, bouncersEvery, lateCutsEvery, spinCutsEvery, spinPullsEvery, flightsEvery, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SUPER10_PLAN, SURVIVE_PLAN, bouncersEvery, lateCutsEvery, spinCutsEvery, spinPullsEvery, flightsEvery, flightAt, flightLengthOf, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -2725,6 +2725,11 @@ export class Game {
    * tossed up, for trying the flighted ball every ball. See `flightsEvery`.
    */
   private flightsOnly = new URLSearchParams(location.search).get('flight') === '1';
+  /**
+   * `?flightlen=4`: the tossed-up ball pitched that many metres from the
+   * batter's end, for trying lengths against the one it ships at. See `flightAt`.
+   */
+  private flightLength = flightLengthOf(location.search);
   /** `?latecut=1`: every ball the late cut's, pitched up outside off. See `lateCutsEvery`. */
   private lateCutsOnly = new URLSearchParams(location.search).get('latecut') === '1';
   /**
@@ -2744,7 +2749,8 @@ export class Game {
   private get plan() {
     // A Rival Match is bowled as its room's mode is, whatever the link asks for.
     if (this.challenge.playing) return this.challenge.room?.mode === 'super10' ? SUPER10_PLAN : CLASSIC_PLAN;
-    const base = this.ease > 1 ? withoutYorkers(this.basePlan) : this.basePlan;
+    const plain = this.ease > 1 ? withoutYorkers(this.basePlan) : this.basePlan;
+    const base = this.flightLength ? flightAt(plain, this.flightLength) : plain;
     return this.marathoning && (this.roundOnly || this.netsKeys) ? roundEvery(base) : base;
   }
   /**

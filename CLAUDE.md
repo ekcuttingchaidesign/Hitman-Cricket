@@ -1064,6 +1064,8 @@ An innings played from a link carrying a switch that changes the game —
 (every ball the spinner's, for the cut off him), `?spinpull=1` (every ball
 the spinner's and all but the arm ball dropped short, for the pull off him),
 `?flight=1` (every ball the spinner's and all but the arm ball tossed up),
+`?flightlen=4` (the tossed-up ball pitched that many metres from the
+batter's end),
 `?latecut=1` (every ball
 pace outside off, for the late cut), `?cover=1`
 (every ball the cover drive's own: a stock ball pitched up on off stump),
@@ -1657,7 +1659,12 @@ own chance; poor and early, skied; poor and late, the drift's nick on any
 line; and a drive timed GOOD is four, where every other ball of his is worked
 for ones and twos. The sims barely move: Survival's expert 59.7 to 59.8,
 Super10's pro 191 either way. `?flight=1` (`flightsEvery`) bowls it every ball
-but the arm ball, in any mode, and is practice. `snapshot().flighted` says
+but the arm ball, in any mode, and is practice. `?flightlen=4` (`flightAt`,
+`flightLengthOf`) pitches it that many metres from the batter's end instead,
+held between `FLIGHT.lengths` (3 to 8.3), for trying lengths side by side
+with `?flight=1`; it is practice too. However full it is pitched it has
+turned by `FLIGHT.turnedBy` of the flight, before the charge, the stroke
+that meets it furthest down the pitch. `snapshot().flighted` says
 the ball is one; `tests/flighted-ball.test.ts` holds all of it.
 
 ## The late cut

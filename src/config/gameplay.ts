@@ -142,6 +142,14 @@ export const FLIGHT = {
    * flight: it lands past the point his stock ball has finished turning by.
    */
   settle: 0.1,
+  /**
+   * The latest it may finish turning, as a share of the flight, however full
+   * it is pitched: before any stroke meets it (the charge, furthest down the
+   * pitch, at about 0.95).
+   */
+  turnedBy: 0.92,
+  /** The fullest and shortest `?flightlen=` may pitch it, metres from the batter's end. */
+  lengths: { fullest: 3, shortest: 8.3 },
   /** His speed for it, a share of the speed he would have bowled. */
   pace: 0.88,
   /** How far its arc rises over the stock ball's flat one, in metres: the stock ball's is 0.55. */
