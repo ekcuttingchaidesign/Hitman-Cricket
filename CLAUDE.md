@@ -1654,7 +1654,7 @@ line; and a drive timed GOOD is four, where every other ball of his is worked
 for ones and twos. The sims barely move: Survival's expert 59.7 to 59.8,
 Super10's pro 191 either way. `?flight=1` (`flightsEvery`) bowls it every ball
 but the arm ball, in any mode, and is practice. `snapshot().flighted` says
-the ball is one; `tests/flight.test.ts` holds all of it.
+the ball is one; `tests/flighted-ball.test.ts` holds all of it.
 
 ## The late cut
 

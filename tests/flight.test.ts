@@ -1,154 +1,299 @@
 import { describe, expect, it } from 'vitest';
-import { FLIGHT, GAME, LINE_X, STYLES } from '../src/config/gameplay';
+import { GAME } from '../src/config/gameplay';
 import { SURVIVE } from '../src/config/survive';
-import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN, SUPER10_PLAN, SURVIVE_PLAN, flightsEvery, spun, type BowlingPlan } from '../src/game/DeliveryGenerator';
-import { ballPosition, flightProgress } from '../src/game/DeliveryTrajectory';
-import { SeededRandom } from '../src/game/SeededRandom';
-import { resolveShot } from '../src/game/ShotResolver';
-import { surviveBall } from '../src/game/Survive';
-import type { Delivery, ShotType, TimingGrade } from '../src/game/types';
+import { flightOf } from '../src/scene/flight';
+import type { ShotOutcome, WicketType } from '../src/game/types';
 
-const innings = (plan: BowlingPlan, seed: number, balls = 120) => {
-  const generator = new DeliveryGenerator(new SeededRandom(seed), plan);
-  return Array.from({ length: balls }, (_, i) => generator.next(i * 4000));
-};
-const without = (plan: BowlingPlan): BowlingPlan => ({ ...plan, spin: plan.spin && { ...plan.spin, flightedPerOver: 0 } });
-/** The ball tossed up, as the generator makes it, with what a test changes. */
-const tossed = (changes: Partial<Delivery> = {}): Delivery => ({
-  line: 'OFF', style: 'OFF_SPIN', speedKph: 78, baseTargetX: LINE_X.OFF, finalTargetX: LINE_X.OFF - 0.3,
-  bounceZ: GAME.bounceZ, rise: GAME.rise, durationMs: 800, releaseTimeMs: 0, idealContactTimeMs: 800, flighted: true, ...changes,
-});
-/** A die that always lands where it is told. */
-const die = (value: number) => ({ next: () => value });
-const BLAST: Record<TimingGrade, number> = { PERFECT: 0, GOOD: GAME.timing.perfect + 5, OK: GAME.timing.good + 5, POOR: GAME.timing.ok + 5, MISS: GAME.timing.poor + 30 };
-const blast = (d: Delivery, grade: TimingGrade, shot: ShotType, value: number, early = false) =>
-  resolveShot(d, { shotType: shot, inputTimeMs: d.idealContactTimeMs + BLAST[grade] * (early ? -1 : 1) }, die(value));
-const test = (d: Delivery, delta: number, shot: ShotType, value: number) =>
-  surviveBall(d, { shotType: shot, inputTimeMs: d.idealContactTimeMs + delta }, die(value));
-
-describe('the flighted ball: when and how he bowls it', () => {
-  const plans: [string, BowlingPlan, number][] = [['Blast', CLASSIC_PLAN, 120], ['Survival', SURVIVE_PLAN, 120], ['Marathon', MARATHON_PLAN, 300], ['Super10', SUPER10_PLAN, 60]];
-  it.each(plans)('comes once in every one of his overs in the %s, a turning ball on a good length, off, outside off or middle', (_, plan, length) => {
-    const perOver = plan.spin?.ballsPerOver ?? GAME.ballsPerOver;
-    let overs = 0;
-    for (let seed = 1; seed <= 30; seed++) {
-      const balls = innings(plan, seed, length);
-      for (let start = 0; start + perOver <= balls.length; start += perOver) {
-        const over = balls.slice(start, start + perOver);
-        if (!over.every(spun)) continue;
-        overs++;
-        const flighted = over.filter(d => d.flighted);
-        expect(flighted, `seed ${seed} over at ${start}`).toHaveLength(1);
-        const [ball] = flighted;
-        expect(['OFF_SPIN', 'LEG_SPIN']).toContain(ball.style);
-        expect(FLIGHT.lines).toContain(ball.line);
-        expect(ball.dragged).toBeFalsy();
-        expect(ball.bounceZ).toBe(GAME.bounceZ);
-        expect(ball.speedKph).toBeLessThanOrEqual(Math.round(STYLES[ball.style].max * FLIGHT.pace));
-      }
-      for (const ball of balls) if (!spun(ball)) expect(ball.flighted).toBeFalsy();
-    }
-    expect(overs).toBeGreaterThan(plan === SUPER10_PLAN ? 15 : 20);
-  });
-  it('turns both ways', () => {
-    const styles = new Set<string>();
-    for (let seed = 1; seed <= 30; seed++) for (const ball of innings(CLASSIC_PLAN, seed, 30)) if (ball.flighted) styles.add(ball.style);
-    expect([...styles].sort()).toEqual(['LEG_SPIN', 'OFF_SPIN']);
-  });
-  it('moves no other ball of any innings: it is placed off a stream of its own', () => {
-    for (const [, plan] of plans) for (let seed = 1; seed <= 10; seed++) {
-      const was = innings(without(plan), seed, 200);
-      innings(plan, seed, 200).forEach((ball, i) => {
-        if (!ball.flighted) { expect(ball, `seed ${seed} ball ${i}`).toEqual(was[i]); return; }
-        // Itself, only what flight changes: its line, its pace, and so its turn.
-        expect(ball.style).toBe(was[i].style);
-        expect(ball.bounceZ).toBe(was[i].bounceZ);
-      });
-    }
-  });
-  it('is every ball but the arm ball on `?flight=1`', () => {
-    const balls = innings(flightsEvery(CLASSIC_PLAN), 7, GAME.totalBalls);
-    expect(balls.every(spun)).toBe(true);
-    for (const ball of balls) expect(!!ball.flighted, ball.style).toBe(ball.style !== 'ARM_BALL');
-  });
-});
-
-describe('the flighted ball: its flight', () => {
-  const same = (a: { x: number; y: number; z: number }, b: typeof a) => {
-    expect(a.x).toBeCloseTo(b.x, 9); expect(a.y).toBeCloseTo(b.y, 9); expect(a.z).toBeCloseTo(b.z, 9);
+/**
+ * What a ball does after it leaves the bat used to be decided inside a class
+ * that cannot be built without WebGL, which is why a real regression sat in it
+ * unnoticed: a condition written for Survive's skied mishit also caught the
+ * classic innings' mishit six and shortened a shot meant to clear the rope from
+ * fifty-two metres to nineteen. These are the shapes, stated once.
+ */
+function outcome(over: Partial<ShotOutcome> = {}): ShotOutcome {
+  return {
+    runs: 0, isWicket: false, quality: 0, feedback: '', timingGrade: 'GOOD',
+    timingDeltaMs: 0, compatibility: 1, madeBatContact: true, aerial: false, ...over,
   };
-  const stock = (d: Delivery): Delivery => ({ ...d, flighted: false });
-  const bounceT = (GAME.releaseZ - GAME.bounceZ) / (GAME.releaseZ - GAME.contactZ);
-  it('goes higher than his stock ball and comes down steeper, onto the same spot', () => {
-    const ball = tossed();
-    const peak = (d: Delivery) => Math.max(...Array.from({ length: 50 }, (_, i) => ballPosition(d, bounceT * i / 50).y));
-    expect(peak(ball)).toBeGreaterThan(peak(stock(ball)) + 0.6);
-    const fall = (d: Delivery) => ballPosition(d, bounceT * 0.9).y - ballPosition(d, bounceT).y;
-    expect(fall(ball)).toBeGreaterThan(fall(stock(ball)));
-    same(ballPosition(ball, bounceT), ballPosition(stock(ball), bounceT));
+}
+const out = (wicketType: WicketType, over: Partial<ShotOutcome> = {}) =>
+  outcome({ isWicket: true, wicketType, ...over });
+
+describe('a ball that stays down', () => {
+  it('runs further the more it is worth', () => {
+    const reach = (runs: ShotOutcome['runs']) => flightOf(outcome({ runs })).distance;
+    expect(reach(0)).toBeLessThan(reach(1));
+    expect(reach(1)).toBeLessThan(reach(2));
+    expect(reach(2)).toBeLessThan(reach(4));
+    expect(reach(4)).toBeLessThan(reach(6));
   });
-  it('drifts the other way to its turn in the air, and is the same ball from the pitch on', () => {
-    for (const style of ['OFF_SPIN', 'LEG_SPIN'] as const) {
-      const turn = style === 'OFF_SPIN' ? -0.3 : 0.25;
-      const ball = tossed({ style, baseTargetX: LINE_X.MIDDLE, finalTargetX: turn });
-      const midAir = ballPosition(ball, bounceT * 0.6).x - ballPosition(stock(ball), bounceT * 0.6).x;
-      // Drawn from the hand on the side it turns to, it drifts back across to the other.
-      const drift = ballPosition(ball, bounceT * 0.6).x - ballPosition(ball, 0).x;
-      expect(Math.sign(drift), style).toBe(-Math.sign(turn));
-      expect(Math.abs(midAir)).toBeGreaterThan(0.02);
-      for (const progress of [bounceT, 0.8, 1, 1.1]) same(ballPosition(ball, progress), ballPosition(stock(ball), progress));
-    }
-  });
-  it('is slower, so it arrives later, and still arrives on time', () => {
-    const ball = tossed();
-    expect(flightProgress(ball, ball.durationMs)).toBeCloseTo(1, 9);
+
+  it('keeps a four along the turf and lifts a six over it', () => {
+    expect(flightOf(outcome({ runs: 4 })).height).toBeLessThan(1);
+    expect(flightOf(outcome({ runs: 6 })).height).toBeGreaterThan(10);
   });
 });
 
-describe('the flighted ball in the Blast', () => {
-  const drives: ShotType[] = ['STRAIGHT', 'LONG_ON', 'COVER_LONG_OFF'];
-  it('driven at and beaten, he is lured out and stumped half the time', () => {
-    for (const shot of drives) {
-      const out = blast(tossed(), 'MISS', shot, 0.1);
-      expect(out.wicketType, shot).toBe('STUMPED');
-      expect(out.feedback).toBe(FLIGHT.feedback.stumped);
-      expect(blast(tossed(), 'MISS', shot, 0.9).wicketType, shot).not.toBe('STUMPED');
-    }
+describe('a ball in the air', () => {
+  it('still clears the rope when it is a six, in either innings', () => {
+    // The regression. A mishit that is not caught is a six in the classic
+    // innings, and a six has to land outside the ground: nineteen metres is a
+    // shot that pitches in front of the sponsor's boards.
+    const six = flightOf(outcome({ aerial: true, runs: 6 }));
+    expect(six.distance).toBe(flightOf(outcome({ runs: 6 })).distance);
+    expect(six.distance).toBeGreaterThan(40);
+    expect(six.height).toBeGreaterThan(12);
+    // And nobody is under it, so nothing reaches for it.
+    expect(six.takeAt).toBe(1);
+    expect(six.dropAt).toBe(0);
   });
-  it('driven early, the dip has it up and held; driven late, the drift takes the edge', () => {
-    const early = blast(tossed(), 'OK', 'STRAIGHT', 0.1, true);
-    expect([early.isWicket, early.wicketType, early.aerial, early.feedback]).toEqual([true, 'CAUGHT', true, FLIGHT.feedback.deceived]);
-    const late = blast(tossed(), 'OK', 'COVER_LONG_OFF', 0.1);
-    expect([late.isWicket, late.edged, late.feedback]).toEqual([true, true, FLIGHT.feedback.drift]);
-    // Not every time: OK is still worth runs more often than not.
-    expect(blast(tossed(), 'OK', 'STRAIGHT', 0.9, true).isWicket).toBe(false);
-    expect(blast(tossed(), 'OK', 'STRAIGHT', 0.9).isWicket).toBe(false);
+
+  it('lands inside and runs away to the rope when it is a four', () => {
+    // A mishit off a stroke played to keep it down, not caught.
+    const four = flightOf(outcome({ aerial: true, runs: 4 }));
+    expect(four.distance).toBe(flightOf(outcome({ runs: 4 })).distance);
+    expect(four.bounceAt).toBeGreaterThan(0); expect(four.bounceAt).toBeLessThan(1);
+    expect(four.height).toBeGreaterThan(5);
+    expect(four.takeAt).toBe(1);
+    expect(four.dropAt).toBe(0);
   });
-  it('middled, it is the ball with something to hit: six, as ever', () => {
-    expect(blast(tossed({ line: 'MIDDLE', baseTargetX: 0, finalTargetX: 0 }), 'PERFECT', 'STRAIGHT', 0.1).runs).toBe(6);
+
+  it('goes out to a fielder when somebody is under it', () => {
+    const held = flightOf(out('CAUGHT', { aerial: true }));
+    expect(held.distance).toBeGreaterThan(15);
+    expect(held.height).toBeGreaterThan(10);
+    expect(held.endY).toBeGreaterThan(1);
   });
-  it('asks nothing of a stroke that is not a drive', () => {
-    const ball = tossed(), stock = { ...ball, flighted: false };
-    for (const shot of ['LEG', 'SQUARE_CUT', 'DEFEND', 'LATE_CUT'] as ShotType[]) for (const grade of ['OK', 'MISS'] as TimingGrade[])
-      expect(blast(ball, grade, shot, 0.1), `${shot} ${grade}`).toEqual(blast(stock, grade, shot, 0.1));
+
+  it('arrives in his hands before the flight is over, not on the last frame', () => {
+    // The fielder's hands close at 0.86 of the flight. An arc that only comes
+    // down at 1 has him catching a ball still metres above his head.
+    expect(flightOf(out('CAUGHT', { aerial: true })).takeAt).toBeLessThan(0.9);
+    expect(flightOf(outcome({ aerial: true, dropped: true })).takeAt).toBeLessThan(0.9);
+  });
+
+  it('is spilled only when it was put down, and only after the take', () => {
+    const spilled = flightOf(outcome({ aerial: true, dropped: true }));
+    expect(spilled.dropAt).toBeGreaterThan(spilled.takeAt);
+    expect(flightOf(out('CAUGHT', { aerial: true })).dropAt).toBe(0);
+  });
+
+  it('hangs for less time in Survive than in the classic innings', () => {
+    expect(flightOf(out('CAUGHT', { aerial: true })).flightMs).toBe(GAME.aerialFlightMs);
+    expect(flightOf(out('CAUGHT', { aerial: true, hangMs: SURVIVE.hangMs })).flightMs).toBe(SURVIVE.hangMs);
   });
 });
 
-describe('the flighted ball in a Test', () => {
-  const { perfect, ok, poor } = SURVIVE.timing;
-  it('driven at and beaten, he is stumped more often than the turn alone has him', () => {
-    expect(test(tossed(), poor + 60, 'STRAIGHT', 0.3).wicketType).toBe('STUMPED');
-    expect(test(tossed(), poor + 60, 'STRAIGHT', 0.3).feedback).toBe(FLIGHT.feedback.stumped);
+describe('played on', () => {
+  /**
+   * The bails are thrown from the frame the ball reaches the stumps, and the
+   * throw itself runs for 620ms. The first version of this had the ball arrive
+   * on the very last frame of a 430ms flight, so the bails were released with
+   * no flight left to move in and the stumps simply stood there while the call
+   * said he was bowled.
+   */
+  const BAIL_THROW_MS = 620;
+  const CONTACT_Z = GAME.contactZ;
+
+  it('reaches the stumps with the whole bail throw still to come', () => {
+    const flight = flightOf(out('BOWLED', { madeBatContact: true }));
+    // It finishes behind the stumps, so it crosses them partway through.
+    const endZ = -1.5;
+    const crossing = CONTACT_Z / (CONTACT_Z - endZ);
+    const left = flight.flightMs * (1 - crossing);
+    expect(crossing).toBeLessThan(0.6);
+    expect(left).toBeGreaterThanOrEqual(BAIL_THROW_MS * 0.9);
   });
-  it('driven poorly and early it goes up; late, the drift takes the edge on any line', () => {
-    const early = test(tossed(), -(ok + 5), 'STRAIGHT', 0.01);
-    expect([early.isWicket, early.aerial, early.feedback]).toEqual([true, true, FLIGHT.feedback.deceived]);
-    const late = test(tossed({ line: 'MIDDLE', baseTargetX: 0, finalTargetX: 0.2, style: 'LEG_SPIN' }), ok + 5, 'STRAIGHT', 0.01);
-    expect([late.isWicket, late.edged, late.feedback]).toEqual([true, true, FLIGHT.feedback.drift]);
+
+  it('stays low and quick, not a shot into the field', () => {
+    const flight = flightOf(out('BOWLED', { madeBatContact: true }));
+    expect(flight.height).toBeLessThan(0.5);
+    expect(flight.distance).toBeLessThan(3);
   });
-  it('driven well, it beats the field for four, where his other balls are worked for ones and twos', () => {
-    const ball = tossed({ line: 'MIDDLE', baseTargetX: 0, finalTargetX: 0 });
-    expect(test(ball, perfect + 5, 'STRAIGHT', 0.5).runs).toBe(4);
-    expect(test({ ...ball, flighted: false }, perfect + 5, 'STRAIGHT', 0.5).runs).toBeLessThan(4);
+
+  it('is not confused with being beaten all ends up', () => {
+    // No bat on it is the classic innings' bowled, which the scene draws by
+    // carrying the delivery on rather than by striking a new flight.
+    expect(flightOf(out('BOWLED', { madeBatContact: false })).distance)
+      .not.toBe(flightOf(out('BOWLED', { madeBatContact: true })).distance);
+  });
+});
+
+describe('a ball that hit the batter', () => {
+  it('drops at his feet rather than carrying through to the keeper', () => {
+    const flight = flightOf(outcome({ hit: { where: 'RIBS', damage: 20 }, madeBatContact: false }));
+    expect(flight.distance).toBeLessThan(3);
+    expect(flight.endY).toBeLessThan(0.3);
+    expect(flight.flightMs).toBeLessThan(GAME.hitAnimationMs);
+  });
+});
+
+describe('the strokes that are placed rather than struck', () => {
+  it('drops a defended ball dead in front of him', () => {
+    expect(flightOf(outcome({ defended: true })).distance).toBeLessThan(2.5);
+  });
+
+  it('drops a cramped cut off the inside edge dead at his pad', () => {
+    const padded = flightOf(outcome({ padded: true, runs: 0 }));
+    expect(padded.distance).toBeLessThan(1.5); expect(padded.height).toBeLessThan(.2);
+  });
+
+  it('sends the charge out of the ground', () => {
+    const flight = flightOf(outcome({ advance: true, runs: 6 }));
+    expect(flight.distance).toBeGreaterThan(70);
+    expect(flight.height).toBeGreaterThan(30);
+  });
+
+  it('ramps a scoop over the keeper, and lands the four before the rope', () => {
+    const six = flightOf(outcome({ scooped: true, runs: 6, madeBatContact: true }));
+    expect(six.distance).toBeGreaterThan(52); expect(six.height).toBeGreaterThan(15); expect(six.bounceAt).toBe(0);
+    const four = flightOf(outcome({ scooped: true, runs: 4, madeBatContact: true }));
+    expect(four.bounceAt).toBeGreaterThan(0); expect(four.distance).toBe(44);
+    // Held back it runs away along the turf like any other single.
+    expect(flightOf(outcome({ scooped: true, runs: 2, madeBatContact: true })).height).toBeLessThan(1);
+    // Top-edged to the keeper it is the edge's short drop, not a stroke.
+    expect(flightOf(outcome({ scooped: true, runs: 0, madeBatContact: true, edged: true, isWicket: true, wicketType: 'CAUGHT' })).distance).toBeLessThan(2);
+  });
+  it('sends a middled slog sweep flat into the crowd', () => {
+    const flight = flightOf(outcome({ swept: true, runs: 6 }));
+    expect(flight.distance).toBeGreaterThan(70);
+    // Flatter and faster than the charge's towering hit, which is the whole
+    // difference between the two special strokes to watch.
+    expect(flight.height).toBeLessThan(flightOf(outcome({ advance: true, runs: 6 })).height);
+    expect(flight.bounceAt).toBe(0);
+  });
+
+  it('bounces a swept four in before the rope', () => {
+    const flight = flightOf(outcome({ swept: true, runs: 4 }));
+    // It pitches once, three-quarters of the way out, and skids over: a four on
+    // the scoreboard and a different ball to watch.
+    expect(flight.bounceAt).toBeGreaterThan(0.5);
+    expect(flight.bounceAt).toBeLessThan(1);
+    // In the air long enough to clear the infield first.
+    expect(flight.height).toBeGreaterThan(5);
+    expect(flight.distance).toBeGreaterThan(40);
+  });
+
+  it('leaves every other ball with one arc and no pitch', () => {
+    for (const shape of [outcome({ runs: 4 }), outcome({ runs: 6 }), outcome({ advance: true, runs: 6 }),
+      outcome({ defended: true, runs: 0 }), outcome({ edged: true, runs: 1 }), out('CAUGHT')])
+      expect(flightOf(shape).bounceAt, JSON.stringify(shape)).toBe(0);
+  });
+
+  it('has an edge reach the keeper before the stroke is finished', () => {
+    const flight = flightOf(out('CAUGHT', { edged: true }));
+    expect(flight.flightMs).toBeLessThan(600);
+    expect(flight.height).toBeLessThan(0.5);
+  });
+});
+
+/**
+ * A hooked ball is met out in front of him and goes back past him to fine
+ * leg, so its line runs across where he is standing. It has to be over him
+ * when it gets there: the first hook sent it on at chest height straight
+ * through his shoulder. Flown the way `GameScene.struckAt` flies it, against
+ * the batter's own head and chest as he finishes the stroke.
+ */
+describe('a hooked ball', () => {
+  it('goes over him to fine leg, never through him', async () => {
+    const { Batter, HOOK_CONTACT_MS, HOOK_MEETS_AT } = await import('../src/entities/Batter');
+    const { SHOT_ANGLES } = await import('../src/config/gameplay');
+    const { Vector3 } = await import('three');
+    for (const x of [.14, .42]) for (const runs of [1, 2, 4, 6] as const) for (const swing of [-8, 0, 8]) {
+      const batter = new Batter(); batter.prepare(1); batter.update(0);
+      const origin = new Vector3(x, 1.134, GAME.contactZ + HOOK_MEETS_AT);
+      batter.swing('HOOK', 0, x, origin.y, origin.z);
+      const flight = flightOf(outcome({ hooked: true, runs }));
+      const angle = (SHOT_ANGLES.HOOK + swing) * Math.PI / 180;
+      const end = new Vector3(origin.x + Math.sin(angle) * flight.distance, flight.endY, origin.z + Math.cos(angle) * flight.distance);
+      for (let t = 0; t <= 400; t += 4) {
+        const flown = Math.min(1, t / flight.flightMs);
+        const ball = origin.clone().lerp(end, flown);
+        ball.y += flight.bounceAt > 0 ? Math.sin(Math.min(1, flown / flight.bounceAt) * Math.PI) * flight.height : Math.sin(flown * Math.PI) * flight.height;
+        batter.update(HOOK_CONTACT_MS + t);
+        const pose = batter.inspect(), root = batter.root.position;
+        const chest = new Vector3(...pose.chest), spine = chest.clone().sub(new Vector3(...pose.hip)).normalize();
+        const head = chest.clone().addScaledVector(spine, .31).add(root);
+        const label = `x=${x} runs=${runs} swing=${swing} @${t}`;
+        expect(ball.distanceTo(head), label).toBeGreaterThan(.25);
+        expect(ball.distanceTo(chest.clone().add(root)), label).toBeGreaterThan(.32);
+      }
+    }
+  });
+});
+
+/**
+ * A scoop is met in front of the stumps and goes back over the keeper towards
+ * fine leg, through where he takes guard. He steps across outside its line
+ * first; standing where he took guard, the first build had it fly through
+ * his body. The reverse's goes back the other way, over the slips, from out
+ * beside his front knee.
+ */
+describe('a scooped ball', () => {
+  it('goes back past him on the leg side and over him, never through him', async () => {
+    const { Batter, SCOOP_CONTACT_MS } = await import('../src/entities/Batter');
+    const { SHOT_ANGLES } = await import('../src/config/gameplay');
+    const { Vector3 } = await import('three');
+    for (const x of [-.14, 0, .14]) for (const runs of [4, 6] as const) for (const swing of [-8, 0, 8]) {
+      const batter = new Batter(); batter.prepare(1); batter.update(0);
+      const origin = new Vector3(x, .54, GAME.contactZ);
+      batter.swing('SCOOP', 0, x, origin.y, origin.z);
+      const flight = flightOf(outcome({ scooped: true, runs, madeBatContact: true }));
+      const angle = (SHOT_ANGLES.SCOOP + swing) * Math.PI / 180;
+      const end = new Vector3(origin.x + Math.sin(angle) * flight.distance, flight.endY, origin.z + Math.cos(angle) * flight.distance);
+      for (let t = 0; t <= 400; t += 4) {
+        const flown = Math.min(1, t / flight.flightMs);
+        const ball = origin.clone().lerp(end, flown);
+        ball.y += flight.bounceAt > 0 ? Math.sin(Math.min(1, flown / flight.bounceAt) * Math.PI) * flight.height : Math.sin(flown * Math.PI) * flight.height;
+        batter.update(SCOOP_CONTACT_MS + t);
+        const pose = batter.inspect(), root = batter.root.position;
+        const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip), spine = chest.clone().sub(hip).normalize();
+        const head = chest.clone().addScaledVector(spine, .31).add(root);
+        const label = `x=${x} runs=${runs} swing=${swing} @${t}`;
+        expect(ball.distanceTo(head), label).toBeGreaterThan(.25);
+        expect(ball.distanceTo(chest.clone().add(root)), label).toBeGreaterThan(.32);
+        expect(ball.distanceTo(hip.clone().add(root)), label).toBeGreaterThan(.30);
+      }
+    }
+  });
+  it('goes back over the slips from the reverse, out on the off side and clear of him', async () => {
+    const { Batter, REVERSE_CONTACT_MS } = await import('../src/entities/Batter');
+    const { SHOT_ANGLES, LINE_X } = await import('../src/config/gameplay');
+    const { Vector3 } = await import('three');
+    for (const x of [LINE_X.OFF, LINE_X.OUTSIDE_OFF]) for (const runs of [4, 6] as const) for (const swing of [-8, 0, 8]) {
+      const batter = new Batter(); batter.prepare(1); batter.update(0);
+      const origin = new Vector3(x, .54, GAME.contactZ);
+      batter.swing('REVERSE_SCOOP', 0, x, origin.y, origin.z);
+      const flight = flightOf(outcome({ scooped: true, runs, madeBatContact: true }));
+      const angle = (SHOT_ANGLES.REVERSE_SCOOP + swing) * Math.PI / 180;
+      const end = new Vector3(origin.x + Math.sin(angle) * flight.distance, flight.endY, origin.z + Math.cos(angle) * flight.distance);
+      for (let t = 0; t <= 400; t += 4) {
+        const flown = Math.min(1, t / flight.flightMs);
+        const ball = origin.clone().lerp(end, flown);
+        ball.y += flight.bounceAt > 0 ? Math.sin(Math.min(1, flown / flight.bounceAt) * Math.PI) * flight.height : Math.sin(flown * Math.PI) * flight.height;
+        batter.update(REVERSE_CONTACT_MS + t);
+        const pose = batter.inspect(), root = batter.root.position;
+        const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip), spine = chest.clone().sub(hip).normalize();
+        const head = chest.clone().addScaledVector(spine, .31).add(root);
+        const label = `x=${x} runs=${runs} swing=${swing} @${t}`;
+        expect(ball.distanceTo(head), label).toBeGreaterThan(.25);
+        expect(ball.distanceTo(chest.clone().add(root)), label).toBeGreaterThan(.32);
+        expect(ball.distanceTo(hip.clone().add(root)), label).toBeGreaterThan(.30);
+      }
+    }
+  });
+});
+
+describe('a four stops at the boards', () => {
+  it('forty-five metres straight, thirty-three and a half square, twenty-five behind him', async () => {
+    const { boardsAlong } = await import('../src/scene/flight');
+    expect(boardsAlong(0)).toBeCloseTo(45.1);
+    expect(boardsAlong(Math.PI / 2)).toBeCloseTo(Math.sqrt(35.1 ** 2 - 100));
+    expect(boardsAlong(Math.PI)).toBeCloseTo(25.1);
+    // A scoop's four lands inside the rope behind him before it runs to the boards.
+    const scoop = flightOf({ runs: 4, isWicket: false, quality: 1, feedback: '', timingGrade: 'GOOD', timingDeltaMs: 0, compatibility: 1,
+      madeBatContact: true, aerial: false, scooped: true });
+    expect(scoop.bounceAt * Math.min(scoop.distance, boardsAlong(Math.PI) - .6)).toBeLessThan(20);
   });
 });
