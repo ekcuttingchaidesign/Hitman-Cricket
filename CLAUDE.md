@@ -1624,8 +1624,8 @@ rules, and `cover-drive.html` has it.
 The spinner tosses one ball up every over (`FLIGHT` in
 `src/config/gameplay.ts`, `flighted` on the delivery, `flightedPerOver` in
 `SPIN_BOWLING`): an off break or a leg break on the same coin as the rest, pitched
-up (`FLIGHT.bounce`, 6.5 metres from the batter's end where his stock ball
-lands at 8.3, which read as halfway down the pitch), on off stump, a little
+up (`FLIGHT.bounce`, 5 metres from the batter's end where his stock ball
+lands at 8.3, which read as halfway down the pitch; 6.5 was tried first), on off stump, a little
 outside it or middle and never on leg (`FLIGHT.lines`), at `FLIGHT.pace` of
 the speed he would have bowled. Never the arm ball and never the ball dropped
 short. Its place in the over comes off a stream forked from the seed

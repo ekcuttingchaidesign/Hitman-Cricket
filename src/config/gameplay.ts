@@ -110,8 +110,8 @@ export const SPIN_BOWLING = {
 export const DRAGGED = { bounce: 7.0, rise: 2.0, salt: 0x64726167 } as const;
 /**
  * The flighted ball: the spinner's off break or leg break tossed up, higher
- * and a little slower, pitched up on a full good length (`bounce`, nearly two
- * metres nearer the batter than his stock ball's `GAME.bounceZ`, which read
+ * and a little slower, pitched up on a full length (`bounce`, five metres
+ * from the batter's end, over three nearer him than his stock ball's `GAME.bounceZ`, which read
  * as landing halfway down), on off stump, a little outside it or middle, never on leg. It turns
  * either way, the same coin as every other ball of his.
  *
@@ -136,12 +136,12 @@ export const DRAGGED = { bounce: 7.0, rise: 2.0, salt: 0x64726167 } as const;
 export const FLIGHT = {
   lines: ['MIDDLE', 'OFF', 'OUTSIDE_OFF'] as readonly BallLine[],
   /** Where it pitches, metres from the batter's end: fuller than his stock ball's 8.3. */
-  bounce: 6.5,
+  bounce: 5.0,
   /**
    * How much of its way after the pitch it takes to turn, as a share of the
    * flight: it lands past the point his stock ball has finished turning by.
    */
-  settle: 0.12,
+  settle: 0.1,
   /** His speed for it, a share of the speed he would have bowled. */
   pace: 0.88,
   /** How far its arc rises over the stock ball's flat one, in metres: the stock ball's is 0.55. */
