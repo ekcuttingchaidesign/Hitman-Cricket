@@ -651,19 +651,20 @@ export function standPose(root: THREE.Group): Figure {
 
 /**
  * A wicketkeeper squatting up at the stumps, as one does for a spinner: down
- * on his haunches, the hips just over the heels, the knees wide and the toes
- * turned out with them, the back leant forward over the thighs and the head
+ * on his haunches, the hips just over the heels, the knees a little out and
+ * the toes with them (wider, the thighs splayed out flat to the sides and the
+ * trousers' seat hung between them like a sling), the back leant forward over the thighs and the head
  * up on the ball, the gloves together low in front between the knees,
  * fingers down, palms to the bowler.
  */
 export function keepingPose(root: THREE.Group): Figure {
   const pose = restPose(root);
-  const lean = .52;
-  pose.hip.set(0, .5, -.06);
+  const lean = .5;
+  pose.hip.set(0, .56, -.06);
   pose.chest.set(0, pose.hip.y + SPINE * Math.cos(lean), pose.hip.z + SPINE * Math.sin(lean));
-  pose.leftFoot.set(-.3, .07, .08); pose.rightFoot.set(.3, .07, .08);
+  pose.leftFoot.set(-.23, .07, .1); pose.rightFoot.set(.23, .07, .1);
   pose.leftHand.set(-.075, .34, .44); pose.rightHand.set(.075, .34, .44);
-  pose.kneesOut = .8;
+  pose.kneesOut = .25;
   pose.headPitch = -.9;
   return pose;
 }

@@ -2263,9 +2263,12 @@ helmet in the cap's colour (`wearHelmet`: the batter's shell, peak and grille,
 sized to his head), padded cream gloves with tan palms and the side's colour
 at the cuff, and short keeping pads aimed down each shin every pose. His squat
 is `keepingPose`: on his haunches, the hips just over the heels, knees and
-toes turned out (`kneesOut` on the pose, which the knee's solve and the shoe
+toes a little out (`kneesOut` on the pose, which the knee's solve and the shoe
 follow), the back leant over the thighs, head up, the gloves together low
-between the knees, palms to the bowler.
+between the knees, palms to the bowler. The knees stay near his line: turned
+far out, the thighs splayed flat to the sides and the trousers' seat hung
+between them like a sling, which from the game's camera behind him was most
+of what showed.
 
 Which balls (`qualifies`): a stroke on `REPLAY_STROKES` — the cover drive,
 the pull (the hook and the pull off the spinner with it), the square cut (at
