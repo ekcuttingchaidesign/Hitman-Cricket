@@ -8,6 +8,7 @@ import { printable, printTextures, TORSO_SHARE, type KitPrint } from './kitPrint
 import { jerseyGeometry } from './garment';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Point, UP, segment, solveJoint } from './rig';
+import { helmetGeometry, helmetGrilleGeometry, helmetPeakGeometry } from './helmetGeometry';
 
 /**
  * Everyone on the field who is not the batter: the bowler and the fielders.
@@ -119,6 +120,21 @@ const SHAPES = {
     [.011, .139], [.075, .132], [.126, .099], [.158, .02],
   ], .92),
 };
+
+/**
+ * The keeper's helmet: the batter's geometry, built once and shared, sized
+ * from his head to this figure's smaller one and sat on it.
+ */
+const HELMET = (() => {
+  let shell: THREE.BufferGeometry | null = null, peak: THREE.BufferGeometry | null = null, grille: THREE.BufferGeometry | null = null;
+  return {
+    scale: .88, lift: .02,
+    shell: () => shell ??= helmetGeometry(),
+    peak: () => peak ??= helmetPeakGeometry(),
+    grille: () => grille ??= helmetGrilleGeometry(),
+    metal: new THREE.MeshStandardMaterial({ color: 0x2b2e34, roughness: .45, metalness: .6 }),
+  };
+})();
 
 export interface Kit {
   shirt: number;
@@ -318,6 +334,28 @@ export class Cricketer {
     if (role) { mesh.userData.role = role; this.dressable.push(mesh); }
     mesh.scale.set(...scale); mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
   }
+
+  /**
+   * A helmet in place of the cap, for the wicketkeeper standing up to the
+   * spinner: the batter's shell, peak and grille (`helmetGeometry`), sized to
+   * this head, in the cap's colour so `dress` paints it in the side's kit.
+   */
+  wearHelmet() {
+    if (this.helmeted) return;
+    this.helmeted = true;
+    const cap = this.head.children.find(child => (child as THREE.Mesh).isMesh && child.userData.role === 'cap') as THREE.Mesh | undefined;
+    const shell = (cap?.material as THREE.Material | undefined) ?? material(KIT.cap, .74);
+    if (cap) cap.visible = false;
+    const lid = new THREE.Group();
+    lid.scale.setScalar(HELMET.scale); lid.position.y = HELMET.lift;
+    this.head.add(lid);
+    for (const geometry of [HELMET.shell(), HELMET.peak()]) {
+      const mesh = new THREE.Mesh(geometry, shell);
+      mesh.userData.role = 'cap'; mesh.castShadow = true; this.dressable.push(mesh); lid.add(mesh);
+    }
+    lid.add(new THREE.Mesh(HELMET.grille(), HELMET.metal));
+  }
+  private helmeted = false;
 
   /**
    * Put the figure in a different kit.

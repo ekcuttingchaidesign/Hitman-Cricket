@@ -27,8 +27,8 @@ export const STUMPING = {
   /** The camera cuts in this soon after the ball beats the bat, and holds this long after the take. */
   cutIn: 60,
   hold: 1350,
-  /** How far forward he lunges for the bails, metres, from where he squats. */
-  lunge: .4,
+  /** How far forward he lunges for the bails, metres, from where he took the ball. */
+  lunge: .25,
   /**
    * The batter: drawn this far down the pitch from his guard by the take, and
    * back towards his crease by this much as the bails go — still a long way
@@ -37,6 +37,15 @@ export const STUMPING = {
   out: .85,
   back: .2,
 } as const;
+
+/**
+ * Where the keeper squats up to the spinner, in the game's frame: outside
+ * off stump and level with the stumps, as a keeper stands up, so the game's
+ * camera behind the stumps sees him in every spinner's over without him ever
+ * standing between it and the batter. He moves across to take a ball that
+ * beats the bat.
+ */
+export const KEEPER_UP = { x: .78, z: -.5 } as const;
 
 const smooth = (x: number) => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 - 2 * k); };
 

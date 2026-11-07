@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt } from '../entities/Batter';
 import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
 import { Fielder, bodyOf, mixBodies, onField, readyPose, showBody, type Body } from '../entities/Fielder';
-import { STUMPING, stumpingAt } from '../game/stumping';
+import { KEEPER_UP, STUMPING, stumpingAt } from '../game/stumping';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
 import { BLAST_FIELD, Field, REPLAY_DEEP, TEST_FIELD, mark, type Mark } from './field';
 import { nameOf, type Man } from '../game/super10-field';
@@ -1302,7 +1302,7 @@ export class GameScene {
    * action starts, because `reset` puts the ball back in the quick bowler's
    * hand and the spinner has to take it again each ball of his over.
    */
-  spinner(on: boolean) { this.spinning = on; this.bowler.spinner(on); }
+  spinner(on: boolean) { this.spinning = on; this.bowler.spinner(on); this.placeKeeper(); }
   /** Whether the spinner is on: the keeper stands up to him. */
   private spinning = false;
   /**
@@ -1677,7 +1677,7 @@ export class GameScene {
       // Carry on from where the ball actually is rather than resetting it to the
       // crease, so a beaten stroke never rewinds the delivery.
       const from = this.incomingPosition;
-      if (result.wicketType === 'STUMPED') {
+      if (result.wicketType === 'STUMPED' || this.gathering()) {
         // Into the keeper's gloves, and with them onto the stumps: the bails go
         // when his gloves get there (`stumping.ts`), not when the ball passes.
         const at = stumpingAt(now - this.hitStart, this.flightMs);
@@ -1685,11 +1685,12 @@ export class GameScene {
         const into = Math.min(1, (now - this.hitStart) / Math.max(1, at.take));
         if (into < 1) this.ball.position.lerpVectors(from, gloves, into * into * (3 - 2 * into));
         else this.ball.position.copy(gloves);
-        if (at.bails) this.breakBails(now, true);
+        const stumped = result.wicketType === 'STUMPED';
+        if (stumped && at.bails) this.breakBails(now, true);
         // Drawn down the pitch to it and beaten, he turns for his crease and
         // is still out of it when the bails go.
-        this.lure = STUMPING.out * (into * into * (3 - 2 * into)) - STUMPING.back * at.whip;
-        this.ball.visible = at.rise < .5;
+        if (stumped) this.lure = STUMPING.out * (into * into * (3 - 2 * into)) - STUMPING.back * at.whip;
+        this.ball.visible = stumped ? at.rise < .5 : true;
         this.groundShadow(this.ball.position, this.ball.visible);
         return;
       }
@@ -1849,18 +1850,38 @@ export class GameScene {
     this.streak.forEach(dot => dot.visible = false);
   }
   /**
-   * The wicketkeeper. The game's own camera stands where he would be, so in
-   * play he is never drawn — he would stand between the lens and the batter —
-   * and a replay, whose cameras look at the batter from round the ground,
-   * puts him in (`keeperIn`, `Game.stageReplay`): behind the stumps, a little
-   * to the off side, stood back to pace and up at the stumps to the spinner,
-   * crouched until the ball has been played and standing up out of it after.
+   * The wicketkeeper, in a helmet (`wearHelmet`). Stood back to pace, the game's
+   * own camera stands where he would be, so in play he is drawn only in the
+   * spinner's overs, when he is up: squatting outside off stump, level with
+   * the stumps (`KEEPER_UP`), clear of the lens's line to the batter, moving
+   * across to take a ball that beats the bat. A film's camera — a replay, the
+   * catch and stumping cameras — puts him in whoever is bowling (`keeperIn`).
+   * Crouched until the ball has been played and standing up out of it after.
    */
-  private readonly keeper = new Fielder();
-  keeperIn(on: boolean) { this.keeper.root.visible = on; if (on) this.keeper.show(this.keeperAt(this.clock)); }
+  private readonly keeper = (() => { const keeper = new Fielder(); keeper.figure.wearHelmet(); return keeper; })();
+  keeperIn(on: boolean) { this.keeperFilmed = on; this.placeKeeper(); }
+  /** A film's camera wants him (`keeperIn`); the spinner's overs have him in the game's own picture as well. */
+  private keeperFilmed = false;
+  private placeKeeper() {
+    this.keeper.root.visible = this.keeperFilmed || this.spinning;
+    if (this.keeper.root.visible) this.keeper.show(this.keeperAt(this.clock));
+  }
+  /**
+   * A ball that beat the bat with the keeper up: it goes into his gloves, not
+   * on past him, he having moved across to it. Not one that hit the stumps or
+   * the pad in front of them.
+   */
+  private gathering() {
+    const result = this.hitOutcome;
+    return this.spinning && !!result && !result.madeBatContact && !result.hit && result.wicketType !== 'BOWLED' && result.wicketType !== 'LBW';
+  }
   private keeperAt(now: number): Body {
     const up = this.spinning;
-    const spot = { x: up ? .3 : .45, z: up ? -1.15 : -11, heading: 0 };
+    const home = { x: up ? KEEPER_UP.x : .45, z: up ? KEEPER_UP.z : -11, heading: 0 };
+    const since = this.hitOutcome ? now - this.hitStart : -Infinity;
+    // Across to the ball's line by the time it reaches him.
+    const gather = this.gathering() ? Math.min(1, Math.max(0, since / Math.max(1, stumpingAt(0, this.flightMs).take))) : 0;
+    const spot = { ...home, x: THREE.MathUtils.lerp(home.x, this.incomingPosition.x, gather * gather * (3 - 2 * gather)) };
     const crouch = readyPose(1);
     // Down on his haunches, deeper than any fielder's ready position, gloves together in front of his knees.
     crouch.hip.y = .5; crouch.chest.set(0, .5 + .5, .12);
@@ -1869,7 +1890,6 @@ export class GameScene {
     crouch.headPitch = -.05;
     const stand = readyPose(.45);
     const body = (pose: typeof crouch, at = spot): Body => ({ ...at, pitch: 0, anchor: pose.hip.clone(), pose });
-    const since = this.hitOutcome ? now - this.hitStart : -Infinity;
     // Stumped: he stays down, gathers it, lunges and whips the bails off with
     // both gloves, and only then stands (`stumping.ts`). His hands are in his
     // own frame, which with no turn is the field's less where he squats.
@@ -1879,14 +1899,16 @@ export class GameScene {
       const strike = readyPose(1);
       strike.hip.y = .55; strike.chest.set(-.08, .5 + .45, .4);
       strike.leftFoot.set(-.3, .06, .02); strike.rightFoot.set(.3, .1, .3);
-      const toStumps = -lunged.z, across = -spot.x;
+      const toStumps = -lunged.z, across = -lunged.x;
       strike.leftHand.set(across - .06, GAME.stumpHeight - .02, toStumps - .02);
       strike.rightHand.set(across + .06, GAME.stumpHeight - .02, toStumps - .02);
       strike.headPitch = .15;
       const down = mixBodies(body(crouch), body(strike, lunged), whip);
       return mixBodies(down, body(stand, lunged), rise);
     }
-    const rising = Math.min(1, Math.max(0, (since - 120) / 520));
+    // A ball he took gets up out of it once it is in his gloves; one struck, as soon as it is.
+    const from = this.gathering() ? stumpingAt(0, this.flightMs).take + 250 : 120;
+    const rising = Math.min(1, Math.max(0, (since - from) / 520));
     return mixBodies(body(crouch), body(stand), rising * rising * (3 - 2 * rising));
   }
   /** Between his gloves, out on the field, as `keeperAt` has them: where a ball he has taken is. */

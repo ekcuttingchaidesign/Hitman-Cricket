@@ -2246,12 +2246,18 @@ the field holds up to ten (`MOST_MEN`, those past the marks hidden), and in a
 replay anybody may go for the ball wherever it is (`everywhere`).
 Outside a replay who goes for the ball is judged from the game's own view
 whatever the camera is doing (`judge` in `GameScene.inShot`). A replay has a wicketkeeper (`keeper`, `keeperIn` in
-`GameScene`): the game's camera stands where he would, so in play he is never
-drawn, and a replay's cameras, looking at the batter from round the ground,
-showed the stumps with nobody behind them. He stands a little to the off
-side, eleven metres back to pace and up at the stumps to the spinner
-(`spinning`), crouched until the ball is played and standing up out of it
-after, in the fielding side's kit.
+`GameScene`): stood back to pace, the game's camera stands where he would, so
+he is drawn in play only in the spinner's overs, and a replay's cameras,
+looking at the batter from round the ground, showed the stumps with nobody
+behind them. He stands a little to the off side eleven metres back to pace;
+up to the spinner (`spinning`) he squats outside off stump, level with the
+stumps (`KEEPER_UP` in `src/game/stumping.ts`), as in the owner's reference
+picture, so the game's own camera sees him every ball of those overs without
+him ever standing between it and the batter (`placeKeeper`), and he moves
+across to take a ball that beats the bat (`gathering`, `keeperGloves`).
+Crouched until the ball is played and standing up out of it after, in the
+fielding side's kit and a helmet in its cap's colour (`wearHelmet` on
+`Cricketer`: the batter's shell, peak and grille, sized to his head).
 
 Which balls (`qualifies`): a stroke on `REPLAY_STROKES` — the cover drive,
 the pull (the hook and the pull off the spinner with it), the square cut (at
@@ -2429,8 +2435,7 @@ the bat close enough to touch while they stood and watched.
 
 A batter stumped goes to a camera of its own the same way (`'stumped'`,
 `src/game/stumping.ts`, in `tests/stumping.test.ts`), in every mode,
-Survival too: the keeper is never in the game's picture, which stands where
-he squats. Cut in just after the ball beats the bat (`STUMPING.cutIn`), side
+Survival too: the game's own camera sees the keeper only from behind him. Cut in just after the ball beats the bat (`STUMPING.cutIn`), side
 on from square leg (`STUMPING_CAMERA`), the batter drawn down the pitch past
 his crease and turning back too late (`out`, `back`, the scene's `lure`), the
 keeper squatting up at the stumps, the ball into his gloves
