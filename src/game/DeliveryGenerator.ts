@@ -835,7 +835,7 @@ export class DeliveryGenerator {
     const durationMs = (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * bowled.travelScale * (shape.rush ?? 1);
     this.bowled++;
     return { line, style, speedKph, baseTargetX: LINE_X[line], finalTargetX,
-      bounceZ: dragged ? DRAGGED.bounce : shape.bounce ?? GAME.bounceZ, rise: dragged ? DRAGGED.rise : shape.rise ?? GAME.rise,
+      bounceZ: dragged ? DRAGGED.bounce : flighted ? FLIGHT.bounce : shape.bounce ?? GAME.bounceZ, rise: dragged ? DRAGGED.rise : shape.rise ?? GAME.rise,
       durationMs, releaseTimeMs, idealContactTimeMs: releaseTimeMs + durationMs,
       ...(swung && level!.late ? { late: level!.late } : {}),
       ...(express ? { express: true } : {}),

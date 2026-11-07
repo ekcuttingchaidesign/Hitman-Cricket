@@ -183,7 +183,8 @@ export function advanceShot(delivery: Delivery, attempt: ShotAttempt | null, cha
  * a quick at all.
  */
 export function sweepable(delivery: Delivery) {
-  return SWEEP.styles.includes(delivery.style) && delivery.bounceZ >= SWEEP.minBounceZ;
+  // The flighted ball is pitched up, the sweeper's ball, whatever its figure.
+  return SWEEP.styles.includes(delivery.style) && (delivery.bounceZ >= SWEEP.minBounceZ || !!delivery.flighted);
 }
 /**
  * The slog sweep: a full meter, the spinner's ball, a leg-side input, and

@@ -49,7 +49,10 @@ export function ballPosition(delivery: Delivery, progress: number) {
   // Spin finishes its turn by this point in the flight — before the final third,
   // so the required key never changes at the last moment. Tying it to the bounce
   // keeps that true whatever length the ball is pitched at.
-  const settled = 0.66;
+  // The flighted ball pitches fuller than that point (`FLIGHT.bounce`), so
+  // it does its turning over a stretch of its own after it lands
+  // (`FLIGHT.settle`): what is left of the way is shorter, and it turns late.
+  const settled = delivery.flighted ? bounceT + FLIGHT.settle : 0.66;
   // A ball that swings late holds its line for the first part of the way.
   const late = delivery.late ?? 0;
   // Reverse swing goes to the pitch straight and does all of its moving off it.

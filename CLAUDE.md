@@ -1623,8 +1623,9 @@ rules, and `cover-drive.html` has it.
 
 The spinner tosses one ball up every over (`FLIGHT` in
 `src/config/gameplay.ts`, `flighted` on the delivery, `flightedPerOver` in
-`SPIN_BOWLING`): an off break or a leg break on the same coin as the rest, on
-a good length (`GAME.bounceZ`, his stock length), on off stump, a little
+`SPIN_BOWLING`): an off break or a leg break on the same coin as the rest, pitched
+up (`FLIGHT.bounce`, 6.5 metres from the batter's end where his stock ball
+lands at 8.3, which read as halfway down the pitch), on off stump, a little
 outside it or middle and never on leg (`FLIGHT.lines`), at `FLIGHT.pace` of
 the speed he would have bowled. Never the arm ball and never the ball dropped
 short. Its place in the over comes off a stream forked from the seed
@@ -1635,8 +1636,11 @@ the spinner differently. Its arc (`ballPosition`) climbs `FLIGHT.loop` higher
 than the stock ball's and peaks early (`FLIGHT.dip`), so it comes down
 steeper onto the same spot, and it drifts in the air against its turn
 (`FLIGHT.drift`: an off break away from the right-hander, a leg break into
-him) and is back on its line by the pitch. From the pitch on it is the ball
-it would have been, so nothing that meets it at the bat or the stumps moves.
+him) and is back on its line by the pitch. Landing past the point his
+stock ball has finished turning by, it turns over `FLIGHT.settle` of the
+flight after it pitches, so later than his other balls, done a few tenths of
+a second before the bat. It reaches the bat at the height his stock ball does, and is swept as his stock ball is (`sweepable`
+lets it past `SWEEP.minBounceZ`).
 
 How it gets a batter out is the research behind it: the height invites the
 drive, the dip has an early stroke through before the ball arrives, the drift

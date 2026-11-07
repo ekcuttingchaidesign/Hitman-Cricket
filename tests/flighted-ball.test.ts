@@ -16,7 +16,7 @@ const without = (plan: BowlingPlan): BowlingPlan => ({ ...plan, spin: plan.spin 
 /** The ball tossed up, as the generator makes it, with what a test changes. */
 const tossed = (changes: Partial<Delivery> = {}): Delivery => ({
   line: 'OFF', style: 'OFF_SPIN', speedKph: 78, baseTargetX: LINE_X.OFF, finalTargetX: LINE_X.OFF - 0.3,
-  bounceZ: GAME.bounceZ, rise: GAME.rise, durationMs: 800, releaseTimeMs: 0, idealContactTimeMs: 800, flighted: true, ...changes,
+  bounceZ: FLIGHT.bounce, rise: GAME.rise, durationMs: 800, releaseTimeMs: 0, idealContactTimeMs: 800, flighted: true, ...changes,
 });
 /** A die that always lands where it is told. */
 const die = (value: number) => ({ next: () => value });
@@ -43,7 +43,7 @@ describe('the flighted ball: when and how he bowls it', () => {
         expect(['OFF_SPIN', 'LEG_SPIN']).toContain(ball.style);
         expect(FLIGHT.lines).toContain(ball.line);
         expect(ball.dragged).toBeFalsy();
-        expect(ball.bounceZ).toBe(GAME.bounceZ);
+        expect(ball.bounceZ).toBe(FLIGHT.bounce);
         expect(ball.speedKph).toBeLessThanOrEqual(Math.round(STYLES[ball.style].max * FLIGHT.pace));
       }
       for (const ball of balls) if (!spun(ball)) expect(ball.flighted).toBeFalsy();
@@ -60,9 +60,8 @@ describe('the flighted ball: when and how he bowls it', () => {
       const was = innings(without(plan), seed, 200);
       innings(plan, seed, 200).forEach((ball, i) => {
         if (!ball.flighted) { expect(ball, `seed ${seed} ball ${i}`).toEqual(was[i]); return; }
-        // Itself, only what flight changes: its line, its pace, and so its turn.
+        // Itself, only what flight changes: its line, its pace, its length, and so its turn.
         expect(ball.style).toBe(was[i].style);
-        expect(ball.bounceZ).toBe(was[i].bounceZ);
       });
     }
   });
@@ -78,7 +77,7 @@ describe('the flighted ball: its flight', () => {
     expect(a.x).toBeCloseTo(b.x, 9); expect(a.y).toBeCloseTo(b.y, 9); expect(a.z).toBeCloseTo(b.z, 9);
   };
   const stock = (d: Delivery): Delivery => ({ ...d, flighted: false });
-  const bounceT = (GAME.releaseZ - GAME.bounceZ) / (GAME.releaseZ - GAME.contactZ);
+  const bounceT = (GAME.releaseZ - FLIGHT.bounce) / (GAME.releaseZ - GAME.contactZ);
   it('goes higher than his stock ball and comes down steeper, onto the same spot', () => {
     const ball = tossed();
     const peak = (d: Delivery) => Math.max(...Array.from({ length: 50 }, (_, i) => ballPosition(d, bounceT * i / 50).y));
@@ -87,7 +86,7 @@ describe('the flighted ball: its flight', () => {
     expect(fall(ball)).toBeGreaterThan(fall(stock(ball)));
     same(ballPosition(ball, bounceT), ballPosition(stock(ball), bounceT));
   });
-  it('drifts the other way to its turn in the air, and is the same ball from the pitch on', () => {
+  it('drifts the other way to its turn in the air, and arrives where his stock ball would', () => {
     for (const style of ['OFF_SPIN', 'LEG_SPIN'] as const) {
       const turn = style === 'OFF_SPIN' ? -0.3 : 0.25;
       const ball = tossed({ style, baseTargetX: LINE_X.MIDDLE, finalTargetX: turn });
@@ -96,7 +95,28 @@ describe('the flighted ball: its flight', () => {
       const drift = ballPosition(ball, bounceT * 0.6).x - ballPosition(ball, 0).x;
       expect(Math.sign(drift), style).toBe(-Math.sign(turn));
       expect(Math.abs(midAir)).toBeGreaterThan(0.02);
-      for (const progress of [bounceT, 0.8, 1, 1.1]) same(ballPosition(ball, progress), ballPosition(stock(ball), progress));
+      // At the bat, exactly where his stock ball on that line and turn would be.
+      same(ballPosition(ball, 1), ballPosition({ ...stock(ball), bounceZ: GAME.bounceZ }, 1));
+      expect(ballPosition(ball, bounceT).z).toBeCloseTo(FLIGHT.bounce, 9);
+    }
+  });
+  it('pitches up, nearer the batter than his stock ball, and turns after it lands, done before the bat', () => {
+    expect(FLIGHT.bounce).toBeLessThan(GAME.bounceZ - 1.5);
+    for (const style of ['OFF_SPIN', 'LEG_SPIN'] as const) {
+      const turn = style === 'OFF_SPIN' ? -0.3 : 0.25;
+      const ball = tossed({ style, baseTargetX: LINE_X.MIDDLE, finalTargetX: turn });
+      // Straight off the pitch, then all the way round by `settle` after it.
+      expect(ballPosition(ball, bounceT + 1e-6).x).toBeCloseTo(LINE_X.MIDDLE, 4);
+      expect(ballPosition(ball, bounceT + FLIGHT.settle / 2).x).not.toBeCloseTo(turn, 2);
+      expect(ballPosition(ball, bounceT + FLIGHT.settle).x).toBeCloseTo(turn, 9);
+      expect(bounceT + FLIGHT.settle).toBeLessThan(0.9);
+      // And it turns the same way every step of the way: no going back.
+      let last = ballPosition(ball, bounceT).x;
+      for (let i = 1; i <= 20; i++) {
+        const x = ballPosition(ball, bounceT + FLIGHT.settle * i / 20).x;
+        expect(Math.sign(x - last) || Math.sign(turn)).toBe(Math.sign(turn));
+        last = x;
+      }
     }
   });
   it('is slower, so it arrives later, and still arrives on time', () => {
@@ -128,7 +148,8 @@ describe('the flighted ball in the Blast', () => {
     expect(blast(tossed({ line: 'MIDDLE', baseTargetX: 0, finalTargetX: 0 }), 'PERFECT', 'STRAIGHT', 0.1).runs).toBe(6);
   });
   it('asks nothing of a stroke that is not a drive', () => {
-    const ball = tossed(), stock = { ...ball, flighted: false };
+    // Against the same ball at his stock length, which the sweep reads too.
+    const ball = tossed(), stock = { ...ball, flighted: false, bounceZ: GAME.bounceZ };
     for (const shot of ['LEG', 'SQUARE_CUT', 'DEFEND', 'LATE_CUT'] as ShotType[]) for (const grade of ['OK', 'MISS'] as TimingGrade[])
       expect(blast(ball, grade, shot, 0.1), `${shot} ${grade}`).toEqual(blast(stock, grade, shot, 0.1));
   });
