@@ -668,4 +668,16 @@ export const ADVANCE = {
   onAngle: -34,
   /** How far down the pitch the charge carries him, and how long the walk back is. */
   stride: 1.15, walkBackMs: 1300,
+  /**
+   * The charge at the spinner: his off break or leg break pitched up (never
+   * the ball he drops short), aimed within this many metres of middle. A
+   * full meter and a drive up the V — straight or over cover, the on side's
+   * swipe being the slog sweep's — walks at it as at a medium pacer, and
+   * middled it goes out of the ground the same. Mistimed — the timing on
+   * `stumpedOn` — the ball turns past the bat with him yards down the pitch,
+   * and the keeper, up to the stumps, has the bails off: stumped.
+   */
+  spinLine: .3,
+  stumpedOn: ['POOR', 'MISS'] as readonly TimingGrade[],
+  stumpedFeedback: 'STEPPED OUT — STUMPED!',
 } as const;

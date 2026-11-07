@@ -10,7 +10,7 @@ import { resolveSurvive } from '../src/game/Survive';
 import { mapKeys, mapSwipe } from '../src/game/InputManager';
 import { ScoreManager } from '../src/game/ScoreManager';
 import { SeededRandom } from '../src/game/SeededRandom';
-import { advanceShot, chargeable, crampedCut, cuttable, fitOf, gradeOf, gradeTiming, hookable, playedAs, punch, punchable, spinCut, resolveShot, scoopLine, scoopShot, scoopable, slogSweep, squareDrivable, sweepable, sweeps, turningIn } from '../src/game/ShotResolver';
+import { advanceShot, chargeShots, chargeable, crampedCut, cuttable, fitOf, gradeOf, gradeTiming, hookable, playedAs, punch, punchable, spinCut, resolveShot, scoopLine, scoopShot, scoopable, slogSweep, squareDrivable, sweepable, sweeps, turningIn } from '../src/game/ShotResolver';
 import type { Delivery, ShotOutcome, ShotType } from '../src/game/types';
 const delivery = (changes: Partial<Delivery> = {}): Delivery => ({ line: 'MIDDLE', style: 'NORMAL', speedKph: 125, baseTargetX: 0, finalTargetX: 0, bounceZ: GAME.bounceZ, rise: GAME.rise, durationMs: 1000, releaseTimeMs: 0, idealContactTimeMs: 1000, ...changes });
 const rng = (value: number) => ({ next: () => value });
@@ -458,7 +458,8 @@ describe('charging down the pitch', () => {
     expect(chargeable(delivery({ ...onTheStumps, style: 'SHORT', speedKph: 125, bounceZ: STYLES.SHORT.bounce! }))).toBe(false);
     // Too slow and too quick.
     expect(chargeable(delivery({ ...onTheStumps, style: 'SLOWER', speedKph: 88 }))).toBe(false);
-    expect(chargeable(delivery({ ...onTheStumps, style: 'OFF_SPIN', speedKph: 82 }))).toBe(false);
+    // The spinner's ball dropped short is not one to walk at (his pitched-up ones are: `chargeableSpin`).
+    expect(chargeable(delivery({ ...onTheStumps, style: 'OFF_SPIN', speedKph: 82, dragged: true }))).toBe(false);
     expect(chargeable(delivery({ ...onTheStumps, style: 'EXPRESS', speedKph: 155 }))).toBe(false);
     expect(chargeable(delivery({ ...onTheStumps, style: 'FAST', speedKph: 145 }))).toBe(false);
   });
@@ -530,13 +531,16 @@ describe('the slog sweep', () => {
     // Without the meter it is an ordinary leg-side shot off a spinner.
     expect(resolveShot(ball, { shotType: 'LEG', inputTimeMs: ball.idealContactTimeMs }, new SeededRandom(4)).swept).toBeFalsy();
   });
-  it('is never offered against a ball the charge would take, and vice versa', () => {
-    // The two special strokes answer opposite balls: the charge wants a seamer
-    // on the stumps, the sweep a spinner pitched up. Nothing is both, or the
-    // cue on the meter would have to lie about one of them.
+  it("shares the spinner's ball with the charge, on swipes of their own", () => {
+    // The seamer on the stumps is the charge's alone. The spinner pitched up
+    // is both: he can step out to it, straight or over cover, and slog-sweep
+    // it off the leg-side swipes, the on drive's among them. No swipe is both.
     const seam = delivery({ line: 'MIDDLE', baseTargetX: 0, finalTargetX: 0, style: 'NORMAL', speedKph: 125 });
     expect(chargeable(seam)).toBe(true); expect(sweepable(seam)).toBe(false);
-    expect(sweepable(turning())).toBe(true); expect(chargeable(turning())).toBe(false);
+    const ball = turning({ baseTargetX: 0, finalTargetX: .2 });
+    expect(sweepable(ball)).toBe(true); expect(chargeable(ball)).toBe(true);
+    for (const shot of SWEEP.shots) expect(chargeShots(ball), shot).not.toContain(shot);
+    expect(chargeShots(ball)).toEqual(['STRAIGHT', 'COVER_LONG_OFF']);
   });
   it('goes to midwicket, between square leg and mid-on', () => {
     expect(SWEEP.angle).toBeLessThan(SHOT_ANGLES.LONG_ON);

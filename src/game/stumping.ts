@@ -46,6 +46,12 @@ export const STUMPING = {
  * beats the bat.
  */
 export const KEEPER_UP = { x: .78, z: -.5 } as const;
+/**
+ * The keeper drawn smaller than the figure he is built on: that figure stands
+ * a little taller than the batter, and squatting a metre and a half nearer the
+ * game's camera than the batter, at full size he looked the bigger man.
+ */
+export const KEEPER_SCALE = .84;
 
 const smooth = (x: number) => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 - 2 * k); };
 

@@ -164,9 +164,33 @@ export function fitOf(delivery: Delivery, shot: ShotType) {
  * an express one leaves you the time.
  */
 export function chargeable(delivery: Delivery) {
-  return Math.abs(delivery.finalTargetX) <= GAME.stumpZone
+  return chargeableSpin(delivery) || (Math.abs(delivery.finalTargetX) <= GAME.stumpZone
     && delivery.speedKph >= ADVANCE.minKph && delivery.speedKph <= ADVANCE.maxKph
-    && delivery.bounceZ >= ADVANCE.minBounceZ && delivery.bounceZ <= ADVANCE.maxBounceZ;
+    && delivery.bounceZ >= ADVANCE.minBounceZ && delivery.bounceZ <= ADVANCE.maxBounceZ);
+}
+/**
+ * The spinner's turning ball he can step out to (`ADVANCE.spinLine`): an off
+ * break or a leg break, pitched up, never the one dropped short, aimed near
+ * the stumps. Met before it has turned, so where it was aimed is the line.
+ */
+export function chargeShots(delivery: Delivery): readonly ShotType[] {
+  // At the spinner the on drive's swipe is the slog sweep's (`SWEEP.shots`),
+  // so he steps out to the straight and cover swipes.
+  return chargeableSpin(delivery) ? ADVANCE.shots.filter(shot => !SWEEP.shots.includes(shot)) : ADVANCE.shots;
+}
+export function chargeableSpin(delivery: Delivery) {
+  return (delivery.style === 'OFF_SPIN' || delivery.style === 'LEG_SPIN') && !delivery.dragged
+    && Math.abs(delivery.baseTargetX) <= ADVANCE.spinLine;
+}
+/**
+ * Down the pitch at the spinner and beaten: the charge's input at his
+ * turning ball with a full meter, timed on `ADVANCE.stumpedOn`. Known the
+ * moment the player swings, as the charge is, so the rig walks him down the
+ * pitch at it and the score stumps him from the same rule.
+ */
+export function steppedOut(delivery: Delivery, attempt: ShotAttempt | null, charged: boolean) {
+  return charged && !!attempt && chargeShots(delivery).includes(attempt.shotType) && chargeableSpin(delivery)
+    && ADVANCE.stumpedOn.includes(gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight));
 }
 /**
  * The charge itself: a full meter, the right ball, the straight-drive input, and
@@ -174,7 +198,7 @@ export function chargeable(delivery: Delivery) {
  * result read it from the same place.
  */
 export function advanceShot(delivery: Delivery, attempt: ShotAttempt | null, charged: boolean) {
-  return charged && !!attempt && ADVANCE.shots.includes(attempt.shotType) && chargeable(delivery)
+  return charged && !!attempt && chargeShots(delivery).includes(attempt.shotType) && chargeable(delivery)
     && ADVANCE.timing.includes(gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight));
 }
 /**
@@ -520,6 +544,12 @@ export function resolveShot(
   if (advanceShot(delivery, attempt, charged)) {
     return { ...outcome, runs: 6, advance: true, compatibility: 1, quality: 1, madeBatContact: true,
       feedback: attempt!.shotType === 'COVER_LONG_OFF' ? ADVANCE.coverFeedback : attempt!.shotType === 'LONG_ON' ? ADVANCE.onFeedback : ADVANCE.feedback };
+  }
+  // Down the pitch at the spinner, mistimed: it turns past the bat and the
+  // keeper, up to the stumps, has the bails off before he is back.
+  if (steppedOut(delivery, attempt, charged)) {
+    return { ...outcome, runs: 0, madeBatContact: false, quality: 0, isWicket: true, wicketType: 'STUMPED', steppedOut: true,
+      feedback: ADVANCE.stumpedFeedback };
   }
   // Behind the wicket, off the downward diagonals. Its own bargain from the
   // ball onwards: see `scooped`.

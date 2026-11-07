@@ -52,7 +52,7 @@ import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
 import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, flickVersionOf, flickBackFoot, FLICK_MEETS_AT, FLICK_V3_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
 import { COUNTED, countStroke, freshTally, strokeMarks } from './game/stroke-tally';
-import { advanceShot, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
+import { advanceShot, steppedOut, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './game/types';
 import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
@@ -3039,7 +3039,11 @@ export class Game {
     // rig and the score read the same answer.
     this.attempt = playedAs(this.delivery!, { shotType: shot, inputTimeMs, swipe }, this.charged);
     const shotType = this.attempt.shotType;
-    const charging = advanceShot(this.delivery!, this.attempt, this.charged);
+    // Stepping out at the spinner and mistimed is a charge too: he walks at it
+    // and is beaten by the turn (`steppedOut`), so the rig takes him down the
+    // pitch whatever came of it.
+    const stepping = steppedOut(this.delivery!, this.attempt, this.charged);
+    const charging = advanceShot(this.delivery!, this.attempt, this.charged) || stepping;
     const lofted = !charging && loftedDrive(this.delivery!, this.attempt);
     const sweeping = !charging && slogSweep(this.delivery!, this.attempt, this.charged);
     // The orthodox sweep is what the same swipe at the same ball becomes when
@@ -3117,7 +3121,9 @@ export class Game {
     // the scene needs to know that from the first frame of his run so the ball
     // can be drawn to where he meets it rather than carrying on to the crease
     // and turning round.
-    if (charging) this.resolve();
+    // Beaten, there is nothing to meet: the ball goes on past him to the
+    // keeper's gloves, resolved when it gets there as any ball is.
+    if (charging && !stepping) this.resolve();
   };
   /**
    * Confidence is only a shot outside the tutorial, where nothing is scored —
@@ -3158,7 +3164,7 @@ export class Game {
    * to tell whether the shot exists.
    */
   private get chargeMiss() {
-    if (!this.chargeBall || !this.attempt || this.outcome?.advance) return null;
+    if (!this.chargeBall || !this.attempt || this.outcome?.advance || this.outcome?.steppedOut) return null;
     return ADVANCE.shots.includes(this.attempt.shotType) ? 'CHARGE MISTIMED' : 'THE CHARGE WANTED A DRIVE';
   }
   private showConfidence() {
@@ -4477,7 +4483,8 @@ export class Game {
       // charge; the scoops are named for the balls only they answer — the
       // yorker, the slower ball, the quick one, the wide one.
       this.specials = !this.charged ? [] : ([
-        chargeable(this.delivery) && 'CHARGE', sweepable(this.delivery) && 'SWEEP',
+        // At the spinner his ball is the sweep's first, so it is called as the sweep.
+        sweepable(this.delivery) && 'SWEEP', chargeable(this.delivery) && 'CHARGE',
         scoopable(this.delivery) && scoopLine(this.delivery, 'SCOOP') && 'SCOOP',
         scoopable(this.delivery) && scoopLine(this.delivery, 'REVERSE_SCOOP') && 'REVERSE',
       ] as const).filter((special): special is NonNullable<Primed> => !!special);
@@ -4706,7 +4713,7 @@ export class Game {
    */
   private marathonBall(): ShotOutcome {
     const delivery = this.delivery!, attempt = this.attempt;
-    const special = this.charged && (advanceShot(delivery, attempt, true)
+    const special = this.charged && (advanceShot(delivery, attempt, true) || steppedOut(delivery, attempt, true)
       || slogSweep(delivery, attempt, true) || !!scoopShot(delivery, attempt, true));
     return special ? resolveShot(delivery, attempt, this.rng, true, this.windows)
       : resolveSurvive(delivery, attempt, this.rng, easedSkill(this.marathon!.current.batter, this.ease));

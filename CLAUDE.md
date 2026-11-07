@@ -1669,6 +1669,25 @@ turned by `FLIGHT.turnedBy` of the flight, before the charge, the stroke
 that meets it furthest down the pitch. `snapshot().flighted` says
 the ball is one; `tests/flighted-ball.test.ts` holds all of it.
 
+## Stepping out to the spinner
+
+The charge (`advanceShot`) is for the spinner's ball too (`chargeableSpin` in
+`ShotResolver.ts`, `ADVANCE.spinLine`): his off break or leg break, pitched
+up, aimed near the stumps, never the one dropped short. With a full meter
+he walks at it off the straight or the cover swipe (`chargeShots`: the on
+drive's swipe at his ball is the slog sweep's), and timed PERFECT or GOOD it
+goes out of the ground as the charge always does. Timed POOR or missed
+(`ADVANCE.stumpedOn`), he is down the pitch, the ball turns past the bat and
+the keeper has the bails off: stumped, STEPPED OUT — STUMPED!
+(`steppedOut`, `steppedOut` on the outcome), in every mode with a meter,
+the Marathon's included (`marathonBall`). Timed OK it is the drive he played.
+`Game.shoot` reads the same rule, so the rig charges whatever came of it, and
+the ball is resolved when it reaches him, not at the swing as a charge that
+connects is; the stumping camera shows him where the charge took him (the
+scene's `lure` is only for a batter drawn out without one). The meter's cue
+at the spinner's ball still names the sweep. `tests/stumping.test.ts` holds
+it.
+
 ## The late cut
 
 The late cut (`'LATE_CUT'`, `LATE_CUT` in `src/entities/Batter.ts` and
@@ -2268,7 +2287,13 @@ follow), the back leant over the thighs, head up, the gloves together low
 between the knees, palms to the bowler. The knees stay near his line: turned
 far out, the thighs splayed flat to the sides and the trousers' seat hung
 between them like a sling, which from the game's camera behind him was most
-of what showed.
+of what showed. He is drawn at `KEEPER_SCALE` (0.84) about his spot: the
+figure stands a little taller than the batter, and a metre and a half nearer
+the camera at full size he looked the bigger man; his gloves (`keeperGloves`)
+and the stumps his strike reaches for are worked out at that scale. An edge
+caught behind with him up (`edgeTaken`) finishes in his gloves and goes up
+with them as he stands, where it had flown on through him to where the keeper
+stood back to pace.
 
 Which balls (`qualifies`): a stroke on `REPLAY_STROKES` — the cover drive,
 the pull (the hook and the pull off the spinner with it), the square cut (at

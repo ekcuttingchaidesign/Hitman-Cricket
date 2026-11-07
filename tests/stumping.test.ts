@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { catchShotOf } from '../src/game/catch-cam';
 import { STUMPING, STUMPING_CAMERA, stumpingAt } from '../src/game/stumping';
-import type { ShotOutcome } from '../src/game/types';
-import { GAME } from '../src/config/gameplay';
+import type { Delivery, ShotOutcome, ShotType } from '../src/game/types';
+import { ADVANCE, GAME, SWEEP } from '../src/config/gameplay';
+import { advanceShot, chargeableSpin, resolveShot, steppedOut } from '../src/game/ShotResolver';
+import { SeededRandom } from '../src/game/SeededRandom';
 
 const out = (changes: Partial<ShotOutcome>): ShotOutcome => ({
   runs: 0, isWicket: false, quality: 0, feedback: '', timingGrade: 'MISS', timingDeltaMs: null,
@@ -42,5 +44,51 @@ describe('a stumping, seen', () => {
     expect(y).toBeGreaterThan(.8); expect(y).toBeLessThan(2.5);
     expect(Math.abs(z)).toBeLessThan(1.5);
     expect(Math.abs(STUMPING_CAMERA.at[2])).toBeLessThan(1);
+  });
+});
+
+describe('stepping out to the spinner', () => {
+  const ball = (changes: Partial<Delivery> = {}): Delivery => ({ line: 'MIDDLE', style: 'OFF_SPIN', speedKph: 88, baseTargetX: 0, finalTargetX: .25,
+    bounceZ: SWEEP.minBounceZ + .4, rise: GAME.rise, durationMs: 1000, releaseTimeMs: 0, idealContactTimeMs: 1000, ...changes });
+  const swing = (d: Delivery, delta: number, shotType: ShotType = 'STRAIGHT') => ({ shotType, inputTimeMs: d.idealContactTimeMs + delta });
+  it('is his off break or leg break, pitched up near the stumps, never the one dropped short', () => {
+    expect(chargeableSpin(ball())).toBe(true);
+    expect(chargeableSpin(ball({ style: 'LEG_SPIN', finalTargetX: -.25 }))).toBe(true);
+    expect(chargeableSpin(ball({ dragged: true }))).toBe(false);
+    expect(chargeableSpin(ball({ style: 'ARM_BALL' }))).toBe(false);
+    expect(chargeableSpin(ball({ baseTargetX: ADVANCE.spinLine + .1 }))).toBe(false);
+  });
+  it('middled up the V, goes out of the ground as the charge does', () => {
+    const d = ball();
+    for (const shot of ['STRAIGHT', 'COVER_LONG_OFF'] as const) {
+      const hit = resolveShot(d, swing(d, 0, shot), new SeededRandom(3), true);
+      expect(hit.advance, shot).toBe(true); expect(hit.runs).toBe(6);
+    }
+  });
+  it('mistimed or beaten, the ball turns past him and he is stumped', () => {
+    const d = ball();
+    for (const delta of [GAME.timing.ok + 5, GAME.timing.poor + 40, -(GAME.timing.poor + 40)]) {
+      expect(steppedOut(d, swing(d, delta), true), `${delta}`).toBe(true);
+      const out = resolveShot(d, swing(d, delta), new SeededRandom(3), true);
+      expect([out.isWicket, out.wicketType, out.steppedOut, out.madeBatContact], `${delta}`).toEqual([true, 'STUMPED', true, false]);
+      expect(out.feedback).toBe(ADVANCE.stumpedFeedback);
+      expect(catchShotOf(out)).toBe('stumped');
+    }
+  });
+  it('needs the full meter and a drive up the V; timed OK it is just the drive', () => {
+    const d = ball(), late = GAME.timing.ok + 5;
+    expect(steppedOut(d, swing(d, late), false)).toBe(false);
+    expect(resolveShot(d, swing(d, late), new SeededRandom(3), false).steppedOut).toBeFalsy();
+    // The on drive's swipe at the spinner is the slog sweep's, not a charge.
+    expect(steppedOut(d, swing(d, late, 'LONG_ON'), true)).toBe(false);
+    expect(advanceShot(d, swing(d, 0, 'LONG_ON'), true)).toBe(false);
+    expect(steppedOut(d, swing(d, late, 'LEG'), true)).toBe(false);
+    const ok = GAME.timing.good + 5;
+    expect(steppedOut(d, swing(d, ok), true)).toBe(false);
+    expect(advanceShot(d, swing(d, ok), true)).toBe(false);
+  });
+  it('never stumps him off the seamer: there the keeper is twenty yards back', () => {
+    const seam = ball({ style: 'NORMAL', speedKph: 125, bounceZ: GAME.bounceZ, finalTargetX: 0 });
+    expect(steppedOut(seam, swing(seam, GAME.timing.poor + 40), true)).toBe(false);
   });
 });

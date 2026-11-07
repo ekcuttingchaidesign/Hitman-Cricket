@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt } from '../entities/Batter';
 import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
 import { Fielder, bodyOf, mixBodies, onField, readyPose, showBody, type Body } from '../entities/Fielder';
-import { KEEPER_UP, STUMPING, stumpingAt } from '../game/stumping';
+import { KEEPER_SCALE, KEEPER_UP, STUMPING, stumpingAt } from '../game/stumping';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
 import { BLAST_FIELD, Field, REPLAY_DEEP, TEST_FIELD, mark, type Mark } from './field';
 import { nameOf, type Man } from '../game/super10-field';
@@ -1513,6 +1513,9 @@ export class GameScene {
     // gloves before the stroke is over.
     if (playedOn) this.hitEnd.set(0.1, flight.endY, -1.5);
     if (outcome.edged) this.hitEnd.set(0.58, flight.endY, -1.6);
+    // Up to the spinner the keeper is in the picture, squatting where that
+    // edge finished: it goes into his gloves instead, and stays there.
+    if (this.edgeTaken()) this.hitEnd.copy(this.keeperGloves(this.hitStart + this.flightMs));
     // The take lines up with the fielder's hands closing — see `takeAt`.
     this.takeAt = outcome.spilled ? flight.takeAt : (caught || outcome.dropped) && !outcome.edged ? 0.86 : 1;
     // An edge is taken behind the stumps with nobody in the frame: the ball
@@ -1651,7 +1654,9 @@ export class GameScene {
       if (result.wicketType === 'BOWLED') this.breakBails(now);
       // Caught, it stays in his hands: `render` carries it with him.
       // And along the ground, it lies where it stopped until somebody picks it up.
-      this.ball.visible = t < 1 || !!result.dropped || !!result.hit || (result.wicketType === 'CAUGHT' && !result.edged) || this.gathered;
+      this.ball.visible = t < 1 || !!result.dropped || !!result.hit || (result.wicketType === 'CAUGHT' && !result.edged) || this.gathered || this.edgeTaken();
+      // Held, it goes with his gloves as he gets up out of his crouch.
+      if (t >= 1 && this.edgeTaken()) this.ball.position.copy(this.keeperGloves(now));
       // The streak behind the ball is most of what sells a struck shot. A ball
       // off the body is not a struck shot, and a tail behind it says it was.
       this.trail.forEach((dot, i) => {
@@ -1689,7 +1694,8 @@ export class GameScene {
         if (stumped && at.bails) this.breakBails(now, true);
         // Drawn down the pitch to it and beaten, he turns for his crease and
         // is still out of it when the bails go.
-        if (stumped) this.lure = STUMPING.out * (into * into * (3 - 2 * into)) - STUMPING.back * at.whip;
+        // Charged at it, the charge has taken him down the pitch already.
+        if (stumped && !result.steppedOut) this.lure = STUMPING.out * (into * into * (3 - 2 * into)) - STUMPING.back * at.whip;
         this.ball.visible = stumped ? at.rise < .5 : true;
         this.groundShadow(this.ball.position, this.ball.visible);
         return;
@@ -1858,7 +1864,11 @@ export class GameScene {
    * catch and stumping cameras — puts him in whoever is bowling (`keeperIn`).
    * Crouched until the ball has been played and standing up out of it after.
    */
-  private readonly keeper = (() => { const keeper = new Fielder(undefined, { connected: true }); keeper.figure.keep(); return keeper; })();
+  private readonly keeper = (() => {
+    const keeper = new Fielder(undefined, { connected: true }); keeper.figure.keep();
+    keeper.root.scale.setScalar(KEEPER_SCALE);
+    return keeper;
+  })();
   keeperIn(on: boolean) { this.keeperFilmed = on; this.placeKeeper(); }
   /** A film's camera wants him (`keeperIn`); the spinner's overs have him in the game's own picture as well. */
   private keeperFilmed = false;
@@ -1875,6 +1885,8 @@ export class GameScene {
     const result = this.hitOutcome;
     return this.spinning && !!result && !result.madeBatContact && !result.hit && result.wicketType !== 'BOWLED' && result.wicketType !== 'LBW';
   }
+  /** An edge caught behind with the keeper up: it finishes in his gloves, not on through him. */
+  private edgeTaken() { return this.spinning && !!this.hitOutcome?.edged; }
   private keeperAt(now: number): Body {
     const up = this.spinning;
     const home = { x: up ? KEEPER_UP.x : .45, z: up ? KEEPER_UP.z : -11, heading: 0 };
@@ -1895,22 +1907,24 @@ export class GameScene {
       const strike = keepingPose(this.keeper.figure.root);
       strike.hip.set(0, .56, 0); strike.chest.set(-.08, .56 + .4, .3);
       strike.rightFoot.set(.3, .1, .3); strike.kneesOut = .5;
-      const toStumps = -lunged.z, across = -lunged.x;
-      strike.leftHand.set(across - .06, GAME.stumpHeight - .02, toStumps - .02);
-      strike.rightHand.set(across + .06, GAME.stumpHeight - .02, toStumps - .02);
+      // In his own frame, which is drawn at `KEEPER_SCALE`: the stumps are further off in it.
+      const toStumps = -lunged.z / KEEPER_SCALE, across = -lunged.x / KEEPER_SCALE, top = (GAME.stumpHeight - .02) / KEEPER_SCALE;
+      strike.leftHand.set(across - .06, top, toStumps - .02);
+      strike.rightHand.set(across + .06, top, toStumps - .02);
       strike.headPitch = .15;
       const down = mixBodies(body(crouch), body(strike, lunged), whip);
       return mixBodies(down, body(stand, lunged), rise);
     }
     // A ball he took gets up out of it once it is in his gloves; one struck, as soon as it is.
-    const from = this.gathering() ? stumpingAt(0, this.flightMs).take + 250 : 120;
+    const from = this.gathering() ? stumpingAt(0, this.flightMs).take + 250 : this.edgeTaken() ? this.flightMs + 250 : 120;
     const rising = Math.min(1, Math.max(0, (since - from) / 520));
     return mixBodies(body(crouch), body(stand), rising * rising * (3 - 2 * rising));
   }
   /** Between his gloves, out on the field, as `keeperAt` has them: where a ball he has taken is. */
   private keeperGloves(now: number) {
-    const body = this.keeperAt(now);
-    return onField(body, body.pose.leftHand).add(onField(body, body.pose.rightHand)).multiplyScalar(.5);
+    const body = this.keeperAt(now), base = new THREE.Vector3(body.x, 0, body.z);
+    // He is drawn at `KEEPER_SCALE` about his spot, and his gloves with him.
+    return onField(body, body.pose.leftHand).add(onField(body, body.pose.rightHand)).multiplyScalar(.5).sub(base).multiplyScalar(KEEPER_SCALE).add(base);
   }
   /** How far down the pitch a batter about to be stumped has come, metres (`STUMPING.out`). */
   private lure = 0;
