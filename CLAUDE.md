@@ -1685,9 +1685,9 @@ the Marathon's included (`marathonBall`). Timed OK it is the drive he played.
 the ball is resolved when it reaches him, not at the swing as a charge that
 connects is; the stumping camera shows him where the charge took him (the
 scene's `lure` is only for a batter drawn out without one). Stumped, however
-it came, his head goes down (`afterBall`'s `stumped`, the `down` the
-milestones' heartbreak has: he turns to the broken stumps and hangs his head
-with the bat down), and down the pitch from a charge he does it there, the
+it came, he looks up at the sky (`afterBall`'s `stumped`, the `sky` the
+milestones' heartbreak has; the head-down `down` was tried first and the
+owner kept the sky), and down the pitch from a charge he does it there, the
 walk back to the crease let go (`stranded` in `Batter.ts`). The meter's cue
 at the spinner's ball still names the sweep. `tests/stumping.test.ts` holds
 it.

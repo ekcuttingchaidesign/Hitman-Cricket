@@ -3512,8 +3512,8 @@ export class Batter {
    */
   afterBall(kind: AfterBall, now: number) {
     // Down the pitch and stumped, he stays where the charge took him and
-    // hangs his head there, rather than walking back to a crease he is out of.
-    if (this.charging && kind === 'down') this.stranded = true;
+    // takes it there, rather than walking back to a crease he is out of.
+    if (this.charging && (kind === 'sky' || kind === 'down')) this.stranded = true;
     else if (this.charging) return now;
     // A ball left alone: the bat lowered out of the leave as he goes.
     if (!Number.isFinite(this.swingStart)) this.anticipation = 0;

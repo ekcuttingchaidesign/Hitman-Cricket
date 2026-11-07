@@ -144,9 +144,9 @@ const DRIVES = new Set(['STRAIGHT', 'COVER_LONG_OFF', 'LONG_ON']);
  * would do it picks between them too.
  */
 export function afterBall(stroke: PlayedStroke | null, ended: BallEnded, habit: Habit, roll: number): AfterBall | null {
-  // Stumped, his head goes down, whatever he played and however far down
-  // the pitch it took him: he walks off from there.
-  if (ended.stumped) return 'down';
+  // Stumped, he looks up at the sky, whatever he played and however far
+  // down the pitch it took him: he walks off from there.
+  if (ended.stumped) return 'sky';
   if (stroke?.charging) return null;
   // A milestone missed: always, whatever the roll, and whether or not he
   // played at it. Out, on the last ball too, which is held for it.
