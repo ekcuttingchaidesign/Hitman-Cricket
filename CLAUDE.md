@@ -2427,11 +2427,23 @@ a half past the man there (`Field.clear`) and dived at or chased to the rope
 (`airborne`, the share of the way it flies) — it went past the men behind
 the bat close enough to touch while they stood and watched.
 
+A batter stumped goes to a camera of its own the same way (`'stumped'`,
+`src/game/stumping.ts`, in `tests/stumping.test.ts`), in every mode,
+Survival too: the keeper is never in the game's picture, which stands where
+he squats. Cut in just after the ball beats the bat (`STUMPING.cutIn`), side
+on from square leg (`STUMPING_CAMERA`), the batter drawn down the pitch past
+his crease and turning back too late (`out`, `back`, the scene's `lure`), the
+keeper squatting up at the stumps, the ball into his gloves
+(`keeperGloves`), a lunge and both gloves onto the stumps, the bails going
+only then (`breakBails`' `struck`, `stumpingAt`'s `bails`), and him getting
+up out of it (`keeperAt`'s stumped branch); slowed round the take, the call
+going up as the bails go, cut back `STUMPING.hold` after the take.
+
 Off with the pause sheet's Replays switch, under `?debug=1` and reduced
 motion, in the tutorial and a demo; `?catchcam=1` shows every one, debug or
 not, and every spillable skier put down, and `?catchcam=0` none. Neither is
 practice. `snapshot().catchCam` says what is on. GoatCounter counts
-`catch-cam-catch`, `-drop`, `-spill` and `-field`. `scripts/catch-check.mjs` skies a
+`catch-cam-catch`, `-drop`, `-spill`, `-field` and `-stumped`. `scripts/catch-check.mjs` skies a
 cover drive on `?cover=1&catchcam=1` and photographs it through
 (`MODE=survive` bats seeds until it has a drop as well, `MODE=super10`).
 

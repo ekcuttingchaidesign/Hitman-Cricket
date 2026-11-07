@@ -61,6 +61,7 @@ import { GameScene } from './scene/GameScene';
 import { cardShown, filmLength, introBars, nextFilm, type Film } from './game/IntroReel';
 import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
 import { catchCamera, catchPace, catchShotOf, catchTimes, spillable, SPILL_ODDS, type CatchShot } from './game/catch-cam';
+import { STUMPING, STUMPING_CAMERA } from './game/stumping';
 import { endedLog, fieldCamera, freshLog, overRope, OVER_MS, pickAngle, replayCamera, CUT_AFTERS, replayDue, replayPace, replayTimes, shownLog, REPLAYS_PER_INNINGS, MARATHON_PACE, WIPE_MS, NEW_TAG_SHOWS, newTagDue, type ReplayAngle, type ReplayBall, type ReplayLook, type ReplayStroke, type ReplayTimes } from './game/replay';
 import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type CameraPose, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
@@ -5043,12 +5044,25 @@ export class Game {
     const shot = catchShotOf(this.outcome!)
       ?? (this.super10 && rider?.deep && (rider.how === 'cut' || rider.how === 'saved') && offScreen(rider.angle) ? 'field' : null);
     if (!shot) return null;
+    // The stumping is the keeper's alone: no field to join.
+    if (shot === 'stumped') return shot;
     const field = this.super10 ? this.s10.field : null;
     if (field) { const drawn = drawnOf(field); this.scene.catchField(true, field.men.filter(man => !drawn.includes(man))); }
     else this.scene.catchField(true);
     return shot;
   }
   private beginCatchCam(shot: CatchShot, flight: { contactAt: number; endAt: number }) {
+    if (shot === 'stumped') {
+      // From just after the ball beats the bat, slowed round the take, the
+      // call going up as the bails go.
+      const { take, bails } = this.scene.stumpingTimes();
+      const until = take + STUMPING.hold;
+      this.catchCam = { shot, cut: flight.contactAt + STUMPING.cutIn, take, until, hands: [0, 0, 0], on: false };
+      this.resolveEndsAt = Math.max(this.resolveEndsAt, until);
+      this.presentationAt = Math.max(this.presentationAt, bails);
+      this.mark('catch-cam-stumped', 'A stumping watched');
+      return;
+    }
     const struck = this.scene.struckTo();
     if (!struck) { this.scene.catchField(false); return; }
     const times = catchTimes(shot, flight.contactAt, flight.contactAt + struck.arrives, flight.endAt);
@@ -5065,7 +5079,7 @@ export class Game {
     const cam = this.catchCam!;
     if (!cam.on && this.elapsed >= cam.cut && this.elapsed < cam.until) {
       cam.on = true;
-      this.scene.cinematic((_, ball) => catchCamera(cam.hands, ball));
+      this.scene.cinematic((_, ball) => cam.shot === 'stumped' ? STUMPING_CAMERA : catchCamera(cam.hands, ball));
       this.scene.keeperIn(true); this.hud.walkOn(1); this.hud.catching(true);
     }
     if (this.elapsed >= cam.until) this.endCatchCam();

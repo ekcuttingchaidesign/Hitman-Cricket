@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt } from '../entities/Batter';
 import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
-import { Fielder, bodyOf, mixBodies, readyPose, showBody, type Body } from '../entities/Fielder';
+import { Fielder, bodyOf, mixBodies, onField, readyPose, showBody, type Body } from '../entities/Fielder';
+import { STUMPING, stumpingAt } from '../game/stumping';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
 import { BLAST_FIELD, Field, REPLAY_DEEP, TEST_FIELD, mark, type Mark } from './field';
 import { nameOf, type Man } from '../game/super10-field';
@@ -1274,6 +1275,7 @@ export class GameScene {
     this.cutout();
     this.crowd?.settle(this.clock);
     this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0; this.blaze = null; this.swishedAt = -Infinity; this.swish.visible = false;
+    this.lure = 0;
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
     this.trail.forEach(t => t.visible = false); this.streak.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset(carryOn);
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
@@ -1574,8 +1576,8 @@ export class GameScene {
    * from both halves of `result` — a ball that beat the bat and a ball the
    * batter dragged back onto his own stumps both end with the timber going.
    */
-  private breakBails(now: number) {
-    if (!this.bailsBrokeAt && this.ball.position.z <= 0) { this.bailsBrokeAt = now; this.onStumps?.(); }
+  private breakBails(now: number, struck = this.ball.position.z <= 0) {
+    if (!this.bailsBrokeAt && struck) { this.bailsBrokeAt = now; this.onStumps?.(); }
     if (!this.bailsBrokeAt) return;
     const flung = Math.min(1, (now - this.bailsBrokeAt) / 620);
     this.bails.forEach((bail, i) => {
@@ -1675,12 +1677,26 @@ export class GameScene {
       // Carry on from where the ball actually is rather than resetting it to the
       // crease, so a beaten stroke never rewinds the delivery.
       const from = this.incomingPosition;
+      if (result.wicketType === 'STUMPED') {
+        // Into the keeper's gloves, and with them onto the stumps: the bails go
+        // when his gloves get there (`stumping.ts`), not when the ball passes.
+        const at = stumpingAt(now - this.hitStart, this.flightMs);
+        const gloves = this.keeperGloves(now);
+        const into = Math.min(1, (now - this.hitStart) / Math.max(1, at.take));
+        if (into < 1) this.ball.position.lerpVectors(from, gloves, into * into * (3 - 2 * into));
+        else this.ball.position.copy(gloves);
+        if (at.bails) this.breakBails(now, true);
+        // Drawn down the pitch to it and beaten, he turns for his crease and
+        // is still out of it when the bails go.
+        this.lure = STUMPING.out * (into * into * (3 - 2 * into)) - STUMPING.back * at.whip;
+        this.ball.visible = at.rise < .5;
+        this.groundShadow(this.ball.position, this.ball.visible);
+        return;
+      }
       const stopZ = result.wicketType === 'LBW' ? from.z : -1.3;
       this.ball.position.set(from.x, Math.max(0.1, from.y - t * 0.3), THREE.MathUtils.lerp(from.z, stopZ, Math.min(1, t * 5)));
-      // The bails leave when the ball reaches them, not on a fixed delay. A
-      // stumping breaks them too: the ball carries through to the keeper either
-      // way, and without this the call read STUMPED over a standing wicket.
-      if (result.wicketType === 'BOWLED' || result.wicketType === 'STUMPED') this.breakBails(now);
+      // The bails leave when the ball reaches them, not on a fixed delay.
+      if (result.wicketType === 'BOWLED') this.breakBails(now);
       if (result.wicketType === 'LBW') {
         this.batter.root.position.x = THREE.MathUtils.lerp(GAME.stanceX, this.hitOrigin.x - 0.13, Math.min(1, t * 8));
         this.batter.root.rotation.z = Math.sin(Math.min(1, t * 4) * Math.PI) * 0.13;
@@ -1752,6 +1768,7 @@ export class GameScene {
       this.batter.stage(t, film); this.batter.sweep(introSweep(film, t));
     }
     this.batter.update(now);
+    if (this.lure) this.batter.root.position.z = GAME.stanceZ + this.lure;
     this.field.update(now);
     if (this.keeper.root.visible) this.keeper.show(this.keeperAt(now));
     // Held, the ball goes where his hands go: through the slide, and up with
@@ -1851,10 +1868,38 @@ export class GameScene {
     crouch.leftHand.set(-.07, .42, .42); crouch.rightHand.set(.07, .42, .42);
     crouch.headPitch = -.05;
     const stand = readyPose(.45);
-    const body = (pose: typeof crouch): Body => ({ ...spot, pitch: 0, anchor: pose.hip.clone(), pose });
+    const body = (pose: typeof crouch, at = spot): Body => ({ ...at, pitch: 0, anchor: pose.hip.clone(), pose });
     const since = this.hitOutcome ? now - this.hitStart : -Infinity;
+    // Stumped: he stays down, gathers it, lunges and whips the bails off with
+    // both gloves, and only then stands (`stumping.ts`). His hands are in his
+    // own frame, which with no turn is the field's less where he squats.
+    if (this.hitOutcome?.wicketType === 'STUMPED') {
+      const { whip, rise } = stumpingAt(since, this.flightMs);
+      const lunged = { ...spot, z: spot.z + STUMPING.lunge };
+      const strike = readyPose(1);
+      strike.hip.y = .55; strike.chest.set(-.08, .5 + .45, .4);
+      strike.leftFoot.set(-.3, .06, .02); strike.rightFoot.set(.3, .1, .3);
+      const toStumps = -lunged.z, across = -spot.x;
+      strike.leftHand.set(across - .06, GAME.stumpHeight - .02, toStumps - .02);
+      strike.rightHand.set(across + .06, GAME.stumpHeight - .02, toStumps - .02);
+      strike.headPitch = .15;
+      const down = mixBodies(body(crouch), body(strike, lunged), whip);
+      return mixBodies(down, body(stand, lunged), rise);
+    }
     const rising = Math.min(1, Math.max(0, (since - 120) / 520));
     return mixBodies(body(crouch), body(stand), rising * rising * (3 - 2 * rising));
+  }
+  /** Between his gloves, out on the field, as `keeperAt` has them: where a ball he has taken is. */
+  private keeperGloves(now: number) {
+    const body = this.keeperAt(now);
+    return onField(body, body.pose.leftHand).add(onField(body, body.pose.rightHand)).multiplyScalar(.5);
+  }
+  /** How far down the pitch a batter about to be stumped has come, metres (`STUMPING.out`). */
+  private lure = 0;
+  /** When the stumping's take and bails fall, on the game's clock, for the camera that watches it. */
+  stumpingTimes() {
+    const at = stumpingAt(0, this.flightMs);
+    return { take: this.hitStart + at.take, bails: this.hitStart + at.take + STUMPING.whipFrom + STUMPING.whipMs * STUMPING.bailsAt };
   }
   /** The field back on its marks at once, as a replay's cut finds it and leaves it. */
   homeField() { this.field.home(); }
