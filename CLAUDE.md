@@ -2256,8 +2256,16 @@ picture, so the game's own camera sees him every ball of those overs without
 him ever standing between it and the batter (`placeKeeper`), and he moves
 across to take a ball that beats the bat (`gathering`, `keeperGloves`).
 Crouched until the ball is played and standing up out of it after, in the
-fielding side's kit and a helmet in its cap's colour (`wearHelmet` on
-`Cricketer`: the batter's shell, peak and grille, sized to his head).
+fielding side's kit. He is the bowler's clean build (`connected`, draped each
+frame he is shown), not a fielder's boxes and tubes, which up close read as
+a balloon on sticks, and wears the keeper's gear (`keep` on `Cricketer`): a
+helmet in the cap's colour (`wearHelmet`: the batter's shell, peak and grille,
+sized to his head), padded cream gloves with tan palms and the side's colour
+at the cuff, and short keeping pads aimed down each shin every pose. His squat
+is `keepingPose`: on his haunches, the hips just over the heels, knees and
+toes turned out (`kneesOut` on the pose, which the knee's solve and the shoe
+follow), the back leant over the thighs, head up, the gloves together low
+between the knees, palms to the bowler.
 
 Which balls (`qualifies`): a stroke on `REPLAY_STROKES` — the cover drive,
 the pull (the hook and the pull off the spinner with it), the square cut (at

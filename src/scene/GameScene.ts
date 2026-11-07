@@ -9,7 +9,7 @@ import { nameOf, type Man } from '../game/super10-field';
 import type { Signal } from '../entities/Fielder';
 import { GAME } from '../config/gameplay';
 import { ballPosition, drawnAt, flightProgress } from '../game/DeliveryTrajectory';
-import { KIT, type Kit } from '../entities/Cricketer';
+import { KIT, keepingPose, type Kit } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
 import { BOARDS, boardsAlong, flightOf, sectorOf } from './flight';
 import { OVERCAST, SKY, Sky, type SkyTime } from './sky';
@@ -1818,7 +1818,7 @@ export class GameScene {
       this.clouding(THREE.MathUtils.lerp(this.cover.from, this.cover.to, k * k * (3 - 2 * k)), k >= 1);
     }
     this.mute.value = Math.max(muteAt(now - this.celebratedAt, this.celebratedFor), powerAt(now - this.poweredAt));
-    this.batter.drape(); this.bowler.figure.drape();
+    this.batter.drape(); this.bowler.figure.drape(); if (this.keeper.root.visible) this.keeper.figure.drape();
     if (this.cut) this.drawCutout();
     this.renderer.render(this.scene, this.camera);
     this.performanceReadout?.update(this.renderer);
@@ -1858,7 +1858,7 @@ export class GameScene {
    * catch and stumping cameras — puts him in whoever is bowling (`keeperIn`).
    * Crouched until the ball has been played and standing up out of it after.
    */
-  private readonly keeper = (() => { const keeper = new Fielder(); keeper.figure.wearHelmet(); return keeper; })();
+  private readonly keeper = (() => { const keeper = new Fielder(undefined, { connected: true }); keeper.figure.keep(); return keeper; })();
   keeperIn(on: boolean) { this.keeperFilmed = on; this.placeKeeper(); }
   /** A film's camera wants him (`keeperIn`); the spinner's overs have him in the game's own picture as well. */
   private keeperFilmed = false;
@@ -1882,12 +1882,8 @@ export class GameScene {
     // Across to the ball's line by the time it reaches him.
     const gather = this.gathering() ? Math.min(1, Math.max(0, since / Math.max(1, stumpingAt(0, this.flightMs).take))) : 0;
     const spot = { ...home, x: THREE.MathUtils.lerp(home.x, this.incomingPosition.x, gather * gather * (3 - 2 * gather)) };
-    const crouch = readyPose(1);
-    // Down on his haunches, deeper than any fielder's ready position, gloves together in front of his knees.
-    crouch.hip.y = .5; crouch.chest.set(0, .5 + .5, .12);
-    crouch.leftFoot.set(-.3, .06, .02); crouch.rightFoot.set(.3, .06, .02);
-    crouch.leftHand.set(-.07, .42, .42); crouch.rightHand.set(.07, .42, .42);
-    crouch.headPitch = -.05;
+    // Down on his haunches, knees wide, gloves together low between them (`keepingPose`).
+    const crouch = keepingPose(this.keeper.figure.root);
     const stand = readyPose(.45);
     const body = (pose: typeof crouch, at = spot): Body => ({ ...at, pitch: 0, anchor: pose.hip.clone(), pose });
     // Stumped: he stays down, gathers it, lunges and whips the bails off with
@@ -1896,9 +1892,9 @@ export class GameScene {
     if (this.hitOutcome?.wicketType === 'STUMPED') {
       const { whip, rise } = stumpingAt(since, this.flightMs);
       const lunged = { ...spot, z: spot.z + STUMPING.lunge };
-      const strike = readyPose(1);
-      strike.hip.y = .55; strike.chest.set(-.08, .5 + .45, .4);
-      strike.leftFoot.set(-.3, .06, .02); strike.rightFoot.set(.3, .1, .3);
+      const strike = keepingPose(this.keeper.figure.root);
+      strike.hip.set(0, .56, 0); strike.chest.set(-.08, .56 + .4, .3);
+      strike.rightFoot.set(.3, .1, .3); strike.kneesOut = .5;
       const toStumps = -lunged.z, across = -lunged.x;
       strike.leftHand.set(across - .06, GAME.stumpHeight - .02, toStumps - .02);
       strike.rightHand.set(across + .06, GAME.stumpHeight - .02, toStumps - .02);

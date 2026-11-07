@@ -57,6 +57,11 @@ export interface Figure {
    * on down the pitch; turned as one piece, his legs cross. Left out, nought.
    */
   twist?: number;
+  /**
+   * The knees and toes turned out, nought to one: a wicketkeeper squats with
+   * his knees wide and his gloves down between them. Left out, nought.
+   */
+  kneesOut?: number;
 }
 
 /** How much of a twist the hips take; see `Figure.twist`. */
@@ -358,6 +363,54 @@ export class Cricketer {
   private helmeted = false;
 
   /**
+   * The wicketkeeper's gear, on the clean build (`connected`): the helmet,
+   * keeping gloves over his hands, and keeping pads strapped over his shins,
+   * aimed down each shin every pose (`apply`). The gloves are big padded
+   * mitts, cream with tan leather palms and a cuff in the side's colour; the
+   * pads are shorter and lighter than a batter's, three rolls down the front
+   * and a knee roll on top, strapped in the side's colour.
+   */
+  keep() {
+    if (this.pads) return;
+    this.wearHelmet();
+    const leather = material(0xf1ede2, .64), palm = material(0x9a6a42, .82);
+    const strap = this.palette.find(entry => entry.role === 'flash')!.mat;
+    for (let i = 0; i < 2; i++) {
+      const side = i === 0 ? -1 : 1, hand = this.hands[i];
+      for (const child of hand.children) child.visible = false;
+      const glove = new THREE.Group(); glove.name = 'Keeping glove';
+      // The hand's frame runs down the forearm (+y on past the wrist); the
+      // palm faces -z, the way a keeper offers his gloves to the ball.
+      this.mesh(glove, leather, [.142, .2, .084], 'soft').position.set(0, .09, .004);
+      this.mesh(glove, palm, [.124, .17, .02], 'soft').position.set(0, .095, -.036);
+      // The thumb out at the side.
+      const thumb = this.mesh(glove, leather, [.05, .11, .056], 'soft');
+      thumb.position.set(-side * .074, .07, -.01); thumb.rotation.z = side * .32;
+      this.mesh(glove, strap, [.15, .09, .094], 'soft').position.set(0, -.016, .004);
+      this.mesh(glove, strap, [.146, .02, .088], 'soft').position.set(0, .05, .008);
+      compactRigidParts(glove);
+      hand.add(glove);
+
+      const pad = new THREE.Group(); pad.name = 'Keeping pad';
+      // In the pad's frame +y runs up the shin and +z out of its front.
+      this.mesh(pad, leather, [.17, .34, .07], 'soft').position.set(0, -.03, 0);
+      for (let r = 0; r < 3; r++) this.mesh(pad, leather, [.04, .3, .04], 'tube').position.set(-.046 + r * .046, -.04, .034);
+      this.mesh(pad, leather, [.086, .042, .058], 'ball').position.set(0, .15, .014);
+      for (const y of [-.13, .06]) this.mesh(pad, strap, [.176, .028, .078], 'soft').position.set(0, y, -.008);
+      compactRigidParts(pad);
+      this.root.add(pad);
+      (this.pads ??= []).push(pad);
+    }
+    this.dressable = this.dressable.filter(mesh => mesh.parent !== null);
+    for (const group of [...this.hands, ...this.pads!]) group.traverse(child => { if ((child as THREE.Mesh).isMesh && child.userData.role && !this.dressable.includes(child as THREE.Mesh)) this.dressable.push(child as THREE.Mesh); });
+    this.apply(this.pose);
+  }
+  private pads?: THREE.Group[];
+  private padSide = new THREE.Vector3();
+  private padFront = new THREE.Vector3();
+  private padUp = new THREE.Vector3();
+
+  /**
    * Put the figure in a different kit.
    *
    * Survive is played in whites, and the alternative to this was building a
@@ -490,8 +543,10 @@ export class Cricketer {
       this.hipJoints[i].copy(hipJoint);
       const foot = i === 0 ? pose.leftFoot : pose.rightFoot;
       // Knees lead forward, in the direction the body faces.
+      const out = pose.kneesOut ?? 0;
       const knee = solveJoint(hipJoint, foot, BUILD.thigh, BUILD.shin,
-        hipJoint.clone().addScaledVector(forward, .8).addScaledVector(UP, -.15));
+        hipJoint.clone().addScaledVector(forward, .8).addScaledVector(UP, -.15)
+          .addScaledVector(new THREE.Vector3(1, 0, 0).applyQuaternion(hipYaw), side * .8 * out));
       segment(leg.upper, hipJoint, knee, LEG_UPPER, LEG_UPPER * 1.04);
       segment(leg.lower, knee, foot, LEG_LOWER, LEG_LOWER * 1.04);
       leg.joint.position.copy(knee);
@@ -500,12 +555,23 @@ export class Cricketer {
         this.limbStart.copy(hipJoint).lerp(hip, .5).addScaledVector(up, .065);
         this.garments.legs[i].aim(this.limbStart, knee, foot, this.garments.trousers.reference(i, this.hips));
       }
+      if (this.pads) {
+        // The pad down the shin, its face out the front of it: away from the
+        // thigh, in the plane of the leg, so it follows the knee out and round.
+        const up = this.padUp.copy(knee).sub(foot).normalize();
+        const front = this.padFront.copy(foot).sub(hipJoint);
+        front.addScaledVector(up, -front.dot(up));
+        if (front.lengthSq() < .0001) front.copy(forward).addScaledVector(up, -forward.dot(up));
+        front.normalize();
+        this.pads[i].quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(this.padSide.crossVectors(up, front), up, front));
+        this.pads[i].position.copy(foot).lerp(knee, .5).addScaledVector(front, .062);
+      }
       leg.end.position.copy(foot);
       // The foot points along the shin's own fall, so a lifted leg shows a
       // pointed toe and a planted one sits flat.
       const shin = foot.clone().sub(knee);
       const pitch = shin.lengthSq() > .000001 ? Math.asin(THREE.MathUtils.clamp(-shin.clone().normalize().dot(forward), -1, 1)) : 0;
-      leg.end.quaternion.setFromAxisAngle(UP, pose.yaw);
+      leg.end.quaternion.setFromAxisAngle(UP, pose.yaw - side * .55 * out);
       // Flat on the turf while it is planted; tipping with the shin only once lifted.
       const lifted = THREE.MathUtils.smoothstep(foot.y, .065, .20);
       leg.end.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), THREE.MathUtils.clamp(pitch, -.9, .9) * lifted));
@@ -580,6 +646,25 @@ export function standPose(root: THREE.Group): Figure {
   pose.leftHand.set(-.245, pose.hip.y - .045, .115);
   pose.rightHand.set(.245, pose.hip.y - .045, .115);
   pose.headPitch = .04;
+  return pose;
+}
+
+/**
+ * A wicketkeeper squatting up at the stumps, as one does for a spinner: down
+ * on his haunches, the hips just over the heels, the knees wide and the toes
+ * turned out with them, the back leant forward over the thighs and the head
+ * up on the ball, the gloves together low in front between the knees,
+ * fingers down, palms to the bowler.
+ */
+export function keepingPose(root: THREE.Group): Figure {
+  const pose = restPose(root);
+  const lean = .52;
+  pose.hip.set(0, .5, -.06);
+  pose.chest.set(0, pose.hip.y + SPINE * Math.cos(lean), pose.hip.z + SPINE * Math.sin(lean));
+  pose.leftFoot.set(-.3, .07, .08); pose.rightFoot.set(.3, .07, .08);
+  pose.leftHand.set(-.075, .34, .44); pose.rightHand.set(.075, .34, .44);
+  pose.kneesOut = .8;
+  pose.headPitch = -.9;
   return pose;
 }
 
