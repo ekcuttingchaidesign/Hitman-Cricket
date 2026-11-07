@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt } from '../entities/Batter';
 import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
 import { Fielder, bodyOf, mixBodies, onField, readyPose, showBody, type Body } from '../entities/Fielder';
-import { KEEPER_SCALE, KEEPER_UP, STUMPING, stumpingAt } from '../game/stumping';
+import { KEEPER_CHEER, KEEPER_SCALE, KEEPER_UP, STUMPING, stumpingAt } from '../game/stumping';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
 import { BLAST_FIELD, Field, REPLAY_DEEP, TEST_FIELD, mark, type Mark } from './field';
 import { nameOf, type Man } from '../game/super10-field';
@@ -1654,8 +1654,9 @@ export class GameScene {
       if (result.wicketType === 'BOWLED') this.breakBails(now);
       // Caught, it stays in his hands: `render` carries it with him.
       // And along the ground, it lies where it stopped until somebody picks it up.
-      this.ball.visible = t < 1 || !!result.dropped || !!result.hit || (result.wicketType === 'CAUGHT' && !result.edged) || this.gathered || this.edgeTaken();
-      // Held, it goes with his gloves as he gets up out of his crouch.
+      this.ball.visible = t < 1 || !!result.dropped || !!result.hit || (result.wicketType === 'CAUGHT' && !result.edged) || this.gathered
+        || (this.edgeTaken() && this.keeperRise(now) >= KEEPER_CHEER.shown);
+      // Held, it goes with his gloves as he gets up out of his crouch and throws them up.
       if (t >= 1 && this.edgeTaken()) this.ball.position.copy(this.keeperGloves(now));
       // The streak behind the ball is most of what sells a struck shot. A ball
       // off the body is not a struck shot, and a tail behind it says it was.
@@ -1696,7 +1697,9 @@ export class GameScene {
         // is still out of it when the bails go.
         // Charged at it, the charge has taken him down the pitch already.
         if (stumped && !result.steppedOut) this.lure = STUMPING.out * (into * into * (3 - 2 * into)) - STUMPING.back * at.whip;
-        this.ball.visible = stumped ? at.rise < .5 : true;
+        // In his gloves between his knees it showed between his legs: drawn
+        // again once he is on his way up with it (`keeperRise`).
+        this.ball.visible = stumped ? at.rise < .5 : into < 1 || this.keeperRise(now) >= KEEPER_CHEER.shown;
         this.groundShadow(this.ball.position, this.ball.visible);
         return;
       }
@@ -1915,10 +1918,30 @@ export class GameScene {
       const down = mixBodies(body(crouch), body(strike, lunged), whip);
       return mixBodies(down, body(stand, lunged), rise);
     }
-    // A ball he took gets up out of it once it is in his gloves; one struck, as soon as it is.
-    const from = this.gathering() ? stumpingAt(0, this.flightMs).take + 250 : this.edgeTaken() ? this.flightMs + 250 : 120;
-    const rising = Math.min(1, Math.max(0, (since - from) / 520));
-    return mixBodies(body(crouch), body(stand), rising * rising * (3 - 2 * rising));
+    const rising = this.keeperRise(now);
+    // An edge held: up out of his crouch with both gloves thrown up over his
+    // head, the ball in them, then down to his sides as the batter goes.
+    if (this.edgeTaken()) {
+      const cheer = readyPose(.15);
+      cheer.leftHand.set(-.19, cheer.hip.y + 1.04, .1); cheer.rightHand.set(.19, cheer.hip.y + 1.04, .1);
+      cheer.headPitch = -.35;
+      const lowered = Math.min(1, Math.max(0, (since - this.flightMs - KEEPER_CHEER.lowerFrom) / KEEPER_CHEER.lowerMs));
+      return mixBodies(mixBodies(body(crouch), body(cheer), rising), body(stand), lowered * lowered * (3 - 2 * lowered));
+    }
+    return mixBodies(body(crouch), body(stand), rising);
+  }
+  /**
+   * How far up out of his crouch the keeper is, 0 to 1, eased: a ball he took
+   * gets him up once it is in his gloves, one struck as soon as it is. Down
+   * there his gloves are between his knees, and the ball in them showed
+   * between his legs to the camera behind him, so it is drawn only once he is
+   * on his way up (`KEEPER_CHEER.shown`).
+   */
+  private keeperRise(now: number) {
+    const since = this.hitOutcome ? now - this.hitStart : -Infinity;
+    const from = this.gathering() ? stumpingAt(0, this.flightMs).take + 250 : this.edgeTaken() ? this.flightMs + KEEPER_CHEER.after : 120;
+    const rising = Math.min(1, Math.max(0, (since - from) / (this.edgeTaken() ? KEEPER_CHEER.upMs : 520)));
+    return rising * rising * (3 - 2 * rising);
   }
   /** Between his gloves, out on the field, as `keeperAt` has them: where a ball he has taken is. */
   private keeperGloves(now: number) {

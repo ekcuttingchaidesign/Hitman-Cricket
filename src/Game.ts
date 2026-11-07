@@ -5169,7 +5169,7 @@ export class Game {
       const kind = afterBall(stroke, {
         scored, four: outcome.runs === 4,
         beaten: (!outcome.madeBatContact || !!outcome.edged) && !outcome.hit,
-        wicket: outcome.isWicket, milestone: !!this.milestoneDue,
+        wicket: outcome.isWicket, milestone: !!this.milestoneDue, stumped: outcome.wicketType === 'STUMPED',
         heartbreak: this.lesson < 0 && !this.felled ? disappointment(this.batterHistory) : null,
         hurt: this.felled ? null : outcome.hit?.where ?? null,
         last: this.lesson < 0 && !!(this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended),

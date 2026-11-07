@@ -66,6 +66,12 @@ describe('what the batter does once the ball is done with', () => {
     expect(afterBall(stroke('LEG', { lofted: true }), scored, habit(), lucky)).toBeNull();
   });
 
+  it('stumped, his head goes down every time, down the pitch from a charge or not, on the last ball too', () => {
+    const out = { scored: false, beaten: true, wicket: true, milestone: false, stumped: true };
+    for (const s of [stroke('STRAIGHT'), stroke('STRAIGHT', { charging: true }), null])
+      expect(afterBall(s, out, habit(), .99)).toBe('down');
+    expect(afterBall(stroke('STRAIGHT'), { ...out, last: true }, habit(), .99)).toBe('down');
+  });
   it('never after a charge, a wicket, before a milestone, or on the last ball', () => {
     for (const s of [stroke('STRAIGHT'), stroke('LEG', { pulled: true }), stroke('SCOOP')]) {
       expect(afterBall({ ...s, charging: true }, scored, habit(), lucky)).toBeNull();

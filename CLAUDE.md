@@ -1684,7 +1684,11 @@ the Marathon's included (`marathonBall`). Timed OK it is the drive he played.
 `Game.shoot` reads the same rule, so the rig charges whatever came of it, and
 the ball is resolved when it reaches him, not at the swing as a charge that
 connects is; the stumping camera shows him where the charge took him (the
-scene's `lure` is only for a batter drawn out without one). The meter's cue
+scene's `lure` is only for a batter drawn out without one). Stumped, however
+it came, his head goes down (`afterBall`'s `stumped`, the `down` the
+milestones' heartbreak has: he turns to the broken stumps and hangs his head
+with the bat down), and down the pitch from a charge he does it there, the
+walk back to the crease let go (`stranded` in `Batter.ts`). The meter's cue
 at the spinner's ball still names the sweep. `tests/stumping.test.ts` holds
 it.
 
@@ -2291,9 +2295,13 @@ of what showed. He is drawn at `KEEPER_SCALE` (0.84) about his spot: the
 figure stands a little taller than the batter, and a metre and a half nearer
 the camera at full size he looked the bigger man; his gloves (`keeperGloves`)
 and the stumps his strike reaches for are worked out at that scale. An edge
-caught behind with him up (`edgeTaken`) finishes in his gloves and goes up
-with them as he stands, where it had flown on through him to where the keeper
-stood back to pace.
+caught behind with him up (`edgeTaken`) finishes in his gloves, where it had
+flown on through him to where the keeper stood back to pace, and he comes up
+out of his crouch with both gloves thrown up over his head, the ball in them,
+and lets them down a couple of seconds later (`KEEPER_CHEER`). A ball in his
+gloves down between his knees showed between his legs to the camera behind
+him, so it is drawn only once he is on his way up (`keeperRise`), for a ball
+he gathered as for an edge.
 
 Which balls (`qualifies`): a stroke on `REPLAY_STROKES` — the cover drive,
 the pull (the hook and the pull off the spinner with it), the square cut (at

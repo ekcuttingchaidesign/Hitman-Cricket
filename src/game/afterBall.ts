@@ -21,6 +21,8 @@ export interface BallEnded {
   last?: boolean;
   /** Hit, and still on his feet: where. */
   hurt?: Hurt | null;
+  /** Stumped: beaten out of his crease, the bails off behind him. */
+  stumped?: boolean;
 }
 
 /**
@@ -142,6 +144,9 @@ const DRIVES = new Set(['STRAIGHT', 'COVER_LONG_OFF', 'LONG_ON']);
  * would do it picks between them too.
  */
 export function afterBall(stroke: PlayedStroke | null, ended: BallEnded, habit: Habit, roll: number): AfterBall | null {
+  // Stumped, his head goes down, whatever he played and however far down
+  // the pitch it took him: he walks off from there.
+  if (ended.stumped) return 'down';
   if (stroke?.charging) return null;
   // A milestone missed: always, whatever the roll, and whether or not he
   // played at it. Out, on the last ball too, which is held for it.

@@ -52,6 +52,14 @@ export const KEEPER_UP = { x: .78, z: -.5 } as const;
  * game's camera than the batter, at full size he looked the bigger man.
  */
 export const KEEPER_SCALE = .84;
+/**
+ * The keeper's catch behind, celebrated: `after` the edge is in his gloves he
+ * comes up out of his crouch over `upMs` with both gloves thrown up over his
+ * head, holds them there, and from `lowerFrom` after the take lets them down
+ * over `lowerMs`. The ball, hidden in his gloves between his knees, is drawn
+ * again once he is `shown` of the way up, out from between his legs.
+ */
+export const KEEPER_CHEER = { after: 120, upMs: 420, lowerFrom: 1900, lowerMs: 600, shown: .35 } as const;
 
 const smooth = (x: number) => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 - 2 * k); };
 

@@ -3045,6 +3045,8 @@ export class Batter {
   private levelled = false;
   /** A charge down the pitch: the confidence shot. */
   private charging = false;
+  /** Charged and stumped: no walk back (`afterBall`). */
+  private stranded = false;
   /** Down on the back knee: the sweeps, and the reverse scoop, which borrows their kneel. */
   private get kneeling() { return this.sweeping || this.shot === 'REVERSE_SCOOP'; }
   private swingStart = -Infinity;
@@ -3484,7 +3486,7 @@ export class Batter {
     this.poseAge = Infinity; this.resetDue = false;
     this.felledAt = -Infinity;
     this.celebratedAt = -Infinity; this.afterward = null; this.admiring = false; this.struck = null; this.followed = null;
-    this.swingStart = -Infinity; this.contactTime = -Infinity; this.pulling = false; this.backDefence = false; this.punching = false; this.cutting = false; this.spinCutting = false; this.spinPulling = false; this.squaring = false; this.lofted = false; this.sweeping = false; this.levelled = false; this.charging = false;
+    this.swingStart = -Infinity; this.contactTime = -Infinity; this.pulling = false; this.backDefence = false; this.punching = false; this.cutting = false; this.spinCutting = false; this.spinPulling = false; this.squaring = false; this.lofted = false; this.sweeping = false; this.levelled = false; this.charging = false; this.stranded = false;
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
   }
   /** The stroke last played, as `afterBall` needs it. */
@@ -3509,7 +3511,10 @@ export class Batter {
    * if it is asked for before the finish is reached: it cannot be taken back.
    */
   afterBall(kind: AfterBall, now: number) {
-    if (this.charging) return now;
+    // Down the pitch and stumped, he stays where the charge took him and
+    // hangs his head there, rather than walking back to a crease he is out of.
+    if (this.charging && kind === 'down') this.stranded = true;
+    else if (this.charging) return now;
     // A ball left alone: the bat lowered out of the leave as he goes.
     if (!Number.isFinite(this.swingStart)) this.anticipation = 0;
     if ((kind === 'admire' || kind === 'lean') && now - this.swingStart <= ADMIRE_AT) this.admiring = true;
@@ -3526,7 +3531,7 @@ export class Batter {
     // Each is one stroke on one line whichever way the ball was actually going.
     this.shot = charging ? (shot === 'COVER_LONG_OFF' || shot === 'LONG_ON' ? shot : 'STRAIGHT') : shot;
     this.afterward = null; this.resetDue = false; this.admiring = false; this.struck = null; this.followed = null; this.idle = null;
-    this.charging = charging; this.pulling = !charging && shot === 'LEG' && ballY > PULL_HEIGHT && version !== 3;
+    this.charging = charging; this.stranded = false; this.pulling = !charging && shot === 'LEG' && ballY > PULL_HEIGHT && version !== 3;
     // Version three of the leg-side input is the back-foot flick, the game
     // having judged the ball short of a length at the crease (`flickBackFoot`):
     // still rising where it is met, it may be up past pull height there.
@@ -3679,6 +3684,7 @@ export class Batter {
    */
   private downPitch(age: number) {
     if (!this.charging || !Number.isFinite(age) || age <= 0) return 0;
+    if (this.stranded && age >= STROKE_DURATION_MS) return ADVANCE.stride;
     // Every one of these ranges has to be clamped. `ease` is a cubic, not a
     // curve that flattens: fed a number past 1 it turns and runs away, and the
     // walk back read as reaching the crease and then sprinting at the bowler.
@@ -3888,7 +3894,7 @@ export class Batter {
       return this.applyCelebration(celebrating);
     }
     const after = this.afterward, since = after ? now - after.from : -1;
-    if (after && since >= 0 && since < lengthOf(after.kind, this.shot) && !this.charging && age >= STROKE_DURATION_MS) {
+    if (after && since >= 0 && since < lengthOf(after.kind, this.shot) && (!this.charging || this.stranded) && age >= STROKE_DURATION_MS) {
       this.idle = null;
       // From where he is: still up in the leave, for a ball left alone.
       const keys = after.keys ??= [[0, this.pose], ...keysFor(after.kind, this.shot, this.struck, this.followed).slice(1)];
