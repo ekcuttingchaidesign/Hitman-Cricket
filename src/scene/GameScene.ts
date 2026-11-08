@@ -1949,6 +1949,31 @@ export class GameScene {
     // He is drawn at `KEEPER_SCALE` about his spot, and his gloves with him.
     return onField(body, body.pose.leftHand).add(onField(body, body.pose.rightHand)).multiplyScalar(.5).sub(base).multiplyScalar(KEEPER_SCALE).add(base);
   }
+  /**
+   * Where the keeper stands in the picture, a box round him in its pixels, or
+   * null when he is not drawn: for the coach card that tells of him
+   * (`KEEPER_STEP`). From his joints as `keeperAt` has them, at his scale,
+   * his helmet's crown above his chest and his boots under his feet.
+   */
+  keeperOnScreen() {
+    if (!this.keeper.root.visible) return null;
+    const { width, height } = this.renderer.getSize(this.screenSize);
+    this.world.updateWorldMatrix(true, false);
+    this.camera.updateMatrixWorld();
+    const body = this.keeperAt(this.clock), base = new THREE.Vector3(body.x, 0, body.z);
+    const { pose } = body;
+    const crown = pose.chest.clone().add(new THREE.Vector3(0, .5, 0));
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const point of [pose.hip, crown, pose.leftFoot, pose.rightFoot, pose.leftHand, pose.rightHand]) {
+      const field = onField(body, point).sub(base).multiplyScalar(KEEPER_SCALE).add(base);
+      const p = this.world.localToWorld(field).project(this.camera);
+      const x = (p.x + 1) / 2 * width, y = (1 - p.y) / 2 * height;
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+    }
+    // His joints, not his outline: the shoulders, the pads and the boots stand a little past them.
+    const pad = (x1 - x0) * .18;
+    return { x: x0 - pad, y: y0, w: x1 - x0 + pad * 2, h: y1 - y0 + pad };
+  }
   /** How far down the pitch a batter about to be stumped has come, metres (`STUMPING.out`). */
   private lure = 0;
   /** When the stumping's take and bails fall, on the game's clock, for the camera that watches it. */

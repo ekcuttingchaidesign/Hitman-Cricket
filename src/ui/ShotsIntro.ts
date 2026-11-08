@@ -192,6 +192,27 @@ export const SUPER10_STEPS: readonly IntroStep[] = [
     gaps: true,
   },
 ];
+/**
+ * The keeper up to the spinner, told once, the first time a browser sees him
+ * there: the coach card over the ground with him outlined where he squats
+ * (`keeperOnScreen` on the scene) and tagged. Every player's, the ones who
+ * batted before he came and a new one alike, since nothing else says he can
+ * stump them.
+ */
+export const KEEPER_STEP: IntroStep = {
+  title: 'The keeper’s up',
+  line: 'Against the spinner he stands right up at the stumps. Charge down the pitch and miss, and he’ll stump you.',
+  spot: 'keeper',
+  tag: 'Wicketkeeper',
+};
+const KEEPER_KEY = 'hitman-keeper-intro';
+/** Whether the keeper's card is still to be shown in this browser. One that cannot remember is never shown it, or it would be every spinner's over. */
+export function keeperIntroDue(read: (key: string) => string | null = key => localStorage.getItem(key)) {
+  try { return !read(KEEPER_KEY); } catch { return false; }
+}
+export function noteKeeperIntro() {
+  try { localStorage.setItem(KEEPER_KEY, 'done'); } catch { /* Nothing to remember it in. */ }
+}
 const FIELD_KEY = 'hitman-field-intro';
 /** Whether the field map's card is still to be shown in this browser. */
 export function fieldIntroDue() {

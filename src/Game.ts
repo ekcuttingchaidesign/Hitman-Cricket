@@ -20,7 +20,7 @@ import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME, STYLES, SWIPE_ZONES } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro, type IntroGame } from './ui/MarathonIntro';
-import { CONFIDENCE_STEP, SHOTS_STEP, SUPER10_STEPS, fieldIntroDue, howToDue, noteFieldIntro, noteHowTo, playedBefore } from './ui/ShotsIntro';
+import { CONFIDENCE_STEP, KEEPER_STEP, SHOTS_STEP, SUPER10_STEPS, fieldIntroDue, howToDue, keeperIntroDue, noteFieldIntro, noteHowTo, noteKeeperIntro, playedBefore } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
 import type { ArenaCue } from './scene/arena';
 import { askedGround, groundFor } from './scene/grounds';
@@ -2391,7 +2391,7 @@ export class Game {
     // A Test by day; the Blast by the player's clock, or their own choice.
     this.light(this.test ? 'day' : blastLights());
     // Under a clear sky, with nothing yet told.
-    this.told = { swing: false }; this.bannerUntil = 0; this.hud.closeIntro();
+    this.told = { swing: false }; this.bannerUntil = 0; this.keeperHeld = false; this.hud.closeIntro();
     this.scene.overcast(false, true); this.hud.levelBanner(null);
     this.hud.start(this.surviving, this.marathoning);
     document.body.classList.toggle('s10-solid', this.super10);
@@ -2517,6 +2517,28 @@ export class Game {
       onStep: (step, over) => this.fieldUi.coach(step?.spot === 's10-big-map' ? over : null),
     });
   }
+  /**
+   * The keeper up to the spinner, once a browser: the coach card over the
+   * ground with him outlined where he squats, and the spinner held at his
+   * mark until it is put away. Every player's, a returning one's too; not
+   * the tutorial's, a demo's, a Rival Match's (the other player may be
+   * waiting) or under `?debug=1`, whose checks bat through spinners' overs,
+   * unless `?keeperintro=1` asks for it.
+   */
+  private teachKeeper() {
+    const asked = new URLSearchParams(location.search).get('keeperintro') === '1';
+    if (this.lesson >= 0 || this.demoing || this.challenge.playing || (this.debug && !asked) || this.hud.introOpen) return;
+    if (!asked && !keeperIntroDue()) return;
+    noteKeeperIntro();
+    this.keeperHeld = true;
+    this.mark('keeper-intro', 'Keeper card shown');
+    this.hud.marathonIntro(how => {
+      this.mark(how === 'skipped' ? 'keeper-intro-skipped' : 'keeper-intro-done', how === 'skipped' ? 'Keeper card skipped' : 'Keeper card put away');
+      this.keeperHeld = false;
+    }, [KEEPER_STEP], { game: this.coachGame, place: spot => spot === 'keeper' ? this.scene.keeperOnScreen() : null });
+  }
+  /** The spinner held at his mark while the keeper's card is up (`teachKeeper`). */
+  private keeperHeld = false;
   /**
    * HOW TO PLAY on the cover: the coachmarks a first innings opens with (how
    * to hit, then the confidence meter), over a picture of the Blast's ground
@@ -4497,8 +4519,14 @@ export class Game {
       this.scene.express(!!this.delivery.express, !!this.delivery.death);
       this.scene.round(!!this.delivery.round);
       this.showConfidence(); this.setPhase('BOWLER_RUNUP');
+      // The first time a spinner comes on in this browser: the keeper is up
+      // at the stumps, and the card says so before the ball (`KEEPER_STEP`).
+      if (spun(this.delivery)) this.teachKeeper();
       // The stands lift as he runs in, and settle once the ball has gone.
       this.audio.swellCrowd(1 + RUNUP.swell, GAME.runupMs / 1000, RUNUP.settle, 0, GAME.runupMs / 3000);
+    } else if (this.phase === 'BOWLER_RUNUP' && this.keeperHeld) {
+      // At his mark while the keeper's card is up, and from the top when it is put away.
+      this.phaseStart = this.elapsed; this.scene.runup(0);
     } else if (this.phase === 'BOWLER_RUNUP') {
       this.scene.runup(Math.min(1, age / GAME.runupMs));
       if (age >= GAME.runupMs) {

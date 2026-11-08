@@ -1692,6 +1692,19 @@ walk back to the crease let go (`stranded` in `Batter.ts`). The meter's cue
 at the spinner's ball still names the sweep. `tests/stumping.test.ts` holds
 it.
 
+The keeper is told once a browser, the first time a spinner comes on
+(`teachKeeper` in `src/Game.ts`, `KEEPER_STEP` in `ShotsIntro.ts`, kept in
+`hitman-keeper-intro`): the coach card over the ground, THE KEEPER'S UP, that
+he stands up at the stumps and that charging down the pitch and missing gets
+you stumped, with him outlined where he squats and tagged Wicketkeeper (the
+scene's `keeperOnScreen`, handed to the cards as `place` for a spot no page
+element is). Nothing about the flighted ball: the owner wanted only the
+keeper told. Every player's, the ones who batted before he came and a new one
+alike; the spinner waits at his mark while it is up (`keeperHeld`). Not in
+the tutorial, a demo or a Rival Match, nor under `?debug=1`, whose checks bat
+through spinners' overs, unless `?keeperintro=1` asks for it (not practice).
+GoatCounter counts `keeper-intro` and `-done` or `-skipped`.
+
 ## The late cut
 
 The late cut (`'LATE_CUT'`, `LATE_CUT` in `src/entities/Batter.ts` and

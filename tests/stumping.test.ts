@@ -92,3 +92,15 @@ describe('stepping out to the spinner', () => {
     expect(steppedOut(seam, swing(seam, GAME.timing.poor + 40), true)).toBe(false);
   });
 });
+
+describe("the keeper's coach card", () => {
+  it('is told once a browser, and says he can stump you without a word about the ball', async () => {
+    const { KEEPER_STEP, keeperIntroDue } = await import('../src/ui/ShotsIntro');
+    expect(keeperIntroDue(() => null)).toBe(true);
+    expect(keeperIntroDue(() => 'done')).toBe(false);
+    expect(keeperIntroDue(() => { throw new Error('no storage'); })).toBe(false);
+    expect(KEEPER_STEP.spot).toBe('keeper');
+    expect(KEEPER_STEP.line).toMatch(/stump/);
+    expect(`${KEEPER_STEP.title} ${KEEPER_STEP.line}`).not.toMatch(/flight|flighted|toss/i);
+  });
+});

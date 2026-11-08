@@ -2644,13 +2644,16 @@ ${modeSelectMarkup()}
    */
   marathonIntro(
     done: (how: 'finished' | 'skipped' | 'modes') => void, steps: readonly IntroStep[] = INTRO_STEPS,
-    { left = false, finish = false, game = { name: 'The Blast', tone: 'blast' }, at, onStep }: {
+    { left = false, finish = false, game = { name: 'The Blast', tone: 'blast' }, at, onStep, place }: {
       left?: boolean; finish?: boolean; game?: IntroGame; at?: () => BatterOnScreen | null;
+      /** Where a spot drawn in the 3D scene stands, in the picture's pixels (the keeper's): a spot no element on the page is. */
+      place?: (spot: string) => { x: number; y: number; w: number; h: number } | null;
       /** Each card as it goes up, with how far over the foot of the screen its top stands; null as they are put away. */
       onStep?: (step: IntroStep | null, over: number) => void;
     } = {},
   ) {
     const overlay = this.$('marathon-intro');
+    this.introPlace = place ?? null;
     overlay.classList.toggle('is-howto', finish);
     overlay.dataset.tone = game.tone;
     let index = 0;
@@ -2714,6 +2717,7 @@ ${modeSelectMarkup()}
   }
   get introOpen() { return !this.$('marathon-intro').classList.contains('hidden'); }
   private laneWalk = 0;
+  private introPlace: ((spot: string) => { x: number; y: number; w: number; h: number } | null) | null = null;
   /**
    * Sets a card's drawing down on the ground. The swipes go at the bat, or
    * where the design has it when the batter is not on the screen (HOW TO PLAY
@@ -2788,7 +2792,13 @@ ${modeSelectMarkup()}
       if (held) box = { x: ground.x(held.x), y: ground.y(held.y), w: held.w * ground.scale, h: held.h * ground.scale };
     } else {
       const seen = step.spot ? document.getElementById(step.spot)?.getBoundingClientRect() : undefined;
+      const placed = step.spot && !seen ? this.introPlace?.(step.spot) : null;
       if (seen?.width && seen.height) box = { x: seen.left - frame.left, y: seen.top - frame.top, w: seen.width, h: seen.height };
+      else if (placed) {
+        // In the picture's pixels: the picture stands in the viewport.
+        const view = this.viewport.getBoundingClientRect();
+        box = { x: view.left - frame.left + placed.x, y: view.top - frame.top + placed.y, w: placed.w, h: placed.h };
+      }
     }
     scrim.setAttribute('viewBox', `0 0 ${w} ${h}`);
     let d = `M0 0H${w}V${h}H0Z`;
