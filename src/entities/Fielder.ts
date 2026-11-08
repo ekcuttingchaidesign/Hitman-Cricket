@@ -108,6 +108,7 @@ export function mixBodies(a: Body, b: Body, w: number): Body {
       leftHand: l(P.leftHand, Q.leftHand), rightHand: l(P.rightHand, Q.rightHand),
       headYaw: THREE.MathUtils.lerp(P.headYaw, Q.headYaw, w), headPitch: THREE.MathUtils.lerp(P.headPitch, Q.headPitch, w),
       elbowsBack: THREE.MathUtils.lerp(P.elbowsBack ?? 0, Q.elbowsBack ?? 0, w),
+      kneesOut: THREE.MathUtils.lerp(P.kneesOut ?? 0, Q.kneesOut ?? 0, w),
     },
   };
 }

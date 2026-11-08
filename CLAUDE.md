@@ -1063,6 +1063,9 @@ An innings played from a link carrying a switch that changes the game —
 (every ball a bouncer on off stump or wider, the hook's ball), `?spincut=1`
 (every ball the spinner's, for the cut off him), `?spinpull=1` (every ball
 the spinner's and all but the arm ball dropped short, for the pull off him),
+`?flight=1` (every ball the spinner's and all but the arm ball tossed up),
+`?flightlen=4` (the tossed-up ball pitched that many metres from the
+batter's end),
 `?latecut=1` (every ball
 pace outside off, for the late cut), `?cover=1`
 (every ball the cover drive's own: a stock ball pitched up on off stump),
@@ -1617,6 +1620,95 @@ to out to leg nothing turns in his hands. Held at the wrap
 his head and let down into his guard. It is `spinPull` and `spinPullLow` in
 the batter tests' `PLAYS`, `tests/spin-pull.test.ts` holds the ball and the
 rules, and `cover-drive.html` has it.
+
+## The flighted ball
+
+The spinner tosses one ball up every over (`FLIGHT` in
+`src/config/gameplay.ts`, `flighted` on the delivery, `flightedPerOver` in
+`SPIN_BOWLING`): an off break or a leg break on the same coin as the rest, pitched
+up (`FLIGHT.bounce`, 5 metres from the batter's end where his stock ball
+lands at 8.3, which read as halfway down the pitch; 6.5 was tried first;
+or at 4, `FLIGHT.fuller`, half the time, a coin each off the `flights`
+stream, `flightFull`), on off stump, a little
+outside it or middle and never on leg (`FLIGHT.lines`), at `FLIGHT.pace` of
+the speed he would have bowled. Never the arm ball and never the ball dropped
+short. Its place in the over comes off a stream forked from the seed
+(`flights`, `placeFlighted`), and its line and pace off the same draws an
+ordinary ball of his makes, so no other ball of any innings moved when it
+arrived; a Rival Match begun before it shipped and finished after would see
+the spinner differently. Its arc (`ballPosition`) climbs `FLIGHT.loop` higher
+than the stock ball's and peaks early (`FLIGHT.dip`), so it comes down
+steeper onto the same spot, and it drifts in the air against its turn
+(`FLIGHT.drift`: an off break away from the right-hander, a leg break into
+him) and is back on its line by the pitch. Landing past the point his
+stock ball has finished turning by, it turns over `FLIGHT.settle` of the
+flight after it pitches, so later than his other balls, done a few tenths of
+a second before the bat. It reaches the bat at the height his stock ball does, and is swept as his stock ball is (`sweepable`
+lets it past `SWEEP.minBounceZ`).
+
+How it gets a batter out is the research behind it: the height invites the
+drive, the dip has an early stroke through before the ball arrives, the drift
+finds the edge of a late one, and a batter drawn out of his crease and beaten
+is stumped. Only the drives are asked (`droveFlighted`: straight, on and
+cover). In the Blast (`flightedDrive`): beaten, stumped half the time
+(`FLIGHT.stumped`), LURED OUT — STUMPED!; timed OK but early, up and held
+three times in ten (`miscued`), DECEIVED IN FLIGHT — CAUGHT!; OK but late,
+edged a quarter of the time (`drifted`), BEATEN BY DRIFT — EDGED!; poor goes
+up as ever, early held and late off the edge; middled or a shade under it is
+the six and the four it always was. In a Test (`surviveBall`), off the mode's
+own windows: beaten, stumped four in ten (`testStumped`) before the turn's
+own chance; poor and early, skied; poor and late, the drift's nick on any
+line; and a drive timed GOOD is four, where every other ball of his is worked
+for ones and twos. The sims barely move: Survival's expert 59.7 to 59.8,
+Super10's pro 191 either way. `?flight=1` (`flightsEvery`) bowls it every ball
+but the arm ball, in any mode, and is practice. `?flightlen=4` (`flightAt`,
+`flightLengthOf`) pitches it that many metres from the batter's end every time instead,
+held between `FLIGHT.lengths` (3 to 8.3), for trying lengths side by side
+with `?flight=1`; it is practice too. However full it is pitched it has
+turned by `FLIGHT.turnedBy` of the flight, before the charge, the stroke
+that meets it furthest down the pitch. `snapshot().flighted` says
+the ball is one; `tests/flighted-ball.test.ts` holds all of it.
+
+## Stepping out to the spinner
+
+The charge (`advanceShot`) is for the spinner's ball too (`chargeableSpin` in
+`ShotResolver.ts`, `ADVANCE.spinLine`): his off break or leg break, pitched
+up, aimed near the stumps, never the one dropped short. With a full meter
+he walks at it off the straight or the cover swipe (`chargeShots`: the on
+drive's swipe at his ball is the slog sweep's), and timed PERFECT or GOOD it
+goes out of the ground as the charge always does. Timed POOR or missed
+(`ADVANCE.stumpedOn`), he is down the pitch, the ball turns past the bat and
+the keeper has the bails off: stumped, STEPPED OUT — STUMPED!
+(`steppedOut`, `steppedOut` on the outcome), in every mode with a meter,
+the Marathon's included (`marathonBall`). Timed OK it is the drive he played.
+`Game.shoot` reads the same rule, so the rig charges whatever came of it, and
+the ball is resolved when it reaches him, not at the swing as a charge that
+connects is; the stumping camera shows him where the charge took him (the
+scene's `lure` is only for a batter drawn out without one). Stumped, however
+it came, he looks up at the sky (`afterBall`'s `stumped`, the `sky` the
+milestones' heartbreak has; the head-down `down` was tried first and the
+owner kept the sky), and down the pitch from a charge he does it there, the
+walk back to the crease let go (`stranded` in `Batter.ts`). The meter's cue
+at the spinner's ball still names the sweep. `tests/stumping.test.ts` holds
+it.
+
+The keeper is told once a browser, the first time a spinner comes on
+(`teachKeeper` in `src/Game.ts`, `KEEPER_STEP` in `ShotsIntro.ts`, kept in
+`hitman-keeper-intro`): the coach card over the ground, THE KEEPER'S UP, that
+he stands up at the stumps and that charging down the pitch and missing gets
+you stumped, with him outlined where he squats and tagged Wicketkeeper (the
+scene's `keeperOnScreen`, handed to the cards as `place` for a spot no page
+element is). Nothing about the flighted ball: the owner wanted only the
+keeper told. Every player's, the ones who batted before he came and a new one
+alike; the spinner waits at his mark while it is up (`keeperHeld`). Not in
+the tutorial, a demo or a Rival Match, nor under `?debug=1`, whose checks bat
+through spinners' overs, unless `?keeperintro=1` asks for it, once a visit
+(`keeperTold`; every spinner's ball, as it first did, was too often) and not
+practice. The keeper squats low on the screen, so the card, at its foot over
+him and his tag, goes up under the score bar for this card (the `beside`
+branch of `spotlight` in the HUD lifts it whenever the outline would stand
+under it).
+GoatCounter counts `keeper-intro` and `-done` or `-skipped`.
 
 ## The late cut
 
@@ -2195,12 +2287,39 @@ the field holds up to ten (`MOST_MEN`, those past the marks hidden), and in a
 replay anybody may go for the ball wherever it is (`everywhere`).
 Outside a replay who goes for the ball is judged from the game's own view
 whatever the camera is doing (`judge` in `GameScene.inShot`). A replay has a wicketkeeper (`keeper`, `keeperIn` in
-`GameScene`): the game's camera stands where he would, so in play he is never
-drawn, and a replay's cameras, looking at the batter from round the ground,
-showed the stumps with nobody behind them. He stands a little to the off
-side, eleven metres back to pace and up at the stumps to the spinner
-(`spinning`), crouched until the ball is played and standing up out of it
-after, in the fielding side's kit.
+`GameScene`): stood back to pace, the game's camera stands where he would, so
+he is drawn in play only in the spinner's overs, and a replay's cameras,
+looking at the batter from round the ground, showed the stumps with nobody
+behind them. He stands a little to the off side eleven metres back to pace;
+up to the spinner (`spinning`) he squats outside off stump, level with the
+stumps (`KEEPER_UP` in `src/game/stumping.ts`), as in the owner's reference
+picture, so the game's own camera sees him every ball of those overs without
+him ever standing between it and the batter (`placeKeeper`), and he moves
+across to take a ball that beats the bat (`gathering`, `keeperGloves`).
+Crouched until the ball is played and standing up out of it after, in the
+fielding side's kit. He is the bowler's clean build (`connected`, draped each
+frame he is shown), not a fielder's boxes and tubes, which up close read as
+a balloon on sticks, and wears the keeper's gear (`keep` on `Cricketer`): a
+helmet in the cap's colour (`wearHelmet`: the batter's shell, peak and grille,
+sized to his head), padded cream gloves with tan palms and the side's colour
+at the cuff, and short keeping pads aimed down each shin every pose. His squat
+is `keepingPose`: on his haunches, the hips just over the heels, knees and
+toes a little out (`kneesOut` on the pose, which the knee's solve and the shoe
+follow), the back leant over the thighs, head up, the gloves together low
+between the knees, palms to the bowler. The knees stay near his line: turned
+far out, the thighs splayed flat to the sides and the trousers' seat hung
+between them like a sling, which from the game's camera behind him was most
+of what showed. He is drawn at `KEEPER_SCALE` (0.84) about his spot: the
+figure stands a little taller than the batter, and a metre and a half nearer
+the camera at full size he looked the bigger man; his gloves (`keeperGloves`)
+and the stumps his strike reaches for are worked out at that scale. An edge
+caught behind with him up (`edgeTaken`) finishes in his gloves, where it had
+flown on through him to where the keeper stood back to pace, and he comes up
+out of his crouch with both gloves thrown up over his head, the ball in them,
+and lets them down a couple of seconds later (`KEEPER_CHEER`). A ball in his
+gloves down between his knees showed between his legs to the camera behind
+him, so it is drawn only once he is on his way up (`keeperRise`), for a ball
+he gathered as for an edge.
 
 Which balls (`qualifies`): a stroke on `REPLAY_STROKES` — the cover drive,
 the pull (the hook and the pull off the spinner with it), the square cut (at
@@ -2376,11 +2495,22 @@ a half past the man there (`Field.clear`) and dived at or chased to the rope
 (`airborne`, the share of the way it flies) — it went past the men behind
 the bat close enough to touch while they stood and watched.
 
+A batter stumped goes to a camera of its own the same way (`'stumped'`,
+`src/game/stumping.ts`, in `tests/stumping.test.ts`), in every mode,
+Survival too: the game's own camera sees the keeper only from behind him. Cut in just after the ball beats the bat (`STUMPING.cutIn`), side
+on from square leg (`STUMPING_CAMERA`), the batter drawn down the pitch past
+his crease and turning back too late (`out`, `back`, the scene's `lure`), the
+keeper squatting up at the stumps, the ball into his gloves
+(`keeperGloves`), a lunge and both gloves onto the stumps, the bails going
+only then (`breakBails`' `struck`, `stumpingAt`'s `bails`), and him getting
+up out of it (`keeperAt`'s stumped branch); slowed round the take, the call
+going up as the bails go, cut back `STUMPING.hold` after the take.
+
 Off with the pause sheet's Replays switch, under `?debug=1` and reduced
 motion, in the tutorial and a demo; `?catchcam=1` shows every one, debug or
 not, and every spillable skier put down, and `?catchcam=0` none. Neither is
 practice. `snapshot().catchCam` says what is on. GoatCounter counts
-`catch-cam-catch`, `-drop`, `-spill` and `-field`. `scripts/catch-check.mjs` skies a
+`catch-cam-catch`, `-drop`, `-spill`, `-field` and `-stumped`. `scripts/catch-check.mjs` skies a
 cover drive on `?cover=1&catchcam=1` and photographs it through
 (`MODE=survive` bats seeds until it has a drop as well, `MODE=super10`).
 

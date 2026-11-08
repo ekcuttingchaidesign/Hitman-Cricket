@@ -48,6 +48,8 @@ export interface Delivery {
   round?: boolean;
   /** The spinner's ball dropped short, up at the waist: see `DRAGGED`. */
   dragged?: boolean;
+  /** The spinner's ball tossed up, high, slower and dipping: see `FLIGHT`. */
+  flighted?: boolean;
 }
 export interface ShotAttempt {
   shotType: ShotType; inputTimeMs: number;
@@ -73,6 +75,12 @@ export interface ShotOutcome {
   aerial: boolean;
   /** Charged down the pitch and hit out of the ground. */
   advance?: boolean;
+  /**
+   * Down the pitch at the spinner and beaten by the turn: the charge's input
+   * at his turning ball, mistimed, and stumped (`steppedOut`). He charges
+   * whatever came of it, so the scene leaves him where the charge took him.
+   */
+  steppedOut?: boolean;
   /** Slog-swept off the knee, over midwicket. Six middled, four on the bounce. */
   swept?: boolean;
   /** Scooped or reverse-scooped behind the wicket, whatever came of it. Spends the meter. */

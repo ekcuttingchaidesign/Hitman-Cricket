@@ -21,7 +21,7 @@ type Vec = readonly [number, number, number];
  * of the game's picture — a sweep or a pull fielded in the deep — followed to
  * him (`Game.catchShot`).
  */
-export type CatchShot = 'catch' | 'drop' | 'spill' | 'field';
+export type CatchShot = 'catch' | 'drop' | 'spill' | 'field' | 'stumped';
 
 /**
  * Which balls it goes with: one skied off the bat to a fielder, caught or put
@@ -30,6 +30,9 @@ export type CatchShot = 'catch' | 'drop' | 'spill' | 'field';
  * and over before a camera could cut to it, so only one that goes up.
  */
 export function catchShotOf(outcome: ShotOutcome): CatchShot | null {
+  // A batter stumped: the keeper is never in the game's picture, so the camera
+  // goes to him (`stumping.ts`).
+  if (outcome.isWicket && outcome.wicketType === 'STUMPED') return 'stumped';
   if (!outcome.madeBatContact || !outcome.aerial || outcome.edged || outcome.hit || outcome.advance) return null;
   if (outcome.isWicket) return outcome.wicketType === 'CAUGHT' ? 'catch' : null;
   if (outcome.dropped) return outcome.spilled ? 'spill' : 'drop';

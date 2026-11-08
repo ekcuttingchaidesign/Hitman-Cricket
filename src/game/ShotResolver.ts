@@ -1,4 +1,4 @@
-import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, FLICK, GAME, GROUND_RUNS, HOOK, LATE_CUT, PUNCH, SCOOP, SOLID_SHOT, SPIN_CUT, SPIN_PULL, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
+import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, FLICK, FLIGHT, GAME, GROUND_RUNS, HOOK, LATE_CUT, PUNCH, SCOOP, SOLID_SHOT, SPIN_CUT, SPIN_PULL, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory';
 import { spun } from './DeliveryGenerator';
 import type { Delivery, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './types';
@@ -164,9 +164,33 @@ export function fitOf(delivery: Delivery, shot: ShotType) {
  * an express one leaves you the time.
  */
 export function chargeable(delivery: Delivery) {
-  return Math.abs(delivery.finalTargetX) <= GAME.stumpZone
+  return chargeableSpin(delivery) || (Math.abs(delivery.finalTargetX) <= GAME.stumpZone
     && delivery.speedKph >= ADVANCE.minKph && delivery.speedKph <= ADVANCE.maxKph
-    && delivery.bounceZ >= ADVANCE.minBounceZ && delivery.bounceZ <= ADVANCE.maxBounceZ;
+    && delivery.bounceZ >= ADVANCE.minBounceZ && delivery.bounceZ <= ADVANCE.maxBounceZ);
+}
+/**
+ * The spinner's turning ball he can step out to (`ADVANCE.spinLine`): an off
+ * break or a leg break, pitched up, never the one dropped short, aimed near
+ * the stumps. Met before it has turned, so where it was aimed is the line.
+ */
+export function chargeShots(delivery: Delivery): readonly ShotType[] {
+  // At the spinner the on drive's swipe is the slog sweep's (`SWEEP.shots`),
+  // so he steps out to the straight and cover swipes.
+  return chargeableSpin(delivery) ? ADVANCE.shots.filter(shot => !SWEEP.shots.includes(shot)) : ADVANCE.shots;
+}
+export function chargeableSpin(delivery: Delivery) {
+  return (delivery.style === 'OFF_SPIN' || delivery.style === 'LEG_SPIN') && !delivery.dragged
+    && Math.abs(delivery.baseTargetX) <= ADVANCE.spinLine;
+}
+/**
+ * Down the pitch at the spinner and beaten: the charge's input at his
+ * turning ball with a full meter, timed on `ADVANCE.stumpedOn`. Known the
+ * moment the player swings, as the charge is, so the rig walks him down the
+ * pitch at it and the score stumps him from the same rule.
+ */
+export function steppedOut(delivery: Delivery, attempt: ShotAttempt | null, charged: boolean) {
+  return charged && !!attempt && chargeShots(delivery).includes(attempt.shotType) && chargeableSpin(delivery)
+    && ADVANCE.stumpedOn.includes(gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight));
 }
 /**
  * The charge itself: a full meter, the right ball, the straight-drive input, and
@@ -174,7 +198,7 @@ export function chargeable(delivery: Delivery) {
  * result read it from the same place.
  */
 export function advanceShot(delivery: Delivery, attempt: ShotAttempt | null, charged: boolean) {
-  return charged && !!attempt && ADVANCE.shots.includes(attempt.shotType) && chargeable(delivery)
+  return charged && !!attempt && chargeShots(delivery).includes(attempt.shotType) && chargeable(delivery)
     && ADVANCE.timing.includes(gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight));
 }
 /**
@@ -183,7 +207,8 @@ export function advanceShot(delivery: Delivery, attempt: ShotAttempt | null, cha
  * a quick at all.
  */
 export function sweepable(delivery: Delivery) {
-  return SWEEP.styles.includes(delivery.style) && delivery.bounceZ >= SWEEP.minBounceZ;
+  // The flighted ball is pitched up, the sweeper's ball, whatever its figure.
+  return SWEEP.styles.includes(delivery.style) && (delivery.bounceZ >= SWEEP.minBounceZ || !!delivery.flighted);
 }
 /**
  * The slog sweep: a full meter, the spinner's ball, a leg-side input, and
@@ -337,6 +362,30 @@ export function cuttable(delivery: Delivery) {
 /** Feathered off the face and taken behind. */
 const edge = (outcome: ShotOutcome, feedback: string): ShotOutcome =>
   ({ ...outcome, madeBatContact: true, edged: true, isWicket: true, wicketType: 'CAUGHT', feedback });
+/** Driven at the flighted ball: the stroke its height invites (`FLIGHT`). */
+export function droveFlighted(delivery: Delivery, attempt: Pick<ShotAttempt, 'shotType'> | null) {
+  return !!delivery.flighted && !!attempt && FLIGHT.shots.includes(attempt.shotType);
+}
+/**
+ * What the flighted ball takes off a drive in the Blast, or null where it is
+ * the drive it always was. Beaten, he was drawn out of his crease to it and is
+ * stumped half the time; timed OK but early, the dip has him through the
+ * stroke before it arrives and it goes up off the bat; timed OK but late, the
+ * drift has it on the outside edge. Poor timing goes up as every poor stroke
+ * does, early held in the deep and late off the edge. A drive middled or a
+ * shade under is left alone: the flighted ball is the one with something to
+ * hit, and pays the six and the four it always did.
+ */
+function flightedDrive(outcome: ShotOutcome, delta: number | null, rng: { next(): number }): ShotOutcome | null {
+  const deceived = { ...outcome, aerial: true, madeBatContact: true, isWicket: true, wicketType: 'CAUGHT' as const, feedback: FLIGHT.feedback.deceived };
+  if (!outcome.madeBatContact) return rng.next() < FLIGHT.stumped
+    ? { ...outcome, isWicket: true, wicketType: 'STUMPED', feedback: FLIGHT.feedback.stumped } : null;
+  const early = delta !== null && delta < 0;
+  if (outcome.timingGrade === 'POOR') return early ? deceived : edge(outcome, FLIGHT.feedback.drift);
+  if (outcome.timingGrade !== 'OK') return null;
+  if (early) return rng.next() < FLIGHT.miscued ? deceived : null;
+  return rng.next() < FLIGHT.drifted ? edge(outcome, FLIGHT.feedback.drift) : null;
+}
 /**
  * A stroke played at a ball wide enough to free the arms at, once it is settled
  * that this IS that ball. Timing alone names the result — the line has already
@@ -496,6 +545,12 @@ export function resolveShot(
     return { ...outcome, runs: 6, advance: true, compatibility: 1, quality: 1, madeBatContact: true,
       feedback: attempt!.shotType === 'COVER_LONG_OFF' ? ADVANCE.coverFeedback : attempt!.shotType === 'LONG_ON' ? ADVANCE.onFeedback : ADVANCE.feedback };
   }
+  // Down the pitch at the spinner, mistimed: it turns past the bat and the
+  // keeper, up to the stumps, has the bails off before he is back.
+  if (steppedOut(delivery, attempt, charged)) {
+    return { ...outcome, runs: 0, madeBatContact: false, quality: 0, isWicket: true, wicketType: 'STUMPED', steppedOut: true,
+      feedback: ADVANCE.stumpedFeedback };
+  }
   // Behind the wicket, off the downward diagonals. Its own bargain from the
   // ball onwards: see `scooped`.
   const scoop = scoopShot(delivery, attempt, charged);
@@ -573,6 +628,13 @@ export function resolveShot(
   if (attempt?.shotType === 'LATE_CUT' && lateCutMeets(outcome)) return lateCut(outcome, rng, false);
   // Cut at the spinner's ball going on down the leg side: cramped.
   if (crampedCut(delivery, attempt)) return cramped(outcome, rng, 2);
+  // Driven at the ball tossed up: lured out, deceived in the flight or
+  // beaten by the drift. Asked before the square drive, which a flighted
+  // ball wide of off is otherwise, so the drift reaches that stroke too.
+  if (droveFlighted(delivery, attempt)) {
+    const taken = flightedDrive(outcome, delta, rng);
+    if (taken) return taken;
+  }
   // Wide of off and full: the half-volley. Until now this was the one ball in
   // the game with no stroke worth full value — the cut owns the wide line but
   // only answers a short ball, so a full one left the drive's 0.9 as the

@@ -20,7 +20,7 @@ import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME, STYLES, SWIPE_ZONES } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro, type IntroGame } from './ui/MarathonIntro';
-import { CONFIDENCE_STEP, SHOTS_STEP, SUPER10_STEPS, fieldIntroDue, howToDue, noteFieldIntro, noteHowTo, playedBefore } from './ui/ShotsIntro';
+import { CONFIDENCE_STEP, KEEPER_STEP, SHOTS_STEP, SUPER10_STEPS, fieldIntroDue, howToDue, keeperIntroDue, noteFieldIntro, noteHowTo, noteKeeperIntro, playedBefore } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
 import type { ArenaCue } from './scene/arena';
 import { askedGround, groundFor } from './scene/grounds';
@@ -40,7 +40,7 @@ import { Health } from './game/Health';
 import { TAILENDER, endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { EASE, easeFor, easedSkill, easedWindows, notePlayed, playedIn, seedPlayed } from './game/newcomer';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SUPER10_PLAN, SURVIVE_PLAN, bouncersEvery, lateCutsEvery, spinCutsEvery, spinPullsEvery, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SUPER10_PLAN, SURVIVE_PLAN, bouncersEvery, lateCutsEvery, spinCutsEvery, spinPullsEvery, flightsEvery, flightAt, flightLengthOf, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -52,7 +52,7 @@ import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
 import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, flickVersionOf, flickBackFoot, FLICK_MEETS_AT, FLICK_V3_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
 import { COUNTED, countStroke, freshTally, strokeMarks } from './game/stroke-tally';
-import { advanceShot, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
+import { advanceShot, steppedOut, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './game/types';
 import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
@@ -61,6 +61,7 @@ import { GameScene } from './scene/GameScene';
 import { cardShown, filmLength, introBars, nextFilm, type Film } from './game/IntroReel';
 import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
 import { catchCamera, catchPace, catchShotOf, catchTimes, spillable, SPILL_ODDS, type CatchShot } from './game/catch-cam';
+import { STUMPING, STUMPING_CAMERA } from './game/stumping';
 import { endedLog, fieldCamera, freshLog, overRope, OVER_MS, pickAngle, replayCamera, CUT_AFTERS, replayDue, replayPace, replayTimes, shownLog, REPLAYS_PER_INNINGS, MARATHON_PACE, WIPE_MS, NEW_TAG_SHOWS, newTagDue, type ReplayAngle, type ReplayBall, type ReplayLook, type ReplayStroke, type ReplayTimes } from './game/replay';
 import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type CameraPose, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
@@ -2390,7 +2391,7 @@ export class Game {
     // A Test by day; the Blast by the player's clock, or their own choice.
     this.light(this.test ? 'day' : blastLights());
     // Under a clear sky, with nothing yet told.
-    this.told = { swing: false }; this.bannerUntil = 0; this.hud.closeIntro();
+    this.told = { swing: false }; this.bannerUntil = 0; this.keeperHeld = false; this.hud.closeIntro();
     this.scene.overcast(false, true); this.hud.levelBanner(null);
     this.hud.start(this.surviving, this.marathoning);
     document.body.classList.toggle('s10-solid', this.super10);
@@ -2516,6 +2517,32 @@ export class Game {
       onStep: (step, over) => this.fieldUi.coach(step?.spot === 's10-big-map' ? over : null),
     });
   }
+  /**
+   * The keeper up to the spinner, once a browser: the coach card over the
+   * ground with him outlined where he squats, and the spinner held at his
+   * mark until it is put away. Every player's, a returning one's too; not
+   * the tutorial's, a demo's, a Rival Match's (the other player may be
+   * waiting) or under `?debug=1`, whose checks bat through spinners' overs,
+   * unless `?keeperintro=1` asks for it.
+   */
+  private teachKeeper() {
+    const asked = new URLSearchParams(location.search).get('keeperintro') === '1';
+    if (this.lesson >= 0 || this.demoing || this.challenge.playing || (this.debug && !asked) || this.hud.introOpen) return;
+    // Asked for by the link, once a visit; otherwise once a browser.
+    if (asked ? this.keeperTold : !keeperIntroDue()) return;
+    this.keeperTold = true;
+    noteKeeperIntro();
+    this.keeperHeld = true;
+    this.mark('keeper-intro', 'Keeper card shown');
+    this.hud.marathonIntro(how => {
+      this.mark(how === 'skipped' ? 'keeper-intro-skipped' : 'keeper-intro-done', how === 'skipped' ? 'Keeper card skipped' : 'Keeper card put away');
+      this.keeperHeld = false;
+    }, [KEEPER_STEP], { game: this.coachGame, place: spot => spot === 'keeper' ? this.scene.keeperOnScreen() : null });
+  }
+  /** The keeper's card has been up this visit: `?keeperintro=1` shows it once a visit, not every spinner's ball. */
+  private keeperTold = false;
+  /** The spinner held at his mark while the keeper's card is up (`teachKeeper`). */
+  private keeperHeld = false;
   /**
    * HOW TO PLAY on the cover: the coachmarks a first innings opens with (how
    * to hit, then the confidence meter), over a picture of the Blast's ground
@@ -2720,6 +2747,16 @@ export class Game {
    * dropped short, for trying the pull off the spinner. See `spinPullsEvery`.
    */
   private spinPullsOnly = new URLSearchParams(location.search).get('spinpull') === '1';
+  /**
+   * `?flight=1`: every ball the spinner's and every one but the arm ball
+   * tossed up, for trying the flighted ball every ball. See `flightsEvery`.
+   */
+  private flightsOnly = new URLSearchParams(location.search).get('flight') === '1';
+  /**
+   * `?flightlen=4`: the tossed-up ball pitched that many metres from the
+   * batter's end, for trying lengths against the one it ships at. See `flightAt`.
+   */
+  private flightLength = flightLengthOf(location.search);
   /** `?latecut=1`: every ball the late cut's, pitched up outside off. See `lateCutsEvery`. */
   private lateCutsOnly = new URLSearchParams(location.search).get('latecut') === '1';
   /**
@@ -2739,7 +2776,8 @@ export class Game {
   private get plan() {
     // A Rival Match is bowled as its room's mode is, whatever the link asks for.
     if (this.challenge.playing) return this.challenge.room?.mode === 'super10' ? SUPER10_PLAN : CLASSIC_PLAN;
-    const base = this.ease > 1 ? withoutYorkers(this.basePlan) : this.basePlan;
+    const plain = this.ease > 1 ? withoutYorkers(this.basePlan) : this.basePlan;
+    const base = this.flightLength ? flightAt(plain, this.flightLength) : plain;
     return this.marathoning && (this.roundOnly || this.netsKeys) ? roundEvery(base) : base;
   }
   /**
@@ -2786,6 +2824,7 @@ export class Game {
     if (this.bouncersOnly || this.hooksOnly) return bouncersEvery(plan, this.hooksOnly);
     if (this.spinCutsOnly) return spinCutsEvery(plan);
     if (this.spinPullsOnly) return spinPullsEvery(plan);
+    if (this.flightsOnly) return flightsEvery(plan);
     if (this.lateCutsOnly) return lateCutsEvery(plan);
     if (!this.spinOnly || !plan.spin) return plan;
     // Every over his, from the first: `spinOvers` always gives him `notBefore`
@@ -3026,7 +3065,11 @@ export class Game {
     // rig and the score read the same answer.
     this.attempt = playedAs(this.delivery!, { shotType: shot, inputTimeMs, swipe }, this.charged);
     const shotType = this.attempt.shotType;
-    const charging = advanceShot(this.delivery!, this.attempt, this.charged);
+    // Stepping out at the spinner and mistimed is a charge too: he walks at it
+    // and is beaten by the turn (`steppedOut`), so the rig takes him down the
+    // pitch whatever came of it.
+    const stepping = steppedOut(this.delivery!, this.attempt, this.charged);
+    const charging = advanceShot(this.delivery!, this.attempt, this.charged) || stepping;
     const lofted = !charging && loftedDrive(this.delivery!, this.attempt);
     const sweeping = !charging && slogSweep(this.delivery!, this.attempt, this.charged);
     // The orthodox sweep is what the same swipe at the same ball becomes when
@@ -3104,7 +3147,9 @@ export class Game {
     // the scene needs to know that from the first frame of his run so the ball
     // can be drawn to where he meets it rather than carrying on to the crease
     // and turning round.
-    if (charging) this.resolve();
+    // Beaten, there is nothing to meet: the ball goes on past him to the
+    // keeper's gloves, resolved when it gets there as any ball is.
+    if (charging && !stepping) this.resolve();
   };
   /**
    * Confidence is only a shot outside the tutorial, where nothing is scored —
@@ -3145,7 +3190,7 @@ export class Game {
    * to tell whether the shot exists.
    */
   private get chargeMiss() {
-    if (!this.chargeBall || !this.attempt || this.outcome?.advance) return null;
+    if (!this.chargeBall || !this.attempt || this.outcome?.advance || this.outcome?.steppedOut) return null;
     return ADVANCE.shots.includes(this.attempt.shotType) ? 'CHARGE MISTIMED' : 'THE CHARGE WANTED A DRIVE';
   }
   private showConfidence() {
@@ -4464,7 +4509,8 @@ export class Game {
       // charge; the scoops are named for the balls only they answer — the
       // yorker, the slower ball, the quick one, the wide one.
       this.specials = !this.charged ? [] : ([
-        chargeable(this.delivery) && 'CHARGE', sweepable(this.delivery) && 'SWEEP',
+        // At the spinner his ball is the sweep's first, so it is called as the sweep.
+        sweepable(this.delivery) && 'SWEEP', chargeable(this.delivery) && 'CHARGE',
         scoopable(this.delivery) && scoopLine(this.delivery, 'SCOOP') && 'SCOOP',
         scoopable(this.delivery) && scoopLine(this.delivery, 'REVERSE_SCOOP') && 'REVERSE',
       ] as const).filter((special): special is NonNullable<Primed> => !!special);
@@ -4477,8 +4523,14 @@ export class Game {
       this.scene.express(!!this.delivery.express, !!this.delivery.death);
       this.scene.round(!!this.delivery.round);
       this.showConfidence(); this.setPhase('BOWLER_RUNUP');
+      // The first time a spinner comes on in this browser: the keeper is up
+      // at the stumps, and the card says so before the ball (`KEEPER_STEP`).
+      if (spun(this.delivery)) this.teachKeeper();
       // The stands lift as he runs in, and settle once the ball has gone.
       this.audio.swellCrowd(1 + RUNUP.swell, GAME.runupMs / 1000, RUNUP.settle, 0, GAME.runupMs / 3000);
+    } else if (this.phase === 'BOWLER_RUNUP' && this.keeperHeld) {
+      // At his mark while the keeper's card is up, and from the top when it is put away.
+      this.phaseStart = this.elapsed; this.scene.runup(0);
     } else if (this.phase === 'BOWLER_RUNUP') {
       this.scene.runup(Math.min(1, age / GAME.runupMs));
       if (age >= GAME.runupMs) {
@@ -4693,7 +4745,7 @@ export class Game {
    */
   private marathonBall(): ShotOutcome {
     const delivery = this.delivery!, attempt = this.attempt;
-    const special = this.charged && (advanceShot(delivery, attempt, true)
+    const special = this.charged && (advanceShot(delivery, attempt, true) || steppedOut(delivery, attempt, true)
       || slogSweep(delivery, attempt, true) || !!scoopShot(delivery, attempt, true));
     return special ? resolveShot(delivery, attempt, this.rng, true, this.windows)
       : resolveSurvive(delivery, attempt, this.rng, easedSkill(this.marathon!.current.batter, this.ease));
@@ -5031,12 +5083,25 @@ export class Game {
     const shot = catchShotOf(this.outcome!)
       ?? (this.super10 && rider?.deep && (rider.how === 'cut' || rider.how === 'saved') && offScreen(rider.angle) ? 'field' : null);
     if (!shot) return null;
+    // The stumping is the keeper's alone: no field to join.
+    if (shot === 'stumped') return shot;
     const field = this.super10 ? this.s10.field : null;
     if (field) { const drawn = drawnOf(field); this.scene.catchField(true, field.men.filter(man => !drawn.includes(man))); }
     else this.scene.catchField(true);
     return shot;
   }
   private beginCatchCam(shot: CatchShot, flight: { contactAt: number; endAt: number }) {
+    if (shot === 'stumped') {
+      // From just after the ball beats the bat, slowed round the take, the
+      // call going up as the bails go.
+      const { take, bails } = this.scene.stumpingTimes();
+      const until = take + STUMPING.hold;
+      this.catchCam = { shot, cut: flight.contactAt + STUMPING.cutIn, take, until, hands: [0, 0, 0], on: false };
+      this.resolveEndsAt = Math.max(this.resolveEndsAt, until);
+      this.presentationAt = Math.max(this.presentationAt, bails);
+      this.mark('catch-cam-stumped', 'A stumping watched');
+      return;
+    }
     const struck = this.scene.struckTo();
     if (!struck) { this.scene.catchField(false); return; }
     const times = catchTimes(shot, flight.contactAt, flight.contactAt + struck.arrives, flight.endAt);
@@ -5053,7 +5118,7 @@ export class Game {
     const cam = this.catchCam!;
     if (!cam.on && this.elapsed >= cam.cut && this.elapsed < cam.until) {
       cam.on = true;
-      this.scene.cinematic((_, ball) => catchCamera(cam.hands, ball));
+      this.scene.cinematic((_, ball) => cam.shot === 'stumped' ? STUMPING_CAMERA : catchCamera(cam.hands, ball));
       this.scene.keeperIn(true); this.hud.walkOn(1); this.hud.catching(true);
     }
     if (this.elapsed >= cam.until) this.endCatchCam();
@@ -5136,7 +5201,7 @@ export class Game {
       const kind = afterBall(stroke, {
         scored, four: outcome.runs === 4,
         beaten: (!outcome.madeBatContact || !!outcome.edged) && !outcome.hit,
-        wicket: outcome.isWicket, milestone: !!this.milestoneDue,
+        wicket: outcome.isWicket, milestone: !!this.milestoneDue, stumped: outcome.wicketType === 'STUMPED',
         heartbreak: this.lesson < 0 && !this.felled ? disappointment(this.batterHistory) : null,
         hurt: this.felled ? null : outcome.hit?.where ?? null,
         last: this.lesson < 0 && !!(this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended),
@@ -7052,7 +7117,7 @@ export class Game {
       kept: this.kept ? { stroke: this.kept.swing.stroke, runs: this.kept.outcome.runs, dropped: !!this.kept.outcome.dropped } : null, replayLog: { ...this.replayLog }, changed: this.changed, milestone: !!this.milestoneDue,
       replay: this.replay ? { stroke: this.replay.kept.swing.stroke, angle: this.replay.angle.id, at: this.replay.start === null ? null : Math.round(this.elapsed - this.replay.start), struck: this.replay.struck, ending: this.replay.ending !== null } : null,
       replays: this.replayLog.shown, balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
-      line: this.delivery?.line ?? '—', dragged: !!this.delivery?.dragged, spinPulled: !!this.outcome?.spinPulled, spinPulls: this.spinPulls, hooks: this.hooks, effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
+      line: this.delivery?.line ?? '—', dragged: !!this.delivery?.dragged, flighted: !!this.delivery?.flighted, spinPulled: !!this.outcome?.spinPulled, spinPulls: this.spinPulls, hooks: this.hooks, effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
       baseX: this.delivery?.baseTargetX.toFixed(3) ?? '—', finalX: this.delivery?.finalTargetX.toFixed(3) ?? '—',
       contactAt: Math.round(this.delivery?.idealContactTimeMs ?? 0), timingDelta: this.outcome?.timingDeltaMs?.toFixed(0) ?? '—', timingGrade: this.outcome?.timingGrade ?? '—',
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',
