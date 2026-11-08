@@ -1702,7 +1702,12 @@ element is). Nothing about the flighted ball: the owner wanted only the
 keeper told. Every player's, the ones who batted before he came and a new one
 alike; the spinner waits at his mark while it is up (`keeperHeld`). Not in
 the tutorial, a demo or a Rival Match, nor under `?debug=1`, whose checks bat
-through spinners' overs, unless `?keeperintro=1` asks for it (not practice).
+through spinners' overs, unless `?keeperintro=1` asks for it, once a visit
+(`keeperTold`; every spinner's ball, as it first did, was too often) and not
+practice. The keeper squats low on the screen, so the card, at its foot over
+him and his tag, goes up under the score bar for this card (the `beside`
+branch of `spotlight` in the HUD lifts it whenever the outline would stand
+under it).
 GoatCounter counts `keeper-intro` and `-done` or `-skipped`.
 
 ## The late cut

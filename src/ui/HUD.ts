@@ -2803,7 +2803,7 @@ ${modeSelectMarkup()}
     scrim.setAttribute('viewBox', `0 0 ${w} ${h}`);
     let d = `M0 0H${w}V${h}H0Z`;
     const card = this.$('mi-card');
-    card.style.bottom = '';
+    card.style.bottom = ''; card.style.top = '';
     if (!box) {
       spot.classList.add('hidden'); tag.classList.add('hidden');
       this.$('mi-scrim-path').setAttribute('d', d);
@@ -2834,6 +2834,11 @@ ${modeSelectMarkup()}
     if (beside) {
       const left = beside === 'left' ? x - width - 12 * u : x + sw + 12 * u;
       Object.assign(tag.style, { left: `${left}px`, top: `${y + sh / 2 - height / 2}px` });
+      // Something drawn in the scene low down (the keeper, squatting at the
+      // stumps) stood under the card at its foot, the tag hidden behind it:
+      // the card goes up under the score bar instead, clear of it.
+      const held = card.getBoundingClientRect();
+      if (y + sh > held.top - frame.top - 8 * u) Object.assign(card.style, { top: `${96 * u}px`, bottom: 'auto' });
       return;
     }
     const left = Math.min(Math.max(cx - width / 2, 12 * u), w - width - 12 * u);

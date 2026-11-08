@@ -2528,7 +2528,9 @@ export class Game {
   private teachKeeper() {
     const asked = new URLSearchParams(location.search).get('keeperintro') === '1';
     if (this.lesson >= 0 || this.demoing || this.challenge.playing || (this.debug && !asked) || this.hud.introOpen) return;
-    if (!asked && !keeperIntroDue()) return;
+    // Asked for by the link, once a visit; otherwise once a browser.
+    if (asked ? this.keeperTold : !keeperIntroDue()) return;
+    this.keeperTold = true;
     noteKeeperIntro();
     this.keeperHeld = true;
     this.mark('keeper-intro', 'Keeper card shown');
@@ -2537,6 +2539,8 @@ export class Game {
       this.keeperHeld = false;
     }, [KEEPER_STEP], { game: this.coachGame, place: spot => spot === 'keeper' ? this.scene.keeperOnScreen() : null });
   }
+  /** The keeper's card has been up this visit: `?keeperintro=1` shows it once a visit, not every spinner's ball. */
+  private keeperTold = false;
   /** The spinner held at his mark while the keeper's card is up (`teachKeeper`). */
   private keeperHeld = false;
   /**
