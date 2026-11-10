@@ -1,51 +1,19 @@
 import * as THREE from 'three';
 
 /**
- * The picture's finish, three small things laid over the scene as it was
+ * The picture's finish, two small things laid over the scene as it was
  * (`GameScene`): a soft dark under each of the batter's boots so he stands on
- * the turf rather than over it, a light along his edges that lifts him off the
- * grass, and the corners of the picture let fall away, by night most of all.
- * None of it is a post-processing pass: an iPhone pays for every extra render,
- * so the edge light is a line in his own shaders, the dark under his boots one
- * small mesh, and the corners a still layer on the page over the canvas.
- * `?polish=0` turns all three off, for holding the two side by side.
+ * the turf rather than over it, and the corners of the picture let fall away,
+ * by night most of all. Neither is a post-processing pass: an iPhone pays for
+ * every extra render, so the dark under his boots is one small mesh and the
+ * corners a still layer on the page over the canvas. `?polish=0` turns both
+ * off, for holding the two side by side.
+ *
+ * A light along his edges was the third, a line in his own shaders on the
+ * crown of the helmet and the shoulders, and was taken out: on a phone the
+ * whitish shine made him look laminated, the owner said.
  */
 
-/** The edge light's colour and strength, shared by every material that has it: set by the time of day. */
-export const RIM = { colour: { value: new THREE.Color('#fff2d6') }, strength: { value: .0 } };
-/** By day the sun's own warmth, quietly; under the floodlights a cooler, stronger line. */
-export const RIM_LIGHT = { day: { colour: '#fff2d6', strength: .5 }, night: { colour: '#cfe2ff', strength: .7 } } as const;
-
-const RIM_GLSL = /* glsl */`
-  {
-    // Along his edges where they face the sky: the crown of the helmet, the shoulders, the top of a pad.
-    // Wide enough to read at the size he is on a phone, where a true hairline rim is a pixel and is lost,
-    // and next to nothing on what faces the turf, so it never washes over the whole of him.
-    // A shell drawn both sides shows its inside through its own edge, and the renderer turns that normal
-    // round to face the eye: turned back, the inside takes the light the edge beside it does. Lit as it
-    // faced, it stayed dark between lit pixels and speckled the helmet's outline.
-    vec3 rimNormal = normalize(normal) * (gl_FrontFacing ? 1.0 : -1.0);
-    float rimTurn = 1.0 - saturate(dot(rimNormal, normalize(vViewPosition)));
-    float rimUp = saturate(rimNormal.y * .5 + .5);
-    outgoingLight += uRimColour * uRimStrength * smoothstep(.3, .92, rimTurn) * rimUp * rimUp;
-  }
-`;
-/** A light along the edges of whatever wears `material`, laid on whatever its shader already does. Once a material. */
-export function rimLit(material: THREE.Material) {
-  if (material.userData.rimLit || !(material instanceof THREE.MeshStandardMaterial)) return;
-  material.userData.rimLit = true;
-  const before = material.onBeforeCompile;
-  material.onBeforeCompile = (shader, renderer) => {
-    before.call(material, shader, renderer);
-    shader.uniforms.uRimColour = RIM.colour; shader.uniforms.uRimStrength = RIM.strength;
-    shader.fragmentShader = `uniform vec3 uRimColour;\nuniform float uRimStrength;\n${shader.fragmentShader.replace('#include <opaque_fragment>', `${RIM_GLSL}\n#include <opaque_fragment>`)}`;
-  };
-  const key = material.customProgramCacheKey.bind(material);
-  material.customProgramCacheKey = () => `${key()}|rim`;
-  material.needsUpdate = true;
-}
-
-/** How dark it is under a boot on the turf, how wide, and the height by which a lifted boot's has gone. */
 /** `over` is how far above the ground it is laid: the strip stands a little proud of the outfield, and under it nothing showed. */
 export const CONTACT = { dark: .4, radius: .34, lifted: .32, grows: 1.5, over: .036 } as const;
 

@@ -37,7 +37,7 @@ import { introCamera, introSweep, type Film } from '../game/IntroReel';
 import { diwaliOn } from '../game/diwali';
 import { batSheet } from '../entities/batSkins';
 import { Puff, type Burst } from './puff';
-import { ContactShadows, RIM, RIM_LIGHT, rimLit } from './polish';
+import { ContactShadows } from './polish';
 import { pushAt, type Contact } from '../game/contact';
 
 /** How long the arena's fireworks go up for, for a six and for a milestone. */
@@ -233,7 +233,7 @@ export class GameScene {
   private bounceRing: THREE.Mesh;
   /** Dust where the ball pitches and chips off a middled bat (`contact.ts`). */
   private dust = new Puff(); private chips = new Puff(); private dusted = false;
-  /** The picture's finish (`polish.ts`): the dark under his boots, the light along his edges, the corners let fall away. Off on `?polish=0`. */
+  /** The picture's finish (`polish.ts`): the dark under his boots and the corners let fall away. Off on `?polish=0`. */
   private readonly polished = new URLSearchParams(location.search).get('polish') !== '0';
   private contact = new ContactShadows();
   private readonly vignette = document.createElement('div');
@@ -741,18 +741,14 @@ export class GameScene {
       built.show?.lit(light.boards);
     }
   }
-  /** The edge light and the corners, by the time of day (`polish.ts`); and his materials given the edge light, whatever he has since put on. */
+  /** The corners, by the time of day (`polish.ts`). */
   private finish() {
-    if (!this.polished) return;
-    const rim = RIM_LIGHT[this.now === 'night' ? 'night' : 'day'];
-    RIM.colour.value.set(rim.colour); RIM.strength.value = rim.strength;
-    this.vignette.classList.toggle('is-night', this.now === 'night');
-    this.batter.root.traverse(object => { if (object instanceof THREE.Mesh) [object.material].flat().forEach(rimLit); });
+    if (this.polished) this.vignette.classList.toggle('is-night', this.now === 'night');
   }
-  /** What the finish is showing, for the checks: the edge light's strength, the dark under each boot, and whether the corners are the night's. */
+  /** What the finish is showing, for the checks: the dark under each boot, and whether the corners are the night's. */
   get polishShown() {
     const alpha = this.contact.mesh.geometry.getAttribute('dark') as THREE.BufferAttribute;
-    return { on: this.polished, rim: this.polished ? RIM.strength.value : 0, boots: this.polished ? [alpha.getX(0), alpha.getX(4)].map(a => +a.toFixed(3)) : [0, 0], night: this.vignette.classList.contains('is-night') };
+    return { on: this.polished, boots: this.polished ? [alpha.getX(0), alpha.getX(4)].map(a => +a.toFixed(3)) : [0, 0], night: this.vignette.classList.contains('is-night') };
   }
   /** The batter's materials and the ball's, which a hundred never greys: see `greyable`. */
   private his = new Set<THREE.Material>();
@@ -1269,13 +1265,12 @@ export class GameScene {
     this.batter.printKit(super10?.print ?? null, this.shirt);
     this.batter.wearGloves(this.look.guard);
     this.wearLook();
-    this.finish();
     const asked = ++this.batAsked;
     this.batter.holdBat(bat.grip, null);
     void batSheet(bat.id).then(sheet => {
       if (asked !== this.batAsked) return;
       this.batter.holdBat(bat.grip, sheet);
-      this.kitsUnderLights(); this.finish();
+      this.kitsUnderLights();
     });
   }
   private look: { outfit: Outfit | Super10Kit; bat: BatSkin; guard: GloveDesign<string> } | null = null;
