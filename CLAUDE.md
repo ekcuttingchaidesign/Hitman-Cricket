@@ -2548,7 +2548,37 @@ and the dust. `?contact=0` turns all of it off, for holding the two side by
 side, and is not practice. `snapshot().contact` is the kind, the beat left
 and what is showing (`__cricket.contactShown()` between balls).
 `scripts/contact-check.mjs` drives a straight six on `?cover=1` frame by
-frame and then the same on `?contact=0`.
+frame and then the same on `?contact=0&follow=0`.
+
+## The follow-through: weight in the body
+
+A stroke is keyed poses eased one to the next, so every part of him arrived
+and stopped on the same frame: accurate, and a little mechanical. The game's
+batter has weight laid over that (`src/entities/followThrough.ts`,
+`FollowThrough`, `springy` on `Batter`, in `tests/follow-through.test.ts`): the
+trunk's lean over the hips and the hips' height are each followed by a
+second-order spring (`FOLLOW.lean`, `FOLLOW.give`), so the trunk rocks on past
+a finish and settles, the knees give as the weight lands, and the head goes
+with the shoulders a moment late (`FOLLOW.head`). It is drawn in `apply`, on
+the way to the meshes: the pose kept, and the next stroke's start, are the
+stroke's own. Small by rule: the trunk within `FOLLOW.most` (5cm), the hips
+`down` 3.5cm and `up` 1.2 (a straight leg cannot lengthen), the trunk leant
+and never stretched. Two bumps a stroke, about three centimetres each: just
+after the ball and coming home into the guard.
+
+The grip, the bat's turn and the feet are never touched, and from the swing
+to the ball it is off altogether (`before`, `after`), so the bat meets the
+ball from exactly the body the stroke drew. After the ball the bat moves only
+where a stroke eases it clear of his helmet or body, which it now does from
+where they are drawn. The bat's toe was left out on purpose: sprung, it would
+turn the bat in his hands, which the batter tests hold every stroke against.
+Not in a film (`staged`) or a fall; a gap of more than `FOLLOW.gap` between
+frames (a pause, a replay staged) starts it again at rest, and a slow frame is
+taken in steps so it holds at any frame rate. Only the game's batter: the
+previews, the Dressing Room and the batter tests keep the poses as authored.
+`?follow=0` turns it off, for holding the two side by side, and is not
+practice; `snapshot().follow` is how far it has him from the pose, and
+`contact-check` reads it.
 
 ## The bowled ball's streak
 

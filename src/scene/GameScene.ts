@@ -199,7 +199,7 @@ export class GameScene {
   private world = new THREE.Group();
   /** Fireworks in the sky behind the far stand: see `fireworks`. */
   private bursts = new Fireworks(this.world);
-  private batter = Object.assign(new Batter(), { alive: true });
+  private batter = Object.assign(new Batter(), { alive: true, springy: true });
   private bowler = new Bowler();
   /**
    * What the bowler stands in: nothing, while he bowls — his action places
@@ -277,6 +277,9 @@ export class GameScene {
    * red (see `TAILS`); on no others.
    */
   private fire: THREE.Mesh[] = [];
+  /** The batter's follow-through (`followThrough.ts`), off on `?follow=0`; and how far it has him from the stroke's own pose, for the checks. */
+  set followThrough(on: boolean) { this.batter.springy = on; }
+  get followShown() { return this.batter.followShown; }
   /** Off with `?contact=0`: the dust at the pitch goes with the rest of the contact pack. */
   contactFx = true;
   /**

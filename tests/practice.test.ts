@@ -53,6 +53,7 @@ describe('every switch the game reads', () => {
     keeperintro: 'the keeper\'s coach card at the first spinner\'s ball, asked for again; it changes nothing about the batting',
     catchcam: 'the camera going with a skied ball, and a skier that fell safe for four shown put down; the runs are the runs it was',
     contact: 'the feel of the bat meeting the ball turned off: a beat held, a knock in the hand, the camera and the sound of a ball already resolved',
+    follow: 'the batter\'s follow-through turned off: his trunk, hips and head settling after a stroke, only how he is drawn',
     actions: 'what the batter does after a ball, on demand, at no ball and counting nothing',
     demo: 'made-up rows on the boards, in this browser only',
     feedback: 'the feedback sheet',

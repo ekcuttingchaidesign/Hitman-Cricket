@@ -4,7 +4,8 @@
  * until one is middled for a boundary. Dust comes up where the ball pitches;
  * on the ball the game's clock is all but stopped for a beat, the phone is
  * buzzed, and chips come off the bat, with the camera left where it is (the
- * push in is a special stroke's alone). Then the same with `?contact=0`: none of it.
+ * push in is a special stroke's alone). His trunk carries on after the ball
+ * (`followThrough.ts`). Then the same with `?contact=0&follow=0`: none of it.
  * Photographed on the beat, into `test-results/contact-*.png`.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
@@ -47,7 +48,7 @@ async function innings(off) {
   const advance = ms => page.clock.runFor(Math.max(16, Math.round(ms)));
   const snap = () => page.evaluate(() => window.__cricket.snapshot());
   await page.clock.install();
-  await page.goto(`${base}/?debug=1&seed=2718&cover=1&replay=0&catchcam=0&lights=day${off ? '&contact=0' : ''}`, { waitUntil: 'load' });
+  await page.goto(`${base}/?debug=1&seed=2718&cover=1&replay=0&catchcam=0&lights=day${off ? '&contact=0&follow=0' : ''}`, { waitUntil: 'load' });
   await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 3000);
   await advance(2500);
   await page.waitForTimeout(800);
@@ -84,7 +85,7 @@ async function innings(off) {
       const before = await snap();
       await advance(16);
       const after = await snap();
-      frames.push({ phase: after.phase, went: after.elapsed - before.elapsed, contact: after.contact });
+      frames.push({ phase: after.phase, went: after.elapsed - before.elapsed, contact: after.contact, follow: after.follow });
       if (!off && !shot && after.contact?.stopLeft > 0) { shot = true; await page.screenshot({ path: 'test-results/contact-beat.png' }); }
       if (after.phase === 'RESULT') break;
     }
@@ -114,6 +115,9 @@ if (on.best) {
   const end = frames[frames.length - 1];
   check(end.contact?.push === 0 && end.went > 8, 'and the clock is running again well before the ball is dead', JSON.stringify(end));
   check(on.buzzed.length > 0, 'the phone is buzzed at the bat', JSON.stringify(on.buzzed));
+  // The follow-through (`followThrough.ts`): his trunk carried on after the ball, by centimetres.
+  const leans = frames.map(f => f.follow?.lean ?? 0);
+  check(Math.max(...leans) > .005 && Math.max(...leans) <= .05, 'his trunk carries on after the ball, by a few centimetres', JSON.stringify(leans.map(v => +v.toFixed(3))));
 }
 check(on.errors.length === 0, 'with no errors on the page', on.errors.join('\n'));
 
@@ -124,6 +128,7 @@ if (off.best) {
   check(off.best.dust === 0, 'no dust at the pitch');
   check(off.best.frames.every(f => f.phase !== 'SHOT_RESOLVE' || f.went > 8), 'the clock never held');
   check(off.buzzed.length === 0, 'and no buzz', JSON.stringify(off.buzzed));
+  check(off.best.frames.every(f => !f.follow?.lean && !f.follow?.give), '?follow=0: he is drawn where the stroke has him');
 }
 
 await browser.close();

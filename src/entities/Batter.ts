@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { ADVANCE, CUT, GAME, LINE_X, PUNCH, SQUARE_DRIVE as SQUARE_DRIVE_BALL } from '../config/gameplay';
 import { solveJoint } from './rig';
+import { FOLLOW, FollowThrough } from './followThrough';
 import { bladeGeometry, gripGeometry } from './batGeometry';
 import { BendingLimb } from './BendingLimb';
 import { ConnectedJersey } from './ConnectedJersey';
@@ -3072,6 +3073,14 @@ export class Batter {
   private anticipation = 0;
   /** Alive in his guard between balls: the game's batter is. See `WAGGLE`. */
   alive = false;
+  /**
+   * His trunk, hips and head carried a little past a stroke's poses and let
+   * settle (`followThrough.ts`): the game's batter only, and off on `?follow=0`.
+   */
+  springy = false;
+  private follow = new FollowThrough();
+  /** How far the follow-through has him from the stroke's own pose, in metres: for the checks. */
+  get followShown() { return this.springy ? this.follow.shown : { lean: 0, give: 0 }; }
   /** What draws each wait's rhythm and whether it taps: the tests fix it. */
   idleRandom = Math.random;
   /** This wait in his guard: from when, its rhythm, and the tap under way or due. */
@@ -4605,7 +4614,17 @@ export class Batter {
   }
 
   private apply(pose: Pose) {
+    // The pose kept is the stroke's own: the next stroke starts from it, not from the follow-through's.
     this.pose = pose;
+    let nod = 0, tilt = 0;
+    if (this.springy && this.staged === null && !this.felled) {
+      // Off from the swing to the ball, and back once the bat has met it.
+      const met = this.lastNow - this.contactTime, swung = this.lastNow - this.swingStart;
+      const weight = met >= 0 ? THREE.MathUtils.smoothstep(met, 0, FOLLOW.after) : 1 - THREE.MathUtils.smoothstep(swung, 0, FOLLOW.before);
+      const drawn = this.follow.step(this.lastNow, pose.hip, pose.chest, weight);
+      pose = { ...pose, hip: drawn.hip as Point, chest: drawn.chest as Point };
+      ({ nod, tilt } = drawn);
+    } else this.follow.reset();
     const hip = V(pose.hip), chest = V(pose.chest);
     const yaw = new THREE.Quaternion().setFromAxisAngle(UP, pose.yaw);
     const spine = chest.clone().sub(hip).normalize();
@@ -4614,6 +4633,8 @@ export class Batter {
     this.torso.quaternion.setFromUnitVectors(UP, spine).multiply(yaw);
     this.head.position.copy(chest).addScaledVector(spine, .31).add(new THREE.Vector3(.01, .01, .025));
     this.head.rotation.set(.09 + (pose.headDown ?? 0), pose.face, -.04);
+    // Going with the shoulders a moment late: the follow-through's.
+    if (nod || tilt) { this.head.rotateX(nod); this.head.rotateZ(tilt); }
     if (pose.look) this.head.rotateX(pose.look);
     this.bat.position.set(...pose.grip);
     // Hands clear of the helmet. The cover drive's high finish carried the
@@ -5226,6 +5247,8 @@ export class Batter {
       knees: this.legs.map(leg => leg.knee.position.toArray()),
       shoulders: this.arms.map(arm => arm.shoulder.toArray()),
       chest: [...this.pose.chest], hip: [...this.pose.hip],
+      // Where the trunk and the hips are drawn, which the follow-through may have moved off the pose.
+      drawnChest: this.torso.position.toArray(), drawnHip: this.hips.position.toArray(),
       armLengths: this.arms.map(arm => [arm.upper.scale.y, arm.lower.scale.y]),
       elbowCoverage: this.arms.map(arm=>Math.min(arm.elbow.scale.x,arm.elbow.scale.y,arm.elbow.scale.z)
         - Math.max(arm.upper.scale.x,arm.upper.scale.z)*.5),

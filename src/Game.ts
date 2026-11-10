@@ -798,6 +798,8 @@ export class Game {
     if (!NO_BOARD) void this.loadBoard();
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
     this.scene.contactFx = this.contactOn;
+    // The batter's follow-through, off on `?follow=0` for holding the two side by side: only how he is drawn.
+    this.scene.followThrough = new URLSearchParams(location.search).get('follow') !== '0';
     // Bowled or stumped, the wicket is heard when the ball reaches it.
     this.scene.onStumps = () => this.audio.play('stumps');
     // The stars' keys first, so the moments' keys come after them in the page
@@ -7144,6 +7146,7 @@ export class Game {
       // A stroke's film under its story: which, and how far into a go of it, on its own clock.
       reel: this.reel ? { shot: this.reel.shot, at: Math.round(this.elapsed - this.reel.start), struck: this.reel.struck } : null,
       // The replay playing: its stroke, how far in (null while it wipes in), whether it is wiping out; and how many this innings.
+      follow: this.scene.followShown,
       contact: this.contact ? { kind: this.contact.kind, stopLeft: Math.max(0, Math.round(this.stopLeft)), ...this.scene.contactShown } : null,
       catchCam: this.catchCam ? { shot: this.catchCam.shot, on: this.catchCam.on, sinceTake: Math.round(this.elapsed - this.catchCam.take) } : null,
       kept: this.kept ? { stroke: this.kept.swing.stroke, runs: this.kept.outcome.runs, dropped: !!this.kept.outcome.dropped } : null, replayLog: { ...this.replayLog }, changed: this.changed, milestone: !!this.milestoneDue,
