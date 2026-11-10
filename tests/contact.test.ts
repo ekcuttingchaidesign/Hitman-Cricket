@@ -33,13 +33,23 @@ describe('the bat meeting the ball', () => {
   });
   it('gives more of everything the better it was hit', () => {
     const [sweet, clean, soft] = [ball(), ball({ timingGrade: 'GOOD', runs: 4 }), ball({ timingGrade: 'OK', runs: 1 })].map(b => contactOf(b)!);
-    for (const key of ['gain', 'thock', 'push', 'chips'] as const) {
+    for (const key of ['gain', 'thock', 'chips'] as const) {
       expect(sweet[key]).toBeGreaterThan(clean[key]);
       expect(clean[key]).toBeGreaterThanOrEqual(soft[key]);
     }
     // A knock every time the bat finds it, and a deeper note the better it is.
     for (const c of [sweet, clean, soft]) expect(c.buzz.length % 2).toBe(1);
     expect(sweet.rate[1]).toBeLessThan(soft.rate[1]);
+  });
+  it('moves the camera only for a special stroke that came off', () => {
+    expect(contactOf(ball())!.push).toBe(0);
+    expect(contactOf(ball({ runs: 4 }))!.push).toBe(0);
+    expect(contactOf(ball({ advance: true }))!.push).toBeGreaterThan(0);
+    expect(contactOf(ball({ swept: true }))!.push).toBeGreaterThan(0);
+    expect(contactOf(ball({ scooped: true }))!.push).toBeGreaterThan(0);
+    // A scoop gets its moment only for six, and nothing that got him out does.
+    expect(contactOf(ball({ scooped: true, runs: 4 }))!.push).toBe(0);
+    expect(contactOf(ball({ swept: true, runs: 0, isWicket: true, timingGrade: 'OK' }))!.push).toBe(0);
   });
   it('pushes the camera in fast and lets it out slowly, and back to nothing', () => {
     expect(pushAt(0)).toBe(0);

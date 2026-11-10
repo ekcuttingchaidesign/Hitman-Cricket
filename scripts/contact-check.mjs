@@ -3,8 +3,8 @@
  * straight drive timed on the keys at the cover drive's ball (`?cover=1`)
  * until one is middled for a boundary. Dust comes up where the ball pitches;
  * on the ball the game's clock is all but stopped for a beat, the phone is
- * buzzed, chips come off the bat and the camera pushes in and comes back out
- * to exactly where it was. Then the same with `?contact=0`: none of it.
+ * buzzed, and chips come off the bat, with the camera left where it is (the
+ * push in is a special stroke's alone). Then the same with `?contact=0`: none of it.
  * Photographed on the beat, into `test-results/contact-*.png`.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
@@ -109,9 +109,10 @@ if (on.best) {
   check(held.slice(1).every(f => f.went < 4), 'with the game\'s clock all but stopped through it', JSON.stringify(held.map(f => f.went)));
   check(held.length <= 6, 'and no longer than a few frames', String(held.length));
   check(frames.some(f => f.contact?.chips > 0), 'chips come off the bat');
-  check(frames.some(f => f.contact?.push > .3), 'the camera pushes in', JSON.stringify(frames.map(f => f.contact?.push ?? 0)));
+  // An ordinary stroke leaves the camera where it is: the push is a special stroke's.
+  check(frames.every(f => !f.contact || f.contact.push === 0), 'the camera stays where it is', JSON.stringify(frames.map(f => f.contact?.push ?? 0)));
   const end = frames[frames.length - 1];
-  check(end.contact?.push === 0 && end.went > 8, 'and is back where it was, the clock running, well before the ball is dead', JSON.stringify(end));
+  check(end.contact?.push === 0 && end.went > 8, 'and the clock is running again well before the ball is dead', JSON.stringify(end));
   check(on.buzzed.length > 0, 'the phone is buzzed at the bat', JSON.stringify(on.buzzed));
 }
 check(on.errors.length === 0, 'with no errors on the page', on.errors.join('\n'));

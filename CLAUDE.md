@@ -2527,10 +2527,13 @@ stroke's flash): a knock in the hand (`buzz`: two for sweet, one shorter the
 worse it was hit, a double tick for an edge); a beat held on a boundary, the
 game's clock at `STOP_PACE` for 70ms of the page's clock on a middled six, 55
 on a four, 35 on a GOOD boundary and none otherwise (`stopLeft`, read in
-`timeScale`; never on the charge, which has its own slow motion); the camera
-pushed in by a couple of degrees of its field of view and let back out
+`timeScale`; never on the charge, which has its own slow motion); and chips
+off the blade the way the ball went. Only a special stroke that came off
+(`landedSpecial`: the charge, the slog sweep, a scoop for six) also pushes the
+camera in by a couple of degrees of its field of view and lets it back out
 (`pushAt`, `GameScene.struck`; only the picture, who fields is judged from
-`judge`); and chips off the blade the way the ball went. The bat's clips are
+`judge`): on every boundary it read as a camera shake, and the owner took it
+off the ordinary strokes. The bat's clips are
 voiced by it (`GameAudio.play`'s `voice`): played a touch faster or slower,
 drawn afresh each ball, softer the worse it was hit, with a low synthesized
 knock under a middled one (`thock`). Dust comes up where every ball pitches
