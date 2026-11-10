@@ -11,7 +11,7 @@ import { GAME } from '../config/gameplay';
 import { ballPosition, drawnAt, flightProgress } from '../game/DeliveryTrajectory';
 import { KIT, keepingPose, type Kit } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
-import { BOARDS, boardsAlong, flightOf, sectorOf } from './flight';
+import { BOARDS, boardsAlong, flightOf, playedOnAt, sectorOf } from './flight';
 import { OVERCAST, SKY, Sky, type SkyTime } from './sky';
 import { ARENA_NIGHT, FILL_POSITION, LIGHTING, RICH, RICH_NIGHT_HAZE, dayArcAt, glows, moon, nightReflections } from './night';
 import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture, type Turf } from './turf';
@@ -341,6 +341,8 @@ export class GameScene {
    * on a ball still nine metres above his head.
    */
   private takeAt = 1;
+  /** The ball off the inside edge into his stumps: drawn on its own path (`playedOnAt`). */
+  private choppedOn = false;
   /**
    * When the run-up started. The bowler's whole action runs off this one clock,
    * so nothing about how fast the ball is bowled can reach it.
@@ -1610,6 +1612,7 @@ export class GameScene {
     // stroke's angle: one finishes in his own stumps, the other in the keeper's
     // gloves before the stroke is over.
     if (playedOn) this.hitEnd.set(0.1, flight.endY, -1.5);
+    this.choppedOn = playedOn;
     if (outcome.edged) this.hitEnd.set(0.58, flight.endY, -1.6);
     // Up to the spinner the keeper is in the picture, squatting where that
     // edge finished: it goes into his gloves instead, and stays there.
@@ -1700,6 +1703,7 @@ export class GameScene {
     // Measured against the take rather than against the end of the animation, so
     // a ball with somebody under it is in his hands when his hands close and
     // waits there rather than still falling.
+    if (this.choppedOn) { playedOnAt(t, this.flightMs, this.hitOrigin, into); return into; }
     const flown = Math.min(1, t / this.takeAt);
     into.lerpVectors(this.hitOrigin, this.hitEnd, flown);
     // One arc, or two with the turf in between. A ball that reaches the rope on

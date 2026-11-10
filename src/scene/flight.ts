@@ -76,6 +76,32 @@ export function sectorOf(outcome: ShotOutcome, shot: ShotType | undefined): numb
 /** Runs to how far a ball that stayed down runs away from the bat. */
 const GROUND_REACH: Record<number, number> = { 0: 5, 1: 10, 2: 19, 3: 26, 4: 44, 6: 52 };
 
+/**
+ * Played on: off the inside edge the ball changes direction and goes hard
+ * down into the stumps, there in `strikeMs`, where it used to float back onto
+ * them over a second. Then it comes off the timber and dies behind them.
+ */
+export const PLAYED_ON = { strikeMs: 110, height: 0.42 } as const;
+
+/**
+ * Where a played-on ball is, `t` through its flight: straight from the bat to
+ * the stumps, fast, then off them and away on the turf, slowing.
+ */
+export function playedOnAt(t: number, flightMs: number, from: { x: number; y: number; z: number }, into: { x: number; y: number; z: number }) {
+  const strike = PLAYED_ON.strikeMs / flightMs, side = from.x < 0 ? -1 : 1;
+  const hitX = side * 0.05, hitY = Math.min(PLAYED_ON.height, from.y), hitZ = -0.02;
+  if (t <= strike) {
+    const u = t / strike;
+    into.x = from.x + (hitX - from.x) * u; into.y = from.y + (hitY - from.y) * u; into.z = from.z + (hitZ - from.z) * u;
+    return into;
+  }
+  // Off the stumps: knocked on behind and a little to the other side, one low hop, and a roll to a stop.
+  const u = (t - strike) / (1 - strike), out = 1 - (1 - u) * (1 - u);
+  into.x = hitX - side * 0.32 * out; into.z = hitZ - 1.3 * out;
+  into.y = Math.max(0.04, hitY * Math.max(0, 1 - u * 5) + Math.abs(Math.sin(Math.min(1, u * 2.2) * Math.PI)) * 0.1);
+  return into;
+}
+
 export function flightOf(outcome: ShotOutcome): Flight {
   const caught = outcome.wicketType === 'CAUGHT';
   /** A ball that hit him rather than the bat: it has spent itself on his body. */

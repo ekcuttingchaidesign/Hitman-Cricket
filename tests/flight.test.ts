@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GAME } from '../src/config/gameplay';
 import { SURVIVE } from '../src/config/survive';
-import { flightOf } from '../src/scene/flight';
+import { flightOf, playedOnAt, PLAYED_ON } from '../src/scene/flight';
 import type { ShotOutcome, WicketType } from '../src/game/types';
 
 /**
@@ -86,6 +86,22 @@ describe('a ball in the air', () => {
 });
 
 describe('played on', () => {
+  it('goes hard from the bat into the stumps, a different way from the way it came, and dies behind them', () => {
+    const flight = flightOf(out('BOWLED', { madeBatContact: true }));
+    const bat = { x: 0.45, y: 0.8, z: GAME.contactZ }, at = (ms: number) => playedOnAt(ms / flight.flightMs, flight.flightMs, bat, { x: 0, y: 0, z: 0 });
+    const hit = at(PLAYED_ON.strikeMs);
+    // In the timber, between the bails and the turf, within a ninth of a second: about fifty kilometres an hour.
+    expect(Math.abs(hit.x)).toBeLessThan(0.11); expect(hit.z).toBeLessThanOrEqual(0);
+    expect(hit.y).toBeGreaterThan(0.1); expect(hit.y).toBeLessThan(GAME.stumpHeight);
+    expect(Math.hypot(hit.x - bat.x, hit.y - bat.y, hit.z - bat.z) / (PLAYED_ON.strikeMs / 1000)).toBeGreaterThan(10);
+    // Across him as well as back: the deflection shows.
+    expect(bat.x - hit.x).toBeGreaterThan(0.3);
+    // Never back in front of the stumps, on the turf at the end, and all but stopped.
+    for (let ms = PLAYED_ON.strikeMs; ms <= flight.flightMs; ms += 10) expect(at(ms).z).toBeLessThanOrEqual(0);
+    const end = at(flight.flightMs), near = at(flight.flightMs - 50);
+    expect(end.y).toBeLessThan(0.1); expect(Math.hypot(end.x - near.x, end.z - near.z)).toBeLessThan(0.02);
+  });
+
   /**
    * The bails are thrown from the frame the ball reaches the stumps, and the
    * throw itself runs for 620ms. The first version of this had the ball arrive
