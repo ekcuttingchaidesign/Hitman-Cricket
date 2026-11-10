@@ -2602,7 +2602,22 @@ be built again. **The corners let fall away**
 no blend mode or filter, faint by day and deeper at night, where it makes the
 pitch a pool of light.
 
-`?polish=0` turns both off, for holding the two side by side, and is not
+**The richer light** (`RICH`, `RICH_NIGHT_HAZE` in `night.ts`, `relight` in
+`GameScene`) is the first step of redoing the whole picture, which the owner
+asked for after the two above changed too little: the batter, the bowler, the
+fielders, the pitch and the stands all at once, through the lights they
+share. By day the sun comes in lower and from the side, stronger and warmer,
+and the sky's own light is turned down and cooled, so every figure and stand
+has a lit side and a shaded one where they were evenly bright all over. By
+night the sky gives less, the floodlights and the far towers more, and the
+haze begins nearer, so the stands sink into the dark behind a lit ground: the
+stadium's stands had been as bright by night as by day. The shadow map is
+spent on the square and the ring (the men further out have their patch), so
+the batter's and the bowler's shadows are nearly twice as sharp. The arena
+keeps its own night (`ARENA_NIGHT`). Photographed on the stadium, the
+pavilion and the canopy.
+
+`?polish=0` turns all of it off, the light with it, for holding the two side by side, and is not
 practice. `__cricket.polish()` says what is showing. The owner saw no
 significant improvement from these two on a phone: they are kept as cheap,
 not as the answer to the fielders' and the stadium's look. Looked at with close

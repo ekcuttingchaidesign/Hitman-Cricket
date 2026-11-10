@@ -46,6 +46,35 @@ export const LIGHTING: Record<SkyTime, {
 };
 
 /**
+ * The richer light (`polish.ts`, off on `?polish=0`): the same lights with more
+ * between them. By day the sun comes in lower and from the side and the sky's
+ * own light is turned down and cooled, so every figure and every stand has a
+ * lit side and a shaded one where they had been evenly bright all over. By
+ * night the sky gives less and the floodlights more, so what they fall on
+ * stands out of the dark.
+ */
+export const RICH: typeof LIGHTING = {
+  day: {
+    hemisphere: { sky: 0xdce8ff, ground: 0x5d6f42, intensity: 0.62 },
+    key: { colour: 0xffe6bd, intensity: 4.1, position: [-24, 24, -6] },
+    fill: { colour: 0xdfe8ff, intensity: 0 },
+    environment: 0.5,
+    boards: 0.35,
+    lamps: 0.9,
+  },
+  night: {
+    hemisphere: { sky: 0x6d83b8, ground: 0x2c4626, intensity: 0.42 },
+    key: { colour: 0xfff3e2, intensity: 3.9, position: [-12, 34, -30] },
+    fill: { colour: 0xdfe9ff, intensity: 1.5 },
+    environment: 0.5,
+    boards: 1.15,
+    lamps: 2.9,
+  },
+};
+/** Where the haze begins and ends under the richer light, by night: nearer, so the stands sink into the dark behind a lit ground. */
+export const RICH_NIGHT_HAZE = [30, 104] as const;
+
+/**
  * The arena's night: the stadium's, under LED rather than metal halide. No
  * towers behind the batter's end, a ring of lamps round the whole roof
  * instead, so the key comes down steeper and a cleaner white, and the fill

@@ -13,7 +13,7 @@ import { KIT, keepingPose, type Kit } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
 import { BOARDS, boardsAlong, flightOf, sectorOf } from './flight';
 import { OVERCAST, SKY, Sky, type SkyTime } from './sky';
-import { ARENA_NIGHT, FILL_POSITION, LIGHTING, glows, moon, nightReflections } from './night';
+import { ARENA_NIGHT, FILL_POSITION, LIGHTING, RICH, RICH_NIGHT_HAZE, glows, moon, nightReflections } from './night';
 import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture, type Turf } from './turf';
 import { BOARD_PANELS, perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
@@ -423,7 +423,10 @@ export class GameScene {
     // The sun by day, the floodlights behind the batter's end by night: the one that casts.
     const sun = this.sun; sun.position.set(-15, 30, -8); sun.castShadow = true;
     sun.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048); sun.shadow.camera.left = -28; sun.shadow.camera.right = 28;
-    sun.shadow.camera.top = 35; sun.shadow.camera.bottom = -20; sun.shadow.normalBias = 0.025;
+    sun.shadow.camera.top = 35; sun.shadow.camera.bottom = -20;
+    // Under the richer light the shadow map is spent on the square and the ring, not the whole ground: nearly
+    // twice as sharp under the batter and the bowler. The men further out have the soft patch under them (`under`).
+    if (this.polished) { sun.shadow.camera.left = -16; sun.shadow.camera.right = 16; sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -10; } sun.shadow.normalBias = 0.025;
     this.scene.add(sun);
     // The far towers' light, catching the batter's edges after dark; nothing by day.
     // Always in the scene, so switching to night recompiles no shader.
@@ -482,7 +485,7 @@ export class GameScene {
     // while the ball is still in the air, and the eye wants to follow it.
     for (const mesh of [this.ball, ...this.trail, ...this.streak, ...this.fire]) [mesh.material].flat().forEach(m => his.add(m));
     this.greyable(this.scene);
-    this.finish();
+    this.relight(); this.finish();
     // After the greying is wired, so a hundred never greys the swoosh.
     this.swish = this.createSwish();
     this.reset();
@@ -741,6 +744,15 @@ export class GameScene {
       built.show?.lit(light.boards);
     }
   }
+  /** The lights as the time of day and the ground have them. */
+  private relight() {
+    const light = this.lighting;
+    this.scene.environmentIntensity = light.environment;
+    this.hemisphere.color.set(light.hemisphere.sky); this.hemisphere.groundColor.set(light.hemisphere.ground);
+    this.hemisphere.intensity = light.hemisphere.intensity;
+    this.sun.color.set(light.key.colour); this.sun.intensity = light.key.intensity * (1 - this.sky.cover * OVERCAST.sun); this.sun.position.set(...light.key.position);
+    this.fill.color.set(light.fill.colour); this.fill.intensity = light.fill.intensity;
+  }
   /** The corners, by the time of day (`polish.ts`). */
   private finish() {
     if (this.polished) this.vignette.classList.toggle('is-night', this.now === 'night');
@@ -758,7 +770,7 @@ export class GameScene {
       if (object instanceof THREE.Mesh) [object.material].flat().forEach(m => { if (!this.his.has(m)) mutable(m, this.mute); });
     });
   }
-  private get lighting() { return this.now === 'night' && this.current === 'arena' ? ARENA_NIGHT : LIGHTING[this.now]; }
+  private get lighting() { return this.now === 'night' && this.current === 'arena' ? ARENA_NIGHT : (this.polished ? RICH : LIGHTING)[this.now]; }
   private wicket(z: number, kind: 'plain' | 'led') {
     const { timber, bails, lights } = buildWicket(this.world, GAME.stumpHeight, z, kind === 'led' ? { wrap: this.led.wrap } : undefined);
     const set = this.wickets[kind];
@@ -845,16 +857,12 @@ export class GameScene {
     // Day breaking on a show takes it down: there are none by day.
     if (time !== 'night') this.bursts.stop();
     const palette = this.sky.time(time), light = this.lighting;
-    this.scene.fog = new THREE.Fog(palette.horizon, 48, 125);
+    this.scene.fog = new THREE.Fog(palette.horizon, ...(this.polished && time === 'night' ? RICH_NIGHT_HAZE : [48, 125] as const));
     this.renderer.setClearColor(palette.horizon);
     this.environment.dispose();
     this.environment = this.sky.environment(this.renderer, time === 'night' ? this.reflections : []);
     this.scene.environment = this.environment.texture;
-    this.scene.environmentIntensity = light.environment;
-    this.hemisphere.color.set(light.hemisphere.sky); this.hemisphere.groundColor.set(light.hemisphere.ground);
-    this.hemisphere.intensity = light.hemisphere.intensity;
-    this.sun.color.set(light.key.colour); this.sun.intensity = light.key.intensity * (1 - this.sky.cover * OVERCAST.sun); this.sun.position.set(...light.key.position);
-    this.fill.intensity = light.fill.intensity;
+    this.relight();
     this.finish();
     if (this.boardsMaterial) this.boardsMaterial.emissiveIntensity = light.boards;
     for (const object of this.night) object.visible = time === 'night';
@@ -1225,7 +1233,7 @@ export class GameScene {
   get clouded() { return Math.round(this.sky.cover * 100) / 100; }
   private clouding(amount: number, settled: boolean) {
     this.sky.overcast(amount);
-    this.sun.intensity = LIGHTING[this.now].key.intensity * (1 - amount * OVERCAST.sun);
+    this.sun.intensity = this.lighting.key.intensity * (1 - amount * OVERCAST.sun);
     if (!settled) return;
     this.environment.dispose();
     this.environment = this.sky.environment(this.renderer, this.now === 'night' ? this.reflections : []);
