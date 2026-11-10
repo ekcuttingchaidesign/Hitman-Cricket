@@ -2576,7 +2576,9 @@ Not in a film (`staged`) or a fall; a gap of more than `FOLLOW.gap` between
 frames (a pause, a replay staged) starts it again at rest, and a slow frame is
 taken in steps so it holds at any frame rate. Only the game's batter: the
 previews, the Dressing Room and the batter tests keep the poses as authored.
-`?follow=0` turns it off, for holding the two side by side, and is not
+`?follow=0` turns it off, for holding the two side by side, and `?follow=2`
+or `3` draws it that many times over, limits and all, for seeing what it
+does (the owner felt it at one and could not pick it out by eye); none is
 practice; `snapshot().follow` is how far it has him from the pose, and
 `contact-check` reads it.
 

@@ -3078,6 +3078,8 @@ export class Batter {
    * settle (`followThrough.ts`): the game's batter only, and off on `?follow=0`.
    */
   springy = false;
+  /** How much of it is drawn: one as built, more for looking at it (`?follow=2`). Its limits scale with it. */
+  springiness = 1;
   private follow = new FollowThrough();
   /** How far the follow-through has him from the stroke's own pose, in metres: for the checks. */
   get followShown() { return this.springy ? this.follow.shown : { lean: 0, give: 0 }; }
@@ -4621,7 +4623,7 @@ export class Batter {
       // Off from the swing to the ball, and back once the bat has met it.
       const met = this.lastNow - this.contactTime, swung = this.lastNow - this.swingStart;
       const weight = met >= 0 ? THREE.MathUtils.smoothstep(met, 0, FOLLOW.after) : 1 - THREE.MathUtils.smoothstep(swung, 0, FOLLOW.before);
-      const drawn = this.follow.step(this.lastNow, pose.hip, pose.chest, weight);
+      const drawn = this.follow.step(this.lastNow, pose.hip, pose.chest, weight * this.springiness);
       pose = { ...pose, hip: drawn.hip as Point, chest: drawn.chest as Point };
       ({ nod, tilt } = drawn);
     } else this.follow.reset();

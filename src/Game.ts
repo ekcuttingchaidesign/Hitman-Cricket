@@ -799,7 +799,8 @@ export class Game {
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
     this.scene.contactFx = this.contactOn;
     // The batter's follow-through, off on `?follow=0` for holding the two side by side: only how he is drawn.
-    this.scene.followThrough = new URLSearchParams(location.search).get('follow') !== '0';
+    // `?follow=2` or `3` draws it that many times over, for seeing what it does.
+    { const asked = new URLSearchParams(location.search).get('follow'); this.scene.followThrough = asked === null ? 1 : Math.min(3, Math.max(0, Number(asked) || 0)); }
     // Bowled or stumped, the wicket is heard when the ball reaches it.
     this.scene.onStumps = () => this.audio.play('stumps');
     // The stars' keys first, so the moments' keys come after them in the page

@@ -278,7 +278,7 @@ export class GameScene {
    */
   private fire: THREE.Mesh[] = [];
   /** The batter's follow-through (`followThrough.ts`), off on `?follow=0`; and how far it has him from the stroke's own pose, for the checks. */
-  set followThrough(on: boolean) { this.batter.springy = on; }
+  set followThrough(strength: number) { this.batter.springy = strength > 0; this.batter.springiness = strength; }
   get followShown() { return this.batter.followShown; }
   /** Off with `?contact=0`: the dust at the pitch goes with the rest of the contact pack. */
   contactFx = true;
