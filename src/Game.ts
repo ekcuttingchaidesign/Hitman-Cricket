@@ -52,6 +52,7 @@ import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
+import { paceVersionOf } from './entities/Bowler';
 import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, SPIN_CUT_V2_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, spinCutVersionOf, flickVersionOf, flickBackFoot, FLICK_MEETS_AT, FLICK_V3_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
 import { COUNTED, countStroke, freshTally, strokeMarks } from './game/stroke-tally';
 import { advanceShot, steppedOut, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot, alwaysHowOut } from './game/ShotResolver';
@@ -712,6 +713,9 @@ export class Game {
   private pullVersion(): PullVersion {
     return this.pullAsked === 1 || this.pullAsked === 2 ? this.pullAsked : pullVersionOf(this.seed, this.score.balls);
   }
+  /** `?bowlv=1` or `2`: always that one of the fast bowler's two actions, for looking at one. Only the picture, so not practice. */
+  private readonly paceAsked = Number(new URLSearchParams(location.search).get('bowlv'));
+  private paceSecond = false;
   /** `?spincutv=1` or `2`: always that version of the cut off the spinner, for looking at one. Scored the same, so not practice. */
   private readonly spinCutAsked = Number(new URLSearchParams(location.search).get('spincutv'));
   /** `?flickv=1` or `2`: always that version of the flick, for looking at one. Practice, since version two is scored its own way. */
@@ -4579,7 +4583,9 @@ export class Game {
       this.scene.reset(true); this.input.reset();
       // After the reset, which hands the ball back to the quick bowler.
       this.scene.spinner(spun(this.delivery));
-      this.scene.express(!!this.delivery.express, !!this.delivery.death);
+      // The fast bowler's second action, in half his overs: only the picture (`PACE_ACTION_V2`).
+      this.paceSecond = !spun(this.delivery) && (this.paceAsked === 1 || this.paceAsked === 2 ? this.paceAsked : paceVersionOf(this.seed, Math.floor(this.score.balls / 6))) === 2;
+      this.scene.express(!!this.delivery.express, !!this.delivery.death, this.paceSecond);
       this.scene.round(!!this.delivery.round);
       this.showConfidence(); this.setPhase('BOWLER_RUNUP');
       // The first time a spinner comes on in this browser: the keeper is up
@@ -5040,7 +5046,7 @@ export class Game {
     this.scene.replayField(true, this.super10 ? this.s10.field?.men ?? null : null);
     this.scene.reset(); this.scene.homeField();
     this.scene.spinner(spun(kept.delivery));
-    this.scene.express(!!kept.delivery.express, !!kept.delivery.death);
+    this.scene.express(!!kept.delivery.express, !!kept.delivery.death, this.paceSecond);
     this.scene.round(!!kept.delivery.round);
     const start = this.elapsed, shift = start + times.release - kept.delivery.releaseTimeMs;
     replay.start = start;

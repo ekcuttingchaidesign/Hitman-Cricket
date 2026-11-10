@@ -282,6 +282,39 @@ export const PACE_ACTION: ActionStyle = {
 };
 
 /**
+ * The fast bowler's second action, bowled in half his overs (`paceVersionOf`):
+ * the classical side-on quick, built without a reference clip. The same run,
+ * clock, release point and moment as `PACE_ACTION`, so nothing about a ball
+ * or its timing moves; what differs is the shape. He leans into the run and
+ * pumps harder, bounds higher with the front knee driven up, lands side-on
+ * and arched back with the ball arm further behind him and the front arm
+ * reaching straight up, holds the chest closed until late and then comes
+ * over the top more upright, and goes through further: a deeper fold over the
+ * front leg, the back leg kicked up behind, turning and running off a little
+ * across the pitch.
+ */
+export const PACE_ACTION_V2: ActionStyle = {
+  gatherAngle: -2.7, whip: 2.9, release: .20, through: 2.85,
+  frontUp: .2, frontPull: -2.5, frontAfter: -2.05,
+  runTurn: .12, gatherTurn: 1.34, releaseTurn: -.55,
+  leap: .38, followDrop: .3,
+  coilBack: .3, coilLean: .45, coilHead: -.7,
+  fold: .34, foldLean: .4,
+  backKick: .55,
+  carry: 'run', lane: .34,
+  runLean: .14, pump: 1.4,
+  frontRise: [.5, .66], kneeDrive: 1.7, releaseTilt: .26, tiltFrom: FRONT_FOOT, armTilt: -.08, throughTilt: -.08,
+  open: 1.8, throughTurn: .8, releaseHead: 0, throughHead: .4, throughTwist: .3, frontTuck: .9, frontAfterReach: .7, frontTilt: -.16, frontAfterTilt: -.16, frontSync: 0,
+  kick: .35, kickHold: .3, followAcross: .4,
+};
+/** Which of the fast bowler's two actions an over is bowled with: half each, off the innings' seed and the over. */
+export function paceVersionOf(seed: number, over: number): 1 | 2 {
+  let h = (seed ^ 0x7b1d3f5) + Math.imul(over + 1, 0x9e3779b1);
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b); h ^= h >>> 13;
+  return (h >>> 0) % 2 ? 2 : 1;
+}
+
+/**
  * The Marathon's express bowler: a slinger, after a slow-motion reference of
  * the most famous one — the same run-up and clock, and everything else his own.
  *
@@ -586,7 +619,7 @@ export class Bowler {
     this.figure.hands[1].add(this.ball);
     this.ball.position.set(0, .045, .03);
     // Both actions measured now, while nobody is watching him.
-    this.reach(PACE_ACTION); this.reach(EXPRESS_ACTION); this.reach(DEATH_ACTION);
+    this.reach(PACE_ACTION); this.reach(PACE_ACTION_V2); this.reach(EXPRESS_ACTION); this.reach(DEATH_ACTION);
     this.reset();
   }
 

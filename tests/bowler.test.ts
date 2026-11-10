@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { ACTION_MS, Bowler, DEATH_ACTION, loopDrop, EXPRESS_ACTION, PACE_ACTION, PHASES, RELEASE_Z, RUNUP_START_Z, type ActionStyle } from '../src/entities/Bowler';
+import { ACTION_MS, Bowler, DEATH_ACTION, loopDrop, EXPRESS_ACTION, PACE_ACTION, PACE_ACTION_V2, paceVersionOf, PHASES, RELEASE_Z, RUNUP_START_Z, type ActionStyle } from '../src/entities/Bowler';
 import { Cricketer } from '../src/entities/Cricketer';
 import { GAME } from '../src/config/gameplay';
 import { ballPosition } from '../src/game/DeliveryTrajectory';
@@ -22,7 +22,7 @@ const POPPING_CREASE = 18.7 - GAME.creaseZ;
  * same moment, the arm is as straight, and no limb is let past its length —
  * so every test of the action is a test of both.
  */
-const ACTIONS: [string, ActionStyle][] = [['the fast bowler', PACE_ACTION], ['the express bowler', EXPRESS_ACTION], ['the death bowler', DEATH_ACTION]];
+const ACTIONS: [string, ActionStyle][] = [['the fast bowler', PACE_ACTION], ['the fast bowler, version two', PACE_ACTION_V2], ['the express bowler', EXPRESS_ACTION], ['the death bowler', DEATH_ACTION]];
 
 describe.each(ACTIONS)('the bowling action — %s', (_, style) => {
   beforeEach(() => bowler.action(style));
@@ -669,5 +669,23 @@ describe('an action he has not bowled before', () => {
     expect(fresh.figure.inspect()).toEqual(showing);
     fresh.runup(1);
     expect(Math.abs(said - fresh.releasePoint().x)).toBeLessThan(.005);
+  });
+});
+
+describe("the fast bowler's two actions", () => {
+  it('deals an over one or the other off the seed, about half each, the same every time', () => {
+    let second = 0;
+    for (let seed = 1; seed <= 200; seed++) for (let over = 0; over < 5; over++) {
+      const v = paceVersionOf(seed, over);
+      expect(paceVersionOf(seed, over)).toBe(v);
+      if (v === 2) second++;
+    }
+    expect(second).toBeGreaterThan(400); expect(second).toBeLessThan(600);
+  });
+  it('lets the ball go from the same place at the same moment in both', () => {
+    const bowler = new Bowler();
+    const at = (style: ActionStyle) => { bowler.action(style); bowler.reset(); bowler.animate(RUNUP_START_Z ? ACTION_MS * 0 : 0); return style.release; };
+    expect(at(PACE_ACTION_V2)).toBe(at(PACE_ACTION));
+    expect(PACE_ACTION_V2.lane).toBe(PACE_ACTION.lane);
   });
 });

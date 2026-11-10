@@ -1761,6 +1761,21 @@ both happen every time they can, and is practice.
 The bowler bowls bare-headed, with hair (`bareHead` on `Cricketer`): nobody
 bowls in a cap.
 
+The fast bowler has a second action (`PACE_ACTION_V2` in `Bowler.ts`), bowled
+in half his overs (`paceVersionOf` off the innings' seed and the over, so an
+over is one bowler's; never the spinner's, the sling bowler's or the death
+bowler's overs): the classical side-on quick, built without a reference clip.
+He leans into the run and pumps harder, bounds far higher with the front knee
+driven up and the front arm thrown straight up, lands side-on and arched
+back, holds the chest closed until late, and goes through further, the back
+leg kicked up as he turns and runs off across the pitch. The first cut of it
+nudged every number a little and could not be told from the first action on
+the sheet, as the express bowler's first cut could not: it has to be a
+different shape. Same run, clock, release point and moment, so no ball or
+timing moves; `?bowlv=1` or `2` asks for one and is not practice. It keeps
+every rule in `tests/bowler.test.ts`, and `bowler-sheet.html?actions=pace,pace2`
+draws the two a row each.
+
 A fielder dives at a ball along the ground only when a fielder would
 (`worthIt` in `Field.ground`): the ball at least `DIVE_FROM` from him, his
 hands down on its line no later than `DIVE_LATE` after it, and one man a
