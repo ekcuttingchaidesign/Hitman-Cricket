@@ -197,6 +197,14 @@ const STROKES: Record<string, Stroke> = {
     facts: ['off-spinner turning in', `${STROKE_DURATION_MS + SPIN_CUT_HOLD_MS} ms`],
     note: 'The cut at a spinner, off the same swipe as the cut: an off-spinner pitched outside off and turning in at him, or a leg-spinner pitched on leg and turning away. He makes the room himself: the back foot goes back and away towards leg, the front foot is drawn back with it and the stance opens wide, the weight on the back foot, the bat taken up high. The ball is met at 190 ms out in front of the off stump on the back foot, the bat coming down on it with the arms out straight and the face over the ball, and the hands go on through level towards point at 260, then up at 350 with the blade upright in front of his face. The hands never go over his head: they stop at the peak of the helmet, the elbows down either side of his face, while the bat tips out past his leg-side ear and lands at 520 across the opposite shoulder, the back of the blade to it, the face riding his hands all the way. Held there, as the hook is, it comes off the shoulder the way it went on, stands up in front of him and goes down into his guard.',
   },
+  spincut2: {
+    label: 'Cut off the spinner, v2', shot: 'SQUARE_CUT', charging: false, single: true, spinCut: true, pullVersion: 1, ball: { x: LINE_X.MIDDLE, y: .54, z: GAME.contactZ },
+    contact: SPIN_CUT_CONTACT_MS, end: STROKE_DURATION_MS + SPIN_CUT_HOLD_MS, bounceZ: 4.2,
+    phases: [['Stance', -LEAD_MS], ['Press', 60], ['Deep in the crease', 122], ['Late contact', SPIN_CUT_CONTACT_MS], ['Through', 258], ['Rising', 345], ['High finish', 440], ['Home', 900]],
+    out: { speed: .03, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.SQUARE_CUT), climb: 0 },
+    facts: ['off-spinner turning in', `${STROKE_DURATION_MS + SPIN_CUT_HOLD_MS} ms`],
+    note: 'The cut off the spinner, version two, half the time: the same room made and the same ball met, then the hands on out past point and up to the shoulders with both arms long, the bottom hand rolling over the top so the face turns down over the ball, and held there, the bat out towards point a little above level. Nothing goes near his head, so the way home is short. Scored exactly as version one.',
+  },
   spinpull: {
     label: 'Pull off the spinner', shot: 'LEG', charging: false, single: true, spinPull: true, ball: { x: LINE_X.MIDDLE, y: .81, z: GAME.contactZ + SPIN_PULL_MEETS_AT },
     contact: SPIN_PULL_CONTACT_MS, end: STROKE_DURATION_MS + SPIN_PULL_HOLD_MS, bounceZ: DRAGGED.bounce,

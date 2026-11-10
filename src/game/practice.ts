@@ -40,6 +40,8 @@ const ON: Record<string, (value: string) => boolean> = {
   coverv: v => v === '1' || v === '2' || v === '3',
   // The flick's version two is four at the most, so asking for one moves the score.
   flickv: v => v === '1' || v === '2',
+  // Every cut edged behind chopped on, every straight drive held hit back to the bowler: for looking at the two.
+  howout: v => v === '1',
 };
 
 /** Every switch the game reads that changes how an innings plays, by its name in the link. */

@@ -198,6 +198,9 @@ const ELBOW = ARM_UPPER * .5, KNEE = LEG_UPPER * .5;
 /** A limb: the tapered shaft, plus the joint balls that close both of its ends. */
 interface Limb { upper: THREE.Mesh; lower: THREE.Mesh; joint: THREE.Mesh; cap: THREE.Mesh; end: THREE.Group }
 
+/** How far a part of a waiting man moves before his clothes are fitted to him again, in metres. */
+const LAZY = .006;
+
 export class Cricketer {
   readonly root = new THREE.Group();
   private torso = new THREE.Group();
@@ -222,10 +225,15 @@ export class Cricketer {
    */
   private garments?: { jersey: ConnectedJersey; trousers: ConnectedTrousers; sleeves: BendingLimb[]; legs: BendingLimb[] };
   private draped = true;
+  /** The fielders' saving: see `drape`. */
+  private lazy = false; private fitted: THREE.Vector3[] = []; private fittedYaw = 0; private fittedLean = 0;
+  /** How many times the clothes have been fitted, for the tests. */
+  fits = 0;
   private limbStart = new THREE.Vector3();
   private palette: { role: DressRole; mat: THREE.Material }[] = [];
 
-  constructor(kit: Kit = KIT, { connected = false } = {}) {
+  constructor(kit: Kit = KIT, { connected = false, lazy = false } = {}) {
+    this.lazy = lazy;
     const skin = material(kit.skin, .86);
     const shirt = cloth(kit.shirt, .82);
     const trousers = cloth(kit.trousers, .8);
@@ -361,6 +369,28 @@ export class Cricketer {
     lid.add(new THREE.Mesh(HELMET.grille(), HELMET.metal));
   }
   private helmeted = false;
+
+  /**
+   * No cap, and a head of hair: the bowler's, since nobody bowls in a cap
+   * (he hands it to the umpire). A short crop, full on top and swept up at
+   * the front, closer at the back and sides. Its own dark material, which no
+   * kit repaints.
+   */
+  bareHead(colour = 0x1d1713) {
+    if (this.haired || this.helmeted) return;
+    this.haired = true;
+    for (const child of this.head.children) if ((child as THREE.Mesh).isMesh && child.userData.role === 'cap') child.visible = false;
+    const hair = material(colour, .92);
+    const lock = (scale: Point, at: Point, tip = 0) => {
+      const mesh = new THREE.Mesh(SHAPES.ball, hair);
+      mesh.scale.set(...scale); mesh.position.set(...at); mesh.rotation.x = tip; mesh.castShadow = true; this.head.add(mesh);
+    };
+    lock([.146, .082, .15], [0, .1, -.022]);
+    lock([.145, .112, .098], [0, .034, -.064]);
+    lock([.132, .05, .07], [0, .138, .058], -.42);
+    lock([.1, .034, .05], [0, .162, .03], -.2);
+  }
+  private haired = false;
 
   /**
    * The wicketkeeper's gear, on the clean build (`connected`): the helmet,
@@ -587,6 +617,16 @@ export class Cricketer {
   drape() {
     if (this.draped || !this.garments) return;
     this.draped = true;
+    if (this.lazy) {
+      // A man stood waiting barely moves, and bending his clothes to the rig is
+      // the dear part of him: they are left as they hang until some part of him
+      // has moved `LAZY` from where they were last fitted.
+      const pose = this.pose, now = [pose.hip, pose.chest, pose.leftHand, pose.rightHand, pose.leftFoot, pose.rightFoot];
+      const turned = Math.abs(pose.yaw - this.fittedYaw) + Math.abs(pose.lean - this.fittedLean);
+      if (this.fitted.length && turned < .01 && now.every((at, i) => at.distanceToSquared(this.fitted[i]) < LAZY * LAZY)) return;
+      this.fitted = now.map(at => at.clone()); this.fittedYaw = pose.yaw; this.fittedLean = pose.lean;
+      this.fits++;
+    }
     const { jersey, trousers, sleeves, legs } = this.garments;
     sleeves.forEach(sleeve => sleeve.draw()); legs.forEach(leg => leg.draw());
     jersey.update(this.torso, sleeves);

@@ -945,8 +945,8 @@ export class Fielder {
   /** A contact shadow, kept under his hips — which in a dive are metres from his feet. */
   patch?: THREE.Object3D;
   /** `connected`: the bowler's clean build, for Super10's captain. It wants `figure.drape()` before a frame is drawn. */
-  constructor(kit?: Kit, { connected = false } = {}) {
-    this.figure = new Cricketer(kit, { connected });
+  constructor(kit?: Kit, { connected = false, lazy = false } = {}) {
+    this.figure = new Cricketer(kit, { connected, lazy });
     this.root.name = 'Fielder';
     this.root.add(this.figure.root);
   }

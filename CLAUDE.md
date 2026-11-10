@@ -5,6 +5,16 @@ serverless functions over Upstash Redis behind them. `README.md` is the long
 document and explains the game, the boards and the careers; this file is only
 the things a session needs to know before it touches anything.
 
+## Telling the owner what to look at
+
+When a change is behind a switch on the link (`?bowlv=2`, `?howout=1`,
+`?polish=0`), give the owner the whole link for each one, preview address
+and switches together, ready to tap: never the bare switch with "add this to
+the link". They test on a phone, and editing an address by hand there is a
+nuisance (the owner asked for this on 10 November 2026). One link a line,
+with what it shows; where two switches belong together, one link carrying
+both.
+
 ## Going live
 
 `docs/LAUNCH.md` is the running order for shipping the career update: seed the
@@ -1552,6 +1562,35 @@ every over; `?spincut=1` (`spinCutsEvery`) gives him every ball in any mode,
 all of his on every line, the outside-leg ball included, and is practice. It is `spinCut` in the batter tests' `PLAYS`, and
 `cover-drive.html` has it beside the drives and the hook.
 
+## The cut off the spinner, version two
+
+The cut off the spinner comes in two versions, half each (`spinCutVersionOf`
+off the innings' seed and the ball, mixed apart from the other strokes'
+rolls), scored the same, so `?spincutv=1` or `2` asks for one and is not
+practice. Version one is the wrap onto the front shoulder, above. Version two
+(`SPIN_CUT_V2`, `SPIN_CUT_V2_CLOCK`, `spinCutV2` in `Batter.ts`) is built
+from a coaching clip the owner sent, side on from the off side
+(https://youtube.com/shorts/9rsfyC4m3ps): a small press forward with the
+front foot, then the back foot a long way back, deep in the crease, the
+front foot left out in front, so the feet are wide along the pitch where
+version one steps the front foot away to leg; down low on the back leg with
+the bat high; the ball let come and met late, beside him
+(`SPIN_CUT_V2_MEETS_AT` behind version one's contact, `meetsAt` in
+`src/Game.ts`), the arms long, the bat sloping down to it and the trunk leant
+out over it, steered square; then up out of the crouch as the chest comes
+round, to a high finish, the hands above the front shoulder and the blade
+back and up over it, clear of the helmet rather than wrapped down onto the
+shoulder. Held (`SPIN_CUT_HOLD_MS`, the clock slowed from its own finish),
+then upright in front of him and down into the guard. The first build of it,
+made without a reference and held out at full stretch past point, the owner
+called totally wrong: not to be built again. The swing asks for it as
+version 1 (2, every stroke's default, is the first build), so nothing that
+swung a cut at a spinner before plays it by accident. It is `spinCut2` in
+the batter tests' `PLAYS` and all their shared checks (the front leg
+over-stretched with the front foot further out, which they caught),
+`SPIN_CUT_V2` in `rig-sheet.html`, and `cover-drive.html` has it
+(`?stroke=spincut2`).
+
 ## The pull off the spinner
 
 The spinner drops one ball short every over (`DRAGGED`, `draggedPerOver` in
@@ -1709,6 +1748,94 @@ him and his tag, goes up under the score bar for this card (the `beside`
 branch of `spotlight` in the HUD lifts it whenever the outline would stand
 under it).
 GoatCounter counts `keeper-intro` and `-done` or `-skipped`.
+
+## Chopped on, and caught and bowled
+
+Two dismissals laid over the ones a ladder has already settled (`howOut` in
+`ShotResolver.ts`, called by `resolveShot` and `resolveSurvive`, in
+`tests/how-out.test.ts`), each a share of a wicket that had fallen anyway, so
+nobody is out more often for them and the sims do not move. A cut edged and
+caught behind (at pace or off the spinner) is, three times in ten
+(`CHOP_ON`), dragged off the inside edge onto his own stumps instead: CHOPPED
+ON — BOWLED!, drawn as every played-on ball is and replayed as bowled. A
+straight drive skied and held is, `RETURN_CATCH.share` of the time, hit back
+to the bowler: CAUGHT & BOWLED! (`returned` on the outcome). The ball goes
+back up the pitch to him and he takes it in both hands at his chest, out of
+his follow-through (`Field.bowlerCatches`, from `GameScene.hit`), the flight
+bent to end in his hands once he is free of his action; the catch camera
+leaves it to the game's own picture. The dice are thrown only once he is
+out, at the top of their range, so no ball he survives is moved and the
+older tests' low rolls still read the ladder under it. `?howout=1` makes
+both happen every time they can, and is practice.
+
+The bowler bowls bare-headed, with hair (`bareHead` on `Cricketer`): nobody
+bowls in a cap.
+
+The fast bowler has a second action (`PACE_ACTION_V2` in `Bowler.ts`), bowled
+in half his overs (`paceVersionOf` off the innings' seed and the over, so an
+over is one bowler's; never the spinner's, the sling bowler's or the death
+bowler's overs): the classical side-on quick, built without a reference clip.
+He leans into the run and pumps harder, bounds far higher with the front knee
+driven up and the front arm thrown straight up, lands side-on and arched
+back, holds the chest closed until late, and goes through further, the back
+leg kicked up as he turns and runs off across the pitch. The first cut of it
+nudged every number a little and could not be told from the first action on
+the sheet, as the express bowler's first cut could not: it has to be a
+different shape. Same run, clock, release point and moment, so no ball or
+timing moves; `?bowlv=1` or `2` asks for one and is not practice. It keeps
+every rule in `tests/bowler.test.ts`, and `bowler-sheet.html?actions=pace,pace2`
+draws the two a row each.
+
+The fast bowler's follow-through, in both his actions, is from two clips the
+owner sent of fast bowlers filmed from the batter's end
+(https://youtube.com/shorts/WZSryLWaMis, https://youtube.com/shorts/bsjdvnJqH_Y):
+the trunk folded about forty-five degrees over the braced front leg with the
+head kept up on the batter (`headPitch` tipped back against the fold), the
+bowling arm swept on down across the body and past the far hip (`through`),
+the back leg kicked up behind and swung through (`kick`, `backKick`), and
+then he runs on (`runOn`, `RUN_ON`, `runOff` in `Bowler.ts`): four strides
+down the pitch, each foot put down ahead of his hips and left where it
+landed, slowing evenly from the speed he leaves the fall at to a stand about
+a metre and a half further on, by `RAN_ON` of the follow-through. He used to
+take the one step and stand up where he was, which read as stiff. `runOff`
+sets his feet before `stand` settles his hips, or the hips are clamped to
+the marks the fall left a stride behind. Not the spinner, who bowls the same
+style standing, nor the sling and death bowlers, who keep theirs.
+
+The spinner has a second action too (`SPIN_ACTION_V2` in `Bowler.ts`), in
+half his overs (`spinVersionOf`): a leg-spinner, from a slow-motion clip the
+owner recorded and attached, read frame by frame with `ffmpeg` (a tiled
+sheet at four frames a second). The spinner's own short run (`SPIN_RUN`),
+bouncy, the ball cocked up beside his right ear and the other hand out in
+front of his chest (`carry: 'ear'`); a real hop, the hands coming together at
+the chest and parting, the front arm straight up and the ball arm down past
+his hip and behind; back foot down side-on, leant well back; a high arm; and
+the big follow-through, pitched right over the braced front leg, the back
+leg kicked up behind until it is nearly level (`kick`, `kickHold`), the front
+arm flung up behind him, then a few strides off across the pitch (`runOn`,
+which the first spinner, bowling the fast bowler's style, does not have).
+Two builds before it were made from a video tool's description of the same
+clip (a YouTube link) and were both wrong, in opposite ways: one jogged in
+from further back and spun round, one walked in with no jump and stood up.
+The tool's two readings contradicted each other and neither had the hand by
+the ear, the arm dropping low or the leg kick. A clip is to be looked at:
+ask for the file, pull frames out of it, and build from those. It is not in
+the fast bowlers' shared suite, whose rules about momentum into the crease
+and the arm's sweep are not a spinner's: `describe("the spinner's second
+action")` holds its release point to the first spinner's within a few
+centimetres, its limbs, its feet, its run, the hand by the ear and the kick.
+`?spinv=1` or `2` asks for one and is not practice;
+`bowler-sheet.html?actions=spin,spin2` draws the two a row each. `hop` on a
+style (a fraction of the foot lift through the bound) was added for the
+second build and is unused now.
+
+A fielder dives at a ball along the ground only when a fielder would
+(`worthIt` in `Field.ground`): the ball at least `DIVE_FROM` from him, his
+hands down on its line no later than `DIVE_LATE` after it, and one man a
+ball, the nearest. Before, two men went down either side of every drive, a
+man close in threw himself at where a ball had already been, and one it
+passed within half a metre dived away from it (the dive's target was put
+past his own feet).
 
 ## The late cut
 
@@ -2513,6 +2640,175 @@ practice. `snapshot().catchCam` says what is on. GoatCounter counts
 `catch-cam-catch`, `-drop`, `-spill`, `-field` and `-stumped`. `scripts/catch-check.mjs` skies a
 cover drive on `?cover=1&catchcam=1` and photographs it through
 (`MODE=survive` bats seeds until it has a drop as well, `MODE=super10`).
+
+## The bat meeting the ball
+
+Every ball the bat finds is felt (`src/game/contact.ts`, in
+`tests/contact.test.ts`): the doodles, the replays and the catch camera made
+the rare ball rich and left an ordinary well-timed stroke plain. `contactOf`
+names it off the outcome: `sweet` (PERFECT for four or six, or the charge
+out of the ground), `clean` (GOOD, or PERFECT for less), `soft` (the rest, and
+a block), `edge` (edged or onto the pad); none for a ball that missed or hit
+him. On the frame of contact (`strike` in `src/Game.ts`, beside the special
+stroke's flash): a knock in the hand (`buzz`: two for sweet, one shorter the
+worse it was hit, a double tick for an edge); a beat held on a boundary, the
+game's clock at `STOP_PACE` for 70ms of the page's clock on a middled six, 55
+on a four, 35 on a GOOD boundary and none otherwise (`stopLeft`, read in
+`timeScale`; never on the charge, which has its own slow motion); and chips
+off the blade the way the ball went. Only a special stroke that came off
+(`landedSpecial`: the charge, the slog sweep, a scoop for six) also pushes the
+camera in by a couple of degrees of its field of view and lets it back out
+(`pushAt`, `GameScene.struck`; only the picture, who fields is judged from
+`judge`): on every boundary it read as a camera shake, and the owner took it
+off the ordinary strokes. The bat's clips are
+voiced by it (`GameAudio.play`'s `voice`): played a touch faster or slower,
+drawn afresh each ball, softer the worse it was hit, with a low synthesized
+knock under a middled one (`thock`). Dust comes up where every ball pitches
+(`DUST`). The dust and the chips are `Puff` (`src/scene/puff.ts`): one
+`Points` each, a draw call only while a burst is up, every piece a
+closed-form flight off the game's clock so a held beat holds them.
+
+The ball is resolved before any of it, so it moves no score, window or seed,
+in any mode, a Rival Match included, and it is on under `?debug=1`. Reduced
+motion keeps the knock and the sound and drops the beat, the push, the chips
+and the dust. `?contact=0` turns all of it off, for holding the two side by
+side, and is not practice. `snapshot().contact` is the kind, the beat left
+and what is showing (`__cricket.contactShown()` between balls).
+`scripts/contact-check.mjs` drives a straight six on `?cover=1` frame by
+frame and then the same on `?contact=0&follow=0`.
+
+## The follow-through: weight in the body
+
+A stroke is keyed poses eased one to the next, so every part of him arrived
+and stopped on the same frame: accurate, and a little mechanical. The game's
+batter has weight laid over that (`src/entities/followThrough.ts`,
+`FollowThrough`, `springy` on `Batter`, in `tests/follow-through.test.ts`): the
+trunk's lean over the hips and the hips' height are each followed by a
+second-order spring (`FOLLOW.lean`, `FOLLOW.give`), so the trunk rocks on past
+a finish and settles, the knees give as the weight lands, and the head goes
+with the shoulders a moment late (`FOLLOW.head`). It is drawn in `apply`, on
+the way to the meshes: the pose kept, and the next stroke's start, are the
+stroke's own. Small by rule: the trunk within `FOLLOW.most` (5cm), the hips
+`down` 3.5cm and `up` 1.2 (a straight leg cannot lengthen), the trunk leant
+and never stretched. Two bumps a stroke, about three centimetres each: just
+after the ball and coming home into the guard.
+
+The grip, the bat's turn and the feet are never touched, and from the swing
+to the ball it is off altogether (`before`, `after`), so the bat meets the
+ball from exactly the body the stroke drew. After the ball the bat moves only
+where a stroke eases it clear of his helmet or body, which it now does from
+where they are drawn. The bat's toe was left out on purpose: sprung, it would
+turn the bat in his hands, which the batter tests hold every stroke against.
+Not in a film (`staged`) or a fall; a gap of more than `FOLLOW.gap` between
+frames (a pause, a replay staged) starts it again at rest, and a slow frame is
+taken in steps so it holds at any frame rate. Only the game's batter: the
+previews, the Dressing Room and the batter tests keep the poses as authored.
+`?follow=0` turns it off, for holding the two side by side, and `?follow=2`
+or `3` draws it that many times over, limits and all, for seeing what it
+does (the owner felt it at one and could not pick it out by eye); none is
+practice; `snapshot().follow` is how far it has him from the pose, and
+`contact-check` reads it.
+
+## The picture's finish
+
+Two small things laid over the scene as it was (`src/scene/polish.ts`, in
+`tests/polish.test.ts`), neither of them a post-processing pass, which an iPhone
+pays for every frame. **The dark under his boots** (`ContactShadows`): one
+mesh of a soft disc a boot, one draw call and no texture, moved each frame to
+where his soles are (`Batter.soles`), wider and fainter as a boot lifts and
+gone by `CONTACT.lifted`. It is laid `CONTACT.over` above the ground, over the
+strip, and is dark out to two fifths of its width, since the boot covers its
+middle and what shows is what is round it: at half the size, or fading from
+the centre, nothing of it showed. Everybody else already had a patch (`under`
+in `createGround`); he had only the sun's own shadow, which falls beside him.
+**A light along his edges** was built too, a line in his own shaders on the
+crown of the helmet, the shoulders and the tops of the pads, and taken out:
+on a phone the whitish shine made him look laminated, the owner said. Not to
+be built again. **The corners let fall away**
+(`.stage-vignette`, `is-night`): a still layer on the page over the canvas,
+no blend mode or filter, faint by day and deeper at night, where it makes the
+pitch a pool of light.
+
+**The richer light** (`RICH`, `RICH_NIGHT_HAZE` in `night.ts`, `relight` in
+`GameScene`) is the first step of redoing the whole picture, which the owner
+asked for after the two above changed too little: the batter, the bowler, the
+fielders, the pitch and the stands all at once, through the lights they
+share. By day the sun comes in lower and from the side, stronger and warmer,
+and the sky's own light is turned down and cooled, so every figure and stand
+has a lit side and a shaded one where they were evenly bright all over. By
+night the sky gives less, the floodlights and the far towers more, and the
+haze begins nearer, so the stands sink into the dark behind a lit ground: the
+stadium's stands had been as bright by night as by day. The shadow map is
+spent on the square and the ring (the men further out have their patch), so
+the batter's and the bowler's shadows are nearly twice as sharp. The arena
+keeps its own night (`ARENA_NIGHT`). Photographed on the stadium, the
+pavilion and the canopy.
+
+The owner liked the light ("feels like golden hour") and asked for two
+things on it. **A Test's day moves** (`DAY_ARC`, `dayArcAt` in `night.ts`, in
+`tests/day-arc.test.ts`; `dayAt` in `GameScene`, `dayNow` in `src/Game.ts`):
+morning to evening by the balls bowled: Survival's sixty, or twenty-five
+overs of a Marathon, the evening then held for ten more, and one over of
+dusk and dawn before the next morning (`marathonDay` in `night.ts`, the
+owner's pacing: the light turned down over three balls on the evening and
+brought back up over three on the morning, `dim` on `dayAt`, since evening
+one ball and morning the next was a cut), and round again every thirty-six
+overs. `?day=evening` (or `morning`, `noon`,
+`afternoon`, or a number from 0 to 1; `DAY_ASKED`) holds any innings played
+by day at that time, the Blast's too, and is not practice. The sun is low and
+cool-white from the off side at the start, overhead through the middle, in
+the afternoon the other games stand in, and low and golden from behind the
+leg side at the close, the dome's horizon warming with it. It is moved as
+each ball is bowled, and only the lights, the dome's two colours and the haze
+move: nothing a frame, no shader, and the reflections stay the day's. Only
+the light, so no ball is bowled differently and it is not practice.
+`__cricket.day(0.5)` puts it anywhere for looking at, until the next ball.
+**The outfield is level with the strip** (`createGround`): it lay 47mm under
+the strip's top, so from a replay's low camera the strip was a slab set down
+on the grass, with a dark side and the batter's shadow broken over its edge.
+It is laid just under the strip's top now, the standing blades lifted with
+it; everything else stands by the strip's top as it did. The creases are
+painted on the strip, two millimetres of white: as boxes they stood nineteen
+proud of it and read as raised bars.
+
+**The fielders are the bowler's build** (`connected` on `Field`, from
+`GameScene`): one shirt and one pair of trousers bent to the rig, as the
+bowler and the keeper wear, where they were tubes meeting in joint balls,
+which a replay's and the catch camera's lenses showed up. Half the meshes a
+man. Fitting the clothes to the rig is the dear part (about a third of a
+millisecond a man on a desktop), so a fielder's are fitted again only when
+some part of him has moved six millimetres from where they last were (`lazy`,
+`LAZY` in `Cricketer.ts`): men stood waiting cost nothing, and only those
+moving are fitted each frame. They wear a kit's print now, as the bowler
+does. Not yet timed on a phone.
+
+**The square and the strip's edge** (`groundsmans` and `feathered` in
+`turf.ts`, painted once, nothing a frame): the outfield has the table's
+other pitches either side of this one, straw where they have been used, the
+bowler's run-up worn in behind his crease, and the fielding ring in white
+dots (`RING`: fifteen metres round each wicket, the ground being smaller than
+a real one). The strip is its top face alone, see-through at its sides and
+ends with tufts rubbed in, so the grass grows in over it where a painted
+verge met the turf along a ruled line; it is drawn first of everything
+see-through (`renderOrder`), under the shadows laid on it.
+
+**The stadium redone** (`rich` on `stadium`, through `buildGround`; the
+stadium alone, the pavilion and the canopy having been drawn later): the
+steps dark (`STADIUM.deck`) and half as deep, so there are twice the rows,
+the seats closer (`RICH_PITCH`), a home crowd in the game's navy and orange
+among the whites (`HOME_CROWD`), a rail along the front of each tier, a light
+stair down every aisle and a navy band between the tiers where the grey
+glass was. Cream people on cream steps, a row every 1.4 metres, had read as a
+half-empty stand. Still one batch and one instanced crowd: about 2.3 times
+the people and two more draws of scenery (`tests/grounds.test.ts`). Not yet
+timed on a phone, and `scene-check`'s budget was not run on it.
+
+`?polish=0` turns all of it off, the light with it, for holding the two side by side, and is not
+practice. `__cricket.polish()` says what is showing. The owner saw no
+significant improvement from these two on a phone: they are kept as cheap,
+not as the answer to the fielders' and the stadium's look. Looked at with close
+crops and measured off the pixels (the turf beside a boot about a quarter
+darker): by eye at a phone's size the boot's dark is soft enough to miss.
 
 ## The bowled ball's streak
 

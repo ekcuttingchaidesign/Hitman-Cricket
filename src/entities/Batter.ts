@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { ADVANCE, CUT, GAME, LINE_X, PUNCH, SQUARE_DRIVE as SQUARE_DRIVE_BALL } from '../config/gameplay';
 import { solveJoint } from './rig';
+import { FOLLOW, FollowThrough } from './followThrough';
 import { bladeGeometry, gripGeometry } from './batGeometry';
 import { BendingLimb } from './BendingLimb';
 import { ConnectedJersey } from './ConnectedJersey';
@@ -550,6 +551,71 @@ const SPIN_CUT: Stroke & { load: Pose; rise: Pose; up: Pose; tip: Pose; off: Pos
     frontFoot: [-.16, .08, .18], backFoot: [-.05, .08, -.28],
     grip: [.22, 1.20, .36], batUp: [-.25, -.85, .45], batFace: [.20, .45, .87],
     yaw: .60, face: -.05, heel: .08, backFootYaw: .95, leadElbow: -.20 },
+};
+/**
+ * The cut off the spinner, version two, from a coaching clip the owner sent,
+ * filmed side on from the off side (the first build of it, held out at full
+ * stretch past point, was "totally wrong"). A small press forward with the
+ * front foot, then the back foot a long way back, deep in the crease, the
+ * front foot left out in front, so the feet are wide along the pitch (where
+ * version one steps the front foot away to leg), and he sinks low on the
+ * back leg with the bat high. The ball is let come: met late, beside him
+ * (`SPIN_CUT_V2_MEETS_AT` behind where version one meets it), the arms long,
+ * the bat sloping down to it from the hands and the trunk leant out over it
+ * to the off side, steered square rather than slashed. Then it flows up: out
+ * to off, up in front of him as he comes up out of the crouch and his chest
+ * comes round, and on to a high finish, the hands up above the front
+ * shoulder and the blade pointing back and up over it, clear of the helmet,
+ * not wrapped down onto the shoulder as version one's is. Held, then stood
+ * upright in front of him and let down into the guard.
+ *
+ * Asked for by the swing's version argument being 1 (2, every stroke's
+ * default, is the first build), so nothing that swung a cut at a spinner
+ * before this plays it by accident.
+ */
+export const SPIN_CUT_V2_MEETS_AT = -.22;
+const SPIN_CUT_V2_CLOCK = { press: 60, load: 122, contact: SPIN_CUT_CONTACT_MS, through: 258, rise: 345, finish: 440, hold: 650, upright: 770, lowered: 860 } as const;
+const V2_FEET = { frontFoot: [-.10, .08, .20] as Point, backFoot: [.0, .08, -.41] as Point };
+const SPIN_CUT_V2: Stroke & { press: Pose; load: Pose; rise: Pose; upright: Pose; lowered: Pose } = {
+  // The press: the front foot a little down the pitch, the bat starting up.
+  press: { ...BACKLIFT, hip: [-.04, .92, .0], chest: [.02, 1.27, .04],
+    frontFoot: [-.10, .08, .33], backFoot: [-.12, .08, -.25],
+    grip: [.29, 1.05, .09], batUp: [-.34, -.79, .54], batFace: [.45, .55, .70],
+    yaw: 1.22, face: .3, heel: .02, leadElbow: -.22 },
+  // Back deep in the crease and down on the back leg, the bat high.
+  load: { ...BACKLIFT, hip: [-.02, .80, -.24], chest: [.05, 1.14, -.20],
+    ...V2_FEET,
+    grip: [.39, 1.34, -.09], batUp: [-.15, -.85, .50], batFace: [.85, .05, .50],
+    yaw: 1.05, face: 1.0, heel: .0, backFootYaw: 1.25, toe: .05, leadElbow: -.10 },
+  // Late, beside him: low, the arms long, the bat sloping down to it, leant out over it.
+  contact: { ...GUARD, hip: [0, .75, -.27], chest: [.12, 1.05, -.24],
+    ...V2_FEET,
+    grip: [.34, .76, -.02], batUp: [-.74, .60, -.30], batFace: [.10, .40, .91],
+    yaw: 1.25, face: 1.2, heel: .0, backFootYaw: 1.25, toe: .06, leadElbow: 0, look: .12 },
+  // Steered on out to off, level,
+  through: { ...GUARD, hip: [0, .77, -.25], chest: [.13, 1.09, -.18],
+    ...V2_FEET,
+    grip: [.46, .96, .12], batUp: [-.97, .08, -.20], batFace: [.15, .20, .97],
+    yaw: .85, face: 1.0, heel: .02, backFootYaw: 1.2, toe: .06, leadElbow: 0, look: .08 },
+  // then up in front of him as he comes up out of the crouch,
+  rise: { ...GUARD, hip: [-.01, .83, -.21], chest: [.08, 1.17, -.12],
+    ...V2_FEET,
+    grip: [.34, 1.34, .30], batUp: [-.30, -.92, .22], batFace: [.10, -.20, .97],
+    yaw: .45, face: .6, heel: .05, backFootYaw: 1.1, toe: .04, leadElbow: -.05 },
+  // and on to the high finish: the hands above the front shoulder, the blade back and up over it.
+  finish: { ...GUARD, hip: [-.02, .87, -.13], chest: [.04, 1.22, -.05],
+    ...V2_FEET,
+    grip: [.16, 1.70, .34], batUp: [.58, -.74, -.22], batFace: [.45, -.10, .88],
+    yaw: .15, face: .25, heel: .09, backFootYaw: 1.0, leadElbow: -.10 },
+  // Home: upright in front of him, then let down into the guard.
+  upright: { ...GUARD, hip: [-.03, .92, -.10], chest: [.0, 1.27, -.03],
+    frontFoot: [-.10, .08, .30], backFoot: [-.06, .08, -.36],
+    grip: [.04, 1.62, .44], batUp: [0, -1, .10], batFace: [0, .10, 1],
+    yaw: .3, face: .1, heel: .06, backFootYaw: 1.0, leadElbow: -.10 },
+  lowered: { ...GUARD, hip: [-.05, .93, -.05], chest: [.01, 1.28, .01],
+    frontFoot: [-.10, .08, .28], backFoot: [-.11, .08, -.28],
+    grip: [.22, 1.20, .36], batUp: [-.25, -.85, .45], batFace: [.20, .45, .87],
+    yaw: .65, face: -.05, heel: .04, backFootYaw: .95, leadElbow: -.20 },
 };
 /** How far the spinner's cut will go for a ball: from outside leg, which is a long way to go, to wide of off. */
 const SPIN_CUT_REACH: readonly [number, number] = [-.30, .45];
@@ -1850,6 +1916,11 @@ export function loftVersionOf(seed: number, ball: number): LoftVersion {
 /** The pull's two versions: one standing where he hit it (`PULL_V1`), two the hook's stroke with the turn (`PULL`). */
 export type PullVersion = 1 | 2;
 /** How often each is played: half the pulls version one, half version two. Both score the same. */
+/** The cut off the spinner's two versions, half each: the wrap onto the shoulder, or held at full stretch (`SPIN_CUT_V2`). Scored the same. */
+export type SpinCutVersion = 1 | 2;
+export function spinCutVersionOf(seed: number, ball: number): SpinCutVersion {
+  return coverRoll(seed ^ 0x51c0de3, ball) < .5 ? 1 : 2;
+}
 export const PULL_ODDS: Record<PullVersion, number> = { 1: .5, 2: .5 };
 /** The version a ball plays, off the seed and the ball as the lofted drive's is, with a constant of its own. */
 export function pullVersionOf(seed: number, ball: number): PullVersion {
@@ -3034,6 +3105,8 @@ export class Batter {
   private punching = false;
   /** The cut off the spinner: see `SPIN_CUT`. */
   private spinCutting = false;
+  /** Its second version, held out at full stretch: see `SPIN_CUT_V2`. */
+  private spinCutV2 = false;
   /** The pull off the spinner, the caller having established that it is (`spinPull`). */
   private spinPulling = false;
   /** A cut at a ball up around the chest is played standing tall, not crouched. */
@@ -3072,6 +3145,20 @@ export class Batter {
   private anticipation = 0;
   /** Alive in his guard between balls: the game's batter is. See `WAGGLE`. */
   alive = false;
+  /**
+   * His trunk, hips and head carried a little past a stroke's poses and let
+   * settle (`followThrough.ts`): the game's batter only, and off on `?follow=0`.
+   */
+  springy = false;
+  /** How much of it is drawn: one as built, more for looking at it (`?follow=2`). Its limits scale with it. */
+  springiness = 1;
+  private follow = new FollowThrough();
+  /** Where each boot's sole is, front then back, in the scene's frame: for the dark under them (`polish.ts`). */
+  get soles() {
+    return this.legs.map(leg => leg.shoe.localToWorld(new THREE.Vector3(0, -.07, .08)));
+  }
+  /** How far the follow-through has him from the stroke's own pose, in metres: for the checks. */
+  get followShown() { return this.springy ? this.follow.shown : { lean: 0, give: 0 }; }
   /** What draws each wait's rhythm and whether it taps: the tests fix it. */
   idleRandom = Math.random;
   /** This wait in his guard: from when, its rhythm, and the tap under way or due. */
@@ -3486,7 +3573,7 @@ export class Batter {
     this.poseAge = Infinity; this.resetDue = false;
     this.felledAt = -Infinity;
     this.celebratedAt = -Infinity; this.afterward = null; this.admiring = false; this.struck = null; this.followed = null;
-    this.swingStart = -Infinity; this.contactTime = -Infinity; this.pulling = false; this.backDefence = false; this.punching = false; this.cutting = false; this.spinCutting = false; this.spinPulling = false; this.squaring = false; this.lofted = false; this.sweeping = false; this.levelled = false; this.charging = false; this.stranded = false;
+    this.swingStart = -Infinity; this.contactTime = -Infinity; this.pulling = false; this.backDefence = false; this.punching = false; this.cutting = false; this.spinCutting = false; this.spinCutV2 = false; this.spinPulling = false; this.squaring = false; this.lofted = false; this.sweeping = false; this.levelled = false; this.charging = false; this.stranded = false;
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
   }
   /** The stroke last played, as `afterBall` needs it. */
@@ -3542,6 +3629,7 @@ export class Batter {
     // The spinner's cut, the caller having established the ball is a spinner's (`spinCut`).
     this.spinCutting = !charging && shot === 'SQUARE_CUT' && spinCut;
     if (this.spinCutting) this.cutting = false;
+    this.spinCutV2 = this.spinCutting && version === 1;
     // Wide and full off the off-side input: drive it square rather than through
     // cover. Charging overrides it, the way it overrides every other variation.
     this.squaring = !charging && shot === 'COVER_LONG_OFF'
@@ -3870,8 +3958,8 @@ export class Batter {
       age = faced + (age - faced) * (STROKE_DURATION_MS - faced) / (STROKE_DURATION_MS + HOOK_HOLD_MS - faced);
     }
     // And the spinner's cut once the bat is on his shoulder: see `SPIN_CUT_HOLD_MS`.
-    else if (this.spinCutting && age > SPIN_CUT_CLOCK.finish) {
-      const { finish } = SPIN_CUT_CLOCK;
+    else if (this.spinCutting && age > (this.spinCutV2 ? SPIN_CUT_V2_CLOCK : SPIN_CUT_CLOCK).finish) {
+      const { finish } = this.spinCutV2 ? SPIN_CUT_V2_CLOCK : SPIN_CUT_CLOCK;
       age = finish + (age - finish) * (STROKE_DURATION_MS - finish) / (STROKE_DURATION_MS + SPIN_CUT_HOLD_MS - finish);
     }
     // And the pull off the spinner once the bat is behind his head: see `SPIN_PULL_HOLD_MS`.
@@ -3923,7 +4011,7 @@ export class Batter {
       : this.charging ? { contact: CHARGE_CONTACT, finish: CHARGE_FINISH }
       : this.sweeping ? (this.levelled ? FLAT_SWEEP : SLOG_SWEEP) : this.pulling ? (this.pullV2 ? PULL : PULL_V1) : this.cutting ? CUT_HIGH
       : this.squaring ? SQUARE_DRIVE : this.lofted ? (this.shot === 'LONG_ON' ? ON_LOFT : this.straightLoftV2 ? STRAIGHT_LOFT_V2 : STRAIGHT_LOFT)
-      : this.spinCutting ? SPIN_CUT : this.spinPulling ? (this.ballY < SPIN_PULL_LOW_BALL ? SPIN_PULL_LOW : SPIN_PULL)
+      : this.spinCutting ? (this.spinCutV2 ? SPIN_CUT_V2 : SPIN_CUT) : this.spinPulling ? (this.ballY < SPIN_PULL_LOW_BALL ? SPIN_PULL_LOW : SPIN_PULL)
       : this.shot === 'SCOOP' ? SCOOP : this.shot === 'REVERSE_SCOOP' ? REVERSE_SCOOP : this.shot === 'HOOK' ? HOOK : this.punching ? PUNCH_STROKE
       : this.shot === 'COVER_LONG_OFF' && this.coverVersion === 1 ? COVER_DRIVE_V1
       : this.shot === 'COVER_LONG_OFF' && this.coverVersion === 3 ? COVER_DRIVE_V3 : this.backDefence ? DEFENCE_BACK : this.flickV2 ? FLICK_V2 : this.flickV3 ? FLICK_V3 : STROKES[this.shot];
@@ -4215,6 +4303,24 @@ export class Batter {
       pose.bat = this.riding(0, poseAt, start, [hold, STROKE_DURATION_MS], age, [
         { window: [load, met], away: () => new THREE.Vector3(0, 0, 1) },
         { window: [leg, end], away: (wrap, up) => V(wrap.grip).addScaledVector(up, -.45).sub(shoulderOf(wrap, 0)) },
+      ]);
+      this.apply(pose);
+      return;
+    }
+    if (this.spinCutV2) {
+      const { press, load, contact: met, through, rise, finish: end, hold, upright, lowered } = SPIN_CUT_V2_CLOCK;
+      const out = [{ time: 0, pose: this.swingFrom }, { time: press, pose: reachPose(SPIN_CUT_V2.press) }, { time: load, pose: reachPose(SPIN_CUT_V2.load) }, { time: met, pose: contact },
+        { time: through, pose: reachPose(SPIN_CUT_V2.through!) }, { time: rise, pose: reachPose(SPIN_CUT_V2.rise) }, { time: end, pose: finish }];
+      const home = [{ time: hold, pose: finish }, { time: upright, pose: reachPose(SPIN_CUT_V2.upright) }, { time: lowered, pose: reachPose(SPIN_CUT_V2.lowered) }, { time: STROKE_DURATION_MS, pose: GUARD }];
+      const poseAt = (at: number): Pose => at < end ? flowing(out, at) : at < hold ? finish : flowing(home, at);
+      const pose = { ...poseAt(age) };
+      const straight = batOrientation(STROKES.STRAIGHT.contact);
+      const start = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(straight), UP.clone().applyQuaternion(batOrientation(this.swingFrom))).multiply(straight);
+      pose.bat = this.riding(0, poseAt, start, [hold, STROKE_DURATION_MS], age, [
+        // The face opened down on the ball as it comes down to it, as version one's is,
+        { window: [0, met], away: () => new THREE.Vector3(.3, -.5, .8) },
+        // and the back of the blade towards the front shoulder by the finish.
+        { window: [rise, end], away: (wrap, up) => V(wrap.grip).addScaledVector(up, -.45).sub(shoulderOf(wrap, 0)) },
       ]);
       this.apply(pose);
       return;
@@ -4605,7 +4711,17 @@ export class Batter {
   }
 
   private apply(pose: Pose) {
+    // The pose kept is the stroke's own: the next stroke starts from it, not from the follow-through's.
     this.pose = pose;
+    let nod = 0, tilt = 0;
+    if (this.springy && this.staged === null && !this.felled) {
+      // Off from the swing to the ball, and back once the bat has met it.
+      const met = this.lastNow - this.contactTime, swung = this.lastNow - this.swingStart;
+      const weight = met >= 0 ? THREE.MathUtils.smoothstep(met, 0, FOLLOW.after) : 1 - THREE.MathUtils.smoothstep(swung, 0, FOLLOW.before);
+      const drawn = this.follow.step(this.lastNow, pose.hip, pose.chest, weight * this.springiness);
+      pose = { ...pose, hip: drawn.hip as Point, chest: drawn.chest as Point };
+      ({ nod, tilt } = drawn);
+    } else this.follow.reset();
     const hip = V(pose.hip), chest = V(pose.chest);
     const yaw = new THREE.Quaternion().setFromAxisAngle(UP, pose.yaw);
     const spine = chest.clone().sub(hip).normalize();
@@ -4614,6 +4730,8 @@ export class Batter {
     this.torso.quaternion.setFromUnitVectors(UP, spine).multiply(yaw);
     this.head.position.copy(chest).addScaledVector(spine, .31).add(new THREE.Vector3(.01, .01, .025));
     this.head.rotation.set(.09 + (pose.headDown ?? 0), pose.face, -.04);
+    // Going with the shoulders a moment late: the follow-through's.
+    if (nod || tilt) { this.head.rotateX(nod); this.head.rotateZ(tilt); }
     if (pose.look) this.head.rotateX(pose.look);
     this.bat.position.set(...pose.grip);
     // Hands clear of the helmet. The cover drive's high finish carried the
@@ -5226,6 +5344,8 @@ export class Batter {
       knees: this.legs.map(leg => leg.knee.position.toArray()),
       shoulders: this.arms.map(arm => arm.shoulder.toArray()),
       chest: [...this.pose.chest], hip: [...this.pose.hip],
+      // Where the trunk and the hips are drawn, which the follow-through may have moved off the pose.
+      drawnChest: this.torso.position.toArray(), drawnHip: this.hips.position.toArray(),
       armLengths: this.arms.map(arm => [arm.upper.scale.y, arm.lower.scale.y]),
       elbowCoverage: this.arms.map(arm=>Math.min(arm.elbow.scale.x,arm.elbow.scale.y,arm.elbow.scale.z)
         - Math.max(arm.upper.scale.x,arm.upper.scale.z)*.5),

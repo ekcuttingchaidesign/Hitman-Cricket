@@ -44,6 +44,10 @@ export const STADIUM = {
   soffit: 0xc4b6dc,
   /** The tunnels into the lower tier. */
   tunnel: 0x3b3936,
+  /** The steps under the seats, redone (`rich`): dark, so the crowd stands out from them where it sat cream on cream. */
+  deck: 0x4c5661,
+  /** The band between the tiers, redone: the home side's navy in place of grey glass. */
+  band: 0x1c3f7a,
   /** Lamp housings and tower heads. */
   frame: 0x3a4650,
   /** The lamps: lit, a warm white that glows a little even by day (see `lampFinish`). */
@@ -55,6 +59,8 @@ export const STADIUM = {
  * a full ground on a warm day looks like from the middle — but never only
  * those, or the stands read as empty seats rather than people in them.
  */
+/** The redone stadium's crowd (`rich`): a home crowd in the game's navy and orange among the whites, which read against the dark steps. */
+const HOME_CROWD = [0xf4f1ea, 0x1f4f8f, 0xff7a2a, 0xe8e2d2, 0x2b6cb5, 0xffffff, 0x163a66, 0xf2b84b, 0xc9d7de, 0xd9412e, 0x2f7d4a] as const;
 const CROWD = [0xf2ede1, 0x2f5d46, 0xe0d8c4, 0xc9d7de, 0x4a7a5e, 0xefe2bf, 0xf7f4ec, 0x7d9a8c, 0x2b4a63];
 
 /**
@@ -73,6 +79,13 @@ export interface StandsOptions {
   towers?: boolean;
   roofLamps?: boolean;
   commentary?: boolean;
+  /**
+   * The stadium redone, as the pavilion and the canopy were: dark steps, half
+   * as deep so there are twice the rows, the seats closer, a home crowd's
+   * colours, a rail along the front of each tier, a lighter stair down every
+   * aisle and a navy band between the tiers. Still one batch and one crowd.
+   */
+  rich?: boolean;
   /** A crowd that is never still (`crowdLife.ts`): its own materials, moved in their shaders. */
   lively?: boolean;
 }
@@ -113,6 +126,8 @@ const UPPER_Z = 3.4, UPPER_Y = 5.3, UPPER_STEP = { z: 1.2, y: 0.6 };
 export const EAVES = UPPER_Y + UPPER * UPPER_STEP.y + 1.6;
 /** How far either side of the middle the seats behind the sightscreen are covered. */
 const COVERED = 3.8;
+/** How far apart the redone stadium's seats are across a row. */
+const RICH_PITCH = 0.62;
 /** Half the width of the aisle down the middle of every section. */
 const AISLE = 0.4;
 
@@ -146,7 +161,7 @@ export interface StadiumLights {
 
 /** Builds the stadium onto `world`, the stage's own frame: the bowler's end is +z. */
 export function stadium(world: THREE.Object3D, options: StandsOptions = {}): StadiumLights {
-  const { end, section: own, crowd: shirts = CROWD, towers = true, roofLamps = true, commentary: box = true, lively = false } = options;
+  const { end, section: own, rich = false, crowd: shirts = rich ? HOME_CROWD : CROWD, towers = true, roofLamps = true, commentary: box = true, lively = false } = options;
   const b = new Batch();
   const lights: StadiumLights = { lamps: lampFinish(), roof: [], towers: [] };
   const seats: THREE.Matrix4[] = [];
@@ -165,7 +180,7 @@ export function stadium(world: THREE.Object3D, options: StandsOptions = {}): Sta
       new THREE.Vector3(1, 1, 1),
     );
     if (own) own(b, seat, frame, section, lights);
-    else stand(b, seat, frame, section, lights, roofLamps);
+    else stand(b, seat, frame, section, lights, roofLamps, rich);
   }
   sightscreen(b);
   if (box) commentary(b);
@@ -199,10 +214,10 @@ export function stadium(world: THREE.Object3D, options: StandsOptions = {}): Sta
 }
 
 /** The seats across a row `w` wide, either side of the aisle down the middle. */
-function across(w: number, skip: (x: number) => boolean, place: (x: number) => void) {
-  const count = Math.floor((w - 0.4) / 0.71);
+function across(w: number, skip: (x: number) => boolean, place: (x: number) => void, pitch = 0.71) {
+  const count = Math.floor((w - 0.4) / pitch);
   for (let col = 0; col < count; col++) {
-    const x = -(count - 1) * 0.355 + col * 0.71;
+    const x = -(count - 1) * pitch / 2 + col * pitch;
     if (Math.abs(x) < AISLE || skip(x)) continue;
     place(x);
   }
@@ -213,13 +228,22 @@ function across(w: number, skip: (x: number) => boolean, place: (x: number) => v
  * a tunnel into the middle of its lower tier, so the ring has the rhythm a
  * real stand has rather than one unbroken band of crowd.
  */
-function stand(b: Batch, seat: (frame: THREE.Matrix4, x: number, y: number, z: number, n: number) => void, frame: THREE.Matrix4, section: number, lights: StadiumLights, lamps: boolean) {
-  const { concrete, paint, steel, glass, cover, tunnel } = STADIUM;
+function stand(b: Batch, seat: (frame: THREE.Matrix4, x: number, y: number, z: number, n: number) => void, frame: THREE.Matrix4, section: number, lights: StadiumLights, lamps: boolean, rich = false) {
+  const { concrete, paint, steel, cover, tunnel, deck } = STADIUM;
+  const glass = rich ? STADIUM.band : STADIUM.glass;
   const behindTheBowler = section === 0, tunnelled = section % 2 === 1;
   let n = section * 31;
 
+  // Redone: every step half as deep, so twice the rows, on dark steps with a light stair down the aisle.
+  if (rich) for (let row = 0; row < LOWER * 2; row++) {
+    const top = 0.525 + row * 0.35, z = -2.05 + row * 0.7, w = span(z);
+    b.box(w, top, 0.7, deck, 0, top / 2, z, frame);
+    b.box(AISLE * 2 - 0.1, 0.06, 0.7, concrete, 0, top + 0.03, z, frame);
+    const inTunnel = tunnelled && row >= 2 && row <= 5;
+    across(w, x => (behindTheBowler && Math.abs(x) < COVERED) || (inTunnel && Math.abs(x) < 1.2), x => seat(frame, x, top + 0.3, z, n++), RICH_PITCH);
+  }
   // The lower tier, raking back from the rope.
-  for (let row = 0; row < LOWER; row++) {
+  else for (let row = 0; row < LOWER; row++) {
     const top = 0.7 + row * 0.7, z = -1.7 + row * 1.4, w = span(z);
     b.box(w, top, 1.4, concrete, 0, top / 2, z, frame);
     const inTunnel = tunnelled && row >= 1 && row <= 2;
@@ -244,8 +268,19 @@ function stand(b: Batch, seat: (frame: THREE.Matrix4, x: number, y: number, z: n
   b.box(wb, 0.4, 2.2, paint, 0, UPPER_Y - 0.35, UPPER_Z - 0.6, frame);
   b.box(wb, UPPER_Y, 1, concrete, 0, UPPER_Y / 2, back + 0.6, frame);
 
+  if (rich) {
+    // A rail along the front of each tier.
+    b.box(span(-2.4), 0.07, 0.07, steel, 0, 1.25, -2.42, frame);
+    b.box(wb, 0.07, 0.07, steel, 0, UPPER_Y + 0.75, UPPER_Z - 1.65, frame);
+    for (let row = 0; row < UPPER * 2; row++) {
+      const z = UPPER_Z - 0.3 + row * 0.6, y = UPPER_Y - 0.15 + row * 0.3, w = span(z);
+      b.box(w, 0.5, 0.6, deck, 0, y - 0.25, z, frame);
+      b.box(AISLE * 2 - 0.1, 0.06, 0.6, concrete, 0, y + 0.03, z, frame);
+      across(w, () => false, x => seat(frame, x, y + 0.3, z, n++), RICH_PITCH);
+    }
+  }
   // The upper tier, overhanging the boxes.
-  for (let row = 0; row < UPPER; row++) {
+  else for (let row = 0; row < UPPER; row++) {
     const z = UPPER_Z + row * UPPER_STEP.z, y = UPPER_Y + row * UPPER_STEP.y, w = span(z);
     b.box(w, 0.5, UPPER_STEP.z, concrete, 0, y - 0.25, z, frame);
     across(w, () => false, x => seat(frame, x, y + 0.3, z, n++));

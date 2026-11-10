@@ -95,6 +95,8 @@ export interface ShotOutcome {
   sweptFlat?: boolean;
   /** Pulled off the spinner, between midwicket and square leg: see `SPIN_PULL`. */
   spinPulled?: boolean;
+  /** Hit back to the bowler and held: caught and bowled (`RETURN_CATCH`). */
+  returned?: boolean;
   /** Killed under the eyes: it goes nowhere, and it cannot be caught. */
   defended?: boolean;
   /** Feathered off the face of the bat and taken by the keeper. */

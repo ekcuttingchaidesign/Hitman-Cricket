@@ -2917,6 +2917,9 @@ body.survive-mode #scoreboard{display:none}
    keeping a slow beat, the podium rising, feathers drifting — and all of it
    boils with the rest of the pen. */
 .stage-underlay{position:absolute;inset:0;z-index:1;pointer-events:none}
+/* The corners of the picture let fall away (`polish.ts`): a still layer over the canvas, no blend mode and no filter, so it costs a phone nothing a frame. */
+.stage-vignette{position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(125% 88% at 50% 56%,rgba(6,14,28,0) 52%,rgba(6,14,28,.14) 76%,rgba(6,14,28,.36) 100%)}
+.stage-vignette.is-night{background:radial-gradient(118% 82% at 50% 58%,rgba(2,6,18,0) 42%,rgba(2,6,18,.26) 72%,rgba(2,6,18,.6) 100%)}
 .stage>canvas.stage-cut{z-index:1;pointer-events:none}
 .milestone-under{z-index:auto}
 .cy-ribbon{font-family:var(--cta);text-anchor:middle;letter-spacing:.06em;fill:#1b1f4a}

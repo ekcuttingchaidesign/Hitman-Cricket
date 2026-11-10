@@ -1,6 +1,7 @@
 import { handleOf, ownsHandle } from './game/handle';
 import { Presence, liveNow, onLive, type Doing } from './game/live-api';
 import { watchLive } from './ui/LiveMarks';
+import { marathonDay } from './scene/night';
 import { fetchActivity, fetchProfile, saveBio, type OwnActivity, type ProfilePayload } from './game/profile-api';
 import { noticesOf, readSeen, unseenCount, writeSeen, type Notice, type NoticeFilter } from './game/notices';
 import { cleanBio } from './server/bio-rules';
@@ -15,6 +16,7 @@ import { TopSpot } from './ui/TopSpot';
 import { chaseEndOf, verdictOf, type VerdictKind, type VerdictView } from './game/match-end';
 import { Verdict } from './ui/MatchEnd';
 import { buzz } from './game/haptics';
+import { contactOf, STOP_PACE, type Contact } from './game/contact';
 import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME, STYLES, SWIPE_ZONES } from './config/gameplay';
@@ -50,9 +52,10 @@ import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
-import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, flickVersionOf, flickBackFoot, FLICK_MEETS_AT, FLICK_V3_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
+import { paceVersionOf, spinVersionOf } from './entities/Bowler';
+import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, SPIN_CUT_V2_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, spinCutVersionOf, flickVersionOf, flickBackFoot, FLICK_MEETS_AT, FLICK_V3_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
 import { COUNTED, countStroke, freshTally, strokeMarks } from './game/stroke-tally';
-import { advanceShot, steppedOut, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
+import { advanceShot, steppedOut, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot, alwaysHowOut } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './game/types';
 import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
@@ -217,6 +220,20 @@ const DECLINE_UNDO_MS = 5000;
  * `?mode=SURVIVE` still works, so the mode stays one link away for anyone
  * testing it. It is hidden, not removed.
  */
+/**
+ * `?day=evening` (or `morning`, `noon`, `afternoon`, or a number from 0 to 1)
+ * holds an innings at that time of day, in any game played by day: for
+ * looking at a light, and for whoever likes batting in it. Only the light.
+ */
+/** `?howout=1`: the two dismissals laid over a wicket (`howOut`) every time they can be. Practice. */
+alwaysHowOut(new URLSearchParams(location.search).get('howout') === '1');
+const DAY_ASKED = (() => {
+  const asked = new URLSearchParams(location.search).get('day')?.toLowerCase();
+  if (!asked) return null;
+  const named = ({ morning: 0, noon: 0.42, midday: 0.42, afternoon: 0.78, evening: 1 } as Record<string, number>)[asked];
+  const at = named ?? Number(asked);
+  return Number.isFinite(at) ? Math.min(1, Math.max(0, at)) : null;
+})();
 const SHOW_SURVIVE = SURVIVE_ONLY || !!import.meta.env.VITE_SHOW_SURVIVE;
 /**
  * Whether the Test Marathon has a card on the picker.
@@ -565,6 +582,12 @@ export class Game {
   private boardActions = false;
   private presentationAt = 0; private resultPresented = false;
   private contactAt = 0; private contactPlayed = false; private resolveEndsAt = 0;
+  /**
+   * How the ball in play was hit (`contact.ts`), and the beat still held on
+   * it, in ms of the page's clock. `?contact=0` turns the whole pack off.
+   */
+  private contact: Contact | null = null; private stopLeft = 0;
+  private readonly contactOn = new URLSearchParams(location.search).get('contact') !== '0';
   /** -1 outside the tutorial, otherwise the ball being coached. */
   private lesson = -1;
   private scene!: GameScene;
@@ -690,6 +713,13 @@ export class Game {
   private pullVersion(): PullVersion {
     return this.pullAsked === 1 || this.pullAsked === 2 ? this.pullAsked : pullVersionOf(this.seed, this.score.balls);
   }
+  /** `?bowlv=1` or `2`: always that one of the fast bowler's two actions, for looking at one. Only the picture, so not practice. */
+  private readonly paceAsked = Number(new URLSearchParams(location.search).get('bowlv'));
+  /** `?spinv=1` or `2`: always that one of the spinner's two actions. Only the picture, so not practice. */
+  private readonly spinAsked = Number(new URLSearchParams(location.search).get('spinv'));
+  private paceSecond = false;
+  /** `?spincutv=1` or `2`: always that version of the cut off the spinner, for looking at one. Scored the same, so not practice. */
+  private readonly spinCutAsked = Number(new URLSearchParams(location.search).get('spincutv'));
   /** `?flickv=1` or `2`: always that version of the flick, for looking at one. Practice, since version two is scored its own way. */
   private readonly flickAsked = Number(new URLSearchParams(location.search).get('flickv'));
   /**
@@ -790,6 +820,10 @@ export class Game {
     // who was handed the link to give an opinion on the batting.
     if (!NO_BOARD) void this.loadBoard();
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
+    this.scene.contactFx = this.contactOn;
+    // The batter's follow-through, off on `?follow=0` for holding the two side by side: only how he is drawn.
+    // `?follow=2` or `3` draws it that many times over, for seeing what it does.
+    { const asked = new URLSearchParams(location.search).get('follow'); this.scene.followThrough = asked === null ? 1 : Math.min(3, Math.max(0, Number(asked) || 0)); }
     // Bowled or stumped, the wicket is heard when the ball reaches it.
     this.scene.onStumps = () => this.audio.play('stumps');
     // The stars' keys first, so the moments' keys come after them in the page
@@ -1122,6 +1156,10 @@ export class Game {
       // The arena's mood and what it is showing, and any of its moments on
       // demand, for photographing them without batting to them.
       arena: () => this.scene.arenaState,
+      contactShown: () => this.scene.contactShown,
+      // A Test's day put anywhere from morning (0) to evening (1), for looking at it; null lets the innings have it back.
+      day: (at: number | null) => { this.scene.dayAt(at); return this.scene.dayShown; },
+      polish: () => this.scene.polishShown,
       arenaCue: (kind: ArenaCue | 'wave' | 'stumps' | 'diwali', word?: string) => this.scene.arenaCue(kind, this.elapsed, word),
       // The Test look, for the checks: the green strip down, or the Blast's.
       greenTop: () => this.scene.greenTop,
@@ -2647,12 +2685,28 @@ export class Game {
    * stumps (`brand`); a Test by day at the pavilion, the stadium or the
    * canopy; the Blast at the pavilion or the stadium by the player's clock.
    */
+  /**
+   * How far through its day a Test innings is, morning to evening (`DAY_ARC`
+   * in `night.ts`): by the balls bowled, Survival's sixty, or twenty-five
+   * overs of a Marathon, which then starts the next day's morning and goes
+   * round again. Null in every other game, whose day stands still, unless the
+   * link asks for a time (`DAY_ASKED`). Only the light: no ball is bowled
+   * differently for it.
+   */
+  private get dayNow(): { at: number; dim: number } | null {
+    if (DAY_ASKED !== null) return { at: DAY_ASKED, dim: 1 };
+    if (!this.test || this.lesson >= 0) return null;
+    return this.marathon ? marathonDay(this.score.balls) : { at: Math.min(1, this.score.balls / SURVIVE.totalBalls), dim: 1 };
+  }
+  /** The scene's light put where the day has got to. */
+  private lightDay() { const day = this.dayNow; this.scene.dayAt(day ? day.at : null, day?.dim); }
   private light(time: SkyTime) {
     const game = this.super10 ? 'super10' : this.test ? 'test' : 'blast';
     if (game === 'super10') time = 'night';
     this.scene.stands(groundFor(ASKED_GROUND, game, VENUE_COIN[game === 'test' ? 'test' : 'blast']));
     this.scene.brand(this.super10);
     this.scene.time(time);
+    this.lightDay();
     this.hud.bigScreen(this.scene.bigScreen, this.scene.screenMoments);
   }
   /** What the arena's big screen says between moments: the game, the score, the over and, in Super10, who is in. */
@@ -2737,6 +2791,7 @@ export class Game {
    * answers, for trying the hook every ball. See `bouncersEvery`.
    */
   private hooksOnly = new URLSearchParams(location.search).get('hooks') === '1';
+
   /**
    * `?spincut=1`: every ball the spinner's, all of his on every line, for
    * trying the cut off the spinner every ball. See `spinCutsEvery`.
@@ -3125,7 +3180,11 @@ export class Game {
     this.flickPlayed = flicking;
     // At the spinner the cut is played making room for it: see `SPIN_CUT`.
     const cutting = !charging && spinCut(this.delivery!, this.attempt);
-    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, version, this.meetsAt, cutting, spinPulling);
+    // Its second version is asked of the swing as version 1 (2, the default, is the first build): see `SPIN_CUT_V2`.
+    const swung = cutting ? ((this.spinCutAsked === 1 || this.spinCutAsked === 2 ? this.spinCutAsked : spinCutVersionOf(this.seed, this.score.balls)) === 2 ? 1 : 2) : version;
+    // Version two lets the ball come and meets it late, beside him.
+    if (cutting && swung === 1) this.meetsAt = 1 - SPIN_CUT_V2_MEETS_AT / (GAME.releaseZ - GAME.contactZ);
+    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, swung, this.meetsAt, cutting, spinPulling);
     // Kept, for a replay of it: everything the scene was told, and when.
     // Which of the strokes a replay shows it is (`REPLAY_STROKES`), if any:
     // the pull is the leg-side input neither swept nor flicked, the hook and
@@ -3140,7 +3199,7 @@ export class Game {
       : shotType === 'HOOK' || spinPulling || shotType === 'LEG' ? 'pull'
       : shotType === 'SQUARE_CUT' ? (cutting ? 'spincut' : 'cut') : shotType === 'LATE_CUT' ? 'latecut'
       : shotType === 'SCOOP' ? 'scoop' : shotType === 'REVERSE_SCOOP' ? 'reverse' : null;
-    this.keptSwing = { shot: shotType, at: this.elapsed, charging, lofted, sweeping, levelled, version, meets: this.meetsAt, cutting, spinPulling, stroke };
+    this.keptSwing = { shot: shotType, at: this.elapsed, charging, lofted, sweeping, levelled, version: swung, meets: this.meetsAt, cutting, spinPulling, stroke };
     this.hud.select(shotType, charging);
     // The charge is judged now rather than when the ball arrives, because the
     // ball is not going to arrive: he is going down the pitch to meet it, and
@@ -4450,6 +4509,8 @@ export class Game {
       // A stroke's film held on one frame for its swipe, on the page's clock.
       if (this.reel && this.reel.hold > 0) this.reel.hold -= dt;
       this.elapsed += dt * this.timeScale;
+      // The beat held on a ball well hit, counted down on the page's clock.
+      if (this.stopLeft > 0) this.stopLeft -= dt;
       this.input.flush(this.elapsed);
       if (this.catchCam) this.catchCamFrame();
       this.update();
@@ -4480,6 +4541,9 @@ export class Game {
     if (this.replay) return this.replay.start === null || this.replay.ending !== null ? 1 : replayPace(this.elapsed - this.replay.start - this.replay.times.contact);
     // The catch camera slows through the take (`catchPace`).
     if (this.catchCam?.on) return catchPace(this.elapsed - this.catchCam.take);
+    // A beat held on a boundary off the middle (`contact.ts`): the ball is
+    // resolved already, so nothing the player can still affect is held.
+    if (this.stopLeft > 0 && this.phase === 'SHOT_RESOLVE') return STOP_PACE;
     if (this.phase !== 'SHOT_RESOLVE' || !this.outcome?.advance) return 1;
     const since = this.elapsed - this.contactAt;
     // Two thirds speed, chosen from three playtest builds side by side. It
@@ -4498,6 +4562,7 @@ export class Game {
       && (!this.scene.batterTapping || age >= this.readyMs + TAP_WAIT_MS)) {
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
         : this.chargeable(this.generator.next(this.elapsed + GAME.runupMs));
+      this.lightDay();
       this.attempt = null; this.outcome = null; this.bounced = false; this.specials = []; this.primed = null; this.chargeBall = false; this.meetsAt = 1;
       this.kept = null; this.keptSwing = null;
       // The ball is settled before the bowler moves, so the call goes out with
@@ -4520,7 +4585,10 @@ export class Game {
       this.scene.reset(true); this.input.reset();
       // After the reset, which hands the ball back to the quick bowler.
       this.scene.spinner(spun(this.delivery));
-      this.scene.express(!!this.delivery.express, !!this.delivery.death);
+      // The fast bowler's second action, in half his overs: only the picture (`PACE_ACTION_V2`).
+      { const over = Math.floor(this.score.balls / 6), spin = spun(this.delivery), asked = spin ? this.spinAsked : this.paceAsked;
+        this.paceSecond = (asked === 1 || asked === 2 ? asked : spin ? spinVersionOf(this.seed, over) : paceVersionOf(this.seed, over)) === 2; }
+      this.scene.express(!!this.delivery.express, !!this.delivery.death, this.paceSecond);
       this.scene.round(!!this.delivery.round);
       this.showConfidence(); this.setPhase('BOWLER_RUNUP');
       // The first time a spinner comes on in this browser: the keeper is up
@@ -4554,7 +4622,8 @@ export class Game {
         this.contactPlayed = true;
         if (this.lesson < 0 && landedSpecial(this.outcome!)) this.powerUp();
         else if (this.lesson < 0 && pulledBouncer(this.delivery!, this.attempt?.shotType, this.outcome!)) this.pullUp();
-        if (this.outcome!.aerial && this.outcome!.madeBatContact) this.audio.play('hit');
+        if (this.outcome!.aerial && this.outcome!.madeBatContact) this.audio.play('hit', this.contact ?? undefined);
+        this.strike();
       }
       if (!this.resultPresented && this.elapsed >= this.presentationAt) this.presentResult();
       if (this.elapsed >= this.resolveEndsAt) {
@@ -4682,6 +4751,7 @@ export class Game {
     }
     if (catching) this.beginCatchCam(catching, flight);
     this.resultPresented = false; this.contactPlayed = false;
+    this.contact = this.contactOn && !step ? contactOf(this.outcome) : null; this.stopLeft = 0;
     this.setPhase('SHOT_RESOLVE');
     if (this.outcome.aerial) this.hud.airborne();
   }
@@ -4979,7 +5049,7 @@ export class Game {
     this.scene.replayField(true, this.super10 ? this.s10.field?.men ?? null : null);
     this.scene.reset(); this.scene.homeField();
     this.scene.spinner(spun(kept.delivery));
-    this.scene.express(!!kept.delivery.express, !!kept.delivery.death);
+    this.scene.express(!!kept.delivery.express, !!kept.delivery.death, this.paceSecond);
     this.scene.round(!!kept.delivery.round);
     const start = this.elapsed, shift = start + times.release - kept.delivery.releaseTimeMs;
     replay.start = start;
@@ -5170,6 +5240,20 @@ export class Game {
     // 150, 250 and 350 are one celebration and three different innings.
     if (!asked) this.mark(kind === 'raise' ? `raise-${moment.mark}` : kind, MOMENT_SAID[kind]);
   }
+  /**
+   * The bat meets the ball: the knock in the hand, the beat held, the camera
+   * in and the chips off the blade (`contact.ts`). The sound goes with the
+   * clip, where it is played. A player who has asked for less motion keeps the
+   * knock and the sound and loses the rest.
+   */
+  private strike() {
+    const contact = this.contact;
+    if (!contact) return;
+    buzz(contact.buzz);
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    this.stopLeft = contact.stopMs;
+    this.scene.struck(contact, this.elapsed);
+  }
   private presentResult() {
     this.resultPresented = true;
     const outcome = this.outcome!;
@@ -5191,7 +5275,8 @@ export class Game {
       if (this.felled) this.scene.fall(this.elapsed, outcome.hit.where);
     }
     const sound = outcomeSound(outcome);
-    if (sound && !(outcome.aerial && sound === 'hit')) this.audio.play(sound);
+    // The bat's own sounds are voiced by how it was hit; a skied ball's was at the bat, and what it comes to is plain.
+    if (sound && !(outcome.aerial && sound === 'hit')) this.audio.play(sound, !outcome.aerial && sound !== 'wicket' ? this.contact ?? undefined : undefined);
     // What he does once the ball is done with, on some of the balls that call
     // for it (`afterBall`): looking at the bat after a classic drive, and so on.
     // A ball left alone has no stroke, and only a milestone missed off it is
@@ -7113,6 +7198,8 @@ export class Game {
       // A stroke's film under its story: which, and how far into a go of it, on its own clock.
       reel: this.reel ? { shot: this.reel.shot, at: Math.round(this.elapsed - this.reel.start), struck: this.reel.struck } : null,
       // The replay playing: its stroke, how far in (null while it wipes in), whether it is wiping out; and how many this innings.
+      follow: this.scene.followShown,
+      contact: this.contact ? { kind: this.contact.kind, stopLeft: Math.max(0, Math.round(this.stopLeft)), ...this.scene.contactShown } : null,
       catchCam: this.catchCam ? { shot: this.catchCam.shot, on: this.catchCam.on, sinceTake: Math.round(this.elapsed - this.catchCam.take) } : null,
       kept: this.kept ? { stroke: this.kept.swing.stroke, runs: this.kept.outcome.runs, dropped: !!this.kept.outcome.dropped } : null, replayLog: { ...this.replayLog }, changed: this.changed, milestone: !!this.milestoneDue,
       replay: this.replay ? { stroke: this.replay.kept.swing.stroke, angle: this.replay.angle.id, at: this.replay.start === null ? null : Math.round(this.elapsed - this.replay.start), struck: this.replay.struck, ending: this.replay.ending !== null } : null,

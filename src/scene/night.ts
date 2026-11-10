@@ -46,6 +46,63 @@ export const LIGHTING: Record<SkyTime, {
 };
 
 /**
+ * The richer light (`polish.ts`, off on `?polish=0`): the same lights with more
+ * between them. By day the sun comes in lower and from the side and the sky's
+ * own light is turned down and cooled, so every figure and every stand has a
+ * lit side and a shaded one where they had been evenly bright all over. By
+ * night the sky gives less and the floodlights more, so what they fall on
+ * stands out of the dark.
+ */
+export const RICH: typeof LIGHTING = {
+  day: {
+    hemisphere: { sky: 0xdce8ff, ground: 0x5d6f42, intensity: 0.62 },
+    key: { colour: 0xffe6bd, intensity: 4.1, position: [-24, 24, -6] },
+    fill: { colour: 0xdfe8ff, intensity: 0 },
+    environment: 0.5,
+    boards: 0.35,
+    lamps: 0.9,
+  },
+  night: {
+    hemisphere: { sky: 0x6d83b8, ground: 0x2c4626, intensity: 0.42 },
+    key: { colour: 0xfff3e2, intensity: 3.9, position: [-12, 34, -30] },
+    fill: { colour: 0xdfe9ff, intensity: 1.5 },
+    environment: 0.5,
+    boards: 1.15,
+    lamps: 2.9,
+  },
+};
+/**
+ * A Test's day, morning to evening, by how far the innings has gone (0 to 1):
+ * the sun low and cool-white from the off side at the start, overhead and
+ * white through the middle, the afternoon's warm side light, and low and
+ * golden from behind the leg side at the close, the sky's horizon warming with
+ * it. Only the lights and the dome's two colours move, so it costs nothing a
+ * frame and recompiles nothing; the reflections stay the day's.
+ */
+export const DAY_ARC: readonly { at: number; sun: [number, number, number]; colour: number; key: number; sky: number; hemisphere: number; zenith: number; horizon: number }[] = [
+  { at: 0, sun: [24, 17, 12], colour: 0xfff4e4, key: 3.5, sky: 0xe4eeff, hemisphere: 0.7, zenith: 0x4c92d8, horizon: 0xdcecf2 },
+  { at: 0.42, sun: [-5, 34, -4], colour: 0xfffaf0, key: 4.2, sky: 0xe0eaff, hemisphere: 0.72, zenith: 0x3f86cf, horizon: 0xcfe4ea },
+  { at: 0.78, sun: [-24, 24, -6], colour: 0xffe6bd, key: 4.1, sky: 0xdce8ff, hemisphere: 0.62, zenith: 0x3d7fc6, horizon: 0xdde3dc },
+  { at: 1, sun: [-28, 12, -10], colour: 0xffc27e, key: 3.9, sky: 0xcbd5f4, hemisphere: 0.6, zenith: 0x3a6cb4, horizon: 0xf2cfa2 },
+];
+/** The arc's lights at `progress` through the day. */
+export function dayArcAt(progress: number) {
+  const p = Math.min(1, Math.max(0, progress));
+  let i = 0;
+  while (i < DAY_ARC.length - 2 && p > DAY_ARC[i + 1].at) i++;
+  const a = DAY_ARC[i], b = DAY_ARC[i + 1], k = (p - a.at) / (b.at - a.at);
+  const mix = (x: number, y: number) => x + (y - x) * k;
+  const shade = (x: number, y: number) => [16, 8, 0].reduce((sum, bit) => sum | (Math.round(mix((x >> bit) & 255, (y >> bit) & 255)) << bit), 0);
+  return {
+    sun: [mix(a.sun[0], b.sun[0]), mix(a.sun[1], b.sun[1]), mix(a.sun[2], b.sun[2])] as [number, number, number],
+    colour: shade(a.colour, b.colour), key: mix(a.key, b.key), sky: shade(a.sky, b.sky), hemisphere: mix(a.hemisphere, b.hemisphere),
+    zenith: shade(a.zenith, b.zenith), horizon: shade(a.horizon, b.horizon),
+  };
+}
+/** Where the haze begins and ends under the richer light, by night: nearer, so the stands sink into the dark behind a lit ground. */
+export const RICH_NIGHT_HAZE = [30, 104] as const;
+
+/**
  * The arena's night: the stadium's, under LED rather than metal halide. No
  * towers behind the batter's end, a ring of lamps round the whole roof
  * instead, so the key comes down steeper and a cleaner white, and the fill
@@ -166,4 +223,21 @@ export function glows(roof: THREE.Vector3[], towers: THREE.Vector3[], spots: THR
     return points;
   };
   return { points: [cloud(roof, 4.2), cloud(towers, 16), ...spots.length ? [cloud(spots, 1.8)] : []], texture };
+}
+
+/**
+ * A Test Marathon's day, in balls, as the owner set it: twenty-five overs from
+ * morning to evening, the evening held for ten more, then one over of dusk
+ * and dawn (the light turned down and brought back up on the new morning, so
+ * the next day is not a cut from one ball to the next), and round again.
+ */
+const DAY_BALLS = 150, EVENING_BALLS = 60, TURN_BALLS = 6, DUSK = 0.35;
+/** Where a Marathon's day is after `balls`: how far through it, and how far the light is turned down. */
+export function marathonDay(balls: number): { at: number; dim: number } {
+  const b = balls % (DAY_BALLS + EVENING_BALLS + TURN_BALLS);
+  if (b < DAY_BALLS) return { at: b / DAY_BALLS, dim: 1 };
+  if (b < DAY_BALLS + EVENING_BALLS) return { at: 1, dim: 1 };
+  // Down through the first half of the over on the evening, up through the second on the morning.
+  const k = b - DAY_BALLS - EVENING_BALLS, half = TURN_BALLS / 2;
+  return k < half ? { at: 1, dim: 1 - (1 - DUSK) * (k + 1) / half } : { at: 0, dim: DUSK + (1 - DUSK) * (k - half) / half };
 }

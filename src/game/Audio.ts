@@ -619,7 +619,12 @@ export class GameAudio {
       voices.clear();
     }
   }
-  play(kind: Sound) {
+  /**
+   * `voice` is how a stroke was hit (`contact.ts`): the clip a touch faster or
+   * slower and louder or softer, so no two balls off the bat sound the same,
+   * and a low knock under a middled one.
+   */
+  play(kind: Sound, voice?: { rate: readonly [number, number]; gain: number; thock: number }) {
     if (!this.context || this.muted || this.disposed) return;
     const ctx = this.context, buffer = this.buffers.get(kind);
     this.struck++; this.lastStrike = `${kind}@${ctx.state}`;
@@ -633,8 +638,10 @@ export class GameAudio {
     if (buffer) {
       this.stop();
       const source = ctx.createBufferSource(); source.buffer = buffer;
-      const gain = ctx.createGain(); gain.gain.value = .85;
+      if (voice) source.playbackRate.value = voice.rate[0] + Math.random() * (voice.rate[1] - voice.rate[0]);
+      const gain = ctx.createGain(); gain.gain.value = .85 * (voice?.gain ?? 1);
       source.connect(gain); gain.connect(ctx.destination); this.sources.add(source); source.start();
+      if (voice?.thock) this.thock(voice.thock);
       source.onended = () => { this.sources.delete(source); source.disconnect(); gain.disconnect(); };
       return;
     }
@@ -647,6 +654,18 @@ export class GameAudio {
     osc.frequency.exponentialRampToValueAtTime(kind === 'boundary' ? 980 : 55, now + .18);
     gain.gain.setValueAtTime(kind === 'bounce' ? .025 : .09, now); gain.gain.exponentialRampToValueAtTime(.001, now + (kind === 'edge' ? .09 : .25));
     osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(now + .26);
+    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+  }
+  /** The weight under a middled stroke: a short low knock, felt more than heard. */
+  private thock(level: number) {
+    const ctx = this.context;
+    if (!ctx) return;
+    const now = ctx.currentTime, osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(170, now); osc.frequency.exponentialRampToValueAtTime(58, now + .11);
+    gain.gain.setValueAtTime(.0001, now); gain.gain.exponentialRampToValueAtTime(.32 * level, now + .006);
+    gain.gain.exponentialRampToValueAtTime(.001, now + .19);
+    osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + .2);
     osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   }
   dispose() {

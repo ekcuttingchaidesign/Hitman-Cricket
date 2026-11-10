@@ -90,6 +90,8 @@ export function flightOf(outcome: ShotOutcome): Flight {
    */
   const toAFielder = (caught || !!outcome.dropped) && outcome.aerial;
 
+  // Hit back at the bowler: flat and quick, into his hands at his chest. The scene fits its end to them.
+  if (outcome.returned) return shape(17, 2, 780, 1.3);
   if (outcome.fielder) {
     // To the man who got to it: a six he caught comes down to him high on the
     // rope; anything he stopped runs out to him along the ground and is in his

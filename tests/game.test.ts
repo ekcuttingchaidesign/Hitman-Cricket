@@ -59,7 +59,8 @@ describe('wickets and scoring', () => {
     expect(resolveShot(delivery(), { shotType: 'STRAIGHT', inputTimeMs: 400 }, rng(.9)).wicketType).toBe('BOWLED');
   });
   it('always catches poor timing, and never catches a middled shot', () => {
-    for (const shotType of SHOTS) for (const roll of [0, .5, .99]) {
+    // Rolls under the top of the dice: at the very top a cut edged behind is chopped on instead (`howOut`, `tests/how-out.test.ts`).
+    for (const shotType of SHOTS) for (const roll of [0, .5, .69]) {
       // 840ms against a 1000ms contact is a 160ms miss: poor, and caught. Every
       // stroke skies it except the cut, whose square face feathers it behind.
       const poor = resolveShot(delivery(), { shotType, inputTimeMs: 840 }, rng(roll));
@@ -264,7 +265,7 @@ describe('the square cut', () => {
     const ok = cut(ball, GAME.timing.ok);
     expect(ok.runs).toBeGreaterThan(0); expect(ok.runs).toBeLessThan(4); expect(ok.isWicket).toBe(false);
     // Later than that and the keeper has it, whatever the dice say.
-    for (const roll of [0, .5, .99]) {
+    for (const roll of [0, .5, .69]) {
       const edged = cut(ball, GAME.timing.poor, roll);
       expect(edged.isWicket).toBe(true); expect(edged.wicketType).toBe('CAUGHT');
       expect(edged.edged).toBe(true); expect(edged.madeBatContact).toBe(true);
@@ -296,7 +297,7 @@ describe('the square cut', () => {
     // close enough to catch it and never square enough to hit it, so the best
     // that can happen is the edge — a cut at a straight one is a poor idea
     // however well it is middled, and the keeper is the one who benefits.
-    for (const roll of [0, .5, .99]) {
+    for (const roll of [0, .5, .69]) {
       const played = resolveShot(delivery(), { shotType: 'SQUARE_CUT', inputTimeMs: 1000 }, rng(roll));
       expect(played.runs).toBe(0);
       expect(played.isWicket).toBe(true);
@@ -1100,7 +1101,7 @@ describe('the cut off the spinner', () => {
     expect(cutAt(spinner('LEG_SPIN', -.42, -.03), 60).runs).toBe(4);
   });
   it('is edged behind mistimed, and bowled missed with the stumps left open', () => {
-    const edged = cutAt(spinner('OFF_SPIN', .42, .03), 170);
+    const edged = cutAt(spinner('OFF_SPIN', .42, .03), 170, .69);
     expect(edged.isWicket).toBe(true); expect(edged.edged).toBe(true);
     const missed = cutAt(spinner('OFF_SPIN', .42, .03), 400);
     expect(missed.isWicket).toBe(true); expect(missed.wicketType).toBe('BOWLED');

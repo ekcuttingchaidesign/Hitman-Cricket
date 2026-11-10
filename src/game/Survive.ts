@@ -4,7 +4,7 @@ import {
 } from '../config/survive.js';
 import { ballPosition, stumpIntersection } from './DeliveryTrajectory.js';
 import { spun } from './DeliveryGenerator.js';
-import { cramped, crampedCut, droveFlighted, droveShort, fitOf, flicked, gradeTiming, hookable, lateCut, lateCutMeets, punch, spinPull, squareDrive, sweeps } from './ShotResolver.js';
+import { howOut, cramped, crampedCut, droveFlighted, droveShort, fitOf, flicked, gradeTiming, hookable, lateCut, lateCutMeets, punch, spinPull, squareDrive, sweeps } from './ShotResolver.js';
 
 export { spun };
 import type { BodyPart, Delivery, Ending, ShotAttempt, ShotOutcome, TimingSide } from './types.js';
@@ -365,7 +365,7 @@ function shortBall(base: ShotOutcome, delivery: Delivery, shot: string, contact:
 export function resolveSurvive(
   delivery: Delivery, attempt: ShotAttempt | null, rng: { next(): number }, skill: Skill = TAILENDER,
 ): ShotOutcome {
-  const outcome = surviveBall(delivery, attempt, rng, skill);
+  const outcome = howOut(surviveBall(delivery, attempt, rng, skill), attempt, rng);
   // The square drive is not one of the two special strokes — it costs no meter,
   // so unlike the charge and the slog sweep it is played in this mode too, and
   // `Batter` animates it here off the same ball it animates it off in the

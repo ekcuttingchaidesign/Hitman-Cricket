@@ -3,14 +3,14 @@
 // (as the game's camera sees him, closer) or side on, the reference clips'
 // angles. Dev tool, like `rig-sheet.ts`; `scripts/bowler-sheet.mjs` drives it.
 import * as THREE from 'three';
-import { Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION, RELEASE_Z, type ActionStyle } from './entities/Bowler';
+import { Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION, PACE_ACTION_V2, SPIN_ACTION_V2, RELEASE_Z, type ActionStyle } from './entities/Bowler';
 
 const params = new URLSearchParams(location.search);
 const view = params.get('view') ?? 'batter';
 // `?fixed=1` holds the camera still, framed on the crease, so he runs in
 // towards it rather than being followed; `?tile=` sizes the frames.
 const fixed = params.get('fixed') === '1';
-const ACTIONS: Record<string, ActionStyle> = { pace: PACE_ACTION, express: EXPRESS_ACTION, death: DEATH_ACTION };
+const ACTIONS: Record<string, ActionStyle> = { spin: PACE_ACTION, pace: PACE_ACTION, pace2: PACE_ACTION_V2, spin2: SPIN_ACTION_V2, express: EXPRESS_ACTION, death: DEATH_ACTION };
 const rows = (params.get('actions') ?? 'pace,express,death').split(',').filter(a => a in ACTIONS);
 // Moments: run-up fractions, then `f` and a fraction for the follow-through.
 const moments = (params.get('times') ?? '.3,.46,.52,.64,.8,.9,.97,1,f.12,f.3').split(',');
@@ -37,7 +37,7 @@ const camera = new THREE.PerspectiveCamera(fixed ? (view === 'side' ? 40 : 12) :
 
 ctx.font = '14px sans-serif'; ctx.fillStyle = '#10202c';
 rows.forEach((name, row) => {
-  bowler.action(ACTIONS[name]);
+  bowler.action(ACTIONS[name]); bowler.spinner(name.startsWith('spin'));
   moments.forEach((moment, col) => {
     const follow = moment.startsWith('f');
     const t = Number(follow ? moment.slice(1) : moment);
