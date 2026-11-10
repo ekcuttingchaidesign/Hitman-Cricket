@@ -629,8 +629,10 @@ export class GameScene {
     // back past the stumps.
     [GAME.creaseZ, 18.7 - GAME.creaseZ].forEach(z => {
       const behind = z < 2 ? -0.75 : 0.75;
-      box(this.world, 3.1, 0.015, 0.045, colors.white, 0, 0.024, z);
-      [-1.1, 1.1].forEach(x => box(this.world, 0.045, 0.015, 1.5, colors.white, x, 0.024, z + behind));
+      // Painted on the strip, not laid on it: they stood 19mm proud of it, which a replay's low camera showed as raised bars.
+      const [thick, at] = this.polished ? [0.002, 0.0137] : [0.015, 0.024];
+      box(this.world, 3.1, thick, 0.045, colors.white, 0, at, z);
+      [-1.1, 1.1].forEach(x => box(this.world, 0.045, thick, 1.5, colors.white, x, at, z + behind));
     });
     const boundary = new THREE.Mesh(new THREE.TorusGeometry(GAME.boundaryRadius, 0.055, 5, 128), mat(colors.white));
     boundary.rotation.x = Math.PI / 2; boundary.position.set(0, 0.06, 10); this.world.add(boundary);
@@ -749,20 +751,22 @@ export class GameScene {
     }
   }
   /** How far through its day a Test is, or null where the day stands still: see `dayAt`. */
-  private dayProgress: number | null = null;
+  private dayProgress: number | null = null; private dayDim = 1;
   /**
    * A Test's day moved on to `progress` of the way from morning to evening
    * (`DAY_ARC`), or null to put the day back as every other innings has it.
    * Nothing by night, on the arena, or with the finish off.
    */
-  dayAt(progress: number | null) {
+  dayAt(progress: number | null, dim = 1) {
     if (!this.polished || this.now !== 'day') progress = null;
-    if (progress === this.dayProgress) return;
+    if (progress === this.dayProgress && dim === this.dayDim) return;
+    this.dayDim = dim;
     const was = this.dayProgress; this.dayProgress = progress;
     if (progress === null) { if (was !== null) { const palette = this.sky.time(this.now); this.scene.fog!.color.set(palette.horizon); this.renderer.setClearColor(palette.horizon); this.relight(); } return; }
     const day = dayArcAt(progress);
-    this.sun.position.set(...day.sun); this.sun.color.set(day.colour); this.sun.intensity = day.key * (1 - this.sky.cover * OVERCAST.sun);
-    this.hemisphere.color.set(day.sky); this.hemisphere.intensity = day.hemisphere;
+    this.sun.position.set(...day.sun); this.sun.color.set(day.colour); this.sun.intensity = day.key * dim * (1 - this.sky.cover * OVERCAST.sun);
+    // `dim` is the dusk and the dawn between one day and the next: the same light, turned down.
+    this.hemisphere.color.set(day.sky); this.hemisphere.intensity = day.hemisphere * (.45 + .55 * dim);
     this.sky.tint(day.zenith, day.horizon); this.scene.fog!.color.set(day.horizon); this.renderer.setClearColor(day.horizon);
   }
   /** Where the Test's day has got to, for the checks. */
@@ -892,7 +896,7 @@ export class GameScene {
     this.lightStands();
     this.kitsUnderLights();
     // A Test's day picks up where it had got to, on the lights just set.
-    { const at = this.dayProgress; this.dayProgress = null; this.dayAt(at); }
+    { const at = this.dayProgress; this.dayProgress = null; this.dayAt(at, this.dayDim); }
   }
   /**
    * The kits under the floodlights. Lit only by a warm key from behind and a
@@ -1258,7 +1262,7 @@ export class GameScene {
   get clouded() { return Math.round(this.sky.cover * 100) / 100; }
   private clouding(amount: number, settled: boolean) {
     this.sky.overcast(amount);
-    this.sun.intensity = (this.dayProgress === null ? this.lighting.key.intensity : dayArcAt(this.dayProgress).key) * (1 - amount * OVERCAST.sun);
+    this.sun.intensity = (this.dayProgress === null ? this.lighting.key.intensity : dayArcAt(this.dayProgress).key * this.dayDim) * (1 - amount * OVERCAST.sun);
     if (!settled) return;
     this.environment.dispose();
     this.environment = this.sky.environment(this.renderer, this.now === 'night' ? this.reflections : []);

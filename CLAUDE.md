@@ -2621,9 +2621,12 @@ The owner liked the light ("feels like golden hour") and asked for two
 things on it. **A Test's day moves** (`DAY_ARC`, `dayArcAt` in `night.ts`, in
 `tests/day-arc.test.ts`; `dayAt` in `GameScene`, `dayNow` in `src/Game.ts`):
 morning to evening by the balls bowled: Survival's sixty, or twenty-five
-overs of a Marathon (`DAY_BALLS`, the owner's pacing), whose twenty-sixth
-over then opens on the next day's morning and goes round again, a cut made
-in the break between overs. `?day=evening` (or `morning`, `noon`,
+overs of a Marathon, the evening then held for ten more, and one over of
+dusk and dawn before the next morning (`marathonDay` in `night.ts`, the
+owner's pacing: the light turned down over three balls on the evening and
+brought back up over three on the morning, `dim` on `dayAt`, since evening
+one ball and morning the next was a cut), and round again every thirty-six
+overs. `?day=evening` (or `morning`, `noon`,
 `afternoon`, or a number from 0 to 1; `DAY_ASKED`) holds any innings played
 by day at that time, the Blast's too, and is not practice. The sun is low and
 cool-white from the off side at the start, overhead through the middle, in
@@ -2637,7 +2640,9 @@ the light, so no ball is bowled differently and it is not practice.
 the strip's top, so from a replay's low camera the strip was a slab set down
 on the grass, with a dark side and the batter's shadow broken over its edge.
 It is laid just under the strip's top now, the standing blades lifted with
-it; everything else stands by the strip's top as it did.
+it; everything else stands by the strip's top as it did. The creases are
+painted on the strip, two millimetres of white: as boxes they stood nineteen
+proud of it and read as raised bars.
 
 `?polish=0` turns all of it off, the light with it, for holding the two side by side, and is not
 practice. `__cricket.polish()` says what is showing. The owner saw no

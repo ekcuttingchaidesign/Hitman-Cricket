@@ -1,6 +1,7 @@
 import { handleOf, ownsHandle } from './game/handle';
 import { Presence, liveNow, onLive, type Doing } from './game/live-api';
 import { watchLive } from './ui/LiveMarks';
+import { marathonDay } from './scene/night';
 import { fetchActivity, fetchProfile, saveBio, type OwnActivity, type ProfilePayload } from './game/profile-api';
 import { noticesOf, readSeen, unseenCount, writeSeen, type Notice, type NoticeFilter } from './game/notices';
 import { cleanBio } from './server/bio-rules';
@@ -218,8 +219,6 @@ const DECLINE_UNDO_MS = 5000;
  * `?mode=SURVIVE` still works, so the mode stays one link away for anyone
  * testing it. It is hidden, not removed.
  */
-/** How many balls of a Test Marathon run from its morning to its evening: twenty-five overs, as the owner set it, and then the next day's morning. */
-const DAY_BALLS = 150;
 /**
  * `?day=evening` (or `morning`, `noon`, `afternoon`, or a number from 0 to 1)
  * holds an innings at that time of day, in any game played by day: for
@@ -2684,19 +2683,20 @@ export class Game {
    * link asks for a time (`DAY_ASKED`). Only the light: no ball is bowled
    * differently for it.
    */
-  private get dayNow() {
-    if (DAY_ASKED !== null) return DAY_ASKED;
+  private get dayNow(): { at: number; dim: number } | null {
+    if (DAY_ASKED !== null) return { at: DAY_ASKED, dim: 1 };
     if (!this.test || this.lesson >= 0) return null;
-    // A Marathon goes round: evening by the end of the twenty-fifth over, and the twenty-sixth opens on the next morning.
-    return this.marathon ? (this.score.balls % DAY_BALLS) / DAY_BALLS : Math.min(1, this.score.balls / SURVIVE.totalBalls);
+    return this.marathon ? marathonDay(this.score.balls) : { at: Math.min(1, this.score.balls / SURVIVE.totalBalls), dim: 1 };
   }
+  /** The scene's light put where the day has got to. */
+  private lightDay() { const day = this.dayNow; this.scene.dayAt(day ? day.at : null, day?.dim); }
   private light(time: SkyTime) {
     const game = this.super10 ? 'super10' : this.test ? 'test' : 'blast';
     if (game === 'super10') time = 'night';
     this.scene.stands(groundFor(ASKED_GROUND, game, VENUE_COIN[game === 'test' ? 'test' : 'blast']));
     this.scene.brand(this.super10);
     this.scene.time(time);
-    this.scene.dayAt(this.dayNow);
+    this.lightDay();
     this.hud.bigScreen(this.scene.bigScreen, this.scene.screenMoments);
   }
   /** What the arena's big screen says between moments: the game, the score, the over and, in Super10, who is in. */
@@ -4547,7 +4547,7 @@ export class Game {
       && (!this.scene.batterTapping || age >= this.readyMs + TAP_WAIT_MS)) {
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
         : this.chargeable(this.generator.next(this.elapsed + GAME.runupMs));
-      this.scene.dayAt(this.dayNow);
+      this.lightDay();
       this.attempt = null; this.outcome = null; this.bounced = false; this.specials = []; this.primed = null; this.chargeBall = false; this.meetsAt = 1;
       this.kept = null; this.keptSwing = null;
       // The ball is settled before the bowler moves, so the call goes out with
