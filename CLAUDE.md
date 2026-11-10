@@ -1758,6 +1758,12 @@ nobody is out more often for them and the sims do not move. A cut edged and
 caught behind (at pace or off the spinner) is, three times in ten
 (`CHOP_ON`), dragged off the inside edge onto his own stumps instead: CHOPPED
 ON — BOWLED!, drawn as every played-on ball is and replayed as bowled. A
+played-on ball goes hard off the inside edge into the stumps (`playedOnAt`,
+`PLAYED_ON` in `flight.ts`, `choppedOn` in `GameScene`): straight from the bat
+to the timber in a ninth of a second, across him as well as back, then off
+them and dying on the turf behind, from a clip the owner sent; it used to
+float back onto them over a second, and the owner wanted the deflection
+seen. A
 straight drive skied and held is, `RETURN_CATCH.share` of the time, hit back
 to the bowler: CAUGHT & BOWLED! (`returned` on the outcome). The ball goes
 back up the pitch to him and he takes it in both hands at his chest, out of
