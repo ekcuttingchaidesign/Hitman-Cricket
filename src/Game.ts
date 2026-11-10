@@ -52,7 +52,7 @@ import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
-import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, spinCutVersionOf, flickVersionOf, flickBackFoot, FLICK_MEETS_AT, FLICK_V3_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
+import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, SPIN_CUT_V2_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, spinCutVersionOf, flickVersionOf, flickBackFoot, FLICK_MEETS_AT, FLICK_V3_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
 import { COUNTED, countStroke, freshTally, strokeMarks } from './game/stroke-tally';
 import { advanceShot, steppedOut, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot, alwaysHowOut } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
@@ -3176,6 +3176,8 @@ export class Game {
     const cutting = !charging && spinCut(this.delivery!, this.attempt);
     // Its second version is asked of the swing as version 1 (2, the default, is the first build): see `SPIN_CUT_V2`.
     const swung = cutting ? ((this.spinCutAsked === 1 || this.spinCutAsked === 2 ? this.spinCutAsked : spinCutVersionOf(this.seed, this.score.balls)) === 2 ? 1 : 2) : version;
+    // Version two lets the ball come and meets it late, beside him.
+    if (cutting && swung === 1) this.meetsAt = 1 - SPIN_CUT_V2_MEETS_AT / (GAME.releaseZ - GAME.contactZ);
     this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, swung, this.meetsAt, cutting, spinPulling);
     // Kept, for a replay of it: everything the scene was told, and when.
     // Which of the strokes a replay shows it is (`REPLAY_STROKES`), if any:

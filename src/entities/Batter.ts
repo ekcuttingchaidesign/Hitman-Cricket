@@ -553,39 +553,69 @@ const SPIN_CUT: Stroke & { load: Pose; rise: Pose; up: Pose; tip: Pose; off: Pos
     yaw: .60, face: -.05, heel: .08, backFootYaw: .95, leadElbow: -.20 },
 };
 /**
- * The cut off the spinner, version two: the same room made and the same ball
- * met, and a different finish. Where version one wraps the bat back onto the
- * front shoulder, this one is the cut held at full stretch: the hands go on
- * out to the off side past point and up to the shoulders, both arms long, the
- * bottom hand rolling over the top one so the face turns down over the ball
- * (the roll that keeps a cut on the ground), the chest opening after them
- * and the weight still down on the back leg; and there it stops, the bat out
- * towards point a little above level, and is held. Nothing goes near his
- * head or across his body, so the way home is short: the bat stood up from
- * out there in front of the off shoulder and let down into the guard.
+ * The cut off the spinner, version two, from a coaching clip the owner sent,
+ * filmed side on from the off side (the first build of it, held out at full
+ * stretch past point, was "totally wrong"). A small press forward with the
+ * front foot, then the back foot a long way back, deep in the crease, the
+ * front foot left out in front, so the feet are wide along the pitch (where
+ * version one steps the front foot away to leg), and he sinks low on the
+ * back leg with the bat high. The ball is let come: met late, beside him
+ * (`SPIN_CUT_V2_MEETS_AT` behind where version one meets it), the arms long,
+ * the bat sloping down to it from the hands and the trunk leant out over it
+ * to the off side, steered square rather than slashed. Then it flows up: out
+ * to off, up in front of him as he comes up out of the crouch and his chest
+ * comes round, and on to a high finish, the hands up above the front
+ * shoulder and the blade pointing back and up over it, clear of the helmet,
+ * not wrapped down onto the shoulder as version one's is. Held, then stood
+ * upright in front of him and let down into the guard.
  *
  * Asked for by the swing's version argument being 1 (2, every stroke's
  * default, is the first build), so nothing that swung a cut at a spinner
  * before this plays it by accident.
  */
-const SPIN_CUT_V2_CLOCK = { load: SPIN_CUT_LOAD_MS, contact: SPIN_CUT_CONTACT_MS, through: 255, extend: 335, finish: 410, hold: 640, stood: 790 } as const;
-const SPIN_CUT_V2: Stroke & { load: Pose; extend: Pose; stood: Pose } = {
-  load: SPIN_CUT.load, contact: SPIN_CUT.contact, through: SPIN_CUT.through,
-  // Out past point, the arms long and the wrists rolling over it,
-  extend: { ...GUARD, hip: [-.03, .83, -.15], chest: [.10, 1.16, -.07],
-    frontFoot: [-.50, .08, .04], backFoot: [.08, .08, -.30],
-    grip: [.50, 1.10, .20], batUp: [-.92, -.26, .20], batFace: [.20, -.80, .56],
-    yaw: .62, face: .95, heel: .08, backFootYaw: 1.15, leadElbow: 0 },
-  // and held there, a little above level, the chest opened after it.
-  finish: { ...GUARD, hip: [-.02, .85, -.14], chest: [.11, 1.19, -.08],
-    frontFoot: [-.50, .08, .04], backFoot: [.08, .08, -.30],
-    grip: [.52, 1.20, .12], batUp: [-.84, -.46, .28], batFace: [.20, -.75, .62],
-    yaw: .52, face: .9, heel: .09, backFootYaw: 1.1, leadElbow: 0 },
-  // Home: stood up in front of the off shoulder, on the way down into the guard.
-  stood: { ...GUARD, hip: [-.04, .90, -.08], chest: [.02, 1.26, -.02],
-    frontFoot: [-.30, .08, .12], backFoot: [0, .08, -.32],
-    grip: [.30, 1.24, .30], batUp: [-.30, -.88, .36], batFace: [.20, .40, .89],
-    yaw: .62, face: .2, heel: .08, backFootYaw: 1.0, leadElbow: -.15 },
+export const SPIN_CUT_V2_MEETS_AT = -.22;
+const SPIN_CUT_V2_CLOCK = { press: 60, load: 122, contact: SPIN_CUT_CONTACT_MS, through: 258, rise: 345, finish: 440, hold: 650, upright: 770, lowered: 860 } as const;
+const V2_FEET = { frontFoot: [-.10, .08, .20] as Point, backFoot: [.0, .08, -.41] as Point };
+const SPIN_CUT_V2: Stroke & { press: Pose; load: Pose; rise: Pose; upright: Pose; lowered: Pose } = {
+  // The press: the front foot a little down the pitch, the bat starting up.
+  press: { ...BACKLIFT, hip: [-.04, .92, .0], chest: [.02, 1.27, .04],
+    frontFoot: [-.10, .08, .33], backFoot: [-.12, .08, -.25],
+    grip: [.29, 1.05, .09], batUp: [-.34, -.79, .54], batFace: [.45, .55, .70],
+    yaw: 1.22, face: .3, heel: .02, leadElbow: -.22 },
+  // Back deep in the crease and down on the back leg, the bat high.
+  load: { ...BACKLIFT, hip: [-.02, .80, -.24], chest: [.05, 1.14, -.20],
+    ...V2_FEET,
+    grip: [.39, 1.34, -.09], batUp: [-.15, -.85, .50], batFace: [.85, .05, .50],
+    yaw: 1.05, face: 1.0, heel: .0, backFootYaw: 1.25, toe: .05, leadElbow: -.10 },
+  // Late, beside him: low, the arms long, the bat sloping down to it, leant out over it.
+  contact: { ...GUARD, hip: [0, .75, -.27], chest: [.12, 1.05, -.24],
+    ...V2_FEET,
+    grip: [.34, .76, -.02], batUp: [-.74, .60, -.30], batFace: [.10, .40, .91],
+    yaw: 1.25, face: 1.2, heel: .0, backFootYaw: 1.25, toe: .06, leadElbow: 0, look: .12 },
+  // Steered on out to off, level,
+  through: { ...GUARD, hip: [0, .77, -.25], chest: [.13, 1.09, -.18],
+    ...V2_FEET,
+    grip: [.46, .96, .12], batUp: [-.97, .08, -.20], batFace: [.15, .20, .97],
+    yaw: .85, face: 1.0, heel: .02, backFootYaw: 1.2, toe: .06, leadElbow: 0, look: .08 },
+  // then up in front of him as he comes up out of the crouch,
+  rise: { ...GUARD, hip: [-.01, .83, -.21], chest: [.08, 1.17, -.12],
+    ...V2_FEET,
+    grip: [.34, 1.34, .30], batUp: [-.30, -.92, .22], batFace: [.10, -.20, .97],
+    yaw: .45, face: .6, heel: .05, backFootYaw: 1.1, toe: .04, leadElbow: -.05 },
+  // and on to the high finish: the hands above the front shoulder, the blade back and up over it.
+  finish: { ...GUARD, hip: [-.02, .87, -.13], chest: [.04, 1.22, -.05],
+    ...V2_FEET,
+    grip: [.16, 1.70, .34], batUp: [.58, -.74, -.22], batFace: [.45, -.10, .88],
+    yaw: .15, face: .25, heel: .09, backFootYaw: 1.0, leadElbow: -.10 },
+  // Home: upright in front of him, then let down into the guard.
+  upright: { ...GUARD, hip: [-.03, .92, -.10], chest: [.0, 1.27, -.03],
+    frontFoot: [-.10, .08, .30], backFoot: [-.06, .08, -.36],
+    grip: [.04, 1.62, .44], batUp: [0, -1, .10], batFace: [0, .10, 1],
+    yaw: .3, face: .1, heel: .06, backFootYaw: 1.0, leadElbow: -.10 },
+  lowered: { ...GUARD, hip: [-.05, .93, -.05], chest: [.01, 1.28, .01],
+    frontFoot: [-.10, .08, .28], backFoot: [-.11, .08, -.28],
+    grip: [.22, 1.20, .36], batUp: [-.25, -.85, .45], batFace: [.20, .45, .87],
+    yaw: .65, face: -.05, heel: .04, backFootYaw: .95, leadElbow: -.20 },
 };
 /** How far the spinner's cut will go for a ball: from outside leg, which is a long way to go, to wide of off. */
 const SPIN_CUT_REACH: readonly [number, number] = [-.30, .45];
@@ -4278,19 +4308,19 @@ export class Batter {
       return;
     }
     if (this.spinCutV2) {
-      const { load, contact: met, through, extend, finish: end, hold, stood } = SPIN_CUT_V2_CLOCK;
-      const out = [{ time: 0, pose: this.swingFrom }, { time: load, pose: reachPose(SPIN_CUT_V2.load) }, { time: met, pose: contact },
-        { time: through, pose: reachPose(SPIN_CUT_V2.through!) }, { time: extend, pose: reachPose(SPIN_CUT_V2.extend) }, { time: end, pose: finish }];
-      const home = [{ time: hold, pose: finish }, { time: stood, pose: reachPose(SPIN_CUT_V2.stood) }, { time: STROKE_DURATION_MS, pose: GUARD }];
+      const { press, load, contact: met, through, rise, finish: end, hold, upright, lowered } = SPIN_CUT_V2_CLOCK;
+      const out = [{ time: 0, pose: this.swingFrom }, { time: press, pose: reachPose(SPIN_CUT_V2.press) }, { time: load, pose: reachPose(SPIN_CUT_V2.load) }, { time: met, pose: contact },
+        { time: through, pose: reachPose(SPIN_CUT_V2.through!) }, { time: rise, pose: reachPose(SPIN_CUT_V2.rise) }, { time: end, pose: finish }];
+      const home = [{ time: hold, pose: finish }, { time: upright, pose: reachPose(SPIN_CUT_V2.upright) }, { time: lowered, pose: reachPose(SPIN_CUT_V2.lowered) }, { time: STROKE_DURATION_MS, pose: GUARD }];
       const poseAt = (at: number): Pose => at < end ? flowing(out, at) : at < hold ? finish : flowing(home, at);
       const pose = { ...poseAt(age) };
       const straight = batOrientation(STROKES.STRAIGHT.contact);
       const start = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(straight), UP.clone().applyQuaternion(batOrientation(this.swingFrom))).multiply(straight);
       pose.bat = this.riding(0, poseAt, start, [hold, STROKE_DURATION_MS], age, [
-        // The face sliced down on the ball as it comes down to it, as version one's is,
-        { window: [0, met], away: () => new THREE.Vector3(.2, -.5, .85) },
-        // and rolled over it through the stretch, to the ground.
-        { window: [through, end], away: () => new THREE.Vector3(.15, -.95, .25) },
+        // The face opened down on the ball as it comes down to it, as version one's is,
+        { window: [0, met], away: () => new THREE.Vector3(.3, -.5, .8) },
+        // and the back of the blade towards the front shoulder by the finish.
+        { window: [rise, end], away: (wrap, up) => V(wrap.grip).addScaledVector(up, -.45).sub(shoulderOf(wrap, 0)) },
       ]);
       this.apply(pose);
       return;

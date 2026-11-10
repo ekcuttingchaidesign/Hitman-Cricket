@@ -200,7 +200,7 @@ const STROKES: Record<string, Stroke> = {
   spincut2: {
     label: 'Cut off the spinner, v2', shot: 'SQUARE_CUT', charging: false, single: true, spinCut: true, pullVersion: 1, ball: { x: LINE_X.MIDDLE, y: .54, z: GAME.contactZ },
     contact: SPIN_CUT_CONTACT_MS, end: STROKE_DURATION_MS + SPIN_CUT_HOLD_MS, bounceZ: 4.2,
-    phases: [['Stance', -LEAD_MS], ['Back and away', SPIN_CUT_LOAD_MS], ['Contact', SPIN_CUT_CONTACT_MS], ['Through', 255], ['Stretched', 335], ['Held', 410], ['Home', 900]],
+    phases: [['Stance', -LEAD_MS], ['Press', 60], ['Deep in the crease', 122], ['Late contact', SPIN_CUT_CONTACT_MS], ['Through', 258], ['Rising', 345], ['High finish', 440], ['Home', 900]],
     out: { speed: .03, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.SQUARE_CUT), climb: 0 },
     facts: ['off-spinner turning in', `${STROKE_DURATION_MS + SPIN_CUT_HOLD_MS} ms`],
     note: 'The cut off the spinner, version two, half the time: the same room made and the same ball met, then the hands on out past point and up to the shoulders with both arms long, the bottom hand rolling over the top so the face turns down over the ball, and held there, the bat out towards point a little above level. Nothing goes near his head, so the way home is short. Scored exactly as version one.',

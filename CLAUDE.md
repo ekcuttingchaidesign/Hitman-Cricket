@@ -1558,20 +1558,26 @@ The cut off the spinner comes in two versions, half each (`spinCutVersionOf`
 off the innings' seed and the ball, mixed apart from the other strokes'
 rolls), scored the same, so `?spincutv=1` or `2` asks for one and is not
 practice. Version one is the wrap onto the front shoulder, above. Version two
-(`SPIN_CUT_V2`, `SPIN_CUT_V2_CLOCK`, `spinCutV2` in `Batter.ts`) shares its
-room, its load, its contact and its first key through the ball, and then is
-the cut held at full stretch: the hands on out past point and up to the
-shoulders, both arms long, the bottom hand rolling over the top one so the
-face turns down over the ball (`riding`'s second window: the roll that keeps
-a cut down), the chest opening after them, the weight still on the back leg;
-held (`SPIN_CUT_HOLD_MS`, the clock slowed from its own finish), then stood up
-in front of the off shoulder and let down into the guard. Nothing goes near
-his head or across his body, which is what keeps it clean. No coaching
-source was found for it (one web search turned up nothing on the cut's
-finish): it is the classic rolled-wrist finish from knowledge of the stroke.
-The swing asks for it as version 1 (2, every stroke's default, is the first
-build), so nothing that swung a cut at a spinner before plays it by accident.
-It is `spinCut2` in the batter tests' `PLAYS` and all their shared checks,
+(`SPIN_CUT_V2`, `SPIN_CUT_V2_CLOCK`, `spinCutV2` in `Batter.ts`) is built
+from a coaching clip the owner sent, side on from the off side
+(https://youtube.com/shorts/9rsfyC4m3ps): a small press forward with the
+front foot, then the back foot a long way back, deep in the crease, the
+front foot left out in front, so the feet are wide along the pitch where
+version one steps the front foot away to leg; down low on the back leg with
+the bat high; the ball let come and met late, beside him
+(`SPIN_CUT_V2_MEETS_AT` behind version one's contact, `meetsAt` in
+`src/Game.ts`), the arms long, the bat sloping down to it and the trunk leant
+out over it, steered square; then up out of the crouch as the chest comes
+round, to a high finish, the hands above the front shoulder and the blade
+back and up over it, clear of the helmet rather than wrapped down onto the
+shoulder. Held (`SPIN_CUT_HOLD_MS`, the clock slowed from its own finish),
+then upright in front of him and down into the guard. The first build of it,
+made without a reference and held out at full stretch past point, the owner
+called totally wrong: not to be built again. The swing asks for it as
+version 1 (2, every stroke's default, is the first build), so nothing that
+swung a cut at a spinner before plays it by accident. It is `spinCut2` in
+the batter tests' `PLAYS` and all their shared checks (the front leg
+over-stretched with the front foot further out, which they caught),
 `SPIN_CUT_V2` in `rig-sheet.html`, and `cover-drive.html` has it
 (`?stroke=spincut2`).
 
