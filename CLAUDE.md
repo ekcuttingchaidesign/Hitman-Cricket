@@ -2644,6 +2644,17 @@ it; everything else stands by the strip's top as it did. The creases are
 painted on the strip, two millimetres of white: as boxes they stood nineteen
 proud of it and read as raised bars.
 
+**The fielders are the bowler's build** (`connected` on `Field`, from
+`GameScene`): one shirt and one pair of trousers bent to the rig, as the
+bowler and the keeper wear, where they were tubes meeting in joint balls,
+which a replay's and the catch camera's lenses showed up. Half the meshes a
+man. Fitting the clothes to the rig is the dear part (about a third of a
+millisecond a man on a desktop), so a fielder's are fitted again only when
+some part of him has moved six millimetres from where they last were (`lazy`,
+`LAZY` in `Cricketer.ts`): men stood waiting cost nothing, and only those
+moving are fitted each frame. They wear a kit's print now, as the bowler
+does. Not yet timed on a phone.
+
 `?polish=0` turns all of it off, the light with it, for holding the two side by side, and is not
 practice. `__cricket.polish()` says what is showing. The owner saw no
 significant improvement from these two on a phone: they are kept as cheap,

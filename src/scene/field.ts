@@ -114,9 +114,20 @@ function deal(fielder: number, ball: number, salt: number) {
 export type Visible = (point: THREE.Vector3) => boolean;
 
 export class Field {
-  readonly fielders = Array.from({ length: MOST_MEN }, () => new Fielder());
+  readonly fielders: Fielder[];
+  /**
+   * `connected`: the men on the bowler's clean build, one shirt and one pair
+   * of trousers bent to the rig, in place of tubes meeting in joint balls,
+   * which a replay's and the catch camera's long lenses showed for what they
+   * were. Half the meshes a man, and his clothes fitted only when he moves
+   * (`lazy`), so nine of them cost less to draw and little more to pose.
+   */
+  constructor({ connected = false } = {}) {
+    this.fielders = Array.from({ length: MOST_MEN }, () => new Fielder(undefined, { connected, lazy: connected }));
+    this.routines = this.marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i % SEEDS.length])]));
+  }
   private marks: readonly Mark[] = BLAST_FIELD;
-  private routines = this.marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i % SEEDS.length])]));
+  private routines: Routine[];
   /** Who is under the ball this delivery, and the catch he is taking. */
   private catching: { index: number; plan: CatchPlan; dropped: boolean } | null = null;
   /**

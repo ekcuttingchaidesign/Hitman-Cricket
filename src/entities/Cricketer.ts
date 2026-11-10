@@ -198,6 +198,9 @@ const ELBOW = ARM_UPPER * .5, KNEE = LEG_UPPER * .5;
 /** A limb: the tapered shaft, plus the joint balls that close both of its ends. */
 interface Limb { upper: THREE.Mesh; lower: THREE.Mesh; joint: THREE.Mesh; cap: THREE.Mesh; end: THREE.Group }
 
+/** How far a part of a waiting man moves before his clothes are fitted to him again, in metres. */
+const LAZY = .006;
+
 export class Cricketer {
   readonly root = new THREE.Group();
   private torso = new THREE.Group();
@@ -222,10 +225,15 @@ export class Cricketer {
    */
   private garments?: { jersey: ConnectedJersey; trousers: ConnectedTrousers; sleeves: BendingLimb[]; legs: BendingLimb[] };
   private draped = true;
+  /** The fielders' saving: see `drape`. */
+  private lazy = false; private fitted: THREE.Vector3[] = []; private fittedYaw = 0; private fittedLean = 0;
+  /** How many times the clothes have been fitted, for the tests. */
+  fits = 0;
   private limbStart = new THREE.Vector3();
   private palette: { role: DressRole; mat: THREE.Material }[] = [];
 
-  constructor(kit: Kit = KIT, { connected = false } = {}) {
+  constructor(kit: Kit = KIT, { connected = false, lazy = false } = {}) {
+    this.lazy = lazy;
     const skin = material(kit.skin, .86);
     const shirt = cloth(kit.shirt, .82);
     const trousers = cloth(kit.trousers, .8);
@@ -587,6 +595,16 @@ export class Cricketer {
   drape() {
     if (this.draped || !this.garments) return;
     this.draped = true;
+    if (this.lazy) {
+      // A man stood waiting barely moves, and bending his clothes to the rig is
+      // the dear part of him: they are left as they hang until some part of him
+      // has moved `LAZY` from where they were last fitted.
+      const pose = this.pose, now = [pose.hip, pose.chest, pose.leftHand, pose.rightHand, pose.leftFoot, pose.rightFoot];
+      const turned = Math.abs(pose.yaw - this.fittedYaw) + Math.abs(pose.lean - this.fittedLean);
+      if (this.fitted.length && turned < .01 && now.every((at, i) => at.distanceToSquared(this.fitted[i]) < LAZY * LAZY)) return;
+      this.fitted = now.map(at => at.clone()); this.fittedYaw = pose.yaw; this.fittedLean = pose.lean;
+      this.fits++;
+    }
     const { jersey, trousers, sleeves, legs } = this.garments;
     sleeves.forEach(sleeve => sleeve.draw()); legs.forEach(leg => leg.draw());
     jersey.update(this.torso, sleeves);

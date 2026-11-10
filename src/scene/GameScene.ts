@@ -209,7 +209,7 @@ export class GameScene {
    */
   private bowlerHolder = new THREE.Group();
   /** The fielding side: six men who wait, walk in, and go for the ball. See `Field`. */
-  private field = new Field();
+  private field = new Field({ connected: new URLSearchParams(location.search).get('polish') !== '0' });
   /** The game's clock as of the last frame drawn, for the calls that are not handed it. */
   private clock = 0;
   /** Whether this delivery has been let go yet, so the split step is timed once. */
@@ -1933,6 +1933,7 @@ export class GameScene {
     }
     this.mute.value = Math.max(muteAt(now - this.celebratedAt, this.celebratedFor), powerAt(now - this.poweredAt));
     this.batter.drape(); this.bowler.figure.drape(); if (this.keeper.root.visible) this.keeper.figure.drape();
+    for (const fielder of this.field.fielders) if (fielder.root.visible) fielder.figure.drape();
     if (this.cut) this.drawCutout();
     this.renderer.render(this.scene, this.camera);
     this.performanceReadout?.update(this.renderer);
