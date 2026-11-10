@@ -371,6 +371,28 @@ export class Cricketer {
   private helmeted = false;
 
   /**
+   * No cap, and a head of hair: the bowler's, since nobody bowls in a cap
+   * (he hands it to the umpire). A short crop, full on top and swept up at
+   * the front, closer at the back and sides. Its own dark material, which no
+   * kit repaints.
+   */
+  bareHead(colour = 0x1d1713) {
+    if (this.haired || this.helmeted) return;
+    this.haired = true;
+    for (const child of this.head.children) if ((child as THREE.Mesh).isMesh && child.userData.role === 'cap') child.visible = false;
+    const hair = material(colour, .92);
+    const lock = (scale: Point, at: Point, tip = 0) => {
+      const mesh = new THREE.Mesh(SHAPES.ball, hair);
+      mesh.scale.set(...scale); mesh.position.set(...at); mesh.rotation.x = tip; mesh.castShadow = true; this.head.add(mesh);
+    };
+    lock([.146, .082, .15], [0, .1, -.022]);
+    lock([.145, .112, .098], [0, .034, -.064]);
+    lock([.132, .05, .07], [0, .138, .058], -.42);
+    lock([.1, .034, .05], [0, .162, .03], -.2);
+  }
+  private haired = false;
+
+  /**
    * The wicketkeeper's gear, on the clean build (`connected`): the helmet,
    * keeping gloves over his hands, and keeping pads strapped over his shins,
    * aimed down each shin every pose (`apply`). The gloves are big padded
