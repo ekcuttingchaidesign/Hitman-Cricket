@@ -3081,6 +3081,10 @@ export class Batter {
   /** How much of it is drawn: one as built, more for looking at it (`?follow=2`). Its limits scale with it. */
   springiness = 1;
   private follow = new FollowThrough();
+  /** Where each boot's sole is, front then back, in the scene's frame: for the dark under them (`polish.ts`). */
+  get soles() {
+    return this.legs.map(leg => leg.shoe.localToWorld(new THREE.Vector3(0, -.07, .08)));
+  }
   /** How far the follow-through has him from the stroke's own pose, in metres: for the checks. */
   get followShown() { return this.springy ? this.follow.shown : { lean: 0, give: 0 }; }
   /** What draws each wait's rhythm and whether it taps: the tests fix it. */

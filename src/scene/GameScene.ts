@@ -37,6 +37,7 @@ import { introCamera, introSweep, type Film } from '../game/IntroReel';
 import { diwaliOn } from '../game/diwali';
 import { batSheet } from '../entities/batSkins';
 import { Puff, type Burst } from './puff';
+import { ContactShadows, RIM, RIM_LIGHT, rimLit } from './polish';
 import { pushAt, type Contact } from '../game/contact';
 
 /** How long the arena's fireworks go up for, for a six and for a milestone. */
@@ -232,6 +233,10 @@ export class GameScene {
   private bounceRing: THREE.Mesh;
   /** Dust where the ball pitches and chips off a middled bat (`contact.ts`). */
   private dust = new Puff(); private chips = new Puff(); private dusted = false;
+  /** The picture's finish (`polish.ts`): the dark under his boots, the light along his edges, the corners let fall away. Off on `?polish=0`. */
+  private readonly polished = new URLSearchParams(location.search).get('polish') !== '0';
+  private contact = new ContactShadows();
+  private readonly vignette = document.createElement('div');
   /** How far the camera pushes in on the ball just struck, in degrees, and the game's own field of view to come back to. */
   private pushBy = 0; private homeFov = 50; private pushed = false;
   private catchRing: THREE.Mesh;
@@ -396,6 +401,10 @@ export class GameScene {
     this.underlay.className = 'stage-underlay'; this.cutCanvas.className = 'stage-cut';
     this.cutCanvas.style.display = 'none'; this.cutCanvas.setAttribute('aria-hidden', 'true');
     this.renderer.domElement.after(this.underlay, this.cutCanvas);
+    if (this.polished) {
+      this.vignette.className = 'stage-vignette'; this.vignette.setAttribute('aria-hidden', 'true');
+      this.cutCanvas.after(this.vignette);
+    }
     this.renderer.domElement.setAttribute('aria-label', '3D cricket ground viewed from behind the batter');
     // The haze is the sky's own horizon, so the far stands sink into it rather
     // than into a grey that belongs to nothing.
@@ -440,6 +449,7 @@ export class GameScene {
     this.bounceRing = new THREE.Mesh(new THREE.RingGeometry(0.15, 0.19, 24), ringMat);
     this.bounceRing.rotation.x = -Math.PI / 2; this.world.add(this.bounceRing);
     this.world.add(this.dust.points, this.chips.points);
+    if (this.polished) this.world.add(this.contact.mesh);
     this.catchRing = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.66, 32), ringMat.clone());
     this.catchRing.rotation.x = -Math.PI / 2; this.catchRing.visible = false; this.world.add(this.catchRing);
     // The shockwave under a charged hit.
@@ -472,6 +482,7 @@ export class GameScene {
     // while the ball is still in the air, and the eye wants to follow it.
     for (const mesh of [this.ball, ...this.trail, ...this.streak, ...this.fire]) [mesh.material].flat().forEach(m => his.add(m));
     this.greyable(this.scene);
+    this.finish();
     // After the greying is wired, so a hundred never greys the swoosh.
     this.swish = this.createSwish();
     this.reset();
@@ -730,6 +741,19 @@ export class GameScene {
       built.show?.lit(light.boards);
     }
   }
+  /** The edge light and the corners, by the time of day (`polish.ts`); and his materials given the edge light, whatever he has since put on. */
+  private finish() {
+    if (!this.polished) return;
+    const rim = RIM_LIGHT[this.now === 'night' ? 'night' : 'day'];
+    RIM.colour.value.set(rim.colour); RIM.strength.value = rim.strength;
+    this.vignette.classList.toggle('is-night', this.now === 'night');
+    this.batter.root.traverse(object => { if (object instanceof THREE.Mesh) [object.material].flat().forEach(rimLit); });
+  }
+  /** What the finish is showing, for the checks: the edge light's strength, the dark under each boot, and whether the corners are the night's. */
+  get polishShown() {
+    const alpha = this.contact.mesh.geometry.getAttribute('dark') as THREE.BufferAttribute;
+    return { on: this.polished, rim: this.polished ? RIM.strength.value : 0, boots: this.polished ? [alpha.getX(0), alpha.getX(4)].map(a => +a.toFixed(3)) : [0, 0], night: this.vignette.classList.contains('is-night') };
+  }
   /** The batter's materials and the ball's, which a hundred never greys: see `greyable`. */
   private his = new Set<THREE.Material>();
   /** Everything under `root` but him and the ball made greyable for his hundred: the scene at first, and stands built later. */
@@ -835,6 +859,7 @@ export class GameScene {
     this.hemisphere.intensity = light.hemisphere.intensity;
     this.sun.color.set(light.key.colour); this.sun.intensity = light.key.intensity * (1 - this.sky.cover * OVERCAST.sun); this.sun.position.set(...light.key.position);
     this.fill.intensity = light.fill.intensity;
+    this.finish();
     if (this.boardsMaterial) this.boardsMaterial.emissiveIntensity = light.boards;
     for (const object of this.night) object.visible = time === 'night';
     this.lightStands();
@@ -1244,12 +1269,13 @@ export class GameScene {
     this.batter.printKit(super10?.print ?? null, this.shirt);
     this.batter.wearGloves(this.look.guard);
     this.wearLook();
+    this.finish();
     const asked = ++this.batAsked;
     this.batter.holdBat(bat.grip, null);
     void batSheet(bat.id).then(sheet => {
       if (asked !== this.batAsked) return;
       this.batter.holdBat(bat.grip, sheet);
-      this.kitsUnderLights();
+      this.kitsUnderLights(); this.finish();
     });
   }
   private look: { outfit: Outfit | Super10Kit; bat: BatSkin; guard: GloveDesign<string> } | null = null;
@@ -1863,6 +1889,11 @@ export class GameScene {
       }
     }
     this.dust.update(now); this.chips.update(now);
+    if (this.polished) {
+      // His boots where they are drawn this frame, in the stage's own (mirrored) frame.
+      this.batter.root.updateWorldMatrix(true, true);
+      this.contact.place(this.batter.soles.map(sole => { const at = this.world.worldToLocal(sole); return { x: at.x, z: at.z, height: at.y }; }));
+    }
     this.sky.mesh.position.copy(this.camera.position);
     if (this.sky.cover !== this.cover.to) {
       const k = Math.min(1, Math.max(0, (now - this.cover.at) / COVER_MS));

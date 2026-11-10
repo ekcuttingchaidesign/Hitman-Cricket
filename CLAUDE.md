@@ -2582,6 +2582,38 @@ does (the owner felt it at one and could not pick it out by eye); none is
 practice; `snapshot().follow` is how far it has him from the pose, and
 `contact-check` reads it.
 
+## The picture's finish
+
+Three small things laid over the scene as it was (`src/scene/polish.ts`, in
+`tests/polish.test.ts`), none of them a post-processing pass, which an iPhone
+pays for every frame. **The dark under his boots** (`ContactShadows`): one
+mesh of a soft disc a boot, one draw call and no texture, moved each frame to
+where his soles are (`Batter.soles`), wider and fainter as a boot lifts and
+gone by `CONTACT.lifted`. It is laid `CONTACT.over` above the ground, over the
+strip, and is dark out to two fifths of its width, since the boot covers its
+middle and what shows is what is round it: at half the size, or fading from
+the centre, nothing of it showed. Everybody else already had a patch (`under`
+in `createGround`); he had only the sun's own shadow, which falls beside him.
+**The light along his edges** (`rimLit`, `RIM`): a line added to his own
+materials' shaders, chained on whatever they already do as `mutable` is,
+brightest where a surface turns from the eye and faces the sky, so it reads on
+the crown of the helmet, the shoulders and the tops of the pads: warm and
+quiet by day, cooler and stronger under the floodlights (`RIM_LIGHT`, set in
+`finish` with the time of day). A true hairline rim is a pixel at the size he
+is on a phone and was lost, and a broad one washed over the whole shirt. A
+shell drawn both sides (the helmet) has its inside's normal turned back before
+it is lit, or the inside flickering through its own edge speckled the outline.
+His materials are given it again whenever he is dressed, since gloves, pads
+and a bat's sheet are new materials. **The corners let fall away**
+(`.stage-vignette`, `is-night`): a still layer on the page over the canvas,
+no blend mode or filter, faint by day and deeper at night, where it makes the
+pitch a pool of light.
+
+`?polish=0` turns all three off, for holding the two side by side, and is not
+practice. `__cricket.polish()` says what is showing. Looked at with close
+crops and measured off the pixels (the turf beside a boot about a quarter
+darker): by eye at a phone's size the boot's dark is soft enough to miss.
+
 ## The bowled ball's streak
 
 The ball on its way to the bat carries a streak (`STREAK` in `GameScene.ts`):

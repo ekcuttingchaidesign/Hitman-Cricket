@@ -1134,6 +1134,7 @@ export class Game {
       // demand, for photographing them without batting to them.
       arena: () => this.scene.arenaState,
       contactShown: () => this.scene.contactShown,
+      polish: () => this.scene.polishShown,
       arenaCue: (kind: ArenaCue | 'wave' | 'stumps' | 'diwali', word?: string) => this.scene.arenaCue(kind, this.elapsed, word),
       // The Test look, for the checks: the green strip down, or the Blast's.
       greenTop: () => this.scene.greenTop,

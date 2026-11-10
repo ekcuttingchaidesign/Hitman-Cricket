@@ -54,6 +54,7 @@ describe('every switch the game reads', () => {
     catchcam: 'the camera going with a skied ball, and a skier that fell safe for four shown put down; the runs are the runs it was',
     contact: 'the feel of the bat meeting the ball turned off: a beat held, a knock in the hand, the camera and the sound of a ball already resolved',
     follow: 'the batter\'s follow-through turned off: his trunk, hips and head settling after a stroke, only how he is drawn',
+    polish: 'the picture\'s finish turned off: the dark under his boots, the light along his edges and the corners let fall away',
     actions: 'what the batter does after a ball, on demand, at no ball and counting nothing',
     demo: 'made-up rows on the boards, in this browser only',
     feedback: 'the feedback sheet',
