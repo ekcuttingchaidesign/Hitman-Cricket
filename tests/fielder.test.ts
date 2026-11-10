@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import {
-  COLLECT_MS, DIVE, Fielder, REACTION_MS, RUNNING_CATCH, Routine, SPRINT, collect, idle, midpointOfHands, planCatch, splitStep, travel,
+  COLLECT_MS, DIVE, Fielder, RISE_KEYS, REACTION_MS, RUNNING_CATCH, Routine, SPRINT, collect, idle, midpointOfHands, planCatch, splitStep, travel,
   type Spot,
 } from '../src/entities/Fielder';
 
@@ -148,6 +148,29 @@ describe('a catch', () => {
           expect(flying.pitch).toBeGreaterThan(.8);
           const lying = routine.at(plan.catchAt + 300);
           expect(lying.anchor.y).toBeLessThan(.25);
+        });
+
+        it('lands with both knees bent, the shins flicked up behind him, and lets them down as he stops', () => {
+          const dived = plan.catchAt - DIVE.catch;
+          // How far hip to foot each leg spans, of its full length: a leg bent near a right angle is about seven tenths.
+          const flicked = joints(routine, dived + DIVE.settled + 80).legReach;
+          for (const r of flicked) expect(r).toBeLessThan(.78);
+          const stopped = joints(routine, dived + DIVE.slid + 200).legReach;
+          for (let i = 0; i < 2; i++) expect(stopped[i], `leg ${i}`).toBeGreaterThan(flicked[i] + .08);
+          // Flat on his front, the soles are up off the turf, above the knees.
+          if (name === 'coming in') {
+            const front = joints(routine, dived + DIVE.settled + 80);
+            for (let i = 0; i < 2; i++) expect(front.world[i].y - front.world[2 + i].y, `foot ${i}`).toBeGreaterThan(.2);
+          }
+        });
+
+        it('gets up by pushing up onto his hands, then his knees, never lifted straight off the turf', () => {
+          const rising = routine.actions.find(a => a.name.startsWith('Up'))!;
+          const fours = joints(routine, rising.start + RISE_KEYS.fours * 1150);
+          // Both hands on the turf, both knees on it, the hips up off it between them.
+          for (const i of [4, 5]) expect(fours.world[i].y, `hand ${i - 4}`).toBeLessThan(.12);
+          for (const i of [2, 3]) expect(fours.world[i].y, `knee ${i - 2}`).toBeLessThan(.12);
+          expect(fours.world[8].y).toBeGreaterThan(.4);
         });
       }
     });

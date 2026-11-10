@@ -450,6 +450,8 @@ const xz = (p: THREE.Vector3) => ({ x: p.x, z: p.z });
 
 /** The dive's own clock. The ball is in his hands at `CATCH`. */
 export const DIVE = { takeoff: 120, catch: 400, land: 450, settled: 560, slid: 800 } as const;
+/** How far behind each knee the shins are flicked up as he lands on his front: the two a little apart, as legs are. */
+export const DIVE_FLICK = { left: .44, right: .40 } as const;
 
 /**
  * Full length, at the ball. He drives off the last stride, goes flat through
@@ -512,6 +514,15 @@ export function dive(spot: Spot, start: number, options: {
       const trail = ease(span(ms, takeoff * .4, takeoff + 140)), rest = ease(span(ms, land, slid));
       pose.leftFoot.set(-.10, hip.y - .84, -.05).lerp(new THREE.Vector3(-.12, hip.y - .86, .02), rest);
       pose.rightFoot.set(.09, hip.y - .58, -.40).lerp(new THREE.Vector3(.12, hip.y - .78, -.14), rest);
+      // As his chest hits the turf both shins flick up behind him, knees bent
+      // and soles to the sky, held up through the slide and let down as he
+      // stops (`DIVE_FLICK`): from a clip the owner sent. Trailed flat along
+      // the grass, the legs read as a dummy dropped on its front.
+      const flick = ease(span(ms, land - 70, settled)) * (1 - ease(span(ms, slid - 140, slid + 140)));
+      if (flick > 0) {
+        pose.leftFoot.lerp(new THREE.Vector3(-.13, hip.y - .36, -DIVE_FLICK.left), flick);
+        pose.rightFoot.lerp(new THREE.Vector3(.12, hip.y - .32, -DIVE_FLICK.right), flick);
+      }
       pose.yaw = roll;
       // Rolled, the legs and arms go round with the body.
       for (const p of [pose.leftFoot, pose.rightFoot, pose.leftHand, pose.rightHand]) p.applyAxisAngle(new THREE.Vector3(0, 1, 0), roll);
@@ -573,7 +584,9 @@ function withinReach(pose: Figure, side: -1 | 1, foot: THREE.Vector3) {
  * with the floor keeping the knees out of the grass on the way. He finishes
  * either with the ball held up in one hand or with both hands on his head.
  */
-export function rise(from: Body, start: number, mood: 'held' | 'spilled', duration = 950, end = Infinity): Action {
+/** Where through getting up he is on all fours, then on his knees. */
+export const RISE_KEYS = { fours: .32, kneel: .6 } as const;
+export function rise(from: Body, start: number, mood: 'held' | 'spilled', duration = 1150, end = Infinity): Action {
   const spot: Spot = { x: from.x, z: from.z, heading: from.heading };
   const base = from.anchor.clone();
   const planted = (body: Body, z: number, spread: number) => {
@@ -581,6 +594,21 @@ export function rise(from: Body, start: number, mood: 'held' | 'spilled', durati
       foot.copy(fromField(body, outOfSpot(new THREE.Vector3(base.x + side * spread, SOLE, z + (side > 0 ? .04 : -.02)), spot)));
     }
   };
+  // Pushed up on his hands: arms straight under his shoulders, chest off the
+  // turf, the knees drawn up under his hips, shins flat behind. Gone straight
+  // from flat out to kneeling, he was lifted up off the grass by nothing.
+  const fours = (() => {
+    const pose = standPose(NOWHERE);
+    pose.hip.set(0, .9, 0);
+    pose.chest.set(0, .9 + SPINE, 0);
+    const body: Body = { ...spot, pitch: 1.38, anchor: new THREE.Vector3(base.x, .54, base.z + .05), pose };
+    planted(body, body.anchor.z - .5, .14);
+    for (const [hand, side] of [[pose.leftHand, -1], [pose.rightHand, 1]] as const) {
+      hand.copy(fromField(body, outOfSpot(new THREE.Vector3(base.x + side * .2, .06, body.anchor.z + .62), spot)));
+    }
+    pose.headPitch = -.25;
+    return body;
+  })();
   // On his knees: torso nearly upright, thighs down to the turf, shins flat
   // out behind, hands on his thighs.
   const kneel = (() => {
@@ -602,15 +630,18 @@ export function rise(from: Body, start: number, mood: 'held' | 'spilled', durati
     name: mood === 'held' ? 'Up with the ball' : 'Up, hands on head', start, end, blend: 0,
     at(t) {
       const u = span(t, start, start + duration);
-      const body = u < .45 ? mixBodies(from, kneel, ease(u / .45)) : mixBodies(kneel, stood, ease((u - .45) / .55));
+      // Push up onto his hands, the knees under him, up onto his knees, and stand.
+      const body = u < RISE_KEYS.fours ? mixBodies(from, fours, ease(u / RISE_KEYS.fours))
+        : u < RISE_KEYS.kneel ? mixBodies(fours, kneel, ease((u - RISE_KEYS.fours) / (RISE_KEYS.kneel - RISE_KEYS.fours)))
+        : mixBodies(kneel, stood, ease((u - RISE_KEYS.kneel) / (1 - RISE_KEYS.kneel)));
       // Mixing hands back a body that is shared with the keyframes it came from.
       const pose = copyPose(body.pose);
       const head = pose.chest.clone().add(new THREE.Vector3(0, .33, 0));
       if (mood === 'held') {
         // The catching hand goes up with the ball in it; the other hangs.
-        pose.rightHand.lerp(new THREE.Vector3(.22, head.y + .36, .06), ease(span(u, .55, 1)));
+        pose.rightHand.lerp(new THREE.Vector3(.22, head.y + .36, .06), ease(span(u, .66, 1)));
       } else {
-        const hold = ease(span(u, .5, .9));
+        const hold = ease(span(u, .62, .95));
         pose.leftHand.lerp(new THREE.Vector3(-.13, head.y + .1, -.02), hold);
         pose.rightHand.lerp(new THREE.Vector3(.13, head.y + .1, -.02), hold);
         pose.headPitch = THREE.MathUtils.lerp(pose.headPitch, .25, hold);

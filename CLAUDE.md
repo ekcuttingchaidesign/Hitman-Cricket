@@ -1843,6 +1843,19 @@ man close in threw himself at where a ball had already been, and one it
 passed within half a metre dived away from it (the dive's target was put
 past his own feet).
 
+The dive itself is from a clip the owner sent of a fielder diving full
+length on his front. As his chest hits the turf both shins flick up behind
+him, knees bent and soles to the sky, held up through the slide and let
+down as he stops (`DIVE_FLICK`, the `flick` in `dive`); trailed flat along
+the grass, the legs read as a dummy dropped on its front. He gets up the way
+the clip does (`rise`, `RISE_KEYS`): pushed up on straight arms onto all
+fours with his knees drawn under him, up onto his knees, and stood, over
+1150ms; gone straight from flat out to kneeling, he was lifted off the grass
+by nothing. `fielder-sheet.html` draws the dive side on in two rows, on the
+fielders' build the game uses (`connected`), and the fielder tests hold the
+knees bent through the slide and the hands and knees on the turf with the
+hips up between them.
+
 ## The late cut
 
 The late cut (`'LATE_CUT'`, `LATE_CUT` in `src/entities/Batter.ts` and

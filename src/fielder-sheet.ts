@@ -3,7 +3,7 @@
 // `scripts/fielder-sheet.mjs` drives it.
 import * as THREE from 'three';
 import {
-  COLLECT_MS, DIVE, Fielder, REACTION_MS, Routine, collect, idle, planCatch, type Spot,
+  COLLECT_MS, DIVE, Fielder, REACTION_MS, Routine, collect, dive, idle, planCatch, rise, type Spot,
 } from './entities/Fielder';
 
 const params = new URLSearchParams(location.search);
@@ -33,6 +33,15 @@ const TAKES: { name: string; routine: Routine; times: number[] }[] = [];
   const plan = planCatch(home, at(-1.5, -2.6, 1.6), HIT, arrives);
   TAKES.push({ name: `catch (${plan.style})`, routine: plan.routine, times: [HIT + REACTION_MS, HIT + 500, HIT + 700, arrives - 300, arrives - 120, arrives, arrives + 300, arrives + 600] });
 }
+{
+  // The dive alone, across the picture side on: off the last stride, through the air, down and sliding, and up.
+  const flying = dive(home, HIT, { speed: 6, hands: 'cupped' });
+  const lying = flying.at(HIT + DIVE.slid + 200);
+  const routine = new Routine([flying, rise(lying, HIT + DIVE.slid + 260, 'held')]);
+  TAKES.push({ name: 'dive', routine, times: [HIT + 120, HIT + 220, HIT + 330, HIT + DIVE.land, HIT + DIVE.settled, HIT + 680, HIT + DIVE.slid, HIT + DIVE.slid + 120] });
+  const up = HIT + DIVE.slid + 260;
+  TAKES.push({ name: 'dive', routine, times: [up, up + 180, up + 370, up + 520, up + 690, up + 850, up + 1000, up + 1250] });
+}
 const COLS = Math.max(...TAKES.map(t => t.times.length)), ROWS = TAKES.length;
 const canvas = document.createElement('canvas');
 canvas.width = COLS * TILE; canvas.height = ROWS * TILE; canvas.id = 'sheet';
@@ -47,7 +56,7 @@ const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshSta
 ground.rotation.x = -Math.PI / 2; scene.add(ground);
 const ball = new THREE.Mesh(new THREE.SphereGeometry(.036, 16, 12), new THREE.MeshStandardMaterial({ color: 0xb3132b }));
 scene.add(ball);
-const fielder = new Fielder(); scene.add(fielder.root);
+const fielder = new Fielder(undefined, { connected: true }); scene.add(fielder.root);
 const camera = new THREE.PerspectiveCamera(30, 1, .1, 80);
 ctx.font = '13px sans-serif'; ctx.fillStyle = '#10202c';
 TAKES.forEach(({ name, routine, times }, row) => {
@@ -59,7 +68,9 @@ TAKES.forEach(({ name, routine, times }, row) => {
     // On him wherever he has got to: a dive carries his body well past his feet.
     const hips = fielder.figure.root.getWorldPosition(new THREE.Vector3());
     const focus = new THREE.Vector3(hips.x, .7, hips.z);
-    if (view === 'side') camera.position.set(hips.x + 5.5, 1.2, hips.z + .2);
+    // The dive is laid out along the turf, arms past his head: framed from further off, on the middle of him.
+    if (name === 'dive') focus.set(hips.x, .55, hips.z - .45);
+    if (view === 'side') camera.position.set(hips.x + (name === 'dive' ? 7.5 : 5.5), 1.2, focus.z + .2);
     else camera.position.set(hips.x, 1.6, hips.z - 6);
     camera.lookAt(focus);
     ball.visible = name === 'collect';
