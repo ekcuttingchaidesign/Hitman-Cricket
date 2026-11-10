@@ -53,7 +53,7 @@ import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
 import { paceVersionOf, spinVersionOf } from './entities/Bowler';
-import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, SPIN_CUT_V2_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, spinCutVersionOf, flickVersionOf, flickBackFoot, FLICK_MEETS_AT, FLICK_V3_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
+import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, SPIN_CUT_V2_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, spinCutVersionOf, flickVersionOf, flickBackFoot, FLICK_MEETS_AT, FLICK_V3_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength, WALK_STYLES, type WalkStyle } from './entities/Batter';
 import { COUNTED, countStroke, freshTally, strokeMarks } from './game/stroke-tally';
 import { advanceShot, steppedOut, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot, alwaysHowOut } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
@@ -2527,6 +2527,16 @@ export class Game {
     const asked = new URLSearchParams(location.search).get('arrive');
     return asked === '1' ? true : asked === '0' ? false : null;
   })();
+  /**
+   * How he carries the bat in (`WalkStyle`): by his side as in the owner's
+   * clip, on his shoulder, or tucked under his arm, one of the three at random
+   * each time off the page's dice, never the seed. `?arrivewalk=carry`,
+   * `shoulder` or `tucked` asks for one, and is not practice.
+   */
+  private readonly walkAsked = ((): WalkStyle | null => {
+    const asked = new URLSearchParams(location.search).get('arrivewalk');
+    return asked === 'carry' || asked === 'shoulder' || asked === 'tucked' ? asked : null;
+  })();
   private arrive() {
     const who = readPlayer(), base = walkOnCard(this.careerMode, heldCareer(this.careerMode), { name: who?.name ?? '', avatar: who?.avatar ?? 0 });
     const eyebrow = `${base.modeName} · ${this.score.runs}/${this.score.wickets}`;
@@ -2537,9 +2547,10 @@ export class Game {
       : { ...base, eyebrow };
     this.walking = { start: this.elapsed, film: 'arrive', then: () => {}, card, carded: false };
     this.bannerUntil = Number.POSITIVE_INFINITY;
-    this.scene.walkOn(this.elapsed, 'arrive'); this.scene.introAt(this.introPin);
+    const style = this.walkAsked ?? WALK_STYLES[Math.floor(Math.random() * WALK_STYLES.length)];
+    this.scene.walkOn(this.elapsed, 'arrive', style); this.scene.introAt(this.introPin);
     this.hud.walkOn(arrivalBars(0));
-    this.mark('arrival', 'New batter\'s arrival shown');
+    this.mark(`arrival-${style}`, 'New batter\'s arrival shown');
   }
   /**
    * The Marathon's rules, the first two times one starts: the bowler waits at

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { Vector3 } from 'three';
-import { Batter } from '../src/entities/Batter';
-import { ARRIVE, ARRIVE_DISTANCE, ARRIVE_PACE, ARRIVE_STEP, arrivalBars, arrivalCamera, arrivalDue, walkedBy } from '../src/game/arrival';
+import { Batter, WALK_STYLES, type WalkStyle } from '../src/entities/Batter';
+import { ARRIVE, ARRIVE_HEADING, ARRIVE_DISTANCE, ARRIVE_PACE, ARRIVE_STEP, arrivalBars, arrivalCamera, arrivalDue, walkedBy } from '../src/game/arrival';
 
 // One batter, staged at each moment in turn: the arrival is a function of its clock, so nothing carries over.
 const batter = new Batter();
-const at = (t: number) => {
-  batter.stage(t, 'arrive'); batter.update(t);
+const at = (t: number, style: WalkStyle = 'carry') => {
+  batter.walkStyle = style; batter.stage(t, 'arrive'); batter.update(t);
   return batter.inspect();
 };
 
@@ -35,17 +35,34 @@ describe("the new batter's arrival: the walk", () => {
     }
   });
 
-  it('carries the bat with its toe off the turf, and never asks an arm or a leg for more than it has', () => {
-    for (let t = 0; t <= ARRIVE.total; t += 20) {
-      const pose = at(t);
-      expect(pose.bladeTip[1], `toe at ${t}ms`).toBeGreaterThan(t <= ARRIVE.walk ? .02 : -.02);
+  it('carries the bat with its toe off the turf, and never asks an arm or a leg for more than it has, however he carries it', () => {
+    for (const style of WALK_STYLES) for (let t = 0; t <= ARRIVE.total; t += 20) {
+      const pose = at(t, style);
+      expect(pose.bladeTip[1], `${style} toe at ${t}ms`).toBeGreaterThan(t <= ARRIVE.walk ? .02 : -.02);
       for (const [upper, lower] of pose.armLengths) {
-        expect(upper, `upper arm at ${t}ms`).toBeCloseTo(.32, 3);
-        expect(lower, `forearm at ${t}ms`).toBeLessThan(.345);
+        expect(upper, `${style} upper arm at ${t}ms`).toBeCloseTo(.32, 3);
+        expect(lower, `${style} forearm at ${t}ms`).toBeLessThan(.345);
       }
       for (const [thigh, shin] of pose.legLengths) {
-        expect(thigh, `thigh at ${t}ms`).toBeCloseTo(.43, 3);
-        expect(shin, `shin at ${t}ms`).toBeLessThan(.445);
+        expect(thigh, `${style} thigh at ${t}ms`).toBeCloseTo(.43, 3);
+        expect(shin, `${style} shin at ${t}ms`).toBeLessThan(.445);
+      }
+    }
+  });
+
+  it('bends each knee forward over its own foot as he walks, never out across his line', () => {
+    const along = new Vector3(Math.sin(ARRIVE_HEADING), 0, Math.cos(ARRIVE_HEADING));
+    for (let t = 0; t <= ARRIVE.walk; t += 40) {
+      const pose = at(t);
+      for (let i = 0; i < 2; i++) {
+        const hipToFoot = new Vector3(...(i === 0 ? pose.frontFoot : pose.backFoot)).sub(new Vector3(...pose.hip));
+        const knee = new Vector3(...pose.knees[i]).sub(new Vector3(...pose.hip));
+        // Where the knee stands off the straight line from hip to foot: ahead of it, not to either side.
+        const off = knee.clone().sub(hipToFoot.clone().multiplyScalar(knee.dot(hipToFoot) / hipToFoot.lengthSq())).setY(0);
+        // Never bent backwards, and never more than a few centimetres off his line, which is what a twisted leg is.
+        const across = new Vector3(along.z, 0, -along.x);
+        expect(off.dot(along), `knee ${i} at ${t}ms`).toBeGreaterThan(-.005);
+        expect(Math.abs(off.dot(across)), `knee ${i} at ${t}ms`).toBeLessThan(.08);
       }
     }
   });

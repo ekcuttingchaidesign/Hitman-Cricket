@@ -49,6 +49,7 @@ describe('every switch the game reads', () => {
     topspot: 'New #1 on demand, over a made-up board, counting and sending nothing',
     intro: 'the walk-on before the first ball, a camera and a pose: nothing bowled, scored or counted until it has landed',
     arrive: 'the new batter walking in after a wicket, a camera and a pose: nothing bowled, scored or counted until it has landed',
+    arrivewalk: 'how the new batter carries his bat in: only the picture',
     replay: 'the action replay once a ball is dead, a camera and the same ball told again: nothing bowled, scored or counted under it',
     replayangle: 'which camera the action replay is shown from; nothing about the ball',
     keeperintro: 'the keeper\'s coach card at the first spinner\'s ball, asked for again; it changes nothing about the batting',

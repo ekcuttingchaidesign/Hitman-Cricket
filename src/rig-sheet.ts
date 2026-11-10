@@ -76,6 +76,7 @@ for (let i = 0; i < frames; i++) {
     // The new batter's arrival on its own clock (`?times=` or evenly to his guard), the camera on his hips:
     // side on to his walk from its right (`side`), from in front of him (`front`) or behind (`back`).
     const t = times ? times[i] : i / (frames - 1) * ARRIVE.total;
+    batter.walkStyle = (params.get('arrivewalk') ?? 'carry') as typeof batter.walkStyle;
     batter.reset(); batter.stage(t, 'arrive'); batter.update(t); batter.drape();
     batter.root.updateMatrixWorld(true);
     const hip = new THREE.Vector3(...batter.inspect().hip as [number, number, number]).add(batter.root.position);

@@ -35,6 +35,7 @@ import type { CameraPose } from '../game/ShotReel';
 import { SPILL_FALL, spillTo } from '../game/catch-cam';
 import { introCamera, introSweep, type Film } from '../game/IntroReel';
 import { arrivalCamera } from '../game/arrival';
+import type { WalkStyle } from '../entities/Batter';
 import { diwaliOn } from '../game/diwali';
 import { batSheet } from '../entities/batSkins';
 import { Puff, type Burst } from './puff';
@@ -1837,7 +1838,7 @@ export class GameScene {
    * null to put it away and hand the camera, the batter and the bowler back.
    * `introAt` pins its clock to one moment, for the checks.
    */
-  walkOn(now: number | null, film: Film | 'arrive' = 'bat') {
+  walkOn(now: number | null, film: Film | 'arrive' = 'bat', style: WalkStyle = 'carry') {
     if (now === null) {
       if (!Number.isFinite(this.introFrom)) return;
       this.introFrom = -Infinity; this.introPinned = null;
@@ -1848,7 +1849,7 @@ export class GameScene {
     this.introFrom = now; this.introPinned = null; this.introFilm = film;
     // The new batter's arrival (`arrival.ts`): the walk tracked, then onto the game's view.
     // It opens on a cut, so the wicket is tidied away under it: the bails back on, the ball gone, the field on its marks.
-    if (film === 'arrive') { this.reset(); this.cinematic(at => arrivalCamera(this.introClock(at), this.homeView)); return; }
+    if (film === 'arrive') { this.reset(); this.batter.walkStyle = style; this.cinematic(at => arrivalCamera(this.introClock(at), this.homeView)); return; }
     // The duel is framed on where he stands at the top of his mark, as the
     // stage has him: he is mirrored back on his own inside it, so his own
     // position is the other side of the stumps from where he is drawn.

@@ -3299,7 +3299,19 @@ a stride ahead of his hips and stays exactly where it landed until it lifts,
 the trailing foot swinging through in an arc, the hips lowest with both
 feet down; the bat carried in the bottom hand by the handle, the blade
 hanging beside his leg with its toe just off the grass, both arms swinging
-against the legs, the bat's the less. He slows into the last stride
+against the legs, the bat's the less. He carries it one of three ways,
+dealt at random each arrival off the page's dice (`WalkStyle`,
+`WALK_STYLES`, the batter's `walkStyle`; `?arrivewalk=carry`, `shoulder`
+or `tucked` asks for one, not practice): by his side as in the clip, the
+toe angled out away from the leg (splayed the other way it went into his
+leg, which the owner saw); on his shoulder (`shoulderBat`, the scuff's bat
+on the shoulder, lifted out for both); or tucked under his arm, the hand
+at the front of his hip on the handle and the blade rising back under the
+upper arm past his shoulder (`TUCK`; held out level at the hip it read as
+a rifle). Walking, each knee bends forward over its own shoe (`stride` on
+the pose, eased off as he takes guard): the knee solve bends a standing
+man's knees out to the off side, which turned across the crease twisted
+the back leg, as the owner saw. He slows into the last stride
 (`walkedBy`), steps into place one foot then the other (`intoPlace`; stood
 up only as the back foot comes in, or the leg could not reach it), holds the
 bat upright in front of him in both hands with his head up the pitch to the
@@ -3317,8 +3329,9 @@ Space, Enter or Escape to skip it, `__cricket.introAt` to pin its clock and
 `__cricket.walkingOn()` saying `'arrive'`. Never in the tutorial or a demo,
 nor under reduced motion; off under `?debug=1` unless `?arrive=1` asks, and
 `?arrive=0` turns it off; not practice. `rig-sheet.html?shot=ARRIVE`
-(`&view=side`, `front` or `back`, `&times=`) draws it on its own clock.
-GoatCounter counts `arrival` and `arrival-skipped`.
+(`&view=side`, `front` or `back`, `&times=`, `&arrivewalk=`) draws it on
+its own clock, unmirrored, so as a left-hander. GoatCounter counts
+`arrival-<style>` and `arrival-skipped`.
 
 ## `?moments=1`
 
