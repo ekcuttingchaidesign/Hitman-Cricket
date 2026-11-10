@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { Batter, CHARGE_MEETS_AT, HOOK_MEETS_AT, LATE_CUT_MEETS_AT, ON_DRIVE_MEETS_AT, PULL_MEETS_AT, STROKE_DURATION_MS } from './entities/Batter';
 import { GAME } from './config/gameplay';
+import { ARRIVE, ARRIVE_HEADING } from './game/arrival';
 
 const params = new URLSearchParams(location.search);
 const shot = params.get('shot') ?? 'STRAIGHT';
@@ -71,6 +72,23 @@ for (let i = 0; i < frames; i++) {
   // is sampled evenly instead.
   const age = times ? times[i] : shot.endsWith('CHARGE') || shot.endsWith('SCOOP') ? i / (frames - 1) * total
     : i / (frames - 1) <= .75 ? (i / (frames - 1)) / .75 * 620 : 620 + ((i / (frames - 1)) - .75) / .25 * (total - 620);
+  if (shot === 'ARRIVE') {
+    // The new batter's arrival on its own clock (`?times=` or evenly to his guard), the camera on his hips:
+    // side on to his walk from its right (`side`), from in front of him (`front`) or behind (`back`).
+    const t = times ? times[i] : i / (frames - 1) * ARRIVE.total;
+    batter.reset(); batter.stage(t, 'arrive'); batter.update(t); batter.drape();
+    batter.root.updateMatrixWorld(true);
+    const hip = new THREE.Vector3(...batter.inspect().hip as [number, number, number]).add(batter.root.position);
+    const ahead = new THREE.Vector3(Math.sin(ARRIVE_HEADING), 0, Math.cos(ARRIVE_HEADING)), right = new THREE.Vector3(ahead.z, 0, -ahead.x);
+    const look = new THREE.Vector3(hip.x, .85, hip.z);
+    camera.position.copy(look).addScaledVector(view === 'front' ? ahead : view === 'back' ? ahead.clone().negate() : right, 4.4).setY(1.3);
+    camera.lookAt(look); renderer.render(scene, camera);
+    const col = i % COLS, row = Math.floor(i / COLS);
+    ctx.drawImage(renderer.domElement, col * TILE, row * TILE);
+    ctx.fillStyle = '#d8f0c8'; ctx.font = '600 15px monospace';
+    ctx.fillText(`${Math.round(t)}ms`, col * TILE + 8, row * TILE + 20);
+    continue;
+  }
   batter.reset(); batter.prepare(1); batter.update(0);
   batter.swing(spec.shot, 0, spec.x, spec.y, GAME.contactZ + (shot.endsWith('CHARGE') ? CHARGE_MEETS_AT : spec.shot === 'LONG_ON' ? ON_DRIVE_MEETS_AT : spec.shot === 'HOOK' ? HOOK_MEETS_AT : shot === 'PULL' ? PULL_MEETS_AT : spec.shot === 'LATE_CUT' ? LATE_CUT_MEETS_AT : spec.version === 1 && spec.spinCut ? -.22 : 0), shot.endsWith('CHARGE'), spec.lofted ?? false, spec.sweeping ?? false, spec.levelled ?? false, spec.version ?? 2, spec.spinCut ?? false);
   batter.update(age);

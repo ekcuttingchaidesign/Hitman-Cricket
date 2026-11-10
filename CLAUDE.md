@@ -3281,6 +3281,45 @@ skips it, and no other key does anything while it plays. GoatCounter counts
 photographs their beats; `tests/intro-reel.test.ts` holds the landing, the
 light, the duel's framing and both cameras to a crane's pace.
 
+## The new batter's arrival
+
+After a wicket, or a man carried off, with the innings going on, the next
+man walks in before the next ball (`src/game/arrival.ts`, in
+`tests/arrival.test.ts`), in every mode, a Rival Match's too: the owner
+asked for it after a wicket had the batter pop back into his stance with
+nothing between. Built from a clip the owner sent of a batter walking out.
+It opens on a cut, under which the wicket is tidied away (the scene's
+`reset`: the bails back on, the ball gone, the field on its marks); he is
+already walking, the last four strides to his crease from behind his stumps
+on the leg side, the camera tracking five metres behind him so his back
+(and in Super10 his number) leads the picture, head to boots — at two and a
+half metres he was a back from the knees up. The walk (`walkPose` in
+`Batter.ts`) is worked out from the clock, not keyed: each heel strikes half
+a stride ahead of his hips and stays exactly where it landed until it lifts,
+the trailing foot swinging through in an arc, the hips lowest with both
+feet down; the bat carried in the bottom hand by the handle, the blade
+hanging beside his leg with its toe just off the grass, both arms swinging
+against the legs, the bat's the less. He slows into the last stride
+(`walkedBy`), steps into place one foot then the other (`intoPlace`; stood
+up only as the back foot comes in, or the leg could not reach it), holds the
+bat upright in front of him in both hands with his head up the pitch to the
+umpire, nods, turns to look out over the leg side and round to the off, and
+goes into his guard as the camera rises onto the game's view (`ARRIVE`, 5.3
+seconds). He stands with the knees soft for it (`AT_EASE`): the game's own
+`STANDING` has the shins a centimetre past their length, which turned he
+would show. A name card is up over the walk (`ARRIVAL_CARD`): the walk-on's
+lower third with the score in its eyebrow (`eyebrow` on `WalkOnCard`), the
+squad's man and his place in Super10, the Marathon's man by his place, the
+player in the Blast and the Test match. It rides the walk-on's machinery
+(`walking` in `src/Game.ts` with the film `'arrive'`, the scene's `walkOn`,
+the batter's `stage`): the bowler waits at his mark, the bars and a tap,
+Space, Enter or Escape to skip it, `__cricket.introAt` to pin its clock and
+`__cricket.walkingOn()` saying `'arrive'`. Never in the tutorial or a demo,
+nor under reduced motion; off under `?debug=1` unless `?arrive=1` asks, and
+`?arrive=0` turns it off; not practice. `rig-sheet.html?shot=ARRIVE`
+(`&view=side`, `front` or `back`, `&times=`) draws it on its own clock.
+GoatCounter counts `arrival` and `arrival-skipped`.
+
 ## `?moments=1`
 
 A row of keys along the foot of the picture, one a milestone — 50, 100, six

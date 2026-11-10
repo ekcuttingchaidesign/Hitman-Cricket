@@ -62,6 +62,7 @@ import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
 import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
 import { cardShown, filmLength, introBars, nextFilm, type Film } from './game/IntroReel';
+import { ARRIVAL_CARD, ARRIVE, arrivalBars, arrivalDue } from './game/arrival';
 import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
 import { catchCamera, catchPace, catchShotOf, catchTimes, spillable, SPILL_ODDS, type CatchShot } from './game/catch-cam';
 import { STUMPING, STUMPING_CAMERA } from './game/stumping';
@@ -2477,7 +2478,7 @@ export class Game {
   })();
   /** The modes that have had their walk-on this visit. */
   private readonly walkedIn = new Set<GameMode>();
-  private walking: { start: number; film: Film; then: () => void; card: WalkOnCard; carded: boolean } | null = null;
+  private walking: { start: number; film: Film | 'arrive'; then: () => void; card: WalkOnCard; carded: boolean } | null = null;
   /** Where the checks pin the walk-on's clock (`__cricket.introAt`), or null to let it run. */
   private introPin: number | null = null;
   private walkOn(then: () => void) {
@@ -2497,10 +2498,10 @@ export class Game {
   }
   /** One frame of it: the bars, and the hand back once it is over. */
   private walkOnFrame() {
-    const walking = this.walking!, t = this.introPin ?? this.elapsed - walking.start;
-    if (this.introPin === null && t >= filmLength(walking.film)) return this.walkedOn();
-    this.hud.walkOn(introBars(walking.film, t));
-    const carded = cardShown(walking.film, t);
+    const walking = this.walking!, t = this.introPin ?? this.elapsed - walking.start, film = walking.film;
+    if (this.introPin === null && t >= (film === 'arrive' ? ARRIVE.total : filmLength(film))) return this.walkedOn();
+    this.hud.walkOn(film === 'arrive' ? arrivalBars(t) : introBars(film, t));
+    const carded = film === 'arrive' ? t >= ARRIVAL_CARD[0] && t < ARRIVAL_CARD[1] : cardShown(film, t);
     if (carded !== walking.carded) { walking.carded = carded; this.hud.walkOnCard(carded ? walking.card : null); }
   }
   /** Over, landed or skipped: the camera and the batter handed back, and whatever waited for it told. */
@@ -2509,10 +2510,37 @@ export class Game {
     if (!walking) return;
     this.walking = null;
     this.scene.walkOn(null); this.hud.walkOn(null); this.hud.walkOnCard(null, true);
-    if (skipped) this.mark(`walk-on-skipped-${walking.film}`, 'Walk-on skipped');
+    if (skipped) this.mark(walking.film === 'arrive' ? 'arrival-skipped' : `walk-on-skipped-${walking.film}`, walking.film === 'arrive' ? 'New batter\'s arrival skipped' : 'Walk-on skipped');
     this.bannerUntil = this.elapsed;
     walking.then();
   };
+  /**
+   * The new batter's arrival (`arrival.ts`), after a wicket or a man carried
+   * off with the innings going on: the last strides to his crease, his guard
+   * taken and a look round the field, with a card naming him over it. The
+   * bowler waits at his mark until it is over, or a tap or a key skips it
+   * there, as the walk-on's does; nothing about the innings moves. In every
+   * mode, a Rival Match's too; never in the tutorial or a demo, under reduced
+   * motion, or under `?debug=1` unless `?arrive=1` asks; `?arrive=0` turns it off.
+   */
+  private readonly arriveAsked: boolean | null = (() => {
+    const asked = new URLSearchParams(location.search).get('arrive');
+    return asked === '1' ? true : asked === '0' ? false : null;
+  })();
+  private arrive() {
+    const who = readPlayer(), base = walkOnCard(this.careerMode, heldCareer(this.careerMode), { name: who?.name ?? '', avatar: who?.avatar ?? 0 });
+    const eyebrow = `${base.modeName} · ${this.score.runs}/${this.score.wickets}`;
+    // Super10's next man is the kit's squad's, the Marathon's by his place; the Blast and the Test match bring the player back in.
+    const named = this.super10 ? this.lineup()[Math.min(this.score.wickets, 4)] : null;
+    const card: WalkOnCard = named ? { ...base, name: named.card, rung: named.walkOut.split(' · ')[0], debut: true, figures: [], eyebrow }
+      : this.marathon ? { ...base, name: base.name || this.marathon.current.batter.title, rung: this.marathon.current.batter.title, debut: true, figures: [], eyebrow }
+      : { ...base, eyebrow };
+    this.walking = { start: this.elapsed, film: 'arrive', then: () => {}, card, carded: false };
+    this.bannerUntil = Number.POSITIVE_INFINITY;
+    this.scene.walkOn(this.elapsed, 'arrive'); this.scene.introAt(this.introPin);
+    this.hud.walkOn(arrivalBars(0));
+    this.mark('arrival', 'New batter\'s arrival shown');
+  }
   /**
    * The Marathon's rules, the first two times one starts: the bowler waits at
    * his mark until the last card is put away, the way he waits for a banner.
@@ -4656,9 +4684,15 @@ export class Game {
         else { this.setPhase('READY'); this.hud.coach(TUTORIAL[this.lesson], this.lesson + 1, TUTORIAL.length); }
       } else if (this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended || this.targetPassed) this.end();
       else {
+        // Out, or carried off, with the innings going on: the next man walks in (`arrival.ts`).
+        const out = !!this.changed || !!this.outcome?.isWicket;
         if (this.changed) this.nextBatter();
         if (this.noticeDue) { this.noticeDue = false; this.showHurtNote(); }
-        else this.setPhase('READY');
+        else {
+          this.setPhase('READY');
+          if (arrivalDue({ out, over: false, lesson: this.lesson >= 0, demo: this.demoing, asked: this.arriveAsked, debug: this.debug,
+            still: matchMedia('(prefers-reduced-motion: reduce)').matches })) this.arrive();
+        }
       }
     }
   }

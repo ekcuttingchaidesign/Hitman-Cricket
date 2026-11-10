@@ -24,6 +24,8 @@ export interface WalkOnCard {
   rung: string;
   /** No innings in this mode yet: DEBUTANT instead of the figures. */
   debut: boolean;
+  /** What the line over the name says, where it is not the mode (and First innings for a debut): the new batter's arrival puts the score there. */
+  eyebrow?: string;
   figures: readonly { label: string; value: string }[];
 }
 
