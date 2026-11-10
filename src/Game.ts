@@ -52,7 +52,7 @@ import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
-import { paceVersionOf } from './entities/Bowler';
+import { paceVersionOf, spinVersionOf } from './entities/Bowler';
 import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, SPIN_CUT_V2_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, spinCutVersionOf, flickVersionOf, flickBackFoot, FLICK_MEETS_AT, FLICK_V3_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
 import { COUNTED, countStroke, freshTally, strokeMarks } from './game/stroke-tally';
 import { advanceShot, steppedOut, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot, alwaysHowOut } from './game/ShotResolver';
@@ -715,6 +715,8 @@ export class Game {
   }
   /** `?bowlv=1` or `2`: always that one of the fast bowler's two actions, for looking at one. Only the picture, so not practice. */
   private readonly paceAsked = Number(new URLSearchParams(location.search).get('bowlv'));
+  /** `?spinv=1` or `2`: always that one of the spinner's two actions. Only the picture, so not practice. */
+  private readonly spinAsked = Number(new URLSearchParams(location.search).get('spinv'));
   private paceSecond = false;
   /** `?spincutv=1` or `2`: always that version of the cut off the spinner, for looking at one. Scored the same, so not practice. */
   private readonly spinCutAsked = Number(new URLSearchParams(location.search).get('spincutv'));
@@ -4584,7 +4586,8 @@ export class Game {
       // After the reset, which hands the ball back to the quick bowler.
       this.scene.spinner(spun(this.delivery));
       // The fast bowler's second action, in half his overs: only the picture (`PACE_ACTION_V2`).
-      this.paceSecond = !spun(this.delivery) && (this.paceAsked === 1 || this.paceAsked === 2 ? this.paceAsked : paceVersionOf(this.seed, Math.floor(this.score.balls / 6))) === 2;
+      { const over = Math.floor(this.score.balls / 6), spin = spun(this.delivery), asked = spin ? this.spinAsked : this.paceAsked;
+        this.paceSecond = (asked === 1 || asked === 2 ? asked : spin ? spinVersionOf(this.seed, over) : paceVersionOf(this.seed, over)) === 2; }
       this.scene.express(!!this.delivery.express, !!this.delivery.death, this.paceSecond);
       this.scene.round(!!this.delivery.round);
       this.showConfidence(); this.setPhase('BOWLER_RUNUP');

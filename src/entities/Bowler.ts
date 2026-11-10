@@ -330,6 +330,41 @@ export function paceVersionOf(seed: number, over: number): 1 | 2 {
 }
 
 /**
+ * The spinner's second action, bowled in half his overs (`spinVersionOf`),
+ * from a clip the owner sent of a right-arm spinner filmed from the batter's
+ * end (https://youtube.com/shorts/O3fjksDgQVU). Where the first spinner walks
+ * two paces into the fast bowler's own action, this one jogs in four short
+ * steps (`SPIN_RUN_V2`) with both hands on the ball in front of his chest,
+ * hops up into the back foot with the front knee lifted and his weight back,
+ * the ball hand cocked up beside his ear and the front arm bent out in front
+ * of his chest; then a high arm, straight over the top and quick, up on the
+ * front foot as the chest comes hard round; and he pivots on it, the back
+ * leg swinging round and through, the bowling hand finishing down by the far
+ * hip and the front arm flung back behind him, stopping near the crease
+ * facing down the pitch. The same release point and moment as every ball.
+ */
+export const SPIN_RUN_V2 = runOf(1.55, .62, { stride: .9, accel: 1.15 });
+export const SPIN_ACTION_V2: ActionStyle = {
+  gatherAngle: -1.15, whip: 3.3, release: .20, through: 3.1,
+  frontUp: -1.05, frontPull: -2.5, frontAfter: -2.7,
+  runTurn: .1, gatherTurn: 1.15, releaseTurn: -.62,
+  leap: .24, followDrop: .19,
+  coilBack: .2, coilLean: .26, coilHead: -.45,
+  fold: .12, foldLean: .2,
+  backKick: .38,
+  carry: 'chest', lane: .34,
+  runLean: 0, pump: .8,
+  frontRise: [BOUND, BACK_FOOT], kneeDrive: 1.25, releaseTilt: .16, tiltFrom: FRONT_FOOT, armTilt: -.175, throughTilt: .3,
+  open: 1.3, throughTurn: .95, releaseHead: 0, throughHead: .5, throughTwist: .2, frontTuck: .62, frontAfterReach: .9, frontTilt: -.16, frontAfterTilt: -.3, frontSync: 0,
+  kick: .2, kickHold: .18, followAcross: .15,
+  run: SPIN_RUN_V2,
+};
+/** Which of the spinner's two actions an over is bowled with: half each, off the innings' seed and the over. */
+export function spinVersionOf(seed: number, over: number): 1 | 2 {
+  return paceVersionOf(seed ^ 0x3a94c1, over + 17);
+}
+
+/**
  * The Marathon's express bowler: a slinger, after a slow-motion reference of
  * the most famous one — the same run-up and clock, and everything else his own.
  *
@@ -562,7 +597,7 @@ export class Bowler {
    * and held for the whole of it, so a delivery cannot change its own geometry
    * halfway through and slide him down the pitch.
    */
-  private get run(): Run { return this.spinning ? SPIN_RUN : this.style.run ?? PACE_RUN; }
+  private get run(): Run { return this.style.run ?? (this.spinning ? SPIN_RUN : PACE_RUN); }
   private spinning = false;
 
   /** Hand the ball to the spinner, or take it back. */
@@ -636,7 +671,7 @@ export class Bowler {
     this.figure.hands[1].add(this.ball);
     this.ball.position.set(0, .045, .03);
     // Both actions measured now, while nobody is watching him.
-    this.reach(PACE_ACTION); this.reach(PACE_ACTION_V2); this.reach(EXPRESS_ACTION); this.reach(DEATH_ACTION);
+    this.reach(PACE_ACTION); this.reach(PACE_ACTION_V2); this.reach(SPIN_ACTION_V2); this.reach(EXPRESS_ACTION); this.reach(DEATH_ACTION);
     this.reset();
   }
 

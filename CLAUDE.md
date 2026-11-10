@@ -1802,6 +1802,23 @@ sets his feet before `stand` settles his hips, or the hips are clamped to
 the marks the fall left a stride behind. Not the spinner, who bowls the same
 style standing, nor the sling and death bowlers, who keep theirs.
 
+The spinner has a second action too (`SPIN_ACTION_V2`, `SPIN_RUN_V2` in
+`Bowler.ts`), in half his overs (`spinVersionOf`), from a clip the owner sent
+of a right-arm spinner from the batter's end
+(https://youtube.com/shorts/O3fjksDgQVU): a jog of four short steps with both
+hands on the ball at his chest, where the first spinner walks two paces into
+the fast bowler's own action; an energetic hop into the back foot, leant
+back; a high, quick arm; and a pivot on the front foot, the back leg swung
+round, the bowling hand down by the far hip and the front arm flung back,
+stopping near the crease. An action's own run now comes before the
+spinner's (`run` on `Bowler`). It is not in the fast bowlers' shared suite,
+whose rules about momentum into the crease and the arm's sweep are not a
+spinner's: `describe("the spinner's second action")` holds its release point
+to the first spinner's within a few centimetres, its limbs and its feet.
+`?spinv=1` or `2` asks for one and is not practice; `bowler-sheet.html?actions=spin2`
+draws it. In the clip the front arm is bent out in front of the chest at the
+hop; here it goes up higher than that.
+
 A fielder dives at a ball along the ground only when a fielder would
 (`worthIt` in `Field.ground`): the ball at least `DIVE_FROM` from him, his
 hands down on its line no later than `DIVE_LATE` after it, and one man a

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt } from '../entities/Batter';
-import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION, PACE_ACTION_V2 } from '../entities/Bowler';
+import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION, PACE_ACTION_V2, SPIN_ACTION_V2 } from '../entities/Bowler';
 import { Fielder, bodyOf, mixBodies, onField, readyPose, showBody, type Body } from '../entities/Fielder';
 import { KEEPER_CHEER, KEEPER_SCALE, KEEPER_UP, STUMPING, stumpingAt } from '../game/stumping';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
@@ -1405,7 +1405,7 @@ export class GameScene {
    * and the fast bowler's in everyone else's. Set beside `spinner`, every
    * ball, so an over can never inherit the last one's.
    */
-  express(on: boolean, death = false, second = false) { this.bowler.action(death ? DEATH_ACTION : on ? EXPRESS_ACTION : second ? PACE_ACTION_V2 : PACE_ACTION); }
+  express(on: boolean, death = false, second = false) { this.bowler.action(death ? DEATH_ACTION : on ? EXPRESS_ACTION : second ? (this.spinning ? SPIN_ACTION_V2 : PACE_ACTION_V2) : PACE_ACTION); }
   /**
    * Super10's field: the six men drawn of its nine, put on their marks at the
    * start of an innings, and stood on the new ones when it changes in it.
@@ -1469,7 +1469,7 @@ export class GameScene {
   /** Which action is at the top of the mark, for the checks. */
   get bowlerAction() {
     const style = this.bowler.actionStyle;
-    return style === EXPRESS_ACTION ? 'express' : style === DEATH_ACTION ? 'death' : style === PACE_ACTION_V2 ? 'pace2' : 'pace';
+    return style === EXPRESS_ACTION ? 'express' : style === DEATH_ACTION ? 'death' : style === PACE_ACTION_V2 ? 'pace2' : style === SPIN_ACTION_V2 ? 'spin2' : 'pace';
   }
   /**
    * And which side of the stumps he bowls it from: round the wicket in the

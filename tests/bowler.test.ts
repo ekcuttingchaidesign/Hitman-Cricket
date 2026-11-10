@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { ACTION_MS, Bowler, DEATH_ACTION, loopDrop, EXPRESS_ACTION, PACE_ACTION, PACE_ACTION_V2, paceVersionOf, PHASES, RELEASE_Z, RUNUP_START_Z, type ActionStyle } from '../src/entities/Bowler';
+import { ACTION_MS, Bowler, DEATH_ACTION, loopDrop, EXPRESS_ACTION, PACE_ACTION, PACE_ACTION_V2, SPIN_ACTION_V2, paceVersionOf, PHASES, RELEASE_Z, RUNUP_START_Z, type ActionStyle } from '../src/entities/Bowler';
 import { Cricketer } from '../src/entities/Cricketer';
 import { GAME } from '../src/config/gameplay';
 import { ballPosition } from '../src/game/DeliveryTrajectory';
@@ -690,5 +690,38 @@ describe("the fast bowler's two actions", () => {
     const at = (style: ActionStyle) => { bowler.action(style); bowler.reset(); bowler.animate(RUNUP_START_Z ? ACTION_MS * 0 : 0); return style.release; };
     expect(at(PACE_ACTION_V2)).toBe(at(PACE_ACTION));
     expect(PACE_ACTION_V2.lane).toBe(PACE_ACTION.lane);
+  });
+});
+
+describe("the spinner's second action", () => {
+  // Held to what is the game's (the release, the limbs, the turf), not to the
+  // fast bowler's rules about momentum and the arm's sweep, which are not a spinner's.
+  const spinner = new Bowler(); spinner.action(SPIN_ACTION_V2); spinner.spinner(true);
+  const first = new Bowler(); first.spinner(true);
+  it('lets the ball go from the same point as the first spinner does', () => {
+    spinner.runup(1); first.runup(1);
+    const a = spinner.releasePoint(), b = first.releasePoint();
+    // Within a few centimetres: the ball's flight starts from the game's own point either way.
+    expect(a.y).toBeCloseTo(b.y, 1); expect(a.z).toBeCloseTo(b.z, 1); expect(a.x).toBeCloseTo(b.x, 1);
+  });
+  it('keeps every limb inside its length and every foot on the turf, all the way through', () => {
+    for (let i = 0; i <= 240; i++) {
+      spinner.runup(i / 240);
+      const s = spinner.figure.inspect();
+      for (const reach of [...s.legReach, ...s.armReach]) expect(reach, `run-up ${i / 240}`).toBeLessThanOrEqual(1);
+      for (const foot of s.feet) expect(foot[1]).toBeGreaterThan(.02);
+    }
+    for (let i = 0; i <= 120; i++) {
+      spinner.followThrough(i / 120);
+      const s = spinner.figure.inspect();
+      for (const reach of [...s.legReach, ...s.armReach]) expect(reach, `follow-through ${i / 120}`).toBeLessThanOrEqual(1);
+      for (const foot of s.feet) expect(foot[1]).toBeGreaterThan(.02);
+    }
+  });
+  it('jogs in from further back than the first spinner walks, and hops higher', () => {
+    spinner.runup(0); first.runup(0);
+    expect(spinner.root.position.z).toBeGreaterThan(first.root.position.z + .8);
+    expect(SPIN_ACTION_V2.leap).toBeGreaterThan(PACE_ACTION.leap);
+    expect(SPIN_ACTION_V2.carry).toBe('chest');
   });
 });
