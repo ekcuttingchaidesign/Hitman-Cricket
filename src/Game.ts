@@ -52,7 +52,7 @@ import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
-import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, flickVersionOf, flickBackFoot, FLICK_MEETS_AT, FLICK_V3_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
+import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, spinCutVersionOf, flickVersionOf, flickBackFoot, FLICK_MEETS_AT, FLICK_V3_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
 import { COUNTED, countStroke, freshTally, strokeMarks } from './game/stroke-tally';
 import { advanceShot, steppedOut, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot, alwaysHowOut } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
@@ -712,6 +712,8 @@ export class Game {
   private pullVersion(): PullVersion {
     return this.pullAsked === 1 || this.pullAsked === 2 ? this.pullAsked : pullVersionOf(this.seed, this.score.balls);
   }
+  /** `?spincutv=1` or `2`: always that version of the cut off the spinner, for looking at one. Scored the same, so not practice. */
+  private readonly spinCutAsked = Number(new URLSearchParams(location.search).get('spincutv'));
   /** `?flickv=1` or `2`: always that version of the flick, for looking at one. Practice, since version two is scored its own way. */
   private readonly flickAsked = Number(new URLSearchParams(location.search).get('flickv'));
   /**
@@ -3172,7 +3174,9 @@ export class Game {
     this.flickPlayed = flicking;
     // At the spinner the cut is played making room for it: see `SPIN_CUT`.
     const cutting = !charging && spinCut(this.delivery!, this.attempt);
-    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, version, this.meetsAt, cutting, spinPulling);
+    // Its second version is asked of the swing as version 1 (2, the default, is the first build): see `SPIN_CUT_V2`.
+    const swung = cutting ? ((this.spinCutAsked === 1 || this.spinCutAsked === 2 ? this.spinCutAsked : spinCutVersionOf(this.seed, this.score.balls)) === 2 ? 1 : 2) : version;
+    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, swung, this.meetsAt, cutting, spinPulling);
     // Kept, for a replay of it: everything the scene was told, and when.
     // Which of the strokes a replay shows it is (`REPLAY_STROKES`), if any:
     // the pull is the leg-side input neither swept nor flicked, the hook and
@@ -3187,7 +3191,7 @@ export class Game {
       : shotType === 'HOOK' || spinPulling || shotType === 'LEG' ? 'pull'
       : shotType === 'SQUARE_CUT' ? (cutting ? 'spincut' : 'cut') : shotType === 'LATE_CUT' ? 'latecut'
       : shotType === 'SCOOP' ? 'scoop' : shotType === 'REVERSE_SCOOP' ? 'reverse' : null;
-    this.keptSwing = { shot: shotType, at: this.elapsed, charging, lofted, sweeping, levelled, version, meets: this.meetsAt, cutting, spinPulling, stroke };
+    this.keptSwing = { shot: shotType, at: this.elapsed, charging, lofted, sweeping, levelled, version: swung, meets: this.meetsAt, cutting, spinPulling, stroke };
     this.hud.select(shotType, charging);
     // The charge is judged now rather than when the ball arrives, because the
     // ball is not going to arrive: he is going down the pitch to meet it, and

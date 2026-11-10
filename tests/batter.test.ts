@@ -82,6 +82,8 @@ const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; rea
   // The cut off the spinner, making room for a ball on any line: from one
   // down the leg side to one wide of off, at the height a spinner's arrives.
   spinCut: { shot: 'SQUARE_CUT', ballY: .54, impact: SPIN_CUT_CONTACT_MS, reach: [-.30, 0, .42], settle: 520, spinCut: true },
+  // Its second version, held out at full stretch: asked for as version 1.
+  spinCut2: { shot: 'SQUARE_CUT', ballY: .54, impact: SPIN_CUT_CONTACT_MS, reach: [-.30, 0, .42], settle: 410, spinCut: true, version: 1 },
   // The late cut: off stump and wider, met beside the back pad, let come past him.
   lateCut: { shot: 'LATE_CUT', ballY: .56, impact: LATE_CUT_CONTACT_MS, reach: [.14, .30, .42], settle: 600, meets: LATE_CUT_MEETS_AT },
   // The pull off the spinner: his ball dropped short, up at the waist, on every line he bowls it,
@@ -1206,7 +1208,7 @@ describe('the grip', () => {
   // Every stroke frame by frame: a second or two alone, near the default five
   // seconds when the whole suite runs at once, so it is given room.
   it('does not flip an elbow or wrist between frames, including entering and leaving guard', () => {
-    for (const kind of ['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer','hook','spinCut','spinPull','spinPullLow','lateCut','cut','cutLow','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse']) for (const x of PLAYS[kind].reach) {
+    for (const kind of ['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer','hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','cut','cutLow','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse']) for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       let previous = batter.inspect();
       play(batter, kind, x);
@@ -1371,7 +1373,7 @@ describe('every stroke, across its reach', () => {
       else expect(face[2]).toBeGreaterThan(.8);
     }
   });
-  it.each(['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer','hook','spinCut','spinPull','spinPullLow','lateCut','cut','cutLow','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','loftedV2','scoop','reverse'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
+  it.each(['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer','hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','cut','cutLow','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','loftedV2','scoop','reverse'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
     const geometry=bladeGeometry(), positions=geometry.getAttribute('position'), index=geometry.getIndex()!;
     const samples=Array.from({length:positions.count},(_,i)=>new Vector3().fromBufferAttribute(positions,i));
     for(let i=0;i<index.count;i+=3) samples.push(
@@ -1431,7 +1433,7 @@ describe('every stroke, across its reach', () => {
  */
 describe('the front pad', () => {
   const flat = (v: Vector3) => new Vector3(v.x, 0, v.z).normalize();
-  it.each(['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer', 'hook','spinCut','spinPull','spinPullLow','lateCut','cut','cutLow', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('faces where the %s shoe faces', kind => {
+  it.each(['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer', 'hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','cut','cutLow', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('faces where the %s shoe faces', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -1540,7 +1542,7 @@ describe('the slog sweep', () => {
    * onto one line — 0.04m between the forearms where the other strokes keep
    * 0.13m and up — and read as a man paddling rather than swinging.
    */
-  it.each(['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer', 'hook','spinCut','spinPull','spinPullLow','lateCut','cut','cutLow', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('keeps the %s forearms apart and the elbows unswapped', kind => {
+  it.each(['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer', 'hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','cut','cutLow', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('keeps the %s forearms apart and the elbows unswapped', kind => {
     /** Closest approach of the elbow halves, which is the half that can cross. */
     const between = (a: Vector3, b: Vector3, c: Vector3, d: Vector3) => {
       const u = b.clone().sub(a), v = d.clone().sub(c), w = a.clone().sub(c);
@@ -1756,7 +1758,7 @@ describe('the arms', () => {
    * came within 0.09 m of the centre of the helmet on the square drive, which
    * is well inside it.
    */
-  it.each(['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer','hook','spinCut','spinPull','spinPullLow','lateCut','square','straight','lofted','loftedV2','cover','cover3','on','cut','cutLow','sweep'])('keeps the %s arms out of the helmet', kind => {
+  it.each(['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer','hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','square','straight','lofted','loftedV2','cover','cover3','on','cut','cutLow','sweep'])('keeps the %s arms out of the helmet', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -1816,7 +1818,7 @@ describe('the arms', () => {
     }
   });
   /** An arm past its own length is a stretched limb, not a straight one. */
-  it.each(['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer','hook','spinCut','spinPull','spinPullLow','lateCut','square','straight','lofted','loftedV2','cover','cover3','on','cut','cutLow','sweep'])('never reaches the %s arms past their own length', kind => {
+  it.each(['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer','hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','square','straight','lofted','loftedV2','cover','cover3','on','cut','cutLow','sweep'])('never reaches the %s arms past their own length', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
