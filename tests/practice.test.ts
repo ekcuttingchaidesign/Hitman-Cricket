@@ -52,6 +52,7 @@ describe('every switch the game reads', () => {
     replayangle: 'which camera the action replay is shown from; nothing about the ball',
     keeperintro: 'the keeper\'s coach card at the first spinner\'s ball, asked for again; it changes nothing about the batting',
     catchcam: 'the camera going with a skied ball, and a skier that fell safe for four shown put down; the runs are the runs it was',
+    contact: 'the feel of the bat meeting the ball turned off: a beat held, a knock in the hand, the camera and the sound of a ball already resolved',
     actions: 'what the batter does after a ball, on demand, at no ball and counting nothing',
     demo: 'made-up rows on the boards, in this browser only',
     feedback: 'the feedback sheet',

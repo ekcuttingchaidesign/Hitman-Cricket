@@ -2514,6 +2514,39 @@ practice. `snapshot().catchCam` says what is on. GoatCounter counts
 cover drive on `?cover=1&catchcam=1` and photographs it through
 (`MODE=survive` bats seeds until it has a drop as well, `MODE=super10`).
 
+## The bat meeting the ball
+
+Every ball the bat finds is felt (`src/game/contact.ts`, in
+`tests/contact.test.ts`): the doodles, the replays and the catch camera made
+the rare ball rich and left an ordinary well-timed stroke plain. `contactOf`
+names it off the outcome: `sweet` (PERFECT for four or six, or the charge
+out of the ground), `clean` (GOOD, or PERFECT for less), `soft` (the rest, and
+a block), `edge` (edged or onto the pad); none for a ball that missed or hit
+him. On the frame of contact (`strike` in `src/Game.ts`, beside the special
+stroke's flash): a knock in the hand (`buzz`: two for sweet, one shorter the
+worse it was hit, a double tick for an edge); a beat held on a boundary, the
+game's clock at `STOP_PACE` for 70ms of the page's clock on a middled six, 55
+on a four, 35 on a GOOD boundary and none otherwise (`stopLeft`, read in
+`timeScale`; never on the charge, which has its own slow motion); the camera
+pushed in by a couple of degrees of its field of view and let back out
+(`pushAt`, `GameScene.struck`; only the picture, who fields is judged from
+`judge`); and chips off the blade the way the ball went. The bat's clips are
+voiced by it (`GameAudio.play`'s `voice`): played a touch faster or slower,
+drawn afresh each ball, softer the worse it was hit, with a low synthesized
+knock under a middled one (`thock`). Dust comes up where every ball pitches
+(`DUST`). The dust and the chips are `Puff` (`src/scene/puff.ts`): one
+`Points` each, a draw call only while a burst is up, every piece a
+closed-form flight off the game's clock so a held beat holds them.
+
+The ball is resolved before any of it, so it moves no score, window or seed,
+in any mode, a Rival Match included, and it is on under `?debug=1`. Reduced
+motion keeps the knock and the sound and drops the beat, the push, the chips
+and the dust. `?contact=0` turns all of it off, for holding the two side by
+side, and is not practice. `snapshot().contact` is the kind, the beat left
+and what is showing (`__cricket.contactShown()` between balls).
+`scripts/contact-check.mjs` drives a straight six on `?cover=1` frame by
+frame and then the same on `?contact=0`.
+
 ## The bowled ball's streak
 
 The ball on its way to the bat carries a streak (`STREAK` in `GameScene.ts`):

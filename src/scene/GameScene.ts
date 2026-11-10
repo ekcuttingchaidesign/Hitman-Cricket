@@ -36,6 +36,8 @@ import { SPILL_FALL, spillTo } from '../game/catch-cam';
 import { introCamera, introSweep, type Film } from '../game/IntroReel';
 import { diwaliOn } from '../game/diwali';
 import { batSheet } from '../entities/batSkins';
+import { Puff, type Burst } from './puff';
+import { pushAt, type Contact } from '../game/contact';
 
 /** How long the arena's fireworks go up for, for a six and for a milestone. */
 const ARENA_FIREWORKS = { six: 3000, milestone: 4500 } as const;
@@ -185,6 +187,9 @@ const BALL = {
   testGrass: 0.5,
 } as const;
 
+/** Dust kicked up where the ball pitches, in the strip's own colour, and the chips off a middled bat. */
+const DUST: Burst = { count: 9, colour: '#ead9b4', speed: 1.5, lift: 1.1, life: 420, size: .11, gravity: 2.2 };
+const CHIPS: Omit<Burst, 'count' | 'toward'> = { colour: '#fff3cf', speed: 3.4, lift: .9, life: 380, size: .085, gravity: 5 };
 export class GameScene {
   readonly renderer: THREE.WebGLRenderer;
   /** Frame rate and draw calls on screen, for judging the graphics on a phone: `?perf=1`. */
@@ -225,6 +230,10 @@ export class GameScene {
   private anisotropy = 1;
   private shadow: THREE.Mesh;
   private bounceRing: THREE.Mesh;
+  /** Dust where the ball pitches and chips off a middled bat (`contact.ts`). */
+  private dust = new Puff(); private chips = new Puff(); private dusted = false;
+  /** How far the camera pushes in on the ball just struck, in degrees, and the game's own field of view to come back to. */
+  private pushBy = 0; private homeFov = 50; private pushed = false;
   private catchRing: THREE.Mesh;
   private chargeRing: THREE.Mesh;
   private bails: THREE.Mesh[] = [];
@@ -268,6 +277,22 @@ export class GameScene {
    * red (see `TAILS`); on no others.
    */
   private fire: THREE.Mesh[] = [];
+  /** Off with `?contact=0`: the dust at the pitch goes with the rest of the contact pack. */
+  contactFx = true;
+  /**
+   * The bat has met the ball (`contact.ts`): the camera pushes in on it and
+   * chips come off the blade the way it went. Called on the frame of contact.
+   */
+  struck(contact: Contact, now: number) {
+    if (this.reducedMotion) return;
+    this.pushBy = contact.push;
+    if (!contact.chips) return;
+    const toward = this.hitEnd.clone().sub(this.hitOrigin).setY(0);
+    if (toward.lengthSq() > 0) toward.normalize();
+    this.chips.throw(this.hitOrigin, now, { ...CHIPS, count: contact.chips, toward });
+  }
+  /** What the contact pack is showing, for the checks: the pieces up and how far in the camera is, in degrees. */
+  get contactShown() { return { dust: this.dust.shown, chips: this.chips.shown, push: +(this.homeFov - this.camera.fov).toFixed(2) }; }
   /** Which tail the struck ball has: fire, the pull's, or the ordinary trail. */
   private blaze: keyof typeof TAILS | null = null;
   /**
@@ -411,6 +436,7 @@ export class GameScene {
     const ringMat = new THREE.MeshBasicMaterial({ color: 0xffe4a6, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false });
     this.bounceRing = new THREE.Mesh(new THREE.RingGeometry(0.15, 0.19, 24), ringMat);
     this.bounceRing.rotation.x = -Math.PI / 2; this.world.add(this.bounceRing);
+    this.world.add(this.dust.points, this.chips.points);
     this.catchRing = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.66, 32), ringMat.clone());
     this.catchRing.rotation.x = -Math.PI / 2; this.catchRing.visible = false; this.world.add(this.catchRing);
     // The shockwave under a charged hit.
@@ -757,7 +783,7 @@ export class GameScene {
     this.renderer.setSize(width, height);
     this.camera.aspect = width / height;
     const { eye, at, fov } = this.homeView;
-    this.camera.fov = fov;
+    this.camera.fov = this.homeFov = fov;
     this.camera.lookAt(...at);
     this.camera.updateProjectionMatrix();
     this.judge.aspect = width / height; this.judge.fov = fov;
@@ -1276,6 +1302,7 @@ export class GameScene {
     this.crowd?.settle(this.clock);
     this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0; this.blaze = null; this.swishedAt = -Infinity; this.swish.visible = false;
     this.lure = 0;
+    this.dusted = false; this.pushBy = 0; this.chips.stop();
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
     this.trail.forEach(t => t.visible = false); this.streak.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset(carryOn);
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
@@ -1431,6 +1458,10 @@ export class GameScene {
     const bounce = (GAME.releaseZ - delivery.bounceZ) / (GAME.releaseZ - GAME.contactZ);
     const age = (progress - bounce) * delivery.durationMs;
     this.bounceRing.visible = age > 0 && age < 260;
+    if (age > 0 && age < 120 && !this.dusted && !this.reducedMotion && this.contactFx) {
+      this.dusted = true;
+      this.dust.throw(new THREE.Vector3(pos.x, .03, delivery.bounceZ), this.clock, DUST);
+    }
     if (this.bounceRing.visible) { this.bounceRing.position.set(pos.x, 0.037, delivery.bounceZ); this.bounceRing.scale.setScalar(1 + age / 65); (this.bounceRing.material as THREE.MeshBasicMaterial).opacity = 1 - age / 260; }
     // Nothing to do for the bowler here. His action has been running since the
     // first step of the run-up and finishes on its own clock, so how long this
@@ -1820,7 +1851,15 @@ export class GameScene {
     } else {
       this.camera.position.x = Math.sin(now * 0.085) * shake;
       this.camera.position.y = 2.9 + Math.sin(now * 0.13) * shake * 0.6;
+      // Pushed in on a ball well hit, and let back out (`pushAt`). Only the
+      // picture: who goes for the ball is judged from a camera of its own.
+      const push = outcome && this.pushBy ? this.pushBy * pushAt(since) : 0;
+      if (push > 0 || this.pushed) {
+        this.pushed = push > 0;
+        this.camera.fov = this.homeFov - push; this.camera.updateProjectionMatrix();
+      }
     }
+    this.dust.update(now); this.chips.update(now);
     this.sky.mesh.position.copy(this.camera.position);
     if (this.sky.cover !== this.cover.to) {
       const k = Math.min(1, Math.max(0, (now - this.cover.at) / COVER_MS));
@@ -1856,7 +1895,7 @@ export class GameScene {
    */
   hideBall() {
     this.ball.visible = this.shadow.visible = this.bounceRing.visible = false;
-    this.streak.forEach(dot => dot.visible = false);
+    this.streak.forEach(dot => dot.visible = false); this.dust.stop();
   }
   /**
    * The wicketkeeper, in a helmet (`wearHelmet`). Stood back to pace, the game's
