@@ -1776,6 +1776,22 @@ timing moves; `?bowlv=1` or `2` asks for one and is not practice. It keeps
 every rule in `tests/bowler.test.ts`, and `bowler-sheet.html?actions=pace,pace2`
 draws the two a row each.
 
+The fast bowler's follow-through, in both his actions, is from two clips the
+owner sent of fast bowlers filmed from the batter's end
+(https://youtube.com/shorts/WZSryLWaMis, https://youtube.com/shorts/bsjdvnJqH_Y):
+the trunk folded about forty-five degrees over the braced front leg with the
+head kept up on the batter (`headPitch` tipped back against the fold), the
+bowling arm swept on down across the body and past the far hip (`through`),
+the back leg kicked up behind and swung through (`kick`, `backKick`), and
+then he runs on (`runOn`, `RUN_ON`, `runOff` in `Bowler.ts`): four strides
+down the pitch, each foot put down ahead of his hips and left where it
+landed, slowing evenly from the speed he leaves the fall at to a stand about
+a metre and a half further on, by `RAN_ON` of the follow-through. He used to
+take the one step and stand up where he was, which read as stiff. `runOff`
+sets his feet before `stand` settles his hips, or the hips are clamped to
+the marks the fall left a stride behind. Not the spinner, who bowls the same
+style standing, nor the sling and death bowlers, who keep theirs.
+
 A fielder dives at a ball along the ground only when a fielder would
 (`worthIt` in `Field.ground`): the ball at least `DIVE_FROM` from him, his
 hands down on its line no later than `DIVE_LATE` after it, and one man a

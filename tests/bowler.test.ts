@@ -245,11 +245,14 @@ describe.each(ACTIONS)('the bowling action — %s', (_, style) => {
       // the instant the ball leaves his hand.
       const marks = [0, .1, .2, .34].map(p => { bowler.followThrough(p); return bowler.root.position.z; });
       for (let i = 1; i < marks.length; i++) expect(marks[i]).toBeLessThan(marks[i - 1]);
-      // And having run off, he stays where he stopped rather than drifting on.
-      bowler.followThrough(.34);
+      // And having run off, he stays where he stopped rather than drifting on:
+      // at the end of the fall, or, for an action that runs on down the pitch
+      // (`runOn`), at the end of those strides, further on.
+      bowler.followThrough(style.runOn ? .97 : .34);
       const stopped = bowler.root.position.z;
       bowler.followThrough(1);
       expect(bowler.root.position.z).toBeCloseTo(stopped, 5);
+      if (style.runOn) { bowler.followThrough(.34); expect(bowler.root.position.z - stopped).toBeGreaterThan(1.2); }
     });
 
     it('gets back on his feet instead of holding the follow-through', () => {
