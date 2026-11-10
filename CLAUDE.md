@@ -1710,6 +1710,36 @@ branch of `spotlight` in the HUD lifts it whenever the outline would stand
 under it).
 GoatCounter counts `keeper-intro` and `-done` or `-skipped`.
 
+## Chopped on, and caught and bowled
+
+Two dismissals laid over the ones a ladder has already settled (`howOut` in
+`ShotResolver.ts`, called by `resolveShot` and `resolveSurvive`, in
+`tests/how-out.test.ts`), each a share of a wicket that had fallen anyway, so
+nobody is out more often for them and the sims do not move. A cut edged and
+caught behind (at pace or off the spinner) is, three times in ten
+(`CHOP_ON`), dragged off the inside edge onto his own stumps instead: CHOPPED
+ON — BOWLED!, drawn as every played-on ball is and replayed as bowled. A
+straight drive skied and held is, `RETURN_CATCH.share` of the time, hit back
+to the bowler: CAUGHT & BOWLED! (`returned` on the outcome). The ball goes
+back up the pitch to him and he takes it in both hands at his chest, out of
+his follow-through (`Field.bowlerCatches`, from `GameScene.hit`), the flight
+bent to end in his hands once he is free of his action; the catch camera
+leaves it to the game's own picture. The dice are thrown only once he is
+out, at the top of their range, so no ball he survives is moved and the
+older tests' low rolls still read the ladder under it. `?howout=1` makes
+both happen every time they can, and is practice.
+
+The bowler bowls bare-headed, with hair (`bareHead` on `Cricketer`): nobody
+bowls in a cap.
+
+A fielder dives at a ball along the ground only when a fielder would
+(`worthIt` in `Field.ground`): the ball at least `DIVE_FROM` from him, his
+hands down on its line no later than `DIVE_LATE` after it, and one man a
+ball, the nearest. Before, two men went down either side of every drive, a
+man close in threw himself at where a ball had already been, and one it
+passed within half a metre dived away from it (the dive's target was put
+past his own feet).
+
 ## The late cut
 
 The late cut (`'LATE_CUT'`, `LATE_CUT` in `src/entities/Batter.ts` and

@@ -54,7 +54,7 @@ import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
 import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, flickVersionOf, flickBackFoot, FLICK_MEETS_AT, FLICK_V3_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength } from './entities/Batter';
 import { COUNTED, countStroke, freshTally, strokeMarks } from './game/stroke-tally';
-import { advanceShot, steppedOut, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
+import { advanceShot, steppedOut, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot, alwaysHowOut } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './game/types';
 import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
@@ -224,6 +224,8 @@ const DECLINE_UNDO_MS = 5000;
  * holds an innings at that time of day, in any game played by day: for
  * looking at a light, and for whoever likes batting in it. Only the light.
  */
+/** `?howout=1`: the two dismissals laid over a wicket (`howOut`) every time they can be. Practice. */
+alwaysHowOut(new URLSearchParams(location.search).get('howout') === '1');
 const DAY_ASKED = (() => {
   const asked = new URLSearchParams(location.search).get('day')?.toLowerCase();
   if (!asked) return null;
@@ -2781,6 +2783,7 @@ export class Game {
    * answers, for trying the hook every ball. See `bouncersEvery`.
    */
   private hooksOnly = new URLSearchParams(location.search).get('hooks') === '1';
+
   /**
    * `?spincut=1`: every ball the spinner's, all of his on every line, for
    * trying the cut off the spinner every ball. See `spinCutsEvery`.

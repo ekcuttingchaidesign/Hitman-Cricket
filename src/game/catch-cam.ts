@@ -33,7 +33,7 @@ export function catchShotOf(outcome: ShotOutcome): CatchShot | null {
   // A batter stumped: the keeper is never in the game's picture, so the camera
   // goes to him (`stumping.ts`).
   if (outcome.isWicket && outcome.wicketType === 'STUMPED') return 'stumped';
-  if (!outcome.madeBatContact || !outcome.aerial || outcome.edged || outcome.hit || outcome.advance) return null;
+  if (!outcome.madeBatContact || !outcome.aerial || outcome.returned || outcome.edged || outcome.hit || outcome.advance) return null;
   if (outcome.isWicket) return outcome.wicketType === 'CAUGHT' ? 'catch' : null;
   if (outcome.dropped) return outcome.spilled ? 'spill' : 'drop';
   return null;

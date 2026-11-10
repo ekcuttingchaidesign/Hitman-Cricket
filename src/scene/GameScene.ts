@@ -1625,7 +1625,14 @@ export class GameScene {
     // hands, wherever they get to, so he is never put under it.
     const look = () => (this.ball.visible ? this.ball.position.clone() : null);
     const deadAt = this.hitStart + this.flightMs;
-    if (rope) this.toRider(caught, flight.endY, deadAt, look, rope.how === 'saved');
+    if (outcome.returned && this.bowling) {
+      // Back at the bowler, who holds it: the rest go home, and the flight ends in his hands once he is out of his action.
+      this.field.struck(this.hitStart, deadAt, look);
+      const bowler = this.bowlerAtRest(), arrives = Math.max(this.hitStart + flight.flightMs, bowler.free + 260);
+      this.flightMs = arrives - this.hitStart; this.takeAt = 1;
+      this.hitHeight = flight.height + Math.max(0, this.flightMs - flight.flightMs) / 1000 * 3;
+      this.hitEnd.copy(this.field.bowlerCatches(bowler, arrives, look));
+    } else if (rope) this.toRider(caught, flight.endY, deadAt, look, rope.how === 'saved');
     else if ((caught || outcome.dropped) && !outcome.edged) {
       const plan = this.field.struck(this.hitStart, deadAt, look, {
         angle, height: flight.endY, arrives: this.hitStart + this.flightMs * this.takeAt, dropped: !!outcome.dropped,

@@ -90,6 +90,8 @@ const AREA = 35 * Math.PI / 180;
 const AREA_REACH = 22;
 /** How far from a man a ball along the ground can go past him and still have him go for it. */
 const NEAR_MISS = 6;
+/** The nearest a ball passes a man for him to dive at it, in metres, and the latest after it his hands are down, in ms. */
+const DIVE_FROM = .9, DIVE_LATE = 140;
 /** The fastest a man gets across, on average, to be down behind a ball rather than dive at it. */
 const COLLECT_RUN = 5;
 /** How far in front of his feet a ball he collects comes into his hands. */
@@ -449,6 +451,16 @@ export class Field {
     // of the way, and nobody dives under it there: where it passes him above
     // his head he chases it instead.
     const landed = (pass: { along: number }) => pass.along >= (path.airborne ?? 0) * length;
+    /**
+     * Whether a dive at it is one a fielder would make: the ball far enough
+     * from him to need one (`DIVE_FROM`: nearer, a dive lands the far side of
+     * the line, which was the man diving away from the ball), and his hands
+     * down on its line no later than `DIVE_LATE` after it has gone. Struck
+     * hard past a man close in, it is by him before he has moved: he turns
+     * and goes after it, which is the `NEAR_MISS` below, and does not throw
+     * himself at where it was.
+     */
+    const worthIt = (pass: { gap: number; at: number }) => pass.gap >= DIVE_FROM && now + REACTION_MS * .6 + DIVE.catch <= pass.at + DIVE_LATE;
     const busy = new Set<number>();
     const dives: number[] = [];
 
@@ -456,11 +468,12 @@ export class Field {
     spots.forEach((spot, i) => {
       const pass = passing(spot);
       // Past him before it stops, and close enough to throw himself at.
-      if (pass.along > length - .8 || pass.gap > reachBy(late(pass.at)) || !landed(pass)) return;
+      if (pass.along > length - .8 || pass.gap > reachBy(late(pass.at)) || !landed(pass) || !worthIt(pass)) return;
       dives.push(i);
     });
     dives.sort((a, b) => passing(spots[a]).gap - passing(spots[b]).gap);
-    for (const i of dives.slice(0, 2)) {
+    // One man goes full length at it, the nearest: two going down either side of every drive was a pantomime.
+    for (const i of dives.slice(0, 1)) {
       const pass = passing(spots[i]);
       this.diveAt(i, spots[i], { ...pass, at: late(pass.at) - 40 }, now, look);
       busy.add(i);
@@ -486,7 +499,7 @@ export class Field {
       });
       if (chaser >= 0) {
         const spot = spots[chaser], pass = passing(spot);
-        if (pass.gap <= reachBy(late(pass.at)) && pass.along < length - .8 && landed(pass)) this.diveAt(chaser, spot, { ...pass, at: late(pass.at) - 40 }, now, look);
+        if (pass.gap <= reachBy(late(pass.at)) && pass.along < length - .8 && landed(pass) && worthIt(pass)) this.diveAt(chaser, spot, { ...pass, at: late(pass.at) - 40 }, now, look);
         else this.chase(chaser, spot, rope, now, path.flightMs * (ropeAlong(path.from, dir) / length), look);
         busy.add(chaser);
       }
@@ -533,7 +546,8 @@ export class Field {
     if (toward.lengthSq() < .0001) toward.set(1, 0, 0);
     toward.normalize();
     // Where his hands get to: short of the line, and just after it has gone.
-    const target = pass.point.clone().addScaledVector(toward, .45).setY(.25);
+    // Never past his own feet: a ball passing close had him diving away from it.
+    const target = pass.point.clone().addScaledVector(toward, Math.min(.45, pass.gap * .4)).setY(.25);
     const plan = planCatch(spot, target, now, pass.at, { dropped: true, ground: true, look });
     const after = plan.routine.actions.slice(1);
     const end = after[after.length - 1];
@@ -685,6 +699,20 @@ export class Field {
       }
       return midpointOfHands(this.bowling!.at(t));
     };
+  }
+
+  /**
+   * Caught and bowled: the bowler, out of his follow-through, turned to the
+   * bat with his hands out, and the ball in them from `arrives`. Answers with
+   * where his hands are then, which the flight is bent to finish in.
+   */
+  bowlerCatches(bowler: { rest: Body; free: number }, arrives: number, look: (t: number) => THREE.Vector3 | null) {
+    const catcher: Spot = { x: bowler.rest.x, z: bowler.rest.z, heading: Math.atan2(-bowler.rest.x, -bowler.rest.z) };
+    const taking = receive(catcher, Math.max(bowler.free, arrives - 650), arrives);
+    this.bowling = new Routine([still(bowler.rest, bowler.free), taking], t => (t < arrives ? look(t) : null));
+    this.gatherer = -1;
+    this.gathering = t => (t < arrives ? null : midpointOfHands(this.bowling!.at(t)));
+    return midpointOfHands(taking.at(arrives));
   }
 
   /** The bowler off the end of his follow-through, to a ball stopped on the pitch, to pick it up. */

@@ -1,4 +1,4 @@
-import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, FLICK, FLIGHT, GAME, GROUND_RUNS, HOOK, LATE_CUT, PUNCH, SCOOP, SOLID_SHOT, SPIN_CUT, SPIN_PULL, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
+import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, FLICK, FLIGHT, GAME, GROUND_RUNS, HOOK, LATE_CUT, PUNCH, SCOOP, SOLID_SHOT, SPIN_CUT, SPIN_PULL, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE, CHOP_ON, RETURN_CATCH } from '../config/gameplay';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory';
 import { spun } from './DeliveryGenerator';
 import type { Delivery, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './types';
@@ -525,6 +525,29 @@ export function flicked(outcome: ShotOutcome, rng: { next(): number }, test: boo
  * on PERFECT and GOOD, and those are never moved.
  */
 export function resolveShot(
+  delivery: Delivery, attempt: ShotAttempt | null, rng: { next(): number }, charged = false, windows: Windows = GAME.timing,
+): ShotOutcome {
+  return howOut(settle(delivery, attempt, rng, charged, windows), attempt, rng);
+}
+/**
+ * Two dismissals laid over the ones a ladder has already settled, each a share
+ * of a wicket that had fallen anyway (`CHOP_ON`, `RETURN_CATCH`): a cut edged
+ * behind is sometimes chopped onto the stumps, and a straight drive skied and
+ * held is sometimes held by the bowler. The dice are thrown only once he is
+ * out, so no ball he survives is moved by them.
+ */
+let always = false;
+/** `?howout=1`: every wicket that can be one of the two is, for looking at them. Practice. */
+export function alwaysHowOut(on: boolean) { always = on; }
+export function howOut(outcome: ShotOutcome, attempt: Pick<ShotAttempt, 'shotType'> | null, rng: { next(): number }): ShotOutcome {
+  if (!outcome.isWicket || outcome.wicketType !== 'CAUGHT' || !attempt || outcome.fielder || outcome.steppedOut) return outcome;
+  if (attempt.shotType === 'SQUARE_CUT' && outcome.edged && (always || rng.next() >= 1 - CHOP_ON.share))
+    return { ...outcome, edged: false, aerial: false, wicketType: 'BOWLED', madeBatContact: true, feedback: CHOP_ON.feedback };
+  if (attempt.shotType === 'STRAIGHT' && outcome.aerial && !outcome.edged && (always || rng.next() >= 1 - RETURN_CATCH.share))
+    return { ...outcome, returned: true, hangMs: undefined, feedback: RETURN_CATCH.feedback };
+  return outcome;
+}
+function settle(
   delivery: Delivery, attempt: ShotAttempt | null, rng: { next(): number }, charged = false, windows: Windows = GAME.timing,
 ): ShotOutcome {
   // A scoop input with nothing to spend on it is the block it would otherwise

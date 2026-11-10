@@ -457,6 +457,15 @@ export const SPIN_CUT = {
  * or early and the ball takes the edge and carries to the keeper, which is the
  * price of playing square to a ball doing something off the pitch.
  */
+/**
+ * Two ways of being out that are a share of ones he was out by already, so
+ * nobody is out more often for them: a cut that took the edge and was caught
+ * behind is, `CHOP_ON.share` of the time, dragged off the inside edge onto
+ * his own stumps instead; and a straight drive skied and held is,
+ * `RETURN_CATCH.share` of the time, hit back to the bowler, who holds it.
+ */
+export const CHOP_ON = { share: 0.3, feedback: 'CHOPPED ON — BOWLED!' } as const;
+export const RETURN_CATCH = { share: 0.35, feedback: 'CAUGHT & BOWLED!' } as const;
 export const CUT = {
   /**
    * How far outside off a short ball has to finish before there is room to cut
