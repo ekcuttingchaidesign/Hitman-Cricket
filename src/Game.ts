@@ -218,8 +218,20 @@ const DECLINE_UNDO_MS = 5000;
  * `?mode=SURVIVE` still works, so the mode stays one link away for anyone
  * testing it. It is hidden, not removed.
  */
-/** How many balls of a Test Marathon run from its morning to its evening: forty overs. */
-const DAY_BALLS = 240;
+/** How many balls of a Test Marathon run from its morning to its evening: twenty-five overs, as the owner set it, and then the next day's morning. */
+const DAY_BALLS = 150;
+/**
+ * `?day=evening` (or `morning`, `noon`, `afternoon`, or a number from 0 to 1)
+ * holds an innings at that time of day, in any game played by day: for
+ * looking at a light, and for whoever likes batting in it. Only the light.
+ */
+const DAY_ASKED = (() => {
+  const asked = new URLSearchParams(location.search).get('day')?.toLowerCase();
+  if (!asked) return null;
+  const named = ({ morning: 0, noon: 0.42, midday: 0.42, afternoon: 0.78, evening: 1 } as Record<string, number>)[asked];
+  const at = named ?? Number(asked);
+  return Number.isFinite(at) ? Math.min(1, Math.max(0, at)) : null;
+})();
 const SHOW_SURVIVE = SURVIVE_ONLY || !!import.meta.env.VITE_SHOW_SURVIVE;
 /**
  * Whether the Test Marathon has a card on the picker.
@@ -2666,13 +2678,17 @@ export class Game {
    */
   /**
    * How far through its day a Test innings is, morning to evening (`DAY_ARC`
-   * in `night.ts`): by the balls bowled, Survival's sixty or forty overs of a
-   * Marathon, where the evening then holds. Null in every other game, whose
-   * day stands still. Only the light: no ball is bowled differently for it.
+   * in `night.ts`): by the balls bowled, Survival's sixty, or twenty-five
+   * overs of a Marathon, which then starts the next day's morning and goes
+   * round again. Null in every other game, whose day stands still, unless the
+   * link asks for a time (`DAY_ASKED`). Only the light: no ball is bowled
+   * differently for it.
    */
   private get dayNow() {
+    if (DAY_ASKED !== null) return DAY_ASKED;
     if (!this.test || this.lesson >= 0) return null;
-    return Math.min(1, this.score.balls / (this.marathon ? DAY_BALLS : SURVIVE.totalBalls));
+    // A Marathon goes round: evening by the end of the twenty-fifth over, and the twenty-sixth opens on the next morning.
+    return this.marathon ? (this.score.balls % DAY_BALLS) / DAY_BALLS : Math.min(1, this.score.balls / SURVIVE.totalBalls);
   }
   private light(time: SkyTime) {
     const game = this.super10 ? 'super10' : this.test ? 'test' : 'blast';

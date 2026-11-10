@@ -2620,8 +2620,12 @@ pavilion and the canopy.
 The owner liked the light ("feels like golden hour") and asked for two
 things on it. **A Test's day moves** (`DAY_ARC`, `dayArcAt` in `night.ts`, in
 `tests/day-arc.test.ts`; `dayAt` in `GameScene`, `dayNow` in `src/Game.ts`):
-morning to evening by the balls bowled, Survival's sixty or forty overs of a
-Marathon (`DAY_BALLS`), where the evening then holds. The sun is low and
+morning to evening by the balls bowled: Survival's sixty, or twenty-five
+overs of a Marathon (`DAY_BALLS`, the owner's pacing), whose twenty-sixth
+over then opens on the next day's morning and goes round again, a cut made
+in the break between overs. `?day=evening` (or `morning`, `noon`,
+`afternoon`, or a number from 0 to 1; `DAY_ASKED`) holds any innings played
+by day at that time, the Blast's too, and is not practice. The sun is low and
 cool-white from the off side at the start, overhead through the middle, in
 the afternoon the other games stand in, and low and golden from behind the
 leg side at the close, the dome's horizon warming with it. It is moved as
