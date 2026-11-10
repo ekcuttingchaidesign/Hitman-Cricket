@@ -82,7 +82,10 @@ const PALETTE = { classic: TURF, fresh: FRESH_TURF } as const;
  * the wicket and laid flat. The circle's UVs are its bounding square, so a
  * metre is the same number of pixels in both directions.
  */
-export function grassTexture(radius: number, centreZ: number, boundary: number, anisotropy: number, turf: Turf = 'classic') {
+/** The ring's dots: a half circle this far round each wicket, joined down the sides, a dot every `every` metres. */
+export const RING = { radius: 15, every: 3.2, dot: .17 } as const;
+
+export function grassTexture(radius: number, centreZ: number, boundary: number, anisotropy: number, turf: Turf = 'classic', rich = false) {
   const TURF = PALETTE[turf];
   const size = 2048, scale = size / (radius * 2);
   const { c, ctx } = canvas(size, size);
@@ -117,6 +120,8 @@ export function grassTexture(radius: number, centreZ: number, boundary: number, 
     ctx.fillRect(col(-9 + inset), row(-3.5 + inset), (18 - inset * 2) * scale, (26.5 - inset * 2) * scale);
   }
 
+  if (rich) groundsmans(ctx, seeded(57), col, row, scale);
+
   // Beyond the rope the grass is left longer and the stripes die away.
   const cx = col(0), cy = row(centreZ);
   const outside = ctx.createRadialGradient(cx, cy, (boundary + 0.4) * scale, cx, cy, radius * scale);
@@ -128,6 +133,43 @@ export function grassTexture(radius: number, centreZ: number, boundary: number, 
 
   overlayGrain(ctx, random, size, size, 0.22);
   return finish(c, anisotropy);
+}
+
+/**
+ * What a real square and outfield have that a mown lawn does not, painted
+ * once: the other pitches of the table either side of this one, each cut and
+ * used a different amount; the bowler's run-up worn into the grass behind his
+ * crease; and the fielding ring marked out in white dots.
+ */
+function groundsmans(ctx: CanvasRenderingContext2D, random: () => number, col: (x: number) => number, row: (z: number) => number, scale: number) {
+  // The table: three pitches either side, 3.05m apart, straw where they have been played on.
+  const used = [.3, .14, .22, .18, .32, .12];
+  let n = 0;
+  for (const side of [-1, 1]) for (let i = 1; i <= 3; i++) {
+    const x = side * i * 3.05, alpha = used[n++];
+    for (let soft = 0; soft < 4; soft++) {
+      const inset = soft * .14;
+      ctx.fillStyle = `rgba(214,200,140,${(alpha / 4).toFixed(3)})`;
+      ctx.fillRect(col(x - 1.3 + inset), row(-1.6 + inset * 3), (2.6 - inset * 2) * scale, (21.9 - inset * 6) * scale);
+    }
+    // Scuffed at both creases, where they were batted and bowled from.
+    for (const z of [1, 17.7]) blob(ctx, col(x), row(z), .8 * scale, 1.5 * scale, 'rgba(196,176,120,1)', alpha * 1.3);
+  }
+  // The run-up, either side of the stumps beyond the strip's end.
+  for (const x of [-.75, .75]) for (let i = 0; i < 26; i++) {
+    const r = (.25 + random() * .3) * scale;
+    blob(ctx, col(x + (random() - .5) * .5), row(20 + random() * 13), r * .8, r * 1.6, 'rgba(176,170,110,1)', .05 + random() * .06);
+  }
+  // The ring.
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  const dot = (x: number, z: number) => { ctx.beginPath(); ctx.arc(col(x), row(z), RING.dot * scale, 0, Math.PI * 2); ctx.fill(); };
+  const round = Math.round(Math.PI * RING.radius / RING.every);
+  for (let i = 0; i <= round; i++) {
+    const a = Math.PI * i / round, x = Math.cos(a) * RING.radius, z = Math.sin(a) * RING.radius;
+    dot(x, 18.7 + z); dot(x, -z);
+  }
+  const down = Math.round(18.7 / RING.every);
+  for (let i = 1; i < down; i++) for (const x of [-RING.radius, RING.radius]) dot(x, 18.7 * i / down);
 }
 
 /** Two hex colours, a fraction `t` of the way from the first to the second. */
@@ -155,7 +197,7 @@ function mix(from: string, to: string, t: number) {
  * it as its levels come (`WEAR_STAGES`). At nought nothing is drawn that was
  * not drawn before, and in the same order, so the strip is unchanged.
  */
-export function pitchTexture(width: number, length: number, centreZ: number, anisotropy: number, ends: { batting: number; bowling: number }, green = 0, wear = 0) {
+export function pitchTexture(width: number, length: number, centreZ: number, anisotropy: number, ends: { batting: number; bowling: number }, green = 0, wear = 0, feather = false) {
   green *= 1 - 0.8 * wear;
   const W = 320, H = 3072;
   const { c, ctx } = canvas(W, H);
@@ -237,7 +279,37 @@ export function pitchTexture(width: number, length: number, centreZ: number, ani
   if (wear) wearMarks(ctx, random, wear, col, row, px, ends);
 
   overlayGrain(ctx, random, W, H, 0.16);
+  if (feather) feathered(ctx, W, H, px);
   return finish(c, anisotropy);
+}
+
+/**
+ * The strip's edges rubbed out into nothing, for a strip laid see-through
+ * over the outfield: the grass shows through its sides and ends, ragged, where
+ * a painted verge met the real turf along a ruled line.
+ */
+function feathered(ctx: CanvasRenderingContext2D, W: number, H: number, px: number) {
+  const random = seeded(71);
+  ctx.save(); ctx.globalCompositeOperation = 'destination-out';
+  const side = .13 * W;
+  for (const [from, to] of [[0, side], [W, W - side]] as const) {
+    const g = ctx.createLinearGradient(from, 0, to, 0);
+    g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(.35, 'rgba(0,0,0,.75)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(Math.min(from, to), 0, side, H);
+  }
+  const end = 2.2 * px;
+  for (const [from, to] of [[0, end], [H, H - end]] as const) {
+    const g = ctx.createLinearGradient(0, from, 0, to);
+    g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, Math.min(from, to), W, end);
+  }
+  // Tufts growing in over the edge, so it is not a straight fade.
+  for (let i = 0; i < 900; i++) {
+    const left = random() < .5, r = (.03 + random() * .09) * px;
+    const x = left ? random() ** 2 * side * 1.25 : W - random() ** 2 * side * 1.25;
+    blob(ctx, x, random() * H, r, r * (1.5 + random() * 2), 'rgba(0,0,0,1)', .25 + random() * .35);
+  }
+  ctx.restore();
 }
 
 /** How worn the Marathon's strip is at each of its steps: fresh, the swing, the express bowler, Level 3. */

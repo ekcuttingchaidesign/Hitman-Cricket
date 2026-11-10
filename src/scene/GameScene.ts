@@ -602,7 +602,7 @@ export class GameScene {
   }
   private createGround() {
     const anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
-    const grass = grassTexture(70, 10, GAME.boundaryRadius, anisotropy);
+    const grass = grassTexture(70, 10, GAME.boundaryRadius, anisotropy, 'classic', this.polished);
     // Relief only, the colour left to the turf: a blade's light and shade,
     // tiled, and fading into the flat as the mipmaps take over.
     const blades = grassDetail(140, anisotropy);
@@ -613,12 +613,18 @@ export class GameScene {
     // it is one surface. Everything else stands by the strip's top, as it did.
     ground.position.set(0, this.polished ? 0.008 : -0.035, 10); ground.receiveShadow = true; this.world.add(ground);
     // The strip, its wear painted on rather than built from boxes.
-    const surface = pitchTexture(2.8, 32, 4.3, anisotropy, { batting: 0, bowling: 18.7 }, 0, 0);
+    const surface = pitchTexture(2.8, 32, 4.3, anisotropy, { batting: 0, bowling: 18.7 }, 0, 0, this.polished);
     this.pitch = new THREE.MeshStandardMaterial({ map: surface, roughness: 0.9 });
     this.dryPitch = surface; this.anisotropy = anisotropy;
     this.turfs.set('classic', grass);
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.025, 32), this.pitch);
-    strip.position.set(0, 0, 4.3); strip.receiveShadow = true; this.world.add(strip);
+    // Polished, the strip is its top alone, see-through at its edges (`feathered`), so the grass grows in
+    // over them: drawn first of everything see-through, under the shadows and the marks laid on it.
+    let strip: THREE.Mesh;
+    if (this.polished) {
+      this.pitch.transparent = true; this.pitch.depthWrite = false;
+      strip = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 32), this.pitch);
+      strip.rotation.x = -Math.PI / 2; strip.position.set(0, 0.0125, 4.3); strip.renderOrder = -2;
+    } else { strip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.025, 32), this.pitch); strip.position.set(0, 0, 4.3); } strip.receiveShadow = true; this.world.add(strip);
     this.textures.push(grass, blades, surface);
     // And standing blades either side of the strip near the bat, one draw.
     const standing = grassBlades(grass);
@@ -732,7 +738,7 @@ export class GameScene {
   private lay(turf: Turf) {
     let grass = this.turfs.get(turf);
     if (!grass) {
-      grass = grassTexture(70, 10, GAME.boundaryRadius, this.anisotropy, turf);
+      grass = grassTexture(70, 10, GAME.boundaryRadius, this.anisotropy, turf, this.polished);
       this.turfs.set(turf, grass); this.textures.push(grass);
     }
     this.outfield.map = grass; this.blades.map = grass;
@@ -1207,7 +1213,7 @@ export class GameScene {
     this.streak.forEach(dot => (dot.material as THREE.MeshBasicMaterial).color.setHex(look.color));
     this.seam.material = soft(look.seam);
     if (on && !this.greenPitch) {
-      this.greenPitch = pitchTexture(2.8, 32, 4.3, this.anisotropy, { batting: 0, bowling: 18.7 }, BALL.testGrass);
+      this.greenPitch = pitchTexture(2.8, 32, 4.3, this.anisotropy, { batting: 0, bowling: 18.7 }, BALL.testGrass, 0, this.polished);
       this.textures.push(this.greenPitch);
     }
     this.pitch.map = on ? this.greenPitch! : this.dryPitch;
@@ -1232,7 +1238,7 @@ export class GameScene {
     this.dropWear();
     this.wearStage = at;
     if (!at) return;
-    this.wornPitch = pitchTexture(2.8, 32, 4.3, this.anisotropy, { batting: 0, bowling: 18.7 }, BALL.testGrass, WEAR_STAGES[at]);
+    this.wornPitch = pitchTexture(2.8, 32, 4.3, this.anisotropy, { batting: 0, bowling: 18.7 }, BALL.testGrass, WEAR_STAGES[at], this.polished);
     this.pitch.map = this.wornPitch;
   }
   private dropWear() {

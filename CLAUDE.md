@@ -2655,6 +2655,16 @@ some part of him has moved six millimetres from where they last were (`lazy`,
 moving are fitted each frame. They wear a kit's print now, as the bowler
 does. Not yet timed on a phone.
 
+**The square and the strip's edge** (`groundsmans` and `feathered` in
+`turf.ts`, painted once, nothing a frame): the outfield has the table's
+other pitches either side of this one, straw where they have been used, the
+bowler's run-up worn in behind his crease, and the fielding ring in white
+dots (`RING`: fifteen metres round each wicket, the ground being smaller than
+a real one). The strip is its top face alone, see-through at its sides and
+ends with tufts rubbed in, so the grass grows in over it where a painted
+verge met the turf along a ruled line; it is drawn first of everything
+see-through (`renderOrder`), under the shadows laid on it.
+
 `?polish=0` turns all of it off, the light with it, for holding the two side by side, and is not
 practice. `__cricket.polish()` says what is showing. The owner saw no
 significant improvement from these two on a phone: they are kept as cheap,
