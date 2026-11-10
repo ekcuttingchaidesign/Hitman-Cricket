@@ -718,13 +718,22 @@ describe("the spinner's second action", () => {
       for (const foot of s.feet) expect(foot[1]).toBeGreaterThan(.02);
     }
   });
-  it("walks in off the spinner's own short run, with no jump, the ball at his chest and the arm from up by his head", () => {
+  it("comes in off the spinner's own short run with the ball up by his ear, hops, and goes through with the back leg kicked high", () => {
     spinner.runup(0); first.runup(0);
     expect(spinner.root.position.z).toBeCloseTo(first.root.position.z, 6);
     expect(SPIN_ACTION_V2.run).toBeUndefined();
-    expect(SPIN_ACTION_V2.leap).toBeLessThan(PACE_ACTION.leap / 2);
-    expect(SPIN_ACTION_V2.carry).toBe('chest');
-    // Never down behind him, as the fast bowler's arm goes.
-    expect(SPIN_ACTION_V2.gatherAngle).toBeGreaterThan(PACE_ACTION.gatherAngle + .8);
+    // The ball hand up by his head on the way in, where the first spinner's pumps at his waist.
+    spinner.runup(.3); first.runup(.3);
+    const hand = (b: Bowler) => b.figure.inspect().hands[1][1], head = spinner.figure.inspect().chest[1] + .2;
+    expect(hand(spinner)).toBeGreaterThan(head);
+    expect(hand(spinner)).toBeGreaterThan(hand(first) + .3);
+    // A hop, and after the ball the back foot up near his hips, and he runs on.
+    expect(SPIN_ACTION_V2.leap).toBeGreaterThan(.15);
+    spinner.followThrough(.12);
+    const s = spinner.figure.inspect();
+    expect(Math.max(s.feet[0][1], s.feet[1][1])).toBeGreaterThan(.7);
+    spinner.followThrough(.34); const fell = spinner.root.position.z;
+    spinner.followThrough(1);
+    expect(fell - spinner.root.position.z).toBeGreaterThan(.6);
   });
 });

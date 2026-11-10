@@ -184,7 +184,7 @@ export interface ActionStyle {
    * What the hands do running in: pump against the legs, or carry the ball at
    * the chest in both hands until the last stride before the leap.
    */
-  carry: 'run' | 'chest';
+  carry: 'run' | 'chest' | 'ear';
   /** Where the run-up lies across the pitch: just wide of the stumps, or wider. */
   lane: number;
   /** How far forward he leans running in, as a sprinter does, gone by the time he lands from the leap. */
@@ -332,35 +332,41 @@ export function paceVersionOf(seed: number, over: number): 1 | 2 {
 }
 
 /**
- * The spinner's second action, bowled in half his overs (`spinVersionOf`),
- * from a clip the owner sent of a right-arm spinner in slow motion from the
- * batter's end (https://youtube.com/shorts/O3fjksDgQVU). The spinner's own
- * short walk-in (`SPIN_RUN`: the first build of this jogged in from further
- * back and hopped, and the owner said it was too much run-up for a spinner
- * and not the clip's action). Where the first spinner bowls the fast
- * bowler's action off that walk, arms pumping, a leap, the arm swung up from
- * down behind him, this one is quiet and upright: both hands on the ball at
- * his chest as he walks in, no jump, only a stride into the crease, a little
- * back on it and side-on; the ball hand taken back and up from the chest to
- * head height, never down past the hip, and over the top in one easy sweep
- * while the front arm, up and forward to line him up, is pulled down to his
- * hip; the chest opening to the batter, the trunk hardly folding; the arm
- * finishing down past his hip, and a couple of walking steps on with both
- * arms loose at his sides. The same release point and moment as every ball.
+ * The spinner's second action, bowled in half his overs (`spinVersionOf`): a
+ * leg-spinner, from a slow-motion clip the owner recorded and sent, read frame
+ * by frame (two builds from a video tool's description of the same clip were
+ * both wrong: one jogged in from further back, one walked in and stood up).
+ *
+ *   - **The approach.** The spinner's own short run (`SPIN_RUN`), bouncy, the
+ *     ball cocked up beside his right ear in his bowling hand and the other
+ *     hand held out in front of his chest (`carry: 'ear'`).
+ *   - **The hop.** A real one. As he goes up the two hands come together in
+ *     front of his chest, and part: the front arm straight up, the ball arm
+ *     down past his hip and away behind him.
+ *   - **The delivery.** Back foot down side-on, leant well back and looking
+ *     up over the front arm; then the front arm pulled down and the ball arm
+ *     up from behind and over the top, high, tilting away as it goes.
+ *   - **The follow-through.** The big one: he pitches right over the braced
+ *     front leg, the bowling arm swept down across him, the back leg kicked
+ *     up behind until it is nearly level and held there, the front arm flung
+ *     up behind him; then it swings through and he runs off a few strides
+ *     across the pitch (`runOn`, shorter than the fast bowler's).
+ *
+ * The same release point and moment as every ball.
  */
 export const SPIN_ACTION_V2: ActionStyle = {
-  gatherAngle: -1.45, whip: 2.1, release: .20, through: 2.9,
-  frontUp: -.5, frontPull: -2.5, frontAfter: -2.95,
-  runTurn: .1, gatherTurn: 1.1, releaseTurn: -.4,
-  leap: .05, followDrop: .19,
-  coilBack: .1, coilLean: .14, coilHead: -.4,
-  fold: -.05, foldLean: .06,
-  backKick: .2,
-  carry: 'chest', lane: .34,
-  runLean: 0, pump: .6,
-  frontRise: [BOUND, BACK_FOOT], kneeDrive: .6, releaseTilt: .16, tiltFrom: FRONT_FOOT, armTilt: -.175, throughTilt: -.175,
-  open: 1, throughTurn: .3, releaseHead: 0, throughHead: .2, throughTwist: 0, frontTuck: .6, frontAfterReach: .85, frontTilt: -.16, frontAfterTilt: -.16, frontSync: 0,
-  kick: 0, kickHold: 0, followAcross: 0, hop: .3,
+  gatherAngle: -2.5, whip: 2.6, release: .20, through: 3.4,
+  frontUp: -.12, frontPull: -2.5, frontAfter: -1.3,
+  runTurn: .1, gatherTurn: 1.2, releaseTurn: -.5,
+  leap: .2, followDrop: .26,
+  coilBack: .26, coilLean: .34, coilHead: -.6,
+  fold: .4, foldLean: .14,
+  backKick: .6,
+  carry: 'ear', lane: .34,
+  runLean: 0, pump: .8,
+  frontRise: [BOUND, BACK_FOOT], kneeDrive: 1.3, releaseTilt: .26, tiltFrom: FRONT_FOOT, armTilt: -.175, throughTilt: .2,
+  open: 1.3, throughTurn: .22, releaseHead: 0, throughHead: .1, throughTwist: 0, frontTuck: .7, frontAfterReach: .92, frontTilt: -.16, frontAfterTilt: -.3, frontSync: .5,
+  kick: .8, kickHold: .4, followAcross: .4, runOn: 1,
 };
 /** Which of the spinner's two actions an over is bowled with: half each, off the innings' seed and the over. */
 export function spinVersionOf(seed: number, over: number): 1 | 2 {
@@ -723,7 +729,8 @@ export class Bowler {
     this.ball.visible = false;
     // How far through his run-on he is: slowing evenly, so the distance eases out.
     const k = span(progress, FOLLOWED, RAN_ON);
-    this.ranOn = this.spinning ? 0 : (this.style.runOn ?? 0) * (1 - (1 - k) * (1 - k));
+    // The first spinner bowls the fast bowler's style standing; the second has a run-on of his own.
+    this.ranOn = this.spinning && this.style !== SPIN_ACTION_V2 ? 0 : (this.style.runOn ?? 0) * (1 - (1 - k) * (1 - k));
     this.runK = k;
     this.apply(1, span(progress, 0, FOLLOWED), span(progress, FOLLOWED, RECOVERED));
   }
@@ -1083,6 +1090,22 @@ export class Bowler {
         pose.leftHand.lerp(at(-.06), held);
         // Hands together in front of the chest want the elbows down and out,
         // not driven back like a runner's.
+        pose.elbowsBack = (pose.elbowsBack ?? 0) * (1 - held);
+      }
+    }
+    // The leg-spinner's: the ball cocked up beside his right ear, the other
+    // hand out in front of his chest; into the hop they come together at the
+    // chest, and part as he goes up.
+    if (style.carry === 'ear' && after === 0) {
+      const held = 1 - ease(span(t, BOUND - .02, BOUND + .1));
+      if (held > 0) {
+        const turn = new THREE.Vector3(0, 1, 0);
+        const local = (p: THREE.Vector3) => p.clone().applyAxisAngle(turn, -pose.yaw);
+        const chest = local(pose.chest);
+        const at = (x: number, y: number, z: number) => new THREE.Vector3(x, chest.y + y, chest.z + z).applyAxisAngle(turn, pose.yaw);
+        const together = ease(span(t, BOUND - .2, BOUND - .03));
+        pose.rightHand.lerp(at(.21, .3, .1).lerp(at(.03, -.04, .3), together), held);
+        pose.leftHand.lerp(at(-.1, .0, .36).lerp(at(-.06, -.04, .3), together), held);
         pose.elbowsBack = (pose.elbowsBack ?? 0) * (1 - held);
       }
     }

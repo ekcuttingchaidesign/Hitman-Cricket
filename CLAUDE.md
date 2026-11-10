@@ -1803,30 +1803,31 @@ the marks the fall left a stride behind. Not the spinner, who bowls the same
 style standing, nor the sling and death bowlers, who keep theirs.
 
 The spinner has a second action too (`SPIN_ACTION_V2` in `Bowler.ts`), in
-half his overs (`spinVersionOf`), from a clip the owner sent of a right-arm
-spinner in slow motion from the batter's end
-(https://youtube.com/shorts/O3fjksDgQVU). It is the spinner's own short
-walk-in (`SPIN_RUN`). Where the first spinner bowls the fast bowler's action
-off that walk, arms pumping, a leap, the arm swung up from down behind him,
-this one is quiet and upright: both hands on the ball at his chest as he
-walks in; no jump, only a stride into the crease (`hop`, a fraction of the
-fast bowler's foot lift through the bound, and next to no `leap`); the ball
-hand taken back and up from the chest to head height, never down past the
-hip, and over in one easy sweep while the front arm, up and forward, is
-pulled down to his hip; the trunk hardly folding (`fold` a little under
-nought, against the lean every action is given at release); and a couple of
-walking steps on with his arms loose. The first build of it jogged in four
-steps from further back (a run of its own), hopped high and spun round on
-the front foot: the owner said it was too much run-up for a spinner and not
-the clip's action. It had been built from a first, thin reading of the clip
-that a second, frame-by-frame reading contradicted; ask the video for a
-quarter-second timeline and for "not visible" where it is not, before
-building from one. It is not in the fast bowlers' shared suite, whose rules
-about momentum into the crease and the arm's sweep are not a spinner's:
-`describe("the spinner's second action")` holds its release point to the
-first spinner's within a few centimetres, its limbs, its feet and its run.
+half his overs (`spinVersionOf`): a leg-spinner, from a slow-motion clip the
+owner recorded and attached, read frame by frame with `ffmpeg` (a tiled
+sheet at four frames a second). The spinner's own short run (`SPIN_RUN`),
+bouncy, the ball cocked up beside his right ear and the other hand out in
+front of his chest (`carry: 'ear'`); a real hop, the hands coming together at
+the chest and parting, the front arm straight up and the ball arm down past
+his hip and behind; back foot down side-on, leant well back; a high arm; and
+the big follow-through, pitched right over the braced front leg, the back
+leg kicked up behind until it is nearly level (`kick`, `kickHold`), the front
+arm flung up behind him, then a few strides off across the pitch (`runOn`,
+which the first spinner, bowling the fast bowler's style, does not have).
+Two builds before it were made from a video tool's description of the same
+clip (a YouTube link) and were both wrong, in opposite ways: one jogged in
+from further back and spun round, one walked in with no jump and stood up.
+The tool's two readings contradicted each other and neither had the hand by
+the ear, the arm dropping low or the leg kick. A clip is to be looked at:
+ask for the file, pull frames out of it, and build from those. It is not in
+the fast bowlers' shared suite, whose rules about momentum into the crease
+and the arm's sweep are not a spinner's: `describe("the spinner's second
+action")` holds its release point to the first spinner's within a few
+centimetres, its limbs, its feet, its run, the hand by the ear and the kick.
 `?spinv=1` or `2` asks for one and is not practice;
-`bowler-sheet.html?actions=spin,spin2` draws the two a row each.
+`bowler-sheet.html?actions=spin,spin2` draws the two a row each. `hop` on a
+style (a fraction of the foot lift through the bound) was added for the
+second build and is unused now.
 
 A fielder dives at a ball along the ground only when a fielder would
 (`worthIt` in `Field.ground`): the ball at least `DIVE_FROM` from him, his
