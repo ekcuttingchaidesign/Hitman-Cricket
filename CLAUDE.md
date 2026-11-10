@@ -5,6 +5,16 @@ serverless functions over Upstash Redis behind them. `README.md` is the long
 document and explains the game, the boards and the careers; this file is only
 the things a session needs to know before it touches anything.
 
+## Telling the owner what to look at
+
+When a change is behind a switch on the link (`?bowlv=2`, `?howout=1`,
+`?polish=0`), give the owner the whole link for each one, preview address
+and switches together, ready to tap: never the bare switch with "add this to
+the link". They test on a phone, and editing an address by hand there is a
+nuisance (the owner asked for this on 10 November 2026). One link a line,
+with what it shows; where two switches belong together, one link carrying
+both.
+
 ## Going live
 
 `docs/LAUNCH.md` is the running order for shipping the career update: seed the
