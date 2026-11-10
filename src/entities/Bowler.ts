@@ -254,6 +254,8 @@ export interface ActionStyle {
    * action without it takes the one step and stands up where he is.
    */
   runOn?: number;
+  /** How high his feet come off the turf through the bound, of the fast bowler's: a fraction makes the leap a walking stride. */
+  hop?: number;
   /** The run he bowls off, where it is not the fast bowler's: the death bowler's short one. */
   run?: Run;
   /**
@@ -331,33 +333,34 @@ export function paceVersionOf(seed: number, over: number): 1 | 2 {
 
 /**
  * The spinner's second action, bowled in half his overs (`spinVersionOf`),
- * from a clip the owner sent of a right-arm spinner filmed from the batter's
- * end (https://youtube.com/shorts/O3fjksDgQVU). Where the first spinner walks
- * two paces into the fast bowler's own action, this one jogs in four short
- * steps (`SPIN_RUN_V2`) with both hands on the ball in front of his chest,
- * hops up into the back foot with the front knee lifted and his weight back,
- * the ball hand cocked up beside his ear and the front arm bent out in front
- * of his chest; then a high arm, straight over the top and quick, up on the
- * front foot as the chest comes hard round; and he pivots on it, the back
- * leg swinging round and through, the bowling hand finishing down by the far
- * hip and the front arm flung back behind him, stopping near the crease
- * facing down the pitch. The same release point and moment as every ball.
+ * from a clip the owner sent of a right-arm spinner in slow motion from the
+ * batter's end (https://youtube.com/shorts/O3fjksDgQVU). The spinner's own
+ * short walk-in (`SPIN_RUN`: the first build of this jogged in from further
+ * back and hopped, and the owner said it was too much run-up for a spinner
+ * and not the clip's action). Where the first spinner bowls the fast
+ * bowler's action off that walk, arms pumping, a leap, the arm swung up from
+ * down behind him, this one is quiet and upright: both hands on the ball at
+ * his chest as he walks in, no jump, only a stride into the crease, a little
+ * back on it and side-on; the ball hand taken back and up from the chest to
+ * head height, never down past the hip, and over the top in one easy sweep
+ * while the front arm, up and forward to line him up, is pulled down to his
+ * hip; the chest opening to the batter, the trunk hardly folding; the arm
+ * finishing down past his hip, and a couple of walking steps on with both
+ * arms loose at his sides. The same release point and moment as every ball.
  */
-export const SPIN_RUN_V2 = runOf(1.55, .62, { stride: .9, accel: 1.15 });
 export const SPIN_ACTION_V2: ActionStyle = {
-  gatherAngle: -1.15, whip: 3.3, release: .20, through: 3.1,
-  frontUp: -1.05, frontPull: -2.5, frontAfter: -2.7,
-  runTurn: .1, gatherTurn: 1.15, releaseTurn: -.62,
-  leap: .24, followDrop: .19,
-  coilBack: .2, coilLean: .26, coilHead: -.45,
-  fold: .12, foldLean: .2,
-  backKick: .38,
+  gatherAngle: -1.45, whip: 2.1, release: .20, through: 2.9,
+  frontUp: -.5, frontPull: -2.5, frontAfter: -2.95,
+  runTurn: .1, gatherTurn: 1.1, releaseTurn: -.4,
+  leap: .05, followDrop: .19,
+  coilBack: .1, coilLean: .14, coilHead: -.4,
+  fold: -.05, foldLean: .06,
+  backKick: .2,
   carry: 'chest', lane: .34,
-  runLean: 0, pump: .8,
-  frontRise: [BOUND, BACK_FOOT], kneeDrive: 1.25, releaseTilt: .16, tiltFrom: FRONT_FOOT, armTilt: -.175, throughTilt: .3,
-  open: 1.3, throughTurn: .95, releaseHead: 0, throughHead: .5, throughTwist: .2, frontTuck: .62, frontAfterReach: .9, frontTilt: -.16, frontAfterTilt: -.3, frontSync: 0,
-  kick: .2, kickHold: .18, followAcross: .15,
-  run: SPIN_RUN_V2,
+  runLean: 0, pump: .6,
+  frontRise: [BOUND, BACK_FOOT], kneeDrive: .6, releaseTilt: .16, tiltFrom: FRONT_FOOT, armTilt: -.175, throughTilt: -.175,
+  open: 1, throughTurn: .3, releaseHead: 0, throughHead: .2, throughTwist: 0, frontTuck: .6, frontAfterReach: .85, frontTilt: -.16, frontAfterTilt: -.16, frontSync: 0,
+  kick: 0, kickHold: 0, followAcross: 0, hop: .3,
 };
 /** Which of the spinner's two actions an over is bowled with: half each, off the innings' seed and the over. */
 export function spinVersionOf(seed: number, over: number): 1 | 2 {
@@ -840,6 +843,8 @@ export class Bowler {
     }
 
     const boundT = span(t, BOUND, BACK_FOOT);
+    // How high the feet come up through the bound: a fast bowler's leap, or a spinner's stride.
+    const hop = this.style.hop ?? 1;
 
     // The back foot lands parallel to the crease and takes the load — and then
     // it has to leave. A foot cannot stay welded to its mark while the body runs
@@ -866,7 +871,7 @@ export class Bowler {
       // follow-through has to pick it up from there. Starting its swing from
       // the ground drops the leg through the pitch for a frame and, worse,
       // hands the leg a stance it has no length left to reach.
-      .06 + (t <= BACK_FOOT ? Math.sin(boundT * Math.PI) * .42
+      .06 + (t <= BACK_FOOT ? Math.sin(boundT * Math.PI) * .42 * hop
         : after > 0 ? THREE.MathUtils.lerp(.30, 0, swingThrough) + Math.sin(swingThrough * Math.PI) * this.style.backKick + kicked
         : ease(lifted) * .30),
       t > BACK_FOOT && t <= BACK_LIFT ? this.backAcross : live);
@@ -881,8 +886,8 @@ export class Bowler {
       : t <= FRONT_FOOT
         ? THREE.MathUtils.lerp(this.run.backFootPlant + .06, this.run.frontFootPlant, ease(span(t, BACK_FOOT, FRONT_FOOT)))
         : THREE.MathUtils.lerp(this.run.frontFootPlant, this.run.frontMark, stepOn);
-    const frontLift = t <= BACK_FOOT ? (Math.sin(boundT * Math.PI) * .30 + boundT * .34) * (1 + (this.style.kneeDrive - 1) * Math.sin(boundT * Math.PI))
-      : t <= FRONT_FOOT ? .34 * (1 - ease(span(t, BACK_FOOT, FRONT_FOOT)) ** 1.5)
+    const frontLift = t <= BACK_FOOT ? (Math.sin(boundT * Math.PI) * .30 + boundT * .34) * hop * (1 + (this.style.kneeDrive - 1) * Math.sin(boundT * Math.PI))
+      : t <= FRONT_FOOT ? .34 * hop * (1 - ease(span(t, BACK_FOOT, FRONT_FOOT)) ** 1.5)
       : Math.sin(stepOn * Math.PI) * .30;
     // Braced, it keeps the bearing it landed on through the release and after
     // it, and only turns with him as it steps on: switching to the live bearing

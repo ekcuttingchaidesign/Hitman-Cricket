@@ -718,10 +718,13 @@ describe("the spinner's second action", () => {
       for (const foot of s.feet) expect(foot[1]).toBeGreaterThan(.02);
     }
   });
-  it('jogs in from further back than the first spinner walks, and hops higher', () => {
+  it("walks in off the spinner's own short run, with no jump, the ball at his chest and the arm from up by his head", () => {
     spinner.runup(0); first.runup(0);
-    expect(spinner.root.position.z).toBeGreaterThan(first.root.position.z + .8);
-    expect(SPIN_ACTION_V2.leap).toBeGreaterThan(PACE_ACTION.leap);
+    expect(spinner.root.position.z).toBeCloseTo(first.root.position.z, 6);
+    expect(SPIN_ACTION_V2.run).toBeUndefined();
+    expect(SPIN_ACTION_V2.leap).toBeLessThan(PACE_ACTION.leap / 2);
     expect(SPIN_ACTION_V2.carry).toBe('chest');
+    // Never down behind him, as the fast bowler's arm goes.
+    expect(SPIN_ACTION_V2.gatherAngle).toBeGreaterThan(PACE_ACTION.gatherAngle + .8);
   });
 });
