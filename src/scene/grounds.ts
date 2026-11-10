@@ -77,12 +77,12 @@ export function groundFor(asked: GroundName | null, game: GroundGame, coin: numb
  * lamps, for the night. `screen` is the arena's: its big screen, or the
  * commentary box in its place.
  */
-export function buildGround(name: GroundName, world: THREE.Object3D, { screen = true } = {}): StadiumLights | null {
+export function buildGround(name: GroundName, world: THREE.Object3D, { screen = true, rich = false } = {}): StadiumLights | null {
   if (name === 'bowl') { bowl(world); return null; }
   if (name === 'arena') return arenaStands(world, screen);
   if (name === 'pavilion') return pavilionStands(world);
   if (name === 'canopy') return canopyStands(world);
-  return stadium(world);
+  return stadium(world, { rich });
 }
 
 /** Whether a ground brings its own floodlights, in place of the four poles `GameScene` stands up for the bowl. */

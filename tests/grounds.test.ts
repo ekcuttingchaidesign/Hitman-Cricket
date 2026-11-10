@@ -145,3 +145,26 @@ describe('the ground', () => {
     expect(world.children.filter(child => child instanceof THREE.Group && !(child instanceof THREE.Mesh))).toHaveLength(28);
   });
 });
+
+describe('the stadium redone', () => {
+  const count = (rich: boolean) => {
+    const world = new THREE.Group(); buildGround('stadium', world, { rich });
+    const meshes: THREE.Mesh[] = []; world.traverse(o => { if (o instanceof THREE.Mesh) meshes.push(o); });
+    const crowd = meshes.filter(m => m instanceof THREE.InstancedMesh) as THREE.InstancedMesh[];
+    return { crowd, scenery: meshes.length - crowd.length };
+  };
+  it('seats about twice the crowd, still as two instanced meshes, for two more draws of scenery', () => {
+    const plain = count(false), rich = count(true);
+    expect(rich.crowd).toHaveLength(2);
+    expect(rich.crowd[0].count).toBeGreaterThan(plain.crowd[0].count * 2);
+    expect(rich.crowd[0].count).toBeLessThan(plain.crowd[0].count * 2.6);
+    expect(rich.scenery - plain.scenery).toBeLessThanOrEqual(2);
+  });
+  it('still seats nobody behind the sightscreen', () => {
+    const { crowd } = count(true), m = new THREE.Matrix4(), at = new THREE.Vector3();
+    for (let i = 0; i < crowd[0].count; i++) {
+      crowd[0].getMatrixAt(i, m); at.setFromMatrixPosition(m);
+      if (at.z > 40 && at.y < 4.4) expect(Math.abs(at.x)).toBeGreaterThan(3.5);
+    }
+  });
+});

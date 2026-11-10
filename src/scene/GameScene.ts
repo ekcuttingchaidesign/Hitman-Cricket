@@ -696,7 +696,7 @@ export class GameScene {
     const group = new THREE.Group(); group.name = `Stands: ${name}`;
     this.world.add(group);
     const screen = screenFrom(location.search);
-    const lights = buildGround(name, group, { screen });
+    const lights = buildGround(name, group, { screen, rich: this.polished });
     const stands: Stands = { group, lamps: lights?.lamps ?? null, warm: lights?.warm ?? [] };
     if (name === 'arena') {
       this.arena = new Arena(this.scene, screen, this.anisotropy);

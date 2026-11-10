@@ -2665,6 +2665,17 @@ ends with tufts rubbed in, so the grass grows in over it where a painted
 verge met the turf along a ruled line; it is drawn first of everything
 see-through (`renderOrder`), under the shadows laid on it.
 
+**The stadium redone** (`rich` on `stadium`, through `buildGround`; the
+stadium alone, the pavilion and the canopy having been drawn later): the
+steps dark (`STADIUM.deck`) and half as deep, so there are twice the rows,
+the seats closer (`RICH_PITCH`), a home crowd in the game's navy and orange
+among the whites (`HOME_CROWD`), a rail along the front of each tier, a light
+stair down every aisle and a navy band between the tiers where the grey
+glass was. Cream people on cream steps, a row every 1.4 metres, had read as a
+half-empty stand. Still one batch and one instanced crowd: about 2.3 times
+the people and two more draws of scenery (`tests/grounds.test.ts`). Not yet
+timed on a phone, and `scene-check`'s budget was not run on it.
+
 `?polish=0` turns all of it off, the light with it, for holding the two side by side, and is not
 practice. `__cricket.polish()` says what is showing. The owner saw no
 significant improvement from these two on a phone: they are kept as cheap,
