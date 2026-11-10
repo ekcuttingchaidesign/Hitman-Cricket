@@ -2617,6 +2617,24 @@ the batter's and the bowler's shadows are nearly twice as sharp. The arena
 keeps its own night (`ARENA_NIGHT`). Photographed on the stadium, the
 pavilion and the canopy.
 
+The owner liked the light ("feels like golden hour") and asked for two
+things on it. **A Test's day moves** (`DAY_ARC`, `dayArcAt` in `night.ts`, in
+`tests/day-arc.test.ts`; `dayAt` in `GameScene`, `dayNow` in `src/Game.ts`):
+morning to evening by the balls bowled, Survival's sixty or forty overs of a
+Marathon (`DAY_BALLS`), where the evening then holds. The sun is low and
+cool-white from the off side at the start, overhead through the middle, in
+the afternoon the other games stand in, and low and golden from behind the
+leg side at the close, the dome's horizon warming with it. It is moved as
+each ball is bowled, and only the lights, the dome's two colours and the haze
+move: nothing a frame, no shader, and the reflections stay the day's. Only
+the light, so no ball is bowled differently and it is not practice.
+`__cricket.day(0.5)` puts it anywhere for looking at, until the next ball.
+**The outfield is level with the strip** (`createGround`): it lay 47mm under
+the strip's top, so from a replay's low camera the strip was a slab set down
+on the grass, with a dark side and the batter's shadow broken over its edge.
+It is laid just under the strip's top now, the standing blades lifted with
+it; everything else stands by the strip's top as it did.
+
 `?polish=0` turns all of it off, the light with it, for holding the two side by side, and is not
 practice. `__cricket.polish()` says what is showing. The owner saw no
 significant improvement from these two on a phone: they are kept as cheap,

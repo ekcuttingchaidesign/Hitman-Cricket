@@ -13,7 +13,7 @@ import { KIT, keepingPose, type Kit } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
 import { BOARDS, boardsAlong, flightOf, sectorOf } from './flight';
 import { OVERCAST, SKY, Sky, type SkyTime } from './sky';
-import { ARENA_NIGHT, FILL_POSITION, LIGHTING, RICH, RICH_NIGHT_HAZE, glows, moon, nightReflections } from './night';
+import { ARENA_NIGHT, FILL_POSITION, LIGHTING, RICH, RICH_NIGHT_HAZE, dayArcAt, glows, moon, nightReflections } from './night';
 import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture, type Turf } from './turf';
 import { BOARD_PANELS, perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
@@ -608,7 +608,10 @@ export class GameScene {
     const blades = grassDetail(140, anisotropy);
     this.outfield = new THREE.MeshStandardMaterial({ map: grass, normalMap: blades, normalScale: new THREE.Vector2(0.65, 0.65), roughness: 0.95 });
     const ground = new THREE.Mesh(new THREE.CircleGeometry(70, 96), this.outfield); ground.rotation.x = -Math.PI / 2;
-    ground.position.set(0, -0.035, 10); ground.receiveShadow = true; this.world.add(ground);
+    // The outfield lay 47mm under the strip's top, so from a replay's low camera the strip was a slab set down
+    // on the grass, with a dark side and the batter's shadow broken over its edge. Laid just under the top,
+    // it is one surface. Everything else stands by the strip's top, as it did.
+    ground.position.set(0, this.polished ? 0.008 : -0.035, 10); ground.receiveShadow = true; this.world.add(ground);
     // The strip, its wear painted on rather than built from boxes.
     const surface = pitchTexture(2.8, 32, 4.3, anisotropy, { batting: 0, bowling: 18.7 }, 0, 0);
     this.pitch = new THREE.MeshStandardMaterial({ map: surface, roughness: 0.9 });
@@ -620,6 +623,7 @@ export class GameScene {
     // And standing blades either side of the strip near the bat, one draw.
     const standing = grassBlades(grass);
     this.blades = standing.material as THREE.MeshStandardMaterial;
+    if (this.polished) standing.position.y = 0.043;
     this.world.add(standing);
     // Popping creases, 1.2m in front of each wicket, with return creases running
     // back past the stumps.
@@ -744,6 +748,25 @@ export class GameScene {
       built.show?.lit(light.boards);
     }
   }
+  /** How far through its day a Test is, or null where the day stands still: see `dayAt`. */
+  private dayProgress: number | null = null;
+  /**
+   * A Test's day moved on to `progress` of the way from morning to evening
+   * (`DAY_ARC`), or null to put the day back as every other innings has it.
+   * Nothing by night, on the arena, or with the finish off.
+   */
+  dayAt(progress: number | null) {
+    if (!this.polished || this.now !== 'day') progress = null;
+    if (progress === this.dayProgress) return;
+    const was = this.dayProgress; this.dayProgress = progress;
+    if (progress === null) { if (was !== null) { const palette = this.sky.time(this.now); this.scene.fog!.color.set(palette.horizon); this.renderer.setClearColor(palette.horizon); this.relight(); } return; }
+    const day = dayArcAt(progress);
+    this.sun.position.set(...day.sun); this.sun.color.set(day.colour); this.sun.intensity = day.key * (1 - this.sky.cover * OVERCAST.sun);
+    this.hemisphere.color.set(day.sky); this.hemisphere.intensity = day.hemisphere;
+    this.sky.tint(day.zenith, day.horizon); this.scene.fog!.color.set(day.horizon); this.renderer.setClearColor(day.horizon);
+  }
+  /** Where the Test's day has got to, for the checks. */
+  get dayShown() { return this.dayProgress; }
   /** The lights as the time of day and the ground have them. */
   private relight() {
     const light = this.lighting;
@@ -868,6 +891,8 @@ export class GameScene {
     for (const object of this.night) object.visible = time === 'night';
     this.lightStands();
     this.kitsUnderLights();
+    // A Test's day picks up where it had got to, on the lights just set.
+    { const at = this.dayProgress; this.dayProgress = null; this.dayAt(at); }
   }
   /**
    * The kits under the floodlights. Lit only by a warm key from behind and a
@@ -1233,7 +1258,7 @@ export class GameScene {
   get clouded() { return Math.round(this.sky.cover * 100) / 100; }
   private clouding(amount: number, settled: boolean) {
     this.sky.overcast(amount);
-    this.sun.intensity = this.lighting.key.intensity * (1 - amount * OVERCAST.sun);
+    this.sun.intensity = (this.dayProgress === null ? this.lighting.key.intensity : dayArcAt(this.dayProgress).key) * (1 - amount * OVERCAST.sun);
     if (!settled) return;
     this.environment.dispose();
     this.environment = this.sky.environment(this.renderer, this.now === 'night' ? this.reflections : []);

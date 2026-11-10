@@ -218,6 +218,8 @@ const DECLINE_UNDO_MS = 5000;
  * `?mode=SURVIVE` still works, so the mode stays one link away for anyone
  * testing it. It is hidden, not removed.
  */
+/** How many balls of a Test Marathon run from its morning to its evening: forty overs. */
+const DAY_BALLS = 240;
 const SHOW_SURVIVE = SURVIVE_ONLY || !!import.meta.env.VITE_SHOW_SURVIVE;
 /**
  * Whether the Test Marathon has a card on the picker.
@@ -1134,6 +1136,8 @@ export class Game {
       // demand, for photographing them without batting to them.
       arena: () => this.scene.arenaState,
       contactShown: () => this.scene.contactShown,
+      // A Test's day put anywhere from morning (0) to evening (1), for looking at it; null lets the innings have it back.
+      day: (at: number | null) => { this.scene.dayAt(at); return this.scene.dayShown; },
       polish: () => this.scene.polishShown,
       arenaCue: (kind: ArenaCue | 'wave' | 'stumps' | 'diwali', word?: string) => this.scene.arenaCue(kind, this.elapsed, word),
       // The Test look, for the checks: the green strip down, or the Blast's.
@@ -2660,12 +2664,23 @@ export class Game {
    * stumps (`brand`); a Test by day at the pavilion, the stadium or the
    * canopy; the Blast at the pavilion or the stadium by the player's clock.
    */
+  /**
+   * How far through its day a Test innings is, morning to evening (`DAY_ARC`
+   * in `night.ts`): by the balls bowled, Survival's sixty or forty overs of a
+   * Marathon, where the evening then holds. Null in every other game, whose
+   * day stands still. Only the light: no ball is bowled differently for it.
+   */
+  private get dayNow() {
+    if (!this.test || this.lesson >= 0) return null;
+    return Math.min(1, this.score.balls / (this.marathon ? DAY_BALLS : SURVIVE.totalBalls));
+  }
   private light(time: SkyTime) {
     const game = this.super10 ? 'super10' : this.test ? 'test' : 'blast';
     if (game === 'super10') time = 'night';
     this.scene.stands(groundFor(ASKED_GROUND, game, VENUE_COIN[game === 'test' ? 'test' : 'blast']));
     this.scene.brand(this.super10);
     this.scene.time(time);
+    this.scene.dayAt(this.dayNow);
     this.hud.bigScreen(this.scene.bigScreen, this.scene.screenMoments);
   }
   /** What the arena's big screen says between moments: the game, the score, the over and, in Super10, who is in. */
@@ -4516,6 +4531,7 @@ export class Game {
       && (!this.scene.batterTapping || age >= this.readyMs + TAP_WAIT_MS)) {
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
         : this.chargeable(this.generator.next(this.elapsed + GAME.runupMs));
+      this.scene.dayAt(this.dayNow);
       this.attempt = null; this.outcome = null; this.bounced = false; this.specials = []; this.primed = null; this.chargeBall = false; this.meetsAt = 1;
       this.kept = null; this.keptSwing = null;
       // The ball is settled before the bowler moves, so the call goes out with

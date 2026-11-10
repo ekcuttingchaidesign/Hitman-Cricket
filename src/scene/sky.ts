@@ -190,6 +190,12 @@ export class Sky {
     return t;
   }
 
+  /** The dome's two colours alone, for a day that moves on (`DAY_ARC`): no environment map is taken again for it. */
+  tint(zenith: number, horizon: number) {
+    const u = this.material.uniforms;
+    (u.zenith.value as THREE.Color).set(zenith); (u.horizon.value as THREE.Color).set(horizon);
+  }
+
   /** How clouded over it is, nought to one. The environment map has to be taken again after it, as after `time`. */
   overcast(amount: number) { this.material.uniforms.overcast.value = amount; }
   get cover() { return this.material.uniforms.overcast.value as number; }
