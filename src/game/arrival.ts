@@ -120,14 +120,15 @@ function walkShot(t: number, angle: ArrivalAngle): { eye: Vec; at: Vec; fov: num
   const [x, z] = walkedTo(t), ax = Math.sin(ARRIVE_HEADING), az = Math.cos(ARRIVE_HEADING);
   const lx = -az, lz = ax;
   if (angle === 'front') {
-    // Ahead of him and a little to his left, eye high, looking back at him: head to boots on a 34-degree lens.
+    // Ahead of him and well out to his right, the bat's side, three-quarters on, eye high, looking back at him:
+    // head to boots on a 34-degree lens. Straight on, a bat tucked under the arm was a dot and he seemed to have none.
     return { eye: off(x + ax * FRONT.ahead + lx * FRONT.aside, FRONT.up, z + az * FRONT.ahead + lz * FRONT.aside), at: off(x, .9, z), fov: FRONT.fov };
   }
   // Off his left side, square to his line, a pace ahead of him so he walks into the picture.
   return { eye: off(x + lx * SIDE.out + ax * SIDE.lead, SIDE.up, z + lz * SIDE.out + az * SIDE.lead), at: off(x + ax * SIDE.lead * .5, .85, z + az * SIDE.lead * .5), fov: SIDE.fov };
 }
 /** From in front: how far ahead of him, out to his left, up, and the lens. */
-export const FRONT = { ahead: 5.4, aside: .5, up: 1.45, fov: 34 } as const;
+export const FRONT = { ahead: 4.9, aside: -2.2, up: 1.45, fov: 34 } as const;
 /** Side on: how far out to his left, how far ahead of him it leads, up, and the lens. */
 export const SIDE = { out: 5.2, lead: .6, up: 1.3, fov: 38 } as const;
 
@@ -148,7 +149,7 @@ export function arrivalCamera(t: number, home: CameraPose, angle: ArrivalAngle =
   return { eye: lerp(SHOULDER.eye, home.eye, k), at: lerp(SHOULDER.at, home.at, k), fov: SHOULDER.fov + (home.fov - SHOULDER.fov) * k };
 }
 /** Cut to from in front or side on: over his shoulder a little nearer, easing out to `SHOULDER` as he takes guard. */
-const CLOSER = { eye: off(-1.25, 1.95, -3.6), at: off(.10, .9, 2.6), fov: 40 } as const;
+const CLOSER = { eye: off(-1.45, 2.1, -4.2), at: off(.10, 1.0, 2.6), fov: 40 } as const;
 
 /** The bars: in over the cut, out as the camera lands on the game's view. */
 export function arrivalBars(t: number): number {
