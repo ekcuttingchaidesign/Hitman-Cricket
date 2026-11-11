@@ -15,7 +15,7 @@ import { tookTheTop, topSpotView, type TopSpotView } from './game/top-spot';
 import { TopSpot } from './ui/TopSpot';
 import { chaseEndOf, verdictOf, type VerdictKind, type VerdictView } from './game/match-end';
 import { Verdict } from './ui/MatchEnd';
-import { buzz } from './game/haptics';
+import { buzz, hapticsWanted, setHaptics } from './game/haptics';
 import { contactOf, STOP_PACE, type Contact } from './game/contact';
 import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
@@ -1113,6 +1113,7 @@ export class Game {
     });
     this.hud.viewport.addEventListener('pointerdown', () => { this.walkedOn(true); this.skipReplay(); });
     // The pause sheet's replays switch (`replay.ts`), kept across visits.
+    this.hud.on('haptics-switch', () => { setHaptics(!hapticsWanted()); this.hud.hapticsSwitch(hapticsWanted()); });
     this.hud.on('replay-switch', () => { this.replaysOn = !this.replaysOn; this.replaysTagSeen(NEW_TAG_SHOWS); try { localStorage.setItem(REPLAYS_KEY, this.replaysOn ? 'on' : 'off'); } catch { /* For this visit, then. */ } this.hud.replaySwitch(this.replaysOn); });
     window.addEventListener('keydown', this.shortcuts); window.addEventListener('beforeunload', this.leaving); document.addEventListener('visibilitychange', this.visibility);
     window.addEventListener('blur', this.blur); window.addEventListener('pagehide', this.markQuit);
@@ -2433,6 +2434,8 @@ export class Game {
     this.scene.whites(this.test);
     // A Test by day; the Blast by the player's clock, or their own choice.
     this.light(this.test ? 'day' : blastLights());
+    // Every shader the innings will want compiled now, not on its first ball (`GameScene.prewarm`).
+    this.scene.prewarm();
     // Under a clear sky, with nothing yet told.
     this.told = { swing: false }; this.bannerUntil = 0; this.keeperHeld = 0; this.hud.closeIntro();
     this.scene.overcast(false, true); this.hud.levelBanner(null);
@@ -3377,7 +3380,7 @@ export class Game {
       // So is the catch camera.
       this.stopReplay(); this.endCatchCam();
       this.input.cancel(); this.audio.stop(); this.audio.holdCrowd(true); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true, this.pauseGame);
-      this.soundSwitches(); this.hud.replaySwitch(this.replaysOn); this.replaysTagSeen();
+      this.soundSwitches(); this.hud.replaySwitch(this.replaysOn); this.hud.hapticsSwitch(hapticsWanted()); this.replaysTagSeen();
       // The arena is played at night whatever the switch says, so it has none.
       this.hud.lightsSwitch(this.test || this.super10 || this.scene.arenaGround ? null : this.scene.lit);
       // Twenty overs in, the Marathon can be declared — from here, and from

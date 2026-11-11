@@ -2457,6 +2457,7 @@ button.pause-row:focus-visible{outline:3px solid #ec754a;outline-offset:-3px}
 .pause-row-icon.is-ambience{background:#087bff2e;color:#77b9ff}
 .pause-row-icon.is-lights{background:#f5c8422b;color:#f7d36a}
 .pause-row-icon.is-replay{background:#8b5cf62e;color:#b79bff}
+.pause-row-icon.is-haptics{background:#2fbf7a2b;color:#6fe0a6}
 /* NEW beside Replays (`HUD.replayNew`), the poster's NEW tag on a pause row. */
 .pause-new{display:inline-block;margin-left:calc(var(--u) * 8);padding:calc(var(--u) * 2) calc(var(--u) * 6);border-radius:calc(var(--u) * 6);background:var(--c-survival);color:#fff;font:700 calc(var(--u) * 9.5)/1.3 var(--f-ui);letter-spacing:.1em;vertical-align:calc(var(--u) * 2)}
 .pause-new.hidden{display:none}

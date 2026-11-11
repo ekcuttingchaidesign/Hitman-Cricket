@@ -15,21 +15,44 @@ const canVibrate = () => typeof navigator !== 'undefined' && typeof navigator.vi
 const isApple = () => typeof navigator !== 'undefined'
   && (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 
+/**
+ * The switch the tick is played on, made once and kept hidden in the head.
+ * It used to be built, clicked and thrown away on every tick: two elements
+ * added to the page and taken off it on the very frame the bat met the ball,
+ * which on an iPhone is a style pass at the worst moment.
+ */
+let tickLabel: HTMLLabelElement | null = null;
 /** One tick of the system's switch haptic. */
 function tick() {
   try {
-    const label = document.createElement('label');
-    label.setAttribute('aria-hidden', 'true');
-    label.style.display = 'none';
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.setAttribute('switch', '');
-    input.tabIndex = -1;
-    label.append(input);
-    document.head.append(label);
-    label.click();
-    label.remove();
+    if (!tickLabel || !tickLabel.isConnected) {
+      tickLabel = document.createElement('label');
+      tickLabel.setAttribute('aria-hidden', 'true');
+      tickLabel.style.display = 'none';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.setAttribute('switch', '');
+      input.tabIndex = -1;
+      tickLabel.append(input);
+      document.head.append(tickLabel);
+    }
+    tickLabel.click();
   } catch { /* No tick, then. */ }
+}
+
+/**
+ * Whether the player wants the buzz at all: the pause sheet's Vibration
+ * switch, kept in this browser (`hitman-haptics`). A player felt their phone
+ * buzz on every stroke and asked for a way to stop it; off, nothing in the
+ * game buzzes, the bat meeting the ball, Level Up, New #1 or a verdict.
+ */
+export const HAPTICS_KEY = 'hitman-haptics';
+let hapticsOn = (() => { try { return localStorage.getItem(HAPTICS_KEY) !== 'off'; } catch { return true; } })();
+export const hapticsWanted = () => hapticsOn;
+export function setHaptics(on: boolean) {
+  hapticsOn = on;
+  try { localStorage.setItem(HAPTICS_KEY, on ? 'on' : 'off'); } catch { /* For this visit, then. */ }
+  if (!on) stopBuzz();
 }
 
 /**
@@ -38,7 +61,7 @@ function tick() {
  */
 export function buzz(pattern: number | readonly number[]): boolean {
   const steps = typeof pattern === 'number' ? [pattern] : [...pattern];
-  if (!steps.length) return false;
+  if (!steps.length || !hapticsOn) return false;
   if (canVibrate()) {
     try { return navigator.vibrate(steps); } catch { return false; }
   }
