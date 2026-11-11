@@ -38,6 +38,7 @@ import { introCamera, introSweep, type Film } from '../game/IntroReel';
 import { arrivalCamera, type ArrivalAngle } from '../game/arrival';
 import type { WalkStyle } from '../entities/Batter';
 import { diwaliOn } from '../game/diwali';
+import { homeViewFor } from './homeView';
 import { batSheet } from '../entities/batSkins';
 import { Puff, type Burst } from './puff';
 import { ContactShadows } from './polish';
@@ -889,16 +890,8 @@ export class GameScene {
   /** The game's own view, kept still beside the camera: what is in the picture is judged from it (`inShot`). */
   private readonly judge = new THREE.PerspectiveCamera(53, 1, 0.1, 180);
   /** The game's own view for this screen's shape: where every film's camera hands back to. */
-  get homeView(): CameraPose {
-    // Below 16:9 the view widens towards a constant horizontal field of view, so
-    // a tall phone sees the whole pitch rather than the batter's shoulders. The
-    // aim drops with it: the extra frame goes to the wicket, not to empty sky.
-    const design = 16 / 9, base = 50;
-    const widened = 2 * Math.atan(Math.tan(base * Math.PI / 360) * design / this.camera.aspect) * 180 / Math.PI;
-    const tall = THREE.MathUtils.clamp((design - this.camera.aspect) / (design - 0.5), 0, 1);
-    return { eye: [0, 2.9, -5.15], at: [0, THREE.MathUtils.lerp(1.05, 0.15, tall), THREE.MathUtils.lerp(9, 5.4, tall)],
-      fov: THREE.MathUtils.clamp(this.camera.aspect < design ? widened : base, base, 67) };
-  }
+  /** The game's own view from behind the bat, for this picture's shape: see `homeViewFor`. */
+  get homeView(): CameraPose { return homeViewFor(this.camera.aspect); }
   /**
    * Put both figures into whites, or back into colours. The ball is left alone:
    * it is red in both, which is the one thing a Test match and this game's

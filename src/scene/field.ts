@@ -37,10 +37,14 @@ export function mark(angle: number, distance: number): Spot {
  * back on the rope, because the man at the crease is trying to clear it.
  * Negative angles are the leg side. The rope is forty metres away straight and
  * about thirty-five square, so the deep men stand a few metres inside it.
+ * Mid-on and mid-off stand seventeen degrees off straight, where the game's
+ * camera sees them on the tallest phone (an iPhone saved to its home screen,
+ * `tests/home-view.test.ts`): at twenty-four and twenty-five they were out of
+ * that picture, and widening it made the batter smaller.
  */
 export const BLAST_FIELD: readonly Mark[] = [
-  { name: 'Mid-on', spot: mark(-25, 22), style: 'loose', deep: false },
-  { name: 'Mid-off', spot: mark(24, 22), style: 'hips', deep: false },
+  { name: 'Mid-on', spot: mark(-17, 22), style: 'loose', deep: false },
+  { name: 'Mid-off', spot: mark(17, 22), style: 'hips', deep: false },
   { name: 'Long-on', spot: mark(-11, 34), style: 'hips', deep: true },
   { name: 'Long-off', spot: mark(12, 34), style: 'loose', deep: true },
   { name: 'Deep midwicket', spot: mark(-52, 31), style: 'loose', deep: true },
@@ -66,15 +70,16 @@ export const REPLAY_DEEP: readonly Mark[] = [
 /**
  * The Test match: an attacking field for a batter trying to survive. Four on
  * the ring to stop him getting off strike and catch anything in the air, two
- * back for the one he does middle.
+ * back for the one he does middle. Mid-on and long-off stand where the
+ * game's camera sees them on the tallest phone, as the Blast's do.
  */
 export const TEST_FIELD: readonly Mark[] = [
   { name: 'Midwicket', spot: mark(-66, 18.5), style: 'hips', deep: false },
-  { name: 'Mid-on', spot: mark(-26, 19), style: 'loose', deep: false },
+  { name: 'Mid-on', spot: mark(-16, 19), style: 'loose', deep: false },
   { name: 'Mid-off', spot: mark(15, 19), style: 'loose', deep: false },
   { name: 'Cover', spot: mark(52, 19.5), style: 'hips', deep: false },
   { name: 'Long-on', spot: mark(-12, 33), style: 'loose', deep: true },
-  { name: 'Long-off', spot: mark(20, 33), style: 'hips', deep: true },
+  { name: 'Long-off', spot: mark(14, 33), style: 'hips', deep: true },
 ];
 
 const SEEDS = [.4, 1.9, 3.1, 4.4, 5.2, 6.6, 2.5, 3.7, 5.8, .9];

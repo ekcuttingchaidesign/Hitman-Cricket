@@ -3682,3 +3682,21 @@ both PLAY AGAINs — and leaves them at rest under reduced motion.
 Road to Hitman's fill is `roadOf` in `src/game/tier.ts`: the medallions stand
 evenly, so the fill is a whole rung per tier climbed and the share of the gap
 across the last, not a fraction of the top figure.
+
+## The view on a tall screen
+
+The game's camera behind the bat (`homeViewFor` in `src/scene/homeView.ts`,
+`GameScene.homeView`) widens its height with the screen's to 67 degrees and
+stops, which keeps the batter the size players know him at. Saved to an
+iPhone's home screen the page is the whole screen, about 0.46 wide to high,
+and 67 degrees up and down is 34 across there: mid-on and mid-off, at 24 and
+25 degrees off straight, stood out of the picture, the owner saw. Widening
+the view to bring them in made the batter smaller, which the owner did not
+want, so the view is as it was and the men stand where it sees them: the
+Blast's mid-on and mid-off seventeen degrees off straight, the Test's mid-on
+sixteen and long-off fourteen (`BLAST_FIELD`, `TEST_FIELD` in `field.ts`).
+Nothing is scored off where they stand in those modes. `tests/home-view.test.ts`
+projects mid-on, mid-off, long-on and long-off through the real camera at
+Safari's shape, the desktop column's and the home screen's, and holds each
+inside the picture. Super10's own field (`super10-field.ts`) is the rules'
+and was left alone: its mid-off and mid-on, at eighteen, already show.
