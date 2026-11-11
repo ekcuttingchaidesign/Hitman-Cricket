@@ -3691,6 +3691,10 @@ the screen's to 67 degrees and stopped, which in Safari on an iPhone (about
 0.55 wide to high) is about 40 degrees across. Saved to the home screen the
 page has the whole screen, about 0.46, and at the same 67 degrees the view
 was 34 across: mid-on and mid-off went out of the sides and only long-on and
-long-off were left. Now it keeps at least 40 degrees across (`VIEW.across`),
-widening the height up to 80 to do it, so a home-screen web app sees the
-field Safari does, the batter a little smaller in it.
+long-off were left. Forty across was not enough either, in Safari as well:
+mid-on stands about twenty and a half degrees off straight from the camera,
+and at forty the edge of the picture cut him in half. Now it keeps at least
+46 degrees across (`VIEW.across`), widening the height up to 90 to do it, so
+mid-on, mid-off, long-on and long-off stand well inside the picture in
+Safari, the desktop column and a home-screen web app (the test projects every
+one of them through the real camera), the batter a little smaller in it.

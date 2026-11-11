@@ -14,11 +14,15 @@ import type { CameraPose } from '../game/ShotReel';
  * Saved to an iPhone's home screen the game is the whole screen, about 0.46
  * as wide as tall, and at the same sixty-seven degrees up and down that was
  * thirty-four across: mid-on and mid-off went out of the picture either side
- * and only long-on and long-off were left, the owner saw. So the picture
- * never gets narrower than `across` degrees: a taller screen than Safari's
- * gets a taller view to keep the width, up to `widest`.
+ * and only long-on and long-off were left, the owner saw. Forty across was
+ * not enough either, in Safari or out of it: mid-on stands about twenty and a
+ * half degrees off straight from the camera, so at forty he was cut in half
+ * by the edge. So the picture never gets narrower than `across` degrees,
+ * which puts the men on the ring well inside it, and a tall screen gets a
+ * taller view to keep that width, up to `widest`: the batter a little
+ * smaller, the field all there.
  */
-export const VIEW = { design: 16 / 9, base: 50, tallest: 67, across: 40, widest: 80 } as const;
+export const VIEW = { design: 16 / 9, base: 50, tallest: 67, across: 46, widest: 90 } as const;
 
 const rad = Math.PI / 180;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
