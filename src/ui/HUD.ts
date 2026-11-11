@@ -199,6 +199,8 @@ const icon = (name: string) => {
     crowd: '<circle cx="9" cy="8.5" r="3"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9.5" r="2.3"/><path d="M15.8 14.3a4.5 4.5 0 0 1 4.9 4.7"/>',
     /* The replays switch: the restart arrow round a play mark. */
     replay: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v4h4"/><path d="m10.5 9.3 4.2 2.7-4.2 2.7z"/>',
+    /* The vibration switch: a phone with a buzz either side of it. */
+    haptics: '<rect x="8" y="3.5" width="8" height="17" rx="2"/><path d="M4.5 9v6M2 10.5v3M19.5 9v6M22 10.5v3"/>',
     ambience: '<path d="M3 9.5c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/><path d="M3 14.5c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/>',
   };
   return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
@@ -475,6 +477,11 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
               <button id="replay-switch" class="pause-row" type="button" role="switch" aria-checked="true">
                 <span class="pause-row-icon is-replay">${icon('replay')}</span>
                 <span class="pause-row-say"><b>Replays<span id="replay-new" class="pause-new hidden">NEW</span></b><em>Your best strokes, played again</em></span>
+                <span class="pause-switch" aria-hidden="true"></span>
+              </button>
+              <button id="haptics-switch" class="pause-row" type="button" role="switch" aria-checked="true">
+                <span class="pause-row-icon is-haptics">${icon('haptics')}</span>
+                <span class="pause-row-say"><b>Vibration</b><em>A buzz when the bat meets the ball</em></span>
                 <span class="pause-switch" aria-hidden="true"></span>
               </button>
               <div id="lights-row" class="pause-row is-static hidden">
@@ -2973,6 +2980,7 @@ ${modeSelectMarkup()}
    */
   /** The pause sheet's replays switch, as it is set. */
   replaySwitch(on: boolean) { this.$('replay-switch').setAttribute('aria-checked', String(on)); }
+  hapticsSwitch(on: boolean) { this.$('haptics-switch').setAttribute('aria-checked', String(on)); }
   /** The NEW tag beside Replays on the pause sheet (`newTagDue`). */
   replayNew(on: boolean) { this.$('replay-new').classList.toggle('hidden', !on); }
   /**

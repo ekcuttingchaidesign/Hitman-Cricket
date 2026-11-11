@@ -2722,6 +2722,17 @@ knock under a middled one (`thock`). Dust comes up where every ball pitches
 `Points` each, a draw call only while a burst is up, every piece a
 closed-form flight off the game's clock so a held beat holds them.
 
+The pause sheet has a Vibration switch (`#haptics-switch`, `setHaptics`
+and `hapticsWanted` in `src/game/haptics.ts`, kept in `hitman-haptics`):
+off, nothing in the game buzzes — the bat meeting the ball, Level Up, New #1
+or a verdict — since every buzz goes through `buzz`. A player felt their
+phone buzz on every stroke (an iPhone, the game saved to the home screen:
+Safari has no vibrate, and the buzz is the system's tick from a switch
+flipped by script) and asked for a way to stop it. The switch the tick is
+played on is made once and kept hidden (`tickLabel`): it used to be built
+and thrown away on every tick, two elements in and out of the page on the
+frame the bat met the ball.
+
 The ball is resolved before any of it, so it moves no score, window or seed,
 in any mode, a Rival Match included, and it is on under `?debug=1`. Reduced
 motion keeps the knock and the sound and drops the beat, the push, the chips
@@ -2863,6 +2874,19 @@ significant improvement from these two on a phone: they are kept as cheap,
 not as the answer to the fielders' and the stadium's look. Looked at with close
 crops and measured off the pixels (the turf beside a boot about a quarter
 darker): by eye at a phone's size the boot's dark is soft enough to miss.
+
+## Shaders compiled before the first ball
+
+Every material in the scene is compiled when an innings has been dressed and
+lit (`GameScene.prewarm`, from the innings' start in `src/Game.ts`), hidden
+ones too: `compile` walks every mesh and takes only the visible lights, so it
+compiles for the light the innings is played in. Before, the first ball of a
+visit compiled five shaders while it was in the air and at the shot — a
+stall an iPhone shows as a hitch, after a report of lag on Safari on an
+iPhone 17 Pro. With it nothing compiled during play through a Blast's cover
+drives, a chop-on wicket, the walk-in after it and sixes at the canopy by
+night (counted by wrapping `linkProgram` in a page script). `compileAsync`
+where the browser has it, so the compiling is off the main thread there.
 
 ## The bowled ball's streak
 

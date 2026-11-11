@@ -855,6 +855,23 @@ export class GameScene {
     for (const face of show.warm()) this.renderer.initTexture(face);
   }
   private warmed = new WeakSet<Showboards>();
+  /**
+   * Every material in the scene compiled now, hidden ones too, under the
+   * lights the innings is played in (`compile` walks every mesh, and lights
+   * only the visible ones). Called once an innings is dressed and lit: before
+   * it, the first ball of a visit compiled five shaders while it was in the
+   * air and at the shot, and the first wicket, six and replay more, each a
+   * stall Safari on an iPhone shows as a hitch. Where the browser compiles
+   * off the main thread (`compileAsync`, KHR_parallel_shader_compile) it does
+   * so; elsewhere it is one wait at the start of the innings, not mid-ball.
+   */
+  prewarm() {
+    try {
+      const renderer = this.renderer as THREE.WebGLRenderer & { compileAsync?: (scene: THREE.Object3D, camera: THREE.Camera) => Promise<unknown> };
+      if (renderer.compileAsync) void renderer.compileAsync(this.scene, this.camera).catch(() => {});
+      else renderer.compile(this.scene, this.camera);
+    } catch { /* Compiled as it is first drawn, then, as it always was. */ }
+  }
   /** The screen and the boards the moments go to: the stands' own, in a Super10 innings or on the arena. */
   private get cued() { return this.branded || this.current === 'arena' ? this.show : null; }
   private resize = () => {
