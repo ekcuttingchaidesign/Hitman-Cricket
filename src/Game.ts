@@ -153,6 +153,7 @@ import {
 } from './game/analytics';
 import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
 import { practiceSwitches } from './game/practice';
+import { CAMERAS, readCamera, saveCamera, type CameraId } from './game/camera';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
 import { batting, readPlaytime, writePlaytime } from './game/playtime';
 import { ChallengeRun, ageOf, emptyList, noteResult, recentForm, rivalryView, roomView, type ListView, type Me, type ResultView, type RoomView } from './game/Challenge';
@@ -825,6 +826,8 @@ export class Game {
     // who was handed the link to give an opinion on the batting.
     if (!NO_BOARD) void this.loadBoard();
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
+    // The camera this visit plays under (`camera.ts`): the link's, or the one kept.
+    this.scene.useCamera(readCamera());
     this.scene.contactFx = this.contactOn;
     // The batter's follow-through, off on `?follow=0` for holding the two side by side: only how he is drawn.
     // `?follow=2` or `3` draws it that many times over, for seeing what it does.
@@ -854,7 +857,9 @@ export class Game {
       // The leg side is the hook at a bouncer on or outside off.
       () => !!this.delivery && hookable(this.delivery),
       // The block narrower in the Blast, where nobody blocks: see `SWIPE_ZONES`.
-      () => this.surviving || this.marathoning ? SWIPE_ZONES.test : SWIPE_ZONES.blast);
+      () => this.surviving || this.marathoning ? SWIPE_ZONES.test : SWIPE_ZONES.blast,
+      // The broadcast camera faces him: a swipe goes the way it went on the picture.
+      () => this.scene.facing);
     // The play key opens the picker rather than an innings — unless a link has
     // already named the mode, in which case it is that mode's play key.
     this.hud.on('start', this.play);
@@ -1113,6 +1118,8 @@ export class Game {
     });
     this.hud.viewport.addEventListener('pointerdown', () => { this.walkedOn(true); this.skipReplay(); });
     // The pause sheet's replays switch (`replay.ts`), kept across visits.
+    // The pause sheet's Camera row (`camera.ts`), kept across visits; taken at once, mid-innings too.
+    for (const { id } of CAMERAS) this.hud.on(`camera-${id}`, () => this.useCamera(id));
     this.hud.on('haptics-switch', () => { setHaptics(!hapticsWanted()); this.hud.hapticsSwitch(hapticsWanted()); });
     this.hud.on('replay-switch', () => { this.replaysOn = !this.replaysOn; this.replaysTagSeen(NEW_TAG_SHOWS); try { localStorage.setItem(REPLAYS_KEY, this.replaysOn ? 'on' : 'off'); } catch { /* For this visit, then. */ } this.hud.replaySwitch(this.replaysOn); });
     window.addEventListener('keydown', this.shortcuts); window.addEventListener('beforeunload', this.leaving); document.addEventListener('visibilitychange', this.visibility);
@@ -2445,7 +2452,7 @@ export class Game {
     // Super10's field, and its captain at mid-off, put out before the first ball.
     this.s10 = Game.freshField();
     this.scene.arenaMood('calm');
-    this.fieldUi.show(this.super10, this.scene.mirrored);
+    this.fieldUi.show(this.super10, this.scene.mirrored, this.scene.facing);
     if (this.super10) this.super10Over(false);
     this.nearing = null; this.hud.nearing(null, null);
     // The Test board is fetched when a Test innings starts rather than on every
@@ -3380,7 +3387,7 @@ export class Game {
       // So is the catch camera.
       this.stopReplay(); this.endCatchCam();
       this.input.cancel(); this.audio.stop(); this.audio.holdCrowd(true); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true, this.pauseGame);
-      this.soundSwitches(); this.hud.replaySwitch(this.replaysOn); this.hud.hapticsSwitch(hapticsWanted()); this.replaysTagSeen();
+      this.soundSwitches(); this.hud.cameraSwitch(this.scene.cameraId); this.hud.replaySwitch(this.replaysOn); this.hud.hapticsSwitch(hapticsWanted()); this.replaysTagSeen();
       // The arena is played at night whatever the switch says, so it has none.
       this.hud.lightsSwitch(this.test || this.super10 || this.scene.arenaGround ? null : this.scene.lit);
       // Twenty overs in, the Marathon can be declared — from here, and from
@@ -4943,13 +4950,27 @@ export class Game {
    * the swipes mirrored with it and the side labels swapped, and nothing said
    * about it: a batter on the other side of the stumps says it himself.
    */
+  /**
+   * The Camera row on the pause sheet: the picture turned at once, the side
+   * labels and Super10's map with it, and kept for the next visit. Nothing
+   * about the ball moves (`camera.ts`).
+   */
+  private useCamera(id: CameraId) {
+    if (id === this.scene.cameraId) return;
+    this.scene.useCamera(id); saveCamera(id);
+    this.hud.cameraSwitch(id);
+    this.hud.sides(this.scene.mirrored !== this.scene.facing);
+    this.fieldUi.turn(this.scene.facing);
+    this.mark(`camera-${id}`, `Camera: ${id}`);
+  }
   private hand() {
     const man = this.marathon?.current ?? null;
     // The Marathon's three are each their own; the one batter of the Blast and
     // the Test match bats the way the player said they do.
     const left = man ? man.left : readHand() === 'left';
     this.scene.leftHanded(left);
-    this.hud.sides(left);
+    // The labels the way round the screen shows them: turned with a camera facing him.
+    this.hud.sides(left !== this.scene.facing);
     // Super10's five are named: the player opens, the kit's squad follows.
     const mate = this.blastMate();
     if (this.super10) this.hud.callOut(this.lineup()[Math.min(this.score.wickets, 4)].walkOut);
@@ -5363,7 +5384,7 @@ export class Game {
     this.hud.result(outcome, this.chargeMiss);
     // A boundary rider out of the picture: the side label it went past says who.
     const away = outcome.fielder && offScreen(outcome.fielder.angle);
-    if (away && outcome.fielder) this.fieldUi.light({ side: (away === 'leg') !== this.scene.mirrored ? 'left' : 'right', name: outcome.fielder.name });
+    if (away && outcome.fielder) this.fieldUi.light({ side: ((away === 'leg') !== this.scene.mirrored) !== this.scene.facing ? 'left' : 'right', name: outcome.fielder.name });
     // And on the map, the line it went.
     if (this.super10 && this.lesson < 0 && outcome.madeBatContact) this.fieldUi.shot(sectorOf(outcome, this.attempt?.shotType), outcome, this.takerOf(outcome));
     if (outcome.hit) {
@@ -7313,7 +7334,7 @@ export class Game {
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
       pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, streak: this.scene.streakShown, wicketFall: this.scene.wicketFall, pullPen: this.pullPen,
-      mirrored: this.scene.mirrored, look: this.scene.wearing, shirt: this.scene.shirt, fieldingKit: this.scene.fieldingKit, chase: this.chase ? { handle: this.chase.handle, mode: this.chase.mode, target: this.chase.target } : null, marathon: this.marathon ? this.marathonState() : null,
+      mirrored: this.scene.mirrored, camera: this.scene.cameraId, look: this.scene.wearing, shirt: this.scene.shirt, fieldingKit: this.scene.fieldingKit, chase: this.chase ? { handle: this.chase.handle, mode: this.chase.mode, target: this.chase.target } : null, marathon: this.marathon ? this.marathonState() : null,
       super10: this.super10 ? this.super10State() : null,
       standing: this.standing, ease: this.ease };
   }

@@ -54,6 +54,7 @@ import type { SoloInnings, SoloRow, TeamRow } from '../game/marathon-board';
 import { rivalsRecordMarkup, type RivalsRecord } from './Record';
 import { coverBoardLines, coverMarkup, profileChip, type CoverBoard } from './Cover';
 import { cta, fitLabels, icon as kitIcon } from './Kit';
+import { CAMERAS, type CameraId } from '../game/camera';
 import {
   answerSheetMarkup, entryProblem, insideAnApp, noQuestionMarkup, nudgeSheetMarkup, passwordCardMarkup, passwordDoneMarkup,
   passwordSheetMarkup, ruleStates, type NudgeFigures, type PasswordEntry, type PasswordMode, type PasswordSheetView,
@@ -199,6 +200,8 @@ const icon = (name: string) => {
     crowd: '<circle cx="9" cy="8.5" r="3"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9.5" r="2.3"/><path d="M15.8 14.3a4.5 4.5 0 0 1 4.9 4.7"/>',
     /* The replays switch: the restart arrow round a play mark. */
     replay: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v4h4"/><path d="m10.5 9.3 4.2 2.7-4.2 2.7z"/>',
+    /* The camera row: a television camera on its stand. */
+    camera: '<rect x="3" y="6.5" width="12" height="9" rx="2"/><path d="m15 9.5 5.5-3v9l-5.5-3"/><path d="M9 15.5v3m-3 1.5h6"/>',
     /* The vibration switch: a phone with a buzz either side of it. */
     haptics: '<rect x="8" y="3.5" width="8" height="17" rx="2"/><path d="M4.5 9v6M2 10.5v3M19.5 9v6M22 10.5v3"/>',
     ambience: '<path d="M3 9.5c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/><path d="M3 14.5c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/>',
@@ -484,6 +487,11 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
                 <span class="pause-row-say"><b>Vibration</b><em>A buzz when the bat meets the ball</em></span>
                 <span class="pause-switch" aria-hidden="true"></span>
               </button>
+              <div id="camera-row" class="pause-row is-static">
+                <span class="pause-row-icon is-camera">${icon('camera')}</span>
+                <span class="pause-row-say"><b id="camera-label">Camera</b></span>
+                <div class="lights-toggle camera-toggle" role="radiogroup" aria-labelledby="camera-label">${CAMERAS.map(c => `<button id="camera-${c.id}" class="lights-option" type="button" role="radio" aria-checked="${c.id === 'classic'}"><span>${c.name}</span></button>`).join('')}</div>
+              </div>
               <div id="lights-row" class="pause-row is-static hidden">
                 <span class="pause-row-icon is-lights">${icon('moon')}</span>
                 <span class="pause-row-say"><b id="lights-label">Lights</b></span>
@@ -2978,6 +2986,14 @@ ${modeSelectMarkup()}
    * key they still say what they are set to, and a line under them says why
    * nothing is heard.
    */
+  /** The pause sheet's Camera row, with the one in use lit. */
+  cameraSwitch(id: CameraId) {
+    for (const { id: each } of CAMERAS) {
+      const option = this.$(`camera-${each}`);
+      option.classList.toggle('is-on', each === id);
+      option.setAttribute('aria-checked', String(each === id));
+    }
+  }
   /** The pause sheet's replays switch, as it is set. */
   replaySwitch(on: boolean) { this.$('replay-switch').setAttribute('aria-checked', String(on)); }
   hapticsSwitch(on: boolean) { this.$('haptics-switch').setAttribute('aria-checked', String(on)); }

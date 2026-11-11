@@ -63,13 +63,19 @@ function onMap(angle: number, distance: number, mirrored: boolean, deep = false)
 }
 const f = (v: number) => v.toFixed(1);
 
-/** The map, drawn: the ground, the rope and ring, the pitch, the fielders and the batter. */
-export function fieldMapMarkup(field: FieldSet, { mirrored = false }: { mirrored?: boolean } = {}) {
+/**
+ * The map, drawn: the ground, the rope and ring, the pitch, the fielders and
+ * the batter, a blue point at his end of the pitch. Under a camera facing the
+ * batter (`facing`, Broadcast) it is turned half round with the picture: the
+ * bowler's end at the foot and the batter's point above it, the off side the
+ * way the screen has it.
+ */
+export function fieldMapMarkup(field: FieldSet, { mirrored = false, facing = false }: { mirrored?: boolean; facing?: boolean } = {}) {
   const men = field.men.map((m, i) => {
     const p = onMap(m.angle, m.distance, mirrored, m.deep);
     return `<g class="s10-man${m.deep ? ' is-deep' : ''}" data-man="${i}" style="transform:translate(${f(p.x)}px,${f(p.y)}px)"><circle class="s10-halo" r="6.2"/><circle r="3.4"/></g>`;
   }).join('');
-  return `<svg class="s10-svg" viewBox="0 0 100 100" aria-hidden="true">
+  return `<svg class="s10-svg${facing ? ' is-facing' : ''}" viewBox="0 0 100 100" aria-hidden="true"><g${facing ? ' transform="rotate(180 50 50)"' : ''}>
     <circle class="s10-ground" cx="50" cy="50" r="${ROPE_R + 2}"/>
     <circle class="s10-rope" cx="50" cy="50" r="${ROPE_R + 2}"/>
     <circle class="s10-ring" cx="50" cy="50" r="${RING_R}"/>
@@ -78,7 +84,7 @@ export function fieldMapMarkup(field: FieldSet, { mirrored = false }: { mirrored
     <path class="s10-shot" pathLength="100" d=""/>
     <g class="s10-men">${men}</g>
     <circle class="s10-bat" cx="50" cy="50" r="3.8"/>
-  </svg>`;
+  </g></svg>`;
 }
 
 const BOLT = '<svg class="s10-bolt" viewBox="0 0 18 26" aria-hidden="true"><path d="M11.5 0 0 14.8h7.3L5.4 26 18 10.4h-7.4z"/></svg>';
@@ -101,6 +107,7 @@ export class FieldUi {
   private field: FieldSet | null = null;
   private over = 0;
   private mirrored = false;
+  private facing = false;
   private on = false;
   private taught = false;
   private timers = { tag: 0, lit: 0, title: 0, close: 0 };
@@ -131,8 +138,8 @@ export class FieldUi {
   }
 
   /** Whether this innings has a field: Super10's does, and nothing else does. */
-  show(on: boolean, mirrored = false) {
-    this.on = on; this.mirrored = mirrored;
+  show(on: boolean, mirrored = false, facing = false) {
+    this.on = on; this.mirrored = mirrored; this.facing = facing;
     for (const el of [this.map, this.surgeKey]) el.classList.toggle('hidden', !on);
     // Every innings starts with the map in its corner: left enlarged, it stood over the end card and the next innings.
     clearTimeout(this.timers.close);
@@ -158,7 +165,7 @@ export class FieldUi {
     const surge = field.change === 'surge';
     this.map.classList.toggle('is-surge', surge);
     const was = [...this.map.querySelectorAll<SVGGElement>('.s10-man')].map(g => g.style.transform);
-    this.map.innerHTML = `${fieldMapMarkup(field, { mirrored: this.mirrored })}<span class="s10-pulse"></span>`;
+    this.map.innerHTML = `${fieldMapMarkup(field, { mirrored: this.mirrored, facing: this.facing })}<span class="s10-pulse"></span>`;
     if (!prev || !was.length || prev.id === field.id) { this.drawBig(); return; }
     // The men walk: each new place from whoever stood nearest it.
     const from = this.matched(prev.men, field.men);
@@ -177,6 +184,19 @@ export class FieldUi {
     const name = field.name.toUpperCase();
     this.say(surge ? 'POWER SURGE · TWO FIELDERS IN' : field.change === 'plan' ? `FIELD CHANGE · ${name}` : `${name} · ${out} OUT`, 'map');
     this.drawBigSoon();
+  }
+
+  /**
+   * The camera changed mid-innings: the map drawn again the way round the
+   * picture now is, with the field as it stands and no tag (nothing about
+   * the field changed). The ball's line goes with it until the next ball.
+   */
+  turn(facing: boolean) {
+    if (facing === this.facing) return;
+    this.facing = facing;
+    if (!this.on || !this.field) return;
+    this.map.innerHTML = `${fieldMapMarkup(this.field, { mirrored: this.mirrored, facing })}<span class="s10-pulse"></span>`;
+    this.drawBig();
   }
 
   /** For each new man, the old man nearest him, so a man walks to his new place rather than across the ground. */

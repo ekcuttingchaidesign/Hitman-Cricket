@@ -30,3 +30,19 @@ export function homeViewFor(aspect: number): CameraPose {
   const fov = clamp(aspect < design ? widened : base, base, tallest);
   return { eye: [0, 2.9, -5.15], at: [0, lerp(1.05, 0.15, tall), lerp(9, 5.4, tall)], fov };
 }
+
+/**
+ * The television's view (`?cam=broadcast`): high behind the bowler's arm on a
+ * long lens, looking down the pitch at the batter with the keeper beyond him
+ * and the bowler coming into the foot of the picture as he delivers. Steep
+ * enough that the grass runs up past the keeper rather than the boards: the
+ * rope behind the bat is twenty metres off on these grounds, where a real
+ * one's is sixty. The lens is held at `fov` degrees up and down whatever the
+ * screen's shape, so the batter and the bowler stand where they do on every
+ * phone; a wider screen sees more grass either side.
+ */
+export const BROADCAST = { eye: [0, 7, 46] as const, at: [0, .5, 7.1] as const, fov: 8.5, ball: .55 } as const;
+
+export function broadcastViewFor(_aspect: number): CameraPose {
+  return { eye: BROADCAST.eye, at: BROADCAST.at, fov: BROADCAST.fov };
+}
