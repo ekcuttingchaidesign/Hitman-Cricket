@@ -2770,9 +2770,9 @@ export class Game {
    */
   /**
    * How far through its day a Test innings is, morning to evening (`DAY_ARC`
-   * in `night.ts`): by the balls bowled, Survival's sixty, or twenty-five
-   * overs of a Marathon, which then starts the next day's morning and goes
-   * round again. Null in every other game, whose day stands still, unless the
+   * in `night.ts`): by the balls bowled, Survival's sixty, or twenty
+   * overs of a Marathon, its evening held for ten more and then an over of
+   * dusk and dawn into the next day's morning, round again (`marathonDay`). Null in every other game, whose day stands still, unless the
    * link asks for a time (`DAY_ASKED`). Only the light: no ball is bowled
    * differently for it.
    */
