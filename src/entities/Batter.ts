@@ -57,6 +57,13 @@ interface Pose {
   /** Where the free hand's wrist is, in the batter's own space. */
   fist?: Point;
   /**
+   * How far the bottom hand has let go too, to `otherFist`: only the bat
+   * tucked under his arm walking in has both hands off it, the bat left where
+   * the pose puts it, clamped against his side.
+   */
+  letGo?: number;
+  otherFist?: Point;
+  /**
    * The bat turned about its own handle, in the bottom hand: the twirl. The
    * gloves are turned back the other way, so the hand holds still and the
    * blade turns in it.
@@ -2662,12 +2669,18 @@ function walkPose(t: number, style: WalkStyle = 'carry'): Pose {
     return { ...body, ...bat, grip: [bat.grip[0], bat.grip[1] + bob, bat.grip[2]], fist: point(fist) };
   }
   if (style === 'tucked') {
-    // Tucked under his arm: the hand forward at his waist on the handle, the
-    // blade running back under the upper arm along his ribs and out behind
-    // him, the face turned out, held still against the side as he walks.
-    const grip = shoulderOf(body, 1).addScaledVector(UP, -TUCK.down).addScaledVector(ahead, TUCK.ahead).addScaledVector(outR, TUCK.out);
-    const handle = ahead.clone().addScaledVector(UP, TUCK.rise).addScaledVector(outR, -TUCK.inward).normalize();
-    return { ...body, grip: point(grip), batUp: point(handle), batFace: point(outR), ownFace: 1, fist: point(fist) };
+    // Tucked under his arm, as a batter walks out with it, both hands off it
+    // (from the owner's photograph): the blade clamped between the upper arm
+    // and his ribs, the handle forward and up in front of his chest, the toe
+    // out behind him sloping down, the flat of it against his side; that arm
+    // hanging with the elbow back to hold it and the hand forward at his hip.
+    // Held by the handle out at the hip, it read as a rifle.
+    const along = ahead.clone().multiplyScalar(TUCK.forward).addScaledVector(UP, TUCK.rise).normalize();
+    const pit = shoulderOf(body, 1).addScaledVector(UP, -TUCK.under).addScaledVector(outR, TUCK.out);
+    const grip = pit.clone().addScaledVector(along, TUCK.at);
+    const hand = shoulderOf(body, 1).addScaledVector(UP, -TUCK.hand[0]).addScaledVector(ahead, TUCK.hand[1]).addScaledVector(outR, TUCK.hand[2]);
+    return { ...body, grip: point(grip), batUp: point(along), batFace: point(outR), ownFace: 1,
+      fist: point(fist), letGo: 1, otherFist: point(hand) };
   }
   // At his side by the handle, the arm swinging, the bat's the less for its weight.
   const batArm = -WALK.batSwing * along(rightFoot);
@@ -2682,7 +2695,13 @@ function walkPose(t: number, style: WalkStyle = 'carry'): Pose {
 export type WalkStyle = 'carry' | 'shoulder' | 'tucked';
 export const WALK_STYLES: readonly WalkStyle[] = ['carry', 'shoulder', 'tucked'];
 /** The bat tucked under his arm: the hand down from the shoulder, forward of it and out from it; the blade's rise towards the handle and its lean in. */
-const TUCK = { down: .46, ahead: .17, out: .05, rise: -.62, inward: .04 } as const;
+/**
+ * The bat tucked under his arm: its line forward and up towards the handle;
+ * the armpit's place under the shoulder and out from the ribs; how far up the
+ * bat from there its handle end sits (the blade's upper half is in the
+ * armpit); and the free hand down from the shoulder, forward and out.
+ */
+const TUCK = { forward: .92, rise: .26, under: .17, out: .075, at: .25, hand: [.50, .17, .03] } as const;
 /** The walk's measures: the feet either side of his line, the swing foot's lift, the hips' height and bob and sway, the arms' swing. */
 const WALK = { track: .11, lift: .09, hip: .895, bob: .03, sway: .018, head: .14, carry: .50, out: .10, splay: .16, hang: .60, batSwing: .30, armSwing: .45 } as const;
 /**
@@ -3102,6 +3121,8 @@ function mix(a: Pose, b: Pose, amount: number, curve = ease): Pose {
     // A pose that never let go has no fist of its own: it takes the other's,
     // so the hand leaves the handle for where it is going, not for the origin.
     fist: a.fist || b.fist ? point(a.fist ?? b.fist!, b.fist ?? a.fist!) : undefined,
+    letGo: THREE.MathUtils.lerp(a.letGo ?? 0, b.letGo ?? 0, t),
+    otherFist: a.otherFist || b.otherFist ? point(a.otherFist ?? b.otherFist!, b.otherFist ?? a.otherFist!) : undefined,
   };
 }
 
@@ -4955,7 +4976,7 @@ export class Batter {
     this.arms.forEach((arm, i) => arm.glove.position.set(0, i === 0 ? HAND.top : HAND.bottom, 0));
     for (let pass = 0; pass < 5; pass++) for (let i = 0; i < 2; i++) {
       // A hand mostly off the bat has no say in where the bat can go.
-      if (i === FREE_HAND && (pose.release ?? 0) > .5) continue;
+      if ((i === FREE_HAND ? pose.release ?? 0 : pose.letGo ?? 0) > .5) continue;
       // Measured at the wrist the solver is about to place, which is neither
       // the bat's origin nor the fist: it sits beside the handle, and how far
       // beside depends on where the arm is coming from.
@@ -5292,11 +5313,12 @@ export class Batter {
        * down the arm, and a turn between two opposite directions has no one
        * way round, so it spun. The glove is round enough not to need one.
        */
-      const release = i === FREE_HAND && pose.fist ? ease(THREE.MathUtils.clamp(pose.release ?? 0, 0, 1)) : 0;
+      const freed = i === FREE_HAND ? pose.fist : pose.otherFist;
+      const release = freed ? ease(THREE.MathUtils.clamp((i === FREE_HAND ? pose.release : pose.letGo) ?? 0, 0, 1)) : 0;
       if (release > 0) {
         const outward = arm.shoulder.clone().sub(chest).normalize();
         const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.torso.quaternion);
-        const fist = V(pose.fist!);
+        const fist = V(freed!);
         const reach = fist.clone().sub(arm.shoulder);
         if (reach.length() > .64) fist.copy(arm.shoulder).addScaledVector(reach.normalize(), .64);
         const out = arm.shoulder.clone().addScaledVector(outward, .45).addScaledVector(forward, .12).addScaledVector(spine, -.10);

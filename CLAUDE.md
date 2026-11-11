@@ -3305,10 +3305,14 @@ dealt at random each arrival off the page's dice (`WalkStyle`,
 or `tucked` asks for one, not practice): by his side as in the clip, the
 toe angled out away from the leg (splayed the other way it went into his
 leg, which the owner saw); on his shoulder (`shoulderBat`, the scuff's bat
-on the shoulder, lifted out for both); or tucked under his arm, the hand
-at the front of his hip on the handle and the blade rising back under the
-upper arm past his shoulder (`TUCK`; held out level at the hip it read as
-a rifle). Walking, each knee bends forward over its own shoe (`stride` on
+on the shoulder, lifted out for both); or tucked under his arm as in a
+photograph the owner sent (`TUCK`): both hands off it (`letGo` and
+`otherFist` on the pose, the bottom hand's let-go beside the top hand's
+`release` and `fist`), the blade clamped between the upper arm and his ribs
+with the handle forward at chest height and the toe out behind sloping
+down, the flat against his side, that arm hanging with the hand free at his
+hip. Held by the handle at the hip, first level and then rising behind his
+shoulder, it read as a rifle and then as the wrong thing, the owner said. Walking, each knee bends forward over its own shoe (`stride` on
 the pose, eased off as he takes guard): the knee solve bends a standing
 man's knees out to the off side, which turned across the crease twisted
 the back leg, as the owner saw. He slows into the last stride
@@ -3317,7 +3321,13 @@ up only as the back foot comes in, or the leg could not reach it), holds the
 bat upright in front of him in both hands with his head up the pitch to the
 umpire, nods, turns to look out over the leg side and round to the off, and
 goes into his guard as the camera rises onto the game's view (`ARRIVE`, 5.3
-seconds). He stands with the knees soft for it (`AT_EASE`): the game's own
+seconds). The walk is shot one of three ways, dealt with the carry
+(`ArrivalAngle`, `ARRIVAL_ANGLES`; `?arrivecam=behind`, `front` or `side`
+asks, not practice): tracked from behind; from in front on a 34-degree lens,
+walking towards the camera as in the clip's steps (`FRONT`); or side on from
+the leg side keeping pace (`SIDE`). The two others cut over his shoulder as
+he stops (`CLOSER`); the tests hold every angle to him in the middle third of
+the lens and never nearer than three metres. He stands with the knees soft for it (`AT_EASE`): the game's own
 `STANDING` has the shins a centimetre past their length, which turned he
 would show. A name card is up over the walk (`ARRIVAL_CARD`): the walk-on's
 lower third with the score in its eyebrow (`eyebrow` on `WalkOnCard`), the
@@ -3331,7 +3341,7 @@ nor under reduced motion; off under `?debug=1` unless `?arrive=1` asks, and
 `?arrive=0` turns it off; not practice. `rig-sheet.html?shot=ARRIVE`
 (`&view=side`, `front` or `back`, `&times=`, `&arrivewalk=`) draws it on
 its own clock, unmirrored, so as a left-hander. GoatCounter counts
-`arrival-<style>` and `arrival-skipped`.
+`arrival-<style>-<angle>` and `arrival-skipped`.
 
 ## `?moments=1`
 

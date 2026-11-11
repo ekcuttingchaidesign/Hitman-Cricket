@@ -104,13 +104,42 @@ const ease = (k: number) => k * k * (3 - 2 * k);
 const lerp = (a: Vec, b: Vec, k: number): Vec => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
 
 /**
- * Where the camera stands at `t`. The walk is tracked; from the stop it eases
- * over his shoulder for the guard and the look round, and from there onto
- * `home`, the game's own view, exactly at `ARRIVE.total`.
+ * The other two ways the walk is shot, dealt at random with the tracking shot
+ * from behind for variety: from in front of him on a longer lens, walking
+ * towards the camera as he comes down the steps in the owner's clip, the
+ * camera backing away at his pace; and side on, keeping pace with him on the
+ * leg side, where the stumps never come between, which shows the whole stride.
+ * Both cut to over his shoulder as he stops (a cut from in front of him to
+ * behind him cannot be a move), and land on the game's view as the tracking
+ * shot does.
  */
-export function arrivalCamera(t: number, home: CameraPose): CameraPose {
-  if (t <= ARRIVE.walk) return following(t);
-  const stop = following(ARRIVE.walk);
+export type ArrivalAngle = 'behind' | 'front' | 'side';
+export const ARRIVAL_ANGLES: readonly ArrivalAngle[] = ['behind', 'front', 'side'];
+function walkShot(t: number, angle: ArrivalAngle): { eye: Vec; at: Vec; fov: number } {
+  if (angle === 'behind') return following(t);
+  const [x, z] = walkedTo(t), ax = Math.sin(ARRIVE_HEADING), az = Math.cos(ARRIVE_HEADING);
+  const lx = -az, lz = ax;
+  if (angle === 'front') {
+    // Ahead of him and a little to his left, eye high, looking back at him: head to boots on a 34-degree lens.
+    return { eye: off(x + ax * FRONT.ahead + lx * FRONT.aside, FRONT.up, z + az * FRONT.ahead + lz * FRONT.aside), at: off(x, .9, z), fov: FRONT.fov };
+  }
+  // Off his left side, square to his line, a pace ahead of him so he walks into the picture.
+  return { eye: off(x + lx * SIDE.out + ax * SIDE.lead, SIDE.up, z + lz * SIDE.out + az * SIDE.lead), at: off(x + ax * SIDE.lead * .5, .85, z + az * SIDE.lead * .5), fov: SIDE.fov };
+}
+/** From in front: how far ahead of him, out to his left, up, and the lens. */
+export const FRONT = { ahead: 5.4, aside: .5, up: 1.45, fov: 34 } as const;
+/** Side on: how far out to his left, how far ahead of him it leads, up, and the lens. */
+export const SIDE = { out: 5.2, lead: .6, up: 1.3, fov: 38 } as const;
+
+/**
+ * Where the camera stands at `t`, shot from `angle`. The walk is tracked;
+ * from the stop it is over his shoulder for the guard and the look round
+ * (eased there from the tracking shot, cut to from the others), and from
+ * there onto `home`, the game's own view, exactly at `ARRIVE.total`.
+ */
+export function arrivalCamera(t: number, home: CameraPose, angle: ArrivalAngle = 'behind'): CameraPose {
+  if (t <= ARRIVE.walk) return walkShot(t, angle);
+  const stop = angle === 'behind' ? following(ARRIVE.walk) : CLOSER;
   if (t <= ARRIVE.look) {
     const k = ease((t - ARRIVE.walk) / (ARRIVE.look - ARRIVE.walk));
     return { eye: lerp(stop.eye, SHOULDER.eye, k), at: lerp(stop.at, SHOULDER.at, k), fov: stop.fov + (SHOULDER.fov - stop.fov) * k };
@@ -118,6 +147,8 @@ export function arrivalCamera(t: number, home: CameraPose): CameraPose {
   const k = ease(Math.min(1, (t - ARRIVE.look) / (ARRIVE.total - ARRIVE.look)));
   return { eye: lerp(SHOULDER.eye, home.eye, k), at: lerp(SHOULDER.at, home.at, k), fov: SHOULDER.fov + (home.fov - SHOULDER.fov) * k };
 }
+/** Cut to from in front or side on: over his shoulder a little nearer, easing out to `SHOULDER` as he takes guard. */
+const CLOSER = { eye: off(-1.25, 1.95, -3.6), at: off(.10, .9, 2.6), fov: 40 } as const;
 
 /** The bars: in over the cut, out as the camera lands on the game's view. */
 export function arrivalBars(t: number): number {

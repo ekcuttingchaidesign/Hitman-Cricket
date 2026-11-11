@@ -62,7 +62,7 @@ import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
 import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
 import { cardShown, filmLength, introBars, nextFilm, type Film } from './game/IntroReel';
-import { ARRIVAL_CARD, ARRIVE, arrivalBars, arrivalDue } from './game/arrival';
+import { ARRIVAL_ANGLES, ARRIVAL_CARD, ARRIVE, arrivalBars, arrivalDue, type ArrivalAngle } from './game/arrival';
 import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
 import { catchCamera, catchPace, catchShotOf, catchTimes, spillable, SPILL_ODDS, type CatchShot } from './game/catch-cam';
 import { STUMPING, STUMPING_CAMERA } from './game/stumping';
@@ -2537,6 +2537,11 @@ export class Game {
     const asked = new URLSearchParams(location.search).get('arrivewalk');
     return asked === 'carry' || asked === 'shoulder' || asked === 'tucked' ? asked : null;
   })();
+  /** Which camera shoots the walk (`ArrivalAngle`): at random each time, or `?arrivecam=behind`, `front` or `side`; not practice. */
+  private readonly camAsked = ((): ArrivalAngle | null => {
+    const asked = new URLSearchParams(location.search).get('arrivecam');
+    return asked === 'behind' || asked === 'front' || asked === 'side' ? asked : null;
+  })();
   private arrive() {
     const who = readPlayer(), base = walkOnCard(this.careerMode, heldCareer(this.careerMode), { name: who?.name ?? '', avatar: who?.avatar ?? 0 });
     const eyebrow = `${base.modeName} · ${this.score.runs}/${this.score.wickets}`;
@@ -2548,9 +2553,10 @@ export class Game {
     this.walking = { start: this.elapsed, film: 'arrive', then: () => {}, card, carded: false };
     this.bannerUntil = Number.POSITIVE_INFINITY;
     const style = this.walkAsked ?? WALK_STYLES[Math.floor(Math.random() * WALK_STYLES.length)];
-    this.scene.walkOn(this.elapsed, 'arrive', style); this.scene.introAt(this.introPin);
+    const angle = this.camAsked ?? ARRIVAL_ANGLES[Math.floor(Math.random() * ARRIVAL_ANGLES.length)];
+    this.scene.walkOn(this.elapsed, 'arrive', style, angle); this.scene.introAt(this.introPin);
     this.hud.walkOn(arrivalBars(0));
-    this.mark(`arrival-${style}`, 'New batter\'s arrival shown');
+    this.mark(`arrival-${style}-${angle}`, 'New batter\'s arrival shown');
   }
   /**
    * The Marathon's rules, the first two times one starts: the bowler waits at

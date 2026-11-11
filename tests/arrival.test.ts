@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Vector3 } from 'three';
+import { GAME } from '../src/config/gameplay';
 import { Batter, WALK_STYLES, type WalkStyle } from '../src/entities/Batter';
-import { ARRIVE, ARRIVE_HEADING, ARRIVE_DISTANCE, ARRIVE_PACE, ARRIVE_STEP, arrivalBars, arrivalCamera, arrivalDue, walkedBy } from '../src/game/arrival';
+import { ARRIVAL_ANGLES, walkedTo, ARRIVE, ARRIVE_HEADING, ARRIVE_DISTANCE, ARRIVE_PACE, ARRIVE_STEP, arrivalBars, arrivalCamera, arrivalDue, walkedBy } from '../src/game/arrival';
 
 // One batter, staged at each moment in turn: the arrival is a function of its clock, so nothing carries over.
 const batter = new Batter();
@@ -84,21 +85,39 @@ describe("the new batter's arrival: the walk", () => {
 
 describe("the new batter's arrival: the camera and the rules", () => {
   const home = { eye: [0, 2.9, -5.15] as const, at: [0, 1, 6] as const, fov: 50 };
-  it('lands on the game’s own view, and the bars are away by then', () => {
-    const end = arrivalCamera(ARRIVE.total, home);
-    end.eye.forEach((v, i) => expect(v).toBeCloseTo(home.eye[i], 6));
-    end.at.forEach((v, i) => expect(v).toBeCloseTo(home.at[i], 6));
-    expect(end.fov).toBeCloseTo(home.fov, 6);
+  it('lands on the game’s own view from every angle, and the bars are away by then', () => {
+    for (const angle of ARRIVAL_ANGLES) {
+      const end = arrivalCamera(ARRIVE.total, home, angle);
+      end.eye.forEach((v, i) => expect(v, angle).toBeCloseTo(home.eye[i], 6));
+      end.at.forEach((v, i) => expect(v, angle).toBeCloseTo(home.at[i], 6));
+      expect(end.fov).toBeCloseTo(home.fov, 6);
+    }
     expect(arrivalBars(ARRIVE.total)).toBe(0);
     expect(arrivalBars(1000)).toBe(1);
   });
 
-  it('moves without a jump from the cut to the end', () => {
-    let last = arrivalCamera(0, home);
-    for (let t = 20; t <= ARRIVE.total; t += 20) {
-      const now = arrivalCamera(t, home);
-      expect(new Vector3(...now.eye).distanceTo(new Vector3(...last.eye)), `at ${t}ms`).toBeLessThan(.25);
-      last = now;
+  it('moves without a jump, but for the one cut over his shoulder as he stops when shot from in front or side on', () => {
+    for (const angle of ARRIVAL_ANGLES) {
+      let last = arrivalCamera(0, home, angle);
+      for (let t = 20; t <= ARRIVE.total; t += 20) {
+        const now = arrivalCamera(t, home, angle);
+        const cut = angle !== 'behind' && t - 20 <= ARRIVE.walk && t > ARRIVE.walk;
+        if (!cut) expect(new Vector3(...now.eye).distanceTo(new Vector3(...last.eye)), `${angle} at ${t}ms`).toBeLessThan(.25);
+        last = now;
+      }
+    }
+  });
+
+  it('keeps him in the picture all the way in, whichever angle shoots him', () => {
+    for (const angle of ARRIVAL_ANGLES) for (let t = 0; t <= ARRIVE.walk; t += 100) {
+      const cam = arrivalCamera(t, home, angle), hip = walkedTo(t);
+      const him = new Vector3(GAME.stanceX + hip[0], .9, GAME.stanceZ + hip[1]);
+      const look = new Vector3(...cam.at).sub(new Vector3(...cam.eye)).normalize();
+      const to = him.clone().sub(new Vector3(...cam.eye));
+      // Within a third of the lens either way of the middle: a phone held upright is narrow.
+      expect(to.angleTo(look) * 180 / Math.PI, `${angle} at ${t}ms`).toBeLessThan(cam.fov / 3);
+      // And never nearer than three metres: close to, the figures do not hold up.
+      expect(to.length(), `${angle} at ${t}ms`).toBeGreaterThan(3);
     }
   });
 
