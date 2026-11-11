@@ -2,9 +2,11 @@ import type { ShotOutcome } from './types';
 import { landedSpecial } from './Confidence';
 
 /**
- * What the bat meeting the ball feels like: a beat held on it, a knock in the
- * hand, the sound's pitch and weight and chips off the blade, all by how well
- * it was hit, and on a special stroke the camera pushed in. An ordinary well-timed stroke had none of
+ * What the bat meeting the ball feels like: a knock in the hand, the sound's
+ * pitch and weight and chips off the blade, all by how well it was hit, and
+ * on a special stroke the camera pushed in. A beat held on a boundary, the
+ * game's clock all but stopped for up to 70ms, was taken out: on a phone it
+ * read as the game lagging at the shot, the owner found on an Android. An ordinary well-timed stroke had none of
  * this: the doodles, the replays and the catch camera made the rare ball rich
  * and left the common one plain.
  *
@@ -15,8 +17,6 @@ import { landedSpecial } from './Confidence';
 export type ContactKind = 'sweet' | 'clean' | 'soft' | 'edge';
 export interface Contact {
   kind: ContactKind;
-  /** How long the game's clock is all but stopped on the ball, on the page's clock. */
-  stopMs: number;
   /** The knock in the hand, in `buzz`'s shape: on, off, on. */
   buzz: readonly number[];
   /** The bat's clip played between these two speeds, drawn afresh each ball. */
@@ -35,12 +35,10 @@ export interface Contact {
   chips: number;
 }
 
-/** The clock's pace while a beat is held: all but stopped, so nothing snaps when it goes on. */
-export const STOP_PACE = .06;
 /** The push in: there by `PUSH_IN_MS`, and let back out over `PUSH_OUT_MS`. */
 export const PUSH_IN_MS = 45, PUSH_OUT_MS = 420;
 
-const CONTACTS: Record<ContactKind, Omit<Contact, 'kind' | 'stopMs'>> = {
+const CONTACTS: Record<ContactKind, Omit<Contact, 'kind'>> = {
   sweet: { buzz: [26, 34, 40], rate: [.94, 1], gain: 1, thock: 1, push: 2.4, chips: 14 },
   clean: { buzz: [16], rate: [.98, 1.05], gain: .9, thock: .45, push: 1.1, chips: 7 },
   soft: { buzz: [10], rate: [1.04, 1.14], gain: .7, thock: 0, push: 0, chips: 0 },
@@ -61,18 +59,12 @@ export function contactKind(outcome: Struck): ContactKind | null {
   return 'soft';
 }
 
-/**
- * The whole of it for one ball. The beat is held only on a boundary, the
- * longer for a six, and never on the charge, which has its own slow motion
- * through the hit.
- */
+/** The whole of it for one ball. */
 export function contactOf(outcome: Struck): Contact | null {
   const kind = contactKind(outcome);
   if (!kind) return null;
-  const boundary = outcome.runs >= 4 && !outcome.advance;
-  const stopMs = !boundary ? 0 : kind === 'sweet' ? (outcome.runs === 6 ? 70 : 55) : kind === 'clean' ? 35 : 0;
   const special = landedSpecial({ isWicket: false, ...outcome });
-  return { kind, stopMs, ...CONTACTS[kind], push: special ? CONTACTS[kind].push : 0 };
+  return { kind, ...CONTACTS[kind], push: special ? CONTACTS[kind].push : 0 };
 }
 
 /** How far in the camera is, `since` ms after the ball: 0 to 1 and back, eased out both ways. */

@@ -17,19 +17,8 @@ describe('the bat meeting the ball', () => {
     expect(contactKind(ball({ timingGrade: 'POOR', runs: 0, edged: true }))).toBe('edge');
     expect(contactKind(ball({ runs: 0, defended: true }))).toBe('soft');
   });
-  it('holds a beat only on a boundary, the longest for a middled six, and never long', () => {
-    const six = contactOf(ball())!, four = contactOf(ball({ runs: 4 }))!, good = contactOf(ball({ timingGrade: 'GOOD', runs: 4 }))!;
-    expect(six.stopMs).toBeGreaterThan(four.stopMs);
-    expect(four.stopMs).toBeGreaterThan(good.stopMs);
-    expect(six.stopMs).toBeLessThanOrEqual(80);
-    expect(contactOf(ball({ runs: 2 }))!.stopMs).toBe(0);
-    expect(contactOf(ball({ timingGrade: 'OK', runs: 4 }))!.stopMs).toBe(0);
-    expect(contactOf(ball({ timingGrade: 'POOR', runs: 0, edged: true }))!.stopMs).toBe(0);
-  });
-  it('leaves the charge to its own slow motion', () => {
-    const charge = contactOf(ball({ advance: true }))!;
-    expect(charge.kind).toBe('sweet');
-    expect(charge.stopMs).toBe(0);
+  it('never holds the game\'s clock on the ball: on a phone a held beat read as lag', () => {
+    for (const b of [ball(), ball({ runs: 4 }), ball({ timingGrade: 'GOOD', runs: 4 }), ball({ advance: true })]) expect(contactOf(b)).not.toHaveProperty('stopMs');
   });
   it('gives more of everything the better it was hit', () => {
     const [sweet, clean, soft] = [ball(), ball({ timingGrade: 'GOOD', runs: 4 }), ball({ timingGrade: 'OK', runs: 1 })].map(b => contactOf(b)!);
