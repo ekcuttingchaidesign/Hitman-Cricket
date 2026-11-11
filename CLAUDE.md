@@ -1077,7 +1077,8 @@ the spinner's and all but the arm ball dropped short, for the pull off him),
 `?flightlen=4` (the tossed-up ball pitched that many metres from the
 batter's end),
 `?latecut=1` (every ball
-pace outside off, for the late cut), `?cover=1`
+pace outside off, for the late cut), `?yorkers=1` (every ball a yorker,
+for the stump it uproots), `?cover=1`
 (every ball the cover drive's own: a stock ball pitched up on off stump),
 `?coverv=1`, `2` or `3` (always that version of the cover strokes),
 `?flickv=1` or `2` (always that version of the flick), or the
@@ -1773,6 +1774,28 @@ leaves it to the game's own picture. The dice are thrown only once he is
 out, at the top of their range, so no ball he survives is moved and the
 older tests' low rolls still read the ladder under it. `?howout=1` makes
 both happen every time they can, and is practice.
+
+The wicket goes by the ball that broke it (`src/scene/stumpsDown.ts`, in
+`tests/stumps-down.test.ts`): it was the two bails flying off the same way
+every time with the stumps never moving. A yorker, on whatever line, uproots
+the stump it hits (`fallOf`: any ball at the stumps below 18cm counts), the
+foot kicked out and the stump turning end over end back towards the keeper,
+top first towards the bowler, until it lands and lies on the pitch. Any other
+ball that bowls him is one of four: `clip`, at the top of the stumps, the
+bails alone and the stumps shivering; `lean`, the stump knocked back with a
+rattle and left leaning in its hole; `uproot`, out of the ground and
+cartwheeling back, likelier and further the quicker the ball; and `splay`,
+between two stumps, both knocked back and apart. Which is drawn off the
+delivery's speed (`rollOf`), never the page's dice, so a replay of the ball
+breaks the wicket the same way. The stump hit is the one nearest the ball's
+line, and the bail over it flies hardest (`bailPose`). The batched wicket is
+one mesh a colour, so the batter's end is also built as three stumps of its
+own, hidden (`loose` in `wicket.ts`), and swapped in only when the ball hits
+it (`breakBails`, `standStumps` in `GameScene`): nothing costs a draw call
+until a wicket falls. Stumped, the keeper takes the bails alone. Played on,
+it is a bowled like any other. `snapshot().wicketFall` says how it went.
+`?yorkers=1` bowls nothing but yorkers, on off, middle or leg as it falls,
+in any mode, and is practice.
 
 The bowler bowls bare-headed, with hair (`bareHead` on `Cricketer`): nobody
 bowls in a cap.

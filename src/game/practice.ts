@@ -29,6 +29,8 @@ const ON: Record<string, (value: string) => boolean> = {
   flight: v => v === '1',
   flightlen: v => Number(v) > 0,
   latecut: v => v === '1',
+  // Every ball a yorker, on a line of its own, for the stump it uproots.
+  yorkers: v => v === '1',
   swing: v => v === '1',
   express: v => v === '1',
   reverse: v => v === '1',

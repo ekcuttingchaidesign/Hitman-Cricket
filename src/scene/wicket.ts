@@ -25,12 +25,40 @@ export interface WicketLights { crown: THREE.MeshStandardMaterial; rings: THREE.
 /** The LED stump's measures: the crown's height, the timber turned in this many even steps so the wrap's v runs straight up it, and how bright the rings stand at rest. */
 export const LED = { crown: .055, steps: 24, rings: .6 } as const;
 
-export function buildWicket(parent: THREE.Object3D, height: number, z: number, led?: LedWicket): { timber: THREE.Mesh[]; bails: THREE.Mesh[]; lights?: WicketLights } {
-  if (led) return ledWicket(parent, height, z, led);
+/**
+ * Where the three stumps stand across the crease: off, middle, leg on a
+ * right-hander's stage (the stage is mirrored for a left-hander).
+ */
+export const STUMP_XS = [-.145, 0, .145] as const;
+
+/**
+ * Each of the wicket's three stumps again on its own, in a group of its own
+ * standing on its foot, hidden: the batched wicket is one mesh a colour, so
+ * one stump cannot move without the other two, and the batter's wicket is
+ * swapped for these only when the ball knocks one over (`stumpsDown.ts`), so
+ * they cost nothing the rest of the time.
+ */
+function loose(parent: THREE.Object3D, z: number, stump: (batch: Batch) => void, finish: (batch: Batch) => void): THREE.Group[] {
+  return STUMP_XS.map(x => {
+    const group = new THREE.Group();
+    group.name = 'Stump knocked loose';
+    group.position.set(x, 0, z);
+    group.visible = false;
+    const batch = new Batch();
+    finish(batch); stump(batch);
+    batch.build(group);
+    parent.add(group);
+    return group;
+  });
+}
+
+export function buildWicket(parent: THREE.Object3D, height: number, z: number, led?: LedWicket, loosen = false): { timber: THREE.Mesh[]; bails: THREE.Mesh[]; lights?: WicketLights; loose?: THREE.Group[] } {
+  if (led) return ledWicket(parent, height, z, led, loosen);
   const paint = 0xf8f4e9, ink = 0x294f79, wood = 0xc39660;
+  const paintFinish = soft(paint, .72), inkFinish = soft(ink, .76);
+  const finish = (batch: Batch) => { batch.finish(paint, paintFinish); batch.finish(ink, inkFinish); };
   const batch = new Batch();
-  batch.finish(paint, soft(paint, .72));
-  batch.finish(ink, soft(ink, .76));
+  finish(batch);
   const profile = [
     [0, .023], [.025, .025], [height - .055, .025],
     [height - .046, .024], [height - .042, .021],
@@ -38,13 +66,14 @@ export function buildWicket(parent: THREE.Object3D, height: number, z: number, l
     [height - .012, .025], [height - .005, .022], [height, .017],
     [height, 0],
   ];
-  for (const x of [-.145, 0, .145]) {
-    batch.add(new THREE.LatheGeometry(profile.map(([y, r]) => new THREE.Vector2(r, y)), 20).translate(x, 0, z), paint);
+  const stump = (into: Batch, x = 0, at = 0) => {
+    into.add(new THREE.LatheGeometry(profile.map(([y, r]) => new THREE.Vector2(r, y)), 20).translate(x, 0, at), paint);
     // Two painted rings under the crown.
     for (const y of [height - .10, height - .135]) {
-      batch.add(new THREE.CylinderGeometry(.0253, .0253, .013, 20, 1, true).translate(x, y, z), ink);
+      into.add(new THREE.CylinderGeometry(.0253, .0253, .013, 20, 1, true).translate(x, y, at), ink);
     }
-  }
+  };
+  for (const x of STUMP_XS) stump(batch, x, z);
   const stumps = batch.build(parent);
 
   // Spigots sit on the stump crowns; the thicker barrel and carved shoulders
@@ -64,7 +93,7 @@ export function buildWicket(parent: THREE.Object3D, height: number, z: number, l
     parent.add(bail);
     return bail;
   });
-  return { timber: stumps, bails };
+  return { timber: stumps, bails, ...(loosen ? { loose: loose(parent, z, b => stump(b), finish) } : {}) };
 }
 
 /**
@@ -76,23 +105,25 @@ export function buildWicket(parent: THREE.Object3D, height: number, z: number, l
  * wrap. Over it the frosted crown, and the two rings where the painted ones
  * are, each its own material for the arena to light (`stumpLight`).
  */
-function ledWicket(parent: THREE.Object3D, height: number, z: number, led: LedWicket) {
+function ledWicket(parent: THREE.Object3D, height: number, z: number, led: LedWicket, loosen: boolean) {
   const batch = new Batch();
   const timber = new THREE.MeshStandardMaterial({ color: 0xffffff, map: led.wrap, roughness: .55, metalness: 0 });
   const crown = new THREE.MeshStandardMaterial({ color: 0xe4e1f2, roughness: .35, emissive: 0x000000 });
   const rings = new THREE.MeshStandardMaterial({ color: 0x2a0e5c, roughness: .4, emissive: 0xc6ff1a, emissiveIntensity: LED.rings });
   const TIMBER = 0x2a0e5c, CROWN = 0xe4e1f2, RING = 0xc6ff1a;
-  batch.finish(TIMBER, timber); batch.finish(CROWN, crown); batch.finish(RING, rings);
+  const finish = (into: Batch) => { into.finish(TIMBER, timber); into.finish(CROWN, crown); into.finish(RING, rings); };
+  finish(batch);
   const top = height - LED.crown;
   // Straight timber in even steps, so v is the height up it, a hair narrower at the foot.
   const body = Array.from({ length: LED.steps + 1 }, (_, i) => new THREE.Vector2(i === 0 ? .023 : .025, i / LED.steps * top));
   const cap = [[top, .025], [height - .046, .024], [height - .042, .021], [height - .035, .021], [height - .031, .025],
     [height - .012, .025], [height - .005, .022], [height, .017], [height, 0]].map(([y, r]) => new THREE.Vector2(r, y));
-  for (const x of [-.145, 0, .145]) {
-    batch.add(new THREE.LatheGeometry(body, 20, Math.PI / 2).translate(x, 0, z), TIMBER);
-    batch.add(new THREE.LatheGeometry(cap, 20, Math.PI / 2).translate(x, 0, z), CROWN);
-    for (const y of [height - .10, height - .135]) batch.add(new THREE.CylinderGeometry(.0256, .0256, .013, 20, 1, true).translate(x, y, z), RING);
-  }
+  const stump = (into: Batch, x = 0, at = 0) => {
+    into.add(new THREE.LatheGeometry(body, 20, Math.PI / 2).translate(x, 0, at), TIMBER);
+    into.add(new THREE.LatheGeometry(cap, 20, Math.PI / 2).translate(x, 0, at), CROWN);
+    for (const y of [height - .10, height - .135]) into.add(new THREE.CylinderGeometry(.0256, .0256, .013, 20, 1, true).translate(x, y, at), RING);
+  };
+  for (const x of STUMP_XS) stump(batch, x, z);
   const stumps = batch.build(parent);
   // The bails: frosted, a lime core, lit with the stumps.
   const bailFinish = new THREE.MeshStandardMaterial({ color: 0xe4e1f2, roughness: .35, emissive: 0xc6ff1a, emissiveIntensity: .25 });
@@ -111,5 +142,5 @@ function ledWicket(parent: THREE.Object3D, height: number, z: number, led: LedWi
     parent.add(bail);
     return bail;
   });
-  return { timber: stumps, bails, lights: { crown, rings, bails: bailFinish } };
+  return { timber: stumps, bails, lights: { crown, rings, bails: bailFinish }, ...(loosen ? { loose: loose(parent, z, b => stump(b), finish) } : {}) };
 }

@@ -678,6 +678,7 @@ export class Game {
   private readonly netsKeys = new URLSearchParams(location.search).get('nets') === '1';
   /** `?cover=1`: every ball the cover drive's, a stock ball pitched up on off stump. */
   private readonly coverDrill = new URLSearchParams(location.search).get('cover') === '1';
+  private readonly yorkerDrill = new URLSearchParams(location.search).get('yorkers') === '1';
   /**
    * `?coverv=1`, `2` or `3`: always that version of the cover strokes, for
    * looking at one.
@@ -4632,6 +4633,8 @@ export class Game {
     // and no longer than a few seconds past the usual wait, whatever happens.
     if (this.phase === 'READY' && age >= this.readyMs && this.elapsed >= this.bannerUntil && (this.scene.fieldSettled || age >= this.readyMs + FIELD_WAIT_MS)
       && (!this.scene.batterTapping || age >= this.readyMs + TAP_WAIT_MS)) {
+      // `?yorkers=1`: every ball a yorker, on off, middle or leg as it falls, for the stumps it uproots. Practice.
+      if (this.yorkerDrill && !this.challenge.playing) this.generator.drill('YORKER', (['OFF', 'MIDDLE', 'LEG'] as const)[Math.floor(Math.random() * 3)]);
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
         : this.chargeable(this.generator.next(this.elapsed + GAME.runupMs));
       this.lightDay();
@@ -7294,7 +7297,7 @@ export class Game {
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
-      pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, streak: this.scene.streakShown, pullPen: this.pullPen,
+      pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, streak: this.scene.streakShown, wicketFall: this.scene.wicketFall, pullPen: this.pullPen,
       mirrored: this.scene.mirrored, look: this.scene.wearing, shirt: this.scene.shirt, fieldingKit: this.scene.fieldingKit, chase: this.chase ? { handle: this.chase.handle, mode: this.chase.mode, target: this.chase.target } : null, marathon: this.marathon ? this.marathonState() : null,
       super10: this.super10 ? this.super10State() : null,
       standing: this.standing, ease: this.ease };

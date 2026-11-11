@@ -19,7 +19,8 @@ import { BOARD_PANELS, perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, nightOnly, ownFloodlights, turfOf, type GroundName } from './grounds';
 import { Arena, LedStumps, MILESTONE_WORDS, Showboards, screenFrom, type ArenaCue, type ArenaMood, type Scoreboard } from './arena';
-import { buildWicket } from './wicket';
+import { STUMP_XS, buildWicket } from './wicket';
+import { bailPose, fallOf, stumpPose, type WicketHit } from './stumpsDown';
 import type { CrowdCelebration, CrowdMoment } from './CrowdCelebration';
 import { PerformanceReadout } from './performance';
 import { grassBlades } from './grassBlades';
@@ -249,7 +250,13 @@ export class GameScene {
    * Super10 innings (`brand`) and on the arena, the plain pair everywhere
    * else. `bails` and `stumps` are the batter's of whichever is up.
    */
-  private wickets = { plain: { meshes: [] as THREE.Mesh[], bails: [] as THREE.Mesh[], stumps: [] as THREE.Mesh[] }, led: { meshes: [] as THREE.Mesh[], bails: [] as THREE.Mesh[], stumps: [] as THREE.Mesh[] } };
+  private wickets = {
+    plain: { meshes: [] as THREE.Mesh[], bails: [] as THREE.Mesh[], stumps: [] as THREE.Mesh[], timber: [] as THREE.Mesh[], loose: [] as THREE.Group[] },
+    led: { meshes: [] as THREE.Mesh[], bails: [] as THREE.Mesh[], stumps: [] as THREE.Mesh[], timber: [] as THREE.Mesh[], loose: [] as THREE.Group[] },
+  };
+  /** How the batter's wicket is going, once the ball has hit it (`stumpsDown.ts`); and the ball that will, from `hit`. */
+  private fallen: WicketHit | null = null;
+  private wicketBall = { kph: 0, yorker: false };
   private led!: LedStumps;
   /** A Super10 innings: its stumps are the LED stumps, and the screen and the boards play its moments. */
   private branded = false;
@@ -809,10 +816,10 @@ export class GameScene {
   }
   private get lighting() { return this.now === 'night' && this.current === 'arena' ? ARENA_NIGHT : (this.polished ? RICH : LIGHTING)[this.now]; }
   private wicket(z: number, kind: 'plain' | 'led') {
-    const { timber, bails, lights } = buildWicket(this.world, GAME.stumpHeight, z, kind === 'led' ? { wrap: this.led.wrap } : undefined);
+    const { timber, bails, lights, loose } = buildWicket(this.world, GAME.stumpHeight, z, kind === 'led' ? { wrap: this.led.wrap } : undefined, z === 0);
     const set = this.wickets[kind];
     set.meshes.push(...timber, ...bails);
-    if (z === 0) { set.bails.push(...bails); set.stumps.push(...timber, ...bails); }
+    if (z === 0) { set.bails.push(...bails); set.stumps.push(...timber, ...bails); set.timber.push(...timber); set.loose.push(...(loose ?? [])); }
     if (lights) this.led.wire(lights, z === 0);
   }
   /** Whether the LED stumps are up: a Super10 innings, and the arena whatever is played on it. */
@@ -1399,6 +1406,7 @@ export class GameScene {
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
     this.trail.forEach(t => t.visible = false); this.streak.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset(carryOn);
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
+    this.standStumps();
     this.batter.root.visible = true;
     this.field.reset(); this.released = false; this.gathered = false;
     // Out of the holder's hands and back into his own.
@@ -1582,6 +1590,7 @@ export class GameScene {
     this.contactDelay = this.hitStart - now;
     this.incomingPosition.copy(this.ball.position);
     this.hitOutcome = outcome;
+    this.wicketBall = { kph: delivery.speedKph, yorker: delivery.style === 'YORKER' };
     const p = this.flight(delivery, outcome.advance ? GameScene.meetsAt(true) : this.meeting); this.hitOrigin.set(p.x, p.y, p.z);
     this.meeting = 1;
     // Which way it goes: `sectorOf`, out of this file so the Super10 field
@@ -1711,16 +1720,46 @@ export class GameScene {
    * from both halves of `result` — a ball that beat the bat and a ball the
    * batter dragged back onto his own stumps both end with the timber going.
    */
-  private breakBails(now: number, struck = this.ball.position.z <= 0) {
-    if (!this.bailsBrokeAt && struck) { this.bailsBrokeAt = now; this.onStumps?.(); }
+  private breakBails(now: number, struck = this.ball.position.z <= 0, bowled = true) {
+    if (!this.bailsBrokeAt && struck) {
+      this.bailsBrokeAt = now; this.onStumps?.();
+      // Bowled, the ball takes a stump with the bails, by where it hit and what it was (`stumpsDown.ts`):
+      // the batched wicket is swapped for its three stumps on their own.
+      this.fallen = bowled ? fallOf(this.ball.position.x, this.ball.position.y, this.wicketBall.kph, this.wicketBall.yorker) : null;
+      if (this.fallen) {
+        const set = this.wickets[this.ledUp ? 'led' : 'plain'];
+        set.timber.forEach(mesh => mesh.visible = false);
+        set.loose.forEach(group => group.visible = true);
+      }
+    }
     if (!this.bailsBrokeAt) return;
-    const flung = Math.min(1, (now - this.bailsBrokeAt) / 620);
+    const since = now - this.bailsBrokeAt, fallen = this.fallen;
+    if (!fallen) {
+      const flung = Math.min(1, since / 620);
+      this.bails.forEach((bail, i) => {
+        bail.position.z = -flung * 1.9;
+        bail.position.y = Math.max(0.05, GAME.stumpHeight + 0.02 + flung * 0.9 - flung * flung * 1.6);
+        bail.rotation.x = flung * 11; bail.rotation.z = flung * (i ? 5 : -5);
+      });
+      return;
+    }
     this.bails.forEach((bail, i) => {
-      bail.position.z = -flung * 1.9;
-      bail.position.y = Math.max(0.05, GAME.stumpHeight + 0.02 + flung * 0.9 - flung * flung * 1.6);
-      bail.rotation.x = flung * 11; bail.rotation.z = flung * (i ? 5 : -5);
+      const p = bailPose(fallen, i, since, { x: i ? 0.073 : -0.073, y: GAME.stumpHeight + 0.02 });
+      bail.position.set(p.x, p.y, p.z); bail.rotation.set(p.rx, p.ry, p.rz);
+    });
+    this.wickets[this.ledUp ? 'led' : 'plain'].loose.forEach((group, i) => {
+      const p = stumpPose(fallen, i, since);
+      group.position.set(STUMP_XS[i] + p.x, p.y, p.z); group.rotation.set(p.rx, 0, p.rz);
     });
   }
+  /** The batter's wicket stood up again: the batched stumps back, the loose ones hidden on their marks. */
+  private standStumps() {
+    this.fallen = null;
+    for (const kind of ['plain', 'led'] as const) this.wickets[kind].loose.forEach((group, i) => { group.visible = false; group.position.set(STUMP_XS[i], 0, 0); group.rotation.set(0, 0, 0); });
+    this.wickets[this.ledUp ? 'led' : 'plain'].timber.forEach(mesh => mesh.visible = true);
+  }
+  /** How the wicket fell, for the checks: the fall and the stump it took, or null. */
+  get wicketFall() { return this.fallen ? { fall: this.fallen.fall, struck: this.fallen.struck, yorker: this.fallen.yorker } : null; }
 
   /** Where a struck ball sits at `t` through its flight; also drives the trail. */
   private struckAt(t: number, into: THREE.Vector3) {
@@ -1825,7 +1864,7 @@ export class GameScene {
         if (into < 1) this.ball.position.lerpVectors(from, gloves, into * into * (3 - 2 * into));
         else this.ball.position.copy(gloves);
         const stumped = result.wicketType === 'STUMPED';
-        if (stumped && at.bails) this.breakBails(now, true);
+        if (stumped && at.bails) this.breakBails(now, true, false);
         // Drawn down the pitch to it and beaten, he turns for his crease and
         // is still out of it when the bails go.
         // Charged at it, the charge has taken him down the pitch already.
