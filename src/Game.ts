@@ -134,7 +134,7 @@ import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
 import { sendFeedback } from './game/feedback-api';
 import { lineupOf } from './game/super10-squads';
-import { blastMates, gearFor, mateFace, type BlastMate } from './game/blast-squad';
+import { NEW_BATSMAN, blastMates, gearFor, mateFace, type BlastMate } from './game/blast-squad';
 import { SUPER10_KITS, super10Number, type Super10Kit, type Super10KitId } from './game/super10-kits';
 import { askRating, type RatingPrompt } from './ui/Rating';
 import {
@@ -2548,9 +2548,9 @@ export class Game {
     const eyebrow = `${base.modeName} · ${this.score.runs}/${this.score.wickets}`;
     // Super10's next man is the kit's squad's, the Blast's a teammate, the Marathon's by his place; the Test match brings the player back in.
     const mate = this.blastMate();
-    const named = this.super10 ? this.lineup()[Math.min(this.score.wickets, 4)] : mate ? { card: mate.name.toUpperCase(), walkOut: mate.walkOut } : null;
+    const named = this.super10 ? this.lineup()[Math.min(this.score.wickets, 4)] : mate ? { card: NEW_BATSMAN, walkOut: mate.walkOut } : null;
     // A teammate is not the player: a face of his own off his name, never the player's, and no rung of the player's.
-    const face = named ? mateFace(named.card, base.avatar) : base.avatar;
+    const face = named ? mateFace(named.walkOut, base.avatar) : base.avatar;
     const card: WalkOnCard = named ? { ...base, name: named.card, avatar: face, tier: 'debutant', rung: named.walkOut.split(' · ')[0], debut: true, figures: [], eyebrow }
       : this.marathon ? { ...base, name: base.name || this.marathon.current.batter.title, rung: this.marathon.current.batter.title, debut: true, figures: [], eyebrow }
       : { ...base, eyebrow };
