@@ -121,7 +121,7 @@ import { BATS, FREE_BAT, FREE_BATS, FREE_OUTFIT, FREE_OUTFITS, FREE_SUPER10, OUT
 import type { DressingRoom } from './ui/DressingRoom';
 import type { UnlockItem, UnlockMoment } from './ui/Unlock';
 import { onDressingWrite, readDressing, seenKey, writeDressing } from './game/dressing-store';
-import { gloveOf, type GloveDesign, type GuardId } from './entities/gloves';
+import { GLOVES, gloveOf, type GloveDesign, type GuardId } from './entities/gloves';
 import { fetchSaved, sendSaved } from './game/dressing-api';
 import { mergeDressing, sameDressing, type SavedDressing } from './game/dressing-sync';
 import type { ModeSelectView } from './ui/ModeSelect';
@@ -134,6 +134,7 @@ import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
 import { sendFeedback } from './game/feedback-api';
 import { lineupOf } from './game/super10-squads';
+import { NEW_BATSMAN, blastMates, gearFor, mateFace, type BlastMate } from './game/blast-squad';
 import { SUPER10_KITS, super10Number, type Super10Kit, type Super10KitId } from './game/super10-kits';
 import { askRating, type RatingPrompt } from './ui/Rating';
 import {
@@ -677,6 +678,7 @@ export class Game {
   private readonly netsKeys = new URLSearchParams(location.search).get('nets') === '1';
   /** `?cover=1`: every ball the cover drive's, a stock ball pitched up on off stump. */
   private readonly coverDrill = new URLSearchParams(location.search).get('cover') === '1';
+  private readonly yorkerDrill = new URLSearchParams(location.search).get('yorkers') === '1';
   /**
    * `?coverv=1`, `2` or `3`: always that version of the cover strokes, for
    * looking at one.
@@ -2545,9 +2547,12 @@ export class Game {
   private arrive() {
     const who = readPlayer(), base = walkOnCard(this.careerMode, heldCareer(this.careerMode), { name: who?.name ?? '', avatar: who?.avatar ?? 0 });
     const eyebrow = `${base.modeName} · ${this.score.runs}/${this.score.wickets}`;
-    // Super10's next man is the kit's squad's, the Marathon's by his place; the Blast and the Test match bring the player back in.
-    const named = this.super10 ? this.lineup()[Math.min(this.score.wickets, 4)] : null;
-    const card: WalkOnCard = named ? { ...base, name: named.card, rung: named.walkOut.split(' · ')[0], debut: true, figures: [], eyebrow }
+    // Super10's next man is the kit's squad's, the Blast's a teammate, the Marathon's by his place; the Test match brings the player back in.
+    const mate = this.blastMate();
+    const named = this.super10 ? this.lineup()[Math.min(this.score.wickets, 4)] : mate ? { card: NEW_BATSMAN, walkOut: mate.walkOut } : null;
+    // A teammate is not the player: a face of his own off his name, never the player's, and no rung of the player's.
+    const face = named ? mateFace(named.walkOut, base.avatar) : base.avatar;
+    const card: WalkOnCard = named ? { ...base, name: named.card, avatar: face, tier: 'debutant', rung: named.walkOut.split(' · ')[0], debut: true, figures: [], eyebrow }
       : this.marathon ? { ...base, name: base.name || this.marathon.current.batter.title, rung: this.marathon.current.batter.title, debut: true, figures: [], eyebrow }
       : { ...base, eyebrow };
     this.walking = { start: this.elapsed, film: 'arrive', then: () => {}, card, carded: false };
@@ -2714,6 +2719,29 @@ export class Game {
     return this.linedUp.five;
   }
   private linedUp: { innings: number; five: ReturnType<typeof lineupOf> } | null = null;
+  /**
+   * The Blast's No. 2 and No. 3 (`blast-squad.ts`), drawn once an innings,
+   * each in a guard and a bat that are not the man before him's: the guards
+   * off the GUARD shelf, every one free, and the bats among those the player
+   * has earned, where there is more than one.
+   */
+  private mates() {
+    if (this.matesDrawn?.innings !== this.innings) {
+      const mine = this.myLook(), record = this.dressingRecord();
+      const bats = BATS.filter(bat => batOwned(bat.id, record));
+      const [two, three] = blastMates();
+      const guard2 = gearFor(GLOVES, [mine.guard.id], Math.random()), bat2 = gearFor(bats, [mine.bat.id], Math.random());
+      const guard3 = gearFor(GLOVES, [mine.guard.id, guard2.id], Math.random()), bat3 = gearFor(bats, [bat2.id], Math.random());
+      this.matesDrawn = { innings: this.innings, two: [{ ...two, guard: guard2, bat: bat2 }, { ...three, guard: guard3, bat: bat3 }] };
+    }
+    return this.matesDrawn.two;
+  }
+  private matesDrawn: { innings: number; two: (BlastMate & { guard: GloveDesign; bat: BatSkin })[] } | null = null;
+  /** The Blast teammate in now, or none: the player opens, and in every other mode there are none. */
+  private blastMate() {
+    if (this.mode !== 'CLASSIC' || this.score.wickets < 1) return null;
+    return this.mates()[Math.min(this.score.wickets, 2) - 1];
+  }
   /** The Super10 kit picked in the room, while it is still earned. */
   private super10Pick() {
     const pick = readDressing().super10;
@@ -4605,6 +4633,8 @@ export class Game {
     // and no longer than a few seconds past the usual wait, whatever happens.
     if (this.phase === 'READY' && age >= this.readyMs && this.elapsed >= this.bannerUntil && (this.scene.fieldSettled || age >= this.readyMs + FIELD_WAIT_MS)
       && (!this.scene.batterTapping || age >= this.readyMs + TAP_WAIT_MS)) {
+      // `?yorkers=1`: every ball a yorker, on off, middle or leg as it falls, for the stumps it uproots. Practice.
+      if (this.yorkerDrill && !this.challenge.playing) this.generator.drill('YORKER', (['OFF', 'MIDDLE', 'LEG'] as const)[Math.floor(Math.random() * 3)]);
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
         : this.chargeable(this.generator.next(this.elapsed + GAME.runupMs));
       this.lightDay();
@@ -4704,6 +4734,8 @@ export class Game {
         // Out, or carried off, with the innings going on: the next man walks in (`arrival.ts`).
         const out = !!this.changed || !!this.outcome?.isWicket;
         if (this.changed) this.nextBatter();
+        // The Blast's wicket brings a teammate in, called and dressed as he walks out.
+        else if (out && this.blastMate()) this.hand();
         if (this.noticeDue) { this.noticeDue = false; this.showHurtNote(); }
         else {
           this.setPhase('READY');
@@ -4904,8 +4936,12 @@ export class Game {
     this.scene.leftHanded(left);
     this.hud.sides(left);
     // Super10's five are named: the player opens, the kit's squad follows.
+    const mate = this.blastMate();
     if (this.super10) this.hud.callOut(this.lineup()[Math.min(this.score.wickets, 4)].walkOut);
+    else if (mate) this.hud.callOut(mate.walkOut);
     else this.hud.walkingOut(man?.batter.title ?? null);
+    // The Blast's No. 2 and No. 3 are teammates, in the player's kit with their own gear.
+    if (mate) this.scene.teammate(mate);
     // Each of Super10's five has his own number on his back.
     if (this.super10) this.scene.shirtNumber(super10Number(this.score.wickets));
   }
@@ -7261,7 +7297,7 @@ export class Game {
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
-      pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, streak: this.scene.streakShown, pullPen: this.pullPen,
+      pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, streak: this.scene.streakShown, wicketFall: this.scene.wicketFall, pullPen: this.pullPen,
       mirrored: this.scene.mirrored, look: this.scene.wearing, shirt: this.scene.shirt, fieldingKit: this.scene.fieldingKit, chase: this.chase ? { handle: this.chase.handle, mode: this.chase.mode, target: this.chase.target } : null, marathon: this.marathon ? this.marathonState() : null,
       super10: this.super10 ? this.super10State() : null,
       standing: this.standing, ease: this.ease };

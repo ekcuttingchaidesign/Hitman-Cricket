@@ -5830,6 +5830,8 @@ video.whatsnew-film.is-fit{height:auto;object-fit:contain;
 .woc-eyebrow{font:700 calc(10 * var(--u))/1.2 var(--f-ui);letter-spacing:.14em;text-transform:uppercase;color:#ffffffc7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   text-shadow:0 1px 6px #00000080}
 .woc-name.ps-name{font-size:calc(24 * var(--u))}
+/* A teammate's whole name, up to fifteen letters, smaller so it is not cut short. */
+.woc-name.ps-name.is-long{font-size:calc(19 * var(--u))}
 .woc-pill{flex:none;align-self:flex-start;animation:woc-rise .4s .3s ease-out both}
 .woc-figures{display:grid;grid-template-columns:repeat(4,1fr)}
 .woc-figure{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;padding:0 calc(6 * var(--u));animation:woc-rise .4s calc(.35s + var(--i) * .09s) ease-out both}

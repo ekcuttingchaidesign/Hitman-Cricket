@@ -1077,7 +1077,8 @@ the spinner's and all but the arm ball dropped short, for the pull off him),
 `?flightlen=4` (the tossed-up ball pitched that many metres from the
 batter's end),
 `?latecut=1` (every ball
-pace outside off, for the late cut), `?cover=1`
+pace outside off, for the late cut), `?yorkers=1` (every ball a yorker,
+for the stump it uproots), `?cover=1`
 (every ball the cover drive's own: a stock ball pitched up on off stump),
 `?coverv=1`, `2` or `3` (always that version of the cover strokes),
 `?flickv=1` or `2` (always that version of the flick), or the
@@ -1773,6 +1774,28 @@ leaves it to the game's own picture. The dice are thrown only once he is
 out, at the top of their range, so no ball he survives is moved and the
 older tests' low rolls still read the ladder under it. `?howout=1` makes
 both happen every time they can, and is practice.
+
+The wicket goes by the ball that broke it (`src/scene/stumpsDown.ts`, in
+`tests/stumps-down.test.ts`): it was the two bails flying off the same way
+every time with the stumps never moving. A yorker, on whatever line, uproots
+the stump it hits (`fallOf`: any ball at the stumps below 18cm counts), the
+foot kicked out and the stump turning end over end back towards the keeper,
+top first towards the bowler, until it lands and lies on the pitch. Any other
+ball that bowls him is one of four: `clip`, at the top of the stumps, the
+bails alone and the stumps shivering; `lean`, the stump knocked back with a
+rattle and left leaning in its hole; `uproot`, out of the ground and
+cartwheeling back, likelier and further the quicker the ball; and `splay`,
+between two stumps, both knocked back and apart. Which is drawn off the
+delivery's speed (`rollOf`), never the page's dice, so a replay of the ball
+breaks the wicket the same way. The stump hit is the one nearest the ball's
+line, and the bail over it flies hardest (`bailPose`). The batched wicket is
+one mesh a colour, so the batter's end is also built as three stumps of its
+own, hidden (`loose` in `wicket.ts`), and swapped in only when the ball hits
+it (`breakBails`, `standStumps` in `GameScene`): nothing costs a draw call
+until a wicket falls. Stumped, the keeper takes the bails alone. Played on,
+it is a bowled like any other. `snapshot().wicketFall` says how it went.
+`?yorkers=1` bowls nothing but yorkers, on off, middle or leg as it falls,
+in any mode, and is practice.
 
 The bowler bowls bare-headed, with hair (`bareHead` on `Cricketer`): nobody
 bowls in a cap.
@@ -3334,8 +3357,20 @@ the lens and never nearer than three metres. He stands with the knees soft for i
 `STANDING` has the shins a centimetre past their length, which turned he
 would show. A name card is up over the walk (`ARRIVAL_CARD`): the walk-on's
 lower third with the score in its eyebrow (`eyebrow` on `WalkOnCard`), the
-squad's man and his place in Super10, the Marathon's man by his place, the
-player in the Blast and the Test match. It rides the walk-on's machinery
+squad's man and his place in Super10, the Marathon's man by his place, a
+teammate in the Blast, the player in the Test match. The Blast's No. 2 and
+No. 3 are teammates (`src/game/blast-squad.ts`, `mates` and `blastMate` in
+`src/Game.ts`, in `tests/blast-squad.test.ts`): the player walking back in
+after every wicket made the arrival the same man three times, the owner
+said. They have no names, the owner not wanting the Blast's named: each
+walks out as NEW BATSMAN IN by his place (NO. 2 · NEW BATSMAN IN #17),
+#17 and #9 printed on the back over the player's kit (a plain kit takes an
+empty print to carry it), a man's face on the card that is never the
+player's (`mateFace`, `MATE_FACES`), his own guard off the GUARD shelf and a
+bat among those the player has earned, never what the man before him wore
+(`gearFor`, `GameScene.teammate`), drawn once an innings on the page's dice.
+Only what the man in wears: the innings is counted in the player's look, to
+the player's career and board, and he bats the player's way round. It rides the walk-on's machinery
 (`walking` in `src/Game.ts` with the film `'arrive'`, the scene's `walkOn`,
 the batter's `stage`): the bowler waits at his mark, the bars and a tap,
 Space, Enter or Escape to skip it, `__cricket.introAt` to pin its clock and
