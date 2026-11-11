@@ -2705,11 +2705,11 @@ out of the ground), `clean` (GOOD, or PERFECT for less), `soft` (the rest, and
 a block), `edge` (edged or onto the pad); none for a ball that missed or hit
 him. On the frame of contact (`strike` in `src/Game.ts`, beside the special
 stroke's flash): a knock in the hand (`buzz`: two for sweet, one shorter the
-worse it was hit, a double tick for an edge); a beat held on a boundary, the
-game's clock at `STOP_PACE` for 70ms of the page's clock on a middled six, 55
-on a four, 35 on a GOOD boundary and none otherwise (`stopLeft`, read in
-`timeScale`; never on the charge, which has its own slow motion); and chips
-off the blade the way the ball went. Only a special stroke that came off
+worse it was hit, a double tick for an edge); and chips off the blade the way
+the ball went. A beat was held on a boundary too, the game's clock all but
+stopped for up to 70ms on a middled six: on a Motorola it read as the game
+lagging at the shot, and `?contact=0` felt better, so it was taken out. Not
+to be built again: a phone shows a held beat as a dropped frame. Only a special stroke that came off
 (`landedSpecial`: the charge, the slog sweep, a scoop for six) also pushes the
 camera in by a couple of degrees of its field of view and lets it back out
 (`pushAt`, `GameScene.struck`; only the picture, who fields is judged from
@@ -2735,10 +2735,10 @@ frame the bat met the ball.
 
 The ball is resolved before any of it, so it moves no score, window or seed,
 in any mode, a Rival Match included, and it is on under `?debug=1`. Reduced
-motion keeps the knock and the sound and drops the beat, the push, the chips
-and the dust. `?contact=0` turns all of it off, for holding the two side by
-side, and is not practice. `snapshot().contact` is the kind, the beat left
-and what is showing (`__cricket.contactShown()` between balls).
+motion keeps the knock and the sound and drops the push, the chips and the
+dust. `?contact=0` turns all of it off, for holding the two side by
+side, and is not practice. `snapshot().contact` is the kind and what is
+showing (`__cricket.contactShown()` between balls).
 `scripts/contact-check.mjs` drives a straight six on `?cover=1` frame by
 frame and then the same on `?contact=0&follow=0`.
 
