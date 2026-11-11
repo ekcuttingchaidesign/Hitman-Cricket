@@ -5,10 +5,10 @@
  *
  * The two who follow have no names (the owner did not want them named in the
  * Blast): each walks out as NEW BATSMAN IN, by his place, with a number on his
- * back (`BLAST_NUMBERS`) and his own guard and bat, picked by the game
- * (`Game.mates`) so he is told apart from the man before him. They wear the
- * player's kit: they are his side. Nothing about the batting changes: the
- * same windows, the same hand, the player's career and board.
+ * back (`BLAST_NUMBERS`). They wear the player's kit, guard and bat, all as
+ * picked in the Dressing Room (`Game.mates`): they are his side. Nothing
+ * about the batting changes: the same windows, the same hand, the player's
+ * career and board.
  */
 
 /** The numbers on the backs of No. 2 and No. 3. */
@@ -25,8 +25,6 @@ export interface BlastMate {
   walkOut: string;
 }
 
-const pick = <T>(list: readonly T[], roll: number): T => list[Math.min(list.length - 1, Math.floor(roll * list.length))];
-
 /** No. 2 and No. 3. */
 export function blastMates(): [BlastMate, BlastMate] {
   const mate = (i: 0 | 1): BlastMate => {
@@ -34,15 +32,6 @@ export function blastMates(): [BlastMate, BlastMate] {
     return { place, number, walkOut: `${place} · ${NEW_BATSMAN} #${number}` };
   };
   return [mate(0), mate(1)];
-}
-
-/**
- * Which of `choices` a teammate wears: never what the man before him wore
- * (`avoid`), so each one in looks different, where there is anything else.
- */
-export function gearFor<T extends { id: string }>(choices: readonly T[], avoid: readonly string[], roll: number): T {
-  const fresh = choices.filter(one => !avoid.includes(one.id));
-  return pick(fresh.length ? fresh : choices, roll);
 }
 
 /**

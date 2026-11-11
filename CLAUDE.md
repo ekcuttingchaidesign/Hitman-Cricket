@@ -3404,11 +3404,11 @@ said. They have no names, the owner not wanting the Blast's named: each
 walks out as NEW BATSMAN IN by his place (NO. 2 · NEW BATSMAN IN #17),
 #17 and #9 printed on the back over the player's kit (a plain kit takes an
 empty print to carry it), a man's face on the card that is never the
-player's (`mateFace`, `MATE_FACES`), his own guard off the GUARD shelf and a
-bat among those the player has earned, never what the man before him wore
-(`gearFor`, `GameScene.teammate`), drawn once an innings on the page's dice.
-Only what the man in wears: the innings is counted in the player's look, to
-the player's career and board, and he bats the player's way round. It rides the walk-on's machinery
+player's (`mateFace`, `MATE_FACES`), and the player's own guard and bat as
+picked in the Dressing Room (`GameScene.teammate`): each was dealt a guard
+and a bat of his own at first, and the owner wanted the room's pick on every
+man in. The innings is counted in the player's look, to the player's career
+and board, and he bats the player's way round. It rides the walk-on's machinery
 (`walking` in `src/Game.ts` with the film `'arrive'`, the scene's `walkOn`,
 the batter's `stage`): the bowler waits at his mark, the bars and a tap,
 Space, Enter or Escape to skip it, `__cricket.introAt` to pin its clock and

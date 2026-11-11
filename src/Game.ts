@@ -121,7 +121,7 @@ import { BATS, FREE_BAT, FREE_BATS, FREE_OUTFIT, FREE_OUTFITS, FREE_SUPER10, OUT
 import type { DressingRoom } from './ui/DressingRoom';
 import type { UnlockItem, UnlockMoment } from './ui/Unlock';
 import { onDressingWrite, readDressing, seenKey, writeDressing } from './game/dressing-store';
-import { GLOVES, gloveOf, type GloveDesign, type GuardId } from './entities/gloves';
+import { gloveOf, type GloveDesign, type GuardId } from './entities/gloves';
 import { fetchSaved, sendSaved } from './game/dressing-api';
 import { mergeDressing, sameDressing, type SavedDressing } from './game/dressing-sync';
 import type { ModeSelectView } from './ui/ModeSelect';
@@ -134,7 +134,7 @@ import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
 import { sendFeedback } from './game/feedback-api';
 import { lineupOf } from './game/super10-squads';
-import { NEW_BATSMAN, blastMates, gearFor, mateFace, type BlastMate } from './game/blast-squad';
+import { NEW_BATSMAN, blastMates, mateFace, type BlastMate } from './game/blast-squad';
 import { SUPER10_KITS, super10Number, type Super10Kit, type Super10KitId } from './game/super10-kits';
 import { askRating, type RatingPrompt } from './ui/Rating';
 import {
@@ -2725,19 +2725,15 @@ export class Game {
   }
   private linedUp: { innings: number; five: ReturnType<typeof lineupOf> } | null = null;
   /**
-   * The Blast's No. 2 and No. 3 (`blast-squad.ts`), drawn once an innings,
-   * each in a guard and a bat that are not the man before him's: the guards
-   * off the GUARD shelf, every one free, and the bats among those the player
-   * has earned, where there is more than one.
+   * The Blast's No. 2 and No. 3 (`blast-squad.ts`), once an innings, each in
+   * the guard and the bat the player picked in the Dressing Room: the owner
+   * wanted the room's pick on every man in, where they used to be dealt a
+   * guard and a bat of their own. Only the number on the back tells them apart.
    */
   private mates() {
     if (this.matesDrawn?.innings !== this.innings) {
-      const mine = this.myLook(), record = this.dressingRecord();
-      const bats = BATS.filter(bat => batOwned(bat.id, record));
-      const [two, three] = blastMates();
-      const guard2 = gearFor(GLOVES, [mine.guard.id], Math.random()), bat2 = gearFor(bats, [mine.bat.id], Math.random());
-      const guard3 = gearFor(GLOVES, [mine.guard.id, guard2.id], Math.random()), bat3 = gearFor(bats, [bat2.id], Math.random());
-      this.matesDrawn = { innings: this.innings, two: [{ ...two, guard: guard2, bat: bat2 }, { ...three, guard: guard3, bat: bat3 }] };
+      const { guard, bat } = this.myLook();
+      this.matesDrawn = { innings: this.innings, two: blastMates().map(mate => ({ ...mate, guard, bat })) };
     }
     return this.matesDrawn.two;
   }
