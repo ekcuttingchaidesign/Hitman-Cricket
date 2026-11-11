@@ -1795,7 +1795,9 @@ it (`breakBails`, `standStumps` in `GameScene`): nothing costs a draw call
 until a wicket falls. Stumped, the keeper takes the bails alone. Played on,
 off an inside edge, the bat has taken the pace off it and only the bails go
 (`fallOf`'s `playedOn`, a `clip` whatever the line or length): the owner did
-not want the stumps knocked by an inside edge. `snapshot().wicketFall` says how it went.
+not want the stumps knocked by an inside edge. Nor does the spinner's ball ever uproot
+a stump (`spun`, his off break, leg break and arm ball), however low it
+is: it leans one back, splays two or takes the bails, as the owner asked. `snapshot().wicketFall` says how it went.
 `?yorkers=1` bowls nothing but yorkers, on off, middle or leg as it falls,
 in any mode, and is practice.
 

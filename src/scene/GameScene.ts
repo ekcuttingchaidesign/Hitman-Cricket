@@ -256,7 +256,7 @@ export class GameScene {
   };
   /** How the batter's wicket is going, once the ball has hit it (`stumpsDown.ts`); and the ball that will, from `hit`. */
   private fallen: WicketHit | null = null;
-  private wicketBall = { kph: 0, yorker: false };
+  private wicketBall = { kph: 0, yorker: false, spun: false };
   private led!: LedStumps;
   /** A Super10 innings: its stumps are the LED stumps, and the screen and the boards play its moments. */
   private branded = false;
@@ -1590,7 +1590,7 @@ export class GameScene {
     this.contactDelay = this.hitStart - now;
     this.incomingPosition.copy(this.ball.position);
     this.hitOutcome = outcome;
-    this.wicketBall = { kph: delivery.speedKph, yorker: delivery.style === 'YORKER' };
+    this.wicketBall = { kph: delivery.speedKph, yorker: delivery.style === 'YORKER', spun: delivery.style === 'OFF_SPIN' || delivery.style === 'LEG_SPIN' || delivery.style === 'ARM_BALL' };
     const p = this.flight(delivery, outcome.advance ? GameScene.meetsAt(true) : this.meeting); this.hitOrigin.set(p.x, p.y, p.z);
     this.meeting = 1;
     // Which way it goes: `sectorOf`, out of this file so the Super10 field
@@ -1725,7 +1725,7 @@ export class GameScene {
       this.bailsBrokeAt = now; this.onStumps?.();
       // Bowled, the ball takes a stump with the bails, by where it hit and what it was (`stumpsDown.ts`):
       // the batched wicket is swapped for its three stumps on their own.
-      this.fallen = bowled ? fallOf(this.ball.position.x, this.ball.position.y, this.wicketBall.kph, this.wicketBall.yorker, !!this.hitOutcome?.madeBatContact) : null;
+      this.fallen = bowled ? fallOf(this.ball.position.x, this.ball.position.y, this.wicketBall.kph, this.wicketBall.yorker, !!this.hitOutcome?.madeBatContact, this.wicketBall.spun) : null;
       if (this.fallen) {
         const set = this.wickets[this.ledUp ? 'led' : 'plain'];
         set.timber.forEach(mesh => mesh.visible = false);
