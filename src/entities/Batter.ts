@@ -2699,9 +2699,12 @@ export const WALK_STYLES: readonly WalkStyle[] = ['carry', 'shoulder', 'tucked']
  * The bat tucked under his arm: its line forward and up towards the handle;
  * the armpit's place under the shoulder and out from the ribs; how far up the
  * bat from there its handle end sits (the blade's upper half is in the
- * armpit); and the free hand down from the shoulder, forward and out.
+ * armpit); the free hand down from the shoulder, forward and out (in, here);
+ * and where its elbow is aimed, out, back and down off the shoulder, so the
+ * upper arm lies down his side over the blade. The blade lies against his
+ * ribs: 7cm out, with the elbow out wide, it hung in the air beside him.
  */
-const TUCK = { forward: .92, rise: .26, under: .17, out: .075, at: .25, hand: [.50, .17, .03] } as const;
+const TUCK = { forward: .92, rise: .26, under: .17, out: .02, at: .25, hand: [.50, .20, -.03], elbow: [.10, .30, .40] } as const;
 /** The walk's measures: the feet either side of his line, the swing foot's lift, the hips' height and bob and sway, the arms' swing. */
 const WALK = { track: .11, lift: .09, hip: .895, bob: .03, sway: .018, head: .14, carry: .50, out: .10, splay: .16, hang: .60, batSwing: .30, armSwing: .45 } as const;
 /**
@@ -5321,7 +5324,13 @@ export class Batter {
         const fist = V(freed!);
         const reach = fist.clone().sub(arm.shoulder);
         if (reach.length() > .64) fist.copy(arm.shoulder).addScaledVector(reach.normalize(), .64);
-        const out = arm.shoulder.clone().addScaledVector(outward, .45).addScaledVector(forward, .12).addScaledVector(spine, -.10);
+        // A fist let go swings its elbow out beside the shoulder; the bottom
+        // hand let go is clamping the bat under that arm (`TUCK`), so its
+        // elbow goes down and back against his side, the upper arm pressing
+        // the blade to his ribs. Out wide, the bat hung in the air beside him.
+        const out = i === FREE_HAND
+          ? arm.shoulder.clone().addScaledVector(outward, .45).addScaledVector(forward, .12).addScaledVector(spine, -.10)
+          : arm.shoulder.clone().addScaledVector(outward, TUCK.elbow[0]).addScaledVector(forward, -TUCK.elbow[1]).addScaledVector(spine, -TUCK.elbow[2]);
         const pole = elbow.clone().lerp(out, release);
         hand.lerp(fist, release);
         elbow = solveJoint(arm.shoulder, hand, .32, .34, pole);

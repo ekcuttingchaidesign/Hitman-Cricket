@@ -3311,7 +3311,10 @@ photograph the owner sent (`TUCK`): both hands off it (`letGo` and
 `release` and `fist`), the blade clamped between the upper arm and his ribs
 with the handle forward at chest height and the toe out behind sloping
 down, the flat against his side, that arm hanging with the hand free at his
-hip. Held by the handle at the hip, first level and then rising behind his
+hip. The blade lies against his ribs and that elbow is aimed down and back
+(`TUCK.elbow`, the bottom hand's own pole in `apply`; a fist let go swings
+its elbow out), so the upper arm lies over the blade: 7cm out, with the
+elbow out wide, the bat hung in the air beside him from in front. Held by the handle at the hip, first level and then rising behind his
 shoulder, it read as a rifle and then as the wrong thing, the owner said. Walking, each knee bends forward over its own shoe (`stride` on
 the pose, eased off as he takes guard): the knee solve bends a standing
 man's knees out to the off side, which turned across the crease twisted
