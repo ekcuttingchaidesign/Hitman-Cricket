@@ -2549,13 +2549,12 @@ export class Game {
   private arrive() {
     const who = readPlayer(), base = walkOnCard(this.careerMode, heldCareer(this.careerMode), { name: who?.name ?? '', avatar: who?.avatar ?? 0 });
     const eyebrow = `${base.modeName} · ${this.score.runs}/${this.score.wickets}`;
-    // Super10's next man is the kit's squad's, the Blast's a teammate, the Marathon's by his place; the Test match brings the player back in.
+    // Super10's next man is the kit's squad's, the Blast's and the Marathon's a teammate by his place; Survival brings the player back in.
     const mate = this.blastMate();
     const named = this.super10 ? this.lineup()[Math.min(this.score.wickets, 4)] : mate ? { card: NEW_BATSMAN, walkOut: mate.walkOut } : null;
     // A teammate is not the player: a face of his own off his name, never the player's, and no rung of the player's.
     const face = named ? mateFace(named.walkOut, base.avatar) : base.avatar;
     const card: WalkOnCard = named ? { ...base, name: named.card, avatar: face, tier: 'debutant', rung: named.walkOut.split(' · ')[0], debut: true, figures: [], eyebrow }
-      : this.marathon ? { ...base, name: base.name || this.marathon.current.batter.title, rung: this.marathon.current.batter.title, debut: true, figures: [], eyebrow }
       : { ...base, eyebrow };
     this.walking = { start: this.elapsed, film: 'arrive', then: () => {}, card, carded: false };
     this.bannerUntil = Number.POSITIVE_INFINITY;
@@ -2742,6 +2741,14 @@ export class Game {
   private matesDrawn: { innings: number; two: (BlastMate & { guard: GloveDesign; bat: BatSkin })[] } | null = null;
   /** The Blast teammate in now, or none: the player opens, and in every other mode there are none. */
   private blastMate() {
+    // The Marathon's next man too: not the player walking in again, but NEW BATSMAN IN by his place (NO. 3, TAILENDER), in his own gear.
+    const marathon = this.marathon;
+    if (marathon) {
+      const at = Math.min(marathon.batters.length - 1, 2);
+      if (at < 1) return null;
+      const mate = this.mates()[at - 1], place = marathon.current.batter.title;
+      return { ...mate, place, walkOut: `${place} · ${NEW_BATSMAN} #${mate.number}` };
+    }
     if (this.mode !== 'CLASSIC' || this.score.wickets < 1) return null;
     return this.mates()[Math.min(this.score.wickets, 2) - 1];
   }
@@ -4943,7 +4950,7 @@ export class Game {
     // Super10's five are named: the player opens, the kit's squad follows.
     const mate = this.blastMate();
     if (this.super10) this.hud.callOut(this.lineup()[Math.min(this.score.wickets, 4)].walkOut);
-    else if (mate) this.hud.callOut(mate.walkOut);
+    else if (mate && !man) this.hud.callOut(mate.walkOut);
     else this.hud.walkingOut(man?.batter.title ?? null);
     // The Blast's No. 2 and No. 3 are teammates, in the player's kit with their own gear.
     if (mate) this.scene.teammate(mate);
