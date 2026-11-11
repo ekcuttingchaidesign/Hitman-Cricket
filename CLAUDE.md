@@ -3334,8 +3334,19 @@ the lens and never nearer than three metres. He stands with the knees soft for i
 `STANDING` has the shins a centimetre past their length, which turned he
 would show. A name card is up over the walk (`ARRIVAL_CARD`): the walk-on's
 lower third with the score in its eyebrow (`eyebrow` on `WalkOnCard`), the
-squad's man and his place in Super10, the Marathon's man by his place, the
-player in the Blast and the Test match. It rides the walk-on's machinery
+squad's man and his place in Super10, the Marathon's man by his place, a
+teammate in the Blast, the player in the Test match. The Blast's No. 2 and
+No. 3 are teammates (`src/game/blast-squad.ts`, `mates` and `blastMate` in
+`src/Game.ts`, in `tests/blast-squad.test.ts`): the player walking back in
+after every wicket made the arrival the same man three times, the owner
+said. Two names drawn once an innings from every Super10 squad's batters
+(`BLAST_POOL`), on the page's dice, each walking out by name (NO. 2 · …
+#17), #17 and #9 printed on the back over the player's kit (a plain kit
+takes an empty print to carry it), his own guard off the GUARD shelf and a
+bat among those the player has earned, never what the man before him wore
+(`gearFor`, `GameScene.teammate`). Only what the man in wears: the innings
+is counted in the player's look, to the player's career and board, and he
+bats the player's way round. It rides the walk-on's machinery
 (`walking` in `src/Game.ts` with the film `'arrive'`, the scene's `walkOn`,
 the batter's `stage`): the bowler waits at his mark, the bars and a tap,
 Space, Enter or Escape to skip it, `__cricket.introAt` to pin its clock and
