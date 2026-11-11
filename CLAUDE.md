@@ -3682,3 +3682,15 @@ both PLAY AGAINs — and leaves them at rest under reduced motion.
 Road to Hitman's fill is `roadOf` in `src/game/tier.ts`: the medallions stand
 evenly, so the fill is a whole rung per tier climbed and the share of the gap
 across the last, not a fraction of the top figure.
+
+## The view on a tall screen
+
+The game's camera behind the bat (`homeViewFor` in `src/scene/homeView.ts`,
+`GameScene.homeView`, in `tests/home-view.test.ts`) widened its height with
+the screen's to 67 degrees and stopped, which in Safari on an iPhone (about
+0.55 wide to high) is about 40 degrees across. Saved to the home screen the
+page has the whole screen, about 0.46, and at the same 67 degrees the view
+was 34 across: mid-on and mid-off went out of the sides and only long-on and
+long-off were left. Now it keeps at least 40 degrees across (`VIEW.across`),
+widening the height up to 80 to do it, so a home-screen web app sees the
+field Safari does, the batter a little smaller in it.
