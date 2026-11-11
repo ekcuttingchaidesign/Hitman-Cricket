@@ -1793,7 +1793,9 @@ one mesh a colour, so the batter's end is also built as three stumps of its
 own, hidden (`loose` in `wicket.ts`), and swapped in only when the ball hits
 it (`breakBails`, `standStumps` in `GameScene`): nothing costs a draw call
 until a wicket falls. Stumped, the keeper takes the bails alone. Played on,
-it is a bowled like any other. `snapshot().wicketFall` says how it went.
+off an inside edge, the bat has taken the pace off it and only the bails go
+(`fallOf`'s `playedOn`, a `clip` whatever the line or length): the owner did
+not want the stumps knocked by an inside edge. `snapshot().wicketFall` says how it went.
 `?yorkers=1` bowls nothing but yorkers, on off, middle or leg as it falls,
 in any mode, and is practice.
 

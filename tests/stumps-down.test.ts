@@ -83,3 +83,16 @@ describe('the wicket going down', () => {
     }
   });
 });
+
+describe('played on', () => {
+  it('only dislodges the bails off an inside edge, whatever the line, length or pace', () => {
+    for (const x of [-.15, -.07, 0, .07, .15]) for (const y of [.08, .3, .5]) for (const kph of [80, 140, 165]) for (const yorker of [false, true]) {
+      const hit = fallOf(x, y, kph, yorker, true);
+      expect(hit.fall).toBe('clip'); expect(hit.yorker).toBe(false);
+      for (let i = 0; i < 3; i++) {
+        const p = stumpPose(hit, i, 1500);
+        expect(Math.abs(p.rx)).toBeLessThan(.002); expect(p.y).toBe(0); expect(p.z).toBe(0);
+      }
+    }
+  });
+});

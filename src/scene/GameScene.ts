@@ -1725,7 +1725,7 @@ export class GameScene {
       this.bailsBrokeAt = now; this.onStumps?.();
       // Bowled, the ball takes a stump with the bails, by where it hit and what it was (`stumpsDown.ts`):
       // the batched wicket is swapped for its three stumps on their own.
-      this.fallen = bowled ? fallOf(this.ball.position.x, this.ball.position.y, this.wicketBall.kph, this.wicketBall.yorker) : null;
+      this.fallen = bowled ? fallOf(this.ball.position.x, this.ball.position.y, this.wicketBall.kph, this.wicketBall.yorker, !!this.hitOutcome?.madeBatContact) : null;
       if (this.fallen) {
         const set = this.wickets[this.ledUp ? 'led' : 'plain'];
         set.timber.forEach(mesh => mesh.visible = false);
