@@ -1419,6 +1419,15 @@ export class GameScene {
    * follow-through are one continuous timeline rather than two that have to be
    * talked into lining up at the join.
    */
+  /**
+   * The bowler waiting at the top of his mark (the keeper's card): his action's
+   * clock started again every frame, so it sets off from the start of his run
+   * when he is let go, in step with the ball.
+   */
+  holdAtMark() {
+    this.runup(0);
+    this.actionStartedAt = Infinity;
+  }
   runup(t: number) {
     // The bowler sets off and the field walks in with him.
     if (!this.bowling) this.field.walkIn(this.clock);

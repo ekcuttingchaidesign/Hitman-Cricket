@@ -1740,7 +1740,11 @@ you stumped, with him outlined where he squats and tagged Wicketkeeper (the
 scene's `keeperOnScreen`, handed to the cards as `place` for a spot no page
 element is). Nothing about the flighted ball: the owner wanted only the
 keeper told. Every player's, the ones who batted before he came and a new one
-alike; the spinner waits at his mark while it is up (`keeperHeld`). Not in
+alike; the spinner waits at his mark while it is up (`keeperHeld`), his
+action held at its start (`holdAtMark`: it used to run on through a ball
+nobody saw, so the real one came out of him stood still at the end of it),
+and stands there `KEEPER_SETTLE_MS` after it is put away before he runs in,
+so the player is set for the ball. Not in
 the tutorial, a demo or a Rival Match, nor under `?debug=1`, whose checks bat
 through spinners' overs, unless `?keeperintro=1` asks for it, once a visit
 (`keeperTold`; every spinner's ball, as it first did, was too often) and not
