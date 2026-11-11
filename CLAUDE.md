@@ -3281,6 +3281,71 @@ skips it, and no other key does anything while it plays. GoatCounter counts
 photographs their beats; `tests/intro-reel.test.ts` holds the landing, the
 light, the duel's framing and both cameras to a crane's pace.
 
+## The new batter's arrival
+
+After a wicket, or a man carried off, with the innings going on, the next
+man walks in before the next ball (`src/game/arrival.ts`, in
+`tests/arrival.test.ts`), in every mode, a Rival Match's too: the owner
+asked for it after a wicket had the batter pop back into his stance with
+nothing between. Built from a clip the owner sent of a batter walking out.
+It opens on a cut, under which the wicket is tidied away (the scene's
+`reset`: the bails back on, the ball gone, the field on its marks); he is
+already walking, the last four strides to his crease from behind his stumps
+on the leg side, the camera tracking five metres behind him so his back
+(and in Super10 his number) leads the picture, head to boots — at two and a
+half metres he was a back from the knees up. The walk (`walkPose` in
+`Batter.ts`) is worked out from the clock, not keyed: each heel strikes half
+a stride ahead of his hips and stays exactly where it landed until it lifts,
+the trailing foot swinging through in an arc, the hips lowest with both
+feet down; the bat carried in the bottom hand by the handle, the blade
+hanging beside his leg with its toe just off the grass, both arms swinging
+against the legs, the bat's the less. He carries it one of three ways,
+dealt at random each arrival off the page's dice (`WalkStyle`,
+`WALK_STYLES`, the batter's `walkStyle`; `?arrivewalk=carry`, `shoulder`
+or `tucked` asks for one, not practice): by his side as in the clip, the
+toe angled out away from the leg (splayed the other way it went into his
+leg, which the owner saw); on his shoulder (`shoulderBat`, the scuff's bat
+on the shoulder, lifted out for both); or tucked under his arm as in a
+photograph the owner sent (`TUCK`): both hands off it (`letGo` and
+`otherFist` on the pose, the bottom hand's let-go beside the top hand's
+`release` and `fist`), the blade clamped between the upper arm and his ribs
+with the handle forward at chest height and the toe out behind sloping
+down, the flat against his side, that arm hanging with the hand free at his
+hip. The blade lies against his ribs and that elbow is aimed down and back
+(`TUCK.elbow`, the bottom hand's own pole in `apply`; a fist let go swings
+its elbow out), so the upper arm lies over the blade: 7cm out, with the
+elbow out wide, the bat hung in the air beside him from in front. Held by the handle at the hip, first level and then rising behind his
+shoulder, it read as a rifle and then as the wrong thing, the owner said. Walking, each knee bends forward over its own shoe (`stride` on
+the pose, eased off as he takes guard): the knee solve bends a standing
+man's knees out to the off side, which turned across the crease twisted
+the back leg, as the owner saw. He slows into the last stride
+(`walkedBy`), steps into place one foot then the other (`intoPlace`; stood
+up only as the back foot comes in, or the leg could not reach it), holds the
+bat upright in front of him in both hands with his head up the pitch to the
+umpire, nods, turns to look out over the leg side and round to the off, and
+goes into his guard as the camera rises onto the game's view (`ARRIVE`, 5.3
+seconds). The walk is shot one of three ways, dealt with the carry
+(`ArrivalAngle`, `ARRIVAL_ANGLES`; `?arrivecam=behind`, `front` or `side`
+asks, not practice): tracked from behind; from in front on a 34-degree lens,
+walking towards the camera as in the clip's steps (`FRONT`); or side on from
+the leg side keeping pace (`SIDE`). The two others cut over his shoulder as
+he stops (`CLOSER`); the tests hold every angle to him in the middle third of
+the lens and never nearer than three metres. He stands with the knees soft for it (`AT_EASE`): the game's own
+`STANDING` has the shins a centimetre past their length, which turned he
+would show. A name card is up over the walk (`ARRIVAL_CARD`): the walk-on's
+lower third with the score in its eyebrow (`eyebrow` on `WalkOnCard`), the
+squad's man and his place in Super10, the Marathon's man by his place, the
+player in the Blast and the Test match. It rides the walk-on's machinery
+(`walking` in `src/Game.ts` with the film `'arrive'`, the scene's `walkOn`,
+the batter's `stage`): the bowler waits at his mark, the bars and a tap,
+Space, Enter or Escape to skip it, `__cricket.introAt` to pin its clock and
+`__cricket.walkingOn()` saying `'arrive'`. Never in the tutorial or a demo,
+nor under reduced motion; off under `?debug=1` unless `?arrive=1` asks, and
+`?arrive=0` turns it off; not practice. `rig-sheet.html?shot=ARRIVE`
+(`&view=side`, `front` or `back`, `&times=`, `&arrivewalk=`) draws it on
+its own clock, unmirrored, so as a left-hander. GoatCounter counts
+`arrival-<style>-<angle>` and `arrival-skipped`.
+
 ## `?moments=1`
 
 A row of keys along the foot of the picture, one a milestone — 50, 100, six

@@ -14,6 +14,7 @@ import { NUMBER_FONT, paintKitPrint, printable, printSheet, TORSO_SHARE, type Ki
 import { buildGloveCuff, buildGloveHand, DEFAULT_GLOVE, gloveHeelGeometry, gloveOf, WRIST_HOME, type GloveDesign } from './gloves';
 import type { BodyPart, ShotType } from '../game/types';
 import { BAT, DUEL, type Film } from '../game/IntroReel';
+import { ARRIVE, ARRIVE_HEADING, ARRIVE_STEP, walkedBy, walkedTo } from '../game/arrival';
 
 type Point = readonly [number, number, number];
 interface Pose {
@@ -56,6 +57,13 @@ interface Pose {
   /** Where the free hand's wrist is, in the batter's own space. */
   fist?: Point;
   /**
+   * How far the bottom hand has let go too, to `otherFist`: only the bat
+   * tucked under his arm walking in has both hands off it, the bat left where
+   * the pose puts it, clamped against his side.
+   */
+  letGo?: number;
+  otherFist?: Point;
+  /**
    * The bat turned about its own handle, in the bottom hand: the twirl. The
    * gloves are turned back the other way, so the hand holds still and the
    * blade turns in it.
@@ -67,6 +75,13 @@ interface Pose {
    * toes with the shins flat behind. The retired-hurt fall ends there.
    */
   kneel?: number;
+  /**
+   * Walking, from nought to one: each knee bends the way its own shoe points,
+   * as a walking man's do, rather than out towards the off side as a side-on
+   * stance's do. Turned across the crease to walk, the stance's bend twisted
+   * the back leg.
+   */
+  stride?: number;
   /**
    * How far the bat keeps the face this pose gives it, between balls. Then the
    * face is otherwise the straight drive's, carried onto the handle's line,
@@ -2551,6 +2566,23 @@ const SCRUB_REST = [.02, .09, .05, .30] as const;
 /** Up and out from there, on the way on and off the shoulder. */
 const SCRUB_LIFT = [.14, .06] as const;
 /**
+ * The bat laid on his back shoulder in the bottom hand, for a body as it
+ * stands: on its back with the face to the sky, the handle forward and down
+ * to the hand in front of the shoulder, the toe back behind him and a little
+ * out, away from the helmet (`SCRUB_LIE`, `SCRUB_REST`).
+ */
+function shoulderBat(body: Pose) {
+  const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw)), out = outwards(body, 1);
+  const handle = ahead.clone().multiplyScalar(SCRUB_LIE[0]).addScaledVector(UP, -SCRUB_LIE[1]).addScaledVector(out, -SCRUB_LIE[2]).normalize();
+  const face = UP.clone().addScaledVector(handle, -UP.dot(handle)).normalize();
+  // Where it rests: on top of the shoulder, the back of the blade there and
+  // its middle line that much further up, at a point a hand's width below
+  // the shoulder of the blade.
+  const rest = shoulderOf(body, 1).addScaledVector(out, SCRUB_REST[0]).addScaledVector(UP, SCRUB_REST[1]).addScaledVector(face, SCRUB_REST[2]);
+  const grip = rest.addScaledVector(handle, SCRUB_REST[3]);
+  return { grip: point(grip), batUp: point(handle), batFace: point(face), ownFace: 1 };
+}
+/**
  * Beaten, stood over the crease looking down at the pitch, the bat on his
  * shoulder in the bottom hand, and the front foot scraping the turf forward
  * and back twice, as if the ball had done something off a mark there.
@@ -2563,19 +2595,12 @@ const SCRUB = (() => {
   // from the helmet. Laid on its edge with the handle on the shoulder's own
   // line, the blade went down through the shoulder.
   const body: Pose = { ...STANDING, hip: [-0.06, 0.95, -0.03], chest: [0.02, 1.31, 0.10], headDown: .45, release: 1 };
-  const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw)), out = outwards(body, 1);
-  const handle = ahead.clone().multiplyScalar(SCRUB_LIE[0]).addScaledVector(UP, -SCRUB_LIE[1]).addScaledVector(out, -SCRUB_LIE[2]).normalize();
-  const face = UP.clone().addScaledVector(handle, -UP.dot(handle)).normalize();
-  // Where it rests: on top of the shoulder, the back of the blade there and
-  // its middle line that much further up, at a point a hand's width below
-  // the shoulder of the blade.
-  const rest = shoulderOf(body, 1).addScaledVector(out, SCRUB_REST[0]).addScaledVector(UP, SCRUB_REST[1]).addScaledVector(face, SCRUB_REST[2]);
-  const grip = rest.addScaledVector(handle, SCRUB_REST[3]);
-  const over: Pose = { ...body, grip: point(grip), batUp: point(handle), batFace: point(face), ownFace: 1,
+  const out = outwards(body, 1), { grip } = shoulderBat(body);
+  const over: Pose = { ...body, ...shoulderBat(body),
     fist: point(shoulderOf(body, 0).addScaledVector(UP, -.50).addScaledVector(outwards(body, 0), .20)) };
   // Lifted on and off over the top: swung straight up from the guard onto
   // the shoulder, the blade came up through it.
-  const lifted: Pose = { ...over, grip: point(grip.clone().addScaledVector(UP, SCRUB_LIFT[0]).addScaledVector(out, SCRUB_LIFT[1])) };
+  const lifted: Pose = { ...over, grip: point(V(grip).addScaledVector(UP, SCRUB_LIFT[0]).addScaledVector(out, SCRUB_LIFT[1])) };
   // Across the crease more than along it: along it, the scrape runs straight
   // away from the camera behind him, and cannot be seen.
   const foot = (by: number): Pose => ({ ...over, frontFoot: [GUARD.frontFoot[0] + by, GUARD.frontFoot[1] + .008, GUARD.frontFoot[2] + by * .45] });
@@ -2606,6 +2631,125 @@ const WALK_ON: Keys = (() => {
  * head down over it (`SCRUB`'s pieces); his head up the pitch at the bowler;
  * and the bat off his shoulder into his guard.
  */
+/**
+ * The new batter's walk to the crease (`arrival.ts`), at `t` on its clock,
+ * from a clip of a batter walking out: brisk, a little wide for the pads, the
+ * bat carried in the bottom hand by the handle with the blade hanging beside
+ * his leg, its toe just off the grass, and both arms swinging against the
+ * legs, the bat's the less for its weight. Worked out from the clock rather
+ * than keyed, so every foot is planted where it lands and stays there until
+ * it lifts: each step's heel strikes half a stride ahead of his hips (`plant`)
+ * and the trailing foot swings through in an arc to the next. He walks a whole
+ * number of strides (`ARRIVE.strides`), so at the stop both feet are down.
+ */
+function walkPose(t: number, style: WalkStyle = 'carry'): Pose {
+  const d = walkedBy(t), L = ARRIVE_STEP, h = ARRIVE_HEADING;
+  const ahead = new THREE.Vector3(Math.sin(h), 0, Math.cos(h)), right = new THREE.Vector3(Math.cos(h), 0, -Math.sin(h));
+  const [x, z] = walkedTo(t), start = new THREE.Vector3(ARRIVE.from[0], 0, ARRIVE.from[1]);
+  const n = Math.floor(d / L + 1e-9), u = d / L - n;
+  // Foot k is down at k strides and a half; the even ones are his left (the front foot), the odd his right.
+  const plant = (k: number) => start.clone().addScaledVector(ahead, k * L + L / 2).addScaledVector(right, k % 2 === 0 ? -WALK.track : WALK.track);
+  const stance = plant(n), swing = plant(n - 1).lerp(plant(n + 1), ease(u)).setY(0);
+  stance.y = .08; swing.y = .08 + WALK.lift * Math.sin(Math.PI * u);
+  const left = n % 2 === 0 ? stance : swing, rightFoot = n % 2 === 0 ? swing : stance;
+  // Highest over the planted foot, lowest as the other comes down; leaning a touch over the stance side.
+  const sway = (n % 2 === 0 ? -1 : 1) * WALK.sway * Math.sin(Math.PI * u);
+  const hip = new THREE.Vector3(x, WALK.hip + WALK.bob * Math.sin(Math.PI * u), z).addScaledVector(right, sway);
+  const chest = hip.clone().add(new THREE.Vector3(0, .38, 0)).addScaledVector(ahead, .045);
+  const body: Pose = { ...STANDING, hip: point(hip), chest: point(chest), frontFoot: point(left), backFoot: point(rightFoot),
+    yaw: h, face: h, headDown: WALK.head, heel: 0, backFootYaw: h, frontFootYaw: h, leadElbow: -.1, release: 1, stride: 1 };
+  // Each arm swings against the leg on its own side: forward as that foot goes back.
+  const along = (foot: THREE.Vector3) => foot.clone().sub(hip).dot(ahead);
+  const freeArm = -WALK.armSwing * along(left);
+  const fist = shoulderOf(body, 0).addScaledVector(UP, -WALK.hang).addScaledVector(outwards(body, 0), .03).addScaledVector(ahead, freeArm);
+  const outR = outwards(body, 1);
+  if (style === 'shoulder') {
+    // On his shoulder, as the scuff has it, rocking a little with his step.
+    const bat = shoulderBat(body), bob = .012 * Math.sin(Math.PI * u);
+    return { ...body, ...bat, grip: [bat.grip[0], bat.grip[1] + bob, bat.grip[2]], fist: point(fist) };
+  }
+  if (style === 'tucked') {
+    // Tucked under his arm, as a batter walks out with it, both hands off it
+    // (from the owner's photograph): the blade clamped between the upper arm
+    // and his ribs, the handle forward and up in front of his chest, the toe
+    // out behind him sloping down, the flat of it against his side; that arm
+    // hanging with the elbow back to hold it and the hand forward at his hip.
+    // Held by the handle out at the hip, it read as a rifle.
+    const along = ahead.clone().multiplyScalar(TUCK.forward).addScaledVector(UP, TUCK.rise).normalize();
+    const pit = shoulderOf(body, 1).addScaledVector(UP, -TUCK.under).addScaledVector(outR, TUCK.out);
+    const grip = pit.clone().addScaledVector(along, TUCK.at);
+    const hand = shoulderOf(body, 1).addScaledVector(UP, -TUCK.hand[0]).addScaledVector(ahead, TUCK.hand[1]).addScaledVector(outR, TUCK.hand[2]);
+    return { ...body, grip: point(grip), batUp: point(along), batFace: point(outR), ownFace: 1,
+      fist: point(fist), letGo: 1, otherFist: point(hand) };
+  }
+  // At his side by the handle, the arm swinging, the bat's the less for its weight.
+  const batArm = -WALK.batSwing * along(rightFoot);
+  const grip = shoulderOf(body, 1).addScaledVector(UP, -WALK.carry).addScaledVector(outR, WALK.out).addScaledVector(ahead, batArm);
+  // The blade hangs off the handle with its toe out away from the leg and a
+  // little ahead, swinging after the hand. Splayed the other way, the toe
+  // went into his leg.
+  const bat = hanging(UP.clone().addScaledVector(ahead, -.12 - batArm * .6).addScaledVector(outR, -WALK.splay));
+  return { ...body, grip: point(grip), ...bat, fist: point(fist) };
+}
+/** How the new batter carries his bat walking in (`arrival.ts` picks one an arrival). */
+export type WalkStyle = 'carry' | 'shoulder' | 'tucked';
+export const WALK_STYLES: readonly WalkStyle[] = ['carry', 'shoulder', 'tucked'];
+/** The bat tucked under his arm: the hand down from the shoulder, forward of it and out from it; the blade's rise towards the handle and its lean in. */
+/**
+ * The bat tucked under his arm: its line forward and up towards the handle;
+ * the armpit's place under the shoulder and out from the ribs; how far up the
+ * bat from there its handle end sits (the blade's upper half is in the
+ * armpit); the free hand down from the shoulder, forward and out (in, here);
+ * and where its elbow is aimed, out, back and down off the shoulder, so the
+ * upper arm lies down his side over the blade. The blade lies against his
+ * ribs: 7cm out, with the elbow out wide, it hung in the air beside him.
+ */
+const TUCK = { forward: .92, rise: .26, under: .17, out: .02, at: .25, hand: [.50, .20, -.03], elbow: [.10, .30, .40] } as const;
+/** The walk's measures: the feet either side of his line, the swing foot's lift, the hips' height and bob and sway, the arms' swing. */
+const WALK = { track: .11, lift: .09, hip: .895, bob: .03, sway: .018, head: .14, carry: .50, out: .10, splay: .16, hang: .60, batSwing: .30, armSwing: .45 } as const;
+/**
+ * Into place and taking guard: stood side on in his crease, the bat held
+ * upright in front of him in both hands, its toe on the crease, his head up
+ * the pitch at the umpire; a nod when he has it; then turned to look out over
+ * the leg side and round to the off, the bat in the bottom hand; and into his
+ * stance.
+ */
+/** Stood with the knees soft: the game's own stood-up pose has the legs a centimetre past their length, which turned he would show. */
+const AT_EASE: Pose = { ...STANDING, hip: [-0.05, 0.955, -0.03], chest: [0.00, 1.335, 0.01] };
+const TAKING: Pose = { ...AT_EASE, grip: [0.28, 0.82, 0.20], face: 0.05, headDown: -.04, release: 0 };
+const GUARD_GIVEN: Pose = { ...TAKING, headDown: .2 };
+/** Turned square to the bowler to look out over the leg side, then round to the off: the feet stay where they are. */
+const LOOKING_LEG: Pose = { ...AT_EASE, hip: [-0.05, 0.94, -0.03], chest: [0.00, 1.32, 0.01], yaw: .55, face: -.55, headDown: -.08, release: 1, fist: hangingFist({ ...AT_EASE, yaw: .55 }) };
+const LOOKING_OFF: Pose = { ...AT_EASE, yaw: 1.3, face: 2.0, headDown: -.06, release: 1, fist: hangingFist({ ...AT_EASE, yaw: 1.3 }) };
+const ARRIVE_KEYS: Keys = [[ARRIVE.set, TAKING], [ARRIVE.nod[0], TAKING], [(ARRIVE.nod[0] + ARRIVE.nod[1]) / 2, GUARD_GIVEN], [ARRIVE.nod[1], TAKING],
+  [ARRIVE.look, LOOKING_LEG], [ARRIVE.scan, LOOKING_OFF], [ARRIVE.guard, GUARD]];
+/**
+ * From the stop into place: the walk's last pose to the guard he takes, each
+ * foot lifted and set down where it goes, the front foot first and then the
+ * back, so neither slides across the turf into place.
+ */
+function intoPlace(t: number, style: WalkStyle): Pose {
+  const from = walkPose(ARRIVE.walk, style), k = (t - ARRIVE.walk) / (ARRIVE.set - ARRIVE.walk);
+  const pose = mix(from, TAKING, k);
+  const step = (a: Point, b: Point, s: number): Point => {
+    const e = ease(THREE.MathUtils.clamp(s, 0, 1));
+    return [a[0] + (b[0] - a[0]) * e, a[1] + (b[1] - a[1]) * e + .045 * Math.sin(Math.PI * THREE.MathUtils.clamp(s, 0, 1)), a[2] + (b[2] - a[2]) * e];
+  };
+  // He stands up only as the back foot comes in: risen with it still a stride behind, the leg could not reach it.
+  const rise = (TAKING.hip[1] - from.hip[1]) * (ease(THREE.MathUtils.clamp(k * 2 - 1, 0, 1)) - ease(THREE.MathUtils.clamp(k, 0, 1)));
+  return { ...pose, hip: [pose.hip[0], pose.hip[1] + rise, pose.hip[2]], chest: [pose.chest[0], pose.chest[1] + rise, pose.chest[2]],
+    frontFoot: step(from.frontFoot, TAKING.frontFoot, k * 2), backFoot: step(from.backFoot, TAKING.backFoot, k * 2 - 1) };
+}
+/** The whole arrival at `t`: the walk, into place, and the keys from there to his guard. */
+function arrivalPose(t: number, style: WalkStyle = 'carry'): Pose {
+  if (t <= ARRIVE.walk) return walkPose(t, style);
+  if (t <= ARRIVE.set) return intoPlace(t, style);
+  const keys = ARRIVE_KEYS;
+  if (t >= keys[keys.length - 1][0]) return GUARD;
+  let k = 1; while (k < keys.length - 1 && t >= keys[k][0]) k++;
+  const [from, a] = keys[k - 1], [to, b, curve] = keys[k];
+  return mix(a, b, (t - from) / (to - from), curve);
+}
 const DUEL_ON: Keys = (() => {
   const { on, off, foot } = SCRUB;
   const looked: Pose = { ...on, headDown: 0 };
@@ -2975,10 +3119,13 @@ function mix(a: Pose, b: Pose, amount: number, curve = ease): Pose {
     release: THREE.MathUtils.lerp(a.release ?? 0, b.release ?? 0, t),
     spin: THREE.MathUtils.lerp(a.spin ?? 0, b.spin ?? 0, t),
     kneel: THREE.MathUtils.lerp(a.kneel ?? 0, b.kneel ?? 0, t),
+    stride: THREE.MathUtils.lerp(a.stride ?? 0, b.stride ?? 0, t),
     ownFace: THREE.MathUtils.lerp(a.ownFace ?? 0, b.ownFace ?? 0, t),
     // A pose that never let go has no fist of its own: it takes the other's,
     // so the hand leaves the handle for where it is going, not for the origin.
     fist: a.fist || b.fist ? point(a.fist ?? b.fist!, b.fist ?? a.fist!) : undefined,
+    letGo: THREE.MathUtils.lerp(a.letGo ?? 0, b.letGo ?? 0, t),
+    otherFist: a.otherFist || b.otherFist ? point(a.otherFist ?? b.otherFist!, b.otherFist ?? a.otherFist!) : undefined,
   };
 }
 
@@ -3164,7 +3311,9 @@ export class Batter {
   /** This wait in his guard: from when, its rhythm, and the tap under way or due. */
   private idle: { from: number; period: number; phase: number; tapFrom: number; nextTap: number } | null = null;
   /** The walk-on's film and its own clock while it plays (`stage`), or null: see `WALK_ON`. */
-  private staged: { t: number; film: Film } | null = null;
+  private staged: { t: number; film: Film | 'arrive' } | null = null;
+  /** How the new batter carries his bat in on his arrival (`WalkStyle`). */
+  walkStyle: WalkStyle = 'carry';
   /** Where the light is across the bat's face (`sweep`): far off the blade while there is none. */
   private readonly sweepAt = { value: -9 };
   /** Where the bowler is in his run-up, as the scene last said, and when it last did: see `runup`. */
@@ -3889,14 +4038,16 @@ export class Batter {
    * then into his guard, and nothing else he does in the meantime. Null hands
    * him back, in the guard the film ends in.
    */
-  stage(t: number | null, film: Film = 'bat') {
+  stage(t: number | null, film: Film | 'arrive' = 'bat') {
     if (t === null) {
       if (this.staged !== null) { this.staged = null; this.reset(); }
       return;
     }
     this.staged = { t, film };
   }
-  private applyStaged({ t, film }: { t: number; film: Film }) {
+  private applyStaged({ t, film }: { t: number; film: Film | 'arrive' }) {
+    // The new batter's arrival (`arrival.ts`): the walk, into place, the guard and the look round.
+    if (film === 'arrive') { this.apply(arrivalPose(t, this.walkStyle)); return; }
     // The duel's batter (`DUEL_ON`) until he is in his guard; then waiting in
     // it as for any ball, but on the film's clock: his waggle easing in, a
     // tap of the bat as the bowler stares, and nobody yet running in.
@@ -4828,7 +4979,7 @@ export class Batter {
     this.arms.forEach((arm, i) => arm.glove.position.set(0, i === 0 ? HAND.top : HAND.bottom, 0));
     for (let pass = 0; pass < 5; pass++) for (let i = 0; i < 2; i++) {
       // A hand mostly off the bat has no say in where the bat can go.
-      if (i === FREE_HAND && (pose.release ?? 0) > .5) continue;
+      if ((i === FREE_HAND ? pose.release ?? 0 : pose.letGo ?? 0) > .5) continue;
       // Measured at the wrist the solver is about to place, which is neither
       // the bat's origin nor the fist: it sits beside the handle, and how far
       // beside depends on where the arm is coming from.
@@ -5165,14 +5316,21 @@ export class Batter {
        * down the arm, and a turn between two opposite directions has no one
        * way round, so it spun. The glove is round enough not to need one.
        */
-      const release = i === FREE_HAND && pose.fist ? ease(THREE.MathUtils.clamp(pose.release ?? 0, 0, 1)) : 0;
+      const freed = i === FREE_HAND ? pose.fist : pose.otherFist;
+      const release = freed ? ease(THREE.MathUtils.clamp((i === FREE_HAND ? pose.release : pose.letGo) ?? 0, 0, 1)) : 0;
       if (release > 0) {
         const outward = arm.shoulder.clone().sub(chest).normalize();
         const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.torso.quaternion);
-        const fist = V(pose.fist!);
+        const fist = V(freed!);
         const reach = fist.clone().sub(arm.shoulder);
         if (reach.length() > .64) fist.copy(arm.shoulder).addScaledVector(reach.normalize(), .64);
-        const out = arm.shoulder.clone().addScaledVector(outward, .45).addScaledVector(forward, .12).addScaledVector(spine, -.10);
+        // A fist let go swings its elbow out beside the shoulder; the bottom
+        // hand let go is clamping the bat under that arm (`TUCK`), so its
+        // elbow goes down and back against his side, the upper arm pressing
+        // the blade to his ribs. Out wide, the bat hung in the air beside him.
+        const out = i === FREE_HAND
+          ? arm.shoulder.clone().addScaledVector(outward, .45).addScaledVector(forward, .12).addScaledVector(spine, -.10)
+          : arm.shoulder.clone().addScaledVector(outward, TUCK.elbow[0]).addScaledVector(forward, -TUCK.elbow[1]).addScaledVector(spine, -TUCK.elbow[2]);
         const pole = elbow.clone().lerp(out, release);
         hand.lerp(fist, release);
         elbow = solveJoint(arm.shoulder, hand, .32, .34, pole);
@@ -5262,6 +5420,11 @@ export class Batter {
       if ((this.turning || this.spinPulling) && Number.isFinite(this.poseAge) && this.poseAge < STROKE_DURATION_MS) kneePole.applyAxisAngle(UP, pose.yaw - GUARD.yaw);
       // On both knees: forward of him and down to the turf.
       if (pose.kneel) kneePole.lerp(new THREE.Vector3(Math.sin(pose.yaw) * .55, -.35, Math.cos(pose.yaw) * .55), pose.kneel);
+      // Walking: forward over its own shoe.
+      if (pose.stride) {
+        const along = i === 0 ? pose.frontFootYaw ?? pose.yaw : pose.backFootYaw ?? pose.yaw;
+        kneePole.lerp(new THREE.Vector3(Math.sin(along) * .65, -.1, Math.cos(along) * .65), pose.stride);
+      }
       const knee = solveJoint(hipJoint, foot, .43, .44, hipJoint.clone().add(kneePole));
       this.segment(leg.thigh, hipJoint, knee, .175, .19);
       this.segment(leg.shin, knee, foot, .145, .16);

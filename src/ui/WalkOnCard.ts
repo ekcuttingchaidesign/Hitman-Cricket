@@ -26,7 +26,7 @@ export function walkOnCardMarkup(card: WalkOnCard): string {
         <div class="woc-head">
           <span class="woc-face">${kitMarkup(card.avatar, card.name)}<span class="woc-badge">${tierBadge(card.tier, true, card.rung)}</span></span>
           <div class="woc-who">
-            <span class="woc-eyebrow">${escape(card.modeName)}${card.debut ? ' · First innings' : ''}</span>
+            <span class="woc-eyebrow">${escape(card.eyebrow ?? `${card.modeName}${card.debut ? ' · First innings' : ''}`)}</span>
             <span class="woc-name ps-name">${escape(card.name)}</span>
           </div>
           <span class="ps-pill woc-pill">${escape(card.rung)}</span>

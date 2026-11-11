@@ -34,6 +34,8 @@ import { SUPER10_KITS, super10Number, type Super10Kit } from '../game/super10-ki
 import type { CameraPose } from '../game/ShotReel';
 import { SPILL_FALL, spillTo } from '../game/catch-cam';
 import { introCamera, introSweep, type Film } from '../game/IntroReel';
+import { arrivalCamera, type ArrivalAngle } from '../game/arrival';
+import type { WalkStyle } from '../entities/Batter';
 import { diwaliOn } from '../game/diwali';
 import { batSheet } from '../entities/batSkins';
 import { Puff, type Burst } from './puff';
@@ -1836,7 +1838,7 @@ export class GameScene {
    * null to put it away and hand the camera, the batter and the bowler back.
    * `introAt` pins its clock to one moment, for the checks.
    */
-  walkOn(now: number | null, film: Film = 'bat') {
+  walkOn(now: number | null, film: Film | 'arrive' = 'bat', style: WalkStyle = 'carry', angle: ArrivalAngle = 'behind') {
     if (now === null) {
       if (!Number.isFinite(this.introFrom)) return;
       this.introFrom = -Infinity; this.introPinned = null;
@@ -1845,6 +1847,9 @@ export class GameScene {
       return;
     }
     this.introFrom = now; this.introPinned = null; this.introFilm = film;
+    // The new batter's arrival (`arrival.ts`): the walk tracked, then onto the game's view.
+    // It opens on a cut, so the wicket is tidied away under it: the bails back on, the ball gone, the field on its marks.
+    if (film === 'arrive') { this.reset(); this.batter.walkStyle = style; this.cinematic(at => arrivalCamera(this.introClock(at), this.homeView, angle)); return; }
     // The duel is framed on where he stands at the top of his mark, as the
     // stage has him: he is mirrored back on his own inside it, so his own
     // position is the other side of the stumps from where he is drawn.
@@ -1855,7 +1860,7 @@ export class GameScene {
   introAt(t: number | null) { this.introPinned = t; }
   private introFrom = -Infinity;
   private introPinned: number | null = null;
-  private introFilm: Film = 'bat';
+  private introFilm: Film | 'arrive' = 'bat';
   private introClock(now: number) { return this.introPinned ?? now - this.introFrom; }
   /**
    * A film's camera in place of the game's (`ShotReel.ts`): asked each frame
@@ -1884,7 +1889,7 @@ export class GameScene {
     if (this.ledUp) this.led.update(now, this.bailsBrokeAt ? now - this.bailsBrokeAt : -1, this.reducedMotion);
     if (Number.isFinite(this.introFrom)) {
       const t = this.introClock(now), film = this.introFilm;
-      this.batter.stage(t, film); this.batter.sweep(introSweep(film, t));
+      this.batter.stage(t, film); this.batter.sweep(film === 'arrive' ? null : introSweep(film, t));
     }
     this.batter.update(now);
     if (this.lure) this.batter.root.position.z = GAME.stanceZ + this.lure;
