@@ -375,6 +375,8 @@ const FIELD_WAIT_MS = 6000;
  * is about a second and a quarter, and one cut short by the run-up was a dip.
  */
 const TAP_WAIT_MS = 1400;
+/** After the keeper's card is put away, how long the spinner stands at his mark before he runs in, so the player is set for his first ball. */
+const KEEPER_SETTLE_MS = 1200;
 /** How much play is kept in memory before it is added to the day's and week's totals: a mark goes out at most this late. */
 const BATTED_FOLD_MS = 5000;
 
@@ -2432,7 +2434,7 @@ export class Game {
     // A Test by day; the Blast by the player's clock, or their own choice.
     this.light(this.test ? 'day' : blastLights());
     // Under a clear sky, with nothing yet told.
-    this.told = { swing: false }; this.bannerUntil = 0; this.keeperHeld = false; this.hud.closeIntro();
+    this.told = { swing: false }; this.bannerUntil = 0; this.keeperHeld = 0; this.hud.closeIntro();
     this.scene.overcast(false, true); this.hud.levelBanner(null);
     this.hud.start(this.surviving, this.marathoning);
     document.body.classList.toggle('s10-solid', this.super10);
@@ -2620,17 +2622,18 @@ export class Game {
     if (asked ? this.keeperTold : !keeperIntroDue()) return;
     this.keeperTold = true;
     noteKeeperIntro();
-    this.keeperHeld = true;
+    this.keeperHeld = Number.POSITIVE_INFINITY;
     this.mark('keeper-intro', 'Keeper card shown');
     this.hud.marathonIntro(how => {
       this.mark(how === 'skipped' ? 'keeper-intro-skipped' : 'keeper-intro-done', how === 'skipped' ? 'Keeper card skipped' : 'Keeper card put away');
-      this.keeperHeld = false;
+      // A beat to get set before he runs in: straight off the card, the ball was on him before his thumb was ready.
+      this.keeperHeld = this.elapsed + KEEPER_SETTLE_MS;
     }, [KEEPER_STEP], { game: this.coachGame, place: spot => spot === 'keeper' ? this.scene.keeperOnScreen() : null });
   }
   /** The keeper's card has been up this visit: `?keeperintro=1` shows it once a visit, not every spinner's ball. */
   private keeperTold = false;
-  /** The spinner held at his mark while the keeper's card is up (`teachKeeper`). */
-  private keeperHeld = false;
+  /** The spinner held at his mark until then: while the keeper's card is up, and a beat after it is put away (`teachKeeper`). */
+  private keeperHeld = 0;
   /**
    * HOW TO PLAY on the cover: the coachmarks a first innings opens with (how
    * to hit, then the confidence meter), over a picture of the Blast's ground
@@ -4671,9 +4674,11 @@ export class Game {
       if (spun(this.delivery)) this.teachKeeper();
       // The stands lift as he runs in, and settle once the ball has gone.
       this.audio.swellCrowd(1 + RUNUP.swell, GAME.runupMs / 1000, RUNUP.settle, 0, GAME.runupMs / 3000);
-    } else if (this.phase === 'BOWLER_RUNUP' && this.keeperHeld) {
-      // At his mark while the keeper's card is up, and from the top when it is put away.
-      this.phaseStart = this.elapsed; this.scene.runup(0);
+    } else if (this.phase === 'BOWLER_RUNUP' && this.elapsed < this.keeperHeld) {
+      // At his mark while the keeper's card is up, and from the top of his run when it is put away:
+      // his action held at its start too, or it ran on through a ball nobody saw and the real one
+      // came out of him stood still at the end of it.
+      this.phaseStart = this.elapsed; this.scene.holdAtMark();
     } else if (this.phase === 'BOWLER_RUNUP') {
       this.scene.runup(Math.min(1, age / GAME.runupMs));
       if (age >= GAME.runupMs) {

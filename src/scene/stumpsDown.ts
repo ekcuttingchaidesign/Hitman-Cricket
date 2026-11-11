@@ -17,6 +17,14 @@ import { STUMP_XS } from './wicket';
  *     the ball, the likelier and the further;
  *   - `splay`: between two stumps, both knocked back and apart.
  *
+ * The spinner's ball never uproots a stump, however low it is (`spun`): it
+ * has not the pace, and the owner did not want it. It leans a stump back,
+ * splays two or takes the bails.
+ *
+ * Played on, off an inside edge, the ball only dislodges the bails (`clip`):
+ * the bat has taken the pace off it, and the owner did not want the stumps
+ * knocked by it.
+ *
  * Which of them is drawn off the delivery's own figures (`roll`, from its
  * speed), never the page's dice, so a replay of the ball breaks the wicket
  * the same way the ball did. Everything is a function of the time since the
@@ -58,7 +66,7 @@ export function rollOf(kph: number, salt = 0): number {
  * How the wicket goes, from where the ball is as it reaches the stumps (`x`
  * across, `y` up), its speed and whether it is a yorker.
  */
-export function fallOf(x: number, y: number, kph: number, yorker: boolean): WicketHit {
+export function fallOf(x: number, y: number, kph: number, yorker: boolean, playedOn = false, spun = false): WicketHit {
   const pace = Math.min(1, Math.max(0, (kph - 75) / 80));
   let struck = 0;
   STUMP_XS.forEach((sx, i) => { if (Math.abs(x - sx) < Math.abs(x - STUMP_XS[struck])) struck = i; });
@@ -66,12 +74,16 @@ export function fallOf(x: number, y: number, kph: number, yorker: boolean): Wick
   const side = Math.max(-1, Math.min(1, off / .04));
   const roll = rollOf(kph), spin = rollOf(kph, 1);
   const base = { struck, second: null, pace, yorker, side, spin };
-  // A yorker is at his toes, so at the foot of the stump: it comes out, whatever the line.
-  if (yorker || y < .18) return { ...base, fall: 'uproot', yorker: true };
+  // Played on, off an inside edge: the bat has taken the pace off it, so it only dislodges the bails, whatever its line or length.
+  if (playedOn) return { ...base, yorker: false, pace: pace * .5, fall: 'clip' };
+  // A yorker is at his toes, so at the foot of the stump: it comes out, whatever the line. Never the spinner's: see below.
+  if (!spun && (yorker || y < .18)) return { ...base, fall: 'uproot', yorker: true };
   if (y > STUMP.clipAbove) return { ...base, fall: 'clip' };
   // Between two stumps, nearer the gap than either: both of them go.
   const next = struck + Math.sign(off);
   if (Math.abs(off) > .05 && next >= 0 && next < STUMP_XS.length && roll < .7) return { ...base, fall: 'splay', second: next };
+  // The spinner's ball has not the pace to send a stump out of the ground: knocked back and leaning, or the bails alone.
+  if (spun) return { ...base, yorker: false, fall: roll < .65 ? 'lean' : 'clip' };
   // Quicker, the likelier it is sent cartwheeling; slower, knocked back and left leaning, or the bails alone.
   const uproot = .2 + .45 * pace, lean = uproot + .55 - .2 * pace;
   return { ...base, fall: roll < uproot ? 'uproot' : roll < lean ? 'lean' : 'clip' };

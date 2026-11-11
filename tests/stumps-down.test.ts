@@ -83,3 +83,28 @@ describe('the wicket going down', () => {
     }
   });
 });
+
+describe('played on', () => {
+  it('only dislodges the bails off an inside edge, whatever the line, length or pace', () => {
+    for (const x of [-.15, -.07, 0, .07, .15]) for (const y of [.08, .3, .5]) for (const kph of [80, 140, 165]) for (const yorker of [false, true]) {
+      const hit = fallOf(x, y, kph, yorker, true);
+      expect(hit.fall).toBe('clip'); expect(hit.yorker).toBe(false);
+      for (let i = 0; i < 3; i++) {
+        const p = stumpPose(hit, i, 1500);
+        expect(Math.abs(p.rx)).toBeLessThan(.002); expect(p.y).toBe(0); expect(p.z).toBe(0);
+      }
+    }
+  });
+});
+
+describe("the spinner's ball", () => {
+  it('never uproots a stump, however low or on whatever line, but still knocks one back or takes the bails', () => {
+    const falls = new Set<string>();
+    for (const x of [-.15, -.07, 0, .07, .15]) for (const y of [.06, .15, .3, .5]) for (let kph = 70; kph <= 100; kph += .7) {
+      const hit = fallOf(x, y, kph, false, false, true);
+      expect(hit.fall).not.toBe('uproot'); expect(hit.yorker).toBe(false);
+      falls.add(hit.fall);
+    }
+    expect(falls).toContain('lean'); expect(falls).toContain('clip');
+  });
+});
