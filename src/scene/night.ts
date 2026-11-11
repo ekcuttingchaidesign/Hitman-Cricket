@@ -226,12 +226,12 @@ export function glows(roof: THREE.Vector3[], towers: THREE.Vector3[], spots: THR
 }
 
 /**
- * A Test Marathon's day, in balls, as the owner set it: twenty-five overs from
- * morning to evening, the evening held for ten more, then one over of dusk
+ * A Test Marathon's day, in balls, as the owner set it: twenty overs from
+ * morning to evening (twenty-five at first, which the owner found too long), the evening held for ten more, then one over of dusk
  * and dawn (the light turned down and brought back up on the new morning, so
  * the next day is not a cut from one ball to the next), and round again.
  */
-const DAY_BALLS = 150, EVENING_BALLS = 60, TURN_BALLS = 6, DUSK = 0.35;
+const DAY_BALLS = 120, EVENING_BALLS = 60, TURN_BALLS = 6, DUSK = 0.35;
 /** Where a Marathon's day is after `balls`: how far through it, and how far the light is turned down. */
 export function marathonDay(balls: number): { at: number; dim: number } {
   const b = balls % (DAY_BALLS + EVENING_BALLS + TURN_BALLS);

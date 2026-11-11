@@ -2801,12 +2801,12 @@ pavilion and the canopy.
 The owner liked the light ("feels like golden hour") and asked for two
 things on it. **A Test's day moves** (`DAY_ARC`, `dayArcAt` in `night.ts`, in
 `tests/day-arc.test.ts`; `dayAt` in `GameScene`, `dayNow` in `src/Game.ts`):
-morning to evening by the balls bowled: Survival's sixty, or twenty-five
-overs of a Marathon, the evening then held for ten more, and one over of
+morning to evening by the balls bowled: Survival's sixty, or twenty
+overs of a Marathon (twenty-five at first, too long, the owner said), the evening then held for ten more, and one over of
 dusk and dawn before the next morning (`marathonDay` in `night.ts`, the
 owner's pacing: the light turned down over three balls on the evening and
 brought back up over three on the morning, `dim` on `dayAt`, since evening
-one ball and morning the next was a cut), and round again every thirty-six
+one ball and morning the next was a cut), and round again every thirty-one
 overs. `?day=evening` (or `morning`, `noon`,
 `afternoon`, or a number from 0 to 1; `DAY_ASKED`) holds any innings played
 by day at that time, the Blast's too, and is not practice. The sun is low and
@@ -3369,8 +3369,10 @@ the lens and never nearer than three metres. He stands with the knees soft for i
 `STANDING` has the shins a centimetre past their length, which turned he
 would show. A name card is up over the walk (`ARRIVAL_CARD`): the walk-on's
 lower third with the score in its eyebrow (`eyebrow` on `WalkOnCard`), the
-squad's man and his place in Super10, the Marathon's man by his place, a
-teammate in the Blast, the player in the Test match. The Blast's No. 2 and
+squad's man and his place in Super10, a teammate in the Blast and the
+Marathon (its NO. 3 and TAILENDER the same way, the owner finding the
+player's name on every one repetitive; `blastMate` reads its place off
+`marathon.current`), the player in Survival. The Blast's No. 2 and
 No. 3 are teammates (`src/game/blast-squad.ts`, `mates` and `blastMate` in
 `src/Game.ts`, in `tests/blast-squad.test.ts`): the player walking back in
 after every wicket made the arrival the same man three times, the owner

@@ -39,21 +39,21 @@ describe('a Test\'s day, morning to evening', () => {
 });
 
 describe("a Marathon's day", () => {
-  it('reaches evening at the end of the twenty-fifth over and holds it for ten', () => {
+  it('reaches evening at the end of the twentieth over and holds it for ten', () => {
     expect(marathonDay(0)).toEqual({ at: 0, dim: 1 });
-    expect(marathonDay(149).at).toBeGreaterThan(.99);
-    for (let b = 150; b < 210; b++) expect(marathonDay(b)).toEqual({ at: 1, dim: 1 });
+    expect(marathonDay(119).at).toBeGreaterThan(.99);
+    for (let b = 120; b < 180; b++) expect(marathonDay(b)).toEqual({ at: 1, dim: 1 });
   });
   it('turns to the next morning through an over of dusk and dawn, never a cut at full light', () => {
-    const turn = Array.from({ length: 6 }, (_, k) => marathonDay(210 + k));
+    const turn = Array.from({ length: 6 }, (_, k) => marathonDay(180 + k));
     expect(turn.slice(0, 3).every(d => d.at === 1)).toBe(true);
     expect(turn.slice(3).every(d => d.at === 0)).toBe(true);
     // Darkest either side of the change, and no step in the light bigger than a third.
     expect(turn[2].dim).toBeCloseTo(turn[3].dim);
     expect(turn[2].dim).toBeLessThan(.4);
-    const dims = [1, ...turn.map(d => d.dim), marathonDay(216).dim];
+    const dims = [1, ...turn.map(d => d.dim), marathonDay(186).dim];
     for (let i = 1; i < dims.length; i++) expect(Math.abs(dims[i] - dims[i - 1])).toBeLessThan(.34);
-    expect(marathonDay(216)).toEqual({ at: 0, dim: 1 });
-    expect(marathonDay(216 + 75).at).toBeCloseTo(.5);
+    expect(marathonDay(186)).toEqual({ at: 0, dim: 1 });
+    expect(marathonDay(186 + 60).at).toBeCloseTo(.5);
   });
 });
