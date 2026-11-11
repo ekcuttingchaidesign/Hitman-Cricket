@@ -178,8 +178,8 @@ describe('the field', () => {
 
     it('has a man it passes a few metres off, too far to dive, get across towards it', () => {
       const field = new Field();
-      // Eleven degrees off mid-off at 24°: four metres wide of him at his depth.
-      const end = line(field, 35, 44);
+      // Eleven degrees off mid-off at 17°: four metres wide of him at his depth.
+      const end = line(field, 28, 44);
       field.ground(HIT, HIT + 1250, look, { from: origin, to: end, flightMs: 1250, four: true });
       const routines = routinesOf(field);
       const midOff = BLAST_FIELD.findIndex(m => m.name === 'Mid-off');
