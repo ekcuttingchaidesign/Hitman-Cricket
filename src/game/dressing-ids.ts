@@ -15,13 +15,16 @@ export type GuardId = typeof GUARD_IDS[number];
 export const FREE_OUTFIT: OutfitId = 'home';
 /** Every kit that comes free: the one he is built in, Papaya, and the five Diwali kits while they are up. Never won, never celebrated. */
 export const FREE_OUTFITS: readonly OutfitId[] = ['home', 'papaya', 'diwali', 'diwali-blue', 'diwali-ivory', 'diwali-green', 'diwali-yellow'];
-/** The end of 11 November 2026 in India. */
-const DIWALI_UNTIL = Date.UTC(2026, 10, 11, 18, 30);
+/**
+ * When Diwali came down: 12:30 on 11 November 2026 in India (07:00 UTC), a
+ * little before the end of the day it was first set for, as the owner asked.
+ */
+const DIWALI_UNTIL = Date.UTC(2026, 10, 11, 7, 0);
 /**
  * Kits on the shelf for a while only, and when they come off it: the Diwali
  * kits (Royal Anaar, Sky Shot, Kaju Katli, Sutli Bomb, Soan Papdi) and bats
- * (Golden Arrow, Dhoom, Chain Reaction, Angaar, Chakri), free to everybody until the end of 11 November 2026 in India
- * (18:30 UTC). After that each is off the shelf, a pick of one is worn as
+ * (Golden Arrow, Dhoom, Chain Reaction, Angaar, Chakri), free to everybody until 12:30 on 11 November 2026 in India
+ * (07:00 UTC). After that each is off the shelf, a pick of one is worn as
  * the free kit, and nobody bats in it; the id stays known, so a saved pick or a
  * Rival Match innings batted in it still reads.
  */

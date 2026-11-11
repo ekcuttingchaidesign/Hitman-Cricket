@@ -4,8 +4,8 @@ import { DIWALI_SIX_MS } from '../src/scene/diwaliSix';
 import { CUES } from '../src/scene/arena';
 
 const DIWALI_WEEK = Date.parse('2026-11-08T20:00:00+05:30');
-const LAST_MINUTE = Date.parse('2026-11-11T23:59:00+05:30');
-const AFTER_DIWALI = Date.parse('2026-11-12T00:00:00+05:30');
+const LAST_MINUTE = Date.parse('2026-11-11T12:29:00+05:30');
+const AFTER_DIWALI = Date.parse('2026-11-11T12:30:00+05:30');
 
 describe('the Dressing Room card\'s NEW DIWALI KITS', () => {
   it('is Diwali week to the end of 11 November in India, and not after', () => {

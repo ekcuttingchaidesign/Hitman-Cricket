@@ -885,7 +885,11 @@ change without touching a saved pick. All five are prints, the Super10 kits'
 machinery, so each costs a texture and no draw call, and the motifs are
 bigger and fewer than the cloth's so they read from the game's camera. All
 are free to everybody (`FREE_OUTFITS`, never won or celebrated) and on the
-shelf only until the end of 11 November 2026 in India (`LIMITED_UNTIL`,
+shelf only until 12:30 on 11 November 2026 in India (`LIMITED_UNTIL`,
+`DIWALI_UNTIL`: the end of that day at first, brought forward at the
+owner's word, which took the kits, the bats, the stories, the card's badge
+and the Diwali six down together, the six going back to the brand's sting
+and the game's own screen),
 `onShelf` in `dressing-ids.ts`), by the browser's clock: after that they are
 off the shelf, a pick of one is worn as OG Navy (`outfitOwned` asks the time),
 and nothing needs reverting. `ALL_OUTFITS` is every kit there has been, so a

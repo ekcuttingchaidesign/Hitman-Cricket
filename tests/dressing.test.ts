@@ -37,13 +37,13 @@ describe('the Dressing Room shelves', () => {
     expect(earned(record(), AFTER_DIWALI)).toEqual({ outfits: ['home', 'papaya'], bats: ['plain'], super10: ['s10-purple'] });
   });
 
-  it('gives every player the five Diwali bats until the end of 11 November in India, and never after', () => {
+  it('gives every player the five Diwali bats until 12:30 on 11 November in India, and never after', () => {
     const diwali = ['goldenarrow', 'dhoom', 'chainreaction', 'angaar', 'chakri'] as const;
     expect(earned(record(), DIWALI_WEEK).bats).toEqual(['plain', ...diwali]);
     for (const id of diwali) {
       expect(FREE_BATS).toContain(id);
       expect(batSteps(id, record())).toBeNull();
-      expect(batOwned(id, record(), Date.parse('2026-11-11T23:59:00+05:30'))).toBe(true);
+      expect(batOwned(id, record(), Date.parse('2026-11-11T12:29:00+05:30'))).toBe(true);
       expect(batOwned(id, record(), AFTER_DIWALI)).toBe(false);
       expect(batsAt(DIWALI_WEEK).map(b => b.id)).toContain(id);
       expect(batsAt(AFTER_DIWALI).map(b => b.id)).not.toContain(id);
@@ -55,14 +55,14 @@ describe('the Dressing Room shelves', () => {
   });
 
   describe('the Diwali kits', () => {
-    it('is free to everybody until the end of 11 November in India, and off the shelf after', () => {
+    it('is free to everybody until 12:30 on 11 November in India, and off the shelf after', () => {
       const r = record();
       expect(outfitSteps('diwali', r)).toBeNull();
       expect(earned(r, DIWALI_WEEK).outfits).toEqual(['home', 'papaya', 'diwali', 'diwali-blue', 'diwali-ivory', 'diwali-green', 'diwali-yellow']);
       for (const id of ['diwali', 'diwali-blue', 'diwali-ivory', 'diwali-green', 'diwali-yellow'] as const) {
         expect(outfitSteps(id, r)).toBeNull();
-        expect(outfitOwned(id, r, Date.parse('2026-11-11T23:59:00+05:30'))).toBe(true);
-        expect(outfitOwned(id, r, Date.parse('2026-11-12T00:00:00+05:30'))).toBe(false);
+        expect(outfitOwned(id, r, Date.parse('2026-11-11T12:29:00+05:30'))).toBe(true);
+        expect(outfitOwned(id, r, Date.parse('2026-11-11T12:30:00+05:30'))).toBe(false);
         expect(outfitsAt(DIWALI_WEEK).map(o => o.id)).toContain(id);
         expect(outfitsAt(AFTER_DIWALI).map(o => o.id)).not.toContain(id);
       }
