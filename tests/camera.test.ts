@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { CAMERAS, CAMERA_KEY, cameraAsked, facesBatter, readCamera, swipeAsPlayed } from '../src/game/camera';
 import { mapSwipe } from '../src/game/InputManager';
-import { BROADCAST, PRO_CAM, broadcastViewFor, homeViewFor, proViewFor } from '../src/scene/homeView';
+import { BROADCAST, CLOSE_CAM, PRO_CAM, broadcastViewFor, closeViewFor, homeViewFor, proViewFor } from '../src/scene/homeView';
 import { fieldMapMarkup } from '../src/ui/FieldMap';
 import { BODY_LAYER, Batter } from '../src/entities/Batter';
 import { fieldFor } from '../src/game/super10-field';
@@ -23,10 +23,12 @@ describe('the camera the innings is watched through', () => {
     expect(facesBatter('broadcast')).toBe(true);
     expect(facesBatter('classic')).toBe(false);
     expect(facesBatter('pro')).toBe(false);
+    expect(facesBatter('close')).toBe(false);
+    expect(cameraAsked('?cam=close')).toBe('close');
   });
 
-  it('offers Classic and Pro Cam on the row, Broadcast only from the link', () => {
-    expect(CAMERAS.map(c => c.id)).toEqual(['classic', 'pro']);
+  it('offers Classic, Close and Pro Cam on the row, Broadcast only from the link', () => {
+    expect(CAMERAS.map(c => c.id)).toEqual(['classic', 'close', 'pro']);
     const store = new Map<string, string>();
     const was = globalThis.localStorage;
     Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v) } });
@@ -98,40 +100,66 @@ describe('the broadcast view', () => {
   });
 });
 
-/** Where a point lands in the Pro Cam picture, the lens where its fallback stands. */
-function proSeen(aspect: number, x: number, y: number, z: number) {
-  const view = proViewFor(aspect), camera = new THREE.PerspectiveCamera(view.fov, aspect, .1, 500);
-  camera.position.set(...view.eye); camera.lookAt(...view.at); camera.updateMatrixWorld();
+/** Where a point lands in a picture taken from `view`. */
+function seenFrom(view: { eye: readonly number[]; at: readonly number[]; fov: number }, aspect: number, x: number, y: number, z: number) {
+  const camera = new THREE.PerspectiveCamera(view.fov, aspect, .1, 500);
+  camera.position.set(view.eye[0], view.eye[1], view.eye[2]); camera.lookAt(view.at[0], view.at[1], view.at[2]); camera.updateMatrixWorld();
   return new THREE.Vector3(x, y, z).project(camera);
 }
+const proSeen = (aspect: number, x: number, y: number, z: number) => seenFrom(proViewFor(aspect), aspect, x, y, z);
+
+describe('Close, low behind him', () => {
+  const phones = [0.56, 9 / 16, 0.5, 402 / 874, 0.45];
+  it('stands lower and nearer him than the classic camera, behind the stumps', () => {
+    const classic = homeViewFor(.46);
+    expect(CLOSE_CAM.eye[1]).toBeLessThan(classic.eye[1]);
+    expect(CLOSE_CAM.eye[2]).toBeGreaterThan(classic.eye[2]);
+    expect(CLOSE_CAM.eye[2]).toBeLessThan(0);
+  });
+  it("sees over his helmet to the bowler's hand: the line to the release clears his head", () => {
+    const [, y, z] = CLOSE_CAM.eye, release = { y: 2.1, z: 18 }, batter = 1;
+    expect(y + (release.y - y) * (batter - z) / (release.z - z)).toBeGreaterThan(1.9);
+  });
+  it("has him whole in the lower half and the bowler's end above him, on every phone", () => {
+    for (const aspect of phones) {
+      const view = closeViewFor(aspect);
+      const head = seenFrom(view, aspect, .36, 1.8, 1), feet = seenFrom(view, aspect, .36, 0, 1), release = seenFrom(view, aspect, .5, 2.1, 18);
+      expect(head.y, `head at ${aspect}`).toBeLessThan(.2);
+      expect(feet.y, `feet at ${aspect}`).toBeGreaterThan(-1);
+      expect(release.y, `release at ${aspect}`).toBeGreaterThan(head.y);
+      expect(release.y, `release at ${aspect}`).toBeLessThan(.7);
+    }
+  });
+});
 
 describe("Pro Cam, the batter's own eyes", () => {
   const phones = [0.56, 9 / 16, 0.5, 402 / 874, 0.45];
-  it('draws him from his eyes: his head, body and legs out of the picture, his forearms in it', () => {
+  it('draws nothing of him but the gloves and the bat, and his shadow still falls', () => {
     const batter = new Batter();
     batter.update(0);
-    const seen = () => {
-      const shown: string[] = [];
-      batter.root.traverseVisible(o => { if ((o as THREE.Mesh).isMesh && o.layers.isEnabled(0)) shown.push(o.uuid); });
-      return new Set(shown);
+    const seen = (root: THREE.Object3D) => {
+      let shown = 0;
+      root.traverseVisible(o => { if ((o as THREE.Mesh).isMesh && o.layers.isEnabled(0)) shown++; });
+      return shown;
     };
-    const before = seen();
+    const whole = seen(batter.root), bat = seen(batter.bat);
     batter.firstPerson(true);
     expect(batter.firstPersonShown).toBe(true);
-    const after = seen();
-    expect(after.size).toBeLessThanOrEqual(before.size / 2);
-    // The bat and gloves stay.
-    let bat = 0;
-    batter.bat.traverseVisible(o => { if ((o as THREE.Mesh).isMesh && o.layers.isEnabled(0)) bat++; });
-    expect(bat).toBeGreaterThan(3);
+    // Only the bat and the gloves on it: no head, body, legs, arms or gauntlets.
+    expect(seen(batter.root)).toBe(seen(batter.bat));
+    expect(seen(batter.bat)).toBe(bat);
     // What went is on the body's layer, which the sun's shadow camera still sees.
     let body = 0;
     batter.root.traverse(o => { if (o.layers.isEnabled(BODY_LAYER)) body++; });
     expect(body).toBeGreaterThan(10);
+    // Up against the lens the bat and gloves go too, still casting.
+    batter.firstPerson(true, false);
+    expect(batter.batShown).toBe(false);
+    expect(seen(batter.root)).toBe(0);
     batter.firstPerson(false);
-    expect(seen().size).toBe(before.size);
+    expect(seen(batter.root)).toBe(whole);
   });
-  it('has his eyes in front of his face, at a standing man\'s height in his guard', () => {
+  it("has his eyes in front of his face, at a standing man's height in his guard", () => {
     const batter = new Batter();
     batter.update(0);
     batter.root.updateMatrixWorld(true);
@@ -139,19 +167,18 @@ describe("Pro Cam, the batter's own eyes", () => {
     expect(eyes.y).toBeGreaterThan(1.3);
     expect(eyes.y).toBeLessThan(1.8);
   });
-  it('stands a hand\'s width behind and over them, and draws nothing nearer than a forearm', () => {
+  it("stands just behind his eyes and draws the bat only clear of the lens", () => {
     expect(PRO_CAM.behind).toBeGreaterThan(0);
     expect(PRO_CAM.behind).toBeLessThan(.5);
     expect(PRO_CAM.above).toBeLessThan(.15);
-    expect(PRO_CAM.near).toBeGreaterThan(.1);
-    expect(PRO_CAM.near).toBeLessThan(.35);
+    expect(PRO_CAM.near).toBeLessThan(PRO_CAM.clear);
   });
-  it('has the bowler\'s hand in the top half of the picture and the pitch in front of him below it, on every phone', () => {
+  it('looks nearly level down the middle: the bowler near the middle of the picture, the pitch below, on every phone', () => {
     for (const aspect of phones) {
-      const release = proSeen(aspect, .5, 2.1, 18), pitch = proSeen(aspect, 0, 0, 4);
-      expect(release.y, `release at ${aspect}`).toBeGreaterThan(0);
-      expect(release.y, `release at ${aspect}`).toBeLessThan(.85);
-      expect(Math.abs(release.x), `release across at ${aspect}`).toBeLessThan(.8);
+      const release = proSeen(aspect, .5, 2.1, 18), stumps = proSeen(aspect, 0, 0, 20), pitch = proSeen(aspect, 0, 0, 4);
+      expect(release.y, `release at ${aspect}`).toBeGreaterThan(-.1);
+      expect(release.y, `release at ${aspect}`).toBeLessThan(.5);
+      expect(Math.abs(stumps.x), `stumps across at ${aspect}`).toBeLessThan(.2);
       expect(pitch.y, `pitch at ${aspect}`).toBeLessThan(release.y);
       expect(pitch.y, `pitch at ${aspect}`).toBeGreaterThan(-1);
     }

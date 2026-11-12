@@ -38,7 +38,7 @@ import { introCamera, introSweep, type Film } from '../game/IntroReel';
 import { arrivalCamera, type ArrivalAngle } from '../game/arrival';
 import type { WalkStyle } from '../entities/Batter';
 import { diwaliOn } from '../game/diwali';
-import { BROADCAST, PRO_CAM, broadcastViewFor, homeViewFor, proViewFor } from './homeView';
+import { BROADCAST, PRO_CAM, broadcastViewFor, closeViewFor, homeViewFor, proViewFor } from './homeView';
 /** How much further off the broadcast camera stands from the batter than the classic one: the haze moves back by it. */
 const BROADCAST_HAZE = Math.hypot(BROADCAST.eye[1] - 1, BROADCAST.eye[2] - 1) - Math.hypot(2.9 - 1, 5.15 + 1);
 import { facesBatter, type CameraId } from '../game/camera';
@@ -909,9 +909,12 @@ export class GameScene {
   get cameraId() { return this.view; }
   /** Pro Cam has him drawn from his own eyes this frame (`Batter.firstPerson`). */
   get firstPerson() { return this.batter.firstPersonShown; }
+  /** Under Pro Cam, how far the bat's handle is from the lens and whether it is drawn: for the checks. */
+  get proBat() { return this.batter.firstPersonShown ? { from: +this.batFromLens.toFixed(2), shown: this.batter.batShown } : null; }
+  private batFromLens = 0;
   get playView(): CameraPose {
     const aspect = this.camera.aspect;
-    return this.view === 'broadcast' ? broadcastViewFor(aspect) : this.view === 'pro' ? proViewFor(aspect) : this.homeView;
+    return this.view === 'broadcast' ? broadcastViewFor(aspect) : this.view === 'pro' ? proViewFor(aspect) : this.view === 'close' ? closeViewFor(aspect) : this.homeView;
   }
   /** The camera looks at the batter from in front: the screen is the field turned half round. */
   get facing() { return facesBatter(this.view); }
@@ -946,6 +949,10 @@ export class GameScene {
     else this.eyesHeld.lerp(at, 1 - Math.exp(-dt / PRO_CAM.follow));
     this.camera.position.copy(this.eyesHeld);
     this.camera.lookAt(this.world.localToWorld(this.eyesAim.set(...PRO_CAM.aim)));
+    // The bat and gloves only while they are out at arm's length: within `PRO_CAM.clear` of the lens the
+    // near plane cut through them, and what was left read as a glove chopped in two.
+    this.batFromLens = this.batter.bat.getWorldPosition(this.eyesAt).distanceTo(this.eyesHeld);
+    this.batter.firstPerson(true, this.batFromLens > PRO_CAM.clear);
   }
   private readonly eyesAt = new THREE.Vector3();
   private readonly eyesAim = new THREE.Vector3();

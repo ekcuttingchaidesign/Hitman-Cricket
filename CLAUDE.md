@@ -3683,38 +3683,49 @@ Road to Hitman's fill is `roadOf` in `src/game/tier.ts`: the medallions stand
 evenly, so the fill is a whole rung per tier climbed and the share of the gap
 across the last, not a fraction of the top figure.
 
-## The camera row: Classic and Pro Cam
+## The camera row: Classic, Close and Pro Cam
 
 The innings can be watched through more than one camera
 (`src/game/camera.ts`, in `tests/camera.test.ts`), chosen on the pause
 sheet's Camera row (`#camera-row`, `cameraSwitch`), taken at once
-mid-innings and kept in `hitman-camera`; `?cam=classic`, `pro` or
+mid-innings and kept in `hitman-camera`; `?cam=classic`, `close`, `pro` or
 `broadcast` asks for one for the visit, and is not practice. GoatCounter
 counts `camera-<id>`.
 
 - **Classic**, the game's own view from behind the bat (`homeViewFor`).
+- **Close** (`CLOSE_CAM`, `closeViewFor` in `homeView.ts`): low and close
+  behind him over the stumps, just high enough that the line to the
+  bowler's hand clears his helmet, on a 50-degree lens held whatever the
+  screen's shape: he stands big at the foot of the picture, the bowler runs
+  in over his shoulder, the stand fills the top. It was the first build of
+  Pro Cam, and the owner liked it and kept it when Pro Cam became his eyes.
 - **Pro Cam**, the batter's own eyes (`PRO_CAM` in `homeView.ts`,
-  `eyesView` in `GameScene`): the camera is where his eyes are
-  (`Batter.eyes`), a hand's width behind and over them (`behind`, `above`) so
-  his gloves and the bat show at the foot in his guard, eased after his head
-  as he moves (`follow`) and always looking down the pitch at a fixed point,
-  never where his head turns: the bowler runs in at the top and the ball
-  comes down the picture at the lens. He is not drawn but for his forearms,
-  gloves and bat (`Batter.firstPerson`, every frame from `render`): his head,
-  body and legs go onto `BODY_LAYER`, which the sun's shadow camera still
-  sees, so his shadow stays on the turf; the arms are drawn by the jersey,
-  one garment with the body, so the IK's own forearm pieces stand in for
-  them (the shoulder and upper arm, drawn, were a blob of shirt across the
-  foot of the picture). Nothing nearer the lens than `near` is drawn, or his
-  arm filled the picture coming up past his face on the follow-through, and
-  the ball is drawn at `ball` of its size. Under any film's camera (the
-  walk-on, the arrival, a replay, the catch camera) he is drawn whole. What
-  is drawn round him (the special stroke's doodle, the coachmarks' lanes) is
-  placed where the classic view has him (`batterOnScreen`), since from his
-  eyes he is behind the lens. Seen from his end, as Classic is, so the
-  swipes, the side labels and Super10's map are Classic's. Built first as a
-  low camera behind him with him whole in the picture, which was not what
-  the owner meant by the batter's eyes.
+  `eyesView` in `GameScene`), from a clip the owner sent of a broadcast
+  game's pro camera: the camera at his eyes (`Batter.eyes`), a hand's width
+  behind them (`behind`, `above`), eased after his head as he moves
+  (`follow`) and always looking nearly level down the middle of the pitch at
+  a fixed point, never where his head turns: the stand across the top, the
+  bowler small in the middle, the pitch running down to the foot, and in his
+  guard nothing of him on the screen. Nothing of him is drawn but the gloves
+  and the bat (`Batter.firstPerson`, every frame from `render`), which swing
+  up into the picture as he plays; his head, body, legs, the arms (the
+  jersey's, one garment with the body) and the gloves' gauntlets go onto
+  `BODY_LAYER`, which the sun's shadow camera still sees, so his shadow stays
+  on the turf. The IK's own forearm pieces stood in for the arms at first,
+  and with the gauntlets' open ends read as a hand chopped off; the shoulder
+  and upper arm before that were a blob of shirt. A hand's width back, the
+  bat's handle is never nearer the lens than about 0.6m through a stroke;
+  closer, the follow-through came up past the lens and the near plane cut the
+  gloves in two, so the bat and gloves go onto the body's layer too while the
+  handle is within `clear` of the lens (`proBat` in `snapshot()` says how far
+  it is and whether it is drawn). The ball is drawn at `ball` of its size.
+  Under any film's camera (the walk-on, the arrival, a replay, the catch
+  camera) he is drawn whole. What is drawn round him (the special stroke's
+  doodle, the coachmarks' lanes) is placed where the classic view has him
+  (`batterOnScreen`), since from his eyes he is behind the lens.
+
+Close and Pro Cam are behind him as Classic is, so the swipes, the side
+labels and Super10's map are Classic's under both.
 - **Broadcast**, the television's (`broadcastViewFor`), from a screenshot the
   owner sent: high behind the bowler's arm on a long lens, the bowler in the
   foot of the picture from his back. Built first, and the owner did not like
@@ -3735,9 +3746,9 @@ side watches. A special stroke's push in is scaled to the lens. The walk-on,
 the new batter's arrival and the replays keep their own cameras, landing on
 the classic view and cutting to the one picked. The first innings's
 coachmark lanes are drawn for the classic view: a new player starts on it.
-`scripts/camera-check.mjs` swipes under Broadcast, picks Pro Cam on the
-pause sheet, sees him drawn from his eyes and swipes under it, and reads
-Super10's map.
+`scripts/camera-check.mjs` swipes under Broadcast, picks Pro Cam and Close
+on the pause sheet, sees him drawn from his eyes under the one and whole
+under the other, swipes under both, and reads Super10's map.
 
 ## The view on a tall screen
 

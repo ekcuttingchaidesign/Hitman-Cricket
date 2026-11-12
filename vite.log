@@ -1,0 +1,14 @@
+
+  VITE v7.3.6  ready in 274 ms
+
+  ➜  Local:   http://localhost:5201/
+  ➜  Network: use --host to expose
+5:29:38 AM [vite] (client) page reload src/entities/Batter.ts
+5:29:38 AM [vite] (client) page reload src/scene/homeView.ts
+5:30:56 AM [vite] (client) page reload src/entities/Batter.ts
+5:30:56 AM [vite] (client) page reload src/scene/GameScene.ts
+5:30:56 AM [vite] (client) page reload src/scene/homeView.ts
+5:32:50 AM [vite] (client) page reload src/scene/homeView.ts
+5:33:56 AM [vite] (client) page reload src/scene/GameScene.ts
+5:33:56 AM [vite] (client) page reload src/Game.ts
+5:35:23 AM [vite] (client) page reload src/scene/homeView.ts

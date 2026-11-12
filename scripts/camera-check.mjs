@@ -5,9 +5,10 @@
  *    down the screen is the straight drive, out to the left the cut (the
  *    batter's off side, seen from the bowler's end), and the side labels say
  *    so.
- *  - The pause sheet's Camera row, Classic and Pro Cam, turns it at once and
- *    keeps it across a reload; under Pro Cam, his own eyes, he is drawn as
- *    forearms, gloves and bat, and the swipes are Classic's.
+ *  - The pause sheet's Camera row, Classic, Close and Pro Cam, turns it at
+ *    once and keeps it across a reload; under Pro Cam, his own eyes, only the
+ *    gloves and bat are drawn; under Close he is whole; under both the swipes
+ *    are Classic's.
  *  - Super10's field map is turned half round under it, the batter's point
  *    at its middle.
  *
@@ -85,7 +86,7 @@ console.log('the Camera row');
 await page.locator('#pause').click({ force: true });
 await page.waitForTimeout(400);
 const row = await page.evaluate(() => [...document.querySelectorAll('#camera-row .lights-option')].map(b => `${b.textContent}:${b.getAttribute('aria-checked')}`));
-check(row.join(',') === 'Classic:false,Pro Cam:false', 'the row offers Classic and Pro Cam, and Broadcast only from the link', row.join(','));
+check(row.join(',') === 'Classic:false,Close:false,Pro Cam:false', 'the row offers Classic, Close and Pro Cam, and Broadcast only from the link', row.join(','));
 check(await page.evaluate(() => document.getElementById('pause-sheet').getBoundingClientRect().bottom <= innerHeight), 'all of the sheet on a phone screen');
 await page.locator('#camera-pro').click();
 check((await snap()).camera === 'pro', 'Pro Cam turns it at once');
@@ -95,10 +96,18 @@ await page.goto(`${base}/?debug=1&seed=222`, { waitUntil: 'load' });
 await page.waitForTimeout(800);
 check((await snap()).camera === 'pro', 'kept across a reload');
 await walkOut('lights=day&ground=stadium');
-check((await snap()).firstPerson === true, "he is drawn from his own eyes: only his forearms, gloves and bat");
+check((await snap()).firstPerson === true, "he is drawn from his own eyes: only the gloves and bat");
 check(await strokeFor(0, -80) === 'STRAIGHT', 'and under it a swipe up the screen is the straight drive, as under Classic');
 await page.screenshot({ path: `${shots}/pro.png` });
 check(await strokeFor(80, 0) === 'SQUARE_CUT', 'a swipe to the right the cut');
+await page.locator('#pause').click({ force: true });
+await page.waitForTimeout(400);
+await page.locator('#camera-close').click();
+await page.locator('#resume').click();
+await page.waitForTimeout(300);
+check((await snap()).camera === 'close' && (await snap()).firstPerson === false, 'Close: low behind him, and he is drawn whole');
+await page.screenshot({ path: `${shots}/close.png` });
+check(await strokeFor(0, -80) === 'STRAIGHT', 'and under it a swipe up the screen is the straight drive');
 await page.locator('#pause').click({ force: true });
 await page.waitForTimeout(400);
 await page.locator('#camera-classic').click();

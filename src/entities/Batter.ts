@@ -3652,27 +3652,31 @@ export class Batter {
     this.reset();
   }
   /**
-   * Pro Cam (`src/game/camera.ts`): the camera is his own eyes, so his head,
-   * his body and his legs are not drawn, only his forearms, gloves and the
-   * bat. The arms are drawn by the jersey, which is one garment with the
-   * body, so under it the IK's own forearm pieces stand in for them: they are
-   * placed every frame whether shown or not. What is not drawn is moved onto `BODY_LAYER`, which
+   * Pro Cam (`src/game/camera.ts`): the camera is his own eyes, so nothing of
+   * him is drawn but the gloves and the bat. The arms are the jersey's, one
+   * garment with the body, and go with it: the IK's own forearm pieces stood
+   * in for them first and were a cut-off tube at the foot of the picture. What is not drawn is moved onto `BODY_LAYER`, which
    * the sun's shadow camera still sees, so he keeps his shadow on the turf.
    * Asked every frame (`GameScene.render`), since the guard's pads and the
    * gloves are built anew on each pick.
    */
-  firstPerson(on: boolean) {
+  firstPerson(on: boolean, batShown = true) {
     if (!on && !this.firstPersonOn) return;
     this.firstPersonOn = on;
+    this.batInSight = !on || batShown;
     const layer = on ? BODY_LAYER : 0;
+    // The gauntlets too: the open end of each, where the forearm went in, came past the lens as a cut-off tube.
     const body: THREE.Object3D[] = [this.torso, this.hips, this.head, this.connectedJersey.mesh, this.connectedTrousers.mesh,
-      ...this.legs.flatMap(leg => [leg.pad, leg.shoe])];
+      ...this.legs.flatMap(leg => [leg.pad, leg.shoe]), ...this.arms.map(arm => arm.cuff)];
     for (const part of body) part.traverse(o => o.layers.set(layer));
-    // The forearms only: the shoulder and the upper arm are beside the lens, and drawn they were a blob of shirt across the foot of the picture.
-    for (const arm of this.arms) arm.lower.visible = on;
+    // The bat and gloves too while they are up against the lens (`batShown` false), still casting their shadow.
+    this.bat.traverse(o => o.layers.set(this.batInSight ? 0 : BODY_LAYER));
   }
+  /** Under Pro Cam, whether the bat and gloves are in the picture: out of it while they pass the lens. */
+  private batInSight = true;
+  get batShown() { return this.batInSight; }
   private firstPersonOn = false;
-  /** Drawn from his own eyes: only the forearms, gloves and bat showing. */
+  /** Drawn from his own eyes: only the gloves and bat showing. */
   get firstPersonShown() { return this.firstPersonOn; }
   /** Where his eyes are, in the world: just in front of his face, between the helmet's peak and the grille's top bar. */
   eyes(target = new THREE.Vector3()) {
