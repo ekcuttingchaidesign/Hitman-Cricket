@@ -132,16 +132,8 @@ export const endedLog = (log: ReplayLog, skipped: boolean): ReplayLog => ({ ...l
 // The timeline
 // ---------------------------------------------------------------------------
 
-/**
- * The NEW tag beside the pause sheet's Replays switch: there for the first
- * pause sheets a browser sees (`NEW_TAG_SHOWS`) and gone for good once the
- * switch has been used, kept in `hitman-replays-new` as the count of sheets
- * seen, the switch's use writing it past the end.
- */
-export const NEW_TAG_SHOWS = 3;
 /** Whose colours a replay's wipe and tag wear: the end card's band for the mode. */
 export type ReplayLook = 'blast' | 'super10' | 'marathon';
-export function newTagDue(seen: number) { return seen < NEW_TAG_SHOWS; }
 
 /**
  * The stinger that cuts into it and out of it, on the page's clock: ink

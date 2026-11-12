@@ -2593,9 +2593,9 @@ orange or violet band before that. Between the walk-on's
 bars with everything else put out of sight (`intro-on`), a REPLAY tag top left
 (`#replay-tag`). A tap, Space, Enter or Escape skips to the wipe out; a pause
 or a new innings cuts it short with none (`stopReplay`). The pause sheet has a
-Replays switch (`#replay-switch`, kept in `hitman-replays`), with a NEW tag
-beside its name (`#replay-new`, `newTagDue`) on a browser's first three pause
-sheets, gone for good once the switch is used (`hitman-replays-new`). Off under
+Replays switch (`#replay-switch`, kept in `hitman-replays`); the NEW tag
+that stood beside it on a browser's first three pause sheets was taken off
+with the sheet's redraw, as the owner asked. Off under
 `?debug=1` and reduced motion; `?replay=1` replays every ball that qualifies,
 debug or not, `?replay=due` the ones a player would get, debug or not, and
 `?replay=0` none; none of them is practice. `snapshot()` carries `kept`, the
@@ -3635,12 +3635,21 @@ the match a screen of its own. `challenge-check.mjs` walks all of it (with
 `SHOTS=dir` it photographs each step); `?room=won` and its siblings put any
 room face up.
 
-In play (phase 8, the handover's section 09): the pause sheet as drawn — a
-black strip with the game's name by a dot in its colour and where the
-innings stands, PAUSED, RESUME INNINGS, RESTART and CHANGE MODE side by
-side, and Crowd, Ambience and Lights as one card of rows; the declare key
-and the lights stay in the modes that have them (`pause-check` reads the
-game's colour off the dot). The physio card is headed BATSMAN CRITICALLY
+In play (phase 8, the handover's section 09), redrawn since (the claude.ai
+design canvas "Pause Sheet Layouts", D2, the owner's pick of five): one card
+no taller than the screen, 12 in from its edges. At the top PAUSED, the
+game's name by a dot in its colour and where the innings stands, and the
+sound key (`#pause-sound`, pressing the game's own `#sound`, whose picture
+it wears): the card covers the score bar, so its keys step aside while it is
+up (`pause-open` on the stage). In the middle, which scrolls when the screen
+is short (`.pause-body`), Crowd, Ambience, Replays and Vibration as a two by
+two grid of tiles (`.pause-tile`), Lights under them in the Blast, then the
+cameras. Pinned at the foot, under the thumb, RESUME INNINGS over RESTART
+and CHANGE MODE, and the declare key in the Marathon. The sheet it replaced
+was centred under the score bar's keys with 64 of padding over it and did
+not scroll, so on a phone in a browser with its bars showing (about 664
+high) the Camera and Lights rows ran off the foot out of reach
+(`pause-check` reads the game's colour off the dot). The physio card is headed BATSMAN CRITICALLY
 INJURED, with the injury ring and the real figure beside PHYSIO ON, and
 `__cricket.physio()` puts it up by name. HOW TO PLAY on the cover opens the
 coachmarks a first innings shows (`howToPlay` in `src/Game.ts`), ending on
@@ -3691,9 +3700,11 @@ sheet's Camera row (`#camera-row`, `cameraSwitch`), each key a small
 picture of that camera's own view over its name (`src/assets/cameras/`,
 taken by `scripts/camera-thumbs.mjs` off the dev server: run it again when
 a camera or the ground's look changes), taken at once mid-innings and kept
-in `hitman-camera`; the row grew the sheet, so the pause overlay centres it
-in the room under the score bar's keys (`safe center`), or its top ran
-under the sound key; `?cam=classic`, `close`, `pro` or
+in `hitman-camera`. Three fill the row; a fourth and any after it make the
+row scroll sideways with the next one showing at its edge
+(`.camera-picks`, each key at least 96 wide), so a new camera needs only
+its entry in `CAMERAS`, a cut in `camera-thumbs.mjs` and its picture;
+`?cam=classic`, `close`, `pro` or
 `broadcast` asks for one for the visit, and is not practice. GoatCounter
 counts `camera-<id>`.
 

@@ -456,59 +456,53 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
         <div id="restore-overlay" class="hidden"></div>
         <div id="password-overlay" class="hidden"></div>
         <div id="pause-overlay" class="modal-overlay pause-screen hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+          <!--
+            One card the height of the screen at most: PAUSED, the game and
+            the score with the sound key at the top, the settings in the
+            middle, which scrolls when the screen is short, and the keys
+            pinned at the foot under the thumb, RESUME over RESTART and
+            CHANGE MODE (the claude.ai design canvas "Pause Sheet Layouts",
+            D2). It covers the score bar, so the sound key is on the card.
+          -->
           <div id="pause-sheet" class="pause-sheet" data-tone="blast">
-            <div class="pause-strip">
-              <span id="pause-mode" class="pause-mode">The Blast</span>
-              <p id="pause-state" class="pause-state"></p>
+            <div class="pause-head">
+              <div class="pause-head-say">
+                <h2 id="pause-title" class="pause-title">PAUSED</h2>
+                <p class="pause-line"><span id="pause-mode" class="pause-mode">The Blast</span><span id="pause-state" class="pause-state"></span></p>
+              </div>
+              <button id="pause-sound" class="pause-sound" type="button" aria-label="Sound">${icon('sound')}</button>
             </div>
             <div class="pause-body">
-            <h2 id="pause-title" class="pause-title">PAUSED</h2>
-            <button id="resume" class="k-cta k-cta--primary is-wide pause-resume" type="button"><span class="k-cta-face"><span>RESUME INNINGS</span></span></button>
-            <div class="pause-keys">
-              <button id="restart" class="k-cta k-cta--secondary pause-key" type="button"><span class="k-cta-face"><span>RESTART</span></span></button>
-              <button id="change-mode" class="k-cta k-cta--secondary pause-key" type="button"><span class="k-cta-face"><span>CHANGE MODE</span></span></button>
-            </div>
-            <button id="declare" class="pause-key pause-declare hidden" type="button" aria-describedby="declare-line"><span class="pause-declare-name">${icon('flag')}<span>Declare the innings</span></span><small id="declare-line" class="pause-declare-line hidden">Ends the innings here and keeps your score</small></button>
-            <p class="pause-counts">Only finished innings count toward your career.</p>
-            <p class="pause-group-label" id="pause-settings">Settings</p>
-            <div class="pause-group" role="group" aria-labelledby="pause-settings">
-              <button id="crowd-switch" class="pause-row" type="button" role="switch" aria-checked="true">
-                <span class="pause-row-icon is-crowd">${icon('crowd')}</span>
-                <span class="pause-row-say"><b>Crowd</b><em>Cheers and groans</em></span>
-                <span class="pause-switch" aria-hidden="true"></span>
-              </button>
-              <button id="ambience-switch" class="pause-row" type="button" role="switch" aria-checked="true">
-                <span class="pause-row-icon is-ambience">${icon('ambience')}</span>
-                <span class="pause-row-say"><b>Ambience</b><em>The stadium in the background</em></span>
-                <span class="pause-switch" aria-hidden="true"></span>
-              </button>
-              <button id="replay-switch" class="pause-row" type="button" role="switch" aria-checked="true">
-                <span class="pause-row-icon is-replay">${icon('replay')}</span>
-                <span class="pause-row-say"><b>Replays<span id="replay-new" class="pause-new hidden">NEW</span></b><em>Your best strokes, played again</em></span>
-                <span class="pause-switch" aria-hidden="true"></span>
-              </button>
-              <button id="haptics-switch" class="pause-row" type="button" role="switch" aria-checked="true">
-                <span class="pause-row-icon is-haptics">${icon('haptics')}</span>
-                <span class="pause-row-say"><b>Vibration</b><em>A buzz when the bat meets the ball</em></span>
-                <span class="pause-switch" aria-hidden="true"></span>
-              </button>
-              <div id="camera-row" class="pause-row is-static camera-row">
-                <span class="pause-row-icon is-camera">${icon('camera')}</span>
-                <span class="pause-row-say"><b id="camera-label">Camera</b></span>
-                <div class="camera-picks" role="radiogroup" aria-labelledby="camera-label">${CAMERAS.map(c => `<button id="camera-${c.id}" class="camera-pick" type="button" role="radio" aria-checked="${c.id === 'classic'}"><img src="${CAMERA_PICTURES[c.id]}" alt="" loading="lazy" decoding="async"><span>${c.name}</span></button>`).join('')}</div>
+              <p class="pause-label" id="pause-settings">Sound &amp; feel</p>
+              <div class="pause-tiles" role="group" aria-labelledby="pause-settings">
+                <button id="crowd-switch" class="pause-tile" type="button" role="switch" aria-checked="true" title="Cheers and groans">${icon('crowd')}<b>Crowd</b><span class="pause-switch" aria-hidden="true"></span></button>
+                <button id="ambience-switch" class="pause-tile" type="button" role="switch" aria-checked="true" title="The stadium in the background">${icon('ambience')}<b>Ambience</b><span class="pause-switch" aria-hidden="true"></span></button>
+                <button id="replay-switch" class="pause-tile" type="button" role="switch" aria-checked="true" title="Your best strokes, played again">${icon('replay')}<b>Replays</b><span class="pause-switch" aria-hidden="true"></span></button>
+                <button id="haptics-switch" class="pause-tile" type="button" role="switch" aria-checked="true" title="A buzz when the bat meets the ball">${icon('haptics')}<b>Vibration</b><span class="pause-switch" aria-hidden="true"></span></button>
               </div>
-              <div id="lights-row" class="pause-row is-static hidden">
+              <div id="lights-row" class="pause-tile is-wide hidden">
                 <span class="pause-row-icon is-lights">${icon('moon')}</span>
-                <span class="pause-row-say"><b id="lights-label">Lights</b></span>
+                <b id="lights-label">Lights</b>
                 <div id="lights-toggle" class="lights-toggle" role="radiogroup" aria-labelledby="lights-label"><button id="lights-day" class="lights-option" type="button" role="radio" aria-checked="false">${icon('sun')}<span>Day</span></button><button id="lights-night" class="lights-option" type="button" role="radio" aria-checked="true">${icon('moon')}<span>Night</span></button></div>
               </div>
+              <p id="pause-sound-note" class="pause-note hidden">All sound is off. The speaker key at the top turns it back on.</p>
+              <p class="pause-label" id="camera-label">Camera</p>
+              <!-- As many cameras as there are: three fill the row, more scroll sideways. -->
+              <div id="camera-row" class="camera-picks" role="radiogroup" aria-labelledby="camera-label">${CAMERAS.map(c => `<button id="camera-${c.id}" class="camera-pick" type="button" role="radio" aria-checked="${c.id === 'classic'}"><img src="${CAMERA_PICTURES[c.id]}" alt="" loading="lazy" decoding="async"><span>${c.name}</span></button>`).join('')}</div>
+              <p class="pause-counts">Only finished innings count toward your career.</p>
+              <button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button>
+              <span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span>
+              <p class="pause-credit">Crowd sounds by <a href="https://gregor-quendel.itch.io/free-crowd-cheering-sounds" target="_blank" rel="noopener">Gregor Quendel</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></p>
             </div>
-            <p id="pause-sound-note" class="pause-note hidden">All sound is off. The speaker key at the top turns it back on.</p>
-            <button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button>
-            <span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span>
+            <div class="pause-dock">
+              <button id="resume" class="k-cta k-cta--primary is-wide pause-resume" type="button"><span class="k-cta-face"><span>RESUME INNINGS</span></span></button>
+              <div class="pause-keys">
+                <button id="restart" class="k-cta k-cta--secondary pause-key" type="button"><span class="k-cta-face"><span>RESTART</span></span></button>
+                <button id="change-mode" class="k-cta k-cta--secondary pause-key" type="button"><span class="k-cta-face"><span>CHANGE MODE</span></span></button>
+              </div>
+              <button id="declare" class="pause-key pause-declare hidden" type="button" aria-describedby="declare-line"><span class="pause-declare-name">${icon('flag')}<span>Declare the innings</span></span><small id="declare-line" class="pause-declare-line hidden">Ends the innings here and keeps your score</small></button>
             </div>
           </div>
-          <p class="pause-credit">Crowd sounds by <a href="https://gregor-quendel.itch.io/free-crowd-cheering-sounds" target="_blank" rel="noopener">Gregor Quendel</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></p>
         </div>
         <div id="end" class="modal-overlay ec-screen hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <span class="ec-bloom" aria-hidden="true"></span>
@@ -2971,8 +2965,15 @@ ${modeSelectMarkup()}
    */
   pause(value: boolean, game?: { name: string; tone: PauseTone }) {
     this.viewport.classList.toggle('modal-open', value);
+    // The card covers the score bar, so its keys step aside: the sound key is on the card.
+    this.viewport.classList.toggle('pause-open', value);
     this.$('pause-overlay').classList.toggle('hidden', !value);
     if (!value) return;
+    const sound = this.$('pause-sound');
+    sound.innerHTML = this.$('sound').innerHTML;
+    sound.setAttribute('aria-label', this.$('sound').getAttribute('aria-label') ?? 'Sound');
+    sound.onclick = () => this.$('sound').click();
+    this.$('pause-sheet').querySelector('.pause-body')!.scrollTop = 0;
     if (game) {
       this.$('pause-mode').textContent = game.name;
       this.$('pause-sheet').dataset.tone = game.tone;
@@ -3002,8 +3003,6 @@ ${modeSelectMarkup()}
   /** The pause sheet's replays switch, as it is set. */
   replaySwitch(on: boolean) { this.$('replay-switch').setAttribute('aria-checked', String(on)); }
   hapticsSwitch(on: boolean) { this.$('haptics-switch').setAttribute('aria-checked', String(on)); }
-  /** The NEW tag beside Replays on the pause sheet (`newTagDue`). */
-  replayNew(on: boolean) { this.$('replay-new').classList.toggle('hidden', !on); }
   /**
    * The wipe a replay is cut into and out of under (`replay.ts`, `WIPE_MS`),
    * in the end card's band: the mode's gradient as one great chevron sweeping
@@ -5695,6 +5694,8 @@ ${modeSelectMarkup()}
     this.$('sound').setAttribute('aria-label', `${says}. ${next}`);
     const board = document.getElementById('board-sound');
     if (board) { board.innerHTML = icon(art); board.setAttribute('aria-label', `${says}. ${next}`); }
+    const paused = document.getElementById('pause-sound');
+    if (paused) { paused.innerHTML = icon(art); paused.setAttribute('aria-label', `${says}. ${next}`); }
     if (!pressed) return;
     const note = this.$('sound-note');
     note.textContent = says;

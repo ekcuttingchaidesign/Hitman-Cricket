@@ -66,7 +66,7 @@ import { ARRIVAL_ANGLES, ARRIVAL_CARD, ARRIVE, arrivalBars, arrivalDue, type Arr
 import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
 import { catchCamera, catchPace, catchShotOf, catchTimes, spillable, SPILL_ODDS, type CatchShot } from './game/catch-cam';
 import { STUMPING, STUMPING_CAMERA } from './game/stumping';
-import { endedLog, fieldCamera, freshLog, overRope, OVER_MS, pickAngle, replayCamera, CUT_AFTERS, replayDue, replayPace, replayTimes, shownLog, REPLAYS_PER_INNINGS, MARATHON_PACE, WIPE_MS, NEW_TAG_SHOWS, newTagDue, type ReplayAngle, type ReplayBall, type ReplayLook, type ReplayStroke, type ReplayTimes } from './game/replay';
+import { endedLog, fieldCamera, freshLog, overRope, OVER_MS, pickAngle, replayCamera, CUT_AFTERS, replayDue, replayPace, replayTimes, shownLog, REPLAYS_PER_INNINGS, MARATHON_PACE, WIPE_MS, type ReplayAngle, type ReplayBall, type ReplayLook, type ReplayStroke, type ReplayTimes } from './game/replay';
 import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type CameraPose, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
@@ -290,8 +290,6 @@ const LAST_MODE_KEY = 'hitman-last-mode';
 const WALK_ON_KEY = 'hitman-walk-on';
 /** The pause sheet's replays switch: 'off', or anything else for on. */
 const REPLAYS_KEY = 'hitman-replays';
-/** How many pause sheets have shown the Replays switch's NEW tag (`newTagDue`). */
-const REPLAYS_NEW_KEY = 'hitman-replays-new';
 /** A ball as the scene was told it, kept for its replay: see `Game.keepForReplay`. */
 /** A ball he never swung at, kept for a replay of it all the same: bowled leaving it. Never told to the scene. */
 const NO_SWING: Kept['swing'] = { shot: 'DEFEND', at: Infinity, charging: false, lofted: false, sweeping: false, levelled: false, version: 2, meets: 1, cutting: false, spinPulling: false, stroke: null };
@@ -1121,7 +1119,7 @@ export class Game {
     // The pause sheet's Camera row (`camera.ts`), kept across visits; taken at once, mid-innings too.
     for (const { id } of CAMERAS) this.hud.on(`camera-${id}`, () => this.useCamera(id));
     this.hud.on('haptics-switch', () => { setHaptics(!hapticsWanted()); this.hud.hapticsSwitch(hapticsWanted()); });
-    this.hud.on('replay-switch', () => { this.replaysOn = !this.replaysOn; this.replaysTagSeen(NEW_TAG_SHOWS); try { localStorage.setItem(REPLAYS_KEY, this.replaysOn ? 'on' : 'off'); } catch { /* For this visit, then. */ } this.hud.replaySwitch(this.replaysOn); });
+    this.hud.on('replay-switch', () => { this.replaysOn = !this.replaysOn; try { localStorage.setItem(REPLAYS_KEY, this.replaysOn ? 'on' : 'off'); } catch { /* For this visit, then. */ } this.hud.replaySwitch(this.replaysOn); });
     window.addEventListener('keydown', this.shortcuts); window.addEventListener('beforeunload', this.leaving); document.addEventListener('visibilitychange', this.visibility);
     window.addEventListener('blur', this.blur); window.addEventListener('pagehide', this.markQuit);
     // A bundle built survive-only plays one innings and offers no way out of
@@ -3367,18 +3365,6 @@ export class Game {
     if (this.challenge.playing) return { name: 'Rival Match', tone: 'rivals' };
     return { name: PAUSE_NAMES[this.mode], tone: this.mode === 'CLASSIC' ? 'blast' : this.mode === 'SURVIVE' ? 'survival' : this.mode === 'SUPER10' ? 'super10' : 'marathon' };
   }
-  /**
-   * The Replays switch's NEW tag: up while the browser has seen fewer than
-   * `NEW_TAG_SHOWS` pause sheets, each one counted as it opens, and taken
-   * down for good the first time the switch is used (`to`).
-   */
-  private replaysTagSeen(to?: number) {
-    let seen = 0;
-    try { seen = Number(localStorage.getItem(REPLAYS_NEW_KEY)) || 0; } catch { /* Shown, then. */ }
-    this.hud.replayNew(to === undefined && newTagDue(seen));
-    const next = to ?? seen + 1;
-    try { if (next !== seen) localStorage.setItem(REPLAYS_NEW_KEY, String(next)); } catch { /* For this visit. */ }
-  }
   private togglePause = () => {
     if (this.phase === 'START' || this.phase === 'INNINGS_END' || this.hud.helpOpen) return;
     if (this.phase === 'PAUSED') { this.audio.unlock(); this.audio.holdCrowd(false); this.phase = this.previousPhase; this.hud.pause(false); (document.activeElement as HTMLElement | null)?.blur(); }
@@ -3387,7 +3373,7 @@ export class Game {
       // So is the catch camera.
       this.stopReplay(); this.endCatchCam();
       this.input.cancel(); this.audio.stop(); this.audio.holdCrowd(true); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true, this.pauseGame);
-      this.soundSwitches(); this.hud.cameraSwitch(this.scene.cameraId); this.hud.replaySwitch(this.replaysOn); this.hud.hapticsSwitch(hapticsWanted()); this.replaysTagSeen();
+      this.soundSwitches(); this.hud.cameraSwitch(this.scene.cameraId); this.hud.replaySwitch(this.replaysOn); this.hud.hapticsSwitch(hapticsWanted());
       // The arena is played at night whatever the switch says, so it has none.
       this.hud.lightsSwitch(this.test || this.super10 || this.scene.arenaGround ? null : this.scene.lit);
       // Twenty overs in, the Marathon can be declared — from here, and from
