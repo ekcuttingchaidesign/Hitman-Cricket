@@ -268,6 +268,8 @@ const ASKED_GROUND = askedGround(location.search);
  * stadium over; the Tests', the pavilion, the stadium and the canopy a third
  * each. Two coins, so the Blast's ground says nothing about a Test's.
  */
+/** A camera switched away from within this many balls of being picked counts as given up on (`camera-quit-…`). */
+const CAMERA_QUIT_BALLS = 6;
 const VENUE_COIN = { blast: Math.random(), test: Math.random() } as const;
 const MARATHON_OPEN = SHOW_MARATHON || (!SURVIVE_ONLY
   && new URLSearchParams(location.search).get('mode')?.toLowerCase() === 'marathon');
@@ -4939,12 +4941,20 @@ export class Game {
    */
   private useCamera(id: CameraId) {
     if (id === this.scene.cameraId) return;
+    // Tried and given up on (`camera-quit-pro`): switched away within a few balls of the same innings it was picked in.
+    const was = this.cameraPicked;
+    if (was && was.id === this.scene.cameraId && was.innings === this.inningsFrom && this.score.balls - was.balls < CAMERA_QUIT_BALLS) {
+      this.mark(`camera-quit-${was.id}`, `Camera given up on within ${CAMERA_QUIT_BALLS} balls: ${was.id}`);
+    }
+    this.cameraPicked = { id, balls: this.score.balls, innings: this.inningsFrom };
     this.scene.useCamera(id); saveCamera(id);
     this.hud.cameraSwitch(id);
     this.hud.sides(this.scene.mirrored !== this.scene.facing);
     this.fieldUi.turn(this.scene.facing);
     this.mark(`camera-${id}`, `Camera: ${id}`);
   }
+  /** The camera last picked on the pause menu, how many balls into which innings: for `camera-quit-…`. */
+  private cameraPicked: { id: CameraId; balls: number; innings: number } | null = null;
   private hand() {
     const man = this.marathon?.current ?? null;
     // The Marathon's three are each their own; the one batter of the Blast and
@@ -6075,7 +6085,7 @@ export class Game {
     // own last word on the career and it is what the card would have drawn.
     const was = this.myCareer[mode]?.career ?? heldCareer(mode);
     let climbed = false;
-    const send = () => countInnings<AnyCareer>(this.player!, mode, tally, readPlayer(), nonce, look).then(mine => {
+    const send = () => countInnings<AnyCareer>(this.player!, mode, tally, readPlayer(), nonce, look, this.scene.cameraId).then(mine => {
       if (this.disposed) return true;
       if (!mine?.career) return false;
       const granted = mine.granted ?? null;
@@ -6282,6 +6292,8 @@ export class Game {
     // Which team's kit a Super10 innings was played in (`super10-kit-s10-neon`):
     // the pick in the room, or the earned kit drawn for it.
     if (this.super10) this.mark(`kit-${this.super10Kit().id}`, `Batted in the Super10 kit ${this.super10Kit().name}`);
+    // Which camera the innings was finished under (`innings-cam-pro`): the pause menu's pick counts a switch, this counts the batting.
+    this.mark(`innings-cam-${this.scene.cameraId}`, `Innings finished under the ${this.scene.cameraId} camera`);
     if (this.marathon) {
       // The Blast's card with the worm and the batting card under the total,
       // the boards' strip on it, and the way to the career it has just added to.

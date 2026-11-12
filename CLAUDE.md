@@ -3738,7 +3738,15 @@ row scroll sideways with the next one showing at its edge
 its entry in `CAMERAS`, a cut in `camera-thumbs.mjs` and its picture;
 `?cam=classic`, `close`, `pro` or
 `broadcast` asks for one for the visit, and is not practice. GoatCounter
-counts `camera-<id>`.
+counts `camera-<id>` for a pick on the row, `innings-cam-<id>` for every
+finished innings by the camera it ended under, and `camera-quit-<id>` for a
+camera switched away from within `CAMERA_QUIT_BALLS` (six) of being picked in
+the same innings; each takes the mode's prefix. The camera also travels with
+every counted innings to the year recap (`camera` on `/api/innings`, checked
+by `cameraOf` in `src/game/recap.ts`): the player's innings and runs under
+each (`cams`, `camRuns`) and the year's `cam:<id>` and `camruns:<id>`, so a
+camera can be set against what is scored under it. The batting cams' story
+counts `cams-got-it` or `cams-left-<beat>`, how far into it a player got.
 
 - **Classic**, the game's own view from behind the bat (`homeViewFor`).
 - **Close** (`CLOSE_CAM`, `closeViewFor` in `homeView.ts`): low and close

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  cleanRecap, factsOf, foldInnings, foldUnlocks, inningsLookOf, totalsOf, whenOf, type InningsFacts,
+  cameraOf, cleanRecap, factsOf, foldInnings, foldUnlocks, inningsLookOf, totalsOf, whenOf, type InningsFacts,
 } from '../src/game/recap';
 import { memoryRecap, recordInnings, recordUnlocks } from '../src/server/recap-store';
 import { memoryDressing, saveDressing } from '../src/server/dressing-save';
@@ -122,6 +122,28 @@ describe('the year recap, kept', () => {
     expect(store.totals(2026)).toMatchObject({
       players: 2, innings: 3, 'innings:classic': 2, 'kit:electric': 2, 'bat:venom': 1, 'bat:boom': 1, 'wins:survive': 1,
     });
+  });
+
+  it('counts the innings finished under each camera and the runs made under it', async () => {
+    const store = memoryRecap();
+    await recordInnings(store, { playerId: PLAYER, mode: 'classic', tally: blast(), look: null, at: MARCH, camera: 'pro' });
+    await recordInnings(store, { playerId: PLAYER, mode: 'classic', tally: blast({ runs: 12, individual: 12 }), look: null, at: MARCH, camera: 'pro' });
+    await recordInnings(store, { playerId: PLAYER, mode: 'survive', tally: survive(), look: null, at: MARCH, camera: 'close' });
+    // A browser from before the cameras sends none, and counts under none.
+    await recordInnings(store, { playerId: OTHER, mode: 'classic', tally: blast(), look: null, at: MARCH });
+    const mine = await store.read(2026, PLAYER);
+    expect(mine?.cams).toEqual({ pro: 2, close: 1 });
+    expect(mine?.camRuns).toEqual({ pro: 75, close: 104 });
+    expect(store.totals(2026)).toMatchObject({ 'cam:pro': 2, 'camruns:pro': 75, 'cam:close': 1, 'camruns:close': 104 });
+    expect((await store.read(2026, OTHER))?.cams).toEqual({});
+  });
+
+  it('takes only a camera the game has, and reads a record from before the cameras as none', () => {
+    expect(['classic', 'close', 'pro', 'broadcast'].map(cameraOf)).toEqual(['classic', 'close', 'pro', 'broadcast']);
+    expect([null, undefined, 'drone', 3, {}].map(cameraOf)).toEqual([null, null, null, null, null]);
+    const old = cleanRecap({ innings: 1, first: MARCH, last: MARCH, modes: {}, kits: {}, bats: {}, guard: {}, days: {}, hours: {}, unlocked: {} });
+    expect(old?.cams).toEqual({});
+    expect(old?.camRuns).toEqual({});
   });
 
   it('keeps nothing for what is not a player', async () => {

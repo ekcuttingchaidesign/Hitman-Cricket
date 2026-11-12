@@ -46,6 +46,8 @@ await context.addInitScript(([id, name, career, dressing]) => {
   localStorage.setItem('hitman-whatsnew', 'rivals:9');
   localStorage.setItem('hitman-career', JSON.stringify(career));
   localStorage.setItem('hitman-dressing', JSON.stringify(dressing));
+  // Batted under Pro Cam, which the innings carries to the recap.
+  localStorage.setItem('hitman-camera', 'pro');
 }, [id, `Recap${letters(6)}`, CAREER, DRESSING]);
 const page = await context.newPage();
 const errors = [];
@@ -71,6 +73,10 @@ check(kept.player?.innings === 1, 'a finished innings lands in the player\'s yea
 check(kept.player?.modes?.marathon?.innings === 1 && kept.player.modes.marathon.runs === 23, 'under its mode, with its runs', JSON.stringify(kept.player?.modes));
 check(JSON.stringify(kept.player?.kits) === '{"crimson":1}' && JSON.stringify(kept.player?.bats) === '{"plain":1}',
   'in the kit and with the bat it was played in', JSON.stringify({ kits: kept.player?.kits, bats: kept.player?.bats }));
+check(JSON.stringify(kept.player?.cams) === '{"pro":1}' && JSON.stringify(kept.player?.camRuns) === '{"pro":23}',
+  'under the camera it was finished under, with its runs', JSON.stringify({ cams: kept.player?.cams, camRuns: kept.player?.camRuns }));
+check((kept.totals['cam:pro'] ?? 0) === (before['cam:pro'] ?? 0) + 1 && (kept.totals['camruns:pro'] ?? 0) === (before['camruns:pro'] ?? 0) + 23,
+  'and the camera in the year\'s totals', JSON.stringify(kept.totals));
 check(Object.values(kept.player?.days ?? {}).reduce((a, b) => a + b, 0) === 1 && Object.keys(kept.player?.hours ?? {}).length === 1, 'on its day and in its hour');
 check((kept.totals.innings ?? 0) === (before.innings ?? 0) + 1 && (kept.totals['kit:crimson'] ?? 0) === (before['kit:crimson'] ?? 0) + 1,
   'and in the year\'s totals for everybody', JSON.stringify(kept.totals));

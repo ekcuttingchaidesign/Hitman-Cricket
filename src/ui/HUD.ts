@@ -2075,7 +2075,7 @@ ${modeSelectMarkup()}
     const sheet = this.$('whatsnew-overlay').querySelector<HTMLElement>('.is-cams');
     if (!sheet) return;
     const got = document.getElementById('whatsnew-got');
-    if (got) got.onclick = () => this.closeStories();
+    if (got) got.onclick = () => this.closeStories('got');
     const host = sheet.querySelector<HTMLElement>('.cams-pause')!;
     const copy = this.$('pause-sheet').cloneNode(true) as HTMLElement;
     for (const node of [copy, ...copy.querySelectorAll<HTMLElement>('[id]')]) node.removeAttribute('id');
@@ -2222,7 +2222,7 @@ ${modeSelectMarkup()}
   }
 
   /** `open` when the way in put them away, which is counted apart from leaving. */
-  closeStories(how: 'leave' | 'open' = 'leave') {
+  closeStories(how: 'leave' | 'open' | 'got' = 'leave') {
     window.clearTimeout(this.storyHold);
     this.storyFilm?.destroy(); this.storyFilm = null;
     this.storyStage?.stop(); this.storyStage = null;
@@ -2236,6 +2236,10 @@ ${modeSelectMarkup()}
     // the middle of one with the end of the other.
     // The way in is counted on its own, by the card it was taken from: it is
     // what the stories are for, and counted as leaving it would read as a skip.
+    // The batting cams' card is one card, so the counts below cannot say how far into it a player got:
+    // GOT IT at the end (`cams-got-it`), or the close key on the beat they were on (`cams-left-speed`).
+    const cams = this.$('whatsnew-overlay').querySelector<HTMLElement>('.is-cams');
+    if (cams) track(how === 'got' ? 'cams-got-it' : `cams-left-${cams.dataset.beat}`, 'How far the batting cams story was watched');
     if (how === 'open') track(`whatsnew-open-${this.storyAt + 1}`, 'Took the way in from a What\u2019s new story');
     else track(this.storyAt >= this.storyRun.length - 1 ? 'whatsnew-read-all' : `whatsnew-left-${this.storyAt + 1}`,
       'How far the What\u2019s new stories were read');
