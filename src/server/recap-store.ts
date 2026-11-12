@@ -1,7 +1,7 @@
 import { isPlayerId } from './board-store.js';
 import type { BlastTally, CareerMode, MarathonTally, Super10Tally, SurviveTally } from '../game/career.js';
 import {
-  cleanRecap, factsOf, foldInnings, foldUnlocks, totalsOf, unlockTotals, whenOf, type InningsLook, type YearRecap,
+  cleanRecap, factsOf, foldInnings, foldUnlocks, totalsOf, unlockTotals, whenOf, type InningsLook, type RecapCamera, type YearRecap,
 } from '../game/recap.js';
 
 /**
@@ -23,13 +23,16 @@ export interface RecapStore {
 /** A counted innings, into the player's year and the year's totals. */
 export async function recordInnings(store: RecapStore, input: {
   playerId: string; mode: CareerMode; tally: BlastTally | SurviveTally | MarathonTally | Super10Tally; look: InningsLook | null; at: number;
+  /** The camera it was finished under, or null where the browser sent none. */
+  camera?: RecapCamera | null;
 }): Promise<void> {
   if (!isPlayerId(input.playerId)) return;
   const { year } = whenOf(input.at);
   const held = cleanRecap(await store.read(year, input.playerId));
   const facts = factsOf(input.mode, input.tally);
-  await store.write(year, input.playerId, foldInnings(held, input.mode, facts, input.look, input.at));
-  await store.add(year, totalsOf(input.mode, facts, input.look, input.at, !held || held.innings === 0));
+  const camera = input.camera ?? null;
+  await store.write(year, input.playerId, foldInnings(held, input.mode, facts, input.look, input.at, camera));
+  await store.add(year, totalsOf(input.mode, facts, input.look, input.at, !held || held.innings === 0, camera));
 }
 
 /** Pieces of the Dressing Room this player has newly won, dated now. */

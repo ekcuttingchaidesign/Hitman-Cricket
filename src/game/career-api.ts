@@ -86,6 +86,8 @@ export async function countInnings<C extends AnyCareer>(
   who: { name: string; avatar: number } | null, nonce: string,
   /** What the innings was played in, for the year recap; the store checks it against the shelves. */
   look: { kit: string; bat: string; guard?: string } | null = null,
+  /** The camera it was finished under, for the year recap. */
+  camera: string | null = null,
 ): Promise<MyCareer<C> | null> {
   const answer = await ask<{
     career: C; name: string; avatar: number; counted?: boolean;
@@ -94,7 +96,7 @@ export async function countInnings<C extends AnyCareer>(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      playerId, mode, innings, nonce, look,
+      playerId, mode, innings, nonce, look, camera,
       name: who?.name ?? '', avatar: who?.avatar ?? 0,
     }),
   });
