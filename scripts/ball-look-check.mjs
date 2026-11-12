@@ -3,7 +3,8 @@
  * in a real browser: cover drives on the keys at `?cover=1`'s ball, with no
  * replay or catch camera to film over it, under Pro Cam and under Close. Each followed ball is read as it flies —
  * the look turned towards the off side, Close lifted, the hold and the way
- * back, Classic still unless `?classicfollow=pan` or `zoom` asks (`ONLY=classic`
+ * back, Classic still unless `?classicfollow=pan` asks, and under it a square cut
+ * at `?latecut=1`'s ball held on him with the lens opened (`ONLY=classic`
  * for those three alone), and under Pro Cam the bat and gloves out of the way — and photographed into `test-results/ball-look-*.png`; then the look
  * is back down the pitch by the next ball's release.
  *
@@ -22,7 +23,7 @@ const check = (ok, what, detail) => {
 await mkdir('test-results', { recursive: true });
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 
-async function run(cam, extra, label) {
+async function run(cam, extra, label, keys = ['w', 'd']) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await page.addInitScript(() => {
     try {
@@ -37,7 +38,7 @@ async function run(cam, extra, label) {
   const advance = ms => page.clock.runFor(Math.max(16, Math.round(ms)));
   const snap = () => page.evaluate(() => window.__cricket.snapshot());
   await page.clock.install();
-  await page.goto(`${base}/?debug=1&seed=2718&cover=1&replay=0&catchcam=0&lights=day&ground=stadium&cam=${cam}${extra}`, { waitUntil: 'load' });
+  await page.goto(`${base}/?debug=1&seed=2718&cover=1&replay=0&catchcam=0&lights=day&ground=stadium&cam=${cam}${extra}`.replace('&cover=1&', extra.includes('latecut') ? '&' : '&cover=1&'), { waitUntil: 'load' });
   await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 3000);
   await advance(2500);
   await page.waitForTimeout(800);
@@ -65,7 +66,7 @@ async function run(cam, extra, label) {
     const seen = await nextBall();
     if (!seen) break;
     await advance(seen.contactAt - seen.elapsed);
-    await press('w', 'd');
+    await press(...keys);
     // Through the flight, reading the look every 100ms.
     const trace = [];
     let shot = 0;
@@ -82,11 +83,11 @@ async function run(cam, extra, label) {
   }
   check(!!found, `${label}: a cover drive is followed`);
   if (found) {
-    const yaws = found.map(t => t.yaw), lifts = found.map(t => t.lift), zooms = found.map(t => t.zoom);
-    console.log(`        yaw ${yaws.join(' ')}\n        lift ${lifts.join(' ')}\n        zoom ${zooms.join(' ')}\n        phase ${found.map(t => t.phase?.[0] ?? '-').join('')}`);
+    const yaws = found.map(t => t.yaw), lifts = found.map(t => t.lift), widens = found.map(t => t.widen ?? 1);
+    console.log(`        bearing ${found.find(t => t.followed)?.bearing}°\n        yaw ${yaws.join(' ')}\n        lift ${lifts.join(' ')}\n        widen ${widens.join(' ')}\n        phase ${found.map(t => t.phase?.[0] ?? '-').join('')}`);
     const most = Math.max(...yaws.map(Math.abs));
     if (label === 'classic') {
-      check(most === 0 && zooms.every(z => z === 1), 'classic: stands still as it always has, unless the link asks');
+      check(most === 0 && widens.every(z => z === 1), 'classic: stands still as it always has, unless the link asks');
       check(!errors.length, `${label}: no errors`, errors.join('\n'));
       await page.close();
       return;
@@ -98,21 +99,25 @@ async function run(cam, extra, label) {
     check(Math.abs(atNext.yaw) < 4, `${label}: back down the pitch by the next ball (${atNext.yaw}°)`, JSON.stringify(atNext));
     if (label === 'pro') check(found.some(t => t.phase === 'follow' && t.bat === false), 'pro: the bat and gloves out of the picture while he watches it', found.map(t => t.bat).join(' '));
     if (label === 'close-lift') check(Math.max(...lifts) > .9 && atNext.lift < .1, 'close-lift: lifts up and back, and down again');
-    if (label === 'classic-pan') check(zooms.every(z => z === 1), 'classic-pan: the lens stays as it is');
-    if (label === 'classic-zoom') check(Math.min(...zooms) < .85 && atNext.zoom > .97, `classic-zoom: closes in on the ball (${Math.min(...zooms)}) and opens again (${atNext.zoom})`);
+    if (label === 'classic-pan') check(widens.every(z => z === 1), 'classic-pan: a cover drive stays in the picture, the lens as it is');
+    if (label === 'classic-cut') {
+      // Held on him (`keepInView`): about the picture's half width at most, not the 38° the ball would take it.
+      check(most <= 14, `classic-cut: turned only so far as keeps him in the picture (${most}°)`);
+      check(Math.max(...widens) > 1.05 && atNext.widen < 1.02, `classic-cut: the lens opens for the ball off the side (${Math.max(...widens)}) and closes again (${atNext.widen})`);
+    }
   }
   check(!errors.length, `${label}: no errors`, errors.join('\n'));
   await page.close();
 }
 
 const only = process.env.ONLY;
-for (const [cam, extra, label] of [
+for (const [cam, extra, label, keys] of [
   ['pro', '', 'pro'],
   ['close', '', 'close-lift'],
   ['classic', '', 'classic'],
   ['classic', '&classicfollow=pan', 'classic-pan'],
-  ['classic', '&classicfollow=zoom', 'classic-zoom'],
-]) if (!only || label.startsWith(only)) await run(cam, extra, label);
+  ['classic', '&classicfollow=pan&latecut=1', 'classic-cut', ['d']],
+]) if (!only || label.startsWith(only)) await run(cam, extra, label, keys);
 await browser.close();
 console.log(failures ? `\n${failures} failed` : '\nall good');
 process.exit(failures ? 1 : 0);

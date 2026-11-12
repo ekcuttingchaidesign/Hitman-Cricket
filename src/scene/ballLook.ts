@@ -50,32 +50,61 @@ export const BALL_LOOK = {
 export const CLOSE_FOLLOW = { eye: [0, 3.7, -5.6] as const, lift: 380, drop: 420 } as const;
 
 /**
- * Classic going after the ball, two ways to look at side by side, neither on
- * unless the link asks (`?classicfollow=pan` or `zoom`): Classic is the view
- * players know, so it stays as it is until the owner picks.
+ * Classic going after the ball (`?classicfollow=pan`), not on unless the link
+ * asks: Classic is the view players know, so it stays as it is until the
+ * owner says.
  *
- * **pan**: the camera stays where it stands and its look turns `share` of the
- * way after the ball, never more than `yaw` round or `up` up: a square cut no
- * longer runs straight off the side of a phone's narrow picture, and the
- * batter stays in it.
- *
- * **zoom**: the pan, and the lens closing in on the ball as it goes away, as
- * a television camera picks up a ball running to the rope: down to `zoom` of
- * the lens's width once the ball is `far` metres off, opened again as the look
- * comes back.
+ * It stands where it always does and turns its look `share` of the way after
+ * the ball, never more than `yaw` round or `up` up, and never so far that the
+ * batter leaves the picture: his bearing stays within `keep` of the picture's
+ * half width (`keepInView`). A square cut, a flick to midwicket, would turn it
+ * off him and lose the stroke and anything he does after it; held on him, the
+ * ball runs off the side sooner, so for those the lens opens a little
+ * (`widen` at most, `widenFor`), as a television camera pulls out to hold a
+ * batter and a ball both. A ball going behind square (`behind` degrees off
+ * straight from him, the scoops, the late cut, a glance) is not turned after
+ * at all: the look cannot find it there, only lose him. Nor is a ball that
+ * brings a celebration, which is his.
  */
 export const CLASSIC_FOLLOW = {
   share: .6, yaw: 38, up: 22,
   turn: 300,
-  zoom: .55, near: 12, far: 55, zoomIn: 450, zoomOut: 380,
+  keep: .55, behind: 105,
+  widen: 1.2, open: 420, close: 380,
 } as const;
 
-export type ClassicFollow = 'pan' | 'zoom';
+export type ClassicFollow = 'pan';
 
-/** What the link asks for: on, unless it says `?camturn=0`; and Classic's follow, only where `?classicfollow=` names one. */
+/** What the link asks for: on, unless it says `?camturn=0`; and Classic's follow, only where `?classicfollow=pan` asks. */
 export function readBallLook(search = typeof location === 'undefined' ? '' : location.search): { on: boolean; classic: ClassicFollow | null } {
-  const q = new URLSearchParams(search), asked = q.get('classicfollow');
-  return { on: q.get('camturn') !== '0', classic: asked === 'pan' || asked === 'zoom' ? asked : null };
+  const q = new URLSearchParams(search);
+  return { on: q.get('camturn') !== '0', classic: q.get('classicfollow') === 'pan' ? 'pan' : null };
+}
+
+/** How far round from straight down the pitch a ball goes from where he hit it, in degrees: 0 straight, 90 square, 180 back past the keeper. */
+export function bearingOf(dx: number, dz: number): number {
+  return Math.abs(Math.atan2(dx, dz)) / rad;
+}
+
+/**
+ * A look's yaw held so that a subject at bearing `subject` (radians, the same
+ * frame) stays within `keep` of the picture's half width `half` (radians).
+ */
+export function keepInView(yaw: number, subject: number, half: number, keep: number = CLASSIC_FOLLOW.keep): number {
+  const most = Math.atan(Math.tan(half) * keep);
+  return clamp(yaw, subject - most, subject + most);
+}
+
+/**
+ * How much wider the lens opens, as a share of its height, to bring a ball at
+ * `off` radians from the look's line into a picture `half` radians wide each
+ * side: 1 for a ball already in it, never past `CLASSIC_FOLLOW.widen`.
+ */
+export function widenFor(off: number, half: number, vertical: number): number {
+  const need = Math.tan(Math.min(Math.abs(off), 1.4)) / Math.tan(half);
+  if (need <= 1) return 1;
+  const wider = 2 * Math.atan(Math.tan(vertical / 2) * need) / vertical;
+  return Math.min(CLASSIC_FOLLOW.widen, wider);
 }
 
 /**
@@ -91,13 +120,6 @@ export function partialLook(rest: readonly [number, number, number], toward: rea
   const yaw = y0 + clamp(dy * share, -CLASSIC_FOLLOW.yaw * rad, CLASSIC_FOLLOW.yaw * rad);
   const pitch = p0 + clamp((p1 - p0) * share, -CLASSIC_FOLLOW.up * rad, CLASSIC_FOLLOW.up * rad);
   return [Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)];
-}
-
-/** How far in the zoom's lens is, as a share of its width, for a ball `distance` metres from the camera. */
-export function zoomFor(distance: number): number {
-  const { near, far, zoom } = CLASSIC_FOLLOW;
-  const k = clamp((distance - near) / (far - near), 0, 1);
-  return 1 - (1 - zoom) * k * k * (3 - 2 * k);
 }
 
 /** A ball off the bat the camera goes after, given how far from the bat it ends up. */

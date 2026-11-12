@@ -3808,18 +3808,26 @@ from the classic view as ever. `?camturn=0` turns both off; neither switch is
 practice. `snapshot().ballLook` says what it is doing, and
 `scripts/ball-look-check.mjs` drives a cover drive under each.
 
-Classic going after the ball is being tried, two ways, and is off unless the
-link asks (`CLASSIC_FOLLOW`, `classicFollow` in `GameScene`): Classic is the
-view players know. `?classicfollow=pan` stands where it always does and
-turns its look `share` of the way after the ball, never more than `yaw`
-round (`partialLook`), so a square cut no longer runs straight off the side
-of a phone's narrow picture; `?classicfollow=zoom` pans the same and closes
-the lens in on the ball as it goes away, as a television camera picks up a
-ball running to the rope (`zoomFor`), opening again as the look comes back.
-A moment drawn round him (the special stroke's flash, a pulled bouncer's, a
-milestone) puts Classic back on its line at once and lets that ball go, so
-the doodle stands round him. Neither is practice. `ONLY=classic` runs the
-check's three Classic cases alone.
+Classic going after the ball is being tried, and is off unless the link
+asks (`?classicfollow=pan`, `CLASSIC_FOLLOW`, `classicFollow` in
+`GameScene`): Classic is the view players know. It stands where it always
+does and turns its look `share` of the way after the ball (`partialLook`),
+but never so far that the batter leaves the picture (`keepInView`, his
+bearing within `keep` of its half width): a square cut or a flick to
+midwicket turned the full way lost him and what he did after it. For those
+the ball runs off the side sooner, so the lens opens a little instead
+(`widenFor`, up to `widen`), as a television camera pulls out to hold a
+batter and a ball. A ball behind square (`behind`, `bearingOf`: the scoops,
+the late cut, a glance) is not turned after at all. A ball that brings a
+celebration (`milestoneDue`, a `?moments=1` moment) is not gone after under
+any camera (`letBallGo`, from `Game` once the ball is struck): turned away
+after a century's square cut, the camera came back halfway through the
+celebration. And a moment drawn round him (the special stroke's flash, a
+pulled bouncer's) puts Classic back on its line at once and lets that ball
+go, so the doodle stands round him. A zoom in on the ball was tried beside it
+and the owner kept the pan. Not practice. `ONLY=classic` runs the check's
+three Classic cases alone (still, a cover drive panned, a square cut held on
+him with the lens opened).
 
 Close and Pro Cam are behind him as Classic is, so the swipes, the side
 labels and Super10's map are Classic's under both.

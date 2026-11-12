@@ -4833,6 +4833,8 @@ export class Game {
     const catching = step ? null : this.catchShot();
     const flight = this.scene.hit(this.outcome, this.attempt?.shotType, this.delivery!, this.elapsed);
     this.contactAt = flight.contactAt; this.presentationAt = flight.presentAt; this.resolveEndsAt = flight.endAt;
+    // A ball that brings a celebration keeps the camera on him: turned after the ball, it came back halfway through.
+    if (this.milestoneDue || this.momentAsked) this.scene.letBallGo();
     if (!step) {
       // A six is let go once it is over the rope (`overRope`): the camera is looking up after it.
       const away = this.scene.struckTo(), six = this.outcome.runs === 6 && !!away;

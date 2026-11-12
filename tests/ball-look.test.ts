@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BALL_LOOK, CLASSIC_FOLLOW, followed, lookPhase, lookToward, partialLook, readBallLook, zoomFor } from '../src/scene/ballLook';
+import { BALL_LOOK, CLASSIC_FOLLOW, followed, lookPhase, lookToward, bearingOf, keepInView, partialLook, readBallLook, widenFor } from '../src/scene/ballLook';
 import type { ShotOutcome } from '../src/game/types';
 
 const hit = (more: Partial<ShotOutcome> = {}) => ({ madeBatContact: true, runs: 4, isWicket: false, aerial: false, ...more }) as ShotOutcome;
@@ -47,7 +47,7 @@ describe('the camera going after the ball off the bat', () => {
   it("asks for Classic's follow only by name on the link", () => {
     expect(readBallLook('').classic).toBe(null);
     expect(readBallLook('?classicfollow=pan').classic).toBe('pan');
-    expect(readBallLook('?classicfollow=zoom').classic).toBe('zoom');
+    expect(readBallLook('?classicfollow=zoom').classic).toBe(null);
     expect(readBallLook('?classicfollow=1').classic).toBe(null);
   });
 
@@ -62,10 +62,26 @@ describe('the camera going after the ball off the bat', () => {
     expect(deg(partialLook(rest, rest)).yaw).toBeCloseTo(0, 9);
   });
 
-  it("closes Classic's lens in on a ball going away, and not on one near", () => {
-    expect(zoomFor(5)).toBe(1);
-    expect(zoomFor(CLASSIC_FOLLOW.far + 20)).toBeCloseTo(CLASSIC_FOLLOW.zoom, 9);
-    expect(zoomFor(30)).toBeLessThan(1);
-    expect(zoomFor(30)).toBeGreaterThan(CLASSIC_FOLLOW.zoom);
+  it('never turns Classic off him', () => {
+    const half = 17 * Math.PI / 180, most = Math.atan(Math.tan(half) * CLASSIC_FOLLOW.keep);
+    expect(keepInView(0.1, 0, half)).toBeCloseTo(0.1, 9);
+    expect(keepInView(0.6, 0, half)).toBeCloseTo(most, 9);
+    expect(keepInView(-0.6, 0.05, half)).toBeCloseTo(0.05 - most, 9);
+  });
+
+  it('tells a ball behind square from a square one', () => {
+    expect(bearingOf(0, 30)).toBeCloseTo(0, 9);
+    expect(bearingOf(-30, 0)).toBeCloseTo(90, 9);
+    expect(bearingOf(10, -20)).toBeGreaterThan(CLASSIC_FOLLOW.behind);
+    expect(bearingOf(-25, 8)).toBeLessThan(CLASSIC_FOLLOW.behind);
+  });
+
+  it("opens Classic's lens a little for a ball off the side, and not for one in the picture", () => {
+    const half = 17 * Math.PI / 180, vertical = 67 * Math.PI / 180;
+    expect(widenFor(0.1, half, vertical)).toBe(1);
+    const off = widenFor(0.4, half, vertical);
+    expect(off).toBeGreaterThan(1);
+    expect(off).toBeLessThanOrEqual(CLASSIC_FOLLOW.widen);
+    expect(widenFor(1.2, half, vertical)).toBe(CLASSIC_FOLLOW.widen);
   });
 });
