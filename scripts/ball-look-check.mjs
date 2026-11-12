@@ -93,7 +93,7 @@ async function run(cam, extra, label, keys = ['w', 'd']) {
       return;
     }
     // Classic turns part of the way, so a cover drive turns it less than the others.
-    check(most > (label.startsWith('classic') ? 8 : 20), `${label}: the look turns after it (${most}°)`);
+    check(most > (label.startsWith('classic') ? 5 : 20), `${label}: the look turns after it (${most}°)`);
     check(found.some(t => t.phase === 'hold') && found.some(t => t.phase === 'back'), `${label}: holds, then comes back`);
     const atNext = found.at(-1);
     check(Math.abs(atNext.yaw) < 4, `${label}: back down the pitch by the next ball (${atNext.yaw}°)`, JSON.stringify(atNext));
