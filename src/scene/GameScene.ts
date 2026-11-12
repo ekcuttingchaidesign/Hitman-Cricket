@@ -39,7 +39,7 @@ import { arrivalCamera, type ArrivalAngle } from '../game/arrival';
 import type { WalkStyle } from '../entities/Batter';
 import { diwaliOn } from '../game/diwali';
 import { BROADCAST, CLOSE_CAM, PRO_CAM, broadcastViewFor, closeViewFor, homeViewFor, proViewFor } from './homeView';
-import { BALL_LOOK, CLASSIC_FOLLOW, CLOSE_FOLLOW, bearingOf, easeBy, followed, keepInView, lookPhase, lookToward, partialLook, readBallLook, widenFor, type LookPhase } from './ballLook';
+import { BALL_LOOK, CLASSIC_FOLLOW, CLOSE_FOLLOW, bearingOf, easeBy, followed, keepInView, lookPhase, lookToward, partialLook, readBallLook, springStep, widenFor, type LookPhase } from './ballLook';
 /** How much further off the broadcast camera stands from the batter than the classic one: the haze moves back by it. */
 const BROADCAST_HAZE = Math.hypot(BROADCAST.eye[1] - 1, BROADCAST.eye[2] - 1) - Math.hypot(2.9 - 1, 5.15 + 1);
 import { facesBatter, type CameraId } from '../game/camera';
@@ -967,7 +967,7 @@ export class GameScene {
    * the scene), eased on `turn` while it follows the ball. Pro Cam and Close
    * both look through this; only one of them a frame.
    */
-  private lookAfterBall(now: number, eye: THREE.Vector3, aim: THREE.Vector3, turn: number, share?: number, keep?: { subject: number; half: number }): THREE.Vector3 {
+  private lookAfterBall(now: number, eye: THREE.Vector3, aim: THREE.Vector3, turn: number): THREE.Vector3 {
     const dt = now - this.lookClock;
     this.lookClock = now;
     const phase = this.followPhase(now);
@@ -976,16 +976,7 @@ export class GameScene {
     if (phase === 'follow' || phase === 'hold') {
       // Where it is, or where it was last drawn: over the rope it is gone, and the look stays where it went out.
       if (this.ball.visible) this.world.localToWorld(this.lookBall.copy(this.ball.position));
-      const toward = lookToward(this.lookBall.x - eye.x, this.lookBall.y - eye.y, this.lookBall.z - eye.z);
-      // Classic turns only part of the way, about its own line (`partialLook`).
-      if (share !== undefined) this.lookTarget.set(...partialLook([this.lookTarget.x, this.lookTarget.y, this.lookTarget.z], toward, share));
-      else this.lookTarget.set(...toward);
-      if (keep) {
-        // Never so far round that he leaves the picture (`keepInView`).
-        const t = this.lookTarget, flat = Math.hypot(t.x, t.z);
-        const yaw = keepInView(Math.atan2(t.x, t.z), keep.subject, keep.half);
-        t.set(Math.sin(yaw) * flat, t.y, Math.cos(yaw) * flat);
-      }
+      this.lookTarget.set(...lookToward(this.lookBall.x - eye.x, this.lookBall.y - eye.y, this.lookBall.z - eye.z));
       tau = turn;
     }
     if (!this.lookHeld || dt > 500 || dt < 0) this.lookHeld = this.lookTarget.clone();
@@ -1025,20 +1016,44 @@ export class GameScene {
     const [x, y, z] = this.playView.eye, at = this.playView.at;
     this.camera.position.set(x, y, z);
     const eye = this.liftEye.copy(this.camera.position);
-    const vertical = this.homeFov * Math.PI / 180, half = Math.atan(Math.tan(vertical / 2) * this.camera.aspect);
-    const him = this.batter.root.getWorldPosition(this.lookPoint);
-    const subject = Math.atan2(him.x - eye.x, him.z - eye.z);
-    const behind = this.ballBearing > CLASSIC_FOLLOW.behind;
-    this.camera.lookAt(this.lookAfterBall(now, eye, this.liftAim.set(...at), CLASSIC_FOLLOW.turn, behind ? 0 : CLASSIC_FOLLOW.share, { subject, half }));
-    const dt = now - this.widenClock;
-    this.widenClock = now;
-    let want = 1;
-    if (!behind && this.lookHeld && (this.lookPhase === 'follow' || this.lookPhase === 'hold')) {
-      const off = Math.atan2(this.lookBall.x - eye.x, this.lookBall.z - eye.z) - Math.atan2(this.lookHeld.x, this.lookHeld.z);
-      want = widenFor(off, half, vertical);
+    const dt = now - this.lookClock;
+    this.lookClock = now;
+    const phase = this.followPhase(now);
+    this.lookPhase = phase;
+    // Where it rests: down its own line.
+    const rest = this.lookTarget.set(...at).sub(eye).normalize();
+    const restYaw = Math.atan2(rest.x, rest.z), restPitch = Math.asin(rest.y);
+    let yaw = restYaw, pitch = restPitch, lens = 1;
+    if ((phase === 'follow' || phase === 'hold') && this.ballBearing <= CLASSIC_FOLLOW.behind) {
+      // Where it is, or where it was last drawn.
+      if (this.ball.visible) this.world.localToWorld(this.lookBall.copy(this.ball.position));
+      const vertical = this.homeFov * Math.PI / 180, half = Math.atan(Math.tan(vertical / 2) * this.camera.aspect);
+      const him = this.batter.root.getWorldPosition(this.lookPoint);
+      const toward = lookToward(this.lookBall.x - eye.x, this.lookBall.y - eye.y, this.lookBall.z - eye.z);
+      const turned = partialLook([rest.x, rest.y, rest.z], toward);
+      // Never so far round that he leaves the picture (`keepInView`); the lens opens for the rest (`widenFor`).
+      yaw = keepInView(Math.atan2(turned[0], turned[2]), Math.atan2(him.x - eye.x, him.z - eye.z), half);
+      pitch = Math.asin(turned[1]);
+      lens = widenFor(Math.atan2(this.lookBall.x - eye.x, this.lookBall.z - eye.z) - yaw, half, vertical);
     }
-    this.widened = dt > 500 || dt < 0 ? want : this.widened + (want - this.widened) * easeBy(dt, want > this.widened ? CLASSIC_FOLLOW.open : CLASSIC_FOLLOW.close);
+    const back = phase !== 'follow' && phase !== 'hold';
+    const s = this.classicSpring;
+    if (!s.live || dt > 500 || dt < 0) Object.assign(s, { live: true, yaw, pitch, lens, vy: 0, vp: 0, vl: 0 });
+    else {
+      const turn = back ? CLASSIC_FOLLOW.settle : CLASSIC_FOLLOW.follow;
+      [s.yaw, s.vy] = springStep(s.yaw, s.vy, yaw, turn, dt);
+      [s.pitch, s.vp] = springStep(s.pitch, s.vp, pitch, turn, dt);
+      [s.lens, s.vl] = springStep(s.lens, s.vl, lens, CLASSIC_FOLLOW.lens, dt);
+      // Settled: exactly where it rests, so the lens and the look are the game's own again.
+      if (back && Math.abs(s.yaw - yaw) + Math.abs(s.pitch - pitch) < 1e-4 && Math.abs(s.lens - 1) < 1e-4 && Math.abs(s.vy) + Math.abs(s.vp) + Math.abs(s.vl) < 1e-3)
+        Object.assign(s, { yaw, pitch, lens: 1, vy: 0, vp: 0, vl: 0 });
+    }
+    const flat = Math.cos(s.pitch);
+    this.lookHeld = (this.lookHeld ?? new THREE.Vector3()).set(Math.sin(s.yaw) * flat, Math.sin(s.pitch), Math.cos(s.yaw) * flat);
+    this.camera.lookAt(this.lookPoint.copy(eye).addScaledVector(this.lookHeld, 20));
+    this.widened = s.lens;
   }
+  private readonly classicSpring = { live: false, yaw: 0, pitch: 0, lens: 1, vy: 0, vp: 0, vl: 0 };
   /**
    * The ball just struck is not gone after, under any camera: one that
    * brings a celebration, which is his, and which a camera turned away would
@@ -1050,7 +1065,7 @@ export class GameScene {
     const yaw = this.lookHeld ? Math.round(Math.atan2(this.lookHeld.x, this.lookHeld.z) / Math.PI * 180) : 0;
     return { on: this.ballLook.on, classic: this.ballLook.classic, followed: this.ballFollowed, phase: this.lookPhase, yaw, lift: +this.lifted.toFixed(2), widen: +this.widened.toFixed(2), bearing: Math.round(this.ballBearing) };
   }
-  private widenClock = 0; private widened = 1; private ballBearing = 0;
+  private widened = 1; private ballBearing = 0;
   private readonly ballLook = readBallLook();
   private ballFollowed = false;
   private lookPhase: LookPhase | null = null;
@@ -1084,7 +1099,7 @@ export class GameScene {
       // Classic going after the ball is put back on its line at once, so the doodle is drawn round him where he stands.
       // And that ball is let go: turning after it once the moment is over would swing the picture round from nowhere.
       this.stillUntil = performance.now() + lasts;
-      this.lookHeld = null; this.widened = 1; this.ballFollowed = false;
+      this.lookHeld = null; this.widened = 1; this.ballFollowed = false; this.classicSpring.live = false;
       this.resize();
       return;
     }
@@ -1103,7 +1118,7 @@ export class GameScene {
   useCamera(id: CameraId) {
     if (id === this.view) return;
     this.view = id;
-    this.lookHeld = null; this.lifted = 0; this.widened = 1;
+    this.lookHeld = null; this.lifted = 0; this.widened = 1; this.classicSpring.live = false;
     if (!this.cinema) this.sizeBall(1);
     this.placeKeeper();
     this.haze(this.now);

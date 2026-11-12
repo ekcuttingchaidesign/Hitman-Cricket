@@ -65,13 +65,36 @@ export const CLOSE_FOLLOW = { eye: [0, 3.7, -5.6] as const, lift: 380, drop: 420
  * straight from him, the scoops, the late cut, a glance) is not turned after
  * at all: the look cannot find it there, only lose him. Nor is a ball that
  * brings a celebration, which is his.
+ *
+ * Every move is a critically damped spring (`springStep`): out after the ball
+ * at `follow`, back to his stance at the slower `settle`, the lens with them
+ * at `lens`. A first-order ease starts at its fastest, so the way back began
+ * as a jerk; a spring starts and stops gently and carries its speed through
+ * the turn from going out to coming back, with no overshoot. `keep` holds
+ * him a little over half way to the edge: at 0.8 he was nearly in the corner.
  */
 export const CLASSIC_FOLLOW = {
   share: .6, yaw: 38, up: 22,
-  turn: 300,
-  keep: .8, behind: 105,
-  widen: 1.2, open: 420, close: 380,
+  keep: .6, behind: 105,
+  widen: 1.22,
+  follow: 6, settle: 3.6, lens: 4.5,
 } as const;
+
+/**
+ * One step of a critically damped spring at `omega` (radians a second)
+ * towards `target`, `dt` milliseconds long: the new place and speed. Taken in
+ * steps of a frame at most, so it holds at any frame rate.
+ */
+export function springStep(x: number, v: number, target: number, omega: number, dt: number): [number, number] {
+  let left = Math.max(0, dt) / 1000;
+  while (left > 0) {
+    const h = Math.min(left, 1 / 60);
+    const a = omega * omega * (target - x) - 2 * omega * v;
+    v += a * h; x += v * h;
+    left -= h;
+  }
+  return [x, v];
+}
 
 export type ClassicFollow = 'pan';
 

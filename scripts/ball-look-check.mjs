@@ -74,7 +74,7 @@ async function run(cam, extra, label, keys = ['w', 'd']) {
       await advance(100);
       const now = await snap();
       trace.push({ ...now.ballLook, game: now.phase, outcome: now.outcome, bat: now.proBat?.shown });
-      if (now.ballLook.followed && [3, 7, 12].includes(i)) await page.screenshot({ path: `test-results/ball-look-${label}-${++shot}.png` });
+      if (now.ballLook.followed && [3, 7, 12, 18, 21, 24].includes(i)) await page.screenshot({ path: `test-results/ball-look-${label}-${++shot}.png` });
       if (now.phase === 'BALL_IN_FLIGHT' && i > 5) break;
     }
     const followedTrace = trace.filter(t => t.followed);

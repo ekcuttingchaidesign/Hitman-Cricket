@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BALL_LOOK, CLASSIC_FOLLOW, followed, lookPhase, lookToward, bearingOf, keepInView, partialLook, readBallLook, widenFor } from '../src/scene/ballLook';
+import { BALL_LOOK, CLASSIC_FOLLOW, followed, lookPhase, lookToward, bearingOf, keepInView, partialLook, readBallLook, springStep, widenFor } from '../src/scene/ballLook';
 import type { ShotOutcome } from '../src/game/types';
 
 const hit = (more: Partial<ShotOutcome> = {}) => ({ madeBatContact: true, runs: 4, isWicket: false, aerial: false, ...more }) as ShotOutcome;
@@ -83,5 +83,23 @@ describe('the camera going after the ball off the bat', () => {
     expect(off).toBeGreaterThan(1);
     expect(off).toBeLessThanOrEqual(CLASSIC_FOLLOW.widen);
     expect(widenFor(1.2, half, vertical)).toBe(CLASSIC_FOLLOW.widen);
+  });
+
+  it("moves Classic on a spring: gently away, no overshoot, and settled", () => {
+    // From rest towards 1: the first frame moves it only a hair, where an ease would start at its fastest.
+    const [first] = springStep(0, 0, 1, CLASSIC_FOLLOW.settle, 16);
+    expect(first).toBeLessThan(.01);
+    let x = 0, v = 0, most = 0;
+    const path: number[] = [];
+    for (let t = 0; t < 2000; t += 16) { [x, v] = springStep(x, v, 1, CLASSIC_FOLLOW.settle, 16); most = Math.max(most, x); path.push(x); }
+    expect(most).toBeLessThanOrEqual(1 + 1e-9);
+    expect(x).toBeGreaterThan(.98);
+    // Its speed rises and then falls: one smooth hump, no jerk at the start.
+    const speeds = path.slice(1).map((p, i) => p - path[i]);
+    const peak = speeds.indexOf(Math.max(...speeds));
+    expect(peak).toBeGreaterThan(3);
+    expect(speeds.slice(peak).every((s, i, all) => i === 0 || s <= all[i - 1] + 1e-12)).toBe(true);
+    // The same at any frame rate.
+    expect(springStep(0, 0, 1, 4, 64)[0]).toBeCloseTo(springStep(...springStep(0, 0, 1, 4, 32), 1, 4, 32)[0], 3);
   });
 });

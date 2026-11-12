@@ -3817,7 +3817,12 @@ bearing within `keep` of its half width): a square cut or a flick to
 midwicket turned the full way lost him and what he did after it. For those
 the ball runs off the side sooner, so the lens opens a little instead
 (`widenFor`, up to `widen`), as a television camera pulls out to hold a
-batter and a ball. A ball behind square (`behind`, `bearingOf`: the scoops,
+batter and a ball. Every move is a critically damped spring
+(`springStep`, `classicSpring` in `GameScene`): out after the ball at
+`follow`, back to his stance at the slower `settle`, the lens with them. The
+first build eased each way at a first-order rate, which starts at its
+fastest, and the owner saw the way back jerk off from near the corner of
+the picture; `keep` was 0.8 then and is 0.6. A ball behind square (`behind`, `bearingOf`: the scoops,
 the late cut, a glance) is not turned after at all. A ball that brings a
 celebration (`milestoneDue`, a `?moments=1` moment) is not gone after under
 any camera (`letBallGo`, from `Game` once the ball is struck): turned away
