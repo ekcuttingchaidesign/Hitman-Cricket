@@ -151,6 +151,19 @@ describe('who is a newcomer', () => {
     expect(readPlayed(read)?.classic).toBe(NEWCOMER_INNINGS);
   });
 
+  it('runs out in Super10 as in every other mode, for a player with no career', () => {
+    const { read, write } = storage();
+    seedPlayed(read, write, false);
+    expect(easeFor(playedIn('super10', read))).toBe(EASE[0]);
+    notePlayed('super10', read, write);
+    expect(playedIn('super10', read)).toBe(1);
+    notePlayed('super10', read, write);
+    notePlayed('super10', read, write);
+    expect(playedIn('super10', read)).toBe(NEWCOMER_INNINGS);
+    expect(easeFor(playedIn('super10', read))).toBe(1);
+    expect(playedIn('classic', read)).toBe(0);
+  });
+
   it('goes by the career where it is further on, as one brought back by a key is', () => {
     const { read } = storage();
     expect(playedIn('marathon', read, 140)).toBe(140);
