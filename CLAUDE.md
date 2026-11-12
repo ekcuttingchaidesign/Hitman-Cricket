@@ -489,8 +489,9 @@ branch. Wait on what the game says (`snapshot()`, its phase), not on how slow
 the machine is; and a box measured off a screenshot is in the page's pixels,
 so scale it by `devicePixelRatio`.
 
-A check that seeds `hitman-whatsnew` seeds the current update key
-(`rivals`), or the stories stand in front of Choose a mode.
+A check that seeds `hitman-whatsnew` seeds a count of nine (`rivals:9`
+still does: nine of any update keeps every update's stories away), or the
+stories stand in front of Choose a mode.
 
 `scripts/scene-check.mjs` is the ground itself: the sky and the painted turf
 are canvases and a shader no unit test runs, and it holds the draw-call budget
@@ -683,7 +684,40 @@ plays two devices for one player against the dev server's store; it passes
 `?private=0`, because headless Chromium looks like a private window and would
 otherwise keep nothing.
 
-The update's What's new is one story, Rivals live, as a video (`Story.video`,
+The update's What's new is the batting cams (`CAMERA_STORIES` in
+`src/game/whats-new.ts`, update key `cams`): one card, about eight seconds,
+storyboard D on the claude.ai design canvas "Batting Cams Story", drawn in
+the Figma handover's What's new language (its Dressing Room stories): a thin
+bar, the small orange eyebrow and the dark close key across the top, the
+words bottom-left in cream Jaro with a grey Satoshi line, the coachmarks'
+white outline and tag, the chase card's blue band, the game's gold for the
+figure, the orange key. A gold, outlined, tilted title and a picture picker
+were tried first and the owner found them ugly; nothing on the card switches
+the camera. It is filmed through the game's own cameras on one clock
+(`Story.show`, `src/game/CameraShow.ts`, every case in
+`tests/camera-show.test.ts`; the game's `playShow` and `showFrame`, the HUD's
+`camsSetUp` and `camsBeat`, `camsMarkup` in `src/ui/WhatsNew.ts`, `.is-cams`
+in `styles.css`), a Test match by day in whites, the player's camera, kit and
+light put back after it. The beats (`BEATS`, `beatAt`, `data-beat` on the
+card): NEW BATTING CAMS over the classic view darkened, inside a viewfinder
+outline with REC; BAT CLOSER on the Close cam, the outline round him
+(`batterOnScreen`) and a CLOSE CAM tag; the PRO CAM band sweeping across as
+the picture cuts to his eyes (`cameraAt`); FEEL THE SPEED as the sling
+bowler's 158, 156 and 154 (`SPEEDS`, the express bowler at the Tests' own
+pace, the second and third already running, `RUN_FROM`) are left alone just
+outside off and flash past, each read once on a glass gauge as it leaves his
+hand, the last readings stepping down into chips; then the pause menu
+itself, copied in from the real `#pause-sheet` with every part dimmed but
+the Camera row, lit in the white outline under NEW · 3 CAMS, FIND IT IN
+PAUSE MENU, and the orange GOT IT, where it holds (`holds` on the story).
+The close key is the way out before that. Opened from the board mid-innings,
+or under reduced motion, it opens on that last beat. Never slowed: the speed
+is the point. `snapshot().show` says the beat, the ball and the camera.
+`whatsnew-check` walks it: the intro, BAT CLOSER, the close key, the last
+beat under reduced motion with GOT IT, the twice and the never, and the
+board's key.
+
+Before it the update was one story, Rivals live, as a video (`Story.video`,
 `public/stories/rivals.mp4`, 720 by 1280 and sixteen seconds; its last frame
 `rivals-lockup.webp` is `Story.still`, shown in its place under reduced
 motion), made to the Super10 film's standard: one subject at a time on the
@@ -710,12 +744,10 @@ until it is closed. One story has no bar across the top (`is-single`). It
 was made as a canvas film, a pure function of time rendered frame by frame,
 not committed: `rivals-film/` on the machine that made it (`film.js`, its
 screens from `scripts/.film-capture.mjs` and `.film-capture2.mjs`), rendered
-at 1080 by 1920 and scaled down to the story's size. The update key is
-`rivals`, so everybody is shown it twice and then never (`whatsNewDue`), and
-a check that seeds `hitman-whatsnew` seeds `rivals:9`. `whatsnew-check` walks
-it: the video playing above the two keys, its hold, SEE WHO'S ONLINE opening
-Rival Matches, the twice and the never, and the board's key that opens it
-for ever. Super10's film before it (made in Remotion, `wip/super10-film/`)
+at 1080 by 1920 and scaled down to the story's size. Its update key was
+`rivals`, shown everybody twice and then never (`whatsNewDue`); the film and
+its story (`RIVALS_STORIES`) are kept, as every story told before them is.
+Super10's film before it (made in Remotion, `wip/super10-film/`)
 was retired with its key and its files; the player profiles' Lottie film before that is
 still `public/lotties/player-profiles.json`.
 
@@ -2593,9 +2625,9 @@ orange or violet band before that. Between the walk-on's
 bars with everything else put out of sight (`intro-on`), a REPLAY tag top left
 (`#replay-tag`). A tap, Space, Enter or Escape skips to the wipe out; a pause
 or a new innings cuts it short with none (`stopReplay`). The pause sheet has a
-Replays switch (`#replay-switch`, kept in `hitman-replays`), with a NEW tag
-beside its name (`#replay-new`, `newTagDue`) on a browser's first three pause
-sheets, gone for good once the switch is used (`hitman-replays-new`). Off under
+Replays switch (`#replay-switch`, kept in `hitman-replays`); the NEW tag
+that stood beside it on a browser's first three pause sheets was taken off
+with the sheet's redraw, as the owner asked. Off under
 `?debug=1` and reduced motion; `?replay=1` replays every ball that qualifies,
 debug or not, `?replay=due` the ones a player would get, debug or not, and
 `?replay=0` none; none of them is practice. `snapshot()` carries `kept`, the
@@ -3635,12 +3667,21 @@ the match a screen of its own. `challenge-check.mjs` walks all of it (with
 `SHOTS=dir` it photographs each step); `?room=won` and its siblings put any
 room face up.
 
-In play (phase 8, the handover's section 09): the pause sheet as drawn — a
-black strip with the game's name by a dot in its colour and where the
-innings stands, PAUSED, RESUME INNINGS, RESTART and CHANGE MODE side by
-side, and Crowd, Ambience and Lights as one card of rows; the declare key
-and the lights stay in the modes that have them (`pause-check` reads the
-game's colour off the dot). The physio card is headed BATSMAN CRITICALLY
+In play (phase 8, the handover's section 09), redrawn since (the claude.ai
+design canvas "Pause Sheet Layouts", D2, the owner's pick of five): one card
+no taller than the screen, 12 in from its edges. At the top PAUSED, the
+game's name by a dot in its colour and where the innings stands, and the
+sound key (`#pause-sound`, pressing the game's own `#sound`, whose picture
+it wears): the card covers the score bar, so its keys step aside while it is
+up (`pause-open` on the stage). In the middle, which scrolls when the screen
+is short (`.pause-body`), Crowd, Ambience, Replays and Vibration as a two by
+two grid of tiles (`.pause-tile`), Lights under them in the Blast, then the
+cameras. Pinned at the foot, under the thumb, RESUME INNINGS over RESTART
+and CHANGE MODE, and the declare key in the Marathon. The sheet it replaced
+was centred under the score bar's keys with 64 of padding over it and did
+not scroll, so on a phone in a browser with its bars showing (about 664
+high) the Camera and Lights rows ran off the foot out of reach
+(`pause-check` reads the game's colour off the dot). The physio card is headed BATSMAN CRITICALLY
 INJURED, with the injury ring and the real figure beside PHYSIO ON, and
 `__cricket.physio()` puts it up by name. HOW TO PLAY on the cover opens the
 coachmarks a first innings shows (`howToPlay` in `src/Game.ts`), ending on
@@ -3682,6 +3723,91 @@ both PLAY AGAINs — and leaves them at rest under reduced motion.
 Road to Hitman's fill is `roadOf` in `src/game/tier.ts`: the medallions stand
 evenly, so the fill is a whole rung per tier climbed and the share of the gap
 across the last, not a fraction of the top figure.
+
+## The camera row: Classic, Close and Pro Cam
+
+The innings can be watched through more than one camera
+(`src/game/camera.ts`, in `tests/camera.test.ts`), chosen on the pause
+sheet's Camera row (`#camera-row`, `cameraSwitch`), each key a small
+picture of that camera's own view over its name (`src/assets/cameras/`,
+taken by `scripts/camera-thumbs.mjs` off the dev server: run it again when
+a camera or the ground's look changes), taken at once mid-innings and kept
+in `hitman-camera`. Three fill the row; a fourth and any after it make the
+row scroll sideways with the next one showing at its edge
+(`.camera-picks`, each key at least 96 wide), so a new camera needs only
+its entry in `CAMERAS`, a cut in `camera-thumbs.mjs` and its picture;
+`?cam=classic`, `close`, `pro` or
+`broadcast` asks for one for the visit, and is not practice. GoatCounter
+counts `camera-<id>`.
+
+- **Classic**, the game's own view from behind the bat (`homeViewFor`).
+- **Close** (`CLOSE_CAM`, `closeViewFor` in `homeView.ts`): low and close
+  behind him over the stumps, just high enough that the line to the
+  bowler's hand clears his helmet, on a 50-degree lens held whatever the
+  screen's shape: he stands big at the foot of the picture, the bowler runs
+  in over his shoulder, the stand fills the top. It was the first build of
+  Pro Cam, and the owner liked it and kept it when Pro Cam became his eyes.
+- **Pro Cam**, the batter's own eyes (`PRO_CAM` in `homeView.ts`,
+  `eyesView` in `GameScene`), from a clip the owner sent of a broadcast
+  game's pro camera: the camera at his eyes (`Batter.eyes`), a hand's width
+  behind them (`behind`, `above`), eased after his head as he moves
+  (`follow`) and always looking nearly level down the middle of the pitch at
+  a fixed point, never where his head turns: the stand across the top, the
+  bowler small in the middle, the pitch running down to the foot, and in his
+  guard nothing of him on the screen. Nothing of him is drawn but the gloves
+  and the bat (`Batter.firstPerson`, every frame from `render`), which swing
+  up into the picture as he plays; his head, body, legs, the arms (the
+  jersey's, one garment with the body) and the gloves' gauntlets go onto
+  `BODY_LAYER`, which the sun's shadow camera still sees, so his shadow stays
+  on the turf. The IK's own forearm pieces stood in for the arms at first,
+  and with the gauntlets' open ends read as a hand chopped off; the shoulder
+  and upper arm before that were a blob of shirt. A hand's width back, the
+  bat's handle is never nearer the lens than about 0.6m through a stroke;
+  closer, the follow-through came up past the lens and the near plane cut the
+  gloves in two, so the bat and gloves go onto the body's layer too while the
+  handle is within `clear` of the lens (`proBat` in `snapshot()` says how far
+  it is and whether it is drawn). The ball is drawn at `ball` of its size.
+  Under any film's camera (the walk-on, the arrival, a replay, the catch
+  camera) he is drawn whole. A moment drawn round him — the special
+  stroke's flash, a pulled bouncer's, a milestone's celebration — has nobody
+  to draw round from his eyes, so the picture cuts to Close for as long as
+  it lasts and back to his eyes after (`GameScene.moment`, called before the
+  doodle asks where he stands), as television cuts away for a celebration.
+  The coachmarks' lanes are placed where the classic view has him
+  (`batterOnScreen` through `judge` while the camera is his eyes).
+
+Close and Pro Cam are behind him as Classic is, so the swipes, the side
+labels and Super10's map are Classic's under both.
+
+The doodles are drawn round where the camera has him (`batterOnScreen`) and
+to his size there, held to `MOST_OF_SCREEN` of the screen's height
+(`sizeOf` in `src/ui/Milestone.ts`), about what the classic view gives him on
+a phone: under Close he stands nearly half the screen tall, and the bursts at
+his boots and the hundred's lines were drawn three times over and off the
+foot of the screen.
+- **Broadcast**, the television's (`broadcastViewFor`), from a screenshot the
+  owner sent: high behind the bowler's arm on a long lens, the bowler in the
+  foot of the picture from his back. Built first, and the owner did not like
+  its look, so it is off the row and only on the link, for comparing; a
+  Broadcast kept from when it was on the row reads as Classic (`readCamera`),
+  or it would be stuck on with no key to leave it. Facing the batter, the
+  swipes are read turned half round (`swipeAsPlayed`, `facesBatter`), the side
+  labels turn (`hud.sides`), Super10's map is turned half round
+  (`fieldMapMarkup`'s `facing`, `FieldUi.turn`), the keeper is drawn stood
+  back to pace, the haze moves out with the camera (`haze`) and the ball is
+  drawn at `BROADCAST.ball` of its size (`sizeBall`). It stands inside the
+  rope, fifty metres back there: further, it was inside the stand.
+
+Only the picture changes. Every ball is bowled, timed and scored the same,
+and who goes for a ball is judged from the classic view under any camera
+(`judge` in `GameScene.inShot`), so a Rival Match is one game whichever each
+side watches. A special stroke's push in is scaled to the lens. The walk-on,
+the new batter's arrival and the replays keep their own cameras, landing on
+the classic view and cutting to the one picked. The first innings's
+coachmark lanes are drawn for the classic view: a new player starts on it.
+`scripts/camera-check.mjs` swipes under Broadcast, picks Pro Cam and Close
+on the pause sheet, sees him drawn from his eyes under the one and whole
+under the other, swipes under both, and reads Super10's map.
 
 ## The view on a tall screen
 

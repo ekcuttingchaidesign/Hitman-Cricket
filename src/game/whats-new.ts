@@ -1,6 +1,7 @@
 import type { Film } from '../ui/Lottie';
 import { diwaliOn } from './diwali';
 import type { ReelShot } from './ShotReel';
+import type { CamShow } from './CameraShow';
 
 /**
  * What changed, told the way a story is told.
@@ -9,8 +10,9 @@ import type { ReelShot } from './ShotReel';
  * player once, in the shape every phone already knows how to read: a card, a
  * bar across the top, a tap to move on.
  *
- * Diwali week tells the Diwali kits and bats on the room's stage (`DIWALI_STORIES`), and after
- * it the update goes back to Rivals live, told in one film (`public/stories/rivals.mp4`,
+ * The update is the batting cams (`CAMERA_STORIES`), one card told through
+ * the game's own cameras. Diwali week told the Diwali kits and bats on the room's stage
+ * (`DIWALI_STORIES`), and between the two the update was Rivals live, told in one film (`public/stories/rivals.mp4`,
  * made as a canvas film by `rivals-film/` on the machine that made it, from
  * real screens of the game): who's around, a challenge sent from a profile,
  * one arriving on the bell with its total on the same balls, TARGET CHASED,
@@ -95,6 +97,14 @@ export interface Story {
    * stand on the sheet's own dark.
    */
   reel?: ReelShot;
+  /**
+   * The batting cams' story, filmed through the game's own cameras on one
+   * clock (`CameraShow.ts`), its own words beat by beat (`camsMarkup`), ending
+   * on the pause menu with GOT IT. The whole of the card.
+   */
+  show?: CamShow;
+  /** The card holds still, however it ends, rather than moving on by itself. */
+  holds?: boolean;
 }
 
 /**
@@ -122,6 +132,24 @@ export const RIVALS_STORIES: readonly Story[] = [
     still: 'stories/rivals-lockup.webp',
     // The last card with a way in holds still (`storyHolds`), on the film's last frame.
     opens: 'rivals',
+  },
+];
+
+/**
+ * The batting cams, one card (storyboard D on the claude.ai design canvas
+ * "Batting Cams Story"): NEW BATTING CAMS over the classic view, BAT CLOSER on
+ * the Close cam, the PRO CAM band, FEEL THE SPEED from his eyes as the sling
+ * bowler's 158, 156 and 154 go past, then the pause menu with its Camera row
+ * lit, FIND IT IN PAUSE MENU, and GOT IT. Nothing is switched from the story.
+ */
+export const CAMERA_STORIES: readonly Story[] = [
+  {
+    key: 'cams',
+    eyebrow: 'WHAT’S NEW · BATTING CAMS',
+    title: 'NEW BATTING CAMS',
+    alt: 'Two new batting cameras. Close puts the camera low behind the batter. Pro Cam is the batter’s own eyes: the sling bowler’s 158, 156 and 154 kilometre-an-hour balls come at the lens and flash past. Find them in the pause menu, under Camera.',
+    show: 'cams',
+    holds: true,
   },
 ];
 
@@ -162,8 +190,8 @@ export const DIWALI_STORIES: readonly Story[] = [
  * last and goes on to Choose a mode as it always has; Rivals alone after it.
  */
 const DIWALI_RUN: readonly Story[] = [...DIWALI_STORIES, ...RIVALS_STORIES];
-export const storiesAt = (now: number): readonly Story[] => (diwaliOn(now) ? DIWALI_RUN : RIVALS_STORIES);
-export const updateAt = (now: number) => (diwaliOn(now) ? 'diwali' : 'rivals');
+export const storiesAt = (now: number): readonly Story[] => (diwaliOn(now) ? DIWALI_RUN : CAMERA_STORIES);
+export const updateAt = (now: number) => (diwaliOn(now) ? 'diwali' : 'cams');
 /** The update's stories, as the page loaded. */
 export const STORIES: readonly Story[] = storiesAt(Date.now());
 
@@ -193,7 +221,7 @@ const KEY = 'hitman-whatsnew';
  * Diwali's two showings do not use up Rivals' for a player who has seen it
  * once, and Rivals comes back to them after Diwali week.
  */
-const KEPT_UPDATES = ['rivals', 'diwali'];
+const KEPT_UPDATES = ['rivals', 'diwali', 'cams'];
 /**
  * What the browser checks seed (`rivals:9`) to keep the stories out of their
  * way. No player is ever shown an update more than `TIMES`, so a count this

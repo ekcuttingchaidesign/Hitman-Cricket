@@ -3,6 +3,14 @@ import { SHOT_CALLS, STORIES, type Story } from '../game/whats-new';
 import { CUE, type ReelShot } from '../game/ShotReel';
 import { MARK, type KeyView } from './CareerKey';
 import { cta } from './Kit';
+import type { CameraId } from '../game/camera';
+import { showPlan } from '../game/CameraShow';
+import cameraClassic from '../assets/cameras/classic.webp';
+import cameraClose from '../assets/cameras/close.webp';
+import cameraPro from '../assets/cameras/pro.webp';
+
+/** Each camera's own view, the pictures on the pause sheet's Camera row. */
+export const CAMERA_PICTURES: Partial<Record<CameraId, string>> = { classic: cameraClassic, close: cameraClose, pro: cameraPro };
 
 /**
  * The stories, as a screen.
@@ -52,6 +60,7 @@ export function storiesMarkup(view: StoriesView): string {
   const { at, where, holdMs, locked = false, careerKey = null, stories = STORIES } = view;
   const story = stories[at] ?? stories[0];
   const holds = storyHolds(at, stories);
+  if (story.show) return camsMarkup(story, where);
   const live = (i: number) => i !== at ? '' : holds ? ' is-live is-held' : ' is-live';
   const art = story.art ? `<img${story.cut ? ' class="is-cut"' : ''} src="${story.art}" alt="${escape(story.alt)}" width="${story.width}" height="${
     story.height ?? story.width}" draggable="false">` : '';
@@ -112,7 +121,7 @@ export function storiesMarkup(view: StoriesView): string {
  */
 export function storyHolds(at: number, stories: readonly Story[] = STORIES): boolean {
   const story = stories[at];
-  return !!story && (!!story.withKey || (!!story.opens && at === stories.length - 1));
+  return !!story && (!!story.holds || !!story.withKey || (!!story.opens && at === stories.length - 1));
 }
 
 /**
@@ -174,6 +183,56 @@ export function shotCueMarkup(shot: ReelShot): string {
           <span class="whatsnew-cue-where">${escape(where)}</span>
         </div>
       </div>`;
+}
+
+const X_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+/** The gauge's arc, track and fill, on a dial 164 by 104: the fill and the needle are moved by the card (`--to`). */
+const GAUGE = `<svg class="cams-dial" viewBox="0 0 164 104" aria-hidden="true">
+          <path class="cams-track" d="M26 88A56 56 0 0 1 138 88"/>
+          <path class="cams-fill" d="M26 88A56 56 0 0 1 138 88" pathLength="100"/>
+          <g class="cams-ticks"><path d="M26 88h7M82 32v7M138 88h-7M42.4 47.4l5 5M121.6 47.4l-5 5"/></g>
+          <g class="cams-needle"><path d="M82 88H130"/><circle cx="82" cy="88" r="5"/></g>
+        </svg>`;
+const CHEVRONS = '<svg class="cams-chevrons" viewBox="0 0 166 144" aria-hidden="true"><path d="M0 0H46L104 72L46 144H0L58 72Z"/><path d="M62 0H108L166 72L108 144H62L120 72Z"/></svg>';
+
+/**
+ * The batting cams' card (`Story.show`, storyboard D on the design canvas
+ * "Batting Cams Story"), in the handover's language: a thin bar, the orange
+ * eyebrow and the close key across the top, the words bottom-left in Jaro
+ * over the game's own picture, the coachmarks' white outline and tag. Each
+ * beat's pieces stand in the card from the start and are shown by the beat
+ * the game is on (`data-beat`, put by the HUD as the show tells it): the
+ * viewfinder, the frame round him on the Close cam, the PRO CAM band, the
+ * speed gauge and its log, and the pause menu with its Camera row lit
+ * (`.cams-pause`, the real sheet copied in by the HUD). It holds on that with
+ * GOT IT; the close key is the way out before it.
+ */
+export function camsMarkup(story: Story, where: StoriesWhere): string {
+  const say = (beat: string, title: string, line: string) => `
+        <div class="cams-say" data-say="${beat}"><h2 class="whatsnew-title">${escape(title)}</h2><p>${escape(line)}</p></div>`;
+  return `
+    <div class="whatsnew-sheet is-cams" data-beat="intro" role="document" aria-roledescription="story" aria-label="${escape(story.alt)}" style="--len:${Math.round(showPlan().where)}ms">
+      <div class="cams-shade" aria-hidden="true"></div>
+      <div class="whatsnew-bars is-single" aria-hidden="true"><span class="whatsnew-bar"><i></i></span></div>
+      <div class="cams-bar" aria-hidden="true"><i></i></div>
+      <p class="cams-eyebrow">${escape(story.eyebrow)}</p>
+      <button id="whatsnew-back" class="whatsnew-half is-back" type="button" aria-label="Previous" tabindex="-1"></button>
+      <button id="whatsnew-next" class="whatsnew-half is-next" type="button" aria-label="Next" tabindex="-1"></button>
+      <button id="whatsnew-done" class="cams-x" type="button" aria-label="${where === 'board' ? 'Close' : 'Skip'}">${X_ICON}</button>
+      <div class="cams-rec" aria-hidden="true"><span class="cams-rec-on"><i></i>REC</span><span>CAM 1</span></div>
+      <div class="cams-spot" aria-hidden="true"></div>
+      <span class="cams-tag" aria-hidden="true">CLOSE CAM<i></i></span>
+      <div class="cams-band" aria-hidden="true">${CHEVRONS}<span>NEW · PRO CAM</span><b>PRO CAM</b><em>The batter’s own eyes</em></div>
+      <div class="cams-gauge" aria-hidden="true">${GAUGE}<b class="cams-kph">0</b><i>KM/H</i></div>
+      <div class="cams-log" aria-hidden="true"></div>
+      <div class="cams-pause" aria-hidden="true"></div>
+      <div class="cams-words">${say('intro', 'NEW BATTING CAMS', 'Two new ways to watch every ball.')}${
+  say('close', 'BAT CLOSER', 'Low over your shoulder, the bowler running in.')}${
+  say('speed', 'FEEL THE SPEED', 'Pro Cam puts you behind the batter’s eyes.')}${
+  say('where', 'FIND IT IN PAUSE MENU', 'Tap pause, then pick Classic, Close or Pro Cam under Camera.')}
+      </div>
+      <div class="cams-foot">${cta({ kind: 'primary', label: 'GOT IT', id: 'whatsnew-got', wide: true })}</div>
+    </div>`;
 }
 
 /** What the key says, which is wherever pressing it actually lands. */

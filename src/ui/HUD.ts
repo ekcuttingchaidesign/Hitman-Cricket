@@ -54,6 +54,7 @@ import type { SoloInnings, SoloRow, TeamRow } from '../game/marathon-board';
 import { rivalsRecordMarkup, type RivalsRecord } from './Record';
 import { coverBoardLines, coverMarkup, profileChip, type CoverBoard } from './Cover';
 import { cta, fitLabels, icon as kitIcon } from './Kit';
+import { CAMERAS, type CameraId } from '../game/camera';
 import {
   answerSheetMarkup, entryProblem, insideAnApp, noQuestionMarkup, nudgeSheetMarkup, passwordCardMarkup, passwordDoneMarkup,
   passwordSheetMarkup, ruleStates, type NudgeFigures, type PasswordEntry, type PasswordMode, type PasswordSheetView,
@@ -66,12 +67,14 @@ import {
 import { battingCardMarkup, battingOf, injuryRingMarkup, injuryWord, overChartMarkup, super10ChartMarkup, wormChartMarkup } from './EndCard';
 import { modeSelectMarkup, modeSelectParts, type ModeSelectView } from './ModeSelect';
 import { Super10Spark } from './Super10Card';
-import { storiesMarkup, storyHolds, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
+/** Each camera's own view, small, on its key on the pause sheet (`scripts/camera-thumbs.mjs` takes them). */
+import { CAMERA_PICTURES, storiesMarkup, storyHolds, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
 import { applyNearing, endNearing, nearingMarkup } from './Nearing';
 import type { Nearing, NearingEnd } from '../game/milestone';
 import { milestoneDoodle, powerDoodle, pullDoodle, type BatterOnScreen, type PowerStyle, type PullPen } from './Milestone';
 import type { Moment } from '../game/milestone';
 import { STORIES, type Story } from '../game/whats-new';
+import type { CamShow, ShowBeat } from '../game/CameraShow';
 import {
   keyAboutMarkup, keyBarMarkup, keyModalMarkup, keyToastMarkup,
   type KeyView,
@@ -199,6 +202,8 @@ const icon = (name: string) => {
     crowd: '<circle cx="9" cy="8.5" r="3"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9.5" r="2.3"/><path d="M15.8 14.3a4.5 4.5 0 0 1 4.9 4.7"/>',
     /* The replays switch: the restart arrow round a play mark. */
     replay: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v4h4"/><path d="m10.5 9.3 4.2 2.7-4.2 2.7z"/>',
+    /* The camera row: a television camera on its stand. */
+    camera: '<rect x="3" y="6.5" width="12" height="9" rx="2"/><path d="m15 9.5 5.5-3v9l-5.5-3"/><path d="M9 15.5v3m-3 1.5h6"/>',
     /* The vibration switch: a phone with a buzz either side of it. */
     haptics: '<rect x="8" y="3.5" width="8" height="17" rx="2"/><path d="M4.5 9v6M2 10.5v3M19.5 9v6M22 10.5v3"/>',
     ambience: '<path d="M3 9.5c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/><path d="M3 14.5c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/>',
@@ -448,54 +453,53 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
         <div id="restore-overlay" class="hidden"></div>
         <div id="password-overlay" class="hidden"></div>
         <div id="pause-overlay" class="modal-overlay pause-screen hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+          <!--
+            One card the height of the screen at most: PAUSED, the game and
+            the score with the sound key at the top, the settings in the
+            middle, which scrolls when the screen is short, and the keys
+            pinned at the foot under the thumb, RESUME over RESTART and
+            CHANGE MODE (the claude.ai design canvas "Pause Sheet Layouts",
+            D2). It covers the score bar, so the sound key is on the card.
+          -->
           <div id="pause-sheet" class="pause-sheet" data-tone="blast">
-            <div class="pause-strip">
-              <span id="pause-mode" class="pause-mode">The Blast</span>
-              <p id="pause-state" class="pause-state"></p>
+            <div class="pause-head">
+              <div class="pause-head-say">
+                <h2 id="pause-title" class="pause-title">PAUSED</h2>
+                <p class="pause-line"><span id="pause-mode" class="pause-mode">The Blast</span><span id="pause-state" class="pause-state"></span></p>
+              </div>
+              <button id="pause-sound" class="pause-sound" type="button" aria-label="Sound">${icon('sound')}</button>
             </div>
             <div class="pause-body">
-            <h2 id="pause-title" class="pause-title">PAUSED</h2>
-            <button id="resume" class="k-cta k-cta--primary is-wide pause-resume" type="button"><span class="k-cta-face"><span>RESUME INNINGS</span></span></button>
-            <div class="pause-keys">
-              <button id="restart" class="k-cta k-cta--secondary pause-key" type="button"><span class="k-cta-face"><span>RESTART</span></span></button>
-              <button id="change-mode" class="k-cta k-cta--secondary pause-key" type="button"><span class="k-cta-face"><span>CHANGE MODE</span></span></button>
-            </div>
-            <button id="declare" class="pause-key pause-declare hidden" type="button" aria-describedby="declare-line"><span class="pause-declare-name">${icon('flag')}<span>Declare the innings</span></span><small id="declare-line" class="pause-declare-line hidden">Ends the innings here and keeps your score</small></button>
-            <p class="pause-counts">Only finished innings count toward your career.</p>
-            <p class="pause-group-label" id="pause-settings">Settings</p>
-            <div class="pause-group" role="group" aria-labelledby="pause-settings">
-              <button id="crowd-switch" class="pause-row" type="button" role="switch" aria-checked="true">
-                <span class="pause-row-icon is-crowd">${icon('crowd')}</span>
-                <span class="pause-row-say"><b>Crowd</b><em>Cheers and groans</em></span>
-                <span class="pause-switch" aria-hidden="true"></span>
-              </button>
-              <button id="ambience-switch" class="pause-row" type="button" role="switch" aria-checked="true">
-                <span class="pause-row-icon is-ambience">${icon('ambience')}</span>
-                <span class="pause-row-say"><b>Ambience</b><em>The stadium in the background</em></span>
-                <span class="pause-switch" aria-hidden="true"></span>
-              </button>
-              <button id="replay-switch" class="pause-row" type="button" role="switch" aria-checked="true">
-                <span class="pause-row-icon is-replay">${icon('replay')}</span>
-                <span class="pause-row-say"><b>Replays<span id="replay-new" class="pause-new hidden">NEW</span></b><em>Your best strokes, played again</em></span>
-                <span class="pause-switch" aria-hidden="true"></span>
-              </button>
-              <button id="haptics-switch" class="pause-row" type="button" role="switch" aria-checked="true">
-                <span class="pause-row-icon is-haptics">${icon('haptics')}</span>
-                <span class="pause-row-say"><b>Vibration</b><em>A buzz when the bat meets the ball</em></span>
-                <span class="pause-switch" aria-hidden="true"></span>
-              </button>
-              <div id="lights-row" class="pause-row is-static hidden">
+              <p class="pause-label" id="pause-settings">Sound &amp; feel</p>
+              <div class="pause-tiles" role="group" aria-labelledby="pause-settings">
+                <button id="crowd-switch" class="pause-tile" type="button" role="switch" aria-checked="true" title="Cheers and groans">${icon('crowd')}<b>Crowd</b><span class="pause-switch" aria-hidden="true"></span></button>
+                <button id="ambience-switch" class="pause-tile" type="button" role="switch" aria-checked="true" title="The stadium in the background">${icon('ambience')}<b>Ambience</b><span class="pause-switch" aria-hidden="true"></span></button>
+                <button id="replay-switch" class="pause-tile" type="button" role="switch" aria-checked="true" title="Your best strokes, played again">${icon('replay')}<b>Replays</b><span class="pause-switch" aria-hidden="true"></span></button>
+                <button id="haptics-switch" class="pause-tile" type="button" role="switch" aria-checked="true" title="A buzz when the bat meets the ball">${icon('haptics')}<b>Vibration</b><span class="pause-switch" aria-hidden="true"></span></button>
+              </div>
+              <div id="lights-row" class="pause-tile is-wide hidden">
                 <span class="pause-row-icon is-lights">${icon('moon')}</span>
-                <span class="pause-row-say"><b id="lights-label">Lights</b></span>
+                <b id="lights-label">Lights</b>
                 <div id="lights-toggle" class="lights-toggle" role="radiogroup" aria-labelledby="lights-label"><button id="lights-day" class="lights-option" type="button" role="radio" aria-checked="false">${icon('sun')}<span>Day</span></button><button id="lights-night" class="lights-option" type="button" role="radio" aria-checked="true">${icon('moon')}<span>Night</span></button></div>
               </div>
+              <p id="pause-sound-note" class="pause-note hidden">All sound is off. The speaker key at the top turns it back on.</p>
+              <p class="pause-label" id="camera-label">Camera</p>
+              <!-- As many cameras as there are: three fill the row, more scroll sideways. -->
+              <div id="camera-row" class="camera-picks" role="radiogroup" aria-labelledby="camera-label">${CAMERAS.map(c => `<button id="camera-${c.id}" class="camera-pick" type="button" role="radio" aria-checked="${c.id === 'classic'}"><img src="${CAMERA_PICTURES[c.id]}" alt="" loading="lazy" decoding="async"><span>${c.name}</span></button>`).join('')}</div>
+              <p class="pause-counts">Only finished innings count toward your career.</p>
+              <button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button>
+              <span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span>
+              <p class="pause-credit">Crowd sounds by <a href="https://gregor-quendel.itch.io/free-crowd-cheering-sounds" target="_blank" rel="noopener">Gregor Quendel</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></p>
             </div>
-            <p id="pause-sound-note" class="pause-note hidden">All sound is off. The speaker key at the top turns it back on.</p>
-            <button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button>
-            <span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span>
+            <div class="pause-dock">
+              <button id="resume" class="k-cta k-cta--primary is-wide pause-resume" type="button"><span class="k-cta-face"><span>RESUME INNINGS</span></span></button>
+              <div class="pause-keys">
+                <button id="restart" class="k-cta k-cta--secondary pause-key" type="button"><span class="k-cta-face"><span>RESTART</span></span></button>
+                <button id="change-mode" class="k-cta k-cta--secondary pause-key" type="button"><span class="k-cta-face"><span>CHANGE MODE</span></span></button>
+              </div>
+              <button id="declare" class="pause-key pause-declare hidden" type="button" aria-describedby="declare-line"><span class="pause-declare-name">${icon('flag')}<span>Declare the innings</span></span><small id="declare-line" class="pause-declare-line hidden">Ends the innings here and keeps your score</small></button>
             </div>
           </div>
-          <p class="pause-credit">Crowd sounds by <a href="https://gregor-quendel.itch.io/free-crowd-cheering-sounds" target="_blank" rel="noopener">Gregor Quendel</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></p>
         </div>
         <div id="end" class="modal-overlay ec-screen hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <span class="ec-bloom" aria-hidden="true"></span>
@@ -1942,6 +1946,8 @@ ${modeSelectMarkup()}
    * beginning again. Null stops it.
    */
   onStoryReel: ((shot: ReelShot | null, beat: (beat: ReelBeat) => void) => boolean) | null = null;
+  /** The cameras' stories ask the game to film them the same way (`Story.show`), and are told whether it can. */
+  onStoryShow: ((kind: CamShow | null, beat: (beat: ShowBeat) => void) => boolean) | null = null;
   /** What to do when the stories are finished with. The game decides. */
   onStoriesDone: (() => void) | null = null;
   /**
@@ -2036,9 +2042,13 @@ ${modeSelectMarkup()}
       else sheet.classList.remove('is-cueing', 'is-hit');
     });
     if (!story?.reel) this.onStoryReel?.(null, () => {});
-    this.viewport.classList.toggle('reel-on', filmed);
+    // The batting cams' card, filmed the same way: the card follows the beat the show is on (`camsBeat`).
+    const shown = !!story?.show && !!this.onStoryShow?.(story.show, beat => this.camsBeat(beat));
+    if (!story?.show) this.onStoryShow?.(null, () => {});
+    if (story?.show) this.camsSetUp(shown);
+    this.viewport.classList.toggle('reel-on', filmed || shown);
     const sheet = overlay.querySelector('.whatsnew-sheet');
-    sheet?.classList.toggle('is-filmed', filmed);
+    sheet?.classList.toggle('is-filmed', filmed || shown);
     // The swipe and the call drawn the way round the game draws them for a left-hander.
     if (filmed) sheet?.classList.toggle('is-left', readHand() === 'left');
     const open = document.getElementById('whatsnew-open');
@@ -2053,6 +2063,82 @@ ${modeSelectMarkup()}
     };
     if (storyHolds(this.storyAt, this.storyRun)) return;
     this.storyHold = window.setTimeout(() => this.stepStory(1), story?.holdMs ?? HUD.STORY_MS);
+  }
+
+  /**
+   * The batting cams' card made ready (`camsMarkup`): the pause menu copied in
+   * from the real one, its Camera row lit and every other part dimmed, and
+   * GOT IT wired. Where the game cannot film it — a story opened from the
+   * board mid-innings, or less motion asked for — it opens on its last beat.
+   */
+  private camsSetUp(filmed: boolean) {
+    const sheet = this.$('whatsnew-overlay').querySelector<HTMLElement>('.is-cams');
+    if (!sheet) return;
+    const got = document.getElementById('whatsnew-got');
+    if (got) got.onclick = () => this.closeStories();
+    const host = sheet.querySelector<HTMLElement>('.cams-pause')!;
+    const copy = this.$('pause-sheet').cloneNode(true) as HTMLElement;
+    for (const node of [copy, ...copy.querySelectorAll<HTMLElement>('[id]')]) node.removeAttribute('id');
+    copy.setAttribute('inert', '');
+    copy.classList.add('cams-sheet');
+    copy.querySelector('.pause-mode')!.textContent = 'The Blast';
+    copy.querySelector('.pause-state')!.textContent = '42/1 · 3.2 overs';
+    copy.dataset.tone = 'blast';
+    // The Camera row and its label lit together, in the coachmarks' outline.
+    const picks = copy.querySelector('.camera-picks');
+    if (picks) {
+      const lit = document.createElement('div');
+      lit.className = 'cams-lit';
+      const label = picks.previousElementSibling;
+      picks.before(lit);
+      if (label?.classList.contains('pause-label')) lit.append(label);
+      lit.append(picks);
+      const tag = document.createElement('span');
+      tag.className = 'cams-pause-tag';
+      tag.innerHTML = 'NEW · 3 CAMS<i></i>';
+      lit.append(tag);
+    }
+    host.replaceChildren(copy);
+    if (!filmed) this.camsBeat({ beat: 'where' });
+  }
+  /** The beat the batting cams' show is on, put on the card. */
+  private camsBeat(beat: ShowBeat) {
+    const sheet = this.$('whatsnew-overlay').querySelector<HTMLElement>('.is-cams');
+    if (!sheet) return;
+    if (sheet.dataset.beat !== beat.beat) sheet.dataset.beat = beat.beat;
+    if (beat.box) {
+      // In the canvas's pixels; the card may stand off the canvas's left edge in the desktop column.
+      const canvas = this.viewport.querySelector('canvas')?.getBoundingClientRect(), card = sheet.getBoundingClientRect();
+      const dx = canvas ? canvas.left - card.left : 0, dy = canvas ? canvas.top - card.top : 0;
+      sheet.style.setProperty('--spot-x', `${beat.box.x + dx}px`);
+      sheet.style.setProperty('--spot-y', `${beat.box.y + dy}px`);
+      sheet.style.setProperty('--spot-w', `${beat.box.w}px`);
+      sheet.style.setProperty('--spot-h', `${beat.box.h}px`);
+      sheet.classList.add('has-spot');
+    }
+    if (beat.kph !== undefined) {
+      const gauge = sheet.querySelector<HTMLElement>('.cams-gauge')!;
+      const was = gauge.querySelector('.cams-kph')!.textContent;
+      // The last reading steps down into the log as the next comes up.
+      if (beat.go && was && was !== '0') {
+        const chip = document.createElement('span');
+        chip.textContent = was;
+        sheet.querySelector('.cams-log')!.append(chip);
+      }
+      gauge.querySelector('.cams-kph')!.textContent = String(beat.kph);
+      gauge.style.setProperty('--to', String(Math.min(1, beat.kph / 170)));
+      replayClass(gauge, 'is-reading');
+    }
+    if (beat.beat === 'where') {
+      // The pause menu fitted to the room between the eyebrow and the words.
+      requestAnimationFrame(() => {
+        const host = sheet.querySelector<HTMLElement>('.cams-pause'), copy = host?.firstElementChild as HTMLElement | null;
+        if (!host || !copy) return;
+        const scale = Math.min(1, host.clientHeight / Math.max(1, copy.scrollHeight), host.clientWidth / Math.max(1, copy.offsetWidth));
+        copy.style.setProperty('--fit', String(scale));
+      });
+      document.getElementById('whatsnew-got')?.focus({ preventScroll: true });
+    }
   }
 
   /** The key under the picture, which ends where every other one does. */
@@ -2140,7 +2226,7 @@ ${modeSelectMarkup()}
     window.clearTimeout(this.storyHold);
     this.storyFilm?.destroy(); this.storyFilm = null;
     this.storyStage?.stop(); this.storyStage = null;
-    this.onStoryReel?.(null, () => {}); this.viewport.classList.remove('reel-on');
+    this.onStoryReel?.(null, () => {}); this.onStoryShow?.(null, () => {}); this.viewport.classList.remove('reel-on');
     // Which card they were standing on when they left. Opening was already
     // counted and answers nothing on its own: three cards read to the end and
     // three cards abandoned on the first look identical from the other side,
@@ -2958,8 +3044,15 @@ ${modeSelectMarkup()}
    */
   pause(value: boolean, game?: { name: string; tone: PauseTone }) {
     this.viewport.classList.toggle('modal-open', value);
+    // The card covers the score bar, so its keys step aside: the sound key is on the card.
+    this.viewport.classList.toggle('pause-open', value);
     this.$('pause-overlay').classList.toggle('hidden', !value);
     if (!value) return;
+    const sound = this.$('pause-sound');
+    sound.innerHTML = this.$('sound').innerHTML;
+    sound.setAttribute('aria-label', this.$('sound').getAttribute('aria-label') ?? 'Sound');
+    sound.onclick = () => this.$('sound').click();
+    this.$('pause-sheet').querySelector('.pause-body')!.scrollTop = 0;
     if (game) {
       this.$('pause-mode').textContent = game.name;
       this.$('pause-sheet').dataset.tone = game.tone;
@@ -2978,11 +3071,17 @@ ${modeSelectMarkup()}
    * key they still say what they are set to, and a line under them says why
    * nothing is heard.
    */
+  /** The pause sheet's Camera row, with the one in use lit. */
+  cameraSwitch(id: CameraId) {
+    for (const { id: each } of CAMERAS) {
+      const option = this.$(`camera-${each}`);
+      option.classList.toggle('is-on', each === id);
+      option.setAttribute('aria-checked', String(each === id));
+    }
+  }
   /** The pause sheet's replays switch, as it is set. */
   replaySwitch(on: boolean) { this.$('replay-switch').setAttribute('aria-checked', String(on)); }
   hapticsSwitch(on: boolean) { this.$('haptics-switch').setAttribute('aria-checked', String(on)); }
-  /** The NEW tag beside Replays on the pause sheet (`newTagDue`). */
-  replayNew(on: boolean) { this.$('replay-new').classList.toggle('hidden', !on); }
   /**
    * The wipe a replay is cut into and out of under (`replay.ts`, `WIPE_MS`),
    * in the end card's band: the mode's gradient as one great chevron sweeping
@@ -5674,6 +5773,8 @@ ${modeSelectMarkup()}
     this.$('sound').setAttribute('aria-label', `${says}. ${next}`);
     const board = document.getElementById('board-sound');
     if (board) { board.innerHTML = icon(art); board.setAttribute('aria-label', `${says}. ${next}`); }
+    const paused = document.getElementById('pause-sound');
+    if (paused) { paused.innerHTML = icon(art); paused.setAttribute('aria-label', `${says}. ${next}`); }
     if (!pressed) return;
     const note = this.$('sound-note');
     note.textContent = says;

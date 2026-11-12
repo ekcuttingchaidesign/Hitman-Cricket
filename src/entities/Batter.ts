@@ -395,6 +395,10 @@ const HANDS_CLEAR = .36;
 const HELMET_CENTRE = new THREE.Vector3(0, .04, 0);
 /** The bottom of the grille, under the chin, from the head's own origin. */
 const CHIN_GUARD = new THREE.Vector3(0, -.18, .13);
+/** His eyes in the head's own frame, the face being its +z. */
+const EYES = new THREE.Vector3(0, .0, .09);
+/** The layer his head, body and legs go onto under Pro Cam: out of the picture, still casting a shadow. */
+export const BODY_LAYER = 2;
 /** How far the handle's end is from the grip, along the bat. */
 const KNOB = .23;
 /** How close the handle's end may come to the bottom of the grille: round it, and a little air. */
@@ -3646,6 +3650,38 @@ export class Batter {
     this.root.add(this.connectedJersey.mesh, this.connectedTrousers.mesh);
     this.wearGloves(null);
     this.reset();
+  }
+  /**
+   * Pro Cam (`src/game/camera.ts`): the camera is his own eyes, so nothing of
+   * him is drawn but the gloves and the bat. The arms are the jersey's, one
+   * garment with the body, and go with it: the IK's own forearm pieces stood
+   * in for them first and were a cut-off tube at the foot of the picture. What is not drawn is moved onto `BODY_LAYER`, which
+   * the sun's shadow camera still sees, so he keeps his shadow on the turf.
+   * Asked every frame (`GameScene.render`), since the guard's pads and the
+   * gloves are built anew on each pick.
+   */
+  firstPerson(on: boolean, batShown = true) {
+    if (!on && !this.firstPersonOn) return;
+    this.firstPersonOn = on;
+    this.batInSight = !on || batShown;
+    const layer = on ? BODY_LAYER : 0;
+    // The gauntlets too: the open end of each, where the forearm went in, came past the lens as a cut-off tube.
+    const body: THREE.Object3D[] = [this.torso, this.hips, this.head, this.connectedJersey.mesh, this.connectedTrousers.mesh,
+      ...this.legs.flatMap(leg => [leg.pad, leg.shoe]), ...this.arms.map(arm => arm.cuff)];
+    for (const part of body) part.traverse(o => o.layers.set(layer));
+    // The bat and gloves too while they are up against the lens (`batShown` false), still casting their shadow.
+    this.bat.traverse(o => o.layers.set(this.batInSight ? 0 : BODY_LAYER));
+  }
+  /** Under Pro Cam, whether the bat and gloves are in the picture: out of it while they pass the lens. */
+  private batInSight = true;
+  get batShown() { return this.batInSight; }
+  private firstPersonOn = false;
+  /** Drawn from his own eyes: only the gloves and bat showing. */
+  get firstPersonShown() { return this.firstPersonOn; }
+  /** Where his eyes are, in the world: just in front of his face, between the helmet's peak and the grille's top bar. */
+  eyes(target = new THREE.Vector3()) {
+    this.head.updateWorldMatrix(true, false);
+    return this.head.localToWorld(target.copy(EYES));
   }
   private mesh(parent: THREE.Object3D, material: THREE.Material, scale: Point, shape: keyof Batter['shapes'] = 'soft') {
     const mesh = new THREE.Mesh(this.shapes[shape], material);

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt } from '../entities/Batter';
+import { type AfterBall, BODY_LAYER, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt } from '../entities/Batter';
 import { ACTION_MS, Bowler, DEATH_ACTION, EXPRESS_ACTION, PACE_ACTION, PACE_ACTION_V2, SPIN_ACTION_V2 } from '../entities/Bowler';
 import { Fielder, bodyOf, mixBodies, onField, readyPose, showBody, type Body } from '../entities/Fielder';
 import { KEEPER_CHEER, KEEPER_SCALE, KEEPER_UP, STUMPING, stumpingAt } from '../game/stumping';
@@ -38,7 +38,10 @@ import { introCamera, introSweep, type Film } from '../game/IntroReel';
 import { arrivalCamera, type ArrivalAngle } from '../game/arrival';
 import type { WalkStyle } from '../entities/Batter';
 import { diwaliOn } from '../game/diwali';
-import { homeViewFor } from './homeView';
+import { BROADCAST, PRO_CAM, broadcastViewFor, closeViewFor, homeViewFor, proViewFor } from './homeView';
+/** How much further off the broadcast camera stands from the batter than the classic one: the haze moves back by it. */
+const BROADCAST_HAZE = Math.hypot(BROADCAST.eye[1] - 1, BROADCAST.eye[2] - 1) - Math.hypot(2.9 - 1, 5.15 + 1);
+import { facesBatter, type CameraId } from '../game/camera';
 import { batSheet } from '../entities/batSkins';
 import { Puff, type Burst } from './puff';
 import { ContactShadows } from './polish';
@@ -434,6 +437,8 @@ export class GameScene {
     this.scene.add(this.hemisphere);
     // The sun by day, the floodlights behind the batter's end by night: the one that casts.
     const sun = this.sun; sun.position.set(-15, 30, -8); sun.castShadow = true;
+    // Under Pro Cam his body is out of the picture but still casts (`Batter.firstPerson`).
+    sun.shadow.camera.layers.enable(BODY_LAYER);
     sun.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048); sun.shadow.camera.left = -28; sun.shadow.camera.right = 28;
     sun.shadow.camera.top = 35; sun.shadow.camera.bottom = -20;
     // Under the richer light the shadow map is spent on the square and the ring, not the whole ground: nearly
@@ -879,12 +884,15 @@ export class GameScene {
     const { width, height } = this.container.getBoundingClientRect();
     this.renderer.setSize(width, height);
     this.camera.aspect = width / height;
-    const { eye, at, fov } = this.homeView;
+    const { eye, at, fov } = this.playView;
     this.camera.fov = this.homeFov = fov;
+    if (!this.cinema) this.camera.position.set(...eye);
     this.camera.lookAt(...at);
     this.camera.updateProjectionMatrix();
-    this.judge.aspect = width / height; this.judge.fov = fov;
-    this.judge.position.set(...eye); this.judge.lookAt(...at);
+    // The judge stands where the classic camera does whatever the player watches through.
+    const home = this.homeView;
+    this.judge.aspect = width / height; this.judge.fov = home.fov;
+    this.judge.position.set(...home.eye); this.judge.lookAt(...home.at);
     this.judge.updateProjectionMatrix(); this.judge.updateMatrixWorld();
   };
   /** The game's own view, kept still beside the camera: what is in the picture is judged from it (`inShot`). */
@@ -892,6 +900,99 @@ export class GameScene {
   /** The game's own view for this screen's shape: where every film's camera hands back to. */
   /** The game's own view from behind the bat, for this picture's shape: see `homeViewFor`. */
   get homeView(): CameraPose { return homeViewFor(this.camera.aspect); }
+  /**
+   * The camera the player watches through (`src/game/camera.ts`): the classic
+   * view, or the broadcast one from behind the bowler's arm. The films land on
+   * the classic view and hand back to this one.
+   */
+  private view: CameraId = 'classic';
+  get cameraId() { return this.view; }
+  /** Pro Cam has him drawn from his own eyes this frame (`Batter.firstPerson`). */
+  get firstPerson() { return this.batter.firstPersonShown; }
+  /** Under Pro Cam, how far the bat's handle is from the lens and whether it is drawn: for the checks. */
+  get proBat() { return this.batter.firstPersonShown ? { from: +this.batFromLens.toFixed(2), shown: this.batter.batShown } : null; }
+  private batFromLens = 0;
+  get playView(): CameraPose {
+    const aspect = this.camera.aspect;
+    if (this.view === 'pro') return this.inMoment ? closeViewFor(aspect) : proViewFor(aspect);
+    return this.view === 'broadcast' ? broadcastViewFor(aspect) : this.view === 'close' ? closeViewFor(aspect) : this.homeView;
+  }
+  /** The camera looks at the batter from in front: the screen is the field turned half round. */
+  get facing() { return facesBatter(this.view); }
+  /**
+   * The haze, starting where it did for the classic view's distance from the
+   * batter: the broadcast camera stands forty metres off, and the night's
+   * haze, thirty from the lens, had him in a fog.
+   */
+  private haze(time: SkyTime, colour?: THREE.ColorRepresentation) {
+    const [near, far] = this.polished && time === 'night' ? RICH_NIGHT_HAZE : [48, 125] as const;
+    const shift = this.facing ? BROADCAST_HAZE : 0;
+    const was = this.scene.fog as THREE.Fog | null;
+    this.scene.fog = new THREE.Fog(colour ?? was?.color ?? SKY.horizon, near + shift, far + shift);
+  }
+  /**
+   * The ball and its trail and streak drawn `near` of the three times its size
+   * they are drawn from behind the bat; smaller again under the broadcast
+   * camera, which comes nearer the bowler's hand than the classic one ever does.
+   */
+  /**
+   * Pro Cam: the camera at his eyes, eased after them (`PRO_CAM.follow`
+   * milliseconds) so a stroke's jolt is not the picture's, and looking down
+   * the pitch at a fixed point, never where his head turns. A jump, a new
+   * batter in his guard, is cut to rather than followed.
+   */
+  private eyesView(now: number) {
+    // Behind and over his eyes, in the stage's frame: the keeper's way is -z whichever hand he bats.
+    const at = this.world.localToWorld(this.world.worldToLocal(this.batter.eyes(this.eyesAt)).add(this.eyesBack.set(0, PRO_CAM.above, -PRO_CAM.behind)));
+    const dt = Math.max(0, now - this.eyesClock);
+    this.eyesClock = now;
+    if (!this.eyesHeld || this.eyesHeld.distanceTo(at) > .8 || dt > 500) this.eyesHeld = at.clone();
+    else this.eyesHeld.lerp(at, 1 - Math.exp(-dt / PRO_CAM.follow));
+    this.camera.position.copy(this.eyesHeld);
+    this.camera.lookAt(this.world.localToWorld(this.eyesAim.set(...PRO_CAM.aim)));
+    // The bat and gloves only while they are out at arm's length: within `PRO_CAM.clear` of the lens the
+    // near plane cut through them, and what was left read as a glove chopped in two.
+    this.batFromLens = this.batter.bat.getWorldPosition(this.eyesAt).distanceTo(this.eyesHeld);
+    this.batter.firstPerson(true, this.batFromLens > PRO_CAM.clear);
+  }
+  private readonly eyesAt = new THREE.Vector3();
+  private readonly eyesAim = new THREE.Vector3();
+  private readonly eyesBack = new THREE.Vector3();
+  private eyesHeld: THREE.Vector3 | null = null;
+  private eyesClock = 0;
+  private sizeBall(near: number) {
+    const k = near * (this.cinema ? 1 : this.facing ? BROADCAST.ball : this.view === 'pro' ? PRO_CAM.ball : 1);
+    this.ball.scale.setScalar(0.115 * k);
+    this.trail.forEach((dot, i) => dot.scale.setScalar(0.115 * (1 - i / 12) * k));
+    this.streak.forEach((dot, i) => dot.scale.setScalar(streakSize(i) * k));
+  }
+  /**
+   * A moment drawn round him (the special stroke's flash, a pulled bouncer's,
+   * a milestone's celebration), for `lasts` milliseconds. From his own eyes
+   * (Pro Cam) there is nobody on the screen to draw it round, so the picture
+   * cuts to Close for it, as television cuts to another camera for a
+   * celebration, and back to his eyes after. It is put there at once, before
+   * the doodle asks where he stands on the screen.
+   */
+  moment(lasts: number) {
+    if (this.view !== 'pro') return;
+    this.momentUntil = performance.now() + lasts;
+    this.batter.firstPerson(false);
+    this.resize();
+  }
+  private momentUntil = 0;
+  private get inMoment() { return this.view === 'pro' && performance.now() < this.momentUntil; }
+  /** The camera is his eyes this frame: Pro Cam, with no film and no moment cutting away. */
+  private get eyesOn() { return this.view === 'pro' && !this.cinema && !this.inMoment; }
+  private eyesWere = false;
+  useCamera(id: CameraId) {
+    if (id === this.view) return;
+    this.view = id;
+    if (!this.cinema) this.sizeBall(1);
+    this.placeKeeper();
+    this.haze(this.now);
+    this.resize();
+  }
   /**
    * Put both figures into whites, or back into colours. The ball is left alone:
    * it is red in both, which is the one thing a Test match and this game's
@@ -911,7 +1012,7 @@ export class GameScene {
     // Day breaking on a show takes it down: there are none by day.
     if (time !== 'night') this.bursts.stop();
     const palette = this.sky.time(time), light = this.lighting;
-    this.scene.fog = new THREE.Fog(palette.horizon, ...(this.polished && time === 'night' ? RICH_NIGHT_HAZE : [48, 125] as const));
+    this.haze(time, palette.horizon);
     this.renderer.setClearColor(palette.horizon);
     this.environment.dispose();
     this.environment = this.sky.environment(this.renderer, time === 'night' ? this.reflections : []);
@@ -1196,8 +1297,10 @@ export class GameScene {
     // walk-on a moment ago, it still held the film's last shot, and the
     // coachmarks' lanes were drawn from where the batter stood in that.
     this.camera.updateMatrixWorld();
+    // From his own eyes (Pro Cam) he is behind the lens: what is drawn round him is put where the classic view has him.
+    const camera = this.eyesOn ? this.judge : this.camera;
     const at = (y: number) => {
-      const p = this.batter.root.localToWorld(new THREE.Vector3(0, y, 0)).project(this.camera);
+      const p = this.batter.root.localToWorld(new THREE.Vector3(0, y, 0)).project(camera);
       return { x: (p.x + 1) / 2 * width, y: (1 - p.y) / 2 * height };
     };
     return { feet: at(0), head: at(1.78), bat: at(2.75), width, height };
@@ -1952,9 +2055,8 @@ export class GameScene {
   cinematic(view: ((now: number, ball: readonly [number, number, number] | null) => CameraPose) | null) {
     this.cinema = view;
     if (!view) {
-      this.camera.position.set(0, 2.9, -5.15); this.resize();
-      this.ball.scale.setScalar(0.115); this.trail.forEach((dot, i) => dot.scale.setScalar(0.115 * (1 - i / 12)));
-      this.streak.forEach((dot, i) => dot.scale.setScalar(streakSize(i)));
+      this.resize();
+      this.sizeBall(1);
     }
   }
   render(now: number) {
@@ -1972,6 +2074,13 @@ export class GameScene {
       this.batter.stage(t, film); this.batter.sweep(film === 'arrive' ? null : introSweep(film, t));
     }
     this.batter.update(now);
+    const eyes = this.eyesOn;
+    // Into his eyes or out of them (a moment cutting to Close and back): the lens and the pose set again.
+    if (eyes !== this.eyesWere) { this.eyesWere = eyes; if (!this.cinema) this.resize(); }
+    this.batter.firstPerson(eyes);
+    // Nothing nearer the lens than a forearm is drawn from his eyes (`PRO_CAM.near`).
+    const near = eyes ? PRO_CAM.near : .1;
+    if (this.camera.near !== near) { this.camera.near = near; this.camera.updateProjectionMatrix(); }
     if (this.lure) this.batter.root.position.z = GAME.stanceZ + this.lure;
     this.field.update(now);
     if (this.keeper.root.visible) this.keeper.show(this.keeperAt(now));
@@ -2008,15 +2117,20 @@ export class GameScene {
       // batter; a film's camera comes far nearer than that, so it is drawn
       // smaller the nearer it is, down to near its own size, the trail with it.
       const near = Math.min(1, Math.max(.4, this.camera.position.distanceTo(this.world.localToWorld(this.ball.position.clone())) / 10));
-      this.ball.scale.setScalar(0.115 * near);
-      this.trail.forEach((dot, i) => dot.scale.setScalar(0.115 * (1 - i / 12) * near));
-      this.streak.forEach((dot, i) => dot.scale.setScalar(streakSize(i) * near));
+      this.sizeBall(near);
     } else {
-      this.camera.position.x = Math.sin(now * 0.085) * shake;
-      this.camera.position.y = 2.9 + Math.sin(now * 0.13) * shake * 0.6;
+      if (eyes) this.eyesView(now);
+      else {
+        const [x, y] = this.playView.eye;
+        this.camera.position.x = x;
+        this.camera.position.y = y;
+      }
+      this.camera.position.x += Math.sin(now * 0.085) * shake;
+      this.camera.position.y += Math.sin(now * 0.13) * shake * 0.6;
       // Pushed in on a ball well hit, and let back out (`pushAt`). Only the
       // picture: who goes for the ball is judged from a camera of its own.
-      const push = outcome && this.pushBy ? this.pushBy * pushAt(since) : 0;
+      // In proportion to the lens: the broadcast camera's is an eighth of the classic one's.
+      const push = outcome && this.pushBy ? this.pushBy * pushAt(since) * this.homeFov / this.homeView.fov : 0;
       if (push > 0 || this.pushed) {
         this.pushed = push > 0;
         this.camera.fov = this.homeFov - push; this.camera.updateProjectionMatrix();
@@ -2084,7 +2198,7 @@ export class GameScene {
   /** A film's camera wants him (`keeperIn`); the spinner's overs have him in the game's own picture as well. */
   private keeperFilmed = false;
   private placeKeeper() {
-    this.keeper.root.visible = this.keeperFilmed || this.spinning;
+    this.keeper.root.visible = this.keeperFilmed || this.spinning || this.facing;
     if (this.keeper.root.visible) this.keeper.show(this.keeperAt(this.clock));
   }
   /**
@@ -2215,7 +2329,9 @@ export class GameScene {
     // Judged from the game's own view whatever the camera is doing: a replay
     // tells the scene the same ball again under its own camera, and the man
     // who goes for it must be the one who went for it the first time.
-    const p = this.world.localToWorld(point.clone()).project(this.cinema ? this.judge : this.camera);
+    // And from the classic view under any camera the player watches through, so
+    // the field does the same whichever it is.
+    const p = this.world.localToWorld(point.clone()).project(this.cinema || this.view !== 'classic' ? this.judge : this.camera);
     return p.z < 1 && Math.abs(p.x) < .8 && p.y > -.7 && p.y < .55;
   }
   inspectBowler() {

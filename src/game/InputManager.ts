@@ -1,5 +1,6 @@
 import { GAME, SCOOP, SWIPE_ZONES, type SwipeZones } from '../config/gameplay';
 import type { ShotType } from './types';
+import { swipeAsPlayed } from './camera';
 /**
  * The three shot keys, with the arrow keys as the same three. Normalising here
  * rather than in `mapKeys` means combos, held keys and every downstream rule
@@ -111,7 +112,12 @@ export class InputManager {
    * the right, exactly where his leg side now is.
    */
   /** `zones` says where the swipes split in this mode: see `SWIPE_ZONES`. */
-  constructor(private active: () => boolean, private now: (at?: number) => number, private shoot: (shot: ShotType, time: number, swipe?: number) => void, private surface?: HTMLElement, private coverLean: () => number = () => 0, private scoops: () => boolean = () => false, private mirrored: () => boolean = () => false, private hooks: () => boolean = () => false, private zones: () => SwipeZones = () => SWIPE_ZONES.test) {
+  /**
+   * `facing` says the camera looks at the batter from in front (Broadcast):
+   * the swipe is read turned half round, so the ball goes the way the thumb
+   * went on the picture (`swipeAsPlayed`). The keys are left as they are.
+   */
+  constructor(private active: () => boolean, private now: (at?: number) => number, private shoot: (shot: ShotType, time: number, swipe?: number) => void, private surface?: HTMLElement, private coverLean: () => number = () => 0, private scoops: () => boolean = () => false, private mirrored: () => boolean = () => false, private hooks: () => boolean = () => false, private zones: () => SwipeZones = () => SWIPE_ZONES.test, private facing: () => boolean = () => false) {
     window.addEventListener('keydown', this.down);
     window.addEventListener('keyup', this.up);
     surface?.addEventListener('pointerdown', this.pointerDown);
@@ -132,7 +138,7 @@ export class InputManager {
     if (!this.gesture || event.pointerId !== this.gesture.id) return;
     if (!this.active() || this.used) { this.cancelGesture(); return; }
     event.preventDefault();
-    const across = (event.clientX - this.gesture.x) * (this.mirrored() ? -1 : 1), down = event.clientY - this.gesture.y;
+    const { across, down } = swipeAsPlayed(event.clientX - this.gesture.x, event.clientY - this.gesture.y, this.mirrored(), this.facing());
     const far = Math.hypot(across, down);
     if (!Number.isFinite(far) || far < GAME.swipeDistance) return;
     // Timed where it always was, the moment the thumb had moved far enough to

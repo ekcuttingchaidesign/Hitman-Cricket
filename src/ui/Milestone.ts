@@ -731,6 +731,15 @@ function postered(at: BatterOnScreen, s: number, _pen: number, random: () => num
   };
 }
 
+/**
+ * How big a doodle is drawn round him: his height on the screen, held to
+ * `MOST_OF_SCREEN` of its height, about what the classic view gives him on a
+ * phone, so a camera nearer him (Close, `src/game/camera.ts`) does not blow
+ * the bursts and the lines up three times over and off the screen.
+ */
+export const MOST_OF_SCREEN = .14;
+export const sizeOf = (at: BatterOnScreen) => Math.max(40, Math.min((at.feet.y - at.head.y) / 1.78, at.height * MOST_OF_SCREEN));
+
 const LAYOUTS: Record<Milestone, (at: BatterOnScreen, s: number, pen: number, random: () => number, mark: number) => Layout> = {
   century, fifty: halfCentury, 'six-sixes': yuvi, raise: stickered, double: burstCard, triple: winged, four: postered,
 };
@@ -746,7 +755,7 @@ export interface Doodle { element: HTMLElement; back?: HTMLElement; cutout?: Cut
 export function milestoneDoodle(moment: Moment, at: BatterOnScreen, lasts: number): Doodle {
   const { kind, mark } = moment;
   const random = seeded(kind === 'six-sixes' ? 66 : mark);
-  const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
+  const s = sizeOf(at);
   const pen = Math.max(3, s * .045);
   const layout = LAYOUTS[kind](at, s, pen, random, mark);
   const { marks, dots, fire: burning, said, blaze = 1 } = layout;
@@ -1048,7 +1057,7 @@ export interface PowerDoodle { back: HTMLElement; cutout: Cutout }
 
 export function powerDoodle(at: BatterOnScreen, lasts: number, style: PowerStyle = 'teeth', low = false): PowerDoodle {
   const random = seeded(77);
-  const s = Math.max(40, (at.feet.y - at.head.y) / 1.78), px = s / 94;
+  const s = sizeOf(at), px = s / 94;
   // The lines start from round him: his middle standing, lower in a squat.
   const c = { x: at.head.x, y: at.head.y + (at.feet.y - at.head.y) * (low ? .62 : .48) };
   const out: string[] = [];
@@ -1156,7 +1165,7 @@ export const PULL_DOODLE_MS = 1300;
  */
 export function pullDoodle(at: BatterOnScreen, lasts: number, pen: PullPen = 'ice') {
   const random = seeded(41);
-  const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
+  const s = sizeOf(at);
   const c = { x: at.head.x, y: at.head.y + (at.feet.y - at.head.y) * .48 };
   const svg = `<svg class="cy-svg" viewBox="0 0 ${f(at.width)} ${f(at.height)}" width="${f(at.width)}" height="${f(at.height)}" aria-hidden="true">`
     + focusLines(at, c, s, random) + '</svg>';

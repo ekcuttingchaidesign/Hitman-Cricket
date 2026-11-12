@@ -66,7 +66,8 @@ import { ARRIVAL_ANGLES, ARRIVAL_CARD, ARRIVE, arrivalBars, arrivalDue, type Arr
 import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
 import { catchCamera, catchPace, catchShotOf, catchTimes, spillable, SPILL_ODDS, type CatchShot } from './game/catch-cam';
 import { STUMPING, STUMPING_CAMERA } from './game/stumping';
-import { endedLog, fieldCamera, freshLog, overRope, OVER_MS, pickAngle, replayCamera, CUT_AFTERS, replayDue, replayPace, replayTimes, shownLog, REPLAYS_PER_INNINGS, MARATHON_PACE, WIPE_MS, NEW_TAG_SHOWS, newTagDue, type ReplayAngle, type ReplayBall, type ReplayLook, type ReplayStroke, type ReplayTimes } from './game/replay';
+import { endedLog, fieldCamera, freshLog, overRope, OVER_MS, pickAngle, replayCamera, CUT_AFTERS, replayDue, replayPace, replayTimes, shownLog, REPLAYS_PER_INNINGS, MARATHON_PACE, WIPE_MS, type ReplayAngle, type ReplayBall, type ReplayLook, type ReplayStroke, type ReplayTimes } from './game/replay';
+import { BEATS, beatAt, cameraAt, showDelivery, showOutcome, showPlan, type CamBeat, type CamShow, type ShowBeat, type ShowPlan } from './game/CameraShow';
 import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type CameraPose, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
@@ -153,6 +154,7 @@ import {
 } from './game/analytics';
 import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
 import { practiceSwitches } from './game/practice';
+import { CAMERAS, readCamera, saveCamera, type CameraId } from './game/camera';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
 import { batting, readPlaytime, writePlaytime } from './game/playtime';
 import { ChallengeRun, ageOf, emptyList, noteResult, recentForm, rivalryView, roomView, type ListView, type Me, type ResultView, type RoomView } from './game/Challenge';
@@ -289,8 +291,6 @@ const LAST_MODE_KEY = 'hitman-last-mode';
 const WALK_ON_KEY = 'hitman-walk-on';
 /** The pause sheet's replays switch: 'off', or anything else for on. */
 const REPLAYS_KEY = 'hitman-replays';
-/** How many pause sheets have shown the Replays switch's NEW tag (`newTagDue`). */
-const REPLAYS_NEW_KEY = 'hitman-replays-new';
 /** A ball as the scene was told it, kept for its replay: see `Game.keepForReplay`. */
 /** A ball he never swung at, kept for a replay of it all the same: bowled leaving it. Never told to the scene. */
 const NO_SWING: Kept['swing'] = { shot: 'DEFEND', at: Infinity, charging: false, lofted: false, sweeping: false, levelled: false, version: 2, meets: 1, cutting: false, spinPulling: false, stroke: null };
@@ -825,6 +825,8 @@ export class Game {
     // who was handed the link to give an opinion on the batting.
     if (!NO_BOARD) void this.loadBoard();
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
+    // The camera this visit plays under (`camera.ts`): the link's, or the one kept.
+    this.scene.useCamera(readCamera());
     this.scene.contactFx = this.contactOn;
     // The batter's follow-through, off on `?follow=0` for holding the two side by side: only how he is drawn.
     // `?follow=2` or `3` draws it that many times over, for seeing what it does.
@@ -854,7 +856,9 @@ export class Game {
       // The leg side is the hook at a bouncer on or outside off.
       () => !!this.delivery && hookable(this.delivery),
       // The block narrower in the Blast, where nobody blocks: see `SWIPE_ZONES`.
-      () => this.surviving || this.marathoning ? SWIPE_ZONES.test : SWIPE_ZONES.blast);
+      () => this.surviving || this.marathoning ? SWIPE_ZONES.test : SWIPE_ZONES.blast,
+      // The broadcast camera faces him: a swipe goes the way it went on the picture.
+      () => this.scene.facing);
     // The play key opens the picker rather than an innings — unless a link has
     // already named the mode, in which case it is that mode's play key.
     this.hud.on('start', this.play);
@@ -995,6 +999,7 @@ export class Game {
     // over Choose a mode where the stories were on the way to it.
     this.hud.onStoriesOpen = (what, shown) => (what === 'super10' ? this.playFromStory(shown) : what === 'rivals' ? this.rivalsFromStory(shown) : this.openDressing('story', shown));
     this.hud.onStoryReel = (shot, beat) => this.playReel(shot, beat);
+    this.hud.onStoryShow = (kind, beat) => this.playShow(kind, beat);
     this.hud.onLadderTab = this.tabLadder;
     this.hud.onBoardFrame = (mode, ladder) => this.boardFrame(mode, ladder);
     this.hud.onBoardPlay = mode => {
@@ -1113,8 +1118,10 @@ export class Game {
     });
     this.hud.viewport.addEventListener('pointerdown', () => { this.walkedOn(true); this.skipReplay(); });
     // The pause sheet's replays switch (`replay.ts`), kept across visits.
+    // The pause sheet's Camera row (`camera.ts`), kept across visits; taken at once, mid-innings too.
+    for (const { id } of CAMERAS) this.hud.on(`camera-${id}`, () => this.useCamera(id));
     this.hud.on('haptics-switch', () => { setHaptics(!hapticsWanted()); this.hud.hapticsSwitch(hapticsWanted()); });
-    this.hud.on('replay-switch', () => { this.replaysOn = !this.replaysOn; this.replaysTagSeen(NEW_TAG_SHOWS); try { localStorage.setItem(REPLAYS_KEY, this.replaysOn ? 'on' : 'off'); } catch { /* For this visit, then. */ } this.hud.replaySwitch(this.replaysOn); });
+    this.hud.on('replay-switch', () => { this.replaysOn = !this.replaysOn; try { localStorage.setItem(REPLAYS_KEY, this.replaysOn ? 'on' : 'off'); } catch { /* For this visit, then. */ } this.hud.replaySwitch(this.replaysOn); });
     window.addEventListener('keydown', this.shortcuts); window.addEventListener('beforeunload', this.leaving); document.addEventListener('visibilitychange', this.visibility);
     window.addEventListener('blur', this.blur); window.addEventListener('pagehide', this.markQuit);
     // A bundle built survive-only plays one innings and offers no way out of
@@ -2445,7 +2452,7 @@ export class Game {
     // Super10's field, and its captain at mid-off, put out before the first ball.
     this.s10 = Game.freshField();
     this.scene.arenaMood('calm');
-    this.fieldUi.show(this.super10, this.scene.mirrored);
+    this.fieldUi.show(this.super10, this.scene.mirrored, this.scene.facing);
     if (this.super10) this.super10Over(false);
     this.nearing = null; this.hud.nearing(null, null);
     // The Test board is fetched when a Test innings starts rather than on every
@@ -3356,18 +3363,6 @@ export class Game {
     if (this.challenge.playing) return { name: 'Rival Match', tone: 'rivals' };
     return { name: PAUSE_NAMES[this.mode], tone: this.mode === 'CLASSIC' ? 'blast' : this.mode === 'SURVIVE' ? 'survival' : this.mode === 'SUPER10' ? 'super10' : 'marathon' };
   }
-  /**
-   * The Replays switch's NEW tag: up while the browser has seen fewer than
-   * `NEW_TAG_SHOWS` pause sheets, each one counted as it opens, and taken
-   * down for good the first time the switch is used (`to`).
-   */
-  private replaysTagSeen(to?: number) {
-    let seen = 0;
-    try { seen = Number(localStorage.getItem(REPLAYS_NEW_KEY)) || 0; } catch { /* Shown, then. */ }
-    this.hud.replayNew(to === undefined && newTagDue(seen));
-    const next = to ?? seen + 1;
-    try { if (next !== seen) localStorage.setItem(REPLAYS_NEW_KEY, String(next)); } catch { /* For this visit. */ }
-  }
   private togglePause = () => {
     if (this.phase === 'START' || this.phase === 'INNINGS_END' || this.hud.helpOpen) return;
     if (this.phase === 'PAUSED') { this.audio.unlock(); this.audio.holdCrowd(false); this.phase = this.previousPhase; this.hud.pause(false); (document.activeElement as HTMLElement | null)?.blur(); }
@@ -3376,7 +3371,7 @@ export class Game {
       // So is the catch camera.
       this.stopReplay(); this.endCatchCam();
       this.input.cancel(); this.audio.stop(); this.audio.holdCrowd(true); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true, this.pauseGame);
-      this.soundSwitches(); this.hud.replaySwitch(this.replaysOn); this.hud.hapticsSwitch(hapticsWanted()); this.replaysTagSeen();
+      this.soundSwitches(); this.hud.cameraSwitch(this.scene.cameraId); this.hud.replaySwitch(this.replaysOn); this.hud.hapticsSwitch(hapticsWanted());
       // The arena is played at night whatever the switch says, so it has none.
       this.hud.lightsSwitch(this.test || this.super10 || this.scene.arenaGround ? null : this.scene.lit);
       // Twenty overs in, the Marathon can be declared — from here, and from
@@ -4595,6 +4590,7 @@ export class Game {
       if (this.catchCam) this.catchCamFrame();
       this.update();
       if (this.reel) this.reelFrame();
+      if (this.show) this.showFrame();
       if (this.replay) this.replayFrame();
       if (this.walking) this.walkOnFrame();
     }
@@ -4616,6 +4612,8 @@ export class Game {
     // A stroke's film slows through the bat meeting the ball (`reelPace`).
     // Stopped dead while the swipe is drawn over it.
     if (this.reel) return this.reel.hold > 0 ? 0 : reelPace(this.elapsed - this.reel.start - this.reel.times.contact);
+    // The batting cams' story runs at full speed: the speed is the point.
+    if (this.show) return 1;
     // A replay slows through the bat meeting the ball (`replayPace`).
     // Full speed under the wipes, which are timed on the page's clock.
     if (this.replay) return this.replay.start === null || this.replay.ending !== null ? 1 : replayPace(this.elapsed - this.replay.start - this.replay.times.contact);
@@ -4934,13 +4932,27 @@ export class Game {
    * the swipes mirrored with it and the side labels swapped, and nothing said
    * about it: a batter on the other side of the stumps says it himself.
    */
+  /**
+   * The Camera row on the pause sheet: the picture turned at once, the side
+   * labels and Super10's map with it, and kept for the next visit. Nothing
+   * about the ball moves (`camera.ts`).
+   */
+  private useCamera(id: CameraId) {
+    if (id === this.scene.cameraId) return;
+    this.scene.useCamera(id); saveCamera(id);
+    this.hud.cameraSwitch(id);
+    this.hud.sides(this.scene.mirrored !== this.scene.facing);
+    this.fieldUi.turn(this.scene.facing);
+    this.mark(`camera-${id}`, `Camera: ${id}`);
+  }
   private hand() {
     const man = this.marathon?.current ?? null;
     // The Marathon's three are each their own; the one batter of the Blast and
     // the Test match bats the way the player said they do.
     const left = man ? man.left : readHand() === 'left';
     this.scene.leftHanded(left);
-    this.hud.sides(left);
+    // The labels the way round the screen shows them: turned with a camera facing him.
+    this.hud.sides(left !== this.scene.facing);
     // Super10's five are named: the player opens, the kit's squad follows.
     const mate = this.blastMate();
     if (this.super10) this.hud.callOut(this.lineup()[Math.min(this.score.wickets, 4)].walkOut);
@@ -4973,6 +4985,8 @@ export class Game {
   private powerUp(style: PowerStyle = this.powerStyles.next(), low = !!this.outcome?.scooped) {
     this.powerStyle = style;
     this.scene.power(this.elapsed);
+    // From his eyes (Pro Cam) there is nobody to draw it round: the picture cuts to Close for it.
+    this.scene.moment(POWER_DOODLE_MS);
     const { back, cutout } = this.hud.power(this.scene.batterOnScreen(), POWER_DOODLE_MS, style, low);
     this.scene.cutout(back, cutout, POWER_DOODLE_MS);
     // The Blast's ground lets the fireworks off for one: see `FIREWORKS_MS`.
@@ -5055,6 +5069,88 @@ export class Game {
       this.scene.cheer(runs === 6 ? 'hit-six' : 'hit-four', this.elapsed, 0, 1, '');
       this.audio.cheer(boundaryCheer(runs, 1, false));
     }
+  }
+  /**
+   * The batting cams' What's new story (`CameraShow.ts`), filmed through the
+   * game's own cameras on one clock: the classic view, the Close cam, his
+   * eyes under the PRO CAM band, the sling bowler's three quick ones left
+   * alone, then the pause menu, where it holds. As the stroke stories, only
+   * off the cover or once an innings is over; the camera the player picked,
+   * the kit and the light are put back after it.
+   */
+  private show: {
+    kind: CamShow; start: number; plan: ShowPlan; beat: (beat: ShowBeat) => void;
+    told: CamBeat | null; boxed: boolean;
+    /** The ball now being bowled, which of the three, and whether it is past him. */
+    go: number; delivery: Delivery | null; passed: boolean; read: number;
+  } | null = null;
+  /** What the show put aside, to put back: the player's camera, and whether it took the crowd's murmur up. */
+  private showAside: { camera: CameraId; crowd: boolean } | null = null;
+  private playShow(kind: CamShow | null, beat: (beat: ShowBeat) => void): boolean {
+    if (!kind) {
+      if (!this.show) return false;
+      this.show = null;
+      const aside = this.showAside!; this.showAside = null;
+      this.scene.reset(); this.scene.express(false);
+      this.scene.useCamera(aside.camera);
+      this.scene.whites(this.test); this.light(this.test ? 'day' : blastLights());
+      if (aside.crowd) this.audio.crowd(null);
+      return false;
+    }
+    if (this.phase !== 'START' && this.phase !== 'INNINGS_END') return false;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+    if (this.reel) this.playReel(null, () => {});
+    if (this.show) this.playShow(null, () => {});
+    const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat, look.guard);
+    this.scene.leftHanded(readHand() === 'left');
+    this.scene.cinematic(null);
+    // A Test match by day: whites, the red ball against them, the Tests' own ground.
+    this.scene.whites(true); this.scene.stands(groundFor(ASKED_GROUND, 'test', VENUE_COIN.test)); this.scene.brand(false); this.scene.time('day');
+    this.scene.reset(); this.scene.spinner(false); this.scene.round(false); this.scene.express(true);
+    // The stands murmur under it off the cover, where they are quiet; after an innings they are already there.
+    const crowd = this.phase === 'START';
+    if (crowd) this.audio.crowd(MURMUR.blast);
+    this.showAside = { camera: this.scene.cameraId, crowd };
+    this.scene.useCamera('classic');
+    this.show = { kind, start: this.elapsed, plan: showPlan(), beat, told: null, boxed: false, go: -1, delivery: null, passed: false, read: -1 };
+    return true;
+  }
+  /** One frame of the show: the beat, the camera, and the ball in play. */
+  private showFrame() {
+    const show = this.show!, t = this.elapsed - show.start, { plan } = show;
+    const camera = cameraAt(t);
+    if (camera !== this.scene.cameraId) this.scene.useCamera(camera);
+    const beat = beatAt(t, plan);
+    if (beat !== show.told) { show.told = beat; show.beat({ beat }); }
+    // The frame round him on the Close cam, once the camera has stood there a frame.
+    if (beat === 'close' && !show.boxed && t > BEATS.close + 80) {
+      show.boxed = true;
+      // Down to his feet or to where the words begin, whichever is higher: on the Close cam his feet are off the foot of the screen.
+      const at = this.scene.batterOnScreen(), top = at.head.y - (at.feet.y - at.head.y) * .08;
+      const bottom = Math.min(at.feet.y + 8, at.height * .7), w = Math.min(at.width * .5, (at.feet.y - at.head.y) * .6);
+      // Centred a little to the off side of his helmet, where his body and bat are on this lens.
+      show.beat({ beat, box: { x: at.head.x - w * .38, y: top, w, h: Math.max(40, bottom - top) } });
+    }
+    const ball = plan.balls.find(one => t >= one.start && t < one.end);
+    if (!ball) return;
+    if (ball.go !== show.go) {
+      show.go = ball.go; show.passed = false;
+      this.scene.reset();
+      show.delivery = showDelivery(ball.go, show.start + ball.release);
+    }
+    const delivery = show.delivery!;
+    if (t < ball.release) { this.scene.runup(ball.runFrom + (1 - ball.runFrom) * (t - ball.start) / (ball.release - ball.start)); return; }
+    if (!show.passed) {
+      const since = this.elapsed - delivery.releaseTimeMs;
+      // The gauge reads each ball once, as it leaves his hand, however long the frame was.
+      if (show.read !== ball.go) { show.read = ball.go; show.beat({ beat: 'speed', kph: delivery.speedKph, go: ball.go }); }
+      const progress = flightProgress(delivery, since);
+      this.scene.delivery(delivery, progress, since);
+      if (progress < 1) return;
+      show.passed = true;
+      this.scene.hit(showOutcome(delivery), undefined, delivery, this.elapsed);
+    }
+    this.scene.result(this.elapsed);
   }
   /**
    * The action replay (`replay.ts`). What the scene was told about the ball in
@@ -5297,6 +5393,7 @@ export class Game {
   private pullUp() {
     this.scene.pull(this.elapsed, PULL_PENS[this.pullPen].swish);
     this.scene.cutout();
+    this.scene.moment(PULL_DOODLE_MS);
     this.hud.pull(this.scene.batterOnScreen(), PULL_DOODLE_MS, this.pullPen);
     track('pulled-bouncer', 'Pulled a bouncer');
   }
@@ -5322,6 +5419,7 @@ export class Game {
     this.scene.celebrate(this.elapsed, pose);
     // And for a milestone, as long as he celebrates it.
     if (this.mode === 'CLASSIC') this.scene.fireworks(this.elapsed, Math.max(FIREWORKS_MS.milestone, this.celebrating));
+    this.scene.moment(this.celebrating);
     const { back, cutout } = this.hud.milestone(moment, this.scene.batterOnScreen(), this.celebrating);
     this.scene.cutout(back, cutout, this.celebrating);
     this.scene.cheer(kind, this.elapsed, moment.mark, 1, this.batter.name);
@@ -5353,7 +5451,7 @@ export class Game {
     this.hud.result(outcome, this.chargeMiss);
     // A boundary rider out of the picture: the side label it went past says who.
     const away = outcome.fielder && offScreen(outcome.fielder.angle);
-    if (away && outcome.fielder) this.fieldUi.light({ side: (away === 'leg') !== this.scene.mirrored ? 'left' : 'right', name: outcome.fielder.name });
+    if (away && outcome.fielder) this.fieldUi.light({ side: ((away === 'leg') !== this.scene.mirrored) !== this.scene.facing ? 'left' : 'right', name: outcome.fielder.name });
     // And on the map, the line it went.
     if (this.super10 && this.lesson < 0 && outcome.madeBatContact) this.fieldUi.shot(sectorOf(outcome, this.attempt?.shotType), outcome, this.takerOf(outcome));
     if (outcome.hit) {
@@ -7289,6 +7387,8 @@ export class Game {
     return { phase: this.phase, mode: this.mode, lesson: this.lesson, seed: this.seed, elapsed: Math.round(this.elapsed),
       // A stroke's film under its story: which, and how far into a go of it, on its own clock.
       reel: this.reel ? { shot: this.reel.shot, at: Math.round(this.elapsed - this.reel.start), struck: this.reel.struck } : null,
+      // The cameras' stories (`CameraShow.ts`): which, which ball and through which camera, how far into it, and the ball met or past.
+      show: this.show ? { kind: this.show.kind, beat: this.show.told, go: this.show.go, camera: this.scene.cameraId, at: Math.round(this.elapsed - this.show.start), passed: this.show.passed } : null,
       // The replay playing: its stroke, how far in (null while it wipes in), whether it is wiping out; and how many this innings.
       follow: this.scene.followShown,
       contact: this.contact ? { kind: this.contact.kind, ...this.scene.contactShown } : null,
@@ -7303,7 +7403,7 @@ export class Game {
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
       pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, streak: this.scene.streakShown, wicketFall: this.scene.wicketFall, pullPen: this.pullPen,
-      mirrored: this.scene.mirrored, look: this.scene.wearing, shirt: this.scene.shirt, fieldingKit: this.scene.fieldingKit, chase: this.chase ? { handle: this.chase.handle, mode: this.chase.mode, target: this.chase.target } : null, marathon: this.marathon ? this.marathonState() : null,
+      mirrored: this.scene.mirrored, camera: this.scene.cameraId, firstPerson: this.scene.firstPerson, proBat: this.scene.proBat, look: this.scene.wearing, shirt: this.scene.shirt, fieldingKit: this.scene.fieldingKit, chase: this.chase ? { handle: this.chase.handle, mode: this.chase.mode, target: this.chase.target } : null, marathon: this.marathon ? this.marathonState() : null,
       super10: this.super10 ? this.super10State() : null,
       standing: this.standing, ease: this.ease };
   }
