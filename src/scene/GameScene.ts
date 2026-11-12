@@ -1038,7 +1038,11 @@ export class GameScene {
     }
     const back = phase !== 'follow' && phase !== 'hold';
     const s = this.classicSpring;
-    if (!s.live || dt > 500 || dt < 0) Object.assign(s, { live: true, yaw, pitch, lens, vy: 0, vp: 0, vl: 0 });
+    // Once the ball is dead it cuts straight back to his stance, as television
+    // does: panned back, however smoothly, the owner saw the same swing. Only
+    // a turn too small to read as a cut eases back instead (`CUT_FROM`).
+    const away = Math.abs(s.yaw - yaw) + Math.abs(s.pitch - pitch) > CLASSIC_FOLLOW.cutFrom * Math.PI / 180 || Math.abs(s.lens - 1) > .03;
+    if (!s.live || dt > 500 || dt < 0 || (back && away)) Object.assign(s, { live: true, yaw, pitch, lens, vy: 0, vp: 0, vl: 0 });
     else {
       const turn = back ? CLASSIC_FOLLOW.settle : CLASSIC_FOLLOW.follow;
       [s.yaw, s.vy] = springStep(s.yaw, s.vy, yaw, turn, dt);

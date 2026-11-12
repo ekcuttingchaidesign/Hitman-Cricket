@@ -66,11 +66,12 @@ export const CLOSE_FOLLOW = { eye: [0, 3.7, -5.6] as const, lift: 380, drop: 420
  * at all: the look cannot find it there, only lose him. Nor is a ball that
  * brings a celebration, which is his.
  *
- * Every move is a critically damped spring (`springStep`): out after the ball
- * at `follow`, back to his stance at the slower `settle`, the lens with them
- * at `lens`. A first-order ease starts at its fastest, so the way back began
- * as a jerk; a spring starts and stops gently and carries its speed through
- * the turn from going out to coming back, with no overshoot. `keep` holds
+ * The way out is a critically damped spring (`springStep`) at `follow`, the
+ * lens with it at `lens`: it starts and stops gently with no overshoot. The
+ * way back is a cut, once the ball is dead (its hold over): panned back,
+ * first on an ease and then on the spring, the owner saw the same swing
+ * either way, and a broadcast cuts. A turn under `cutFrom` eases back on
+ * `settle` instead, where a cut would read as a glitch. `keep` holds
  * him a little over half way to the edge: at 0.8 he was nearly in the corner.
  */
 export const CLASSIC_FOLLOW = {
@@ -78,6 +79,8 @@ export const CLASSIC_FOLLOW = {
   keep: .6, behind: 105,
   widen: 1.22,
   follow: 6, settle: 3.6, lens: 4.5,
+  /** Turned further than this, in degrees, the way back is a cut; nearer, it eases back on `settle`. */
+  cutFrom: 1.5,
 } as const;
 
 /**

@@ -100,6 +100,11 @@ async function run(cam, extra, label, keys = ['w', 'd']) {
     if (label === 'pro') check(found.some(t => t.phase === 'follow' && t.bat === false), 'pro: the bat and gloves out of the picture while he watches it', found.map(t => t.bat).join(' '));
     if (label === 'close-lift') check(Math.max(...lifts) > .9 && atNext.lift < .1, 'close-lift: lifts up and back, and down again');
     if (label === 'classic-pan') check(widens.every(z => z === 1), 'classic-pan: a cover drive stays in the picture, the lens as it is');
+    if (label.startsWith('classic-')) {
+      // Back to his stance in one cut once the ball is dead, not panned.
+      const first = found.findIndex(t => t.phase === 'back');
+      check(first > 0 && Math.abs(found[first].yaw) <= 1 && Math.abs(found[first - 1].yaw) >= 3, `${label}: cuts straight back to his stance (${found[first - 1]?.yaw}° to ${found[first]?.yaw}°)`);
+    }
     if (label === 'classic-cut') {
       // Held on him (`keepInView`): about the picture's half width at most, not the 38° the ball would take it.
       check(most <= 14, `classic-cut: turned only so far as keeps him in the picture (${most}°)`);
