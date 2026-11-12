@@ -489,8 +489,9 @@ branch. Wait on what the game says (`snapshot()`, its phase), not on how slow
 the machine is; and a box measured off a screenshot is in the page's pixels,
 so scale it by `devicePixelRatio`.
 
-A check that seeds `hitman-whatsnew` seeds the current update key
-(`rivals`), or the stories stand in front of Choose a mode.
+A check that seeds `hitman-whatsnew` seeds a count of nine (`rivals:9`
+still does: nine of any update keeps every update's stories away), or the
+stories stand in front of Choose a mode.
 
 `scripts/scene-check.mjs` is the ground itself: the sky and the painted turf
 are canvases and a shader no unit test runs, and it holds the draw-call budget
@@ -683,7 +684,34 @@ plays two devices for one player against the dev server's store; it passes
 `?private=0`, because headless Chromium looks like a private window and would
 otherwise keep nothing.
 
-The update's What's new is one story, Rivals live, as a video (`Story.video`,
+The update's What's new is the cameras (`CAMERA_STORIES` in
+`src/game/whats-new.ts`, update key `cameras`), three cards filmed through
+the game's own cameras rather than a film's (`Story.show`,
+`src/game/CameraShow.ts`, every case in `tests/camera-show.test.ts`; the
+game's `playShow`, `showFrame` and `beginShow`, the scene's `useCamera` for
+each ball, and the player's camera, kit and light put back after it). THREE
+WAYS TO WATCH: one straight six, the second version of the lofted drive
+played perfectly in time and scored by `resolveShot`, three times over, once
+through Classic, once through Close and once through Pro Cam, each camera's
+name slammed in over the ball as it starts (`#whatsnew-tag`) and the clock
+slowed through the bat meeting the ball (`showPace`). FEEL THE BALL SPEED,
+Pro Cam sold as the owner asked, by the ball's speed: a Test match by day,
+the Tests' ground and whites, the express bowler's quick ones (`SPEEDS`,
+148 to 156 on the gun, at the Tests' own pace through the air, about half a
+second to the bat) just outside off at a width of its own each ball
+(`SPEED_WIDTHS`: on off stump, left alone, one bowled him), left alone from
+the batter's eyes, never slowed, the gun's figure over each. Both move on
+by themselves after one round of their balls (`showSeconds`). Then PICK
+YOUR CAMERA, the Camera row's pictures big (`cameraPicksMarkup`), each a key
+that takes that camera there and then (`onStoryCamera`), with GOT IT and TRY
+PRO CAM (`opens: 'procam'`, `proCamFromStory`: Pro Cam taken and a Blast
+walked out into under it, or from the board mid-innings, taken for the next
+ball); it holds still. Like the stroke stories, it films only off the cover
+or after an innings. `snapshot().show` says which story, which ball, the
+camera and how far in. `whatsnew-check` walks all three, the camera picked
+on the card, TRY PRO CAM, the twice and the never.
+
+Before it the update was one story, Rivals live, as a video (`Story.video`,
 `public/stories/rivals.mp4`, 720 by 1280 and sixteen seconds; its last frame
 `rivals-lockup.webp` is `Story.still`, shown in its place under reduced
 motion), made to the Super10 film's standard: one subject at a time on the
@@ -710,12 +738,10 @@ until it is closed. One story has no bar across the top (`is-single`). It
 was made as a canvas film, a pure function of time rendered frame by frame,
 not committed: `rivals-film/` on the machine that made it (`film.js`, its
 screens from `scripts/.film-capture.mjs` and `.film-capture2.mjs`), rendered
-at 1080 by 1920 and scaled down to the story's size. The update key is
-`rivals`, so everybody is shown it twice and then never (`whatsNewDue`), and
-a check that seeds `hitman-whatsnew` seeds `rivals:9`. `whatsnew-check` walks
-it: the video playing above the two keys, its hold, SEE WHO'S ONLINE opening
-Rival Matches, the twice and the never, and the board's key that opens it
-for ever. Super10's film before it (made in Remotion, `wip/super10-film/`)
+at 1080 by 1920 and scaled down to the story's size. Its update key was
+`rivals`, shown everybody twice and then never (`whatsNewDue`); the film and
+its story (`RIVALS_STORIES`) are kept, as every story told before them is.
+Super10's film before it (made in Remotion, `wip/super10-film/`)
 was retired with its key and its files; the player profiles' Lottie film before that is
 still `public/lotties/player-profiles.json`.
 

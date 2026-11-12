@@ -5923,6 +5923,33 @@ video.whatsnew-film.is-fit{height:auto;object-fit:contain;
   100%{opacity:0;transform:scale(1.2) rotate(-6deg)}}
 @media (prefers-reduced-motion:reduce){
   .is-hit .whatsnew-call{animation:none;opacity:1;transform:rotate(-6deg)}}
+/* The cameras' stories (`Story.show`, `CameraShow.ts`): over the game's own
+   ground, the camera the ball is being watched through named as it starts,
+   slammed in under the title and left up for the ball; on Pro Cam's speed
+   card, the speed gun's figure in its place, ball by ball. */
+.whatsnew-tag{position:absolute;left:50%;top:4%;display:inline-flex;align-items:center;gap:calc(var(--u) * 8);padding:calc(var(--u) * 8) calc(var(--u) * 18);
+  border-radius:999px;background:#05070ad1;border:1px solid #ffffff33;box-shadow:0 calc(var(--u) * 6) calc(var(--u) * 20) #0009;
+  font:400 calc(var(--u) * 26)/1 var(--f-display);letter-spacing:calc(var(--u) * 2.5);color:#fff;white-space:nowrap;opacity:0;transform:translateX(-50%)}
+.whatsnew-tag::before{content:'';width:calc(var(--u) * 10);height:calc(var(--u) * 10);border-radius:50%;background:var(--cta-orange);box-shadow:0 0 calc(var(--u) * 10) #ff7a3c}
+.whatsnew-tag.is-up{animation:whatsnew-tag .45s cubic-bezier(.2,1.5,.4,1) both}
+.whatsnew-tag.is-hit{animation:whatsnew-tag-hit .5s ease-out both}
+/* The speed: bigger, in the speed gun's gold, no dot. */
+.whatsnew-tag[data-show=speed]{top:6%;padding:calc(var(--u) * 6) calc(var(--u) * 20);font-size:calc(var(--u) * 40);color:var(--c-gold);
+  border-color:#f5b83d66;text-shadow:0 0 calc(var(--u) * 18) #f5b83d99}
+.whatsnew-tag[data-show=speed]::before{display:none}
+@keyframes whatsnew-tag{from{opacity:0;transform:translateX(-50%) scale(1.5)}to{opacity:1;transform:translateX(-50%) scale(1)}}
+@keyframes whatsnew-tag-hit{0%{opacity:1;transform:translateX(-50%) scale(1)}35%{opacity:1;transform:translateX(-50%) scale(1.12)}100%{opacity:1;transform:translateX(-50%) scale(1)}}
+@media (prefers-reduced-motion:reduce){.whatsnew-tag.is-up,.whatsnew-tag.is-hit{animation:none;opacity:1}}
+/* PICK YOUR CAMERA: the Camera row's pictures, big, each a key that takes it. */
+.whatsnew-cams{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:calc(var(--u) * 10);width:100%;margin:calc(var(--u) * 18) 0 calc(var(--u) * 6)}
+.whatsnew-cam{display:flex;flex-direction:column;gap:calc(var(--u) * 8);min-width:0;margin:0;padding:calc(var(--u) * 4);border:2px solid #ffffff1f;border-radius:16px;
+  background:#ffffff0d;color:var(--c-text-2);font:700 calc(var(--u) * 14)/1.1 var(--f-ui);text-align:center;cursor:pointer}
+.whatsnew-cam img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:11px;background:#ffffff14}
+.whatsnew-cam span{padding-bottom:calc(var(--u) * 4)}
+.whatsnew-cam[aria-checked="true"]{border-color:var(--c-text);color:var(--c-text);background:#ffffff1f}
+.whatsnew-cam[data-camera=pro]{border-color:#ff7a3c80}
+.whatsnew-cam[data-camera=pro][aria-checked="true"]{border-color:var(--c-text)}
+.whatsnew-cam:focus-visible{outline:2px solid var(--c-text);outline-offset:2px}
 /* A picture with its corners already cut: no frame of our own, and a shadow
    that follows its outline rather than a square box's. */
 .whatsnew-art img.is-cut{

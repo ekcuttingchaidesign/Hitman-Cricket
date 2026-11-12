@@ -26,7 +26,7 @@
 import { chromium } from '@playwright/test';
 
 /** The update key in `src/game/whats-new.ts`. Bumped there, bumped here. */
-const UPDATE = 'rivals';
+const UPDATE = 'cameras';
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:5199').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
@@ -88,34 +88,56 @@ for (let wound = 0; wound < 6000 && !opened; wound += 100) {
 check(opened, 'the play key stops at the stories the first time');
 if (!opened) { await browser.close(); process.exit(1); }
 
-// One film, Rivals live's, a video played down the sheet with GOT IT and SEE WHO'S ONLINE under it.
-const filmView = () => page.evaluate(() => {
-  const host = document.getElementById('whatsnew-film'), box = host?.getBoundingClientRect();
-  const done = document.getElementById('whatsnew-done')?.getBoundingClientRect();
-  return { video: host?.tagName === 'VIDEO', fit: host ? ['is-fit', 'is-cut'].filter(name => host.classList.contains(name)) : [],
-    playing: host?.tagName === 'VIDEO' && host.currentTime > 0, muted: !!host?.muted,
-    above: !!box && !!done && box.bottom <= done.top + 2,
-    sheet: document.querySelector('.whatsnew-sheet')?.classList.contains('is-film') ?? false,
-    bars: document.querySelectorAll('.whatsnew-bar').length, barSeen: getComputedStyle(document.querySelector('.whatsnew-bars')).visibility !== 'hidden', unseen: document.querySelector('.whatsnew-title')?.classList.contains('is-unseen') ?? false,
-    open: document.getElementById('whatsnew-open')?.textContent.trim() ?? null, out: document.getElementById('whatsnew-done')?.textContent.trim() };
-});
-const first = await title();
-check(first === 'WHO’S AROUND? CHALLENGE ANYONE', 'it opens on Rivals live', first);
-// The video plays on the media clock, not the page's wound one: a little real time.
-let film = await filmView();
-for (let i = 0; i < 30 && !film.playing; i++) { await page.waitForTimeout(200); film = await filmView(); }
-check(film.sheet && film.video && film.playing && film.muted && film.fit.length === 1, 'the film plays down the sheet, muted', JSON.stringify(film));
-check(film.above, 'and stops above the ways out', JSON.stringify(film));
-check(film.bars === 1 && !film.barSeen && film.unseen, 'one story, so no bar over it, its title read out rather than shown over the film', JSON.stringify(film));
-check(film.out === 'GOT IT' && film.open === 'SEE WHO’S ONLINE', 'GOT IT and SEE WHO’S ONLINE under it', JSON.stringify(film));
-
-// Fetched whole while the cover was up, so it plays from memory rather than buffering.
-check((await page.$eval('#whatsnew-film', v => v.currentSrc)).startsWith('blob:'), 'the film was fetched ahead, on the cover, and plays from memory',
-  await page.$eval('#whatsnew-film', v => v.currentSrc));
-// It plays to its end on the media clock and goes straight on to Choose a mode.
-const playedOnce = await page.$eval('#whatsnew-film', v => !v.loop);
-check(playedOnce, 'off the cover it plays once, not round again');
-for (let i = 0; i < 120 && await page.$('#whatsnew-film'); i++) await page.waitForTimeout(250);
+// The cameras: the same six through each camera on the row, then Pro Cam's
+// speed in a Test match, both filmed in the game itself, then the cameras'
+// pictures to pick from with GOT IT and TRY PRO CAM.
+const card = () => page.evaluate(() => ({
+  title: document.querySelector('.whatsnew-title')?.textContent.trim() ?? null,
+  tag: document.getElementById('whatsnew-tag')?.textContent.trim() ?? null,
+  filmed: document.querySelector('.whatsnew-sheet')?.classList.contains('is-filmed') ?? false,
+  ground: document.getElementById('viewport')?.classList.contains('reel-on') ?? false,
+  picks: [...document.querySelectorAll('.whatsnew-cam')].map(b => `${b.textContent.trim()}:${b.getAttribute('aria-checked')}`),
+  open: document.getElementById('whatsnew-open')?.textContent.trim() ?? null, out: document.getElementById('whatsnew-done')?.textContent.trim() ?? null,
+}));
+/** Winds the page's clock on until the card's title is `want`, or gives up. */
+async function windTo(want, most = 30_000) {
+  for (let wound = 0; wound < most; wound += 250) {
+    await page.clock.runFor(250);
+    if ((await card()).title === want) { await page.waitForTimeout(200); return true; }
+  }
+  return false;
+}
+let now = await card();
+check(now.title === 'THREE WAYS TO WATCH', 'it opens on the cameras', now.title);
+await tick(400);
+now = await card();
+check(now.filmed && now.ground, 'filmed in the game, the card see-through over the ground', JSON.stringify(now));
+check(now.tag === 'CLASSIC', 'the first ball through Classic, named over it', now.tag);
+// Each ball through the next camera on the row, named as it starts.
+const named = new Set([now.tag]);
+for (let wound = 0; wound < 9000 && named.size < 3 && (await card()).title === 'THREE WAYS TO WATCH'; wound += 200) {
+  await page.clock.runFor(200);
+  const tag = (await card()).tag;
+  if (tag) named.add(tag);
+}
+check(['CLASSIC', 'CLOSE', 'PRO CAM'].every(one => named.has(one)), 'then Close, then Pro Cam', [...named].join(', '));
+check(await windTo('FEEL THE BALL SPEED'), 'and on by itself to Pro Cam\'s speed');
+await tick(600);
+now = await card();
+check(now.filmed && /^\d{3} KM\/H$/.test(now.tag ?? ''), 'filmed too, the speed gun over it', JSON.stringify(now));
+check(await windTo('PICK YOUR CAMERA'), 'and on by itself to the cameras');
+now = await card();
+check(now.picks.join(' ') === 'Classic:true Close:false Pro Cam:false', 'the three pictures, the one in use outlined', now.picks.join(' '));
+check(now.out === 'GOT IT' && now.open === 'TRY PRO CAM', 'GOT IT and TRY PRO CAM under them', JSON.stringify(now));
+check(!(await page.evaluate(() => document.getElementById('viewport').classList.contains('reel-on'))), 'the ground put back under it');
+await tick(15_000);
+check((await card()).title === 'PICK YOUR CAMERA', 'which holds still, rather than going on from under a thumb');
+await page.click('#whatsnew-cam-close');
+await tick(200);
+now = await card();
+check(now.picks.join(' ') === 'Classic:false Close:true Pro Cam:false', 'a picture pressed takes that camera', now.picks.join(' '));
+check(await page.evaluate(() => localStorage.getItem('hitman-camera')) === 'close', 'and keeps it for the innings', await page.evaluate(() => localStorage.getItem('hitman-camera')));
+await page.click('#whatsnew-done');
 await tick(700);
 // Where skipping goes is the build's: Choose a mode where there is one to
 // choose, the innings where the build has chosen. Either way, somewhere.
@@ -123,7 +145,7 @@ const landed = async () => ({ hidden: await page.$eval('#whatsnew-overlay', node
   picked: await page.$eval('#modes', node => !node.classList.contains('hidden')),
   batting: await page.$eval('#start', node => !node.offsetParent).catch(() => true) });
 const skippedTo = await landed();
-check(skippedTo.hidden && (skippedTo.picked || skippedTo.batting), 'and as it ends moves on by itself to Choose a mode or the innings', JSON.stringify(skippedTo));
+check(skippedTo.hidden && (skippedTo.picked || skippedTo.batting), 'GOT IT goes on to Choose a mode or the innings', JSON.stringify(skippedTo));
 check(await seen() === `${UPDATE}:1`, 'the showing is counted', await seen());
 
 // ── Twice, and then never ──────────────────────────────────────────────────
@@ -134,15 +156,17 @@ await page.click('#start');
 // film to its end too in headless Chromium, which puts the stories away.
 const again = await page.waitForSelector('.whatsnew-sheet', { timeout: 10_000 }).then(() => true).catch(() => false);
 check(again, 'it comes back a second time, because once is missed');
-// SEE WHO'S ONLINE this time: Rival Matches, Around now at its head.
+// TRY PRO CAM this time: Pro Cam taken and kept, and a Blast walked out into under it.
+await page.evaluate(() => { for (const story of [1, 2]) document.getElementById('whatsnew-next')?.click(); });
+await page.waitForSelector('#whatsnew-open', { timeout: 10_000 });
 await page.click('#whatsnew-open');
-let rivals = null;
-for (let i = 0; i < 30 && !rivals?.list; i++) {
-  await page.waitForTimeout(300);
-  rivals = await page.evaluate(() => ({ stories: !document.querySelector('#whatsnew-overlay')?.classList.contains('hidden'),
-    list: !document.querySelector('#challenge-list')?.classList.contains('hidden') }));
+let tried = null;
+for (let i = 0; i < 40 && !tried?.gone; i++) {
+  await page.waitForTimeout(250);
+  tried = await page.evaluate(() => ({ gone: document.querySelector('#whatsnew-overlay')?.classList.contains('hidden'),
+    camera: localStorage.getItem('hitman-camera'), modes: !document.querySelector('#modes')?.classList.contains('hidden') }));
 }
-check(!rivals.stories && rivals.list, 'and SEE WHO’S ONLINE opens Rival Matches', JSON.stringify(rivals));
+check(tried.gone && tried.camera === 'pro' && !tried.modes, 'and TRY PRO CAM takes Pro Cam and walks out into an innings', JSON.stringify(tried));
 
 await page.reload({ waitUntil: 'load' });
 await arrive();
@@ -166,7 +190,7 @@ if (key) {
   const back = await page.waitForSelector('.whatsnew-sheet', { timeout: 10_000 })
     .then(() => true).catch(() => false);
   check(back, 'which opens the same stories however many times they have been read');
-  check(await page.$eval('#whatsnew-film', v => v.loop), 'and there, with nowhere to go on to, the film plays round until it is closed');
+  check(await page.$eval('.whatsnew-sheet', sheet => sheet.classList.contains('is-filmed')), 'filmed in the game there too, off the cover');
   check(await page.$eval('#whatsnew-done', one => one.textContent.trim()) === 'CLOSE',
     'and offers to close rather than to go somewhere');
   await page.click('#whatsnew-done');

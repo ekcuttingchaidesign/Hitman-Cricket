@@ -55,11 +55,6 @@ import { rivalsRecordMarkup, type RivalsRecord } from './Record';
 import { coverBoardLines, coverMarkup, profileChip, type CoverBoard } from './Cover';
 import { cta, fitLabels, icon as kitIcon } from './Kit';
 import { CAMERAS, type CameraId } from '../game/camera';
-import cameraClassic from '../assets/cameras/classic.webp';
-import cameraClose from '../assets/cameras/close.webp';
-import cameraPro from '../assets/cameras/pro.webp';
-/** Each camera's own view, small, on its key on the pause sheet (`scripts/camera-thumbs.mjs` takes them). */
-const CAMERA_PICTURES: Partial<Record<CameraId, string>> = { classic: cameraClassic, close: cameraClose, pro: cameraPro };
 import {
   answerSheetMarkup, entryProblem, insideAnApp, noQuestionMarkup, nudgeSheetMarkup, passwordCardMarkup, passwordDoneMarkup,
   passwordSheetMarkup, ruleStates, type NudgeFigures, type PasswordEntry, type PasswordMode, type PasswordSheetView,
@@ -72,12 +67,14 @@ import {
 import { battingCardMarkup, battingOf, injuryRingMarkup, injuryWord, overChartMarkup, super10ChartMarkup, wormChartMarkup } from './EndCard';
 import { modeSelectMarkup, modeSelectParts, type ModeSelectView } from './ModeSelect';
 import { Super10Spark } from './Super10Card';
-import { storiesMarkup, storyHolds, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
+/** Each camera's own view, small, on its key on the pause sheet (`scripts/camera-thumbs.mjs` takes them). */
+import { CAMERA_PICTURES, storiesMarkup, storyHolds, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
 import { applyNearing, endNearing, nearingMarkup } from './Nearing';
 import type { Nearing, NearingEnd } from '../game/milestone';
 import { milestoneDoodle, powerDoodle, pullDoodle, type BatterOnScreen, type PowerStyle, type PullPen } from './Milestone';
 import type { Moment } from '../game/milestone';
 import { STORIES, type Story } from '../game/whats-new';
+import type { CamShow, ShowBeat } from '../game/CameraShow';
 import {
   keyAboutMarkup, keyBarMarkup, keyModalMarkup, keyToastMarkup,
   type KeyView,
@@ -1949,6 +1946,12 @@ ${modeSelectMarkup()}
    * beginning again. Null stops it.
    */
   onStoryReel: ((shot: ReelShot | null, beat: (beat: ReelBeat) => void) => boolean) | null = null;
+  /** The cameras' stories ask the game to film them the same way (`Story.show`), and are told whether it can. */
+  onStoryShow: ((kind: CamShow | null, beat: (beat: ShowBeat) => void) => boolean) | null = null;
+  /** A camera's picture on the cameras' card, pressed: the game takes it at once, as the pause sheet's would. */
+  onStoryCamera: ((id: CameraId) => void) | null = null;
+  /** The camera the game is watched through, outlined on the cameras' card. */
+  storyCamera: () => CameraId = () => 'classic';
   /** What to do when the stories are finished with. The game decides. */
   onStoriesDone: (() => void) | null = null;
   /**
@@ -1984,7 +1987,7 @@ ${modeSelectMarkup()}
     this.storyFilm?.destroy(); this.storyFilm = null;
     overlay.innerHTML = storiesMarkup({
       at: this.storyAt, where: this.storyWhere, holdMs: HUD.STORY_MS, locked: this.storyLocked,
-      careerKey: this.keyView, stories: this.storyRun,
+      careerKey: this.keyView, stories: this.storyRun, camera: this.storyCamera(),
     });
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
@@ -2043,9 +2046,24 @@ ${modeSelectMarkup()}
       else sheet.classList.remove('is-cueing', 'is-hit');
     });
     if (!story?.reel) this.onStoryReel?.(null, () => {});
-    this.viewport.classList.toggle('reel-on', filmed);
+    // The cameras' stories, the same way: the card's tag says the camera, or the speed gun's figure, ball by ball.
+    const shown = !!story?.show && !!this.onStoryShow?.(story.show, beat => {
+      const tag = document.getElementById('whatsnew-tag');
+      if (!tag) return;
+      if (beat.hit) { if (beat.kph === null) replayClass(tag, 'is-hit'); return; }
+      tag.classList.remove('is-hit');
+      tag.textContent = beat.kph !== null ? `${beat.kph} KM/H` : (CAMERAS.find(c => c.id === beat.camera)?.name ?? '').toUpperCase();
+      replayClass(tag, 'is-up');
+    });
+    if (!story?.show) this.onStoryShow?.(null, () => {});
+    for (const pick of overlay.querySelectorAll<HTMLButtonElement>('.whatsnew-cam')) pick.onclick = () => {
+      const id = pick.dataset.camera as CameraId;
+      this.onStoryCamera?.(id);
+      for (const each of overlay.querySelectorAll('.whatsnew-cam')) each.setAttribute('aria-checked', String(each === pick));
+    };
+    this.viewport.classList.toggle('reel-on', filmed || shown);
     const sheet = overlay.querySelector('.whatsnew-sheet');
-    sheet?.classList.toggle('is-filmed', filmed);
+    sheet?.classList.toggle('is-filmed', filmed || shown);
     // The swipe and the call drawn the way round the game draws them for a left-hander.
     if (filmed) sheet?.classList.toggle('is-left', readHand() === 'left');
     const open = document.getElementById('whatsnew-open');
@@ -2147,7 +2165,7 @@ ${modeSelectMarkup()}
     window.clearTimeout(this.storyHold);
     this.storyFilm?.destroy(); this.storyFilm = null;
     this.storyStage?.stop(); this.storyStage = null;
-    this.onStoryReel?.(null, () => {}); this.viewport.classList.remove('reel-on');
+    this.onStoryReel?.(null, () => {}); this.onStoryShow?.(null, () => {}); this.viewport.classList.remove('reel-on');
     // Which card they were standing on when they left. Opening was already
     // counted and answers nothing on its own: three cards read to the end and
     // three cards abandoned on the first look identical from the other side,

@@ -3,6 +3,13 @@ import { SHOT_CALLS, STORIES, type Story } from '../game/whats-new';
 import { CUE, type ReelShot } from '../game/ShotReel';
 import { MARK, type KeyView } from './CareerKey';
 import { cta } from './Kit';
+import { CAMERAS, type CameraId } from '../game/camera';
+import cameraClassic from '../assets/cameras/classic.webp';
+import cameraClose from '../assets/cameras/close.webp';
+import cameraPro from '../assets/cameras/pro.webp';
+
+/** Each camera's own view, the pictures on the pause sheet's Camera row. */
+export const CAMERA_PICTURES: Partial<Record<CameraId, string>> = { classic: cameraClassic, close: cameraClose, pro: cameraPro };
 
 /**
  * The stories, as a screen.
@@ -41,15 +48,17 @@ export interface StoriesView {
   careerKey?: KeyView | null;
   /** The cards this run plays: the whole update unless the caller says otherwise. */
   stories?: readonly Story[];
+  /** The camera in use, outlined on a card of the cameras' pictures. */
+  camera?: CameraId;
 }
 
 /** What the way in under a story says, by where it goes. */
 const OPENS: Record<NonNullable<Story['opens']>, string> = {
-  dressing: 'GO TO DRESSING ROOM', super10: 'PLAY SUPER10', rivals: 'SEE WHO’S ONLINE',
+  dressing: 'GO TO DRESSING ROOM', super10: 'PLAY SUPER10', rivals: 'SEE WHO’S ONLINE', procam: 'TRY PRO CAM',
 };
 
 export function storiesMarkup(view: StoriesView): string {
-  const { at, where, holdMs, locked = false, careerKey = null, stories = STORIES } = view;
+  const { at, where, holdMs, locked = false, careerKey = null, stories = STORIES, camera = 'classic' } = view;
   const story = stories[at] ?? stories[0];
   const holds = storyHolds(at, stories);
   const live = (i: number) => i !== at ? '' : holds ? ' is-live is-held' : ' is-live';
@@ -62,7 +71,7 @@ export function storiesMarkup(view: StoriesView): string {
   // A stroke's film is the game's own ground under the whole screen, edge to
   // edge: the sheet is see-through and the room between the words is where
   // the camera has him.
-  const kind = story.film || story.video ? ' is-film' : story.stage ? ' is-stage' : story.reel ? ' is-reel' : '';
+  const kind = story.film || story.video ? ' is-film' : story.stage ? ' is-stage' : story.reel || story.show ? ' is-reel' : story.cameras ? ' is-cameras' : '';
   return `
     <div class="whatsnew-sheet${kind}" role="document" aria-roledescription="story">${
   story.film ? `
@@ -72,7 +81,9 @@ export function storiesMarkup(view: StoriesView): string {
   story.stage ? `
       <div id="whatsnew-stage" class="whatsnew-stage" data-stage="${story.stage}" role="img" aria-label="${escape(story.alt)}"></div>` : ''}${
   story.reel ? `
-      <div class="whatsnew-reel" data-reel="${story.reel}" role="img" aria-label="${escape(story.alt)}"></div>${shotCueMarkup(story.reel)}` : ''}
+      <div class="whatsnew-reel" data-reel="${story.reel}" role="img" aria-label="${escape(story.alt)}"></div>${shotCueMarkup(story.reel)}` : ''}${
+  story.show ? `
+      <div class="whatsnew-reel" data-show="${story.show}" role="img" aria-label="${escape(story.alt)}"></div>` : ''}
       <div class="whatsnew-bars${stories.length === 1 ? ' is-single' : ''}" aria-hidden="true">${stories.map((_, i) => `
         <span class="whatsnew-bar${i < at ? ' is-done' : live(i)}"${
   i === at && !holds ? ` style="--hold:${story.holdMs ?? holdMs}ms"` : ''}><i></i></span>`).join('')}
@@ -81,8 +92,10 @@ export function storiesMarkup(view: StoriesView): string {
       <button id="whatsnew-next" class="whatsnew-half is-next" type="button" aria-label="Next"></button>
       <div class="whatsnew-body">
         ${story.film || story.video ? '' : `<p class="whatsnew-eyebrow">${escape(story.eyebrow)}</p>`}
-        <h2 class="whatsnew-title${story.body ? '' : ' is-unseen'}">${escape(story.title)}</h2>${story.stage || story.reel ? `
-        <div id="whatsnew-room" class="whatsnew-room" aria-hidden="true">${story.reel ? shotCallMarkup(story.reel) : ''}</div>` : ''}${art ? `
+        <h2 class="whatsnew-title${story.body ? '' : ' is-unseen'}">${escape(story.title)}</h2>${story.stage || story.reel || story.show ? `
+        <div id="whatsnew-room" class="whatsnew-room" aria-hidden="true">${story.reel ? shotCallMarkup(story.reel) : ''}${
+  story.show ? `<span id="whatsnew-tag" class="whatsnew-tag" data-show="${story.show}"></span>` : ''}</div>` : ''}${
+  story.cameras ? cameraPicksMarkup(camera) : ''}${art ? `
         <div class="whatsnew-art">
           ${art}
         </div>` : ''}
@@ -174,6 +187,18 @@ export function shotCueMarkup(shot: ReelShot): string {
           <span class="whatsnew-cue-where">${escape(where)}</span>
         </div>
       </div>`;
+}
+
+/**
+ * The cameras' pictures on their card, each a key that picks it there and
+ * then (`HUD.onStoryCamera`), the one in use outlined: the Camera row's, big.
+ */
+export function cameraPicksMarkup(now: CameraId): string {
+  return `
+        <div class="whatsnew-cams" role="radiogroup" aria-label="Camera">${CAMERAS.map(c => `
+          <button id="whatsnew-cam-${c.id}" class="whatsnew-cam" type="button" role="radio" aria-checked="${c.id === now}" data-camera="${c.id}"><img src="${
+  CAMERA_PICTURES[c.id]}" alt="" decoding="async"><span>${escape(c.name)}</span></button>`).join('')}
+        </div>`;
 }
 
 /** What the key says, which is wherever pressing it actually lands. */
