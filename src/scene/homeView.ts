@@ -46,3 +46,16 @@ export const BROADCAST = { eye: [0, 7, 46] as const, at: [0, .5, 7.1] as const, 
 export function broadcastViewFor(_aspect: number): CameraPose {
   return { eye: BROADCAST.eye, at: BROADCAST.at, fov: BROADCAST.fov };
 }
+
+/**
+ * Pro Cam (`?cam=pro`), the batter's eye: low and close behind him, just over
+ * his helmet so the bowler's hand is never behind it, looking down the pitch
+ * at the bowler. He stands big at the foot of the picture and the ball comes
+ * at the lens. The lens is held at `fov` degrees up and down whatever the
+ * screen's shape.
+ */
+export const PRO_CAM = { eye: [0, 2.05, -3.1] as const, at: [0, .25, 12] as const, fov: 50 } as const;
+
+export function proViewFor(_aspect: number): CameraPose {
+  return { eye: PRO_CAM.eye, at: PRO_CAM.at, fov: PRO_CAM.fov };
+}

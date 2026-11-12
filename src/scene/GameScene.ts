@@ -38,7 +38,7 @@ import { introCamera, introSweep, type Film } from '../game/IntroReel';
 import { arrivalCamera, type ArrivalAngle } from '../game/arrival';
 import type { WalkStyle } from '../entities/Batter';
 import { diwaliOn } from '../game/diwali';
-import { BROADCAST, broadcastViewFor, homeViewFor } from './homeView';
+import { BROADCAST, broadcastViewFor, homeViewFor, proViewFor } from './homeView';
 /** How much further off the broadcast camera stands from the batter than the classic one: the haze moves back by it. */
 const BROADCAST_HAZE = Math.hypot(BROADCAST.eye[1] - 1, BROADCAST.eye[2] - 1) - Math.hypot(2.9 - 1, 5.15 + 1);
 import { facesBatter, type CameraId } from '../game/camera';
@@ -905,7 +905,10 @@ export class GameScene {
    */
   private view: CameraId = 'classic';
   get cameraId() { return this.view; }
-  get playView(): CameraPose { return this.view === 'broadcast' ? broadcastViewFor(this.camera.aspect) : this.homeView; }
+  get playView(): CameraPose {
+    const aspect = this.camera.aspect;
+    return this.view === 'broadcast' ? broadcastViewFor(aspect) : this.view === 'pro' ? proViewFor(aspect) : this.homeView;
+  }
   /** The camera looks at the batter from in front: the screen is the field turned half round. */
   get facing() { return facesBatter(this.view); }
   /**

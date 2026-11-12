@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { cameraAsked, facesBatter, readCamera, swipeAsPlayed } from '../src/game/camera';
+import { CAMERAS, CAMERA_KEY, cameraAsked, facesBatter, readCamera, swipeAsPlayed } from '../src/game/camera';
 import { mapSwipe } from '../src/game/InputManager';
-import { BROADCAST, broadcastViewFor, homeViewFor } from '../src/scene/homeView';
+import { BROADCAST, PRO_CAM, broadcastViewFor, homeViewFor, proViewFor } from '../src/scene/homeView';
 import { fieldMapMarkup } from '../src/ui/FieldMap';
 import { fieldFor } from '../src/game/super10-field';
 
@@ -13,13 +13,29 @@ const played = (dx: number, dy: number, { left = false, facing = false } = {}) =
 };
 
 describe('the camera the innings is watched through', () => {
-  it('is Classic unless the link or the pause sheet asks for Broadcast', () => {
+  it('is Classic unless the link or the pause sheet asks for another', () => {
+    expect(cameraAsked('?cam=pro')).toBe('pro');
     expect(cameraAsked('?cam=broadcast')).toBe('broadcast');
     expect(cameraAsked('?cam=classic')).toBe('classic');
     expect(cameraAsked('?cam=helicopter')).toBeNull();
     expect(readCamera('?cam=broadcast')).toBe('broadcast');
     expect(facesBatter('broadcast')).toBe(true);
     expect(facesBatter('classic')).toBe(false);
+    expect(facesBatter('pro')).toBe(false);
+  });
+
+  it('offers Classic and Pro Cam on the row, Broadcast only from the link', () => {
+    expect(CAMERAS.map(c => c.id)).toEqual(['classic', 'pro']);
+    const store = new Map<string, string>();
+    const was = globalThis.localStorage;
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v) } });
+    try {
+      store.set(CAMERA_KEY, 'pro');
+      expect(readCamera('')).toBe('pro');
+      // Picked while it was on the row, Broadcast would be stuck on with no key to leave it.
+      store.set(CAMERA_KEY, 'broadcast');
+      expect(readCamera('')).toBe('classic');
+    } finally { Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: was }); }
   });
 
   it('reads the swipes as it always did under the classic camera', () => {
@@ -78,6 +94,38 @@ describe('the broadcast view', () => {
   });
   it('keeps the boards behind the batter up under the score bar', () => {
     for (const aspect of phones) expect(seen(aspect, 0, 0, -24).y, `at ${aspect}`).toBeGreaterThan(.8);
+  });
+});
+
+/** Where a point lands in the Pro Cam picture. */
+function proSeen(aspect: number, x: number, y: number, z: number) {
+  const view = proViewFor(aspect), camera = new THREE.PerspectiveCamera(view.fov, aspect, .1, 500);
+  camera.position.set(...view.eye); camera.lookAt(...view.at); camera.updateMatrixWorld();
+  return new THREE.Vector3(x, y, z).project(camera);
+}
+
+describe('Pro Cam, the batter\'s eye', () => {
+  const phones = [0.56, 9 / 16, 0.5, 402 / 874, 0.45];
+  it('stands lower and nearer him than the classic camera, behind the stumps', () => {
+    const classic = homeViewFor(.46);
+    expect(PRO_CAM.eye[1]).toBeLessThan(classic.eye[1]);
+    expect(PRO_CAM.eye[2]).toBeGreaterThan(classic.eye[2]);
+    expect(PRO_CAM.eye[2]).toBeLessThan(0);
+  });
+  it('sees over his helmet to the bowler\'s hand: the line to the release clears his head', () => {
+    // A tall guard's helmet tops out under 1.9m; the ball leaves the hand at 2.2 or so, eighteen metres off.
+    const [, y, z] = PRO_CAM.eye, release = { y: 2.1, z: 18 }, batter = 1;
+    expect(y + (release.y - y) * (batter - z) / (release.z - z)).toBeGreaterThan(1.9);
+  });
+  it('has him whole in the lower half and the bowler\'s end above him, on every phone', () => {
+    for (const aspect of phones) {
+      const head = proSeen(aspect, .36, 1.8, 1), feet = proSeen(aspect, .36, 0, 1), release = proSeen(aspect, .5, 2.1, 18);
+      expect(head.y, `head at ${aspect}`).toBeLessThan(.2);
+      expect(feet.y, `feet at ${aspect}`).toBeGreaterThan(-1);
+      expect(release.y, `release at ${aspect}`).toBeGreaterThan(head.y);
+      expect(release.y, `release at ${aspect}`).toBeLessThan(.7);
+      expect(Math.abs(release.x), `release across at ${aspect}`).toBeLessThan(.8);
+    }
   });
 });
 

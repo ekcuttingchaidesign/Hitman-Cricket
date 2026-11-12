@@ -3,6 +3,9 @@
  * Camera row, kept in `hitman-camera`).
  *
  *  - **Classic**: the game's own view from behind the bat (`homeViewFor`).
+ *  - **Pro Cam**: the batter's eye, low and close behind him, the ball coming
+ *    at the lens (`proViewFor`). Seen from behind him as Classic is, so the
+ *    swipes are read as they always were.
  *  - **Broadcast**: the television's, high behind the bowler's arm on a long
  *    lens, looking down the pitch at the batter, the keeper beyond him
  *    (`broadcastViewFor`).
@@ -17,13 +20,14 @@
  * (`swipeAsPlayed`): the ball goes the way the thumb went on the picture.
  * The keys stay the strokes they always were.
  */
-export type CameraId = 'classic' | 'broadcast';
+export type CameraId = 'classic' | 'pro' | 'broadcast';
 export const CAMERA_KEY = 'hitman-camera';
+/** The pause sheet's Camera row. Broadcast is off it: the owner did not like its look, and it is kept on the link for comparing. */
 export const CAMERAS: readonly { id: CameraId; name: string }[] = [
   { id: 'classic', name: 'Classic' },
-  { id: 'broadcast', name: 'Broadcast' },
+  { id: 'pro', name: 'Pro Cam' },
 ];
-const isCamera = (value: string | null): value is CameraId => value === 'classic' || value === 'broadcast';
+const isCamera = (value: string | null): value is CameraId => value === 'classic' || value === 'pro' || value === 'broadcast';
 
 /** What the link asks for (`?cam=broadcast`), or null. */
 export function cameraAsked(search: string): CameraId | null {
@@ -31,11 +35,12 @@ export function cameraAsked(search: string): CameraId | null {
   return isCamera(asked) ? asked : null;
 }
 
-/** The camera this visit plays under: the link's, else the one kept, else Classic. */
+/** The camera this visit plays under: the link's, else the one kept if it is still on the row, else Classic. */
 export function readCamera(search = typeof location === 'undefined' ? '' : location.search): CameraId {
   const asked = cameraAsked(search);
   if (asked) return asked;
-  try { const kept = localStorage.getItem(CAMERA_KEY); if (isCamera(kept)) return kept; } catch { /* Nothing kept. */ }
+  // Only one on the row is kept: Broadcast picked while it was there would otherwise be stuck on with no key to leave it.
+  try { const kept = localStorage.getItem(CAMERA_KEY); if (CAMERAS.some(c => c.id === kept)) return kept as CameraId; } catch { /* Nothing kept. */ }
   return 'classic';
 }
 

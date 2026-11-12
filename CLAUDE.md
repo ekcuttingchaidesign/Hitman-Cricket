@@ -3683,43 +3683,45 @@ Road to Hitman's fill is `roadOf` in `src/game/tier.ts`: the medallions stand
 evenly, so the fill is a whole rung per tier climbed and the share of the gap
 across the last, not a fraction of the top figure.
 
-## The broadcast camera
+## The camera row: Classic and Pro Cam
 
-The innings can be watched through two cameras (`src/game/camera.ts`, in
-`tests/camera.test.ts`): Classic, the game's own view from behind the bat,
-and Broadcast, the television's (`broadcastViewFor` in `homeView.ts`): high
-behind the bowler's arm on a long lens, the bowler in the foot of the picture
-from his back as he delivers, the batter and the keeper up the pitch, drawn
-from a screenshot the owner sent. It stands inside the rope, which is fifty
-metres back there (further, it was inside the stand and drew nothing), and
-low enough that the pitch is shortened the way television shortens it; the
-boards behind the bat, twenty metres back on these grounds, sit up under the
-score bar. The lens is held at the same height whatever the screen's shape.
-Chosen on the pause sheet's Camera row (`#camera-row`, `cameraSwitch`), taken
-at once mid-innings, and kept in `hitman-camera`; `?cam=broadcast` or
-`classic` asks for one for the visit, and is not practice. GoatCounter counts
-`camera-<id>`. Pro Cam, the batter's eye from low and close behind him, is
-the name kept for the next one.
+The innings can be watched through more than one camera
+(`src/game/camera.ts`, in `tests/camera.test.ts`), chosen on the pause
+sheet's Camera row (`#camera-row`, `cameraSwitch`), taken at once
+mid-innings and kept in `hitman-camera`; `?cam=classic`, `pro` or
+`broadcast` asks for one for the visit, and is not practice. GoatCounter
+counts `camera-<id>`.
+
+- **Classic**, the game's own view from behind the bat (`homeViewFor`).
+- **Pro Cam**, the batter's eye (`proViewFor`, `PRO_CAM` in `homeView.ts`):
+  low and close behind him, over the stumps, just high enough that the line
+  to the bowler's hand clears his helmet, on a 50-degree lens held whatever
+  the screen's shape. He stands big at the foot of the picture, the bowler
+  runs in over his shoulder and the ball comes at the lens; the stand fills
+  the top, which from that low is what a batter sees. Seen from behind him as
+  Classic is, so the swipes, the side labels and Super10's map are Classic's.
+- **Broadcast**, the television's (`broadcastViewFor`), from a screenshot the
+  owner sent: high behind the bowler's arm on a long lens, the bowler in the
+  foot of the picture from his back. Built first, and the owner did not like
+  its look, so it is off the row and only on the link, for comparing; a
+  Broadcast kept from when it was on the row reads as Classic (`readCamera`),
+  or it would be stuck on with no key to leave it. Facing the batter, the
+  swipes are read turned half round (`swipeAsPlayed`, `facesBatter`), the side
+  labels turn (`hud.sides`), Super10's map is turned half round
+  (`fieldMapMarkup`'s `facing`, `FieldUi.turn`), the keeper is drawn stood
+  back to pace, the haze moves out with the camera (`haze`) and the ball is
+  drawn at `BROADCAST.ball` of its size (`sizeBall`). It stands inside the
+  rope, fifty metres back there: further, it was inside the stand.
 
 Only the picture changes. Every ball is bowled, timed and scored the same,
-and who goes for a ball is judged from the classic view under either camera
+and who goes for a ball is judged from the classic view under any camera
 (`judge` in `GameScene.inShot`), so a Rival Match is one game whichever each
-side watches. The swipes follow the screen (`swipeAsPlayed`, read in
-`InputManager`): facing the batter, straight down the ground is down the
-picture and a right-hander's off side on its left, so a swipe is read turned
-half round and the ball goes the way the thumb went; the keys stay the
-strokes they were. The side labels turn with it (`hud.sides`), and so does
-Super10's field map (`fieldMapMarkup`'s `facing`, `FieldUi.turn`): the
-bowler's end at its foot and the batter's blue point at its middle. Under it
-the keeper is drawn stood back to pace, where the classic camera stands; the
-haze starts as much further off as the camera is (`haze`); and the ball is
-drawn at `BROADCAST.ball` of its usual size, the camera coming nearer the
-bowler's hand than the classic one does (`sizeBall`). The walk-on, the new
-batter's arrival and the replays keep their own cameras, landing on the
-classic view and cutting to this one. The first innings's coachmark lanes are
-still drawn for the classic view: a new player starts on Classic.
-`scripts/camera-check.mjs` swipes under it in a browser, turns it on the
-pause sheet and back, and reads Super10's map.
+side watches. A special stroke's push in is scaled to the lens. The walk-on,
+the new batter's arrival and the replays keep their own cameras, landing on
+the classic view and cutting to the one picked. The first innings's
+coachmark lanes are drawn for the classic view: a new player starts on it.
+`scripts/camera-check.mjs` swipes under Broadcast, picks Pro Cam on the
+pause sheet and swipes under it, and reads Super10's map.
 
 ## The view on a tall screen
 

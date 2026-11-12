@@ -53,7 +53,7 @@ describe('every switch the game reads', () => {
     arrivecam: 'which camera shoots the new batter walking in: only the picture',
     replay: 'the action replay once a ball is dead, a camera and the same ball told again: nothing bowled, scored or counted under it',
     replayangle: 'which camera the action replay is shown from; nothing about the ball',
-    cam: 'which camera the innings is watched through, Classic or Broadcast: only the picture, the swipes read the way it shows them, and the field judged from the classic view',
+    cam: 'which camera the innings is watched through, Classic, Pro Cam or Broadcast: only the picture, the swipes read the way it shows them, and the field judged from the classic view',
     keeperintro: 'the keeper\'s coach card at the first spinner\'s ball, asked for again; it changes nothing about the batting',
     catchcam: 'the camera going with a skied ball, and a skier that fell safe for four shown put down; the runs are the runs it was',
     contact: 'the feel of the bat meeting the ball turned off: a beat held, a knock in the hand, the camera and the sound of a ball already resolved',
