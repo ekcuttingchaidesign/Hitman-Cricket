@@ -15,11 +15,10 @@ import type { ShotOutcome } from '../game/types';
  *
  * **Close** stands low behind him, so from the bat a ball going to the rope
  * runs off into the stand at the top of the picture, where the classic view,
- * higher and further back, watches it across the grass. Two ways
- * (`?closecam=`): `lift`, the default, cranes up and back to `CLOSE_FOLLOW.eye`
- * as the look pans after the ball, like a camera operator behind the bat, and
- * comes back down before the next ball; `pan` only turns the look, from where
- * it stands.
+ * higher and further back, watches it across the grass. So it cranes up and
+ * back to `CLOSE_FOLLOW.eye` as the look pans after the ball, like a camera
+ * operator behind the bat, and comes back down before the next ball. Only
+ * panning from where it stands was tried beside it, and the owner kept the lift.
  *
  * Which balls: one off the bat that goes somewhere (`followed`). Not an edge
  * or one played on, not a block that dies at his feet, not off the pad or the
@@ -50,12 +49,9 @@ export const BALL_LOOK = {
 /** Close's camera lifted for a ball going away: higher and further back, about the classic view's place. */
 export const CLOSE_FOLLOW = { eye: [0, 3.7, -5.6] as const, lift: 380, drop: 420 } as const;
 
-export type CloseFollow = 'lift' | 'pan';
-
-/** What the link asks for: both on, Close lifting, unless it says otherwise. */
-export function readBallLook(search = typeof location === 'undefined' ? '' : location.search): { on: boolean; close: CloseFollow } {
-  const params = new URLSearchParams(search);
-  return { on: params.get('camturn') !== '0', close: params.get('closecam') === 'pan' ? 'pan' : 'lift' };
+/** What the link asks for: on, unless it says `?camturn=0`. */
+export function readBallLook(search = typeof location === 'undefined' ? '' : location.search): { on: boolean } {
+  return { on: new URLSearchParams(search).get('camturn') !== '0' };
 }
 
 /** A ball off the bat the camera goes after, given how far from the bat it ends up. */

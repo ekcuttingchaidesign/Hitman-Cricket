@@ -991,14 +991,14 @@ export class GameScene {
   }
   /**
    * Close, going after the ball: lifted up and back towards `CLOSE_FOLLOW.eye`
-   * while it follows one (unless `?closecam=pan`), and down again after, the
+   * while it follows one, and down again after, the
    * look turning after it from wherever the camera has got to.
    */
   private closeFollow(now: number) {
     const dt = now - this.liftClock;
     this.liftClock = now;
     const phase = this.followPhase(now);
-    const up = this.ballLook.close === 'lift' && (phase === 'follow' || phase === 'hold') ? 1 : 0;
+    const up = phase === 'follow' || phase === 'hold' ? 1 : 0;
     this.lifted = dt > 500 || dt < 0 ? up : this.lifted + (up - this.lifted) * easeBy(dt, up ? CLOSE_FOLLOW.lift : CLOSE_FOLLOW.drop);
     const k = this.lifted * this.lifted * (3 - 2 * this.lifted);
     const [x0, y0, z0] = CLOSE_CAM.eye, [x1, y1, z1] = CLOSE_FOLLOW.eye;
@@ -1008,7 +1008,7 @@ export class GameScene {
   /** What the camera is doing about the ball off the bat, for the checks. */
   get ballLookShown() {
     const yaw = this.lookHeld ? Math.round(Math.atan2(this.lookHeld.x, this.lookHeld.z) / Math.PI * 180) : 0;
-    return { on: this.ballLook.on, close: this.ballLook.close, followed: this.ballFollowed, phase: this.lookPhase, yaw, lift: +this.lifted.toFixed(2) };
+    return { on: this.ballLook.on, followed: this.ballFollowed, phase: this.lookPhase, yaw, lift: +this.lifted.toFixed(2) };
   }
   private readonly ballLook = readBallLook();
   private ballFollowed = false;

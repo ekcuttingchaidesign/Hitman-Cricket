@@ -39,9 +39,8 @@ describe('the camera going after the ball off the bat', () => {
     expect(Math.hypot(...v)).toBeCloseTo(1, 9);
   });
 
-  it('is on, Close lifting, unless the link says otherwise', () => {
-    expect(readBallLook('')).toEqual({ on: true, close: 'lift' });
-    expect(readBallLook('?camturn=0')).toEqual({ on: false, close: 'lift' });
-    expect(readBallLook('?closecam=pan')).toEqual({ on: true, close: 'pan' });
+  it('is on unless the link turns it off', () => {
+    expect(readBallLook('')).toEqual({ on: true });
+    expect(readBallLook('?camturn=0')).toEqual({ on: false });
   });
 });

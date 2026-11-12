@@ -1,8 +1,7 @@
 /**
  * Pro Cam and Close going after the ball off the bat (`src/scene/ballLook.ts`),
  * in a real browser: cover drives on the keys at `?cover=1`'s ball, with no
- * replay or catch camera to film over it, under Pro Cam, under Close (lifting)
- * and under Close on `?closecam=pan`. Each followed ball is read as it flies —
+ * replay or catch camera to film over it, under Pro Cam and under Close. Each followed ball is read as it flies —
  * the look turned towards the off side, Close lifted, the hold and the way
  * back, and under Pro Cam the bat and gloves out of the way — and photographed into `test-results/ball-look-*.png`; then the look
  * is back down the pitch by the next ball's release.
@@ -91,7 +90,6 @@ async function run(cam, extra, label) {
     check(Math.abs(atNext.yaw) < 4, `${label}: back down the pitch by the next ball (${atNext.yaw}°)`, JSON.stringify(atNext));
     if (label === 'pro') check(found.some(t => t.phase === 'follow' && t.bat === false), 'pro: the bat and gloves out of the picture while he watches it', found.map(t => t.bat).join(' '));
     if (label === 'close-lift') check(Math.max(...lifts) > .9 && atNext.lift < .1, 'close-lift: lifts up and back, and down again');
-    if (label === 'close-pan') check(Math.max(...lifts) === 0, 'close-pan: stays where it stands');
   }
   check(!errors.length, `${label}: no errors`, errors.join('\n'));
   await page.close();
@@ -99,7 +97,6 @@ async function run(cam, extra, label) {
 
 await run('pro', '', 'pro');
 await run('close', '', 'close-lift');
-await run('close', '&closecam=pan', 'close-pan');
 await browser.close();
 console.log(failures ? `\n${failures} failed` : '\nall good');
 process.exit(failures ? 1 : 0);

@@ -3798,8 +3798,9 @@ filled the picture and hid the ball, so they go out of it `batGone` after the
 ball is met until the look comes back, and the ball is drawn bigger the
 further it goes. Close cranes up and back to `CLOSE_FOLLOW.eye`, about the
 classic view's place, as its look pans after the ball, and comes back down
-before the next ball (`closeFollow`); `?closecam=pan` only pans it from where
-it stands, for comparing. A special stroke's moment under Pro Cam cuts to
+before the next ball (`closeFollow`): only panning from where it stands was
+tried beside it and read the same at the ball's distance, and the owner kept
+the lift. A special stroke's moment under Pro Cam cuts to
 Close, and so follows the ball Close's way. Not an edge, a block, the pad,
 the body or a ball played on (`followed`), and a replay's or the catch
 camera's picture is drawn over it. Only the picture, and the field is judged
