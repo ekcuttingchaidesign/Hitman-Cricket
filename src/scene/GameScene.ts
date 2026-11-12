@@ -39,7 +39,7 @@ import { arrivalCamera, type ArrivalAngle } from '../game/arrival';
 import type { WalkStyle } from '../entities/Batter';
 import { diwaliOn } from '../game/diwali';
 import { BROADCAST, CLOSE_CAM, PRO_CAM, broadcastViewFor, closeViewFor, homeViewFor, proViewFor } from './homeView';
-import { BALL_LOOK, CLOSE_FOLLOW, easeBy, followed, lookPhase, lookToward, readBallLook, type LookPhase } from './ballLook';
+import { BALL_LOOK, CLASSIC_FOLLOW, CLOSE_FOLLOW, easeBy, followed, lookPhase, lookToward, partialLook, readBallLook, zoomFor, type LookPhase } from './ballLook';
 /** How much further off the broadcast camera stands from the batter than the classic one: the haze moves back by it. */
 const BROADCAST_HAZE = Math.hypot(BROADCAST.eye[1] - 1, BROADCAST.eye[2] - 1) - Math.hypot(2.9 - 1, 5.15 + 1);
 import { facesBatter, type CameraId } from '../game/camera';
@@ -967,7 +967,7 @@ export class GameScene {
    * the scene), eased on `turn` while it follows the ball. Pro Cam and Close
    * both look through this; only one of them a frame.
    */
-  private lookAfterBall(now: number, eye: THREE.Vector3, aim: THREE.Vector3, turn: number): THREE.Vector3 {
+  private lookAfterBall(now: number, eye: THREE.Vector3, aim: THREE.Vector3, turn: number, share?: number): THREE.Vector3 {
     const dt = now - this.lookClock;
     this.lookClock = now;
     const phase = this.followPhase(now);
@@ -976,7 +976,10 @@ export class GameScene {
     if (phase === 'follow' || phase === 'hold') {
       // Where it is, or where it was last drawn: over the rope it is gone, and the look stays where it went out.
       if (this.ball.visible) this.world.localToWorld(this.lookBall.copy(this.ball.position));
-      this.lookTarget.set(...lookToward(this.lookBall.x - eye.x, this.lookBall.y - eye.y, this.lookBall.z - eye.z));
+      const toward = lookToward(this.lookBall.x - eye.x, this.lookBall.y - eye.y, this.lookBall.z - eye.z);
+      // Classic turns only part of the way, about its own line (`partialLook`).
+      if (share !== undefined) this.lookTarget.set(...partialLook([this.lookTarget.x, this.lookTarget.y, this.lookTarget.z], toward, share));
+      else this.lookTarget.set(...toward);
       tau = turn;
     }
     if (!this.lookHeld || dt > 500 || dt < 0) this.lookHeld = this.lookTarget.clone();
@@ -1005,11 +1008,30 @@ export class GameScene {
     this.camera.position.set(x0 + (x1 - x0) * k, y0 + (y1 - y0) * k, z0 + (z1 - z0) * k);
     this.camera.lookAt(this.lookAfterBall(now, this.liftEye.copy(this.camera.position), this.liftAim.set(...CLOSE_CAM.at), BALL_LOOK.closeTurn));
   }
+  /**
+   * Classic, going after the ball, where the link asks for it
+   * (`?classicfollow=pan` or `zoom`, `CLASSIC_FOLLOW`): stood where it always
+   * is, the look turned part of the way after the ball, and for `zoom` the
+   * lens closing in on it as it goes away. Never while a moment is drawn round
+   * him: the doodle stands where he was when it began.
+   */
+  private classicFollow(now: number) {
+    const [x, y, z] = this.playView.eye, at = this.playView.at;
+    this.camera.position.set(x, y, z);
+    this.camera.lookAt(this.lookAfterBall(now, this.liftEye.copy(this.camera.position), this.liftAim.set(...at), CLASSIC_FOLLOW.turn, CLASSIC_FOLLOW.share));
+    const dt = now - this.zoomClock;
+    this.zoomClock = now;
+    let want = 1;
+    if (this.ballLook.classic === 'zoom' && (this.lookPhase === 'follow' || this.lookPhase === 'hold'))
+      want = zoomFor(this.camera.position.distanceTo(this.lookBall));
+    this.zoomed = dt > 500 || dt < 0 ? want : this.zoomed + (want - this.zoomed) * easeBy(dt, want < this.zoomed ? CLASSIC_FOLLOW.zoomIn : CLASSIC_FOLLOW.zoomOut);
+  }
   /** What the camera is doing about the ball off the bat, for the checks. */
   get ballLookShown() {
     const yaw = this.lookHeld ? Math.round(Math.atan2(this.lookHeld.x, this.lookHeld.z) / Math.PI * 180) : 0;
-    return { on: this.ballLook.on, followed: this.ballFollowed, phase: this.lookPhase, yaw, lift: +this.lifted.toFixed(2) };
+    return { on: this.ballLook.on, classic: this.ballLook.classic, followed: this.ballFollowed, phase: this.lookPhase, yaw, lift: +this.lifted.toFixed(2), zoom: +this.zoomed.toFixed(2) };
   }
+  private zoomClock = 0; private zoomed = 1;
   private readonly ballLook = readBallLook();
   private ballFollowed = false;
   private lookPhase: LookPhase | null = null;
@@ -1039,12 +1061,22 @@ export class GameScene {
    * the doodle asks where he stands on the screen.
    */
   moment(lasts: number) {
+    if (this.view === 'classic' && this.ballLook.classic) {
+      // Classic going after the ball is put back on its line at once, so the doodle is drawn round him where he stands.
+      // And that ball is let go: turning after it once the moment is over would swing the picture round from nowhere.
+      this.stillUntil = performance.now() + lasts;
+      this.lookHeld = null; this.zoomed = 1; this.ballFollowed = false;
+      this.resize();
+      return;
+    }
     if (this.view !== 'pro') return;
     this.momentUntil = performance.now() + lasts;
     this.batter.firstPerson(false);
     this.resize();
   }
   private momentUntil = 0;
+  /** Classic held on its own line until then, for a moment drawn round him. */
+  private stillUntil = 0;
   private get inMoment() { return this.view === 'pro' && performance.now() < this.momentUntil; }
   /** The camera is his eyes this frame: Pro Cam, with no film and no moment cutting away. */
   private get eyesOn() { return this.view === 'pro' && !this.cinema && !this.inMoment; }
@@ -1052,7 +1084,7 @@ export class GameScene {
   useCamera(id: CameraId) {
     if (id === this.view) return;
     this.view = id;
-    this.lookHeld = null; this.lifted = 0;
+    this.lookHeld = null; this.lifted = 0; this.zoomed = 1;
     if (!this.cinema) this.sizeBall(1);
     this.placeKeeper();
     this.haze(this.now);
@@ -2195,6 +2227,7 @@ export class GameScene {
         else if (this.sizedFar) this.sizeBall(1);
         this.sizedFar = far;
       } else if (this.ballLook.on && (this.view === 'close' || this.inMoment)) this.closeFollow(now);
+      else if (this.ballLook.on && this.ballLook.classic && this.view === 'classic' && performance.now() >= this.stillUntil) this.classicFollow(now);
       else {
         const [x, y] = this.playView.eye;
         this.camera.position.x = x;
@@ -2206,9 +2239,11 @@ export class GameScene {
       // picture: who goes for the ball is judged from a camera of its own.
       // In proportion to the lens: the broadcast camera's is an eighth of the classic one's.
       const push = outcome && this.pushBy ? this.pushBy * pushAt(since) * this.homeFov / this.homeView.fov : 0;
-      if (push > 0 || this.pushed) {
-        this.pushed = push > 0;
-        this.camera.fov = this.homeFov - push; this.camera.updateProjectionMatrix();
+      // Classic's zoom after the ball (`classicFollow`) narrows the lens the same way.
+      const zoomed = this.view === 'classic' && this.zoomed < 1;
+      if (push > 0 || this.pushed || zoomed) {
+        this.pushed = push > 0 || zoomed;
+        this.camera.fov = this.homeFov * (zoomed ? this.zoomed : 1) - push; this.camera.updateProjectionMatrix();
       }
     }
     this.dust.update(now); this.chips.update(now);

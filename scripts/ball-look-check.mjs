@@ -3,7 +3,8 @@
  * in a real browser: cover drives on the keys at `?cover=1`'s ball, with no
  * replay or catch camera to film over it, under Pro Cam and under Close. Each followed ball is read as it flies —
  * the look turned towards the off side, Close lifted, the hold and the way
- * back, and under Pro Cam the bat and gloves out of the way — and photographed into `test-results/ball-look-*.png`; then the look
+ * back, Classic still unless `?classicfollow=pan` or `zoom` asks (`ONLY=classic`
+ * for those three alone), and under Pro Cam the bat and gloves out of the way — and photographed into `test-results/ball-look-*.png`; then the look
  * is back down the pitch by the next ball's release.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
@@ -81,22 +82,37 @@ async function run(cam, extra, label) {
   }
   check(!!found, `${label}: a cover drive is followed`);
   if (found) {
-    const yaws = found.map(t => t.yaw), lifts = found.map(t => t.lift);
-    console.log(`        yaw ${yaws.join(' ')}\n        lift ${lifts.join(' ')}\n        phase ${found.map(t => t.phase?.[0] ?? '-').join('')}`);
+    const yaws = found.map(t => t.yaw), lifts = found.map(t => t.lift), zooms = found.map(t => t.zoom);
+    console.log(`        yaw ${yaws.join(' ')}\n        lift ${lifts.join(' ')}\n        zoom ${zooms.join(' ')}\n        phase ${found.map(t => t.phase?.[0] ?? '-').join('')}`);
     const most = Math.max(...yaws.map(Math.abs));
-    check(most > 20, `${label}: the look turns after it (${most}°)`);
+    if (label === 'classic') {
+      check(most === 0 && zooms.every(z => z === 1), 'classic: stands still as it always has, unless the link asks');
+      check(!errors.length, `${label}: no errors`, errors.join('\n'));
+      await page.close();
+      return;
+    }
+    // Classic turns part of the way, so a cover drive turns it less than the others.
+    check(most > (label.startsWith('classic') ? 8 : 20), `${label}: the look turns after it (${most}°)`);
     check(found.some(t => t.phase === 'hold') && found.some(t => t.phase === 'back'), `${label}: holds, then comes back`);
     const atNext = found.at(-1);
     check(Math.abs(atNext.yaw) < 4, `${label}: back down the pitch by the next ball (${atNext.yaw}°)`, JSON.stringify(atNext));
     if (label === 'pro') check(found.some(t => t.phase === 'follow' && t.bat === false), 'pro: the bat and gloves out of the picture while he watches it', found.map(t => t.bat).join(' '));
     if (label === 'close-lift') check(Math.max(...lifts) > .9 && atNext.lift < .1, 'close-lift: lifts up and back, and down again');
+    if (label === 'classic-pan') check(zooms.every(z => z === 1), 'classic-pan: the lens stays as it is');
+    if (label === 'classic-zoom') check(Math.min(...zooms) < .85 && atNext.zoom > .97, `classic-zoom: closes in on the ball (${Math.min(...zooms)}) and opens again (${atNext.zoom})`);
   }
   check(!errors.length, `${label}: no errors`, errors.join('\n'));
   await page.close();
 }
 
-await run('pro', '', 'pro');
-await run('close', '', 'close-lift');
+const only = process.env.ONLY;
+for (const [cam, extra, label] of [
+  ['pro', '', 'pro'],
+  ['close', '', 'close-lift'],
+  ['classic', '', 'classic'],
+  ['classic', '&classicfollow=pan', 'classic-pan'],
+  ['classic', '&classicfollow=zoom', 'classic-zoom'],
+]) if (!only || label.startsWith(only)) await run(cam, extra, label);
 await browser.close();
 console.log(failures ? `\n${failures} failed` : '\nall good');
 process.exit(failures ? 1 : 0);

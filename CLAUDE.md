@@ -3808,6 +3808,19 @@ from the classic view as ever. `?camturn=0` turns both off; neither switch is
 practice. `snapshot().ballLook` says what it is doing, and
 `scripts/ball-look-check.mjs` drives a cover drive under each.
 
+Classic going after the ball is being tried, two ways, and is off unless the
+link asks (`CLASSIC_FOLLOW`, `classicFollow` in `GameScene`): Classic is the
+view players know. `?classicfollow=pan` stands where it always does and
+turns its look `share` of the way after the ball, never more than `yaw`
+round (`partialLook`), so a square cut no longer runs straight off the side
+of a phone's narrow picture; `?classicfollow=zoom` pans the same and closes
+the lens in on the ball as it goes away, as a television camera picks up a
+ball running to the rope (`zoomFor`), opening again as the look comes back.
+A moment drawn round him (the special stroke's flash, a pulled bouncer's, a
+milestone) puts Classic back on its line at once and lets that ball go, so
+the doodle stands round him. Neither is practice. `ONLY=classic` runs the
+check's three Classic cases alone.
+
 Close and Pro Cam are behind him as Classic is, so the swipes, the side
 labels and Super10's map are Classic's under both.
 

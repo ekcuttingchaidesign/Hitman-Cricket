@@ -56,6 +56,7 @@ describe('every switch the game reads', () => {
     cam: 'which camera the innings is watched through, Classic, Pro Cam or Broadcast: only the picture, the swipes read the way it shows them, and the field judged from the classic view',
     keeperintro: 'the keeper\'s coach card at the first spinner\'s ball, asked for again; it changes nothing about the batting',
     camturn: 'Pro Cam and Close going after the ball off the bat turned off: only where the camera looks',
+    classicfollow: 'Classic going after the ball off the bat, panned or zoomed, to compare: only where the camera looks',
     catchcam: 'the camera going with a skied ball, and a skier that fell safe for four shown put down; the runs are the runs it was',
     contact: 'the feel of the bat meeting the ball turned off: a beat held, a knock in the hand, the camera and the sound of a ball already resolved',
     follow: 'the batter\'s follow-through turned off: his trunk, hips and head settling after a stroke, only how he is drawn',
