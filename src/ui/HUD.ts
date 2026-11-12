@@ -1948,10 +1948,6 @@ ${modeSelectMarkup()}
   onStoryReel: ((shot: ReelShot | null, beat: (beat: ReelBeat) => void) => boolean) | null = null;
   /** The cameras' stories ask the game to film them the same way (`Story.show`), and are told whether it can. */
   onStoryShow: ((kind: CamShow | null, beat: (beat: ShowBeat) => void) => boolean) | null = null;
-  /** A camera's picture on the cameras' card, pressed: the game takes it at once, as the pause sheet's would. */
-  onStoryCamera: ((id: CameraId) => void) | null = null;
-  /** The camera the game is watched through, outlined on the cameras' card. */
-  storyCamera: () => CameraId = () => 'classic';
   /** What to do when the stories are finished with. The game decides. */
   onStoriesDone: (() => void) | null = null;
   /**
@@ -1987,7 +1983,7 @@ ${modeSelectMarkup()}
     this.storyFilm?.destroy(); this.storyFilm = null;
     overlay.innerHTML = storiesMarkup({
       at: this.storyAt, where: this.storyWhere, holdMs: HUD.STORY_MS, locked: this.storyLocked,
-      careerKey: this.keyView, stories: this.storyRun, camera: this.storyCamera(),
+      careerKey: this.keyView, stories: this.storyRun,
     });
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
@@ -2046,21 +2042,10 @@ ${modeSelectMarkup()}
       else sheet.classList.remove('is-cueing', 'is-hit');
     });
     if (!story?.reel) this.onStoryReel?.(null, () => {});
-    // The cameras' stories, the same way: the card's tag says the camera, or the speed gun's figure, ball by ball.
-    const shown = !!story?.show && !!this.onStoryShow?.(story.show, beat => {
-      const tag = document.getElementById('whatsnew-tag');
-      if (!tag) return;
-      if (beat.hit) { if (beat.kph === null) replayClass(tag, 'is-hit'); return; }
-      tag.classList.remove('is-hit');
-      tag.textContent = beat.kph !== null ? `${beat.kph} KM/H` : (CAMERAS.find(c => c.id === beat.camera)?.name ?? '').toUpperCase();
-      replayClass(tag, 'is-up');
-    });
+    // The batting cams' card, filmed the same way: the card follows the beat the show is on (`camsBeat`).
+    const shown = !!story?.show && !!this.onStoryShow?.(story.show, beat => this.camsBeat(beat));
     if (!story?.show) this.onStoryShow?.(null, () => {});
-    for (const pick of overlay.querySelectorAll<HTMLButtonElement>('.whatsnew-cam')) pick.onclick = () => {
-      const id = pick.dataset.camera as CameraId;
-      this.onStoryCamera?.(id);
-      for (const each of overlay.querySelectorAll('.whatsnew-cam')) each.setAttribute('aria-checked', String(each === pick));
-    };
+    if (story?.show) this.camsSetUp(shown);
     this.viewport.classList.toggle('reel-on', filmed || shown);
     const sheet = overlay.querySelector('.whatsnew-sheet');
     sheet?.classList.toggle('is-filmed', filmed || shown);
@@ -2078,6 +2063,82 @@ ${modeSelectMarkup()}
     };
     if (storyHolds(this.storyAt, this.storyRun)) return;
     this.storyHold = window.setTimeout(() => this.stepStory(1), story?.holdMs ?? HUD.STORY_MS);
+  }
+
+  /**
+   * The batting cams' card made ready (`camsMarkup`): the pause menu copied in
+   * from the real one, its Camera row lit and every other part dimmed, and
+   * GOT IT wired. Where the game cannot film it — a story opened from the
+   * board mid-innings, or less motion asked for — it opens on its last beat.
+   */
+  private camsSetUp(filmed: boolean) {
+    const sheet = this.$('whatsnew-overlay').querySelector<HTMLElement>('.is-cams');
+    if (!sheet) return;
+    const got = document.getElementById('whatsnew-got');
+    if (got) got.onclick = () => this.closeStories();
+    const host = sheet.querySelector<HTMLElement>('.cams-pause')!;
+    const copy = this.$('pause-sheet').cloneNode(true) as HTMLElement;
+    for (const node of [copy, ...copy.querySelectorAll<HTMLElement>('[id]')]) node.removeAttribute('id');
+    copy.setAttribute('inert', '');
+    copy.classList.add('cams-sheet');
+    copy.querySelector('.pause-mode')!.textContent = 'The Blast';
+    copy.querySelector('.pause-state')!.textContent = '42/1 · 3.2 overs';
+    copy.dataset.tone = 'blast';
+    // The Camera row and its label lit together, in the coachmarks' outline.
+    const picks = copy.querySelector('.camera-picks');
+    if (picks) {
+      const lit = document.createElement('div');
+      lit.className = 'cams-lit';
+      const label = picks.previousElementSibling;
+      picks.before(lit);
+      if (label?.classList.contains('pause-label')) lit.append(label);
+      lit.append(picks);
+      const tag = document.createElement('span');
+      tag.className = 'cams-pause-tag';
+      tag.innerHTML = 'NEW · 3 CAMS<i></i>';
+      lit.append(tag);
+    }
+    host.replaceChildren(copy);
+    if (!filmed) this.camsBeat({ beat: 'where' });
+  }
+  /** The beat the batting cams' show is on, put on the card. */
+  private camsBeat(beat: ShowBeat) {
+    const sheet = this.$('whatsnew-overlay').querySelector<HTMLElement>('.is-cams');
+    if (!sheet) return;
+    if (sheet.dataset.beat !== beat.beat) sheet.dataset.beat = beat.beat;
+    if (beat.box) {
+      // In the canvas's pixels; the card may stand off the canvas's left edge in the desktop column.
+      const canvas = this.viewport.querySelector('canvas')?.getBoundingClientRect(), card = sheet.getBoundingClientRect();
+      const dx = canvas ? canvas.left - card.left : 0, dy = canvas ? canvas.top - card.top : 0;
+      sheet.style.setProperty('--spot-x', `${beat.box.x + dx}px`);
+      sheet.style.setProperty('--spot-y', `${beat.box.y + dy}px`);
+      sheet.style.setProperty('--spot-w', `${beat.box.w}px`);
+      sheet.style.setProperty('--spot-h', `${beat.box.h}px`);
+      sheet.classList.add('has-spot');
+    }
+    if (beat.kph !== undefined) {
+      const gauge = sheet.querySelector<HTMLElement>('.cams-gauge')!;
+      const was = gauge.querySelector('.cams-kph')!.textContent;
+      // The last reading steps down into the log as the next comes up.
+      if (beat.go && was && was !== '0') {
+        const chip = document.createElement('span');
+        chip.textContent = was;
+        sheet.querySelector('.cams-log')!.append(chip);
+      }
+      gauge.querySelector('.cams-kph')!.textContent = String(beat.kph);
+      gauge.style.setProperty('--to', String(Math.min(1, beat.kph / 170)));
+      replayClass(gauge, 'is-reading');
+    }
+    if (beat.beat === 'where') {
+      // The pause menu fitted to the room between the eyebrow and the words.
+      requestAnimationFrame(() => {
+        const host = sheet.querySelector<HTMLElement>('.cams-pause'), copy = host?.firstElementChild as HTMLElement | null;
+        if (!host || !copy) return;
+        const scale = Math.min(1, host.clientHeight / Math.max(1, copy.scrollHeight), host.clientWidth / Math.max(1, copy.offsetWidth));
+        copy.style.setProperty('--fit', String(scale));
+      });
+      document.getElementById('whatsnew-got')?.focus({ preventScroll: true });
+    }
   }
 
   /** The key under the picture, which ends where every other one does. */

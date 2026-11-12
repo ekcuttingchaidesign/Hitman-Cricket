@@ -67,7 +67,7 @@ import { walkOnCard, type WalkOnCard } from './game/walk-on-card';
 import { catchCamera, catchPace, catchShotOf, catchTimes, spillable, SPILL_ODDS, type CatchShot } from './game/catch-cam';
 import { STUMPING, STUMPING_CAMERA } from './game/stumping';
 import { endedLog, fieldCamera, freshLog, overRope, OVER_MS, pickAngle, replayCamera, CUT_AFTERS, replayDue, replayPace, replayTimes, shownLog, REPLAYS_PER_INNINGS, MARATHON_PACE, WIPE_MS, type ReplayAngle, type ReplayBall, type ReplayLook, type ReplayStroke, type ReplayTimes } from './game/replay';
-import { cameraOf, expressIn, goesOf, showDelivery, showOutcome, showPace, showTimes, SHOW_MEETS, speedOf, type CamShow, type ShowBeat, type ShowTimes } from './game/CameraShow';
+import { BEATS, beatAt, cameraAt, showDelivery, showOutcome, showPlan, type CamBeat, type CamShow, type ShowBeat, type ShowPlan } from './game/CameraShow';
 import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type CameraPose, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
@@ -997,13 +997,9 @@ export class Game {
     this.hud.onBoardStories = () => this.showStories('board');
     // OPEN THE DRESSING ROOM, on the last story: after the stories, the room,
     // over Choose a mode where the stories were on the way to it.
-    this.hud.onStoriesOpen = (what, shown) => (what === 'super10' ? this.playFromStory(shown) : what === 'rivals' ? this.rivalsFromStory(shown)
-      : what === 'procam' ? this.proCamFromStory(shown) : this.openDressing('story', shown));
-    // The camera the player watches through, not the one a camera story is filming through.
-    this.hud.storyCamera = () => this.showAside?.camera ?? this.scene.cameraId;
+    this.hud.onStoriesOpen = (what, shown) => (what === 'super10' ? this.playFromStory(shown) : what === 'rivals' ? this.rivalsFromStory(shown) : this.openDressing('story', shown));
     this.hud.onStoryReel = (shot, beat) => this.playReel(shot, beat);
     this.hud.onStoryShow = (kind, beat) => this.playShow(kind, beat);
-    this.hud.onStoryCamera = id => this.useCamera(id);
     this.hud.onLadderTab = this.tabLadder;
     this.hud.onBoardFrame = (mode, ladder) => this.boardFrame(mode, ladder);
     this.hud.onBoardPlay = mode => {
@@ -3520,20 +3516,6 @@ export class Game {
     void this.showChallenges();
   }
 
-  /**
-   * TRY PRO CAM on the cameras' last card: Pro Cam taken, as the pause
-   * sheet's key takes it, and between innings a Blast walked out into under
-   * it, so the first thing the player does with it is bat. From the board in
-   * the middle of an innings it is taken there and then, for the next ball.
-   */
-  private proCamFromStory(shown: () => void) {
-    const between = this.phase === 'START' || this.phase === 'INNINGS_END';
-    if (between) this.hud.onStoriesDone = null;
-    shown();
-    this.useCamera('pro');
-    if (between) this.choose('CLASSIC');
-  }
-
   /** The update's stories, and whatever happens when they are done with. */
   private showStories(where: StoriesWhere, then: (() => void) | null = null) {
     this.mark(`whatsnew-${where}`, 'What\'s new opened');
@@ -4630,8 +4612,8 @@ export class Game {
     // A stroke's film slows through the bat meeting the ball (`reelPace`).
     // Stopped dead while the swipe is drawn over it.
     if (this.reel) return this.reel.hold > 0 ? 0 : reelPace(this.elapsed - this.reel.start - this.reel.times.contact);
-    // The cameras' stories slow through the six, and never for the speed (`showPace`).
-    if (this.show) return showPace(this.show.kind, this.elapsed - this.show.start - this.show.times.contact);
+    // The batting cams' story runs at full speed: the speed is the point.
+    if (this.show) return 1;
     // A replay slows through the bat meeting the ball (`replayPace`).
     // Full speed under the wipes, which are timed on the page's clock.
     if (this.replay) return this.replay.start === null || this.replay.ending !== null ? 1 : replayPace(this.elapsed - this.replay.start - this.replay.times.contact);
@@ -5089,19 +5071,21 @@ export class Game {
     }
   }
   /**
-   * The cameras' What's new stories (`CameraShow.ts`), filmed through the
-   * game's own cameras, a ball at a time until the story moves on: the same
-   * six through each camera on the row, or Pro Cam's quick ones left alone in
-   * a Test match. As the stroke stories, only off the cover or once an innings
-   * is over; the camera the player picked, the kit and the light are put back
-   * after it.
+   * The batting cams' What's new story (`CameraShow.ts`), filmed through the
+   * game's own cameras on one clock: the classic view, the Close cam, his
+   * eyes under the PRO CAM band, the sling bowler's three quick ones left
+   * alone, then the pause menu, where it holds. As the stroke stories, only
+   * off the cover or once an innings is over; the camera the player picked,
+   * the kit and the light are put back after it.
    */
   private show: {
-    kind: CamShow; go: number; start: number; times: ShowTimes; delivery: Delivery; beat: (beat: ShowBeat) => void;
-    swung: boolean; struck: boolean; presentAt: number; cheered: boolean;
+    kind: CamShow; start: number; plan: ShowPlan; beat: (beat: ShowBeat) => void;
+    told: CamBeat | null; boxed: boolean;
+    /** The ball now being bowled, which of the three, and whether it is past him. */
+    go: number; delivery: Delivery | null; passed: boolean; read: number;
   } | null = null;
-  /** What the show put aside, to put back: the player's camera, and whether it dressed the scene for a Test. */
-  private showAside: { camera: CameraId; whites: boolean; crowd: boolean } | null = null;
+  /** What the show put aside, to put back: the player's camera, and whether it took the crowd's murmur up. */
+  private showAside: { camera: CameraId; crowd: boolean } | null = null;
   private playShow(kind: CamShow | null, beat: (beat: ShowBeat) => void): boolean {
     if (!kind) {
       if (!this.show) return false;
@@ -5109,62 +5093,64 @@ export class Game {
       const aside = this.showAside!; this.showAside = null;
       this.scene.reset(); this.scene.express(false);
       this.scene.useCamera(aside.camera);
-      if (aside.whites) { this.scene.whites(this.test); this.light(this.test ? 'day' : blastLights()); }
+      this.scene.whites(this.test); this.light(this.test ? 'day' : blastLights());
       if (aside.crowd) this.audio.crowd(null);
       return false;
     }
     if (this.phase !== 'START' && this.phase !== 'INNINGS_END') return false;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
     if (this.reel) this.playReel(null, () => {});
     if (this.show) this.playShow(null, () => {});
     const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat, look.guard);
     this.scene.leftHanded(readHand() === 'left');
     this.scene.cinematic(null);
-    const whites = kind === 'speed';
-    // A Test match by day for the speed: whites, the red ball against them, the Tests' own ground.
-    if (whites) { this.scene.whites(true); this.scene.stands(groundFor(ASKED_GROUND, 'test', VENUE_COIN.test)); this.scene.brand(false); this.scene.time('day'); }
+    // A Test match by day: whites, the red ball against them, the Tests' own ground.
+    this.scene.whites(true); this.scene.stands(groundFor(ASKED_GROUND, 'test', VENUE_COIN.test)); this.scene.brand(false); this.scene.time('day');
+    this.scene.reset(); this.scene.spinner(false); this.scene.round(false); this.scene.express(true);
     // The stands murmur under it off the cover, where they are quiet; after an innings they are already there.
     const crowd = this.phase === 'START';
     if (crowd) this.audio.crowd(MURMUR.blast);
-    this.showAside = { camera: this.scene.cameraId, whites, crowd };
-    this.beginShow(kind, 0, beat);
+    this.showAside = { camera: this.scene.cameraId, crowd };
+    this.scene.useCamera('classic');
+    this.show = { kind, start: this.elapsed, plan: showPlan(), beat, told: null, boxed: false, go: -1, delivery: null, passed: false, read: -1 };
     return true;
   }
-  /** A ball of the show, from the bowler at his mark, through its own camera. */
-  private beginShow(kind: CamShow, go: number, beat: (beat: ShowBeat) => void) {
-    const times = showTimes(kind, go), start = this.elapsed, camera = cameraOf(kind, go);
-    this.scene.reset(); this.scene.spinner(false); this.scene.round(false); this.scene.express(expressIn(kind));
-    this.scene.useCamera(camera);
-    this.show = { kind, go, start, times, delivery: showDelivery(kind, go, start + times.release), beat, swung: false, struck: false, presentAt: Infinity, cheered: false };
-    beat({ go, camera, kph: kind === 'speed' ? speedOf(go) : null, hit: false });
-  }
-  /** One frame of the show, as `update` plays a ball. */
+  /** One frame of the show: the beat, the camera, and the ball in play. */
   private showFrame() {
-    const show = this.show!, t = this.elapsed - show.start, { times, kind, delivery } = show;
-    if (t >= times.length) { this.beginShow(kind, (show.go + 1) % goesOf(kind), show.beat); return; }
-    if (t < times.runup) return;
-    if (t < times.release) { this.scene.runup(Math.min(1, (t - times.runup) / GAME.runupMs)); return; }
-    if (!show.struck) {
+    const show = this.show!, t = this.elapsed - show.start, { plan } = show;
+    const camera = cameraAt(t);
+    if (camera !== this.scene.cameraId) this.scene.useCamera(camera);
+    const beat = beatAt(t, plan);
+    if (beat !== show.told) { show.told = beat; show.beat({ beat }); }
+    // The frame round him on the Close cam, once the camera has stood there a frame.
+    if (beat === 'close' && !show.boxed && t > BEATS.close + 80) {
+      show.boxed = true;
+      // Down to his feet or to where the words begin, whichever is higher: on the Close cam his feet are off the foot of the screen.
+      const at = this.scene.batterOnScreen(), top = at.head.y - (at.feet.y - at.head.y) * .08;
+      const bottom = Math.min(at.feet.y + 8, at.height * .7), w = Math.min(at.width * .5, (at.feet.y - at.head.y) * .6);
+      // Centred a little to the off side of his helmet, where his body and bat are on this lens.
+      show.beat({ beat, box: { x: at.head.x - w * .38, y: top, w, h: Math.max(40, bottom - top) } });
+    }
+    const ball = plan.balls.find(one => t >= one.start && t < one.end);
+    if (!ball) return;
+    if (ball.go !== show.go) {
+      show.go = ball.go; show.passed = false;
+      this.scene.reset();
+      show.delivery = showDelivery(ball.go, show.start + ball.release);
+    }
+    const delivery = show.delivery!;
+    if (t < ball.release) { this.scene.runup(ball.runFrom + (1 - ball.runFrom) * (t - ball.start) / (ball.release - ball.start)); return; }
+    if (!show.passed) {
       const since = this.elapsed - delivery.releaseTimeMs;
+      // The gauge reads each ball once, as it leaves his hand, however long the frame was.
+      if (show.read !== ball.go) { show.read = ball.go; show.beat({ beat: 'speed', kph: delivery.speedKph, go: ball.go }); }
       const progress = flightProgress(delivery, since);
       this.scene.delivery(delivery, progress, since);
-      // The six: the lofted straight drive, its second version, played perfectly in time.
-      if (kind === 'views' && !show.swung && t >= times.swing) {
-        show.swung = true;
-        this.scene.swing('STRAIGHT', this.elapsed, delivery, false, true, false, false, 2, SHOW_MEETS);
-      }
-      if (progress < SHOW_MEETS) return;
-      const outcome = showOutcome(kind, delivery);
-      const flight = this.scene.hit(outcome, kind === 'views' ? 'STRAIGHT' : undefined, delivery, this.elapsed);
-      show.struck = true; show.presentAt = kind === 'views' ? Math.min(flight.presentAt, this.elapsed + 900) : Infinity;
-      if (kind === 'views') this.audio.play('hit');
-      show.beat({ go: show.go, camera: cameraOf(kind, show.go), kph: kind === 'speed' ? speedOf(show.go) : null, hit: true });
+      if (progress < 1) return;
+      show.passed = true;
+      this.scene.hit(showOutcome(delivery), undefined, delivery, this.elapsed);
     }
     this.scene.result(this.elapsed);
-    if (!show.cheered && this.elapsed >= show.presentAt) {
-      show.cheered = true;
-      this.scene.cheer('hit-six', this.elapsed, 0, 1, '');
-      this.audio.cheer(boundaryCheer(6, 1, false));
-    }
   }
   /**
    * The action replay (`replay.ts`). What the scene was told about the ball in
@@ -7402,7 +7388,7 @@ export class Game {
       // A stroke's film under its story: which, and how far into a go of it, on its own clock.
       reel: this.reel ? { shot: this.reel.shot, at: Math.round(this.elapsed - this.reel.start), struck: this.reel.struck } : null,
       // The cameras' stories (`CameraShow.ts`): which, which ball and through which camera, how far into it, and the ball met or past.
-      show: this.show ? { kind: this.show.kind, go: this.show.go, camera: this.scene.cameraId, at: Math.round(this.elapsed - this.show.start), struck: this.show.struck } : null,
+      show: this.show ? { kind: this.show.kind, beat: this.show.told, go: this.show.go, camera: this.scene.cameraId, at: Math.round(this.elapsed - this.show.start), passed: this.show.passed } : null,
       // The replay playing: its stroke, how far in (null while it wipes in), whether it is wiping out; and how many this innings.
       follow: this.scene.followShown,
       contact: this.contact ? { kind: this.contact.kind, ...this.scene.contactShown } : null,

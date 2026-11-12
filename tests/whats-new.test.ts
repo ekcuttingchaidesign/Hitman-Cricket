@@ -3,8 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   CAMERA_STORIES, DIWALI_STORIES, RIVALS_STORIES, SHOT_CALLS, STORIES, TIMES, UPDATE, storiesAt, updateAt, markWhatsNewShown, whatsNewDue, whatsNewShown, type Story,
 } from '../src/game/whats-new';
-import { cameraPicksMarkup, shotCallMarkup, shotCueMarkup, storiesAlt, storiesMarkup, storyHolds, storyKeyMarkup } from '../src/ui/WhatsNew';
-import { showSeconds } from '../src/game/CameraShow';
+import { shotCallMarkup, shotCueMarkup, storiesAlt, storiesMarkup, storyHolds, storyKeyMarkup } from '../src/ui/WhatsNew';
 import { CUE, reelSeconds } from '../src/game/ShotReel';
 const DIWALI_WEEK = Date.parse('2026-11-08T20:00:00+05:30'), AFTER_DIWALI = Date.parse('2026-11-12T00:00:00+05:30');
 
@@ -51,7 +50,7 @@ describe('what the update says it did', () => {
     expect(DIWALI_STORIES.every(one => one.opens === 'dressing')).toBe(true);
     // The kits go off the shelf at midnight in India, 11 November ending; the stories with them.
     expect(storiesAt(AFTER_DIWALI)).toBe(CAMERA_STORIES);
-    expect(updateAt(AFTER_DIWALI)).toBe('cameras');
+    expect(updateAt(AFTER_DIWALI)).toBe('cams');
     expect(STORIES).toBe(storiesAt(Date.now()));
     expect(UPDATE).toBe(updateAt(Date.now()));
   });
@@ -67,9 +66,9 @@ describe('what the update says it did', () => {
   it('gives every card something to show, a name for it, and words for whoever cannot see it', () => {
     for (const one of [...CAMERA_STORIES, ...RIVALS_STORIES, ...DIWALI_STORIES]) {
       expect(one.title.length, one.key).toBeGreaterThan(6);
-      expect(!!(one.art || one.film || one.video || one.stage || one.reel || one.show || one.cameras), one.key).toBe(true);
+      expect(!!(one.art || one.film || one.video || one.stage || one.reel || one.show), one.key).toBe(true);
       // A film says its own words; anything else needs a line under it.
-      if (!one.film && !one.video) expect(one.body?.length ?? 0, one.key).toBeGreaterThan(30);
+      if (!one.film && !one.video && !one.show) expect(one.body?.length ?? 0, one.key).toBeGreaterThan(30);
       expect(one.alt.length, one.key).toBeGreaterThan(20);
     }
   });
@@ -295,30 +294,22 @@ describe('how often it puts itself in front of somebody', () => {
   });
 });
 
-describe('the cameras\' update', () => {
-  it('films the same six through every camera, then Pro Cam\'s speed, then the cameras to pick from', () => {
-    expect(CAMERA_STORIES.map(one => one.key)).toEqual(['cameras-views', 'cameras-speed', 'cameras-pick']);
-    expect(CAMERA_STORIES.map(one => one.show ?? null)).toEqual(['views', 'speed', null]);
-    expect(CAMERA_STORIES[1].title).toBe('FEEL THE BALL SPEED');
-    expect(CAMERA_STORIES[1].eyebrow).toContain('PRO CAM');
-    // The two films move on after one round of their balls; the cameras hold still, with TRY PRO CAM.
-    expect(CAMERA_STORIES.map((_, at) => storyHolds(at, CAMERA_STORIES))).toEqual([false, false, true]);
-    expect(CAMERA_STORIES[0].holdMs).toBe(Math.round(showSeconds('views')));
-    expect(CAMERA_STORIES[1].holdMs).toBe(Math.round(showSeconds('speed')));
-    expect(CAMERA_STORIES[2].opens).toBe('procam');
+describe('the batting cams\' update', () => {
+  it('is one card, filmed in the game, that holds on its last beat', () => {
+    expect(CAMERA_STORIES.map(one => one.key)).toEqual(['cams']);
+    expect(CAMERA_STORIES[0].show).toBe('cams');
+    expect(storyHolds(0, CAMERA_STORIES)).toBe(true);
+    expect(CAMERA_STORIES[0].opens).toBeUndefined();
   });
 
-  it('puts the camera\'s name or the speed gun over the film, and the pictures as keys on the last card', () => {
-    const films = storiesMarkup({ at: 1, where: 'intro', holdMs: 7000, stories: CAMERA_STORIES });
-    expect(films).toContain('is-reel');
-    expect(films).toContain('id="whatsnew-tag"');
-    expect(films).toContain('data-show="speed"');
-    const pick = storiesMarkup({ at: 2, where: 'intro', holdMs: 7000, stories: CAMERA_STORIES, camera: 'close' });
-    expect(pick).toContain('is-cameras');
-    expect(pick).toContain('TRY PRO CAM');
-    expect(pick).toContain('GOT IT');
-    for (const id of ['classic', 'close', 'pro']) expect(pick).toContain(`id="whatsnew-cam-${id}"`);
-    expect(cameraPicksMarkup('close')).toMatch(/whatsnew-cam-close"[^>]*aria-checked="true"/);
-    expect(cameraPicksMarkup('close')).toMatch(/whatsnew-cam-pro"[^>]*aria-checked="false"/);
+  it('says each beat in its words, ends on FIND IT IN PAUSE MENU, and has one way on: GOT IT', () => {
+    const card = storiesMarkup({ at: 0, where: 'intro', holdMs: 7000, stories: CAMERA_STORIES });
+    expect(card).toContain('is-cams');
+    expect(card).toContain('data-beat="intro"');
+    for (const words of ['NEW BATTING CAMS', 'BAT CLOSER', 'FEEL THE SPEED', 'FIND IT IN PAUSE MENU']) expect(card).toContain(words);
+    expect(card).toContain('id="whatsnew-got"');
+    expect(card.match(/k-cta--primary/g)?.length).toBe(1);
+    expect(card).not.toContain('TRY PRO CAM');
+    expect(card).not.toContain('whatsnew-open');
   });
 });

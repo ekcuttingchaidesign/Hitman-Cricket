@@ -684,32 +684,38 @@ plays two devices for one player against the dev server's store; it passes
 `?private=0`, because headless Chromium looks like a private window and would
 otherwise keep nothing.
 
-The update's What's new is the cameras (`CAMERA_STORIES` in
-`src/game/whats-new.ts`, update key `cameras`), three cards filmed through
-the game's own cameras rather than a film's (`Story.show`,
-`src/game/CameraShow.ts`, every case in `tests/camera-show.test.ts`; the
-game's `playShow`, `showFrame` and `beginShow`, the scene's `useCamera` for
-each ball, and the player's camera, kit and light put back after it). THREE
-WAYS TO WATCH: one straight six, the second version of the lofted drive
-played perfectly in time and scored by `resolveShot`, three times over, once
-through Classic, once through Close and once through Pro Cam, each camera's
-name slammed in over the ball as it starts (`#whatsnew-tag`) and the clock
-slowed through the bat meeting the ball (`showPace`). FEEL THE BALL SPEED,
-Pro Cam sold as the owner asked, by the ball's speed: a Test match by day,
-the Tests' ground and whites, the express bowler's quick ones (`SPEEDS`,
-148 to 156 on the gun, at the Tests' own pace through the air, about half a
-second to the bat) just outside off at a width of its own each ball
-(`SPEED_WIDTHS`: on off stump, left alone, one bowled him), left alone from
-the batter's eyes, never slowed, the gun's figure over each. Both move on
-by themselves after one round of their balls (`showSeconds`). Then PICK
-YOUR CAMERA, the Camera row's pictures big (`cameraPicksMarkup`), each a key
-that takes that camera there and then (`onStoryCamera`), with GOT IT and TRY
-PRO CAM (`opens: 'procam'`, `proCamFromStory`: Pro Cam taken and a Blast
-walked out into under it, or from the board mid-innings, taken for the next
-ball); it holds still. Like the stroke stories, it films only off the cover
-or after an innings. `snapshot().show` says which story, which ball, the
-camera and how far in. `whatsnew-check` walks all three, the camera picked
-on the card, TRY PRO CAM, the twice and the never.
+The update's What's new is the batting cams (`CAMERA_STORIES` in
+`src/game/whats-new.ts`, update key `cams`): one card, about eight seconds,
+storyboard D on the claude.ai design canvas "Batting Cams Story", drawn in
+the Figma handover's What's new language (its Dressing Room stories): a thin
+bar, the small orange eyebrow and the dark close key across the top, the
+words bottom-left in cream Jaro with a grey Satoshi line, the coachmarks'
+white outline and tag, the chase card's blue band, the game's gold for the
+figure, the orange key. A gold, outlined, tilted title and a picture picker
+were tried first and the owner found them ugly; nothing on the card switches
+the camera. It is filmed through the game's own cameras on one clock
+(`Story.show`, `src/game/CameraShow.ts`, every case in
+`tests/camera-show.test.ts`; the game's `playShow` and `showFrame`, the HUD's
+`camsSetUp` and `camsBeat`, `camsMarkup` in `src/ui/WhatsNew.ts`, `.is-cams`
+in `styles.css`), a Test match by day in whites, the player's camera, kit and
+light put back after it. The beats (`BEATS`, `beatAt`, `data-beat` on the
+card): NEW BATTING CAMS over the classic view darkened, inside a viewfinder
+outline with REC; BAT CLOSER on the Close cam, the outline round him
+(`batterOnScreen`) and a CLOSE CAM tag; the PRO CAM band sweeping across as
+the picture cuts to his eyes (`cameraAt`); FEEL THE SPEED as the sling
+bowler's 158, 156 and 154 (`SPEEDS`, the express bowler at the Tests' own
+pace, the second and third already running, `RUN_FROM`) are left alone just
+outside off and flash past, each read once on a glass gauge as it leaves his
+hand, the last readings stepping down into chips; then the pause menu
+itself, copied in from the real `#pause-sheet` with every part dimmed but
+the Camera row, lit in the white outline under NEW · 3 CAMS, FIND IT IN
+PAUSE MENU, and the orange GOT IT, where it holds (`holds` on the story).
+The close key is the way out before that. Opened from the board mid-innings,
+or under reduced motion, it opens on that last beat. Never slowed: the speed
+is the point. `snapshot().show` says the beat, the ball and the camera.
+`whatsnew-check` walks it: the intro, BAT CLOSER, the close key, the last
+beat under reduced motion with GOT IT, the twice and the never, and the
+board's key.
 
 Before it the update was one story, Rivals live, as a video (`Story.video`,
 `public/stories/rivals.mp4`, 720 by 1280 and sixteen seconds; its last frame
