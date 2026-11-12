@@ -69,7 +69,7 @@ export const CLOSE_FOLLOW = { eye: [0, 3.7, -5.6] as const, lift: 380, drop: 420
 export const CLASSIC_FOLLOW = {
   share: .6, yaw: 38, up: 22,
   turn: 300,
-  keep: .55, behind: 105,
+  keep: .8, behind: 105,
   widen: 1.2, open: 420, close: 380,
 } as const;
 
