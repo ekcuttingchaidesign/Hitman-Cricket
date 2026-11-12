@@ -3693,13 +3693,28 @@ mid-innings and kept in `hitman-camera`; `?cam=classic`, `pro` or
 counts `camera-<id>`.
 
 - **Classic**, the game's own view from behind the bat (`homeViewFor`).
-- **Pro Cam**, the batter's eye (`proViewFor`, `PRO_CAM` in `homeView.ts`):
-  low and close behind him, over the stumps, just high enough that the line
-  to the bowler's hand clears his helmet, on a 50-degree lens held whatever
-  the screen's shape. He stands big at the foot of the picture, the bowler
-  runs in over his shoulder and the ball comes at the lens; the stand fills
-  the top, which from that low is what a batter sees. Seen from behind him as
-  Classic is, so the swipes, the side labels and Super10's map are Classic's.
+- **Pro Cam**, the batter's own eyes (`PRO_CAM` in `homeView.ts`,
+  `eyesView` in `GameScene`): the camera is where his eyes are
+  (`Batter.eyes`), a hand's width behind and over them (`behind`, `above`) so
+  his gloves and the bat show at the foot in his guard, eased after his head
+  as he moves (`follow`) and always looking down the pitch at a fixed point,
+  never where his head turns: the bowler runs in at the top and the ball
+  comes down the picture at the lens. He is not drawn but for his forearms,
+  gloves and bat (`Batter.firstPerson`, every frame from `render`): his head,
+  body and legs go onto `BODY_LAYER`, which the sun's shadow camera still
+  sees, so his shadow stays on the turf; the arms are drawn by the jersey,
+  one garment with the body, so the IK's own forearm pieces stand in for
+  them (the shoulder and upper arm, drawn, were a blob of shirt across the
+  foot of the picture). Nothing nearer the lens than `near` is drawn, or his
+  arm filled the picture coming up past his face on the follow-through, and
+  the ball is drawn at `ball` of its size. Under any film's camera (the
+  walk-on, the arrival, a replay, the catch camera) he is drawn whole. What
+  is drawn round him (the special stroke's doodle, the coachmarks' lanes) is
+  placed where the classic view has him (`batterOnScreen`), since from his
+  eyes he is behind the lens. Seen from his end, as Classic is, so the
+  swipes, the side labels and Super10's map are Classic's. Built first as a
+  low camera behind him with him whole in the picture, which was not what
+  the owner meant by the batter's eyes.
 - **Broadcast**, the television's (`broadcastViewFor`), from a screenshot the
   owner sent: high behind the bowler's arm on a long lens, the bowler in the
   foot of the picture from his back. Built first, and the owner did not like
@@ -3721,7 +3736,8 @@ the new batter's arrival and the replays keep their own cameras, landing on
 the classic view and cutting to the one picked. The first innings's
 coachmark lanes are drawn for the classic view: a new player starts on it.
 `scripts/camera-check.mjs` swipes under Broadcast, picks Pro Cam on the
-pause sheet and swipes under it, and reads Super10's map.
+pause sheet, sees him drawn from his eyes and swipes under it, and reads
+Super10's map.
 
 ## The view on a tall screen
 

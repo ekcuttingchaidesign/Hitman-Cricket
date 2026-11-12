@@ -4,6 +4,7 @@ import { CAMERAS, CAMERA_KEY, cameraAsked, facesBatter, readCamera, swipeAsPlaye
 import { mapSwipe } from '../src/game/InputManager';
 import { BROADCAST, PRO_CAM, broadcastViewFor, homeViewFor, proViewFor } from '../src/scene/homeView';
 import { fieldMapMarkup } from '../src/ui/FieldMap';
+import { BODY_LAYER, Batter } from '../src/entities/Batter';
 import { fieldFor } from '../src/game/super10-field';
 
 /** A swipe on the screen, as the game reads it under a camera. */
@@ -97,34 +98,62 @@ describe('the broadcast view', () => {
   });
 });
 
-/** Where a point lands in the Pro Cam picture. */
+/** Where a point lands in the Pro Cam picture, the lens where its fallback stands. */
 function proSeen(aspect: number, x: number, y: number, z: number) {
   const view = proViewFor(aspect), camera = new THREE.PerspectiveCamera(view.fov, aspect, .1, 500);
   camera.position.set(...view.eye); camera.lookAt(...view.at); camera.updateMatrixWorld();
   return new THREE.Vector3(x, y, z).project(camera);
 }
 
-describe('Pro Cam, the batter\'s eye', () => {
+describe("Pro Cam, the batter's own eyes", () => {
   const phones = [0.56, 9 / 16, 0.5, 402 / 874, 0.45];
-  it('stands lower and nearer him than the classic camera, behind the stumps', () => {
-    const classic = homeViewFor(.46);
-    expect(PRO_CAM.eye[1]).toBeLessThan(classic.eye[1]);
-    expect(PRO_CAM.eye[2]).toBeGreaterThan(classic.eye[2]);
-    expect(PRO_CAM.eye[2]).toBeLessThan(0);
+  it('draws him from his eyes: his head, body and legs out of the picture, his forearms in it', () => {
+    const batter = new Batter();
+    batter.update(0);
+    const seen = () => {
+      const shown: string[] = [];
+      batter.root.traverseVisible(o => { if ((o as THREE.Mesh).isMesh && o.layers.isEnabled(0)) shown.push(o.uuid); });
+      return new Set(shown);
+    };
+    const before = seen();
+    batter.firstPerson(true);
+    expect(batter.firstPersonShown).toBe(true);
+    const after = seen();
+    expect(after.size).toBeLessThanOrEqual(before.size / 2);
+    // The bat and gloves stay.
+    let bat = 0;
+    batter.bat.traverseVisible(o => { if ((o as THREE.Mesh).isMesh && o.layers.isEnabled(0)) bat++; });
+    expect(bat).toBeGreaterThan(3);
+    // What went is on the body's layer, which the sun's shadow camera still sees.
+    let body = 0;
+    batter.root.traverse(o => { if (o.layers.isEnabled(BODY_LAYER)) body++; });
+    expect(body).toBeGreaterThan(10);
+    batter.firstPerson(false);
+    expect(seen().size).toBe(before.size);
   });
-  it('sees over his helmet to the bowler\'s hand: the line to the release clears his head', () => {
-    // A tall guard's helmet tops out under 1.9m; the ball leaves the hand at 2.2 or so, eighteen metres off.
-    const [, y, z] = PRO_CAM.eye, release = { y: 2.1, z: 18 }, batter = 1;
-    expect(y + (release.y - y) * (batter - z) / (release.z - z)).toBeGreaterThan(1.9);
+  it('has his eyes in front of his face, at a standing man\'s height in his guard', () => {
+    const batter = new Batter();
+    batter.update(0);
+    batter.root.updateMatrixWorld(true);
+    const eyes = batter.eyes();
+    expect(eyes.y).toBeGreaterThan(1.3);
+    expect(eyes.y).toBeLessThan(1.8);
   });
-  it('has him whole in the lower half and the bowler\'s end above him, on every phone', () => {
+  it('stands a hand\'s width behind and over them, and draws nothing nearer than a forearm', () => {
+    expect(PRO_CAM.behind).toBeGreaterThan(0);
+    expect(PRO_CAM.behind).toBeLessThan(.5);
+    expect(PRO_CAM.above).toBeLessThan(.15);
+    expect(PRO_CAM.near).toBeGreaterThan(.1);
+    expect(PRO_CAM.near).toBeLessThan(.35);
+  });
+  it('has the bowler\'s hand in the top half of the picture and the pitch in front of him below it, on every phone', () => {
     for (const aspect of phones) {
-      const head = proSeen(aspect, .36, 1.8, 1), feet = proSeen(aspect, .36, 0, 1), release = proSeen(aspect, .5, 2.1, 18);
-      expect(head.y, `head at ${aspect}`).toBeLessThan(.2);
-      expect(feet.y, `feet at ${aspect}`).toBeGreaterThan(-1);
-      expect(release.y, `release at ${aspect}`).toBeGreaterThan(head.y);
-      expect(release.y, `release at ${aspect}`).toBeLessThan(.7);
+      const release = proSeen(aspect, .5, 2.1, 18), pitch = proSeen(aspect, 0, 0, 4);
+      expect(release.y, `release at ${aspect}`).toBeGreaterThan(0);
+      expect(release.y, `release at ${aspect}`).toBeLessThan(.85);
       expect(Math.abs(release.x), `release across at ${aspect}`).toBeLessThan(.8);
+      expect(pitch.y, `pitch at ${aspect}`).toBeLessThan(release.y);
+      expect(pitch.y, `pitch at ${aspect}`).toBeGreaterThan(-1);
     }
   });
 });

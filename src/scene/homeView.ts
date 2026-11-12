@@ -48,14 +48,21 @@ export function broadcastViewFor(_aspect: number): CameraPose {
 }
 
 /**
- * Pro Cam (`?cam=pro`), the batter's eye: low and close behind him, just over
- * his helmet so the bowler's hand is never behind it, looking down the pitch
- * at the bowler. He stands big at the foot of the picture and the ball comes
- * at the lens. The lens is held at `fov` degrees up and down whatever the
- * screen's shape.
+ * Pro Cam (`?cam=pro`), the batter's eyes: the camera is where his eyes are
+ * (`Batter.eyes`), following his head as he moves, and he is not drawn but
+ * for his arms and the bat (`Batter.firstPerson`). It looks down the pitch at
+ * `aim`, low enough that the bowler's hand is near the top of the picture and
+ * the ball comes down it to the bat at the foot, on a lens of `fov` degrees up
+ * and down whatever the screen's shape. `eye` is only where it stands before
+ * he is first drawn. The ball is drawn at `ball` of the size it is drawn from
+ * behind the bat, which is three times its own: from his eyes it comes within
+ * a metre of the lens. The lens stands `behind` his eyes and `above` them, a
+ * hand's width back towards the keeper, so his gloves and the bat show at the
+ * foot as he waits; and nothing nearer it than `near` is drawn, or his arm
+ * filled the picture as it came up past his face on the follow-through.
  */
-export const PRO_CAM = { eye: [0, 2.05, -3.1] as const, at: [0, .25, 12] as const, fov: 50 } as const;
+export const PRO_CAM = { eye: [-.2, 1.6, .7] as const, aim: [0, -.7, 9] as const, fov: 74, follow: 90, ball: .5, behind: .35, above: .06, near: .22 } as const;
 
 export function proViewFor(_aspect: number): CameraPose {
-  return { eye: PRO_CAM.eye, at: PRO_CAM.at, fov: PRO_CAM.fov };
+  return { eye: PRO_CAM.eye, at: PRO_CAM.aim, fov: PRO_CAM.fov };
 }
