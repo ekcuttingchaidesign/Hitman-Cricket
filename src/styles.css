@@ -5940,8 +5940,10 @@ video.whatsnew-film.is-fit{height:auto;object-fit:contain;
 @keyframes whatsnew-tag{from{opacity:0;transform:translateX(-50%) scale(1.5)}to{opacity:1;transform:translateX(-50%) scale(1)}}
 @keyframes whatsnew-tag-hit{0%{opacity:1;transform:translateX(-50%) scale(1)}35%{opacity:1;transform:translateX(-50%) scale(1.12)}100%{opacity:1;transform:translateX(-50%) scale(1)}}
 @media (prefers-reduced-motion:reduce){.whatsnew-tag.is-up,.whatsnew-tag.is-hit{animation:none;opacity:1}}
-/* PICK YOUR CAMERA: the Camera row's pictures, big, each a key that takes it. */
-.whatsnew-cams{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:calc(var(--u) * 10);width:100%;margin:calc(var(--u) * 18) 0 calc(var(--u) * 6)}
+/* PICK YOUR CAMERA: the Camera row's pictures, big, each a key that takes it.
+   The body lets taps through to the halves that step the stories; the pictures
+   take their own, as the key's card does, or a tap on one turned the card over. */
+.whatsnew-cams{pointer-events:auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:calc(var(--u) * 10);width:100%;margin:calc(var(--u) * 18) 0 calc(var(--u) * 6)}
 .whatsnew-cam{display:flex;flex-direction:column;gap:calc(var(--u) * 8);min-width:0;margin:0;padding:calc(var(--u) * 4);border:2px solid #ffffff1f;border-radius:16px;
   background:#ffffff0d;color:var(--c-text-2);font:700 calc(var(--u) * 14)/1.1 var(--f-ui);text-align:center;cursor:pointer}
 .whatsnew-cam img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:11px;background:#ffffff14}
