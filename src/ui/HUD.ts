@@ -55,6 +55,11 @@ import { rivalsRecordMarkup, type RivalsRecord } from './Record';
 import { coverBoardLines, coverMarkup, profileChip, type CoverBoard } from './Cover';
 import { cta, fitLabels, icon as kitIcon } from './Kit';
 import { CAMERAS, type CameraId } from '../game/camera';
+import cameraClassic from '../assets/cameras/classic.webp';
+import cameraClose from '../assets/cameras/close.webp';
+import cameraPro from '../assets/cameras/pro.webp';
+/** Each camera's own view, small, on its key on the pause sheet (`scripts/camera-thumbs.mjs` takes them). */
+const CAMERA_PICTURES: Partial<Record<CameraId, string>> = { classic: cameraClassic, close: cameraClose, pro: cameraPro };
 import {
   answerSheetMarkup, entryProblem, insideAnApp, noQuestionMarkup, nudgeSheetMarkup, passwordCardMarkup, passwordDoneMarkup,
   passwordSheetMarkup, ruleStates, type NudgeFigures, type PasswordEntry, type PasswordMode, type PasswordSheetView,
@@ -487,10 +492,10 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
                 <span class="pause-row-say"><b>Vibration</b><em>A buzz when the bat meets the ball</em></span>
                 <span class="pause-switch" aria-hidden="true"></span>
               </button>
-              <div id="camera-row" class="pause-row is-static">
+              <div id="camera-row" class="pause-row is-static camera-row">
                 <span class="pause-row-icon is-camera">${icon('camera')}</span>
                 <span class="pause-row-say"><b id="camera-label">Camera</b></span>
-                <div class="lights-toggle camera-toggle" role="radiogroup" aria-labelledby="camera-label">${CAMERAS.map(c => `<button id="camera-${c.id}" class="lights-option" type="button" role="radio" aria-checked="${c.id === 'classic'}"><span>${c.name}</span></button>`).join('')}</div>
+                <div class="camera-picks" role="radiogroup" aria-labelledby="camera-label">${CAMERAS.map(c => `<button id="camera-${c.id}" class="camera-pick" type="button" role="radio" aria-checked="${c.id === 'classic'}"><img src="${CAMERA_PICTURES[c.id]}" alt="" loading="lazy" decoding="async"><span>${c.name}</span></button>`).join('')}</div>
               </div>
               <div id="lights-row" class="pause-row is-static hidden">
                 <span class="pause-row-icon is-lights">${icon('moon')}</span>

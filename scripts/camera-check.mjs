@@ -85,9 +85,10 @@ check(await strokeFor(-80, 0) === 'SQUARE_CUT', 'a swipe out to the left is the 
 console.log('the Camera row');
 await page.locator('#pause').click({ force: true });
 await page.waitForTimeout(400);
-const row = await page.evaluate(() => [...document.querySelectorAll('#camera-row .lights-option')].map(b => `${b.textContent}:${b.getAttribute('aria-checked')}`));
+const row = await page.evaluate(() => [...document.querySelectorAll('#camera-row .camera-pick')].map(b => `${b.textContent}:${b.getAttribute('aria-checked')}`));
 check(row.join(',') === 'Classic:false,Close:false,Pro Cam:false', 'the row offers Classic, Close and Pro Cam, and Broadcast only from the link', row.join(','));
 check(await page.evaluate(() => document.getElementById('pause-sheet').getBoundingClientRect().bottom <= innerHeight), 'all of the sheet on a phone screen');
+check(await page.evaluate(() => [...document.querySelectorAll('#camera-row .camera-pick img')].every(img => img.complete && img.naturalWidth > 0)), "each camera's picture on its key");
 await page.locator('#camera-pro').click();
 check((await snap()).camera === 'pro', 'Pro Cam turns it at once');
 check(await text('side-left') === 'LEG SIDE', "and the labels are the classic way round: it is behind him too", await text('side-left'));

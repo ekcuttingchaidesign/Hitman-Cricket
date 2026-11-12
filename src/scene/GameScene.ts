@@ -914,7 +914,8 @@ export class GameScene {
   private batFromLens = 0;
   get playView(): CameraPose {
     const aspect = this.camera.aspect;
-    return this.view === 'broadcast' ? broadcastViewFor(aspect) : this.view === 'pro' ? proViewFor(aspect) : this.view === 'close' ? closeViewFor(aspect) : this.homeView;
+    if (this.view === 'pro') return this.inMoment ? closeViewFor(aspect) : proViewFor(aspect);
+    return this.view === 'broadcast' ? broadcastViewFor(aspect) : this.view === 'close' ? closeViewFor(aspect) : this.homeView;
   }
   /** The camera looks at the batter from in front: the screen is the field turned half round. */
   get facing() { return facesBatter(this.view); }
@@ -965,6 +966,25 @@ export class GameScene {
     this.trail.forEach((dot, i) => dot.scale.setScalar(0.115 * (1 - i / 12) * k));
     this.streak.forEach((dot, i) => dot.scale.setScalar(streakSize(i) * k));
   }
+  /**
+   * A moment drawn round him (the special stroke's flash, a pulled bouncer's,
+   * a milestone's celebration), for `lasts` milliseconds. From his own eyes
+   * (Pro Cam) there is nobody on the screen to draw it round, so the picture
+   * cuts to Close for it, as television cuts to another camera for a
+   * celebration, and back to his eyes after. It is put there at once, before
+   * the doodle asks where he stands on the screen.
+   */
+  moment(lasts: number) {
+    if (this.view !== 'pro') return;
+    this.momentUntil = performance.now() + lasts;
+    this.batter.firstPerson(false);
+    this.resize();
+  }
+  private momentUntil = 0;
+  private get inMoment() { return this.view === 'pro' && performance.now() < this.momentUntil; }
+  /** The camera is his eyes this frame: Pro Cam, with no film and no moment cutting away. */
+  private get eyesOn() { return this.view === 'pro' && !this.cinema && !this.inMoment; }
+  private eyesWere = false;
   useCamera(id: CameraId) {
     if (id === this.view) return;
     this.view = id;
@@ -1278,7 +1298,7 @@ export class GameScene {
     // coachmarks' lanes were drawn from where the batter stood in that.
     this.camera.updateMatrixWorld();
     // From his own eyes (Pro Cam) he is behind the lens: what is drawn round him is put where the classic view has him.
-    const camera = this.view === 'pro' && !this.cinema ? this.judge : this.camera;
+    const camera = this.eyesOn ? this.judge : this.camera;
     const at = (y: number) => {
       const p = this.batter.root.localToWorld(new THREE.Vector3(0, y, 0)).project(camera);
       return { x: (p.x + 1) / 2 * width, y: (1 - p.y) / 2 * height };
@@ -2054,7 +2074,9 @@ export class GameScene {
       this.batter.stage(t, film); this.batter.sweep(film === 'arrive' ? null : introSweep(film, t));
     }
     this.batter.update(now);
-    const eyes = this.view === 'pro' && !this.cinema;
+    const eyes = this.eyesOn;
+    // Into his eyes or out of them (a moment cutting to Close and back): the lens and the pose set again.
+    if (eyes !== this.eyesWere) { this.eyesWere = eyes; if (!this.cinema) this.resize(); }
     this.batter.firstPerson(eyes);
     // Nothing nearer the lens than a forearm is drawn from his eyes (`PRO_CAM.near`).
     const near = eyes ? PRO_CAM.near : .1;
@@ -2097,7 +2119,7 @@ export class GameScene {
       const near = Math.min(1, Math.max(.4, this.camera.position.distanceTo(this.world.localToWorld(this.ball.position.clone())) / 10));
       this.sizeBall(near);
     } else {
-      if (this.view === 'pro') this.eyesView(now);
+      if (eyes) this.eyesView(now);
       else {
         const [x, y] = this.playView.eye;
         this.camera.position.x = x;

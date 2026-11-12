@@ -3687,8 +3687,13 @@ across the last, not a fraction of the top figure.
 
 The innings can be watched through more than one camera
 (`src/game/camera.ts`, in `tests/camera.test.ts`), chosen on the pause
-sheet's Camera row (`#camera-row`, `cameraSwitch`), taken at once
-mid-innings and kept in `hitman-camera`; `?cam=classic`, `close`, `pro` or
+sheet's Camera row (`#camera-row`, `cameraSwitch`), each key a small
+picture of that camera's own view over its name (`src/assets/cameras/`,
+taken by `scripts/camera-thumbs.mjs` off the dev server: run it again when
+a camera or the ground's look changes), taken at once mid-innings and kept
+in `hitman-camera`; the row grew the sheet, so the pause overlay centres it
+in the room under the score bar's keys (`safe center`), or its top ran
+under the sound key; `?cam=classic`, `close`, `pro` or
 `broadcast` asks for one for the visit, and is not practice. GoatCounter
 counts `camera-<id>`.
 
@@ -3720,12 +3725,23 @@ counts `camera-<id>`.
   handle is within `clear` of the lens (`proBat` in `snapshot()` says how far
   it is and whether it is drawn). The ball is drawn at `ball` of its size.
   Under any film's camera (the walk-on, the arrival, a replay, the catch
-  camera) he is drawn whole. What is drawn round him (the special stroke's
-  doodle, the coachmarks' lanes) is placed where the classic view has him
-  (`batterOnScreen`), since from his eyes he is behind the lens.
+  camera) he is drawn whole. A moment drawn round him — the special
+  stroke's flash, a pulled bouncer's, a milestone's celebration — has nobody
+  to draw round from his eyes, so the picture cuts to Close for as long as
+  it lasts and back to his eyes after (`GameScene.moment`, called before the
+  doodle asks where he stands), as television cuts away for a celebration.
+  The coachmarks' lanes are placed where the classic view has him
+  (`batterOnScreen` through `judge` while the camera is his eyes).
 
 Close and Pro Cam are behind him as Classic is, so the swipes, the side
 labels and Super10's map are Classic's under both.
+
+The doodles are drawn round where the camera has him (`batterOnScreen`) and
+to his size there, held to `MOST_OF_SCREEN` of the screen's height
+(`sizeOf` in `src/ui/Milestone.ts`), about what the classic view gives him on
+a phone: under Close he stands nearly half the screen tall, and the bursts at
+his boots and the hundred's lines were drawn three times over and off the
+foot of the screen.
 - **Broadcast**, the television's (`broadcastViewFor`), from a screenshot the
   owner sent: high behind the bowler's arm on a long lens, the bowler in the
   foot of the picture from his back. Built first, and the owner did not like

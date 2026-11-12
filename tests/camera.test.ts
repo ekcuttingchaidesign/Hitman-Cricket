@@ -5,6 +5,7 @@ import { mapSwipe } from '../src/game/InputManager';
 import { BROADCAST, CLOSE_CAM, PRO_CAM, broadcastViewFor, closeViewFor, homeViewFor, proViewFor } from '../src/scene/homeView';
 import { fieldMapMarkup } from '../src/ui/FieldMap';
 import { BODY_LAYER, Batter } from '../src/entities/Batter';
+import { MOST_OF_SCREEN, sizeOf } from '../src/ui/Milestone';
 import { fieldFor } from '../src/game/super10-field';
 
 /** A swipe on the screen, as the game reads it under a camera. */
@@ -192,5 +193,17 @@ describe('the Super10 field map under the broadcast camera', () => {
     expect(classic).not.toContain('rotate(180');
     expect(facing).toContain('rotate(180 50 50)');
     expect(facing).toContain('class="s10-bat" cx="50" cy="50"');
+  });
+});
+
+describe('the flashes drawn round him, under any camera', () => {
+  const at = (tall: number, height = 874) => ({ feet: { x: 200, y: 600 }, head: { x: 200, y: 600 - tall }, bat: { x: 200, y: 600 - tall * 1.5 }, width: 402, height });
+  it('are drawn to his height as the classic view shows him', () => {
+    // About 180 points tall on a 874-high phone from behind the bat.
+    expect(sizeOf(at(180))).toBeCloseTo(180 / 1.78, 6);
+  });
+  it('are held to a seventh of the screen when a camera brings him nearer, as Close does', () => {
+    expect(sizeOf(at(470))).toBeCloseTo(874 * MOST_OF_SCREEN, 6);
+    expect(sizeOf(at(470))).toBeLessThan(470 / 1.78 / 2);
   });
 });

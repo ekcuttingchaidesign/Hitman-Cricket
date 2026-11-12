@@ -5003,6 +5003,8 @@ export class Game {
   private powerUp(style: PowerStyle = this.powerStyles.next(), low = !!this.outcome?.scooped) {
     this.powerStyle = style;
     this.scene.power(this.elapsed);
+    // From his eyes (Pro Cam) there is nobody to draw it round: the picture cuts to Close for it.
+    this.scene.moment(POWER_DOODLE_MS);
     const { back, cutout } = this.hud.power(this.scene.batterOnScreen(), POWER_DOODLE_MS, style, low);
     this.scene.cutout(back, cutout, POWER_DOODLE_MS);
     // The Blast's ground lets the fireworks off for one: see `FIREWORKS_MS`.
@@ -5327,6 +5329,7 @@ export class Game {
   private pullUp() {
     this.scene.pull(this.elapsed, PULL_PENS[this.pullPen].swish);
     this.scene.cutout();
+    this.scene.moment(PULL_DOODLE_MS);
     this.hud.pull(this.scene.batterOnScreen(), PULL_DOODLE_MS, this.pullPen);
     track('pulled-bouncer', 'Pulled a bouncer');
   }
@@ -5352,6 +5355,7 @@ export class Game {
     this.scene.celebrate(this.elapsed, pose);
     // And for a milestone, as long as he celebrates it.
     if (this.mode === 'CLASSIC') this.scene.fireworks(this.elapsed, Math.max(FIREWORKS_MS.milestone, this.celebrating));
+    this.scene.moment(this.celebrating);
     const { back, cutout } = this.hud.milestone(moment, this.scene.batterOnScreen(), this.celebrating);
     this.scene.cutout(back, cutout, this.celebrating);
     this.scene.cheer(kind, this.elapsed, moment.mark, 1, this.batter.name);
