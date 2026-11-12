@@ -3784,6 +3784,29 @@ counts `cams-got-it` or `cams-left-<beat>`, how far into it a player got.
   The coachmarks' lanes are placed where the classic view has him
   (`batterOnScreen` through `judge` while the camera is his eyes).
 
+After the bat meets the ball, Pro Cam and Close go after it
+(`src/scene/ballLook.ts`, in `tests/ball-look.test.ts`; the scene's
+`lookAfterBall`): the owner asked for the batter's eyes to go where he hit
+it, a four or a single alike, and for Close, low behind him, not to lose the
+ball running to the rope as Classic shows it. Pro Cam's look turns after the
+ball quickly, as a head turns, stays on it through its flight and
+`BALL_LOOK.hold` after, on the man who has it or where it stopped, then comes
+back down the pitch before the next ball; never further round than
+`BALL_LOOK.yaw` either side of straight, so a sweep to fine leg is a look
+over the shoulder. Turned after it, the follow-through's bat and gloves
+filled the picture and hid the ball, so they go out of it `batGone` after the
+ball is met until the look comes back, and the ball is drawn bigger the
+further it goes. Close cranes up and back to `CLOSE_FOLLOW.eye`, about the
+classic view's place, as its look pans after the ball, and comes back down
+before the next ball (`closeFollow`); `?closecam=pan` only pans it from where
+it stands, for comparing. A special stroke's moment under Pro Cam cuts to
+Close, and so follows the ball Close's way. Not an edge, a block, the pad,
+the body or a ball played on (`followed`), and a replay's or the catch
+camera's picture is drawn over it. Only the picture, and the field is judged
+from the classic view as ever. `?camturn=0` turns both off; neither switch is
+practice. `snapshot().ballLook` says what it is doing, and
+`scripts/ball-look-check.mjs` drives a cover drive under each.
+
 Close and Pro Cam are behind him as Classic is, so the swipes, the side
 labels and Super10's map are Classic's under both.
 

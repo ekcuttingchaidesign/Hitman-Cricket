@@ -38,7 +38,8 @@ import { introCamera, introSweep, type Film } from '../game/IntroReel';
 import { arrivalCamera, type ArrivalAngle } from '../game/arrival';
 import type { WalkStyle } from '../entities/Batter';
 import { diwaliOn } from '../game/diwali';
-import { BROADCAST, PRO_CAM, broadcastViewFor, closeViewFor, homeViewFor, proViewFor } from './homeView';
+import { BROADCAST, CLOSE_CAM, PRO_CAM, broadcastViewFor, closeViewFor, homeViewFor, proViewFor } from './homeView';
+import { BALL_LOOK, CLOSE_FOLLOW, easeBy, followed, lookPhase, lookToward, readBallLook, type LookPhase } from './ballLook';
 /** How much further off the broadcast camera stands from the batter than the classic one: the haze moves back by it. */
 const BROADCAST_HAZE = Math.hypot(BROADCAST.eye[1] - 1, BROADCAST.eye[2] - 1) - Math.hypot(2.9 - 1, 5.15 + 1);
 import { facesBatter, type CameraId } from '../game/camera';
@@ -949,13 +950,76 @@ export class GameScene {
     if (!this.eyesHeld || this.eyesHeld.distanceTo(at) > .8 || dt > 500) this.eyesHeld = at.clone();
     else this.eyesHeld.lerp(at, 1 - Math.exp(-dt / PRO_CAM.follow));
     this.camera.position.copy(this.eyesHeld);
-    this.camera.lookAt(this.world.localToWorld(this.eyesAim.set(...PRO_CAM.aim)));
+    // Down the pitch, or after the ball he has just hit, as his head goes with it (`ballLook.ts`).
+    this.camera.lookAt(this.lookAfterBall(now, this.eyesHeld, this.world.localToWorld(this.eyesAim.set(...PRO_CAM.aim)), BALL_LOOK.turn));
     // The bat and gloves only while they are out at arm's length: within `PRO_CAM.clear` of the lens the
     // near plane cut through them, and what was left read as a glove chopped in two.
     this.batFromLens = this.batter.bat.getWorldPosition(this.eyesAt).distanceTo(this.eyesHeld);
-    this.batter.firstPerson(true, this.batFromLens > PRO_CAM.clear);
+    // Nor while his eyes are on the ball he has hit: turned after it, the follow-through's bat and gloves
+    // filled the picture and hid the ball.
+    const watching = (this.lookPhase === 'follow' || this.lookPhase === 'hold') && now - this.hitStart >= BALL_LOOK.batGone;
+    this.batter.firstPerson(true, this.batFromLens > PRO_CAM.clear && !watching);
   }
   private readonly eyesAt = new THREE.Vector3();
+  /**
+   * The camera after the ball off the bat (`src/scene/ballLook.ts`): where
+   * the look is turned, from `eye`, given where it rests (`aim`, a point in
+   * the scene), eased on `turn` while it follows the ball. Pro Cam and Close
+   * both look through this; only one of them a frame.
+   */
+  private lookAfterBall(now: number, eye: THREE.Vector3, aim: THREE.Vector3, turn: number): THREE.Vector3 {
+    const dt = now - this.lookClock;
+    this.lookClock = now;
+    const phase = this.followPhase(now);
+    this.lookTarget.copy(aim).sub(eye).normalize();
+    let tau: number = BALL_LOOK.back;
+    if (phase === 'follow' || phase === 'hold') {
+      // Where it is, or where it was last drawn: over the rope it is gone, and the look stays where it went out.
+      if (this.ball.visible) this.world.localToWorld(this.lookBall.copy(this.ball.position));
+      this.lookTarget.set(...lookToward(this.lookBall.x - eye.x, this.lookBall.y - eye.y, this.lookBall.z - eye.z));
+      tau = turn;
+    }
+    if (!this.lookHeld || dt > 500 || dt < 0) this.lookHeld = this.lookTarget.clone();
+    else this.lookHeld.lerp(this.lookTarget, easeBy(dt, tau)).normalize();
+    this.lookPhase = phase;
+    return this.lookPoint.copy(eye).addScaledVector(this.lookHeld, 20);
+  }
+  /** Where the camera is with a ball it follows, or null for none. */
+  private followPhase(now: number): LookPhase | null {
+    if (!this.ballLook.on || !this.ballFollowed || !this.hitOutcome || now < this.hitStart) return null;
+    return lookPhase(now - this.hitStart, this.flightMs);
+  }
+  /**
+   * Close, going after the ball: lifted up and back towards `CLOSE_FOLLOW.eye`
+   * while it follows one (unless `?closecam=pan`), and down again after, the
+   * look turning after it from wherever the camera has got to.
+   */
+  private closeFollow(now: number) {
+    const dt = now - this.liftClock;
+    this.liftClock = now;
+    const phase = this.followPhase(now);
+    const up = this.ballLook.close === 'lift' && (phase === 'follow' || phase === 'hold') ? 1 : 0;
+    this.lifted = dt > 500 || dt < 0 ? up : this.lifted + (up - this.lifted) * easeBy(dt, up ? CLOSE_FOLLOW.lift : CLOSE_FOLLOW.drop);
+    const k = this.lifted * this.lifted * (3 - 2 * this.lifted);
+    const [x0, y0, z0] = CLOSE_CAM.eye, [x1, y1, z1] = CLOSE_FOLLOW.eye;
+    this.camera.position.set(x0 + (x1 - x0) * k, y0 + (y1 - y0) * k, z0 + (z1 - z0) * k);
+    this.camera.lookAt(this.lookAfterBall(now, this.liftEye.copy(this.camera.position), this.liftAim.set(...CLOSE_CAM.at), BALL_LOOK.closeTurn));
+  }
+  /** What the camera is doing about the ball off the bat, for the checks. */
+  get ballLookShown() {
+    const yaw = this.lookHeld ? Math.round(Math.atan2(this.lookHeld.x, this.lookHeld.z) / Math.PI * 180) : 0;
+    return { on: this.ballLook.on, close: this.ballLook.close, followed: this.ballFollowed, phase: this.lookPhase, yaw, lift: +this.lifted.toFixed(2) };
+  }
+  private readonly ballLook = readBallLook();
+  private ballFollowed = false;
+  private lookPhase: LookPhase | null = null;
+  private lookHeld: THREE.Vector3 | null = null;
+  private lookClock = 0; private liftClock = 0; private lifted = 0; private sizedFar = false;
+  private readonly lookTarget = new THREE.Vector3();
+  private readonly lookBall = new THREE.Vector3();
+  private readonly lookPoint = new THREE.Vector3();
+  private readonly liftEye = new THREE.Vector3();
+  private readonly liftAim = new THREE.Vector3();
   private readonly eyesAim = new THREE.Vector3();
   private readonly eyesBack = new THREE.Vector3();
   private eyesHeld: THREE.Vector3 | null = null;
@@ -988,6 +1052,7 @@ export class GameScene {
   useCamera(id: CameraId) {
     if (id === this.view) return;
     this.view = id;
+    this.lookHeld = null; this.lifted = 0;
     if (!this.cinema) this.sizeBall(1);
     this.placeKeeper();
     this.haze(this.now);
@@ -1516,7 +1581,7 @@ export class GameScene {
     this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0; this.blaze = null; this.swishedAt = -Infinity; this.swish.visible = false;
     this.lure = 0;
     this.dusted = false; this.pushBy = 0; this.chips.stop();
-    this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
+    this.hitOutcome = null; this.ballFollowed = false; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
     this.trail.forEach(t => t.visible = false); this.streak.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset(carryOn);
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
     this.standStumps();
@@ -1807,6 +1872,9 @@ export class GameScene {
     } else this.field.struck(this.hitStart, deadAt, look);
     this.bounceRing.visible = false;
     if (outcome.advance) this.chargeRing.position.set(this.hitOrigin.x, 0.045, this.hitOrigin.z);
+    // Under Pro Cam and Close the camera goes after it (`ballLook.ts`), from where it leaves the bat.
+    this.ballFollowed = followed(outcome, Math.hypot(this.hitEnd.x - this.hitOrigin.x, this.hitEnd.z - this.hitOrigin.z));
+    this.world.localToWorld(this.lookBall.copy(this.hitOrigin));
     // Hold the call back until a skied ball is taken, put down, or clears the rope.
     return { contactAt: this.hitStart, presentAt: this.hitStart + (outcome.aerial ? this.flightMs * 0.88 : 0), endAt: this.hitStart + this.flightMs };
   }
@@ -2119,7 +2187,14 @@ export class GameScene {
       const near = Math.min(1, Math.max(.4, this.camera.position.distanceTo(this.world.localToWorld(this.ball.position.clone())) / 10));
       this.sizeBall(near);
     } else {
-      if (eyes) this.eyesView(now);
+      if (eyes) {
+        this.eyesView(now);
+        // Followed out into the field, the ball is drawn bigger the further it goes, up to the classic view's size.
+        const far = !!this.lookPhase && this.ball.visible;
+        if (far) this.sizeBall(Math.min(1 / PRO_CAM.ball, Math.max(1, this.camera.position.distanceTo(this.world.localToWorld(this.lookPoint.copy(this.ball.position))) / 6)));
+        else if (this.sizedFar) this.sizeBall(1);
+        this.sizedFar = far;
+      } else if (this.ballLook.on && (this.view === 'close' || this.inMoment)) this.closeFollow(now);
       else {
         const [x, y] = this.playView.eye;
         this.camera.position.x = x;
