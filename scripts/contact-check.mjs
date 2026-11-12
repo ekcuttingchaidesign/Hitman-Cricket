@@ -2,11 +2,11 @@
  * The bat meeting the ball, in a real browser (`src/game/contact.ts`): a
  * straight drive timed on the keys at the cover drive's ball (`?cover=1`)
  * until one is middled for a boundary. Dust comes up where the ball pitches;
- * on the ball the game's clock is all but stopped for a beat, the phone is
- * buzzed, and chips come off the bat, with the camera left where it is (the
+ * on the ball the game's clock keeps going (no beat is held: on a phone it read
+ * as lag), the phone is buzzed, and chips come off the bat, with the camera left where it is (the
  * push in is a special stroke's alone). His trunk carries on after the ball
  * (`followThrough.ts`). Then the same with `?contact=0&follow=0`: none of it.
- * Photographed on the beat, into `test-results/contact-*.png`.
+ * Photographed on the ball, into `test-results/contact-*.png`.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/contact-check.mjs
@@ -86,7 +86,7 @@ async function innings(off) {
       await advance(16);
       const after = await snap();
       frames.push({ phase: after.phase, went: after.elapsed - before.elapsed, contact: after.contact, follow: after.follow });
-      if (!off && !shot && after.contact?.stopLeft > 0) { shot = true; await page.screenshot({ path: 'test-results/contact-beat.png' }); }
+      if (!off && !shot && after.contact) { shot = true; await page.screenshot({ path: 'test-results/contact-beat.png' }); }
       if (after.phase === 'RESULT') break;
     }
     const last = await snap();
@@ -103,12 +103,10 @@ async function innings(off) {
 const on = await innings(false);
 check(!!on.best, 'a drive off the middle is found');
 if (on.best) {
-  const { frames, dust } = on.best, held = frames.filter(f => f.contact?.stopLeft > 0);
+  const { frames, dust } = on.best, struck = frames.findIndex(f => f.contact);
   check(dust > 0, 'dust comes up where the ball pitches', String(dust));
-  check(held.length >= 1, 'a beat is held on the ball', JSON.stringify(frames.map(f => f.contact?.stopLeft ?? 0)));
-  // The frame it is struck on has run already; every one after it is held.
-  check(held.slice(1).every(f => f.went < 4), 'with the game\'s clock all but stopped through it', JSON.stringify(held.map(f => f.went)));
-  check(held.length <= 6, 'and no longer than a few frames', String(held.length));
+  // No beat held: the game's clock keeps going through the ball (held, it read as lag on a phone).
+  check(struck >= 0 && frames.slice(struck, struck + 6).every(f => f.went > 8), 'the game\'s clock keeps going through the ball', JSON.stringify(frames.map(f => Math.round(f.went))));
   check(frames.some(f => f.contact?.chips > 0), 'chips come off the bat');
   // An ordinary stroke leaves the camera where it is: the push is a special stroke's.
   check(frames.every(f => !f.contact || f.contact.push === 0), 'the camera stays where it is', JSON.stringify(frames.map(f => f.contact?.push ?? 0)));

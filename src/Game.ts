@@ -16,7 +16,7 @@ import { TopSpot } from './ui/TopSpot';
 import { chaseEndOf, verdictOf, type VerdictKind, type VerdictView } from './game/match-end';
 import { Verdict } from './ui/MatchEnd';
 import { buzz, hapticsWanted, setHaptics } from './game/haptics';
-import { contactOf, STOP_PACE, type Contact } from './game/contact';
+import { contactOf, type Contact } from './game/contact';
 import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME, STYLES, SWIPE_ZONES } from './config/gameplay';
@@ -121,7 +121,7 @@ import { BATS, FREE_BAT, FREE_BATS, FREE_OUTFIT, FREE_OUTFITS, FREE_SUPER10, OUT
 import type { DressingRoom } from './ui/DressingRoom';
 import type { UnlockItem, UnlockMoment } from './ui/Unlock';
 import { onDressingWrite, readDressing, seenKey, writeDressing } from './game/dressing-store';
-import { GLOVES, gloveOf, type GloveDesign, type GuardId } from './entities/gloves';
+import { gloveOf, type GloveDesign, type GuardId } from './entities/gloves';
 import { fetchSaved, sendSaved } from './game/dressing-api';
 import { mergeDressing, sameDressing, type SavedDressing } from './game/dressing-sync';
 import type { ModeSelectView } from './ui/ModeSelect';
@@ -134,7 +134,7 @@ import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
 import { sendFeedback } from './game/feedback-api';
 import { lineupOf } from './game/super10-squads';
-import { NEW_BATSMAN, blastMates, gearFor, mateFace, type BlastMate } from './game/blast-squad';
+import { NEW_BATSMAN, blastMates, mateFace, type BlastMate } from './game/blast-squad';
 import { SUPER10_KITS, super10Number, type Super10Kit, type Super10KitId } from './game/super10-kits';
 import { askRating, type RatingPrompt } from './ui/Rating';
 import {
@@ -586,10 +586,10 @@ export class Game {
   private presentationAt = 0; private resultPresented = false;
   private contactAt = 0; private contactPlayed = false; private resolveEndsAt = 0;
   /**
-   * How the ball in play was hit (`contact.ts`), and the beat still held on
-   * it, in ms of the page's clock. `?contact=0` turns the whole pack off.
+   * How the ball in play was hit (`contact.ts`). `?contact=0` turns the
+   * whole pack off.
    */
-  private contact: Contact | null = null; private stopLeft = 0;
+  private contact: Contact | null = null;
   private readonly contactOn = new URLSearchParams(location.search).get('contact') !== '0';
   /** -1 outside the tutorial, otherwise the ball being coached. */
   private lesson = -1;
@@ -2730,19 +2730,15 @@ export class Game {
   }
   private linedUp: { innings: number; five: ReturnType<typeof lineupOf> } | null = null;
   /**
-   * The Blast's No. 2 and No. 3 (`blast-squad.ts`), drawn once an innings,
-   * each in a guard and a bat that are not the man before him's: the guards
-   * off the GUARD shelf, every one free, and the bats among those the player
-   * has earned, where there is more than one.
+   * The Blast's No. 2 and No. 3 (`blast-squad.ts`), once an innings, each in
+   * the guard and the bat the player picked in the Dressing Room: the owner
+   * wanted the room's pick on every man in, where they used to be dealt a
+   * guard and a bat of their own. Only the number on the back tells them apart.
    */
   private mates() {
     if (this.matesDrawn?.innings !== this.innings) {
-      const mine = this.myLook(), record = this.dressingRecord();
-      const bats = BATS.filter(bat => batOwned(bat.id, record));
-      const [two, three] = blastMates();
-      const guard2 = gearFor(GLOVES, [mine.guard.id], Math.random()), bat2 = gearFor(bats, [mine.bat.id], Math.random());
-      const guard3 = gearFor(GLOVES, [mine.guard.id, guard2.id], Math.random()), bat3 = gearFor(bats, [bat2.id], Math.random());
-      this.matesDrawn = { innings: this.innings, two: [{ ...two, guard: guard2, bat: bat2 }, { ...three, guard: guard3, bat: bat3 }] };
+      const { guard, bat } = this.myLook();
+      this.matesDrawn = { innings: this.innings, two: blastMates().map(mate => ({ ...mate, guard, bat })) };
     }
     return this.matesDrawn.two;
   }
@@ -4588,8 +4584,6 @@ export class Game {
       // A stroke's film held on one frame for its swipe, on the page's clock.
       if (this.reel && this.reel.hold > 0) this.reel.hold -= dt;
       this.elapsed += dt * this.timeScale;
-      // The beat held on a ball well hit, counted down on the page's clock.
-      if (this.stopLeft > 0) this.stopLeft -= dt;
       this.input.flush(this.elapsed);
       if (this.catchCam) this.catchCamFrame();
       this.update();
@@ -4620,9 +4614,6 @@ export class Game {
     if (this.replay) return this.replay.start === null || this.replay.ending !== null ? 1 : replayPace(this.elapsed - this.replay.start - this.replay.times.contact);
     // The catch camera slows through the take (`catchPace`).
     if (this.catchCam?.on) return catchPace(this.elapsed - this.catchCam.take);
-    // A beat held on a boundary off the middle (`contact.ts`): the ball is
-    // resolved already, so nothing the player can still affect is held.
-    if (this.stopLeft > 0 && this.phase === 'SHOT_RESOLVE') return STOP_PACE;
     if (this.phase !== 'SHOT_RESOLVE' || !this.outcome?.advance) return 1;
     const since = this.elapsed - this.contactAt;
     // Two thirds speed, chosen from three playtest builds side by side. It
@@ -4842,7 +4833,7 @@ export class Game {
     }
     if (catching) this.beginCatchCam(catching, flight);
     this.resultPresented = false; this.contactPlayed = false;
-    this.contact = this.contactOn && !step ? contactOf(this.outcome) : null; this.stopLeft = 0;
+    this.contact = this.contactOn && !step ? contactOf(this.outcome) : null;
     this.setPhase('SHOT_RESOLVE');
     if (this.outcome.aerial) this.hud.airborne();
   }
@@ -5354,8 +5345,8 @@ export class Game {
     if (!asked) this.mark(kind === 'raise' ? `raise-${moment.mark}` : kind, MOMENT_SAID[kind]);
   }
   /**
-   * The bat meets the ball: the knock in the hand, the beat held, the camera
-   * in and the chips off the blade (`contact.ts`). The sound goes with the
+   * The bat meets the ball: the knock in the hand, the camera in and the
+   * chips off the blade (`contact.ts`). The sound goes with the
    * clip, where it is played. A player who has asked for less motion keeps the
    * knock and the sound and loses the rest.
    */
@@ -5364,7 +5355,6 @@ export class Game {
     if (!contact) return;
     buzz(contact.buzz);
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    this.stopLeft = contact.stopMs;
     this.scene.struck(contact, this.elapsed);
   }
   private presentResult() {
@@ -7312,7 +7302,7 @@ export class Game {
       reel: this.reel ? { shot: this.reel.shot, at: Math.round(this.elapsed - this.reel.start), struck: this.reel.struck } : null,
       // The replay playing: its stroke, how far in (null while it wipes in), whether it is wiping out; and how many this innings.
       follow: this.scene.followShown,
-      contact: this.contact ? { kind: this.contact.kind, stopLeft: Math.max(0, Math.round(this.stopLeft)), ...this.scene.contactShown } : null,
+      contact: this.contact ? { kind: this.contact.kind, ...this.scene.contactShown } : null,
       catchCam: this.catchCam ? { shot: this.catchCam.shot, on: this.catchCam.on, sinceTake: Math.round(this.elapsed - this.catchCam.take) } : null,
       kept: this.kept ? { stroke: this.kept.swing.stroke, runs: this.kept.outcome.runs, dropped: !!this.kept.outcome.dropped } : null, replayLog: { ...this.replayLog }, changed: this.changed, milestone: !!this.milestoneDue,
       replay: this.replay ? { stroke: this.replay.kept.swing.stroke, angle: this.replay.angle.id, at: this.replay.start === null ? null : Math.round(this.elapsed - this.replay.start), struck: this.replay.struck, ending: this.replay.ending !== null } : null,

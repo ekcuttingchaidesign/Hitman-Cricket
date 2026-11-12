@@ -74,7 +74,10 @@ export function readPlayed(read: (key: string) => string | null): Played | null 
     const held = JSON.parse(raw) as Record<string, unknown> | null;
     if (!held || typeof held !== 'object') return {};
     const played: Played = {};
-    for (const mode of ['classic', 'survive', 'marathon'] as const) {
+    // Every mode the count is written for: Super10 was left off this list, so
+    // its count was dropped on every read and a player with no name, who has
+    // no career to fall back on, was helped in Super10 for ever.
+    for (const mode of ['classic', 'survive', 'marathon', 'super10'] as const) {
       const value = held[mode];
       if (typeof value === 'number' && Number.isInteger(value) && value > 0) played[mode] = value;
     }
