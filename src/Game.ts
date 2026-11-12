@@ -7415,7 +7415,7 @@ export class Game {
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
       pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, streak: this.scene.streakShown, wicketFall: this.scene.wicketFall, pullPen: this.pullPen,
-      mirrored: this.scene.mirrored, camera: this.scene.cameraId, firstPerson: this.scene.firstPerson, proBat: this.scene.proBat, look: this.scene.wearing, shirt: this.scene.shirt, fieldingKit: this.scene.fieldingKit, chase: this.chase ? { handle: this.chase.handle, mode: this.chase.mode, target: this.chase.target } : null, marathon: this.marathon ? this.marathonState() : null,
+      mirrored: this.scene.mirrored, camera: this.scene.cameraId, firstPerson: this.scene.firstPerson, proBat: this.scene.proBat, ballLook: this.scene.ballLookShown, look: this.scene.wearing, shirt: this.scene.shirt, fieldingKit: this.scene.fieldingKit, chase: this.chase ? { handle: this.chase.handle, mode: this.chase.mode, target: this.chase.target } : null, marathon: this.marathon ? this.marathonState() : null,
       super10: this.super10 ? this.super10State() : null,
       standing: this.standing, ease: this.ease };
   }
