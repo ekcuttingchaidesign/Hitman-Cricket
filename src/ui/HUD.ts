@@ -2619,6 +2619,10 @@ ${modeSelectMarkup()}
     this.$('speed').textContent = '';
     this.viewport.classList.remove('modal-open');
     this.viewport.classList.remove('hurt-on');
+    // The pause sheet is put away below without `pause(false)` when RESTART or
+    // CHANGE MODE leaves it, and the keys it stood aside from stayed hidden all
+    // the next innings: the pause key with them.
+    this.viewport.classList.remove('pause-open');
     // Both full-screen overlays put the hud row away while they are up.
     this.viewport.classList.remove('picking-mode', 'result-open');
     ['intro', 'end', 'end-survive', 'pause-overlay', 'result', 'coach', 'tutorial-done', 'modes']

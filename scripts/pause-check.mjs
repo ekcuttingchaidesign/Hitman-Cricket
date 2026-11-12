@@ -125,6 +125,15 @@ for (const [mode, name, tone] of [['classic', 'The Blast', 'rgb(63, 136, 242)'],
   await page.locator('#ambience-switch').click();
   seen = await sheet(page);
   check(seen.crowdOn && seen.ambienceOn, 'and on again with a tap each');
+  // RESTART from the sheet: the keys it stood aside from come back with the new innings, the pause key with them.
+  await page.locator('#restart').click();
+  await page.waitForTimeout(2500);
+  const keys = await page.evaluate(() => ({
+    open: document.getElementById('viewport').classList.contains('pause-open'),
+    pause: (el => !!el && el.getBoundingClientRect().width > 0)(document.getElementById('pause')),
+    top: getComputedStyle(document.querySelector('.hud-top')).display,
+  }));
+  check(!keys.open && keys.pause && keys.top !== 'none', 'RESTART brings the pause key back with the new innings', JSON.stringify(keys));
   check(errors.length === 0, 'with nothing in the console', errors.join('\n        '));
   await page.close();
 }
