@@ -2091,70 +2091,88 @@ const FLICK_V3: Stroke & { load: Pose; lift: Pose; across: Pose } = {
  * full ball on middle or leg, some of the time. From a net session filmed in
  * slow motion from the bowler's end, read frame by frame.
  *
- * It is one turn of the bat in his wrists, in a plane up and down the pitch,
- * with the hands low and close to him all the way; the ball is met halfway
- * round it. His hands are down by the back hip with the bat standing upright
- * over them (`load`). The toe falls back towards the keeper (`back`) and comes
- * on round, down onto a ball at his toes with the bat upright the other way,
- * the hands by his knee and his back bent over it (`contact`). The wrists keep
- * it turning: the toe swings on forward, towards the bowler and a little to
- * leg (`forward`), and up (`rise`), until the bat stands upright in front of
- * his chest, the hands only as high as his ribs (`up`): the half turn after
- * the ball that is its follow-through. Held there, still bent over. Then it
- * tips over to the off side (`tip`) and is let down to hang in front of his
- * thighs (`hang`), and goes up into his guard. The front foot is opened to leg
- * where it stands; nothing strides. A first build, from another clip, took the
- * hands up over his head and whirled the bat level there after the ball, which
- * the owner called totally wrong: not to be built again.
+ * It is one turn of the wrists, about one and a half times round, in one
+ * rhythm: the bat is not swung at the ball and then followed through, it is
+ * turning when it meets it. Seen from the bowler the toe goes round a circle
+ * facing him: from the backlift, up and out over his off shoulder, it falls
+ * out to the off side, whips down onto a ball at his toes with the bat
+ * straight up and down, comes on round to the leg side at thigh height, up in
+ * front of his face, out to the off side again and down, until the bat hangs
+ * in front of his thighs. It is fastest into the ball and through it, and
+ * slows evenly from there to a stop: nothing holds. The circle leans
+ * (`HELICOPTER_TILT`): the off side of it goes back towards the keeper and the
+ * leg side forward, so at the bottom the bat is going forward and to leg
+ * through the ball, with its face that way (`helicopterBat`): it sends a
+ * yorker over midwicket. The hands stay low all the way, by his thighs at the
+ * ball and no higher than his chest at the top; he is bent right over it,
+ * opened a little to the bowler, and nothing strides.
  *
- * The face rides the handle (`riding`): turned the way the bat turns, it meets
- * the ball looking at the bowler and looks back at him by the finish, and
- * nothing rolls it in his hands.
+ * Two builds before this were wrong and are not to be built again. One took
+ * the hands up over his head and whirled the bat level there after the ball.
+ * The other turned it up and down the pitch, met the ball as a straight drive
+ * would, stopped with the bat upright in front of him, and only then went on:
+ * the owner saw a lofted straight drive, a pause and a follow-through.
  *
  * Keyed for a ball on leg stump: the reach moves him from there.
  */
-export const HELICOPTER_CONTACT_MS = 170;
+export const HELICOPTER_CONTACT_MS = 175;
 /** Met at his toes, beside the front foot: no further down the pitch than the crease's own contact. */
 export const HELICOPTER_MEETS_AT = 0;
-export const HELICOPTER_CLOCK = { load: 65, back: 112, low: 145, contact: HELICOPTER_CONTACT_MS, forward: 250, rise: 340, up: 440, hold: 530, tip: 650, hang: 770 } as const;
-/** How much longer than the stroke's own clock he holds the bat upright in front of him, before it tips over. */
-export const HELICOPTER_HOLD_MS = 120;
+/**
+ * When, in real milliseconds from the swipe, the hands and body reach each
+ * key: dropped to the thighs (`drop`), the ball, the bat round to the leg side
+ * (`round`), the toe up at the top (`top`), out to the off side (`off`), the
+ * turn done with the bat hanging (`ends`). Home after that.
+ */
+export const HELICOPTER_CLOCK = { drop: 90, contact: HELICOPTER_CONTACT_MS, round: 300, top: 440, off: 640, ends: 1000 } as const;
+/** How much longer than the stroke's own clock the helicopter takes: it is a long turn, and the stroke's clock runs that much slower after the ball. */
+export const HELICOPTER_HOLD_MS = 360;
+/** Where the toe is round the turn, in degrees from straight up through the off side: at the swipe, at the ball (straight down), and when it stops. */
+export const HELICOPTER_TURN = { from: 42, met: 180, ends: 515 } as const;
+/** How far the circle the toe goes round leans from facing the bowler: its off side back towards the keeper, its leg side forward. */
+const HELICOPTER_TILT = THREE.MathUtils.degToRad(40);
 /** How far the toe of the bat is kept off the turf where the helicopter meets the ball. */
 const HELICOPTER_TOE_CLEAR = .03;
 /** How far across the helicopter reaches: the stumps and a ball on the pads. */
 const HELICOPTER_REACH: readonly [number, number] = [-.30, .17];
-const HELICOPTER_BODY = { hip: [-.14, .90, -.03], chest: [.08, 1.19, .08], frontFoot: [-.20, .08, .30], backFoot: [-.13, .08, -.26] } as const;
-const HELICOPTER: Stroke & { load: Pose; back: Pose; low: Pose; forward: Pose; rise: Pose; up: Pose; tip: Pose; hang: Pose } = {
-  load: { ...BACKLIFT, hip: [-.08, .92, -.04], chest: [.02, 1.26, .00], frontFoot: [-.16, .08, .28], backFoot: [-.13, .08, -.26],
-    grip: [.27, .93, .04], batUp: [-.30, -.90, .32], batFace: [0, -.34, -.94],
-    yaw: 1.20, heel: 0, frontFootYaw: .65, leadElbow: -.30, look: .30 },
-  // Out to the off side as it falls back, outside the back elbow.
-  back: { ...GUARD, hip: [-.11, .90, -.04], chest: [.05, 1.22, .04], frontFoot: [-.19, .08, .30], backFoot: [-.13, .08, -.26],
-    grip: [.28, .90, .06], batUp: [-.52, -.12, .85], batFace: [0, -.99, -.14],
-    yaw: 1.12, face: .10, heel: 0, frontFootYaw: .55, leadElbow: -.30, look: .50 },
-  // On down, the toe still behind his hands and out to the off, coming in to the ball's line.
-  low: { ...GUARD, ...HELICOPTER_BODY,
-    grip: [.25, .87, .12], batUp: [-.24, .80, .55], batFace: [0, -.57, .82],
-    yaw: 1.05, face: .15, heel: .02, frontFootYaw: .48, leadElbow: -.25, look: .70 },
-  contact: { ...GUARD, ...HELICOPTER_BODY,
-    grip: [.22, .84, .19], batUp: [0, .98, -.20], batFace: [0, .20, .98],
-    yaw: 1.00, face: .18, heel: .04, frontFootYaw: .45, leadElbow: -.25, look: .80 },
-  forward: { ...GUARD, ...HELICOPTER_BODY,
-    grip: [.20, .86, .34], batUp: [.22, .10, -.97], batFace: [0, .99, .10],
-    yaw: .90, face: .16, heel: .08, frontFootYaw: .42, leadElbow: -.30, look: .75 },
-  rise: { ...GUARD, ...HELICOPTER_BODY,
-    grip: [.16, .98, .44], batUp: [.18, -.70, -.69], batFace: [0, .70, -.71],
-    yaw: .78, face: .14, heel: .10, frontFootYaw: .40, leadElbow: -.40, look: .65 },
-  // Upright in front of him, towards the bowler from his front shoulder, the chest opened to it and both elbows down.
-  up: { ...GUARD, ...HELICOPTER_BODY,
-    grip: [.12, 1.12, .50], batUp: [.06, -.99, -.08], batFace: [0, .08, -.99],
-    yaw: .68, face: .12, heel: .12, frontFootYaw: .40, leadElbow: -.45, look: .55 },
-  tip: { ...GUARD, hip: [-.11, .90, -.03], chest: [.05, 1.22, .06], frontFoot: [-.19, .08, .30], backFoot: [-.13, .08, -.26],
-    grip: [.20, .96, .38], batUp: [-.97, -.10, -.20], batFace: [-.20, 0, -.98],
-    yaw: .90, face: .08, heel: .06, frontFootYaw: .50, leadElbow: -.35, look: .35 },
-  hang: { ...GUARD, hip: [-.08, .92, -.03], chest: [.03, 1.25, .04], frontFoot: [-.15, .08, .28], backFoot: [-.13, .08, -.26],
-    grip: [.25, .86, .26], batUp: [-.60, .78, -.15], batFace: [-.15, 0, -.99],
-    yaw: 1.12, face: .04, heel: .02, frontFootYaw: .65, leadElbow: -.34, look: .15 },
+/**
+ * How far round the turn the toe is at `t`, real milliseconds from the swipe:
+ * gathering speed all the way to the ball, then slowing evenly to a stop, a
+ * little slower through the ball than into it, as a bat that has hit one is.
+ */
+export function helicopterTurn(t: number) {
+  const { contact, ends } = HELICOPTER_CLOCK, { from, met, ends: last } = HELICOPTER_TURN;
+  if (t <= 0) return from;
+  if (t <= contact) return from + (met - from) * Math.pow(t / contact, 1.25);
+  const u = Math.min(1, (t - contact) / (ends - contact));
+  return met + (last - met) * (1 - (1 - u) ** 2);
+}
+/**
+ * The bat at `degrees` round the turn: the toe on the leaning circle, and the
+ * face looking the way the bat is going round, so it leads into the ball.
+ */
+export function helicopterBat(degrees: number) {
+  const a = THREE.MathUtils.degToRad(degrees), off = new THREE.Vector3(Math.cos(HELICOPTER_TILT), 0, -Math.sin(HELICOPTER_TILT));
+  const toe = UP.clone().multiplyScalar(Math.cos(a)).addScaledVector(off, Math.sin(a));
+  const face = UP.clone().multiplyScalar(-Math.sin(a)).addScaledVector(off, Math.cos(a));
+  return { batUp: toe.clone().negate().toArray() as unknown as Point, batFace: face.toArray() as unknown as Point };
+}
+/** Bent right over the ball, opened a little to the bowler, the front foot drawn back towards leg where it stood. */
+const HELICOPTER_BODY = { hip: [-.14, .90, -.03], chest: [.08, 1.19, .08], frontFoot: [-.20, .08, .28], backFoot: [-.13, .08, -.26] } as const;
+const HELICOPTER: Stroke & { drop: Pose; round: Pose; top: Pose; off: Pose; ends: Pose } = {
+  drop: { ...GUARD, hip: [-.10, .90, -.04], chest: [.06, 1.21, .05], frontFoot: [-.19, .08, .28], backFoot: [-.13, .08, -.26],
+    grip: [.25, .92, .20], yaw: 1.05, face: .10, heel: 0, frontFootYaw: .50, leadElbow: -.30, look: .60 },
+  contact: { ...GUARD, ...HELICOPTER_BODY, ...helicopterBat(HELICOPTER_TURN.met),
+    grip: [.22, .86, .30], yaw: 1.00, face: .18, heel: .04, frontFootYaw: .45, leadElbow: -.25, look: .80 },
+  round: { ...GUARD, ...HELICOPTER_BODY,
+    grip: [.16, .93, .42], yaw: .90, face: .16, heel: .06, frontFootYaw: .42, leadElbow: -.32, look: .70 },
+  // The bat upright in front of his face, between him and the bowler: the hands carried out that way, and his chest up a little.
+  top: { ...GUARD, hip: [-.12, .91, -.03], chest: [.03, 1.24, .05], frontFoot: [-.20, .08, .28], backFoot: [-.13, .08, -.26],
+    grip: [.12, 1.07, .50], yaw: .80, face: .12, heel: .08, frontFootYaw: .42, leadElbow: -.45, look: .50 },
+  off: { ...GUARD, hip: [-.11, .91, -.03], chest: [.03, 1.24, .04], frontFoot: [-.19, .08, .28], backFoot: [-.13, .08, -.26],
+    grip: [.20, 1.00, .44], yaw: .92, face: .08, heel: .05, frontFootYaw: .48, leadElbow: -.38, look: .35 },
+  ends: { ...GUARD, hip: [-.08, .92, -.03], chest: [.03, 1.25, .04], frontFoot: [-.15, .08, .28], backFoot: [-.13, .08, -.26],
+    grip: [.26, .90, .32], yaw: 1.10, face: .04, heel: .02, frontFootYaw: .62, leadElbow: -.34, look: .15 },
   finish: GUARD,
 };
 export const LOFT_V2_CLOCK = { plant: 70, through: 220, finish: 320, hold: 650, down: 760, under: 870 } as const;
@@ -4220,8 +4238,9 @@ export class Batter {
       const { faced } = HOOK_CLOCK;
       age = faced + (age - faced) * (STROKE_DURATION_MS - faced) / (STROKE_DURATION_MS + HOOK_HOLD_MS - faced);
     }
-    // The helicopter holds the bat upright in front of him: see `HELICOPTER_HOLD_MS`.
-    else if (this.helicopter && age > HELICOPTER_CLOCK.hold) age = Math.max(HELICOPTER_CLOCK.hold, age - HELICOPTER_HOLD_MS);
+    // The helicopter's long turn after the ball, its clock slowed: see `HELICOPTER_HOLD_MS`.
+    else if (this.helicopter && age > HELICOPTER_CONTACT_MS)
+      age = HELICOPTER_CONTACT_MS + (age - HELICOPTER_CONTACT_MS) * (STROKE_DURATION_MS - HELICOPTER_CONTACT_MS) / (STROKE_DURATION_MS + HELICOPTER_HOLD_MS - HELICOPTER_CONTACT_MS);
     // And the spinner's cut once the bat is on his shoulder: see `SPIN_CUT_HOLD_MS`.
     else if (this.spinCutting && age > (this.spinCutV2 ? SPIN_CUT_V2_CLOCK : SPIN_CUT_CLOCK).finish) {
       const { finish } = this.spinCutV2 ? SPIN_CUT_V2_CLOCK : SPIN_CUT_CLOCK;
@@ -4795,24 +4814,28 @@ export class Batter {
       this.apply(pose);
       return;
     }
-    // The helicopter: one turn of the bat in his wrists with the hands low,
-    // up, back, down onto the ball at his toes, forward and up in front of his
-    // chest, held, then tipped over to the off side, let down and home. From
-    // the stance on the face rides the handle. See `HELICOPTER`.
+    // The helicopter: one turn of the wrists in one rhythm, the toe round a
+    // circle facing the bowler, fastest through the ball and slowing to a stop
+    // with the bat hanging, then home. The bat's way round is worked out from
+    // the clock (`helicopterTurn`, `helicopterBat`); the hands and body are
+    // keyed round it. See `HELICOPTER`.
     if (this.helicopter) {
-      const { load, back, low, forward, rise, up, hold, tip, hang } = HELICOPTER_CLOCK, keys = HELICOPTER;
-      const out = [{ time: 0, pose: this.swingFrom }, { time: load, pose: reachPose(keys.load) }, { time: back, pose: reachPose(keys.back) }, { time: low, pose: reachPose(keys.low) },
-        { time: HELICOPTER_CONTACT_MS, pose: contact }, { time: forward, pose: reachPose(keys.forward) },
-        { time: rise, pose: reachPose(keys.rise) }, { time: up, pose: reachPose(keys.up) }];
-      const home = [{ time: hold, pose: reachPose(keys.up) }, { time: tip, pose: reachPose(keys.tip) },
-        { time: hang, pose: reachPose(keys.hang) }, { time: STROKE_DURATION_MS, pose: GUARD }];
-      const poseAt = (at: number): Pose => at < up ? flowing(out, at) : at < hold ? reachPose(keys.up) : flowing(home, at);
-      const pose = { ...poseAt(age) };
+      const { drop, round, top, off, ends } = HELICOPTER_CLOCK, keys = HELICOPTER;
+      const total = STROKE_DURATION_MS + HELICOPTER_HOLD_MS;
+      // Back from the stroke's slowed clock to real milliseconds from the swipe.
+      const real = age <= HELICOPTER_CONTACT_MS ? age
+        : HELICOPTER_CONTACT_MS + (age - HELICOPTER_CONTACT_MS) * (total - HELICOPTER_CONTACT_MS) / (STROKE_DURATION_MS - HELICOPTER_CONTACT_MS);
+      const body = flowing([{ time: 0, pose: this.swingFrom }, { time: drop, pose: reachPose(keys.drop) },
+        { time: HELICOPTER_CONTACT_MS, pose: contact }, { time: round, pose: reachPose(keys.round) }, { time: top, pose: reachPose(keys.top) },
+        { time: off, pose: reachPose(keys.off) }, { time: ends, pose: reachPose(keys.ends) }, { time: total, pose: GUARD }], real);
+      const turning = new THREE.Quaternion().copy(batOrientation(helicopterBat(helicopterTurn(real)) as Pose));
+      // Out of the backlift as it was drawn, and into the guard as it will be.
       const straight = batOrientation(STROKES.STRAIGHT.contact);
-      const start = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(straight), UP.clone().applyQuaternion(batOrientation(this.swingFrom))).multiply(straight);
-      // To the bowler at the ball, whatever the guard left it short of that.
-      pose.bat = this.riding(0, poseAt, start, [hang, STROKE_DURATION_MS], age,
-        { window: [load, HELICOPTER_CONTACT_MS], away: () => new THREE.Vector3(0, 0, 1) });
+      const drawn = (from: Pose) => new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(straight), UP.clone().applyQuaternion(batOrientation(from))).multiply(straight);
+      const bat = real < drop ? drawn(this.swingFrom).slerp(turning, ease(real / drop))
+        : real > ends ? turning.clone().slerp(drawn(GUARD), ease((real - ends) / (total - ends))) : turning;
+      const pose: Pose = { ...body, bat, batUp: UP.clone().applyQuaternion(bat).toArray() as unknown as Point,
+        batFace: new THREE.Vector3(0, 0, 1).applyQuaternion(bat).toArray() as unknown as Point };
       this.apply(pose);
       return;
     }

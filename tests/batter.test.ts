@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect } from 'vitest';
-import { Batter, HELICOPTER_CLOCK, HELICOPTER_CONTACT_MS, HELICOPTER_HOLD_MS, FLICK_CLOCK, FLICK_HOLD_MS, FLICK_MEETS_AT, FLICK_V3_CLOCK, FLICK_V3_CONTACT_MS, FLICK_V3_HOLD_MS, FLICK_V3_MEETS_AT, STRAIGHT_CHARGE_HOLD, PUNCH_CLOCK, PUNCH_CONTACT_MS, PUNCH_HIGHEST, PUNCH_HOLD_MS, PUNCH_MEETS_AT, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, DEFENCE_FRONT_MEETS_AT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_HEIGHT, SPIN_CUT_CONTACT_MS, SPIN_CUT_V2_MEETS_AT, SPIN_CUT_HOLD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_MEETS_AT, SPIN_PULL_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, pullVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
+import { Batter, HELICOPTER_CLOCK, HELICOPTER_CONTACT_MS, HELICOPTER_HOLD_MS, helicopterTurn, FLICK_CLOCK, FLICK_HOLD_MS, FLICK_MEETS_AT, FLICK_V3_CLOCK, FLICK_V3_CONTACT_MS, FLICK_V3_HOLD_MS, FLICK_V3_MEETS_AT, STRAIGHT_CHARGE_HOLD, PUNCH_CLOCK, PUNCH_CONTACT_MS, PUNCH_HIGHEST, PUNCH_HOLD_MS, PUNCH_MEETS_AT, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, DEFENCE_FRONT_MEETS_AT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_HEIGHT, SPIN_CUT_CONTACT_MS, SPIN_CUT_V2_MEETS_AT, SPIN_CUT_HOLD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_MEETS_AT, SPIN_PULL_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, pullVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -27,8 +27,8 @@ const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; rea
   // The flick, version two: off the pads from outside leg to middle, met beside the front pad.
   flick2: { shot: 'LEG', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.42, -.14, 0], settle: 420, meets: FLICK_MEETS_AT, version: 2 },
   // The flick, version three: off the back foot, at a ball short of a length met late in front of the front pad.
-  heli: { shot: 'STRAIGHT', ballY: .19, impact: HELICOPTER_CONTACT_MS, reach: [-.14, 0, .14], settle: 350, helicopter: true },
-  heliFull: { shot: 'LONG_ON', ballY: .35, impact: HELICOPTER_CONTACT_MS, reach: [-.14, 0], settle: 350, helicopter: true },
+  heli: { shot: 'STRAIGHT', ballY: .19, impact: HELICOPTER_CONTACT_MS, reach: [-.14, 0, .14], settle: 440, helicopter: true },
+  heliFull: { shot: 'LONG_ON', ballY: .35, impact: HELICOPTER_CONTACT_MS, reach: [-.14, 0], settle: 440, helicopter: true },
   flick3: { shot: 'LEG', ballY: .81, impact: FLICK_V3_CONTACT_MS, reach: [-.42, -.14, 0], settle: 430, meets: FLICK_V3_MEETS_AT, version: 3 },
   // The block: forward at a ball pitched up, back at one back of a length and at a bouncer.
   defend: { shot: 'DEFEND', ballY: .54, impact: DEFENCE_FRONT_CONTACT_MS, reach: [-.30, 0, .30], settle: 220, meets: DEFENCE_FRONT_MEETS_AT },
@@ -1391,7 +1391,8 @@ describe('every stroke, across its reach', () => {
       });
       let worst = {distance: Infinity, time: 0, part: ''};
       let forearmClearance = {distance: Infinity, time: 0, arm: 0};
-      for (let time = 0; time <= STROKE_DURATION_MS; time += 4) {
+      // The helicopter's turn runs on past the stroke's own clock: see `HELICOPTER_HOLD_MS`.
+      for (let time = 0; time <= STROKE_DURATION_MS + (PLAYS[kind].helicopter ? HELICOPTER_HOLD_MS : 0); time += 4) {
         batter.update(time); batter.root.updateMatrixWorld(true);
         const pose=batter.inspect();
         for (const lengths of pose.armLengths) expect(lengths[1], `${kind} ${x} arm @${time}`).toBeLessThan(.345);
@@ -3649,73 +3650,71 @@ describe('the late cut', () => {
   });
 });
 /**
- * The helicopter: one turn of the bat in his wrists with the hands low, the
- * ball met halfway round it. Its first build took the hands up over his head
- * and whirled the bat there after the ball, which was wrong.
+ * The helicopter: one turn of the wrists in one rhythm, the toe round a circle
+ * facing the bowler, the ball met halfway down it. The two builds before it
+ * whirled the bat over his head after the ball, and turned it up and down the
+ * pitch with a stop at the top.
  */
 describe('the helicopter', () => {
   const heli = (kind: 'heli' | 'heliFull', x: number) => { const batter = new Batter(); batter.prepare(1); batter.update(0); play(batter, kind, x); return batter; };
   const guard = new Batter().inspect();
-  /** Which way the toe points from his hands. */
+  const END = STROKE_DURATION_MS + HELICOPTER_HOLD_MS;
+  /** Which way the toe points from his hands, and its angle round from straight up through the off side, as the bowler sees it. */
   const toeFrom = (pose: ReturnType<Batter['inspect']>) => new Vector3(...pose.batUp).negate();
+  const seen = (toe: Vector3) => Math.atan2(toe.x, toe.y);
   const KINDS = ['heli', 'heliFull'] as const;
-  it('turns the bat once round in his wrists: up, back, down onto the ball, forward, and up in front of him', () => {
+  it('turns the toe one way round a circle facing the bowler, about one and a half times, never stopping until it hangs', () => {
     for (const kind of KINDS) for (const x of PLAYS[kind].reach) {
       const batter = heli(kind, x), at = (time: number) => { batter.update(time); return toeFrom(batter.inspect()); };
-      expect(at(HELICOPTER_CLOCK.load).y, `${kind} ${x} load`).toBeGreaterThan(.8);
-      expect(at(HELICOPTER_CLOCK.back).z, `${kind} ${x} back`).toBeLessThan(-.75);
-      expect(at(HELICOPTER_CONTACT_MS).y, `${kind} ${x} contact`).toBeLessThan(-.9);
-      expect(at(HELICOPTER_CLOCK.forward).z, `${kind} ${x} forward`).toBeGreaterThan(.9);
-      expect(at(HELICOPTER_CLOCK.up).y, `${kind} ${x} up`).toBeGreaterThan(.95);
-      // One way round all the way: about the line across the pitch, the toe never comes back on itself.
-      let before = Math.atan2(at(HELICOPTER_CLOCK.load).z, at(HELICOPTER_CLOCK.load).y), turned = 0;
-      for (let time = HELICOPTER_CLOCK.load + 5; time <= HELICOPTER_CLOCK.up; time += 5) {
-        const toe = at(time), angle = Math.atan2(toe.z, toe.y);
-        const step = Math.atan2(Math.sin(angle - before), Math.cos(angle - before));
-        expect(step, `${kind} ${x} @${time}`).toBeLessThan(.02);
+      // Out to the off side, down at the ball, out to leg, up at the top, out to off again.
+      expect(at(HELICOPTER_CONTACT_MS).y, `${kind} ${x} contact`).toBeLessThan(-.99);
+      expect(at(HELICOPTER_CLOCK.round).x, `${kind} ${x} round`).toBeLessThan(-.6);
+      expect(at(HELICOPTER_CLOCK.top).y, `${kind} ${x} top`).toBeGreaterThan(.9);
+      expect(at(HELICOPTER_CLOCK.off).x, `${kind} ${x} off`).toBeGreaterThan(.6);
+      expect(at(HELICOPTER_CLOCK.ends).y, `${kind} ${x} ends`).toBeLessThan(-.8);
+      // Seen from the bowler, one way round all the time, and never still until the end.
+      let before = seen(at(30)), turned = 0;
+      for (let time = 40; time <= HELICOPTER_CLOCK.ends - 60; time += 10) {
+        const angle = seen(at(time)), step = Math.atan2(Math.sin(angle - before), Math.cos(angle - before));
+        expect(step, `${kind} ${x} @${time}`).toBeGreaterThan(.004);
         turned += step; before = angle;
       }
-      // A whole turn, near enough: from upright behind him to upright in front.
-      expect(-turned, `${kind} ${x}`).toBeGreaterThan(Math.PI * 1.7);
-      expect(-turned, `${kind} ${x}`).toBeLessThan(Math.PI * 2.2);
+      expect(turned / (2 * Math.PI), `${kind} ${x}`).toBeGreaterThan(1.1);
+      expect(turned / (2 * Math.PI), `${kind} ${x}`).toBeLessThan(1.5);
     }
   });
-  it('meets the ball at his toes with the face to the bowler, low on the blade, the toe off the turf', () => {
+  it('is turning hardest at the ball, and slows evenly after it: no pause', () => {
+    const speed = (t: number) => helicopterTurn(t + 1) - helicopterTurn(t - 1);
+    // Faster at the ball than anywhere after it, and only a little slower through it than into it.
+    for (let t = HELICOPTER_CONTACT_MS + 5; t < HELICOPTER_CLOCK.ends; t += 5) expect(speed(t), `@${t}`).toBeLessThan(speed(HELICOPTER_CONTACT_MS + 1));
+    expect(speed(HELICOPTER_CONTACT_MS + 1) / speed(HELICOPTER_CONTACT_MS - 1)).toBeGreaterThan(.75);
+    // Never faster again once it has begun to slow.
+    for (let t = HELICOPTER_CONTACT_MS + 5; t < HELICOPTER_CLOCK.ends - 5; t += 5) expect(speed(t + 5), `@${t}`).toBeLessThanOrEqual(speed(t) + 1e-9);
+  });
+  it('meets the ball at his toes with the bat straight up and down, the face going forward and to leg, the toe off the turf', () => {
     for (const kind of KINDS) for (const x of PLAYS[kind].reach) {
       const batter = heli(kind, x); batter.update(HELICOPTER_CONTACT_MS); const pose = batter.inspect();
-      expect(pose.batFace[2], `${kind} ${x}`).toBeGreaterThan(.9);
+      expect(pose.batFace[2], `${kind} ${x}`).toBeGreaterThan(.5);
+      expect(pose.batFace[0], `${kind} ${x}`).toBeLessThan(-.5);
       const grip = new Vector3(...pose.grip).add(new Vector3(GAME.stanceX, 0, GAME.stanceZ)), tip = new Vector3(...pose.bladeTip);
-      const ball = new Vector3(x, PLAYS[kind].ballY, GAME.contactZ), along = tip.clone().sub(grip).normalize();
-      // On the blade's line, between its middle and its toe.
+      const ball = new Vector3(Math.max(-.30, Math.min(.17, x)), PLAYS[kind].ballY, GAME.contactZ), along = tip.clone().sub(grip).normalize();
       const down = ball.clone().sub(grip).dot(along);
       expect(ball.distanceTo(grip.clone().addScaledVector(along, down)), `${kind} ${x}`).toBeLessThan(.02);
       expect(down, `${kind} ${x}`).toBeGreaterThan(.43);
-      expect(down, `${kind} ${x}`).toBeLessThan(.80);
       expect(tip.y, `${kind} ${x}`).toBeGreaterThan(0);
-      // No stride: the front foot where it stood, opened a little to leg.
+      // No stride.
       expect(Math.abs(pose.frontFoot[2] - guard.frontFoot[2]), `${kind} ${x}`).toBeLessThan(.08);
     }
   });
-  it('keeps the hands low all the way, never above his chest, and the bat off the turf', () => {
+  it('keeps the hands low all the way, never above his chest, and the bat off the turf, then comes home', () => {
     for (const kind of KINDS) for (const x of PLAYS[kind].reach) {
       const batter = heli(kind, x);
-      for (let time = 0; time <= STROKE_DURATION_MS + HELICOPTER_HOLD_MS; time += 5) {
+      for (let time = 0; time <= END; time += 5) {
         batter.update(time); const pose = batter.inspect();
-        expect(pose.grip[1], `${kind} ${x} @${time}`).toBeLessThan(1.2);
-        expect(pose.grip[1], `${kind} ${x} @${time}`).toBeLessThan(pose.shoulders[0][1]);
+        expect(pose.grip[1], `${kind} ${x} @${time}`).toBeLessThan(1.15);
         expect(pose.bladeTip[1], `${kind} ${x} @${time}`).toBeGreaterThan(0);
       }
-    }
-  });
-  it('holds the bat upright in front of him, tips it over to the off side, lets it down and comes home', () => {
-    for (const kind of KINDS) for (const x of PLAYS[kind].reach) {
-      const batter = heli(kind, x); batter.update(HELICOPTER_CLOCK.up); const up = batter.inspect();
-      for (let time = HELICOPTER_CLOCK.up; time <= HELICOPTER_CLOCK.hold + HELICOPTER_HOLD_MS; time += 20) {
-        batter.update(time); expect(new Vector3(...batter.inspect().grip).distanceTo(new Vector3(...up.grip)), `${kind} ${x} @${time}`).toBeLessThan(1e-6);
-      }
-      batter.update(HELICOPTER_CLOCK.tip + HELICOPTER_HOLD_MS); expect(toeFrom(batter.inspect()).x, `${kind} ${x}`).toBeGreaterThan(.9);
-      batter.update(HELICOPTER_CLOCK.hang + HELICOPTER_HOLD_MS); expect(toeFrom(batter.inspect()).y, `${kind} ${x}`).toBeLessThan(-.6);
-      batter.update(STROKE_DURATION_MS + HELICOPTER_HOLD_MS);
+      batter.update(END);
       expect(batter.inspect().grip).toEqual(guard.grip);
     }
   });

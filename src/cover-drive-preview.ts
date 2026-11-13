@@ -58,23 +58,23 @@ interface Stroke {
  */
 const FULLER = { bounce: 3.4, rise: .72, y: .09 + .72 * .36 } as const;
 const HELI_PHASES = (): [string, number][] => {
-  const { load, back, forward, rise, up, hold, tip, hang } = HELICOPTER_CLOCK, late = HELICOPTER_HOLD_MS;
-  return [['Stance', -LEAD_MS], ['Bat upright', load], ['Toe back', back], ['Contact', HELICOPTER_CONTACT_MS], ['Toe forward', forward], ['Rising', rise],
-    ['Upright', up], ['Held', hold + late], ['Tipped to off', tip + late], ['Let down', hang + late], ['Home', STROKE_DURATION_MS + late]];
+  const { drop, round, top, off, ends } = HELICOPTER_CLOCK;
+  return [['Stance', -LEAD_MS], ['Toe out to off', drop], ['Contact', HELICOPTER_CONTACT_MS], ['Round to leg', round], ['Up in front', top],
+    ['Out to off', off], ['Hanging', ends], ['Home', STROKE_DURATION_MS + HELICOPTER_HOLD_MS]];
 };
-const HELI_NOTE = 'The helicopter, from a net session filmed in slow motion from the bowler\'s end, read frame by frame. It is one turn of the bat in his wrists, in a plane up and down the pitch, with the hands low and close to him all the way, and the ball is met halfway round it. By 65 ms his hands are down by the back hip with the bat standing upright over them. The toe falls back towards the keeper at 112 and comes on round, down onto a ball at his toes at 170, the bat upright the other way, the hands by his knee and his back bent over it. The wrists keep it turning: the toe swings on forward towards the bowler at 250 and up, and at 440 the bat stands upright in front of his chest with the hands no higher than his ribs, the half turn after the ball that is the follow-through. He holds it there, still bent over, then the bat tips over to the off side, is let down to hang in front of his thighs, and goes up into his guard. The front foot opens to leg where it stands; nothing strides, and nothing rolls the bat in his hands.';
+const HELI_NOTE = 'The helicopter, from a net session filmed in slow motion from the bowler\'s end, read frame by frame. It is one turn of the wrists, about one and a half times round, in one rhythm: the bat is already turning when it meets the ball. Seen from the bowler the toe goes round a circle facing him. From the backlift over his off shoulder it falls out to the off side as his hands drop to his thighs by 90 ms, whips down onto the ball at his toes at 175 with the bat straight up and down, and comes on round to the leg side at thigh height by 300, up in front of his face by 440, out to the off side again by 640 and down until the bat hangs in front of his thighs at 1000. It is fastest into the ball and through it and slows evenly from there; nothing stops. The circle leans, its off side back towards the keeper and its leg side forward, so at the bottom the bat is going forward and to leg with the face leading, and the yorker goes over midwicket. The hands stay low, by his thighs at the ball and no higher than his chest at the top; he stays bent right over it, opened a little to the bowler, and nothing strides.';
 const STROKES: Record<string, Stroke> = {
   heli: {
     label: 'Helicopter · yorker', shot: 'STRAIGHT', charging: false, single: true, helicopter: true, ball: { x: LINE_X.MIDDLE, y: .19, z: GAME.contactZ + HELICOPTER_MEETS_AT },
     contact: HELICOPTER_CONTACT_MS, end: STROKE_DURATION_MS + HELICOPTER_HOLD_MS, bounceZ: STYLES.YORKER.bounce!,
-    phases: HELI_PHASES(), out: { speed: .03, angle: THREE.MathUtils.degToRad(-10), climb: .019 },
+    phases: HELI_PHASES(), out: { speed: .03, angle: THREE.MathUtils.degToRad(-40), climb: .019 },
     facts: ['yorker, middle stump', `${STROKE_DURATION_MS + HELICOPTER_HOLD_MS} ms`],
     note: HELI_NOTE + ' Here at a yorker, pitching 30 cm in front of the bat and met 19 cm off the turf.',
   },
   heliFull: {
     label: 'Helicopter · fuller ball', shot: 'STRAIGHT', charging: false, single: true, helicopter: true, ball: { x: LINE_X.LEG, y: FULLER.y, z: GAME.contactZ + HELICOPTER_MEETS_AT },
     contact: HELICOPTER_CONTACT_MS, end: STROKE_DURATION_MS + HELICOPTER_HOLD_MS, bounceZ: FULLER.bounce,
-    phases: HELI_PHASES(), out: { speed: .03, angle: THREE.MathUtils.degToRad(-18), climb: .019 },
+    phases: HELI_PHASES(), out: { speed: .03, angle: THREE.MathUtils.degToRad(-40), climb: .019 },
     facts: ['the new fuller ball, leg stump', `${STROKE_DURATION_MS + HELICOPTER_HOLD_MS} ms`],
     note: HELI_NOTE + ' Here at the new fuller ball, on leg stump: pitching 2.1 m in front of the bat, where a yorker pitches 30 cm from it and a length ball 7 m, and met on the half-volley at shin height, 35 cm up. The white line on the pitch is where it lands; the faint ones are the yorker and a length.',
   },
