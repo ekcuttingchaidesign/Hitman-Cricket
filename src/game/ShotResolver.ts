@@ -1,4 +1,4 @@
-import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, FLICK, FLIGHT, GAME, GROUND_RUNS, HOOK, LATE_CUT, PUNCH, SCOOP, SOLID_SHOT, SPIN_CUT, SPIN_PULL, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE, CHOP_ON, RETURN_CATCH } from '../config/gameplay';
+import { ADVANCE, HELI, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, FLICK, FLIGHT, GAME, GROUND_RUNS, HOOK, LATE_CUT, PUNCH, SCOOP, SOLID_SHOT, SPIN_CUT, SPIN_PULL, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE, CHOP_ON, RETURN_CATCH } from '../config/gameplay';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory';
 import { spun } from './DeliveryGenerator';
 import type { Delivery, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './types';
@@ -152,6 +152,33 @@ export function lateCut(outcome: ShotOutcome, rng: { next(): number }, test: boo
       return rng.next() < LATE_CUT.caught
         ? { ...met, runs: 0, edged: true, isWicket: true, wicketType: 'CAUGHT', feedback: LATE_CUT.feedback.caught }
         : { ...met, runs: 1, feedback: LATE_CUT.feedback.edged };
+  }
+}
+/**
+ * Whether the straight or on drive's swipe at this ball is the helicopter: at
+ * a pace bowler's yorker always, and at the fuller ball on middle or leg when
+ * `roll` (off the seed and the ball, the caller's) falls under `HELI.fullShare`.
+ */
+export function helicopterBall(delivery: Delivery, shot: ShotType, roll: number) {
+  if ((shot !== 'STRAIGHT' && shot !== 'LONG_ON') || spun(delivery)) return false;
+  return delivery.style === 'YORKER' || (!!delivery.full && HELI.lines.includes(delivery.line) && roll < HELI.fullShare);
+}
+/**
+ * What a helicopter comes to (`HELI`): six middled, four a shade under; held
+ * back a single or two off the toe half the time; and otherwise out by the
+ * line, bowled whipping across one on the stumps, caught off the toe on leg.
+ */
+export function helicoptered(outcome: ShotOutcome, delivery: Delivery, rng: { next(): number }): ShotOutcome {
+  const met = { ...outcome, compatibility: 1, madeBatContact: true, helicopter: true };
+  const onStumps = Math.abs(delivery.finalTargetX) <= GAME.stumpZone;
+  const out: ShotOutcome = onStumps
+    ? { ...met, runs: 0, quality: 0, madeBatContact: false, isWicket: true, wicketType: 'BOWLED', feedback: HELI.feedback.bowled }
+    : { ...met, runs: 0, quality: TIMING_SCORE.POOR, aerial: true, isWicket: true, wicketType: 'CAUGHT', feedback: HELI.feedback.caught };
+  switch (outcome.timingGrade) {
+    case 'PERFECT': return { ...met, runs: 6, quality: 1, feedback: HELI.feedback.six };
+    case 'GOOD': return { ...met, runs: 4, quality: TIMING_SCORE.GOOD, feedback: HELI.feedback.four };
+    case 'OK': return rng.next() < HELI.okOut ? out : { ...met, runs: onStumps ? 1 : 2, quality: TIMING_SCORE.OK, feedback: HELI.feedback.toe };
+    default: return out;
   }
 }
 export function fitOf(delivery: Delivery, shot: ShotType) {
@@ -540,7 +567,8 @@ let always = false;
 /** `?howout=1`: every wicket that can be one of the two is, for looking at them. Practice. */
 export function alwaysHowOut(on: boolean) { always = on; }
 export function howOut(outcome: ShotOutcome, attempt: Pick<ShotAttempt, 'shotType'> | null, rng: { next(): number }): ShotOutcome {
-  if (!outcome.isWicket || outcome.wicketType !== 'CAUGHT' || !attempt || outcome.fielder || outcome.steppedOut) return outcome;
+  // Not the helicopter's skier, which goes up over midwicket, nowhere near the bowler.
+  if (!outcome.isWicket || outcome.wicketType !== 'CAUGHT' || !attempt || outcome.fielder || outcome.steppedOut || outcome.helicopter) return outcome;
   if (attempt.shotType === 'SQUARE_CUT' && outcome.edged && (always || rng.next() >= 1 - CHOP_ON.share))
     return { ...outcome, edged: false, aerial: false, wicketType: 'BOWLED', madeBatContact: true, feedback: CHOP_ON.feedback };
   if (attempt.shotType === 'STRAIGHT' && outcome.aerial && !outcome.edged && (always || rng.next() >= 1 - RETURN_CATCH.share))
@@ -578,6 +606,8 @@ function settle(
   // ball onwards: see `scooped`.
   const scoop = scoopShot(delivery, attempt, charged);
   if (scoop) return scooped(outcome, delivery, scoop, rng);
+  // Whipped round with the wrists off a ball at his toes: see `HELI`. Missed, it is any ball he missed.
+  if (attempt?.helicopter && timingGrade !== 'MISS') return helicoptered(outcome, delivery, rng);
   // Off the knee at the spinner. Middled it goes over midwicket; a shade under
   // and it still beats the field, on the bounce.
   if (slogSweep(delivery, attempt, charged)) {

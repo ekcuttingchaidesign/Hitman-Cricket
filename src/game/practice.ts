@@ -44,6 +44,8 @@ const ON: Record<string, (value: string) => boolean> = {
   flickv: v => v === '1' || v === '2',
   // Every cut edged behind chopped on, every straight drive held hit back to the bowler: for looking at the two.
   howout: v => v === '1',
+  // Every ball a pace yorker or the fuller ball, and the helicopter off the straight and on swipes at them.
+  heli: v => v === '1',
 };
 
 /** Every switch the game reads that changes how an innings plays, by its name in the link. */

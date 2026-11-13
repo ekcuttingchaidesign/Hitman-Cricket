@@ -1113,6 +1113,8 @@ the spinner's and all but the arm ball dropped short, for the pull off him),
 `?flight=1` (every ball the spinner's and all but the arm ball tossed up),
 `?flightlen=4` (the tossed-up ball pitched that many metres from the
 batter's end),
+`?heli=1` (every ball a pace yorker or the fuller ball in turn, and the
+helicopter off the straight and on swipes at them),
 `?latecut=1` (every ball
 pace outside off, for the late cut), `?yorkers=1` (every ball a yorker,
 for the stump it uproots), `?cover=1`
@@ -1333,6 +1335,38 @@ at his hip, and stopped with the bat upright beside his shoulder.
 
 They are `pull` and `pullV1` in the batter tests' `PLAYS`, and
 `cover-drive.html` has both.
+
+## The helicopter
+
+The straight or on drive's swipe at a pace bowler's yorker, and at the fuller
+ball on middle or leg a third of the time (`helicopterBall` in
+`ShotResolver.ts`, `HELI` in `gameplay.ts`), plays the helicopter
+(`helicopterTurn`, `helicopterBat`, `HELICOPTER` in `Batter.ts`), built from
+a net session filmed in slow motion from the bowler's end, read frame by
+frame. It is one turn of the wrists, about one and a half times round, in one
+rhythm: seen from the bowler the toe goes out to the off side, whips down onto
+a ball at his toes with the bat straight up and down, round to the leg side at
+thigh height, up in front of his face, out to the off again and down until it
+hangs. Fastest into the ball and through it, then slowing evenly with no stop;
+the circle leans, its off side back towards the keeper and its leg side
+forward, so the face leads through the ball forward and to leg. The bat's
+angle is a function of the clock and the hands and body are keyed round it,
+the hands low all the way. Two builds were wrong and are not to be built
+again: the hands up over his head whirling the bat level after the ball, and
+the bat turned up and down the pitch with a stop at the top, which the owner
+saw as a lofted straight drive, a pause and a follow-through.
+
+Scored on its own ladder (`helicoptered`): middled six over midwicket, a shade
+under four; held back a single or two off the toe half the time; otherwise out
+by the line, bowled whipping across one on the stumps, caught off the toe on
+leg, never turned into caught and bowled. The fuller ball (`FULLER`, `full` on
+the delivery) is pitched about two metres in front of the bat and reaches him
+at the shin. Both are only on `?heli=1` so far, which bowls a pace yorker and
+the fuller ball in turn and is practice; nothing else bowls the fuller ball and
+a real yorker is still played as it was. Not in a Test, whose resolver has no
+ladder for it. `cover-drive.html` has it at both balls (`?stroke=heli`);
+`tests/helicopter.test.ts` holds the rules and `describe('the helicopter')` in
+the batter tests the stroke; `scripts/heli-check.mjs` bats it in a browser.
 
 ## The flick, version two
 
