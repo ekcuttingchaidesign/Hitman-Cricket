@@ -15,7 +15,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, type CoverVersion, COVER_V3_MEETS_AT, PUNCH_CONTACT_MS, PUNCH_HOLD_MS, PUNCH_MEETS_AT, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_FRONT_MEETS_AT,PULL_CONTACT_MS, PULL_LOAD_MS, PULL_MEETS_AT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, SLOG_CLOCK, SLOG_HOLD_MS, SLOG_MEETS_AT, SWEEP_CONTACT_MS, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, REVERSE_CLOCK, SCOOP_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_HOLD_MS, SPIN_PULL_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS, FLICK_CLOCK, FLICK_HOLD_MS, FLICK_MEETS_AT, FLICK_V3_CLOCK, FLICK_V3_CONTACT_MS, FLICK_V3_HOLD_MS, FLICK_V3_MEETS_AT } from './entities/Batter';
+import { Batter, type CoverVersion, COVER_V3_MEETS_AT, PUNCH_CONTACT_MS, PUNCH_HOLD_MS, PUNCH_MEETS_AT, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_FRONT_MEETS_AT,PULL_CONTACT_MS, PULL_LOAD_MS, PULL_MEETS_AT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, SLOG_CLOCK, SLOG_HOLD_MS, SLOG_MEETS_AT, SWEEP_CONTACT_MS, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, LOFT_V2_CLOCK, REVERSE_CLOCK, SCOOP_CLOCK, LATE_CUT_CONTACT_MS, LATE_CUT_LOAD_MS, LATE_CUT_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, SPIN_CUT_LOAD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_HOLD_MS, SPIN_PULL_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS, FLICK_CLOCK, FLICK_HOLD_MS, FLICK_MEETS_AT, FLICK_V3_CLOCK, FLICK_V3_CONTACT_MS, FLICK_V3_HOLD_MS, FLICK_V3_MEETS_AT, HELICOPTER_CLOCK, HELICOPTER_CONTACT_MS, HELICOPTER_HOLD_MS, HELICOPTER_MEETS_AT } from './entities/Batter';
 import { ADVANCE, GAME, LINE_X, PUNCH, SHOT_ANGLES, STYLES, DRAGGED, SPIN_PULL } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 import type { ShotType } from './game/types';
@@ -41,6 +41,8 @@ interface Stroke {
   pullVersion?: 1 | 2;
   /** And of the flick. */
   flickVersion?: 1 | 2 | 3;
+  /** The helicopter, off the straight drive's swipe. */
+  helicopter?: boolean;
   /** Where the ball is met, in the rig's frame. */
   ball: { x: number; y: number; z: number };
   contact: number; end: number; bounceZ: number;
@@ -49,7 +51,42 @@ interface Stroke {
   out: { speed: number; angle: number; climb: number };
   facts: [string, string]; note: string;
 }
+/**
+ * The fuller ball proposed for the fast bowlers: pitched between the yorker
+ * and a length, a half-volley that reaches the bat at the shin. Only here
+ * until it is agreed; the game does not bowl it yet.
+ */
+const FULLER = { bounce: 3.4, rise: .72, y: .09 + .72 * .36 } as const;
+const HELI_PHASES = (): [string, number][] => {
+  const { load, whip, up, over, round, front, down } = HELICOPTER_CLOCK;
+  const late = (at: number) => Math.round(whip + (at - whip) * (STROKE_DURATION_MS + HELICOPTER_HOLD_MS - whip) / (STROKE_DURATION_MS - whip));
+  return [['Stance', -LEAD_MS], ['Bat up', load], ['Contact', HELICOPTER_CONTACT_MS], ['Whip', whip], ['Up', late(up)], ['Over the top', late(over)],
+    ['Whirl', late(round)], ['Round', late(front)], ['Down', late(down)], ['Home', STROKE_DURATION_MS + HELICOPTER_HOLD_MS]];
+};
+const HELI_NOTE = 'The helicopter, from two net sessions in slow motion and a broadcast clip. No stride: the front foot opens a little to leg where it stands and the weight stays back. The bat goes up very high, nearly upright behind him, by 85 ms; the bottom hand brings it down hard and steep onto a ball at his toes at 170, the hands low by the knee and behind the ball, the toe of the bat ahead of them so the face comes up under it, his back bent over it. Then the bottom hand whips through: the bat swings up in front of him toe first, up past his face with the hands climbing above his forehead, over the top until it lies level behind his head, and on round, level over the helmet, out to the off side and back to point down the pitch, the whirl the stroke is named for, before it comes down in front of him into his guard. From the ball on nothing turns the bat in his hands.';
 const STROKES: Record<string, Stroke> = {
+  heli: {
+    label: 'Helicopter · yorker', shot: 'STRAIGHT', charging: false, single: true, helicopter: true, ball: { x: LINE_X.MIDDLE, y: .19, z: GAME.contactZ + HELICOPTER_MEETS_AT },
+    contact: HELICOPTER_CONTACT_MS, end: STROKE_DURATION_MS + HELICOPTER_HOLD_MS, bounceZ: STYLES.YORKER.bounce!,
+    phases: HELI_PHASES(), out: { speed: .03, angle: THREE.MathUtils.degToRad(-10), climb: .019 },
+    facts: ['yorker, middle stump', `${STROKE_DURATION_MS + HELICOPTER_HOLD_MS} ms`],
+    note: HELI_NOTE + ' Here at a yorker, pitching 30 cm in front of the bat and met 19 cm off the turf.',
+  },
+  heliFull: {
+    label: 'Helicopter · fuller ball', shot: 'STRAIGHT', charging: false, single: true, helicopter: true, ball: { x: LINE_X.LEG, y: FULLER.y, z: GAME.contactZ + HELICOPTER_MEETS_AT },
+    contact: HELICOPTER_CONTACT_MS, end: STROKE_DURATION_MS + HELICOPTER_HOLD_MS, bounceZ: FULLER.bounce,
+    phases: HELI_PHASES(), out: { speed: .03, angle: THREE.MathUtils.degToRad(-18), climb: .019 },
+    facts: ['the new fuller ball, leg stump', `${STROKE_DURATION_MS + HELICOPTER_HOLD_MS} ms`],
+    note: HELI_NOTE + ' Here at the new fuller ball, on leg stump: pitching 2.1 m in front of the bat, where a yorker pitches 30 cm from it and a length ball 7 m, and met on the half-volley at shin height, 35 cm up. The white line on the pitch is where it lands; the faint ones are the yorker and a length.',
+  },
+  fullStraight: {
+    label: 'Fuller ball · straight drive', shot: 'STRAIGHT', charging: false, single: true, ball: { x: LINE_X.MIDDLE, y: FULLER.y, z: GAME.contactZ },
+    contact: STROKE_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: FULLER.bounce,
+    phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Plant', 55], ['Contact', STROKE_CONTACT_MS], ['Through', 220], ['Finish', 410], ['Home', 600]],
+    out: { speed: .024, angle: 0, climb: 0 },
+    facts: ['the new fuller ball, middle stump', `${STROKE_DURATION_MS} ms`],
+    note: 'The new fuller ball met with the game\'s own straight drive, for seeing the length against a stroke already known: it pitches 2.1 m in front of the bat and is met on the half-volley at shin height, lower than a length ball\'s knee height and well above a yorker.',
+  },
   block: {
     label: 'Front-foot defence', shot: 'DEFEND', charging: false, single: true, ball: { x: LINE_X.MIDDLE, y: .54, z: GAME.contactZ + DEFENCE_FRONT_MEETS_AT },
     contact: DEFENCE_FRONT_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: 3.5,
@@ -296,6 +333,14 @@ ball.castShadow = true; world.add(ball);
 const marker = new THREE.Mesh(new THREE.RingGeometry(.05, .062, 32), new THREE.MeshBasicMaterial({ color: 0xff6b5e, side: THREE.DoubleSide, transparent: true, opacity: .9 }));
 world.add(marker);
 
+// Where the ball pitches: this stroke's ball in white, and for the helicopter's two the yorker and a length, faint, to set the new ball against.
+const pitchMark = (colour: number, opacity: number) => {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.1, .05), new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity }));
+  m.rotation.x = -Math.PI / 2; m.position.y = .006; world.add(m); return m;
+};
+const pitched = pitchMark(0xffffff, .95), yorkerMark = pitchMark(0xffb08f, .55), lengthMark = pitchMark(0xffb08f, .55);
+yorkerMark.position.z = STYLES.YORKER.bounce!; lengthMark.position.z = GAME.bounceZ;
+
 /** Where the ball is at time `t` on the stroke's clock, in the rig's frame. */
 function ballAt(t: number): [number, number, number] {
   const at = metAt(), { contact, bounceZ, out } = stroke, dt = t - contact;
@@ -345,6 +390,8 @@ function pose(t: number) {
   }
   ball.position.fromArray(ballAt(t));
   const at = metAt(); marker.position.set(at.x, at.y, at.z);
+  pitched.position.z = stroke.bounceZ; pitched.position.x = at.x;
+  yorkerMark.visible = lengthMark.visible = stroke.bounceZ === FULLER.bounce || !!stroke.helicopter;
   marker.visible = t <= stroke.contact + 140;
   batter.drape();
 }
@@ -355,7 +402,7 @@ const metAt = () => ({ ...stroke.ball, z: stroke.ball.z + (version === 3 && !str
 function start() {
   batter.reset(); batter.prepare(1); batter.update(0);
   const at = metAt();
-  batter.swing(stroke.shot, 0, at.x, at.y, at.z, stroke.charging, !!stroke.lofted, !!stroke.sweeping, false, stroke.pullVersion ?? stroke.flickVersion ?? version, !!stroke.spinCut, !!stroke.spinPull);
+  batter.swing(stroke.shot, 0, at.x, at.y, at.z, stroke.charging, !!stroke.lofted, !!stroke.sweeping, false, stroke.pullVersion ?? stroke.flickVersion ?? version, !!stroke.spinCut, !!stroke.spinPull, !!stroke.helicopter);
   swinging = true;
 }
 
