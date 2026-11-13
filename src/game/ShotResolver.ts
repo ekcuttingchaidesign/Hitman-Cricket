@@ -169,7 +169,9 @@ export function helicopterBall(delivery: Delivery, shot: ShotType, roll: number)
  * line, bowled whipping across one on the stumps, caught off the toe on leg.
  */
 export function helicoptered(outcome: ShotOutcome, delivery: Delivery, rng: { next(): number }): ShotOutcome {
-  const met = { ...outcome, compatibility: 1, madeBatContact: true, helicopter: true };
+  // Anywhere between straight and midwicket, clear of both lines (`HELI.spread`), drawn afresh each ball.
+  const [wide, fine] = HELI.spread;
+  const met = { ...outcome, compatibility: 1, madeBatContact: true, helicopter: true, angle: wide + (fine - wide) * rng.next() };
   const onStumps = Math.abs(delivery.finalTargetX) <= GAME.stumpZone;
   const out: ShotOutcome = onStumps
     ? { ...met, runs: 0, quality: 0, madeBatContact: false, isWicket: true, wicketType: 'BOWLED', feedback: HELI.feedback.bowled }
@@ -567,7 +569,7 @@ let always = false;
 /** `?howout=1`: every wicket that can be one of the two is, for looking at them. Practice. */
 export function alwaysHowOut(on: boolean) { always = on; }
 export function howOut(outcome: ShotOutcome, attempt: Pick<ShotAttempt, 'shotType'> | null, rng: { next(): number }): ShotOutcome {
-  // Not the helicopter's skier, which goes up over midwicket, nowhere near the bowler.
+  // Not the helicopter's skier, which goes up to the leg side, never back to the bowler.
   if (!outcome.isWicket || outcome.wicketType !== 'CAUGHT' || !attempt || outcome.fielder || outcome.steppedOut || outcome.helicopter) return outcome;
   if (attempt.shotType === 'SQUARE_CUT' && outcome.edged && (always || rng.next() >= 1 - CHOP_ON.share))
     return { ...outcome, edged: false, aerial: false, wicketType: 'BOWLED', madeBatContact: true, feedback: CHOP_ON.feedback };

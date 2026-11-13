@@ -68,9 +68,11 @@ export function sectorOf(outcome: ShotOutcome, shot: ShotType | undefined): numb
     : outcome.sweptFlat ? FLAT_SWEEP.angle
     : outcome.advance && shot === 'COVER_LONG_OFF' ? ADVANCE.coverAngle
     : outcome.advance && shot === 'LONG_ON' ? ADVANCE.onAngle
-    : outcome.helicopter ? HELI.angle : outcome.squared ? SQUARE_DRIVE.angle : outcome.punched ? PUNCH.angle : outcome.spinPulled ? SPIN_PULL.angle : SHOT_ANGLES[shot ?? 'STRAIGHT'];
+    : outcome.squared ? SQUARE_DRIVE.angle : outcome.punched ? PUNCH.angle : outcome.spinPulled ? SPIN_PULL.angle : SHOT_ANGLES[shot ?? 'STRAIGHT'];
   // Steered (Super10), the swipe chose the line inside the stroke's arc.
-  return (outcome.angle ?? sector) + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28));
+  const bent = (outcome.angle ?? sector) + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28));
+  // The helicopter never past straight or the midwicket line, whatever the bend: `HELI.spread`.
+  return outcome.helicopter ? Math.max(HELI.spread[0], Math.min(HELI.spread[1], bent)) : bent;
 }
 
 /** Runs to how far a ball that stayed down runs away from the bat. */

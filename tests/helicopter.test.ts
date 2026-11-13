@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { helicopterBall, resolveShot } from '../src/game/ShotResolver';
 import { helicopterVersionOf } from '../src/entities/Batter';
-import { FULLER, GAME, HELI, LINE_X } from '../src/config/gameplay';
+import { FULLER, GAME, HELI, LINE_X, SHOT_ANGLES } from '../src/config/gameplay';
 import type { BallLine, Delivery, DeliveryStyle, TimingGrade } from '../src/game/types';
 import { sectorOf } from '../src/scene/flight';
 import { steer, steerOf } from '../src/game/super10-field';
@@ -41,12 +41,11 @@ describe('which balls are the helicopter', () => {
 });
 
 describe('what a helicopter is worth', () => {
-  it('is six middled and four a shade under, over midwicket', () => {
+  it('is six middled and four a shade under', () => {
     for (const delivery of [ball('YORKER', 'MIDDLE'), ball('FAST', 'LEG', true)]) {
       const six = play(delivery, 'PERFECT'), four = play(delivery, 'GOOD');
       expect([six.runs, six.isWicket, six.helicopter, six.feedback]).toEqual([6, false, true, HELI.feedback.six]);
       expect([four.runs, four.isWicket]).toEqual([4, false]);
-      expect(sectorOf(six, 'STRAIGHT')).toBeCloseTo(HELI.angle, 5);
     }
   });
   it('mistimed, is bowled on the stumps and caught off the toe on leg', () => {
@@ -72,21 +71,31 @@ describe('which version', () => {
 });
 
 describe('where it goes', () => {
-  it('always between long-on and midwicket, whatever the timing', () => {
-    for (const grade of ['PERFECT', 'GOOD'] as const) for (const late of [-1, 1]) {
-      const delivery = ball('YORKER', 'MIDDLE'), outcome = resolveShot(delivery,
-        { shotType: 'STRAIGHT', inputTimeMs: delivery.idealContactTimeMs + late * OFF[grade], helicopter: true }, { next: () => .99 });
-      const line = sectorOf(outcome, 'STRAIGHT');
-      expect(line, `${grade} ${late}`).toBeLessThan(-24);
-      expect(line, `${grade} ${late}`).toBeGreaterThan(-52);
-    }
+  const [wide, fine] = HELI.spread;
+  it('keeps clear of both straight and the midwicket line', () => {
+    expect(fine).toBeLessThanOrEqual(-HELI.clear);
+    expect(wide).toBeGreaterThanOrEqual(SHOT_ANGLES.LEG + HELI.clear);
   });
-  it('in Super10, steered along its own arc from either swipe, never down the ground', () => {
+  it('goes anywhere between them, drawn afresh, and never past either whatever the timing', () => {
+    let least = 0, most = -90;
+    for (const grade of ['PERFECT', 'GOOD'] as const) for (const late of [-1, 0, 1]) for (let roll = 0; roll < 1; roll += .05) {
+      const delivery = ball('YORKER', 'MIDDLE'), outcome = resolveShot(delivery,
+        { shotType: 'STRAIGHT', inputTimeMs: delivery.idealContactTimeMs + late * OFF[grade], helicopter: true }, { next: () => roll });
+      const line = sectorOf(outcome, 'STRAIGHT');
+      expect(line, `${grade} ${late} ${roll}`).toBeGreaterThanOrEqual(wide);
+      expect(line, `${grade} ${late} ${roll}`).toBeLessThanOrEqual(fine);
+      least = Math.min(least, line); most = Math.max(most, line);
+    }
+    // The whole of it, not one line.
+    expect(least).toBeLessThan(wide + 3);
+    expect(most).toBeGreaterThan(fine - 3);
+  });
+  it('in Super10, steered across the same arc from either swipe', () => {
     const six = play(ball('YORKER', 'MIDDLE'), 'PERFECT');
     for (const [shot, swipes] of [['STRAIGHT', [-22, 0, 22]], ['LONG_ON', [-66, -45, -23]]] as const) for (const swipe of swipes) {
-      const lane = steerOf(shot, six)!, { angle } = steer(lane, swipe);
-      expect(angle, `${shot} ${swipe}`).toBeLessThanOrEqual(-24);
-      expect(angle, `${shot} ${swipe}`).toBeGreaterThanOrEqual(-46);
+      const { angle } = steer(steerOf(shot, six)!, swipe);
+      expect(angle, `${shot} ${swipe}`).toBeGreaterThanOrEqual(wide);
+      expect(angle, `${shot} ${swipe}`).toBeLessThanOrEqual(fine);
     }
   });
 });

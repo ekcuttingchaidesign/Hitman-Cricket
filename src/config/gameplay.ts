@@ -264,13 +264,21 @@ export const FULLER = { bounce: 3.4, rise: .72 } as const;
  * The helicopter (`helicopterBall`, `helicoptered` in `ShotResolver.ts`): the
  * straight or on drive's swipe at a pace bowler's yorker, every time, or at
  * the fuller ball on middle or leg, `fullShare` of the time. Middled it is six
- * over midwicket, a shade under four; mistimed it comes down to the line: on
+ * somewhere between straight and midwicket (`spread`), a shade under four; mistimed it comes down to the line: on
  * the stumps he has whipped across it and is bowled, on leg it goes up off the
  * toe and is caught. Held back (OK) he gets a single or two off the toe half
  * the time and is out the other half.
  */
 export const HELI = {
-  angle: -34,
+  /**
+   * Where it goes, in degrees off straight (leg side negative): anywhere
+   * between straight (0) and the midwicket line (`SHOT_ANGLES.LEG`, -52),
+   * kept `clear` of both, drawn afresh each ball (`helicoptered`) and held
+   * inside it whatever the timing's bend (`sectorOf`). In Super10 the swipe
+   * steers it across the same arc (`steerOf`).
+   */
+  spread: [-44, -8] as readonly [number, number],
+  clear: 8,
   fullShare: 1 / 3,
   lines: ['MIDDLE', 'LEG', 'OUTSIDE_LEG'] as readonly BallLine[],
   okOut: .5,
