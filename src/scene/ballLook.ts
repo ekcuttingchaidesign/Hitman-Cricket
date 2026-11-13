@@ -54,50 +54,20 @@ export const CLOSE_FOLLOW = { eye: [0, 3.7, -5.6] as const, lift: 380, drop: 420
  * asks: Classic is the view players know, so it stays as it is until the
  * owner says.
  *
- * It stands where it always does and turns its look `share` of the way after
- * the ball, never more than `yaw` round or `up` up, and never so far that the
- * batter leaves the picture: his bearing stays within `keep` of the picture's
- * half width (`keepInView`). A square cut, a flick to midwicket, would turn it
- * off him and lose the stroke and anything he does after it; held on him, the
- * ball runs off the side sooner, so for those the lens opens a little
- * (`widen` at most, `widenFor`), as a television camera pulls out to hold a
- * batter and a ball both. A ball going behind square (`behind` degrees off
- * straight from him, the scoops, the late cut, a glance) is not turned after
- * at all: the look cannot find it there, only lose him. Nor is a ball that
- * brings a celebration, which is his.
- *
- * The way out is a critically damped spring (`springStep`) at `follow`, the
- * lens with it at `lens`: it starts and stops gently with no overshoot. The
- * way back is a cut, once the ball is dead (its hold over): panned back,
- * first on an ease and then on the spring, the owner saw the same swing
- * either way, and a broadcast cuts. A turn under `cutFrom` eases back on
- * `settle` instead, where a cut would read as a glitch. `keep` holds
- * him a little over half way to the edge: at 0.8 he was nearly in the corner.
+ * The camera stays where it stands and its look turns `share` of the way after
+ * the ball on an ease (`turn`), never more than `yaw` round or `up` up, and
+ * eases back down the pitch on Pro Cam's `BALL_LOOK.back` once the ball is
+ * dead. Nor is a ball that brings a celebration turned after (`letBallGo` in
+ * `GameScene`): turned away after a century's square cut, the camera came back
+ * halfway through it. This is the first build, which the owner kept over every
+ * one tried after it: him held in the picture with the lens opened for a
+ * square ball, a ball behind square left alone, the way out on a spring, and
+ * the way back on a spring and then as a cut, which looked abrupt.
  */
 export const CLASSIC_FOLLOW = {
   share: .6, yaw: 38, up: 22,
-  keep: .6, behind: 105,
-  widen: 1.22,
-  follow: 6, settle: 3.6, lens: 4.5,
-  /** Turned further than this, in degrees, the way back is a cut; nearer, it eases back on `settle`. */
-  cutFrom: 1.5,
+  turn: 300,
 } as const;
-
-/**
- * One step of a critically damped spring at `omega` (radians a second)
- * towards `target`, `dt` milliseconds long: the new place and speed. Taken in
- * steps of a frame at most, so it holds at any frame rate.
- */
-export function springStep(x: number, v: number, target: number, omega: number, dt: number): [number, number] {
-  let left = Math.max(0, dt) / 1000;
-  while (left > 0) {
-    const h = Math.min(left, 1 / 60);
-    const a = omega * omega * (target - x) - 2 * omega * v;
-    v += a * h; x += v * h;
-    left -= h;
-  }
-  return [x, v];
-}
 
 export type ClassicFollow = 'pan';
 
@@ -105,32 +75,6 @@ export type ClassicFollow = 'pan';
 export function readBallLook(search = typeof location === 'undefined' ? '' : location.search): { on: boolean; classic: ClassicFollow | null } {
   const q = new URLSearchParams(search);
   return { on: q.get('camturn') !== '0', classic: q.get('classicfollow') === 'pan' ? 'pan' : null };
-}
-
-/** How far round from straight down the pitch a ball goes from where he hit it, in degrees: 0 straight, 90 square, 180 back past the keeper. */
-export function bearingOf(dx: number, dz: number): number {
-  return Math.abs(Math.atan2(dx, dz)) / rad;
-}
-
-/**
- * A look's yaw held so that a subject at bearing `subject` (radians, the same
- * frame) stays within `keep` of the picture's half width `half` (radians).
- */
-export function keepInView(yaw: number, subject: number, half: number, keep: number = CLASSIC_FOLLOW.keep): number {
-  const most = Math.atan(Math.tan(half) * keep);
-  return clamp(yaw, subject - most, subject + most);
-}
-
-/**
- * How much wider the lens opens, as a share of its height, to bring a ball at
- * `off` radians from the look's line into a picture `half` radians wide each
- * side: 1 for a ball already in it, never past `CLASSIC_FOLLOW.widen`.
- */
-export function widenFor(off: number, half: number, vertical: number): number {
-  const need = Math.tan(Math.min(Math.abs(off), 1.4)) / Math.tan(half);
-  if (need <= 1) return 1;
-  const wider = 2 * Math.atan(Math.tan(vertical / 2) * need) / vertical;
-  return Math.min(CLASSIC_FOLLOW.widen, wider);
 }
 
 /**

@@ -4,8 +4,8 @@
  * replay or catch camera to film over it, under Pro Cam and under Close. Each followed ball is read as it flies —
  * the look turned towards the off side, Close lifted, the hold and the way
  * back, Classic still unless `?classicfollow=pan` asks, and under it a square cut
- * at `?latecut=1`'s ball held on him with the lens opened (`ONLY=classic`
- * for those three alone), and under Pro Cam the bat and gloves out of the way — and photographed into `test-results/ball-look-*.png`; then the look
+ * at `?latecut=1`'s ball turned after part of the way (`ONLY=classic` for
+ * those three alone), and under Pro Cam the bat and gloves out of the way — and photographed into `test-results/ball-look-*.png`; then the look
  * is back down the pitch by the next ball's release.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
@@ -83,11 +83,11 @@ async function run(cam, extra, label, keys = ['w', 'd']) {
   }
   check(!!found, `${label}: a cover drive is followed`);
   if (found) {
-    const yaws = found.map(t => t.yaw), lifts = found.map(t => t.lift), widens = found.map(t => t.widen ?? 1);
-    console.log(`        bearing ${found.find(t => t.followed)?.bearing}°\n        yaw ${yaws.join(' ')}\n        lift ${lifts.join(' ')}\n        widen ${widens.join(' ')}\n        phase ${found.map(t => t.phase?.[0] ?? '-').join('')}`);
+    const yaws = found.map(t => t.yaw), lifts = found.map(t => t.lift);
+    console.log(`        yaw ${yaws.join(' ')}\n        lift ${lifts.join(' ')}\n        phase ${found.map(t => t.phase?.[0] ?? '-').join('')}`);
     const most = Math.max(...yaws.map(Math.abs));
     if (label === 'classic') {
-      check(most === 0 && widens.every(z => z === 1), 'classic: stands still as it always has, unless the link asks');
+      check(most === 0, 'classic: stands still as it always has, unless the link asks');
       check(!errors.length, `${label}: no errors`, errors.join('\n'));
       await page.close();
       return;
@@ -99,16 +99,11 @@ async function run(cam, extra, label, keys = ['w', 'd']) {
     check(Math.abs(atNext.yaw) < 4, `${label}: back down the pitch by the next ball (${atNext.yaw}°)`, JSON.stringify(atNext));
     if (label === 'pro') check(found.some(t => t.phase === 'follow' && t.bat === false), 'pro: the bat and gloves out of the picture while he watches it', found.map(t => t.bat).join(' '));
     if (label === 'close-lift') check(Math.max(...lifts) > .9 && atNext.lift < .1, 'close-lift: lifts up and back, and down again');
-    if (label === 'classic-pan') check(widens.every(z => z === 1), 'classic-pan: a cover drive stays in the picture, the lens as it is');
     if (label.startsWith('classic-')) {
-      // Back to his stance in one cut once the ball is dead, not panned.
-      const first = found.findIndex(t => t.phase === 'back');
-      check(first > 0 && Math.abs(found[first].yaw) <= 1 && Math.abs(found[first - 1].yaw) >= 3, `${label}: cuts straight back to his stance (${found[first - 1]?.yaw}° to ${found[first]?.yaw}°)`);
-    }
-    if (label === 'classic-cut') {
-      // Held on him (`keepInView`): about the picture's half width at most, not the 38° the ball would take it.
-      check(most <= 14, `classic-cut: turned only so far as keeps him in the picture (${most}°)`);
-      check(Math.max(...widens) > 1.05 && atNext.widen < 1.02, `classic-cut: the lens opens for the ball off the side (${Math.max(...widens)}) and closes again (${atNext.widen})`);
+      // Eased back down the pitch, never cut: no frame jumps more than a few degrees.
+      const steps = yaws.slice(1).map((y, i) => Math.abs(y - yaws[i]));
+      check(Math.max(...steps) <= 5, `${label}: eased back, no cut (largest step ${Math.max(...steps)}°)`);
+      check(most <= 38, `${label}: no further round than Classic turns (${most}°)`);
     }
   }
   check(!errors.length, `${label}: no errors`, errors.join('\n'));

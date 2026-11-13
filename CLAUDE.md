@@ -3812,28 +3812,21 @@ Classic going after the ball is being tried, and is off unless the link
 asks (`?classicfollow=pan`, `CLASSIC_FOLLOW`, `classicFollow` in
 `GameScene`): Classic is the view players know. It stands where it always
 does and turns its look `share` of the way after the ball (`partialLook`),
-but never so far that the batter leaves the picture (`keepInView`, his
-bearing within `keep` of its half width): a square cut or a flick to
-midwicket turned the full way lost him and what he did after it. For those
-the ball runs off the side sooner, so the lens opens a little instead
-(`widenFor`, up to `widen`), as a television camera pulls out to hold a
-batter and a ball. The way out is a critically damped spring
-(`springStep`, `classicSpring` in `GameScene`), the lens with it; the way
-back is a cut to his stance once the ball is dead, as a broadcast cuts. It
-was panned back first on a first-order ease, which jerked off from near the
-corner of the picture, and then on the spring with him kept nearer the
-middle (`keep` 0.8 then, 0.6 now), and the owner saw the same swing both
-times and chose the cut. A turn under `cutFrom` eases back instead. A ball behind square (`behind`, `bearingOf`: the scoops,
-the late cut, a glance) is not turned after at all. A ball that brings a
+no further than `yaw` round, on an ease (`turn`), and eases back down the
+pitch on Pro Cam's `back` once the ball is dead. A ball that brings a
 celebration (`milestoneDue`, a `?moments=1` moment) is not gone after under
 any camera (`letBallGo`, from `Game` once the ball is struck): turned away
 after a century's square cut, the camera came back halfway through the
 celebration. And a moment drawn round him (the special stroke's flash, a
 pulled bouncer's) puts Classic back on its line at once and lets that ball
-go, so the doodle stands round him. A zoom in on the ball was tried beside it
-and the owner kept the pan. Not practice. `ONLY=classic` runs the check's
-three Classic cases alone (still, a cover drive panned, a square cut held on
-him with the lens opened).
+go, so the doodle stands round him. That is the first build, which the
+owner kept over every one tried after it, not to be built again: him held
+inside the picture with the lens opened for a square ball, a ball behind
+square left alone, the way out and back on a spring, and the way back as a
+cut, which looked abrupt. A zoom in on the ball was tried too, and the
+owner kept the pan. Not practice. `ONLY=classic` runs the check's three
+Classic cases alone (still, a cover drive and a square cut panned and eased
+back).
 
 Close and Pro Cam are behind him as Classic is, so the swipes, the side
 labels and Super10's map are Classic's under both.
