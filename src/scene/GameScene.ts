@@ -1009,8 +1009,7 @@ export class GameScene {
     this.camera.lookAt(this.lookAfterBall(now, this.liftEye.copy(this.camera.position), this.liftAim.set(...CLOSE_CAM.at), BALL_LOOK.closeTurn));
   }
   /**
-   * Classic, going after the ball, where the link asks for it
-   * (`?classicfollow=pan`, `CLASSIC_FOLLOW`): stood where it always is, the
+   * The Dynamic camera (`CLASSIC_FOLLOW`): Classic's view, stood where it always is, the
    * look turned part of the way after the ball and eased back down the pitch.
    * Never while a moment is drawn round him (`moment`), nor after a ball that
    * brings one (`letBallGo`).
@@ -1029,7 +1028,7 @@ export class GameScene {
   /** What the camera is doing about the ball off the bat, for the checks. */
   get ballLookShown() {
     const yaw = this.lookHeld ? Math.round(Math.atan2(this.lookHeld.x, this.lookHeld.z) / Math.PI * 180) : 0;
-    return { on: this.ballLook.on, classic: this.ballLook.classic, followed: this.ballFollowed, phase: this.lookPhase, yaw, lift: +this.lifted.toFixed(2) };
+    return { on: this.ballLook.on, followed: this.ballFollowed, phase: this.lookPhase, yaw, lift: +this.lifted.toFixed(2) };
   }
   private readonly ballLook = readBallLook();
   private ballFollowed = false;
@@ -1060,8 +1059,8 @@ export class GameScene {
    * the doodle asks where he stands on the screen.
    */
   moment(lasts: number) {
-    if (this.view === 'classic' && this.ballLook.classic) {
-      // Classic going after the ball is put back on its line at once, so the doodle is drawn round him where he stands.
+    if (this.view === 'dynamic') {
+      // Dynamic is put back on its line at once, so the doodle is drawn round him where he stands.
       // And that ball is let go: turning after it once the moment is over would swing the picture round from nowhere.
       this.stillUntil = performance.now() + lasts;
       this.lookHeld = null; this.ballFollowed = false;
@@ -1074,7 +1073,7 @@ export class GameScene {
     this.resize();
   }
   private momentUntil = 0;
-  /** Classic held on its own line until then, for a moment drawn round him. */
+  /** Dynamic held on its own line until then, for a moment drawn round him. */
   private stillUntil = 0;
   private get inMoment() { return this.view === 'pro' && performance.now() < this.momentUntil; }
   /** The camera is his eyes this frame: Pro Cam, with no film and no moment cutting away. */
@@ -2226,7 +2225,7 @@ export class GameScene {
         else if (this.sizedFar) this.sizeBall(1);
         this.sizedFar = far;
       } else if (this.ballLook.on && (this.view === 'close' || this.inMoment)) this.closeFollow(now);
-      else if (this.ballLook.on && this.ballLook.classic && this.view === 'classic' && performance.now() >= this.stillUntil) this.classicFollow(now);
+      else if (this.ballLook.on && this.view === 'dynamic' && performance.now() >= this.stillUntil) this.classicFollow(now);
       else {
         const [x, y] = this.playView.eye;
         this.camera.position.x = x;
@@ -2438,7 +2437,7 @@ export class GameScene {
     // who goes for it must be the one who went for it the first time.
     // And from the classic view under any camera the player watches through, so
     // the field does the same whichever it is.
-    const p = this.world.localToWorld(point.clone()).project(this.cinema || this.view !== 'classic' ? this.judge : this.camera);
+    const p = this.world.localToWorld(point.clone()).project(this.cinema || (this.view !== 'classic' && this.view !== 'dynamic') ? this.judge : this.camera);
     return p.z < 1 && Math.abs(p.x) < .8 && p.y > -.7 && p.y < .55;
   }
   inspectBowler() {

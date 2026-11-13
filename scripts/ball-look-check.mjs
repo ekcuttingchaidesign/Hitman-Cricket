@@ -3,9 +3,9 @@
  * in a real browser: cover drives on the keys at `?cover=1`'s ball, with no
  * replay or catch camera to film over it, under Pro Cam and under Close. Each followed ball is read as it flies —
  * the look turned towards the off side, Close lifted, the hold and the way
- * back, Classic still unless `?classicfollow=pan` asks, and under it a square cut
- * at `?latecut=1`'s ball turned after part of the way (`ONLY=classic` for
- * those three alone), and under Pro Cam the bat and gloves out of the way — and photographed into `test-results/ball-look-*.png`; then the look
+ * back, Classic still, and Dynamic turned after it part of the way, and after a square cut
+ * at `?latecut=1`'s ball (`ONLY=classic` for Classic, `ONLY=dynamic` for
+ * Dynamic's two), and under Pro Cam the bat and gloves out of the way — and photographed into `test-results/ball-look-*.png`; then the look
  * is back down the pitch by the next ball's release.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
@@ -87,23 +87,23 @@ async function run(cam, extra, label, keys = ['w', 'd']) {
     console.log(`        yaw ${yaws.join(' ')}\n        lift ${lifts.join(' ')}\n        phase ${found.map(t => t.phase?.[0] ?? '-').join('')}`);
     const most = Math.max(...yaws.map(Math.abs));
     if (label === 'classic') {
-      check(most === 0, 'classic: stands still as it always has, unless the link asks');
+      check(most === 0, 'classic: stands still as it always has');
       check(!errors.length, `${label}: no errors`, errors.join('\n'));
       await page.close();
       return;
     }
-    // Classic turns part of the way, so a cover drive turns it less than the others.
-    check(most > (label.startsWith('classic') ? 5 : 20), `${label}: the look turns after it (${most}°)`);
+    // Dynamic turns part of the way, so a cover drive turns it less than the others.
+    check(most > (label.startsWith('dynamic') ? 5 : 20), `${label}: the look turns after it (${most}°)`);
     check(found.some(t => t.phase === 'hold') && found.some(t => t.phase === 'back'), `${label}: holds, then comes back`);
     const atNext = found.at(-1);
     check(Math.abs(atNext.yaw) < 4, `${label}: back down the pitch by the next ball (${atNext.yaw}°)`, JSON.stringify(atNext));
     if (label === 'pro') check(found.some(t => t.phase === 'follow' && t.bat === false), 'pro: the bat and gloves out of the picture while he watches it', found.map(t => t.bat).join(' '));
     if (label === 'close-lift') check(Math.max(...lifts) > .9 && atNext.lift < .1, 'close-lift: lifts up and back, and down again');
-    if (label.startsWith('classic-')) {
+    if (label.startsWith('dynamic')) {
       // Eased back down the pitch, never cut: a cut covers the whole turn in a frame, the ease a third of it in a tenth of a second.
       const steps = yaws.slice(1).map((y, i) => Math.abs(y - yaws[i]));
       check(Math.max(...steps) <= most / 2, `${label}: eased back, no cut (largest step ${Math.max(...steps)}° of ${most}°)`);
-      check(most <= 38, `${label}: no further round than Classic turns (${most}°)`);
+      check(most <= 38, `${label}: no further round than Dynamic turns (${most}°)`);
     }
   }
   check(!errors.length, `${label}: no errors`, errors.join('\n'));
@@ -115,8 +115,8 @@ for (const [cam, extra, label, keys] of [
   ['pro', '', 'pro'],
   ['close', '', 'close-lift'],
   ['classic', '', 'classic'],
-  ['classic', '&classicfollow=pan', 'classic-pan'],
-  ['classic', '&classicfollow=pan&latecut=1', 'classic-cut', ['d']],
+  ['dynamic', '', 'dynamic'],
+  ['dynamic', '&latecut=1', 'dynamic-cut', ['d']],
 ]) if (!only || label.startsWith(only)) await run(cam, extra, label, keys);
 await browser.close();
 console.log(failures ? `\n${failures} failed` : '\nall good');

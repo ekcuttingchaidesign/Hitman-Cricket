@@ -2095,7 +2095,7 @@ ${modeSelectMarkup()}
       lit.append(picks);
       const tag = document.createElement('span');
       tag.className = 'cams-pause-tag';
-      tag.innerHTML = 'NEW · 3 CAMS<i></i>';
+      tag.innerHTML = `NEW · ${CAMERAS.length} CAMS<i></i>`;
       lit.append(tag);
     }
     host.replaceChildren(copy);

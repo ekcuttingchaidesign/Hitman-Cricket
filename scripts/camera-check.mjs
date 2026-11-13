@@ -5,7 +5,7 @@
  *    down the screen is the straight drive, out to the left the cut (the
  *    batter's off side, seen from the bowler's end), and the side labels say
  *    so.
- *  - The pause sheet's Camera row, Classic, Close and Pro Cam, turns it at
+ *  - The pause sheet's Camera row, Classic, Close, Pro Cam and Dynamic, turns it at
  *    once and keeps it across a reload; under Pro Cam, his own eyes, only the
  *    gloves and bat are drawn; under Close he is whole; under both the swipes
  *    are Classic's.
@@ -86,7 +86,7 @@ console.log('the Camera row');
 await page.locator('#pause').click({ force: true });
 await page.waitForTimeout(400);
 const row = await page.evaluate(() => [...document.querySelectorAll('#camera-row .camera-pick')].map(b => `${b.textContent}:${b.getAttribute('aria-checked')}`));
-check(row.join(',') === 'Classic:false,Close:false,Pro Cam:false', 'the row offers Classic, Close and Pro Cam, and Broadcast only from the link', row.join(','));
+check(row.join(',') === 'Classic:false,Close:false,Pro Cam:false,Dynamic:false', 'the row offers Classic, Close, Pro Cam and Dynamic, and Broadcast only from the link', row.join(','));
 check(await page.evaluate(() => document.getElementById('pause-sheet').getBoundingClientRect().bottom <= innerHeight), 'all of the sheet on a phone screen');
 check(await page.evaluate(() => [...document.querySelectorAll('#camera-row .camera-pick img')].every(img => img.complete && img.naturalWidth > 0)), "each camera's picture on its key");
 await page.locator('#camera-pro').click();
@@ -109,6 +109,15 @@ await page.waitForTimeout(300);
 check((await snap()).camera === 'close' && (await snap()).firstPerson === false, 'Close: low behind him, and he is drawn whole');
 await page.screenshot({ path: `${shots}/close.png` });
 check(await strokeFor(0, -80) === 'STRAIGHT', 'and under it a swipe up the screen is the straight drive');
+await page.locator('#pause').click({ force: true });
+await page.waitForTimeout(400);
+// The fourth key, scrolled into the row: Classic's picture, turned after the ball (`ball-look-check` follows it).
+await page.locator('#camera-dynamic').click();
+check(await page.evaluate(() => document.getElementById('camera-dynamic').getAttribute('aria-checked')) === 'true', 'Dynamic is on the row, scrolled to and picked');
+await page.locator('#resume').click();
+await page.waitForTimeout(300);
+check((await snap()).camera === 'dynamic' && (await snap()).firstPerson === false, 'Dynamic: he is drawn whole');
+check(await text('side-left') === 'LEG SIDE' && await strokeFor(0, -80) === 'STRAIGHT', 'and the labels and the swipes are the classic way round');
 await page.locator('#pause').click({ force: true });
 await page.waitForTimeout(400);
 await page.locator('#camera-classic').click();

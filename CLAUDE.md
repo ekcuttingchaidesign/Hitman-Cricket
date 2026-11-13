@@ -708,7 +708,8 @@ pace, the second and third already running, `RUN_FROM`) are left alone just
 outside off and flash past, each read once on a glass gauge as it leaves his
 hand, the last readings stepping down into chips; then the pause menu
 itself, copied in from the real `#pause-sheet` with every part dimmed but
-the Camera row, lit in the white outline under NEW · 3 CAMS, FIND IT IN
+the Camera row, lit in the white outline under NEW · 4 CAMS (the row's
+count, `CAMERAS.length`), FIND IT IN
 PAUSE MENU, and the orange GOT IT, where it holds (`holds` on the story).
 The close key is the way out before that. Opened from the board mid-innings,
 or under reduced motion, it opens on that last beat. Never slowed: the speed
@@ -3724,7 +3725,7 @@ Road to Hitman's fill is `roadOf` in `src/game/tier.ts`: the medallions stand
 evenly, so the fill is a whole rung per tier climbed and the share of the gap
 across the last, not a fraction of the top figure.
 
-## The camera row: Classic, Close and Pro Cam
+## The camera row: Classic, Close, Pro Cam and Dynamic
 
 The innings can be watched through more than one camera
 (`src/game/camera.ts`, in `tests/camera.test.ts`), chosen on the pause
@@ -3736,7 +3737,7 @@ in `hitman-camera`. Three fill the row; a fourth and any after it make the
 row scroll sideways with the next one showing at its edge
 (`.camera-picks`, each key at least 96 wide), so a new camera needs only
 its entry in `CAMERAS`, a cut in `camera-thumbs.mjs` and its picture;
-`?cam=classic`, `close`, `pro` or
+`?cam=classic`, `close`, `pro`, `dynamic` or
 `broadcast` asks for one for the visit, and is not practice. GoatCounter
 counts `camera-<id>` for a pick on the row, `innings-cam-<id>` for every
 finished innings by the camera it ended under, and `camera-quit-<id>` for a
@@ -3808,28 +3809,30 @@ from the classic view as ever. `?camturn=0` turns both off; neither switch is
 practice. `snapshot().ballLook` says what it is doing, and
 `scripts/ball-look-check.mjs` drives a cover drive under each.
 
-Classic going after the ball is being tried, and is off unless the link
-asks (`?classicfollow=pan`, `CLASSIC_FOLLOW`, `classicFollow` in
-`GameScene`): Classic is the view players know. It stands where it always
-does and turns its look `share` of the way after the ball (`partialLook`),
-no further than `yaw` round, on an ease (`turn`), and eases back down the
-pitch on Pro Cam's `back` once the ball is dead. A ball that brings a
-celebration (`milestoneDue`, a `?moments=1` moment) is not gone after under
-any camera (`letBallGo`, from `Game` once the ball is struck): turned away
-after a century's square cut, the camera came back halfway through the
-celebration. And a moment drawn round him (the special stroke's flash, a
-pulled bouncer's) puts Classic back on its line at once and lets that ball
-go, so the doodle stands round him. That is the first build, which the
-owner kept over every one tried after it, not to be built again: him held
-inside the picture with the lens opened for a square ball, a ball behind
-square left alone, the way out and back on a spring, and the way back as a
-cut, which looked abrupt. A zoom in on the ball was tried too, and the
-owner kept the pan. Not practice. `ONLY=classic` runs the check's three
-Classic cases alone (still, a cover drive and a square cut panned and eased
-back).
+**Dynamic** (`'dynamic'`, fourth on the row, `classicFollow` in
+`GameScene`, `CLASSIC_FOLLOW`) is Classic's view going after the ball, its
+own camera at the owner's word so Classic stays the view players know. It
+stands where Classic does and turns its look `share` of the way after the
+ball (`partialLook`), no further than `yaw` round, on an ease (`turn`), and
+eases back down the pitch on Pro Cam's `back` once the ball is dead. A ball
+that brings a celebration (`milestoneDue`, a `?moments=1` moment) is not
+gone after under any camera (`letBallGo`, from `Game` once the ball is
+struck): turned away after a century's square cut, the camera came back
+halfway through the celebration. And a moment drawn round him (the special
+stroke's flash, a pulled bouncer's) puts it back on its line at once and
+lets that ball go, so the doodle stands round him. That is the first build,
+which the owner kept over every one tried after it, not to be built again:
+him held inside the picture with the lens opened for a square ball, a ball
+behind square left alone, the way out and back on a spring, and the way
+back as a cut, which looked abrupt. A zoom in on the ball was tried too,
+and the owner kept the pan. It was tried first behind `?classicfollow=pan`
+on Classic, which is gone. Its picture on the row is taken turned after a
+cover drive (`camera-thumbs.mjs`, `ONLY=dynamic`), since at rest it is
+Classic's. `ball-look-check`'s `ONLY=dynamic` runs its two cases (a cover
+drive and a square cut, panned and eased back).
 
-Close and Pro Cam are behind him as Classic is, so the swipes, the side
-labels and Super10's map are Classic's under both.
+Close, Pro Cam and Dynamic are behind him as Classic is, so the swipes, the side
+labels and Super10's map are Classic's under all three.
 
 The doodles are drawn round where the camera has him (`batterOnScreen`) and
 to his size there, held to `MOST_OF_SCREEN` of the screen's height
@@ -3857,9 +3860,9 @@ side watches. A special stroke's push in is scaled to the lens. The walk-on,
 the new batter's arrival and the replays keep their own cameras, landing on
 the classic view and cutting to the one picked. The first innings's
 coachmark lanes are drawn for the classic view: a new player starts on it.
-`scripts/camera-check.mjs` swipes under Broadcast, picks Pro Cam and Close
-on the pause sheet, sees him drawn from his eyes under the one and whole
-under the other, swipes under both, and reads Super10's map.
+`scripts/camera-check.mjs` swipes under Broadcast, picks Pro Cam, Close and Dynamic
+on the pause sheet, sees him drawn from his eyes under Pro Cam and whole
+under the others, swipes under each, and reads Super10's map.
 
 ## The view on a tall screen
 

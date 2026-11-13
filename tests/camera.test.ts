@@ -26,16 +26,20 @@ describe('the camera the innings is watched through', () => {
     expect(facesBatter('pro')).toBe(false);
     expect(facesBatter('close')).toBe(false);
     expect(cameraAsked('?cam=close')).toBe('close');
+    expect(cameraAsked('?cam=dynamic')).toBe('dynamic');
+    expect(facesBatter('dynamic')).toBe(false);
   });
 
-  it('offers Classic, Close and Pro Cam on the row, Broadcast only from the link', () => {
-    expect(CAMERAS.map(c => c.id)).toEqual(['classic', 'close', 'pro']);
+  it('offers Classic, Close, Pro Cam and Dynamic on the row, Broadcast only from the link', () => {
+    expect(CAMERAS.map(c => c.id)).toEqual(['classic', 'close', 'pro', 'dynamic']);
     const store = new Map<string, string>();
     const was = globalThis.localStorage;
     Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v) } });
     try {
       store.set(CAMERA_KEY, 'pro');
       expect(readCamera('')).toBe('pro');
+      store.set(CAMERA_KEY, 'dynamic');
+      expect(readCamera('')).toBe('dynamic');
       // Picked while it was on the row, Broadcast would be stuck on with no key to leave it.
       store.set(CAMERA_KEY, 'broadcast');
       expect(readCamera('')).toBe('classic');

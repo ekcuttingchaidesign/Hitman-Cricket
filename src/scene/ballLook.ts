@@ -50,9 +50,9 @@ export const BALL_LOOK = {
 export const CLOSE_FOLLOW = { eye: [0, 3.7, -5.6] as const, lift: 380, drop: 420 } as const;
 
 /**
- * Classic going after the ball (`?classicfollow=pan`), not on unless the link
- * asks: Classic is the view players know, so it stays as it is until the
- * owner says.
+ * The Dynamic camera (`'dynamic'` in `camera.ts`): Classic's view going after
+ * the ball. Classic is the view players know, so it stays as it is and this is
+ * a camera of its own on the pause sheet's row.
  *
  * The camera stays where it stands and its look turns `share` of the way after
  * the ball on an ease (`turn`), never more than `yaw` round or `up` up, and
@@ -69,12 +69,9 @@ export const CLASSIC_FOLLOW = {
   turn: 300,
 } as const;
 
-export type ClassicFollow = 'pan';
-
-/** What the link asks for: on, unless it says `?camturn=0`; and Classic's follow, only where `?classicfollow=pan` asks. */
-export function readBallLook(search = typeof location === 'undefined' ? '' : location.search): { on: boolean; classic: ClassicFollow | null } {
-  const q = new URLSearchParams(search);
-  return { on: q.get('camturn') !== '0', classic: q.get('classicfollow') === 'pan' ? 'pan' : null };
+/** What the link asks for: on, unless it says `?camturn=0`. */
+export function readBallLook(search = typeof location === 'undefined' ? '' : location.search): { on: boolean } {
+  return { on: new URLSearchParams(search).get('camturn') !== '0' };
 }
 
 /**

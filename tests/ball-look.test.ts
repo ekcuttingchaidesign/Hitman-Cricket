@@ -44,13 +44,6 @@ describe('the camera going after the ball off the bat', () => {
     expect(readBallLook('?camturn=0').on).toBe(false);
   });
 
-  it("asks for Classic's follow only by name on the link", () => {
-    expect(readBallLook('').classic).toBe(null);
-    expect(readBallLook('?classicfollow=pan').classic).toBe('pan');
-    expect(readBallLook('?classicfollow=zoom').classic).toBe(null);
-    expect(readBallLook('?classicfollow=1').classic).toBe(null);
-  });
-
   it('turns Classic only part of the way, and never far round', () => {
     const rest: [number, number, number] = [0, 0, 1];
     const square = deg(partialLook(rest, [1, 0, 0]));

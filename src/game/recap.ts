@@ -4,7 +4,7 @@ import { FREE_BATS, FREE_OUTFITS, isBat, lookOf, type BatId, type GuardId, type 
 import { SUPER10_KIT_IDS, type Super10KitId } from './super10-kits.js';
 
 /** The cameras an innings can be watched through (`src/game/camera.ts`), as the recap takes them from what a browser sends. */
-const CAMERA_IDS = ['classic', 'close', 'pro', 'broadcast'] as const;
+const CAMERA_IDS = ['classic', 'close', 'pro', 'dynamic', 'broadcast'] as const;
 export type RecapCamera = typeof CAMERA_IDS[number];
 /** The camera sent with an innings, or null for anything that is not one. */
 export const cameraOf = (raw: unknown): RecapCamera | null => (CAMERA_IDS as readonly unknown[]).includes(raw) ? raw as RecapCamera : null;
