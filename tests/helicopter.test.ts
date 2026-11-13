@@ -9,6 +9,7 @@ import { helicopterVersionOf } from '../src/entities/Batter';
 import { FULLER, GAME, HELI, LINE_X } from '../src/config/gameplay';
 import type { BallLine, Delivery, DeliveryStyle, TimingGrade } from '../src/game/types';
 import { sectorOf } from '../src/scene/flight';
+import { steer, steerOf } from '../src/game/super10-field';
 
 const ball = (style: DeliveryStyle, line: BallLine, full = false): Delivery => ({
   line, style, speedKph: 145, baseTargetX: LINE_X[line], finalTargetX: LINE_X[line],
@@ -67,5 +68,25 @@ describe('which version', () => {
     let ones = 0;
     for (let n = 0; n < 1000; n++) if (helicopterVersionOf((n + .5) / 1000) === 1) ones++;
     expect(ones).toBe(300);
+  });
+});
+
+describe('where it goes', () => {
+  it('always between long-on and midwicket, whatever the timing', () => {
+    for (const grade of ['PERFECT', 'GOOD'] as const) for (const late of [-1, 1]) {
+      const delivery = ball('YORKER', 'MIDDLE'), outcome = resolveShot(delivery,
+        { shotType: 'STRAIGHT', inputTimeMs: delivery.idealContactTimeMs + late * OFF[grade], helicopter: true }, { next: () => .99 });
+      const line = sectorOf(outcome, 'STRAIGHT');
+      expect(line, `${grade} ${late}`).toBeLessThan(-24);
+      expect(line, `${grade} ${late}`).toBeGreaterThan(-52);
+    }
+  });
+  it('in Super10, steered along its own arc from either swipe, never down the ground', () => {
+    const six = play(ball('YORKER', 'MIDDLE'), 'PERFECT');
+    for (const [shot, swipes] of [['STRAIGHT', [-22, 0, 22]], ['LONG_ON', [-66, -45, -23]]] as const) for (const swipe of swipes) {
+      const lane = steerOf(shot, six)!, { angle } = steer(lane, swipe);
+      expect(angle, `${shot} ${swipe}`).toBeLessThanOrEqual(-24);
+      expect(angle, `${shot} ${swipe}`).toBeGreaterThanOrEqual(-46);
+    }
   });
 });

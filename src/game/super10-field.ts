@@ -434,6 +434,9 @@ const LEG_ZONE = [-165, -67.5] as const;
  */
 export function steerOf(shot: ShotType | undefined, outcome: ShotOutcome, flicked = false): Steer | null {
   if (!shot || outcome.advance || outcome.swept || outcome.scooped) return null;
+  // The helicopter goes between long-on and midwicket whichever of its two swipes played it: steered along its own
+  // arc from the swipe's place in that swipe's zone, never the straight drive's down the ground.
+  if (outcome.helicopter) return { arc: [-46, -24], zone: shot === 'STRAIGHT' ? [-22.5, 22.5] : [-67.5, -22.5] };
   switch (shot) {
     case 'STRAIGHT': return { arc: [-12, 12], zone: [-22.5, 22.5] };
     case 'LONG_ON': return { arc: [-45, -12], zone: [-67.5, -22.5] };

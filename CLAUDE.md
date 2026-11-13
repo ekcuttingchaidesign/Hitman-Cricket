@@ -1368,8 +1368,11 @@ again: the hands up over his head whirling the bat level after the ball, and
 the bat turned up and down the pitch with a stop at the top, which the owner
 saw as a lofted straight drive, a pause and a follow-through.
 
-Scored on its own ladder (`helicoptered`): middled six over midwicket, a shade
-under four; held back a single or two off the toe half the time; otherwise out
+Scored on its own ladder (`helicoptered`): middled six, a shade under four,
+both between long-on and midwicket (`HELI.angle`, 34 degrees to leg, the
+timing bending it at most eight either way; in Super10 steered along its own
+arc, 24 to 46, from either of its swipes, `steerOf`, never the straight
+drive's down the ground, which a straight swipe first sent it along); held back a single or two off the toe half the time; otherwise out
 by the line, bowled whipping across one on the stumps, caught off the toe on
 leg, never turned into caught and bowled. The fuller ball (`FULLER`, `full` on
 the delivery) is pitched about two metres in front of the bat and reaches him
