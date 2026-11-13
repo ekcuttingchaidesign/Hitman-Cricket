@@ -1395,7 +1395,9 @@ and style, so the fuller ball moved no simulation: `super10-sim` read the
 same to the run. `?heli=1` bowls a pace yorker and the fuller ball in turn
 and is practice. `cover-drive.html` has it at both balls (`?stroke=heli`);
 `tests/helicopter.test.ts` holds the rules and `describe('the helicopter')` in
-the batter tests the stroke; `scripts/heli-check.mjs` bats it in a browser.
+the batter tests the stroke; `scripts/heli-check.mjs` bats it in a browser. A helicopter for
+four or six is replayed (`heli` in `REPLAY_STROKES`): it was named nothing
+at first, so it never was.
 
 ## The flick, version two
 
@@ -2619,7 +2621,8 @@ the pull (the hook and the pull off the spinner with it), the square cut (at
 pace or off the spinner), the late cut, the two scoops, the lofted straight
 drive in either version (`straight`), the on drive's six (`on`), the flick
 versions two and three (off the back foot), the back-foot punch (`punch`),
-the orthodox sweep, the slog sweep and the charge — for four or six however
+the helicopter (`heli`, from the bowler's end and low at mid-on, the cut
+to the field once the bat is round and out to the off side), the orthodox sweep, the slog sweep and the charge — for four or six however
 it was timed, short of a miss; the lofted drives and the charge are only
 ever six (`REPLAY_RUNS`). Any other stroke a shade mistimed or off the edge
 that still went for four or six is replayed too (`mistimed`, from above:

@@ -3299,11 +3299,11 @@ export class Game {
     // the pull is the leg-side input neither swept nor flicked, the hook and
     // the pull off the spinner with it; the punch is the cover swipe at a ball
     // short of a length; the flick is versions two and three (off the back
-    // foot). Any other stroke a shade mistimed for four or six is `mistimed`
+    // foot); the helicopter is its own. Any other stroke a shade mistimed for four or six is `mistimed`
     // (`keepForReplay`).
     const stroke: ReplayStroke | null = charging ? 'charge' : sweeping ? 'slog' : levelled ? 'sweep'
       : shotType === 'COVER_LONG_OFF' ? (punching ? 'punch' : 'cover')
-      : helicopter ? null : shotType === 'STRAIGHT' ? (lofted ? 'straight' : null) : shotType === 'LONG_ON' ? (lofted ? 'on' : null)
+      : helicopter ? 'heli' : shotType === 'STRAIGHT' ? (lofted ? 'straight' : null) : shotType === 'LONG_ON' ? (lofted ? 'on' : null)
       : flicking ? (version === 1 ? null : 'flick')
       : shotType === 'HOOK' || spinPulling || shotType === 'LEG' ? 'pull'
       : shotType === 'SQUARE_CUT' ? (cutting ? 'spincut' : 'cut') : shotType === 'LATE_CUT' ? 'latecut'

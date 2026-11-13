@@ -25,7 +25,7 @@ type Vec = readonly [number, number, number];
  * game says with `blocked`.
  */
 export type ReplayStroke = 'cover' | 'pull' | 'cut' | 'spincut' | 'latecut' | 'scoop' | 'reverse'
-  | 'straight' | 'on' | 'flick' | 'sweep' | 'slog' | 'charge' | 'bowled' | 'punch' | 'mistimed';
+  | 'straight' | 'on' | 'flick' | 'sweep' | 'slog' | 'charge' | 'bowled' | 'punch' | 'heli' | 'mistimed';
 /**
  * The strokes worth seeing again: the cover drive, lofted or along the
  * ground; the pull, with the hook and the pull off the spinner; the square
@@ -35,7 +35,7 @@ export type ReplayStroke = 'cover' | 'pull' | 'cut' | 'spincut' | 'latecut' | 's
  * charge, lofted over cover or straight. The drives along the ground down the
  * ground, the punch and the other flicks are not replayed.
  */
-export const REPLAY_STROKES: readonly ReplayStroke[] = ['cover', 'pull', 'cut', 'spincut', 'latecut', 'scoop', 'reverse', 'straight', 'on', 'flick', 'sweep', 'slog', 'charge', 'bowled', 'punch', 'mistimed'];
+export const REPLAY_STROKES: readonly ReplayStroke[] = ['cover', 'pull', 'cut', 'spincut', 'latecut', 'scoop', 'reverse', 'straight', 'on', 'flick', 'sweep', 'slog', 'charge', 'bowled', 'punch', 'heli', 'mistimed'];
 /**
  * Shown every time: the meter's strokes — the scoops, the slog sweep, the
  * charge — whenever they come off, and a batter bowled, from the bowler's
@@ -51,7 +51,7 @@ export const always = (ball: ReplayBall) => ALWAYS.includes(ball.stroke!) || (ba
  * for six alone, a scoop's replay was so rare nobody saw one.
  */
 export const REPLAY_RUNS: Record<ReplayStroke, number> = {
-  cover: 4, pull: 4, cut: 4, spincut: 4, latecut: 4, scoop: 4, reverse: 4, straight: 6, on: 6, flick: 4, sweep: 4, slog: 4, charge: 6, bowled: 0, punch: 4, mistimed: 4,
+  cover: 4, pull: 4, cut: 4, spincut: 4, latecut: 4, scoop: 4, reverse: 4, straight: 6, on: 6, flick: 4, sweep: 4, slog: 4, charge: 6, bowled: 0, punch: 4, heli: 4, mistimed: 4,
 };
 
 /** What the game says about the ball just played. `stroke` is null for one that is not on the list. */
@@ -166,7 +166,9 @@ export const CUT_AFTER = 260;
  */
 export const CUT_AFTERS: Record<ReplayStroke, number> = {
   cover: CUT_AFTER, pull: 320, cut: 380, spincut: 380, latecut: 320, scoop: 300, reverse: 300,
-  straight: 380, on: 400, flick: 300, sweep: 340, slog: 420, charge: 380, bowled: Infinity, punch: 340, mistimed: CUT_AFTER,
+  straight: 380, on: 400, flick: 300, sweep: 340, slog: 420, charge: 380, bowled: Infinity, punch: 340,
+  // The helicopter's whirl is the point: cut once the bat is round and back out to the off side.
+  heli: 480, mistimed: CUT_AFTER,
 };
 export const ARRIVED_MS = 650;
 /** A six is let go sooner once it is over the rope: the camera looks up after it, and there is nothing but sky to hold on. */
@@ -292,6 +294,9 @@ export const STROKE_CAMERAS: Record<ReplayStroke, readonly string[]> = {
   bowled: ['umpire', 'sightscreen'],
   // Through cover off the back foot, so from the off side.
   punch: ['off-side', 'midoff', 'midoff-ground', 'spider-umpire'],
+  // The helicopter from the bowler's end, where the whirl reads (the clip it was built from),
+  // and low at mid-on, where it goes.
+  heli: ['umpire', 'sightscreen', 'midon-ground'],
   // Any other stroke a shade mistimed that went for four or six: from above, wherever it went.
   mistimed: ['spider-umpire', 'spider-legslip', 'midoff'],
   flick: ['leg-side', 'midon-ground', 'spider-umpire'],
