@@ -50,6 +50,8 @@ export interface Delivery {
   dragged?: boolean;
   /** The spinner's ball tossed up, high, slower and dipping: see `FLIGHT`. */
   flighted?: boolean;
+  /** The fuller ball, a half-volley at the shin: see `FULLER`. */
+  full?: boolean;
 }
 export interface ShotAttempt {
   shotType: ShotType; inputTimeMs: number;
@@ -64,6 +66,8 @@ export interface ShotAttempt {
    * scored on its own ladder (`FLICK`) in every mode.
    */
   flicked?: boolean;
+  /** Played as the helicopter (`helicopterBall`): its own ladder, `helicoptered`. */
+  helicopter?: boolean;
   /** Which way the swipe went, degrees off straight up the batter's way round; none off a key. Super10 steers by it. */
   swipe?: number;
 }
@@ -97,6 +101,8 @@ export interface ShotOutcome {
   spinPulled?: boolean;
   /** Hit back to the bowler and held: caught and bowled (`RETURN_CATCH`). */
   returned?: boolean;
+  /** Whipped round with the wrists off a ball at his toes, over midwicket: see `HELI`. */
+  helicopter?: boolean;
   /** Killed under the eyes: it goes nowhere, and it cannot be caught. */
   defended?: boolean;
   /** Feathered off the face of the bat and taken by the keeper. */

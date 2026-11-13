@@ -19,7 +19,7 @@ import { buzz, hapticsWanted, setHaptics } from './game/haptics';
 import { contactOf, type Contact } from './game/contact';
 import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
-import { ADVANCE, CONFIDENCE_FULL, GAME, STYLES, SWIPE_ZONES } from './config/gameplay';
+import { ADVANCE, CONFIDENCE_FULL, FULLER, GAME, STYLES, SWIPE_ZONES } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro, type IntroGame } from './ui/MarathonIntro';
 import { CONFIDENCE_STEP, KEEPER_STEP, SHOTS_STEP, SUPER10_STEPS, fieldIntroDue, howToDue, keeperIntroDue, noteFieldIntro, noteHowTo, noteKeeperIntro, playedBefore } from './ui/ShotsIntro';
@@ -53,9 +53,9 @@ import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
 import { paceVersionOf, spinVersionOf } from './entities/Bowler';
-import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, SPIN_CUT_V2_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, spinCutVersionOf, flickVersionOf, flickBackFoot, FLICK_MEETS_AT, FLICK_V3_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength, WALK_STYLES, type WalkStyle } from './entities/Batter';
+import { COVER_V3_MEETS_AT, HELICOPTER_MEETS_AT, helicopterVersionOf, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, SPIN_CUT_V2_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, spinCutVersionOf, flickVersionOf, flickBackFoot, FLICK_MEETS_AT, FLICK_V3_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength, WALK_STYLES, type WalkStyle } from './entities/Batter';
 import { COUNTED, countStroke, freshTally, strokeMarks } from './game/stroke-tally';
-import { advanceShot, steppedOut, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot, alwaysHowOut } from './game/ShotResolver';
+import { helicopterBall, advanceShot, steppedOut, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot, alwaysHowOut } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './game/types';
 import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
@@ -300,7 +300,7 @@ interface Kept {
   delivery: Delivery;
   swing: {
     shot: ShotType; at: number; charging: boolean; lofted: boolean; sweeping: boolean; levelled: boolean;
-    version: CoverVersion; meets: number; cutting: boolean; spinPulling: boolean; stroke: ReplayStroke | null;
+    version: CoverVersion; meets: number; cutting: boolean; spinPulling: boolean; helicopter?: boolean; stroke: ReplayStroke | null;
   };
   outcome: ShotOutcome;
   /** From release: the swing, the ball resolved, and the bat on it; and from the bat, the ball where it was going. */
@@ -683,6 +683,15 @@ export class Game {
   /** `?cover=1`: every ball the cover drive's, a stock ball pitched up on off stump. */
   private readonly coverDrill = new URLSearchParams(location.search).get('cover') === '1';
   private readonly yorkerDrill = new URLSearchParams(location.search).get('yorkers') === '1';
+  /**
+   * `?heli=1`: every ball a pace yorker or the fuller ball in turn, on off,
+   * middle or leg as it falls, for batting the helicopter over and over
+   * (`helicopterBall`). Practice.
+   */
+  private readonly heliDrill = new URLSearchParams(location.search).get('heli') === '1';
+  /** `?heliv=1` or `2`: always that version of the helicopter (`HelicopterVersion`). Not practice: the stroke scores the same. */
+  private readonly heliAsked = Number(new URLSearchParams(location.search).get('heliv'));
+  private heliBalls = 0;
   /**
    * `?coverv=1`, `2` or `3`: always that version of the cover strokes, for
    * looking at one.
@@ -3227,6 +3236,13 @@ export class Game {
     // well enough to be in position for it, on the grade the mode will pay.
     const spinPulling = !charging && !sweeping && !levelled
       && spinPull(this.delivery!, this.attempt, this.gradeFor(this.delivery!, this.attempt));
+    // The helicopter: the straight or on swipe at a pace yorker, or at the fuller ball on middle or leg some of
+    // the time, off a roll of the seed and the ball of its own (`helicopterBall`). Never in a Test, whose resolver
+    // has no ladder for it, nor in the tutorial.
+    const helicopter = this.lesson < 0 && !this.test && !charging
+      && helicopterBall(this.delivery!, shotType, coverRoll(this.seed ^ 0x4e1c0f7, this.score.balls));
+    if (helicopter) this.attempt = { ...this.attempt, helicopter: true };
+    const loftedNow = lofted && !helicopter;
     this.primed = null;
     // The flick: the leg-side input at a ball below pull height, neither swept
     // nor pulled off the spinner. Its version is its own (`flickVersion`).
@@ -3261,7 +3277,7 @@ export class Game {
     // ball short of a length is and none pitched up is.
     const blocked = shotType === 'DEFEND'
       ? ballPosition(this.delivery!, 1).y > DEFENCE_BACK_HEIGHT ? DEFENCE_BACK_MEETS_AT : DEFENCE_FRONT_MEETS_AT : 0;
-    const ahead = driven && version === 3 ? COVER_V3_MEETS_AT : shotType === 'LONG_ON' && !charging ? ON_DRIVE_MEETS_AT
+    const ahead = helicopter ? HELICOPTER_MEETS_AT : driven && version === 3 ? COVER_V3_MEETS_AT : shotType === 'LONG_ON' && !charging ? ON_DRIVE_MEETS_AT
       : shotType === 'HOOK' ? HOOK_MEETS_AT : pulled ? PULL_MEETS_AT : flicking && version === 2 ? FLICK_MEETS_AT : flicking && version === 3 ? FLICK_V3_MEETS_AT : spinPulling ? SPIN_PULL_MEETS_AT : shotType === 'LATE_CUT' ? LATE_CUT_MEETS_AT : sweeping ? SLOG_MEETS_AT : punching ? PUNCH_MEETS_AT : blocked;
     this.meetsAt = 1 - ahead / (GAME.releaseZ - GAME.contactZ);
     // Versions two and three keep it down: four, never six (`grounded`).
@@ -3272,10 +3288,12 @@ export class Game {
     // At the spinner the cut is played making room for it: see `SPIN_CUT`.
     const cutting = !charging && spinCut(this.delivery!, this.attempt);
     // Its second version is asked of the swing as version 1 (2, the default, is the first build): see `SPIN_CUT_V2`.
-    const swung = cutting ? ((this.spinCutAsked === 1 || this.spinCutAsked === 2 ? this.spinCutAsked : spinCutVersionOf(this.seed, this.score.balls)) === 2 ? 1 : 2) : version;
+    // The helicopter's version is its own, off a roll of its own: see `HelicopterVersion`.
+    const heliVersion = this.heliAsked === 1 || this.heliAsked === 2 ? this.heliAsked : helicopterVersionOf(coverRoll(this.seed ^ 0x6a17c35, this.score.balls));
+    const swung = helicopter ? heliVersion : cutting ? ((this.spinCutAsked === 1 || this.spinCutAsked === 2 ? this.spinCutAsked : spinCutVersionOf(this.seed, this.score.balls)) === 2 ? 1 : 2) : version;
     // Version two lets the ball come and meets it late, beside him.
     if (cutting && swung === 1) this.meetsAt = 1 - SPIN_CUT_V2_MEETS_AT / (GAME.releaseZ - GAME.contactZ);
-    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, swung, this.meetsAt, cutting, spinPulling);
+    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, loftedNow, sweeping, levelled, swung, this.meetsAt, cutting, spinPulling, helicopter);
     // Kept, for a replay of it: everything the scene was told, and when.
     // Which of the strokes a replay shows it is (`REPLAY_STROKES`), if any:
     // the pull is the leg-side input neither swept nor flicked, the hook and
@@ -3285,12 +3303,12 @@ export class Game {
     // (`keepForReplay`).
     const stroke: ReplayStroke | null = charging ? 'charge' : sweeping ? 'slog' : levelled ? 'sweep'
       : shotType === 'COVER_LONG_OFF' ? (punching ? 'punch' : 'cover')
-      : shotType === 'STRAIGHT' ? (lofted ? 'straight' : null) : shotType === 'LONG_ON' ? (lofted ? 'on' : null)
+      : helicopter ? null : shotType === 'STRAIGHT' ? (lofted ? 'straight' : null) : shotType === 'LONG_ON' ? (lofted ? 'on' : null)
       : flicking ? (version === 1 ? null : 'flick')
       : shotType === 'HOOK' || spinPulling || shotType === 'LEG' ? 'pull'
       : shotType === 'SQUARE_CUT' ? (cutting ? 'spincut' : 'cut') : shotType === 'LATE_CUT' ? 'latecut'
       : shotType === 'SCOOP' ? 'scoop' : shotType === 'REVERSE_SCOOP' ? 'reverse' : null;
-    this.keptSwing = { shot: shotType, at: this.elapsed, charging, lofted, sweeping, levelled, version: swung, meets: this.meetsAt, cutting, spinPulling, stroke };
+    this.keptSwing = { shot: shotType, at: this.elapsed, charging, lofted: loftedNow, sweeping, levelled, version: swung, meets: this.meetsAt, cutting, spinPulling, helicopter, stroke };
     this.hud.select(shotType, charging);
     // The charge is judged now rather than when the ball arrives, because the
     // ball is not going to arrive: he is going down the pitch to meet it, and
@@ -4639,8 +4657,12 @@ export class Game {
       && (!this.scene.batterTapping || age >= this.readyMs + TAP_WAIT_MS)) {
       // `?yorkers=1`: every ball a yorker, on off, middle or leg as it falls, for the stumps it uproots. Practice.
       if (this.yorkerDrill && !this.challenge.playing) this.generator.drill('YORKER', (['OFF', 'MIDDLE', 'LEG'] as const)[Math.floor(Math.random() * 3)]);
+      const fuller = this.heliDrill && !this.challenge.playing && this.lesson < 0 && this.heliBalls++ % 2 === 1;
+      if (this.heliDrill && !this.challenge.playing) this.generator.drill(fuller ? 'FAST' : 'YORKER', (['OFF', 'MIDDLE', 'LEG'] as const)[Math.floor(Math.random() * 3)]);
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
         : this.chargeable(this.generator.next(this.elapsed + GAME.runupMs));
+      // The fuller ball: a quick one pitched up to a half-volley at the shin (`FULLER`).
+      if (fuller) this.delivery = { ...this.delivery, bounceZ: FULLER.bounce, rise: FULLER.rise, full: true };
       this.lightDay();
       this.attempt = null; this.outcome = null; this.bounced = false; this.specials = []; this.primed = null; this.chargeBall = false; this.meetsAt = 1;
       this.kept = null; this.keptSwing = null;
@@ -5280,7 +5302,7 @@ export class Game {
       const swing = kept.swing;
       if (!replay.swung && since >= kept.swingAfter) {
         replay.swung = true;
-        this.scene.swing(swing.shot, this.elapsed, delivery, swing.charging, swing.lofted, swing.sweeping, swing.levelled, swing.version, swing.meets, swing.cutting, swing.spinPulling);
+        this.scene.swing(swing.shot, this.elapsed, delivery, swing.charging, swing.lofted, swing.sweeping, swing.levelled, swing.version, swing.meets, swing.cutting, swing.spinPulling, swing.helicopter);
       }
       if (since >= kept.resolveAfter) { this.scene.hit(kept.outcome, swing.shot, delivery, this.elapsed); replay.struck = true; replay.to = this.scene.struckTo()?.to ?? null; }
     }
@@ -7410,7 +7432,7 @@ export class Game {
       kept: this.kept ? { stroke: this.kept.swing.stroke, runs: this.kept.outcome.runs, dropped: !!this.kept.outcome.dropped } : null, replayLog: { ...this.replayLog }, changed: this.changed, milestone: !!this.milestoneDue,
       replay: this.replay ? { stroke: this.replay.kept.swing.stroke, angle: this.replay.angle.id, at: this.replay.start === null ? null : Math.round(this.elapsed - this.replay.start), struck: this.replay.struck, ending: this.replay.ending !== null } : null,
       replays: this.replayLog.shown, balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
-      line: this.delivery?.line ?? '—', dragged: !!this.delivery?.dragged, flighted: !!this.delivery?.flighted, spinPulled: !!this.outcome?.spinPulled, spinPulls: this.spinPulls, hooks: this.hooks, effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
+      line: this.delivery?.line ?? '—', dragged: !!this.delivery?.dragged, flighted: !!this.delivery?.flighted, full: !!this.delivery?.full, heli: this.outcome?.helicopter ? { runs: this.outcome.runs, out: this.outcome.isWicket } : null, spinPulled: !!this.outcome?.spinPulled, spinPulls: this.spinPulls, hooks: this.hooks, effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
       baseX: this.delivery?.baseTargetX.toFixed(3) ?? '—', finalX: this.delivery?.finalTargetX.toFixed(3) ?? '—',
       contactAt: Math.round(this.delivery?.idealContactTimeMs ?? 0), timingDelta: this.outcome?.timingDeltaMs?.toFixed(0) ?? '—', timingGrade: this.outcome?.timingGrade ?? '—',
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',

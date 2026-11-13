@@ -254,6 +254,42 @@ export const GROUND_RUNS = [[1, 0.45], [2, 0.35], [3, 0.20]] as const;
 // still going the other way.
 // The late cut goes finer than the cut, along the ground past the slips to
 // third man: run down off the open face rather than struck.
+/**
+ * The fuller ball: pitched between the yorker and a length, about two metres
+ * in front of the bat, a half-volley that reaches him at the shin. Every fast
+ * bowler bowls it, the seamer, the swing bowler, the sling bowler and the
+ * death bowler, `perOver` an over in every mode: its place in the over is
+ * drawn off a stream of its own (`salt`), so no other ball moved when it
+ * came, and it is one of his ordinary balls (`styles`) pitched up, never a
+ * yorker, a bouncer or a slower ball: a place that falls on one of those is
+ * let go for that over. `?heli=1` bowls it every other ball.
+ */
+export const FULLER = { bounce: 3.4, rise: .72, perOver: 1, salt: 0x66756c6c,
+  styles: ['NORMAL', 'FAST', 'EXPRESS', 'SWING_IN', 'SWING_OUT', 'REVERSE_IN', 'REVERSE_OUT'] as readonly DeliveryStyle[] } as const;
+/**
+ * The helicopter (`helicopterBall`, `helicoptered` in `ShotResolver.ts`): the
+ * straight or on drive's swipe at a pace bowler's yorker, every time, or at
+ * the fuller ball on middle or leg, `fullShare` of the time. Middled it is six
+ * somewhere between straight and midwicket (`spread`), a shade under four; mistimed it comes down to the line: on
+ * the stumps he has whipped across it and is bowled, on leg it goes up off the
+ * toe and is caught. Held back (OK) he gets a single or two off the toe half
+ * the time and is out the other half.
+ */
+export const HELI = {
+  /**
+   * Where it goes, in degrees off straight (leg side negative): anywhere
+   * between straight (0) and the midwicket line (`SHOT_ANGLES.LEG`, -52),
+   * kept `clear` of both, drawn afresh each ball (`helicoptered`) and held
+   * inside it whatever the timing's bend (`sectorOf`). In Super10 the swipe
+   * steers it across the same arc (`steerOf`).
+   */
+  spread: [-44, -8] as readonly [number, number],
+  clear: 8,
+  fullShare: 1 / 3,
+  lines: ['MIDDLE', 'LEG', 'OUTSIDE_LEG'] as readonly BallLine[],
+  okOut: .5,
+  feedback: { six: 'HELICOPTER — SIX!', four: 'HELICOPTER · FOUR', bowled: 'WHIPPED ACROSS IT — BOWLED!', caught: 'OFF THE TOE — CAUGHT!', toe: 'OFF THE TOE' },
+} as const;
 export const SHOT_ANGLES: Record<ShotType, number> = { LEG: -52, LONG_ON: -24, STRAIGHT: 0, COVER_LONG_OFF: 24, SQUARE_CUT: 100, DEFEND: 0, SCOOP: -150, REVERSE_SCOOP: 150, HOOK: -112, LATE_CUT: 138 };
 /**
  * The scoop and the reverse scoop: the third pair of special strokes, and the

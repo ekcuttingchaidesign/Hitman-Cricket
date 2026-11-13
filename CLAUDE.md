@@ -1113,6 +1113,8 @@ the spinner's and all but the arm ball dropped short, for the pull off him),
 `?flight=1` (every ball the spinner's and all but the arm ball tossed up),
 `?flightlen=4` (the tossed-up ball pitched that many metres from the
 batter's end),
+`?heli=1` (every ball a pace yorker or the fuller ball in turn, and the
+helicopter off the straight and on swipes at them),
 `?latecut=1` (every ball
 pace outside off, for the late cut), `?yorkers=1` (every ball a yorker,
 for the stump it uproots), `?cover=1`
@@ -1333,6 +1335,67 @@ at his hip, and stopped with the bat upright beside his shoulder.
 
 They are `pull` and `pullV1` in the batter tests' `PLAYS`, and
 `cover-drive.html` has both.
+
+## The helicopter
+
+The straight or on drive's swipe at a pace bowler's yorker, and at the fuller
+ball on middle or leg a third of the time (`helicopterBall` in
+`ShotResolver.ts`, `HELI` in `gameplay.ts`), plays the helicopter
+(`helicopterTurn`, `helicopterBat`, `HELICOPTER` in `Batter.ts`), built from
+a net session filmed in slow motion from the bowler's end, read frame by
+frame. It is one turn of the wrists, about one and a half times round, in one
+rhythm: seen from the bowler the toe goes out to the off side, whips down onto
+a ball at his toes with the bat straight up and down, round to the leg side at
+thigh height, up in front of his face, out to the off again and down until it
+hangs. Fastest into the ball and through it, then slowing evenly with no stop;
+the circle leans, its off side back towards the keeper and its leg side
+forward, so the face leads through the ball forward and to leg. The bat's
+angle is a function of the clock and the hands and body are keyed round it,
+the hands low all the way. It comes in two versions, three in ten
+and seven in ten (`HelicopterVersion`, `HELICOPTER_ODDS`,
+`helicopterVersionOf` off the seed and the ball), the
+same bat with his legs opened by two amounts (`helicopterOpen`,
+`HELICOPTER_OPEN`): both draw the front foot back out to leg and turn both
+feet and his hips towards the bowler, version one's feet about 22cm apart
+across the crease at the ball, and version two goes on to a wide base, the
+front foot well out to leg and the back foot a little out to off, 39cm apart,
+the hips a little lower on it. The owner froze version two on 13 November
+2026; version one is the stance version two had before it was widened, and
+the first stance, his legs as in his guard, is gone. The hands and the bat's
+turn are the same in both to the millimetre, and they score the same, so
+`?heliv=1` or `2` asks for one and is not practice. Two builds were wrong and are not to be built
+again: the hands up over his head whirling the bat level after the ball, and
+the bat turned up and down the pitch with a stop at the top, which the owner
+saw as a lofted straight drive, a pause and a follow-through.
+
+Scored on its own ladder (`helicoptered`): middled six, a shade under four,
+anywhere between straight and the midwicket line and clear of both by eight
+degrees (`HELI.spread`, 8 to 44 degrees to leg), drawn afresh each ball and
+held inside it whatever the timing's bend (`sectorOf`); in Super10 the swipe
+steers it across the same arc from either of its swipes (`steerOf`), never
+the straight drive's down the ground, which a straight swipe first sent it
+along;
+held back a single or two off the toe half the time; otherwise out
+by the line, bowled whipping across one on the stumps, caught off the toe on
+leg, never turned into caught and bowled. It is played in the Blast, Super10
+and a Rival Match in either, at every pace bowler's yorker and fuller ball;
+not in a Test, whose resolver has no ladder for it, nor the tutorial.
+
+The fuller ball (`FULLER`, `full` on the delivery) is pitched about two
+metres in front of the bat and reaches him at the shin. Every fast bowler
+bowls it in every mode, the seamer, the swing bowler, the sling bowler and
+the death bowler, one an over (`FULLER.perOver`, a plan's `fuller`): its
+place in the over is drawn off a stream of its own (`fullers`, `FULLER.salt`),
+so no other ball of any innings moved when it came, and it is one of his
+ordinary balls pitched up (`FULLER.styles`), never a yorker, a bouncer or a
+slower ball: a place that falls on one of those, or on the spinner, is let go
+that over, so about every other over has one. `tests/fuller.test.ts` holds
+all of it, the moved balls too. The game scores a ball off its line, pace
+and style, so the fuller ball moved no simulation: `super10-sim` read the
+same to the run. `?heli=1` bowls a pace yorker and the fuller ball in turn
+and is practice. `cover-drive.html` has it at both balls (`?stroke=heli`);
+`tests/helicopter.test.ts` holds the rules and `describe('the helicopter')` in
+the batter tests the stroke; `scripts/heli-check.mjs` bats it in a browser.
 
 ## The flick, version two
 

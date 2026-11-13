@@ -1,4 +1,4 @@
-import { ADVANCE, FLAT_SWEEP, GAME, PUNCH, SHOT_ANGLES, SPIN_PULL, SQUARE_DRIVE, SWEEP } from '../config/gameplay.js';
+import { ADVANCE, FLAT_SWEEP, GAME, HELI, PUNCH, SHOT_ANGLES, SPIN_PULL, SQUARE_DRIVE, SWEEP } from '../config/gameplay.js';
 import type { ShotOutcome, ShotType } from '../game/types.js';
 import { SPILL_ROLL_MS } from '../game/catch-cam.js';
 
@@ -70,7 +70,9 @@ export function sectorOf(outcome: ShotOutcome, shot: ShotType | undefined): numb
     : outcome.advance && shot === 'LONG_ON' ? ADVANCE.onAngle
     : outcome.squared ? SQUARE_DRIVE.angle : outcome.punched ? PUNCH.angle : outcome.spinPulled ? SPIN_PULL.angle : SHOT_ANGLES[shot ?? 'STRAIGHT'];
   // Steered (Super10), the swipe chose the line inside the stroke's arc.
-  return (outcome.angle ?? sector) + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28));
+  const bent = (outcome.angle ?? sector) + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28));
+  // The helicopter never past straight or the midwicket line, whatever the bend: `HELI.spread`.
+  return outcome.helicopter ? Math.max(HELI.spread[0], Math.min(HELI.spread[1], bent)) : bent;
 }
 
 /** Runs to how far a ball that stayed down runs away from the bat. */
