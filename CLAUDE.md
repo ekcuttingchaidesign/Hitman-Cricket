@@ -1377,12 +1377,23 @@ the straight drive's down the ground, which a straight swipe first sent it
 along;
 held back a single or two off the toe half the time; otherwise out
 by the line, bowled whipping across one on the stumps, caught off the toe on
-leg, never turned into caught and bowled. The fuller ball (`FULLER`, `full` on
-the delivery) is pitched about two metres in front of the bat and reaches him
-at the shin. Both are only on `?heli=1` so far, which bowls a pace yorker and
-the fuller ball in turn and is practice; nothing else bowls the fuller ball and
-a real yorker is still played as it was. Not in a Test, whose resolver has no
-ladder for it. `cover-drive.html` has it at both balls (`?stroke=heli`);
+leg, never turned into caught and bowled. It is played in the Blast, Super10
+and a Rival Match in either, at every pace bowler's yorker and fuller ball;
+not in a Test, whose resolver has no ladder for it, nor the tutorial.
+
+The fuller ball (`FULLER`, `full` on the delivery) is pitched about two
+metres in front of the bat and reaches him at the shin. Every fast bowler
+bowls it in every mode, the seamer, the swing bowler, the sling bowler and
+the death bowler, one an over (`FULLER.perOver`, a plan's `fuller`): its
+place in the over is drawn off a stream of its own (`fullers`, `FULLER.salt`),
+so no other ball of any innings moved when it came, and it is one of his
+ordinary balls pitched up (`FULLER.styles`), never a yorker, a bouncer or a
+slower ball: a place that falls on one of those, or on the spinner, is let go
+that over, so about every other over has one. `tests/fuller.test.ts` holds
+all of it, the moved balls too. The game scores a ball off its line, pace
+and style, so the fuller ball moved no simulation: `super10-sim` read the
+same to the run. `?heli=1` bowls a pace yorker and the fuller ball in turn
+and is practice. `cover-drive.html` has it at both balls (`?stroke=heli`);
 `tests/helicopter.test.ts` holds the rules and `describe('the helicopter')` in
 the batter tests the stroke; `scripts/heli-check.mjs` bats it in a browser.
 

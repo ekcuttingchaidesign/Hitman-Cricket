@@ -1,4 +1,4 @@
-import { CLASSIC_SPIN, DRAGGED, FLIGHT, GAME, LINES, LINE_X, QUICK_STYLES, SPECIALS, STYLES } from '../config/gameplay';
+import { CLASSIC_SPIN, DRAGGED, FLIGHT, FULLER, GAME, LINES, LINE_X, QUICK_STYLES, SPECIALS, STYLES } from '../config/gameplay';
 import {
   BOUNCERS, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES as SURVIVE_STYLES, SURVIVE,
 } from '../config/survive';
@@ -36,6 +36,8 @@ export interface BowlingPlan {
   aimed?: boolean;
   /** The spinner's spell, if this mode has one. See `SpinSpell`. */
   spin?: SpinSpell;
+  /** How many of each fast bowler's balls an over are the fuller ball; `FULLER.perOver` when not said. */
+  fuller?: number;
   /**
    * The short-pitched plan, when the mode bowls to one. Placed rather than
    * rolled for — see `ShortPlan` — and the two are mutually exclusive: a mode
@@ -494,6 +496,9 @@ export class DeliveryGenerator {
   /** And whether the one being chosen is pitched at `FLIGHT.fuller`, the coin off `flights`. */
   private flightFull = false;
   private readonly flights: SeededRandom;
+  /** Where in each over the fast bowler pitches one up (`FULLER`), off a stream of its own. */
+  private readonly fullers: SeededRandom;
+  private fullerBalls = new Set<number>();
   /** Which balls of the over now in progress are short. Drawn at its top. */
   private shortBalls = new Set<number>();
   /** The over those were drawn for, so they are drawn once and not per ball. */
@@ -528,6 +533,7 @@ export class DeliveryGenerator {
     // from the seed it would have moved every ball bowled after it.
     this.drags = rng.fork(DRAGGED.salt);
     this.flights = rng.fork(FLIGHT.salt);
+    this.fullers = rng.fork(FULLER.salt);
     const blocks = plan.blocks;
     if (blocks) {
       // Every block now rather than each as it comes, so the draw sits at the
@@ -795,9 +801,18 @@ export class DeliveryGenerator {
   }
   next(releaseTimeMs: number): Delivery {
     if (!this.bag.length) this.bag = this.rng.shuffle(LINES);
+    // The fuller ball's place in the over, drawn at the top of it off `fullers` whoever is bowling, so the stream
+    // moves the same way every over and nothing else is touched.
+    const perOver = this.plan.spin?.ballsPerOver ?? GAME.ballsPerOver, ballInOver = this.bowled % perOver;
+    if (ballInOver === 0) {
+      const places = []; for (let ball = 0; ball < perOver; ball++) places.push(ball);
+      this.fullerBalls = new Set(this.fullers.shuffle(places).slice(0, this.plan.fuller ?? FULLER.perOver));
+    }
     const style = this.drilled?.style ?? this.chooseStyle();
     const spell = this.plan.spin;
     const turning = !!spell && TURNING.includes(style);
+    // One of his ordinary balls pitched up to the shin: see `FULLER`.
+    const full = !this.drilled && !turning && this.fullerBalls.has(ballInOver) && FULLER.styles.includes(style);
     const dragged = !this.drilled && turning && this.dragging;
     const flighted = !this.drilled && turning && this.flighting;
     const sign = style === 'SWING_IN' || style === 'OFF_SPIN' || style === 'REVERSE_IN' ? -1
@@ -858,13 +873,14 @@ export class DeliveryGenerator {
     const durationMs = (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * bowled.travelScale * (shape.rush ?? 1);
     this.bowled++;
     return { line, style, speedKph, baseTargetX: LINE_X[line], finalTargetX,
-      bounceZ: dragged ? DRAGGED.bounce : flighted ? spell?.flightBounce ?? (this.flightFull ? FLIGHT.fuller : FLIGHT.bounce) : shape.bounce ?? GAME.bounceZ, rise: dragged ? DRAGGED.rise : shape.rise ?? GAME.rise,
+      bounceZ: full ? FULLER.bounce : dragged ? DRAGGED.bounce : flighted ? spell?.flightBounce ?? (this.flightFull ? FLIGHT.fuller : FLIGHT.bounce) : shape.bounce ?? GAME.bounceZ, rise: full ? FULLER.rise : dragged ? DRAGGED.rise : shape.rise ?? GAME.rise,
       durationMs, releaseTimeMs, idealContactTimeMs: releaseTimeMs + durationMs,
       ...(swung && level!.late ? { late: level!.late } : {}),
       ...(express ? { express: true } : {}),
       ...(death ? { death: true } : {}),
       ...(round ? { round: true } : {}),
       ...(dragged ? { dragged: true } : {}),
-      ...(flighted ? { flighted: true } : {}) };
+      ...(flighted ? { flighted: true } : {}),
+      ...(full ? { full: true } : {}) };
   }
 }

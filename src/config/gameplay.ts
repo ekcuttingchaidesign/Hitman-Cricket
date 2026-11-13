@@ -256,10 +256,16 @@ export const GROUND_RUNS = [[1, 0.45], [2, 0.35], [3, 0.20]] as const;
 // third man: run down off the open face rather than struck.
 /**
  * The fuller ball: pitched between the yorker and a length, about two metres
- * in front of the bat, a half-volley that reaches him at the shin. Proposed
- * for the fast bowlers and so far bowled only by `?heli=1`.
+ * in front of the bat, a half-volley that reaches him at the shin. Every fast
+ * bowler bowls it, the seamer, the swing bowler, the sling bowler and the
+ * death bowler, `perOver` an over in every mode: its place in the over is
+ * drawn off a stream of its own (`salt`), so no other ball moved when it
+ * came, and it is one of his ordinary balls (`styles`) pitched up, never a
+ * yorker, a bouncer or a slower ball: a place that falls on one of those is
+ * let go for that over. `?heli=1` bowls it every other ball.
  */
-export const FULLER = { bounce: 3.4, rise: .72 } as const;
+export const FULLER = { bounce: 3.4, rise: .72, perOver: 1, salt: 0x66756c6c,
+  styles: ['NORMAL', 'FAST', 'EXPRESS', 'SWING_IN', 'SWING_OUT', 'REVERSE_IN', 'REVERSE_OUT'] as readonly DeliveryStyle[] } as const;
 /**
  * The helicopter (`helicopterBall`, `helicoptered` in `ShotResolver.ts`): the
  * straight or on drive's swipe at a pace bowler's yorker, every time, or at

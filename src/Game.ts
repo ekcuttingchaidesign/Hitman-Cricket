@@ -685,9 +685,8 @@ export class Game {
   private readonly yorkerDrill = new URLSearchParams(location.search).get('yorkers') === '1';
   /**
    * `?heli=1`: every ball a pace yorker or the fuller ball in turn, on off,
-   * middle or leg as it falls, and the helicopter off the straight and on
-   * swipes at them (`helicopterBall`). Practice; only there for now, while
-   * the stroke and the fuller ball are being looked at.
+   * middle or leg as it falls, for batting the helicopter over and over
+   * (`helicopterBall`). Practice.
    */
   private readonly heliDrill = new URLSearchParams(location.search).get('heli') === '1';
   /** `?heliv=1` or `2`: always that version of the helicopter (`HelicopterVersion`). Not practice: the stroke scores the same. */
@@ -3237,10 +3236,10 @@ export class Game {
     // well enough to be in position for it, on the grade the mode will pay.
     const spinPulling = !charging && !sweeping && !levelled
       && spinPull(this.delivery!, this.attempt, this.gradeFor(this.delivery!, this.attempt));
-    // The helicopter: the straight or on swipe at a yorker, or at the fuller ball on middle or leg some of the
-    // time, off a roll of the seed and the ball of its own (`helicopterBall`). Only under `?heli=1` for now, and never
-    // in a Test, whose resolver has no ladder for it.
-    const helicopter = this.heliDrill && !this.test && !charging
+    // The helicopter: the straight or on swipe at a pace yorker, or at the fuller ball on middle or leg some of
+    // the time, off a roll of the seed and the ball of its own (`helicopterBall`). Never in a Test, whose resolver
+    // has no ladder for it, nor in the tutorial.
+    const helicopter = this.lesson < 0 && !this.test && !charging
       && helicopterBall(this.delivery!, shotType, coverRoll(this.seed ^ 0x4e1c0f7, this.score.balls));
     if (helicopter) this.attempt = { ...this.attempt, helicopter: true };
     const loftedNow = lofted && !helicopter;
