@@ -3718,6 +3718,8 @@ describe('the helicopter', () => {
         // From the ball to the end of the turn, the front foot out to leg and back, and the hips turned towards the bowler.
         if (time >= HELICOPTER_CONTACT_MS && time <= HELICOPTER_CLOCK.ends) {
           expect(q.frontFoot[0], `${one} ${x} @${time}`).toBeLessThan(p.frontFoot[0] - .12);
+          // A wide base: the feet further apart across the crease than version one's.
+          expect(q.backFoot[0] - q.frontFoot[0], `${one} ${x} @${time}`).toBeGreaterThan(p.backFoot[0] - p.frontFoot[0] + .25);
           expect(q.frontFoot[2], `${one} ${x} @${time}`).toBeLessThan(p.frontFoot[2] - .07);
           expect(q.yaw, `${one} ${x} @${time}`).toBeLessThan(p.yaw - .15);
         }

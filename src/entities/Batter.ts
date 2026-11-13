@@ -2119,20 +2119,21 @@ const FLICK_V3: Stroke & { load: Pose; lift: Pose; across: Pose } = {
  * The helicopter's two versions, the same bat on the same clock: one stands
  * as he was (`HELICOPTER_BODY`), two opens his legs (`helicopterOpen`), the
  * front foot drawn back out to leg and both feet turned towards the bowler,
- * the hips going with them. Only his legs and hips: the hands' path and the
+ * the hips going with them, on a wide base. Only his legs and hips: the hands' path and the
  * bat's turn are the same to the millimetre.
  */
 export type HelicopterVersion = 1 | 2;
 /** Half each, off the seed and the ball. Both are the same stroke and score the same. */
 export function helicopterVersionOf(roll: number): HelicopterVersion { return roll < .5 ? 1 : 2; }
-/** How far version two opens him: the front foot out to leg and back, the feet and hips turned to the bowler. */
-const HELICOPTER_OPEN = { front: [-.15, 0, -.10] as Point, frontYaw: -.38, backYaw: .95, yaw: -.20, hip: -.05, chest: -.03 } as const;
+/** How far version two opens him: the front foot well out to leg and back, the back foot a little out to off so the base is wide, the hips sunk a little lower on it, the feet and hips turned to the bowler. */
+const HELICOPTER_OPEN = { front: [-.26, 0, -.10] as Point, back: [.06, 0, -.02] as Point, frontYaw: -.38, backYaw: .95, yaw: -.20, hip: -.05, sink: -.03, chest: -.03 } as const;
 /** A key of the helicopter with his legs opened, as version two stands: see `HELICOPTER_OPEN`. */
 function helicopterOpen(pose: Pose): Pose {
-  const { front, frontYaw, backYaw, yaw, hip, chest } = HELICOPTER_OPEN;
+  const { front, back, frontYaw, backYaw, yaw, hip, sink, chest } = HELICOPTER_OPEN;
   return { ...pose, frontFoot: [pose.frontFoot[0] + front[0], pose.frontFoot[1], pose.frontFoot[2] + front[2]],
+    backFoot: [pose.backFoot[0] + back[0], pose.backFoot[1], pose.backFoot[2] + back[2]],
     frontFootYaw: (pose.frontFootYaw ?? pose.yaw * .77) + frontYaw, backFootYaw: backYaw, yaw: pose.yaw + yaw,
-    hip: [pose.hip[0] + hip, pose.hip[1], pose.hip[2]], chest: [pose.chest[0] + chest, pose.chest[1], pose.chest[2]] };
+    hip: [pose.hip[0] + hip, pose.hip[1] + sink, pose.hip[2]], chest: [pose.chest[0] + chest, pose.chest[1] + sink, pose.chest[2]] };
 }
 export const HELICOPTER_CONTACT_MS = 175;
 /** Met at his toes, beside the front foot: no further down the pitch than the crease's own contact. */

@@ -85,7 +85,7 @@ const STROKES: Record<string, Stroke> = {
     contact: HELICOPTER_CONTACT_MS, end: STROKE_DURATION_MS + HELICOPTER_HOLD_MS, bounceZ: STYLES.YORKER.bounce!,
     phases: HELI_PHASES(), out: { speed: .03, angle: THREE.MathUtils.degToRad(-40), climb: .019 },
     facts: ['yorker, middle stump', `${STROKE_DURATION_MS + HELICOPTER_HOLD_MS} ms`],
-    note: 'Version two, played half the time: the same helicopter with his legs opened. As his hands drop the front foot is drawn back out towards leg and both feet turn towards the bowler, his hips going with them, so he stands more open to the ball. The hands\' path and the bat\'s turn are the same as version one\'s to the millimetre, and it scores the same. ' + HELI_NOTE,
+    note: 'Version two, played half the time: the same helicopter with his legs opened wide. As his hands drop the front foot is drawn well back out towards leg and the back foot goes a little out to off, so at the ball his feet are 39 cm apart across the crease where version one\'s are 7; both feet turn towards the bowler and his hips go with them, a little lower on the wide base. The hands\' path and the bat\'s turn are the same as version one\'s to the millimetre, and it scores the same. ' + HELI_NOTE,
   },
   heliOpenFull: {
     label: 'Helicopter v2 · fuller ball', shot: 'STRAIGHT', charging: false, single: true, helicopter: true, heliVersion: 2, ball: { x: LINE_X.LEG, y: FULLER.y, z: GAME.contactZ + HELICOPTER_MEETS_AT },

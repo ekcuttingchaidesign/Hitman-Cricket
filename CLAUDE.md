@@ -1354,8 +1354,10 @@ angle is a function of the clock and the hands and body are keyed round it,
 the hands low all the way. It comes in two versions, half each
 (`HelicopterVersion`, `helicopterVersionOf` off the seed and the ball):
 version two is the same bat with his legs opened (`helicopterOpen`,
-`HELICOPTER_OPEN`), the front foot drawn back out to leg and both feet and
-his hips turned towards the bowler, the hands and the bat's turn version
+`HELICOPTER_OPEN`), the front foot drawn well back out to leg and the back
+foot a little out to off, a wide base (feet 39cm apart across the crease at
+the ball, where version one's are 7), the hips a little lower on it, both
+feet and his hips turned towards the bowler, the hands and the bat's turn version
 one's to the millimetre, and scored the same, so `?heliv=1` or `2` asks for
 one and is not practice. Two builds were wrong and are not to be built
 again: the hands up over his head whirling the bat level after the ball, and
