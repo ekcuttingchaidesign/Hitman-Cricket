@@ -95,6 +95,12 @@ const AREA = 35 * Math.PI / 180;
 const AREA_REACH = 22;
 /** How far from a man a ball along the ground can go past him and still have him go for it. */
 const NEAR_MISS = 6;
+/**
+ * The nearest a man chasing a ball along the ground gets to its line, in
+ * metres: he runs to beside it on his own side and is beaten there. Sent to a
+ * point on the line, he got there as the ball did, and it went through him.
+ */
+export const CHASE_KEEP = 1.2;
 /** The nearest a ball passes a man for him to dive at it, in metres, and the latest after it his hands are down, in ms. */
 const DIVE_FROM = .9, DIVE_LATE = 140;
 /** The fastest a man gets across, on average, to be down behind a ball rather than dive at it. */
@@ -394,21 +400,21 @@ export class Field {
    * have hit. Near enough is the point: he dives for it, and it beats him.
    */
   clear(now: number, angle: number, distance: number): number {
-    const CLEAR = 1.7;
-    for (let pass = 0; pass < 3; pass++) {
-      let moved = false;
-      for (const routine of this.routines) {
-        const at = routine.at(now);
-        const along = at.x * Math.sin(angle) + at.z * Math.cos(angle);
-        if (along < 3 || along > distance - .5) continue;
-        const across = at.x * Math.cos(angle) - at.z * Math.sin(angle);
-        if (Math.abs(across) >= CLEAR) continue;
-        // Turn the line away from him: towards the side he is not on.
-        const side = across >= 0 ? 1 : -1;
-        angle += side * Math.atan2(CLEAR - Math.abs(across), along) * 1.05;
-        moved = true;
-      }
-      if (!moved) break;
+    const CLEAR = 1.7, STEP = .25 * Math.PI / 180, MOST = 30 * Math.PI / 180;
+    const spots = this.routines.map(routine => routine.at(now));
+    /** Whether a line at `a` leaves every man it passes on its way a stride and a half off it. */
+    const clearAt = (a: number) => spots.every(at => {
+      const along = at.x * Math.sin(a) + at.z * Math.cos(a);
+      if (along < 3 || along > distance - .5) return true;
+      return Math.abs(at.x * Math.cos(a) - at.z * Math.sin(a)) >= CLEAR;
+    });
+    // The nearest line either side of the stroke's that is clear of everybody.
+    // Nudged away from each man in turn, it was turned onto him (the sign was
+    // the wrong way round), and between two men closer together than three
+    // strides, away from one was onto the other.
+    for (let off = 0; off <= MOST; off += STEP) {
+      if (clearAt(angle + off)) return angle + off;
+      if (off && clearAt(angle - off)) return angle - off;
     }
     return angle;
   }
@@ -466,6 +472,17 @@ export class Field {
      * himself at where it was.
      */
     const worthIt = (pass: { gap: number; at: number }) => pass.gap >= DIVE_FROM && now + REACTION_MS * .6 + DIVE.catch <= pass.at + DIVE_LATE;
+    /**
+     * Where a man going after it runs to: the point on its line, moved back
+     * to his own side of it by `CHASE_KEEP`, or as far off it as he already
+     * is if that is nearer. Every step of his run is then that far from the
+     * line or further, so the ball goes past him, not through him.
+     */
+    const beside = (spot: Spot, point: THREE.Vector3) => {
+      const across = (spot.x - path.from.x) * dir.z - (spot.z - path.from.z) * dir.x;
+      const keep = Math.sign(across || 1) * Math.min(CHASE_KEEP, Math.abs(across));
+      return point.clone().add(new THREE.Vector3(dir.z * keep, 0, -dir.x * keep));
+    };
     const busy = new Set<number>();
     const dives: number[] = [];
 
@@ -505,7 +522,7 @@ export class Field {
       if (chaser >= 0) {
         const spot = spots[chaser], pass = passing(spot);
         if (pass.gap <= reachBy(late(pass.at)) && pass.along < length - .8 && landed(pass) && worthIt(pass)) this.diveAt(chaser, spot, { ...pass, at: late(pass.at) - 40 }, now, look);
-        else this.chase(chaser, spot, rope, now, path.flightMs * (ropeAlong(path.from, dir) / length), look);
+        else this.chase(chaser, spot, beside(spot, rope), now, path.flightMs * (ropeAlong(path.from, dir) / length), look);
         busy.add(chaser);
       }
     } else if (bowler && Math.abs(path.to.x) < 2.6 && path.to.z > 3 && path.to.z < 18.5) {
@@ -531,7 +548,7 @@ export class Field {
       if (busy.has(i)) return;
       const pass = passing(spot);
       if (pass.along > length - .8 || pass.gap > NEAR_MISS) return;
-      this.chase(i, spot, pass.point, now, Math.max(450, pass.at - now + 250), look);
+      this.chase(i, spot, beside(spot, pass.point), now, Math.max(450, pass.at - now + 250), look);
       busy.add(i);
     });
 

@@ -49,9 +49,44 @@ export const BALL_LOOK = {
 /** Close's camera lifted for a ball going away: higher and further back, about the classic view's place. */
 export const CLOSE_FOLLOW = { eye: [0, 3.7, -5.6] as const, lift: 380, drop: 420 } as const;
 
+/**
+ * The Dynamic camera (`'dynamic'` in `camera.ts`): Classic's view going after
+ * the ball. Classic is the view players know, so it stays as it is and this is
+ * a camera of its own on the pause sheet's row.
+ *
+ * The camera stays where it stands and its look turns `share` of the way after
+ * the ball on an ease (`turn`), never more than `yaw` round or `up` up, and
+ * eases back down the pitch on Pro Cam's `BALL_LOOK.back` once the ball is
+ * dead. Nor is a ball that brings a celebration turned after (`letBallGo` in
+ * `GameScene`): turned away after a century's square cut, the camera came back
+ * halfway through it. This is the first build, which the owner kept over every
+ * one tried after it: him held in the picture with the lens opened for a
+ * square ball, a ball behind square left alone, the way out on a spring, and
+ * the way back on a spring and then as a cut, which looked abrupt.
+ */
+export const CLASSIC_FOLLOW = {
+  share: .6, yaw: 38, up: 22,
+  turn: 300,
+} as const;
+
 /** What the link asks for: on, unless it says `?camturn=0`. */
 export function readBallLook(search = typeof location === 'undefined' ? '' : location.search): { on: boolean } {
   return { on: new URLSearchParams(search).get('camturn') !== '0' };
+}
+
+/**
+ * Classic's look: `share` of the way from straight down its own line (`rest`)
+ * to the ball (`toward`), by yaw and pitch, held inside `CLASSIC_FOLLOW.yaw`
+ * and `up` of where it rests. Both unit vectors.
+ */
+export function partialLook(rest: readonly [number, number, number], toward: readonly [number, number, number], share: number = CLASSIC_FOLLOW.share): [number, number, number] {
+  const angles = (v: readonly [number, number, number]) => [Math.atan2(v[0], v[2]), Math.asin(clamp(v[1], -1, 1))];
+  const [y0, p0] = angles(rest), [y1, p1] = angles(toward);
+  let dy = y1 - y0;
+  if (dy > Math.PI) dy -= 2 * Math.PI; else if (dy < -Math.PI) dy += 2 * Math.PI;
+  const yaw = y0 + clamp(dy * share, -CLASSIC_FOLLOW.yaw * rad, CLASSIC_FOLLOW.yaw * rad);
+  const pitch = p0 + clamp((p1 - p0) * share, -CLASSIC_FOLLOW.up * rad, CLASSIC_FOLLOW.up * rad);
+  return [Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)];
 }
 
 /** A ball off the bat the camera goes after, given how far from the bat it ends up. */

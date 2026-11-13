@@ -3,6 +3,8 @@
  * Camera row, kept in `hitman-camera`).
  *
  *  - **Classic**: the game's own view from behind the bat (`homeViewFor`).
+ *  - **Dynamic**: Classic's view, its look turned part of the way after the
+ *    ball off the bat and eased back (`classicFollow` in `GameScene`).
  *  - **Close**: low and close behind him, over the stumps, the bowler running
  *    in over his shoulder (`closeViewFor`).
  *  - **Pro Cam**: his own eyes, nothing of him drawn but the gloves and bat
@@ -22,15 +24,16 @@
  * (`swipeAsPlayed`): the ball goes the way the thumb went on the picture.
  * The keys stay the strokes they always were.
  */
-export type CameraId = 'classic' | 'close' | 'pro' | 'broadcast';
+export type CameraId = 'classic' | 'close' | 'pro' | 'dynamic' | 'broadcast';
 export const CAMERA_KEY = 'hitman-camera';
 /** The pause sheet's Camera row. Broadcast is off it: the owner did not like its look, and it is kept on the link for comparing. */
 export const CAMERAS: readonly { id: CameraId; name: string }[] = [
   { id: 'classic', name: 'Classic' },
   { id: 'close', name: 'Close' },
   { id: 'pro', name: 'Pro Cam' },
+  { id: 'dynamic', name: 'Dynamic' },
 ];
-const isCamera = (value: string | null): value is CameraId => value === 'classic' || value === 'close' || value === 'pro' || value === 'broadcast';
+const isCamera = (value: string | null): value is CameraId => value === 'classic' || value === 'close' || value === 'pro' || value === 'dynamic' || value === 'broadcast';
 
 /** What the link asks for (`?cam=broadcast`), or null. */
 export function cameraAsked(search: string): CameraId | null {

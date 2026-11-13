@@ -8,9 +8,10 @@ import { showPlan } from '../game/CameraShow';
 import cameraClassic from '../assets/cameras/classic.webp';
 import cameraClose from '../assets/cameras/close.webp';
 import cameraPro from '../assets/cameras/pro.webp';
+import cameraDynamic from '../assets/cameras/dynamic.webp';
 
 /** Each camera's own view, the pictures on the pause sheet's Camera row. */
-export const CAMERA_PICTURES: Partial<Record<CameraId, string>> = { classic: cameraClassic, close: cameraClose, pro: cameraPro };
+export const CAMERA_PICTURES: Partial<Record<CameraId, string>> = { classic: cameraClassic, close: cameraClose, pro: cameraPro, dynamic: cameraDynamic };
 
 /**
  * The stories, as a screen.

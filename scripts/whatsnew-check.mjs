@@ -134,7 +134,7 @@ check(again, 'it comes back a second time, because once is missed');
 await page.waitForTimeout(600);
 now = await card();
 check(now.beat === 'where' && now.said === 'FIND IT IN PAUSE MENU', 'with less motion, straight to FIND IT IN PAUSE MENU', JSON.stringify(now));
-check(now.lit.join(' ') === 'Classic Close Pro Cam' && now.tag === 'NEW · 3 CAMS', 'the pause menu itself, its Camera row lit under a tag', JSON.stringify(now));
+check(now.lit.join(' ') === 'Classic Close Pro Cam Dynamic' && now.tag === 'NEW · 4 CAMS', 'the pause menu itself, its Camera row lit under a tag', JSON.stringify(now));
 check(now.got, 'and GOT IT', JSON.stringify(now));
 check(!(await page.$('#whatsnew-open')) && !(await page.$('.whatsnew-cam')), 'nothing on it switches the camera');
 await page.click('#whatsnew-got');

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { BLAST_FIELD, Field, TEST_FIELD, mark, type Mark, type Visible } from '../src/scene/field';
+import { boardsAlong } from '../src/scene/flight';
 import { drawnOf, fieldFor } from '../src/game/super10-field';
 import { DIVE, Routine, SPRINT, bodyOf, midpointOfHands } from '../src/entities/Fielder';
 import { standPose } from '../src/entities/Cricketer';
@@ -141,15 +142,45 @@ describe('the field', () => {
     };
     const routinesOf = (field: Field) => (field as unknown as { routines: { actions: { name: string; start: number; end: number }[]; at(t: number): { x: number; z: number } }[] }).routines;
 
-    it('never goes through a fielder: a cover drive at mid-off is turned to pass him by a stride and a half', () => {
-      const field = new Field();
-      // Mid-off stands at 24°; a cover drive goes at 24°.
-      const end = line(field, 24, 44);
-      for (const m of BLAST_FIELD) {
-        const along = m.spot.x * Math.sin(Math.atan2(end.x, end.z)) + m.spot.z * Math.cos(Math.atan2(end.x, end.z));
-        if (along < 3 || along > 43) continue;
-        const across = Math.abs(m.spot.x * Math.cos(Math.atan2(end.x, end.z)) - m.spot.z * Math.sin(Math.atan2(end.x, end.z)));
-        expect(across, m.name).toBeGreaterThan(1.6);
+    it('never goes through a fielder: a drive straight at a man is turned to pass him by a stride and a half', () => {
+      // Every man's own line, and between mid-off and long-off, three strides
+      // apart at the rope: the turn used to go the wrong way, onto the man,
+      // and between two men away from one was onto the other.
+      for (const marks of [BLAST_FIELD, TEST_FIELD]) {
+        for (const at of [...marks.map(m => Math.atan2(m.spot.x, m.spot.z) * 180 / Math.PI), 13, 16, -12]) {
+          const field = new Field(); field.setField(marks);
+          const end = line(field, at, 44);
+          const a = Math.atan2(end.x, end.z);
+          for (const m of marks) {
+            const along = m.spot.x * Math.sin(a) + m.spot.z * Math.cos(a);
+            if (along < 3 || along > 43) continue;
+            expect(Math.abs(m.spot.x * Math.cos(a) - m.spot.z * Math.sin(a)), `${m.name}, at ${at.toFixed(1)}°`).toBeGreaterThan(1.6);
+          }
+          // Turned the least it takes: never further than the man's half a stride needs.
+          expect(Math.abs(a * 180 / Math.PI - at), `at ${at.toFixed(1)}°`).toBeLessThan(12);
+        }
+      }
+    });
+
+    it('goes past every man, never through him, the ones chasing it included', () => {
+      // A four along the ground at every angle from fine leg to third man:
+      // the man in the deep chasing it, and those near it getting across,
+      // run to beside its line (`CHASE_KEEP`). Sent to a point on it, they
+      // got there with the ball, and it went through them.
+      for (const marks of [BLAST_FIELD, TEST_FIELD]) {
+        for (let at = -100; at <= 100; at += 4) {
+          const field = new Field(); field.setField(marks);
+          const end = line(field, at, Math.min(44, boardsAlong(deg(at)) - .6));
+          field.ground(HIT, HIT + 1300, look, { from: origin, to: end, flightMs: 1300, four: true });
+          routinesOf(field).forEach((r, i) => {
+            let near = Infinity;
+            for (let t = 0; t <= 1300; t += 20) {
+              const ball = origin.clone().lerp(end, t / 1300), him = r.at(HIT + t);
+              near = Math.min(near, Math.hypot(him.x - ball.x, him.z - ball.z));
+            }
+            expect(near, `${marks[i].name}, a four at ${at}°: ${r.actions.map(a => a.name).join(' > ')}`).toBeGreaterThan(1);
+          });
+        }
       }
     });
 

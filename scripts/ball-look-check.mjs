@@ -3,7 +3,9 @@
  * in a real browser: cover drives on the keys at `?cover=1`'s ball, with no
  * replay or catch camera to film over it, under Pro Cam and under Close. Each followed ball is read as it flies —
  * the look turned towards the off side, Close lifted, the hold and the way
- * back, and under Pro Cam the bat and gloves out of the way — and photographed into `test-results/ball-look-*.png`; then the look
+ * back, Classic still, and Dynamic turned after it part of the way, and after a square cut
+ * at `?latecut=1`'s ball (`ONLY=classic` for Classic, `ONLY=dynamic` for
+ * Dynamic's two), and under Pro Cam the bat and gloves out of the way — and photographed into `test-results/ball-look-*.png`; then the look
  * is back down the pitch by the next ball's release.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
@@ -21,7 +23,7 @@ const check = (ok, what, detail) => {
 await mkdir('test-results', { recursive: true });
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 
-async function run(cam, extra, label) {
+async function run(cam, extra, label, keys = ['w', 'd']) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await page.addInitScript(() => {
     try {
@@ -36,7 +38,7 @@ async function run(cam, extra, label) {
   const advance = ms => page.clock.runFor(Math.max(16, Math.round(ms)));
   const snap = () => page.evaluate(() => window.__cricket.snapshot());
   await page.clock.install();
-  await page.goto(`${base}/?debug=1&seed=2718&cover=1&replay=0&catchcam=0&lights=day&ground=stadium&cam=${cam}${extra}`, { waitUntil: 'load' });
+  await page.goto(`${base}/?debug=1&seed=2718&cover=1&replay=0&catchcam=0&lights=day&ground=stadium&cam=${cam}${extra}`.replace('&cover=1&', extra.includes('latecut') ? '&' : '&cover=1&'), { waitUntil: 'load' });
   await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 3000);
   await advance(2500);
   await page.waitForTimeout(800);
@@ -64,7 +66,7 @@ async function run(cam, extra, label) {
     const seen = await nextBall();
     if (!seen) break;
     await advance(seen.contactAt - seen.elapsed);
-    await press('w', 'd');
+    await press(...keys);
     // Through the flight, reading the look every 100ms.
     const trace = [];
     let shot = 0;
@@ -72,7 +74,7 @@ async function run(cam, extra, label) {
       await advance(100);
       const now = await snap();
       trace.push({ ...now.ballLook, game: now.phase, outcome: now.outcome, bat: now.proBat?.shown });
-      if (now.ballLook.followed && [3, 7, 12].includes(i)) await page.screenshot({ path: `test-results/ball-look-${label}-${++shot}.png` });
+      if (now.ballLook.followed && [3, 7, 12, 18, 21, 24].includes(i)) await page.screenshot({ path: `test-results/ball-look-${label}-${++shot}.png` });
       if (now.phase === 'BALL_IN_FLIGHT' && i > 5) break;
     }
     const followedTrace = trace.filter(t => t.followed);
@@ -84,19 +86,38 @@ async function run(cam, extra, label) {
     const yaws = found.map(t => t.yaw), lifts = found.map(t => t.lift);
     console.log(`        yaw ${yaws.join(' ')}\n        lift ${lifts.join(' ')}\n        phase ${found.map(t => t.phase?.[0] ?? '-').join('')}`);
     const most = Math.max(...yaws.map(Math.abs));
-    check(most > 20, `${label}: the look turns after it (${most}°)`);
+    if (label === 'classic') {
+      check(most === 0, 'classic: stands still as it always has');
+      check(!errors.length, `${label}: no errors`, errors.join('\n'));
+      await page.close();
+      return;
+    }
+    // Dynamic turns part of the way, so a cover drive turns it less than the others.
+    check(most > (label.startsWith('dynamic') ? 5 : 20), `${label}: the look turns after it (${most}°)`);
     check(found.some(t => t.phase === 'hold') && found.some(t => t.phase === 'back'), `${label}: holds, then comes back`);
     const atNext = found.at(-1);
     check(Math.abs(atNext.yaw) < 4, `${label}: back down the pitch by the next ball (${atNext.yaw}°)`, JSON.stringify(atNext));
     if (label === 'pro') check(found.some(t => t.phase === 'follow' && t.bat === false), 'pro: the bat and gloves out of the picture while he watches it', found.map(t => t.bat).join(' '));
     if (label === 'close-lift') check(Math.max(...lifts) > .9 && atNext.lift < .1, 'close-lift: lifts up and back, and down again');
+    if (label.startsWith('dynamic')) {
+      // Eased back down the pitch, never cut: a cut covers the whole turn in a frame, the ease a third of it in a tenth of a second.
+      const steps = yaws.slice(1).map((y, i) => Math.abs(y - yaws[i]));
+      check(Math.max(...steps) <= most / 2, `${label}: eased back, no cut (largest step ${Math.max(...steps)}° of ${most}°)`);
+      check(most <= 38, `${label}: no further round than Dynamic turns (${most}°)`);
+    }
   }
   check(!errors.length, `${label}: no errors`, errors.join('\n'));
   await page.close();
 }
 
-await run('pro', '', 'pro');
-await run('close', '', 'close-lift');
+const only = process.env.ONLY;
+for (const [cam, extra, label, keys] of [
+  ['pro', '', 'pro'],
+  ['close', '', 'close-lift'],
+  ['classic', '', 'classic'],
+  ['dynamic', '', 'dynamic'],
+  ['dynamic', '&latecut=1', 'dynamic-cut', ['d']],
+]) if (!only || label.startsWith(only)) await run(cam, extra, label, keys);
 await browser.close();
 console.log(failures ? `\n${failures} failed` : '\nall good');
 process.exit(failures ? 1 : 0);

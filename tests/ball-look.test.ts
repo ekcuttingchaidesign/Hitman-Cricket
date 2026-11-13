@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BALL_LOOK, followed, lookPhase, lookToward, readBallLook } from '../src/scene/ballLook';
+import { BALL_LOOK, CLASSIC_FOLLOW, followed, lookPhase, lookToward, partialLook, readBallLook } from '../src/scene/ballLook';
 import type { ShotOutcome } from '../src/game/types';
 
 const hit = (more: Partial<ShotOutcome> = {}) => ({ madeBatContact: true, runs: 4, isWicket: false, aerial: false, ...more }) as ShotOutcome;
@@ -40,7 +40,18 @@ describe('the camera going after the ball off the bat', () => {
   });
 
   it('is on unless the link turns it off', () => {
-    expect(readBallLook('')).toEqual({ on: true });
-    expect(readBallLook('?camturn=0')).toEqual({ on: false });
+    expect(readBallLook('').on).toBe(true);
+    expect(readBallLook('?camturn=0').on).toBe(false);
+  });
+
+  it('turns Classic only part of the way, and never far round', () => {
+    const rest: [number, number, number] = [0, 0, 1];
+    const square = deg(partialLook(rest, [1, 0, 0]));
+    expect(square.yaw).toBeCloseTo(Math.min(90 * CLASSIC_FOLLOW.share, CLASSIC_FOLLOW.yaw), 5);
+    const cover = deg(partialLook(rest, [Math.sin(.4), 0, Math.cos(.4)]));
+    expect(cover.yaw).toBeCloseTo(.4 * 180 / Math.PI * CLASSIC_FOLLOW.share, 5);
+    expect(deg(partialLook(rest, [-1, 0, 0])).yaw).toBeCloseTo(-CLASSIC_FOLLOW.yaw, 5);
+    expect(deg(partialLook(rest, [0, 1, 0.01])).pitch).toBeLessThanOrEqual(CLASSIC_FOLLOW.up + 1e-9);
+    expect(deg(partialLook(rest, rest)).yaw).toBeCloseTo(0, 9);
   });
 });
