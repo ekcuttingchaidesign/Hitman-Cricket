@@ -84,6 +84,7 @@ describe('every switch the game reads', () => {
     bowlv: 'which of the fast bowler\'s two actions is drawn; the ball leaves at the same moment from the same point either way',
     spincutv: 'which of the two cuts off the spinner is drawn; the swipe is judged and the ball scored the same either way',
     pullv: 'which of the pull\'s two versions is drawn; the swipe is judged and the ball scored the same either way',
+    heliv: 'which of the helicopter\'s two stances is drawn; the swipe is judged and the ball scored the same either way',
     ui: 'the UI kit laid out as a page, instead of the game, reading and sending nothing',
     gloves: 'which pair of gloves the strokes viewer opens with, a dev page that bats nothing',
     stroke: 'which stroke the strokes viewer opens on, a dev page that bats nothing',

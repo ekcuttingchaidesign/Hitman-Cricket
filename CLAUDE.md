@@ -1351,7 +1351,13 @@ hangs. Fastest into the ball and through it, then slowing evenly with no stop;
 the circle leans, its off side back towards the keeper and its leg side
 forward, so the face leads through the ball forward and to leg. The bat's
 angle is a function of the clock and the hands and body are keyed round it,
-the hands low all the way. Two builds were wrong and are not to be built
+the hands low all the way. It comes in two versions, half each
+(`HelicopterVersion`, `helicopterVersionOf` off the seed and the ball):
+version two is the same bat with his legs opened (`helicopterOpen`,
+`HELICOPTER_OPEN`), the front foot drawn back out to leg and both feet and
+his hips turned towards the bowler, the hands and the bat's turn version
+one's to the millimetre, and scored the same, so `?heliv=1` or `2` asks for
+one and is not practice. Two builds were wrong and are not to be built
 again: the hands up over his head whirling the bat level after the ball, and
 the bat turned up and down the pitch with a stop at the top, which the owner
 saw as a lofted straight drive, a pause and a follow-through.

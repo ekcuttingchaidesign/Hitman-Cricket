@@ -2115,6 +2115,25 @@ const FLICK_V3: Stroke & { load: Pose; lift: Pose; across: Pose } = {
  *
  * Keyed for a ball on leg stump: the reach moves him from there.
  */
+/**
+ * The helicopter's two versions, the same bat on the same clock: one stands
+ * as he was (`HELICOPTER_BODY`), two opens his legs (`helicopterOpen`), the
+ * front foot drawn back out to leg and both feet turned towards the bowler,
+ * the hips going with them. Only his legs and hips: the hands' path and the
+ * bat's turn are the same to the millimetre.
+ */
+export type HelicopterVersion = 1 | 2;
+/** Half each, off the seed and the ball. Both are the same stroke and score the same. */
+export function helicopterVersionOf(roll: number): HelicopterVersion { return roll < .5 ? 1 : 2; }
+/** How far version two opens him: the front foot out to leg and back, the feet and hips turned to the bowler. */
+const HELICOPTER_OPEN = { front: [-.15, 0, -.10] as Point, frontYaw: -.38, backYaw: .95, yaw: -.20, hip: -.05, chest: -.03 } as const;
+/** A key of the helicopter with his legs opened, as version two stands: see `HELICOPTER_OPEN`. */
+function helicopterOpen(pose: Pose): Pose {
+  const { front, frontYaw, backYaw, yaw, hip, chest } = HELICOPTER_OPEN;
+  return { ...pose, frontFoot: [pose.frontFoot[0] + front[0], pose.frontFoot[1], pose.frontFoot[2] + front[2]],
+    frontFootYaw: (pose.frontFootYaw ?? pose.yaw * .77) + frontYaw, backFootYaw: backYaw, yaw: pose.yaw + yaw,
+    hip: [pose.hip[0] + hip, pose.hip[1], pose.hip[2]], chest: [pose.chest[0] + chest, pose.chest[1], pose.chest[2]] };
+}
 export const HELICOPTER_CONTACT_MS = 175;
 /** Met at his toes, beside the front foot: no further down the pitch than the crease's own contact. */
 export const HELICOPTER_MEETS_AT = 0;
@@ -3351,6 +3370,8 @@ export class Batter {
   private spinPulling = false;
   /** The helicopter shot (`HELICOPTER`), off the straight or on drive's swipe. */
   private helicopter = false;
+  /** Version two of the helicopter, his legs opened (`helicopterOpen`). */
+  private heliOpen = false;
   /** A cut at a ball up around the chest is played standing tall, not crouched. */
   private cutting = false;
   private squaring = false;
@@ -3849,7 +3870,7 @@ export class Batter {
     this.poseAge = Infinity; this.resetDue = false;
     this.felledAt = -Infinity;
     this.celebratedAt = -Infinity; this.afterward = null; this.admiring = false; this.struck = null; this.followed = null;
-    this.swingStart = -Infinity; this.contactTime = -Infinity; this.pulling = false; this.backDefence = false; this.punching = false; this.cutting = false; this.spinCutting = false; this.spinCutV2 = false; this.spinPulling = false; this.helicopter = false; this.squaring = false; this.lofted = false; this.sweeping = false; this.levelled = false; this.charging = false; this.stranded = false;
+    this.swingStart = -Infinity; this.contactTime = -Infinity; this.pulling = false; this.backDefence = false; this.punching = false; this.cutting = false; this.spinCutting = false; this.spinCutV2 = false; this.spinPulling = false; this.helicopter = false; this.heliOpen = false; this.squaring = false; this.lofted = false; this.sweeping = false; this.levelled = false; this.charging = false; this.stranded = false;
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
   }
   /** The stroke last played, as `afterBall` needs it. */
@@ -3895,6 +3916,8 @@ export class Batter {
     this.shot = charging ? (shot === 'COVER_LONG_OFF' || shot === 'LONG_ON' ? shot : 'STRAIGHT') : shot;
     // The helicopter, the caller having established the ball and the roll: off the straight or the on drive's swipe, and one stroke for both.
     this.helicopter = !charging && helicopter && (shot === 'STRAIGHT' || shot === 'LONG_ON');
+    // Its version is the swing's: 2 opens his legs (`helicopterOpen`), anything else stands as he was.
+    this.heliOpen = this.helicopter && version === 2;
     if (this.helicopter) { this.shot = 'STRAIGHT'; lofted = false; }
     this.afterward = null; this.resetDue = false; this.admiring = false; this.struck = null; this.followed = null; this.idle = null;
     this.charging = charging; this.stranded = false; this.pulling = !charging && shot === 'LEG' && ballY > PULL_HEIGHT && version !== 3;
@@ -4825,9 +4848,11 @@ export class Batter {
       // Back from the stroke's slowed clock to real milliseconds from the swipe.
       const real = age <= HELICOPTER_CONTACT_MS ? age
         : HELICOPTER_CONTACT_MS + (age - HELICOPTER_CONTACT_MS) * (total - HELICOPTER_CONTACT_MS) / (STROKE_DURATION_MS - HELICOPTER_CONTACT_MS);
-      const body = flowing([{ time: 0, pose: this.swingFrom }, { time: drop, pose: reachPose(keys.drop) },
-        { time: HELICOPTER_CONTACT_MS, pose: contact }, { time: round, pose: reachPose(keys.round) }, { time: top, pose: reachPose(keys.top) },
-        { time: off, pose: reachPose(keys.off) }, { time: ends, pose: reachPose(keys.ends) }, { time: total, pose: GUARD }], real);
+      // Version two opens his legs at every key; the hands are left where they are.
+      const legs = (pose: Pose) => this.heliOpen ? helicopterOpen(pose) : pose;
+      const body = flowing([{ time: 0, pose: this.swingFrom }, { time: drop, pose: legs(reachPose(keys.drop)) },
+        { time: HELICOPTER_CONTACT_MS, pose: legs(contact) }, { time: round, pose: legs(reachPose(keys.round)) }, { time: top, pose: legs(reachPose(keys.top)) },
+        { time: off, pose: legs(reachPose(keys.off)) }, { time: ends, pose: legs(reachPose(keys.ends)) }, { time: total, pose: GUARD }], real);
       const turning = new THREE.Quaternion().copy(batOrientation(helicopterBat(helicopterTurn(real)) as Pose));
       // Out of the backlift as it was drawn, and into the guard as it will be.
       const straight = batOrientation(STROKES.STRAIGHT.contact);

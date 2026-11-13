@@ -53,7 +53,7 @@ import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
 import { paceVersionOf, spinVersionOf } from './entities/Bowler';
-import { COVER_V3_MEETS_AT, HELICOPTER_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, SPIN_CUT_V2_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, spinCutVersionOf, flickVersionOf, flickBackFoot, FLICK_MEETS_AT, FLICK_V3_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength, WALK_STYLES, type WalkStyle } from './entities/Batter';
+import { COVER_V3_MEETS_AT, HELICOPTER_MEETS_AT, helicopterVersionOf, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, PULL_HEIGHT, PULL_MEETS_AT, DEFENCE_BACK_HEIGHT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_MEETS_AT, LATE_CUT_MEETS_AT, PUNCH_MEETS_AT, SLOG_MEETS_AT, SPIN_PULL_MEETS_AT, SPIN_CUT_V2_MEETS_AT, coverRoll, coverVersionOf, loftVersionOf, pullVersionOf, spinCutVersionOf, flickVersionOf, flickBackFoot, FLICK_MEETS_AT, FLICK_V3_MEETS_AT, type FlickVersion, type LoftVersion, type PullVersion, type Celebration, celebrationLength, WALK_STYLES, type WalkStyle } from './entities/Batter';
 import { COUNTED, countStroke, freshTally, strokeMarks } from './game/stroke-tally';
 import { helicopterBall, advanceShot, steppedOut, gradeOf, gradeTiming, hookable, loftedDrive, playedAs, punch, spinCut, spinPull, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot, alwaysHowOut } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
@@ -690,6 +690,8 @@ export class Game {
    * the stroke and the fuller ball are being looked at.
    */
   private readonly heliDrill = new URLSearchParams(location.search).get('heli') === '1';
+  /** `?heliv=1` or `2`: always that version of the helicopter (`HelicopterVersion`). Not practice: the stroke scores the same. */
+  private readonly heliAsked = Number(new URLSearchParams(location.search).get('heliv'));
   private heliBalls = 0;
   /**
    * `?coverv=1`, `2` or `3`: always that version of the cover strokes, for
@@ -3287,7 +3289,9 @@ export class Game {
     // At the spinner the cut is played making room for it: see `SPIN_CUT`.
     const cutting = !charging && spinCut(this.delivery!, this.attempt);
     // Its second version is asked of the swing as version 1 (2, the default, is the first build): see `SPIN_CUT_V2`.
-    const swung = cutting ? ((this.spinCutAsked === 1 || this.spinCutAsked === 2 ? this.spinCutAsked : spinCutVersionOf(this.seed, this.score.balls)) === 2 ? 1 : 2) : version;
+    // The helicopter's version is its own, off a roll of its own: see `HelicopterVersion`.
+    const heliVersion = this.heliAsked === 1 || this.heliAsked === 2 ? this.heliAsked : helicopterVersionOf(coverRoll(this.seed ^ 0x6a17c35, this.score.balls));
+    const swung = helicopter ? heliVersion : cutting ? ((this.spinCutAsked === 1 || this.spinCutAsked === 2 ? this.spinCutAsked : spinCutVersionOf(this.seed, this.score.balls)) === 2 ? 1 : 2) : version;
     // Version two lets the ball come and meets it late, beside him.
     if (cutting && swung === 1) this.meetsAt = 1 - SPIN_CUT_V2_MEETS_AT / (GAME.releaseZ - GAME.contactZ);
     this.scene.swing(shotType, this.elapsed, this.delivery!, charging, loftedNow, sweeping, levelled, swung, this.meetsAt, cutting, spinPulling, helicopter);
