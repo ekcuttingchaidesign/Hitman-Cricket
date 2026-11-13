@@ -2128,8 +2128,10 @@ const FLICK_V3: Stroke & { load: Pose; lift: Pose; across: Pose } = {
  * in his guard, is gone.
  */
 export type HelicopterVersion = 1 | 2;
-/** Half each, off the seed and the ball. Both are the same stroke and score the same. */
-export function helicopterVersionOf(roll: number): HelicopterVersion { return roll < .5 ? 1 : 2; }
+/** How often each is played: three in ten version one, seven in ten version two. Both are the same stroke and score the same. */
+export const HELICOPTER_ODDS: Record<HelicopterVersion, number> = { 1: .3, 2: .7 };
+/** The version a ball plays, off a roll of the seed and the ball (`Game.shoot`). */
+export function helicopterVersionOf(roll: number): HelicopterVersion { return roll < HELICOPTER_ODDS[1] ? 1 : 2; }
 /** How far each version opens him, from `HELICOPTER_BODY`. Version two's is frozen. */
 const HELICOPTER_OPEN: Record<HelicopterVersion, { front: Point; back: Point; frontYaw: number; backYaw: number; yaw: number; hip: number; sink: number; chest: number }> = {
   1: { front: [-.15, 0, -.10], back: [0, 0, 0], frontYaw: -.38, backYaw: .95, yaw: -.20, hip: -.05, sink: 0, chest: -.03 },

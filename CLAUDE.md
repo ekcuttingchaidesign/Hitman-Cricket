@@ -1351,8 +1351,9 @@ hangs. Fastest into the ball and through it, then slowing evenly with no stop;
 the circle leans, its off side back towards the keeper and its leg side
 forward, so the face leads through the ball forward and to leg. The bat's
 angle is a function of the clock and the hands and body are keyed round it,
-the hands low all the way. It comes in two versions, half each
-(`HelicopterVersion`, `helicopterVersionOf` off the seed and the ball), the
+the hands low all the way. It comes in two versions, three in ten
+and seven in ten (`HelicopterVersion`, `HELICOPTER_ODDS`,
+`helicopterVersionOf` off the seed and the ball), the
 same bat with his legs opened by two amounts (`helicopterOpen`,
 `HELICOPTER_OPEN`): both draw the front foot back out to leg and turn both
 feet and his hips towards the bowler, version one's feet about 22cm apart

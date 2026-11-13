@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { helicopterBall, resolveShot } from '../src/game/ShotResolver';
+import { helicopterVersionOf } from '../src/entities/Batter';
 import { FULLER, GAME, HELI, LINE_X } from '../src/config/gameplay';
 import type { BallLine, Delivery, DeliveryStyle, TimingGrade } from '../src/game/types';
 import { sectorOf } from '../src/scene/flight';
@@ -58,5 +59,13 @@ describe('what a helicopter is worth', () => {
     expect(play(ball('YORKER', 'MIDDLE'), 'OK', .9)).toMatchObject({ runs: 1, isWicket: false });
     expect(play(ball('YORKER', 'OUTSIDE_LEG'), 'OK', .9)).toMatchObject({ runs: 2, isWicket: false });
     expect(play(ball('YORKER', 'MIDDLE'), 'OK', .1)).toMatchObject({ isWicket: true, wicketType: 'BOWLED' });
+  });
+});
+
+describe('which version', () => {
+  it('plays version one three times in ten and version two seven', () => {
+    let ones = 0;
+    for (let n = 0; n < 1000; n++) if (helicopterVersionOf((n + .5) / 1000) === 1) ones++;
+    expect(ones).toBe(300);
   });
 });
