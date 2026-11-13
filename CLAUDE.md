@@ -1911,6 +1911,22 @@ man close in threw himself at where a ball had already been, and one it
 passed within half a metre dived away from it (the dive's target was put
 past his own feet).
 
+A ball along the ground never goes through a man. Its line is turned the
+least it takes to pass every man on its way by a stride and a half
+(`Field.clear`: the nearest angle either side of the stroke's that is clear
+of all of them). It used to nudge the line away from each man in turn with
+the sign the wrong way round, which turned a drive onto the man it was meant
+to miss, and between two men three strides apart (mid-off and long-off)
+away from one was onto the other. And a man going after it, the one in the
+deep chasing it to the rope and those getting across, runs to beside its
+line on his own side and is beaten there (`CHASE_KEEP`, 1.2 metres, the
+`beside` in `Field.ground`): sent to a point on the line, he got there with
+the ball and it went through him. Classic's camera hid most of it; the
+Dynamic camera and the replays showed it. `tests/field.test.ts` sends a four
+every four degrees from fine leg to third man through the Blast's and the
+Test's fields and holds every man's hips more than a metre off the ball all
+the way. Only the picture: what the ball scores was settled before.
+
 The dive itself is from a clip the owner sent of a fielder diving full
 length on his front. As his chest hits the turf both shins flick up behind
 him, knees bent and soles to the sky, held up through the slide and let
