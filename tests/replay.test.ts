@@ -51,6 +51,13 @@ describe('which balls are replayed', () => {
     expect(due(four(1, { stroke: 'pull', runs: 6 }), capped, .99, { cap: 0 })).toBe(true);
     expect(due(four(1, { stroke: 'pull', runs: 4 }), capped, .99, { cap: 0 })).toBe(false);
   });
+  it('the helicopter for four or six, from the bowler\'s end, cut once the bat is round', () => {
+    expect(qualifies(four(0, { stroke: 'heli', grade: 'GOOD' }))).toBe(true);
+    expect(qualifies(four(0, { stroke: 'heli', grade: 'PERFECT', runs: 6 }))).toBe(true);
+    expect(qualifies(four(0, { stroke: 'heli', grade: 'OK', runs: 2 }))).toBe(false);
+    expect(REPLAY_ANGLES.heli.map(angle => angle.id)).toContain('umpire');
+    expect(CUT_AFTERS.heli).toBeGreaterThan(400);
+  });
   it('the special strokes and a batter bowled every time, whatever the dice, the gap or the cap', () => {
     for (const stroke of ALWAYS) {
       const ball = stroke === 'bowled' ? four(1, { stroke, runs: 0, wicket: true, grade: 'MISS' }) : four(1, { stroke, runs: 6 });
