@@ -2116,20 +2116,28 @@ const FLICK_V3: Stroke & { load: Pose; lift: Pose; across: Pose } = {
  * Keyed for a ball on leg stump: the reach moves him from there.
  */
 /**
- * The helicopter's two versions, the same bat on the same clock: one stands
- * as he was (`HELICOPTER_BODY`), two opens his legs (`helicopterOpen`), the
- * front foot drawn back out to leg and both feet turned towards the bowler,
- * the hips going with them, on a wide base. Only his legs and hips: the hands' path and the
- * bat's turn are the same to the millimetre.
+ * The helicopter's two versions, the same bat on the same clock, his legs
+ * opened from `HELICOPTER_BODY` by two amounts (`HELICOPTER_OPEN`,
+ * `helicopterOpen`): the front foot drawn back out to leg and both feet and
+ * his hips turned towards the bowler. Version one opens him that far; version
+ * two goes further onto a wide base, the front foot well out to leg and the
+ * back foot a little out to off, the hips a little lower on it. Only his legs
+ * and hips: the hands' path and the bat's turn are the same to the
+ * millimetre. The owner froze version two on 13 November 2026; version one is
+ * the stance version two had before it was widened. The first stance, legs as
+ * in his guard, is gone.
  */
 export type HelicopterVersion = 1 | 2;
 /** Half each, off the seed and the ball. Both are the same stroke and score the same. */
 export function helicopterVersionOf(roll: number): HelicopterVersion { return roll < .5 ? 1 : 2; }
-/** How far version two opens him: the front foot well out to leg and back, the back foot a little out to off so the base is wide, the hips sunk a little lower on it, the feet and hips turned to the bowler. */
-const HELICOPTER_OPEN = { front: [-.26, 0, -.10] as Point, back: [.06, 0, -.02] as Point, frontYaw: -.38, backYaw: .95, yaw: -.20, hip: -.05, sink: -.03, chest: -.03 } as const;
-/** A key of the helicopter with his legs opened, as version two stands: see `HELICOPTER_OPEN`. */
-function helicopterOpen(pose: Pose): Pose {
-  const { front, back, frontYaw, backYaw, yaw, hip, sink, chest } = HELICOPTER_OPEN;
+/** How far each version opens him, from `HELICOPTER_BODY`. Version two's is frozen. */
+const HELICOPTER_OPEN: Record<HelicopterVersion, { front: Point; back: Point; frontYaw: number; backYaw: number; yaw: number; hip: number; sink: number; chest: number }> = {
+  1: { front: [-.15, 0, -.10], back: [0, 0, 0], frontYaw: -.38, backYaw: .95, yaw: -.20, hip: -.05, sink: 0, chest: -.03 },
+  2: { front: [-.26, 0, -.10], back: [.06, 0, -.02], frontYaw: -.38, backYaw: .95, yaw: -.20, hip: -.05, sink: -.03, chest: -.03 },
+};
+/** A key of the helicopter with his legs opened as `version` stands: see `HELICOPTER_OPEN`. */
+function helicopterOpen(pose: Pose, version: HelicopterVersion): Pose {
+  const { front, back, frontYaw, backYaw, yaw, hip, sink, chest } = HELICOPTER_OPEN[version];
   return { ...pose, frontFoot: [pose.frontFoot[0] + front[0], pose.frontFoot[1], pose.frontFoot[2] + front[2]],
     backFoot: [pose.backFoot[0] + back[0], pose.backFoot[1], pose.backFoot[2] + back[2]],
     frontFootYaw: (pose.frontFootYaw ?? pose.yaw * .77) + frontYaw, backFootYaw: backYaw, yaw: pose.yaw + yaw,
@@ -3371,8 +3379,8 @@ export class Batter {
   private spinPulling = false;
   /** The helicopter shot (`HELICOPTER`), off the straight or on drive's swipe. */
   private helicopter = false;
-  /** Version two of the helicopter, his legs opened (`helicopterOpen`). */
-  private heliOpen = false;
+  /** Which of the helicopter's two stances (`HELICOPTER_OPEN`). */
+  private heliVersion: HelicopterVersion = 1;
   /** A cut at a ball up around the chest is played standing tall, not crouched. */
   private cutting = false;
   private squaring = false;
@@ -3871,7 +3879,7 @@ export class Batter {
     this.poseAge = Infinity; this.resetDue = false;
     this.felledAt = -Infinity;
     this.celebratedAt = -Infinity; this.afterward = null; this.admiring = false; this.struck = null; this.followed = null;
-    this.swingStart = -Infinity; this.contactTime = -Infinity; this.pulling = false; this.backDefence = false; this.punching = false; this.cutting = false; this.spinCutting = false; this.spinCutV2 = false; this.spinPulling = false; this.helicopter = false; this.heliOpen = false; this.squaring = false; this.lofted = false; this.sweeping = false; this.levelled = false; this.charging = false; this.stranded = false;
+    this.swingStart = -Infinity; this.contactTime = -Infinity; this.pulling = false; this.backDefence = false; this.punching = false; this.cutting = false; this.spinCutting = false; this.spinCutV2 = false; this.spinPulling = false; this.helicopter = false; this.squaring = false; this.lofted = false; this.sweeping = false; this.levelled = false; this.charging = false; this.stranded = false;
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
   }
   /** The stroke last played, as `afterBall` needs it. */
@@ -3917,8 +3925,8 @@ export class Batter {
     this.shot = charging ? (shot === 'COVER_LONG_OFF' || shot === 'LONG_ON' ? shot : 'STRAIGHT') : shot;
     // The helicopter, the caller having established the ball and the roll: off the straight or the on drive's swipe, and one stroke for both.
     this.helicopter = !charging && helicopter && (shot === 'STRAIGHT' || shot === 'LONG_ON');
-    // Its version is the swing's: 2 opens his legs (`helicopterOpen`), anything else stands as he was.
-    this.heliOpen = this.helicopter && version === 2;
+    // Its version is the swing's: 2 the wide base, anything else version one (`HELICOPTER_OPEN`).
+    this.heliVersion = version === 2 ? 2 : 1;
     if (this.helicopter) { this.shot = 'STRAIGHT'; lofted = false; }
     this.afterward = null; this.resetDue = false; this.admiring = false; this.struck = null; this.followed = null; this.idle = null;
     this.charging = charging; this.stranded = false; this.pulling = !charging && shot === 'LEG' && ballY > PULL_HEIGHT && version !== 3;
@@ -4849,8 +4857,8 @@ export class Batter {
       // Back from the stroke's slowed clock to real milliseconds from the swipe.
       const real = age <= HELICOPTER_CONTACT_MS ? age
         : HELICOPTER_CONTACT_MS + (age - HELICOPTER_CONTACT_MS) * (total - HELICOPTER_CONTACT_MS) / (STROKE_DURATION_MS - HELICOPTER_CONTACT_MS);
-      // Version two opens his legs at every key; the hands are left where they are.
-      const legs = (pose: Pose) => this.heliOpen ? helicopterOpen(pose) : pose;
+      // His legs opened at every key as the version stands; the hands are left where they are.
+      const legs = (pose: Pose) => helicopterOpen(pose, this.heliVersion);
       const body = flowing([{ time: 0, pose: this.swingFrom }, { time: drop, pose: legs(reachPose(keys.drop)) },
         { time: HELICOPTER_CONTACT_MS, pose: legs(contact) }, { time: round, pose: legs(reachPose(keys.round)) }, { time: top, pose: legs(reachPose(keys.top)) },
         { time: off, pose: legs(reachPose(keys.off)) }, { time: ends, pose: legs(reachPose(keys.ends)) }, { time: total, pose: GUARD }], real);

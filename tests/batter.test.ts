@@ -3708,22 +3708,28 @@ describe('the helicopter', () => {
       expect(pose.frontFoot[2] - guard.frontFoot[2], `${kind} ${x}`).toBeLessThan(.08);
     }
   });
-  it('version two opens his legs and leaves the hands and the bat exactly where version one has them', () => {
+  it('version two stands on a wider base than version one and leaves the hands and the bat exactly where version one has them', () => {
     for (const [one, two] of [['heli', 'heliOpen'], ['heliFull', 'heliOpenFull']] as const) for (const x of PLAYS[one].reach) {
       const a = heli(one, x), b = heli(two, x);
       for (let time = 0; time <= END; time += 20) {
         a.update(time); b.update(time); const p = a.inspect(), q = b.inspect();
         expect(new Vector3(...q.grip).distanceTo(new Vector3(...p.grip)), `${one} ${x} @${time}`).toBeLessThan(1e-6);
         expect(new Vector3(...q.batUp).distanceTo(new Vector3(...p.batUp)), `${one} ${x} @${time}`).toBeLessThan(1e-6);
-        // From the ball to the end of the turn, the front foot out to leg and back, and the hips turned towards the bowler.
+        // From the ball to the end of the turn, version two's front foot further out to leg and its base wider.
         if (time >= HELICOPTER_CONTACT_MS && time <= HELICOPTER_CLOCK.ends) {
-          expect(q.frontFoot[0], `${one} ${x} @${time}`).toBeLessThan(p.frontFoot[0] - .12);
-          // A wide base: the feet further apart across the crease than version one's.
-          expect(q.backFoot[0] - q.frontFoot[0], `${one} ${x} @${time}`).toBeGreaterThan(p.backFoot[0] - p.frontFoot[0] + .25);
-          expect(q.frontFoot[2], `${one} ${x} @${time}`).toBeLessThan(p.frontFoot[2] - .07);
-          expect(q.yaw, `${one} ${x} @${time}`).toBeLessThan(p.yaw - .15);
+          expect(q.frontFoot[0], `${one} ${x} @${time}`).toBeLessThan(p.frontFoot[0] - .09);
+          expect(q.backFoot[0] - q.frontFoot[0], `${one} ${x} @${time}`).toBeGreaterThan(p.backFoot[0] - p.frontFoot[0] + .14);
         }
       }
+    }
+  });
+  it('opens both versions to the bowler: version one\'s feet about 22cm apart across the crease at the ball, version two\'s, frozen, 39', () => {
+    for (const [kind, low, high] of [['heli', .18, .27], ['heliOpen', .36, .42]] as const) for (const x of PLAYS[kind].reach) {
+      const batter = heli(kind, x); batter.update(HELICOPTER_CONTACT_MS); const pose = batter.inspect();
+      expect(pose.backFoot[0] - pose.frontFoot[0], `${kind} ${x}`).toBeGreaterThan(low);
+      expect(pose.backFoot[0] - pose.frontFoot[0], `${kind} ${x}`).toBeLessThan(high);
+      // Turned towards the bowler from his guard.
+      expect(pose.yaw, `${kind} ${x}`).toBeLessThan(guard.yaw - .3);
     }
   });
   it('keeps the hands low all the way, never above his chest, and the bat off the turf, then comes home', () => {

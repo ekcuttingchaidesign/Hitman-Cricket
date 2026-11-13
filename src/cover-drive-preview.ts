@@ -67,25 +67,25 @@ const HELI_PHASES = (): [string, number][] => {
 const HELI_NOTE = 'The helicopter, from a net session filmed in slow motion from the bowler\'s end, read frame by frame. It is one turn of the wrists, about one and a half times round, in one rhythm: the bat is already turning when it meets the ball. Seen from the bowler the toe goes round a circle facing him. From the backlift over his off shoulder it falls out to the off side as his hands drop to his thighs by 90 ms, whips down onto the ball at his toes at 175 with the bat straight up and down, and comes on round to the leg side at thigh height by 300, up in front of his face by 440, out to the off side again by 640 and down until the bat hangs in front of his thighs at 1000. It is fastest into the ball and through it and slows evenly from there; nothing stops. The circle leans, its off side back towards the keeper and its leg side forward, so at the bottom the bat is going forward and to leg with the face leading, and the yorker goes over midwicket. The hands stay low, by his thighs at the ball and no higher than his chest at the top; he stays bent right over it, opened a little to the bowler, and nothing strides.';
 const STROKES: Record<string, Stroke> = {
   heli: {
-    label: 'Helicopter · yorker', shot: 'STRAIGHT', charging: false, single: true, helicopter: true, heliVersion: 1, ball: { x: LINE_X.MIDDLE, y: .19, z: GAME.contactZ + HELICOPTER_MEETS_AT },
+    label: 'Helicopter v1 · yorker', shot: 'STRAIGHT', charging: false, single: true, helicopter: true, heliVersion: 1, ball: { x: LINE_X.MIDDLE, y: .19, z: GAME.contactZ + HELICOPTER_MEETS_AT },
     contact: HELICOPTER_CONTACT_MS, end: STROKE_DURATION_MS + HELICOPTER_HOLD_MS, bounceZ: STYLES.YORKER.bounce!,
     phases: HELI_PHASES(), out: { speed: .03, angle: THREE.MathUtils.degToRad(-40), climb: .019 },
     facts: ['yorker, middle stump', `${STROKE_DURATION_MS + HELICOPTER_HOLD_MS} ms`],
-    note: HELI_NOTE + ' Here at a yorker, pitching 30 cm in front of the bat and met 19 cm off the turf.',
+    note: 'Version one, played half the time: as his hands drop the front foot is drawn back out towards leg and both feet turn towards the bowler, his hips going with them, so at the ball his feet are about 22 cm apart across the crease. ' + HELI_NOTE + ' Here at a yorker, pitching 30 cm in front of the bat and met 19 cm off the turf.',
   },
   heliFull: {
-    label: 'Helicopter · fuller ball', shot: 'STRAIGHT', charging: false, single: true, helicopter: true, heliVersion: 1, ball: { x: LINE_X.LEG, y: FULLER.y, z: GAME.contactZ + HELICOPTER_MEETS_AT },
+    label: 'Helicopter v1 · fuller ball', shot: 'STRAIGHT', charging: false, single: true, helicopter: true, heliVersion: 1, ball: { x: LINE_X.LEG, y: FULLER.y, z: GAME.contactZ + HELICOPTER_MEETS_AT },
     contact: HELICOPTER_CONTACT_MS, end: STROKE_DURATION_MS + HELICOPTER_HOLD_MS, bounceZ: FULLER.bounce,
     phases: HELI_PHASES(), out: { speed: .03, angle: THREE.MathUtils.degToRad(-40), climb: .019 },
     facts: ['the new fuller ball, leg stump', `${STROKE_DURATION_MS + HELICOPTER_HOLD_MS} ms`],
-    note: HELI_NOTE + ' Here at the new fuller ball, on leg stump: pitching 2.1 m in front of the bat, where a yorker pitches 30 cm from it and a length ball 7 m, and met on the half-volley at shin height, 35 cm up. The white line on the pitch is where it lands; the faint ones are the yorker and a length.',
+    note: 'Version one. ' + HELI_NOTE + ' Here at the new fuller ball, on leg stump: pitching 2.1 m in front of the bat, where a yorker pitches 30 cm from it and a length ball 7 m, and met on the half-volley at shin height, 35 cm up. The white line on the pitch is where it lands; the faint ones are the yorker and a length.',
   },
   heliOpen: {
     label: 'Helicopter v2 · yorker', shot: 'STRAIGHT', charging: false, single: true, helicopter: true, heliVersion: 2, ball: { x: LINE_X.MIDDLE, y: .19, z: GAME.contactZ + HELICOPTER_MEETS_AT },
     contact: HELICOPTER_CONTACT_MS, end: STROKE_DURATION_MS + HELICOPTER_HOLD_MS, bounceZ: STYLES.YORKER.bounce!,
     phases: HELI_PHASES(), out: { speed: .03, angle: THREE.MathUtils.degToRad(-40), climb: .019 },
     facts: ['yorker, middle stump', `${STROKE_DURATION_MS + HELICOPTER_HOLD_MS} ms`],
-    note: 'Version two, played half the time: the same helicopter with his legs opened wide. As his hands drop the front foot is drawn well back out towards leg and the back foot goes a little out to off, so at the ball his feet are 39 cm apart across the crease where version one\'s are 7; both feet turn towards the bowler and his hips go with them, a little lower on the wide base. The hands\' path and the bat\'s turn are the same as version one\'s to the millimetre, and it scores the same. ' + HELI_NOTE,
+    note: 'Version two, played half the time: the same helicopter with his legs opened wide. As his hands drop the front foot is drawn well back out towards leg and the back foot goes a little out to off, so at the ball his feet are 39 cm apart across the crease where version one\'s are about 22; both feet turn towards the bowler and his hips go with them, a little lower on the wide base. The hands\' path and the bat\'s turn are the same as version one\'s to the millimetre, and it scores the same. ' + HELI_NOTE,
   },
   heliOpenFull: {
     label: 'Helicopter v2 · fuller ball', shot: 'STRAIGHT', charging: false, single: true, helicopter: true, heliVersion: 2, ball: { x: LINE_X.LEG, y: FULLER.y, z: GAME.contactZ + HELICOPTER_MEETS_AT },

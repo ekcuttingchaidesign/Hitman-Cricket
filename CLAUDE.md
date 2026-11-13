@@ -1352,14 +1352,17 @@ the circle leans, its off side back towards the keeper and its leg side
 forward, so the face leads through the ball forward and to leg. The bat's
 angle is a function of the clock and the hands and body are keyed round it,
 the hands low all the way. It comes in two versions, half each
-(`HelicopterVersion`, `helicopterVersionOf` off the seed and the ball):
-version two is the same bat with his legs opened (`helicopterOpen`,
-`HELICOPTER_OPEN`), the front foot drawn well back out to leg and the back
-foot a little out to off, a wide base (feet 39cm apart across the crease at
-the ball, where version one's are 7), the hips a little lower on it, both
-feet and his hips turned towards the bowler, the hands and the bat's turn version
-one's to the millimetre, and scored the same, so `?heliv=1` or `2` asks for
-one and is not practice. Two builds were wrong and are not to be built
+(`HelicopterVersion`, `helicopterVersionOf` off the seed and the ball), the
+same bat with his legs opened by two amounts (`helicopterOpen`,
+`HELICOPTER_OPEN`): both draw the front foot back out to leg and turn both
+feet and his hips towards the bowler, version one's feet about 22cm apart
+across the crease at the ball, and version two goes on to a wide base, the
+front foot well out to leg and the back foot a little out to off, 39cm apart,
+the hips a little lower on it. The owner froze version two on 13 November
+2026; version one is the stance version two had before it was widened, and
+the first stance, his legs as in his guard, is gone. The hands and the bat's
+turn are the same in both to the millimetre, and they score the same, so
+`?heliv=1` or `2` asks for one and is not practice. Two builds were wrong and are not to be built
 again: the hands up over his head whirling the bat level after the ball, and
 the bat turned up and down the pitch with a stop at the top, which the owner
 saw as a lofted straight drive, a pause and a follow-through.
