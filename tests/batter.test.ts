@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect } from 'vitest';
-import { Batter, FLICK_CLOCK, FLICK_HOLD_MS, FLICK_MEETS_AT, FLICK_V3_CLOCK, FLICK_V3_CONTACT_MS, FLICK_V3_HOLD_MS, FLICK_V3_MEETS_AT, STRAIGHT_CHARGE_HOLD, PUNCH_CLOCK, PUNCH_CONTACT_MS, PUNCH_HIGHEST, PUNCH_HOLD_MS, PUNCH_MEETS_AT, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, DEFENCE_FRONT_MEETS_AT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_HEIGHT, SPIN_CUT_CONTACT_MS, SPIN_CUT_V2_MEETS_AT, SPIN_CUT_HOLD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_MEETS_AT, SPIN_PULL_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, pullVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
+import { Batter, HELICOPTER_CLOCK, HELICOPTER_CONTACT_MS, HELICOPTER_HOLD_MS, FLICK_CLOCK, FLICK_HOLD_MS, FLICK_MEETS_AT, FLICK_V3_CLOCK, FLICK_V3_CONTACT_MS, FLICK_V3_HOLD_MS, FLICK_V3_MEETS_AT, STRAIGHT_CHARGE_HOLD, PUNCH_CLOCK, PUNCH_CONTACT_MS, PUNCH_HIGHEST, PUNCH_HOLD_MS, PUNCH_MEETS_AT, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, DEFENCE_FRONT_MEETS_AT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_HEIGHT, SPIN_CUT_CONTACT_MS, SPIN_CUT_V2_MEETS_AT, SPIN_CUT_HOLD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_MEETS_AT, SPIN_PULL_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, pullVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -20,13 +20,15 @@ const STROKES: ShotType[] = [...SHOTS, 'DEFEND'];
  * to it — the run down the pitch, the wrap, the walk back — has a suite of its
  * own below.
  */
-const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; reach: number[]; lofted?: boolean; sweeping?: boolean; levelled?: boolean; charging?: boolean; settle: number; version?: 1 | 2 | 3; meets?: number; spinCut?: boolean; spinPull?: boolean }> = {
+const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; reach: number[]; lofted?: boolean; sweeping?: boolean; levelled?: boolean; charging?: boolean; settle: number; version?: 1 | 2 | 3; meets?: number; spinCut?: boolean; spinPull?: boolean; helicopter?: boolean }> = {
   pull: { shot: 'LEG', ballY: 1.12, impact: PULL_CONTACT_MS, reach: [-.55, 0, .32], settle: 500, meets: PULL_MEETS_AT, version: 2 },
   // Pull version one: met beside him, standing where he hit it.
   pullV1: { shot: 'LEG', ballY: 1.12, impact: PULL_V1_CONTACT_MS, reach: [-.55, 0, .32], settle: 500, version: 1 },
   // The flick, version two: off the pads from outside leg to middle, met beside the front pad.
   flick2: { shot: 'LEG', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.42, -.14, 0], settle: 420, meets: FLICK_MEETS_AT, version: 2 },
   // The flick, version three: off the back foot, at a ball short of a length met late in front of the front pad.
+  heli: { shot: 'STRAIGHT', ballY: .19, impact: HELICOPTER_CONTACT_MS, reach: [-.14, 0, .14], settle: 350, helicopter: true },
+  heliFull: { shot: 'LONG_ON', ballY: .35, impact: HELICOPTER_CONTACT_MS, reach: [-.14, 0], settle: 350, helicopter: true },
   flick3: { shot: 'LEG', ballY: .81, impact: FLICK_V3_CONTACT_MS, reach: [-.42, -.14, 0], settle: 430, meets: FLICK_V3_MEETS_AT, version: 3 },
   // The block: forward at a ball pitched up, back at one back of a length and at a bouncer.
   defend: { shot: 'DEFEND', ballY: .54, impact: DEFENCE_FRONT_CONTACT_MS, reach: [-.30, 0, .30], settle: 220, meets: DEFENCE_FRONT_MEETS_AT },
@@ -96,7 +98,7 @@ const metAt = (shot: ShotType, ballY: number) => GAME.contactZ + (shot === 'LEG'
 const play = (batter: Batter, kind: string, x = 0) => {
   const spec = PLAYS[kind];
   batter.swing(spec.shot, 0, x, spec.ballY, GAME.contactZ + (spec.charging ? CHARGE_MEETS_AT : spec.version === 3 && spec.shot === 'COVER_LONG_OFF' ? COVER_V3_MEETS_AT : spec.meets ?? 0),
-    spec.charging ?? false, spec.lofted ?? false, spec.sweeping ?? false, spec.levelled ?? false, spec.version ?? 2, spec.spinCut ?? false, spec.spinPull ?? false);
+    spec.charging ?? false, spec.lofted ?? false, spec.sweeping ?? false, spec.levelled ?? false, spec.version ?? 2, spec.spinCut ?? false, spec.spinPull ?? false, spec.helicopter ?? false);
 };
 /**
  * When the straight charge reaches a moment of its own clock: it holds its
@@ -1208,7 +1210,7 @@ describe('the grip', () => {
   // Every stroke frame by frame: a second or two alone, near the default five
   // seconds when the whole suite runs at once, so it is given room.
   it('does not flip an elbow or wrist between frames, including entering and leaving guard', () => {
-    for (const kind of ['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer','hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','cut','cutLow','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse']) for (const x of PLAYS[kind].reach) {
+    for (const kind of ['heli','heliFull','flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer','hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','cut','cutLow','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse']) for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       let previous = batter.inspect();
       play(batter, kind, x);
@@ -1373,7 +1375,7 @@ describe('every stroke, across its reach', () => {
       else expect(face[2]).toBeGreaterThan(.8);
     }
   });
-  it.each(['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer','hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','cut','cutLow','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','loftedV2','scoop','reverse'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
+  it.each(['heli','heliFull','flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer','hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','cut','cutLow','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','loftedV2','scoop','reverse'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
     const geometry=bladeGeometry(), positions=geometry.getAttribute('position'), index=geometry.getIndex()!;
     const samples=Array.from({length:positions.count},(_,i)=>new Vector3().fromBufferAttribute(positions,i));
     for(let i=0;i<index.count;i+=3) samples.push(
@@ -1433,7 +1435,7 @@ describe('every stroke, across its reach', () => {
  */
 describe('the front pad', () => {
   const flat = (v: Vector3) => new Vector3(v.x, 0, v.z).normalize();
-  it.each(['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer', 'hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','cut','cutLow', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('faces where the %s shoe faces', kind => {
+  it.each(['heli','heliFull','flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer', 'hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','cut','cutLow', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('faces where the %s shoe faces', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -1542,7 +1544,7 @@ describe('the slog sweep', () => {
    * onto one line — 0.04m between the forearms where the other strokes keep
    * 0.13m and up — and read as a man paddling rather than swinging.
    */
-  it.each(['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer', 'hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','cut','cutLow', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('keeps the %s forearms apart and the elbows unswapped', kind => {
+  it.each(['heli','heliFull','flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer', 'hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','cut','cutLow', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('keeps the %s forearms apart and the elbows unswapped', kind => {
     /** Closest approach of the elbow halves, which is the half that can cross. */
     const between = (a: Vector3, b: Vector3, c: Vector3, d: Vector3) => {
       const u = b.clone().sub(a), v = d.clone().sub(c), w = a.clone().sub(c);
@@ -1758,7 +1760,7 @@ describe('the arms', () => {
    * came within 0.09 m of the centre of the helmet on the square drive, which
    * is well inside it.
    */
-  it.each(['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer','hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','square','straight','lofted','loftedV2','cover','cover3','on','cut','cutLow','sweep'])('keeps the %s arms out of the helmet', kind => {
+  it.each(['heli','heliFull','flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer','hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','square','straight','lofted','loftedV2','cover','cover3','on','cut','cutLow','sweep'])('keeps the %s arms out of the helmet', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -1818,7 +1820,7 @@ describe('the arms', () => {
     }
   });
   /** An arm past its own length is a stretched limb, not a straight one. */
-  it.each(['flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer','hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','square','straight','lofted','loftedV2','cover','cover3','on','cut','cutLow','sweep'])('never reaches the %s arms past their own length', kind => {
+  it.each(['heli','heliFull','flick2','flick3','pull','pullV1','defend','defendBack','defendBouncer','punch','punchBouncer','hook','spinCut','spinCut2','spinPull','spinPullLow','lateCut','square','straight','lofted','loftedV2','cover','cover3','on','cut','cutLow','sweep'])('never reaches the %s arms past their own length', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -3644,5 +3646,77 @@ describe('the late cut', () => {
     expect(toeAt(400).distanceTo(toeAt(600))).toBeLessThan(.02);
     // And home.
     batter.update(STROKE_DURATION_MS); expect(batter.inspect().hip[1]).toBeGreaterThan(.9);
+  });
+});
+/**
+ * The helicopter: one turn of the bat in his wrists with the hands low, the
+ * ball met halfway round it. Its first build took the hands up over his head
+ * and whirled the bat there after the ball, which was wrong.
+ */
+describe('the helicopter', () => {
+  const heli = (kind: 'heli' | 'heliFull', x: number) => { const batter = new Batter(); batter.prepare(1); batter.update(0); play(batter, kind, x); return batter; };
+  const guard = new Batter().inspect();
+  /** Which way the toe points from his hands. */
+  const toeFrom = (pose: ReturnType<Batter['inspect']>) => new Vector3(...pose.batUp).negate();
+  const KINDS = ['heli', 'heliFull'] as const;
+  it('turns the bat once round in his wrists: up, back, down onto the ball, forward, and up in front of him', () => {
+    for (const kind of KINDS) for (const x of PLAYS[kind].reach) {
+      const batter = heli(kind, x), at = (time: number) => { batter.update(time); return toeFrom(batter.inspect()); };
+      expect(at(HELICOPTER_CLOCK.load).y, `${kind} ${x} load`).toBeGreaterThan(.8);
+      expect(at(HELICOPTER_CLOCK.back).z, `${kind} ${x} back`).toBeLessThan(-.75);
+      expect(at(HELICOPTER_CONTACT_MS).y, `${kind} ${x} contact`).toBeLessThan(-.9);
+      expect(at(HELICOPTER_CLOCK.forward).z, `${kind} ${x} forward`).toBeGreaterThan(.9);
+      expect(at(HELICOPTER_CLOCK.up).y, `${kind} ${x} up`).toBeGreaterThan(.95);
+      // One way round all the way: about the line across the pitch, the toe never comes back on itself.
+      let before = Math.atan2(at(HELICOPTER_CLOCK.load).z, at(HELICOPTER_CLOCK.load).y), turned = 0;
+      for (let time = HELICOPTER_CLOCK.load + 5; time <= HELICOPTER_CLOCK.up; time += 5) {
+        const toe = at(time), angle = Math.atan2(toe.z, toe.y);
+        const step = Math.atan2(Math.sin(angle - before), Math.cos(angle - before));
+        expect(step, `${kind} ${x} @${time}`).toBeLessThan(.02);
+        turned += step; before = angle;
+      }
+      // A whole turn, near enough: from upright behind him to upright in front.
+      expect(-turned, `${kind} ${x}`).toBeGreaterThan(Math.PI * 1.7);
+      expect(-turned, `${kind} ${x}`).toBeLessThan(Math.PI * 2.2);
+    }
+  });
+  it('meets the ball at his toes with the face to the bowler, low on the blade, the toe off the turf', () => {
+    for (const kind of KINDS) for (const x of PLAYS[kind].reach) {
+      const batter = heli(kind, x); batter.update(HELICOPTER_CONTACT_MS); const pose = batter.inspect();
+      expect(pose.batFace[2], `${kind} ${x}`).toBeGreaterThan(.9);
+      const grip = new Vector3(...pose.grip).add(new Vector3(GAME.stanceX, 0, GAME.stanceZ)), tip = new Vector3(...pose.bladeTip);
+      const ball = new Vector3(x, PLAYS[kind].ballY, GAME.contactZ), along = tip.clone().sub(grip).normalize();
+      // On the blade's line, between its middle and its toe.
+      const down = ball.clone().sub(grip).dot(along);
+      expect(ball.distanceTo(grip.clone().addScaledVector(along, down)), `${kind} ${x}`).toBeLessThan(.02);
+      expect(down, `${kind} ${x}`).toBeGreaterThan(.43);
+      expect(down, `${kind} ${x}`).toBeLessThan(.80);
+      expect(tip.y, `${kind} ${x}`).toBeGreaterThan(0);
+      // No stride: the front foot where it stood, opened a little to leg.
+      expect(Math.abs(pose.frontFoot[2] - guard.frontFoot[2]), `${kind} ${x}`).toBeLessThan(.08);
+    }
+  });
+  it('keeps the hands low all the way, never above his chest, and the bat off the turf', () => {
+    for (const kind of KINDS) for (const x of PLAYS[kind].reach) {
+      const batter = heli(kind, x);
+      for (let time = 0; time <= STROKE_DURATION_MS + HELICOPTER_HOLD_MS; time += 5) {
+        batter.update(time); const pose = batter.inspect();
+        expect(pose.grip[1], `${kind} ${x} @${time}`).toBeLessThan(1.2);
+        expect(pose.grip[1], `${kind} ${x} @${time}`).toBeLessThan(pose.shoulders[0][1]);
+        expect(pose.bladeTip[1], `${kind} ${x} @${time}`).toBeGreaterThan(0);
+      }
+    }
+  });
+  it('holds the bat upright in front of him, tips it over to the off side, lets it down and comes home', () => {
+    for (const kind of KINDS) for (const x of PLAYS[kind].reach) {
+      const batter = heli(kind, x); batter.update(HELICOPTER_CLOCK.up); const up = batter.inspect();
+      for (let time = HELICOPTER_CLOCK.up; time <= HELICOPTER_CLOCK.hold + HELICOPTER_HOLD_MS; time += 20) {
+        batter.update(time); expect(new Vector3(...batter.inspect().grip).distanceTo(new Vector3(...up.grip)), `${kind} ${x} @${time}`).toBeLessThan(1e-6);
+      }
+      batter.update(HELICOPTER_CLOCK.tip + HELICOPTER_HOLD_MS); expect(toeFrom(batter.inspect()).x, `${kind} ${x}`).toBeGreaterThan(.9);
+      batter.update(HELICOPTER_CLOCK.hang + HELICOPTER_HOLD_MS); expect(toeFrom(batter.inspect()).y, `${kind} ${x}`).toBeLessThan(-.6);
+      batter.update(STROKE_DURATION_MS + HELICOPTER_HOLD_MS);
+      expect(batter.inspect().grip).toEqual(guard.grip);
+    }
   });
 });

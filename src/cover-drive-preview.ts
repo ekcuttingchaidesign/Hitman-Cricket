@@ -58,12 +58,11 @@ interface Stroke {
  */
 const FULLER = { bounce: 3.4, rise: .72, y: .09 + .72 * .36 } as const;
 const HELI_PHASES = (): [string, number][] => {
-  const { load, whip, up, over, round, front, down } = HELICOPTER_CLOCK;
-  const late = (at: number) => Math.round(whip + (at - whip) * (STROKE_DURATION_MS + HELICOPTER_HOLD_MS - whip) / (STROKE_DURATION_MS - whip));
-  return [['Stance', -LEAD_MS], ['Bat up', load], ['Contact', HELICOPTER_CONTACT_MS], ['Whip', whip], ['Up', late(up)], ['Over the top', late(over)],
-    ['Whirl', late(round)], ['Round', late(front)], ['Down', late(down)], ['Home', STROKE_DURATION_MS + HELICOPTER_HOLD_MS]];
+  const { load, back, forward, rise, up, hold, tip, hang } = HELICOPTER_CLOCK, late = HELICOPTER_HOLD_MS;
+  return [['Stance', -LEAD_MS], ['Bat upright', load], ['Toe back', back], ['Contact', HELICOPTER_CONTACT_MS], ['Toe forward', forward], ['Rising', rise],
+    ['Upright', up], ['Held', hold + late], ['Tipped to off', tip + late], ['Let down', hang + late], ['Home', STROKE_DURATION_MS + late]];
 };
-const HELI_NOTE = 'The helicopter, from two net sessions in slow motion and a broadcast clip. No stride: the front foot opens a little to leg where it stands and the weight stays back. The bat goes up very high, nearly upright behind him, by 85 ms; the bottom hand brings it down hard and steep onto a ball at his toes at 170, the hands low by the knee and behind the ball, the toe of the bat ahead of them so the face comes up under it, his back bent over it. Then the bottom hand whips through: the bat swings up in front of him toe first, up past his face with the hands climbing above his forehead, over the top until it lies level behind his head, and on round, level over the helmet, out to the off side and back to point down the pitch, the whirl the stroke is named for, before it comes down in front of him into his guard. From the ball on nothing turns the bat in his hands.';
+const HELI_NOTE = 'The helicopter, from a net session filmed in slow motion from the bowler\'s end, read frame by frame. It is one turn of the bat in his wrists, in a plane up and down the pitch, with the hands low and close to him all the way, and the ball is met halfway round it. By 65 ms his hands are down by the back hip with the bat standing upright over them. The toe falls back towards the keeper at 112 and comes on round, down onto a ball at his toes at 170, the bat upright the other way, the hands by his knee and his back bent over it. The wrists keep it turning: the toe swings on forward towards the bowler at 250 and up, and at 440 the bat stands upright in front of his chest with the hands no higher than his ribs, the half turn after the ball that is the follow-through. He holds it there, still bent over, then the bat tips over to the off side, is let down to hang in front of his thighs, and goes up into his guard. The front foot opens to leg where it stands; nothing strides, and nothing rolls the bat in his hands.';
 const STROKES: Record<string, Stroke> = {
   heli: {
     label: 'Helicopter · yorker', shot: 'STRAIGHT', charging: false, single: true, helicopter: true, ball: { x: LINE_X.MIDDLE, y: .19, z: GAME.contactZ + HELICOPTER_MEETS_AT },
@@ -413,7 +412,8 @@ const readout = document.querySelector<HTMLOutputElement>('#time')!;
 const phaseLabel = document.querySelector<HTMLOutputElement>('#phase')!;
 const strip_ = document.querySelector<HTMLDivElement>('#frames')!;
 
-let playing = true, t = -LEAD_MS, speed = .5, previous = performance.now(), view = 'side';
+// The view opens on the page's pressed key: side on, unless the page says otherwise.
+let playing = true, t = -LEAD_MS, speed = .5, previous = performance.now(), view = document.querySelector<HTMLButtonElement>('[data-view][aria-pressed="true"]')?.dataset.view ?? 'side';
 const phaseAt = (time: number) => [...stroke.phases].reverse().find(([, at]) => time >= at)?.[0] ?? 'Stance';
 function setPlaying(on: boolean) { playing = on; playButton.textContent = on ? 'Pause' : 'Play'; playButton.setAttribute('aria-pressed', String(on)); }
 function seek(time: number) { setPlaying(false); t = Math.max(-LEAD_MS, Math.min(stroke.end, time)); }
