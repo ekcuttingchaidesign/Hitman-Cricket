@@ -100,9 +100,9 @@ async function run(cam, extra, label, keys = ['w', 'd']) {
     if (label === 'pro') check(found.some(t => t.phase === 'follow' && t.bat === false), 'pro: the bat and gloves out of the picture while he watches it', found.map(t => t.bat).join(' '));
     if (label === 'close-lift') check(Math.max(...lifts) > .9 && atNext.lift < .1, 'close-lift: lifts up and back, and down again');
     if (label.startsWith('classic-')) {
-      // Eased back down the pitch, never cut: no frame jumps more than a few degrees.
+      // Eased back down the pitch, never cut: a cut covers the whole turn in a frame, the ease a third of it in a tenth of a second.
       const steps = yaws.slice(1).map((y, i) => Math.abs(y - yaws[i]));
-      check(Math.max(...steps) <= 5, `${label}: eased back, no cut (largest step ${Math.max(...steps)}°)`);
+      check(Math.max(...steps) <= most / 2, `${label}: eased back, no cut (largest step ${Math.max(...steps)}° of ${most}°)`);
       check(most <= 38, `${label}: no further round than Classic turns (${most}°)`);
     }
   }
