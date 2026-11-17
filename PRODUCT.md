@@ -28,8 +28,10 @@ Played one-handed on a phone, often in a browser opened from WhatsApp or Instagr
 
 - Vite, TypeScript and three.js on the front; Vercel serverless functions over Upstash Redis behind; everything must fit free tiers.
 - Super Knockout rules agreed: up to 12 players; one wicket; running total; lowest totals cut each over (wickets count first); 4 or 5 overs then sudden death (last place out every ball); a hard tie on the line takes both through; free hit for the over's top 3, tapering as the field shrinks; the Blast's timing windows; Super10's fields.
-- Points by real players in the room: 1 real = 0/0/0; 2–3 = 3/1/0; 4–5 = 5/2/1; 6–7 = 7/3/1; 8–9 = 8/4/2; 10–12 = 10/5/2; a room of only stand-ins is practice; wins count only with 4+ real players.
-- Stand-ins fill empty seats and are called random players, never bots.
+- Points by real players in the room, and only with 3 or more: 1–2 real = no points; 3 = 3/1/0; 4–5 = 5/2/1; 6–7 = 7/3/1; 8–9 = 8/4/2; 10–12 = 10/5/2. A room of only subs is practice; wins count only with 4+ real players.
+- Leaving mid-match gives no place and no points: the result says RAN AWAY.
+- The pause is a timeout: your own bowler waits, 15 seconds an over at most; no restart or change mode. Replays are off in this mode.
+- Stand-ins fill empty seats and are called subs, never bots or random players.
 - Leaderboard ladders: Points (default), Wins, Highest total, Win rate; This week and All time.
 - Reached from "Play with friends" and a card on Choose a mode; My Stats gets a Knockout card.
 - A player id never leaves the store; other players are named by handle.
@@ -38,7 +40,7 @@ Played one-handed on a phone, often in a browser opened from WhatsApp or Instagr
 
 - Hitman Cricket's UI handover (Figma `JhIdkSdtMSriYe3W5y3NAa`, canvas `125:4590`): Jaro for display, Satoshi for UI (Outfit stands in inside Figma), the orange key, the near-black page.
 - Super Knockout's brand sheet (section 32, node `798:6580`): Knockout Red. Red is the knockout, gold is a reward, green only means safe, you are white, never stop the ball.
-- Voice: knocked out, never eliminated; random player, never bot; over 1, never round 1.
+- Voice: knocked out, never eliminated; sub, never bot; over 1, never round 1; the winner is WINNER, not #1 of 12.
 
 ## Evidence on Hand
 
