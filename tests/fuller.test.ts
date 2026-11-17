@@ -9,6 +9,7 @@ import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN, SUPER10_PLAN, SURVIVE_P
 import { SeededRandom } from '../src/game/SeededRandom';
 import { FULLER, GAME } from '../src/config/gameplay';
 import type { Delivery } from '../src/game/types';
+import { ballPosition } from '../src/game/DeliveryTrajectory';
 
 const PLANS: Record<string, BowlingPlan> = { blast: CLASSIC_PLAN, survival: SURVIVE_PLAN, marathon: MARATHON_PLAN, super10: SUPER10_PLAN };
 const SPUN = ['OFF_SPIN', 'LEG_SPIN', 'ARM_BALL'];
@@ -44,8 +45,9 @@ describe('the fuller ball', () => {
       }
     }
     // Something like every other over or more: a place that falls on a yorker, a bouncer, a slower ball or the
-    // spinner is let go, and the Marathon's spinner and bouncers take the most.
-    expect(fuller / overs, name).toBeGreaterThan(.35);
+    // spinner is let go, and the Marathon's spinner and bouncers take the most; its reverse swinger's place too,
+    // which is never pitched full, so there it is about one over in three.
+    expect(fuller / overs, name).toBeGreaterThan(.3);
   });
   it('comes from every kind of fast bowler: the seamer, the swing bowler, the sling bowler and the death bowler', () => {
     const kinds = new Set<string>();
@@ -63,5 +65,20 @@ describe('the fuller ball', () => {
       });
       expect(without.some(ball => ball.full), name).toBe(false);
     }
+  });
+  it('never jumps sideways: no reverse swinger is pitched full, and a swing ball pitched up has swung well before the bat', () => {
+    let swingers = 0;
+    for (const name of ['survival', 'marathon', 'super10']) for (let seed = 1; seed <= 30; seed++) for (const ball of innings(PLANS[name], seed, 240)) {
+      if (!ball.full) continue;
+      expect(['REVERSE_IN', 'REVERSE_OUT'], `${name} ${seed}`).not.toContain(ball.style);
+      if (ball.style !== 'SWING_IN' && ball.style !== 'SWING_OUT') continue;
+      swingers++;
+      // On its line with two fifths of the flight to go, as his length ball is, and it gets there no faster than that one.
+      expect(ballPosition(ball, .6).x, `${name} ${seed}`).toBeCloseTo(ball.finalTargetX, 6);
+      const length = { ...ball, bounceZ: GAME.bounceZ, rise: GAME.rise, full: undefined };
+      for (let t = 0; t <= 1; t += .02) expect(ballPosition(ball, t).x, `${name} ${seed} at ${t}`).toBeCloseTo(ballPosition(length, t).x, 6);
+      expect(ballPosition(ball, 1).x).toBeCloseTo(ball.finalTargetX, 6);
+    }
+    expect(swingers).toBeGreaterThan(20);
   });
 });

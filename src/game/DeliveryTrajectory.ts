@@ -40,6 +40,8 @@ export function flightProgress(delivery: Delivery, sinceRelease: number) {
   return u <= 1 ? u + drag * u * (1 - u) : 1 + (u - 1) * (1 - drag);
 }
 
+/** How far through its flight a ball of ordinary length pitches. */
+const STOCK_BOUNCE_T = (GAME.releaseZ - GAME.bounceZ) / (GAME.releaseZ - GAME.contactZ);
 export function ballPosition(delivery: Delivery, progress: number) {
   const bounceT = (GAME.releaseZ - delivery.bounceZ) / (GAME.releaseZ - GAME.contactZ);
   const t = Math.max(0, progress);
@@ -56,11 +58,15 @@ export function ballPosition(delivery: Delivery, progress: number) {
   const settled = delivery.flighted ? Math.min(bounceT + FLIGHT.settle, FLIGHT.turnedBy) : 0.66;
   // A ball that swings late holds its line for the first part of the way.
   const late = delivery.late ?? 0;
+  // The fuller ball (`FULLER`) pitches two metres from the bat, and swung all
+  // the way to its pitch it was still bending as it reached him: it has done
+  // its swinging by where a length ball pitches, and comes on straight.
+  const swung = delivery.full ? Math.min(1, t / Math.min(bounceT, STOCK_BOUNCE_T)) : pre;
   // Reverse swing goes to the pitch straight and does all of its moving off it.
   const reverse = delivery.style === 'REVERSE_IN' || delivery.style === 'REVERSE_OUT';
   const movementT = spin ? smooth((t - bounceT) / (settled - bounceT))
     : reverse ? smooth((t - bounceT) / (REVERSE.settled - bounceT))
-    : smooth(late ? (pre - late) / (1 - late) : pre);
+    : smooth(late ? (swung - late) / (1 - late) : swung);
   // Tossed up, it drifts in the air the other way to its turn and comes back
   // onto its line late, by the pitch: an off break away from the right-hander,
   // a leg break into him. Nothing after the pitch moves, so every rule that
