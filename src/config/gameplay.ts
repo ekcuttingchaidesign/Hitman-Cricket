@@ -263,9 +263,14 @@ export const GROUND_RUNS = [[1, 0.45], [2, 0.35], [3, 0.20]] as const;
  * came, and it is one of his ordinary balls (`styles`) pitched up, never a
  * yorker, a bouncer or a slower ball: a place that falls on one of those is
  * let go for that over. `?heli=1` bowls it every other ball.
+ * Never the reverse swinger: that ball does all its moving between the pitch
+ * and the bat, and pitched this full it had 27ms to move a stump's width
+ * and more, which read as the ball jumping sideways. A swing ball pitched up
+ * has swung by where his stock ball pitches (`ballPosition`), not by its own
+ * pitch, or it was still bending 72ms from the bat.
  */
 export const FULLER = { bounce: 3.4, rise: .72, perOver: 1, salt: 0x66756c6c,
-  styles: ['NORMAL', 'FAST', 'EXPRESS', 'SWING_IN', 'SWING_OUT', 'REVERSE_IN', 'REVERSE_OUT'] as readonly DeliveryStyle[] } as const;
+  styles: ['NORMAL', 'FAST', 'EXPRESS', 'SWING_IN', 'SWING_OUT'] as readonly DeliveryStyle[] } as const;
 /**
  * The helicopter (`helicopterBall`, `helicoptered` in `ShotResolver.ts`): the
  * straight or on drive's swipe at a pace bowler's yorker, every time, or at
