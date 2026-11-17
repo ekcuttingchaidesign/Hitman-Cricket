@@ -2373,6 +2373,19 @@ of wickets seen off (`KEEP`), tuned by `scripts/knockout-sim.ts` so a room is
 usually won by 65 to 100. Out, the room plays on without the player to the
 cut that takes them, at once.
 
+It is bowled over by over (`knockoutPlan` in `DeliveryGenerator.ts`, the
+owner's plan; `tests/knockout.test.ts`'s "the bowling"): the first over the
+seamer pitching it up, seam and swing only with three fuller balls, no
+yorker, no bouncer, nothing quick or slower, so everybody gets going; the
+second the seamer with the Blast's bouncer back but still no yorker; the
+third the spinner; the fourth the swing bowler or the sling bowler, a coin
+off the room's seed so every seat faces the same; and from the fifth, sudden
+death and all, the death bowler. A plan holds an over back through
+`overRules` (`OverRules`): the yorker owed for sixes waits for an over that
+allows it, and the bouncer's roll is still made so the seed's stream moves
+as it would. It moved the subs' rooms hardly at all (the winner's median 86
+to 84) but fewer collapse early.
+
 In the game (`knockoutBall`, `knockoutView` and `blastOver` in `src/Game.ts`)
 it is a Blast innings with `KNOCKOUT_LIMITS`, on a shorter scoreboard (Figma
 "Super Knockout · Final", F2): the total, the over as OVER 2 OF 5 or SUDDEN
@@ -2410,7 +2423,9 @@ the bar and its pill (`body.knockout-mode .phase-label`). The screen's edges
 beat red while the player is in the drop (`.ko-edge`), and a cut is called on
 the next guard (`cutLine`). Replays are off. The match ends on
 KNOCKED OUT or WINNER (`src/ui/KnockoutMoment.ts`), each ending exactly on
-its Figma frame, K9 v2 (`858:6160`) and K11 (`858:6267`) on the Final page:
+its Figma frame, K9 v2 (`858:6160`) and K11 (`858:6267`) on the Final page
+(K9 v2's spotlight re-aimed in both onto the pool under the face, which the
+first frame's beam came down left of):
 the places, sizes, colours, the rays' conic gradient and the grain are read
 off them, and the way there is the claude.ai artifact "Knockout Moments", on
 one clock as the Verdict is. The card is out of sight underneath while it is

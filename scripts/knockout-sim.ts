@@ -7,7 +7,7 @@
  *
  *   npx vite-node scripts/knockout-sim.ts [rooms]
  */
-import { CLASSIC_PLAN, DeliveryGenerator } from '../src/game/DeliveryGenerator.js';
+import { DeliveryGenerator, knockoutPlan } from '../src/game/DeliveryGenerator.js';
 import { KNOCKOUT, KnockoutRoom } from '../src/game/knockout.js';
 import { SeededRandom } from '../src/game/SeededRandom.js';
 import type { ShotOutcome } from '../src/game/types.js';
@@ -16,7 +16,8 @@ const ROOMS = Number(process.argv.find(a => /^\d+$/.test(a)) ?? 400);
 const out = { runs: 0, isWicket: true } as ShotOutcome;
 const won: number[] = [], lasted: number[] = [];
 for (let seed = 1; seed <= ROOMS; seed++) {
-  const bowler = new DeliveryGenerator(new SeededRandom(seed), CLASSIC_PLAN);
+  // Bowled as the room is (`knockoutPlan`): the fourth over's bowler a coin, here every other room.
+  const bowler = new DeliveryGenerator(new SeededRandom(seed), knockoutPlan(seed % 2 === 0));
   const room = new KnockoutRoom(seed, { name: 'You', face: 0 });
   room.ball(bowler.next(0), out);
   room.playOut(() => bowler.next(0));

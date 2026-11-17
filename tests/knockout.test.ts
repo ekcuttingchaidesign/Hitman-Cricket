@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CLASSIC_PLAN, DeliveryGenerator } from '../src/game/DeliveryGenerator';
+import { CLASSIC_PLAN, DeliveryGenerator, knockoutPlan } from '../src/game/DeliveryGenerator';
 import { EDGE_RUNS, KNOCKOUT, KnockoutRoom, chipOf, cutLine, cutOf, overLine, trackOf, type Seat } from '../src/game/knockout';
 import { SeededRandom } from '../src/game/SeededRandom';
 import type { ShotOutcome } from '../src/game/types';
@@ -179,5 +179,41 @@ describe('the bar', () => {
     expect(overLine(10)).toBe('OVER 2 OF 5');
     expect(overLine(23)).toBe('OVER 4 OF 5');
     expect(overLine(24)).toBe('SUDDEN DEATH');
+  });
+});
+
+describe('the bowling', () => {
+  const overs = (seed: number, swing: boolean) => {
+    const g = new DeliveryGenerator(new SeededRandom(seed), knockoutPlan(swing));
+    return Array.from({ length: 8 }, (_, over) => ({ kind: g.overKind(over), level: g.levelAt(over), balls: Array.from({ length: 6 }, () => g.next(0)) }));
+  };
+  it('is the seamer twice, the spinner, the swing or sling bowler, then the death bowler', () => {
+    for (const swing of [true, false]) {
+      const bowled = overs(3, swing);
+      expect(bowled.map(o => o.kind)).toEqual(['PACE', 'PACE', 'SPIN', swing ? 'PACE' : 'EXPRESS', 'DEATH', 'DEATH', 'DEATH', 'DEATH']);
+      expect(bowled[3].level?.swingShare !== undefined).toBe(swing);
+      expect(bowled[2].balls.every(b => ['OFF_SPIN', 'LEG_SPIN', 'ARM_BALL'].includes(b.style))).toBe(true);
+      expect(bowled.slice(4).every(o => o.balls.every(b => b.death))).toBe(true);
+    }
+  });
+  it('keeps the first over pitched up: no yorker, no bouncer, nothing quick, and the fuller ball three times', () => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const [first, second] = overs(seed, seed % 2 === 0);
+      expect(first.balls.every(b => ['NORMAL', 'SWING_IN', 'SWING_OUT'].includes(b.style))).toBe(true);
+      expect(first.balls.filter(b => b.full)).toHaveLength(3);
+      expect(second.balls.some(b => b.style === 'YORKER')).toBe(false);
+    }
+  });
+  it('lets the bouncer back in the second over', () => {
+    let shorts = 0;
+    for (let seed = 1; seed <= 200; seed++) shorts += overs(seed, true)[1].balls.filter(b => b.style === 'SHORT').length;
+    expect(shorts).toBeGreaterThan(50);
+  });
+  it('holds a yorker owed for sixes through the first two overs', () => {
+    const g = new DeliveryGenerator(new SeededRandom(9), knockoutPlan(true));
+    const six = { runs: 6, isWicket: false } as ShotOutcome;
+    const styles: string[] = [];
+    for (let b = 0; b < 12; b++) { styles.push(g.next(0).style); g.record(six); }
+    expect(styles.includes('YORKER')).toBe(false);
   });
 });

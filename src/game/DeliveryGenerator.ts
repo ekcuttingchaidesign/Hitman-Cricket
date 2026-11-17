@@ -9,6 +9,8 @@ import { BOWL_TO, DEATH_OVER, KIND, SEAM_LEVEL, SUPER10, SWING_LEVEL, scheduleOf
 import { bookOf, bowlerOf } from './super10-field';
 import { SeededRandom } from './SeededRandom';
 import type { BallLine, Delivery, DeliveryStyle, ShotOutcome } from './types';
+/** What a gentle over (`OverRules.gentle`) is bowled off: the seamer's stock ball and his swing. */
+const GENTLE: readonly DeliveryStyle[] = ['NORMAL', 'SWING_IN', 'SWING_OUT'];
 /** The express bowler's over, with how many yorkers it holds left open: a newcomer is bowled none. */
 type ExpressOver = Omit<typeof EXPRESS_OVER, 'yorkers'> & { yorkers: number };
 /** And Super10's death bowler's, the same way. */
@@ -50,6 +52,25 @@ export interface BowlingPlan {
    * them, and `spin` is then only how he bowls, not when.
    */
   blocks?: BlockPlan;
+  /**
+   * What the pace bowler may bowl in a given over, where the plan holds an
+   * over back: Super Knockout's first two (`knockoutPlan`). Null, the over is
+   * the table's as ever. Only the pace bowler's ordinary overs read it; the
+   * spinner, the sling bowler and the death bowler plan their own.
+   */
+  overRules?: (over: number) => OverRules | null;
+}
+
+/** An over held back: no yorker, no bouncer, nothing but seam and swing, and how many balls are pitched up. */
+export interface OverRules {
+  /** False: no yorker, the one owed for sixes waiting for an over that allows it. */
+  yorker?: boolean;
+  /** False: no bouncer. */
+  short?: boolean;
+  /** True: seam and swing only, at their own pace, none of the quick, express or slower balls. */
+  gentle?: boolean;
+  /** How many balls of the over are the fuller ball (`FULLER`), in place of the plan's. */
+  fuller?: number;
 }
 
 /**
@@ -299,6 +320,38 @@ const MARATHON_SWING: Bowled = { styles: SURVIVE_STYLES, travelScale: SURVIVE.tr
 SUPER10_PLAN.blocks!.bowledAs = over => SUPER10_SWING.has(over) ? MARATHON_SWING : null;
 /** Each bowling to his field (`BOWL_TO`): the one set, or the bowler's first for the over. */
 SUPER10_PLAN.blocks!.toField = (over, kind, field) => BOWL_TO[field ?? bookOf(bowlerOf(kind, over), over)[0]] ?? null;
+
+/**
+ * Super Knockout's bowling, an over at a time (the owner's plan, 17 November
+ * 2026): the first over a seamer pitching it up, no yorker, no bouncer and
+ * nothing quick, so everybody gets going; the second the seamer with the
+ * Blast's bouncer back but still no yorker; the third the spinner; the
+ * fourth the swing bowler or the sling bowler, a coin off the seed
+ * (`swingFourth`); and from the fifth, sudden death and all, the death
+ * bowler. Every seat in a room faces the same balls, so the coin is the
+ * room's.
+ */
+const KNOCKOUT_OVERS = 8;
+const KNOCKOUT_RULES: readonly (OverRules | null)[] = [
+  { yorker: false, short: false, gentle: true, fuller: 3 },
+  { yorker: false },
+];
+export function knockoutPlan(swingFourth: boolean): BowlingPlan {
+  const fourth = 3;
+  return {
+    styles: STYLES, specials: SPECIALS, travelScale: GAME.travelScale,
+    spin: { ...CLASSIC_SPIN, ofOvers: KNOCKOUT_OVERS, ballsPerOver: GAME.ballsPerOver },
+    overRules: over => KNOCKOUT_RULES[over] ?? null,
+    blocks: {
+      size: KNOCKOUT_OVERS, ofOvers: KNOCKOUT_OVERS,
+      levelOf: () => SEAM_LEVEL,
+      levelAt: over => swingFourth && over === fourth ? SWING_LEVEL : SEAM_LEVEL,
+      bowledAs: over => swingFourth && over === fourth ? MARATHON_SWING : null,
+      express: EXPRESS_OVER, death: DEATH_OVER,
+      fixed: () => ['PACE', 'PACE', 'SPIN', swingFourth ? 'PACE' : 'EXPRESS', ...Array<OverKind>(KNOCKOUT_OVERS - 4).fill('DEATH')],
+    },
+  };
+}
 
 /**
  * Any mode's bowling with no yorker in it, for a newcomer's first innings (see
@@ -778,11 +831,15 @@ export class DeliveryGenerator {
       const reverse = this.reverseBalls.get(this.bowled % ballsPerOver);
       if (reverse) return reverse;
     }
-    if (this.punished >= specials.sixesForYorker) { this.punished = 0; return 'YORKER'; }
+    // An over the plan holds back (`overRules`): the yorker owed and the
+    // change-up wait for an over that allows them, and the bouncer's roll is
+    // still made, so the seed's stream moves the same way, and let go.
+    const rules = this.netting ? null : this.plan.overRules?.(this.over) ?? null;
+    if (this.punished >= specials.sixesForYorker && rules?.yorker !== false) { this.punished = 0; return 'YORKER'; }
     // A change of pace only surprises once the batter has been fed quick ones.
     // Counting them consecutively would almost never fire, so they accumulate.
-    if (this.quick >= specials.quickForSlower) { this.quick = 0; return 'SLOWER'; }
-    if (specials.shortChance > 0 && this.rng.next() < specials.shortChance) return 'SHORT';
+    if (this.quick >= specials.quickForSlower && !rules?.gentle) { this.quick = 0; return 'SLOWER'; }
+    if (specials.shortChance > 0 && this.rng.next() < specials.shortChance && rules?.short !== false) return 'SHORT';
     // From Level 2 the pace bowler swings it: the two that swing take the
     // level's share between them and everything else shares what is left, in
     // the proportions Survival gave it.
@@ -792,8 +849,12 @@ export class DeliveryGenerator {
     const weightOf = (key: string, weight: number) => share === undefined ? weight
       : SWING_LINES[key as DeliveryStyle] ? share / 2
       : weight * (1 - share) / (1 - swingWeight);
-    let roll = this.rng.next();
+    // A gentle over rolls on seam and swing alone, in their own proportions.
+    const allowed = (key: string) => !rules?.gentle || GENTLE.includes(key as DeliveryStyle);
+    const total = rules?.gentle ? Object.entries(styles).reduce((t, [key, v]) => t + (allowed(key) ? weightOf(key, v.weight) : 0), 0) : 1;
+    let roll = this.rng.next() * total;
     for (const [key, value] of Object.entries(styles)) {
+      if (!allowed(key)) continue;
       roll -= weightOf(key, value.weight);
       if (roll <= 0) return key as DeliveryStyle;
     }
@@ -806,7 +867,8 @@ export class DeliveryGenerator {
     const perOver = this.plan.spin?.ballsPerOver ?? GAME.ballsPerOver, ballInOver = this.bowled % perOver;
     if (ballInOver === 0) {
       const places = []; for (let ball = 0; ball < perOver; ball++) places.push(ball);
-      this.fullerBalls = new Set(this.fullers.shuffle(places).slice(0, this.plan.fuller ?? FULLER.perOver));
+      const rules = this.netting ? null : this.plan.overRules?.(this.over);
+      this.fullerBalls = new Set(this.fullers.shuffle(places).slice(0, rules?.fuller ?? this.plan.fuller ?? FULLER.perOver));
     }
     const style = this.drilled?.style ?? this.chooseStyle();
     const spell = this.plan.spin;

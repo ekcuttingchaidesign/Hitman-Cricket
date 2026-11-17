@@ -264,7 +264,8 @@ export class KnockoutMoment {
     if (sp > 0) {
       const beam = c.createLinearGradient(0, -40, 0, 520);
       beam.addColorStop(0, `rgba(221,230,240,${0.2 * sp})`); beam.addColorStop(0.8, `rgba(221,230,240,${0.05 * sp})`); beam.addColorStop(1, 'rgba(221,230,240,0)');
-      c.fillStyle = beam; c.beginPath(); c.moveTo(92, -40); c.lineTo(130, -40); c.lineTo(258, 520); c.lineTo(0, 520); c.closePath(); c.fill();
+      // From the lamp up on the left, aimed down onto the pool under your face (the design's frame came down left of it).
+      c.fillStyle = beam; c.beginPath(); c.moveTo(99, -40); c.lineTo(159, -40); c.lineTo(341, 520); c.lineTo(61, 520); c.closePath(); c.fill();
       const pool = c.createRadialGradient(0, 0, 0, 0, 0, 1);
       pool.addColorStop(0, `rgba(221,230,240,${0.18 * sp})`); pool.addColorStop(1, 'rgba(221,230,240,0)');
       c.save(); c.translate(201, 498); c.scale(150, 30); c.fillStyle = pool; c.beginPath(); c.arc(0, 0, 1, 0, Math.PI * 2); c.fill(); c.restore();
