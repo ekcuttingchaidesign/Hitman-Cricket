@@ -1,0 +1,280 @@
+/**
+ * Super Knockout: up to twelve batting the same balls at the same time, one
+ * wicket each, the lowest totals knocked out at the end of every over until
+ * three are left, then last place out after every ball until one is
+ * (`PRODUCT.md`, Figma "Super Knockout · Final", K2b's rules).
+ *
+ * Stage one is a practice room behind `?knockout=1`: the player and eleven
+ * subs, nothing on a server. The subs bat the ball the player was bowled, so
+ * the room is the same balls for everybody even with nobody else in it. The
+ * room is a pure thing of the seed and the balls: nothing here reads the page,
+ * the clock or `Math.random`, and `tests/knockout.test.ts` holds every rule.
+ */
+import { COMPATIBILITY, SHOTS } from '../config/gameplay';
+import { effectiveLine } from './DeliveryTrajectory';
+import { resolveShot } from './ShotResolver';
+import { SeededRandom } from './SeededRandom';
+import type { Delivery, ShotOutcome, ShotType } from './types';
+
+export const KNOCKOUT = {
+  seats: 12,
+  ballsPerOver: 6,
+  /** How many go at the end of each over (K2b's ladder: 12, 10, 8, 6, then 3). After the last, sudden death. */
+  cuts: [2, 2, 2, 3] as const,
+  /**
+   * Past this, the top total wins. Sudden death with three left is over in
+   * two balls unless they keep tying, so this is a backstop, never a format.
+   */
+  maxBalls: 48,
+} as const;
+
+/** The eleven subs' names. Never a real player's: they are labelled SUB wherever they show. */
+const SUB_NAMES = ['Riya', 'Arjun', 'Kabir', 'Meera', 'Ishaan', 'Zoya', 'Rohan', 'Dev', 'Sam', 'Aanya', 'Vikram'];
+/**
+ * How well each sub times the ball: the spread of the timing error in
+ * milliseconds, and how much a quicker ball adds to it, as `super10-sim.ts`
+ * models a player. Against the Blast's ball the best of them scores between
+ * three and four a ball and the weakest about two, so the cut has somebody to
+ * take early. The room's winner makes about 85 in some 24 balls, the middle of
+ * it 65 to 100 (`scripts/knockout-sim.ts`): a good innings wins it.
+ */
+const SKILLS = [65, 72, 80, 86, 92, 98, 105, 112, 120, 130, 140].map(sigma => ({ sigma, pressure: Math.round(sigma / 7) }));
+/**
+ * A sub plays for their wicket: this share of the balls that would have had
+ * them out are seen off for a dot instead. Batting the Blast's ball with one
+ * wicket each, a room of subs played to the letter was down to its last one
+ * by the third over; this keeps most rooms going to sudden death, which is
+ * the match the player came for.
+ */
+const KEEP = 0.65;
+const NOMINAL_MS = 830;
+
+export interface Seat {
+  /** 0 is the player. */
+  readonly id: number;
+  readonly name: string;
+  readonly sub: boolean;
+  /** Which of the game's faces (`avatarSrc`). */
+  readonly face: number;
+  runs: number;
+  balls: number;
+  fours: number;
+  sixes: number;
+  out: boolean;
+  /** Where they finished, once they are knocked out or win: 1 is the winner. */
+  place: number | null;
+  /** The ball after which they went (1-based), and how. */
+  wentAt: number | null;
+}
+
+/** What one ball did to the room. */
+export interface BallNews {
+  /** Who went after this ball, worst first. */
+  gone: Seat[];
+  /** An over's cut, or sudden death's one-a-ball. */
+  kind: 'cut' | 'sudden' | null;
+  /** The over that just ended, 1-based, when `kind` is `'cut'`. */
+  over: number | null;
+  /** Set once one seat is left. */
+  winner: Seat | null;
+}
+
+/** Where the player stands right now, for the scoreboard. */
+export interface Standing {
+  place: number;
+  left: number;
+  /** In the drop: the cut, if it were made now, would take them. */
+  drop: boolean;
+  /** Safe only because a tie at the line takes both through. */
+  level: boolean;
+  /** Runs that would make them safe, when in the drop and not out. */
+  need: number;
+  /** Sudden death: last place goes after every ball. */
+  sudden: boolean;
+  /** The ball's in the over, 0 to 5, and the over, 1-based. */
+  over: number;
+  ball: number;
+}
+
+/** Ahead in the room: not out before out, then more runs. Ties are equal. */
+const ahead = (a: Seat, b: Seat) => Number(a.out) - Number(b.out) || b.runs - a.runs;
+/** Ties broken the one fair way left: fewer balls faced, then the seat. Only ever for the winner and for places. */
+const settled = (a: Seat, b: Seat) => ahead(a, b) || a.balls - b.balls || a.id - b.id;
+
+/**
+ * Who the cut takes from `alive` when `count` go: anybody out first (out once
+ * and you are out of the match, so all of them, whatever the count), then the
+ * lowest totals, where a tie at the line takes both through. Never everybody:
+ * if the whole room is out, the best of them stays and wins.
+ */
+export function cutOf(alive: readonly Seat[], count: number): { gone: Seat[]; level: Set<Seat> } {
+  const level = new Set<Seat>();
+  const out = alive.filter(s => s.out);
+  if (out.length >= alive.length) {
+    const best = [...alive].sort(settled)[0];
+    return { gone: alive.filter(s => s !== best).sort(settled).reverse(), level };
+  }
+  const gone = [...out];
+  const left = count - gone.length;
+  if (left > 0) {
+    const standing = alive.filter(s => !s.out).sort((a, b) => a.runs - b.runs);
+    // Never the last one standing.
+    const take = Math.min(left, standing.length - 1);
+    if (take > 0) {
+      const line = standing[take - 1].runs, above = standing[take];
+      const tied = above && above.runs === line;
+      for (const seat of standing.slice(0, take)) {
+        if (tied && seat.runs === line) level.add(seat); else gone.push(seat);
+      }
+      if (tied) for (const seat of standing) if (seat.runs === line) level.add(seat);
+    }
+  }
+  return { gone: gone.sort(settled).reverse(), level };
+}
+
+export class KnockoutRoom {
+  readonly seats: Seat[];
+  private balls = 0;
+  private readonly dice: SeededRandom[];
+  winner: Seat | null = null;
+
+  constructor(seed: number, you: { name: string; face: number }) {
+    this.seats = [{ id: 0, name: you.name, sub: false, face: you.face }, ...SUB_NAMES.map((name, i) => ({ id: i + 1, name, sub: true, face: (you.face + i + 1) % 5 }))]
+      .slice(0, KNOCKOUT.seats)
+      .map(seat => ({ ...seat, runs: 0, balls: 0, fours: 0, sixes: 0, out: false, place: null, wentAt: null }));
+    // Each sub's dice are their own, off the seed and their seat, so one sub's luck never moves another's.
+    this.dice = this.seats.map(seat => new SeededRandom((seed ^ Math.imul(seat.id + 1, 0x9E3779B1)) >>> 0));
+  }
+
+  get you() { return this.seats[0]; }
+  get alive() { return this.seats.filter(s => s.place === null); }
+  get bowled() { return this.balls; }
+  /** The overs with a cut at their end are done: from here last place goes every ball. */
+  get sudden() { return Math.floor(this.balls / KNOCKOUT.ballsPerOver) >= KNOCKOUT.cuts.length; }
+  /** The player's part is over: knocked out, or the winner. */
+  get finished() { return this.you.place !== null; }
+
+  /**
+   * One ball: the player's outcome (null once they are out and the room plays
+   * on without them), and every sub still batting plays the same delivery.
+   */
+  ball(delivery: Delivery, yours: ShotOutcome | null): BallNews {
+    this.balls++;
+    for (const seat of this.alive) {
+      if (seat.out) continue;
+      const outcome = seat.id === 0 ? yours : this.subPlays(seat, delivery);
+      if (!outcome) continue;
+      seat.runs += outcome.runs; seat.balls++;
+      seat.fours += Number(outcome.runs === 4); seat.sixes += Number(outcome.runs === 6);
+      if (outcome.isWicket) seat.out = true;
+    }
+    return this.afterBall();
+  }
+
+  /**
+   * The player is out: the room bats on without them until they are cut (or,
+   * if everybody else falls too, until they win). `next` bowls each ball.
+   */
+  playOut(next: () => Delivery): BallNews[] {
+    const news: BallNews[] = [];
+    while (!this.finished && !this.winner && this.balls < KNOCKOUT.maxBalls) news.push(this.ball(next(), null));
+    return news;
+  }
+
+  /** Where the player stands, as the cut would fall if it were made now. */
+  standing(): Standing {
+    const alive = this.alive, you = this.you;
+    const over = Math.floor(this.balls / KNOCKOUT.ballsPerOver), ball = this.balls % KNOCKOUT.ballsPerOver;
+    const place = 1 + alive.filter(s => ahead(s, you) < 0).length;
+    const sudden = this.sudden;
+    const count = sudden ? 1 : KNOCKOUT.cuts[over];
+    const { gone, level } = cutOf(alive, count);
+    const drop = gone.includes(you);
+    let need = 0;
+    if (drop && !you.out) {
+      // To draw level with the lowest who would be safe is enough: a tie at the line takes both through.
+      const safe = alive.filter(s => !s.out && !gone.includes(s) && s !== you).sort((a, b) => a.runs - b.runs)[0];
+      need = safe ? Math.max(1, safe.runs - you.runs) : 1;
+    }
+    return { place: you.place ?? place, left: alive.length, drop, level: level.has(you) && !drop && this.balls > 0, need, sudden, over: over + 1, ball };
+  }
+
+  /** Everybody, in the order the room stands: the alive by `ahead`, then the gone by where they finished. */
+  table(): Seat[] {
+    const alive = [...this.alive].sort(settled);
+    const gone = this.seats.filter(s => s.place !== null).sort((a, b) => a.place! - b.place!);
+    return [...alive.filter(s => s !== this.winner), ...gone];
+  }
+
+  private afterBall(): BallNews {
+    const none: BallNews = { gone: [], kind: null, over: null, winner: null };
+    if (this.winner) return none;
+    const overDone = this.balls % KNOCKOUT.ballsPerOver === 0;
+    const over = this.balls / KNOCKOUT.ballsPerOver;
+    let news = none;
+    if (overDone && over <= KNOCKOUT.cuts.length) news = this.cut(KNOCKOUT.cuts[over - 1], 'cut', over);
+    else if (this.sudden) news = this.cut(1, 'sudden', null);
+    // The backstop: the top total wins.
+    if (!news.winner && this.balls >= KNOCKOUT.maxBalls) {
+      const [best, ...rest] = [...this.alive].sort(settled);
+      news = { ...news, gone: [...news.gone, ...this.knock(rest.reverse())], winner: this.crown(best) };
+    }
+    return news;
+  }
+
+  private cut(count: number, kind: 'cut' | 'sudden', over: number | null): BallNews {
+    const { gone } = cutOf(this.alive, count);
+    const went = this.knock(gone);
+    const left = this.alive;
+    const winner = left.length === 1 ? this.crown(left[0]) : null;
+    return { gone: went, kind: went.length ? kind : null, over: went.length ? over : null, winner };
+  }
+
+  /** Worst first: the worst takes the last place still open. */
+  private knock(worstFirst: Seat[]): Seat[] {
+    let place = this.alive.length;
+    for (const seat of worstFirst) { seat.place = place--; seat.wentAt = this.balls; }
+    return worstFirst;
+  }
+
+  private crown(seat: Seat): Seat {
+    seat.place = 1; seat.wentAt = this.balls; this.winner = seat;
+    return seat;
+  }
+
+  /** A sub's go at the ball: the stroke that best suits the line, timed with their own spread. */
+  private subPlays(seat: Seat, delivery: Delivery): ShotOutcome {
+    const rng = this.dice[seat.id], skill = SKILLS[(seat.id - 1) % SKILLS.length];
+    const rush = (NOMINAL_MS - delivery.durationMs) / 100;
+    const shot: ShotType = delivery.style === 'SHORT' ? (rng.next() < 0.4 ? 'LEG' : 'DEFEND') : bestShot(delivery);
+    const input = delivery.idealContactTimeMs + rush * 6 + gauss(rng) * (skill.sigma + Math.max(0, rush) * skill.pressure);
+    const outcome = resolveShot(delivery, { shotType: shot, inputTimeMs: input, flicked: shot === 'LEG' && delivery.style !== 'SHORT' }, rng);
+    return outcome.isWicket && rng.next() < KEEP ? { ...outcome, isWicket: false, wicketType: undefined, runs: 0 } : outcome;
+  }
+}
+
+function bestShot(delivery: Delivery): ShotType {
+  const line = effectiveLine(delivery);
+  return SHOTS.reduce((a, b) => (COMPATIBILITY[line][a] >= COMPATIBILITY[line][b] ? a : b));
+}
+function gauss(rng: SeededRandom): number {
+  const u = Math.max(1e-9, rng.next());
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rng.next());
+}
+
+/** The words the scoreboard's chip carries, and whether its edge is red. */
+export function chipOf(s: Standing): { place: string; line: string; drop: boolean } {
+  const place = `#${s.place}`;
+  if (s.drop) return { place, line: s.need > 0 ? `${s.need} TO SAFE` : 'IN THE DROP', drop: true };
+  if (s.level) return { place, line: 'LEVEL · SAFE', drop: false };
+  return { place, line: s.sudden ? 'SUDDEN DEATH' : 'SAFE', drop: false };
+}
+
+/** The call when people go: the big screen's line, from the player's side. */
+export function cutLine(news: BallNews, left: number): string | null {
+  if (!news.gone.length) return null;
+  const names = news.gone.map(s => (s.id === 0 ? 'YOU' : s.name.toUpperCase()));
+  const who = names.length > 2 ? `${names.length} PLAYERS` : names.join(' AND ');
+  const head = news.kind === 'cut' ? `END OF OVER ${news.over}` : 'SUDDEN DEATH';
+  return `${head} · ${who} OUT · ${left} LEFT`;
+}

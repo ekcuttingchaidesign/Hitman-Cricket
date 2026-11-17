@@ -1,0 +1,128 @@
+import { describe, expect, it } from 'vitest';
+import { CLASSIC_PLAN, DeliveryGenerator } from '../src/game/DeliveryGenerator';
+import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, cutOf, type Seat } from '../src/game/knockout';
+import { SeededRandom } from '../src/game/SeededRandom';
+import type { ShotOutcome } from '../src/game/types';
+
+const seat = (id: number, runs: number, out = false): Seat =>
+  ({ id, name: `P${id}`, sub: id > 0, face: 0, runs, balls: 6, fours: 0, sixes: 0, out, place: null, wentAt: null });
+const ball = (runs: ShotOutcome['runs'], isWicket = false) =>
+  ({ runs, isWicket, quality: 0, feedback: '', timingGrade: 'GOOD', timingDeltaMs: 0, compatibility: 1, madeBatContact: true, aerial: false }) as ShotOutcome;
+const bowler = (seed: number) => { const g = new DeliveryGenerator(new SeededRandom(seed), CLASSIC_PLAN); return () => g.next(0); };
+
+describe('the cut', () => {
+  it('takes the lowest totals', () => {
+    const room = [seat(0, 10), seat(1, 4), seat(2, 7), seat(3, 2)];
+    expect(cutOf(room, 2).gone.map(s => s.id)).toEqual([3, 1]);
+  });
+  it('takes everybody out first, however many that is', () => {
+    const room = [seat(0, 30, true), seat(1, 1), seat(2, 25, true), seat(3, 22, true), seat(4, 3)];
+    expect(cutOf(room, 2).gone.map(s => s.id).sort()).toEqual([0, 2, 3]);
+  });
+  it('fills the count with the lowest totals once the outs are taken', () => {
+    const room = [seat(0, 30, true), seat(1, 1), seat(2, 9), seat(3, 5)];
+    expect(cutOf(room, 2).gone.map(s => s.id).sort()).toEqual([0, 1]);
+  });
+  it('lets a tie at the line take both through', () => {
+    const room = [seat(0, 10), seat(1, 4), seat(2, 6), seat(3, 6), seat(4, 12)];
+    const { gone, level } = cutOf(room, 2);
+    expect(gone.map(s => s.id)).toEqual([1]);
+    expect([...level].map(s => s.id).sort()).toEqual([2, 3]);
+  });
+  it('never takes the whole room: the best of those out stays', () => {
+    const room = [seat(0, 9, true), seat(1, 14, true), seat(2, 3, true)];
+    expect(cutOf(room, 2).gone.map(s => s.id)).toEqual([2, 0]);
+  });
+});
+
+describe('a room', () => {
+  it('seats the player and eleven subs', () => {
+    const room = new KnockoutRoom(1, { name: 'Shashank', face: 2 });
+    expect(room.seats).toHaveLength(KNOCKOUT.seats);
+    expect(room.you).toMatchObject({ id: 0, name: 'Shashank', sub: false });
+    expect(room.seats.slice(1).every(s => s.sub)).toBe(true);
+  });
+
+  it('is the same room for the same seed and the same balls', () => {
+    const play = () => {
+      const room = new KnockoutRoom(77, { name: 'You', face: 0 }), next = bowler(77);
+      for (let i = 0; i < 12; i++) room.ball(next(), ball(1));
+      return room.seats.map(s => `${s.runs}${s.out ? 'w' : ''}${s.place ?? ''}`).join(',');
+    };
+    expect(play()).toEqual(play());
+  });
+
+  it("cuts at each over's end as K2b's ladder says: every out, then the lowest totals", () => {
+    for (const seed of [3, 11, 29, 41, 58]) {
+      const room = new KnockoutRoom(seed, { name: 'You', face: 0 }), next = bowler(seed);
+      for (let over = 1; over <= 4; over++) {
+        for (let b = 0; b < 5; b++) room.ball(next(), ball(6));
+        const before = room.alive.map(s => ({ ...s }));
+        const news = room.ball(next(), ball(6));
+        const outs = before.filter(s => s.out || room.seats[s.id].out);
+        const survivors = room.alive.filter(s => s !== room.winner);
+        // Nobody out survives a cut.
+        expect(survivors.some(s => s.out)).toBe(false);
+        // Nobody standing goes while somebody with fewer runs stays.
+        const lowest = Math.min(...survivors.map(s => s.runs));
+        for (const s of news.gone.filter(g => !g.out)) expect(s.runs).toBeLessThanOrEqual(lowest);
+        // The count: the outs and enough more to make it up, fewer only for a tie at the line.
+        const standingGone = news.gone.filter(g => !g.out).length;
+        expect(standingGone).toBeLessThanOrEqual(Math.max(0, KNOCKOUT.cuts[over - 1] - outs.length));
+        if (standingGone < Math.max(0, KNOCKOUT.cuts[over - 1] - outs.length) && !room.winner)
+          expect(survivors.filter(s => s.runs === lowest).length).toBeGreaterThan(1);
+        if (room.winner) break;
+      }
+    }
+  });
+
+  it('plays sudden death after the fourth over, and ends on one left', () => {
+    const room = new KnockoutRoom(5, { name: 'You', face: 0 }), next = bowler(5);
+    while (!room.winner && room.bowled < KNOCKOUT.maxBalls) room.ball(next(), ball(6));
+    expect(room.winner?.id).toBe(0);
+    expect(room.you.place).toBe(1);
+    const places = room.seats.map(s => s.place).sort((a, b) => a! - b!);
+    expect(places).toEqual(Array.from({ length: 12 }, (_, i) => i + 1));
+  });
+
+  it('knocks the player out at the over\'s end once bowled, and plays on to their place', () => {
+    const room = new KnockoutRoom(9, { name: 'You', face: 0 }), next = bowler(9);
+    room.ball(next(), ball(0, true));
+    expect(room.finished).toBe(false);
+    expect(room.standing().drop).toBe(true);
+    room.playOut(next);
+    expect(room.finished).toBe(true);
+    expect(room.you.wentAt).toBe(6);
+    expect(room.you.place).toBeGreaterThan(1);
+  });
+
+  it('puts the player in the drop with what it takes to be safe', () => {
+    const room = new KnockoutRoom(4, { name: 'You', face: 0 }), next = bowler(4);
+    room.ball(next(), ball(0));
+    // Set the room by hand: the player on 2, everybody else on 5 or more, nobody out.
+    room.seats.forEach((s, i) => { s.out = false; s.runs = i === 0 ? 2 : 5 + i; });
+    const s = room.standing();
+    // Two go: the player on 2 and the sub on 6. The lowest safe is on 7.
+    expect(s).toMatchObject({ place: 12, left: 12, drop: true, need: 5 });
+    expect(chipOf(s)).toMatchObject({ line: '5 TO SAFE', drop: true });
+    // Level with the lowest who would be safe is enough: a tie at the line takes both through.
+    room.you.runs = 7;
+    expect(room.standing()).toMatchObject({ drop: false, level: true });
+    expect(chipOf(room.standing()).line).toBe('LEVEL · SAFE');
+  });
+});
+
+describe('the words', () => {
+  it('says who went and how many are left', () => {
+    const news = { gone: [seat(3, 1), seat(5, 2)], kind: 'cut' as const, over: 1, winner: null };
+    expect(cutLine(news, 10)).toBe('END OF OVER 1 · P3 AND P5 OUT · 10 LEFT');
+    expect(cutLine({ ...news, gone: [seat(0, 1)], kind: 'sudden', over: null }, 2)).toBe('SUDDEN DEATH · YOU OUT · 2 LEFT');
+  });
+  it('chips the scoreboard: safe, level, or what it takes', () => {
+    const base = { place: 4, left: 10, drop: false, level: false, need: 0, sudden: false, over: 2, ball: 3 };
+    expect(chipOf(base).line).toBe('SAFE');
+    expect(chipOf({ ...base, level: true }).line).toBe('LEVEL · SAFE');
+    expect(chipOf({ ...base, drop: true, need: 3 }).line).toBe('3 TO SAFE');
+    expect(chipOf({ ...base, sudden: true }).line).toBe('SUDDEN DEATH');
+  });
+});

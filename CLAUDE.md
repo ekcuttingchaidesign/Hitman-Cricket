@@ -2358,6 +2358,36 @@ pitch with a batter at the far end, with a camera to turn round him, set views
 and one that follows his run; `scripts/bowler-artifact.mjs` builds it into
 one file, as `cover-drive-artifact.mjs` does the strokes.
 
+## Super Knockout, stage one: the practice room
+
+`?knockout=1` walks out into a Super Knockout practice room (`PRODUCT.md`,
+Figma "Super Knockout · Final"): the player and eleven subs, the Blast's ball
+with one wicket, the lowest totals knocked out at the end of every over (two,
+two, two, then three) and last place out after every ball from there, until
+one is left. Anybody out goes at the over's end before the lowest totals, and
+a tie on the line takes both through. The rules are `src/game/knockout.ts`
+(`KnockoutRoom`, `cutOf`, every case in `tests/knockout.test.ts`); the subs
+bat the very delivery the player was bowled through the Blast's
+`resolveShot`, each with a timing spread of their own (`SKILLS`) and a share
+of wickets seen off (`KEEP`), tuned by `scripts/knockout-sim.ts` so a room is
+usually won by 65 to 100. Out, the room plays on without the player to the
+cut that takes them, at once.
+
+In the game (`knockoutBall`, `knockoutView` and `blastOver` in `src/Game.ts`)
+it is a Blast innings with `KNOCKOUT_LIMITS`: the place stands in the
+scoreboard's LAST cell (#7 and SAFE, LEVEL · SAFE or 3 TO SAFE, `chipOf`),
+the screen's edges beat red while the player is in the drop (`.ko-edge`), and
+a cut is called on the next guard (`cutLine`). Replays are off. The match
+ends on KNOCKED OUT or WINNER over the card (`src/ui/KnockoutMoment.ts`, the
+claude.ai artifact "Knockout Moments", drawn on one clock as the Verdict is),
+with SCORECARD and PLAY AGAIN. The switch is practice (`practice.ts`): no
+board, no career, no points, and a room of subs never scores any. Not in the
+Pages builds. Still to come: the free hit, the big screen and the floodlights
+answering the cut, holding the scoreboard to see everyone, the timeout pause,
+and real players (stage two). `__cricket.knockout()` says where the room
+stands and `__cricket.knockoutAt(t)` holds the end moment's clock;
+`scripts/knockout-check.mjs` walks it.
+
 ## Super10's kits
 
 In Super10 the batter always bats in a Super10 kit, never a Dressing Room

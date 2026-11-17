@@ -169,6 +169,8 @@ import { nameProblem, renameReason, siblingReason } from './server/name-rules';
 import { cleanName, foldName } from './server/board-store';
 import { kitDeal } from './config/board';
 import { encodeInnings, limitsOf } from './game/ball-string';
+import { KNOCKOUT, KnockoutRoom, chipOf, cutLine } from './game/knockout';
+import { KnockoutMoment, type MomentView } from './ui/KnockoutMoment';
 import { demoRoom, demoWanted as roomDemoWanted } from './game/room-demo';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
 const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'];
@@ -283,6 +285,15 @@ const SURGE_WAIT_MS = 1600;
 /** The overs a Super10 crowd sends a Mexican wave round the arena at the top of: the third, sixth and eighth. */
 const WAVE_OVERS = [2, 5, 7];
 const SUPER10_OPEN = SUPER10_ONLY || !SURVIVE_ONLY;
+/**
+ * Super Knockout, stage one: `?knockout=1` walks out into a practice room of
+ * the player and eleven subs, the Blast's ball with one wicket, the lowest
+ * totals cut at the end of every over (`game/knockout.ts`). Nothing is sent;
+ * the switch makes it practice (`practice.ts`). Not in the two Pages builds.
+ */
+const KNOCKOUT_ASKED = !NO_BOARD && new URLSearchParams(location.search).get('knockout') === '1';
+/** Its innings, for `ScoreManager`: one wicket, and balls enough for the room's longest match. */
+const KNOCKOUT_LIMITS: InningsLimits = { totalBalls: KNOCKOUT.maxBalls, maxWickets: 1, ballsPerOver: KNOCKOUT.ballsPerOver };
 /** Challenges from a profile in Super10: wherever Super10 is played and a room can be reached. */
 const SUPER10_CHALLENGES = SUPER10_OPEN && !NO_BOARD;
 /** Super10's kits on the Dressing Room's kit shelf: wherever Super10 is played beside the other modes. */
@@ -409,6 +420,8 @@ export class Game {
   private ending: Ending | null = null;
   /** The Marathon only: its three batters and its end. */
   private marathon: MarathonInnings | null = null;
+  /** The Super Knockout practice room this innings is batted in, behind `?knockout=1`. */
+  private knockout: KnockoutRoom | null = null;
   /** What the Marathon has put up this innings: the swing coming on, and the express bowler's first over. */
   private told = { swing: false };
   /**
@@ -1138,7 +1151,7 @@ export class Game {
     // A bundle built survive-only plays one innings and offers no way out of
     // it — that is the whole of what makes it publishable somewhere with no
     // board behind it. A `?mode=` link does the same thing at runtime.
-    const named = SURVIVE_ONLY ? 'SURVIVE' : SUPER10_ONLY ? 'SUPER10' : new URLSearchParams(location.search).get('mode')?.toUpperCase();
+    const named = SURVIVE_ONLY ? 'SURVIVE' : SUPER10_ONLY ? 'SUPER10' : KNOCKOUT_ASKED ? 'CLASSIC' : new URLSearchParams(location.search).get('mode')?.toUpperCase();
     // Off production the Marathon has a card on the picker; on it, until it
     // ships, it is this link and nothing else. See `docs/MARATHON.md`.
     if (named === 'SURVIVE' || named === 'CLASSIC' || named === 'MARATHON' || (named === 'SUPER10' && SUPER10_OPEN)) {
@@ -1244,6 +1257,9 @@ export class Game {
       // A Blast innings written ball by ball, the same way, for looking at its card,
       // and a Super10 one, for jumping to its later bowlers.
       blast: (balls: (number | 'W')[]) => this.writeBlast(balls),
+      // Super Knockout's end moment held at `t` seconds (null lets it run), and where its clock is.
+      knockoutAt: (t: number | null) => { KnockoutMoment.pinned = t; },
+      knockout: () => this.knockout && { standing: this.knockout.standing(), bowled: this.knockout.bowled, left: this.knockout.alive.length, you: { ...this.knockout.you } },
       // The star prompt on demand, for `rating-check.mjs`: which thing, asked
       // as the end of an innings would ask it, and nothing about when.
       rating: (thing: RatedThing = 'game') => this.showRating(thing, thing === 'game' ? 'innings' : 'mode'),
@@ -2437,6 +2453,9 @@ export class Game {
       ? new MarathonInnings(leftHandersOf(this.seed, location.search, readHand()), new URLSearchParams(location.search).get('settled') === '1')
       : null;
     if (this.marathon) this.health = this.marathon.current.health;
+    this.knockout = this.knockingOut ? new KnockoutRoom(this.seed, { name: readPlayer()?.name || 'You', face: readPlayer()?.avatar ?? 0 }) : null;
+    this.hud.knockout(this.knockout ? chipOf(this.knockout.standing()) : null);
+    this.hud.knockoutEnd(null);
     this.ease = this.newcomerEase();
     // Which of the helped innings this is, so the dashboard can set the
     // newcomers who come back against the ones who do not.
@@ -2823,7 +2842,10 @@ export class Game {
   private get hurts() { return this.surviving || this.marathoning; }
   /** A Test match of either kind: how it looks — whites, the Test field, by day. See `modes.ts`. */
   private get test() { return isTest(this.mode); }
+  /** A Super Knockout practice room: asked for by the link, in the Blast, never in a Rival Match. */
+  private get knockingOut() { return KNOCKOUT_ASKED && this.mode === 'CLASSIC' && !this.challenge.playing; }
   private get limits() {
+    if (this.knockingOut) return KNOCKOUT_LIMITS;
     return this.surviving ? SURVIVE_LIMITS : this.marathoning ? MARATHON_LIMITS : this.super10 ? SUPER10_LIMITS : CLASSIC_LIMITS;
   }
   /** The switches in this link that change the game: see `practice.ts`. */
@@ -4747,7 +4769,7 @@ export class Game {
       if (this.replayQueued && performance.now() < this.ghostDownAt) return;
       if (this.replayQueued) {
         const queued = this.replayQueued; this.replayQueued = null;
-        const over = !!this.changed || (this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended || this.targetPassed);
+        const over = !!this.changed || (this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.blastOver);
         if (!this.chasePassDue && !this.noticeDue && (!over || queued.kept.bowled)) {
           this.beginReplay(queued); return;
         }
@@ -4757,7 +4779,7 @@ export class Game {
         this.lesson++;
         if (this.lesson >= TUTORIAL.length) { this.lesson = -1; noteHowTo(false); track('tutorial-complete', 'Tutorial completed'); this.setPhase('START'); this.hud.tutorialComplete(); }
         else { this.setPhase('READY'); this.hud.coach(TUTORIAL[this.lesson], this.lesson + 1, TUTORIAL.length); }
-      } else if (this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended || this.targetPassed) this.end();
+      } else if (this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.blastOver) this.end();
       else {
         // Out, or carried off, with the innings going on: the next man walks in (`arrival.ts`).
         const out = !!this.changed || !!this.outcome?.isWicket;
@@ -4836,6 +4858,7 @@ export class Game {
         // Super10's next man walks out once this ball is dead, as the
         // Marathon's does: the score says who, by the wickets down.
         if (this.super10 && this.outcome.isWicket && !this.score.ended) this.changed = 'OUT';
+        if (this.knockout) this.knockoutBall(this.delivery!, this.outcome);
       }
       this.showConfidence();
       // Not about a Marathon batter this ball has already taken out of the
@@ -4881,20 +4904,21 @@ export class Game {
   private writeBlast(balls: (number | 'W')[]) {
     if (this.marathon || this.surviving || this.phase !== 'READY') return false;
     for (const ball of balls) {
-      if (this.score.ended || this.targetPassed) break;
+      if (this.blastOver) break;
       this.delivery = this.generator.next(0);
       const outcome = {
         runs: typeof ball === 'number' ? ball : 0, isWicket: ball === 'W', quality: 0, feedback: '',
         timingGrade: 'MISS', timingDeltaMs: null, compatibility: 0, madeBatContact: false, aerial: false,
       } as ShotOutcome;
       this.score.record(outcome); this.generator.record(outcome);
+      if (this.knockout) this.knockoutBall(this.delivery, outcome);
       this.chaseBall(outcome);
       // Super10's next man walks out, as he would off a real ball.
       if (this.super10 && outcome.isWicket && !this.score.ended) { this.changed = 'OUT'; this.nextBatter(); }
     }
     this.hud.score(this.score);
     if (this.chasePassDue && !this.score.ended) this.celebrateChase();
-    if (this.score.ended || this.targetPassed) this.end(); else this.setPhase('READY');
+    if (this.blastOver) this.end(); else this.setPhase('READY');
     return true;
   }
   private writeMarathon(balls: (number | 'W' | 'H')[]) {
@@ -5240,6 +5264,8 @@ export class Game {
     // a pace of its own (`MARATHON_PACE`); not Survival, practice's tutorial or a demo.
     if (!(this.super10 || this.mode === 'CLASSIC' || this.marathon) || this.demoing || this.lesson >= 0) return;
     if (!this.replaysOn || this.replayAsked === 'off') return;
+    // Replays are off in Super Knockout: a room bats on while you watch one.
+    if (this.knockout) return;
     const ball: ReplayBall = { stroke: swing.stroke, grade: outcome.timingGrade, runs: outcome.runs, wicket: outcome.isWicket, index: this.score.balls - 1 };
     const due = replayDue(ball, this.replayLog, {
       cap: this.super10 ? REPLAYS_PER_INNINGS.super10 : this.marathon ? REPLAYS_PER_INNINGS.marathon : REPLAYS_PER_INNINGS.blast,
@@ -5247,7 +5273,7 @@ export class Game {
       // The ball brings something of its own to celebrate: that, and no replay over it.
       // A skier put down has had the catch camera on it already. A batter
       // bowled is shown before the next man walks out or the card comes up.
-      blocked: !!this.milestoneDue || !!this.momentAsked || (!bowled && (!!this.changed || this.score.ended || this.targetPassed)) || !!outcome.dropped,
+      blocked: !!this.milestoneDue || !!this.momentAsked || (!bowled && (!!this.changed || this.blastOver)) || !!outcome.dropped,
       roll: Math.random(), every: this.replayAsked === 'every',
     });
     if (due) this.replayQueued = { kept: this.kept, ball };
@@ -6300,6 +6326,11 @@ export class Game {
 
   private end() {
     this.setPhase('INNINGS_END');
+    if (this.knockout?.finished) {
+      const view = this.knockoutView();
+      this.mark(view.won ? 'knockout-won' : `knockout-out-${view.place}`, view.won ? 'Super Knockout practice room won' : 'Knocked out of a Super Knockout practice room');
+      this.hud.knockoutEnd(view);
+    }
     this.hud.rankHero(null, null);
     this.chaseCard();
     this.hud.cardAround(null);
@@ -7169,6 +7200,52 @@ export class Game {
     return host.runs;
   }
   /** The total passed: the chase is won on this ball, and the innings is over (the store's rule too). */
+  /**
+   * A ball in the knockout room: every sub bats the delivery the player was
+   * bowled, the cut falls at the over's end and is called on the next guard,
+   * and the scoreboard says where the player stands. Out, the room bats on
+   * without them to the cut that takes them, all at once.
+   */
+  private knockoutBall(delivery: Delivery, outcome: ShotOutcome) {
+    const room = this.knockout!;
+    const news = [room.ball(delivery, outcome)];
+    if (outcome.isWicket && !room.finished) news.push(...room.playOut(() => this.generator.next(0)));
+    const last = news.filter(n => n.gone.length).at(-1);
+    const line = last && !room.finished ? cutLine(last, room.alive.length) : null;
+    if (line) this.hud.callOut(line);
+    this.hud.knockout(room.finished ? null : chipOf(room.standing()));
+  }
+  /** KNOCKED OUT or WINNER, from the room as it stands once the player's match is over. */
+  private knockoutView(): MomentView {
+    const room = this.knockout!, you = room.you, table = room.table();
+    const at = table.indexOf(you), won = you.place === 1;
+    // The standings round the player, seven rows at most: two who stayed above the line (one, if a big cut needs the room), then those who went with them.
+    const firstGone = table.findIndex(seat => seat.wentAt === you.wentAt && seat.place !== null && seat.place !== 1);
+    const start = won ? 0 : Math.max(0, Math.max(firstGone - 2, at - 6));
+    const window = table.slice(start, start + 7);
+    const rows = window.map(seat => ({
+      place: seat.place ?? table.indexOf(seat) + 1, name: seat.name, runs: seat.runs, face: seat.face,
+      you: seat === you, out: seat.out, sub: seat.sub,
+    }));
+    const above = Math.max(0, window.findIndex(seat => seat.wentAt === you.wentAt && seat.place !== null && seat.place !== 1));
+    const over = Math.ceil((you.wentAt ?? room.bowled) / KNOCKOUT.ballsPerOver);
+    const sudden = (you.wentAt ?? 0) > KNOCKOUT.cuts.length * KNOCKOUT.ballsPerOver;
+    const when = sudden ? 'in sudden death' : `at the end of over ${over}`;
+    const runner = room.seats.find(seat => seat.place === 2) ?? null;
+    return {
+      won, place: you.place ?? room.alive.length, of: room.seats.length,
+      you: { name: you.name, face: you.face, runs: you.runs },
+      heading: sudden ? 'SUDDEN DEATH' : `END OF OVER ${over}`,
+      line: won ? `${you.runs} off ${you.balls} · ${room.bowled} balls in the match`
+        : you.out ? `Out for ${you.runs} off ${you.balls} · gone ${when}` : `${you.runs} off ${you.balls} · cut ${when}`,
+      rows, above,
+      other: won ? (runner && { name: runner.name, face: runner.face, runs: runner.runs }) : null,
+      // A room of subs is practice: no points (PRODUCT.md).
+      points: 'PRACTICE · NO POINTS',
+    };
+  }
+  /** The Blast's innings is over: the balls or the wickets, a chase's target passed, or the knockout room done with the player. */
+  private get blastOver() { return this.score.ended || this.targetPassed || !!this.knockout?.finished; }
   private get targetPassed() { const target = this.challengeTarget; return target !== null && this.score.runs > target; }
 
   /** What a profile's foot offers between this player and that one; null when the list could not be had. */

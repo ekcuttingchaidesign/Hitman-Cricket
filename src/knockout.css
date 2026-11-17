@@ -1,0 +1,36 @@
+/*
+  Super Knockout, stage one (`?knockout=1`): the place on the scoreboard, the
+  red edge while the player is in the drop, and the two moments at the end of
+  the match. Knockout Red is the knockout, green only means safe, gold is a
+  reward (Figma section 32). Sizes in the game's own units so the desktop
+  column scales them.
+*/
+:root{--ko-red:#ee2a2a;--ko-safe:#3ddc84;--ko-gold:#ffb020}
+
+/* The LAST ball's cell gives way to the place. */
+body.knockout-mode .bug-last-cell{display:none}
+.ko-cell b{font-size:18px}
+.ko-cell i{color:var(--ko-safe);letter-spacing:.1em}
+.ko-cell.is-drop i{color:#ff6b6b}
+.ko-cell.is-drop b{color:#fff}
+
+/* In the drop the edges beat like a heart, once a second and a bit. Never colour alone: the cell says it in words. */
+.ko-edge{position:absolute;inset:0;z-index:40;pointer-events:none;opacity:0;
+  box-shadow:inset 0 0 0 2px rgba(238,42,42,.7),inset 0 0 calc(var(--u,1px) * 46) rgba(238,42,42,.55);transition:opacity .3s}
+#viewport.ko-drop .ko-edge{opacity:.85}
+@media (prefers-reduced-motion:no-preference){
+  #viewport.ko-drop .ko-edge{animation:ko-beat .77s ease-in-out infinite}
+}
+@keyframes ko-beat{0%,100%{opacity:.45}18%{opacity:1}32%{opacity:.6}46%{opacity:.95}}
+
+/* The moment, over everything else at the end of the match. */
+.ko-moment{position:absolute;inset:0;z-index:120;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ko-moment-stage{position:absolute;inset:0;width:100%;height:100%;display:block}
+.ko-moment-said{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.ko-moment-keys{position:absolute;left:0;right:0;bottom:0;display:flex;gap:calc(var(--u,1px) * 12);
+  padding:0 calc(var(--u,1px) * 20) calc(var(--u,1px) * 28 + env(safe-area-inset-bottom,0px));
+  opacity:0;transform:translateY(calc(var(--u,1px) * 60));transition:opacity .25s,transform .45s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
+.ko-moment.keys-up .ko-moment-keys{opacity:1;transform:none;pointer-events:auto}
+.ko-moment-keys .k-cta{flex:1;min-width:0;width:auto}
+.ko-moment-keys .k-cta--primary{flex:1.4}
+@media (prefers-reduced-motion:reduce){.ko-moment-keys{transition:none}}

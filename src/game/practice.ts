@@ -46,6 +46,8 @@ const ON: Record<string, (value: string) => boolean> = {
   howout: v => v === '1',
   // Every ball a pace yorker or the fuller ball, and the helicopter off the straight and on swipes at them.
   heli: v => v === '1',
+  // Super Knockout's practice room: the player and eleven subs, sending nothing (`knockout.ts`).
+  knockout: v => v === '1',
 };
 
 /** Every switch the game reads that changes how an innings plays, by its name in the link. */

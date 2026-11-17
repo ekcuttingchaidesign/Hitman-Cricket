@@ -1,3 +1,4 @@
+import { KnockoutMoment, type MomentView } from './KnockoutMoment';
 import { limitsOf } from '../game/ball-string';
 import { WIPE_MS, type ReplayLook } from '../game/replay';
 import { chaseEndMarkup } from './MatchEnd';
@@ -357,6 +358,7 @@ export class HUD {
     // and every control the game needs sits on top of it.
     root.innerHTML = `
       <div id="viewport" class="stage">
+        <div class="ko-edge" aria-hidden="true"></div>
         <div class="hud-top">
           <div class="hud-actions">
             <button id="sound" class="hud-button" aria-label="Sound on. Turn the music off" title="Sound (M)">${icon('sound')}</button>
@@ -393,7 +395,8 @@ export class HUD {
           <span class="bug-tag" aria-hidden="true">HITMAN<br>OVAL</span>
           <span class="bug-total" id="total" role="img"><span id="runs"></span><span class="bug-slash">/</span><span class="bug-wkts" id="wickets"></span></span>
           <span class="bug-cell" id="overs-cell"><b id="overs"></b><i>OVERS</i></span>
-          <span class="bug-cell"><b id="last" class="bug-last" role="img"></b><i>LAST</i></span>
+          <span class="bug-cell bug-last-cell"><b id="last" class="bug-last" role="img"></b><i>LAST</i></span>
+          <span class="bug-cell ko-cell" id="ko-cell" aria-live="polite" hidden><b id="ko-place"></b><i id="ko-line"></i></span>
         </div>
         <div id="survive-card" class="survive-card hidden" role="group" aria-label="Match situation">
           <span class="sc-cell sc-main"><b id="sc-score" aria-live="polite"></b><span class="sc-label">TARGET <em id="sc-target"></em></span></span>
@@ -2715,6 +2718,33 @@ ${modeSelectMarkup()}
   }
   /** Said on the next guard he takes, once: a batter settled, or walking out. */
   callOut(words: string) { this.walking = words; }
+  /**
+   * Super Knockout's place on the scoreboard, in the LAST ball's cell: the
+   * place, and SAFE, LEVEL · SAFE or what it takes, with the screen's edges
+   * beating red while the player is in the drop. Null puts the Blast's back.
+   */
+  knockout(chip: { place: string; line: string; drop: boolean } | null) {
+    document.body.classList.toggle('knockout-mode', !!chip);
+    const cell = this.$('ko-cell');
+    cell.hidden = !chip;
+    this.viewport.classList.toggle('ko-drop', !!chip?.drop);
+    if (!chip) return;
+    this.$('ko-place').textContent = chip.place;
+    this.$('ko-line').textContent = chip.line;
+    cell.classList.toggle('is-drop', chip.drop);
+    cell.setAttribute('aria-label', `Place ${chip.place.slice(1)}, ${chip.line.toLowerCase()}`);
+  }
+  private koMoment: KnockoutMoment | null = null;
+  /** The end of the player's knockout match, over the card: KNOCKED OUT or WINNER (`KnockoutMoment.ts`). */
+  knockoutEnd(view: MomentView | null) {
+    this.koMoment?.close(); this.koMoment = null;
+    this.viewport.classList.remove('ko-drop');
+    if (!view) return;
+    this.koMoment = new KnockoutMoment(this.viewport, view, {
+      again: () => { this.koMoment = null; this.$('again').click(); },
+      card: () => { this.koMoment = null; this.$('again').focus(); },
+    });
+  }
   /**
    * A Marathon level beginning, put up the way a broadcast would: the swing
    * coming on under the cloud, or the express bowler marking out his run. Up
