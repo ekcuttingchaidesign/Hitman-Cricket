@@ -1,4 +1,5 @@
 import { KnockoutMoment, type MomentView } from './KnockoutMoment';
+import type { Track } from '../game/knockout';
 import { limitsOf } from '../game/ball-string';
 import { WIPE_MS, type ReplayLook } from '../game/replay';
 import { chaseEndMarkup } from './MatchEnd';
@@ -359,6 +360,11 @@ export class HUD {
     root.innerHTML = `
       <div id="viewport" class="stage">
         <div class="ko-edge" aria-hidden="true"></div>
+        <div class="ko-track" id="ko-track" hidden>
+          <p class="ko-say" id="ko-say" aria-live="polite" hidden></p>
+          <div class="ko-rail" role="img" id="ko-rail"><i class="ko-zone ko-gone"></i><i class="ko-zone ko-drop"></i><span class="ko-pips" id="ko-pips"></span><span class="ko-you" id="ko-you"><img alt="" decoding="async"></span></div>
+          <div class="ko-ends" aria-hidden="true"><span>OUT</span><span>SAFE</span></div>
+        </div>
         <div class="hud-top">
           <div class="hud-actions">
             <button id="sound" class="hud-button" aria-label="Sound on. Turn the music off" title="Sound (M)">${icon('sound')}</button>
@@ -2733,6 +2739,39 @@ ${modeSelectMarkup()}
     this.$('ko-line').textContent = chip.line;
     cell.classList.toggle('is-drop', chip.drop);
     cell.setAttribute('aria-label', `Place ${chip.place.slice(1)}, ${chip.line.toLowerCase()}`);
+  }
+  /**
+   * The knockout bar along the foot of the screen (`trackOf`): every seat in
+   * a row, the knocked out on the left, the drop in red, the safe in green,
+   * the player's face riding it by their place, and over it, near the
+   * knockout, what it takes. Null takes it away.
+   */
+  knockoutTrack(track: Track | null, face = 0) {
+    const box = this.$('ko-track');
+    box.hidden = !track;
+    if (!track) return;
+    const at = (i: number) => `${((i + 0.5) / track.seats) * 100}%`;
+    box.style.setProperty('--gone', `${(track.gone / track.seats) * 100}%`);
+    box.style.setProperty('--drop', `${(track.drop / track.seats) * 100}%`);
+    box.style.setProperty('--you', at(track.you));
+    const zone = track.pips[track.you]?.zone ?? 'safe';
+    box.dataset.zone = zone;
+    const pips = this.$('ko-pips');
+    if (pips.childElementCount !== track.seats) pips.innerHTML = '<i></i>'.repeat(track.seats);
+    track.pips.forEach((pip, i) => {
+      const dot = pips.children[i] as HTMLElement;
+      dot.style.left = at(pip.at);
+      dot.className = `is-${pip.zone}${pip.you ? ' is-you' : ''}`;
+    });
+    const img = this.$('ko-you').querySelector('img')!;
+    const src = avatarSrc(face);
+    if (img.getAttribute('src') !== src) img.src = src;
+    const say = this.$('ko-say');
+    say.hidden = !track.say;
+    say.textContent = track.say?.words ?? '';
+    say.dataset.tone = track.say?.tone ?? '';
+    this.$('ko-rail').setAttribute('aria-label',
+      `${track.seats - track.gone} left. ${zone === 'drop' ? 'You are in the drop' : 'You are safe'}${track.say ? `: ${track.say.words.toLowerCase()}` : ''}.`);
   }
   private koMoment: KnockoutMoment | null = null;
   /** The end of the player's knockout match, over the card: KNOCKED OUT or WINNER (`KnockoutMoment.ts`). */

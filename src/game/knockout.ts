@@ -263,11 +263,46 @@ function gauss(rng: SeededRandom): number {
 }
 
 /** The words the scoreboard's chip carries, and whether its edge is red. */
+/**
+ * The scoreboard's cell: the place, and out of how many are left. Whether
+ * that is safe is the bar's to say (`trackOf`), in words where it matters:
+ * "3 TO SAFE" in the cell was read as nothing in particular.
+ */
 export function chipOf(s: Standing): { place: string; line: string; drop: boolean } {
-  const place = `#${s.place}`;
-  if (s.drop) return { place, line: s.need > 0 ? `${s.need} TO SAFE` : 'IN THE DROP', drop: true };
-  if (s.level) return { place, line: 'LEVEL · SAFE', drop: false };
-  return { place, line: s.sudden ? 'SUDDEN DEATH' : 'SAFE', drop: false };
+  return { place: `#${s.place}`, line: `OF ${s.left}`, drop: s.drop };
+}
+
+/** One seat on the bar. */
+export interface TrackPip { at: number; you: boolean; out: boolean; zone: 'gone' | 'drop' | 'safe' }
+/**
+ * The knockout bar along the foot of the screen: all the room's seats in a
+ * row, worst on the left. Those already knocked out fill it from the left,
+ * then those the cut would take now (the drop, in red), then the safe, in
+ * green, so the safe stretch shrinks as the match goes on. The player rides it
+ * by their place. Over it, only when they are near the knockout, one line of
+ * what it takes.
+ */
+export interface Track {
+  seats: number;
+  gone: number;
+  drop: number;
+  pips: TrackPip[];
+  you: number;
+  /** Over the bar, or null when there is nothing to say. */
+  say: { words: string; tone: 'drop' | 'level' } | null;
+}
+export function trackOf(room: KnockoutRoom): Track {
+  const alive = room.alive, standing = room.standing();
+  const gone = room.seats.filter(s => s.place !== null && s !== room.winner).sort((a, b) => b.place! - a.place!);
+  const count = standing.sudden ? 1 : KNOCKOUT.cuts[Math.min(KNOCKOUT.cuts.length - 1, Math.floor(room.bowled / KNOCKOUT.ballsPerOver))];
+  const drop = new Set(cutOf(alive, count).gone);
+  const standingOrder = [...alive].sort(settled).reverse();
+  const row = [...gone, ...standingOrder];
+  const pips = row.map((seat, at) => ({ at, you: seat.id === 0, out: seat.out || seat.place !== null, zone: seat.place !== null ? 'gone' as const : drop.has(seat) ? 'drop' as const : 'safe' as const }));
+  const say = standing.drop && standing.need > 0
+    ? { words: `NEED ${standing.need} ${standing.need === 1 ? 'RUN' : 'RUNS'} TO BE SAFE`, tone: 'drop' as const }
+    : standing.level ? { words: 'LEVEL ON THE LINE · SAFE', tone: 'level' as const } : null;
+  return { seats: row.length, gone: gone.length, drop: drop.size, pips, you: row.findIndex(seat => seat.id === 0), say };
 }
 
 /** The call when people go: the big screen's line, from the player's side. */

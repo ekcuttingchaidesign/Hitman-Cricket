@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CLASSIC_PLAN, DeliveryGenerator } from '../src/game/DeliveryGenerator';
-import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, cutOf, type Seat } from '../src/game/knockout';
+import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, cutOf, trackOf, type Seat } from '../src/game/knockout';
 import { SeededRandom } from '../src/game/SeededRandom';
 import type { ShotOutcome } from '../src/game/types';
 
@@ -104,11 +104,12 @@ describe('a room', () => {
     const s = room.standing();
     // Two go: the player on 2 and the sub on 6. The lowest safe is on 7.
     expect(s).toMatchObject({ place: 12, left: 12, drop: true, need: 5 });
-    expect(chipOf(s)).toMatchObject({ line: '5 TO SAFE', drop: true });
+    expect(chipOf(s)).toEqual({ place: '#12', line: 'OF 12', drop: true });
+    expect(trackOf(room).say).toEqual({ words: 'NEED 5 RUNS TO BE SAFE', tone: 'drop' });
     // Level with the lowest who would be safe is enough: a tie at the line takes both through.
     room.you.runs = 7;
     expect(room.standing()).toMatchObject({ drop: false, level: true });
-    expect(chipOf(room.standing()).line).toBe('LEVEL · SAFE');
+    expect(trackOf(room).say).toEqual({ words: 'LEVEL ON THE LINE · SAFE', tone: 'level' });
   });
 });
 
@@ -118,11 +119,35 @@ describe('the words', () => {
     expect(cutLine(news, 10)).toBe('END OF OVER 1 · P3 AND P5 OUT · 10 LEFT');
     expect(cutLine({ ...news, gone: [seat(0, 1)], kind: 'sudden', over: null }, 2)).toBe('SUDDEN DEATH · YOU OUT · 2 LEFT');
   });
-  it('chips the scoreboard: safe, level, or what it takes', () => {
+  it('chips the scoreboard with the place and how many are left', () => {
     const base = { place: 4, left: 10, drop: false, level: false, need: 0, sudden: false, over: 2, ball: 3 };
-    expect(chipOf(base).line).toBe('SAFE');
-    expect(chipOf({ ...base, level: true }).line).toBe('LEVEL · SAFE');
-    expect(chipOf({ ...base, drop: true, need: 3 }).line).toBe('3 TO SAFE');
-    expect(chipOf({ ...base, sudden: true }).line).toBe('SUDDEN DEATH');
+    expect(chipOf(base)).toEqual({ place: '#4', line: 'OF 10', drop: false });
+    expect(chipOf({ ...base, drop: true, need: 3 }).drop).toBe(true);
+  });
+
+});
+
+describe('the bar', () => {
+  it('holds every seat, worst on the left: the gone, then the drop, then the safe', () => {
+    const room = new KnockoutRoom(3, { name: 'You', face: 0 }), next = bowler(3);
+    for (let b = 0; b < 15; b++) room.ball(next(), ball(6));
+    const track = trackOf(room);
+    expect(track.seats).toBe(12);
+    const zones = track.pips.map(p => p.zone);
+    const order = ['gone', 'drop', 'safe'];
+    for (let i = 1; i < zones.length; i++) expect(order.indexOf(zones[i])).toBeGreaterThanOrEqual(order.indexOf(zones[i - 1]));
+    expect(zones.filter(z => z === 'gone')).toHaveLength(track.gone);
+    expect(zones.filter(z => z === 'drop')).toHaveLength(track.drop);
+    expect(track.pips[track.you].you).toBe(true);
+  });
+  it('shrinks the safe stretch as the match goes on', () => {
+    const room = new KnockoutRoom(8, { name: 'You', face: 0 }), next = bowler(8);
+    let last = Infinity;
+    for (let over = 0; over < 4 && !room.winner; over++) {
+      for (let b = 0; b < 6 && !room.winner; b++) room.ball(next(), ball(6));
+      const t = trackOf(room), safe = t.seats - t.gone - t.drop;
+      expect(safe).toBeLessThanOrEqual(last);
+      last = safe;
+    }
   });
 });

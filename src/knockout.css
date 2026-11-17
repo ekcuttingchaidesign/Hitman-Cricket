@@ -7,12 +7,56 @@
 */
 :root{--ko-red:#ee2a2a;--ko-safe:#3ddc84;--ko-gold:#ffb020}
 
-/* The LAST ball's cell gives way to the place. */
+/* The LAST ball's cell gives way to the place: #7 over OF 12, no wider than LAST was. */
 body.knockout-mode .bug-last-cell{display:none}
+.ko-cell{min-width:46px}
 .ko-cell b{font-size:18px}
-.ko-cell i{color:var(--ko-safe);letter-spacing:.1em}
-.ko-cell.is-drop i{color:#ff6b6b}
-.ko-cell.is-drop b{color:#fff}
+.ko-cell.is-drop b{color:#ff6b6b}
+
+/*
+  The knockout bar, along the foot of the screen over the side labels: every
+  seat in a row, the knocked out on the left in grey, the drop in red stripes,
+  the safe in green, the player's face riding it by their place. The words
+  over it come only near the knockout.
+*/
+.ko-track{
+  --u1:var(--u,1px);
+  position:absolute;left:var(--pad);right:var(--pad-right,var(--pad));
+  bottom:calc(var(--pad-bottom) + 50px);z-index:4;pointer-events:none;
+  padding:calc(var(--u1) * 10) calc(var(--u1) * 12) calc(var(--u1) * 6);
+  border-radius:calc(var(--u1) * 16);background:#0c0809a6;box-shadow:0 0 0 1px #ffffff14 inset
+}
+.ko-track[hidden]{display:none}
+.stage.result-open .ko-track,.stage.picking-mode .ko-track,.stage.pause-open .ko-track{display:none}
+.ko-rail{position:relative;height:calc(var(--u1) * 8);border-radius:calc(var(--u1) * 4);background:#3ddc84a8;box-shadow:0 0 0 1px #3ddc8466}
+.ko-zone{position:absolute;top:0;bottom:0;left:0;transition:width .5s cubic-bezier(.34,1.3,.64,1),left .5s cubic-bezier(.34,1.3,.64,1)}
+.ko-gone{width:var(--gone);background:#3a3436;border-radius:calc(var(--u1) * 4) 0 0 calc(var(--u1) * 4)}
+.ko-drop{left:var(--gone);width:var(--drop);background:repeating-linear-gradient(135deg,#ee2a2a 0 calc(var(--u1) * 4),#b81a1a calc(var(--u1) * 4) calc(var(--u1) * 8))}
+.ko-pips>i{position:absolute;top:50%;width:calc(var(--u1) * 5);height:calc(var(--u1) * 5);margin:calc(var(--u1) * -2.5) 0 0 calc(var(--u1) * -2.5);
+  border-radius:50%;background:#0c0809cc;transition:left .5s cubic-bezier(.34,1.3,.64,1)}
+.ko-pips>i.is-gone{background:#ffffff33;width:calc(var(--u1) * 3);height:calc(var(--u1) * 3);margin:calc(var(--u1) * -1.5) 0 0 calc(var(--u1) * -1.5)}
+.ko-pips>i.is-drop{background:#fff}
+.ko-pips>i.is-you{visibility:hidden}
+.ko-you{position:absolute;top:50%;left:var(--you);width:calc(var(--u1) * 28);height:calc(var(--u1) * 28);margin:calc(var(--u1) * -14) 0 0 calc(var(--u1) * -14);
+  border-radius:50%;overflow:hidden;background:#1d1517;box-shadow:0 0 0 calc(var(--u1) * 2) #fff,0 calc(var(--u1) * 3) calc(var(--u1) * 8) #000a;
+  transition:left .5s cubic-bezier(.34,1.3,.64,1),box-shadow .3s}
+.ko-you>img{width:100%;height:100%;display:block;object-fit:cover}
+.ko-track[data-zone="drop"] .ko-you{box-shadow:0 0 0 calc(var(--u1) * 2) #ee2a2a,0 0 calc(var(--u1) * 12) #ee2a2acc}
+.ko-ends{display:flex;justify-content:space-between;margin-top:calc(var(--u1) * 9);font:800 calc(var(--u1) * 8)/1 var(--f-ui,Satoshi,sans-serif);letter-spacing:.16em;color:#ffffff80}
+.ko-ends>span:last-child{color:#3ddc84}
+.ko-ends>span:first-child{color:#ff7a7a}
+/* What it takes, over the player's face, kept inside the bar's ends. */
+.ko-say{position:absolute;bottom:calc(100% + var(--u1) * 4);left:clamp(calc(var(--u1) * 80),var(--you),calc(100% - var(--u1) * 80));transform:translateX(-50%);
+  margin:0;padding:calc(var(--u1) * 6) calc(var(--u1) * 11);border-radius:calc(var(--u1) * 10);white-space:nowrap;
+  font:800 calc(var(--u1) * 11)/1 var(--f-ui,Satoshi,sans-serif);letter-spacing:.08em;color:#fff;background:#ee2a2a;box-shadow:0 calc(var(--u1) * 4) calc(var(--u1) * 14) #0009;
+  transition:left .5s cubic-bezier(.34,1.3,.64,1)}
+.ko-say[hidden]{display:none}
+.ko-say[data-tone="level"]{background:#ffb020;color:#1a0e02}
+@media (prefers-reduced-motion:no-preference){
+  .ko-say[data-tone="drop"]{animation:ko-say-beat .77s ease-in-out infinite}
+}
+@keyframes ko-say-beat{0%,100%{transform:translateX(-50%) scale(1)}18%{transform:translateX(-50%) scale(1.06)}36%{transform:translateX(-50%) scale(1)}}
+@media (prefers-reduced-motion:reduce){.ko-zone,.ko-you,.ko-pips>i,.ko-say{transition:none}}
 
 /* In the drop the edges beat like a heart, once a second and a bit. Never colour alone: the cell says it in words. */
 .ko-edge{position:absolute;inset:0;z-index:40;pointer-events:none;opacity:0;
@@ -23,14 +67,25 @@ body.knockout-mode .bug-last-cell{display:none}
 }
 @keyframes ko-beat{0%,100%{opacity:.45}18%{opacity:1}32%{opacity:.6}46%{opacity:.95}}
 
-/* The moment, over everything else at the end of the match. */
+/* The moment, over everything else at the end of the match. The card waits
+   underneath, out of sight, so what shows through the dark is the match. */
+body.ko-up #end{visibility:hidden}
 .ko-moment{position:absolute;inset:0;z-index:120;cursor:pointer;-webkit-tap-highlight-color:transparent}
+/* K9 v2: the match goes soft and far away as the lights go out on it. */
+.ko-moment.is-lost{transition:backdrop-filter .45s ease-in-out,-webkit-backdrop-filter .45s ease-in-out}
+.ko-moment.is-lost.lights-out{-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
 .ko-moment-stage{position:absolute;inset:0;width:100%;height:100%;display:block}
 .ko-moment-said{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.ko-moment-keys{position:absolute;left:0;right:0;bottom:0;display:flex;gap:calc(var(--u,1px) * 12);
-  padding:0 calc(var(--u,1px) * 20) calc(var(--u,1px) * 28 + env(safe-area-inset-bottom,0px));
+/* K9 v2 and K11's keys: 173 and 179 wide, 10 apart, 20 in from the sides, 49 off the foot. */
+.ko-moment-keys{position:absolute;left:0;right:0;bottom:0;display:flex;gap:calc(var(--u,1px) * 10);
+  padding:0 calc(var(--u,1px) * 20) calc(var(--u,1px) * 49 + env(safe-area-inset-bottom,0px));
   opacity:0;transform:translateY(calc(var(--u,1px) * 60));transition:opacity .25s,transform .45s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
 .ko-moment.keys-up .ko-moment-keys{opacity:1;transform:none;pointer-events:auto}
-.ko-moment-keys .k-cta{flex:1;min-width:0;width:auto}
-.ko-moment-keys .k-cta--primary{flex:1.4}
-@media (prefers-reduced-motion:reduce){.ko-moment-keys{transition:none}}
+.ko-moment-keys .k-cta{min-width:0;width:auto}
+.ko-moment-keys .k-cta--secondary{flex:173;--ledge:#1c1f24;--face:#2a2e35;--ink:#c9ced6}
+.ko-moment-keys .k-cta--secondary .k-cta-face{font-size:calc(var(--u,1px) * 20);letter-spacing:.08em}
+/* PLAY AGAIN in Knockout Red: the rim from #ff525b to #c3121b round a face warming from white to pink. */
+.ko-moment-keys .k-cta--primary{flex:179;--c-cta-rim-top:#ff525b;--c-cta-rim-bottom:#c3121b;--c-cta-face-bottom:#ffbdc0;
+  --g-cta-rim:linear-gradient(180deg,#ff525b,#c3121b);--g-cta-face:linear-gradient(180deg,#fff,#ffbdc0);--ledge:#c3121b}
+.ko-moment-keys .k-cta--primary .k-cta-face{font-size:calc(var(--u,1px) * 18)}
+@media (prefers-reduced-motion:reduce){.ko-moment-keys,.ko-moment.is-lost{transition:none}}

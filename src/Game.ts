@@ -169,7 +169,7 @@ import { nameProblem, renameReason, siblingReason } from './server/name-rules';
 import { cleanName, foldName } from './server/board-store';
 import { kitDeal } from './config/board';
 import { encodeInnings, limitsOf } from './game/ball-string';
-import { KNOCKOUT, KnockoutRoom, chipOf, cutLine } from './game/knockout';
+import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, trackOf } from './game/knockout';
 import { KnockoutMoment, type MomentView } from './ui/KnockoutMoment';
 import { demoRoom, demoWanted as roomDemoWanted } from './game/room-demo';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
@@ -2455,6 +2455,7 @@ export class Game {
     if (this.marathon) this.health = this.marathon.current.health;
     this.knockout = this.knockingOut ? new KnockoutRoom(this.seed, { name: readPlayer()?.name || 'You', face: readPlayer()?.avatar ?? 0 }) : null;
     this.hud.knockout(this.knockout ? chipOf(this.knockout.standing()) : null);
+    this.hud.knockoutTrack(this.knockout ? trackOf(this.knockout) : null, this.knockout?.you.face);
     this.hud.knockoutEnd(null);
     this.ease = this.newcomerEase();
     // Which of the helped innings this is, so the dashboard can set the
@@ -7214,6 +7215,7 @@ export class Game {
     const line = last && !room.finished ? cutLine(last, room.alive.length) : null;
     if (line) this.hud.callOut(line);
     this.hud.knockout(room.finished ? null : chipOf(room.standing()));
+    this.hud.knockoutTrack(room.finished ? null : trackOf(room), room.you.face);
   }
   /** KNOCKED OUT or WINNER, from the room as it stands once the player's match is over. */
   private knockoutView(): MomentView {
@@ -7230,14 +7232,19 @@ export class Game {
     const above = Math.max(0, window.findIndex(seat => seat.wentAt === you.wentAt && seat.place !== null && seat.place !== 1));
     const over = Math.ceil((you.wentAt ?? room.bowled) / KNOCKOUT.ballsPerOver);
     const sudden = (you.wentAt ?? 0) > KNOCKOUT.cuts.length * KNOCKOUT.ballsPerOver;
-    const when = sudden ? 'in sudden death' : `at the end of over ${over}`;
     const runner = room.seats.find(seat => seat.place === 2) ?? null;
+    // How the player went, in the words K9 v2's line uses: bowled, caught, stumped.
+    const how = you.out ? (this.score.history.at(-1)?.wicketType ?? 'out').toLowerCase().replace(/_/g, ' ') : null;
+    const lastOne = sudden ? 'in sudden death' : `at the end of over ${over}`;
+    const by = runner ? you.runs - runner.runs : 0;
     return {
       won, place: you.place ?? room.alive.length, of: room.seats.length,
-      you: { name: you.name, face: you.face, runs: you.runs },
+      you: { name: you.name, face: you.face, runs: you.runs, balls: you.balls, sixes: you.sixes },
       heading: sudden ? 'SUDDEN DEATH' : `END OF OVER ${over}`,
-      line: won ? `${you.runs} off ${you.balls} · ${room.bowled} balls in the match`
-        : you.out ? `Out for ${you.runs} off ${you.balls} · gone ${when}` : `${you.runs} off ${you.balls} · cut ${when}`,
+      line: won
+        ? (runner ? `Outlasted ${runner.name}${by > 0 ? ` by ${by}` : ''} ${lastOne}.` : 'The room is yours.')
+        : how ? `${you.runs} off ${you.balls} · ${how} in over ${Math.ceil(you.balls / KNOCKOUT.ballsPerOver) || 1}` : `${you.runs} off ${you.balls} · cut ${lastOne}`,
+      figures: `${you.runs} runs · ${you.balls} balls · ${you.sixes} ${you.sixes === 1 ? 'six' : 'sixes'}`,
       rows, above,
       other: won ? (runner && { name: runner.name, face: runner.face, runs: runner.runs }) : null,
       // A room of subs is practice: no points (PRODUCT.md).

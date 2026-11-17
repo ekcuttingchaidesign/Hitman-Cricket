@@ -42,14 +42,19 @@ page.on('pageerror', e => errors.push(e.message));
 await walkOut(page, '/?knockout=1&debug=1&seed=7');
 let seen = await cell(page);
 check(!seen.hidden && seen.last === 'none', 'the place stands in the LAST ball\'s cell', JSON.stringify(seen));
-check(seen.place === '#1' && seen.line === 'SAFE' && !seen.drop, 'before a ball: #1, SAFE', JSON.stringify(seen));
+check(seen.place === '#1' && seen.line === 'OF 12' && !seen.drop, 'before a ball: #1 of 12', JSON.stringify(seen));
 await page.screenshot({ path: out + '/ko-start.png' });
 await write(page, [1, 0, 1]);
 await page.waitForTimeout(300);
 seen = await cell(page);
 const room = await page.evaluate(() => window.__cricket.knockout());
 check(seen.drop === room.standing.drop && seen.place === `#${room.standing.place}`, 'the chip and the edge follow the room', JSON.stringify({ seen, room: room.standing }));
-if (seen.drop) check(/^\d+ TO SAFE$/.test(seen.line), 'in the drop it says what it takes', seen.line);
+check(/^OF \d+$/.test(seen.line), 'the cell is the place and how many are left', seen.line);
+const bar = await page.evaluate(() => ({ up: !document.getElementById('ko-track').hidden, say: document.getElementById('ko-say').hidden ? null : document.getElementById('ko-say').textContent,
+  zone: document.getElementById('ko-track').dataset.zone, pips: document.getElementById('ko-pips').childElementCount }));
+check(bar.up && bar.pips === 12, 'the knockout bar is up with every seat on it', JSON.stringify(bar));
+check(bar.zone === (seen.drop ? 'drop' : 'safe'), 'your face rides the bar in the right zone', JSON.stringify(bar));
+if (seen.drop) check(/^NEED \d+ RUNS? TO BE SAFE$/.test(bar.say ?? ''), 'in the drop the bar says what it takes', bar.say);
 await page.screenshot({ path: out + '/ko-drop.png' });
 await page.evaluate(() => window.__cricket.knockoutAt(0));
 await write(page, ['W']);
@@ -85,6 +90,19 @@ await page.waitForTimeout(1500);
 seen = await cell(page);
 check(await page.locator('#ko-moment').count() === 0 && (await page.evaluate(() => window.__cricket.knockout())).bowled === 0 && seen.place === '#1',
   'PLAY AGAIN walks out into a new room', JSON.stringify(seen));
+// 3. The scoreboard with the meter full: it stays clear of the keys beside it.
+page = await b.newPage({ viewport: { width: 375, height: 667 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+page.on('pageerror', e => errors.push(e.message));
+await walkOut(page, '/?knockout=1&debug=1&seed=7&charge=1');
+await write(page, [4, 4]);
+await page.waitForTimeout(400);
+const fit = await page.evaluate(() => {
+  const bug = document.querySelector('.score-bug').getBoundingClientRect(), keys = document.getElementById('pause').getBoundingClientRect();
+  return { right: Math.round(bug.right), keys: Math.round(keys.left), full: document.getElementById('confidence').classList.contains('is-full') };
+});
+check(fit.right <= fit.keys, 'the scoreboard stays clear of the keys with the meter full', JSON.stringify(fit));
+await page.screenshot({ path: out + '/ko-full-meter.png' });
+await page.close();
 check(errors.length === 0, 'nothing in the console', errors.join('\n'));
 await b.close();
 console.log(failures ? `\n${failures} failed` : '\nall passed'); process.exit(failures ? 1 : 0);

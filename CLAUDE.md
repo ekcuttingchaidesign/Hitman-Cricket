@@ -2375,12 +2375,24 @@ cut that takes them, at once.
 
 In the game (`knockoutBall`, `knockoutView` and `blastOver` in `src/Game.ts`)
 it is a Blast innings with `KNOCKOUT_LIMITS`: the place stands in the
-scoreboard's LAST cell (#7 and SAFE, LEVEL · SAFE or 3 TO SAFE, `chipOf`),
-the screen's edges beat red while the player is in the drop (`.ko-edge`), and
-a cut is called on the next guard (`cutLine`). Replays are off. The match
-ends on KNOCKED OUT or WINNER over the card (`src/ui/KnockoutMoment.ts`, the
-claude.ai artifact "Knockout Moments", drawn on one clock as the Verdict is),
-with SCORECARD and PLAY AGAIN. The switch is practice (`practice.ts`): no
+scoreboard's LAST cell, #7 over OF 12 (`chipOf`; "3 TO SAFE" there said
+nothing, the owner found, and a longer line pushed the bar into the keys
+with the meter full). Along the foot of the screen, over the hint line, is
+the knockout bar (`trackOf`, `knockoutTrack` in the HUD, `.ko-track`): every
+seat in a row, worst on the left, those knocked out in grey, the drop in red
+stripes, the safe in green, so the safe stretch shrinks as the match goes on,
+and the player's face riding it by their place; over it, only near the
+knockout, NEED 4 RUNS TO BE SAFE or LEVEL ON THE LINE · SAFE. The screen's
+edges beat red while the player is in the drop (`.ko-edge`), and a cut is
+called on the next guard (`cutLine`). Replays are off. The match ends on
+KNOCKED OUT or WINNER (`src/ui/KnockoutMoment.ts`), each ending exactly on
+its Figma frame, K9 v2 (`858:6160`) and K11 (`858:6267`) on the Final page:
+the places, sizes, colours, the rays' conic gradient and the grain are read
+off them, and the way there is the claude.ai artifact "Knockout Moments", on
+one clock as the Verdict is. The card is out of sight underneath while it is
+up (`ko-up`), so what shows through K9 v2's dark is the match, blurred. Its
+keys are SCORECARD in the design's dark key and PLAY AGAIN in Knockout Red;
+the design's WATCH ON and SHARE come with real rooms and the share picture. The switch is practice (`practice.ts`): no
 board, no career, no points, and a room of subs never scores any. Not in the
 Pages builds. Still to come: the free hit, the big screen and the floodlights
 answering the cut, holding the scoreboard to see everyone, the timeout pause,
