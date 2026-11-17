@@ -169,7 +169,7 @@ import { nameProblem, renameReason, siblingReason } from './server/name-rules';
 import { cleanName, foldName } from './server/board-store';
 import { kitDeal } from './config/board';
 import { encodeInnings, limitsOf } from './game/ball-string';
-import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, trackOf } from './game/knockout';
+import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, sampleTrack, trackOf, type TrackMood } from './game/knockout';
 import { KnockoutMoment, type MomentView } from './ui/KnockoutMoment';
 import { demoRoom, demoWanted as roomDemoWanted } from './game/room-demo';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
@@ -1259,6 +1259,8 @@ export class Game {
       blast: (balls: (number | 'W')[]) => this.writeBlast(balls),
       // Super Knockout's end moment held at `t` seconds (null lets it run), and where its clock is.
       knockoutAt: (t: number | null) => { KnockoutMoment.pinned = t; },
+      // The knockout bar stood in a made-up room in each mood, for photographing it (`sampleTrack`); `left` is the balls left in the over.
+      knockoutMood: (mood: TrackMood, left = 2) => { this.hud.knockoutTrack(sampleTrack(mood, left), this.knockout?.you.face ?? 0); },
       knockout: () => this.knockout && { standing: this.knockout.standing(), bowled: this.knockout.bowled, left: this.knockout.alive.length, you: { ...this.knockout.you } },
       // The star prompt on demand, for `rating-check.mjs`: which thing, asked
       // as the end of an innings would ask it, and nothing about when.

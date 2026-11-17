@@ -275,6 +275,16 @@ export function chipOf(s: Standing): { place: string; line: string; drop: boolea
 /** One seat on the bar. */
 export interface TrackPip { at: number; you: boolean; out: boolean; zone: 'gone' | 'drop' | 'safe' }
 /**
+ * How the bar feels about where the player stands, which is what it moves
+ * to (Figma "Super Knockout · Final", F2; the claude.ai artifact "Knockout
+ * Bar Motion"): calm, two seats or more clear; edge, within `EDGE_RUNS` of
+ * somebody in the drop who can still pass them; level, tied on the line; the
+ * drop; and the drop in sudden death, where every ball is a cut.
+ */
+export type TrackMood = 'calm' | 'edge' | 'level' | 'drop' | 'sudden';
+/** Close to the cut: this many runs or fewer clear of the best in the drop still batting. */
+export const EDGE_RUNS = 3;
+/**
  * The knockout bar along the foot of the screen: all the room's seats in a
  * row, worst on the left. Those already knocked out fill it from the left,
  * then those the cut would take now (the drop, in red), then the safe, in
@@ -288,8 +298,18 @@ export interface Track {
   drop: number;
   pips: TrackPip[];
   you: number;
-  /** Over the bar, or null when there is nothing to say. */
-  say: { words: string; tone: 'drop' | 'level' } | null;
+  mood: TrackMood;
+  /** Across the top: when the cut falls and how many it takes. */
+  eyebrow: string;
+  place: number;
+  /** How many are left in the room. */
+  of: number;
+  /** Runs clear of the best in the drop still batting, or null when nobody there can pass. */
+  clear: number | null;
+  /** Balls left in the over, the next one included: six at its start. In sudden death every one of them is a cut. */
+  ballsLeft: number;
+  /** Over the player's face, or null when there is nothing to say. */
+  say: { words: string; tone: 'drop' | 'level' | 'edge' } | null;
 }
 export function trackOf(room: KnockoutRoom): Track {
   const alive = room.alive, standing = room.standing();
@@ -299,10 +319,48 @@ export function trackOf(room: KnockoutRoom): Track {
   const standingOrder = [...alive].sort(settled).reverse();
   const row = [...gone, ...standingOrder];
   const pips = row.map((seat, at) => ({ at, you: seat.id === 0, out: seat.out || seat.place !== null, zone: seat.place !== null ? 'gone' as const : drop.has(seat) ? 'drop' as const : 'safe' as const }));
+  const chasers = [...drop].filter(s => !s.out && s !== room.you);
+  const clear = standing.drop || !chasers.length ? null : room.you.runs - Math.max(...chasers.map(s => s.runs));
+  const mood: TrackMood = standing.drop ? (standing.sudden ? 'sudden' : 'drop')
+    : standing.level ? 'level' : clear !== null && clear <= EDGE_RUNS ? 'edge' : 'calm';
+  const runs = (n: number) => `${n} ${n === 1 ? 'RUN' : 'RUNS'}`;
   const say = standing.drop && standing.need > 0
-    ? { words: `NEED ${standing.need} ${standing.need === 1 ? 'RUN' : 'RUNS'} TO BE SAFE`, tone: 'drop' as const }
-    : standing.level ? { words: 'LEVEL ON THE LINE · SAFE', tone: 'level' as const } : null;
-  return { seats: row.length, gone: gone.length, drop: drop.size, pips, you: row.findIndex(seat => seat.id === 0), say };
+    ? { words: `NEED ${runs(standing.need)} TO ${standing.sudden ? 'STAY IN' : 'BE SAFE'}`, tone: 'drop' as const }
+    : mood === 'level' ? { words: 'LEVEL ON THE LINE · SAFE', tone: 'level' as const }
+    : mood === 'edge' && clear! > 0 ? { words: `${runs(clear!)} CLEAR`, tone: 'edge' as const } : null;
+  return {
+    seats: row.length, gone: gone.length, drop: drop.size, pips, you: row.findIndex(seat => seat.id === 0), mood,
+    eyebrow: standing.sudden ? 'SUDDEN DEATH · LAST PLACE GOES EVERY BALL' : `END OF OVER ${standing.over} · ${count} GO`,
+    place: standing.place, of: standing.left, clear,
+    ballsLeft: KNOCKOUT.ballsPerOver - standing.ball, say,
+  };
+}
+
+/**
+ * A made-up room standing in each mood, as the Final page's frames draw them
+ * (R, P2, P4, P3, P7), for photographing the bar without batting to it
+ * (`__cricket.knockoutMood`). Nothing in a real room reads it.
+ */
+export function sampleTrack(mood: TrackMood, ballsLeft = 2): Track {
+  const rooms = {
+    calm: { gone: 0, drop: 2, you: 9, place: 3, of: 12, eyebrow: 'END OF OVER 1 · 2 GO', say: null, clear: 9 },
+    edge: { gone: 2, drop: 2, you: 5, place: 6, of: 10, eyebrow: 'END OF OVER 2 · 2 GO', say: { words: '2 RUNS CLEAR', tone: 'edge' as const }, clear: 2 },
+    level: { gone: 2, drop: 2, you: 4, place: 7, of: 10, eyebrow: 'END OF OVER 2 · 2 GO', say: { words: 'LEVEL ON THE LINE · SAFE', tone: 'level' as const }, clear: 0 },
+    drop: { gone: 2, drop: 2, you: 3, place: 9, of: 10, eyebrow: 'END OF OVER 2 · 2 GO', say: { words: 'NEED 5 RUNS TO BE SAFE', tone: 'drop' as const }, clear: null },
+    sudden: { gone: 9, drop: 1, you: 9, place: 3, of: 3, eyebrow: 'SUDDEN DEATH · LAST PLACE GOES EVERY BALL', say: { words: 'NEED 2 RUNS TO STAY IN', tone: 'drop' as const }, clear: null },
+  };
+  const r = rooms[mood];
+  const pips = Array.from({ length: KNOCKOUT.seats }, (_, at) => ({ at, you: at === r.you, out: at < r.gone, zone: at < r.gone ? 'gone' as const : at < r.gone + r.drop ? 'drop' as const : 'safe' as const }));
+  return { seats: KNOCKOUT.seats, gone: r.gone, drop: r.drop, pips, you: r.you, mood, eyebrow: r.eyebrow, place: r.place, of: r.of, clear: r.clear, ballsLeft, say: r.say };
+}
+
+/**
+ * The scoreboard's line under the overs: which over, of the four with a cut
+ * and the one after them, or SUDDEN DEATH once those are bowled.
+ */
+export function overLine(bowled: number): string {
+  const over = Math.floor(bowled / KNOCKOUT.ballsPerOver) + 1;
+  return over > KNOCKOUT.cuts.length ? 'SUDDEN DEATH' : `OVER ${over} OF ${KNOCKOUT.cuts.length + 1}`;
 }
 
 /** The call when people go: the big screen's line, from the player's side. */

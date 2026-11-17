@@ -2374,17 +2374,41 @@ usually won by 65 to 100. Out, the room plays on without the player to the
 cut that takes them, at once.
 
 In the game (`knockoutBall`, `knockoutView` and `blastOver` in `src/Game.ts`)
-it is a Blast innings with `KNOCKOUT_LIMITS`: the place stands in the
-scoreboard's LAST cell, #7 over OF 12 (`chipOf`; "3 TO SAFE" there said
-nothing, the owner found, and a longer line pushed the bar into the keys
-with the meter full). Along the foot of the screen, over the hint line, is
-the knockout bar (`trackOf`, `knockoutTrack` in the HUD, `.ko-track`): every
-seat in a row, worst on the left, those knocked out in grey, the drop in red
-stripes, the safe in green, so the safe stretch shrinks as the match goes on,
-and the player's face riding it by their place; over it, only near the
-knockout, NEED 4 RUNS TO BE SAFE or LEVEL ON THE LINE · SAFE. The screen's
-edges beat red while the player is in the drop (`.ko-edge`), and a cut is
-called on the next guard (`cutLine`). Replays are off. The match ends on
+it is a Blast innings with `KNOCKOUT_LIMITS`, on a shorter scoreboard (Figma
+"Super Knockout · Final", F2): the total, the over as OVER 2 OF 5 or SUDDEN
+DEATH (`overLine`), and this over ball by ball (`#ko-over`), 194 wide, with no
+LAST cell, no place cell and no "/0"; the meter stays under it. The place is
+in the knockout bar along the foot (`trackOf`, `src/ui/KnockoutBar.ts`,
+`.ko-track` in `src/knockout.css`), 370 by 74 off the design: across its top
+when the cut falls (END OF OVER 2 · 2 GO, or SUDDEN DEATH · LAST PLACE GOES
+EVERY BALL) and #9 OF 10; then every seat, worst on the left, those knocked
+out in grey, the drop in red, the safe in green, the cut a white line between,
+the player's face riding it by their place; GONE, DROP (OUT in sudden death)
+and SAFE under their stretches; and over the face, only where it matters, a
+pill: NEED 5 RUNS TO BE SAFE (TO STAY IN in sudden death), 2 RUNS CLEAR, or
+LEVEL ON THE LINE · SAFE. "3 TO SAFE" in a scoreboard cell said nothing, the
+owner found, and a longer line pushed the bar into the keys with the meter
+full. The bar reacts to where the player stands (`Track.mood`, the claude.ai
+artifact "Knockout Bar Motion"): calm, a slow green breath and a sheen along
+the safe stretch; edge, within `EDGE_RUNS` of somebody in the drop still
+batting, an amber pulse, the cut glowing and a dashed line crawling from it to
+the face; level, a teeter on an amber cut; the drop, a heartbeat whose tempo is
+the deadline (72 a minute with six balls left in the over, 132 on the last,
+`--ko-beat`, which the screen's red edges beat to as well), ripples, the red
+seats throbbing, the pill thumping, and flames and embers off the red seats on
+a canvas (`.ko-fx`), their tips kept under the bar's words; sudden death, the
+fastest beat, the cut flashing, and a fuse in place of the flames, burning from
+the end of the bar further from the face to the face as the over's balls run
+out. Between two answers it plays what happened (`moment`): the cut (the seats
+it took flash white and go grey, SURVIVED floats up), climbing out (a spring
+over the line, SAFE), falling in (a stumble, a shudder, the pill dropping in),
+and the need ticking down. Loops are CSS; moments are Web Animations, never a
+class restarted mid-ball; the canvas runs only while the player is in the drop
+and for the embers after. Under reduced motion the colours, the cut and the
+words stay and nothing moves. The guard's line and the cut's call stand above
+the bar and its pill (`body.knockout-mode .phase-label`). The screen's edges
+beat red while the player is in the drop (`.ko-edge`), and a cut is called on
+the next guard (`cutLine`). Replays are off. The match ends on
 KNOCKED OUT or WINNER (`src/ui/KnockoutMoment.ts`), each ending exactly on
 its Figma frame, K9 v2 (`858:6160`) and K11 (`858:6267`) on the Final page:
 the places, sizes, colours, the rays' conic gradient and the grain are read

@@ -32,6 +32,7 @@ Played one-handed on a phone, often in a browser opened from WhatsApp or Instagr
 - Leaving mid-match gives no place and no points: the result says RAN AWAY.
 - The pause is a timeout: your own bowler waits, 15 seconds an over at most; no restart or change mode. Replays are off in this mode.
 - Stand-ins fill empty seats and are called subs, never bots or random players.
+- Every room is twelve seats: subs fill whatever real players leave empty, so the cuts, the bar and the moments are the same in every match, and a room survives anybody leaving. Points already go by how many real players there are, so a room of three friends and nine subs pays exactly what three alone would. No smaller rooms at launch (decided 17 November 2026); the cuts drawn for three, five and seven (one an over for seven, one at overs 2 and 4 for five, none before sudden death for three) are kept in Figma for a host's Friends only switch, if rooms of five or fewer real players turn out common and hosts ask for it. The final standings may rank the real players among themselves too, so a sub winning the room does not hide who won between friends.
 - Leaderboard ladders: Points (default), Wins, Highest total, Win rate; This week and All time.
 - Reached from "Play with friends" and a card on Choose a mode; My Stats gets a Knockout card.
 - A player id never leaves the store; other players are named by handle.

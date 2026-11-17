@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CLASSIC_PLAN, DeliveryGenerator } from '../src/game/DeliveryGenerator';
-import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, cutOf, trackOf, type Seat } from '../src/game/knockout';
+import { EDGE_RUNS, KNOCKOUT, KnockoutRoom, chipOf, cutLine, cutOf, overLine, trackOf, type Seat } from '../src/game/knockout';
 import { SeededRandom } from '../src/game/SeededRandom';
 import type { ShotOutcome } from '../src/game/types';
 
@@ -106,10 +106,12 @@ describe('a room', () => {
     expect(s).toMatchObject({ place: 12, left: 12, drop: true, need: 5 });
     expect(chipOf(s)).toEqual({ place: '#12', line: 'OF 12', drop: true });
     expect(trackOf(room).say).toEqual({ words: 'NEED 5 RUNS TO BE SAFE', tone: 'drop' });
+    expect(trackOf(room).mood).toBe('drop');
     // Level with the lowest who would be safe is enough: a tie at the line takes both through.
     room.you.runs = 7;
     expect(room.standing()).toMatchObject({ drop: false, level: true });
     expect(trackOf(room).say).toEqual({ words: 'LEVEL ON THE LINE · SAFE', tone: 'level' });
+    expect(trackOf(room).mood).toBe('level');
   });
 });
 
@@ -149,5 +151,33 @@ describe('the bar', () => {
       expect(safe).toBeLessThanOrEqual(last);
       last = safe;
     }
+  });
+
+  it('reads its mood off how far the player is from the line', () => {
+    const room = new KnockoutRoom(4, { name: 'You', face: 0 }), next = bowler(4);
+    room.ball(next(), ball(0));
+    // Two go at the end of over 1: the subs on 3 and 4. The best of them still batting is on 4.
+    room.seats.forEach((s, i) => { s.out = false; s.runs = i === 0 ? 0 : i + 2; });
+    const at = (runs: number) => { room.you.runs = runs; return trackOf(room); };
+    expect(at(4 + EDGE_RUNS + 1)).toMatchObject({ mood: 'calm', say: null });
+    expect(at(4 + EDGE_RUNS)).toMatchObject({ mood: 'edge', clear: EDGE_RUNS, say: { words: `${EDGE_RUNS} RUNS CLEAR`, tone: 'edge' } });
+    expect(at(5).say?.words).toBe('1 RUN CLEAR');
+    // Somebody out in the drop cannot pass anybody: nobody batting there, nothing to be close to.
+    room.seats[2].out = true; room.seats[1].out = true;
+    expect(at(5)).toMatchObject({ mood: 'calm', clear: null });
+  });
+  it('says when the cut falls, and how many balls are left before it', () => {
+    const room = new KnockoutRoom(6, { name: 'You', face: 0 }), next = bowler(6);
+    expect(trackOf(room)).toMatchObject({ eyebrow: 'END OF OVER 1 · 2 GO', ballsLeft: 6, of: 12 });
+    for (let b = 0; b < 4; b++) room.ball(next(), ball(6));
+    expect(trackOf(room)).toMatchObject({ ballsLeft: 2 });
+    while (!room.sudden && !room.winner) room.ball(next(), ball(6));
+    if (!room.winner) expect(trackOf(room).eyebrow).toBe('SUDDEN DEATH · LAST PLACE GOES EVERY BALL');
+  });
+  it('heads the scoreboard with the over of five, then sudden death', () => {
+    expect(overLine(0)).toBe('OVER 1 OF 5');
+    expect(overLine(10)).toBe('OVER 2 OF 5');
+    expect(overLine(23)).toBe('OVER 4 OF 5');
+    expect(overLine(24)).toBe('SUDDEN DEATH');
   });
 });

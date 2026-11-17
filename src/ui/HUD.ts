@@ -1,5 +1,6 @@
 import { KnockoutMoment, type MomentView } from './KnockoutMoment';
-import type { Track } from '../game/knockout';
+import { overLine, type Track } from '../game/knockout';
+import { KnockoutBar, knockoutBarMarkup } from './KnockoutBar';
 import { limitsOf } from '../game/ball-string';
 import { WIPE_MS, type ReplayLook } from '../game/replay';
 import { chaseEndMarkup } from './MatchEnd';
@@ -360,11 +361,7 @@ export class HUD {
     root.innerHTML = `
       <div id="viewport" class="stage">
         <div class="ko-edge" aria-hidden="true"></div>
-        <div class="ko-track" id="ko-track" hidden>
-          <p class="ko-say" id="ko-say" aria-live="polite" hidden></p>
-          <div class="ko-rail" role="img" id="ko-rail"><i class="ko-zone ko-gone"></i><i class="ko-zone ko-drop"></i><span class="ko-pips" id="ko-pips"></span><span class="ko-you" id="ko-you"><img alt="" decoding="async"></span></div>
-          <div class="ko-ends" aria-hidden="true"><span>OUT</span><span>SAFE</span></div>
-        </div>
+        ${knockoutBarMarkup()}
         <div class="hud-top">
           <div class="hud-actions">
             <button id="sound" class="hud-button" aria-label="Sound on. Turn the music off" title="Sound (M)">${icon('sound')}</button>
@@ -400,10 +397,11 @@ export class HUD {
         <div id="scoreboard" class="scoreboard" role="group" aria-label="Scoreboard">
           <span class="bug-tag" aria-hidden="true">HITMAN<br>OVAL</span>
           <span class="bug-total" id="total" role="img"><span id="runs"></span><span class="bug-slash">/</span><span class="bug-wkts" id="wickets"></span></span>
-          <span class="bug-cell" id="overs-cell"><b id="overs"></b><i>OVERS</i></span>
+          <span class="bug-cell" id="overs-cell"><b id="overs"></b><i id="overs-label">OVERS</i></span>
           <span class="bug-cell bug-last-cell"><b id="last" class="bug-last" role="img"></b><i>LAST</i></span>
           <span class="bug-cell ko-cell" id="ko-cell" aria-live="polite" hidden><b id="ko-place"></b><i id="ko-line"></i></span>
         </div>
+        <span class="ko-over" id="ko-over" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <div id="survive-card" class="survive-card hidden" role="group" aria-label="Match situation">
           <span class="sc-cell sc-main"><b id="sc-score" aria-live="polite"></b><span class="sc-label">TARGET <em id="sc-target"></em></span></span>
           <span class="sc-cell"><b id="sc-need"></b><span class="sc-label">TO WIN</span></span>
@@ -2612,6 +2610,16 @@ ${modeSelectMarkup()}
     last$.textContent = last ? last.isWicket ? 'W' : String(last.runs) : '–';
     last$.setAttribute('aria-label', last ? last.isWicket ? 'Out' : `${last.runs} off the last ball` : 'No ball bowled yet');
     last$.className = `bug-last ${last?.isWicket ? 'wicket-color' : last && last.runs >= 4 ? 'boundary-color' : ''}`;
+    // Super Knockout's shorter scoreboard: which over of five, and this over ball by ball.
+    if (!document.body.classList.contains('knockout-mode')) return;
+    const bowled = score.history.length;
+    this.$('overs-label').textContent = overLine(bowled);
+    const from = bowled ? Math.floor((bowled - 1) / 6) * 6 : 0;
+    [...this.$('ko-over').children].forEach((cell, i) => {
+      const ball = score.history[from + i];
+      cell.textContent = ball ? ball.isWicket ? 'W' : ball.runs ? String(ball.runs) : '·' : '';
+      (cell as HTMLElement).className = !ball ? '' : ball.isWicket ? 'is-out' : ball.runs >= 4 ? 'is-boundary' : 'is-ball';
+    });
   }
   start(surviving = false, marathon = false) {
     document.body.classList.remove('tutorial-active', 'start-screen');
@@ -2731,6 +2739,7 @@ ${modeSelectMarkup()}
    */
   knockout(chip: { place: string; line: string; drop: boolean } | null) {
     document.body.classList.toggle('knockout-mode', !!chip);
+    if (!chip) this.$('overs-label').textContent = 'OVERS';
     const cell = this.$('ko-cell');
     cell.hidden = !chip;
     this.viewport.classList.toggle('ko-drop', !!chip?.drop);
@@ -2746,32 +2755,10 @@ ${modeSelectMarkup()}
    * the player's face riding it by their place, and over it, near the
    * knockout, what it takes. Null takes it away.
    */
+  private koBar: KnockoutBar | null = null;
   knockoutTrack(track: Track | null, face = 0) {
-    const box = this.$('ko-track');
-    box.hidden = !track;
-    if (!track) return;
-    const at = (i: number) => `${((i + 0.5) / track.seats) * 100}%`;
-    box.style.setProperty('--gone', `${(track.gone / track.seats) * 100}%`);
-    box.style.setProperty('--drop', `${(track.drop / track.seats) * 100}%`);
-    box.style.setProperty('--you', at(track.you));
-    const zone = track.pips[track.you]?.zone ?? 'safe';
-    box.dataset.zone = zone;
-    const pips = this.$('ko-pips');
-    if (pips.childElementCount !== track.seats) pips.innerHTML = '<i></i>'.repeat(track.seats);
-    track.pips.forEach((pip, i) => {
-      const dot = pips.children[i] as HTMLElement;
-      dot.style.left = at(pip.at);
-      dot.className = `is-${pip.zone}${pip.you ? ' is-you' : ''}`;
-    });
-    const img = this.$('ko-you').querySelector('img')!;
-    const src = avatarSrc(face);
-    if (img.getAttribute('src') !== src) img.src = src;
-    const say = this.$('ko-say');
-    say.hidden = !track.say;
-    say.textContent = track.say?.words ?? '';
-    say.dataset.tone = track.say?.tone ?? '';
-    this.$('ko-rail').setAttribute('aria-label',
-      `${track.seats - track.gone} left. ${zone === 'drop' ? 'You are in the drop' : 'You are safe'}${track.say ? `: ${track.say.words.toLowerCase()}` : ''}.`);
+    this.koBar ??= new KnockoutBar(this.$('ko-track'), this.viewport);
+    this.koBar.show(track, avatarSrc(face));
   }
   private koMoment: KnockoutMoment | null = null;
   /** The end of the player's knockout match, over the card: KNOCKED OUT or WINNER (`KnockoutMoment.ts`). */
