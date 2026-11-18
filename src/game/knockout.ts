@@ -463,6 +463,8 @@ export function cutLine(news: BallNews, left: number): string | null {
  */
 export function knockoutScreen(room: KnockoutRoom, cut: readonly Seat[] | null): KnockoutScreen | null {
   if (room.finished) return null;
+  // The free hit's ball, before it and while it is bowled (`953:8055`).
+  if (room.freeHit()) return { kind: 'freehit' };
   if (cut?.length) return { kind: 'cut', out: cut.length, left: room.alive.length, names: cut.map(s => (s.id === 0 ? 'You' : s.name)) };
   const { count, by } = room.nextCut;
   const alive = room.ranked;

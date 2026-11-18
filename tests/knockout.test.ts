@@ -399,6 +399,15 @@ describe('the ground\'s screen', () => {
     const screen = knockoutScreen(room, null);
     if (room.standing().drop && screen?.kind === 'line') expect(screen.rows[1].you).toBe(true);
   });
+  it('says FREE HIT before the free hit ball and while it is bowled', () => {
+    const room = new KnockoutRoom(11, { name: 'You', face: 0 }), next = bowler(11);
+    for (let i = 0; i < 6; i++) room.ball(next(), ball(6));
+    const slot = freeHitBall(11, 1)!;
+    for (let b = 0; b < slot.ball; b++) expect(knockoutScreen(room, null)?.kind).not.toBe('freehit'), room.ball(next(), ball(1));
+    expect(knockoutScreen(room, null)).toEqual({ kind: 'freehit' });
+    room.ball(next(), ball(1));
+    expect(knockoutScreen(room, null)?.kind).not.toBe('freehit');
+  });
   it("at an over's end, who went and how many are left", () => {
     const room = new KnockoutRoom(3, { name: 'You', face: 0 }), next = bowler(3);
     let gone: Seat[] = [];

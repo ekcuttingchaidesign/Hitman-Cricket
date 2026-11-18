@@ -363,7 +363,7 @@ export class HUD {
     root.innerHTML = `
       <div id="viewport" class="stage">
         <div class="ko-edge" aria-hidden="true"></div>
-        <div class="ko-gold" aria-hidden="true"></div>
+        <div class="ko-fh-edge" aria-hidden="true"></div>
         ${knockoutBarMarkup()}
         ${heldPanelMarkup()}
         <div class="hud-top">
@@ -2724,10 +2724,13 @@ ${knockoutRulesMarkup()}
     // not in the corner with the meter, and it names the stroke this ball is
     // for, because each of the four is swiped for differently.
     const on = !!primed && (phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
+    this.phaseNow = phase; this.guiding = on;
     this.guide(on, specials);
     // The Marathon keeps the run-up and the flight quiet: the speed gun's
     // caption takes that spot the moment the ball leaves the hand.
     const quiet = this.marathon && (phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
+    // Super Knockout's free hit edge settles while the ball is live.
+    this.viewport.classList.toggle('ko-live', phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
     label.textContent = on ? CUES[primed!].replace(' — ', ' · ')
       : phase === 'READY' ? this.walking ?? 'TAKE YOUR GUARD' : quiet ? ''
       : phase === 'BOWLER_RUNUP' ? 'HERE COMES THE NEXT BALL' : phase === 'BALL_IN_FLIGHT' ? 'WATCH THE BALL' : '';
@@ -2791,7 +2794,13 @@ ${knockoutRulesMarkup()}
     this.$('settle-cap').textContent = view.settled ? '' : `${view.balls}/${view.of}`;
   }
   /** Said on the next guard he takes, once: a batter settled, or walking out. */
-  callOut(words: string) { this.walking = words; }
+  /** The guard line's words for the next wait; put up at once when he is already waiting, as a free hit's is. */
+  callOut(words: string) {
+    this.walking = words;
+    if (this.phaseNow === 'READY' && !this.guiding) this.$('phase-label').textContent = words;
+  }
+  private phaseNow: GamePhase | null = null;
+  private guiding = false;
   /**
    * Super Knockout's place on the scoreboard, in the LAST ball's cell: the
    * place, and SAFE, LEVEL · SAFE or what it takes, with the screen's edges

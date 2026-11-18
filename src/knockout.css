@@ -5,7 +5,7 @@
   reward (Figma section 32). Sizes in the game's own units so the desktop
   column scales them.
 */
-:root{--ko-red:#ee2a2a;--ko-safe:#3ddc84;--ko-gold:#ffb020}
+:root{--ko-red:#ee2a2a;--ko-safe:#3ddc84;--ko-gold:#ffb020;--ko-fh:#4efffc;--ko-fh-chip:#ff4fc4}
 
 /*
   The scoreboard (the owner's frame, Figma Battle Royale page, section 47,
@@ -298,11 +298,9 @@ body.ko-up #end{visibility:hidden}
 @media (prefers-reduced-motion:no-preference){.ko-edge-demo{animation:ko-beat 0.83s ease-in-out infinite}}
 
 /* The free hit (K2b's rules, Figma P6): FH in gold in the slot of the ball that is one, shimmering once as it is given, and a gold edge kept on it once played. */
-.ko-over>i.is-free{box-shadow:inset 0 0 0 calc(var(--u) * 1.5) #f4c74f}
-.ko-over>i.is-free.is-next{background:linear-gradient(100deg,#ffb020 35%,#fff3c4 50%,#ffb020 65%) 0 0/300% 100%;color:#2a1418;box-shadow:none;
-  animation:ko-fh-shimmer 1.1s cubic-bezier(.3,.7,.3,1) .2s 1 both}
-@keyframes ko-fh-shimmer{from{background-position:100% 0}to{background-position:0 0}}
-@media (prefers-reduced-motion:reduce){.ko-over>i.is-free.is-next{animation:none;background:#ffb020}}
+.ko-over>i.is-free{box-shadow:inset 0 0 0 calc(var(--u) * 1.2) var(--ko-fh-chip)}
+.ko-over>i.is-free.is-next{background:var(--ko-fh-chip);color:#06121a;font-size:calc(var(--u) * 7.5);
+  box-shadow:inset 0 0 0 calc(var(--u) * 1.2) var(--ko-fh-chip),0 0 calc(var(--u) * 8) #ff4fc4e6}
 
 /*
   Hold the scoreboard to see everyone (Figma F2, P8 and H1 to H3): the panel
@@ -343,21 +341,24 @@ body.knockout-mode .score-bug.is-ready{animation:ko-ready .3s ease-out 1}
 .ko-held-row>b>em.is-out{color:#ff5252;box-shadow:inset 0 0 0 1px #ff5252}
 
 /*
-  The free hit (`free-hit.ts`): told only before its own ball, the owner
-  finding a popup at the cut and a ring all over distracting. On its ball
-  gold beats round the screen's edges (over the drop's red, which is the same
-  ball's other news) and the call says a wicket will not count. Its own
-  colour and how it is told are being drawn again: Figma's Battle Royale
-  page, section 48.
+  The free hit (`free-hit.ts`), told only before its own ball, as the owner
+  drew it (Figma Battle Royale page, `953:8055`, C and E of section 48
+  combined): the screen's edges glow cyan, steady but for one slow breath, a
+  3-point line and a soft glow 22 deep; the ball's slot is FH in magenta; the
+  guard line says FREE HIT; and the ground's screen says it too
+  (`paintKnockout`'s `freehit`). With the ball live the edge settles to under
+  half. Its own colours: red is the drop, green safe, gold the reward and
+  light blue the meter.
 */
-.ko-gold{position:absolute;inset:0;z-index:41;pointer-events:none;opacity:0;transition:opacity .3s;
-  box-shadow:inset 0 0 0 3px rgba(255,176,32,.85),inset 0 0 calc(var(--u,1px) * 56) rgba(255,176,32,.5)}
-#viewport.ko-fh-next .ko-gold{opacity:.9}
+.ko-fh-edge{position:absolute;inset:0;z-index:41;pointer-events:none;opacity:0;transition:opacity .35s;border-radius:inherit;
+  box-shadow:inset 0 0 0 calc(var(--u) * 3) #4efffce6,inset 0 0 calc(var(--u) * 34) calc(var(--u) * 10) #4efffc5c}
+#viewport.ko-fh-next .ko-fh-edge{opacity:1}
+#viewport.ko-fh-next.ko-live .ko-fh-edge{opacity:.45}
 #viewport.ko-fh-next .ko-edge{opacity:0}
 @media (prefers-reduced-motion:no-preference){
-  #viewport.ko-fh-next .ko-gold{animation:ko-gold-pulse 1.1s ease-in-out infinite}
+  #viewport.ko-fh-next:not(.ko-live) .ko-fh-edge{animation:ko-fh-breathe 2.5s ease-in-out infinite}
 }
-@keyframes ko-gold-pulse{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes ko-fh-breathe{0%,100%{opacity:1}50%{opacity:.8}}
 
 /*
   The card's motion (`knockoutCardMarkup`): one five-second loop, CSS on

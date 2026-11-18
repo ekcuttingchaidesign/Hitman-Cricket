@@ -303,7 +303,8 @@ export function stumpWrap(height: number, theme: StumpTheme = 'violet', into?: {
  */
 export type KnockoutScreen =
   | { kind: 'line'; rows: { place: number; name: string; runs: number; you: boolean; out: boolean }[]; cutAfter: number }
-  | { kind: 'cut'; out: number; left: number; names: string[] };
+  | { kind: 'cut'; out: number; left: number; names: string[] }
+  | { kind: 'freehit' };
 export interface Scoreboard { title: string; score: string; detail: string; knockout?: KnockoutScreen | null }
 
 /** One canvas painted into a texture, sRGB, kept with its context. */
@@ -916,6 +917,18 @@ function paintKnockout(ctx: CanvasRenderingContext2D, W: number, H: number, k: K
   const spaced = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
   ctx.textBaseline = 'middle';
   const pad = 56;
+  // The free hit (the owner's frame, `953:8055`): FREE HIT in white over a soft magenta glow on the screen's dark.
+  if (k.kind === 'freehit') {
+    ctx.fillStyle = '#0a1620'; ctx.fillRect(0, 0, W, H);
+    const glow = ctx.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, W * .42);
+    glow.addColorStop(0, 'rgba(211,68,163,.62)'); glow.addColorStop(.55, 'rgba(211,68,163,.22)'); glow.addColorStop(1, 'rgba(211,68,163,0)');
+    ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(1, .42); ctx.translate(-W / 2, -H / 2);
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H); ctx.restore();
+    ctx.textAlign = 'center'; spaced.letterSpacing = '10px'; ctx.font = JARO(190); ctx.fillStyle = '#ffffff';
+    ctx.fillText('FREE HIT', W / 2, H / 2 + 8, W - pad * 2);
+    spaced.letterSpacing = '0px';
+    return;
+  }
   if (k.kind === 'cut') {
     ctx.textAlign = 'left'; ctx.font = JARO(170); ctx.fillStyle = '#ee2a2a';
     ctx.fillText(`${k.out} OUT`, pad, H * .42, W * .62);

@@ -115,7 +115,7 @@ const run = await (async () => {
       const slots = () => [...document.querySelectorAll('#ko-over i')].map(i => `${i.textContent}${i.className ? `[${i.className}]` : ''}`).join(',');
       if (window.__cricket.snapshot().phase !== 'READY') return null;
       for (let n = 0; n < 6 && !k().freeNext; n++) if (!window.__cricket.blast([1])) return null;
-      const upTo = { ...k(), edge: view.classList.contains('ko-fh-next'), slots: slots() };
+      const upTo = { ...k(), edge: view.classList.contains('ko-fh-next') && !!view.querySelector('.ko-fh-edge'), label: document.getElementById('phase-label')?.textContent, slots: slots() };
       if (!window.__cricket.blast(['W'])) return null;
       return { upTo, after: { ...k(), edge: view.classList.contains('ko-fh-next'), fh: slots() } };
     });
@@ -126,8 +126,8 @@ const run = await (async () => {
 })();
 const { upTo, after } = run;
 let fh = after.fh;
-check(upTo.freeNext && upTo.freeBall && upTo.freeBall.ball >= 1 && upTo.bowled % 6 === upTo.freeBall.ball && upTo.edge && /FH\[is-free is-next\]/.test(upTo.slots),
-  `the free hit ball comes later in the over (ball ${(upTo.freeBall?.ball ?? -1) + 1}, a ${upTo.freeBall?.name}), gold round the screen and FH in its slot`, JSON.stringify(upTo));
+check(upTo.freeNext && upTo.freeBall && upTo.freeBall.ball >= 1 && upTo.bowled % 6 === upTo.freeBall.ball && upTo.edge && /FH\[is-free is-next\]/.test(upTo.slots) && upTo.label === 'FREE HIT',
+  `the free hit ball comes later in the over (ball ${(upTo.freeBall?.ball ?? -1) + 1}, a ${upTo.freeBall?.name}), the cyan edge round the screen, FREE HIT on the guard line and FH in its slot`, JSON.stringify(upTo));
 check(!after.you.out && after.bowled === upTo.bowled + 1 && /is-free/.test(fh) && !after.edge, 'bowled on the free hit: not out, the slot kept gold, the edge let go', JSON.stringify({ fh, you: after.you }));
 await snap(page, out + '/ko-free-hit.png');
 

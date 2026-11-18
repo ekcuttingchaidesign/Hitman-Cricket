@@ -2457,12 +2457,16 @@ whatever the over would have (`hardBall` on the plan, `hardNow` in the
 generator), so every seat faces it. The player is told only before its own
 ball (a popup at the cut, FREE HIT EARNED, and the scoreboard ringed gold
 all over were tried and the owner found them distracting; earning one is
-counted, `knockout-free-hit-earned`, and never shown): on its ball gold
-beats round the screen's edges (`.ko-gold`, `ko-fh-next`), FH in gold in its
-slot, shimmering once, and the call FREE HIT · OUT ON THIS BALL DOESN'T
-COUNT; the slot keeps a gold edge once played (`knockoutFreeHit`). How it is
-told, and in a colour of its own, is being redrawn: five quiet ways stand in
-Figma's Battle Royale page, section 48 (`952:12109`), for the owner to pick. The player's wicket on it is
+counted, `knockout-free-hit-earned`, and never shown), as the owner drew
+it, combining two of the five quiet ways in section 48 (Figma Battle Royale
+page, `953:8055`): the screen's edges glow cyan (`--ko-fh`, #4efffc: red is
+the drop, green safe, gold the reward and light blue the meter), steady but
+for one slow breath, settling to under half once the bowler runs in
+(`.ko-fh-edge`, `ko-fh-next`, `ko-live`); the ball's slot is FH in magenta
+(`--ko-fh-chip`) and keeps a magenta edge once played (`knockoutFreeHit`);
+the guard line says FREE HIT; and the ground's screen says FREE HIT in
+white over a magenta glow before the ball and while it is bowled
+(`knockoutScreen`'s `freehit`, painted by `paintKnockout`). The player's wicket on it is
 turned not out in `resolve` before the score sees it (`freeHitOf`, FREE HIT ·
 NOT OUT, the picture still the ball that would have had them), the subs' in
 `KnockoutRoom.ball` (`freeHit`, `freeHitAhead`, `freeBallNext`).

@@ -2892,7 +2892,7 @@ export class Game {
     if (this.knockout) {
       const dead = this.phase === 'READY' || this.phase === 'RESULT';
       const cut = this.koCut && this.koCut.at === this.knockout.bowled ? this.koCut.gone : null;
-      return { title: 'SUPER KNOCKOUT', score: String(runs), detail: overLine(balls), knockout: dead ? knockoutScreen(this.knockout, cut) : null };
+      return { title: 'SUPER KNOCKOUT', score: String(runs), detail: overLine(balls), knockout: dead ? knockoutScreen(this.knockout, cut) : this.knockout.freeHit() && !this.knockout.finished ? { kind: 'freehit' as const } : null };
     }
     const title = this.super10 ? 'SUPER10' : this.marathoning ? 'TEST MARATHON' : this.surviving ? 'TEST SURVIVAL' : 'THE BLAST';
     return { title, score: `${runs}/${wickets}`, detail: this.super10 ? `${overs} · ${super10Batter(wickets).title}` : overs };
@@ -7316,7 +7316,7 @@ export class Game {
     this.hud.knockoutFreeHit(coming ? room.bowled : null, false, ahead);
     // Earned is counted, never put on screen: the owner found a popup at the cut distracting, and the player is told on the ball itself.
     if (ahead && last && room.bowled % KNOCKOUT.ballsPerOver === 0) this.mark('knockout-free-hit-earned', 'A free hit earned');
-    if (coming) this.hud.callOut('FREE HIT · OUT ON THIS BALL DOESN’T COUNT');
+    if (coming) this.hud.callOut('FREE HIT');
   }
   /** KNOCKED OUT or WINNER, from the room as it stands once the player's match is over. */
   private knockoutView(): MomentView {
