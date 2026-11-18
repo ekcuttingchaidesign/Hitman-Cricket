@@ -178,24 +178,24 @@ export class WatchView {
     this.root.classList.add('is-over');
     this.bars.forEach(bar => { bar.style.width = '100%'; });
     const over = document.createElement('div'); this.over = over;
-    over.className = 'ko-over'; over.id = 'ko-over';
+    over.className = 'ko-mo'; over.id = 'ko-match-over';
     over.setAttribute('role', 'status');
-    over.innerHTML = `<div class="ko-over-dim" aria-hidden="true"></div>
-      <div class="ko-over-body">
-        <p class="ko-over-title">MATCH OVER</p><i class="ko-over-slash" aria-hidden="true"></i>
-        <span class="ko-over-winner"><img class="ko-over-crown" src="${CROWN}" alt="" aria-hidden="true"><span class="ko-over-ring"><img src="${avatarSrc(view.face)}" alt="" decoding="async"></span></span>
-        <p class="ko-over-name">${esc(view.name.toUpperCase())} WON THE ROOM</p>
-        <p class="ko-over-line">${esc(view.line)}</p>
-        <p class="ko-over-you">${esc(view.you)}</p>
+    over.innerHTML = `<div class="ko-mo-dim" aria-hidden="true"></div>
+      <div class="ko-mo-body">
+        <p class="ko-mo-title">MATCH OVER</p><i class="ko-mo-slash" aria-hidden="true"></i>
+        <span class="ko-mo-winner"><img class="ko-mo-crown" src="${CROWN}" alt="" aria-hidden="true"><span class="ko-mo-ring"><img src="${avatarSrc(view.face)}" alt="" decoding="async"></span></span>
+        <p class="ko-mo-name">${esc(view.name.toUpperCase())} WON THE ROOM</p>
+        <p class="ko-mo-line">${esc(view.line)}</p>
+        <p class="ko-mo-you">${esc(view.you)}</p>
       </div>
-      <button type="button" class="ko-over-count" id="ko-over-count"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15"/><circle class="ko-over-drain" cx="18" cy="18" r="15"/></svg><b class="ko-over-n">3</b><span>RESULTS IN <b class="ko-over-n">3</b></span></button>
-      <p class="ko-over-tap">Tap anywhere to see them now</p>`;
+      <button type="button" class="ko-mo-count" id="ko-mo-count"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15"/><circle class="ko-mo-drain" cx="18" cy="18" r="15"/></svg><b class="ko-mo-n">3</b><span>RESULTS IN <b class="ko-mo-n">3</b></span></button>
+      <p class="ko-mo-tap">Tap anywhere to see them now</p>`;
     over.onclick = event => { event.stopPropagation(); now(); };
     this.root.append(over);
     this.root.querySelector<HTMLButtonElement>('.ko-watch-close')!.onclick = () => now();
   }
   /** The count's figure, as it ticks down. */
-  count(n: number) { this.over?.querySelectorAll('.ko-over-n').forEach(el => { el.textContent = String(n); }); }
+  count(n: number) { this.over?.querySelectorAll('.ko-mo-n').forEach(el => { el.textContent = String(n); }); }
   /** A reaction sent: it rises from the tray and goes. */
   private react(key: HTMLButtonElement) {
     const emoji = key.dataset.react!;

@@ -2601,7 +2601,7 @@ and dimmed under the header with its bars full, MATCH OVER slammed in, the
 winner's face rising into a gold ring with the crown dropping on, what it took
 (90 off 30 · outlasted Dev by 7 in the final) and where the player finished,
 and a pill counting three seconds, its ring draining (`matchOver` on
-`WatchView`, `#ko-over`); on the end screen, every ring but the winner's goes,
+`WatchView`, `#ko-match-over`); on the end screen, every ring but the winner's goes,
 the winner's grows gold and crowned, the head says MATCH OVER · SANA WON THE
 ROOM, the line under KNOCKED OUT the result, and WATCH ON becomes RESULTS · 3,
 its face draining red (`roomEnd` on the moment, `over` on `Rings`). A tap, ✕
