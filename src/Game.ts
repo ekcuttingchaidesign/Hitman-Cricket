@@ -275,6 +275,10 @@ const ASKED_GROUND = askedGround(location.search);
  */
 /** A camera switched away from within this many balls of being picked counts as given up on (`camera-quit-…`). */
 const CAMERA_QUIT_BALLS = 6;
+/** How long after the cut's ball the floodlights answer it, so the ball's own call has landed first. */
+const FLOOD_AFTER_MS = 450;
+/** The crowd's swell at a cut: a four's, a little bigger. */
+const CUT_CHEER = { size: 'mid', peak: .62, decay: 1.6, swell: .6 } as const;
 /** Super Knockout's hit-stop on the player's wicket (`knockoutHit`). */
 const HIT_STOP_MS = 120;
 const VENUE_COIN = { blast: Math.random(), test: Math.random() } as const;
@@ -1296,8 +1300,10 @@ export class Game {
       knockoutAt: (t: number | null) => { KnockoutMoment.pinned = t; },
       // The knockout bar stood in a made-up room in each mood, for photographing it (`sampleTrack`); `left` is the balls left in the over.
       knockoutMood: (mood: TrackMood, left = 2) => { this.hud.knockoutTrack(sampleTrack(mood, left), this.knockout?.you.face ?? 0); },
+      // The floodlights' flash or dip put up now, for photographing (`floodlights.ts`).
+      knockoutFlood: (kind: 'flash' | 'dip' | null) => { this.scene.floodlights(kind, this.elapsed); },
       knockout: () => this.knockout && { standing: this.knockout.standing(), bowled: this.knockout.bowled, left: this.knockout.alive.length, you: { ...this.knockout.you },
-        freeNext: this.knockout.freeHit(), freeAhead: this.knockout.freeHitAhead(), freeBall: this.knockout.freeBallNext, hitStops: this.hitStops },
+        freeNext: this.knockout.freeHit(), freeAhead: this.knockout.freeHitAhead(), freeBall: this.knockout.freeBallNext, hitStops: this.hitStops, flood: this.scene.floodShown, night: this.scene.lit === 'night' },
       // The star prompt on demand, for `rating-check.mjs`: which thing, asked
       // as the end of an innings would ask it, and nothing about when.
       rating: (thing: RatedThing = 'game') => this.showRating(thing, thing === 'game' ? 'innings' : 'mode'),
@@ -2511,7 +2517,7 @@ export class Game {
     this.knockout = this.knockingOut ? new KnockoutRoom(this.seed, { name: readPlayer()?.name || 'You', face: readPlayer()?.avatar ?? 0 }) : null;
     this.hud.knockout(this.knockout ? chipOf(this.knockout.standing()) : null);
     this.hud.knockoutFreeHit(null, true);
-    this.koCut = null; this.held = null; this.heldBall = -1; this.hud.knockoutHeld(null);
+    this.koCut = null; this.held = null; this.heldBall = -1; this.hud.knockoutHeld(null); this.scene.floodlights(null);
     this.hud.knockoutTrack(this.knockout ? trackOf(this.knockout) : null, this.knockout?.you.face);
     this.hud.knockoutEnd(null);
     this.ease = this.newcomerEase();
@@ -2879,7 +2885,8 @@ export class Game {
   private lightDay() { const day = this.dayNow; this.scene.dayAt(day ? day.at : null, day?.dim); }
   private light(time: SkyTime) {
     const game = this.super10 ? 'super10' : this.test ? 'test' : this.knockingOut ? 'knockout' : 'blast';
-    if (game === 'super10') time = 'night';
+    // Super10, and Super Knockout, whose floodlights answer the room's cuts (`floodlights.ts`), are always under lights.
+    if (game === 'super10' || game === 'knockout') time = 'night';
     this.scene.stands(groundFor(ASKED_GROUND, game, VENUE_COIN[game === 'test' ? 'test' : 'blast']));
     this.scene.brand(this.super10);
     this.scene.time(time);
@@ -3483,7 +3490,7 @@ export class Game {
       this.input.cancel(); this.audio.stop(); this.audio.holdCrowd(true); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true, this.pauseGame);
       this.soundSwitches(); this.hud.cameraSwitch(this.scene.cameraId); this.hud.replaySwitch(this.replaysOn); this.hud.hapticsSwitch(hapticsWanted());
       // The arena is played at night whatever the switch says, so it has none.
-      this.hud.lightsSwitch(this.test || this.super10 || this.scene.arenaGround ? null : this.scene.lit);
+      this.hud.lightsSwitch(this.test || this.super10 || this.knockout || this.scene.arenaGround ? null : this.scene.lit);
       // Twenty overs in, the Marathon can be declared — from here, and from
       // nowhere else, so it is never pressed by accident mid-ball. Before
       // that the key is there but shut, saying when it opens.
@@ -7332,6 +7339,13 @@ export class Game {
     this.koCut = last ? { at: room.bowled, gone: last.gone } : this.koCut;
     const line = last && !room.finished ? cutLine(last, room.alive.length) : null;
     if (line) this.hud.callOut(line);
+    // The ground answers the cut as the bowler walks back (F4 · Motion): the floodlights flash once and the
+    // crowd swells; going into the final they dip, and stay a shade down for it.
+    if (last && !room.finished) {
+      this.scene.floodlights(room.final ? 'dip' : 'flash', this.elapsed + FLOOD_AFTER_MS);
+      this.scene.cheer('hit-four', this.elapsed);
+      this.audio.cheer(CUT_CHEER, FLOOD_AFTER_MS / 1000);
+    }
     this.hud.knockout(room.finished ? null : chipOf(room.standing()));
     this.hud.knockoutTrack(room.finished ? null : trackOf(room), room.you.face);
     // The free hit (`free-hit.ts`): told when it is earned, the scoreboard ringed while it is to come, and on its ball, said.

@@ -13,6 +13,7 @@ import { KIT, keepingPose, type Kit } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
 import { BOARDS, boardsAlong, flightOf, playedOnAt, sectorOf } from './flight';
 import { OVERCAST, SKY, Sky, type SkyTime } from './sky';
+import { floodAt, groundLevel, type FloodCue, type FloodKind } from './floodlights';
 import { ARENA_NIGHT, FILL_POSITION, LIGHTING, RICH, RICH_NIGHT_HAZE, dayArcAt, glows, moon, nightReflections } from './night';
 import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture, type Turf } from './turf';
 import { BOARD_PANELS, perimeterBoards } from './boards';
@@ -164,6 +165,8 @@ interface Stands {
   unmirrored?: THREE.Object3D[];
   /** The brand's screen and LED boards, on a ground that has them (`Showboards`): the arena's, and the canopy's screen with the boards along the rope. */
   show?: Showboards;
+  /** The glows on its lamps, which the knockout's floodlights flash and dip with (`floodlights`). */
+  glows?: THREE.PointsMaterial[];
 }
 
 // The ball and its trail are the only things left that want a bare sphere;
@@ -733,6 +736,7 @@ export class GameScene {
       // A glow on every lamp the ground has, in its own group, so they go with it.
       const glow = glows(lights.roof, lights.towers, lights.spots);
       group.add(...glow.points); this.night.push(...glow.points); this.textures.push(glow.texture);
+      stands.glows = glow.points.map(points => points.material as THREE.PointsMaterial);
       for (const points of glow.points) points.visible = this.now === 'night';
       // The arena's floodlights answer the game, glows and all.
       this.arena?.glows(glow.points[0].material as THREE.PointsMaterial);
@@ -765,6 +769,7 @@ export class GameScene {
   get turf(): Turf { return [...this.turfs].find(([, grass]) => grass === this.outfield.map)?.[0] ?? 'classic'; }
   /** The stands in use lit for the time it is: their crowd, their lamps and their warm windows. */
   private lightStands() {
+    this.unflood();
     const night = this.now === 'night', light = this.lighting;
     this.crowd?.setNight(night);
     if (this.lamps) this.lamps.emissiveIntensity = light.lamps;
@@ -797,6 +802,7 @@ export class GameScene {
   get dayShown() { return this.dayProgress; }
   /** The lights as the time of day and the ground have them. */
   private relight() {
+    this.unflood();
     const light = this.lighting;
     this.scene.environmentIntensity = light.environment;
     this.hemisphere.color.set(light.hemisphere.sky); this.hemisphere.groundColor.set(light.hemisphere.ground);
@@ -804,6 +810,43 @@ export class GameScene {
     this.sun.color.set(light.key.colour); this.sun.intensity = light.key.intensity * (1 - this.sky.cover * OVERCAST.sun); this.sun.position.set(...light.key.position);
     this.fill.color.set(light.fill.colour); this.fill.intensity = light.fill.intensity;
   }
+  /**
+   * Super Knockout's floodlights answering the room (`floodlights.ts`): a
+   * flash at a cut, a dip into the final. Cued by the game on its clock, and
+   * laid each frame over the night's own levels — the lamps, their glows and
+   * the light on the ground, the last by half as much — which are taken as
+   * they stand when it begins and given back when it ends. Night only: by
+   * day there is no floodlight to answer.
+   */
+  private floodCue: FloodCue | null = null;
+  private floodBase: { lamps: number; sun: number; fill: number; hemi: number; env: number; glows: [THREE.PointsMaterial, number, number][] } | null = null;
+  private floodLevel = 1;
+  floodlights(kind: FloodKind | null, at = 0) { this.floodCue = kind ? { kind, at } : null; }
+  /** What the floodlights are doing, for the checks. */
+  get floodShown() { return { kind: this.floodCue?.kind ?? null, level: +this.floodLevel.toFixed(3) }; }
+  private flood(now: number) {
+    const level = this.now === 'night' ? floodAt(this.floodCue, now, this.reducedMotion) : 1;
+    if (level === this.floodLevel) return;
+    this.floodLevel = level;
+    if (level === 1) { this.restoreFlood(); return; }
+    const glowing = this.built.get(this.current)?.glows ?? [];
+    this.floodBase ??= { lamps: this.lamps?.emissiveIntensity ?? 0, sun: this.sun.intensity, fill: this.fill.intensity, hemi: this.hemisphere.intensity, env: this.scene.environmentIntensity,
+      glows: glowing.map(material => [material, material.opacity, material.size]) };
+    const base = this.floodBase, ground = groundLevel(level);
+    if (this.lamps) this.lamps.emissiveIntensity = base.lamps * level;
+    this.sun.intensity = base.sun * ground; this.fill.intensity = base.fill * ground; this.hemisphere.intensity = base.hemi * ground; this.scene.environmentIntensity = base.env * ground;
+    for (const [material, opacity, size] of base.glows) { material.opacity = Math.min(1, opacity * level); material.size = size * Math.max(.6, level); }
+  }
+  private restoreFlood() {
+    const base = this.floodBase;
+    if (!base) return;
+    if (this.lamps) this.lamps.emissiveIntensity = base.lamps;
+    this.sun.intensity = base.sun; this.fill.intensity = base.fill; this.hemisphere.intensity = base.hemi; this.scene.environmentIntensity = base.env;
+    for (const [material, opacity, size] of base.glows) { material.opacity = opacity; material.size = size; }
+    this.floodBase = null;
+  }
+  /** The night's levels set afresh (the lights or the stands changed): the floodlights take them up from there. */
+  private unflood() { this.restoreFlood(); this.floodLevel = 1; }
   /** The corners, by the time of day (`polish.ts`). */
   private finish() {
     if (this.polished) this.vignette.classList.toggle('is-night', this.now === 'night');
@@ -2171,6 +2214,7 @@ export class GameScene {
       const t = this.introClock(now), film = this.introFilm;
       this.batter.stage(t, film); this.batter.sweep(film === 'arrive' ? null : introSweep(film, t));
     }
+    this.flood(now);
     this.batter.update(now);
     const eyes = this.eyesOn;
     // Into his eyes or out of them (a moment cutting to Close and back): the lens and the pose set again.

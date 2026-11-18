@@ -2540,9 +2540,24 @@ of the game's own screen): between balls THE LINE, the player and the
 nearest across it (the best in the drop, or the lowest still safe when the
 player is in it) with the knockout dashed red between; after a cut how many
 went in red, how many are left and their names, until the next ball; the
-score while a ball is live. `__cricket.arena().knockout` says which. Still to
-come: the floodlights answering the cut, the timeout pause, and real players
-(stage two). `__cricket.knockout()` says where the room
+score while a ball is live. `__cricket.arena().knockout` says which. It is
+always played under lights, as Super10 is (`light` in `src/Game.ts`, no
+Lights row on its pause card), because the floodlights answer the room
+(`src/scene/floodlights.ts`, in `tests/floodlights.test.ts`; F4 · Motion on
+the Final page, sections 39 and 40 on Battle Royale): at a cut, while the
+bowler walks back, they flash once (`FLOOD.flash`, up to 1.9 and back in
+0.7 seconds) and the crowd swells (`CUT_CHEER`); going into the final they
+dip (`FLOOD.dip`, to 0.45 and held a moment) and stay a shade down for it
+(0.8). Both `FLOOD_AFTER_MS` after the cut's ball, so its call has landed
+first. The level is laid each frame over the night's own (`flood` in
+`GameScene`): the lamps and their glows by all of it, the light on the
+ground, the key, fill, sky and environment, by `FLOOD.ground` of it, each
+taken as it stands when the cue begins and given back when it ends. One
+flash a cut, never a strobe; under reduced motion no flash, and the final
+straight at its settled level. `__cricket.knockout()` carries `flood` and
+`night`, and `__cricket.knockoutFlood('flash')` puts either up for
+photographing. Still to come: the timeout pause, and real players (stage
+two). `__cricket.knockout()` says where the room
 stands and `__cricket.knockoutAt(t)` holds the end moment's clock;
 `scripts/knockout-check.mjs` walks it.
 

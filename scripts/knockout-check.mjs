@@ -8,7 +8,7 @@
  * and PLAY AGAIN walking out into a new room; the scoreboard held between
  * balls, the bowler waiting, a touch with the ball live doing nothing, and
  * the ground's screen with the line and the cut; the bar's moods; and the way
- * in from Choose a mode; and a real yorker bowling him, held still on the hit. The innings
+ * in from Choose a mode; the floodlights flashing at a cut and dipping into the final; and a real yorker bowling him, held still on the hit. The innings
  * are written through `__cricket.blast`.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
@@ -118,6 +118,7 @@ const writeRead = async balls => {
 const given = await writeRead([6, 6, 6, 6, 6, 6]);
 const told = await page.evaluate(() => ({ toast: !!document.getElementById('ko-fh-toast'), edge: document.getElementById('viewport').classList.contains('ko-fh-next') }));
 check(given.freeAhead && !given.freeNext && !told.toast && !told.edge && given.bowled === 6, 'top of the first over: a free hit earned, and nothing put up for it until its ball', JSON.stringify({ given, told }));
+check(given.night && given.flood.kind === 'flash', 'the room is under lights, and they flash once at the cut', JSON.stringify({ night: given.night, flood: given.flood }));
 await snap(page, out + '/ko-free-hit-earned.png');
 // Ones up to the over's free hit ball (never its first), then out on it: all in one turn, before the bowler can run in.
 const run = await (async () => {
@@ -147,6 +148,8 @@ await snap(page, out + '/ko-free-hit.png');
 await write(page, Array(30).fill(6));
 await page.waitForTimeout(800);
 check(await page.locator('#ko-moment.is-won').count() === 1, 'the room won: WINNER goes up');
+const dipped = await page.evaluate(() => window.__cricket.knockout().flood);
+check(dipped.kind === 'dip', 'going into the final the floodlights dip', JSON.stringify(dipped));
 for (const t of [0.5, 0.85, 1.75, 3.0]) await pin(page, t, 'ko-won');
 await page.evaluate(() => window.__cricket.knockoutAt(null));
 await page.locator('#ko-again').click();
