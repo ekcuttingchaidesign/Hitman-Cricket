@@ -6,7 +6,7 @@
  * where they stand (`Track.mood`): a slow green breath when calm, an amber
  * pulse and a line crawling from the cut when close to it, a teeter when level
  * on the line, and a heartbeat in the drop that quickens as the over runs out,
- * with flames and embers coming off the red seats; in sudden death a fuse
+ * with flames and embers coming off the red seats; behind in the final a fuse
  * burns along the bar to the face instead. Between two answers it plays what
  * happened: climbing out, falling in, and the cut.
  *
@@ -21,10 +21,10 @@ import { buzz } from '../game/haptics';
 
 /** The design's measures, in design pixels: the seats' row is 338 wide with 3 between seats. */
 const ROW = 338, GAP = 3;
-/** Heartbeats a minute with six balls left before the cut, and each ball nearer adds this; sudden death is the top. */
-const BPM = { slow: 72, step: 12, sudden: 140 };
+/** Heartbeats a minute with six balls left before the cut, and each ball nearer adds this; the final at the top. */
+const BPM = { slow: 72, step: 12, final: 140 };
 
-const hot = (m: TrackMood | undefined) => m === 'drop' || m === 'sudden';
+const hot = (m: TrackMood | undefined) => m === 'drop' || m === 'final';
 const stillNow = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** The bar's markup, in the HUD's stage. */
@@ -104,8 +104,9 @@ export class KnockoutBar {
       return z;
     };
     zone('is-gone', 0, next.gone - 1);
-    zone('is-drop', next.gone, line - 1).textContent = next.mood === 'sudden' ? 'OUT' : 'DROP';
-    zone('is-safe', line, n - 1);
+    // In the final the two stretches are who is behind and who is ahead: nobody is cut until it is settled.
+    zone('is-drop', next.gone, line - 1).textContent = next.final ? 'BEHIND' : 'DROP';
+    zone('is-safe', line, n - 1).textContent = next.final ? 'AHEAD' : 'SAFE';
     this.box.dataset.mood = next.mood;
     this.box.querySelector('#ko-brow')!.textContent = next.eyebrow;
     this.box.querySelector('#ko-at')!.textContent = `#${next.place}`;
@@ -116,11 +117,11 @@ export class KnockoutBar {
     this.say.hidden = !next.say;
     this.say.textContent = next.say?.words ?? '';
     this.say.dataset.tone = next.say?.tone ?? '';
-    // The heartbeat's tempo is the deadline: 72 a minute with six balls left, 132 on the last, sudden death at the top.
-    const bpm = next.mood === 'sudden' ? BPM.sudden : BPM.slow + (6 - next.ballsLeft) * BPM.step;
+    // The heartbeat's tempo is the deadline: 72 a minute with six balls left, 132 on the last, the final at the top.
+    const bpm = next.mood === 'final' ? BPM.final : BPM.slow + (6 - next.ballsLeft) * BPM.step;
     this.beatOn.style.setProperty('--ko-beat', `${(60 / bpm).toFixed(3)}s`);
     this.seats.setAttribute('aria-label', `Place ${next.place} of ${next.of}. ${
-      next.mood === 'drop' || next.mood === 'sudden' ? 'In the drop' : next.mood === 'level' ? 'Level on the line, safe' : 'Safe'}${
+      next.mood === 'drop' || next.mood === 'final' ? 'In the drop' : next.mood === 'level' ? 'Level on the line, safe' : 'Safe'}${
       next.say && next.say.tone !== 'level' ? `: ${next.say.words.toLowerCase()}` : ''}. ${next.eyebrow.toLowerCase()}.`);
     if (prev) this.moment(prev, next);
     if (hot(next.mood) || this.embers.length) this.startFire();
@@ -248,7 +249,7 @@ export class KnockoutBar {
     this.heat += ((burning ? 1 : 0) - this.heat) * Math.min(1, dt * 4);
     const n = t.seats, X = (share: number) => row.left - box.left + share * row.width;
     const fy = row.top - box.top, faceX = X(this.midOf(t.you, n));
-    const k = t.mood === 'sudden' ? 1 : Math.max(0, Math.min(1, (6 - t.ballsLeft) / 5));
+    const k = t.mood === 'final' ? 1 : Math.max(0, Math.min(1, (6 - t.ballsLeft) / 5));
     const beat = parseFloat(getComputedStyle(this.beatOn).getPropertyValue('--ko-beat')) || 0.83;
     const ph = (now / 1000 % beat) / beat;
     const pulse = still ? 0 : Math.max(Math.exp(-(((ph - 0.12) / 0.05) ** 2)), 0.7 * Math.exp(-(((ph - 0.36) / 0.05) ** 2)));
@@ -259,7 +260,7 @@ export class KnockoutBar {
       const gl = g.createRadialGradient((x0 + x1) / 2, fy, 2, (x0 + x1) / 2, fy, 40 * u);
       gl.addColorStop(0, `rgba(255,120,40,${0.35 * this.heat})`); gl.addColorStop(1, 'rgba(238,42,42,0)');
       g.fillStyle = gl; g.fillRect(x0 - 40 * u, fy - 40 * u, x1 - x0 + 80 * u, 60 * u);
-    } else if (this.heat > 0.01 && t.mood === 'sudden') {
+    } else if (this.heat > 0.01 && t.mood === 'final') {
       this.fuse(g, t, u, faceX, fy - 4 * u, row, box, dt, now / 1000, pulse, k);
     } else if (this.heat > 0.01) {
       this.spark = null;
@@ -309,7 +310,7 @@ export class KnockoutBar {
   }
 
   /**
-   * Sudden death's fuse: from the end of the bar further from the face, over
+   * The final's fuse: from the end of the bar further from the face, over
    * the grey seats of those already gone, to the face, its spark burning down
    * it as the balls run out. The length left is the balls left.
    */

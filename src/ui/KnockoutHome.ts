@@ -51,15 +51,20 @@ export function knockoutPosterMarkup(play: string): string {
 
 const TRI = '<svg viewBox="0 0 14 16" aria-hidden="true"><path d="M2 1.5 12.5 8 2 14.5Z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
 
-/** The card under the rail (K1): the face-off, the mark, NEW and the format, and a gold PLAY. A tap anywhere opens the home; the (i) opens how it works. */
+/**
+ * The card under the rail (K1): the face-off, the mark, NEW and the format, and a gold PLAY. A tap anywhere opens the home; the (i) opens how it works.
+ * It moves as Super10's card does, in Knockout's own language (`.ms-ko-fx`): every five seconds the edge beats twice, as the bar's heart does in the
+ * drop, then the knockout line, white and leaning, crosses the face-off and PLAY glints and pops as it passes; embers drift up all the while.
+ */
 export function knockoutCardMarkup(): string {
   return `<div class="ms-knockout hidden" id="mode-knockout-card">
               <button id="mode-knockout" class="ms-knockout-open" type="button" aria-label="Super Knockout"></button>
               <img class="ms-art" src="${KNOCKOUT_FACEOFF}" alt="" decoding="async">
+              <span class="ms-ko-fx" aria-hidden="true"><i class="ms-ko-beat"></i><i class="ms-ko-cut"></i><span class="ms-ko-embers">${'<i></i>'.repeat(7)}</span></span>
               <img class="ms-knockout-mark" src="${KNOCKOUT_MARK}" alt="" decoding="async">
               <span class="ms-knockout-row"><span id="mode-knockout-tag" class="ms-knockout-tag">NEW</span><span id="mode-knockout-line" class="ms-knockout-line">${KNOCKOUT.seats} players · one wicket</span></span>
               <button id="mode-knockout-info" class="ms-knockout-info" type="button" aria-label="How Super Knockout works"><i></i><b></b></button>
-              <span class="ms-knockout-play" aria-hidden="true">${TRI}PLAY</span>
+              <span class="ms-knockout-play" aria-hidden="true">${TRI}PLAY<i class="ms-ko-glint"></i></span>
             </div>`;
 }
 
@@ -83,7 +88,7 @@ export function knockoutHomeMarkup(): string {
             <div class="ko-home-body">
               <img class="ko-mark" src="${KNOCKOUT_MARK}" alt="Super Knockout" decoding="async">
               <p class="ko-lede">Twelve players. Same balls. One wicket.</p>
-              <p class="ko-sub">The lowest totals go after every over, until one is left.</p>
+              <p class="ko-sub">The bottom totals go after every over. The last two play the final.</p>
               <div class="ko-card ko-figures" id="ko-home-figures">
                 <span><b id="ko-home-played">0</b><i>Practice rooms</i></span>
                 <span><b id="ko-home-best" class="is-gold">–</b><i>Best finish</i></span>
@@ -99,24 +104,24 @@ export function knockoutHomeMarkup(): string {
         </div>`;
 }
 
-const LADDER: ReadonlyArray<{ over: string; left: number; note: string; sudden?: boolean }> = (() => {
+const LADDER: ReadonlyArray<{ over: string; left: number; note: string; final?: boolean }> = (() => {
   let left: number = KNOCKOUT.seats;
-  const rows: { over: string; left: number; note: string; sudden?: boolean }[] = KNOCKOUT.cuts.map((go, i) => {
-    const row = { over: `Over ${i + 1}`, left, note: `${go} go` };
+  const rows: { over: string; left: number; note: string; final?: boolean }[] = KNOCKOUT.cuts.map((go, i) => {
+    const row = { over: `Over ${i + 1}`, left, note: `Bottom ${go} out` };
     left -= go;
     return row;
   });
-  rows.push({ over: `Over ${KNOCKOUT.cuts.length + 1}`, left, note: 'Sudden death', sudden: true });
+  rows.push({ over: `Over ${KNOCKOUT.cuts.length + 1}`, left, note: 'The final', final: true });
   return rows;
 })();
 
 const RULES: ReadonlyArray<[string, string]> = [
   ['Same balls', 'Everybody faces the same deliveries, in the same order. Nobody gets an easier bowler.'],
-  ['One wicket', 'Out once and you are out of the match.'],
-  ['Wickets go first', 'At the end of an over, anybody out goes before the lowest totals.'],
+  ['One wicket', 'Out once and you stop batting. Your total stands.'],
+  ['Wickets go first', 'At the end of an over, those out go before the lowest totals.'],
   ['Level on the line', 'A tie at the knockout line takes both players through.'],
-  ['Free hit', 'Finish an over in the top 3 and your next ball is a free hit.'],
-  ['Sudden death', 'With three left, last place is out after every ball.'],
+  ['Free hit', 'Finish an over in the top 3 and one ball of the next is a free hit. It will be a hard one.'],
+  ['The final', 'The last two bat the fifth over. The higher total wins.'],
   ['Subs', 'Empty seats get subs. A room of only subs is practice: no points.'],
   ['Points', 'With 3 or more real players in the room, the top 3 score: 10, 5 and 2 in a full room, fewer in a smaller one.'],
 ];
@@ -134,7 +139,7 @@ export function knockoutRulesMarkup(): string {
             <div class="ko-rules-body">
               <img class="ko-mark is-left" src="${KNOCKOUT_MARK}" alt="Super Knockout" decoding="async">
               <h2 class="ko-promise">LAST ONE STANDING WINS.</h2>
-              <p class="ko-intro">Twelve players bat the same balls at the same time. One wicket each. After every over, the lowest totals are knocked out.</p>
+              <p class="ko-intro">Twelve players bat the same balls at the same time. One wicket each. After every over the bottom totals are knocked out, until two are left for the final over.</p>
               <div class="ko-three">
                 <span class="ko-card"><b>${KNOCKOUT.seats}</b><i>players</i></span>
                 <span class="ko-card"><b class="is-red">1</b><i>wicket</i></span>
@@ -142,7 +147,7 @@ export function knockoutRulesMarkup(): string {
               </div>
               <h3 class="ko-head">THE MATCH</h3>
               <ol class="ko-card ko-ladder">${LADDER.map(row => `
-                <li${row.sudden ? ' class="is-sudden"' : ''}><span class="ko-over">${row.over}</span><span class="ko-bar" style="--w:${(row.left / most).toFixed(3)}"><b>${row.left}</b></span><span class="ko-note">${row.note}</span></li>`).join('')}
+                <li${row.final ? ' class="is-final"' : ''}><span class="ko-over">${row.over}</span><span class="ko-bar" style="--w:${(row.left / most).toFixed(3)}"><b>${row.left}</b></span><span class="ko-note">${row.note}</span></li>`).join('')}
               </ol>
               <h3 class="ko-head">THE RULES</h3>
               <ol class="ko-card ko-rules">${RULES.map(([title, line], i) => `

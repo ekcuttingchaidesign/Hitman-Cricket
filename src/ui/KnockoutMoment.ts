@@ -32,7 +32,7 @@ export interface MomentView {
   line: string;
   /** Under WINNER's line: the innings in figures. */
   figures: string;
-  /** Over the standings: END OF OVER 3, or SUDDEN DEATH. */
+  /** Over the standings: END OF OVER 3, or THE FINAL. */
   heading: string;
   /** A few rows round the player's, and how many of them stand above the line. */
   rows: MomentRow[];

@@ -7,7 +7,7 @@
  * the ring runs out, and the list is gone, a tick says the bowler is ready,
  * and he runs in `READY_MS` later. With a ball live a touch here does nothing.
  */
-import { KNOCKOUT, cutOf, type KnockoutRoom } from '../game/knockout';
+import { cutOf, type KnockoutRoom } from '../game/knockout';
 import { avatarSrc } from '../config/board';
 
 /** The longest the bowler waits on a hold, a ball. */
@@ -20,12 +20,11 @@ export interface Held { rows: HeldRow[]; /** The row the dashed line stands over
 
 /** Everyone still in, as the room stands, with the cut as it would fall now. */
 export function heldOf(room: KnockoutRoom): Held {
-  const standing = room.standing();
-  const count = standing.sudden ? 1 : KNOCKOUT.cuts[Math.min(KNOCKOUT.cuts.length - 1, Math.floor(room.bowled / KNOCKOUT.ballsPerOver))];
-  const alive = room.table().filter(seat => seat.place === null || seat === room.winner);
-  const drop = new Set(cutOf(alive, count).gone);
+  const { count, by } = room.nextCut;
+  const alive = room.ranked;
+  const drop = new Set(cutOf(alive, count, by).gone);
   const rows = alive.map((seat, i) => ({ place: i + 1, name: seat.id === 0 ? 'You' : seat.name, runs: seat.runs, face: seat.face,
-    you: seat.id === 0, drop: drop.has(seat), free: room.freeHit(seat.id), out: seat.out }));
+    you: seat.id === 0, drop: drop.has(seat), free: room.freeHitAhead(seat.id), out: seat.out }));
   const first = rows.findIndex(row => row.drop);
   return { rows, cutAt: first > 0 ? first : null };
 }

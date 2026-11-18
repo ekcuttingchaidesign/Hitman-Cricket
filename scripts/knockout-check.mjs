@@ -65,7 +65,7 @@ check(seen.balls.split(',').filter(Boolean).slice(-3).join(',') === '1,·,1', 't
 const bar = await page.evaluate(() => ({ up: !document.getElementById('ko-track').hidden, say: document.getElementById('ko-say').hidden ? null : document.getElementById('ko-say').textContent,
   mood: document.getElementById('ko-track').dataset.mood, seats: document.querySelectorAll('#ko-track .ko-seat').length, brow: document.getElementById('ko-brow').textContent,
   red: document.querySelectorAll('#ko-track .ko-seat[data-zone="drop"]').length }));
-check(bar.up && bar.seats === 12 && bar.brow === 'END OF OVER 1 · 2 GO', 'the knockout bar is up with every seat on it and when the cut falls', JSON.stringify(bar));
+check(bar.up && bar.seats === 12 && /^BOTTOM 2 KNOCKED OUT (IN [2-6] BALLS|AFTER THIS BALL)$/.test(bar.brow), 'the knockout bar is up with every seat on it, and says who goes and when', JSON.stringify(bar));
 check((bar.mood === 'drop') === seen.drop && bar.red === 2, 'the bar\'s mood follows the room, two seats in the drop', JSON.stringify(bar));
 if (seen.drop) {
   check(/^NEED \d+ RUNS? TO BE SAFE$/.test(bar.say ?? ''), 'in the drop the bar says what it takes', bar.say);
@@ -104,12 +104,33 @@ const writeRead = async balls => {
   throw new Error(`never between balls to write ${balls}`);
 };
 const given = await writeRead([6, 6, 6, 6, 6, 6]);
-let fh = given.fh;
-check(fh.startsWith('FH[is-free is-next]') && given.bowled === 6, 'top of the first over: the next ball is a free hit, FH in its slot', fh);
-const after = await writeRead(['W']);
-fh = after.fh;
-check(!after.you.out && after.bowled === 7 && fh.startsWith('·[is-ball is-free]'), 'bowled on the free hit: not out, the slot kept gold', JSON.stringify({ fh, you: after.you }));
+const told = await page.evaluate(() => ({ toast: !document.getElementById('ko-fh-toast').hidden, ahead: document.getElementById('viewport').classList.contains('ko-fh-ahead') }));
+check(given.freeAhead && !given.freeNext && told.toast && told.ahead && given.bowled === 6, 'top of the first over: a free hit earned, told, and the scoreboard ringed in gold', JSON.stringify({ given, told }));
+await snap(page, out + '/ko-free-hit-earned.png');
+// Ones up to the over's free hit ball (never its first), then out on it: all in one turn, before the bowler can run in.
+const run = await (async () => {
+  for (let i = 0; i < 80; i++) {
+    const seen = await page.evaluate(() => {
+      const k = window.__cricket.knockout, view = document.getElementById('viewport');
+      const slots = () => [...document.querySelectorAll('#ko-over i')].map(i => `${i.textContent}${i.className ? `[${i.className}]` : ''}`).join(',');
+      if (window.__cricket.snapshot().phase !== 'READY') return null;
+      for (let n = 0; n < 6 && !k().freeNext; n++) if (!window.__cricket.blast([1])) return null;
+      const upTo = { ...k(), edge: view.classList.contains('ko-fh-next'), slots: slots() };
+      if (!window.__cricket.blast(['W'])) return null;
+      return { upTo, after: { ...k(), edge: view.classList.contains('ko-fh-next'), fh: slots() } };
+    });
+    if (seen) return seen;
+    await page.waitForTimeout(150);
+  }
+  throw new Error('never between balls for the free hit');
+})();
+const { upTo, after } = run;
+let fh = after.fh;
+check(upTo.freeNext && upTo.freeBall && upTo.freeBall.ball >= 1 && upTo.bowled % 6 === upTo.freeBall.ball && upTo.edge && /FH\[is-free is-next\]/.test(upTo.slots),
+  `the free hit ball comes later in the over (ball ${(upTo.freeBall?.ball ?? -1) + 1}, a ${upTo.freeBall?.name}), gold round the screen and FH in its slot`, JSON.stringify(upTo));
+check(!after.you.out && after.bowled === upTo.bowled + 1 && /is-free/.test(fh) && !after.edge, 'bowled on the free hit: not out, the slot kept gold, the edge let go', JSON.stringify({ fh, you: after.you }));
 await snap(page, out + '/ko-free-hit.png');
+
 for (let o = 0; o < 8; o++) {
   if ((await page.evaluate(() => window.__cricket.snapshot().phase)) === 'INNINGS_END') break;
   await write(page, [6, 6, 6, 6, 6, 6]);
@@ -172,14 +193,14 @@ await page.close();
 page = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
 page.on('pageerror', e => errors.push(e.message));
 await walkOut(page, '/?knockout=1&debug=1&seed=7');
-for (const mood of ['calm', 'edge', 'level', 'drop', 'sudden']) {
+for (const mood of ['calm', 'edge', 'level', 'drop', 'final']) {
   await page.evaluate(m => window.__cricket.knockoutMood(m, 2), mood);
   await page.waitForTimeout(1500);
   const got = await page.evaluate(() => ({ mood: document.getElementById('ko-track').dataset.mood, say: document.getElementById('ko-say').hidden ? null : document.getElementById('ko-say').textContent,
     drop: [...document.querySelectorAll('#ko-track .ko-zone')].filter(z => !z.hidden).map(z => z.textContent).join(' ') }));
   check(got.mood === mood, `the bar stands ${mood}`, JSON.stringify(got));
-  if (mood === 'sudden') check(got.drop === 'GONE OUT SAFE' && got.say === 'NEED 2 RUNS TO STAY IN', 'sudden death: OUT under the last seat, what it takes to stay in', JSON.stringify(got));
-  if (mood === 'drop' || mood === 'sudden') check(await burning(page), `${mood === 'drop' ? 'the drop is on fire' : 'the fuse is lit'}`);
+  if (mood === 'final') check(got.drop === 'GONE BEHIND AHEAD' && got.say === 'NEED 7 RUNS TO WIN', 'the final: behind and ahead, and what it takes to win', JSON.stringify(got));
+  if (mood === 'drop' || mood === 'final') check(await burning(page), `${mood === 'drop' ? 'the drop is on fire' : 'the fuse is lit'}`);
   await page.screenshot({ path: `${out}/ko-mood-${mood}.png`, clip: { x: 0, y: 560, width: 390, height: 284 } });
 }
 await page.close();

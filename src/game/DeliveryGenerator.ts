@@ -8,6 +8,7 @@ import {
 import { BOWL_TO, DEATH_OVER, KIND, SEAM_LEVEL, SUPER10, SWING_LEVEL, scheduleOf } from '../config/super10';
 import { bookOf, bowlerOf } from './super10-field';
 import { SeededRandom } from './SeededRandom';
+import { freeHitBall, type HardBall } from './free-hit';
 import type { BallLine, Delivery, DeliveryStyle, ShotOutcome } from './types';
 /** What a gentle over (`OverRules.gentle`) is bowled off: the seamer's stock ball and his swing. */
 const GENTLE: readonly DeliveryStyle[] = ['NORMAL', 'SWING_IN', 'SWING_OUT'];
@@ -59,6 +60,11 @@ export interface BowlingPlan {
    * spinner, the sling bowler and the death bowler plan their own.
    */
   overRules?: (over: number) => OverRules | null;
+  /**
+   * A ball the plan bowls whatever the over would have: Super Knockout's free
+   * hit ball (`freeHitBall`), a hard one at a place in the over off the seed.
+   */
+  hardBall?: (over: number) => HardBall | null;
 }
 
 /** An over held back: no yorker, no bouncer, nothing but seam and swing, and how many balls are pitched up. */
@@ -327,7 +333,7 @@ SUPER10_PLAN.blocks!.toField = (over, kind, field) => BOWL_TO[field ?? bookOf(bo
  * nothing quick, so everybody gets going; the second the seamer with the
  * Blast's bouncer back but still no yorker; the third the spinner; the
  * fourth the swing bowler or the sling bowler, a coin off the seed
- * (`swingFourth`); and the fifth, sudden death, the death bowler. Every
+ * (`swingFourth`); and the fifth, the final, the death bowler. Every
  * seat in a room faces the same balls, so the coin is the room's.
  */
 const KNOCKOUT_OVERS = 5;
@@ -335,9 +341,11 @@ const KNOCKOUT_RULES: readonly (OverRules | null)[] = [
   { yorker: false, short: false, gentle: true, fuller: 3 },
   { yorker: false },
 ];
-export function knockoutPlan(swingFourth: boolean): BowlingPlan {
+export function knockoutPlan(swingFourth: boolean, seed?: number): BowlingPlan {
   const fourth = 3;
   return {
+    // The free hit's ball in each over after a cut, the room's own (`free-hit.ts`).
+    ...(seed === undefined ? {} : { hardBall: (over: number) => freeHitBall(seed, over) }),
     styles: STYLES, specials: SPECIALS, travelScale: GAME.travelScale,
     spin: { ...CLASSIC_SPIN, ofOvers: KNOCKOUT_OVERS, ballsPerOver: GAME.ballsPerOver },
     overRules: over => KNOCKOUT_RULES[over] ?? null,
@@ -545,6 +553,8 @@ export class DeliveryGenerator {
   /** The same for the ones he tosses up (`FLIGHT`), off a stream of their own (`flights`). */
   private flightedBalls = new Set<number>();
   private flighting = false;
+  /** The plan's hard ball, while it is the one being bowled. */
+  private hardNow: HardBall | null = null;
   /** And whether the one being chosen is pitched at `FLIGHT.fuller`, the coin off `flights`. */
   private flightFull = false;
   private readonly flights: SeededRandom;
@@ -770,7 +780,15 @@ export class DeliveryGenerator {
   private chooseStyle(): DeliveryStyle {
     const { specials } = this.plan;
     const { styles } = this.bowledOff;
-    this.dragging = false; this.flighting = false; this.deathBall = null;
+    this.dragging = false; this.flighting = false; this.deathBall = null; this.hardNow = null;
+    // The plan's hard ball (`hardBall`), never the over's first, so whatever the
+    // bowler planned at the top of his over is planned already.
+    const hard = this.netting ? null : this.plan.hardBall?.(this.over) ?? null;
+    if (hard && hard.ball === this.bowled % (this.plan.spin?.ballsPerOver ?? GAME.ballsPerOver)) {
+      this.hardNow = hard;
+      if (this.spinnerOn) { this.flighting = hard.style !== 'ARM_BALL'; this.flightFull = false; }
+      return hard.style;
+    }
     // His over is all his too, as the express bowler's is.
     if (this.deathOn) {
       const ballsPerOver = this.plan.spin?.ballsPerOver ?? GAME.ballsPerOver;
@@ -873,7 +891,7 @@ export class DeliveryGenerator {
     const spell = this.plan.spin;
     const turning = !!spell && TURNING.includes(style);
     // One of his ordinary balls pitched up to the shin: see `FULLER`.
-    const full = !this.drilled && !turning && this.fullerBalls.has(ballInOver) && FULLER.styles.includes(style);
+    const full = !this.drilled && !turning && (!!this.hardNow?.full || (!this.hardNow && this.fullerBalls.has(ballInOver) && FULLER.styles.includes(style)));
     const dragged = !this.drilled && turning && this.dragging;
     const flighted = !this.drilled && turning && this.flighting;
     const sign = style === 'SWING_IN' || style === 'OFF_SPIN' || style === 'REVERSE_IN' ? -1

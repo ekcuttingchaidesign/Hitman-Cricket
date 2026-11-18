@@ -2,8 +2,8 @@
  * Super Knockout's practice room, played four hundred times with the player
  * out first ball, so the room is only subs: how many runs win it, and how
  * many balls a room lasts. The subs are tuned by `SKILLS` and `KEEP` in
- * `src/game/knockout.ts`; a room should usually reach sudden death (25 balls
- * and on) and be won by a total a good Blast innings can reach.
+ * `src/game/knockout.ts`; every room reaches the final (the fifth over) with
+ * two left, and is won by a total a good Blast innings can reach.
  *
  *   npx vite-node scripts/knockout-sim.ts [rooms]
  */
@@ -28,4 +28,4 @@ const q = (a: number[], f: number) => [...a].sort((x, y) => x - y)[Math.floor(f 
 console.log(`\n${ROOMS} rooms of subs`);
 console.log(`the winner's runs   p10 ${q(won, .1)}  p50 ${q(won, .5)}  p90 ${q(won, .9)}`);
 console.log(`balls in the match  p10 ${q(lasted, .1)}  p50 ${q(lasted, .5)}  p90 ${q(lasted, .9)}`);
-console.log(`to sudden death     ${(lasted.filter(b => b > 24).length / ROOMS * 100).toFixed(0)}%\n`);
+console.log(`won in the final    ${(lasted.filter(b => b > 24).length / ROOMS * 100).toFixed(0)}%\n`);

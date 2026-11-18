@@ -363,6 +363,8 @@ export class HUD {
     root.innerHTML = `
       <div id="viewport" class="stage">
         <div class="ko-edge" aria-hidden="true"></div>
+        <div class="ko-gold" aria-hidden="true"></div>
+        <div class="ko-fh-toast" id="ko-fh-toast" role="status" hidden><b>FREE HIT EARNED</b><span>One ball this over is yours to swing at. Out on it doesn’t count.</span></div>
         ${knockoutBarMarkup()}
         ${heldPanelMarkup()}
         <div class="hud-top">
@@ -2656,9 +2658,7 @@ ${knockoutRulesMarkup()}
     if (!document.body.classList.contains('knockout-mode')) return;
     const bowled = score.history.length;
     this.$('overs-label').textContent = overLine(bowled);
-    // A free hit to come turns the row over to the next over at once, its first slot saying so.
-    const freeNext = this.koFreeNext === bowled;
-    const from = freeNext ? bowled : bowled ? Math.floor((bowled - 1) / 6) * 6 : 0;
+    const from = bowled ? Math.floor((bowled - 1) / 6) * 6 : 0;
     [...this.$('ko-over').children].forEach((cell, i) => {
       const at = from + i, ball = score.history[at], free = this.koFree.has(at);
       cell.textContent = ball ? ball.isWicket ? 'W' : ball.runs ? String(ball.runs) : '·' : free ? 'FH' : '';
@@ -2668,17 +2668,29 @@ ${knockoutRulesMarkup()}
   }
   /** The balls of this innings that were the player's free hits, by index, and the one still to come. */
   private koFree = new Set<number>();
-  private koFreeNext: number | null = null;
   /**
-   * Super Knockout's free hit: the index of the player's next ball when it is
-   * one (a gold edge and FH in its slot, shimmering once), or null. `fresh`
-   * forgets the innings before.
+   * Super Knockout's free hit (`free-hit.ts`): the index of the player's next
+   * ball when it is the free hit, or null; and whether they have one still to
+   * come this over. While one is to come the scoreboard is ringed in gold; on
+   * the ball itself FH stands in its slot, shimmering once, and gold beats
+   * round the screen's edges, and the slot keeps a gold edge once played.
+   * `fresh` forgets the innings before.
    */
-  knockoutFreeHit(next: number | null, fresh = false) {
+  knockoutFreeHit(next: number | null, fresh = false, ahead = false) {
     if (fresh) this.koFree.clear();
-    this.koFreeNext = next;
     if (next !== null) this.koFree.add(next);
+    this.viewport.classList.toggle('ko-fh-next', next !== null);
+    this.viewport.classList.toggle('ko-fh-ahead', ahead || next !== null);
   }
+  /** Earned at a cut: FREE HIT across the screen for a few seconds, and when it comes. */
+  knockoutEarned() {
+    const toast = this.$('ko-fh-toast');
+    toast.hidden = false;
+    replayClass(toast, 'is-on');
+    window.clearTimeout(this.earnedOff);
+    this.earnedOff = window.setTimeout(() => { toast.hidden = true; toast.classList.remove('is-on'); }, 3400);
+  }
+  private earnedOff = 0;
   start(surviving = false, marathon = false) {
     document.body.classList.remove('tutorial-active', 'start-screen');
     document.body.classList.add('innings-active');

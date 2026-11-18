@@ -14,7 +14,7 @@ Phone players, mostly in India, playing in short sessions: a few innings on a br
 
 Hitman Cricket is a browser cricket batting game: swipe or press a key to play a stroke at the ball bowled. Modes are the Blast (thirty balls), Super10 (ten overs, five wickets), the Test Marathon and Test Survival, with Rival Matches between two players on the same balls. Success is a player who comes back tomorrow and brings a friend.
 
-Super Knockout is the mode being designed now: a live knockout for up to twelve players batting the same balls at the same time, one wicket each, totals running on, the lowest totals knocked out at the end of every over, the last over sudden death, until one is left.
+Super Knockout is the mode being designed now: a live knockout for up to twelve players batting the same balls at the same time, one wicket each, totals running on, the lowest totals knocked out at the end of every over until two are left, and those two batting the last over, the final, for the higher total.
 
 ## Positioning
 
@@ -27,7 +27,7 @@ Played one-handed on a phone, often in a browser opened from WhatsApp or Instagr
 ## Capabilities and Constraints
 
 - Vite, TypeScript and three.js on the front; Vercel serverless functions over Upstash Redis behind; everything must fit free tiers.
-- Super Knockout rules agreed: up to 12 players; one wicket; running total; lowest totals cut each over (wickets count first); 4 or 5 overs then sudden death (last place out every ball); a hard tie on the line takes both through; free hit for the over's top 3, tapering as the field shrinks; the Blast's timing windows; Super10's fields.
+- Super Knockout rules agreed: up to 12 players; one wicket; running total; lowest totals cut each over (wickets count first); five overs, the last the final between the last two (changed 18 November 2026 from sudden death, after a room was won in the fourth over: a cut now takes exactly its count, those out first and the best of them staying on their totals if more are out, so two always reach the final, and the match is settled only in it); a hard tie on the line takes both through; free hit for the over's top 3, tapering as the field shrinks; the Blast's timing windows; Super10's fields.
 - Points by real players in the room, and only with 3 or more: 1–2 real = no points; 3 = 3/1/0; 4–5 = 5/2/1; 6–7 = 7/3/1; 8–9 = 8/4/2; 10–12 = 10/5/2. A room of only subs is practice; wins count only with 4+ real players.
 - Leaving mid-match gives no place and no points: the result says RAN AWAY.
 - The pause is a timeout: your own bowler waits, 15 seconds an over at most; no restart or change mode. Replays are off in this mode.

@@ -2362,15 +2362,21 @@ one file, as `cover-drive-artifact.mjs` does the strokes.
 
 `?knockout=1` walks out into a Super Knockout practice room (`PRODUCT.md`,
 Figma "Super Knockout · Final"): the player and eleven subs, the Blast's ball
-with one wicket, the lowest totals knocked out at the end of every over (two,
-two, two, then three) and last place out after every ball from there, until
-one is left. Anybody out goes at the over's end before the lowest totals, and
-a tie on the line takes both through. The rules are `src/game/knockout.ts`
+with one wicket, the bottom totals knocked out at the end of each of the first
+four overs (two, two, three, then three: 12, 10, 8, 5, 2), and the last two
+batting the fifth, the final, for the higher total. A cut takes exactly its
+count and no more: those out go first, and if more are out than it takes, the
+best of them stay on their totals (they bat no more); a tie on the line takes
+both through. So the match is only ever settled in the final, which the owner
+asked for after a room was won in the fourth over: the old cut took everybody
+out at once. The final ends on its last ball, the higher total winning, then
+not out, then fewer balls, or sooner once settled: one of them out and the
+other past them (`aheadInFinal`, `nextCut`). The rules are `src/game/knockout.ts`
 (`KnockoutRoom`, `cutOf`, every case in `tests/knockout.test.ts`); the subs
 bat the very delivery the player was bowled through the Blast's
 `resolveShot`, each with a timing spread of their own (`SKILLS`) and a share
-of wickets seen off (`KEEP`), tuned by `scripts/knockout-sim.ts` so a room is
-usually won by 65 to 100. Out, the room plays on without the player to the
+of wickets seen off (`KEEP`), tuned by `scripts/knockout-sim.ts`: every room
+reaches the final, and is won by 80 to 110. Out, the room plays on without the player to the
 cut that takes them, at once.
 
 It is bowled over by over (`knockoutPlan` in `DeliveryGenerator.ts`, the
@@ -2379,10 +2385,8 @@ seamer pitching it up, seam and swing only with three fuller balls, no
 yorker, no bouncer, nothing quick or slower, so everybody gets going; the
 second the seamer with the Blast's bouncer back but still no yorker; the
 third the spinner; the fourth the swing bowler or the sling bowler, a coin
-off the room's seed so every seat faces the same; and the fifth, sudden
-death, the death bowler. Five overs is the match (`maxBalls` 30): only ties
-that keep letting everybody through could reach its last ball, where the top
-total wins; four thousand rooms of subs never did. A plan holds an over back through
+off the room's seed so every seat faces the same (`swingFourthOf`); and the
+fifth, the final, the death bowler. Five overs is the match (`maxBalls` 30). A plan holds an over back through
 `overRules` (`OverRules`): the yorker owed for sixes waits for an over that
 allows it, and the bouncer's roll is still made so the seed's stream moves
 as it would. It moved the subs' rooms hardly at all (the winner's median 86
@@ -2395,13 +2399,14 @@ DEATH (`overLine`), and this over ball by ball (`#ko-over`), 194 wide, with no
 LAST cell, no place cell and no "/0"; the meter stays under it. The place is
 in the knockout bar along the foot (`trackOf`, `src/ui/KnockoutBar.ts`,
 `.ko-track` in `src/knockout.css`), 370 by 74 off the design: across its top
-when the cut falls (END OF OVER 2 · 2 GO, or SUDDEN DEATH · LAST PLACE GOES
-EVERY BALL) and #9 OF 10; then every seat, worst on the left, those knocked
+what is at stake and when, in so many words (`eyebrowOf`: BOTTOM 2 KNOCKED
+OUT IN 4 BALLS, … AFTER THIS BALL, or THE FINAL · HIGHER TOTAL WINS · 3 BALLS
+LEFT; END OF OVER 1 · 2 GO, the owner found, said neither) and #9 OF 10; then every seat, worst on the left, those knocked
 out in grey, the drop in red, the safe in green, the cut a white line between,
-the player's face riding it by their place; GONE, DROP (OUT in sudden death)
-and SAFE under their stretches; and over the face, only where it matters, a
-pill: NEED 5 RUNS TO BE SAFE (TO STAY IN in sudden death), 2 RUNS CLEAR, or
-LEVEL ON THE LINE · SAFE. "3 TO SAFE" in a scoreboard cell said nothing, the
+the player's face riding it by their place; GONE, DROP and SAFE under their
+stretches (BEHIND and AHEAD in the final); and over the face, only where it
+matters, a pill: NEED 5 RUNS TO BE SAFE (TO WIN in the final), 2 RUNS CLEAR
+(AHEAD), or LEVEL ON THE LINE · SAFE. "3 TO SAFE" in a scoreboard cell said nothing, the
 owner found, and a longer line pushed the bar into the keys with the meter
 full. The bar reacts to where the player stands (`Track.mood`, the claude.ai
 artifact "Knockout Bar Motion"): calm, a slow green breath and a sheen along
@@ -2411,10 +2416,10 @@ the face; level, a teeter on an amber cut; the drop, a heartbeat whose tempo is
 the deadline (72 a minute with six balls left in the over, 132 on the last,
 `--ko-beat`, which the screen's red edges beat to as well), ripples, the red
 seats throbbing, the pill thumping, and flames and embers off the red seats on
-a canvas (`.ko-fx`), their tips kept under the bar's words; sudden death, the
-fastest beat, the cut flashing, and a fuse in place of the flames, burning from
-the end of the bar further from the face to the face as the over's balls run
-out. Between two answers it plays what happened (`moment`): the cut (the seats
+a canvas (`.ko-fx`), their tips kept under the bar's words; behind in the
+final (`'final'`), the fastest beat, the cut flashing, and a fuse in place of
+the flames, burning from the end of the bar further from the face to the face
+as the final's balls run out. Between two answers it plays what happened (`moment`): the cut (the seats
 it took flash white and go grey, SURVIVED floats up), climbing out (a spring
 over the line, SAFE), falling in (a stumble, a shudder, the pill dropping in),
 and the need ticking down. Loops are CSS; moments are Web Animations, never a
@@ -2436,14 +2441,26 @@ keys are SCORECARD in the design's dark key and PLAY AGAIN in Knockout Red;
 the design's WATCH ON and SHARE come with real rooms and the share picture. The switch is practice (`practice.ts`): no
 board, no career, no points, and a room of subs never scores any. Not in the
 Pages builds. The free hit (`KNOCKOUT.freeHits`, `grantFreeHits`): after
-each over's cut the top three still standing bat the next over's first ball
-as one, then the top two, then the top one, anybody level with the last of
-them too, none in sudden death; a wicket on it does not count and its runs
-do. The player's is turned not out in `resolve` before the score sees it
-(`freeHitOf`, FREE HIT · NOT OUT, the picture still the ball that would have
-had them), the subs' in `KnockoutRoom.ball`; the scoreboard turns over to the
-next over at once with FH in gold in its first slot, shimmering once, and
-keeps a gold edge on it once played (`knockoutFreeHit`, Figma P6).
+each over's cut the top three still standing get one ball of the next over
+as a free hit, then the top two, then the top one, anybody level with the
+last of them too, none in the final; a wicket on it does not count and its
+runs do. Which ball, and what it is, is the room's, off its seed
+(`src/game/free-hit.ts`, `freeHitBall`, every case in the knockout tests):
+never the over's first (the owner's word), and a hard ball for the bowler —
+the seamer's yorker, bouncer, slower ball, full one or swinger, the spinner's
+ball tossed up or his arm ball, the swing bowler's swingers and yorker, the
+sling bowler's yorker, bouncer and slower ball — which the plan bowls there
+whatever the over would have (`hardBall` on the plan, `hardNow` in the
+generator), so every seat faces it. The player is told three ways: FREE HIT
+EARNED over the ground for a few seconds at the cut (`knockoutEarned`,
+`#ko-fh-toast`), the scoreboard ringed gold while it is still to come
+(`ko-fh-ahead`), and on its ball gold beating round the screen's edges
+(`.ko-gold`, `ko-fh-next`), FH in gold in its slot, shimmering once, and the
+call FREE HIT · OUT ON THIS BALL DOESN'T COUNT; the slot keeps a gold edge
+once played (`knockoutFreeHit`, Figma P6). The player's wicket on it is
+turned not out in `resolve` before the score sees it (`freeHitOf`, FREE HIT ·
+NOT OUT, the picture still the ball that would have had them), the subs' in
+`KnockoutRoom.ball` (`freeHit`, `freeHitAhead`, `freeBallNext`).
 
 Hold the scoreboard between balls (P8, H1 to H3, `src/ui/KnockoutHeld.ts`,
 `holdBoard` and `letGoBoard` in `src/Game.ts`): everyone still in drops down
@@ -2464,7 +2481,9 @@ of the game's own screen): between balls THE LINE, the player and the
 nearest across it (the best in the drop, or the lowest still safe when the
 player is in it) with the knockout dashed red between; after a cut how many
 went in red, how many are left and their names, until the next ball; the
-score while a ball is live. `__cricket.arena().knockout` says which. Still to
+score while a ball is live. `__cricket.arena().knockout` says which. The
+scoreboard's layout is being redrawn: five iterations stand in Figma's Battle
+Royale page, section 47 (`943:12052`), for the owner to pick. Still to
 come: the floodlights answering the cut, the timeout pause, and real players
 (stage two). `__cricket.knockout()` says where the room
 stands and `__cricket.knockoutAt(t)` holds the end moment's clock;
@@ -2476,7 +2495,12 @@ F1, K1 to K2b; `src/ui/KnockoutHome.ts`, `showKnockout` in the HUD): its
 poster on the rail between the Test Marathon and Test Survival, with
 Super10's poster moved to the head of the rail and Super10's PLAY card
 under it giving way to Super Knockout's card (the face-off, the mark, NEW
-and the format, a gold PLAY, an (i)). The card opens the home (K2,
+and the format, a gold PLAY, an (i)), which moves as Super10's does, in
+Knockout's own language and in CSS alone (`.ms-ko-fx`): every five seconds
+the edge beats twice, as the bar's heart does in the drop, then the knockout
+line, white and leaning at the brand's 12°, crosses the face-off and PLAY
+glints and pops as it passes; embers drift up all the while; nothing moves
+under reduced motion. The card opens the home (K2,
 `#knockout-home`): the picture, the mark, the format in two lines, this
 browser's practice rooms, best finish and wins (`readTally`, `tallyRoom`,
 kept in `hitman-knockout`, since practice scores no points), QUICK MATCH

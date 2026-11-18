@@ -170,6 +170,7 @@ import { cleanName, foldName } from './server/board-store';
 import { kitDeal } from './config/board';
 import { encodeInnings, limitsOf } from './game/ball-string';
 import { HOLD_MS, READY_MS, heldOf } from './ui/KnockoutHeld';
+import { swingFourthOf } from './game/free-hit';
 import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, freeHitOf, knockoutScreen, overLine, type Seat, sampleTrack, trackOf, type TrackMood } from './game/knockout';
 import { KnockoutMoment, type MomentView } from './ui/KnockoutMoment';
 import { markRulesSeen, readTally, rulesSeen, tallyRoom } from './ui/KnockoutHome';
@@ -1293,7 +1294,8 @@ export class Game {
       knockoutAt: (t: number | null) => { KnockoutMoment.pinned = t; },
       // The knockout bar stood in a made-up room in each mood, for photographing it (`sampleTrack`); `left` is the balls left in the over.
       knockoutMood: (mood: TrackMood, left = 2) => { this.hud.knockoutTrack(sampleTrack(mood, left), this.knockout?.you.face ?? 0); },
-      knockout: () => this.knockout && { standing: this.knockout.standing(), bowled: this.knockout.bowled, left: this.knockout.alive.length, you: { ...this.knockout.you } },
+      knockout: () => this.knockout && { standing: this.knockout.standing(), bowled: this.knockout.bowled, left: this.knockout.alive.length, you: { ...this.knockout.you },
+        freeNext: this.knockout.freeHit(), freeAhead: this.knockout.freeHitAhead(), freeBall: this.knockout.freeBallNext },
       // The star prompt on demand, for `rating-check.mjs`: which thing, asked
       // as the end of an innings would ask it, and nothing about when.
       rating: (thing: RatedThing = 'game') => this.showRating(thing, thing === 'game' ? 'innings' : 'mode'),
@@ -3061,7 +3063,7 @@ export class Game {
     if (this.marathoning && this.wearFast) return marathonFastWear();
     // Super Knockout's overs are planned one by one (`knockoutPlan`); the fourth is the swing or the sling bowler, a coin off the room's seed.
     const plan = this.surviving ? SURVIVE_PLAN : this.marathoning ? MARATHON_PLAN : this.super10 ? SUPER10_PLAN
-      : this.knockingOut ? knockoutPlan(new SeededRandom((this.seed ^ 0x4b4f4e4b) >>> 0).next() < 0.5) : CLASSIC_PLAN;
+      : this.knockingOut ? knockoutPlan(swingFourthOf(this.seed), this.seed) : CLASSIC_PLAN;
     if (this.bouncersOnly || this.hooksOnly) return bouncersEvery(plan, this.hooksOnly);
     if (this.spinCutsOnly) return spinCutsEvery(plan);
     if (this.spinPullsOnly) return spinPullsEvery(plan);
@@ -7309,8 +7311,11 @@ export class Game {
     if (line) this.hud.callOut(line);
     this.hud.knockout(room.finished ? null : chipOf(room.standing()));
     this.hud.knockoutTrack(room.finished ? null : trackOf(room), room.you.face);
-    // The next ball's slot on the scoreboard says the player's free hit.
-    this.hud.knockoutFreeHit(!room.finished && room.freeHit() ? room.bowled : null);
+    // The free hit (`free-hit.ts`): told when it is earned, the scoreboard ringed while it is to come, and on its ball, said.
+    const coming = !room.finished && room.freeHit(), ahead = !room.finished && room.freeHitAhead();
+    this.hud.knockoutFreeHit(coming ? room.bowled : null, false, ahead);
+    if (ahead && last && room.bowled % KNOCKOUT.ballsPerOver === 0) { this.hud.knockoutEarned(); this.mark('knockout-free-hit-earned', 'A free hit earned'); }
+    if (coming) this.hud.callOut('FREE HIT · OUT ON THIS BALL DOESN’T COUNT');
   }
   /** KNOCKED OUT or WINNER, from the room as it stands once the player's match is over. */
   private knockoutView(): MomentView {
@@ -7326,16 +7331,16 @@ export class Game {
     }));
     const above = Math.max(0, window.findIndex(seat => seat.wentAt === you.wentAt && seat.place !== null && seat.place !== 1));
     const over = Math.ceil((you.wentAt ?? room.bowled) / KNOCKOUT.ballsPerOver);
-    const sudden = (you.wentAt ?? 0) > KNOCKOUT.cuts.length * KNOCKOUT.ballsPerOver;
+    const final = (you.wentAt ?? 0) > KNOCKOUT.cuts.length * KNOCKOUT.ballsPerOver;
     const runner = room.seats.find(seat => seat.place === 2) ?? null;
     // How the player went, in the words K9 v2's line uses: bowled, caught, stumped.
     const how = you.out ? (this.score.history.at(-1)?.wicketType ?? 'out').toLowerCase().replace(/_/g, ' ') : null;
-    const lastOne = sudden ? 'in sudden death' : `at the end of over ${over}`;
+    const lastOne = final ? 'in the final' : `at the end of over ${over}`;
     const by = runner ? you.runs - runner.runs : 0;
     return {
       won, place: you.place ?? room.alive.length, of: room.seats.length,
       you: { name: you.name, face: you.face, runs: you.runs, balls: you.balls, sixes: you.sixes },
-      heading: sudden ? 'SUDDEN DEATH' : `END OF OVER ${over}`,
+      heading: final ? 'THE FINAL' : `END OF OVER ${over}`,
       line: won
         ? (runner ? `Outlasted ${runner.name}${by > 0 ? ` by ${by}` : ''} ${lastOne}.` : 'The room is yours.')
         : how ? `${you.runs} off ${you.balls} · ${how} in over ${Math.ceil(you.balls / KNOCKOUT.ballsPerOver) || 1}` : `${you.runs} off ${you.balls} · cut ${lastOne}`,

@@ -54,7 +54,7 @@ body.knockout-mode .confidence-label{min-width:0;overflow:hidden;text-overflow:e
 }
 .ko-track[hidden]{display:none}
 .stage.result-open .ko-track,.stage.picking-mode .ko-track,.stage.pause-open .ko-track,body.ko-up .ko-track{display:none}
-.ko-track[data-mood="drop"],.ko-track[data-mood="sudden"]{box-shadow:inset 0 0 0 1px #ee2a2a73,inset 0 0 calc(var(--u) * 22) #ee2a2a2e,0 calc(var(--u) * 8) calc(var(--u) * 24) #00000073}
+.ko-track[data-mood="drop"],.ko-track[data-mood="final"]{box-shadow:inset 0 0 0 1px #ee2a2a73,inset 0 0 calc(var(--u) * 22) #ee2a2a2e,0 calc(var(--u) * 8) calc(var(--u) * 24) #00000073}
 /* The guard's line and the cut's call stand over the bar and the pill over the face, not under them. */
 body.knockout-mode .phase-label{bottom:calc(var(--pad-bottom) + var(--u) * 158)}
 /* The fire's canvas reaches up over the bar's top, behind its words. */
@@ -64,7 +64,7 @@ body.knockout-mode .phase-label{bottom:calc(var(--pad-bottom) + var(--u) * 158)}
 .ko-place{position:absolute;right:calc(var(--u) * 16);top:calc(var(--u) * 6);display:flex;align-items:baseline;gap:calc(var(--u) * 4);
   font:900 calc(var(--u) * 9)/1 var(--card);letter-spacing:.12em;color:#bfaeb1}
 .ko-place b{font:400 calc(var(--u) * 15)/calc(var(--u) * 19) var(--f-display,Jaro,sans-serif);letter-spacing:0;color:#f5efe6;transition:color .3s}
-.ko-track[data-mood="drop"] .ko-place b,.ko-track[data-mood="sudden"] .ko-place b{color:#ff5252}
+.ko-track[data-mood="drop"] .ko-place b,.ko-track[data-mood="final"] .ko-place b{color:#ff5252}
 .ko-seats{position:absolute;left:calc(var(--u) * 16);top:calc(var(--u) * 36);width:var(--row);height:calc(var(--u) * 10)}
 .ko-seat{position:absolute;top:0;height:100%;border-radius:calc(var(--u) * 3);background:#3ddc84e6;transition:background-color .35s}
 .ko-seat[data-zone="drop"]{background:var(--ko-red)}
@@ -84,7 +84,7 @@ body.knockout-mode .phase-label{bottom:calc(var(--pad-bottom) + var(--u) * 158)}
 .ko-wave{position:absolute;inset:calc(var(--u) * -2.5);border-radius:50%;border:calc(var(--u) * 2) solid var(--ko-wave,#3ddc84);opacity:0}
 .ko-track[data-mood="edge"] .ko-ring,.ko-track[data-mood="level"] .ko-ring{background:var(--ko-gold)}
 .ko-track[data-mood="level"] .ko-cut{background:var(--ko-gold);box-shadow:0 0 calc(var(--u) * 10) var(--ko-gold)}
-.ko-track[data-mood="drop"] .ko-ring,.ko-track[data-mood="sudden"] .ko-ring{background:var(--ko-red);box-shadow:0 0 calc(var(--u) * 12) #ee2a2acc}
+.ko-track[data-mood="drop"] .ko-ring,.ko-track[data-mood="final"] .ko-ring{background:var(--ko-red);box-shadow:0 0 calc(var(--u) * 12) #ee2a2acc}
 .ko-zone{position:absolute;top:calc(var(--u) * 54);left:calc(var(--u) * 16 + var(--row) * var(--ko-mid,0));transform:translateX(-50%);
   font:900 calc(var(--u) * 8)/calc(var(--u) * 10) var(--card);letter-spacing:.14em;transition:left .55s cubic-bezier(.34,1.3,.64,1)}
 .ko-zone[hidden]{display:none}
@@ -119,12 +119,12 @@ body.knockout-mode .phase-label{bottom:calc(var(--pad-bottom) + var(--u) * 158)}
   .ko-track[data-mood="edge"] .ko-cut{animation:ko-cut-glow 1.25s ease-in-out infinite}
   .ko-track[data-mood="edge"] .ko-tether{opacity:.95;animation:ko-crawl .6s linear infinite}
   .ko-track[data-mood="level"] .ko-you{animation:ko-teeter 1.7s ease-in-out infinite}
-  .ko-track[data-mood="drop"] .ko-you,.ko-track[data-mood="sudden"] .ko-you{animation:ko-lubdub var(--ko-beat,.83s) ease-in-out infinite}
-  .ko-track[data-mood="drop"] .ko-wave,.ko-track[data-mood="sudden"] .ko-wave{--ko-wave:#ee2a2a;animation:ko-ripple var(--ko-beat,.83s) ease-out infinite}
-  .ko-track[data-mood="drop"] .ko-wave.w2,.ko-track[data-mood="sudden"] .ko-wave.w2{animation-delay:calc(var(--ko-beat,.83s) * .18)}
-  .ko-track[data-mood="drop"] .ko-seat[data-zone="drop"],.ko-track[data-mood="sudden"] .ko-seat[data-zone="drop"]{animation:ko-throb var(--ko-beat,.83s) ease-in-out infinite}
-  .ko-track[data-mood="sudden"] .ko-cut{animation:ko-cut-flash var(--ko-beat,.83s) ease-in-out infinite}
-  .ko-track[data-mood="drop"] .ko-say,.ko-track[data-mood="sudden"] .ko-say{animation:ko-thump var(--ko-beat,.83s) ease-in-out infinite}
+  .ko-track[data-mood="drop"] .ko-you,.ko-track[data-mood="final"] .ko-you{animation:ko-lubdub var(--ko-beat,.83s) ease-in-out infinite}
+  .ko-track[data-mood="drop"] .ko-wave,.ko-track[data-mood="final"] .ko-wave{--ko-wave:#ee2a2a;animation:ko-ripple var(--ko-beat,.83s) ease-out infinite}
+  .ko-track[data-mood="drop"] .ko-wave.w2,.ko-track[data-mood="final"] .ko-wave.w2{animation-delay:calc(var(--ko-beat,.83s) * .18)}
+  .ko-track[data-mood="drop"] .ko-seat[data-zone="drop"],.ko-track[data-mood="final"] .ko-seat[data-zone="drop"]{animation:ko-throb var(--ko-beat,.83s) ease-in-out infinite}
+  .ko-track[data-mood="final"] .ko-cut{animation:ko-cut-flash var(--ko-beat,.83s) ease-in-out infinite}
+  .ko-track[data-mood="drop"] .ko-say,.ko-track[data-mood="final"] .ko-say{animation:ko-thump var(--ko-beat,.83s) ease-in-out infinite}
 }
 @keyframes ko-sheen{0%,40%{left:-40%;opacity:0}45%{opacity:1}85%{left:100%;opacity:1}86%,100%{left:100%;opacity:0}}
 @keyframes ko-crawl{to{background-position:calc(var(--u) * -9) 0}}
@@ -268,8 +268,8 @@ body.ko-up #end{visibility:hidden}
 .ko-bar{display:flex;align-items:center;flex-shrink:0;box-sizing:border-box;width:calc(var(--u) * 170 * var(--w));height:100%;padding-left:calc(var(--u) * 8);border-radius:8px;background:#ffffff1f}
 .ko-bar b{font:400 calc(var(--u) * 16)/1 var(--f-display);color:#fff}
 .ko-note{margin-left:calc(var(--u) * 10);color:#bfaeb1;font:600 calc(var(--u) * 13)/1 var(--f-ui);white-space:nowrap}
-.ko-ladder li.is-sudden .ko-bar{background:linear-gradient(90deg,#ff6b5e,#ee2a2a)}
-.ko-ladder li.is-sudden .ko-note{color:#ff5252}
+.ko-ladder li.is-final .ko-bar{background:linear-gradient(90deg,#ff6b5e,#ee2a2a)}
+.ko-ladder li.is-final .ko-note{color:#ff5252}
 .ko-rules{padding:calc(var(--u) * 18) calc(var(--u) * 18) calc(var(--u) * 4)}
 .ko-rules li{display:flex;gap:calc(var(--u) * 18);padding-bottom:calc(var(--u) * 12);margin-bottom:calc(var(--u) * 10);border-bottom:1px solid #ffffff0f}
 .ko-rules li:last-child{border-bottom:0;margin-bottom:0}
@@ -329,3 +329,75 @@ body.knockout-mode .score-bug[data-hold]{cursor:pointer;touch-action:none}
 body.knockout-mode .score-bug.is-ready{animation:ko-ready .3s ease-out 1}
 @keyframes ko-ready{40%{transform:scale(1.04)}}
 .ko-held-row>b>em.is-out{color:#ff5252;box-shadow:inset 0 0 0 1px #ff5252}
+
+/*
+  The free hit (`free-hit.ts`), in the reward's gold: while one is still to
+  come this over the scoreboard is ringed gold; on its ball gold beats round
+  the screen's edges (over the drop's red, which is the same ball's other
+  news) and the call says a wicket will not count. Earned at a cut, FREE HIT
+  EARNED stands over the ground for a few seconds.
+*/
+#viewport.ko-fh-ahead .score-bug{border-color:var(--ko-gold);box-shadow:0 0 calc(var(--u) * 12) #ffb02073}
+.ko-gold{position:absolute;inset:0;z-index:41;pointer-events:none;opacity:0;transition:opacity .3s;
+  box-shadow:inset 0 0 0 3px rgba(255,176,32,.85),inset 0 0 calc(var(--u,1px) * 56) rgba(255,176,32,.5)}
+#viewport.ko-fh-next .ko-gold{opacity:.9}
+#viewport.ko-fh-next .ko-edge{opacity:0}
+@media (prefers-reduced-motion:no-preference){
+  #viewport.ko-fh-next .ko-gold{animation:ko-gold-pulse 1.1s ease-in-out infinite}
+}
+@keyframes ko-gold-pulse{0%,100%{opacity:.5}50%{opacity:1}}
+.ko-fh-toast{position:absolute;z-index:42;left:50%;top:27%;width:calc(var(--u) * 300);transform:translateX(-50%);pointer-events:none;
+  display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 6);padding:calc(var(--u) * 14) calc(var(--u) * 18);box-sizing:border-box;
+  border-radius:calc(var(--u) * 18);background:linear-gradient(180deg,#2a1d08f2,#160f04f2);border:calc(var(--u) * 1.5) solid var(--ko-gold);
+  box-shadow:0 0 calc(var(--u) * 28) #ffb02066,0 calc(var(--u) * 12) calc(var(--u) * 26) #0000008c;text-align:center}
+.ko-fh-toast[hidden]{display:none}
+.ko-fh-toast b{font:400 calc(var(--u) * 30)/1 var(--f-display,Jaro,sans-serif);color:var(--ko-gold);letter-spacing:.02em}
+.ko-fh-toast span{font:600 calc(var(--u) * 12)/1.35 var(--f-ui);color:#f5efe6}
+@media (prefers-reduced-motion:no-preference){
+  .ko-fh-toast.is-on{animation:ko-fh-in 3.4s cubic-bezier(.2,.9,.3,1.2) both}
+}
+@keyframes ko-fh-in{0%{opacity:0;transform:translateX(-50%) scale(.6)}10%{opacity:1;transform:translateX(-50%) scale(1.06)}16%{transform:translateX(-50%) scale(1)}86%{opacity:1;transform:translateX(-50%) scale(1)}100%{opacity:0;transform:translateX(-50%) translateY(calc(var(--u) * -12)) scale(.96)}}
+
+/*
+  The card's motion (`knockoutCardMarkup`): one five-second loop, CSS on
+  transforms and opacity alone. The edge beats twice (the drop's heart), the
+  knockout line crosses the face-off leaning at the brand's 12°, PLAY glints
+  and pops as it passes, and embers drift up all the while. Nothing moves
+  under reduced motion; nothing runs while Choose a mode is shut, its screen
+  being out of the page's layout then.
+*/
+.ms-ko-fx{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden;border-radius:inherit}
+.ms-ko-fx>i,.ms-ko-embers,.ms-ko-embers i,.ms-ko-glint{position:absolute;display:block;pointer-events:none;opacity:0}
+.ms-ko-beat{inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1.5px #ff5a5a,inset 0 0 calc(var(--u) * 26) #ee2a2a8c}
+.ms-ko-cut{top:calc(var(--u) * -20);bottom:calc(var(--u) * -20);left:0;width:calc(var(--u) * 3);border-radius:2px;
+  background:#fff;box-shadow:0 0 calc(var(--u) * 10) #fff,calc(var(--u) * -14) 0 calc(var(--u) * 22) #ee2a2a99;transform:translateX(calc(var(--u) * -20)) skewX(-12deg)}
+.ms-ko-embers{inset:0;opacity:1}
+.ms-ko-embers i{bottom:calc(var(--u) * -6);width:calc(var(--u) * 3);height:calc(var(--u) * 3);border-radius:50%;background:#ffb040;box-shadow:0 0 calc(var(--u) * 6) #ff7a30}
+.ms-ko-embers i:nth-child(1){left:52%}.ms-ko-embers i:nth-child(2){left:61%;width:calc(var(--u) * 2);height:calc(var(--u) * 2)}
+.ms-ko-embers i:nth-child(3){left:69%}.ms-ko-embers i:nth-child(4){left:76%;width:calc(var(--u) * 2);height:calc(var(--u) * 2)}
+.ms-ko-embers i:nth-child(5){left:84%}.ms-ko-embers i:nth-child(6){left:91%;width:calc(var(--u) * 2);height:calc(var(--u) * 2)}
+.ms-ko-embers i:nth-child(7){left:44%;background:#ee2a2a}
+.ms-knockout-play{overflow:hidden}
+.ms-ko-glint{top:-20%;bottom:-20%;left:0;width:40%;background:linear-gradient(100deg,#fff0,#ffffffd9,#fff0);transform:translateX(-120%) skewX(-12deg)}
+@media (prefers-reduced-motion:no-preference){
+  .ms-ko-beat{animation:ms-ko-beat 5s ease-in-out infinite}
+  .ms-ko-cut{animation:ms-ko-cut 5s cubic-bezier(.45,0,.2,1) infinite}
+  .ms-ko-glint{animation:ms-ko-glint 5s ease-out infinite}
+  .ms-knockout-play{animation:ms-ko-pop 5s ease-out infinite}
+  .ms-ko-embers i{animation:ms-ko-ember 3.6s linear infinite}
+  .ms-ko-embers i:nth-child(2){animation-duration:4.2s;animation-delay:-1.1s}
+  .ms-ko-embers i:nth-child(3){animation-duration:3.2s;animation-delay:-2.3s}
+  .ms-ko-embers i:nth-child(4){animation-duration:4.6s;animation-delay:-.6s}
+  .ms-ko-embers i:nth-child(5){animation-duration:3.8s;animation-delay:-3s}
+  .ms-ko-embers i:nth-child(6){animation-duration:4.4s;animation-delay:-1.8s}
+  .ms-ko-embers i:nth-child(7){animation-duration:5s;animation-delay:-2.6s}
+}
+/* Lub-dub, then rest. */
+@keyframes ms-ko-beat{0%,30%,100%{opacity:0}4%{opacity:.9}8%{opacity:.25}12%{opacity:.7}20%{opacity:0}}
+/* The line waits for the beat, then crosses the card in a little over a second. */
+@keyframes ms-ko-cut{0%,24%{opacity:0;transform:translateX(calc(var(--u) * -20)) skewX(-12deg)}27%{opacity:.95}
+  47%{opacity:.9}50%,100%{opacity:0;transform:translateX(calc(var(--u) * 380)) skewX(-12deg)}}
+/* As the line reaches PLAY, about four fifths of the way across. */
+@keyframes ms-ko-glint{0%,42%{opacity:0;transform:translateX(-120%) skewX(-12deg)}44%{opacity:1}54%,100%{opacity:0;transform:translateX(320%) skewX(-12deg)}}
+@keyframes ms-ko-pop{0%,42%,56%,100%{scale:1}46%{scale:1.05}}
+@keyframes ms-ko-ember{0%{opacity:0;transform:translate(0,0)}12%{opacity:.85}70%{opacity:.5}100%{opacity:0;transform:translate(calc(var(--u) * -10),calc(var(--u) * -96))}}
