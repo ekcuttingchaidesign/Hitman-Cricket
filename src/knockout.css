@@ -478,6 +478,7 @@ body.ko-watch #end{visibility:hidden}
 .ko-rings-v{align-self:flex-start;margin-top:calc(var(--u,1px) * 16);font:400 calc(var(--u,1px) * 20)/1 var(--f-display);color:#ee2a2a;font-style:normal}
 /* B2, the room won: the winner's ring grown into gold, the crown dropped on. */
 .ko-rings.is-over .ko-rings-head{color:#ffb020}
+.ko-rings.is-over .ko-rings-row{padding-top:calc(var(--u,1px) * 20)}
 .ko-ring.is-winner{position:relative;width:calc(var(--u,1px) * 72);cursor:default}
 .ko-ring.is-winner .ko-ring-face{width:calc(var(--u,1px) * 70);height:calc(var(--u,1px) * 70);background:#ffb020;box-shadow:0 0 calc(var(--u,1px) * 18) #ffb02066;
   animation:ko-win-grow .6s cubic-bezier(.34,1.56,.64,1) both}
