@@ -7314,7 +7314,8 @@ export class Game {
     // The free hit (`free-hit.ts`): told when it is earned, the scoreboard ringed while it is to come, and on its ball, said.
     const coming = !room.finished && room.freeHit(), ahead = !room.finished && room.freeHitAhead();
     this.hud.knockoutFreeHit(coming ? room.bowled : null, false, ahead);
-    if (ahead && last && room.bowled % KNOCKOUT.ballsPerOver === 0) { this.hud.knockoutEarned(); this.mark('knockout-free-hit-earned', 'A free hit earned'); }
+    // Earned is counted, never put on screen: the owner found a popup at the cut distracting, and the player is told on the ball itself.
+    if (ahead && last && room.bowled % KNOCKOUT.ballsPerOver === 0) this.mark('knockout-free-hit-earned', 'A free hit earned');
     if (coming) this.hud.callOut('FREE HIT · OUT ON THIS BALL DOESN’T COUNT');
   }
   /** KNOCKED OUT or WINNER, from the room as it stands once the player's match is over. */

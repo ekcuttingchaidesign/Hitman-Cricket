@@ -2393,10 +2393,13 @@ as it would. It moved the subs' rooms hardly at all (the winner's median 86
 to 84) but fewer collapse early.
 
 In the game (`knockoutBall`, `knockoutView` and `blastOver` in `src/Game.ts`)
-it is a Blast innings with `KNOCKOUT_LIMITS`, on a shorter scoreboard (Figma
-"Super Knockout · Final", F2): the total, the over as OVER 2 OF 5 or SUDDEN
-DEATH (`overLine`), and this over ball by ball (`#ko-over`), 194 wide, with no
-LAST cell, no place cell and no "/0"; the meter stays under it. The place is
+it is a Blast innings with `KNOCKOUT_LIMITS`, on the owner's own scoreboard
+(Figma Battle Royale page, section 47, E1 as the owner redrew it,
+`946:7922`): 242 by 64, the total and the overs in a Knockout Red pill
+(OVERS under them, FINAL in the final: `oversWord`), this over's six balls
+beside it as round chips (`#ko-over`), and under a hairline CONFIDENCE and
+its slim meter; no LAST cell, no place cell and no "/0" (`.score-bug` as a
+grid in `src/knockout.css`). The place is
 in the knockout bar along the foot (`trackOf`, `src/ui/KnockoutBar.ts`,
 `.ko-track` in `src/knockout.css`), 370 by 74 off the design: across its top
 what is at stake and when, in so many words (`eyebrowOf`: BOTTOM 2 KNOCKED
@@ -2451,13 +2454,15 @@ the seamer's yorker, bouncer, slower ball, full one or swinger, the spinner's
 ball tossed up or his arm ball, the swing bowler's swingers and yorker, the
 sling bowler's yorker, bouncer and slower ball — which the plan bowls there
 whatever the over would have (`hardBall` on the plan, `hardNow` in the
-generator), so every seat faces it. The player is told three ways: FREE HIT
-EARNED over the ground for a few seconds at the cut (`knockoutEarned`,
-`#ko-fh-toast`), the scoreboard ringed gold while it is still to come
-(`ko-fh-ahead`), and on its ball gold beating round the screen's edges
-(`.ko-gold`, `ko-fh-next`), FH in gold in its slot, shimmering once, and the
-call FREE HIT · OUT ON THIS BALL DOESN'T COUNT; the slot keeps a gold edge
-once played (`knockoutFreeHit`, Figma P6). The player's wicket on it is
+generator), so every seat faces it. The player is told only before its own
+ball (a popup at the cut, FREE HIT EARNED, and the scoreboard ringed gold
+all over were tried and the owner found them distracting; earning one is
+counted, `knockout-free-hit-earned`, and never shown): on its ball gold
+beats round the screen's edges (`.ko-gold`, `ko-fh-next`), FH in gold in its
+slot, shimmering once, and the call FREE HIT · OUT ON THIS BALL DOESN'T
+COUNT; the slot keeps a gold edge once played (`knockoutFreeHit`). How it is
+told, and in a colour of its own, is being redrawn: five quiet ways stand in
+Figma's Battle Royale page, section 48 (`952:12109`), for the owner to pick. The player's wicket on it is
 turned not out in `resolve` before the score sees it (`freeHitOf`, FREE HIT ·
 NOT OUT, the picture still the ball that would have had them), the subs' in
 `KnockoutRoom.ball` (`freeHit`, `freeHitAhead`, `freeBallNext`).
@@ -2481,9 +2486,7 @@ of the game's own screen): between balls THE LINE, the player and the
 nearest across it (the best in the drop, or the lowest still safe when the
 player is in it) with the knockout dashed red between; after a cut how many
 went in red, how many are left and their names, until the next ball; the
-score while a ball is live. `__cricket.arena().knockout` says which. The
-scoreboard's layout is being redrawn: five iterations stand in Figma's Battle
-Royale page, section 47 (`943:12052`), for the owner to pick. Still to
+score while a ball is live. `__cricket.arena().knockout` says which. Still to
 come: the floodlights answering the cut, the timeout pause, and real players
 (stage two). `__cricket.knockout()` says where the room
 stands and `__cricket.knockoutAt(t)` holds the end moment's clock;
@@ -2497,10 +2500,11 @@ Super10's poster moved to the head of the rail and Super10's PLAY card
 under it giving way to Super Knockout's card (the face-off, the mark, NEW
 and the format, a gold PLAY, an (i)), which moves as Super10's does, in
 Knockout's own language and in CSS alone (`.ms-ko-fx`): every five seconds
-the edge beats twice, as the bar's heart does in the drop, then the knockout
-line, white and leaning at the brand's 12°, crosses the face-off and PLAY
-glints and pops as it passes; embers drift up all the while; nothing moves
-under reduced motion. The card opens the home (K2,
+the edge beats twice, as the bar's heart does in the drop, then a soft band
+of light, leaning at the brand's 12°, glides across the face-off at an even
+pace and PLAY glints softly as it passes (a hard white line and a pop on
+PLAY came first, and the owner wanted it smooth and subtle); embers drift up
+all the while; nothing moves under reduced motion. The card opens the home (K2,
 `#knockout-home`): the picture, the mark, the format in two lines, this
 browser's practice rooms, best finish and wins (`readTally`, `tallyRoom`,
 kept in `hitman-knockout`, since practice scores no points), QUICK MATCH

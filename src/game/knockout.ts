@@ -436,6 +436,14 @@ export function overLine(bowled: number): string {
   return over > KNOCKOUT.cuts.length ? 'THE FINAL' : `OVER ${over} OF ${KNOCKOUT.cuts.length + 1}`;
 }
 
+/**
+ * The word under the overs in the scoreboard's pill (the owner's frame,
+ * `946:7922`): OVERS, or FINAL once the four overs with a cut are bowled.
+ */
+export function oversWord(bowled: number): string {
+  return Math.floor(bowled / KNOCKOUT.ballsPerOver) >= KNOCKOUT.cuts.length ? 'FINAL' : 'OVERS';
+}
+
 /** The call when people go: the big screen's line, from the player's side. */
 export function cutLine(news: BallNews, left: number): string | null {
   if (!news.gone.length) return null;

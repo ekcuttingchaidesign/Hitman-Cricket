@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CLASSIC_PLAN, DeliveryGenerator, knockoutPlan } from '../src/game/DeliveryGenerator';
-import { EDGE_RUNS, KNOCKOUT, KnockoutRoom, chipOf, cutLine, cutOf, freeHitOf, knockoutScreen, overLine, trackOf, type Seat } from '../src/game/knockout';
+import { EDGE_RUNS, KNOCKOUT, KnockoutRoom, chipOf, cutLine, cutOf, freeHitOf, knockoutScreen, overLine, oversWord, trackOf, type Seat } from '../src/game/knockout';
 import { SeededRandom } from '../src/game/SeededRandom';
 import { freeHitBall, swingFourthOf } from '../src/game/free-hit';
 import { knockoutCardWords, tallyRoom } from '../src/ui/KnockoutHome';
@@ -213,6 +213,7 @@ describe('the bar', () => {
     expect(overLine(10)).toBe('OVER 2 OF 5');
     expect(overLine(23)).toBe('OVER 4 OF 5');
     expect(overLine(24)).toBe('THE FINAL');
+    expect([0, 23, 24].map(oversWord)).toEqual(['OVERS', 'OVERS', 'FINAL']);
   });
 });
 

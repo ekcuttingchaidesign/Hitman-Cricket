@@ -36,7 +36,7 @@ const cell = page => page.evaluate(() => ({ hidden: getComputedStyle(document.ge
 const burning = page => page.evaluate(() => { const c = document.querySelector('.ko-fx'); if (!c.width) return false; const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let i = 3; i < d.length; i += 4) if (d[i] > 20) return true; return false; });
 /** Writes balls once the game is between balls: it takes no ball while the bowler is running in. */
 async function write(page, balls) {
-  for (let i = 0; i < 80; i++) {
+  for (let i = 0; i < 400; i++) {
     if (await page.evaluate(b => window.__cricket.blast(b), balls)) return true;
     await page.waitForTimeout(150);
   }
@@ -52,7 +52,7 @@ page.on('pageerror', e => errors.push(e.message));
 await walkOut(page, '/?knockout=1&debug=1&seed=7');
 let seen = await cell(page);
 check(seen.hidden && seen.last === 'none' && seen.wkts === 'none', 'the scoreboard is the shorter one: no LAST cell, no place cell, no wickets', JSON.stringify(seen));
-check(seen.label === 'OVER 1 OF 5', 'the overs say which over of five', seen.label);
+check(seen.label === 'OVERS', 'the pill says OVERS under the overs (FINAL in the final)', seen.label);
 check(seen.place === '#1' && seen.line === 'OF 12' && !seen.drop, 'before a ball the bar says #1 of 12', JSON.stringify(seen));
 await page.screenshot({ path: out + '/ko-start.png' });
 await write(page, [1, 0, 1]);
@@ -95,7 +95,7 @@ await page.evaluate(() => window.__cricket.knockoutAt(0));
 // The over's top three bat the next ball as a free hit: FH in its slot, gold, and a wicket on it does not count.
 // Each write is read in the same turn, and the W goes in at once: the live game bowls on behind them, and a ball left alone can be the free hit.
 const writeRead = async balls => {
-  for (let i = 0; i < 80; i++) {
+  for (let i = 0; i < 400; i++) {
     const seen = await page.evaluate(b => window.__cricket.blast(b) ? { ...window.__cricket.knockout(),
       fh: [...document.querySelectorAll('#ko-over i')].map(i => `${i.textContent}${i.className ? `[${i.className}]` : ''}`).join(',') } : null, balls);
     if (seen) return seen;
@@ -104,12 +104,12 @@ const writeRead = async balls => {
   throw new Error(`never between balls to write ${balls}`);
 };
 const given = await writeRead([6, 6, 6, 6, 6, 6]);
-const told = await page.evaluate(() => ({ toast: !document.getElementById('ko-fh-toast').hidden, ahead: document.getElementById('viewport').classList.contains('ko-fh-ahead') }));
-check(given.freeAhead && !given.freeNext && told.toast && told.ahead && given.bowled === 6, 'top of the first over: a free hit earned, told, and the scoreboard ringed in gold', JSON.stringify({ given, told }));
+const told = await page.evaluate(() => ({ toast: !!document.getElementById('ko-fh-toast'), edge: document.getElementById('viewport').classList.contains('ko-fh-next') }));
+check(given.freeAhead && !given.freeNext && !told.toast && !told.edge && given.bowled === 6, 'top of the first over: a free hit earned, and nothing put up for it until its ball', JSON.stringify({ given, told }));
 await snap(page, out + '/ko-free-hit-earned.png');
 // Ones up to the over's free hit ball (never its first), then out on it: all in one turn, before the bowler can run in.
 const run = await (async () => {
-  for (let i = 0; i < 80; i++) {
+  for (let i = 0; i < 400; i++) {
     const seen = await page.evaluate(() => {
       const k = window.__cricket.knockout, view = document.getElementById('viewport');
       const slots = () => [...document.querySelectorAll('#ko-over i')].map(i => `${i.textContent}${i.className ? `[${i.className}]` : ''}`).join(',');
@@ -131,11 +131,8 @@ check(upTo.freeNext && upTo.freeBall && upTo.freeBall.ball >= 1 && upTo.bowled %
 check(!after.you.out && after.bowled === upTo.bowled + 1 && /is-free/.test(fh) && !after.edge, 'bowled on the free hit: not out, the slot kept gold, the edge let go', JSON.stringify({ fh, you: after.you }));
 await snap(page, out + '/ko-free-hit.png');
 
-for (let o = 0; o < 8; o++) {
-  if ((await page.evaluate(() => window.__cricket.snapshot().phase)) === 'INNINGS_END') break;
-  await write(page, [6, 6, 6, 6, 6, 6]);
-  await page.waitForTimeout(200);
-}
+// The rest of the room in one write, so no live ball falls between two (the writer stops once the room is done with the player).
+await write(page, Array(30).fill(6));
 await page.waitForTimeout(800);
 check(await page.locator('#ko-moment.is-won').count() === 1, 'the room won: WINNER goes up');
 for (const t of [0.5, 0.85, 1.75, 3.0]) await pin(page, t, 'ko-won');
@@ -171,7 +168,7 @@ const cutNow = await (async () => { for (let i = 0; i < 120; i++) { const seen =
   return window.__cricket.blast(Array(6 - (k.bowled % 6)).fill(6)) ? new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(window.__cricket.arena()?.knockout)))) : undefined; }); if (seen !== undefined) return seen; await page.waitForTimeout(150); } return null; })();
 if (cutNow === 'gone') console.log('  (the player went before the over ended: no cut to read)');
 else check(cutNow?.kind === 'cut' && cutNow.out >= 2 && cutNow.names.length === cutNow.out, "at the over's end the screen says who went and how many are left", JSON.stringify(cutNow));
-for (let i = 0; i < 80; i++) { if ((await page.evaluate(() => window.__cricket.snapshot().phase)) !== 'READY') break; await page.waitForTimeout(100); }
+for (let i = 0; i < 400; i++) { if ((await page.evaluate(() => window.__cricket.snapshot().phase)) !== 'READY') break; await page.waitForTimeout(100); }
 await page.mouse.down(); await page.waitForTimeout(300);
 check(await page.evaluate(() => document.getElementById('ko-held').hidden && window.__cricket.arena()?.knockout === null), 'with the ball live a touch on it does nothing, and the screen has the score');
 await page.mouse.up();

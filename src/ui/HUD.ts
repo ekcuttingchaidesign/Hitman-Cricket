@@ -1,5 +1,5 @@
 import { KnockoutMoment, type MomentView } from './KnockoutMoment';
-import { overLine, type Track } from '../game/knockout';
+import { oversWord, type Track } from '../game/knockout';
 import { KnockoutBar, knockoutBarMarkup } from './KnockoutBar';
 import { knockoutHomeMarkup, knockoutRulesMarkup, type KnockoutTally } from './KnockoutHome';
 import { limitsOf } from '../game/ball-string';
@@ -364,7 +364,6 @@ export class HUD {
       <div id="viewport" class="stage">
         <div class="ko-edge" aria-hidden="true"></div>
         <div class="ko-gold" aria-hidden="true"></div>
-        <div class="ko-fh-toast" id="ko-fh-toast" role="status" hidden><b>FREE HIT EARNED</b><span>One ball this over is yours to swing at. Out on it doesn’t count.</span></div>
         ${knockoutBarMarkup()}
         ${heldPanelMarkup()}
         <div class="hud-top">
@@ -2657,7 +2656,7 @@ ${knockoutRulesMarkup()}
     // Super Knockout's shorter scoreboard: which over of five, and this over ball by ball.
     if (!document.body.classList.contains('knockout-mode')) return;
     const bowled = score.history.length;
-    this.$('overs-label').textContent = overLine(bowled);
+    this.$('overs-label').textContent = oversWord(bowled);
     const from = bowled ? Math.floor((bowled - 1) / 6) * 6 : 0;
     [...this.$('ko-over').children].forEach((cell, i) => {
       const at = from + i, ball = score.history[at], free = this.koFree.has(at);
@@ -2680,17 +2679,8 @@ ${knockoutRulesMarkup()}
     if (fresh) this.koFree.clear();
     if (next !== null) this.koFree.add(next);
     this.viewport.classList.toggle('ko-fh-next', next !== null);
-    this.viewport.classList.toggle('ko-fh-ahead', ahead || next !== null);
+    this.viewport.classList.toggle('ko-fh-ahead', ahead && next === null);
   }
-  /** Earned at a cut: FREE HIT across the screen for a few seconds, and when it comes. */
-  knockoutEarned() {
-    const toast = this.$('ko-fh-toast');
-    toast.hidden = false;
-    replayClass(toast, 'is-on');
-    window.clearTimeout(this.earnedOff);
-    this.earnedOff = window.setTimeout(() => { toast.hidden = true; toast.classList.remove('is-on'); }, 3400);
-  }
-  private earnedOff = 0;
   start(surviving = false, marathon = false) {
     document.body.classList.remove('tutorial-active', 'start-screen');
     document.body.classList.add('innings-active');

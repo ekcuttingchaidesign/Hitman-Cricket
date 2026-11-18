@@ -54,7 +54,7 @@ const TRI = '<svg viewBox="0 0 14 16" aria-hidden="true"><path d="M2 1.5 12.5 8 
 /**
  * The card under the rail (K1): the face-off, the mark, NEW and the format, and a gold PLAY. A tap anywhere opens the home; the (i) opens how it works.
  * It moves as Super10's card does, in Knockout's own language (`.ms-ko-fx`): every five seconds the edge beats twice, as the bar's heart does in the
- * drop, then the knockout line, white and leaning, crosses the face-off and PLAY glints and pops as it passes; embers drift up all the while.
+ * drop, then a soft band of light glides across the face-off at an even pace and PLAY glints softly as it passes; embers drift up all the while.
  */
 export function knockoutCardMarkup(): string {
   return `<div class="ms-knockout hidden" id="mode-knockout-card">
