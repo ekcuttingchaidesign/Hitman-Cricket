@@ -391,7 +391,7 @@ export class KnockoutMoment {
       this.draw();
       this.root.classList.toggle('keys-up', this.t >= this.times.keys);
       // The rings only once the sting has landed: two seconds after the keys (section 51's first rule).
-      this.rings?.reveal(this.roomOn && (this.still || this.t >= this.times.keys + RINGS_AFTER));
+      this.rings?.reveal((this.roomOn || !!this.toResults) && (this.still || this.t >= this.times.keys + RINGS_AFTER));
       this.root.classList.toggle('lights-out', this.t >= (this.view.won ? 1.6 : 1.6 + LATER));
       if (!this.view.won) this.broken(this.t);
       if (this.t < this.times.end || (this.rings && this.t < this.times.keys + RINGS_AFTER + 0.1) || KnockoutMoment.pinned !== null) this.frame = requestAnimationFrame(tick);

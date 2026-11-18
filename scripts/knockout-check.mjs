@@ -148,7 +148,7 @@ check(!over.room && !over.results && over.rings === 0 && over.key === 'SCORECARD
   await other.evaluate(() => { window.__cricket.knockoutAt(5.2); window.__cricket.knockoutPlayOn(); window.__cricket.knockoutEndAt(1800); });
   await other.waitForFunction(() => document.querySelector('#ko-card')?.classList.contains('is-counting'), null, { timeout: 30000 }).catch(() => {});
   const b2 = await other.evaluate(() => ({ key: document.querySelector('#ko-card')?.textContent?.trim(), head: document.querySelector('.ko-rings-head')?.textContent, rings: document.querySelectorAll('.ko-ring').length,
-    crowned: !!document.querySelector('.ko-ring.is-winner .ko-ring-crown'), winner: window.__cricket.knockout().winner }));
+    crowned: !!document.querySelector('.ko-ring.is-winner .ko-ring-crown') && !document.getElementById('ko-rings').hidden, winner: window.__cricket.knockout().winner }));
   check(/^RESULTS · [123]$/.test(b2.key ?? '') && b2.head === `MATCH OVER · ${b2.winner?.toUpperCase()} WON THE ROOM` && b2.crowned,
     'on the end screen: the winner\'s ring crowned, MATCH OVER in the head and RESULTS counting on the key', JSON.stringify(b2));
   await other.waitForTimeout(900);
