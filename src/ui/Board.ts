@@ -125,6 +125,12 @@ export interface BoardScreen {
   rules: string;
   /** Laid over the dock: the key toast, when a key has just been minted. */
   extra?: string;
+  /**
+   * A screen drawn as a board that is not one of the four (Super Knockout's
+   * room Results): its own class, colour, picture, name and title, and the
+   * ladder pill's words, in place of the mode's.
+   */
+  look?: { cls: string; colour: string; art: string; name: string; title: string; ladder: string };
 }
 
 /** The ladder picker's short lines, per mode and key. */
@@ -150,20 +156,20 @@ const grouped = (n: number) => n.toLocaleString('en-US');
 // ── The screen ───────────────────────────────────────────────────────────────
 
 export function boardScreenMarkup(s: BoardScreen): string {
-  const meta = BOARD_MODES[s.mode];
-  const ladder = s.ladders.find(one => one.key === s.ladder) ?? s.ladders[0];
+  const meta = s.look ?? BOARD_MODES[s.mode];
+  const ladder = s.look ? { name: s.look.ladder } : s.ladders.find(one => one.key === s.ladder) ?? s.ladders[0];
   const empty = s.state === 'ready' && s.rows.length === 0;
   const offline = s.state === 'offline' && s.rows.length === 0;
   const loading = s.state === 'loading' && s.rows.length === 0;
   const top = s.rows.slice(0, 3);
   const rest = s.rows.slice(3);
   return `
-    <div class="lb-screen is-${s.mode}${offline ? ' is-offline' : ''}" style="--mode:${meta.colour}" role="document">
+    <div class="lb-screen is-${s.look?.cls ?? s.mode}${offline ? ' is-offline' : ''}" style="--mode:${meta.colour}" role="document">
       <div class="lb-bg" aria-hidden="true"><img src="${meta.art}" alt="" decoding="async"><i class="lb-fade"></i><i class="lb-glow"></i><i class="lb-grain"></i></div>
       <header class="lb-head">
         <div class="lb-bar">
           <button id="board-close" type="button" class="k-icon-button" aria-label="Back">${icon('arrow-left')}</button>
-          <h2 id="board-title" class="lb-title">LEADERBOARD</h2>
+          <h2 id="board-title" class="lb-title">${escape(s.look?.title ?? 'LEADERBOARD')}</h2>
           <button id="board-info" type="button" class="k-icon-button" aria-label="How ranking works" aria-haspopup="dialog">${icon('info')}</button>
           <button id="board-sound" type="button" class="k-icon-button" aria-label="Sound">${icon('volume')}</button>
         </div>

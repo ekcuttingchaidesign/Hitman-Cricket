@@ -2891,6 +2891,8 @@ ${knockoutRulesMarkup()}
     if (watching && this.koWatch) this.koWatch.matchOver(over, now);
     this.koMoment?.roomEnd(winner, line, now);
   }
+  /** WINNER's count to Results on its left key. */
+  knockoutCountdown(now: () => void) { this.koMoment?.countToResults(now); }
   knockoutCount(n: number) { this.koWatch?.count(n); this.koMoment?.roomCount(n); }
   private koResults: KnockoutResults | null = null;
   /** The room's Results (A4), over the end screen: back is the end screen, PLAY AGAIN plays again. */

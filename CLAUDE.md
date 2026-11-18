@@ -2607,10 +2607,20 @@ ROOM, the line under KNOCKED OUT the result, and WATCH ON becomes RESULTS · 3,
 its face draining red (`roomEnd` on the moment, `over` on `Rings`). A tap, ✕
 or the key goes now (`resultsNow`). Then the replay's wipe in Knockout red,
 SUPER KNOCKOUT over RESULTS (`replayWipe('knockout')`), and under it the
-room's Results (`src/ui/KnockoutResults.ts`, `#ko-results`, KO room · 6 and
-X6's layout): the podium rising first, the rows after, the player's finish in
-the dock and PLAY AGAIN; a practice room's podium says sub. Back is the end
-screen, the result in its line and SCORECARD on its key. The winner's music
+room's Results (`src/ui/KnockoutResults.ts`, `#ko-results`): the leaderboard's
+own screen (`boardScreenMarkup` with a `look` of its own, Knockout red, the
+knockout's picture, RESULTS over Super Knockout and Practice room, its ids
+`ko-res-` so they never answer for the board's), so it scrolls as the boards
+do, the podium folding to chips as the list rises, with a banner of who won
+it and how and the player's finish in the dock over PLAY AGAIN; a practice
+room's podium says sub. A first build drew its own sheet, which scrolled
+nothing like the boards and whose design the owner found off. Back is the
+end screen, the result in its line and SCORECARD on its key. WINNER counts
+on to the same Results (`WON_RESULTS_MS` after it goes up: its SCORECARD key
+turns RESULTS · 3 and drains, `countToResults`), as the owner asked: it was
+left standing. Its crown sits on the ring along its 8° lean (`CROWN.sit`:
+its band is an arc made to sit on a circle), where by eye it floated a gap
+above it, as did the crowns over MATCH OVER and the winner's ring. The winner's music
 (`public/winner.mp3`, the owner's clip of 18 November 2026 cut to its first
 24 seconds from its first beat so it loops on the bar, the `winner` track at
 .62, being −11 LUFS) plays from MATCH OVER through Results, and under the

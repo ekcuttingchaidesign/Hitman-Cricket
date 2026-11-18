@@ -293,6 +293,8 @@ const ROOM_BALL_MS = 6500, ROOM_FIRST_MS = 5500, WATCH_LEAD = 700, WATCH_TAIL = 
  * from `count` for three seconds, the wipe at `wipe`, and Results under it halfway through.
  */
 const ROOM_END = { over: 400, wipe: 4000 } as const;
+/** WINNER's keys land at 2.6 seconds and it settles by 3: its count to Results starts after that (`ROOM_END` from here). */
+const WON_RESULTS_MS = 2800;
 interface RoomEnding { from: number; lit: boolean; shown: boolean; wiped: boolean; done: boolean; pin?: number }
 /** How long after the cut's ball the floodlights answer it, so the ball's own call has landed first. */
 const FLOOD_AFTER_MS = 450;
@@ -6487,6 +6489,8 @@ export class Game {
         view.won ? undefined : id => this.watch(id));
       // Knocked out with the room still going: it plays on, a ball at a time, as rings on the end screen (section 51).
       if (!view.won && !this.knockout.done) { this.room = { nextAt: this.elapsed + ROOM_FIRST_MS, watching: null, ball: null }; this.hud.knockoutRings(this.ringsOf()); }
+      // Won, WINNER plays and then counts to the room's Results, as any room's end does (section 52): never left standing.
+      if (view.won) this.room = { nextAt: Infinity, watching: null, ball: null, ending: { from: performance.now() + WON_RESULTS_MS, lit: true, shown: false, wiped: false, done: false } };
     }
     this.hud.rankHero(null, null);
     this.chaseCard();
@@ -7446,6 +7450,11 @@ export class Game {
       if (watching) { this.scene.floodlights('flash', this.elapsed); this.scene.cheer('hit-six', this.elapsed); }
       this.audio.cheer(CUT_CHEER);
     }
+    if (!e.shown && now >= ROOM_END.over && room.you.place === 1) {
+      e.shown = true;
+      this.hud.knockoutCountdown(() => this.resultsNow());
+      this.mark('knockout-won-results', 'WINNER counted on to the results');
+    }
     if (!e.shown && now >= ROOM_END.over) {
       e.shown = true;
       const winner = room.winner!, runner = room.seats.find(seat => seat.place === 2) ?? null, by = runner ? winner.runs - runner.runs : 0;
@@ -7471,6 +7480,7 @@ export class Game {
   }
   private roomLine() {
     const room = this.knockout!;
+    if (room.you.place === 1) return 'You won the room';
     return `${room.winner!.name} won the room · you were ${ordinal(room.you.place ?? room.seats.length).toLowerCase()}`;
   }
   /** Under the wipe: the game put away, the end screen told the result, and the room's Results over it. */
@@ -7487,8 +7497,12 @@ export class Game {
     const room = this.knockout!, seats = [...room.seats].sort((a, b) => (a.place ?? 99) - (b.place ?? 99));
     const lineOf = (seat: Seat) => seat.place === 1 ? 'Won the final' : seat.place === 2 ? 'Runner-up'
       : `Out in ${(seat.wentAt ?? room.bowled) > KNOCKOUT.cuts.length * KNOCKOUT.ballsPerOver ? 'the final' : `over ${Math.ceil((seat.wentAt ?? room.bowled) / KNOCKOUT.ballsPerOver)}`}`;
-    const you = room.you;
+    const you = room.you, winner = room.winner!, runner = room.seats.find(seat => seat.place === 2) ?? null, by = runner ? winner.runs - runner.runs : 0;
     return {
+      winner: {
+        title: winner.id === 0 ? 'You won the room' : `${winner.name} won the room`,
+        line: `${winner.runs} off ${winner.balls}${runner ? ` · outlasted ${runner.id === 0 ? 'you' : runner.name}${by > 0 ? ` by ${by}` : ''} in the final` : ''}`,
+      },
       rows: seats.map(seat => ({ place: seat.place ?? 0, name: seat.name, face: seat.face, runs: seat.runs, line: lineOf(seat), you: seat.id === 0 })),
       you: { place: you.place ?? seats.length, of: seats.length, face: you.face, runs: you.runs, line: `${this.knockoutView().line} · practice` },
     };

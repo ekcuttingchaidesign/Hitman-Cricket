@@ -106,8 +106,14 @@ interface Shard { el: HTMLElement; vx: number; vy: number; spin: number; delay: 
 const W = 402, H = 874, CX = 201;
 /** Where the clash happens, and where the winner's face stands at the end (K11: 150 round at 126, 186). */
 const CLASH_Y = 330, WIN = { x: 201, y: 261, d: 150 };
-/** K11's crown: 87.4 by 50.5, turned 8° to the left, its middle at 197.9, 155.4. */
-const CROWN = { dx: -3.1, dy: -105.6, w: 87.4, h: 50.5, turn: -8 };
+/**
+ * K11's crown: 87.4 by 50.5, turned 8° to the left, sitting on the ring. Its band is an arc drawn to
+ * sit on a circle, so it stands on the ring's curve along its own lean: its middle `sit` out from the
+ * face's centre that way (the ring's outer edge, 79, less a point to seat it, and the band's foot,
+ * 19.8 under the crown's middle). Placed by eye at K11's 197.9, 155.4 it stood a gap clear of the
+ * ring, which the owner saw on a phone.
+ */
+const CROWN = { w: 87.4, h: 50.5, turn: -8, sit: 78 + 19.8 };
 /** K9 v2's face, flattened: 132 by 124 at 135, 340. */
 const LOST = { x: 201, y: 402, w: 132, h: 124 };
 const C = { red: '#EE2A2A', gold: '#FFB020', ink: '#0C0809', cream: '#F5EFE6', dark: '#050404' };
@@ -278,6 +284,16 @@ export class KnockoutMoment {
     this.root.querySelector('#ko-card')?.classList.add('is-counting');
     this.label('RESULTS · 3');
     this.draw();
+  }
+  /**
+   * WINNER's own count to Results (section 52, the owner's note on K11): once its keys have landed,
+   * SCORECARD turns RESULTS · 3, its face draining red, and goes on to the room's Results by itself;
+   * a tap on it goes now.
+   */
+  countToResults(now: () => void) {
+    this.toResults = now;
+    this.root.querySelector('#ko-card')?.classList.add('is-counting');
+    this.label('RESULTS · 3');
   }
   /** The count on the key. */
   roomCount(n: number) { if (this.toResults) this.label(`RESULTS · ${n}`); }
@@ -686,7 +702,7 @@ export class KnockoutMoment {
     // The crown drops under gravity on to K11's place over the face, turned 8° to the left, and hops once.
     if (t >= 1.3 && this.crown) {
       const scale = yd / WIN.d, cw = CROWN.w * scale, ch = CROWN.h * scale;
-      const restX = yx + CROWN.dx * scale, restY = yy + CROWN.dy * scale;
+      const restX = yx + Math.sin(rad(CROWN.turn)) * CROWN.sit * scale, restY = yy - Math.cos(rad(CROWN.turn)) * CROWN.sit * scale;
       const p = prog(t, 1.3, 1.6), h = prog(t, 1.6, 1.85);
       const y = lerp(-120, restY, p * p) - Math.sin(Math.PI * h) * 14;
       const sq = p >= 1 ? Math.sin(Math.PI * prog(t, 1.6, 1.7)) * (1 - h) : 0;

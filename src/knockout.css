@@ -482,7 +482,8 @@ body.ko-watch #end{visibility:hidden}
 .ko-ring.is-winner{position:relative;width:calc(var(--u,1px) * 72);cursor:default}
 .ko-ring.is-winner .ko-ring-face{width:calc(var(--u,1px) * 70);height:calc(var(--u,1px) * 70);background:#ffb020;box-shadow:0 0 calc(var(--u,1px) * 18) #ffb02066;
   animation:ko-win-grow .6s cubic-bezier(.34,1.56,.64,1) both}
-.ko-ring-crown{position:absolute;top:calc(var(--u,1px) * -16);left:50%;width:calc(var(--u,1px) * 34);translate:-50% 0;rotate:-8deg;z-index:1;
+/* On the ring's curve along its lean (its band is an arc made to sit on a circle), never floating over it. */
+.ko-ring-crown{position:absolute;top:calc(var(--u,1px) * -15);left:calc(50% - var(--u,1px) * 4.6);width:calc(var(--u,1px) * 34);translate:-50% 0;rotate:-8deg;z-index:1;
   animation:ko-crown-drop .5s .35s cubic-bezier(.34,1.56,.64,1) both}
 @keyframes ko-win-grow{from{transform:scale(.77)}to{transform:none}}
 @keyframes ko-crown-drop{from{opacity:0;transform:translateY(calc(var(--u,1px) * -26))}to{opacity:1;transform:none}}
@@ -504,7 +505,7 @@ body.ko-watch #end{visibility:hidden}
 .ko-mo-winner{position:relative;margin-top:calc(var(--u,1px) * 44);animation:ko-rise .6s .3s cubic-bezier(.34,1.56,.64,1) both}
 .ko-mo-ring{display:block;width:calc(var(--u,1px) * 132);height:calc(var(--u,1px) * 132);padding:calc(var(--u,1px) * 6);box-sizing:border-box;border-radius:50%;border:calc(var(--u,1px) * 4) solid #ffc83d;box-shadow:0 0 calc(var(--u,1px) * 30) #ffc83d55}
 .ko-mo-ring img{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover}
-.ko-mo-crown{position:absolute;top:calc(var(--u,1px) * -36);left:50%;width:calc(var(--u,1px) * 56);translate:-50% 0;z-index:1;animation:ko-crown-drop .5s .75s cubic-bezier(.34,1.56,.64,1) both}
+.ko-mo-crown{position:absolute;top:calc(var(--u,1px) * -27);left:calc(50% - var(--u,1px) * 9);width:calc(var(--u,1px) * 56);translate:-50% 0;rotate:-8deg;z-index:1;animation:ko-crown-drop .5s .75s cubic-bezier(.34,1.56,.64,1) both}
 .ko-mo-name{margin:calc(var(--u,1px) * 20) 0 0;font:400 calc(var(--u,1px) * 30)/1 var(--f-display);color:#ffc83d;animation:ko-fade .4s .7s both}
 .ko-mo-line{margin:calc(var(--u,1px) * 12) 0 0;font:600 calc(var(--u,1px) * 14)/1.3 var(--f-ui);color:#e6e6e6;animation:ko-fade .4s .8s both}
 .ko-mo-you{margin:calc(var(--u,1px) * 6) 0 0;font:500 calc(var(--u,1px) * 13)/1.3 var(--f-ui);color:#9a9a9a;animation:ko-fade .4s .85s both}
@@ -528,54 +529,13 @@ body.ko-watch #end{visibility:hidden}
 #replay-wipe.is-knockout .rw-over{font:800 calc(var(--u) * 14)/1 var(--f-ui);letter-spacing:.3em;color:#fff}
 #replay-wipe.is-knockout .rw-word{font-size:calc(var(--u) * 68);letter-spacing:.02em;color:#fff;text-shadow:0 calc(var(--u) * 4) calc(var(--u) * 14) #0007}
 
-/* A4, the room's Results. */
-.ko-results{position:absolute;inset:0;z-index:125;display:flex;flex-direction:column;overflow:hidden;color:#f5efe6;font-family:var(--f-ui);
-  background:radial-gradient(120% 50% at 50% 18%,#7a1420 0%,#2a0b10 45%,#0c0809 75%),#0c0809;animation:ko-fade .25s both}
-.ko-res-top{display:flex;align-items:center;gap:calc(var(--u,1px) * 12);padding:calc(var(--u,1px) * 48 + env(safe-area-inset-top,0px)) calc(var(--u,1px) * 20) 0}
-.ko-res-top h2{margin:0;font:400 calc(var(--u,1px) * 22)/1 var(--f-display);letter-spacing:.06em}
-.ko-res-back{width:calc(var(--u,1px) * 44);height:calc(var(--u,1px) * 44);border-radius:calc(var(--u,1px) * 12);border:1px solid #ffffff1f;background:#ffffff0f;display:grid;place-items:center;cursor:pointer;padding:0}
-.ko-res-back svg{width:calc(var(--u,1px) * 22);height:calc(var(--u,1px) * 22);fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
-.ko-res-chips{display:flex;gap:calc(var(--u,1px) * 8);padding:calc(var(--u,1px) * 12) calc(var(--u,1px) * 20) 0}
-.ko-res-chips span{display:flex;align-items:center;gap:calc(var(--u,1px) * 8);height:calc(var(--u,1px) * 36);padding:0 calc(var(--u,1px) * 14);border-radius:calc(var(--u,1px) * 18);border:1px solid #ffffff1f;background:#ffffff0d;font:700 calc(var(--u,1px) * 13)/1 var(--f-ui)}
-.ko-res-chips i{width:calc(var(--u,1px) * 7);height:calc(var(--u,1px) * 7);border-radius:50%;background:#ee2a2a}
-.ko-res-podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;align-items:end;padding:calc(var(--u,1px) * 26) calc(var(--u,1px) * 8) 0;flex:0 0 auto}
-.ko-res-step{position:relative;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u,1px) * 3);padding-bottom:calc(var(--u,1px) * 46);animation:ko-rise .55s cubic-bezier(.34,1.4,.64,1) both}
-/* The spotlight under each step, on its own layer so its cut does not cut the crown. */
-.ko-res-step::before{content:"";position:absolute;inset:calc(var(--u,1px) * 30) 0 0;z-index:-1;background:linear-gradient(180deg,#ffffff00,#ffffff14);clip-path:polygon(28% 0,72% 0,100% 100%,0 100%)}
-.ko-res-step.is-1::before{background:linear-gradient(180deg,#ee2a2a00,#ee2a2a40)}
-.ko-res-podium{isolation:isolate}
-.ko-res-step.is-1{padding-bottom:calc(var(--u,1px) * 60);animation-delay:.15s}
-.ko-res-step.is-2{animation-delay:.3s}
-.ko-res-step.is-3{animation-delay:.42s}
-.ko-res-face{display:block;width:calc(var(--u,1px) * 62);height:calc(var(--u,1px) * 62);border-radius:50%;padding:calc(var(--u,1px) * 3);box-sizing:border-box;background:#9aa0a8}
-.ko-res-step.is-1 .ko-res-face{width:calc(var(--u,1px) * 78);height:calc(var(--u,1px) * 78);background:#ee2a2a}
-.ko-res-step.is-3 .ko-res-face{background:#b0703c}
-.ko-res-face img{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover}
-.ko-res-crown{position:absolute;top:calc(var(--u,1px) * -20);width:calc(var(--u,1px) * 36);rotate:-8deg;z-index:1}
-.ko-res-name{font:700 calc(var(--u,1px) * 14)/1.2 var(--f-ui);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ko-res-runs{font:900 calc(var(--u,1px) * 20)/1 var(--f-ui)}
-.ko-res-step small{font:500 calc(var(--u,1px) * 11)/1 var(--f-ui);color:#ffb020}
-.ko-res-place{position:absolute;bottom:calc(var(--u,1px) * -8);font:400 calc(var(--u,1px) * 46)/1 var(--f-display);font-style:normal;color:#9aa0a8}
-.ko-res-step.is-1 .ko-res-place{font-size:calc(var(--u,1px) * 58);color:#c3121b}
-.ko-res-step.is-3 .ko-res-place{color:#b0703c}
-.ko-res-list{flex:1;min-height:0;overflow-y:auto;margin:0;padding:calc(var(--u,1px) * 10) calc(var(--u,1px) * 16) calc(var(--u,1px) * 170);list-style:none;
-  border-radius:calc(var(--u,1px) * 24) calc(var(--u,1px) * 24) 0 0;border-top:1px solid #ee2a2a33;background:linear-gradient(180deg,#2a1216,#140b0d 40%)}
-.ko-res-row{display:flex;align-items:center;gap:calc(var(--u,1px) * 12);height:calc(var(--u,1px) * 52);padding:0 calc(var(--u,1px) * 8);border-radius:calc(var(--u,1px) * 12);
-  animation:ko-row-in .4s calc(.55s + var(--i) * .05s) cubic-bezier(.2,.8,.2,1) both}
-.ko-res-row.is-you{background:#ffffff0f;box-shadow:inset 0 0 0 1px #ffffff2e}
-.ko-res-at{width:calc(var(--u,1px) * 20);font:700 calc(var(--u,1px) * 13)/1 var(--f-ui);color:#9aa0a8}
-.ko-res-row img,.ko-res-you img{width:calc(var(--u,1px) * 34);height:calc(var(--u,1px) * 34);border-radius:50%;object-fit:cover}
-.ko-res-who,.ko-res-you span:not(.ko-res-score){flex:1;min-width:0;display:flex;flex-direction:column;gap:calc(var(--u,1px) * 3)}
-.ko-res-who b,.ko-res-you b{font:700 calc(var(--u,1px) * 15)/1.1 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ko-res-who small,.ko-res-you small{font:500 calc(var(--u,1px) * 11)/1.2 var(--f-ui);color:#9aa0a8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ko-res-score{font:900 calc(var(--u,1px) * 20)/1 var(--f-ui)}
-.ko-res-dock{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:calc(var(--u,1px) * 10);padding:calc(var(--u,1px) * 30) calc(var(--u,1px) * 16) calc(var(--u,1px) * 22 + env(safe-area-inset-bottom,0px));
-  background:linear-gradient(180deg,#0c080900,#0c0809 30%);animation:ko-rise .45s 1s cubic-bezier(.2,.8,.2,1) both}
-.ko-res-you{display:flex;align-items:center;gap:calc(var(--u,1px) * 12);height:calc(var(--u,1px) * 58);padding:0 calc(var(--u,1px) * 16) 0 calc(var(--u,1px) * 12);border-radius:calc(var(--u,1px) * 29);
-  border:1px solid #ffffff59;background:#ffffff0d}
-.ko-res-dock .k-cta--primary{--c-cta-rim-top:#ff525b;--c-cta-rim-bottom:#c3121b;--c-cta-face-bottom:#ffbdc0;
+/* A4, the room's Results: the leaderboard's own screen (`boardScreenMarkup`) in Knockout red. */
+.ko-results{position:absolute;inset:0;z-index:125;background:var(--c-page);animation:ko-fade .25s both}
+.lb-screen.is-knockout #ko-res-info,.lb-screen.is-knockout #ko-res-sound{display:none}
+.lb-screen.is-knockout .lb-pill{pointer-events:none}
+.lb-screen.is-knockout .lb-pill svg{display:none}
+.lb-screen.is-knockout .lb-dock .k-cta--primary{--c-cta-rim-top:#ff525b;--c-cta-rim-bottom:#c3121b;--c-cta-face-bottom:#ffbdc0;
   --g-cta-rim:linear-gradient(180deg,#ff525b,#c3121b);--g-cta-face:linear-gradient(180deg,#fff,#ffbdc0);--ledge:#c3121b}
-@keyframes ko-row-in{from{opacity:0;transform:translateX(calc(var(--u,1px) * 24))}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){
-  .ko-mo *,.ko-mo-dim,.ko-results,.ko-results *,.ko-ring.is-winner .ko-ring-face,.ko-ring-crown{animation:none!important}
+  .ko-mo *,.ko-mo-dim,.ko-results,.ko-ring.is-winner .ko-ring-face,.ko-ring-crown{animation:none!important}
   #ko-card.is-counting .k-cta-face::before{animation:none;transform:scaleX(.5)}}
