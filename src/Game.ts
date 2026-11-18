@@ -169,8 +169,9 @@ import { nameProblem, renameReason, siblingReason } from './server/name-rules';
 import { cleanName, foldName } from './server/board-store';
 import { kitDeal } from './config/board';
 import { encodeInnings, limitsOf } from './game/ball-string';
-import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, sampleTrack, trackOf, type TrackMood } from './game/knockout';
+import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, freeHitOf, sampleTrack, trackOf, type TrackMood } from './game/knockout';
 import { KnockoutMoment, type MomentView } from './ui/KnockoutMoment';
+import { markRulesSeen, readTally, rulesSeen, tallyRoom } from './ui/KnockoutHome';
 import { demoRoom, demoWanted as roomDemoWanted } from './game/room-demo';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
 const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'];
@@ -292,6 +293,13 @@ const SUPER10_OPEN = SUPER10_ONLY || !SURVIVE_ONLY;
  * the switch makes it practice (`practice.ts`). Not in the two Pages builds.
  */
 const KNOCKOUT_ASKED = !NO_BOARD && new URLSearchParams(location.search).get('knockout') === '1';
+/**
+ * Super Knockout on Choose a mode (its poster, its card, its home and its
+ * rules): off production until it launches, as Super10 was, and never in the
+ * two Pages builds. Until rooms with real players come, every match from
+ * there is a practice room against subs, as `?knockout=1` is.
+ */
+const KNOCKOUT_OPEN = !NO_BOARD && !SURVIVE_ONLY && !SUPER10_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production';
 /** Its innings, for `ScoreManager`: one wicket, and balls enough for the room's longest match. */
 const KNOCKOUT_LIMITS: InningsLimits = { totalBalls: KNOCKOUT.maxBalls, maxWickets: 1, ballsPerOver: KNOCKOUT.ballsPerOver };
 /** Challenges from a profile in Super10: wherever Super10 is played and a room can be reached. */
@@ -317,10 +325,10 @@ interface Kept {
   /** From release: the swing, the ball resolved, and the bat on it; and from the bat, the ball where it was going. */
   swingAfter: number; resolveAfter: number; contactAfter: number; arrives: number; held?: number; bowled?: boolean;
 }
-function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' {
+function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' | 'KNOCKOUT' {
   try {
     const kept = localStorage.getItem(LAST_MODE_KEY);
-    return kept === 'MARATHON' || kept === 'SURVIVE' || (kept === 'SUPER10' && SUPER10_OPEN && !SUPER10_ONLY) ? kept : 'CLASSIC';
+    return kept === 'MARATHON' || kept === 'SURVIVE' || (kept === 'SUPER10' && SUPER10_OPEN && !SUPER10_ONLY) || (kept === 'KNOCKOUT' && KNOCKOUT_OPEN) ? kept : 'CLASSIC';
   } catch { return 'CLASSIC'; }
 }
 
@@ -920,6 +928,15 @@ export class Game {
     // Super10's PLAY card: the whole card plays it.
     this.hud.on('mode-super10', () => { track('super10-play-card', 'Played Super10 from its card on Choose a mode'); this.choose('SUPER10'); });
     this.hud.on('mode-super10-poster', () => { track('super10-play-poster', 'Played Super10 from its poster on Choose a mode'); this.choose('SUPER10'); });
+    // Super Knockout's card and poster open its home; the card's (i) and the home's open how it works.
+    this.hud.on('mode-knockout', this.openKnockout);
+    this.hud.on('mode-knockout-poster', this.openKnockout);
+    this.hud.on('mode-knockout-info', () => { markRulesSeen(); this.hud.knockoutRules(true); });
+    this.hud.on('ko-home-back', () => this.hud.knockoutHome(null));
+    this.hud.on('ko-home-info', () => { markRulesSeen(); this.hud.knockoutRules(true); });
+    this.hud.on('ko-rules-back', () => this.hud.knockoutRules(false));
+    this.hud.on('ko-quick', this.chooseKnockout);
+    this.hud.on('ko-rules-quick', this.chooseKnockout);
     // My Stats from Choose a mode: the avatar at the top and the tier card in the bento.
     this.hud.on('modes-profile', this.showStats);
     this.hud.on('modes-bell', () => this.openNotices());
@@ -1017,6 +1034,7 @@ export class Game {
     this.hud.showMarathonTab(MARATHON_OPEN);
     // Super10's board where Super10 can be played, and never in the tester build, which keeps nothing.
     this.hud.showSuper10Tab(SUPER10_OPEN && !SUPER10_ONLY);
+    this.hud.showKnockout(KNOCKOUT_OPEN);
     this.hud.onBoardTab = this.tabBoard;
     this.hud.onBoardStories = () => this.showStories('board');
     // OPEN THE DRESSING ROOM, on the last story: after the stories, the room,
@@ -1349,6 +1367,7 @@ export class Game {
     const surviveBest = survive.wins > 0 ? 'Won a chase' : survive.draws > 0 ? SURVIVED : survive.innings > 0 ? 'Bowled out' : null;
     return {
       player: readPlayer(),
+      knockout: readTally(),
       marathon: { best: marathon.innings > 0 && marathon.highest > 0 ? String(marathon.highest) : null, rank: null },
       blast: { best: this.best > 0 ? String(this.best) : null, rank: at >= 0 ? at + 1 : null },
       survive: { best: surviveBest, rank: null },
@@ -2395,6 +2414,7 @@ export class Game {
   }
   choose = (mode: GameMode) => {
     this.mode = mode;
+    this.knockoutPicked = false;
     // The mode played last, where Choose a mode's rail opens next time.
     try { if (mode === 'CLASSIC' || mode === 'MARATHON' || mode === 'SURVIVE' || mode === 'SUPER10') localStorage.setItem(LAST_MODE_KEY, mode); } catch { /* Then it opens on the Blast. */ }
     this.walkOut();
@@ -2405,6 +2425,21 @@ export class Game {
    * the old ground up first, to be swiped off the new one; the stadium is
    * nobody's news any more, so a player now walks straight out to bat.
    */
+  /** Super Knockout from its home: a practice room against subs, the Blast's ball with one wicket. */
+  private chooseKnockout = () => {
+    this.hud.knockoutRules(false); this.hud.knockoutHome(null); this.hud.closeModes();
+    this.mode = 'CLASSIC';
+    this.knockoutPicked = true;
+    try { localStorage.setItem(LAST_MODE_KEY, 'KNOCKOUT'); } catch { /* Then it opens on the Blast. */ }
+    track('knockout-quick-match', 'Quick match in Super Knockout (practice room)');
+    this.walkOut();
+  };
+  /** Super Knockout's home over Choose a mode, with its rules over it the first time a browser opens it. */
+  private openKnockout = () => {
+    this.hud.knockoutHome(readTally());
+    track('knockout-home', 'Opened Super Knockout');
+    if (!rulesSeen()) { markRulesSeen(); this.hud.knockoutRules(true); }
+  };
   private walkOut = () => this.start();
   start = () => {
     // Whatever led here — ANSWER, AGAIN or WIN IT BACK on Notifications — the innings is not played under it.
@@ -2457,6 +2492,7 @@ export class Game {
     if (this.marathon) this.health = this.marathon.current.health;
     this.knockout = this.knockingOut ? new KnockoutRoom(this.seed, { name: readPlayer()?.name || 'You', face: readPlayer()?.avatar ?? 0 }) : null;
     this.hud.knockout(this.knockout ? chipOf(this.knockout.standing()) : null);
+    this.hud.knockoutFreeHit(null, true);
     this.hud.knockoutTrack(this.knockout ? trackOf(this.knockout) : null, this.knockout?.you.face);
     this.hud.knockoutEnd(null);
     this.ease = this.newcomerEase();
@@ -2846,7 +2882,9 @@ export class Game {
   /** A Test match of either kind: how it looks — whites, the Test field, by day. See `modes.ts`. */
   private get test() { return isTest(this.mode); }
   /** A Super Knockout practice room: asked for by the link, in the Blast, never in a Rival Match. */
-  private get knockingOut() { return KNOCKOUT_ASKED && this.mode === 'CLASSIC' && !this.challenge.playing; }
+  /** Super Knockout chosen from its home, rather than asked for by the link (`?knockout=1`); let go when any other mode is chosen. */
+  private knockoutPicked = false;
+  private get knockingOut() { return (KNOCKOUT_ASKED || this.knockoutPicked) && this.mode === 'CLASSIC' && !this.challenge.playing; }
   private get limits() {
     if (this.knockingOut) return KNOCKOUT_LIMITS;
     return this.surviving ? SURVIVE_LIMITS : this.marathoning ? MARATHON_LIMITS : this.super10 ? SUPER10_LIMITS : CLASSIC_LIMITS;
@@ -2863,7 +2901,7 @@ export class Game {
    * (`SUPER10_ONLY`), which keeps nothing. Super10 itself has a board and a
    * career now, and counts everywhere else.
    */
-  private get practising() { return (this.switches.length > 0 || (this.super10 && SUPER10_ONLY)) && !this.challenge.playing; }
+  private get practising() { return (this.switches.length > 0 || (this.super10 && SUPER10_ONLY) || this.knockingOut) && !this.challenge.playing; }
   /**
    * What a card offers, once the innings is known to be practice or played in
    * a private window. An innings with nothing to offer stays quiet either way.
@@ -4819,6 +4857,8 @@ export class Game {
       if (this.outcome.fielder) this.mark(`fielded-${this.outcome.fielder.how}`, 'A ball fielded');
       if (lane && struck >= 4 && this.outcome.runs >= 4) this.s10.boundaries.push(line);
     }
+    // Super Knockout's free hit: a wicket on it does not count (`freeHitOf`).
+    if (!step && this.knockout?.freeHit()) this.outcome = freeHitOf(this.outcome);
     if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);
     else {
       this.score.record(this.outcome); this.generator.record(this.outcome);
@@ -4915,9 +4955,10 @@ export class Game {
         runs: typeof ball === 'number' ? ball : 0, isWicket: ball === 'W', quality: 0, feedback: '',
         timingGrade: 'MISS', timingDeltaMs: null, compatibility: 0, madeBatContact: false, aerial: false,
       } as ShotOutcome;
-      this.score.record(outcome); this.generator.record(outcome);
-      if (this.knockout) this.knockoutBall(this.delivery, outcome);
-      this.chaseBall(outcome);
+      const played = this.knockout?.freeHit() ? freeHitOf(outcome) : outcome;
+      this.score.record(played); this.generator.record(played);
+      if (this.knockout) this.knockoutBall(this.delivery, played);
+      this.chaseBall(played);
       // Super10's next man walks out, as he would off a real ball.
       if (this.super10 && outcome.isWicket && !this.score.ended) { this.changed = 'OUT'; this.nextBatter(); }
     }
@@ -6334,6 +6375,7 @@ export class Game {
     if (this.knockout?.finished) {
       const view = this.knockoutView();
       this.mark(view.won ? 'knockout-won' : `knockout-out-${view.place}`, view.won ? 'Super Knockout practice room won' : 'Knocked out of a Super Knockout practice room');
+      tallyRoom(view.won ? 1 : view.place);
       this.hud.knockoutEnd(view);
     }
     this.hud.rankHero(null, null);
@@ -7220,6 +7262,8 @@ export class Game {
     if (line) this.hud.callOut(line);
     this.hud.knockout(room.finished ? null : chipOf(room.standing()));
     this.hud.knockoutTrack(room.finished ? null : trackOf(room), room.you.face);
+    // The next ball's slot on the scoreboard says the player's free hit.
+    this.hud.knockoutFreeHit(!room.finished && room.freeHit() ? room.bowled : null);
   }
   /** KNOCKED OUT or WINNER, from the room as it stands once the player's match is over. */
   private knockoutView(): MomentView {

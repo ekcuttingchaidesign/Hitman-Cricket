@@ -1,6 +1,7 @@
 import { KnockoutMoment, type MomentView } from './KnockoutMoment';
 import { overLine, type Track } from '../game/knockout';
 import { KnockoutBar, knockoutBarMarkup } from './KnockoutBar';
+import { knockoutHomeMarkup, knockoutRulesMarkup, type KnockoutTally } from './KnockoutHome';
 import { limitsOf } from '../game/ball-string';
 import { WIPE_MS, type ReplayLook } from '../game/replay';
 import { chaseEndMarkup } from './MatchEnd';
@@ -121,7 +122,7 @@ const REPLAY_TITLE = new URL('../assets/title.webp', import.meta.url).href;
 import type { OwnActivity } from '../game/profile-api';
 import wifiOff from '../assets/board/wifi-off.svg?raw';
 /** Each poster on Choose a mode's rail, by its mode, to its dot in the pager under it. */
-const POSTER_DOTS: Record<string, string> = { CLASSIC: 'blast', MARATHON: 'marathon', SUPER10: 'super10', SURVIVE: 'survival' };
+const POSTER_DOTS: Record<string, string> = { CLASSIC: 'blast', MARATHON: 'marathon', SUPER10: 'super10', KNOCKOUT: 'knockout', SURVIVE: 'survival' };
 /** OPENER to Opener and NO. 3 to No. 3: the batters' titles as a scorecard writes them. */
 const titleCase = (title: string) => title.charAt(0) + title.slice(1).toLowerCase();
 /** 1st, 2nd, 3rd, 12th. The board sheet spells them the same way. */
@@ -587,6 +588,8 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
             </div>
         </div>
 ${modeSelectMarkup()}
+${knockoutHomeMarkup()}
+${knockoutRulesMarkup()}
         <div id="challenge-room" class="modal-overlay room-screen hidden" role="dialog" aria-modal="true" aria-labelledby="room-title">
           <div class="room-sheet">
             <div class="mode-top room-top">
@@ -2397,6 +2400,43 @@ ${modeSelectMarkup()}
     this.$('mode-super10-poster').classList.toggle('hidden', !on);
     this.viewport.querySelector('.ms-pager .is-super10')?.classList.toggle('hidden', !on);
   }
+  /**
+   * Super Knockout on Choose a mode (Figma "Super Knockout · Final", K1): its
+   * poster on the rail between the Marathon and Survival, Super10's poster
+   * moved to the front of the rail, and its card under the rail in Super10's
+   * card's place. Where it is not open the screen is as it was.
+   */
+  private knockoutOpen = false;
+  showKnockout(on: boolean) {
+    this.knockoutOpen = on;
+    this.$('mode-knockout-poster').classList.toggle('hidden', !on);
+    this.viewport.querySelector('.ms-pager .is-knockout')?.classList.toggle('hidden', !on);
+    this.$('mode-knockout-card').classList.toggle('hidden', !on);
+    if (!on) return;
+    this.$('mode-super10').classList.add('hidden');
+    const rail = this.$('modes-rail'), pager = this.viewport.querySelector('.ms-pager');
+    rail.prepend(this.$('mode-super10-poster'));
+    const dot = pager?.querySelector('.is-super10');
+    if (pager && dot) pager.prepend(dot);
+  }
+  /** Super Knockout's home (K2) over Choose a mode, with this browser's practice rooms; null puts it away. */
+  knockoutHome(tally: KnockoutTally | null) {
+    const home = this.$('knockout-home');
+    home.classList.toggle('hidden', !tally);
+    if (!tally) return;
+    this.$('ko-home-played').textContent = String(tally.played);
+    this.$('ko-home-best').textContent = tally.best ? `#${tally.best}` : '–';
+    this.$('ko-home-wins').textContent = String(tally.wins);
+    home.querySelector('.ko-scroll')?.scrollTo({ top: 0 });
+    (this.$('ko-quick') as HTMLButtonElement).focus({ preventScroll: true });
+  }
+  /** How Super Knockout works (K2b), over whatever opened it. */
+  knockoutRules(open: boolean) {
+    const rules = this.$('knockout-rules');
+    rules.classList.toggle('hidden', !open);
+    if (open) { rules.querySelector('.ko-scroll')?.scrollTo({ top: 0 }); (this.$('ko-rules-quick') as HTMLButtonElement).focus({ preventScroll: true }); }
+  }
+  get knockoutScreenOpen() { return !this.$('knockout-home').classList.contains('hidden') || !this.$('knockout-rules').classList.contains('hidden'); }
   /** What a tab does. The game decides, because the rows are the game's. */
   onBoardTab: ((tab: SheetTab) => void) | null = null;
   /** What the sheet's What's New key does. */
@@ -2614,12 +2654,28 @@ ${modeSelectMarkup()}
     if (!document.body.classList.contains('knockout-mode')) return;
     const bowled = score.history.length;
     this.$('overs-label').textContent = overLine(bowled);
-    const from = bowled ? Math.floor((bowled - 1) / 6) * 6 : 0;
+    // A free hit to come turns the row over to the next over at once, its first slot saying so.
+    const freeNext = this.koFreeNext === bowled;
+    const from = freeNext ? bowled : bowled ? Math.floor((bowled - 1) / 6) * 6 : 0;
     [...this.$('ko-over').children].forEach((cell, i) => {
-      const ball = score.history[from + i];
-      cell.textContent = ball ? ball.isWicket ? 'W' : ball.runs ? String(ball.runs) : '·' : '';
-      (cell as HTMLElement).className = !ball ? '' : ball.isWicket ? 'is-out' : ball.runs >= 4 ? 'is-boundary' : 'is-ball';
+      const at = from + i, ball = score.history[at], free = this.koFree.has(at);
+      cell.textContent = ball ? ball.isWicket ? 'W' : ball.runs ? String(ball.runs) : '·' : free ? 'FH' : '';
+      const kind = !ball ? '' : ball.isWicket ? 'is-out' : ball.runs >= 4 ? 'is-boundary' : 'is-ball';
+      (cell as HTMLElement).className = `${kind}${free ? ' is-free' : ''}${free && !ball ? ' is-next' : ''}`.trim();
     });
+  }
+  /** The balls of this innings that were the player's free hits, by index, and the one still to come. */
+  private koFree = new Set<number>();
+  private koFreeNext: number | null = null;
+  /**
+   * Super Knockout's free hit: the index of the player's next ball when it is
+   * one (a gold edge and FH in its slot, shimmering once), or null. `fresh`
+   * forgets the innings before.
+   */
+  knockoutFreeHit(next: number | null, fresh = false) {
+    if (fresh) this.koFree.clear();
+    this.koFreeNext = next;
+    if (next !== null) this.koFree.add(next);
   }
   start(surviving = false, marathon = false) {
     document.body.classList.remove('tutorial-active', 'start-screen');
@@ -4694,7 +4750,7 @@ ${modeSelectMarkup()}
   private super10Spark!: Super10Spark;
 
   /** The mode picker, settled on `at` (the mode played last). Skipped entirely when a link has already named the mode. */
-  modes(at: 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' = 'CLASSIC') {
+  modes(at: 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' | 'KNOCKOUT' = 'CLASSIC') {
     // Whatever was over the ground goes first. The picker is a screen, and both
     // end cards sit later in the markup on the same layer — opened from one of
     // them the picker appeared *behind* it, which read as the key doing nothing.
@@ -4715,7 +4771,7 @@ ${modeSelectMarkup()}
     const poster = this.posters().find(p => p.dataset.mode === at) ?? this.posters()[0];
     if (poster) rail.scrollLeft = this.railLeft(poster);
     this.followRail();
-    if (this.super10Tab) this.super10Spark.start();
+    if (this.super10Tab && !this.knockoutOpen) this.super10Spark.start();
   }
   closeModes() {
     this.super10Spark.stop();
@@ -5782,6 +5838,7 @@ ${modeSelectMarkup()}
     }
     this.$('mode-marathon').classList.toggle('is-played', !!view.marathon.best);
     this.$('mode-survive').classList.toggle('is-played', !!view.survive.best);
+    this.$('mode-knockout-poster').classList.toggle('is-played', view.knockout.played > 0);
     this.$('modes-dressing').classList.toggle('is-visited', view.dressing.visited);
     this.$('modes-dressing').classList.toggle('has-diwali', !!view.dressing.diwali);
     this.$('modes-dressing').setAttribute('aria-label', view.dressing.diwali ? 'Dressing Room, new Diwali kits' : 'Dressing Room');

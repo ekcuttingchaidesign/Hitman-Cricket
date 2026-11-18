@@ -5,7 +5,10 @@
  * and Test Survival, with the player's best and place on each (Figma 16E,
  * 450:5037; Super10's is its PLAY card's picture and logo); under them
  * Super10's PLAY card, the whole card playing it (`Super10Card.ts`,
- * Figma section 20); then the boards, My Stats in the material of the tier
+ * Figma section 20). Where Super Knockout is open (`showKnockout` in the
+ * HUD) the rail is Super10, the Blast, the Marathon, Super Knockout and
+ * Survival, and Super Knockout's card takes Super10's place under it
+ * (Figma "Super Knockout · Final", K1; `KnockoutHome.ts`); then the boards, My Stats in the material of the tier
  * the player is on, and Rivals. A new player sees the same screen with "Not
  * played" on the posters, the Debutant card and the Rivals invitation in
  * place of a record.
@@ -23,6 +26,7 @@ import type { Player } from '../game/player';
 import { escape } from './Leaderboard';
 import { cta, icon } from './Kit';
 import { super10CardMarkup, super10CardWords } from './Super10Card';
+import { knockoutCardMarkup, knockoutCardWords, knockoutPosterMarkup, type KnockoutTally } from './KnockoutHome';
 
 const POSTER_MARATHON = new URL('../assets/entry/poster-marathon.webp', import.meta.url).href;
 const POSTER_BLAST = new URL('../assets/cover-drive.webp', import.meta.url).href;
@@ -52,6 +56,8 @@ export interface ModeSelectView {
   blastRank: number | null;
   stats: { runs: number; tier: { key: string; name: string } };
   rivals: RivalsRecord | null;
+  /** Super Knockout's practice rooms in this browser, for its poster and card (`KnockoutHome.ts`). */
+  knockout: KnockoutTally;
   /** The Dressing Room: how many of the kits and bats are earned, of how many, and whether it has been opened yet. */
   dressing: { earned: number; of: number; visited: boolean; diwali?: boolean };
 }
@@ -101,6 +107,9 @@ export function modeSelectParts(view: ModeSelectView): Record<string, string> {
     'mode-super10-stat': escape(posterStat(view.super10)),
     'mode-super10-tag': escape(super10CardWords(view.super10.best, view.super10.rank).tag),
     'mode-super10-line': escape(super10CardWords(view.super10.best, view.super10.rank).line),
+    'mode-knockout-stat': escape(knockoutCardWords(view.knockout).stat),
+    'mode-knockout-tag': escape(knockoutCardWords(view.knockout).tag),
+    'mode-knockout-line': escape(knockoutCardWords(view.knockout).line),
     'modes-podium-faces': podium,
     'modes-board-note': escape(boardNote(view.blastRank)),
     'modes-stats-runs': view.stats.runs.toLocaleString('en-US'),
@@ -158,6 +167,7 @@ export function modeSelectMarkup(): string {
                 <span class="ms-desc">10 overs, 5 wickets, a real field.</span>
                 <span class="ms-foot"><span id="mode-super10-stat" class="ms-stat">Not played</span>${play('#4a1fb0', '#2a0e5c')}</span>
               </button>
+              ${knockoutPosterMarkup(play('#5a0c14', '#3a060c'))}
               <button id="mode-survive" class="ms-poster is-survival" type="button" data-mode="SURVIVE">
                 <img class="ms-art" src="${BANNER_SURVIVAL}" alt="" decoding="async">
                 <span class="ms-tag is-survival">LAST MAN IN</span>
@@ -166,8 +176,9 @@ export function modeSelectMarkup(): string {
                 <span class="ms-foot"><span class="ms-stat is-unplayed">Not played</span>${play('#8e1424', '#5e0c17')}</span>
               </button>
             </div>
-            <div class="ms-pager" aria-hidden="true"><i class="is-blast"></i><i class="is-marathon"></i><i class="is-super10"></i><i class="is-survival"></i></div>
+            <div class="ms-pager" aria-hidden="true"><i class="is-blast"></i><i class="is-marathon"></i><i class="is-super10"></i><i class="is-knockout hidden"></i><i class="is-survival"></i></div>
             ${super10CardMarkup(SUPER10_PICTURE, SUPER10_LOGO)}
+            ${knockoutCardMarkup()}
             <button id="modes-dressing" class="ms-dressing" type="button">
               <img class="ms-art" src="${DRESSING_CARD}" alt="" decoding="async">
               <span class="ms-tag is-new">NEW</span>

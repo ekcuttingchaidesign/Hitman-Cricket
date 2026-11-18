@@ -72,7 +72,11 @@ describe('Choose a mode', () => {
     const order = ['mode-classic', 'mode-marathon', 'mode-super10-poster', 'mode-survive', 'mode-super10'].map(id => screen.indexOf(`id="${id}"`));
     expect(order.every((at, i) => at > 0 && (i === 0 || at > order[i - 1]))).toBe(true);
     expect(screen).toContain('id="modes-rail"');
-    expect(screen.match(/class="ms-poster /g)).toHaveLength(4);
+    // Four, and Super Knockout's fifth drawn hidden, for where it is open (`showKnockout`).
+    expect(screen.match(/class="ms-poster /g)).toHaveLength(5);
+    expect(screen).toContain('class="ms-poster is-knockout hidden"');
+    expect(screen.indexOf('id="mode-knockout-poster"')).toBeGreaterThan(screen.indexOf('id="mode-marathon"'));
+    expect(screen.indexOf('id="mode-knockout-poster"')).toBeLessThan(screen.indexOf('id="mode-survive"'));
     // Each poster has its dot in the pager under the rail.
     expect(screen.match(/<i class="is-(blast|marathon|super10|survival)"><\/i>/g)).toHaveLength(4);
     expect(screen).not.toContain('COMING SOON');
@@ -95,7 +99,7 @@ describe('Choose a mode', () => {
       player: null, marathon: { best: null, rank: null }, blast: { best: null, rank: null }, survive: { best: null, rank: null },
       super10: { best: '187/3', rank: 12 },
       podium: [3, 1, 4], blastRank: null, stats: { runs: 0, tier: { key: 'debutant', name: 'DEBUTANT' } }, rivals: null,
-      dressing: { earned: 3, of: 13, visited: false },
+      dressing: { earned: 3, of: 13, visited: false }, knockout: { played: 0, best: null, wins: 0 },
     });
     expect(parts['modes-dressing-line']).toBe('3 of 13 earned');
     expect(parts['modes-podium-faces']).toMatch(/is-2.*is-1.*is-3/s);

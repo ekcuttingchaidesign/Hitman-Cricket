@@ -38,6 +38,8 @@ async function write(page, balls) {
   }
   throw new Error(`never between balls to write ${balls}`);
 }
+/** A screenshot that never stops the check: in software rendering a screen over the live ground can take a long time to settle. */
+const snap = (page, path) => page.screenshot({ path, animations: 'disabled', timeout: 20000 }).catch(e => console.log(`  (no picture of ${path}: ${e.message.split('\n')[0]})`));
 const pin = async (page, t, name) => { await page.evaluate(v => window.__cricket.knockoutAt(v), t); await page.waitForTimeout(400); await page.screenshot({ path: `${out}/${name}-${t}.png` }); };
 
 // 1. Bowled in the first over, in the drop: knocked out at its end.
@@ -86,6 +88,24 @@ page = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFacto
 page.on('pageerror', e => errors.push(e.message));
 await walkOut(page, '/?knockout=1&debug=1&seed=7');
 await page.evaluate(() => window.__cricket.knockoutAt(0));
+// The over's top three bat the next ball as a free hit: FH in its slot, gold, and a wicket on it does not count.
+// Each write is read in the same turn, and the W goes in at once: the live game bowls on behind them, and a ball left alone can be the free hit.
+const writeRead = async balls => {
+  for (let i = 0; i < 80; i++) {
+    const seen = await page.evaluate(b => window.__cricket.blast(b) ? { ...window.__cricket.knockout(),
+      fh: [...document.querySelectorAll('#ko-over i')].map(i => `${i.textContent}${i.className ? `[${i.className}]` : ''}`).join(',') } : null, balls);
+    if (seen) return seen;
+    await page.waitForTimeout(150);
+  }
+  throw new Error(`never between balls to write ${balls}`);
+};
+const given = await writeRead([6, 6, 6, 6, 6, 6]);
+let fh = given.fh;
+check(fh.startsWith('FH[is-free is-next]') && given.bowled === 6, 'top of the first over: the next ball is a free hit, FH in its slot', fh);
+const after = await writeRead(['W']);
+fh = after.fh;
+check(!after.you.out && after.bowled === 7 && fh.startsWith('·[is-ball is-free]'), 'bowled on the free hit: not out, the slot kept gold', JSON.stringify({ fh, you: after.you }));
+await snap(page, out + '/ko-free-hit.png');
 for (let o = 0; o < 8; o++) {
   if ((await page.evaluate(() => window.__cricket.snapshot().phase)) === 'INNINGS_END') break;
   await write(page, [6, 6, 6, 6, 6, 6]);
@@ -127,6 +147,40 @@ for (const mood of ['calm', 'edge', 'level', 'drop', 'sudden']) {
   if (mood === 'drop' || mood === 'sudden') check(await burning(page), `${mood === 'drop' ? 'the drop is on fire' : 'the fuse is lit'}`);
   await page.screenshot({ path: `${out}/ko-mood-${mood}.png`, clip: { x: 0, y: 560, width: 390, height: 284 } });
 }
+await page.close();
+// 5. The way in (K1, K2, K2b): Choose a mode's rail, the card, the rules the first time, the home and QUICK MATCH.
+page = await b.newPage({ viewport: { width: 402, height: 874 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+page.on('pageerror', e => errors.push(e.message));
+await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); localStorage.setItem('hitman-whatsnew', 'rivals:9,diwali:9,cams:9'); localStorage.setItem('hitman-keeper-intro','done'); } catch {} });
+await page.goto(base + '/?debug=1', { waitUntil: 'load' });
+await page.addStyleTag({ content: '#debug{display:none!important}' });
+await page.waitForTimeout(1500);
+{ const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i }); if (await anyway.count()) await anyway.first().click(); }
+await page.locator('#start').click({ force: true });
+await page.waitForSelector('#modes:not(.hidden)', { timeout: 20000 });
+await page.waitForTimeout(600);
+const rail = await page.evaluate(() => ({ order: [...document.querySelectorAll('#modes-rail .ms-poster:not(.hidden)')].map(e => e.dataset.mode).join(' '),
+  card: !document.getElementById('mode-knockout-card').classList.contains('hidden'), super10Card: !document.getElementById('mode-super10').classList.contains('hidden') }));
+check(rail.order === 'SUPER10 CLASSIC MARATHON KNOCKOUT SURVIVE', 'the rail is Super10, the Blast, the Marathon, Super Knockout, Survival', rail.order);
+check(rail.card && !rail.super10Card, "Super Knockout's card stands under the rail in Super10's card's place", JSON.stringify(rail));
+await snap(page, out + '/k1.png');
+await page.locator('#mode-knockout').click();
+await page.waitForTimeout(500);
+check(await page.locator('#knockout-rules:not(.hidden)').count() === 1 && await page.locator('#knockout-home:not(.hidden)').count() === 1, 'the first time, how it works opens over the home by itself');
+await snap(page, out + '/k2b.png');
+await page.locator('#ko-rules-back').click();
+await page.waitForTimeout(300);
+check(await page.locator('#knockout-rules.hidden').count() === 1, 'back from how it works is the home');
+await snap(page, out + '/k2.png');
+check(await page.locator('#ko-friends[disabled]').count() === 1, 'PLAY WITH FRIENDS waits for real rooms');
+await page.locator('#ko-home-back').click();
+await page.locator('#mode-knockout').click();
+await page.waitForTimeout(300);
+check(await page.locator('#knockout-rules.hidden').count() === 1, 'the second time, the home opens on its own');
+await page.locator('#ko-quick').click();
+for (let i = 0; i < 60; i++) { const ph = await page.evaluate(() => window.__cricket?.snapshot().phase); if (ph === 'READY' || ph === 'BOWLER_RUNUP') break; await page.waitForTimeout(250); }
+const inRoom = await page.evaluate(() => ({ room: window.__cricket.knockout()?.left, bar: !document.getElementById('ko-track').hidden, mode: localStorage.getItem('hitman-last-mode') }));
+check(inRoom.room === 12 && inRoom.bar && inRoom.mode === 'KNOCKOUT', 'QUICK MATCH walks out into a room of twelve', JSON.stringify(inRoom));
 await page.close();
 check(errors.length === 0, 'nothing in the console', errors.join('\n'));
 await b.close();

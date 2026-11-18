@@ -2435,11 +2435,37 @@ up (`ko-up`), so what shows through K9 v2's dark is the match, blurred. Its
 keys are SCORECARD in the design's dark key and PLAY AGAIN in Knockout Red;
 the design's WATCH ON and SHARE come with real rooms and the share picture. The switch is practice (`practice.ts`): no
 board, no career, no points, and a room of subs never scores any. Not in the
-Pages builds. Still to come: the free hit, the big screen and the floodlights
+Pages builds. The free hit (`KNOCKOUT.freeHits`, `grantFreeHits`): after
+each over's cut the top three still standing bat the next over's first ball
+as one, then the top two, then the top one, anybody level with the last of
+them too, none in sudden death; a wicket on it does not count and its runs
+do. The player's is turned not out in `resolve` before the score sees it
+(`freeHitOf`, FREE HIT · NOT OUT, the picture still the ball that would have
+had them), the subs' in `KnockoutRoom.ball`; the scoreboard turns over to the
+next over at once with FH in gold in its first slot, shimmering once, and
+keeps a gold edge on it once played (`knockoutFreeHit`, Figma P6). Still to
+come: the big screen and the floodlights
 answering the cut, holding the scoreboard to see everyone, the timeout pause,
 and real players (stage two). `__cricket.knockout()` says where the room
 stands and `__cricket.knockoutAt(t)` holds the end moment's clock;
 `scripts/knockout-check.mjs` walks it.
+
+Off production (`KNOCKOUT_OPEN` in `src/Game.ts`: never production, the
+Pages builds or a build with no board) it is on Choose a mode too (Figma
+F1, K1 to K2b; `src/ui/KnockoutHome.ts`, `showKnockout` in the HUD): its
+poster on the rail between the Test Marathon and Test Survival, with
+Super10's poster moved to the head of the rail and Super10's PLAY card
+under it giving way to Super Knockout's card (the face-off, the mark, NEW
+and the format, a gold PLAY, an (i)). The card opens the home (K2,
+`#knockout-home`): the picture, the mark, the format in two lines, this
+browser's practice rooms, best finish and wins (`readTally`, `tallyRoom`,
+kept in `hitman-knockout`, since practice scores no points), QUICK MATCH
+(`#ko-quick`) and PLAY WITH FRIENDS drawn and disabled, marked SOON. How
+it works (K2b, `#knockout-rules`: the ladder off `KNOCKOUT.cuts`, the eight
+rules, while you bat) opens by itself the first time a browser chooses it
+(`hitman-knockout-rules`) and from either (i). QUICK MATCH walks out into
+the same practice room the switch does (`knockoutPicked`), so it is
+practice too; the rail remembers it as the last mode played.
 
 ## Super10's kits
 

@@ -35,10 +35,11 @@ import shield from '../assets/kit/icon-shield.svg?raw';
 import question from '../assets/kit/icon-question.svg?raw';
 import alert from '../assets/kit/icon-alert.svg?raw';
 import bell from '../assets/kit/icon-bell.svg?raw';
+import users from '../assets/kit/icon-users.svg?raw';
 
 const ICONS = {
   'arrow-left': arrowLeft, chart, check, close, 'chevron-down': chevronDown, 'chevron-right': chevronRight, grid, info, key,
-  scan, share, swords, trophy, user, volume, whatsapp, lock, shield, question, alert, bell,
+  scan, share, swords, trophy, user, volume, whatsapp, lock, shield, question, alert, bell, users,
 } as const;
 
 export type IconName = keyof typeof ICONS;

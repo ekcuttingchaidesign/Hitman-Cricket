@@ -29,6 +29,14 @@ export const KNOCKOUT = {
    * Four thousand rooms of subs never went past it.
    */
   maxBalls: 30,
+  /**
+   * The free hit (K2b's rules, `PRODUCT.md`): after each over's cut, the top
+   * three still standing bat the next over's first ball as a free hit, then
+   * the top two, then the top one, tapering as the room shrinks; none in
+   * sudden death, where every ball is a cut. Anybody level with the last of
+   * them gets one too. On it a wicket does not count; the runs do.
+   */
+  freeHits: [3, 2, 1] as const,
 } as const;
 
 /** The eleven subs' names. Never a real player's: they are labelled SUB wherever they show. */
@@ -139,6 +147,8 @@ export class KnockoutRoom {
   readonly seats: Seat[];
   private balls = 0;
   private readonly dice: SeededRandom[];
+  /** Who bats the next ball as a free hit, by seat id: granted at an over's cut, spent on the ball after it. */
+  private free = new Set<number>();
   winner: Seat | null = null;
 
   constructor(seed: number, you: { name: string; face: number }) {
@@ -156,6 +166,8 @@ export class KnockoutRoom {
   get sudden() { return Math.floor(this.balls / KNOCKOUT.ballsPerOver) >= KNOCKOUT.cuts.length; }
   /** The player's part is over: knocked out, or the winner. */
   get finished() { return this.you.place !== null; }
+  /** Whether this seat bats the next ball as a free hit: the player's, unless asked about another. */
+  freeHit(id = 0) { return this.free.has(id); }
 
   /**
    * One ball: the player's outcome (null once they are out and the room plays
@@ -163,13 +175,16 @@ export class KnockoutRoom {
    */
   ball(delivery: Delivery, yours: ShotOutcome | null): BallNews {
     this.balls++;
+    const free = this.free;
+    this.free = new Set();
     for (const seat of this.alive) {
       if (seat.out) continue;
       const outcome = seat.id === 0 ? yours : this.subPlays(seat, delivery);
       if (!outcome) continue;
       seat.runs += outcome.runs; seat.balls++;
       seat.fours += Number(outcome.runs === 4); seat.sixes += Number(outcome.runs === 6);
-      if (outcome.isWicket) seat.out = true;
+      // On a free hit the wicket does not count (the game has already said so for the player: `freeHitOf`).
+      if (outcome.isWicket && !free.has(seat.id)) seat.out = true;
     }
     return this.afterBall();
   }
@@ -230,7 +245,17 @@ export class KnockoutRoom {
     const went = this.knock(gone);
     const left = this.alive;
     const winner = left.length === 1 ? this.crown(left[0]) : null;
+    if (!winner && kind === 'cut' && over) this.grantFreeHits(KNOCKOUT.freeHits[over - 1] ?? 0);
     return { gone: went, kind: went.length ? kind : null, over: went.length ? over : null, winner };
+  }
+
+  /** The top `count` still standing, and anybody level with the last of them. Never in sudden death: it follows the last over with a cut. */
+  private grantFreeHits(count: number) {
+    if (count <= 0 || this.sudden) return;
+    const standing = this.alive.filter(s => !s.out).sort((a, b) => b.runs - a.runs);
+    if (!standing.length) return;
+    const line = standing[Math.min(count, standing.length) - 1].runs;
+    for (const seat of standing) if (seat.runs >= line) this.free.add(seat.id);
   }
 
   /** Worst first: the worst takes the last place still open. */
@@ -265,7 +290,16 @@ function gauss(rng: SeededRandom): number {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rng.next());
 }
 
-/** The words the scoreboard's chip carries, and whether its edge is red. */
+/**
+ * The player's wicket on a free hit, turned not out before the score sees
+ * it. How it would have gone stays on it (`wicketType`), so the picture is
+ * the ball that would have had them, the stumps broken or the catch taken;
+ * the call says it does not count.
+ */
+export function freeHitOf(outcome: ShotOutcome): ShotOutcome {
+  return outcome.isWicket ? { ...outcome, isWicket: false, feedback: 'FREE HIT · NOT OUT' } : outcome;
+}
+
 /**
  * The scoreboard's cell: the place, and out of how many are left. Whether
  * that is safe is the bar's to say (`trackOf`), in words where it matters:

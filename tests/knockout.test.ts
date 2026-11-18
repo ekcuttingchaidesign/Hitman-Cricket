@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { CLASSIC_PLAN, DeliveryGenerator, knockoutPlan } from '../src/game/DeliveryGenerator';
-import { EDGE_RUNS, KNOCKOUT, KnockoutRoom, chipOf, cutLine, cutOf, overLine, trackOf, type Seat } from '../src/game/knockout';
+import { EDGE_RUNS, KNOCKOUT, KnockoutRoom, chipOf, cutLine, cutOf, freeHitOf, overLine, trackOf, type Seat } from '../src/game/knockout';
 import { SeededRandom } from '../src/game/SeededRandom';
+import { knockoutCardWords, tallyRoom } from '../src/ui/KnockoutHome';
 import type { ShotOutcome } from '../src/game/types';
 
 const seat = (id: number, runs: number, out = false): Seat =>
@@ -217,3 +218,65 @@ describe('the bowling', () => {
     expect(styles.includes('YORKER')).toBe(false);
   });
 });
+
+describe('the way in', () => {
+  it('says NEW and the format until a room is played, then the best finish', () => {
+    expect(knockoutCardWords({ played: 0, best: null, wins: 0 })).toEqual({ tag: 'NEW', line: '12 players · one wicket', stat: 'Not played' });
+    expect(knockoutCardWords({ played: 3, best: 4, wins: 0 })).toEqual({ tag: 'BEST #4', line: '3 rooms played', stat: 'Best #4' });
+    expect(knockoutCardWords({ played: 1, best: 1, wins: 1 })).toEqual({ tag: 'WON', line: '1 room played', stat: 'Won 1' });
+  });
+  it('tallies a finished room: played, the best place and the wins', () => {
+    const one = tallyRoom(5, { played: 0, best: null, wins: 0 });
+    expect(one).toEqual({ played: 1, best: 5, wins: 0 });
+    expect(tallyRoom(1, one)).toEqual({ played: 2, best: 1, wins: 1 });
+    expect(tallyRoom(8, { played: 2, best: 1, wins: 1 })).toEqual({ played: 3, best: 1, wins: 1 });
+  });
+});
+
+describe('the free hit', () => {
+  /** The player hits a six a ball, so they are always top; the subs bat as they will. */
+  const played = (seed: number, overs: number) => {
+    const room = new KnockoutRoom(seed, { name: 'You', face: 0 }), next = bowler(seed);
+    for (let i = 0; i < overs * KNOCKOUT.ballsPerOver; i++) room.ball(next(), ball(6));
+    return { room, next };
+  };
+  const freeOnes = (room: KnockoutRoom) => room.seats.filter(s => room.freeHit(s.id));
+
+  it("goes to the over's top three, then two, then one, and none in sudden death", () => {
+    for (const seed of [3, 11, 29, 41]) {
+      for (const [overs, most] of [[1, 3], [2, 2], [3, 1], [4, 0]] as const) {
+        const { room } = played(seed, overs);
+        if (room.winner) continue;
+        const free = freeOnes(room);
+        expect(room.freeHit()).toBe(most > 0);
+        // Anybody level with the last of them gets one too.
+        const line = [...room.alive].sort((a, b) => b.runs - a.runs)[most - 1]?.runs;
+        expect(free.length).toBe(most ? room.alive.filter(s => s.runs >= line).length : 0);
+        expect(free.every(s => s.place === null && !s.out)).toBe(true);
+      }
+    }
+  });
+
+  it('is the next ball only: a wicket on it does not count, and its runs do', () => {
+    const { room, next } = played(11, 1);
+    const before = room.you.runs;
+    room.ball(next(), ball(0, true));
+    expect(room.you.out).toBe(false);
+    expect(room.you.runs).toBe(before);
+    expect(room.freeHit()).toBe(false);
+    room.ball(next(), ball(4, true));
+    expect(room.you.out).toBe(true);
+  });
+
+  it("never in the middle of an over: nobody has one before the first over's cut", () => {
+    const room = new KnockoutRoom(5, { name: 'You', face: 0 }), next = bowler(5);
+    for (let i = 0; i < 5; i++) { room.ball(next(), ball(6)); expect(freeOnes(room)).toHaveLength(0); }
+  });
+
+  it("turns the player's wicket not out and keeps how it would have gone for the picture", () => {
+    const out = { ...ball(0, true), wicketType: 'BOWLED' as const };
+    expect(freeHitOf(out)).toMatchObject({ isWicket: false, wicketType: 'BOWLED', feedback: 'FREE HIT · NOT OUT' });
+    expect(freeHitOf(ball(4))).toEqual(ball(4));
+  });
+});
+
