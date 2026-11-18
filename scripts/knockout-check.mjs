@@ -230,8 +230,8 @@ await page.evaluate(() => window.__cricket.knockoutAt(null));
 await page.waitForFunction(() => document.querySelector('#ko-card')?.classList.contains('is-counting'), null, { timeout: 30000 }).catch(() => {});
 const wonKey = await page.evaluate(() => document.querySelector('#ko-card')?.textContent?.trim());
 check(/^RESULTS · [123]$/.test(wonKey ?? ''), 'WINNER counts on to the results on its left key', wonKey);
-await page.evaluate(() => window.__cricket.knockoutEndAt(null));
-await page.locator('#ko-card').click();
+// Let go, the count may run out by itself on a slow renderer: a tap only if it is still counting.
+await page.evaluate(() => { window.__cricket.knockoutEndAt(null); if (!document.getElementById('ko-results')) document.getElementById('ko-card')?.click(); });
 await page.waitForFunction(() => !!document.getElementById('ko-results'), null, { timeout: 30000 }).catch(() => {});
 const wonResults = await page.evaluate(() => ({ banner: document.querySelector('#ko-results .lb-banner b')?.textContent, first: document.querySelector('#ko-results .lb-step.is-1 .lb-name')?.textContent }));
 check(wonResults.banner === 'You won the room' && wonResults.first === 'You', 'and the Results put you on top', JSON.stringify(wonResults));
