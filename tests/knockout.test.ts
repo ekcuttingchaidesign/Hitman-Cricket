@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { CLASSIC_PLAN, DeliveryGenerator, knockoutPlan } from '../src/game/DeliveryGenerator';
-import { EDGE_RUNS, KNOCKOUT, KnockoutRoom, chipOf, cutLine, cutOf, freeHitOf, overLine, trackOf, type Seat } from '../src/game/knockout';
+import { EDGE_RUNS, KNOCKOUT, KnockoutRoom, chipOf, cutLine, cutOf, freeHitOf, knockoutScreen, overLine, trackOf, type Seat } from '../src/game/knockout';
 import { SeededRandom } from '../src/game/SeededRandom';
 import { knockoutCardWords, tallyRoom } from '../src/ui/KnockoutHome';
+import { heldMarkup, heldOf } from '../src/ui/KnockoutHeld';
 import type { ShotOutcome } from '../src/game/types';
 
 const seat = (id: number, runs: number, out = false): Seat =>
@@ -280,3 +281,58 @@ describe('the free hit', () => {
   });
 });
 
+describe('holding the scoreboard', () => {
+  it('lists everyone still in, best first, the player as You, the line over the drop', () => {
+    const room = new KnockoutRoom(29, { name: 'Shashank', face: 1 }), next = bowler(29);
+    for (let i = 0; i < 9; i++) room.ball(next(), ball(i % 3 === 0 ? 0 : 1));
+    const held = heldOf(room);
+    expect(held.rows).toHaveLength(room.alive.length);
+    expect(held.rows.map(r => r.place)).toEqual(held.rows.map((_, i) => i + 1));
+    expect(held.rows.find(r => r.you)?.name).toBe('You');
+    // Not out before out, then more runs.
+    const batting = held.rows.filter(r => !r.out);
+    expect(held.rows.slice(0, batting.length).every(r => !r.out)).toBe(true);
+    for (let i = 1; i < batting.length; i++) expect(batting[i - 1].runs).toBeGreaterThanOrEqual(batting[i].runs);
+    // Those the cut would take are at the foot, under the line.
+    const first = held.rows.findIndex(r => r.drop);
+    expect(first).toBeGreaterThan(0);
+    expect(held.cutAt).toBe(first);
+    expect(held.rows.slice(first).every(r => r.drop)).toBe(true);
+    const html = heldMarkup(held);
+    expect(html.match(/ko-held-cut/g)).toHaveLength(1);
+    expect(html.match(/is-you/g)).toHaveLength(1);
+  });
+  it('marks who has the free hit', () => {
+    const room = new KnockoutRoom(11, { name: 'You', face: 0 }), next = bowler(11);
+    for (let i = 0; i < 6; i++) room.ball(next(), ball(6));
+    const held = heldOf(room);
+    expect(held.rows[0]).toMatchObject({ you: true, free: true });
+    expect(heldMarkup(held)).toContain('<em>FH</em>');
+  });
+});
+
+describe('the ground\'s screen', () => {
+  it('between balls, the line: the player and the nearest across it, the knockout between', () => {
+    const room = new KnockoutRoom(29, { name: 'You', face: 0 }), next = bowler(29);
+    for (let i = 0; i < 4; i++) room.ball(next(), ball(6));
+    const screen = knockoutScreen(room, null);
+    expect(screen?.kind).toBe('line');
+    if (screen?.kind !== 'line') return;
+    expect(screen.rows).toHaveLength(2);
+    expect(screen.rows[0].you).toBe(true);
+    expect(screen.cutAfter).toBe(0);
+    expect(screen.rows[1].place).toBeGreaterThan(screen.rows[0].place);
+  });
+  it('in the drop, the player is under the line with the lowest still safe over it', () => {
+    const room = new KnockoutRoom(29, { name: 'You', face: 0 }), next = bowler(29);
+    for (let i = 0; i < 4; i++) room.ball(next(), ball(0));
+    const screen = knockoutScreen(room, null);
+    if (room.standing().drop && screen?.kind === 'line') expect(screen.rows[1].you).toBe(true);
+  });
+  it("at an over's end, who went and how many are left", () => {
+    const room = new KnockoutRoom(3, { name: 'You', face: 0 }), next = bowler(3);
+    let gone: Seat[] = [];
+    for (let i = 0; i < 6; i++) gone = room.ball(next(), ball(6)).gone;
+    expect(knockoutScreen(room, gone)).toEqual({ kind: 'cut', out: gone.length, left: room.alive.length, names: gone.map(s => s.name) });
+  });
+});

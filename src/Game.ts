@@ -169,7 +169,8 @@ import { nameProblem, renameReason, siblingReason } from './server/name-rules';
 import { cleanName, foldName } from './server/board-store';
 import { kitDeal } from './config/board';
 import { encodeInnings, limitsOf } from './game/ball-string';
-import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, freeHitOf, sampleTrack, trackOf, type TrackMood } from './game/knockout';
+import { HOLD_MS, READY_MS, heldOf } from './ui/KnockoutHeld';
+import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, freeHitOf, knockoutScreen, overLine, type Seat, sampleTrack, trackOf, type TrackMood } from './game/knockout';
 import { KnockoutMoment, type MomentView } from './ui/KnockoutMoment';
 import { markRulesSeen, readTally, rulesSeen, tallyRoom } from './ui/KnockoutHome';
 import { demoRoom, demoWanted as roomDemoWanted } from './game/room-demo';
@@ -447,6 +448,18 @@ export class Game {
   private fieldUi!: FieldUi;
   /** When the bowler may set off, if a level's banner is up: he waits for it as for the field. */
   private bannerUntil = 0;
+  /**
+   * Super Knockout's held scoreboard (`KnockoutHeld.ts`): when the hold
+   * began, on the game's clock, or null; how much of this wait's `HOLD_MS`
+   * is spent, so letting go and holding again never stretches it; and the
+   * ball it was spent on.
+   */
+  /** The last cut, for the ground's screen, and the ball it fell after. */
+  private koCut: { at: number; gone: Seat[] } | null = null;
+  private held: number | null = null;
+  private heldSpent = 0;
+  private heldBall = -1;
+  private heldWas = 0;
   /** Where the batter who played the last ball came in, in the team's history: his fifty is his own. */
   private playedFrom = 0;
   /** The last ball took the man in out of the innings, and the next walks out once it is dead. */
@@ -1159,6 +1172,7 @@ export class Game {
       else if (this.hud.viewport.requestFullscreen) void this.hud.viewport.requestFullscreen().catch(() => {});
     });
     this.hud.viewport.addEventListener('pointerdown', () => { this.walkedOn(true); this.skipReplay(); });
+    this.hud.onHold(down => (down ? this.holdBoard() : this.letGoBoard()));
     // The pause sheet's replays switch (`replay.ts`), kept across visits.
     // The pause sheet's Camera row (`camera.ts`), kept across visits; taken at once, mid-innings too.
     for (const { id } of CAMERAS) this.hud.on(`camera-${id}`, () => this.useCamera(id));
@@ -2493,6 +2507,7 @@ export class Game {
     this.knockout = this.knockingOut ? new KnockoutRoom(this.seed, { name: readPlayer()?.name || 'You', face: readPlayer()?.avatar ?? 0 }) : null;
     this.hud.knockout(this.knockout ? chipOf(this.knockout.standing()) : null);
     this.hud.knockoutFreeHit(null, true);
+    this.koCut = null; this.held = null; this.heldBall = -1; this.hud.knockoutHeld(null);
     this.hud.knockoutTrack(this.knockout ? trackOf(this.knockout) : null, this.knockout?.you.face);
     this.hud.knockoutEnd(null);
     this.ease = this.newcomerEase();
@@ -2859,7 +2874,7 @@ export class Game {
   /** The scene's light put where the day has got to. */
   private lightDay() { const day = this.dayNow; this.scene.dayAt(day ? day.at : null, day?.dim); }
   private light(time: SkyTime) {
-    const game = this.super10 ? 'super10' : this.test ? 'test' : 'blast';
+    const game = this.super10 ? 'super10' : this.test ? 'test' : this.knockingOut ? 'knockout' : 'blast';
     if (game === 'super10') time = 'night';
     this.scene.stands(groundFor(ASKED_GROUND, game, VENUE_COIN[game === 'test' ? 'test' : 'blast']));
     this.scene.brand(this.super10);
@@ -2870,8 +2885,14 @@ export class Game {
   /** What the arena's big screen says between moments: the game, the score, the over and, in Super10, who is in. */
   private scoreboard() {
     const { runs, wickets, balls } = this.score;
-    const title = this.super10 ? 'SUPER10' : this.marathoning ? 'TEST MARATHON' : this.surviving ? 'TEST SURVIVAL' : 'THE BLAST';
     const overs = `${Math.floor(balls / 6)}.${balls % 6} OV`;
+    // Super Knockout: the line between balls, the cut at an over's end, the score while the ball is live (P5, P6).
+    if (this.knockout) {
+      const dead = this.phase === 'READY' || this.phase === 'RESULT';
+      const cut = this.koCut && this.koCut.at === this.knockout.bowled ? this.koCut.gone : null;
+      return { title: 'SUPER KNOCKOUT', score: String(runs), detail: overLine(balls), knockout: dead ? knockoutScreen(this.knockout, cut) : null };
+    }
+    const title = this.super10 ? 'SUPER10' : this.marathoning ? 'TEST MARATHON' : this.surviving ? 'TEST SURVIVAL' : 'THE BLAST';
     return { title, score: `${runs}/${wickets}`, detail: this.super10 ? `${overs} · ${super10Batter(wickets).title}` : overs };
   }
   /**
@@ -4713,8 +4734,33 @@ export class Game {
     // still slow; two thirds keeps the run readable and the hit still lands.
     return since < 340 ? this.chargeSlowmo : 1;
   }
+  /**
+   * Held between balls (H1): everyone still in drops down under the
+   * scoreboard and the bowler waits at his mark, up to `HOLD_MS` a ball, the
+   * ring draining. With a ball live, or the room done, a touch does nothing (H3).
+   */
+  private holdBoard() {
+    const room = this.knockout;
+    if (!room || room.finished || this.phase !== 'READY' || this.held !== null) return;
+    if (this.heldBall !== this.score.balls) { this.heldBall = this.score.balls; this.heldSpent = 0; }
+    const left = HOLD_MS - this.heldSpent;
+    if (left <= 0) return;
+    this.held = this.elapsed; this.heldWas = this.bannerUntil;
+    this.bannerUntil = Math.max(this.bannerUntil, this.elapsed + left + READY_MS);
+    this.hud.knockoutHeld(heldOf(room), left);
+    trackOnce('knockout-held', 'The knockout scoreboard held');
+  }
+  /** Let go, or the ring ran out (H2): the list goes, a tick, and the bowler runs in `READY_MS` later. */
+  private letGoBoard() {
+    if (this.held === null) return;
+    this.heldSpent += this.elapsed - this.held;
+    this.held = null;
+    this.hud.knockoutHeld(null, 0, this.phase === 'READY');
+    if (this.phase === 'READY') { this.bannerUntil = Math.max(this.heldWas, this.elapsed + READY_MS); buzz(12); }
+  }
   private update() {
     const age = this.elapsed - this.phaseStart;
+    if (this.held !== null && (this.phase !== 'READY' || this.elapsed - this.held + this.heldSpent >= HOLD_MS)) this.letGoBoard();
     // The bowler waits for the field to be back on its marks — a catcher
     // jogging back from deep midwicket, the man who chased one to the rope —
     // and no longer than a few seconds past the usual wait, whatever happens.
@@ -7258,6 +7304,7 @@ export class Game {
     const news = [room.ball(delivery, outcome)];
     if (outcome.isWicket && !room.finished) news.push(...room.playOut(() => this.generator.next(0)));
     const last = news.filter(n => n.gone.length).at(-1);
+    this.koCut = last ? { at: room.bowled, gone: last.gone } : this.koCut;
     const line = last && !room.finished ? cutLine(last, room.alive.length) : null;
     if (line) this.hud.callOut(line);
     this.hud.knockout(room.finished ? null : chipOf(room.standing()));

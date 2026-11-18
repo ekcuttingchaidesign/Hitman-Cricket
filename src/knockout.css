@@ -291,3 +291,41 @@ body.ko-up #end{visibility:hidden}
   animation:ko-fh-shimmer 1.1s cubic-bezier(.3,.7,.3,1) .2s 1 both}
 @keyframes ko-fh-shimmer{from{background-position:100% 0}to{background-position:0 0}}
 @media (prefers-reduced-motion:reduce){.ko-over>i.is-free.is-next{animation:none;background:#ffb020}}
+
+/*
+  Hold the scoreboard to see everyone (Figma F2, P8 and H1 to H3): the panel
+  drops under it, 272 wide, a row of 28 for each seat still in, the knockout
+  line dashed red over the drop, the player's row outlined; and a ring round
+  the scoreboard draining while the bowler waits (`HOLD_MS`). Both are laid
+  over the viewport where the scoreboard stands (`HUD.knockoutHeld`).
+*/
+/* The row of keys over the top of the screen would take the touch: it lets it through to the scoreboard, its keys keeping theirs. */
+body.knockout-mode .hud-top{pointer-events:none}
+body.knockout-mode .hud-top .hud-actions{pointer-events:auto}
+body.knockout-mode .score-bug[data-hold]{cursor:pointer;touch-action:none}
+.ko-held{position:absolute;z-index:30;width:calc(var(--u) * 272);padding:calc(var(--u) * 8);box-sizing:border-box;
+  border-radius:calc(var(--u) * 16);border:1px solid #ffffff1f;background:linear-gradient(180deg,#2a1418f0,#170a0df0);
+  box-shadow:0 calc(var(--u) * 10) calc(var(--u) * 24) #0000008c;transform-origin:top left;pointer-events:none;
+  animation:ko-held-in .18s cubic-bezier(.2,.9,.3,1.2) both}
+.ko-held[hidden]{display:none}
+@keyframes ko-held-in{from{opacity:0;transform:translateY(calc(var(--u) * -6)) scale(.97)}}
+.ko-held ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:calc(var(--u) * 2)}
+.ko-held-row{display:flex;align-items:center;height:calc(var(--u) * 28);padding:0 calc(var(--u) * 10) 0 calc(var(--u) * 8);border-radius:calc(var(--u) * 8);box-sizing:border-box}
+.ko-held-row>i{width:calc(var(--u) * 18);font:700 calc(var(--u) * 11)/1 var(--f-ui);font-style:normal;color:#bfaeb1}
+.ko-held-row>img{width:calc(var(--u) * 20);height:calc(var(--u) * 20);border-radius:50%;margin-right:calc(var(--u) * 8);object-fit:cover}
+.ko-held-row>b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 calc(var(--u) * 12)/1 var(--f-ui);color:#f5efe6}
+.ko-held-row>b>em{margin-left:calc(var(--u) * 6);padding:calc(var(--u) * 1) calc(var(--u) * 4);border-radius:calc(var(--u) * 4);font:900 calc(var(--u) * 8)/1 var(--f-ui);font-style:normal;color:#f4c74f;box-shadow:inset 0 0 0 1px #f4c74f}
+.ko-held-row>span{font:400 calc(var(--u) * 16)/1 var(--f-display,Jaro,sans-serif);color:#f5efe6}
+.ko-held-row.is-you{background:#ffffff1f;box-shadow:inset 0 0 0 calc(var(--u) * 1.2) #ffffffd9}
+.ko-held-row.is-drop>i,.ko-held-row.is-drop>b,.ko-held-row.is-drop>span{color:#ff5252}
+.ko-held-cut{height:0;margin:calc(var(--u) * 2.5) calc(var(--u) * 2);border-top:calc(var(--u) * 1.5) dashed var(--ko-red)}
+.ko-wait{position:absolute;z-index:31;overflow:visible;pointer-events:none}
+.ko-wait[hidden]{display:none}
+.ko-wait rect{fill:none;stroke:#ffffffe6;stroke-width:calc(var(--u) * 2.5);stroke-dasharray:100 100;stroke-dashoffset:0;
+  animation:ko-wait-drain var(--ko-hold,5s) linear both}
+@keyframes ko-wait-drain{to{stroke-dashoffset:100}}
+@media (prefers-reduced-motion:reduce){.ko-held{animation:none}}
+/* The ready beat (H2): the scoreboard ticks once as the list goes. */
+body.knockout-mode .score-bug.is-ready{animation:ko-ready .3s ease-out 1}
+@keyframes ko-ready{40%{transform:scale(1.04)}}
+.ko-held-row>b>em.is-out{color:#ff5252;box-shadow:inset 0 0 0 1px #ff5252}

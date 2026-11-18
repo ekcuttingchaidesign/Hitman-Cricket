@@ -4,7 +4,11 @@
  * cell), the knockout bar with the place, every seat and the face, its mood
  * and the fire in the drop, the red edge, the player bowled and the room playing on to the cut that takes them, KNOCKED
  * OUT over the card with SCORECARD and PLAY AGAIN; then a room won with a six
- * every ball, WINNER, and PLAY AGAIN walking out into a new room. The innings
+ * every ball, the free hit it earns and a wicket on it not counting, WINNER,
+ * and PLAY AGAIN walking out into a new room; the scoreboard held between
+ * balls, the bowler waiting, a touch with the ball live doing nothing, and
+ * the ground's screen with the line and the cut; the bar's moods; and the way
+ * in from Choose a mode. The innings
  * are written through `__cricket.blast`.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
@@ -120,6 +124,37 @@ await page.waitForTimeout(1500);
 seen = await cell(page);
 check(await page.locator('#ko-moment').count() === 0 && (await page.evaluate(() => window.__cricket.knockout())).bowled === 0 && seen.place === '#1',
   'PLAY AGAIN walks out into a new room', JSON.stringify(seen));
+await page.close();
+// 2b. Hold the scoreboard (P8, H1 to H3), and the ground's screen (P5, P6).
+page = await b.newPage({ viewport: { width: 402, height: 874 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+page.on('pageerror', e => errors.push(e.message));
+await walkOut(page, '/?knockout=1&debug=1&seed=29');
+await write(page, [6, 0, 0, 1, 0]);
+const bug = await page.locator('.score-bug').boundingBox();
+await page.mouse.move(bug.x + 40, bug.y + 20); await page.mouse.down();
+await page.waitForTimeout(400);
+const heldNow = await page.evaluate(() => ({ phase: window.__cricket.snapshot().phase, panel: !document.getElementById('ko-held').hidden,
+  rows: document.querySelectorAll('#ko-held .ko-held-row').length, you: document.querySelectorAll('#ko-held .ko-held-row.is-you').length,
+  cut: document.querySelectorAll('#ko-held .ko-held-cut').length, ring: !document.getElementById('ko-wait').hasAttribute('hidden'), screen: window.__cricket.arena()?.knockout?.kind }));
+check(heldNow.panel && heldNow.rows === 12 && heldNow.you === 1 && heldNow.cut === 1 && heldNow.ring, 'held between balls: everyone, the player outlined, the line dashed, the ring round it', JSON.stringify(heldNow));
+check(heldNow.screen === 'line', "between balls the ground's screen shows the line", JSON.stringify(heldNow));
+await page.screenshot({ path: out + '/ko-held.png' });
+await page.waitForTimeout(1500);
+check((await page.evaluate(() => window.__cricket.snapshot().phase)) === 'READY', 'the bowler waits at his mark while it is held');
+await page.mouse.up();
+await page.waitForTimeout(200);
+check(await page.evaluate(() => document.getElementById('ko-held').hidden), 'let go and it is gone');
+// The over's last ball: the cut on the screen.
+// Written at once, before the bowler runs in, and read two frames on, once the screen has been painted.
+const cutNow = await (async () => { for (let i = 0; i < 120; i++) { const seen = await page.evaluate(() => { const k = window.__cricket.knockout(); if (k.you.place !== null) return 'gone';
+  return window.__cricket.blast(Array(6 - (k.bowled % 6)).fill(6)) ? new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(window.__cricket.arena()?.knockout)))) : undefined; }); if (seen !== undefined) return seen; await page.waitForTimeout(150); } return null; })();
+if (cutNow === 'gone') console.log('  (the player went before the over ended: no cut to read)');
+else check(cutNow?.kind === 'cut' && cutNow.out >= 2 && cutNow.names.length === cutNow.out, "at the over's end the screen says who went and how many are left", JSON.stringify(cutNow));
+for (let i = 0; i < 80; i++) { if ((await page.evaluate(() => window.__cricket.snapshot().phase)) !== 'READY') break; await page.waitForTimeout(100); }
+await page.mouse.down(); await page.waitForTimeout(300);
+check(await page.evaluate(() => document.getElementById('ko-held').hidden && window.__cricket.arena()?.knockout === null), 'with the ball live a touch on it does nothing, and the screen has the score');
+await page.mouse.up();
+await page.close();
 // 3. The scoreboard with the meter full: it stays clear of the keys beside it.
 page = await b.newPage({ viewport: { width: 375, height: 667 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
 page.on('pageerror', e => errors.push(e.message));

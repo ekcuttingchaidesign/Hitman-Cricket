@@ -29,6 +29,8 @@ describe('the ground', () => {
     expect(askedGround('')).toBeNull();
     // Super10: the canopy, whatever the coin.
     for (const coin of [0, .3, .5, .9]) expect(groundFor(null, 'super10', coin)).toBe('canopy');
+    // Super Knockout too: its cut goes up on the canopy's screen.
+    for (const coin of [0, .3, .5, .9]) expect(groundFor(null, 'knockout', coin)).toBe('canopy');
     // The Blast, day or night: a third each, the pavilion, the stadium, the canopy.
     expect(groundFor(null, 'blast', 0)).toBe('pavilion');
     expect(groundFor(null, 'blast', .33)).toBe('pavilion');

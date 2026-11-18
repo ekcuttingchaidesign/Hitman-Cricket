@@ -15,6 +15,7 @@ import { effectiveLine } from './DeliveryTrajectory';
 import { resolveShot } from './ShotResolver';
 import { SeededRandom } from './SeededRandom';
 import type { Delivery, ShotOutcome, ShotType } from './types';
+import type { KnockoutScreen } from '../scene/arena';
 
 export const KNOCKOUT = {
   seats: 12,
@@ -407,4 +408,27 @@ export function cutLine(news: BallNews, left: number): string | null {
   const who = names.length > 2 ? `${names.length} PLAYERS` : names.join(' AND ');
   const head = news.kind === 'cut' ? `END OF OVER ${news.over}` : 'SUDDEN DEATH';
   return `${head} · ${who} OUT · ${left} LEFT`;
+}
+
+/**
+ * What the ground's screen says between balls (P5, P6): at an over's end, or
+ * a sudden-death ball, who the cut took and how many are left; otherwise the
+ * line, the player and the nearest across it (the best in the drop, or if the
+ * player is in it, the lowest still safe). Null once the player is done with,
+ * or when there is no line to show.
+ */
+export function knockoutScreen(room: KnockoutRoom, cut: readonly Seat[] | null): KnockoutScreen | null {
+  if (room.finished) return null;
+  if (cut?.length) return { kind: 'cut', out: cut.length, left: room.alive.length, names: cut.map(s => (s.id === 0 ? 'You' : s.name)) };
+  const standing = room.standing();
+  const count = standing.sudden ? 1 : KNOCKOUT.cuts[Math.min(KNOCKOUT.cuts.length - 1, Math.floor(room.bowled / KNOCKOUT.ballsPerOver))];
+  const alive = [...room.alive].sort(settled);
+  const drop = new Set(cutOf(alive, count).gone);
+  const firstDrop = alive.findIndex(s => drop.has(s));
+  if (firstDrop <= 0) return null;
+  const you = alive.indexOf(room.you);
+  const other = drop.has(room.you) ? firstDrop - 1 : firstDrop;
+  const pair = [you, other].sort((a, b) => a - b);
+  const rows = pair.map(i => ({ place: i + 1, name: alive[i].name, runs: alive[i].runs, you: alive[i] === room.you, out: alive[i].out }));
+  return { kind: 'line', rows, cutAfter: drop.has(alive[pair[0]]) ? -1 : 0 };
 }

@@ -2443,10 +2443,30 @@ do. The player's is turned not out in `resolve` before the score sees it
 (`freeHitOf`, FREE HIT · NOT OUT, the picture still the ball that would have
 had them), the subs' in `KnockoutRoom.ball`; the scoreboard turns over to the
 next over at once with FH in gold in its first slot, shimmering once, and
-keeps a gold edge on it once played (`knockoutFreeHit`, Figma P6). Still to
-come: the big screen and the floodlights
-answering the cut, holding the scoreboard to see everyone, the timeout pause,
-and real players (stage two). `__cricket.knockout()` says where the room
+keeps a gold edge on it once played (`knockoutFreeHit`, Figma P6).
+
+Hold the scoreboard between balls (P8, H1 to H3, `src/ui/KnockoutHeld.ts`,
+`holdBoard` and `letGoBoard` in `src/Game.ts`): everyone still in drops down
+under it, best first, the knockout line dashed red over the drop, the
+player's row outlined, FH and OUT tagged (`heldOf`); the bowler waits at his
+mark while it is held, up to `HOLD_MS` a ball however often it is let go and
+held again, a ring round the scoreboard draining (`#ko-wait`); let go, or the
+ring out, and the list goes, the scoreboard ticks with a buzz, and he runs in
+`READY_MS` later. With a ball live a touch there does nothing, and it never
+plays a stroke (`[data-hold]` is outside the swipe surface; `.hud-top` lets
+the touch through to it in this mode). The panel and the ring are laid over
+the viewport where the scoreboard stands (`HUD.knockoutHeld`), since the
+scoreboard clips what is inside it.
+
+It is played at the canopy (`groundFor`'s `'knockout'`), for its screen
+(P5, P6, `knockoutScreen`, painted by `paintKnockout` in `arena.ts` in place
+of the game's own screen): between balls THE LINE, the player and the
+nearest across it (the best in the drop, or the lowest still safe when the
+player is in it) with the knockout dashed red between; after a cut how many
+went in red, how many are left and their names, until the next ball; the
+score while a ball is live. `__cricket.arena().knockout` says which. Still to
+come: the floodlights answering the cut, the timeout pause, and real players
+(stage two). `__cricket.knockout()` says where the room
 stands and `__cricket.knockoutAt(t)` holds the end moment's clock;
 `scripts/knockout-check.mjs` walks it.
 

@@ -130,7 +130,7 @@ export class InputManager {
     if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
     if (!event.isPrimary) { this.cancelGesture(); return; }
     if (!this.active() || this.used || this.pending) return;
-    if (event.target instanceof Element && event.target.closest('button, a, dialog, .modal-overlay, .intro-panel')) return;
+    if (event.target instanceof Element && event.target.closest('button, a, dialog, .modal-overlay, .intro-panel, [data-hold]')) return;
     this.gesture = { id: event.pointerId, x: event.clientX, y: event.clientY };
     this.surface?.setPointerCapture(event.pointerId);
   };

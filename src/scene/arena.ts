@@ -295,7 +295,16 @@ export function stumpWrap(height: number, theme: StumpTheme = 'violet', into?: {
 }
 
 /** What the screen shows between moments. */
-export interface Scoreboard { title: string; score: string; detail: string }
+/**
+ * What Super Knockout puts on the game's own screen between balls (Figma
+ * F2, P5 and P6): the line, the player's row and the nearest across it with
+ * the knockout dashed between; or, at an over's end, who went and how many
+ * are left. Painted by `paintKnockout`.
+ */
+export type KnockoutScreen =
+  | { kind: 'line'; rows: { place: number; name: string; runs: number; you: boolean; out: boolean }[]; cutAfter: number }
+  | { kind: 'cut'; out: number; left: number; names: string[] };
+export interface Scoreboard { title: string; score: string; detail: string; knockout?: KnockoutScreen | null }
 
 /** One canvas painted into a texture, sRGB, kept with its context. */
 function painted(width: number, height: number) {
@@ -674,7 +683,8 @@ export class Showboards {
   get state() {
     const f = this.last;
     return { mood: this.moodNow, word: f?.word ?? null, board: f?.board ?? 'idle', boards: f?.boards ?? 1,
-      screen: this.screen ? this.shown.split('|').slice(0, 2).join('|') : null, sting: this.playing?.name ?? null, diwali: this.diwaliAt !== null };
+      screen: this.screen ? this.shown.split('|').slice(0, 2).join('|') : null, sting: this.playing?.name ?? null, diwali: this.diwaliAt !== null,
+      knockout: this.board.knockout ?? null, canvas: this.screen ? (this.screen.texture.image as HTMLCanvasElement) : null };
   }
 
   /** The boards and the screen at `now`, and the frame they were drawn from, for a ground with more to light by it. `live` is a ball on its way. */
@@ -806,11 +816,11 @@ export class Showboards {
     const ms = kind ? CUES[kind].ms : 0;
     const moving = word !== null && (this.playing !== null || (!this.still && (since < SLAM_MS || since > ms - LEAVE_MS)));
     // A moving screen is painted once a frame of the stings' own thirty a second, not at every refresh.
-    const key = word ? `w|${word}|${moving ? Math.floor(since / STING_FRAME_MS) : 'held'}` : `${this.plain ? 'p' : 'b'}|${this.board.title}|${this.board.score}|${this.board.detail}`;
+    const key = word ? `w|${word}|${moving ? Math.floor(since / STING_FRAME_MS) : 'held'}` : `${this.plain ? 'p' : 'b'}|${this.board.title}|${this.board.score}|${this.board.detail}|${this.board.knockout ? JSON.stringify(this.board.knockout) : ''}`;
     if (key === this.shown) return;
     this.shown = key;
     ctx.setTransform(S, 0, 0, S, 0, 0);
-    if (this.plain && !word) { this.paintPlain(ctx, W, H); this.grid(ctx, .18); screen.texture.needsUpdate = true; return; }
+    if (this.plain && !word) { if (this.board.knockout) paintKnockout(ctx, W, H, this.board.knockout); else this.paintPlain(ctx, W, H); this.grid(ctx, .18); screen.texture.needsUpdate = true; return; }
     ctx.fillStyle = hex(ARENA.ink); ctx.fillRect(0, 0, W, H);
     // The floodlights' violet in the screen's corner, and nothing else behind.
     const haze = ctx.createRadialGradient(W * .15, H, 10, W * .15, H, W * .6);
@@ -891,6 +901,47 @@ export class Showboards {
     ctx.fillText(detail, x, H * .82, 440);
     spaced.letterSpacing = '0px';
   }
+}
+
+/**
+ * Super Knockout on the screen (P5, P6), in the knockout's own ink and red:
+ * THE LINE over two rows with the knockout dashed red between them, the
+ * player's row lit; or at an over's end how many went in red, how many are
+ * left, and their names.
+ */
+function paintKnockout(ctx: CanvasRenderingContext2D, W: number, H: number, k: KnockoutScreen) {
+  const ground = ctx.createLinearGradient(0, 0, 0, H);
+  ground.addColorStop(0, '#2a1418'); ground.addColorStop(1, '#12070a');
+  ctx.fillStyle = ground; ctx.fillRect(0, 0, W, H);
+  const spaced = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+  ctx.textBaseline = 'middle';
+  const pad = 56;
+  if (k.kind === 'cut') {
+    ctx.textAlign = 'left'; ctx.font = JARO(170); ctx.fillStyle = '#ee2a2a';
+    ctx.fillText(`${k.out} OUT`, pad, H * .42, W * .62);
+    ctx.textAlign = 'right'; spaced.letterSpacing = '4px'; ctx.font = SATOSHI(46); ctx.fillStyle = '#f5efe6';
+    ctx.fillText(`${k.left} LEFT`, W - pad, H * .3);
+    ctx.textAlign = 'left'; ctx.font = SATOSHI(44); ctx.fillStyle = 'rgba(245,239,230,.85)';
+    ctx.fillText(k.names.join(' · ').toUpperCase(), pad, H * .78, W - pad * 2);
+    spaced.letterSpacing = '0px';
+    return;
+  }
+  ctx.textAlign = 'left'; spaced.letterSpacing = '5px'; ctx.font = SATOSHI(36); ctx.fillStyle = '#bfaeb1';
+  ctx.fillText('THE LINE', pad, 62);
+  spaced.letterSpacing = '0px';
+  const top = 112, row = 104;
+  k.rows.forEach((r, i) => {
+    const y = top + i * (row + 24);
+    if (r.you) { ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(pad - 20, y, W - pad * 2 + 40, row); }
+    ctx.textAlign = 'left'; ctx.font = SATOSHI(54); ctx.fillStyle = i > k.cutAfter ? '#ff5252' : '#f5efe6';
+    ctx.fillText(`${r.place}  ${r.you ? 'YOU' : r.name.toUpperCase()}${r.out ? ' · OUT' : ''}`, pad, y + row / 2, W * .66);
+    ctx.textAlign = 'right'; ctx.font = JARO(84);
+    ctx.fillText(String(r.runs), W - pad, y + row / 2 + 4);
+    if (i === k.cutAfter && i < k.rows.length - 1) {
+      ctx.strokeStyle = '#ee2a2a'; ctx.lineWidth = 5; ctx.setLineDash([22, 14]);
+      ctx.beginPath(); ctx.moveTo(pad - 20, y + row + 12); ctx.lineTo(W - pad + 20, y + row + 12); ctx.stroke(); ctx.setLineDash([]);
+    }
+  });
 }
 
 /**

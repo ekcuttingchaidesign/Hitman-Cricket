@@ -94,6 +94,7 @@ import {
   statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
 import { AVATARS, avatarSrc, kitDeal } from '../config/board';
+import { heldMarkup, heldPanelMarkup, type Held } from './KnockoutHeld';
 import type { WalkOnCard } from '../game/walk-on-card';
 import { walkOnCardMarkup } from './WalkOnCard';
 import type { TutorialStep } from '../game/Tutorial';
@@ -363,6 +364,7 @@ export class HUD {
       <div id="viewport" class="stage">
         <div class="ko-edge" aria-hidden="true"></div>
         ${knockoutBarMarkup()}
+        ${heldPanelMarkup()}
         <div class="hud-top">
           <div class="hud-actions">
             <button id="sound" class="hud-button" aria-label="Sound on. Turn the music off" title="Sound (M)">${icon('sound')}</button>
@@ -2795,6 +2797,7 @@ ${knockoutRulesMarkup()}
    */
   knockout(chip: { place: string; line: string; drop: boolean } | null) {
     document.body.classList.toggle('knockout-mode', !!chip);
+    document.querySelector('.score-bug')?.toggleAttribute('data-hold', !!chip);
     if (!chip) this.$('overs-label').textContent = 'OVERS';
     const cell = this.$('ko-cell');
     cell.hidden = !chip;
@@ -2811,6 +2814,41 @@ ${knockoutRulesMarkup()}
    * the player's face riding it by their place, and over it, near the
    * knockout, what it takes. Null takes it away.
    */
+  /**
+   * Super Knockout's held scoreboard (P8, H1): everyone still in, under the
+   * scoreboard, and the ring round it draining over `holdMs`. Laid over the
+   * viewport where the scoreboard stands, since the scoreboard clips what is
+   * inside it. Null takes both away; `ready` ticks the scoreboard once (H2).
+   */
+  knockoutHeld(held: Held | null, holdMs = 0, ready = false) {
+    const panel = this.$('ko-held'), ring = this.$('ko-wait') as unknown as SVGSVGElement, bug = document.querySelector<HTMLElement>('.score-bug')!;
+    if (!held) {
+      panel.hidden = true; ring.setAttribute('hidden', '');
+      if (ready) replayClass(bug, 'is-ready');
+      return;
+    }
+    const at = bug.getBoundingClientRect(), box = this.viewport.getBoundingClientRect();
+    const scale = box.width / (this.viewport.offsetWidth || box.width);
+    const left = (at.left - box.left) / scale, top = (at.top - box.top) / scale, w = at.width / scale, h = at.height / scale;
+    const gap = parseFloat(getComputedStyle(this.viewport).getPropertyValue('--u')) || 1;
+    this.$('ko-held-list').innerHTML = heldMarkup(held);
+    Object.assign(panel.style, { left: `${left}px`, top: `${top + h + 6 * gap}px` });
+    panel.hidden = false;
+    const pad = 5 * gap;
+    Object.assign(ring.style, { left: `${left - pad}px`, top: `${top - pad}px`, '--ko-hold': `${holdMs}ms` });
+    ring.setAttribute('width', String(w + 2 * pad)); ring.setAttribute('height', String(h + 2 * pad));
+    const rect = ring.querySelector('rect')!;
+    for (const [k, v] of [['x', 1.5 * gap], ['y', 1.5 * gap], ['width', w + 2 * pad - 3 * gap], ['height', h + 2 * pad - 3 * gap], ['rx', 18 * gap], ['ry', 18 * gap]] as const) rect.setAttribute(k, String(v));
+    // The drain starts afresh with each hold.
+    ring.removeAttribute('hidden');
+    replayAnimation(rect as unknown as HTMLElement);
+  }
+  /** The scoreboard is held and let go, in a Super Knockout innings only; touches on it never play a stroke there. */
+  onHold(change: (down: boolean) => void) {
+    const bug = document.querySelector<HTMLElement>('.score-bug')!;
+    bug.addEventListener('pointerdown', event => { if (!document.body.classList.contains('knockout-mode')) return; bug.setPointerCapture?.(event.pointerId); change(true); });
+    for (const kind of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) bug.addEventListener(kind, () => change(false));
+  }
   private koBar: KnockoutBar | null = null;
   knockoutTrack(track: Track | null, face = 0) {
     this.koBar ??= new KnockoutBar(this.$('ko-track'), this.viewport);

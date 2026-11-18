@@ -55,7 +55,7 @@ export function askedGround(search: string): GroundName | null {
 export const groundFrom = (search: string): GroundName => askedGround(search) ?? DEFAULT_GROUND;
 
 /** What picks a ground for an innings, besides the lights: the game it is. */
-export type GroundGame = 'blast' | 'super10' | 'test';
+export type GroundGame = 'blast' | 'super10' | 'test' | 'knockout';
 /**
  * Which ground an innings is played at. A link's `?ground=` wins, in any
  * mode. Super10 is the canopy's, always. Every other game is played at the
@@ -68,7 +68,8 @@ export type GroundGame = 'blast' | 'super10' | 'test';
  */
 export function groundFor(asked: GroundName | null, game: GroundGame, coin: number): GroundName {
   if (asked) return asked;
-  if (game === 'super10') return 'canopy';
+  // Super10, and Super Knockout, whose cut goes up on the screen (`KnockoutScreen`).
+  if (game === 'super10' || game === 'knockout') return 'canopy';
   return coin < 1 / 3 ? 'pavilion' : coin < 2 / 3 ? DEFAULT_GROUND : 'canopy';
 }
 
