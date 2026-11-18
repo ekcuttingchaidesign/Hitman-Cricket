@@ -5,7 +5,7 @@
   reward (Figma section 32). Sizes in the game's own units so the desktop
   column scales them.
 */
-:root{--ko-red:#ee2a2a;--ko-safe:#3ddc84;--ko-gold:#ffb020;--ko-fh:#4efffc;--ko-fh-chip:#ff4fc4}
+:root{--ko-red:#ee2a2a;--ko-safe:#3ddc84;--ko-gold:#ffb020;--ko-fh:#4efffc;--ko-fh-chip:#4efffc}
 
 /*
   The scoreboard (the owner's frame, Figma Battle Royale page, section 47,
@@ -165,8 +165,14 @@ body.knockout-mode .phase-label{bottom:calc(var(--pad-bottom) + var(--u) * 158)}
 body.ko-up #end{visibility:hidden}
 .ko-moment{position:absolute;inset:0;z-index:120;cursor:pointer;-webkit-tap-highlight-color:transparent}
 /* K9 v2: the match goes soft and far away as the lights go out on it. */
-.ko-moment.is-lost{transition:backdrop-filter .45s ease-in-out,-webkit-backdrop-filter .45s ease-in-out}
-.ko-moment.is-lost.lights-out{-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+/* The glass break: the colour drains after the cracks (a circle opening from the stumps, `broken`), and when the
+   lights go out the match blurs behind the dark, on this one layer: a backdrop filter on the moment itself would
+   leave this one nothing to grey. */
+/* The scoreboard put back over the card for the glass to break it, its keys with it (`breakable`). */
+body.ko-glass .stage.result-open .score-stack{display:block;z-index:9}
+.ko-drain{position:absolute;inset:0;pointer-events:none;-webkit-backdrop-filter:grayscale(1) brightness(.92) blur(0px);backdrop-filter:grayscale(1) brightness(.92) blur(0px);
+  clip-path:circle(0 at 50% 60%);transition:backdrop-filter .45s ease-in-out,-webkit-backdrop-filter .45s ease-in-out}
+.ko-moment.is-lost.lights-out .ko-drain{-webkit-backdrop-filter:grayscale(1) brightness(.92) blur(18px);backdrop-filter:grayscale(1) brightness(.92) blur(18px)}
 .ko-moment-stage{position:absolute;inset:0;width:100%;height:100%;display:block}
 .ko-moment-said{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 /* K9 v2 and K11's keys: 173 and 179 wide, 10 apart, 20 in from the sides, 49 off the foot. */
@@ -174,6 +180,10 @@ body.ko-up #end{visibility:hidden}
   padding:0 calc(var(--u,1px) * 20) calc(var(--u,1px) * 49 + env(safe-area-inset-bottom,0px));
   opacity:0;transform:translateY(calc(var(--u,1px) * 60));transition:opacity .25s,transform .45s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
 .ko-moment.keys-up .ko-moment-keys{opacity:1;transform:none;pointer-events:auto}
+/* WATCH ON rises grey and PLAY AGAIN lit, 40 ms apart (section 37's rest). */
+.ko-moment.is-lost .ko-moment-keys .k-cta{transform:translateY(calc(var(--u,1px) * 24));transition:transform .45s cubic-bezier(.34,1.56,.64,1)}
+.ko-moment.is-lost.keys-up .ko-moment-keys .k-cta{transform:none}
+.ko-moment.is-lost.keys-up .ko-moment-keys .k-cta--primary{transition-delay:.04s}
 .ko-moment-keys .k-cta{min-width:0;width:auto}
 .ko-moment-keys .k-cta--secondary{flex:173;--ledge:#1c1f24;--face:#2a2e35;--ink:#c9ced6}
 .ko-moment-keys .k-cta--secondary .k-cta-face{font-size:calc(var(--u,1px) * 20);letter-spacing:.08em}
@@ -181,7 +191,7 @@ body.ko-up #end{visibility:hidden}
 .ko-moment-keys .k-cta--primary{flex:179;--c-cta-rim-top:#ff525b;--c-cta-rim-bottom:#c3121b;--c-cta-face-bottom:#ffbdc0;
   --g-cta-rim:linear-gradient(180deg,#ff525b,#c3121b);--g-cta-face:linear-gradient(180deg,#fff,#ffbdc0);--ledge:#c3121b}
 .ko-moment-keys .k-cta--primary .k-cta-face{font-size:calc(var(--u,1px) * 18)}
-@media (prefers-reduced-motion:reduce){.ko-moment-keys,.ko-moment.is-lost{transition:none}}
+@media (prefers-reduced-motion:reduce){.ko-moment-keys,.ko-drain{transition:none}}
 
 /*
   Super Knockout's way in (Figma "Super Knockout · Final", F1; KnockoutHome.ts):
@@ -300,7 +310,7 @@ body.ko-up #end{visibility:hidden}
 /* The free hit (K2b's rules, Figma P6): FH in gold in the slot of the ball that is one, shimmering once as it is given, and a gold edge kept on it once played. */
 .ko-over>i.is-free{box-shadow:inset 0 0 0 calc(var(--u) * 1.2) var(--ko-fh-chip)}
 .ko-over>i.is-free.is-next{background:var(--ko-fh-chip);color:#06121a;font-size:calc(var(--u) * 7.5);
-  box-shadow:inset 0 0 0 calc(var(--u) * 1.2) var(--ko-fh-chip),0 0 calc(var(--u) * 8) #ff4fc4e6}
+  box-shadow:inset 0 0 0 calc(var(--u) * 1.2) var(--ko-fh-chip),0 0 calc(var(--u) * 8) #4efffce6}
 
 /*
   Hold the scoreboard to see everyone (Figma F2, P8 and H1 to H3): the panel
@@ -324,7 +334,7 @@ body.knockout-mode .score-bug[data-hold]{cursor:pointer;touch-action:none}
 .ko-held-row>i{width:calc(var(--u) * 18);font:700 calc(var(--u) * 11)/1 var(--f-ui);font-style:normal;color:#bfaeb1}
 .ko-held-row>img{width:calc(var(--u) * 20);height:calc(var(--u) * 20);border-radius:50%;margin-right:calc(var(--u) * 8);object-fit:cover}
 .ko-held-row>b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 calc(var(--u) * 12)/1 var(--f-ui);color:#f5efe6}
-.ko-held-row>b>em{margin-left:calc(var(--u) * 6);padding:calc(var(--u) * 1) calc(var(--u) * 4);border-radius:calc(var(--u) * 4);font:900 calc(var(--u) * 8)/1 var(--f-ui);font-style:normal;color:#f4c74f;box-shadow:inset 0 0 0 1px #f4c74f}
+.ko-held-row>b>em{margin-left:calc(var(--u) * 6);padding:calc(var(--u) * 1) calc(var(--u) * 4);border-radius:calc(var(--u) * 4);font:900 calc(var(--u) * 8)/1 var(--f-ui);font-style:normal;color:var(--ko-fh);box-shadow:inset 0 0 0 1px var(--ko-fh)}
 .ko-held-row>span{font:400 calc(var(--u) * 16)/1 var(--f-display,Jaro,sans-serif);color:#f5efe6}
 .ko-held-row.is-you{background:#ffffff1f;box-shadow:inset 0 0 0 calc(var(--u) * 1.2) #ffffffd9}
 .ko-held-row.is-drop>i,.ko-held-row.is-drop>b,.ko-held-row.is-drop>span{color:#ff5252}

@@ -9,8 +9,13 @@
  * drawn on its own, a tap skips to the last of it, and reduced motion is that
  * last frame standing still.
  *
- * Knocked out is DEFEAT's sting: the standings with the player dropping
- * through the cut line, the lights going out on their match, their face alone
+ * Knocked out is the glass break (Figma section 37, "Knocked out, version 2:
+ * it should hurt", `830:8574`), about 3.4 seconds: the game hit — a white
+ * flash and the screen kicked; the screen cracking out like glass from where
+ * the stumps broke, the colour draining after the cracks; the player's own
+ * scoreboard breaking into pieces that fall off the foot of the screen; the
+ * standings with the player dropping through the cut line and out of the
+ * bottom of them; the lights going out on their match, their face alone
  * under the one light left, flattened and cracked, their place stamped on it,
  * KNOCKED OUT falling in with the last T toppled flat. Winner is VICTORY: the
  * last two clash, the crown drops and hops, rings, turning rays, WINNER
@@ -41,7 +46,57 @@ export interface MomentView {
   other: { name: string; face: number; runs: number } | null;
   /** WINNER's pill: points, or why there are none. */
   points: string;
+  /** Where the stumps stand on the screen, as shares of its width and height: the glass cracks out from there. */
+  origin?: { x: number; y: number };
 }
+
+/** The glass break's beats (Figma section 37): the hit, the cracks running out, the scoreboard going, and the rest after it by `LATER`. */
+const GLASS = { hit: 0.12, cracked: 0.6, shatter: 0.6, ladder: 1.1 } as const;
+/** Every beat from the lights going out on, later than the moment before the glass by this. */
+const LATER = 0.1;
+
+type Pt = [number, number, number];
+interface Glass { w: number; h: number; ox: number; oy: number; max: number; lines: Pt[][]; rings: { r: number; pts: Pt[] }[] }
+/** The cracks, from the stumps out past every edge of a screen `w` by `h`: rays that wander, branches off them, and the rings of a web between. */
+function glassOf(w: number, h: number, ox: number, oy: number): Glass {
+  const rnd = rng(0x6b6f), max = Math.max(Math.hypot(ox, oy), Math.hypot(w - ox, oy), Math.hypot(ox, h - oy), Math.hypot(w - ox, h - oy));
+  const lines: Pt[][] = [], spokes: Pt[][] = [];
+  const at = (x: number, y: number): Pt => [x, y, Math.hypot(x - ox, y - oy)];
+  const N = 13;
+  for (let i = 0; i < N; i++) {
+    const aim = i / N * Math.PI * 2 + (rnd() - 0.5) * 0.36;
+    let x = ox, y = oy, head = aim;
+    const line: Pt[] = [at(x, y)];
+    while (Math.hypot(x - ox, y - oy) < max + 30) {
+      const step = 14 + rnd() * 22;
+      head = aim + 0.55 * (head - aim) + (rnd() - 0.5) * 0.55;
+      x += Math.cos(head) * step; y += Math.sin(head) * step;
+      line.push(at(x, y));
+      if (line.length > 3 && rnd() < 0.16) {
+        const turn = (rnd() < 0.5 ? -1 : 1) * (0.4 + rnd() * 0.5), length = 30 + rnd() * 90;
+        let bx = x, by = y, bh = head + turn; const branch: Pt[] = [at(bx, by)];
+        for (let gone = 0; gone < length;) { const st = 10 + rnd() * 16; gone += st; bh += (rnd() - 0.5) * 0.5; bx += Math.cos(bh) * st; by += Math.sin(bh) * st; branch.push(at(bx, by)); }
+        lines.push(branch);
+      }
+    }
+    lines.push(line); spokes.push(line);
+  }
+  const rings: Glass['rings'] = [];
+  for (const r of [16, 34, 62, 104, 165, 250, 370]) {
+    const on = spokes.map(line => line.find(pt => pt[2] >= r) ?? line[line.length - 1]);
+    for (let i = 0; i < N; i++) {
+      if (rnd() > 0.85 - r / 900) continue;
+      const a = on[i], b = on[(i + 1) % N];
+      // A web's thread sags a little in towards the middle.
+      const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, k = 0.9 + rnd() * 0.06;
+      rings.push({ r, pts: [a, at(ox + (mx - ox) * k, oy + (my - oy) * k), b] });
+    }
+  }
+  return { w, h, ox, oy, max, lines, rings };
+}
+
+/** A piece of the player's scoreboard: a copy of it cut to one shard, and how it falls. */
+interface Shard { el: HTMLElement; vx: number; vy: number; spin: number; delay: number; poly: [number, number][] }
 
 const W = 402, H = 874, CX = 201;
 /** Where the clash happens, and where the winner's face stands at the end (K11: 150 round at 126, 186). */
@@ -122,7 +177,7 @@ function greyOf(img: HTMLImageElement): HTMLCanvasElement {
 }
 
 /** The moments' clocks: when the keys come up, where a tap skips to, and when nothing moves any more. */
-const TIMES = { lost: { keys: 3.3, lock: 3.5, end: 4.4 }, won: { keys: 2.6, lock: 3.0, end: 6.0 } } as const;
+const TIMES = { lost: { keys: 3.05, lock: 3.6, end: 4.5 }, won: { keys: 2.6, lock: 3.0, end: 6.0 } } as const;
 
 export class KnockoutMoment {
   /** `__cricket.knockoutAt(t)`: holds the clock at `t` seconds, for the checks to photograph a beat. */
@@ -142,21 +197,30 @@ export class KnockoutMoment {
   private readonly still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly times;
   private readonly waves;
+  private readonly drain: HTMLElement | null;
+  private glass: Glass | null = null;
+  private shards: Shard[] = [];
+  private bug: HTMLElement | null = null;
+  /** Whether the moment put the knockout's scoreboard dress back on, to take off again. */
+  private dressed = false;
+  /** The scoreboard's box on the screen, for its cracks before it goes. */
+  private bugAt: { x: number; y: number; ix: number; iy: number } | null = null;
 
-  constructor(host: HTMLElement, private readonly view: MomentView, keys: { again(): void; card(): void }) {
+  constructor(private readonly host: HTMLElement, private readonly view: MomentView, keys: { again(): void; card(): void }) {
     this.times = view.won ? TIMES.won : TIMES.lost;
     this.root = document.createElement('div');
     this.root.className = `ko-moment ${view.won ? 'is-won' : 'is-lost'}`;
     this.root.id = 'ko-moment';
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-label', view.won ? 'Winner' : `Knocked out, ${ordinal(view.place).toLowerCase()} of ${view.of}`);
-    this.root.innerHTML = `<canvas class="ko-moment-stage" aria-hidden="true"></canvas>
+    this.root.innerHTML = `${view.won ? '' : '<div class="ko-drain" aria-hidden="true"></div>'}<canvas class="ko-moment-stage" aria-hidden="true"></canvas>
       <p class="ko-moment-said">${view.won ? 'Winner.' : `Knocked out. ${ordinal(view.place)} of ${view.of}.`} ${view.line}</p>
       <div class="ko-moment-keys">${cta({ kind: 'secondary', label: 'SCORECARD', id: 'ko-card' })}${cta({ kind: 'primary', label: 'PLAY AGAIN', id: 'ko-again', moving: true })}</div>`;
     host.append(this.root);
     // The card waits underneath, out of sight: what shows through the dark is the match.
     document.body.classList.add('ko-up');
     this.canvas = this.root.querySelector('canvas')!;
+    this.drain = this.root.querySelector<HTMLElement>('.ko-drain');
     this.ctx = this.canvas.getContext('2d')!;
     this.root.querySelector<HTMLButtonElement>('#ko-again')!.onclick = event => { event.stopPropagation(); this.close(); keys.again(); };
     this.root.querySelector<HTMLButtonElement>('#ko-card')!.onclick = event => { event.stopPropagation(); this.close(); keys.card(); };
@@ -173,6 +237,81 @@ export class KnockoutMoment {
     cancelAnimationFrame(this.frame);
     this.root.remove();
     document.body.classList.remove('ko-up');
+    for (const shard of this.shards) shard.el.remove();
+    this.shards = [];
+    if (this.bug) this.bug.style.visibility = '';
+    this.host.style.translate = '';
+    document.body.classList.remove('ko-glass');
+    if (this.dressed) document.body.classList.remove('knockout-mode');
+  }
+
+  /**
+   * The player's scoreboard, ready to break: copies of it laid exactly over
+   * it, each cut to one shard of a fan from the point the cracks reach it
+   * first, and each falling on its own once it goes.
+   */
+  private breakable() {
+    // The innings is over, so the scoreboard has stepped aside for the card: it is put back, in the knockout's
+    // dress, for as long as it takes to break (`ko-glass`).
+    document.body.classList.add('ko-glass');
+    if (!document.body.classList.contains('knockout-mode')) { document.body.classList.add('knockout-mode'); this.dressed = true; }
+    const bug = document.querySelector<HTMLElement>('.score-bug');
+    const parent = bug?.offsetParent as HTMLElement | null;
+    if (!bug || !parent) return;
+    const box = bug.getBoundingClientRect(), from = parent.getBoundingClientRect(), stage = this.root.getBoundingClientRect();
+    if (box.width < 10 || box.height < 10) return;
+    const w = box.width, h = box.height, rnd = rng(0x5ca7);
+    const ox = stage.left + (this.view.origin?.x ?? 0.5) * stage.width;
+    const ix = clamp(ox - box.left, w * 0.22, w * 0.78), iy = h * 0.72;
+    // Round the edge, clockwise from the top left, with the corners kept so no shard cuts one off.
+    const P = 2 * (w + h), marks = [0, w, w + h, 2 * w + h];
+    for (let k = 0; k < 11; k++) marks.push(((k + 0.2 + rnd() * 0.6) / 11) * P);
+    marks.sort((a, b) => a - b);
+    const onEdge = (u: number): [number, number] => u <= w ? [u, 0] : u <= w + h ? [w, u - w] : u <= 2 * w + h ? [w - (u - w - h), h] : [0, h - (u - 2 * w - h)];
+    const pts = marks.map(onEdge);
+    for (let k = 0; k < pts.length; k++) {
+      const a = pts[k], b = pts[(k + 1) % pts.length];
+      if (Math.hypot(a[0] - b[0], a[1] - b[1]) < 2) continue;
+      const poly: [number, number][] = [[ix, iy], a, b];
+      const cx = (ix + a[0] + b[0]) / 3, cy = (iy + a[1] + b[1]) / 3;
+      const el = bug.cloneNode(true) as HTMLElement;
+      el.removeAttribute('id'); el.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'));
+      el.setAttribute('aria-hidden', 'true');
+      Object.assign(el.style, {
+        position: 'absolute', margin: '0', boxSizing: 'border-box', left: `${box.left - from.left}px`, top: `${box.top - from.top}px`,
+        width: `${w}px`, height: `${h}px`, clipPath: `polygon(${poly.map(([x, y]) => `${x}px ${y}px`).join(',')})`,
+        transformOrigin: `${cx}px ${cy}px`, animation: 'none', pointerEvents: 'none', visibility: 'hidden', willChange: 'transform',
+      });
+      parent.append(el);
+      const dx = cx - ix, dy = cy - iy, d = Math.hypot(dx, dy) || 1;
+      this.shards.push({ el, poly, vx: dx / d * (50 + rnd() * 110), vy: dy / d * 50 - (70 + rnd() * 150), spin: (rnd() - 0.5) * 9, delay: rnd() * 0.12 });
+    }
+    this.bug = bug;
+    this.bugAt = { x: box.left - stage.left, y: box.top - stage.top, ix, iy };
+  }
+
+  /** The glass break that is not on the canvas: the screen kicked, the colour drained, the scoreboard's pieces falling. */
+  private broken(t: number) {
+    const box = this.root.getBoundingClientRect();
+    this.haptic(0, 60);
+    // Kicked 8 pixels by the hit, and straight back.
+    const kick = t < GLASS.hit + 0.08 && !this.still ? 8 * Math.exp(-t * 28) : 0;
+    this.host.style.translate = kick ? `${(kick * Math.cos(t * 70)).toFixed(1)}px ${(-0.6 * kick * Math.sin(t * 70 + 1)).toFixed(1)}px` : '';
+    if (this.drain) {
+      const g = this.glass, r = g ? g.max * outCubic(prog(t, GLASS.hit + 0.05, GLASS.cracked + 0.08)) : 0;
+      this.drain.style.clipPath = this.still || (g && r >= g.max) ? 'none' : `circle(${r.toFixed(1)}px at ${(g?.ox ?? box.width / 2).toFixed(1)}px ${(g?.oy ?? box.height / 2).toFixed(1)}px)`;
+    }
+    if (!this.bug) return;
+    document.body.classList.toggle('ko-glass', t < GLASS.ladder + 0.5);
+    const gone = t >= GLASS.shatter, g = 5 * box.height;
+    this.bug.style.visibility = gone ? 'hidden' : '';
+    for (const shard of this.shards) {
+      const tt = t - GLASS.shatter - shard.delay;
+      if (!gone) { shard.el.style.visibility = 'hidden'; continue; }
+      const dy = tt > 0 ? shard.vy * tt + g * tt * tt / 2 : 0;
+      shard.el.style.visibility = dy > box.height + 80 ? 'hidden' : 'visible';
+      shard.el.style.transform = tt > 0 ? `translate(${(shard.vx * tt).toFixed(1)}px,${dy.toFixed(1)}px) rotate(${(shard.spin * tt).toFixed(3)}rad)` : '';
+    }
   }
 
   private async prepare() {
@@ -182,6 +321,7 @@ export class KnockoutMoment {
       this.faces.set(face, img);
       if (img) this.greys.set(face, greyOf(img));
     }));
+    if (!this.view.won && !this.still) this.breakable();
     this.crown = await load(crownUrl);
     const grain = await load(grainUrl);
     if (grain) this.grain = this.ctx.createPattern(grain, 'repeat');
@@ -192,7 +332,8 @@ export class KnockoutMoment {
       this.t = KnockoutMoment.pinned ?? (this.still ? this.times.end : (now - this.from) / 1000);
       this.draw();
       this.root.classList.toggle('keys-up', this.t >= this.times.keys);
-      this.root.classList.toggle('lights-out', this.t >= 1.6);
+      this.root.classList.toggle('lights-out', this.t >= (this.view.won ? 1.6 : 1.6 + LATER));
+      if (!this.view.won) this.broken(this.t);
       if (this.t < this.times.end || KnockoutMoment.pinned !== null) this.frame = requestAnimationFrame(tick);
     };
     this.frame = requestAnimationFrame(tick);
@@ -210,7 +351,15 @@ export class KnockoutMoment {
     c.setTransform(s, 0, 0, s, (w - W * s) / 2, (h - H * s) / 2);
     // The screen's own edges, in the stage's units, for what fills it edge to edge.
     const edge = { x: -(w / s - W) / 2, y: -(h / s - H) / 2, w: w / s, h: h / s };
+    if (!this.view.won) {
+      c.setTransform(dpr, 0, 0, dpr, 0, 0);
+      this.cracks(c, this.t, box.width, box.height);
+      c.setTransform(s, 0, 0, s, (w - W * s) / 2, (h - H * s) / 2);
+    }
     if (this.view.won) this.drawWon(c, this.t, edge); else this.drawLost(c, this.t, edge);
+    // The hit: a white frame, gone in the hit-stop's 120 milliseconds.
+    const flash = this.view.won || this.still ? 0 : 1 - prog(this.t, 0, GLASS.hit);
+    if (flash > 0) { c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = `rgba(255,255,255,${0.9 * flash})`; c.fillRect(0, 0, w, h); }
   }
 
   private haptic(at: number, pattern: number | number[]) {
@@ -235,11 +384,55 @@ export class KnockoutMoment {
     c.restore();
   }
 
+  /** The screen cracking out from the stumps, in the screen's own pixels; gone with the lights. */
+  private cracks(c: Ctx, t: number, w: number, h: number) {
+    const left = 1 - prog(t, 1.6 + LATER, 1.95 + LATER);
+    if (t < GLASS.hit || left <= 0 || this.still) return;
+    if (!this.glass || this.glass.w !== w || this.glass.h !== h) this.glass = glassOf(w, h, (this.view.origin?.x ?? 0.5) * w, (this.view.origin?.y ?? 0.62) * h);
+    const g = this.glass, R = g.max * outCubic(prog(t, GLASS.hit, GLASS.cracked));
+    this.haptic(GLASS.hit, [8, 14, 10, 12, 8, 16, 10, 12, 8, 14, 10, 20, 8, 18, 10, 30, 8]);
+    c.save(); c.globalAlpha = left; c.lineCap = 'round'; c.lineJoin = 'round';
+    // Each line to where the crack's front has reached, thick by the middle and thinner out.
+    const trace = (pts: Pt[], light: boolean) => {
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1], b = pts[i];
+        if (a[2] > R) break;
+        const f = b[2] <= R ? 1 : (R - a[2]) / Math.max(0.001, b[2] - a[2]);
+        const x = lerp(a[0], b[0], f), y = lerp(a[1], b[1], f), wide = 0.7 + 1.9 * Math.max(0, 1 - a[2] / (g.max * 0.7));
+        c.beginPath(); c.moveTo(a[0] + (light ? 0 : 1), a[1] + (light ? 0 : 1)); c.lineTo(x + (light ? 0 : 1), y + (light ? 0 : 1));
+        c.lineWidth = light ? wide : wide + 1.4; c.stroke();
+      }
+    };
+    for (const light of [false, true]) {
+      c.strokeStyle = light ? 'rgba(248,250,252,.88)' : 'rgba(0,0,0,.38)';
+      for (const line of g.lines) trace(line, light);
+      for (const ring of g.rings) { if (R >= ring.r * 1.08) trace(ring.pts.map(pt => [pt[0], pt[1], 0] as Pt), light); }
+    }
+    // The point of the hit, punched white.
+    const punch = c.createRadialGradient(g.ox, g.oy, 0, g.ox, g.oy, 26);
+    punch.addColorStop(0, 'rgba(255,255,255,.55)'); punch.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = punch; c.fillRect(g.ox - 26, g.oy - 26, 52, 52);
+    // The scoreboard cracking along the lines it will break on, as the front reaches it.
+    const at = this.bugAt;
+    if (at && t < GLASS.shatter) {
+      const k = outCubic(prog(t, GLASS.shatter - 0.22, GLASS.shatter));
+      c.strokeStyle = 'rgba(248,250,252,.9)'; c.lineWidth = 1.2;
+      for (const shard of this.shards) {
+        const [, b] = shard.poly;
+        c.beginPath(); c.moveTo(at.x + at.ix, at.y + at.iy); c.lineTo(at.x + lerp(at.ix, b[0], k), at.y + lerp(at.iy, b[1], k)); c.stroke();
+      }
+    }
+    if (t >= GLASS.shatter) [0, 0.08, 0.16].forEach(at => this.haptic(GLASS.shatter + at, 8));
+    c.restore();
+  }
+
   /* ---------- Knocked out: K9 v2 ---------- */
-  private drawLost(c: Ctx, t: number, edge: { x: number; y: number; w: number; h: number }) {
+  private drawLost(c: Ctx, at: number, edge: { x: number; y: number; w: number; h: number }) {
+    // From the lights going out on, every beat is K9 v2's as it was before the glass, `LATER` on.
+    const t = at - LATER;
     const [sx, sy] = shakeAt(t, [[2.32, 0.2, 7], [2.85, 0.14, 3], [3.3, 0.12, 3]]);
-    // The match dims behind the standings, then its lights go out: K9 v2's dark, top to foot.
-    const dim = 0.72 * outCubic(prog(t, 0, 0.3));
+    // The match dims behind the standings once the glass is done, then its lights go out: K9 v2's dark, top to foot.
+    const dim = 0.72 * outCubic(prog(at, GLASS.ladder - 0.05, GLASS.ladder + 0.15));
     const lo = inOutCubic(prog(t, 1.6, 2.05));
     c.fillStyle = `rgba(5,4,4,${dim * (1 - lo)})`; c.fillRect(edge.x, edge.y, edge.w, edge.h);
     if (lo > 0) {
@@ -250,7 +443,8 @@ export class KnockoutMoment {
       c.fillStyle = g; c.fillRect(edge.x, edge.y, edge.w, edge.h);
     }
     c.save(); c.translate(sx, sy);
-    this.ladder(c, t, 1 - prog(t, 1.6, 1.85));
+    this.ladder(c, at, 1 - prog(t, 1.6, 1.85));
+    if (lo > 0) this.haptic(1.6 + LATER, 45);
     if (lo > 0) {
       // Their floodlights, still on.
       for (const [x, y] of [[60, 60], [342, 72]]) {
@@ -294,7 +488,7 @@ export class KnockoutMoment {
       boxText(c, ordinal(this.view.place), 0, -29, 58, `${this.view.place >= 10 ? 40 : 46}px Jaro`, C.red);
       c.restore();
       if (t >= 2.32) {
-        this.haptic(2.32, [50, 30, 20]);
+        this.haptic(2.32 + LATER, [50, 30, 20]);
         const e = outCubic(prog(t, 2.32, 2.5));
         c.fillStyle = 'rgba(238,42,42,.85)';
         for (const [x, y, r] of INK) { c.beginPath(); c.arc(lerp(229.4, x, e), lerp(437.8, y, e), r * e, 0, Math.PI * 2); c.fill(); }
@@ -306,6 +500,7 @@ export class KnockoutMoment {
         const s0 = t0 + i * 0.035, land = s0 + 0.2;
         if (t < s0) return;
         const p = prog(t, s0, land), q = prog(t, land, land + 0.16), sq = Math.sin(Math.PI * q);
+        if (p >= 1) this.haptic(land + LATER, 10);
         c.save(); c.globalAlpha *= clamp(p * 3);
         const base = baselineIn(c, '50px Jaro', top, 63);
         c.font = '50px Jaro'; const w = c.measureText(ch).width;
@@ -325,8 +520,9 @@ export class KnockoutMoment {
     };
     word([['K', 113], ['N', 140], ['O', 166], ['C', 193], ['K', 213], ['E', 240], ['D', 263]], 548, 2.5, false);
     word([['O', 156], ['U', 183], ['T', 209]], 602, 2.68, true);
-    if (t >= 3.3) this.haptic(3.3, 25);
-    const sub = prog(t, 3.0, 3.3);
+    if (t >= 3.3) this.haptic(3.3 + LATER, 25);
+    // Rest: the line of figures fades up in grey.
+    const sub = prog(at, 3.0, 3.25);
     if (sub > 0) { c.save(); c.globalAlpha = sub; boxText(c, this.view.line, CX, 690 + 8 * (1 - sub), 16, '600 13px Satoshi', '#8a8f96'); c.restore(); }
     c.restore();
     if (t >= 2.32 && t < 2.42) { c.fillStyle = `rgba(238,42,42,${0.18 * (1 - (t - 2.32) / 0.1)})`; c.fillRect(edge.x, edge.y, edge.w, edge.h); }
@@ -334,12 +530,15 @@ export class KnockoutMoment {
 
   /** The standings round the player's place, the player dropping through the cut line into it. */
   private ladder(c: Ctx, t: number, fade: number) {
-    const a = outCubic(prog(t, 0.1, 0.38)); if (a <= 0 || fade <= 0) return;
+    // In with the glass done (`GLASS.ladder`), the player down through the line, and out of the bottom of it.
+    const a = outCubic(prog(t, 1.1, 1.28)); if (a <= 0 || fade <= 0) return;
     const { rows, above, heading } = this.view, RH = 44, PX = 24, PW = 354, PY = 250;
     const slotY = (i: number) => PY + 46 + i * RH + (i >= above ? 22 : 0);
     const you = rows.findIndex(r => r.you), from = Math.max(0, above - 1);
-    const sw = inOutCubic(prog(t, 0.55, 0.95)), bump = Math.exp(-Math.pow((t - 0.75) / 0.07, 2));
-    const slot = (i: number) => (i === you ? lerp(from, i, sw) : i >= from && i < you ? lerp(i + 1, i, sw) : i);
+    const sw = inOutCubic(prog(t, 1.24, 1.48)), bump = Math.exp(-Math.pow((t - 1.36) / 0.06, 2));
+    // Gone out of the bottom, and the row behind closing up into the place.
+    const fall = inCubic(prog(t, 1.5, 1.78)), close = inOutCubic(prog(t, 1.52, 1.72));
+    const slot = (i: number) => (i === you ? lerp(from, i, sw) : i >= from && i < you ? lerp(i + 1, i, sw) : i > you && you >= 0 ? lerp(i, i - 1, close) : i);
     const y = (i: number) => { const s = slot(i), lo = Math.floor(s), f = s - lo; return lerp(slotY(lo), slotY(lo + 1), f); };
     c.save(); c.globalAlpha = a * fade; c.translate(0, 30 * (1 - a));
     rr(c, PX, PY, PW, 46 + rows.length * RH + 32, 22); c.fillStyle = 'rgba(12,8,9,.94)'; c.fill(); c.strokeStyle = 'rgba(255,255,255,.08)'; c.lineWidth = 1; c.stroke();
@@ -347,7 +546,13 @@ export class KnockoutMoment {
     const ly = slotY(above) - 14;
     c.fillStyle = 'rgba(238,42,42,.08)'; c.fillRect(PX + 1, ly, PW - 2, (rows.length - above) * RH + 10);
     rows.forEach((r, i) => { if (i !== you) this.row(c, r, y(i), PX, PW, RH, false); });
-    if (you >= 0) this.row(c, rows[you], y(you), PX, PW, RH, sw > 0.5);
+    if (you >= 0) {
+      this.haptic(1.5, [24, 16, 24, 16, 24, 16, 24]);
+      const yy = y(you) + 300 * fall, cx = PX + PW / 2, cy = yy + RH / 2;
+      c.save(); c.globalAlpha *= 1 - 0.7 * fall; c.translate(cx, cy); c.rotate(0.55 * fall); c.scale(1 - 0.45 * fall, 1 - 0.45 * fall); c.translate(-cx, -cy);
+      this.row(c, rows[you], yy, PX, PW, RH, sw > 0.5);
+      c.restore();
+    }
     c.save(); c.strokeStyle = C.red; c.lineWidth = 2 + 3 * bump; c.setLineDash([6, 5]); c.shadowColor = C.red; c.shadowBlur = 16 * bump;
     c.beginPath(); c.moveTo(PX + 58, ly); c.lineTo(PX + PW - 14, ly); c.stroke(); c.restore();
     rr(c, PX + 12, ly - 10, 40, 20, 10); c.fillStyle = C.red; c.fill();

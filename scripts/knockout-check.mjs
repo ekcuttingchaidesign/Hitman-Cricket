@@ -78,12 +78,22 @@ await page.waitForTimeout(800);
 check(await page.locator('#ko-moment.is-lost').count() === 1, 'bowled: the room plays on to the cut, and KNOCKED OUT goes up');
 const gone = await page.evaluate(() => window.__cricket.knockout());
 check(gone.you.place > 1 && gone.you.wentAt === 6, 'gone at the end of the first over, with a place', JSON.stringify(gone.you));
-for (const t of [0.4, 0.8, 1.4, 2.45, 3.4]) await pin(page, t, 'ko-lost');
+// The glass break (section 37): cracks from the stumps with the colour draining after them, the scoreboard in pieces.
+const glassAt = async t => { await page.evaluate(v => window.__cricket.knockoutAt(v), t); await page.waitForTimeout(400);
+  return page.evaluate(() => ({ drain: document.querySelector('.ko-drain')?.style.clipPath ?? null, bugs: document.querySelectorAll('.score-bug').length,
+    falling: [...document.querySelectorAll('.score-bug')].filter(el => el.style.visibility === 'visible' && el.style.transform).length,
+    hidden: document.querySelector('.score-bug')?.style.visibility === 'hidden' })); };
+const cracking = await glassAt(0.35);
+check(/^circle\(/.test(cracking.drain ?? '') && cracking.bugs > 5 && !cracking.hidden, 'the glass cracks and the colour drains after it, the scoreboard still whole', JSON.stringify(cracking));
+const shattered = await glassAt(0.75);
+check(shattered.hidden && shattered.falling > 5 && shattered.drain === 'none', 'the scoreboard breaks into pieces that fall', JSON.stringify(shattered));
+for (const t of [0.06, 0.35, 0.75, 1.42, 2.05, 2.5, 2.9, 3.5]) await pin(page, t, 'ko-lost');
 check(await page.locator('#ko-again').isVisible(), 'SCORECARD and PLAY AGAIN are up once it lands');
 await page.evaluate(() => window.__cricket.knockoutAt(null));
 await page.locator('#ko-card').click();
 await page.waitForTimeout(500);
 check(await page.locator('#ko-moment').count() === 0 && await page.locator('#again').isVisible(), 'SCORECARD leaves the card');
+check(await page.evaluate(() => document.querySelectorAll('.score-bug').length === 1 && document.querySelector('.score-bug').style.visibility === ''), 'the scoreboard is whole again under the card');
 await page.screenshot({ path: out + '/ko-card.png' });
 await page.close();
 

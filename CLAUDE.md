@@ -2441,7 +2441,26 @@ off them, and the way there is the claude.ai artifact "Knockout Moments", on
 one clock as the Verdict is. The card is out of sight underneath while it is
 up (`ko-up`), so what shows through K9 v2's dark is the match, blurred. Its
 keys are SCORECARD in the design's dark key and PLAY AGAIN in Knockout Red;
-the design's WATCH ON and SHARE come with real rooms and the share picture. The switch is practice (`practice.ts`): no
+the design's WATCH ON and SHARE come with real rooms and the share picture.
+KNOCKED OUT opens on the glass break (Figma section 37, "Knocked out,
+version 2: it should hurt", `830:8574`, the owner's pick on 18 November
+2026), about 3.4 seconds before the keys: the hit, a white frame and the
+screen kicked 8 pixels (`broken`, the host's `translate`) with one heavy
+knock; the screen cracking out like glass from where the stumps stand
+(`origin` on the view, `stumpsOnScreen` in `src/Game.ts`; the cracks
+`glassOf`, rays, branches and a web's rings, drawn to the front's reach by
+`cracks`) with the colour draining after the front (`.ko-drain`, a
+backdrop grey cut to a circle opening from the stumps, which also takes
+the blur when the lights go out: a backdrop filter on the moment itself
+would leave it nothing to grey); at `GLASS.shatter` the player's own
+scoreboard, put back over the card for it (`ko-glass`, the knockout's
+dress with it), breaking into a fan of shards from where the cracks reach
+it, copies of it each cut to one shard and falling with gravity off the
+foot (`breakable`, `Shard`), the keys staying; then the standings, the
+player through the cut line and out of the bottom of them, tumbling and
+shrinking, the row behind closing up; and from the lights going out on,
+K9 v2's beats as before, `LATER` on. A tap skips to the end; under reduced
+motion it is the end frame standing still. The switch is practice (`practice.ts`): no
 board, no career, no points, and a room of subs never scores any. Not in the
 Pages builds. The free hit (`KNOCKOUT.freeHits`, `grantFreeHits`): after
 each over's cut the top three still standing get one ball of the next over
@@ -2462,11 +2481,20 @@ it, combining two of the five quiet ways in section 48 (Figma Battle Royale
 page, `953:8055`): the screen's edges glow cyan (`--ko-fh`, #4efffc: red is
 the drop, green safe, gold the reward and light blue the meter), steady but
 for one slow breath, settling to under half once the bowler runs in
-(`.ko-fh-edge`, `ko-fh-next`, `ko-live`); the ball's slot is FH in magenta
-(`--ko-fh-chip`) and keeps a magenta edge once played (`knockoutFreeHit`);
-the guard line says FREE HIT; and the ground's screen says FREE HIT in
-white over a magenta glow before the ball and while it is bowled
-(`knockoutScreen`'s `freehit`, painted by `paintKnockout`). The player's wicket on it is
+(`.ko-fh-edge`, `ko-fh-next`, `ko-live`); the ball's slot is FH in the
+same cyan (`--ko-fh-chip`, magenta at first, which the owner had made cyan
+to match the edge) and keeps a cyan edge once played (`knockoutFreeHit`),
+as the held list's FH tag does; the guard line says FREE HIT; and the
+ground's screen says FREE HIT in white over a magenta glow before the ball
+and while it is bowled (`knockoutScreen`'s `freehit`, painted by
+`paintFreeHit`), coming on in `FREE_HIT_IN_MS`: a cyan line opening the
+screen from its middle, the glow blooming, the letters slammed in one by
+one from big with a cyan flash as each lands, cyan slashes at the lean
+sliding in either side and a light run across the words, which runs again
+every few seconds while it is up (`freeHitGlint`). It is a function of the
+time since it went up (`freeHitAt` on `Showboards`), painted at the
+stings' fifteen a second only while it moves (`freeHitFrame` in the
+screen's key), and still under reduced motion. The player's wicket on it is
 turned not out in `resolve` before the score sees it (`freeHitOf`, FREE HIT ·
 NOT OUT, the picture still the ball that would have had them), the subs' in
 `KnockoutRoom.ball` (`freeHit`, `freeHitAhead`, `freeBallNext`).

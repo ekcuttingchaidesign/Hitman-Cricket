@@ -7350,7 +7350,17 @@ export class Game {
       other: won ? (runner && { name: runner.name, face: runner.face, runs: runner.runs }) : null,
       // A room of subs is practice: no points (PRODUCT.md).
       points: 'PRACTICE · NO POINTS',
+      origin: this.stumpsOnScreen(),
     };
+  }
+  /** Where the batter's stumps stand on the screen, as shares of it: where KNOCKED OUT's glass cracks from. */
+  private stumpsOnScreen() {
+    try {
+      const at = this.scene.batterOnScreen();
+      if (!at.width || !at.height) return undefined;
+      const x = at.feet.x / at.width, y = (at.feet.y - (at.feet.y - at.head.y) * .3) / at.height;
+      return { x: Math.min(.9, Math.max(.1, x)), y: Math.min(.9, Math.max(.2, y)) };
+    } catch { return undefined; }
   }
   /** The Blast's innings is over: the balls or the wickets, a chase's target passed, or the knockout room done with the player. */
   private get blastOver() { return this.score.ended || this.targetPassed || !!this.knockout?.finished; }
