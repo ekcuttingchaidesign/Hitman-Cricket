@@ -2463,7 +2463,26 @@ foot (`breakable`, `Shard`), the keys staying; then the standings, the
 player through the cut line and out of the bottom of them, tumbling and
 shrinking, the row behind closing up; and from the lights going out on,
 K9 v2's beats as before, `LATER` on. A tap skips to the end; under reduced
-motion it is the end frame standing still. The switch is practice (`practice.ts`): no
+motion it is the end frame standing still. It is heard in the owner's
+clips (18 November 2026): the three cracks of one recording, cut apart
+(`src/assets/knockout/crack-1.mp3` to `-3`, out of "Glass Cracking" at its
+three hits), as the cracks run out, the shatter (`shatter.mp3`) as the
+scoreboard goes, laid over each other (`GameAudio.layer`: `play` stops the
+last clip), and Moye moye (`public/moye_moye.mp3`, the `knockout` track,
+from its top each time and let through at half the card's level, being 7
+dB hotter) from the lights going out, as music, so the sound key's music
+setting takes it; the card's own track stays away while knocked out
+(`end`), and the cues are `MomentSound`, heard once each on the moment's
+clock, a crack skipped past by a tap left unheard. Before it, on the ball
+itself, the hit-stop (section 37's first beat, the owner's word): the
+player's wicket in a room holds the game's clock still `HIT_STOP_MS`
+(120) on the stumps flying when bowled (`onStumps`) and on the call for
+any other way out (`presentResult`), once a ball (`knockoutHit`), with the
+screen kicked 8 pixels, a white frame (`HUD.hitStop`, Web Animations on
+`.ko-hit`) and a heavy knock; under reduced motion the hold alone, and a
+free hit's wicket, not out, has none. `__cricket.knockout().hitStops`
+counts them, and `knockout-check` bowls a real yorker on `?yorkers=1` for
+it. The switch is practice (`practice.ts`): no
 board, no career, no points, and a room of subs never scores any. Not in the
 Pages builds. The free hit (`KNOCKOUT.freeHits`, `grantFreeHits`): after
 each over's cut the top three still standing get one ball of the next over

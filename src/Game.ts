@@ -275,6 +275,8 @@ const ASKED_GROUND = askedGround(location.search);
  */
 /** A camera switched away from within this many balls of being picked counts as given up on (`camera-quit-…`). */
 const CAMERA_QUIT_BALLS = 6;
+/** Super Knockout's hit-stop on the player's wicket (`knockoutHit`). */
+const HIT_STOP_MS = 120;
 const VENUE_COIN = { blast: Math.random(), test: Math.random() } as const;
 const MARATHON_OPEN = SHOW_MARATHON || (!SURVIVE_ONLY
   && new URLSearchParams(location.search).get('mode')?.toLowerCase() === 'marathon');
@@ -878,7 +880,7 @@ export class Game {
     // `?follow=2` or `3` draws it that many times over, for seeing what it does.
     { const asked = new URLSearchParams(location.search).get('follow'); this.scene.followThrough = asked === null ? 1 : Math.min(3, Math.max(0, Number(asked) || 0)); }
     // Bowled or stumped, the wicket is heard when the ball reaches it.
-    this.scene.onStumps = () => this.audio.play('stumps');
+    this.scene.onStumps = () => { this.audio.play('stumps'); if (this.outcome?.isWicket) this.knockoutHit(); };
     // The stars' keys first, so the moments' keys come after them in the page
     // and can be lifted clear of them when both are asked for.
     if (this.rateKeys) this.hud.rateKeys(RATE_KEYS, thing => this.previewRating(thing));
@@ -1295,7 +1297,7 @@ export class Game {
       // The knockout bar stood in a made-up room in each mood, for photographing it (`sampleTrack`); `left` is the balls left in the over.
       knockoutMood: (mood: TrackMood, left = 2) => { this.hud.knockoutTrack(sampleTrack(mood, left), this.knockout?.you.face ?? 0); },
       knockout: () => this.knockout && { standing: this.knockout.standing(), bowled: this.knockout.bowled, left: this.knockout.alive.length, you: { ...this.knockout.you },
-        freeNext: this.knockout.freeHit(), freeAhead: this.knockout.freeHitAhead(), freeBall: this.knockout.freeBallNext },
+        freeNext: this.knockout.freeHit(), freeAhead: this.knockout.freeHitAhead(), freeBall: this.knockout.freeBallNext, hitStops: this.hitStops },
       // The star prompt on demand, for `rating-check.mjs`: which thing, asked
       // as the end of an innings would ask it, and nothing about when.
       rating: (thing: RatedThing = 'game') => this.showRating(thing, thing === 'game' ? 'innings' : 'mode'),
@@ -2482,7 +2484,7 @@ export class Game {
     // Walking out takes the cover's music with it: an innings is played to the
     // bat and the crowd. The card's music is fetched now instead, so that the
     // card does not go up in silence waiting for a megabyte to arrive.
-    this.audio.stop(); this.audio.music(null); this.audio.warm('result'); this.audio.unlock();
+    this.audio.stop(); this.audio.music(null); this.audio.warm('result'); if (this.knockingOut) this.audio.warm('knockout'); this.audio.unlock();
     // And the crowd comes in with him: see `crowd.ts`.
     this.audio.crowd(this.test ? MURMUR.test : MURMUR.blast);
     this.score = new ScoreManager(this.limits); this.confidence = new Confidence(); this.health = new Health();
@@ -4716,7 +4718,25 @@ export class Game {
    * still affect is running slowly — the clock only stretches the replay of a
    * shot he has won.
    */
+  /**
+   * Super Knockout's hit-stop (Figma section 37's first beat, the owner's word on
+   * 18 November 2026): the player's wicket holds the game's clock still for
+   * `HIT_STOP_MS`, on the stumps flying when bowled and on the call for any other
+   * way out, with the screen kicked, a white frame and a heavy knock in the hand
+   * (`HUD.hitStop`). Once a ball; a free hit's wicket, not out, has none.
+   */
+  private hitStopUntil = 0;
+  private hitStopFor: unknown = null;
+  private hitStops = 0;
+  private knockoutHit() {
+    if (!this.knockout || !this.delivery || this.hitStopFor === this.delivery) return;
+    this.hitStopFor = this.delivery;
+    this.hitStopUntil = performance.now() + HIT_STOP_MS; this.hitStops++;
+    this.hud.hitStop(HIT_STOP_MS);
+    buzz(60);
+  }
   private get timeScale() {
+    if (this.hitStopUntil > performance.now()) return 0;
     // A stroke's film slows through the bat meeting the ball (`reelPace`).
     // Stopped dead while the swipe is drawn over it.
     if (this.reel) return this.reel.hold > 0 ? 0 : reelPace(this.elapsed - this.reel.start - this.reel.times.contact);
@@ -5662,6 +5682,7 @@ export class Game {
     }
     // A wicket goes quiet under a groan; one that cost him a milestone, or a
     // man carried off, is sent off with a softer cheer once it has.
+    if (outcome.isWicket) this.knockoutHit();
     if (outcome.isWicket || this.felled) {
       // The screen's word for how he went: bowled, out for nothing, or out.
       const runs = this.batterHistory.reduce((sum, ball) => sum + ball.runs, 0);
@@ -6424,7 +6445,8 @@ export class Game {
       const view = this.knockoutView();
       this.mark(view.won ? 'knockout-won' : `knockout-out-${view.place}`, view.won ? 'Super Knockout practice room won' : 'Knocked out of a Super Knockout practice room');
       tallyRoom(view.won ? 1 : view.place);
-      this.hud.knockoutEnd(view);
+      // Knocked out, the glass is heard (`MomentSound`) and Moye moye comes in with the lights going out.
+      this.hud.knockoutEnd(view, view.won ? undefined : cue => { if (cue === 'music') this.audio.music('knockout'); else this.audio.layer(cue); });
     }
     this.hud.rankHero(null, null);
     this.chaseCard();
@@ -6436,8 +6458,9 @@ export class Game {
     this.rateThisInnings();
     // Both cards get it, and it is asked for before the modes part company
     // below: the innings that just ended is a different innings in each of
-    // them, but the screen it ends on is the same screen.
-    this.audio.music('result');
+    // them, but the screen it ends on is the same screen. Knocked out, the glass is heard in silence and its
+    // own music comes in with the lights going out (`MomentSound`).
+    this.audio.music(this.knockout?.finished && this.knockout.you.place !== 1 ? null : 'result');
     [...strokeMarks(this.spinPulls, COUNTED.spinPull), ...strokeMarks(this.hooks, COUNTED.hook)].forEach(([name, title]) => this.mark(name, title));
     // Which team's kit a Super10 innings was played in (`super10-kit-s10-neon`):
     // the pick in the room, or the earned kit drawn for it.

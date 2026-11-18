@@ -1,4 +1,4 @@
-import { KnockoutMoment, type MomentView } from './KnockoutMoment';
+import { KnockoutMoment, type MomentView, type MomentSound } from './KnockoutMoment';
 import { oversWord, type Track } from '../game/knockout';
 import { KnockoutBar, knockoutBarMarkup } from './KnockoutBar';
 import { knockoutHomeMarkup, knockoutRulesMarkup, type KnockoutTally } from './KnockoutHome';
@@ -2865,15 +2865,29 @@ ${knockoutRulesMarkup()}
     this.koBar ??= new KnockoutBar(this.$('ko-track'), this.viewport);
     this.koBar.show(track, avatarSrc(face));
   }
+  /**
+   * The hit-stop's picture (Super Knockout's wicket, `knockoutHit`): the screen
+   * kicked 8 pixels and straight back, and a white frame gone in the hold. Web
+   * Animations, so nothing restarts a class mid-ball; under reduced motion only
+   * the hold, as section 37 has it.
+   */
+  hitStop(ms: number) {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let flash = this.viewport.querySelector<HTMLElement>('.ko-hit');
+    if (!flash) { flash = document.createElement('div'); flash.className = 'ko-hit'; flash.setAttribute('aria-hidden', 'true'); this.viewport.append(flash); }
+    flash.animate([{ opacity: .85 }, { opacity: 0 }], { duration: ms, easing: 'ease-in' });
+    this.viewport.animate([{ translate: '8px -5px' }, { translate: '-4px 3px', offset: .45 }, { translate: '0 0' }], { duration: ms + 40, easing: 'ease-out' });
+  }
   private koMoment: KnockoutMoment | null = null;
   /** The end of the player's knockout match, over the card: KNOCKED OUT or WINNER (`KnockoutMoment.ts`). */
-  knockoutEnd(view: MomentView | null) {
+  knockoutEnd(view: MomentView | null, sound?: (cue: MomentSound) => void) {
     this.koMoment?.close(); this.koMoment = null;
     this.viewport.classList.remove('ko-drop');
     if (!view) return;
     this.koMoment = new KnockoutMoment(this.viewport, view, {
       again: () => { this.koMoment = null; this.$('again').click(); },
       card: () => { this.koMoment = null; this.$('again').focus(); },
+      sound,
     });
   }
   /**

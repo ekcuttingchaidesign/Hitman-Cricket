@@ -168,6 +168,8 @@ body.ko-up #end{visibility:hidden}
 /* The glass break: the colour drains after the cracks (a circle opening from the stumps, `broken`), and when the
    lights go out the match blurs behind the dark, on this one layer: a backdrop filter on the moment itself would
    leave this one nothing to grey. */
+/* The hit-stop's white frame (`HUD.hitStop`), only ever animated. */
+.ko-hit{position:absolute;inset:0;z-index:118;background:#fff;opacity:0;pointer-events:none}
 /* The scoreboard put back over the card for the glass to break it, its keys with it (`breakable`). */
 body.ko-glass .stage.result-open .score-stack{display:block;z-index:9}
 .ko-drain{position:absolute;inset:0;pointer-events:none;-webkit-backdrop-filter:grayscale(1) brightness(.92) blur(0px);backdrop-filter:grayscale(1) brightness(.92) blur(0px);

@@ -8,7 +8,7 @@
  * and PLAY AGAIN walking out into a new room; the scoreboard held between
  * balls, the bowler waiting, a touch with the ball live doing nothing, and
  * the ground's screen with the line and the cut; the bar's moods; and the way
- * in from Choose a mode. The innings
+ * in from Choose a mode; and a real yorker bowling him, held still on the hit. The innings
  * are written through `__cricket.blast`.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
@@ -246,6 +246,15 @@ await page.locator('#ko-quick').click();
 for (let i = 0; i < 60; i++) { const ph = await page.evaluate(() => window.__cricket?.snapshot().phase); if (ph === 'READY' || ph === 'BOWLER_RUNUP') break; await page.waitForTimeout(250); }
 const inRoom = await page.evaluate(() => ({ room: window.__cricket.knockout()?.left, bar: !document.getElementById('ko-track').hidden, mode: localStorage.getItem('hitman-last-mode') }));
 check(inRoom.room === 12 && inRoom.bar && inRoom.mode === 'KNOCKOUT', 'QUICK MATCH walks out into a room of twelve', JSON.stringify(inRoom));
+await page.close();
+
+// 6. A real ball: a yorker left alone bowls him, and the game holds still on the stumps flying (the hit-stop).
+page = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+page.on('pageerror', e => errors.push(e.message));
+await walkOut(page, '/?knockout=1&debug=1&seed=7&yorkers=1');
+let stopped = null;
+for (let i = 0; i < 240; i++) { stopped = await page.evaluate(() => { const r = window.__cricket.knockout(); return { stops: r.hitStops, out: r.you.out }; }); if (stopped.stops > 0) break; await page.waitForTimeout(500); }
+check(stopped?.stops === 1 && stopped.out, 'bowled by a real yorker: the game holds still on it, once', JSON.stringify(stopped));
 await page.close();
 check(errors.length === 0, 'nothing in the console', errors.join('\n'));
 await b.close();

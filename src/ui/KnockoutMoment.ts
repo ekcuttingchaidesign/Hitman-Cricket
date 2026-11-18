@@ -95,6 +95,10 @@ function glassOf(w: number, h: number, ox: number, oy: number): Glass {
   return { w, h, ox, oy, max, lines, rings };
 }
 
+/** What the glass break asks to be heard: the owner's three cracks, the shatter, and Moye moye from the lights going out. */
+export type MomentSound = 'crack1' | 'crack2' | 'crack3' | 'shatter' | 'music';
+const SOUNDS: [MomentSound, number][] = [['crack1', 0.12], ['crack2', 0.28], ['crack3', 0.44], ['shatter', 0.6], ['music', 1.6 + LATER]];
+
 /** A piece of the player's scoreboard: a copy of it cut to one shard, and how it falls. */
 interface Shard { el: HTMLElement; vx: number; vy: number; spin: number; delay: number; poly: [number, number][] }
 
@@ -194,6 +198,8 @@ export class KnockoutMoment {
   private frame = 0;
   private ready = false;
   private buzzed = new Set<number>();
+  private readonly sound: ((cue: MomentSound) => void) | null;
+  private sounded = new Set<MomentSound>();
   private readonly still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly times;
   private readonly waves;
@@ -206,7 +212,8 @@ export class KnockoutMoment {
   /** The scoreboard's box on the screen, for its cracks before it goes. */
   private bugAt: { x: number; y: number; ix: number; iy: number } | null = null;
 
-  constructor(private readonly host: HTMLElement, private readonly view: MomentView, keys: { again(): void; card(): void }) {
+  constructor(private readonly host: HTMLElement, private readonly view: MomentView, keys: { again(): void; card(): void; sound?(cue: MomentSound): void }) {
+    this.sound = keys.sound ?? null;
     this.times = view.won ? TIMES.won : TIMES.lost;
     this.root = document.createElement('div');
     this.root.className = `ko-moment ${view.won ? 'is-won' : 'is-lost'}`;
@@ -293,6 +300,12 @@ export class KnockoutMoment {
   /** The glass break that is not on the canvas: the screen kicked, the colour drained, the scoreboard's pieces falling. */
   private broken(t: number) {
     const box = this.root.getBoundingClientRect();
+    // Each sound once, on its beat; one a tap skipped past stays unheard, but the music starts all the same.
+    if (KnockoutMoment.pinned === null) for (const [cue, at] of SOUNDS) {
+      if (t < at || this.sounded.has(cue)) continue;
+      this.sounded.add(cue);
+      if (cue === 'music' || t - at < 0.25) this.sound?.(cue);
+    }
     this.haptic(0, 60);
     // Kicked 8 pixels by the hit, and straight back.
     const kick = t < GLASS.hit + 0.08 && !this.still ? 8 * Math.exp(-t * 28) : 0;
