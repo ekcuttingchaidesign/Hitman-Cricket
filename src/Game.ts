@@ -7495,8 +7495,13 @@ export class Game {
   }
   private resultsView(): ResultsView {
     const room = this.knockout!, seats = [...room.seats].sort((a, b) => (a.place ?? 99) - (b.place ?? 99));
-    const lineOf = (seat: Seat) => seat.place === 1 ? 'Won the final' : seat.place === 2 ? 'Runner-up'
-      : `Out in ${(seat.wentAt ?? room.bowled) > KNOCKOUT.cuts.length * KNOCKOUT.ballsPerOver ? 'the final' : `over ${Math.ceil((seat.wentAt ?? room.bowled) / KNOCKOUT.ballsPerOver)}`}`;
+    // A cut takes those out first, so a total still batting can stand above a bigger one that was out: the line says which.
+    const lineOf = (seat: Seat) => {
+      if (seat.place === 1) return 'Won the final';
+      if (seat.place === 2) return 'Runner-up';
+      const over = Math.ceil((seat.wentAt ?? room.bowled) / KNOCKOUT.ballsPerOver);
+      return seat.out ? `Out · cut after over ${over}` : `Cut after over ${over}, not out`;
+    };
     const you = room.you, winner = room.winner!, runner = room.seats.find(seat => seat.place === 2) ?? null, by = runner ? winner.runs - runner.runs : 0;
     return {
       winner: {
