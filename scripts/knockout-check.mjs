@@ -80,6 +80,8 @@ const gone = await page.evaluate(() => window.__cricket.knockout());
 check(gone.you.place > 1 && gone.you.wentAt === 6, 'gone at the end of the first over, with a place', JSON.stringify(gone.you));
 // The glass break (section 37): cracks from the stumps with the colour draining after them, the scoreboard in pieces.
 const glassAt = async t => { await page.evaluate(v => window.__cricket.knockoutAt(v), t); await page.waitForTimeout(400);
+  // In software rendering the moment's next frame can be a while coming: wait for it to have painted the pinned beat.
+  await page.waitForFunction(() => !!document.querySelector('.ko-drain')?.style.clipPath, null, { timeout: 15000 }).catch(() => {});
   return page.evaluate(() => ({ drain: document.querySelector('.ko-drain')?.style.clipPath ?? null, bugs: document.querySelectorAll('.score-bug').length,
     falling: [...document.querySelectorAll('.score-bug')].filter(el => el.style.visibility === 'visible' && el.style.transform).length,
     hidden: document.querySelector('.score-bug')?.style.visibility === 'hidden' })); };
