@@ -90,6 +90,8 @@ export function meIn(match: MatchView, playerId: string): MatchMember | null {
  */
 export class MatchLink {
   match: MatchView | null = null;
+  /** When the store last answered (this page's clock), for `?matchlog=1`. */
+  heardAt = Date.now();
   private timer = 0;
   private offset = 0;
   private stopped = false;
@@ -104,6 +106,10 @@ export class MatchLink {
       if (answer.status === 404) this.onGone?.(answer.reason ?? 'This match has closed.');
       return;
     }
+    this.heardAt = Date.now();
+    // Answers can land out of order (a poll asked before a ball landed, answered after it): an older one never
+    // takes the match back.
+    if (this.match && answer.match.code === this.match.code && answer.match.now < this.match.now) return;
     this.offset = answer.match.now - Date.now();
     this.match = answer.match;
     this.onMatch(answer.match);

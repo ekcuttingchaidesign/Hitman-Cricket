@@ -80,6 +80,20 @@ describe('a match with friends, batted together', () => {
     expect(room.logs.get(2)!.length).toBe(zoya.balls);
   });
 
+  it('lets a sub bat for the host, the first seat, on every phone', () => {
+    // The host away from their first ball: the room had no skill to give a sub in seat 0, threw, and stood still.
+    const host: SeatSpec[] = [{ name: 'Kabir', face: 0, sub: false, handle: 'a' }, { name: 'Riya', face: 1, sub: false, handle: 'b' }];
+    const cards: Record<string, string> = { a: '0' + 'S'.repeat(29), b: '1'.repeat(30) };
+    const balls = deliveries(21);
+    const tables = [0, 1].map(you => {
+      const room = new KnockoutRoom(21, { seats: host, you });
+      room.advance((seat, i) => (seat.sub || !seat.handle ? 'sub' : i < cards[seat.handle].length ? outcomeOf(cards[seat.handle][i]) : null), i => balls[i]);
+      expect(room.roomBalls).toBeGreaterThanOrEqual(KNOCKOUT.ballsPerOver);
+      return result(room);
+    });
+    expect(tables[0]).toBe(tables[1]);
+  });
+
   it('fills the empty seats with subs, never named as a player in the match', () => {
     const room = new KnockoutRoom(3, { seats: SEATS, you: 1 });
     expect(room.seats).toHaveLength(KNOCKOUT.seats);

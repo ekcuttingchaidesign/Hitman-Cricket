@@ -422,7 +422,9 @@ export class KnockoutRoom {
 
   /** A sub's go at the ball: the stroke that best suits the line, timed with their own spread. */
   private subPlays(seat: Seat, delivery: Delivery): ShotOutcome {
-    const rng = this.dice[seat.id], skill = SKILLS[(seat.id - 1) % SKILLS.length];
+    // Seat 0 is the player in a practice room and never batted by a sub there; in a match it is the host, batted by one when
+    // they are away, and `seat.id - 1` read no skill at all, threw, and stood every other phone's room still for good.
+    const rng = this.dice[seat.id], skill = SKILLS[(seat.id + SKILLS.length - 1) % SKILLS.length];
     const rush = (NOMINAL_MS - delivery.durationMs) / 100;
     const shot: ShotType = delivery.style === 'SHORT' ? (rng.next() < 0.4 ? 'LEG' : 'DEFEND') : bestShot(delivery);
     const input = delivery.idealContactTimeMs + rush * 6 + gauss(rng) * (skill.sigma + Math.max(0, rush) * skill.pressure);

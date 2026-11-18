@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { handleOf } from '../src/game/handle';
+import { codeIn } from '../src/game/match-code';
 import {
-  AWAY_MS, MATCH_SEATS, START_IN_MS, awayInMatch, ballInMatch, cleanMatchCode, hostMatch, inviteToMatch, joinMatch, leaveMatch, matchRefused,
+  AWAY_MS, STALL_MS, MATCH_SEATS, START_IN_MS, awayInMatch, ballInMatch, beatInMatch, cleanMatchCode, hostMatch, inviteToMatch, joinMatch, leaveMatch, matchRefused,
   memoryKnockouts, readInvites, readMatch, readyMatch, removeFromMatch, startMatch,
   type MatchOutcome, type MatchView, type Member,
 } from '../src/server/knockout-store';
@@ -49,6 +50,19 @@ describe('a match with friends', () => {
     expect(cleanMatchCode('https://hitmancricket.in/?k=K7Q2')).toBe('K7Q2');
     expect(cleanMatchCode('K7Q')).toBeNull();
     expect(cleanMatchCode('K0Q2')).toBeNull();
+  });
+
+  it('finds the code in whatever was pasted: INVITE’s whole line, a link, a code with spaces round it', () => {
+    const shared = 'Bat with me in Super Knockout. Code K7Q2 https://hitman-cricket-git-claude-confident-faraday-puyn02-ek.vercel.app/?k=K7Q2';
+    expect(codeIn(shared)).toBe('K7Q2');
+    expect(codeIn('Bat with me in Super Knockout. Code k7q2')).toBe('K7Q2');
+    expect(codeIn('  k7q2\n')).toBe('K7Q2');
+    expect(codeIn('https://hitmancricket.in/?k=K7Q2&x=1')).toBe('K7Q2');
+    expect(codeIn('join K7Q2 now')).toBe('K7Q2');
+    // Nothing that says which, or nothing at all.
+    expect(codeIn('K7Q2 or WXYZ')).toBeNull();
+    expect(codeIn('Bat with me in Super Knockout')).toBeNull();
+    expect(codeIn('')).toBeNull();
   });
 
   it('says plainly when the code is no match', async () => {
@@ -182,6 +196,27 @@ describe('a match with friends', () => {
     ok(await ballInMatch(store, code, as(1), 2, '6', T0 + 31_000));
     ok(await ballInMatch(store, code, as(1), 6, '4', T0 + 32_000));
     expect(ok(await readMatch(store, code, T0 + 33_000)).members[1].card).toBe('12SSSS4');
+  });
+
+  it('subs a player still checking in who has sent no ball for a minute, and only then', async () => {
+    const { store, code } = await started();
+    ok(await ballInMatch(store, code, as(1), 0, '1', T0 + 6000));
+    // Checking in all along, but no ball after the first: the page's game stopped, or its balls were lost.
+    for (let at = T0 + 10_000; at <= T0 + 6000 + STALL_MS; at += 5000) ok(await beatInMatch(store, code, as(1), at));
+    const just = ok(await awayInMatch(store, code, as(0), handleOf(ids[1]), 0, T0 + 6000 + STALL_MS - 1));
+    expect(just.members[1].card).toBe('1');
+    expect(just.members[1].idle).toBe(STALL_MS - 1);
+    ok(await awayInMatch(store, code, as(0), handleOf(ids[1]), 0, T0 + 6000 + STALL_MS));
+    expect(ok(await readMatch(store, code, T0 + 70_000)).members[1].card).toBe('1SSSSS');
+  });
+
+  it('counts a stall from the walk-out for a player yet to send a ball', async () => {
+    const { store, code } = await started();
+    const start = ok(await readMatch(store, code, T0 + 5000));
+    const walkOut = start.startAt!;
+    ok(await beatInMatch(store, code, as(1), walkOut + STALL_MS - 1000));
+    expect(ok(await awayInMatch(store, code, as(0), handleOf(ids[1]), 0, walkOut + STALL_MS - 1)).members[1].card).toBe('');
+    expect(ok(await awayInMatch(store, code, as(0), handleOf(ids[1]), 0, walkOut + STALL_MS)).members[1].card).toBe('SSSSSS');
   });
 
   it('subs a player who ran away at once', async () => {

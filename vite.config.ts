@@ -11,7 +11,7 @@ import { FEEDBACK_KEPT, feedbackCsv, refusedFeedback, takeFeedback } from './src
 import { memoryFeedback } from './src/server/memory-feedback';
 import { challengeRefused } from './src/server/challenge-store';
 import { matchRefused, memoryKnockouts } from './src/server/knockout-store';
-import { knockoutCacheable, knockoutRequest } from './src/server/knockout-endpoint';
+import { KNOCKOUT_CACHE, knockoutRequest } from './src/server/knockout-endpoint';
 import { cacheable, challengeRequest } from './src/server/challenge-endpoint';
 import {
   CAREER_BOARD_SIZE, countInnings, nameCareer, readCareer, readCareerBoards, refusedCareer,
@@ -157,7 +157,7 @@ function boardEndpoints(): Plugin {
             };
             const outcome = await knockoutRequest(knockouts, request);
             if (matchRefused(outcome)) return send(outcome.status, { error: outcome.reason, status: outcome.status, retry: outcome.status >= 500 });
-            return send(200, outcome, knockoutCacheable(request) ? 'public, s-maxage=1, stale-while-revalidate=2' : 'no-store');
+            return send(200, outcome, KNOCKOUT_CACHE);
           }
           if (path === '/api/profile') {
             // What `api/profile.ts` does, over memory: the same router.

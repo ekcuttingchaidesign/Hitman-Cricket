@@ -2683,7 +2683,14 @@ match shaking the card red with "No match with code ZZZZ. Check it with your
 friend."; AROUND NOW · INVITE STRAIGHT IN, the live list with INVITE each,
 which hosts a match and asks them into it; and HOST A MATCH under the thumb,
 "You get a code to share · up to 12 play". HOST A MATCH, not START A ROOM:
-room was our word, not the player's, and every screen says match.
+room was our word, not the player's, and every screen says match. PASTE
+beside the card's title reads the clipboard (`navigator.clipboard.readText`),
+and anything pasted into the boxes is read the same way (`codeIn` in
+`match-code.ts`): the code out of INVITE's whole line, a link's `?k=`, or the
+one word that is a code, then joined. The boxes held 64 characters, which cut
+INVITE's line off before its link, and a long press on four invisible boxes
+was hard to find on a phone (the owner could not paste a copied code, 18
+November 2026).
 
 The lobby (`LobbyScreen`, `#knockout-lobby`): YOUR MATCH, N OF 12 IN, the
 twelve seats (HOST under the host's face, a tick on a guest who has said I'M
@@ -2711,11 +2718,39 @@ somebody out, back once with the link and kept out the second time; nobody
 new once it has started. Every ball is a field of its own written once
 (HSETNX), and that is what lets a quiet player be replaced safely: any phone
 the room is waiting on them for asks (`awayInMatch`), the store decides by its
-own clock (`AWAY_MS`, twenty seconds; a player who left is away at once), and
+own clock (`AWAY_MS`, twenty seconds; a player who left is away at once; one
+still checking in with no ball for `STALL_MS`, ninety seconds (a minute was
+less than one ball takes in a headless check), counted from the
+walk-out before their first, is stuck and away too: `idle` on the member), and
 writes the sub's balls (`S`) into the same fields, so whichever lands first
-owns the ball and every phone reads one answer. A phone checks in every five
-seconds while its player bats or waits (`MATCH_BEAT_MS`), and not while
-paused, so a pause is the same as dropping out.
+owns the ball and every phone reads one answer. An ask the store turns down is
+asked again `MATCH_REASK_MS` later, never given up on. A phone checks in every
+five seconds while its player bats or waits (`MATCH_BEAT_MS`), and not while
+paused, so a pause is the same as dropping out. Nothing about a match is
+cached (`KNOCKOUT_CACHE`, `no-store`), and an answer older than the one a
+phone holds (by the store's `now`) is let go (`MatchLink.take`).
+
+The first real match, the owner's phone and computer on the preview, stopped
+after two balls on both, the pause sheet still answering. The cause, found by
+`?matchlog=1` in a check: a sub batting for the host. The host is seat 0, the
+player's own seat in a practice room, which no sub ever bats, and `subPlays`
+read its skill at `seat.id - 1`, nothing, and threw: on the phone the room
+stood still with the host at no balls, and on the host's own computer the same
+throw left its room behind while its count had jumped to the over's end, so
+the bowler waited for good. It never showed against the dev server because
+nobody there went quiet for twenty seconds. Around it everything else that
+could stop a match was closed too: match reads came from
+the edge cache, a ball the store turned away was dropped for good and every
+one after it refused as out of order (a gap nobody could fill, with the phone
+still checking in so nobody was ever subbed), and an error thrown in a frame
+stopped the loop for good. Now a phone's balls are kept (`balls` on
+`matchPlay`) and sent from wherever the store's card has got to, again after a
+failure, a little later each time; the stall rule frees the room whatever
+else goes wrong; and `frame` catches what a frame throws (`frameFailed`,
+`frame-error` on GoatCounter once). `?matchlog=1` puts a line over the screen
+on a phone in a match: its balls batted and stored, every seat's card, how
+long since the store answered, the room's waits and the last error, for the
+next real test to say what it saw.
 
 Every phone builds the same room (`KnockoutRoom` with `seats` and `you`, every
 case in `tests/knockout-together.test.ts`): the match's seed, the seats in the
@@ -2724,7 +2759,14 @@ start's order, subs in the empty ones under names no player in the match has
 alone: its own dice off the seed, the player's strokes drawing from another
 stream (`this.rng` off the seed), no yorker owed for one player's sixes, and
 no link switch or drill, so the balls are the same on every phone whatever
-anybody does with them. A player's ball goes to the store first
+anybody does with them. Every delivery is drawn off that one list by ball number
+(`matchDelivery`, `matchBowled`), the player's own and every seat's in the
+room alike: drawn only as each ball was bowled on the phone, a phone the store
+had moved on (a sub batting its over) had nothing for the balls between, and
+its room stood still on the first of them, subs and all. The subs still keep
+pace with the player ball by ball (`matchPaced`: only balls this phone has
+reached, or all of them once it is done batting), or they batted the whole
+over the moment the match began. A player's ball goes to the store first
 (`knockoutBall` puts it in `outbox`, `matchFrame` sends it in order) and is
 counted by the room only once the store has it, exactly as every other phone
 counts it (`matchSource` reads every real seat, the player's own included, off
@@ -2746,12 +2788,15 @@ the timer, the host's start-with-subs question, rematch, watching a friend's
 balls, and invites in Notifications.
 
 `scripts/friends-check.mjs` walks it in two browsers in real time, nobody
-swinging: Play with friends, a wrong code, the lobby, an invite into the other
-player's list, a friend opening the link, I'M READY, START NOW, the walk-out
-on both, the bowler held at the over's end, the first cut, the same seats and
-winner on both phones at the end, and a third match whose other phone never
-walks out, the sub batting its over. Never edit the source while it runs: the
-dev server reloads the pages under it.
+swinging: Play with friends, a wrong code, PASTE and a paste of INVITE's
+line, the lobby, an invite into the other player's list, a friend opening the
+link, I'M READY, START NOW, the walk-out on both, the bowler held at the
+over's end, the first cut, the guest's first ball turned away by the store and
+sent again, `?matchlog=1`'s line, the same seats and winner on both phones at
+the end, and a third match whose other phone never
+walks out, the sub batting its over, and a fourth whose host is the one who
+never walks out, the guest's room carried past a sub batting seat 0. Never
+edit the source while it runs: the dev server reloads the pages under it.
 
 ## Super10's kits
 

@@ -40,6 +40,13 @@ export const START_IN_MS = 3500;
  * over (4B). Their phone checks in every few seconds while they bat.
  */
 export const AWAY_MS = 20_000;
+/**
+ * A player still checking in who has sent no ball for this long while the
+ * room waits on them is stuck — a page whose game stopped, or balls lost on
+ * the way — and is treated as away too, so one phone can never hold the
+ * others at the over's end for good. A real ball takes a few seconds.
+ */
+export const STALL_MS = 90_000;
 /** The balls in a match: five overs. */
 export const MATCH_BALLS = 30;
 export const OVER_BALLS = 6;
@@ -66,6 +73,8 @@ export interface StoredMember {
   seen: number;
   /** Left a match that had started: ran away (5A). */
   left?: boolean;
+  /** When their last ball was written. */
+  ballAt?: number;
 }
 
 /** The start, written once by the host: when everybody walks out, and the seats in order. */
@@ -118,6 +127,8 @@ export interface MatchMember {
   card: string;
   /** How long since they were heard from, by the store's clock. */
   quiet: number;
+  /** How long since their last ball (or the walk-out, before one), by the store's clock; 0 in the lobby. */
+  idle: number;
   left: boolean;
 }
 
@@ -219,7 +230,8 @@ export function viewOf(code: string, match: StoredMatch, now = Date.now()): Matc
     const seat = seats.indexOf(id);
     return {
       handle: handleOf(id), name: m.name, avatar: m.avatar, joined: m.joined, ready: !!m.ready, host: id === match.host,
-      seat: seat >= 0 ? seat : null, card: cardOf(match, id), quiet: Math.max(0, now - (m.seen || m.joined)), left: !!m.left,
+      seat: seat >= 0 ? seat : null, card: cardOf(match, id), quiet: Math.max(0, now - (m.seen || m.joined)),
+      idle: match.start ? Math.max(0, now - Math.max(m.ballAt ?? 0, match.start.at)) : 0, left: !!m.left,
     };
   });
   const here = new Set(members.map(m => m.handle));
@@ -399,8 +411,9 @@ export async function ballInMatch(store: KnockoutStore, code: string, input: Mem
   const card = cardOf(match, input.playerId);
   if (card.includes('W')) return refuse(409, 'You are out.');
   if (index > card.length) return refuse(409, 'A ball was missed. Send them in order.');
-  if (index === card.length) await store.setOnce(clean, `b:${input.playerId}:${index}`, char);
-  await store.set(clean, { [`m:${input.playerId}`]: { ...match.members[input.playerId], seen: now } }, MATCH_TTL_SECONDS);
+  const written = index === card.length && await store.setOnce(clean, `b:${input.playerId}:${index}`, char);
+  const member = match.members[input.playerId];
+  await store.set(clean, { [`m:${input.playerId}`]: { ...member, seen: now, ballAt: written ? now : member?.ballAt } }, MATCH_TTL_SECONDS);
   return answer(store, clean, now);
 }
 
@@ -434,7 +447,8 @@ export async function awayInMatch(store: KnockoutStore, code: string, input: Mem
   const quiet = now - (held?.seen ?? 0);
   const card = cardOf(match, target);
   if (card.includes('W')) return answer(store, clean, now);
-  if (!held?.left && quiet < AWAY_MS) return answer(store, clean, now);
+  const idle = now - Math.max(held?.ballAt ?? 0, match.start.at);
+  if (!held?.left && quiet < AWAY_MS && idle < STALL_MS) return answer(store, clean, now);
   const end = Math.min(MATCH_BALLS, (which + 1) * OVER_BALLS);
   for (let i = card.length; i < end; i++) await store.setOnce(clean, `b:${target}:${i}`, 'S');
   return answer(store, clean, now);

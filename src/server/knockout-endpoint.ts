@@ -7,7 +7,7 @@ import {
  * A request to `/api/challenge?knockout=1`, turned into a call on the store; shared by the
  * deployed function and the dev server, so the two cannot drift.
  *
- *   GET ?code=K7Q2          the match as it stands: the same bytes for everybody holding the code
+ *   GET ?code=K7Q2          the match as it stands, never cached
  *   GET ?invites=<player>   that player's open invites, never cached
  *   POST {action: …}        host · join · ready · leave · remove · invite · start · ball · beat · away
  */
@@ -44,10 +44,13 @@ export async function knockoutRequest(store: KnockoutStore, req: KnockoutRequest
   }
 }
 
-/** A match's read may sit in the edge cache for a moment; invites and writes never. */
-export function knockoutCacheable(req: KnockoutRequest): boolean {
-  return req.method === 'GET' && !one(req.query.invites);
-}
+/**
+ * Nothing about a match is cached: a ball counts on every phone only once the
+ * store has it, so a read a second or two old held a phone at the over's end
+ * on a ball that had already landed, and an older answer arriving after a
+ * newer one took the room back.
+ */
+export const KNOCKOUT_CACHE = 'no-store';
 
 function one(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value[0] ?? '' : value ?? '';

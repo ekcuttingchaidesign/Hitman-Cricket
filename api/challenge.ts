@@ -7,7 +7,7 @@ import { challengeRefused } from '../src/server/challenge-store.js';
 import { cacheable, challengeRequest } from '../src/server/challenge-endpoint.js';
 import { NoDatabase, redisFromEnv, upstashChallenges, upstashKnockouts } from '../src/server/upstash.js';
 import { matchRefused } from '../src/server/knockout-store.js';
-import { knockoutCacheable, knockoutRequest } from '../src/server/knockout-endpoint.js';
+import { KNOCKOUT_CACHE, knockoutRequest } from '../src/server/knockout-endpoint.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 
 /**
@@ -34,7 +34,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (request.query.knockout) {
       const outcome = await knockoutRequest(upstashKnockouts(redisFromEnv()), request);
       if (matchRefused(outcome)) return failed(res, outcome.status, outcome.reason);
-      res.setHeader('Cache-Control', knockoutCacheable(request) ? 'public, s-maxage=1, stale-while-revalidate=2' : 'no-store');
+      res.setHeader('Cache-Control', KNOCKOUT_CACHE);
       return res.status(200).json(outcome);
     }
     // Reads use the read-only token: they cannot write, whatever they are sent.

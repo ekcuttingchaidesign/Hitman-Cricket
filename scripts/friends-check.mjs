@@ -53,7 +53,7 @@ await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ executablePath });
 const pages = [];
 async function as(playerId, name, avatar, link = '') {
-  const context = await browser.newContext({ viewport: { width: 402, height: 874 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+  const context = await browser.newContext({ viewport: { width: 402, height: 874 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1, permissions: ['clipboard-read', 'clipboard-write'] });
   const page = await context.newPage();
   page.errors = [];
   page.on('pageerror', e => page.errors.push(e.message));
@@ -103,6 +103,19 @@ await a.locator('#ko-join-code').fill('zzzz');
 check((await a.evaluate(() => [...document.querySelectorAll('.ko-code i')].map(i => i.textContent).join(''))) === 'ZZZZ', 'the boxes take the code in capitals');
 await a.locator('#ko-join-go').click();
 check(await until('wrong', async () => (await text(a, '#ko-join-line')).includes('No match with code ZZZZ'), 8000), 'a code that is no match says so, plainly', await text(a, '#ko-join-line'));
+// Pasted: INVITE's whole line on the clipboard (the code, then a link longer than the boxes ever held), read for its code and joined.
+await a.locator('#ko-join-code').fill('');
+check(await visible(a, '#ko-join-paste'), 'a PASTE key beside JOIN A FRIEND’S MATCH');
+await a.evaluate(() => navigator.clipboard.writeText('Bat with me in Super Knockout. Code WXYZ https://hitman-cricket-git-claude-a-long-branch-name-ek.vercel.app/?k=WXYZ'));
+await a.locator('#ko-join-paste').click();
+check(await until('pasted', async () => (await text(a, '#ko-join-line')).includes('No match with code WXYZ'), 8000), 'PASTE reads the code out of INVITE’s whole line and tries it', await text(a, '#ko-join-line'));
+await a.locator('#ko-join-code').fill('');
+await a.evaluate(() => {
+  const data = new DataTransfer();
+  data.setData('text', 'Code XYZW · https://hitmancricket.in/?k=XYZW');
+  document.getElementById('ko-join-code').dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+});
+check(await until('paste event', async () => (await text(a, '#ko-join-line')).includes('No match with code XYZW'), 8000), 'pasted into the boxes, the same', await text(a, '#ko-join-line'));
 await a.screenshot({ path: `${out}/friends.png` });
 
 // 2. The lobby.
@@ -123,7 +136,7 @@ await a.screenshot({ path: `${out}/lobby-host.png` });
 
 // 3. A friend opens the link.
 console.log('A friend with the link');
-const b = await as(guestId, guest, 2, `&k=${code}`);
+const b = await as(guestId, guest, 2, `&k=${code}&matchlog=1`);
 const landed = await until('guest lobby', () => visible(b, '#knockout-lobby'), 60_000);
 check(landed, 'the link lands a friend in the lobby', landed ? '' : JSON.stringify(await b.evaluate(() => ({ url: location.href, friends: document.getElementById('knockout-friends')?.className ?? null,
   lobby: document.getElementById('knockout-lobby')?.className ?? null, line: document.getElementById('ko-join-line')?.textContent ?? null, phase: window.__cricket?.snapshot?.().phase, player: window.__cricket?.player?.() }))));
@@ -137,6 +150,17 @@ await b.screenshot({ path: `${out}/lobby-guest.png` });
 // 4. START NOW, and the match batted on both phones.
 console.log('Batting together');
 check(await a.evaluate(() => !document.getElementById('ko-lobby-start').disabled), 'START NOW wakes with a friend in');
+// The guest's first ball is turned away by the store: it used to be dropped for good, every ball after it refused as out of
+// order, and the room held at the over's end on a player whose card never moved. It is sent again from the store's card.
+let turnedAway = 0;
+await b.route(url => url.pathname === '/api/challenge' && url.searchParams.has('knockout'), async route => {
+  const request = route.request();
+  if (request.method() === 'POST' && !turnedAway && JSON.parse(request.postData() ?? '{}').action === 'ball') {
+    turnedAway++;
+    return route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'Turned away by the check.', retry: false, status: 409 }) });
+  }
+  return route.continue();
+});
 await a.locator('#ko-lobby-start').click();
 const counted = await Promise.all([a, b].map(p => until('count', () => visible(p, '#ko-walkout'), 6000, 100)));
 // The host's count is the start's own; a page as starved as a headless guest's may only hear of it once it has run out.
@@ -151,12 +175,17 @@ check(ka?.table === kb?.table, 'the same room on both phones at the start');
 let held = false;
 const firstOver = await until('over 1', async () => {
   const [x, y] = [await ko(a), await ko(b)];
-  if (x?.match?.holding && (await visible(a, '#ko-waiting'))) held = true;
-  if (y?.match?.holding && (await visible(b, '#ko-waiting'))) held = true;
+  // Remembered by the game (`held`), since two phones can finish the over close enough that a look every 0.4s misses it.
+  if (x?.match?.held || y?.match?.held) held = true;
   return x && y && x.roomBalls >= 6 && y.roomBalls >= 6;
 }, 240_000, 400);
 check(firstOver, 'both phones bat the first over and the cut lands on both');
 check(held, 'the phone through first waited at the over’s end with the pill up');
+check(turnedAway === 1, 'the guest’s first ball was turned away once');
+const guestCard = (await (await fetch(`${base}/api/challenge?knockout=1&code=${code}`)).json()).match.members.find(m => m.name === guest)?.card ?? '';
+check(guestCard.length >= 6 || guestCard.includes('W'), 'and sent again: the guest’s card has no gap', guestCard);
+check((await text(b, '#match-log')).includes(code), '?matchlog=1 says where the match stands on this phone', await text(b, '#match-log'));
+await b.screenshot({ path: `${out}/matchlog.png` });
 // The ladder: 12, then 10 after the first over, 8, 5 and 2. Read once both phones stand on the same over.
 const LEFT = { 0: 12, 6: 10, 12: 8, 18: 5, 24: 2 };
 let same = null;
@@ -189,6 +218,20 @@ const movedOn = await until('subbed', async () => ((await ko(c))?.roomBalls ?? 0
 check(movedOn, 'a sub bats out the quiet player’s over and the room moves on');
 const after = await (await fetch(`${base}/api/challenge?knockout=1&code=${second}`)).json();
 check(after.match.members.find(m => m.name === gone)?.card.startsWith('SSSSSS'), 'the store holds the sub’s balls in their seat', after.match.members.find(m => m.name === gone)?.card);
+
+// 6. The host goes quiet: seat 0, the player's own seat in a practice room, which no sub ever batted there. The room on the
+// other phone threw on the sub's first ball and stood still for good (the owner's phone and computer, 18 November 2026).
+console.log('A host who goes away');
+await c.close();
+const third = (await post('/api/challenge?knockout=1', { action: 'host', playerId: goneId, name: gone, avatar: 4 })).match.code;
+const d = await as(guestId, guest, 2, `&k=${third}&matchlog=1`);
+check(await until('lobby three', () => visible(d, '#knockout-lobby'), 30_000), 'a guest in the quiet host’s lobby');
+await post('/api/challenge?knockout=1', { action: 'start', code: third, playerId: goneId, name: gone, avatar: 4 });
+check(await until('walk three', async () => !!(await ko(d))?.match, 15_000), 'the guest walks out; the host never does');
+const pastHost = await until('host subbed', async () => ((await ko(d))?.roomBalls ?? 0) >= 6 || !!(await ko(d))?.done, 300_000, 1000);
+check(pastHost, 'a sub bats the host’s over and the guest’s room moves on', await text(d, '#match-log'));
+check(!(await text(d, '#match-log')).includes('ERROR'), 'and nothing threw on the way', await text(d, '#match-log'));
+await d.screenshot({ path: `${out}/host-away.png` });
 
 for (const page of pages) check(page.errors.length === 0, 'nothing in the console', page.errors.join(' | '));
 await browser.close();

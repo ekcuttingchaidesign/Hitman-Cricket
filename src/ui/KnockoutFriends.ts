@@ -15,7 +15,7 @@
 import { avatarSrc } from '../config/board';
 import { cta, icon } from './Kit';
 import { KNOCKOUT_HERO, KNOCKOUT_MARK } from './KnockoutHome';
-import { MATCH_CODE_ALPHABET, MATCH_CODE_LENGTH, MATCH_SEATS, cleanMatchCode } from '../game/match-code';
+import { MATCH_CODE_ALPHABET, MATCH_CODE_LENGTH, MATCH_SEATS, cleanMatchCode, codeIn } from '../game/match-code';
 
 /** Somebody around now, as the friends screen and the lobby list them. */
 export interface AroundPlayer {
@@ -61,12 +61,13 @@ export class FriendsScreen {
       <div class="ko-friends-body">
         <img class="ko-mark is-small" src="${KNOCKOUT_MARK}" alt="Super Knockout" decoding="async">
         <form class="ko-card ko-join" id="ko-join" autocomplete="off">
-          <b class="ko-join-title">JOIN A FRIEND’S MATCH</b>
+          <span class="ko-join-head"><b class="ko-join-title">JOIN A FRIEND’S MATCH</b>
+            <button id="ko-join-paste" class="ko-pill is-quiet" type="button">PASTE</button></span>
           <span class="ko-join-line" id="ko-join-line">Enter the code your friend shared.</span>
           <span class="ko-join-row">
             <label class="ko-code" for="ko-join-code">
               ${Array.from({ length: MATCH_CODE_LENGTH }, (_, i) => `<i data-box="${i}"></i>`).join('')}
-              <input id="ko-join-code" class="ko-code-input" type="text" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" maxlength="64" aria-label="Match code">
+              <input id="ko-join-code" class="ko-code-input" type="text" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" aria-label="Match code">
             </label>
             <button id="ko-join-go" class="ko-join-go" type="submit" disabled>JOIN</button>
           </span>
@@ -81,6 +82,20 @@ export class FriendsScreen {
     this.root.querySelector<HTMLButtonElement>('#ko-friends-back')!.onclick = () => this.keys.back();
     this.root.querySelector<HTMLButtonElement>('#ko-host')!.onclick = () => this.keys.host();
     this.input.addEventListener('input', () => this.typed());
+    // Pasted into the boxes: the code is read out of whatever came with it (a link, INVITE's whole line), and joined.
+    this.input.addEventListener('paste', event => {
+      const text = event.clipboardData?.getData('text');
+      if (text === undefined) return;
+      event.preventDefault();
+      this.pasted(text);
+    });
+    // PASTE: a phone's long press on four boxes is hard to find, so the clipboard is read for them.
+    const paste = this.root.querySelector<HTMLButtonElement>('#ko-join-paste')!;
+    paste.hidden = !navigator.clipboard?.readText;
+    paste.onclick = () => {
+      void navigator.clipboard.readText().then(text => this.pasted(text),
+        () => { paste.hidden = true; this.input.focus(); this.error('Paste wasn’t allowed here. Tap the boxes and type the code.'); });
+    };
     this.root.querySelector<HTMLFormElement>('#ko-join')!.addEventListener('submit', event => {
       event.preventDefault();
       const code = cleanMatchCode(this.input.value);
@@ -110,10 +125,18 @@ export class FriendsScreen {
       : '<li class="ko-around-none">Nobody’s around right now. Host a match and share its code.</li>';
     this.root.querySelector<HTMLElement>('#ko-friends-note')!.hidden = !players.length;
   }
-  /** The code boxes keep up with what is typed; a whole link pasted in is read for its code. */
+  /** Something pasted: its code in the boxes and joined, or said plainly that there was none. */
+  private pasted(text: string) {
+    const code = codeIn(text);
+    if (!code) { this.error(text.trim() ? 'No match code in what you pasted. Copy the code again.' : 'Nothing copied yet. Copy the code first.'); return; }
+    this.input.value = code;
+    this.typed();
+    this.keys.join(code);
+  }
+  /** The code boxes keep up with what is typed; anything longer than a code (a link typed or dropped in) is read for one. */
   private typed() {
     const raw = this.input.value;
-    const code = (raw.length > MATCH_CODE_LENGTH ? cleanMatchCode(raw) : null) ?? [...raw.toUpperCase()].filter(ch => MATCH_CODE_ALPHABET.includes(ch)).join('').slice(0, MATCH_CODE_LENGTH);
+    const code = (raw.length > MATCH_CODE_LENGTH ? codeIn(raw) : null) ?? [...raw.toUpperCase()].filter(ch => MATCH_CODE_ALPHABET.includes(ch)).join('').slice(0, MATCH_CODE_LENGTH);
     if (this.input.value !== code) this.input.value = code;
     this.root.querySelectorAll<HTMLElement>('.ko-code i').forEach((box, i) => {
       box.textContent = code[i] ?? '';
