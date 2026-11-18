@@ -13,13 +13,15 @@ import { boardScreenMarkup, type BoardEntry } from './Board';
 import { ordinal } from './KnockoutMoment';
 import hero from '../assets/knockout/hero.webp';
 
-export interface ResultsRow { place: number; name: string; face: number; runs: number; line: string; you: boolean }
+export interface ResultsRow { place: number; name: string; face: number; runs: number; line: string; you: boolean; sub?: boolean }
 export interface ResultsView {
   /** Every seat, by where they finished: 1 first. */
   rows: ResultsRow[];
   you: { place: number; of: number; face: number; runs: number; line: string };
   /** The banner at the head of the list: who won it and how. */
   winner: { title: string; line: string };
+  /** A practice room of subs; a match with friends is false. */
+  practice?: boolean;
 }
 
 /** Knockout Red, the knockout's own colour. */
@@ -35,14 +37,14 @@ export class KnockoutResults {
     this.root.setAttribute('aria-label', 'Results');
     const rows: BoardEntry[] = view.rows.map(row => ({
       place: row.place, name: row.name, avatar: row.face, sub: row.line, score: String(row.runs), you: row.you,
-      podiumSub: row.you ? 'you' : 'sub',
+      podiumSub: row.you ? 'you' : row.sub === false ? 'friend' : 'sub',
     }));
     const markup = boardScreenMarkup({
       mode: 'classic', modes: [], ladder: 'room', ladders: [], rows, state: 'ready',
       banner: { icon: '👑', tone: 'gold', title: view.winner.title, line: view.winner.line },
       dock: { avatar: view.you.face, sentence: `You finished <em>${ordinal(view.you.place).toLowerCase()}</em> of ${view.you.of}`, detail: view.you.line, score: String(view.you.runs) },
       play: { id: 'board-again', label: 'PLAY AGAIN' }, focus: 'top', rules: '',
-      look: { cls: 'knockout', colour: RED, art: hero, name: 'Super Knockout', title: 'RESULTS', ladder: 'Practice room' },
+      look: { cls: 'knockout', colour: RED, art: hero, name: 'Super Knockout', title: 'RESULTS', ladder: view.practice === false ? 'With friends' : 'Practice room' },
     });
     // The board's ids are the board's: these are this screen's own, so the two never answer for each other.
     this.root.innerHTML = markup.replace(/id="board-/g, 'id="ko-res-');

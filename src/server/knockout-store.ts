@@ -1,6 +1,9 @@
 import { AVATARS, NAME_MAX, cleanName, isPlayerId } from './board-store.js';
 import { NAME_BLOCKED_REASON, nameBlocked } from './name-filter.js';
 import { handleOf, isHandle } from '../game/handle.js';
+import { MATCH_CODE_ALPHABET, MATCH_CODE_LENGTH, MATCH_SEATS, cleanMatchCode } from '../game/match-code.js';
+
+export { MATCH_CODE_ALPHABET, MATCH_CODE_LENGTH, MATCH_SEATS, cleanMatchCode };
 
 /**
  * Super Knockout with friends: a match a player hosts, a code their friends
@@ -27,11 +30,6 @@ import { handleOf, isHandle } from '../game/handle.js';
  * every board row does, and a browser finds itself by hashing its own id.
  */
 
-/** Most in a match: the twelve seats. */
-export const MATCH_SEATS = 12;
-/** A code: four characters, nothing a phone's keyboard or a voice across a room gets wrong (no 0, O, 1, I). */
-export const MATCH_CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-export const MATCH_CODE_LENGTH = 4;
 /** How long a match is kept: an evening, comfortably. Every write pushes it out again. */
 export const MATCH_TTL_SECONDS = 6 * 3600;
 /** From START NOW to the walk-out: the three seconds every phone counts together (3B). */
@@ -163,14 +161,6 @@ export function newMatchCode(random: () => number = Math.random): string {
   return code;
 }
 
-/** A code as typed, raised to capitals, or null. Pasting a whole link works too: the code is read off its end. */
-export function cleanMatchCode(raw: unknown): string | null {
-  if (typeof raw !== 'string') return null;
-  const linked = /[?&]k=([A-Za-z0-9]+)/.exec(raw)?.[1];
-  const code = (linked ?? raw).trim().toUpperCase();
-  if (code.length !== MATCH_CODE_LENGTH) return null;
-  return [...code].every(char => MATCH_CODE_ALPHABET.includes(char)) ? code : null;
-}
 
 function refuse(status: number, reason: string): MatchRefusal { return { ok: false, status, reason }; }
 

@@ -331,7 +331,7 @@ await page.locator('#ko-rules-back').click();
 await page.waitForTimeout(300);
 check(await page.locator('#knockout-rules.hidden').count() === 1, 'back from how it works is the home');
 await snap(page, out + '/k2.png');
-check(await page.locator('#ko-friends[disabled]').count() === 1, 'PLAY WITH FRIENDS waits for real rooms');
+check(await page.locator('#ko-friends:not([disabled])').count() === 1, 'PLAY WITH FRIENDS is live (matches with friends: friends-check)');
 { // The home is a motion poster: lit, its air moving on the canvas, and still once it is put away.
   const poster = await page.evaluate(() => { const c = document.getElementById('ko-home-air'), home = document.getElementById('knockout-home');
     const lit = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let on = 0; for (let i = 3; i < lit.length; i += 4) if (lit[i] > 20) on++;

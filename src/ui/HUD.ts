@@ -2889,6 +2889,31 @@ ${knockoutRulesMarkup()}
   private koMoment: KnockoutMoment | null = null;
   /** The room playing on after the player has gone, as rings on the end screen (`KnockoutWatch.ts`). */
   knockoutRings(rings: RingView[]) { this.koMoment?.roomRings(rings); }
+  /** PLAY WITH FRIENDS on the Knockout home: live, or drawn and marked SOON where matches cannot be kept. */
+  knockoutFriendsLive(on: boolean) {
+    const key = this.$('ko-friends') as HTMLButtonElement;
+    key.disabled = !on;
+    key.setAttribute('aria-disabled', String(!on));
+    key.querySelector('.ko-soon')?.classList.toggle('hidden', on);
+  }
+  /**
+   * In a match with friends, the pill while the room is waited on at the
+   * over's end (Figma section 53, 4A): who is still batting and how far they
+   * have to go. Nothing else is laid over the game.
+   */
+  knockoutWaiting(line: string | null) {
+    let pill = this.viewport.querySelector<HTMLElement>('#ko-waiting');
+    if (!line) { pill?.classList.add('hidden'); return; }
+    if (!pill) {
+      pill = document.createElement('div');
+      pill.id = 'ko-waiting';
+      pill.className = 'ko-waiting';
+      pill.setAttribute('aria-live', 'polite');
+      this.viewport.append(pill);
+    }
+    if (pill.textContent !== line) pill.textContent = line;
+    pill.classList.remove('hidden');
+  }
   knockoutRoomOver(line: string) { this.koMoment?.roomOver(line); }
   /** The room down to its final, on the end screen's rings. */
   knockoutRoomFinal(on: boolean) { this.koMoment?.roomFinal(on); }
@@ -5723,16 +5748,17 @@ ${knockoutRulesMarkup()}
    * A challenge arriving while Choose a mode is up (Figma 23, C8): a banner
    * over the posters with ANSWER, gone after a few seconds or on a tap.
    */
-  modesAlert(view: { code: string; name: string; avatar: number; line: string } | null) {
+  modesAlert(view: { code: string; name: string; avatar: number; line: string; title?: string; key?: string; answer?: () => void } | null) {
     const alert = this.$('modes-alert');
     window.clearTimeout(this.alertTimer);
     if (!view) { alert.classList.add('hidden'); alert.innerHTML = ''; return; }
     alert.innerHTML = `<span class="ms-alert-face" data-handle-face>${kitMarkup(view.avatar, view.name)}</span>
-      <span class="ms-alert-text"><b>${escape(view.name)} challenged you</b><small>${escape(view.line)}</small></span>
-      <button type="button" id="modes-alert-answer" class="nt-key is-answer">ANSWER</button>`;
+      <span class="ms-alert-text"><b>${escape(view.title ?? `${view.name} challenged you`)}</b><small>${escape(view.line)}</small></span>
+      <button type="button" id="modes-alert-answer" class="nt-key is-answer">${escape(view.key ?? 'ANSWER')}</button>`;
     alert.classList.remove('hidden');
     replayClass(alert, 'is-in');
-    const answer = () => { this.modesAlert(null); this.onInviteAnswer?.(view.code); };
+    // A match with friends answers its own way (JOIN); a challenge opens its invite sheet.
+    const answer = () => { this.modesAlert(null); if (view.answer) view.answer(); else this.onInviteAnswer?.(view.code); };
     alert.querySelector<HTMLElement>('#modes-alert-answer')!.onclick = event => { event.stopPropagation(); track('modes-alert-answer', 'Challenge banner answered'); answer(); };
     alert.onclick = answer;
     this.alertTimer = window.setTimeout(() => this.modesAlert(null), ALERT_MS);

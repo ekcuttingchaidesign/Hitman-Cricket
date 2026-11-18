@@ -2645,7 +2645,7 @@ all the while; nothing moves under reduced motion. The card opens the home (K2,
 `#knockout-home`): the picture, the mark, the format in two lines, this
 browser's practice rooms, best finish and wins (`readTally`, `tallyRoom`,
 kept in `hitman-knockout`, since practice scores no points), QUICK MATCH
-(`#ko-quick`) and PLAY WITH FRIENDS drawn and disabled, marked SOON. How
+(`#ko-quick`) and PLAY WITH FRIENDS, which opens matches with friends (below; drawn and marked SOON only where a name cannot be kept). How
 it works (K2b, `#knockout-rules`: the ladder off `KNOCKOUT.cuts`, the eight
 rules, while you bat) opens by itself the first time a browser chooses it
 (`hitman-knockout-rules`) and from either (i). QUICK MATCH walks out into
@@ -2666,6 +2666,90 @@ stands either side. It moves by the time between frames, runs only while the
 home is up and the page on screen, and not under reduced motion, where the
 lights stand lit and nothing moves. `knockout-check` holds it lit, moving and
 dark again once put away.
+
+## Super Knockout, stage two: matches with friends
+
+PLAY WITH FRIENDS on the Knockout home is live wherever the home is and a
+name can be kept (`friendsOpen` in `src/Game.ts`: `KNOCKOUT_OPEN` and
+`canRegister`), the owner's picks of 18 November 2026 on the Battle Royale
+page (section 54: V2b and the lobby with Around now; section 53 for the rest
+of the flow). A player with no name is asked for one first.
+
+Play with friends (`FriendsScreen` in `src/ui/KnockoutFriends.ts`,
+`#knockout-friends`): JOIN A FRIEND'S MATCH, "Enter the code your friend
+shared." (the owner cut the longer line) over four boxes (one hidden input
+behind them, a whole link pasted in read for its code), a code that is no
+match shaking the card red with "No match with code ZZZZ. Check it with your
+friend."; AROUND NOW · INVITE STRAIGHT IN, the live list with INVITE each,
+which hosts a match and asks them into it; and HOST A MATCH under the thumb,
+"You get a code to share · up to 12 play". HOST A MATCH, not START A ROOM:
+room was our word, not the player's, and every screen says match.
+
+The lobby (`LobbyScreen`, `#knockout-lobby`): YOUR MATCH, N OF 12 IN, the
+twelve seats (HOST under the host's face, a tick on a guest who has said I'M
+READY, you ringed white, the first empty seat + Invite, which shares), MATCH
+CODE · FRIENDS TYPE THIS IN with COPY, AROUND NOW as a strip of faces with
+INVITE turning SENT ✓, and the keys: INVITE (the phone's share sheet with the
+match's link, `?k=CODE`, or the link copied) beside START NOW for the host,
+asleep until one friend is in, or I'M READY for a guest. START NOW counts
+WALKING OUT IN 3 on every phone to the same moment (`walkOutAt`, the store's
+clock through `MatchLink.serverNow`). A match's link opens the game straight
+into joining it. An invite arrives as the banner over Choose a mode with JOIN
+(`bannerMatchInvite`, `modesAlert`'s `title`, `key` and `answer`); the bell
+and Notifications do not carry them yet.
+
+The store (`src/server/knockout-store.ts`, `/api/knockout`, the dev server's
+mirror through `knockout-endpoint.ts`; every rule in
+`tests/knockout-match.test.ts`) keeps only what the phones cannot agree on by
+themselves: a four-character code (`src/game/match-code.ts`: no 0, O, 1 or I),
+the host, the members by handle (never an id in an answer), the start with
+its seats fixed in join order, and each player's balls. Twelve at most; the
+host leaving the lobby hands it to whoever waited longest; the host can take
+somebody out, back once with the link and kept out the second time; nobody
+new once it has started. Every ball is a field of its own written once
+(HSETNX), and that is what lets a quiet player be replaced safely: any phone
+the room is waiting on them for asks (`awayInMatch`), the store decides by its
+own clock (`AWAY_MS`, twenty seconds; a player who left is away at once), and
+writes the sub's balls (`S`) into the same fields, so whichever lands first
+owns the ball and every phone reads one answer. A phone checks in every five
+seconds while its player bats or waits (`MATCH_BEAT_MS`), and not while
+paused, so a pause is the same as dropping out.
+
+Every phone builds the same room (`KnockoutRoom` with `seats` and `you`, every
+case in `tests/knockout-together.test.ts`): the match's seed, the seats in the
+start's order, subs in the empty ones under names no player in the match has
+(`SUB_RESERVE`), each sub on its seat's own dice. The bowling is the match's
+alone: its own dice off the seed, the player's strokes drawing from another
+stream (`this.rng` off the seed), no yorker owed for one player's sixes, and
+no link switch or drill, so the balls are the same on every phone whatever
+anybody does with them. A player's ball goes to the store first
+(`knockoutBall` puts it in `outbox`, `matchFrame` sends it in order) and is
+counted by the room only once the store has it, exactly as every other phone
+counts it (`matchSource` reads every real seat, the player's own included, off
+the store's card). `advance` lets each seat bat at its own pace up to the end
+of the over the room is in; the cut falls only once everybody still batting is
+through it; the final is taken a ball at a time across both finalists, since
+it can be settled on any ball and its order must not depend on what arrived
+first. Through the over first, the bowler waits at his mark (`matchHolding`,
+on the phone's own count of balls batted) under one pill
+(`hud.knockoutWaiting`, `#ko-waiting`): WAITING FOR RIYA · 2 BALLS TO GO, or
+OUT ON 23 · WAITING FOR … while an out player waits for the cut that settles
+them. Knocked out, the room plays on as the store's balls arrive, on the end
+screen's rings (no WATCH ON yet in a match), to MATCH OVER and the Results
+(`With friends`, real players' podium line `friend`). Leaving a match from
+anywhere — PLAY AGAIN, restart, Choose a mode — lets it go, running away
+(5A) if the player was still in it, and PLAY AGAIN goes back to Play with
+friends, never a practice room. Not yet: points with three real players,
+the timer, the host's start-with-subs question, rematch, watching a friend's
+balls, and invites in Notifications.
+
+`scripts/friends-check.mjs` walks it in two browsers in real time, nobody
+swinging: Play with friends, a wrong code, the lobby, an invite into the other
+player's list, a friend opening the link, I'M READY, START NOW, the walk-out
+on both, the bowler held at the over's end, the first cut, the same seats and
+winner on both phones at the end, and a third match whose other phone never
+walks out, the sub batting its over. Never edit the source while it runs: the
+dev server reloads the pages under it.
 
 ## Super10's kits
 
