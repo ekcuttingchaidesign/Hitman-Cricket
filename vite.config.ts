@@ -10,6 +10,8 @@ import { readMarathonFigures, type SoloInnings, type TeamInnings } from './src/g
 import { FEEDBACK_KEPT, feedbackCsv, refusedFeedback, takeFeedback } from './src/server/feedback-store';
 import { memoryFeedback } from './src/server/memory-feedback';
 import { challengeRefused } from './src/server/challenge-store';
+import { matchRefused, memoryKnockouts } from './src/server/knockout-store';
+import { knockoutCacheable, knockoutRequest } from './src/server/knockout-endpoint';
 import { cacheable, challengeRequest } from './src/server/challenge-endpoint';
 import {
   CAREER_BOARD_SIZE, countInnings, nameCareer, readCareer, readCareerBoards, refusedCareer,
@@ -86,6 +88,8 @@ function boardEndpoints(): Plugin {
   // while it runs, so a code left over from an hour of poking about stops
   // working the same way it would in production.
   const challenges = memoryChallenges(names, handle => profiles.players.idOf(handle));
+  // Super Knockout's matches with friends, over memory, finding players by handle as the profiles do.
+  const knockouts = memoryKnockouts(handle => profiles.players.idOf(handle));
   const dressing = memoryDressing();
   const recap = memoryRecap();
   // Who is around, checked against the same name registry.
@@ -103,7 +107,7 @@ function boardEndpoints(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         const path = (req.url ?? '').split('?')[0];
         const known = ['/api/board', '/api/score', '/api/feedback', '/api/career', '/api/innings',
-          '/api/restore', '/api/challenge', '/api/name', '/api/dressing', '/api/recap', '/api/me', '/api/profile', '/api/live'];
+          '/api/restore', '/api/challenge', '/api/name', '/api/dressing', '/api/recap', '/api/me', '/api/profile', '/api/live', '/api/knockout'];
         if (!known.includes(path)) return next();
         // A refusal as the deployed endpoints write one, carrying the name
         // that is held when it is not the one typed.
@@ -142,6 +146,18 @@ function boardEndpoints(): Plugin {
             // The same header the deployed endpoint sends on a read, so a check
             // behaves here the way it will behind the edge cache.
             return send(200, outcome, cacheable(request) ? 'public, s-maxage=2, stale-while-revalidate=4' : 'no-store');
+          }
+          if (path === '/api/knockout') {
+            // What `api/knockout.ts` does, over memory: the same router.
+            const request = {
+              method: req.method,
+              query: Object.fromEntries(new URLSearchParams((req.url ?? '').split('?')[1] ?? '')),
+              body: req.method === 'POST' ? await read(req) : undefined,
+              address: 'dev',
+            };
+            const outcome = await knockoutRequest(knockouts, request);
+            if (matchRefused(outcome)) return send(outcome.status, { error: outcome.reason, status: outcome.status, retry: outcome.status >= 500 });
+            return send(200, outcome, knockoutCacheable(request) ? 'public, s-maxage=1, stale-while-revalidate=2' : 'no-store');
           }
           if (path === '/api/profile') {
             // What `api/profile.ts` does, over memory: the same router.

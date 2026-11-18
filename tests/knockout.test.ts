@@ -8,7 +8,7 @@ import { heldMarkup, heldOf } from '../src/ui/KnockoutHeld';
 import type { ShotOutcome } from '../src/game/types';
 
 const seat = (id: number, runs: number, out = false): Seat =>
-  ({ id, name: `P${id}`, sub: id > 0, face: 0, runs, balls: 6, fours: 0, sixes: 0, out, place: null, wentAt: null });
+  ({ id, name: `P${id}`, sub: id > 0, face: 0, runs, balls: 6, played: 6, fours: 0, sixes: 0, out, place: null, wentAt: null });
 const ball = (runs: ShotOutcome['runs'], isWicket = false) =>
   ({ runs, isWicket, quality: 0, feedback: '', timingGrade: 'GOOD', timingDeltaMs: 0, compatibility: 1, madeBatContact: true, aerial: false }) as ShotOutcome;
 const bowler = (seed: number) => { const g = new DeliveryGenerator(new SeededRandom(seed), CLASSIC_PLAN); return () => g.next(0); };

@@ -23,8 +23,8 @@ export function heldOf(room: KnockoutRoom): Held {
   const { count, by } = room.nextCut;
   const alive = room.ranked;
   const drop = new Set(cutOf(alive, count, by).gone);
-  const rows = alive.map((seat, i) => ({ place: i + 1, name: seat.id === 0 ? 'You' : seat.name, runs: seat.runs, face: seat.face,
-    you: seat.id === 0, drop: drop.has(seat), free: room.freeHitAhead(seat.id), out: seat.out }));
+  const rows = alive.map((seat, i) => ({ place: i + 1, name: seat === room.you ? 'You' : seat.name, runs: seat.runs, face: seat.face,
+    you: seat === room.you, drop: drop.has(seat), free: room.freeHitAhead(seat.id), out: seat.out }));
   const first = rows.findIndex(row => row.drop);
   return { rows, cutAt: first > 0 ? first : null };
 }

@@ -7505,10 +7505,10 @@ export class Game {
     const you = room.you, winner = room.winner!, runner = room.seats.find(seat => seat.place === 2) ?? null, by = runner ? winner.runs - runner.runs : 0;
     return {
       winner: {
-        title: winner.id === 0 ? 'You won the room' : `${winner.name} won the room`,
-        line: `${winner.runs} off ${winner.balls}${runner ? ` · outlasted ${runner.id === 0 ? 'you' : runner.name}${by > 0 ? ` by ${by}` : ''} in the final` : ''}`,
+        title: winner === you ? 'You won the room' : `${winner.name} won the room`,
+        line: `${winner.runs} off ${winner.balls}${runner ? ` · outlasted ${runner === you ? 'you' : runner.name}${by > 0 ? ` by ${by}` : ''} in the final` : ''}`,
       },
-      rows: seats.map(seat => ({ place: seat.place ?? 0, name: seat.name, face: seat.face, runs: seat.runs, line: lineOf(seat), you: seat.id === 0 })),
+      rows: seats.map(seat => ({ place: seat.place ?? 0, name: seat.name, face: seat.face, runs: seat.runs, line: lineOf(seat), you: seat === you })),
       you: { place: you.place ?? seats.length, of: seats.length, face: you.face, runs: you.runs, line: `${this.knockoutView().line} · practice` },
     };
   }

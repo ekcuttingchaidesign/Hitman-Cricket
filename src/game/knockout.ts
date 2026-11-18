@@ -50,6 +50,8 @@ export const KNOCKOUT = {
 
 /** The eleven subs' names. Never a real player's: they are labelled SUB wherever they show. */
 const SUB_NAMES = ['Riya', 'Arjun', 'Kabir', 'Meera', 'Ishaan', 'Zoya', 'Rohan', 'Dev', 'Sam', 'Aanya', 'Vikram'];
+/** More for a match with friends, whose players may already have some of those names: a sub never shares a name with a player in the match. */
+const SUB_RESERVE = ['Neel', 'Tara', 'Kiran', 'Om', 'Isha', 'Yash', 'Nisha', 'Aditya', 'Rhea', 'Kunal', 'Pooja', 'Varun'];
 /**
  * How well each sub times the ball: the spread of the timing error in
  * milliseconds, and how much a quicker ball adds to it, as `super10-sim.ts`
@@ -73,10 +75,14 @@ const KEEP = 0.8;
 const NOMINAL_MS = 830;
 
 export interface Seat {
-  /** 0 is the player. */
+  /** The seat, 0 to 11. In a practice room 0 is the player; in a match with friends, the seat the start gave them. */
   readonly id: number;
   readonly name: string;
   readonly sub: boolean;
+  /** A real player's handle, in a match with friends: whose balls these are. */
+  readonly handle?: string;
+  /** Balls this seat has batted, which in a match with friends runs ahead of the room's within an over. */
+  played: number;
   /** Which of the game's faces (`avatarSrc`). */
   readonly face: number;
   runs: number;
@@ -156,8 +162,20 @@ export function cutOf(alive: readonly Seat[], count: number, by: Order = ahead):
   return { gone: gone.reverse(), level };
 }
 
+/** A seat as a match with friends hands it over: a real player, or a sub in an empty seat. */
+export interface SeatSpec { name: string; face: number; sub: boolean; handle?: string }
+/**
+ * What a seat did with a ball in a match with friends, as the room's source
+ * tells it (`advance`): a real player's outcome, `'sub'` where a sub bats it
+ * (an empty seat, or a player away for the rest of the over), or null when
+ * that ball has not arrived yet.
+ */
+export type SeatBall = ShotOutcome | 'sub' | null;
+
 export class KnockoutRoom {
   readonly seats: Seat[];
+  /** Which seat is the player on this phone. */
+  readonly youId: number;
   private balls = 0;
   private readonly dice: SeededRandom[];
   /** Who has a free hit this over, by seat id: granted at an over's cut, spent on the over's free hit ball. */
@@ -170,18 +188,34 @@ export class KnockoutRoom {
   /** Every ball each seat has batted, in order, for a watcher's scoreboard. */
   logs = new Map<number, ShotOutcome[]>();
 
-  constructor(seed: number, you: { name: string; face: number }) {
-    this.seats = [{ id: 0, name: you.name, sub: false, face: you.face }, ...SUB_NAMES.map((name, i) => ({ id: i + 1, name, sub: true, face: (you.face + i + 1) % 5 }))]
-      .slice(0, KNOCKOUT.seats)
-      .map(seat => ({ ...seat, runs: 0, balls: 0, fours: 0, sixes: 0, out: false, place: null, wentAt: null }));
+  /**
+   * A practice room (the player and eleven subs), or a match with friends: the
+   * seats in the order the start gave them, real players and subs, and which
+   * one is the player on this phone. Every phone in a match builds the same
+   * room off the same seed, so the subs bat the same on all of them.
+   */
+  constructor(seed: number, you: { name: string; face: number } | { seats: readonly SeatSpec[]; you: number }) {
+    const specs: SeatSpec[] = 'seats' in you
+      ? [...you.seats, ...[...SUB_NAMES, ...SUB_RESERVE].filter(name => !you.seats.some(s => s.name.toLowerCase() === name.toLowerCase())).map((name, i) => ({ name, sub: true, face: (i + 1) % 5 }))]
+      : [{ name: you.name, sub: false, face: you.face }, ...SUB_NAMES.map((name, i) => ({ name, sub: true, face: (you.face + i + 1) % 5 }))];
+    this.youId = 'seats' in you ? you.you : 0;
+    this.seats = specs.slice(0, KNOCKOUT.seats)
+      .map((seat, id) => ({ ...seat, id, runs: 0, balls: 0, played: 0, fours: 0, sixes: 0, out: false, place: null, wentAt: null }));
     // Each sub's dice are their own, off the seed and their seat, so one sub's luck never moves another's.
     this.dice = this.seats.map(seat => new SeededRandom((seed ^ Math.imul(seat.id + 1, 0x9E3779B1)) >>> 0));
     this.hard = Array.from({ length: KNOCKOUT.cuts.length + 1 }, (_, over) => freeHitBall(seed, over));
   }
 
-  get you() { return this.seats[0]; }
+  get you() { return this.seats[this.youId]; }
   get alive() { return this.seats.filter(s => s.place === null); }
-  get bowled() { return this.balls; }
+  /**
+   * Where the player is in the match: their own next ball while they bat (in
+   * a match with friends that can be ahead of the room within an over), and
+   * the room's once they are out or gone.
+   */
+  get bowled() { const you = this.you; return you.place === null && !you.out ? you.played : this.balls; }
+  /** The room's own clock: the balls every seat still batting has played, held at the over's end until the cut. */
+  get roomBalls() { return this.balls; }
   /** The overs with a cut at their end are done: this is the final. */
   get final() { return Math.floor(this.balls / KNOCKOUT.ballsPerOver) >= KNOCKOUT.cuts.length; }
   /** How the room is ordered now: not out first in the overs with a cut, the total first in the final. */
@@ -196,18 +230,20 @@ export class KnockoutRoom {
   /** The room is over: somebody has won it. */
   get done() { return this.winner !== null; }
   /** Those still in after the player has gone, best first: whom a watcher can watch. */
-  get watchable(): Seat[] { return this.ranked.filter(seat => seat.id !== 0); }
+  get watchable(): Seat[] { return this.ranked.filter(seat => seat !== this.you); }
   /** The player's part is over: knocked out, or the winner. */
   get finished() { return this.you.place !== null; }
   /** The free hit ball about to be bowled, or null when the next ball is not the over's free hit. */
-  get freeBallNext(): HardBall | null {
-    const ball = this.hard[Math.floor(this.balls / KNOCKOUT.ballsPerOver)];
-    return ball && ball.ball === this.balls % KNOCKOUT.ballsPerOver ? ball : null;
+  get freeBallNext(): HardBall | null { return this.freeBallAt(this.bowled); }
+  /** The free hit ball of an over, if the ball at this index is it. */
+  private freeBallAt(index: number): HardBall | null {
+    const ball = this.hard[Math.floor(index / KNOCKOUT.ballsPerOver)];
+    return ball && ball.ball === index % KNOCKOUT.ballsPerOver ? ball : null;
   }
-  /** Whether this seat bats the next ball as a free hit: the player's, unless asked about another. */
-  freeHit(id = 0) { return this.free.has(id) && this.freeBallNext !== null; }
+  /** Whether this seat bats its next ball as a free hit: the player's, unless asked about another. */
+  freeHit(id = this.youId) { return this.free.has(id) && this.freeBallAt(this.seats[id].played) !== null; }
   /** Whether this seat has a free hit still to come this over. */
-  freeHitAhead(id = 0) { return this.free.has(id); }
+  freeHitAhead(id = this.youId) { return this.free.has(id); }
 
   /**
    * One ball: the player's outcome (null once they are out and the room plays
@@ -221,17 +257,82 @@ export class KnockoutRoom {
     this.plays = new Map();
     for (const seat of this.alive) {
       if (seat.out) continue;
-      let outcome = seat.id === 0 ? yours : this.subPlays(seat, delivery);
+      const outcome = seat === this.you ? yours : this.subPlays(seat, delivery);
       if (!outcome) continue;
-      if (outcome.isWicket && free.has(seat.id)) outcome = freeHitOf(outcome);
-      const play = this.plays.get(seat.id); if (play) play.outcome = outcome;
-      this.logs.set(seat.id, [...(this.logs.get(seat.id) ?? []), outcome]);
-      seat.runs += outcome.runs; seat.balls++;
-      seat.fours += Number(outcome.runs === 4); seat.sixes += Number(outcome.runs === 6);
-      // On a free hit the wicket does not count (the game has already said so for the player: `freeHitOf`).
-      if (outcome.isWicket && !free.has(seat.id)) seat.out = true;
+      this.apply(seat, outcome, free.has(seat.id));
     }
     return this.afterBall();
+  }
+
+  /** One ball to one seat: the runs, the boundaries, and the wicket unless it was their free hit. */
+  private apply(seat: Seat, given: ShotOutcome, free: boolean) {
+    const outcome = given.isWicket && free ? freeHitOf(given) : given;
+    const play = this.plays.get(seat.id); if (play) play.outcome = outcome;
+    this.logs.set(seat.id, [...(this.logs.get(seat.id) ?? []), outcome]);
+    seat.runs += outcome.runs; seat.balls++; seat.played++;
+    seat.fours += Number(outcome.runs === 4); seat.sixes += Number(outcome.runs === 6);
+    // On a free hit the wicket does not count (the game has already said so for the player: `freeHitOf`).
+    if (outcome.isWicket && !free) seat.out = true;
+  }
+
+  /**
+   * A match with friends moves on (Figma section 53, 4A): each seat bats at
+   * its own pace up to the end of the over the room is in, a real player's
+   * balls as they arrive and a sub's off the match's balls, and the cut falls
+   * only once everybody still batting has finished the over. Every phone runs
+   * this on the same balls in the same order, so every phone cuts the same.
+   * The final can be settled before its over is out, as in a practice room.
+   */
+  advance(source: (seat: Seat, ball: number) => SeatBall, deliveryAt: (ball: number) => Delivery | null): BallNews[] {
+    const news: BallNews[] = [];
+    for (;;) {
+      if (this.winner) return news;
+      const overEnd = Math.min(KNOCKOUT.maxBalls, (Math.floor(this.balls / KNOCKOUT.ballsPerOver) + 1) * KNOCKOUT.ballsPerOver);
+      let moved = false;
+      const take = (seat: Seat): boolean => {
+        const index = seat.played, given = source(seat, index);
+        if (given === null) return false;
+        const delivery = deliveryAt(index);
+        if (given === 'sub' && !delivery) return false;
+        const free = this.free.has(seat.id) && this.freeBallAt(index) !== null;
+        if (free) this.free.delete(seat.id);
+        this.plays.delete(seat.id);
+        const outcome = given === 'sub' ? this.subPlays(seat, delivery!) : given;
+        if (given !== 'sub' && delivery) this.plays.set(seat.id, playOf(delivery, outcome));
+        this.apply(seat, outcome, free);
+        return moved = true;
+      };
+      if (this.final) {
+        // The final can be settled on any ball, so it is taken a ball at a time across everybody in it: who
+        // is out and who is ahead after each ball is then the same on every phone, whatever arrived first.
+        for (;;) {
+          const batting = this.alive.filter(seat => !seat.out && seat.played < overEnd);
+          if (!batting.length) break;
+          const next = Math.min(...batting.map(seat => seat.played));
+          const due = batting.filter(seat => seat.played === next);
+          if (!due.every(seat => source(seat, next) !== null && (source(seat, next) !== 'sub' || deliveryAt(next)))) break;
+          for (const seat of due) take(seat);
+          const settled = this.settleFinal(false);
+          if (settled) { news.push(settled); return news; }
+        }
+      } else {
+        for (const seat of this.alive) while (seat.place === null && !seat.out && seat.played < overEnd && take(seat));
+      }
+      if (this.winner) return news;
+      const behind = this.alive.some(seat => !seat.out && seat.played < overEnd);
+      if (!behind && this.balls < overEnd) {
+        this.balls = overEnd;
+        news.push(this.afterBall());
+        continue;
+      }
+      if (!moved) return news;
+    }
+  }
+
+  /** Who the room is waiting on at the end of its over, in a match with friends: still batting, behind. */
+  waitingOn(): Seat[] {
+    const overEnd = Math.min(KNOCKOUT.maxBalls, (Math.floor(this.balls / KNOCKOUT.ballsPerOver) + 1) * KNOCKOUT.ballsPerOver);
+    return this.alive.filter(seat => !seat.out && seat.played < overEnd);
   }
 
   /**
@@ -277,10 +378,14 @@ export class KnockoutRoom {
     const over = this.balls / KNOCKOUT.ballsPerOver;
     if (overDone && over <= KNOCKOUT.cuts.length) return this.cut(cutOf(this.alive, KNOCKOUT.cuts[over - 1]).gone, 'cut', over);
     if (!this.final) return none;
-    // The final: settled once nobody behind can catch the leader, or on its last ball.
+    return this.settleFinal(this.balls >= KNOCKOUT.maxBalls) ?? none;
+  }
+
+  /** The final: settled once nobody behind can catch the leader, or on its last ball. */
+  private settleFinal(last: boolean): BallNews | null {
     const [leader, ...rest] = this.ranked.sort(settledBy(aheadInFinal));
-    const settledNow = this.balls >= KNOCKOUT.maxBalls || rest.every(s => s.out && s.runs < leader.runs);
-    return settledNow ? this.cut(rest.reverse(), 'final', null) : none;
+    const settledNow = last || rest.every(s => s.out && s.runs < leader.runs);
+    return settledNow ? this.cut(rest.reverse(), 'final', null) : null;
   }
 
   /** Knocks out `gone`, worst first, and crowns the one left. */
@@ -294,6 +399,8 @@ export class KnockoutRoom {
 
   /** The top `count` still standing, and anybody level with the last of them. Never in the final: it follows the last over with a cut. */
   private grantFreeHits(count: number) {
+    // A fresh set each over: a free hit not used (its holder was out first) does not carry on.
+    this.free = new Set();
     if (count <= 0 || this.final) return;
     const standing = this.alive.filter(s => !s.out).sort((a, b) => b.runs - a.runs);
     if (!standing.length) return;
@@ -328,6 +435,16 @@ export class KnockoutRoom {
     this.plays.set(seat.id, { shot: kept ? 'DEFEND' : shot, offset: input - delivery.idealContactTimeMs, flicked: kept ? false : flicked, outcome });
     return outcome;
   }
+}
+
+/**
+ * A real player's ball, drawn for somebody watching them: the stroke that best
+ * suits the line, in time, and what they got. Their own swing never travels,
+ * only what it was worth.
+ */
+function playOf(delivery: Delivery, outcome: ShotOutcome): Play {
+  const shot: ShotType = outcome.defended || outcome.runs === 0 && !outcome.isWicket ? 'DEFEND' : delivery.style === 'SHORT' ? 'LEG' : bestShot(delivery);
+  return { shot, offset: outcome.timingDeltaMs ?? 0, flicked: shot === 'LEG' && delivery.style !== 'SHORT', outcome };
 }
 
 function bestShot(delivery: Delivery): ShotType {
@@ -406,7 +523,7 @@ export function trackOf(room: KnockoutRoom): Track {
   const drop = new Set(cutOf(alive, count, by).gone);
   const standingOrder = room.ranked.reverse();
   const row = [...gone, ...standingOrder];
-  const pips = row.map((seat, at) => ({ at, you: seat.id === 0, out: seat.out || seat.place !== null, zone: seat.place !== null ? 'gone' as const : drop.has(seat) ? 'drop' as const : 'safe' as const }));
+  const pips = row.map((seat, at) => ({ at, you: seat === room.you, out: seat.out || seat.place !== null, zone: seat.place !== null ? 'gone' as const : drop.has(seat) ? 'drop' as const : 'safe' as const }));
   const chasers = [...drop].filter(s => !s.out && s !== room.you);
   const clear = standing.drop || !chasers.length ? null : room.you.runs - Math.max(...chasers.map(s => s.runs));
   const mood: TrackMood = standing.drop ? (standing.final ? 'final' : 'drop')
@@ -473,9 +590,9 @@ export function oversWord(bowled: number): string {
 }
 
 /** The call when people go: the big screen's line, from the player's side. */
-export function cutLine(news: BallNews, left: number): string | null {
+export function cutLine(news: BallNews, left: number, youId = 0): string | null {
   if (!news.gone.length) return null;
-  const names = news.gone.map(s => (s.id === 0 ? 'YOU' : s.name.toUpperCase()));
+  const names = news.gone.map(s => (s.id === youId ? 'YOU' : s.name.toUpperCase()));
   const who = names.length > 2 ? `${names.length} PLAYERS` : names.join(' AND ');
   const head = news.kind === 'cut' ? `END OF OVER ${news.over}` : 'THE FINAL';
   // Two left is the final, and it says so.
@@ -493,7 +610,7 @@ export function knockoutScreen(room: KnockoutRoom, cut: readonly Seat[] | null):
   if (room.finished) return null;
   // The free hit's ball, before it and while it is bowled (`953:8055`).
   if (room.freeHit()) return { kind: 'freehit' };
-  if (cut?.length) return { kind: 'cut', out: cut.length, left: room.alive.length, names: cut.map(s => (s.id === 0 ? 'You' : s.name)) };
+  if (cut?.length) return { kind: 'cut', out: cut.length, left: room.alive.length, names: cut.map(s => (s === room.you ? 'You' : s.name)) };
   const { count, by } = room.nextCut;
   const alive = room.ranked;
   const drop = new Set(cutOf(alive, count, by).gone);

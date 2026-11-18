@@ -17,6 +17,7 @@ import { FEEDBACK_KEPT, type FeedbackStore, type StoredFeedback } from './feedba
 import type { ActivityEvent, PlayerStore, StoredBio } from './player-store.js';
 import type { ProfileStores } from './profile-endpoint.js';
 import type { LiveStore, StoredLive } from './live-store.js';
+import type { KnockoutStore, StoredMatchInvite } from './knockout-store.js';
 import {
   packResult, unpackResult,
   type ChallengeStore, type RivalsResult, type StoredInvite, type StoredPlayer, type StoredRivalsRow,
@@ -638,6 +639,54 @@ export function upstashLive(redis: Redis): LiveStore {
     async write(handle, entry) { await redis.hset(live, { [handle]: entry }); },
     async readAll() { return (await redis.hgetall<Record<string, StoredLive>>(live)) ?? {}; },
     async remove(handles) { if (handles.length) await redis.hdel(live, ...handles); },
+  };
+}
+
+/**
+ * Super Knockout's matches with friends (`knockout-store.ts`): one hash a
+ * match, every member and every ball a field of it, so a read is one HGETALL
+ * however many are batting, and a ball is one HSETNX that can never land on
+ * another. Each player's open invites are a hash of their own, code to who
+ * asked. All of it expires with the evening.
+ */
+export function upstashKnockouts(redis: Redis): KnockoutStore {
+  const key = (code: string) => `${SCOPE}ko:${code}`;
+  const asked = (id: string) => `${SCOPE}koinv:${id}`;
+  const rate = (kind: string, address: string) => `${SCOPE}korate:${kind}:${address}`;
+  const handles = `${SCOPE}handles`;
+  return {
+    async claim(code, fields, ttl) {
+      const claimed = await redis.hsetnx(key(code), 'host', fields.host);
+      if (!claimed) return false;
+      // The expiry first, so a process that dies before the rest leaves a key that still goes.
+      await redis.expire(key(code), ttl);
+      await redis.hset(key(code), fields);
+      return true;
+    },
+    async read(code) { return (await redis.hgetall<Record<string, unknown>>(key(code))) ?? null; },
+    async set(code, fields, ttl) {
+      if (!Object.keys(fields).length) return;
+      const pipe = redis.pipeline();
+      pipe.hset(key(code), fields);
+      pipe.expire(key(code), ttl);
+      await pipe.exec();
+    },
+    async setOnce(code, field, value) { return (await redis.hsetnx(key(code), field, value)) === 1; },
+    async drop(code, fields) { if (fields.length) await redis.hdel(key(code), ...fields); },
+    async hits(kind, address, windowSeconds) {
+      const count = await redis.incr(rate(kind, address));
+      if (count === 1) await redis.expire(rate(kind, address), windowSeconds);
+      return count;
+    },
+    async invite(id, code, invite, ttl) {
+      const pipe = redis.pipeline();
+      pipe.hset(asked(id), { [code]: invite });
+      pipe.expire(asked(id), ttl);
+      await pipe.exec();
+    },
+    async invites(id) { return (await redis.hgetall<Record<string, StoredMatchInvite>>(asked(id))) ?? {}; },
+    async uninvite(id, code) { await redis.hdel(asked(id), code); },
+    async idOf(handle) { return (await redis.hget<string>(handles, handle)) ?? null; },
   };
 }
 
