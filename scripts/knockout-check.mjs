@@ -8,7 +8,7 @@
  * and PLAY AGAIN walking out into a new room; the scoreboard held between
  * balls, the bowler waiting, a touch with the ball live doing nothing, and
  * the ground's screen with the line and the cut; the bar's moods; and the way
- * in from Choose a mode; the floodlights flashing at a cut and dipping into the final; and a real yorker bowling him, held still on the hit. The innings
+ * in from Choose a mode; the room playing on after a knock-out, as rings and a sub's game watched as a story; the floodlights flashing at a cut and dipping into the final; and a real yorker bowling him, held still on the hit. The innings
  * are written through `__cricket.blast`.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
@@ -90,8 +90,33 @@ check(/^circle\(/.test(cracking.drain ?? '') && cracking.bugs > 5 && !cracking.h
 const shattered = await glassAt(0.75);
 check(shattered.hidden && shattered.falling > 5 && shattered.drain === 'none', 'the scoreboard breaks into pieces that fall', JSON.stringify(shattered));
 for (const t of [0.06, 0.35, 0.75, 1.42, 2.05, 2.5, 2.9, 3.5]) await pin(page, t, 'ko-lost');
-check(await page.locator('#ko-again').isVisible(), 'SCORECARD and PLAY AGAIN are up once it lands');
+check(await page.locator('#ko-again').isVisible(), 'WATCH ON and PLAY AGAIN are up once it lands');
+// The room plays on (section 51): its rings once the sting has landed, a sub's game watched as a story, a swipe, and back.
+await page.evaluate(() => window.__cricket.knockoutAt(5.2));
+await page.waitForTimeout(500);
+const rings = await page.evaluate(() => ({ shown: !document.getElementById('ko-rings')?.hidden, count: document.querySelectorAll('#ko-rings .ko-ring').length, key: document.querySelector('#ko-card')?.textContent?.trim(), room: window.__cricket.knockout().roomOn }));
+check(rings.room && rings.shown && rings.count > 3 && rings.key === 'WATCH ON', 'the room plays on: its rings on the end screen, and WATCH ON', JSON.stringify(rings));
+await page.screenshot({ path: out + '/ko-rings.png' });
 await page.evaluate(() => window.__cricket.knockoutAt(null));
+await page.locator('#ko-card').click();
+await page.waitForTimeout(300);
+const watching = await page.evaluate(() => ({ body: document.body.classList.contains('ko-watch'), name: document.querySelector('.ko-watch-name')?.textContent, line: document.querySelector('.ko-watch-line')?.textContent, id: window.__cricket.knockout().watching,
+  board: getComputedStyle(document.querySelector('.score-bug:not([aria-hidden])')).visibility }));
+check(watching.body && watching.name && /off \d+ · \d+(st|nd|rd|th) of \d+/.test(watching.line ?? '') && watching.id > 0 && watching.board === 'visible', 'WATCH ON opens the leader\'s game as a story, their scoreboard showing', JSON.stringify(watching));
+for (let i = 0; i < 160; i++) { if ((await page.evaluate(() => window.__cricket.knockout().watchBall))?.shown) break; await page.waitForTimeout(400); }
+await snap(page, out + '/ko-watching.png');
+const before = watching.id;
+await page.evaluate(() => window.__cricket.knockoutStep(1));
+await page.waitForTimeout(300);
+const stepped = await page.evaluate(() => ({ id: window.__cricket.knockout().watching, name: document.querySelector('.ko-watch-name')?.textContent }));
+check(stepped.id !== before && stepped.name !== watching.name, 'a swipe goes to the next one along', JSON.stringify(stepped));
+await page.locator('#ko-watch-close').click();
+await page.waitForTimeout(300);
+check(await page.evaluate(() => !document.body.classList.contains('ko-watch') && window.__cricket.knockout().watching === null), '\u2715 goes back to the end screen');
+await page.evaluate(() => window.__cricket.knockoutPlayOn());
+await page.waitForTimeout(300);
+const over = await page.evaluate(() => ({ room: window.__cricket.knockout().roomOn, winner: window.__cricket.knockout().winner, rings: document.querySelectorAll('#ko-rings').length, key: document.querySelector('#ko-card')?.textContent?.trim() }));
+check(!over.room && over.winner && over.rings === 0 && over.key === 'SCORECARD', 'the room over: the rings go, somebody won it, and the key is SCORECARD again', JSON.stringify(over));
 await page.locator('#ko-card').click();
 await page.waitForTimeout(500);
 check(await page.locator('#ko-moment').count() === 0 && await page.locator('#again').isVisible(), 'SCORECARD leaves the card');

@@ -415,3 +415,53 @@ describe('the ground\'s screen', () => {
     expect(knockoutScreen(room, gone)).toEqual({ kind: 'cut', out: gone.length, left: room.alive.length, names: gone.map(s => s.name) });
   });
 });
+
+describe('the room after the player has gone (watching it, section 51)', () => {
+  const outFirst = (seed: number) => {
+    const room = new KnockoutRoom(seed, { name: 'You', face: 0 }), next = bowler(seed);
+    const out: ShotOutcome = { runs: 0, isWicket: true, wicketType: 'BOWLED', quality: 0, feedback: 'BOWLED!', timingGrade: 'MISS', timingDeltaMs: null, compatibility: 0, madeBatContact: false, aerial: false };
+    room.ball(next(), out);
+    room.playOut(next);
+    return { room, next };
+  };
+  it('plays on after the player is placed, a ball at a time, until somebody wins it', () => {
+    for (const seed of [3, 11, 42, 77]) {
+      const { room, next } = outFirst(seed);
+      expect(room.finished).toBe(true);
+      let guard = 0;
+      while (!room.done && guard++ < 40) room.ball(next(), null);
+      expect(room.done).toBe(true);
+      expect(room.winner?.id).not.toBe(0);
+      expect(room.bowled).toBeLessThanOrEqual(KNOCKOUT.maxBalls);
+    }
+  });
+  it('keeps what every sub still batting did with the ball, and every ball each has batted', () => {
+    const { room, next } = outFirst(5);
+    const batting = room.watchable.filter(seat => !seat.out).map(seat => seat.id);
+    room.ball(next(), null);
+    for (const id of batting) {
+      const play = room.plays.get(id)!;
+      expect(play).toBeTruthy();
+      expect(room.logs.get(id)!.at(-1)).toBe(play.outcome);
+      expect(Math.abs(play.offset)).toBeLessThan(1000);
+    }
+    for (const seat of room.seats.filter(s => s.id !== 0)) expect(room.logs.get(seat.id)?.length ?? 0).toBe(seat.balls);
+    expect(room.plays.has(0)).toBe(false);
+  });
+  it('lets a watcher watch only the others still in, best first', () => {
+    const { room } = outFirst(8);
+    expect(room.watchable.some(seat => seat.id === 0)).toBe(false);
+    expect(room.watchable).toEqual(room.ranked.filter(seat => seat.id !== 0));
+  });
+  it('shows a wicket a sub saw off as the block that kept it out, worth the same dot', () => {
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      const { room, next } = outFirst(seed);
+      for (let n = 0; n < 12 && !room.done; n++) {
+        room.ball(next(), null);
+        for (const play of room.plays.values()) if (play.outcome.defended && play.outcome.feedback === 'DEFENDED' && play.shot === 'DEFEND') {
+          expect(play.outcome.isWicket).toBe(false); expect(play.outcome.runs).toBe(0); expect(play.outcome.aerial).toBe(false);
+        }
+      }
+    }
+  });
+});

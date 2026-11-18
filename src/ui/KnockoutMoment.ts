@@ -26,6 +26,7 @@ import grainUrl from '../assets/entry/grain.webp';
 import { avatarSrc } from '../config/board';
 import { buzz } from '../game/haptics';
 import { cta } from './Kit';
+import { Rings, type RingView } from './KnockoutWatch';
 
 export interface MomentRow { place: number; name: string; runs: number; face: number; you: boolean; out: boolean; sub: boolean }
 export interface MomentView {
@@ -180,6 +181,8 @@ function greyOf(img: HTMLImageElement): HTMLCanvasElement {
   return c;
 }
 
+/** How long after the keys the room's rings come in. */
+const RINGS_AFTER = 2;
 /** The moments' clocks: when the keys come up, where a tap skips to, and when nothing moves any more. */
 const TIMES = { lost: { keys: 3.05, lock: 3.6, end: 4.5 }, won: { keys: 2.6, lock: 3.0, end: 6.0 } } as const;
 
@@ -212,7 +215,7 @@ export class KnockoutMoment {
   /** The scoreboard's box on the screen, for its cracks before it goes. */
   private bugAt: { x: number; y: number; ix: number; iy: number } | null = null;
 
-  constructor(private readonly host: HTMLElement, private readonly view: MomentView, keys: { again(): void; card(): void; sound?(cue: MomentSound): void }) {
+  constructor(private readonly host: HTMLElement, private readonly view: MomentView, keys: { again(): void; card(): void; sound?(cue: MomentSound): void; watch?(id: number | null): void }) {
     this.sound = keys.sound ?? null;
     this.times = view.won ? TIMES.won : TIMES.lost;
     this.root = document.createElement('div');
@@ -230,13 +233,36 @@ export class KnockoutMoment {
     this.drain = this.root.querySelector<HTMLElement>('.ko-drain');
     this.ctx = this.canvas.getContext('2d')!;
     this.root.querySelector<HTMLButtonElement>('#ko-again')!.onclick = event => { event.stopPropagation(); this.close(); keys.again(); };
-    this.root.querySelector<HTMLButtonElement>('#ko-card')!.onclick = event => { event.stopPropagation(); this.close(); keys.card(); };
+    // While the room plays on, the left key is WATCH ON: the first ring's game. Once it is over, SCORECARD again.
+    this.root.querySelector<HTMLButtonElement>('#ko-card')!.onclick = event => {
+      event.stopPropagation();
+      if (this.roomOn && keys.watch) { keys.watch(null); return; }
+      this.close(); keys.card();
+    };
+    if (keys.watch && !view.won) { this.rings = new Rings(this.root, id => keys.watch!(id)); this.roomOn = true; this.label('WATCH ON'); }
     // A tap skips to the end, as a tap does over every celebration in the game.
     this.root.onclick = () => { if (this.t < this.times.lock) { this.from -= (this.times.lock - this.t) * 1000; } };
     this.waves = [{ t0: 1.6, bits: paperWave(3, 90) }, { t0: 1.98, bits: paperWave(11, 56) }];
     void this.prepare();
   }
 
+  /** The room as story rings, while it plays on after the player has gone (`KnockoutWatch.ts`). */
+  private rings: Rings | null = null;
+  private roomOn = false;
+  private lineNow: string | null = null;
+  private label(text: string) {
+    const face = this.root.querySelector('#ko-card .k-cta-face') ?? this.root.querySelector('#ko-card');
+    if (face) face.textContent = text;
+  }
+  /** The room as it stands, for the rings. */
+  roomRings(rings: RingView[]) { this.rings?.show(rings); }
+  /** The room is over: the rings go, the line says who won it, and the key is SCORECARD again. */
+  roomOver(line: string) {
+    this.roomOn = false; this.lineNow = line;
+    this.rings?.remove(); this.rings = null;
+    this.label('SCORECARD');
+    this.draw();
+  }
   /** Where the clock is, for the checks. */
   get at() { return this.t; }
 
@@ -345,9 +371,11 @@ export class KnockoutMoment {
       this.t = KnockoutMoment.pinned ?? (this.still ? this.times.end : (now - this.from) / 1000);
       this.draw();
       this.root.classList.toggle('keys-up', this.t >= this.times.keys);
+      // The rings only once the sting has landed: two seconds after the keys (section 51's first rule).
+      this.rings?.reveal(this.roomOn && (this.still || this.t >= this.times.keys + RINGS_AFTER));
       this.root.classList.toggle('lights-out', this.t >= (this.view.won ? 1.6 : 1.6 + LATER));
       if (!this.view.won) this.broken(this.t);
-      if (this.t < this.times.end || KnockoutMoment.pinned !== null) this.frame = requestAnimationFrame(tick);
+      if (this.t < this.times.end || (this.rings && this.t < this.times.keys + RINGS_AFTER + 0.1) || KnockoutMoment.pinned !== null) this.frame = requestAnimationFrame(tick);
     };
     this.frame = requestAnimationFrame(tick);
   }
@@ -536,7 +564,7 @@ export class KnockoutMoment {
     if (t >= 3.3) this.haptic(3.3 + LATER, 25);
     // Rest: the line of figures fades up in grey.
     const sub = prog(at, 3.0, 3.25);
-    if (sub > 0) { c.save(); c.globalAlpha = sub; boxText(c, this.view.line, CX, 690 + 8 * (1 - sub), 16, '600 13px Satoshi', '#8a8f96'); c.restore(); }
+    if (sub > 0) { c.save(); c.globalAlpha = sub; boxText(c, this.lineNow ?? this.view.line, CX, 690 + 8 * (1 - sub), 16, '600 13px Satoshi', '#8a8f96'); c.restore(); }
     c.restore();
     if (t >= 2.32 && t < 2.42) { c.fillStyle = `rgba(238,42,42,${0.18 * (1 - (t - 2.32) / 0.1)})`; c.fillRect(edge.x, edge.y, edge.w, edge.h); }
   }

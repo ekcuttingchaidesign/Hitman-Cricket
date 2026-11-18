@@ -1,4 +1,5 @@
 import { KnockoutMoment, type MomentView, type MomentSound } from './KnockoutMoment';
+import { WatchView, type RingView, type WatchHeader } from './KnockoutWatch';
 import { oversWord, type Track } from '../game/knockout';
 import { KnockoutBar, knockoutBarMarkup } from './KnockoutBar';
 import { knockoutHomeMarkup, knockoutRulesMarkup, type KnockoutTally } from './KnockoutHome';
@@ -2879,15 +2880,26 @@ ${knockoutRulesMarkup()}
     this.viewport.animate([{ translate: '8px -5px' }, { translate: '-4px 3px', offset: .45 }, { translate: '0 0' }], { duration: ms + 40, easing: 'ease-out' });
   }
   private koMoment: KnockoutMoment | null = null;
+  /** The room playing on after the player has gone, as rings on the end screen (`KnockoutWatch.ts`). */
+  knockoutRings(rings: RingView[]) { this.koMoment?.roomRings(rings); }
+  knockoutRoomOver(line: string) { this.koMoment?.roomOver(line); }
+  private koWatch: WatchView | null = null;
+  /** A sub's game watched as a story, or null to put it away; `on` is wired once. */
+  knockoutWatch(header: WatchHeader | null, on: { close(): void; step(by: 1 | -1): void; react(emoji: string): void }, turned: 1 | -1 | 0 = 0) {
+    document.body.classList.toggle('ko-watch', !!header);
+    if (!header) { this.koWatch?.hide(); return; }
+    this.koWatch ??= new WatchView(this.viewport, on);
+    this.koWatch.show(header, turned);
+  }
   /** The end of the player's knockout match, over the card: KNOCKED OUT or WINNER (`KnockoutMoment.ts`). */
-  knockoutEnd(view: MomentView | null, sound?: (cue: MomentSound) => void) {
+  knockoutEnd(view: MomentView | null, sound?: (cue: MomentSound) => void, watch?: (id: number | null) => void) {
     this.koMoment?.close(); this.koMoment = null;
     this.viewport.classList.remove('ko-drop');
     if (!view) return;
     this.koMoment = new KnockoutMoment(this.viewport, view, {
       again: () => { this.koMoment = null; this.$('again').click(); },
       card: () => { this.koMoment = null; this.$('again').focus(); },
-      sound,
+      sound, watch,
     });
   }
   /**

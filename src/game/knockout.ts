@@ -87,6 +87,13 @@ export interface Seat {
   wentAt: number | null;
 }
 
+/**
+ * What a sub did with one ball, kept so it can be watched (`spectate` in
+ * `src/Game.ts`): the stroke, how far from the ideal moment they swung, and
+ * what came of it, the free hit's wicket already let off.
+ */
+export interface Play { shot: ShotType; offset: number; flicked: boolean; outcome: ShotOutcome }
+
 /** What one ball did to the room. */
 export interface BallNews {
   /** Who went after this ball, worst first. */
@@ -155,6 +162,10 @@ export class KnockoutRoom {
   /** Each over's free hit ball, off the seed (`freeHitBall`). */
   private readonly hard: (HardBall | null)[];
   winner: Seat | null = null;
+  /** The last ball's plays, by seat: what a watcher is shown. */
+  plays = new Map<number, Play>();
+  /** Every ball each seat has batted, in order, for a watcher's scoreboard. */
+  logs = new Map<number, ShotOutcome[]>();
 
   constructor(seed: number, you: { name: string; face: number }) {
     this.seats = [{ id: 0, name: you.name, sub: false, face: you.face }, ...SUB_NAMES.map((name, i) => ({ id: i + 1, name, sub: true, face: (you.face + i + 1) % 5 }))]
@@ -179,6 +190,10 @@ export class KnockoutRoom {
   }
   /** Everybody still in, best first, as the room stands now. */
   get ranked(): Seat[] { return [...this.alive].sort(settledBy(this.order)); }
+  /** The room is over: somebody has won it. */
+  get done() { return this.winner !== null; }
+  /** Those still in after the player has gone, best first: whom a watcher can watch. */
+  get watchable(): Seat[] { return this.ranked.filter(seat => seat.id !== 0); }
   /** The player's part is over: knocked out, or the winner. */
   get finished() { return this.you.place !== null; }
   /** The free hit ball about to be bowled, or null when the next ball is not the over's free hit. */
@@ -200,10 +215,14 @@ export class KnockoutRoom {
     this.balls++;
     const free = freeBall ? this.free : new Set<number>();
     if (freeBall) this.free = new Set();
+    this.plays = new Map();
     for (const seat of this.alive) {
       if (seat.out) continue;
-      const outcome = seat.id === 0 ? yours : this.subPlays(seat, delivery);
+      let outcome = seat.id === 0 ? yours : this.subPlays(seat, delivery);
       if (!outcome) continue;
+      if (outcome.isWicket && free.has(seat.id)) outcome = freeHitOf(outcome);
+      const play = this.plays.get(seat.id); if (play) play.outcome = outcome;
+      this.logs.set(seat.id, [...(this.logs.get(seat.id) ?? []), outcome]);
       seat.runs += outcome.runs; seat.balls++;
       seat.fours += Number(outcome.runs === 4); seat.sixes += Number(outcome.runs === 6);
       // On a free hit the wicket does not count (the game has already said so for the player: `freeHitOf`).
@@ -297,8 +316,14 @@ export class KnockoutRoom {
     const rush = (NOMINAL_MS - delivery.durationMs) / 100;
     const shot: ShotType = delivery.style === 'SHORT' ? (rng.next() < 0.4 ? 'LEG' : 'DEFEND') : bestShot(delivery);
     const input = delivery.idealContactTimeMs + rush * 6 + gauss(rng) * (skill.sigma + Math.max(0, rush) * skill.pressure);
-    const outcome = resolveShot(delivery, { shotType: shot, inputTimeMs: input, flicked: shot === 'LEG' && delivery.style !== 'SHORT' }, rng);
-    return outcome.isWicket && rng.next() < KEEP ? { ...outcome, isWicket: false, wicketType: undefined, runs: 0 } : outcome;
+    const flicked = shot === 'LEG' && delivery.style !== 'SHORT';
+    const resolved = resolveShot(delivery, { shotType: shot, inputTimeMs: input, flicked }, rng);
+    // Seen off: the same dot it always was, drawn for a watcher as the block that kept it out.
+    const kept = resolved.isWicket && rng.next() < KEEP;
+    const outcome: ShotOutcome = kept ? { runs: 0, isWicket: false, quality: resolved.quality, feedback: 'DEFENDED', timingGrade: resolved.timingGrade,
+      timingDeltaMs: resolved.timingDeltaMs, compatibility: resolved.compatibility, madeBatContact: true, aerial: false, defended: true } : resolved;
+    this.plays.set(seat.id, { shot: kept ? 'DEFEND' : shot, offset: input - delivery.idealContactTimeMs, flicked: kept ? false : flicked, outcome });
+    return outcome;
   }
 }
 

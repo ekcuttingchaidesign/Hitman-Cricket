@@ -2561,6 +2561,34 @@ two). `__cricket.knockout()` says where the room
 stands and `__cricket.knockoutAt(t)` holds the end moment's clock;
 `scripts/knockout-check.mjs` walks it.
 
+Knocked out, the room plays on and can be watched (Battle Royale page,
+section 51, "Watching the room, as stories"; `src/ui/KnockoutWatch.ts`,
+`roomFrame`, `watch` and `watchFrame` in `src/Game.ts`). The end moment's
+dark key is WATCH ON while the room is still going, and two seconds after
+the keys land a row of story rings rises under them (`Rings`, `RINGS_AFTER`
+in `KnockoutMoment.ts`): STILL IN · TAP TO WATCH, everybody left best
+first, no LIVE badge (the owner took it off). A batter out greys with OUT;
+a seat the cut takes greys, shrinks and leaves the row. Unwatched, the room
+bowls on a ball every `ROOM_BALL_MS`; when it has a winner the rings go, the
+moment's line says who won it and where the player finished, and the key is
+SCORECARD again (`roomOver`). A ring (or WATCH ON, the leader) opens that
+sub's game full screen as a story (`WatchView`): a bar an over, their face,
+name and line (41* off 18 · 1st of 10), ✕ back; their neighbours' faces at
+the edges, a swipe left or right to them, down to go back; nothing laid over
+the pitch or the ball. Each of their balls is played on the ground for real:
+the room keeps what every seat swung and when (`Play`, `plays` and `logs` on
+`KnockoutRoom`, a seen-off wicket kept as a block), and the scene is told
+the delivery, the swing at its offset and the outcome, as the replay is,
+with their scoreboard, over chips and the call; the player's own innings is
+never touched. A cut while watching is called on the guard with the
+floodlights' flash. The tray of reactions (😂🔥👏😱🦆) only floats them
+up: with subs there is nobody to send them to. Sending balls between phones,
+N WATCHING for whoever is watched, and the call back to the room are stage
+two's. `__cricket.knockoutWatch(id)`, `knockoutStep(1)`, `knockoutUnwatch()`
+and `knockoutPlayOn()` (the room to its end at once) are for the checks;
+`knockout-check` walks the rings, a watched ball, a swipe, ✕ and the room's
+end.
+
 Off production (`KNOCKOUT_OPEN` in `src/Game.ts`: never production, the
 Pages builds or a build with no board) it is on Choose a mode too (Figma
 F1, K1 to K2b; `src/ui/KnockoutHome.ts`, `showKnockout` in the HUD): its
