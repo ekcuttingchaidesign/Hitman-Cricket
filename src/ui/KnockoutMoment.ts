@@ -237,6 +237,7 @@ export class KnockoutMoment {
     this.root.querySelector<HTMLButtonElement>('#ko-card')!.onclick = event => {
       event.stopPropagation();
       if (this.roomOn && keys.watch) { keys.watch(null); return; }
+      if (this.toResults) { this.toResults(); return; }
       this.close(); keys.card();
     };
     if (keys.watch && !view.won) { this.rings = new Rings(this.root, id => keys.watch!(id)); this.roomOn = true; this.label('WATCH ON'); }
@@ -258,11 +259,29 @@ export class KnockoutMoment {
   roomRings(rings: RingView[]) { this.rings?.show(rings); }
   /** The room is over: the rings go, the line says who won it, and the key is SCORECARD again. */
   roomOver(line: string) {
-    this.roomOn = false; this.lineNow = line;
+    this.roomOn = false; this.lineNow = line; this.toResults = null;
+    this.root.querySelector('#ko-card')?.classList.remove('is-counting');
     this.rings?.remove(); this.rings = null;
     this.label('SCORECARD');
     this.draw();
   }
+  /** The room down to its last two (B1). */
+  roomFinal(on: boolean) { this.rings?.final(on); }
+  /**
+   * The room won, on the end screen (section 52, B2): the winner's ring grown
+   * and crowned, the line under KNOCKED OUT the result, and WATCH ON turned
+   * RESULTS · 3, its face draining red to the room's Results; a tap goes now.
+   */
+  roomEnd(winner: RingView, line: string, now: () => void) {
+    this.roomOn = false; this.lineNow = line; this.toResults = now;
+    this.rings?.over(winner);
+    this.root.querySelector('#ko-card')?.classList.add('is-counting');
+    this.label('RESULTS · 3');
+    this.draw();
+  }
+  /** The count on the key. */
+  roomCount(n: number) { if (this.toResults) this.label(`RESULTS · ${n}`); }
+  private toResults: (() => void) | null = null;
   /** Where the clock is, for the checks. */
   get at() { return this.t; }
 

@@ -13,8 +13,11 @@
  */
 import { avatarSrc } from '../config/board';
 import { KNOCKOUT } from '../game/knockout';
+import CROWN from '../assets/knockout/crown.svg';
 
 export interface RingView { id: number; name: string; face: number; out: boolean }
+/** MATCH OVER over a watched game (section 52, A2): who won the room, what it took, and where the player finished. */
+export interface MatchOverView { name: string; face: number; line: string; you: string }
 export interface WatchHeader {
   id: number; name: string; face: number;
   /** Their figures and place, in one line: 41* off 18 · 1st of 10. */
@@ -32,6 +35,7 @@ const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 export class Rings {
   private readonly root: HTMLElement;
   private readonly row: HTMLElement;
+  private readonly head: HTMLElement;
   private shown = new Map<number, HTMLElement>();
   constructor(host: HTMLElement, private readonly watch: (id: number) => void) {
     this.root = document.createElement('div');
@@ -40,6 +44,7 @@ export class Rings {
     this.root.hidden = true;
     this.root.innerHTML = '<p class="ko-rings-head">STILL IN · TAP TO WATCH</p><div class="ko-rings-row" role="list"></div>';
     this.row = this.root.querySelector('.ko-rings-row')!;
+    this.head = this.root.querySelector('.ko-rings-head')!;
     host.append(this.root);
   }
   /** Shown once the sting has landed: never before the keys have settled. */
@@ -59,12 +64,33 @@ export class Rings {
       }
       el.classList.toggle('is-out', ring.out);
       el.setAttribute('aria-label', `${ring.name}${ring.out ? ', out' : ''}: watch`);
-      el.style.order = String(i);
+      el.style.order = String(i * 2);
       if (el.parentElement !== this.row) this.row.append(el);
     });
     if (!this.shown.size) this.root.hidden = true;
   }
   get count() { return this.shown.size; }
+  /** The room down to its final: the head says so, and a v stands between the two faces (section 52, B1). */
+  final(on: boolean) {
+    if (this.root.classList.contains('is-final') === on || this.root.classList.contains('is-over')) return;
+    this.root.classList.toggle('is-final', on);
+    this.head.textContent = on ? 'THE FINAL · TAP TO WATCH' : 'STILL IN · TAP TO WATCH';
+    if (on && !this.row.querySelector('.ko-rings-v')) { const v = document.createElement('i'); v.className = 'ko-rings-v'; v.textContent = 'v'; v.style.order = '1'; this.row.append(v); }
+  }
+  /**
+   * The room over (B2): every ring but the winner's greys and goes, the
+   * winner's grows into gold with the crown dropping on, and the head says who
+   * won it. Nothing is tapped from here: the key counts to the result.
+   */
+  over(winner: RingView) {
+    this.root.classList.remove('is-final'); this.root.classList.add('is-over');
+    this.row.querySelector('.ko-rings-v')?.remove();
+    this.head.textContent = `MATCH OVER · ${winner.name.toUpperCase()} WON THE ROOM`;
+    this.show([winner]);
+    const el = this.shown.get(winner.id);
+    if (el) { el.classList.remove('is-out'); el.classList.add('is-winner'); el.onclick = event => event.stopPropagation(); el.insertAdjacentHTML('afterbegin', `<img class="ko-ring-crown" src="${CROWN}" alt="" aria-hidden="true">`); }
+    this.root.hidden = false;
+  }
   private leave(id: number, el: HTMLElement) {
     this.shown.delete(id);
     el.classList.add('is-out', 'is-leaving');
@@ -108,7 +134,7 @@ export class WatchView {
     swipe.addEventListener('pointerdown', event => { this.start = { x: event.clientX, y: event.clientY, id: event.pointerId }; });
     swipe.addEventListener('pointerup', event => {
       const start = this.start; this.start = null;
-      if (!start || start.id !== event.pointerId) return;
+      if (!start || start.id !== event.pointerId || this.over) return;
       const dx = event.clientX - start.x, dy = event.clientY - start.y;
       if (dy > 80 && dy > Math.abs(dx) * 1.2) this.on.close();
       else if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) this.on.step(dx < 0 ? 1 : -1);
@@ -118,6 +144,7 @@ export class WatchView {
   get open() { return !this.root.hidden; }
   show(header: WatchHeader, turned: 1 | -1 | 0 = 0) {
     this.root.hidden = false;
+    if (!this.over) this.root.querySelector<HTMLButtonElement>('.ko-watch-close')!.onclick = () => this.on.close();
     const face = this.root.querySelector<HTMLImageElement>('.ko-watch-face')!;
     if (face.dataset.face !== String(header.face)) { face.src = avatarSrc(header.face); face.dataset.face = String(header.face); }
     this.root.querySelector('.ko-watch-name')!.textContent = header.name;
@@ -137,7 +164,38 @@ export class WatchView {
         { duration: 520, easing: 'cubic-bezier(.4,0,.2,1)' }).finished.then(() => wipe.remove(), () => wipe.remove());
     }
   }
-  hide() { this.root.hidden = true; this.start = null; }
+  hide() { this.root.hidden = true; this.start = null; this.over?.remove(); this.over = null; this.root.classList.remove('is-over'); }
+  private over: HTMLElement | null = null;
+  /**
+   * The room over, where it is being watched (A2): the game held and dimmed
+   * under the header, MATCH OVER slammed in, the winner's face rising into a
+   * gold ring with the crown dropping on, what it took and where the player
+   * finished, and a pill counting three seconds to Results, its ring draining.
+   * Any tap, or ✕, goes now; no swipe goes to another game, there are none.
+   */
+  matchOver(view: MatchOverView, now: () => void) {
+    this.over?.remove();
+    this.root.classList.add('is-over');
+    this.bars.forEach(bar => { bar.style.width = '100%'; });
+    const over = document.createElement('div'); this.over = over;
+    over.className = 'ko-over'; over.id = 'ko-over';
+    over.setAttribute('role', 'status');
+    over.innerHTML = `<div class="ko-over-dim" aria-hidden="true"></div>
+      <div class="ko-over-body">
+        <p class="ko-over-title">MATCH OVER</p><i class="ko-over-slash" aria-hidden="true"></i>
+        <span class="ko-over-winner"><img class="ko-over-crown" src="${CROWN}" alt="" aria-hidden="true"><span class="ko-over-ring"><img src="${avatarSrc(view.face)}" alt="" decoding="async"></span></span>
+        <p class="ko-over-name">${esc(view.name.toUpperCase())} WON THE ROOM</p>
+        <p class="ko-over-line">${esc(view.line)}</p>
+        <p class="ko-over-you">${esc(view.you)}</p>
+      </div>
+      <button type="button" class="ko-over-count" id="ko-over-count"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15"/><circle class="ko-over-drain" cx="18" cy="18" r="15"/></svg><b class="ko-over-n">3</b><span>RESULTS IN <b class="ko-over-n">3</b></span></button>
+      <p class="ko-over-tap">Tap anywhere to see them now</p>`;
+    over.onclick = event => { event.stopPropagation(); now(); };
+    this.root.append(over);
+    this.root.querySelector<HTMLButtonElement>('.ko-watch-close')!.onclick = () => now();
+  }
+  /** The count's figure, as it ticks down. */
+  count(n: number) { this.over?.querySelectorAll('.ko-over-n').forEach(el => { el.textContent = String(n); }); }
   /** A reaction sent: it rises from the tray and goes. */
   private react(key: HTMLButtonElement) {
     const emoji = key.dataset.react!;

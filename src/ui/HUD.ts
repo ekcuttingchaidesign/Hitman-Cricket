@@ -1,5 +1,6 @@
 import { KnockoutMoment, type MomentView, type MomentSound } from './KnockoutMoment';
-import { WatchView, type RingView, type WatchHeader } from './KnockoutWatch';
+import { WatchView, type MatchOverView, type RingView, type WatchHeader } from './KnockoutWatch';
+import { KnockoutResults, type ResultsView } from './KnockoutResults';
 import { oversWord, type Track } from '../game/knockout';
 import { KnockoutBar, knockoutBarMarkup } from './KnockoutBar';
 import { knockoutHomeMarkup, knockoutRulesMarkup, type KnockoutTally } from './KnockoutHome';
@@ -2883,6 +2884,24 @@ ${knockoutRulesMarkup()}
   /** The room playing on after the player has gone, as rings on the end screen (`KnockoutWatch.ts`). */
   knockoutRings(rings: RingView[]) { this.koMoment?.roomRings(rings); }
   knockoutRoomOver(line: string) { this.koMoment?.roomOver(line); }
+  /** The room down to its final, on the end screen's rings. */
+  knockoutRoomFinal(on: boolean) { this.koMoment?.roomFinal(on); }
+  /** The room won (section 52): MATCH OVER over the game being watched, or the end screen's rings and key, counting to Results. */
+  knockoutMatchOver(over: MatchOverView, winner: RingView, line: string, watching: boolean, now: () => void) {
+    if (watching && this.koWatch) this.koWatch.matchOver(over, now);
+    this.koMoment?.roomEnd(winner, line, now);
+  }
+  knockoutCount(n: number) { this.koWatch?.count(n); this.koMoment?.roomCount(n); }
+  private koResults: KnockoutResults | null = null;
+  /** The room's Results (A4), over the end screen: back is the end screen, PLAY AGAIN plays again. */
+  knockoutResults(view: ResultsView | null, back?: () => void) {
+    this.koResults?.close(); this.koResults = null;
+    if (!view) return;
+    this.koResults = new KnockoutResults(this.viewport, view, {
+      back: () => { this.koResults = null; back?.(); },
+      again: () => { this.koResults = null; this.koMoment?.close(); this.koMoment = null; this.$('again').click(); },
+    });
+  }
   private koWatch: WatchView | null = null;
   /** A sub's game watched as a story, or null to put it away; `on` is wired once. */
   knockoutWatch(header: WatchHeader | null, on: { close(): void; step(by: 1 | -1): void; react(emoji: string): void }, turned: 1 | -1 | 0 = 0) {
@@ -2894,6 +2913,7 @@ ${knockoutRulesMarkup()}
   /** The end of the player's knockout match, over the card: KNOCKED OUT or WINNER (`KnockoutMoment.ts`). */
   knockoutEnd(view: MomentView | null, sound?: (cue: MomentSound) => void, watch?: (id: number | null) => void) {
     this.koMoment?.close(); this.koMoment = null;
+    this.koResults?.close(); this.koResults = null;
     this.viewport.classList.remove('ko-drop');
     if (!view) return;
     this.koMoment = new KnockoutMoment(this.viewport, view, {
@@ -3288,18 +3308,20 @@ ${knockoutRulesMarkup()}
    * chevrons. A new one each time, so it runs from its first frame with
    * nothing forced; null takes it away.
    */
-  replayWipe(look: ReplayLook | null) {
+  replayWipe(look: ReplayLook | 'knockout' | null) {
     document.getElementById('replay-wipe')?.remove();
     if (look === null) return;
     const super10 = look === 'super10';
+    // Super Knockout's hand-over to the room's Results (section 52, A3): the same train in Knockout red, SUPER KNOCKOUT over RESULTS.
+    const knockout = look === 'knockout';
     const wipe = document.createElement('div');
     wipe.id = 'replay-wipe'; wipe.setAttribute('aria-hidden', 'true');
     wipe.className = look === 'blast' ? '' : `is-${look}`;
     wipe.style.setProperty('--rw', `${WIPE_MS}ms`);
-    const mark = super10 ? `<img class="rw-mark" src="${REPLAY_MARK}" alt="">` : `<img class="rw-title" src="${REPLAY_TITLE}" alt="">`;
+    const mark = knockout ? '<span class="rw-over">SUPER KNOCKOUT</span>' : super10 ? `<img class="rw-mark" src="${REPLAY_MARK}" alt="">` : `<img class="rw-title" src="${REPLAY_TITLE}" alt="">`;
     wipe.innerHTML = '<i class="rw-train"><i class="rw-chev rw-c4"></i><i class="rw-chev rw-c3"></i>'
       + `<i class="rw-panel">${BAND_CHEVRONS.replace('class="ec-chevrons"', 'class="rw-band-chevrons" preserveAspectRatio="none"')}</i><i class="rw-chev rw-c2"></i><i class="rw-chev rw-c1"></i></i>`
-      + `<span class="rw-lock">${mark}<span class="rw-word">ACTION REPLAY</span></span>`;
+      + `<span class="rw-lock">${mark}<span class="rw-word">${knockout ? 'RESULTS' : 'ACTION REPLAY'}</span></span>`;
     // Its children's animations bubble up here too: only its own end takes it away.
     wipe.addEventListener('animationend', event => { if (event.target === wipe) wipe.remove(); });
     this.viewport.append(wipe);

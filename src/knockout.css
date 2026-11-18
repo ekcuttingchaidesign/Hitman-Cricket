@@ -472,3 +472,106 @@ body.ko-watch #end{visibility:hidden}
 .ko-watch-tray button{width:calc(var(--u,1px) * 36);height:calc(var(--u,1px) * 36);border:0;background:none;font-size:calc(var(--u,1px) * 20);cursor:pointer;padding:0}
 .ko-watch-sent{position:absolute;font-size:calc(var(--u,1px) * 28);pointer-events:none}
 .ko-watch-turn{position:absolute;inset:0;background:#0c0809;pointer-events:none}
+
+/* The room's end, never abrupt (Figma Battle Royale page, section 52). */
+/* B1, the final on the end screen: the two faces with a v between them. */
+.ko-rings-v{align-self:flex-start;margin-top:calc(var(--u,1px) * 16);font:400 calc(var(--u,1px) * 20)/1 var(--f-display);color:#ee2a2a;font-style:normal}
+/* B2, the room won: the winner's ring grown into gold, the crown dropped on. */
+.ko-rings.is-over .ko-rings-head{color:#ffb020}
+.ko-ring.is-winner{position:relative;width:calc(var(--u,1px) * 72);cursor:default}
+.ko-ring.is-winner .ko-ring-face{width:calc(var(--u,1px) * 70);height:calc(var(--u,1px) * 70);background:#ffb020;box-shadow:0 0 calc(var(--u,1px) * 18) #ffb02066;
+  animation:ko-win-grow .6s cubic-bezier(.34,1.56,.64,1) both}
+.ko-ring-crown{position:absolute;top:calc(var(--u,1px) * -16);left:50%;width:calc(var(--u,1px) * 34);translate:-50% 0;rotate:-8deg;z-index:1;
+  animation:ko-crown-drop .5s .35s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes ko-win-grow{from{transform:scale(.77)}to{transform:none}}
+@keyframes ko-crown-drop{from{opacity:0;transform:translateY(calc(var(--u,1px) * -26))}to{opacity:1;transform:none}}
+/* WATCH ON turned RESULTS · 3, its face draining red over the count. */
+#ko-card.is-counting .k-cta-face{position:relative;overflow:hidden;isolation:isolate}
+#ko-card.is-counting .k-cta-face::before{content:"";position:absolute;inset:0;z-index:-1;background:#ee2a2a52;transform-origin:left;animation:ko-drain 3.6s linear both}
+@keyframes ko-drain{from{transform:none}to{transform:scaleX(0)}}
+
+/* A2, MATCH OVER over the watched game. */
+.ko-watch.is-over .ko-watch-edge,.ko-watch.is-over .ko-watch-tray{display:none}
+.ko-over{position:absolute;inset:0;z-index:0;pointer-events:auto;cursor:pointer;color:#fff;text-align:center;-webkit-tap-highlight-color:transparent}
+.ko-watch-head{z-index:1}
+.ko-over-dim{position:absolute;inset:0;background:linear-gradient(180deg,#0b07108c,#0b0710c7 50%,#0b0710e6);animation:ko-fade .4s both}
+.ko-over-body{position:absolute;left:0;right:0;top:calc(var(--u,1px) * 182 + env(safe-area-inset-top,0px));display:flex;flex-direction:column;align-items:center}
+.ko-over-body::before{content:"";position:absolute;left:50%;top:calc(var(--u,1px) * 30);width:calc(var(--u,1px) * 360);height:calc(var(--u,1px) * 360);translate:-50% 0;border-radius:50%;
+  background:radial-gradient(#ffc83d59,#ffc83d00 70%);pointer-events:none;animation:ko-fade .8s .5s both}
+.ko-over-title{margin:0;font:400 calc(var(--u,1px) * 58)/1 var(--f-display);letter-spacing:.02em;text-shadow:0 calc(var(--u,1px) * 4) calc(var(--u,1px) * 14) #0008;animation:ko-slam .5s cubic-bezier(.2,1.4,.4,1) both}
+.ko-over-slash{display:block;width:calc(var(--u,1px) * 140);height:calc(var(--u,1px) * 4);margin-top:calc(var(--u,1px) * 8);border-radius:2px;background:#e5243b;animation:ko-wide .4s .2s cubic-bezier(.2,.8,.2,1) both}
+.ko-over-winner{position:relative;margin-top:calc(var(--u,1px) * 44);animation:ko-rise .6s .3s cubic-bezier(.34,1.56,.64,1) both}
+.ko-over-ring{display:block;width:calc(var(--u,1px) * 132);height:calc(var(--u,1px) * 132);padding:calc(var(--u,1px) * 6);box-sizing:border-box;border-radius:50%;border:calc(var(--u,1px) * 4) solid #ffc83d;box-shadow:0 0 calc(var(--u,1px) * 30) #ffc83d55}
+.ko-over-ring img{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover}
+.ko-over-crown{position:absolute;top:calc(var(--u,1px) * -36);left:50%;width:calc(var(--u,1px) * 56);translate:-50% 0;z-index:1;animation:ko-crown-drop .5s .75s cubic-bezier(.34,1.56,.64,1) both}
+.ko-over-name{margin:calc(var(--u,1px) * 20) 0 0;font:400 calc(var(--u,1px) * 30)/1 var(--f-display);color:#ffc83d;animation:ko-fade .4s .7s both}
+.ko-over-line{margin:calc(var(--u,1px) * 12) 0 0;font:600 calc(var(--u,1px) * 14)/1.3 var(--f-ui);color:#e6e6e6;animation:ko-fade .4s .8s both}
+.ko-over-you{margin:calc(var(--u,1px) * 6) 0 0;font:500 calc(var(--u,1px) * 13)/1.3 var(--f-ui);color:#9a9a9a;animation:ko-fade .4s .85s both}
+.ko-over-count{position:absolute;left:50%;bottom:calc(var(--u,1px) * 124 + env(safe-area-inset-bottom,0px));translate:-50% 0;display:flex;align-items:center;gap:calc(var(--u,1px) * 12);
+  height:calc(var(--u,1px) * 52);padding:0 calc(var(--u,1px) * 24) 0 calc(var(--u,1px) * 11);border-radius:calc(var(--u,1px) * 26);border:1px solid #ffffff24;background:#17111ceb;color:#fff;cursor:pointer;
+  font:800 calc(var(--u,1px) * 15)/1 var(--f-ui);letter-spacing:.06em;animation:ko-fade .4s .9s both}
+.ko-over-count svg{width:calc(var(--u,1px) * 30);height:calc(var(--u,1px) * 30);rotate:-90deg;overflow:visible}
+.ko-over-count circle{fill:none;stroke:#ffffff2e;stroke-width:3}
+.ko-over-count .ko-over-drain{stroke:#e5243b;stroke-dasharray:94.25;stroke-dashoffset:0;animation:ko-ring-drain 3s 1s linear both}
+.ko-over-count>b{position:absolute;left:calc(var(--u,1px) * 11);width:calc(var(--u,1px) * 30);font:900 calc(var(--u,1px) * 14)/1 var(--f-ui);text-align:center}
+.ko-over-count span b{font:inherit}
+.ko-over-tap{position:absolute;left:0;right:0;bottom:calc(var(--u,1px) * 98 + env(safe-area-inset-bottom,0px));margin:0;font:500 calc(var(--u,1px) * 12)/1 var(--f-ui);color:#8e8e8e;animation:ko-fade .4s 1s both}
+@keyframes ko-fade{from{opacity:0}to{opacity:1}}
+@keyframes ko-slam{from{opacity:0;transform:scale(2.2)}to{opacity:1;transform:none}}
+@keyframes ko-wide{from{transform:scaleX(0)}to{transform:none}}
+@keyframes ko-rise{from{opacity:0;transform:translateY(calc(var(--u,1px) * 40)) scale(.8)}to{opacity:1;transform:none}}
+@keyframes ko-ring-drain{to{stroke-dashoffset:94.25}}
+
+/* The hand-over: the replay's wipe in Knockout red, SUPER KNOCKOUT over RESULTS. */
+#replay-wipe.is-knockout{--band-a:#e5243b;--band-b:#8e0f1e;--chev:#ff6b77;z-index:130}
+#replay-wipe.is-knockout .rw-over{font:800 calc(var(--u) * 14)/1 var(--f-ui);letter-spacing:.3em;color:#fff}
+#replay-wipe.is-knockout .rw-word{font-size:calc(var(--u) * 68);letter-spacing:.02em;color:#fff;text-shadow:0 calc(var(--u) * 4) calc(var(--u) * 14) #0007}
+
+/* A4, the room's Results. */
+.ko-results{position:absolute;inset:0;z-index:125;display:flex;flex-direction:column;overflow:hidden;color:#f5efe6;font-family:var(--f-ui);
+  background:radial-gradient(120% 50% at 50% 18%,#7a1420 0%,#2a0b10 45%,#0c0809 75%),#0c0809;animation:ko-fade .25s both}
+.ko-res-top{display:flex;align-items:center;gap:calc(var(--u,1px) * 12);padding:calc(var(--u,1px) * 48 + env(safe-area-inset-top,0px)) calc(var(--u,1px) * 20) 0}
+.ko-res-top h2{margin:0;font:400 calc(var(--u,1px) * 22)/1 var(--f-display);letter-spacing:.06em}
+.ko-res-back{width:calc(var(--u,1px) * 44);height:calc(var(--u,1px) * 44);border-radius:calc(var(--u,1px) * 12);border:1px solid #ffffff1f;background:#ffffff0f;display:grid;place-items:center;cursor:pointer;padding:0}
+.ko-res-back svg{width:calc(var(--u,1px) * 22);height:calc(var(--u,1px) * 22);fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.ko-res-chips{display:flex;gap:calc(var(--u,1px) * 8);padding:calc(var(--u,1px) * 12) calc(var(--u,1px) * 20) 0}
+.ko-res-chips span{display:flex;align-items:center;gap:calc(var(--u,1px) * 8);height:calc(var(--u,1px) * 36);padding:0 calc(var(--u,1px) * 14);border-radius:calc(var(--u,1px) * 18);border:1px solid #ffffff1f;background:#ffffff0d;font:700 calc(var(--u,1px) * 13)/1 var(--f-ui)}
+.ko-res-chips i{width:calc(var(--u,1px) * 7);height:calc(var(--u,1px) * 7);border-radius:50%;background:#ee2a2a}
+.ko-res-podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;align-items:end;padding:calc(var(--u,1px) * 26) calc(var(--u,1px) * 8) 0;flex:0 0 auto}
+.ko-res-step{position:relative;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u,1px) * 3);padding-bottom:calc(var(--u,1px) * 46);
+  background:linear-gradient(180deg,#ffffff00,#ffffff14);clip-path:polygon(28% 0,72% 0,100% 100%,0 100%);animation:ko-rise .55s cubic-bezier(.34,1.4,.64,1) both}
+.ko-res-step.is-1{padding-bottom:calc(var(--u,1px) * 60);background:linear-gradient(180deg,#ee2a2a00,#ee2a2a40);animation-delay:.15s}
+.ko-res-step.is-2{animation-delay:.3s}
+.ko-res-step.is-3{animation-delay:.42s}
+.ko-res-face{display:block;width:calc(var(--u,1px) * 62);height:calc(var(--u,1px) * 62);border-radius:50%;padding:calc(var(--u,1px) * 3);box-sizing:border-box;background:#9aa0a8}
+.ko-res-step.is-1 .ko-res-face{width:calc(var(--u,1px) * 78);height:calc(var(--u,1px) * 78);background:#ee2a2a}
+.ko-res-step.is-3 .ko-res-face{background:#b0703c}
+.ko-res-face img{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover}
+.ko-res-crown{position:absolute;top:calc(var(--u,1px) * -18);width:calc(var(--u,1px) * 34)}
+.ko-res-name{font:700 calc(var(--u,1px) * 14)/1.2 var(--f-ui);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ko-res-runs{font:900 calc(var(--u,1px) * 20)/1 var(--f-ui)}
+.ko-res-step small{font:500 calc(var(--u,1px) * 11)/1 var(--f-ui);color:#ffb020}
+.ko-res-place{position:absolute;bottom:calc(var(--u,1px) * -8);font:400 calc(var(--u,1px) * 46)/1 var(--f-display);font-style:normal;color:#9aa0a8}
+.ko-res-step.is-1 .ko-res-place{font-size:calc(var(--u,1px) * 58);color:#c3121b}
+.ko-res-step.is-3 .ko-res-place{color:#b0703c}
+.ko-res-list{flex:1;min-height:0;overflow-y:auto;margin:0;padding:calc(var(--u,1px) * 10) calc(var(--u,1px) * 16) calc(var(--u,1px) * 170);list-style:none;
+  border-radius:calc(var(--u,1px) * 24) calc(var(--u,1px) * 24) 0 0;border-top:1px solid #ee2a2a33;background:linear-gradient(180deg,#2a1216,#140b0d 40%)}
+.ko-res-row{display:flex;align-items:center;gap:calc(var(--u,1px) * 12);height:calc(var(--u,1px) * 52);padding:0 calc(var(--u,1px) * 8);border-radius:calc(var(--u,1px) * 12);
+  animation:ko-row-in .4s calc(.55s + var(--i) * .05s) cubic-bezier(.2,.8,.2,1) both}
+.ko-res-row.is-you{background:#ffffff0f;box-shadow:inset 0 0 0 1px #ffffff2e}
+.ko-res-at{width:calc(var(--u,1px) * 20);font:700 calc(var(--u,1px) * 13)/1 var(--f-ui);color:#9aa0a8}
+.ko-res-row img,.ko-res-you img{width:calc(var(--u,1px) * 34);height:calc(var(--u,1px) * 34);border-radius:50%;object-fit:cover}
+.ko-res-who,.ko-res-you span:not(.ko-res-score){flex:1;min-width:0;display:flex;flex-direction:column;gap:calc(var(--u,1px) * 3)}
+.ko-res-who b,.ko-res-you b{font:700 calc(var(--u,1px) * 15)/1.1 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ko-res-who small,.ko-res-you small{font:500 calc(var(--u,1px) * 11)/1.2 var(--f-ui);color:#9aa0a8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ko-res-score{font:900 calc(var(--u,1px) * 20)/1 var(--f-ui)}
+.ko-res-dock{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:calc(var(--u,1px) * 10);padding:calc(var(--u,1px) * 30) calc(var(--u,1px) * 16) calc(var(--u,1px) * 22 + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(180deg,#0c080900,#0c0809 30%);animation:ko-rise .45s 1s cubic-bezier(.2,.8,.2,1) both}
+.ko-res-you{display:flex;align-items:center;gap:calc(var(--u,1px) * 12);height:calc(var(--u,1px) * 58);padding:0 calc(var(--u,1px) * 16) 0 calc(var(--u,1px) * 12);border-radius:calc(var(--u,1px) * 29);
+  border:1px solid #ffffff59;background:#ffffff0d}
+.ko-res-dock .k-cta--primary{--c-cta-rim-top:#ff525b;--c-cta-rim-bottom:#c3121b;--c-cta-face-bottom:#ffbdc0;
+  --g-cta-rim:linear-gradient(180deg,#ff525b,#c3121b);--g-cta-face:linear-gradient(180deg,#fff,#ffbdc0);--ledge:#c3121b}
+@keyframes ko-row-in{from{opacity:0;transform:translateX(calc(var(--u,1px) * 24))}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .ko-over *,.ko-over-dim,.ko-results,.ko-results *,.ko-ring.is-winner .ko-ring-face,.ko-ring-crown{animation:none!important}
+  #ko-card.is-counting .k-cta-face::before{animation:none;transform:scaleX(.5)}}

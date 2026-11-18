@@ -2375,8 +2375,11 @@ other past them (`aheadInFinal`, `nextCut`). The rules are `src/game/knockout.ts
 (`KnockoutRoom`, `cutOf`, every case in `tests/knockout.test.ts`); the subs
 bat the very delivery the player was bowled through the Blast's
 `resolveShot`, each with a timing spread of their own (`SKILLS`) and a share
-of wickets seen off (`KEEP`), tuned by `scripts/knockout-sim.ts`: every room
-reaches the final, and is won by 80 to 110. Out, the room plays on without the player to the
+of wickets seen off (`KEEP`, 0.8), tuned by `scripts/knockout-sim.ts`: every
+room reaches the final, and is won by 86 to 113. At 0.65 the final's two were
+mostly out before it began and one room in six was settled on its first ball,
+which the owner, watching, saw as the room ending early; at 0.8 both are still
+batting in six finals of seven. Out, the room plays on without the player to the
 cut that takes them, at once.
 
 It is bowled over by over (`knockoutPlan` in `DeliveryGenerator.ts`, the
@@ -2568,10 +2571,9 @@ dark key is WATCH ON while the room is still going, and two seconds after
 the keys land a row of story rings rises under them (`Rings`, `RINGS_AFTER`
 in `KnockoutMoment.ts`): STILL IN · TAP TO WATCH, everybody left best
 first, no LIVE badge (the owner took it off). A batter out greys with OUT;
-a seat the cut takes greys, shrinks and leaves the row. Unwatched, the room
-bowls on a ball every `ROOM_BALL_MS`; when it has a winner the rings go, the
-moment's line says who won it and where the player finished, and the key is
-SCORECARD again (`roomOver`). A ring (or WATCH ON, the leader) opens that
+a seat the cut takes greys, shrinks and leaves the row; down to the final
+the head says THE FINAL with a v between the two faces (`final`). Unwatched,
+the room bowls on a ball every `ROOM_BALL_MS`. A ring (or WATCH ON, the leader) opens that
 sub's game full screen as a story (`WatchView`): a bar an over, their face,
 name and line (41* off 18 · 1st of 10), ✕ back; their neighbours' faces at
 the edges, a swipe left or right to them, down to go back; nothing laid over
@@ -2587,7 +2589,35 @@ N WATCHING for whoever is watched, and the call back to the room are stage
 two's. `__cricket.knockoutWatch(id)`, `knockoutStep(1)`, `knockoutUnwatch()`
 and `knockoutPlayOn()` (the room to its end at once) are for the checks;
 `knockout-check` walks the rings, a watched ball, a swipe, ✕ and the room's
-end.
+end both ways.
+
+The room's end is never abrupt (Battle Royale page, section 52, `roomEnd`,
+`endingFrame` and `ROOM_END` in `src/Game.ts`): it cut straight to the end
+screen and the rings vanished, which the owner found abrupt. Watched, the
+ball that settles it is played out and its call stands (`endAt`); then, on
+one clock in the page's milliseconds, the lights flash and the crowd swells
+as at a cut, and at `ROOM_END.over` MATCH OVER: over the watched game, held
+and dimmed under the header with its bars full, MATCH OVER slammed in, the
+winner's face rising into a gold ring with the crown dropping on, what it took
+(90 off 30 · outlasted Dev by 7 in the final) and where the player finished,
+and a pill counting three seconds, its ring draining (`matchOver` on
+`WatchView`, `#ko-over`); on the end screen, every ring but the winner's goes,
+the winner's grows gold and crowned, the head says MATCH OVER · SANA WON THE
+ROOM, the line under KNOCKED OUT the result, and WATCH ON becomes RESULTS · 3,
+its face draining red (`roomEnd` on the moment, `over` on `Rings`). A tap, ✕
+or the key goes now (`resultsNow`). Then the replay's wipe in Knockout red,
+SUPER KNOCKOUT over RESULTS (`replayWipe('knockout')`), and under it the
+room's Results (`src/ui/KnockoutResults.ts`, `#ko-results`, KO room · 6 and
+X6's layout): the podium rising first, the rows after, the player's finish in
+the dock and PLAY AGAIN; a practice room's podium says sub. Back is the end
+screen, the result in its line and SCORECARD on its key. The winner's music
+(`public/winner.mp3`, the owner's clip of 18 November 2026 cut to its first
+24 seconds from its first beat so it loops on the bar, the `winner` track at
+.62, being −11 LUFS) plays from MATCH OVER through Results, and under the
+player's own WINNER in place of the card's track. A room ended while the
+page is away, which a room of subs cannot, waits for stage two's SEE
+RESULTS. `__cricket.knockout()` carries `ending` and `results`, and
+`__cricket.knockoutResultsNow()` taps through.
 
 Off production (`KNOCKOUT_OPEN` in `src/Game.ts`: never production, the
 Pages builds or a build with no board) it is on Choose a mode too (Figma

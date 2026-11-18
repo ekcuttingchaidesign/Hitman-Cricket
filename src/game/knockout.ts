@@ -55,8 +55,8 @@ const SUB_NAMES = ['Riya', 'Arjun', 'Kabir', 'Meera', 'Ishaan', 'Zoya', 'Rohan',
  * milliseconds, and how much a quicker ball adds to it, as `super10-sim.ts`
  * models a player. Against the Blast's ball the best of them scores between
  * three and four a ball and the weakest about two, so the cut has somebody to
- * take early. The room's winner makes about 85 in some 24 balls, the middle of
- * it 65 to 100 (`scripts/knockout-sim.ts`): a good innings wins it.
+ * take early. The room's winner makes about 100 in some 24 balls, the middle of
+ * it 86 to 113 (`scripts/knockout-sim.ts`): a good innings wins it.
  */
 const SKILLS = [65, 72, 80, 86, 92, 98, 105, 112, 120, 130, 140].map(sigma => ({ sigma, pressure: Math.round(sigma / 7) }));
 /**
@@ -64,9 +64,12 @@ const SKILLS = [65, 72, 80, 86, 92, 98, 105, 112, 120, 130, 140].map(sigma => ({
  * them out are seen off for a dot instead. Batting the Blast's ball with one
  * wicket each, a room of subs played to the letter was down to its last one
  * by the third over; this keeps most rooms close to the final, which is the
- * match the player came for.
+ * match the player came for. At 0.65 the final's two were mostly out before
+ * it began and one room in six was settled on its first ball, which the owner
+ * watching the room saw as ending early: at 0.8 both are still batting in six
+ * finals of seven, and the winner makes about 100.
  */
-const KEEP = 0.65;
+const KEEP = 0.8;
 const NOMINAL_MS = 830;
 
 export interface Seat {

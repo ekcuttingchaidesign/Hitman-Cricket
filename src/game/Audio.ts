@@ -17,8 +17,14 @@ export type KnockoutSound = 'crack1' | 'crack2' | 'crack3' | 'shatter';
  * The element is still here as the fallback, for a browser with no context or
  * one that will not decode the file.
  */
-/** `knockout` is KNOCKED OUT's: Moye moye, the owner's pick, from the lights going out. */
-export type Track = 'cover' | 'result' | 'knockout';
+/**
+ * `knockout` is KNOCKED OUT's: Moye moye, the owner's pick, from the lights
+ * going out. `winner` is Super Knockout's winner, the owner's clip (18 November
+ * 2026), cut to its first sixteen bars so it loops on the beat: under WINNER
+ * when the player takes the room, and from MATCH OVER to the room's Results
+ * when somebody else does.
+ */
+export type Track = 'cover' | 'result' | 'knockout' | 'winner';
 /**
  * Bare relative paths, the same reasoning as the kit pictures in
  * `config/board.ts`: the browser resolves them against the page's own URL,
@@ -32,6 +38,7 @@ const TRACKS: Record<Track, string> = {
   cover: 'cover_theme.mp3',
   result: 'test_survival_glory.aac',
   knockout: 'moye_moye.mp3',
+  winner: 'winner.mp3',
 };
 /**
  * Under the calls rather than over them. A gain in the context, so iOS obeys it
@@ -49,7 +56,8 @@ const MUSIC_GAIN = .5;
  */
 // Moye moye measures −8.9 LUFS, 7.3 dB hotter than the card's track (−16.2): let through at a little over its
 // share of that, the sting being the point.
-const LEVEL: Record<Track, number> = { cover: .16, result: 1, knockout: .5 };
+// The winner's clip measures −11.0 LUFS, 5.2 dB over the card's: let through a touch over its share, as a celebration.
+const LEVEL: Record<Track, number> = { cover: .16, result: 1, knockout: .5, winner: .62 };
 const gainOf = (track: Track) => MUSIC_GAIN * LEVEL[track];
 /** How long a track started off a tap stays silent before it is let through. */
 const FADE_IN_MS = 220;
@@ -282,8 +290,8 @@ export class GameAudio {
     // Music means a screen that is not the innings, so the crowd goes.
     if (track) this.crowd(null);
     if (this.disposed || track === this.wanted) return;
-    // KNOCKED OUT's music is a sting, from its top every time.
-    if (track === 'knockout') this.positions.delete(track);
+    // KNOCKED OUT's music is a sting, and the winner's a fanfare: each from its top every time.
+    if (track === 'knockout' || track === 'winner') this.positions.delete(track);
     this.hush(true);
     this.wanted = track;
     this.resume();
