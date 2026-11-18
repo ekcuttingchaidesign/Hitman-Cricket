@@ -206,10 +206,16 @@ page = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFacto
 page.on('pageerror', e => errors.push(e.message));
 await walkOut(page, '/?knockout=1&debug=1&seed=7');
 for (const mood of ['calm', 'edge', 'level', 'drop', 'final']) {
-  await page.evaluate(m => window.__cricket.knockoutMood(m, 2), mood);
+  // Put up and read in one turn, two frames on: waited on, a real ball of the live room can land between and put its own bar back.
+  const read = () => page.evaluate(async m => {
+    window.__cricket.knockoutMood(m, 2);
+    await new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)));
+    return { mood: document.getElementById('ko-track').dataset.mood, say: document.getElementById('ko-say').hidden ? null : document.getElementById('ko-say').textContent,
+      drop: [...document.querySelectorAll('#ko-track .ko-zone')].filter(z => !z.hidden).map(z => z.textContent).join(' ') };
+  }, mood);
+  const got = await read();
   await page.waitForTimeout(1500);
-  const got = await page.evaluate(() => ({ mood: document.getElementById('ko-track').dataset.mood, say: document.getElementById('ko-say').hidden ? null : document.getElementById('ko-say').textContent,
-    drop: [...document.querySelectorAll('#ko-track .ko-zone')].filter(z => !z.hidden).map(z => z.textContent).join(' ') }));
+  await read();
   check(got.mood === mood, `the bar stands ${mood}`, JSON.stringify(got));
   if (mood === 'final') check(got.drop === 'GONE BEHIND AHEAD' && got.say === 'NEED 7 RUNS TO WIN', 'the final: behind and ahead, and what it takes to win', JSON.stringify(got));
   if (mood === 'drop' || mood === 'final') check(await burning(page), `${mood === 'drop' ? 'the drop is on fire' : 'the fuse is lit'}`);
