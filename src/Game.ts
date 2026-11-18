@@ -293,7 +293,7 @@ const ROOM_BALL_MS = 6500, ROOM_FIRST_MS = 5500, WATCH_LEAD = 700, WATCH_TAIL = 
  * from `count` for three seconds, the wipe at `wipe`, and Results under it halfway through.
  */
 const ROOM_END = { over: 400, wipe: 4000 } as const;
-interface RoomEnding { from: number; lit: boolean; shown: boolean; wiped: boolean; done: boolean }
+interface RoomEnding { from: number; lit: boolean; shown: boolean; wiped: boolean; done: boolean; pin?: number }
 /** How long after the cut's ball the floodlights answer it, so the ball's own call has landed first. */
 const FLOOD_AFTER_MS = 450;
 /** The crowd's swell at a cut: a four's, a little bigger. */
@@ -1328,6 +1328,8 @@ export class Game {
         winner: this.knockout.winner?.name ?? null, rings: this.room ? this.ringsOf().map(r => `${r.name}${r.out ? ':out' : ''}`) : [] },
       // The room played on to its end at once, for the checks: software rendering would take minutes over it.
       knockoutResultsNow: () => this.resultsNow(),
+      // Holds the room's end at `ms` into its beats (null lets it run on), for photographing MATCH OVER on a slow renderer.
+      knockoutEndAt: (ms: number | null) => { const e = this.room?.ending; if (!e) return; if (ms === null) { e.from = performance.now() - (e.pin ?? 0); delete e.pin; } else e.pin = ms; },
       knockoutPlayOn: () => { while (this.room && this.knockout && !this.knockout.done) this.roomNews(this.knockout.ball(this.generator.next(0), null), false); },
       knockoutWatch: (id: number | null) => this.watch(id), knockoutStep: (by: 1 | -1) => this.watchStep(by), knockoutUnwatch: () => this.unwatch(),
       // The star prompt on demand, for `rating-check.mjs`: which thing, asked
@@ -7436,7 +7438,7 @@ export class Game {
     on.ending = { from: performance.now() + wait, lit: false, shown: false, wiped: false, done: false };
   }
   private endingFrame(e: RoomEnding) {
-    const room = this.knockout!, now = performance.now() - e.from, watching = this.room!.watching !== null;
+    const room = this.knockout!, now = e.pin ?? performance.now() - e.from, watching = this.room!.watching !== null;
     if (now < 0) return;
     if (!e.lit) {
       e.lit = true;

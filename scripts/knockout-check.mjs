@@ -116,13 +116,15 @@ check(await page.evaluate(() => !document.body.classList.contains('ko-watch') &&
 // The room's end, never abrupt (section 52, lane A): watched to its end, MATCH OVER over the game with a count, then the wipe and Results.
 await page.locator('#ko-card').click();
 await page.waitForTimeout(300);
-await page.evaluate(() => window.__cricket.knockoutPlayOn());
+await page.evaluate(() => { window.__cricket.knockoutPlayOn(); window.__cricket.knockoutEndAt(1800); });
 await page.waitForFunction(() => !!document.getElementById('ko-match-over'), null, { timeout: 30000 }).catch(() => {});
 const matchOver = await page.evaluate(() => ({ title: document.querySelector('.ko-mo-title')?.textContent, name: document.querySelector('.ko-mo-name')?.textContent, winner: window.__cricket.knockout().winner,
   count: document.querySelector('.ko-mo-count')?.textContent?.replace(/\s+/g, ' ').trim(), ending: window.__cricket.knockout().ending, edges: getComputedStyle(document.querySelector('.ko-watch-tray')).display }));
 check(matchOver.title === 'MATCH OVER' && matchOver.name === `${matchOver.winner?.toUpperCase()} WON THE ROOM` && /RESULTS IN [123]/.test(matchOver.count ?? '') && matchOver.edges === 'none',
   'watched to its end: MATCH OVER over the game, who won it, and a count to the results', JSON.stringify(matchOver));
+await page.waitForTimeout(1500);
 await snap(page, out + '/ko-match-over.png');
+await page.evaluate(() => window.__cricket.knockoutEndAt(null));
 // The count may run out by itself while a slow renderer photographs it: a tap only if it is still up.
 await page.evaluate(() => document.getElementById('ko-match-over')?.click());
 await page.waitForFunction(() => !!document.getElementById('ko-results'), null, { timeout: 30000 }).catch(() => {});
@@ -143,7 +145,7 @@ check(!over.room && !over.results && over.rings === 0 && over.key === 'SCORECARD
   await walkOut(other, '/?knockout=1&debug=1&seed=11');
   await write(other, ['W']);
   await other.waitForFunction(() => !!document.querySelector('#ko-moment.is-lost'), null, { timeout: 30000 });
-  await other.evaluate(() => { window.__cricket.knockoutAt(5.2); window.__cricket.knockoutPlayOn(); });
+  await other.evaluate(() => { window.__cricket.knockoutAt(5.2); window.__cricket.knockoutPlayOn(); window.__cricket.knockoutEndAt(1800); });
   await other.waitForFunction(() => document.querySelector('#ko-card')?.classList.contains('is-counting'), null, { timeout: 30000 }).catch(() => {});
   const b2 = await other.evaluate(() => ({ key: document.querySelector('#ko-card')?.textContent?.trim(), head: document.querySelector('.ko-rings-head')?.textContent, rings: document.querySelectorAll('.ko-ring').length,
     crowned: !!document.querySelector('.ko-ring.is-winner .ko-ring-crown'), winner: window.__cricket.knockout().winner }));
@@ -151,6 +153,7 @@ check(!over.room && !over.results && over.rings === 0 && over.key === 'SCORECARD
     'on the end screen: the winner\'s ring crowned, MATCH OVER in the head and RESULTS counting on the key', JSON.stringify(b2));
   await other.waitForTimeout(900);
   await other.screenshot({ path: out + '/ko-room-over.png' });
+  await other.evaluate(() => window.__cricket.knockoutEndAt(null));
   await other.waitForFunction(() => !!document.getElementById('ko-results'), null, { timeout: 60000 }).catch(() => {});
   check(await other.evaluate(() => !!document.getElementById('ko-results')), 'and the count runs out into the Results by itself');
   await other.close();
