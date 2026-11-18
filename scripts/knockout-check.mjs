@@ -140,7 +140,7 @@ const { upTo, after } = run;
 let fh = after.fh;
 check(upTo.freeNext && upTo.freeBall && upTo.freeBall.ball >= 1 && upTo.bowled % 6 === upTo.freeBall.ball && upTo.edge && /FH\[is-free is-next\]/.test(upTo.slots) && upTo.label === 'FREE HIT',
   `the free hit ball comes later in the over (ball ${(upTo.freeBall?.ball ?? -1) + 1}, a ${upTo.freeBall?.name}), the cyan edge round the screen, FREE HIT on the guard line and FH in its slot`, JSON.stringify(upTo));
-check(!after.you.out && after.bowled === upTo.bowled + 1 && /is-free/.test(fh) && !after.edge, 'bowled on the free hit: not out, the slot kept gold, the edge let go', JSON.stringify({ fh, you: after.you }));
+check(!after.you.out && after.bowled === upTo.bowled + 1 && /is-free/.test(fh) && !after.edge, 'bowled on the free hit: not out, the slot kept cyan, the edge let go', JSON.stringify({ fh, you: after.you }));
 await snap(page, out + '/ko-free-hit.png');
 
 // The rest of the room in one write, so no live ball falls between two (the writer stops once the room is done with the player).
