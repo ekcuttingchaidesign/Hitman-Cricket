@@ -2652,6 +2652,21 @@ rules, while you bat) opens by itself the first time a browser chooses it
 the same practice room the switch does (`knockoutPicked`), so it is
 practice too; the rail remembers it as the last mode played.
 
+The home is a motion poster (Battle Royale page, section 55, the motion map;
+`src/ui/KnockoutPoster.ts`, `.ko-stage` and its layers in
+`src/knockout.css`), started each time it opens (`is-lit`, through
+`replayClass`) and stopped when it is put away. The picture's own floodlights
+strike on (dark, a catch, up), breathe, and now and then one catches and comes
+back; the six beams from the roof are laid over the picture's own, each
+swaying on its own clock; a red haze drifts along the turf; the whole picture
+pushes in slowly; the mark slams in and a light glints across it every six
+and a half seconds. The air is one canvas (`.ko-air`): dust that lights up
+inside a beam, embers off the turf round his boots, and phone flashes in the
+stands either side. It moves by the time between frames, runs only while the
+home is up and the page on screen, and not under reduced motion, where the
+lights stand lit and nothing moves. `knockout-check` holds it lit, moving and
+dark again once put away.
+
 ## Super10's kits
 
 In Super10 the batter always bats in a Super10 kit, never a Dressing Room

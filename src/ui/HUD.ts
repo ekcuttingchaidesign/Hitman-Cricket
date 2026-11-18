@@ -4,6 +4,7 @@ import { KnockoutResults, type ResultsView } from './KnockoutResults';
 import { oversWord, type Track } from '../game/knockout';
 import { KnockoutBar, knockoutBarMarkup } from './KnockoutBar';
 import { knockoutHomeMarkup, knockoutRulesMarkup, type KnockoutTally } from './KnockoutHome';
+import { KnockoutPoster } from './KnockoutPoster';
 import { limitsOf } from '../game/ball-string';
 import { WIPE_MS, type ReplayLook } from '../game/replay';
 import { chaseEndMarkup } from './MatchEnd';
@@ -2425,10 +2426,15 @@ ${knockoutRulesMarkup()}
     if (pager && dot) pager.prepend(dot);
   }
   /** Super Knockout's home (K2) over Choose a mode, with this browser's practice rooms; null puts it away. */
+  private koPoster: KnockoutPoster | null = null;
   knockoutHome(tally: KnockoutTally | null) {
     const home = this.$('knockout-home');
+    const opening = !!tally && home.classList.contains('hidden');
     home.classList.toggle('hidden', !tally);
-    if (!tally) return;
+    this.koPoster ??= new KnockoutPoster(this.$('ko-home-air') as HTMLCanvasElement);
+    if (!tally) { this.koPoster.stop(); home.classList.remove('is-lit'); return; }
+    // The poster comes on each time the home is opened: the floodlights strike, the mark lands, then the air moves.
+    if (opening) { replayClass(home, 'is-lit'); this.koPoster.start(); }
     this.$('ko-home-played').textContent = String(tally.played);
     this.$('ko-home-best').textContent = tally.best ? `#${tally.best}` : '–';
     this.$('ko-home-wins').textContent = String(tally.wins);

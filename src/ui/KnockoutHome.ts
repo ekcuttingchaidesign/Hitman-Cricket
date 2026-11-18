@@ -75,18 +75,29 @@ export function knockoutCardWords(tally: KnockoutTally): { tag: string; line: st
   return { tag: best, line: `${tally.played} ${tally.played === 1 ? 'room' : 'rooms'} played`, stat: tally.best === 1 ? `Won ${tally.wins}` : `Best #${tally.best}` };
 }
 
+/**
+ * The picture's six floodlight beams, from the lamps along the roof to the turf, each laid over its own in the picture and swaying on its
+ * own clock (`.ko-beams` in `src/knockout.css`). Places in design pixels: the picture's x at 160, 243, 328, 697, 777 and 857 of 1024.
+ */
+const BEAMS = `<span class="ko-beams">${[[63, 3], [95, 2], [129, 1], [274, -1], [305, -2], [337, -3]]
+  .map(([x, lean], i) => `<i style="--x:${x};--lean:${lean};--n:${i}"></i>`).join('')}</span>`;
+
 /** The home (K2): the picture, the mark, the format in two lines, your rooms, and QUICK MATCH and PLAY WITH FRIENDS at the thumb. */
 export function knockoutHomeMarkup(): string {
   return `<div id="knockout-home" class="modal-overlay ko-screen hidden" role="dialog" aria-modal="true" aria-label="Super Knockout">
           <div class="ko-scroll">
-            <div class="ko-hero" aria-hidden="true"><img src="${KNOCKOUT_HERO}" alt="" decoding="async"></div>
+            <div class="ko-hero is-poster" aria-hidden="true">
+              <div class="ko-stage"><img src="${KNOCKOUT_HERO}" alt="" decoding="async">${BEAMS}<i class="ko-lamp is-left"></i><i class="ko-lamp is-right"></i></div>
+              <span class="ko-haze"><i></i><i></i></span>
+            </div>
             <div class="ko-grain" aria-hidden="true"></div>
+            <canvas class="ko-air" id="ko-home-air" aria-hidden="true"></canvas>
             <div class="ko-top">
               <button id="ko-home-back" class="k-icon-button" type="button" aria-label="Back">${icon('arrow-left')}</button>
               <button id="ko-home-info" class="k-icon-button" type="button" aria-label="How Super Knockout works">${icon('info')}</button>
             </div>
             <div class="ko-home-body">
-              <img class="ko-mark" src="${KNOCKOUT_MARK}" alt="Super Knockout" decoding="async">
+              <span class="ko-mark-wrap" style="--mark:url('${KNOCKOUT_MARK}')"><img class="ko-mark" src="${KNOCKOUT_MARK}" alt="Super Knockout" decoding="async"><i class="ko-mark-glint" aria-hidden="true"></i></span>
               <p class="ko-lede">Twelve players. Same balls. One wicket.</p>
               <p class="ko-sub">The bottom totals go after every over. The last two play the final.</p>
               <div class="ko-card ko-figures" id="ko-home-figures">

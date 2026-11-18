@@ -247,6 +247,53 @@ body.ko-glass .stage.result-open .score-stack{display:block;z-index:9}
 .ko-top{position:absolute;left:0;right:0;top:var(--top-gap);display:flex;justify-content:space-between;padding:0 calc(var(--u) * 20);z-index:2}
 .ko-home-body,.ko-rules-body{position:relative;z-index:1;padding:calc(var(--u) * 300) calc(var(--u) * 20) 0}
 .ko-mark{display:block;width:calc(var(--u) * 280);height:auto;margin:0 auto;filter:drop-shadow(0 calc(var(--u) * 6) calc(var(--u) * 18) #000000a6)}
+/* The home as a motion poster (section 55, `KnockoutPoster.ts`): the picture's floodlights and beams lit over it, haze along the turf, the air
+   on a canvas, a glint across the mark. Still, under reduced motion, it is the picture with its lights on. */
+.ko-stage{position:absolute;inset:0;transform-origin:50% 42%}
+.ko-beams i{position:absolute;left:calc(var(--u) * var(--x));top:calc(var(--u) * 119);width:calc(var(--u) * 48);height:calc(var(--u) * 160);margin-left:calc(var(--u) * -24);
+  transform-origin:50% 0;rotate:calc(var(--lean) * 1deg);clip-path:polygon(45% 0,55% 0,100% 100%,0 100%);opacity:.2;mix-blend-mode:screen;
+  background:linear-gradient(180deg,#ff8a7a 0%,#ff3a30a0 40%,#ff2a2a00 100%)}
+.ko-lamp{position:absolute;top:calc(var(--u) * 7);width:calc(var(--u) * 120);height:calc(var(--u) * 120);margin:calc(var(--u) * -60) 0 0 calc(var(--u) * -60);
+  border-radius:50%;opacity:.6;mix-blend-mode:screen;background:radial-gradient(closest-side,#fff4ef 0%,#ff8a7ad0 16%,#ff2a2a55 44%,#ff2a2a00 100%)}
+.ko-lamp::after{content:'';position:absolute;left:-60%;right:-60%;top:calc(50% - var(--u) * 1);height:calc(var(--u) * 2);opacity:.55;
+  background:linear-gradient(90deg,#ff5a4a00,#ffd0c8 50%,#ff5a4a00)}
+.ko-lamp.is-left{left:calc(var(--u) * 50)}
+.ko-lamp.is-right{left:calc(var(--u) * 353)}
+.ko-haze{position:absolute;left:0;right:0;top:calc(var(--u) * 222);height:calc(var(--u) * 120);overflow:hidden}
+.ko-haze i{position:absolute;top:0;bottom:0;left:-50%;right:-50%;mix-blend-mode:screen;opacity:.8;
+  background:radial-gradient(28% 42% at 32% 58%,#ff3a3a38,#ff3a3a00),radial-gradient(24% 36% at 70% 44%,#ff6a4a2a,#ff6a4a00)}
+.ko-haze i+i{opacity:.55;background:radial-gradient(30% 40% at 55% 62%,#ff2a2a30,#ff2a2a00),radial-gradient(22% 30% at 18% 40%,#ff5a4a24,#ff5a4a00)}
+.ko-air{position:absolute;left:0;top:0;width:100%;height:calc(var(--u) * 470);pointer-events:none}
+.ko-mark-wrap{position:relative;display:block;width:calc(var(--u) * 280);margin:0 auto}
+.ko-mark-wrap .ko-mark{width:100%}
+.ko-mark-glint{position:absolute;inset:0;pointer-events:none;opacity:0;mix-blend-mode:screen;
+  -webkit-mask:var(--mark) center/100% 100% no-repeat;mask:var(--mark) center/100% 100% no-repeat;
+  background:linear-gradient(105deg,#fff0 42%,#ffffffc0 50%,#fff0 58%) 90% 0/300% 100% no-repeat}
+@media (prefers-reduced-motion:no-preference){
+  #knockout-home.is-lit .ko-stage{animation:ko-lights 1.3s linear,ko-drift 24s 1.3s ease-in-out infinite alternate}
+  #knockout-home.is-lit .ko-lamp{animation:ko-lamp-on 1.2s linear both,ko-lamp 8s 1.2s ease-in-out infinite}
+  #knockout-home.is-lit .ko-lamp.is-right{animation:ko-lamp-on 1.2s .08s linear both,ko-lamp 11s 2.6s ease-in-out infinite}
+  #knockout-home.is-lit .ko-beams i{animation:ko-beam-on 1.4s calc(.5s + var(--n) * 70ms) ease-out both,ko-beam 7s calc(2s + var(--n) * -1.3s) ease-in-out infinite alternate}
+  #knockout-home.is-lit .ko-haze i{animation:ko-haze 26s ease-in-out infinite alternate}
+  #knockout-home.is-lit .ko-haze i+i{animation-duration:34s;animation-direction:alternate-reverse}
+  #knockout-home.is-lit .ko-mark-wrap{animation:ko-mark-in .75s .45s cubic-bezier(.2,1.35,.4,1) both}
+  #knockout-home.is-lit .ko-mark-glint{animation:ko-glint 6.5s 1.4s ease-in-out infinite}
+  #knockout-home.is-lit .ko-lede{animation:ko-home-rise .5s .75s ease-out both}
+  #knockout-home.is-lit .ko-sub{animation:ko-home-rise .5s .85s ease-out both}
+  #knockout-home.is-lit .ko-figures{animation:ko-home-rise .5s .95s ease-out both}
+}
+/* The floodlights coming on: a strike, a catch, then up. */
+@keyframes ko-lights{0%,12%{filter:brightness(.06)}22%{filter:brightness(.9)}28%{filter:brightness(.25)}40%{filter:brightness(1.18)}100%{filter:brightness(1)}}
+@keyframes ko-drift{from{transform:scale(1.02) translate(0,0)}to{transform:scale(1.08) translate(-1.2%,.8%)}}
+@keyframes ko-lamp-on{0%,12%{opacity:0}22%{opacity:1}28%{opacity:.15}40%{opacity:1}100%{opacity:.6}}
+/* Breathing, and once a cycle a lamp catches and comes back, as floodlights do. */
+@keyframes ko-lamp{0%,100%{opacity:.6}30%{opacity:.78}58%{opacity:.6}66%{opacity:.6}67%{opacity:.3}69%{opacity:.75}71%{opacity:.42}74%{opacity:.68}}
+@keyframes ko-beam-on{from{opacity:0}to{opacity:.2}}
+@keyframes ko-beam{from{rotate:calc(var(--lean) * 1deg - 1.4deg);opacity:.13}to{rotate:calc(var(--lean) * 1deg + 1.4deg);opacity:.28}}
+@keyframes ko-haze{from{transform:translateX(-9%)}to{transform:translateX(9%)}}
+@keyframes ko-mark-in{from{opacity:0;transform:scale(1.2)}to{opacity:1;transform:none}}
+@keyframes ko-glint{0%{opacity:1;background-position:90% 0}20%{opacity:1;background-position:10% 0}21%,100%{opacity:0;background-position:10% 0}}
+@keyframes ko-home-rise{from{opacity:0;transform:translateY(calc(var(--u) * 10))}to{opacity:1;transform:none}}
 .ko-lede{margin:calc(var(--u) * 11) 0 0;text-align:center;font:600 calc(var(--u) * 16)/1.25 var(--f-ui)}
 .ko-sub{margin:calc(var(--u) * 4) 0 0;text-align:center;color:#bfaeb1;font:500 calc(var(--u) * 14)/1.3 var(--f-ui)}
 .ko-card{display:block;box-sizing:border-box;border:1px solid #ffffff14;border-radius:24px;background:linear-gradient(180deg,#221719,#150e10);

@@ -332,7 +332,14 @@ await page.waitForTimeout(300);
 check(await page.locator('#knockout-rules.hidden').count() === 1, 'back from how it works is the home');
 await snap(page, out + '/k2.png');
 check(await page.locator('#ko-friends[disabled]').count() === 1, 'PLAY WITH FRIENDS waits for real rooms');
+{ // The home is a motion poster: lit, its air moving on the canvas, and still once it is put away.
+  const poster = await page.evaluate(() => { const c = document.getElementById('ko-home-air'), home = document.getElementById('knockout-home');
+    const lit = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let on = 0; for (let i = 3; i < lit.length; i += 4) if (lit[i] > 20) on++;
+    return { lit: home.classList.contains('is-lit'), beams: home.querySelectorAll('.ko-beams i').length, moving: home.getAnimations({ subtree: true }).length, painted: on }; });
+  check(poster.lit && poster.beams === 6 && poster.moving > 6 && poster.painted > 40, 'the home is a motion poster: lights, beams and the air moving', JSON.stringify(poster));
+}
 await page.locator('#ko-home-back').click();
+check(!(await page.evaluate(() => document.getElementById('knockout-home').classList.contains('is-lit'))), 'put away, the poster goes dark');
 await page.locator('#mode-knockout').click();
 await page.waitForTimeout(300);
 check(await page.locator('#knockout-rules.hidden').count() === 1, 'the second time, the home opens on its own');
