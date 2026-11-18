@@ -2395,11 +2395,14 @@ to 84) but fewer collapse early.
 In the game (`knockoutBall`, `knockoutView` and `blastOver` in `src/Game.ts`)
 it is a Blast innings with `KNOCKOUT_LIMITS`, on the owner's own scoreboard
 (Figma Battle Royale page, section 47, E1 as the owner redrew it,
-`946:7922`): 242 by 64, the total and the overs in a Knockout Red pill
-(OVERS under them, FINAL in the final: `oversWord`), this over's six balls
-beside it as round chips (`#ko-over`), and under a hairline CONFIDENCE and
-its slim meter; no LAST cell, no place cell and no "/0" (`.score-bug` as a
-grid in `src/knockout.css`). The place is
+`946:7922`): 242 by 64, the total and the overs in a pill of Knockout Red
+at a fifth over the board's dark (the frame's paint is at 20%; drawn solid
+it was far too bright, the owner saw) (OVERS under them, FINAL in the
+final: `oversWord`), this over's six balls beside it as round chips
+(`#ko-over`), and under a hairline CONFIDENCE and its slim meter; no LAST
+cell, no place cell and no "/0" (`.score-bug` as a grid in
+`src/knockout.css`). The keys beside it are in the board's own dark, the
+sound and the pause alone (`#board` off: a practice room has no board). The place is
 in the knockout bar along the foot (`trackOf`, `src/ui/KnockoutBar.ts`,
 `.ko-track` in `src/knockout.css`), 370 by 74 off the design: across its top
 what is at stake and when, in so many words (`eyebrowOf`: BOTTOM 2 KNOCKED

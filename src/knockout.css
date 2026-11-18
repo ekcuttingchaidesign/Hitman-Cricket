@@ -26,7 +26,7 @@ body.knockout-mode .score-bug{
 body.knockout-mode #viewport.ko-drop .score-bug{border-color:var(--ko-red);box-shadow:0 0 calc(var(--u) * 14) #ee2a2a8c}
 body.knockout-mode .scoreboard{grid-column:1;grid-row:1;align-self:start;height:calc(var(--u) * 34);margin:calc(var(--u) * 2.5) 0 0 calc(var(--u) * 2.5);
   width:calc(var(--u) * 95);box-sizing:border-box;padding:0 calc(var(--u) * 8);align-items:center;border-radius:calc(var(--u) * 8);
-  background:linear-gradient(180deg,#ff6b5e,#ee2a2a)}
+  background:linear-gradient(180deg,#ff6b5e33,#ee2a2a33)}
 body.knockout-mode .bug-total{width:auto;padding:0;font:900 calc(var(--u) * 22)/1 var(--f-ui);color:#fff;background:none}
 body.knockout-mode #overs-cell{flex:1;align-items:flex-start;justify-content:center;gap:calc(var(--u) * 2);min-width:0;margin-left:calc(var(--u) * 9);
   padding:0 0 0 calc(var(--u) * 9);box-shadow:none;background:linear-gradient(#ffffff1a,#ffffff1a) left center/1px calc(var(--u) * 18) no-repeat}
@@ -322,6 +322,9 @@ body.ko-glass .stage.result-open .score-stack{display:block;z-index:9}
 /* The row of keys over the top of the screen would take the touch: it lets it through to the scoreboard, its keys keeping theirs. */
 body.knockout-mode .hud-top{pointer-events:none}
 body.knockout-mode .hud-top .hud-actions{pointer-events:auto}
+/* The keys as E1 draws them: the scoreboard's own dark, and only the sound and the pause (no board for a practice room). */
+body.knockout-mode .hud-actions{background:linear-gradient(180deg,#2a1418f0,#170a0df0);border-color:#ffffff1a;box-shadow:0 4px 14px #00000066;border-radius:calc(var(--u) * 14)}
+body.knockout-mode #board{display:none}
 body.knockout-mode .score-bug[data-hold]{cursor:pointer;touch-action:none}
 .ko-held{position:absolute;z-index:30;width:calc(var(--u) * 272);padding:calc(var(--u) * 8);box-sizing:border-box;
   border-radius:calc(var(--u) * 16);border:1px solid #ffffff1f;background:linear-gradient(180deg,#2a1418f0,#170a0df0);
