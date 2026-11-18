@@ -22,10 +22,13 @@ export const KNOCKOUT = {
   /** How many go at the end of each over (K2b's ladder: 12, 10, 8, 6, then 3). After the last, sudden death. */
   cuts: [2, 2, 2, 3] as const,
   /**
-   * Past this, the top total wins. Sudden death with three left is over in
-   * two balls unless they keep tying, so this is a backstop, never a format.
+   * Five overs: four with a cut at the end, then sudden death in the fifth.
+   * Sudden death with three left is over in two balls; only ties that keep
+   * letting everybody through could reach the fifth over's last ball, and
+   * there the top total wins (fewer balls faced, then the seat, if level).
+   * Four thousand rooms of subs never went past it.
    */
-  maxBalls: 48,
+  maxBalls: 30,
 } as const;
 
 /** The eleven subs' names. Never a real player's: they are labelled SUB wherever they show. */

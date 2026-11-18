@@ -185,12 +185,12 @@ describe('the bar', () => {
 describe('the bowling', () => {
   const overs = (seed: number, swing: boolean) => {
     const g = new DeliveryGenerator(new SeededRandom(seed), knockoutPlan(swing));
-    return Array.from({ length: 8 }, (_, over) => ({ kind: g.overKind(over), level: g.levelAt(over), balls: Array.from({ length: 6 }, () => g.next(0)) }));
+    return Array.from({ length: 5 }, (_, over) => ({ kind: g.overKind(over), level: g.levelAt(over), balls: Array.from({ length: 6 }, () => g.next(0)) }));
   };
-  it('is the seamer twice, the spinner, the swing or sling bowler, then the death bowler', () => {
+  it('is five overs: the seamer twice, the spinner, the swing or sling bowler, then the death bowler', () => {
     for (const swing of [true, false]) {
       const bowled = overs(3, swing);
-      expect(bowled.map(o => o.kind)).toEqual(['PACE', 'PACE', 'SPIN', swing ? 'PACE' : 'EXPRESS', 'DEATH', 'DEATH', 'DEATH', 'DEATH']);
+      expect(bowled.map(o => o.kind)).toEqual(['PACE', 'PACE', 'SPIN', swing ? 'PACE' : 'EXPRESS', 'DEATH']);
       expect(bowled[3].level?.swingShare !== undefined).toBe(swing);
       expect(bowled[2].balls.every(b => ['OFF_SPIN', 'LEG_SPIN', 'ARM_BALL'].includes(b.style))).toBe(true);
       expect(bowled.slice(4).every(o => o.balls.every(b => b.death))).toBe(true);

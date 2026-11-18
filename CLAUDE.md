@@ -2379,8 +2379,10 @@ seamer pitching it up, seam and swing only with three fuller balls, no
 yorker, no bouncer, nothing quick or slower, so everybody gets going; the
 second the seamer with the Blast's bouncer back but still no yorker; the
 third the spinner; the fourth the swing bowler or the sling bowler, a coin
-off the room's seed so every seat faces the same; and from the fifth, sudden
-death and all, the death bowler. A plan holds an over back through
+off the room's seed so every seat faces the same; and the fifth, sudden
+death, the death bowler. Five overs is the match (`maxBalls` 30): only ties
+that keep letting everybody through could reach its last ball, where the top
+total wins; four thousand rooms of subs never did. A plan holds an over back through
 `overRules` (`OverRules`): the yorker owed for sixes waits for an over that
 allows it, and the bouncer's roll is still made so the seed's stream moves
 as it would. It moved the subs' rooms hardly at all (the winner's median 86

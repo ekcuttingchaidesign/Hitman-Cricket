@@ -327,11 +327,10 @@ SUPER10_PLAN.blocks!.toField = (over, kind, field) => BOWL_TO[field ?? bookOf(bo
  * nothing quick, so everybody gets going; the second the seamer with the
  * Blast's bouncer back but still no yorker; the third the spinner; the
  * fourth the swing bowler or the sling bowler, a coin off the seed
- * (`swingFourth`); and from the fifth, sudden death and all, the death
- * bowler. Every seat in a room faces the same balls, so the coin is the
- * room's.
+ * (`swingFourth`); and the fifth, sudden death, the death bowler. Every
+ * seat in a room faces the same balls, so the coin is the room's.
  */
-const KNOCKOUT_OVERS = 8;
+const KNOCKOUT_OVERS = 5;
 const KNOCKOUT_RULES: readonly (OverRules | null)[] = [
   { yorker: false, short: false, gentle: true, fuller: 3 },
   { yorker: false },
