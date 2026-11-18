@@ -122,9 +122,9 @@ const matchOver = await page.evaluate(() => ({ title: document.querySelector('.k
   count: document.querySelector('.ko-mo-count')?.textContent?.replace(/\s+/g, ' ').trim(), ending: window.__cricket.knockout().ending, edges: getComputedStyle(document.querySelector('.ko-watch-tray')).display }));
 check(matchOver.title === 'MATCH OVER' && matchOver.name === `${matchOver.winner?.toUpperCase()} WON THE ROOM` && /RESULTS IN [123]/.test(matchOver.count ?? '') && matchOver.edges === 'none',
   'watched to its end: MATCH OVER over the game, who won it, and a count to the results', JSON.stringify(matchOver));
-await page.waitForTimeout(1200);
 await snap(page, out + '/ko-match-over.png');
-await page.locator('#ko-match-over').click();
+// The count may run out by itself while a slow renderer photographs it: a tap only if it is still up.
+await page.evaluate(() => document.getElementById('ko-match-over')?.click());
 await page.waitForFunction(() => !!document.getElementById('ko-results'), null, { timeout: 30000 }).catch(() => {});
 const results = await page.evaluate(() => ({ rows: document.querySelectorAll('.ko-res-row').length, steps: document.querySelectorAll('.ko-res-step').length, you: document.querySelector('.ko-res-you b')?.textContent,
   watch: document.body.classList.contains('ko-watch'), first: document.querySelector('.ko-res-step.is-1 .ko-res-name')?.textContent, winner: window.__cricket.knockout().winner }));

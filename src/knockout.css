@@ -538,16 +538,19 @@ body.ko-watch #end{visibility:hidden}
 .ko-res-chips span{display:flex;align-items:center;gap:calc(var(--u,1px) * 8);height:calc(var(--u,1px) * 36);padding:0 calc(var(--u,1px) * 14);border-radius:calc(var(--u,1px) * 18);border:1px solid #ffffff1f;background:#ffffff0d;font:700 calc(var(--u,1px) * 13)/1 var(--f-ui)}
 .ko-res-chips i{width:calc(var(--u,1px) * 7);height:calc(var(--u,1px) * 7);border-radius:50%;background:#ee2a2a}
 .ko-res-podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;align-items:end;padding:calc(var(--u,1px) * 26) calc(var(--u,1px) * 8) 0;flex:0 0 auto}
-.ko-res-step{position:relative;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u,1px) * 3);padding-bottom:calc(var(--u,1px) * 46);
-  background:linear-gradient(180deg,#ffffff00,#ffffff14);clip-path:polygon(28% 0,72% 0,100% 100%,0 100%);animation:ko-rise .55s cubic-bezier(.34,1.4,.64,1) both}
-.ko-res-step.is-1{padding-bottom:calc(var(--u,1px) * 60);background:linear-gradient(180deg,#ee2a2a00,#ee2a2a40);animation-delay:.15s}
+.ko-res-step{position:relative;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u,1px) * 3);padding-bottom:calc(var(--u,1px) * 46);animation:ko-rise .55s cubic-bezier(.34,1.4,.64,1) both}
+/* The spotlight under each step, on its own layer so its cut does not cut the crown. */
+.ko-res-step::before{content:"";position:absolute;inset:calc(var(--u,1px) * 30) 0 0;z-index:-1;background:linear-gradient(180deg,#ffffff00,#ffffff14);clip-path:polygon(28% 0,72% 0,100% 100%,0 100%)}
+.ko-res-step.is-1::before{background:linear-gradient(180deg,#ee2a2a00,#ee2a2a40)}
+.ko-res-podium{isolation:isolate}
+.ko-res-step.is-1{padding-bottom:calc(var(--u,1px) * 60);animation-delay:.15s}
 .ko-res-step.is-2{animation-delay:.3s}
 .ko-res-step.is-3{animation-delay:.42s}
 .ko-res-face{display:block;width:calc(var(--u,1px) * 62);height:calc(var(--u,1px) * 62);border-radius:50%;padding:calc(var(--u,1px) * 3);box-sizing:border-box;background:#9aa0a8}
 .ko-res-step.is-1 .ko-res-face{width:calc(var(--u,1px) * 78);height:calc(var(--u,1px) * 78);background:#ee2a2a}
 .ko-res-step.is-3 .ko-res-face{background:#b0703c}
 .ko-res-face img{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover}
-.ko-res-crown{position:absolute;top:calc(var(--u,1px) * -18);width:calc(var(--u,1px) * 34)}
+.ko-res-crown{position:absolute;top:calc(var(--u,1px) * -20);width:calc(var(--u,1px) * 36);rotate:-8deg;z-index:1}
 .ko-res-name{font:700 calc(var(--u,1px) * 14)/1.2 var(--f-ui);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ko-res-runs{font:900 calc(var(--u,1px) * 20)/1 var(--f-ui)}
 .ko-res-step small{font:500 calc(var(--u,1px) * 11)/1 var(--f-ui);color:#ffb020}
