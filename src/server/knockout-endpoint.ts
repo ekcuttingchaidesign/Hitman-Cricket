@@ -4,7 +4,7 @@ import {
 } from './knockout-store.js';
 
 /**
- * A request to `/api/knockout`, turned into a call on the store; shared by the
+ * A request to `/api/challenge?knockout=1`, turned into a call on the store; shared by the
  * deployed function and the dev server, so the two cannot drift.
  *
  *   GET ?code=K7Q2          the match as it stands: the same bytes for everybody holding the code

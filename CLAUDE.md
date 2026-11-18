@@ -2698,7 +2698,9 @@ into joining it. An invite arrives as the banner over Choose a mode with JOIN
 (`bannerMatchInvite`, `modesAlert`'s `title`, `key` and `answer`); the bell
 and Notifications do not carry them yet.
 
-The store (`src/server/knockout-store.ts`, `/api/knockout`, the dev server's
+The store (`src/server/knockout-store.ts`, answered by `/api/challenge?knockout=1`
+(a function of its own made a thirteenth, and the Hobby plan stops a
+deployment at twelve: the branch's preview failed on it), the dev server's
 mirror through `knockout-endpoint.ts`; every rule in
 `tests/knockout-match.test.ts`) keeps only what the phones cannot agree on by
 themselves: a four-character code (`src/game/match-code.ts`: no 0, O, 1 or I),

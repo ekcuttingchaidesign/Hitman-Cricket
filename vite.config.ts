@@ -107,7 +107,7 @@ function boardEndpoints(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         const path = (req.url ?? '').split('?')[0];
         const known = ['/api/board', '/api/score', '/api/feedback', '/api/career', '/api/innings',
-          '/api/restore', '/api/challenge', '/api/name', '/api/dressing', '/api/recap', '/api/me', '/api/profile', '/api/live', '/api/knockout'];
+          '/api/restore', '/api/challenge', '/api/name', '/api/dressing', '/api/recap', '/api/me', '/api/profile', '/api/live'];
         if (!known.includes(path)) return next();
         // A refusal as the deployed endpoints write one, carrying the name
         // that is held when it is not the one typed.
@@ -133,7 +133,7 @@ function boardEndpoints(): Plugin {
             res.setHeader('Set-Cookie', ticket ? ticketHeader(ticket, false) : forgetHeader(false));
             return send(200, { ok: true });
           }
-          if (path === '/api/challenge') {
+          if (path === '/api/challenge' && !new URLSearchParams((req.url ?? '').split('?')[1] ?? '').has('knockout')) {
             const request = {
               method: req.method,
               query: Object.fromEntries(new URLSearchParams((req.url ?? '').split('?')[1] ?? '')),
@@ -147,8 +147,8 @@ function boardEndpoints(): Plugin {
             // behaves here the way it will behind the edge cache.
             return send(200, outcome, cacheable(request) ? 'public, s-maxage=2, stale-while-revalidate=4' : 'no-store');
           }
-          if (path === '/api/knockout') {
-            // What `api/knockout.ts` does, over memory: the same router.
+          if (path === '/api/challenge' && new URLSearchParams((req.url ?? '').split('?')[1] ?? '').has('knockout')) {
+            // What `api/challenge.ts` does for `?knockout=1`, over memory: the same router.
             const request = {
               method: req.method,
               query: Object.fromEntries(new URLSearchParams((req.url ?? '').split('?')[1] ?? '')),

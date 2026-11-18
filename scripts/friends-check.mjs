@@ -116,8 +116,8 @@ check(await a.evaluate(() => document.getElementById('ko-lobby-start').disabled)
 check(await until('strip', async () => (await text(a, '#ko-lobby-around')).includes(passer), 8000), 'who is around is in the lobby to ask in');
 await a.locator('#ko-lobby-around .ko-around-cell', { hasText: passer }).locator('[data-invite]').click();
 check(await until('sent', async () => (await a.locator('#ko-lobby-around .ko-around-cell', { hasText: passer }).textContent()).includes('SENT'), 8000), 'INVITE turns SENT');
-await until('listed', async () => (await (await fetch(`${base}/api/knockout?invites=${passerId}`)).json()).invites?.length > 0, 8000);
-const invited = await (await fetch(`${base}/api/knockout?invites=${passerId}`)).json();
+await until('listed', async () => (await (await fetch(`${base}/api/challenge?knockout=1&invites=${passerId}`)).json()).invites?.length > 0, 8000);
+const invited = await (await fetch(`${base}/api/challenge?knockout=1&invites=${passerId}`)).json();
 check(invited.invites?.some(i => i.code === code && i.by === host), 'the match is in the invited player’s list', JSON.stringify(invited));
 await a.screenshot({ path: `${out}/lobby-host.png` });
 
@@ -178,16 +178,16 @@ await b.screenshot({ path: `${out}/end-guest.png` });
 // 5. A phone that goes away. The first match's two pages are put away first: three renderers in software starve the one batting.
 console.log('A phone that goes away');
 await a.close(); await b.close();
-const answer = await post('/api/knockout', { action: 'host', playerId: hostId, name: host, avatar: 1 });
+const answer = await post('/api/challenge?knockout=1', { action: 'host', playerId: hostId, name: host, avatar: 1 });
 const second = answer.match.code;
-await post('/api/knockout', { action: 'join', code: second, playerId: goneId, name: gone, avatar: 4 });
+await post('/api/challenge?knockout=1', { action: 'join', code: second, playerId: goneId, name: gone, avatar: 4 });
 const c = await as(hostId, host, 1, `&k=${second}`);
 check(await until('lobby again', () => visible(c, '#knockout-lobby'), 15_000), 'the host back in a second match’s lobby');
-await post('/api/knockout', { action: 'start', code: second, playerId: hostId, name: host, avatar: 1 });
+await post('/api/challenge?knockout=1', { action: 'start', code: second, playerId: hostId, name: host, avatar: 1 });
 check(await until('walk again', async () => !!(await ko(c))?.match, 15_000), 'the host walks out; the other phone never does');
 const movedOn = await until('subbed', async () => ((await ko(c))?.roomBalls ?? 0) >= 6 || !!(await ko(c))?.done, 300_000, 1000);
 check(movedOn, 'a sub bats out the quiet player’s over and the room moves on');
-const after = await (await fetch(`${base}/api/knockout?code=${second}`)).json();
+const after = await (await fetch(`${base}/api/challenge?knockout=1&code=${second}`)).json();
 check(after.match.members.find(m => m.name === gone)?.card.startsWith('SSSSSS'), 'the store holds the sub’s balls in their seat', after.match.members.find(m => m.name === gone)?.card);
 
 for (const page of pages) check(page.errors.length === 0, 'nothing in the console', page.errors.join(' | '));

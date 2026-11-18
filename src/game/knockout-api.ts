@@ -45,7 +45,7 @@ function result(answer: { ok?: boolean; match?: MatchView; error?: string; statu
 }
 
 function post(body: Record<string, unknown>): Promise<MatchResult> {
-  return ask<{ match?: MatchView; error?: string; status?: number; retry?: boolean }>(`${API}/api/knockout`, {
+  return ask<{ match?: MatchView; error?: string; status?: number; retry?: boolean }>(`${API}/api/challenge?knockout=1`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
   }).then(result);
 }
@@ -64,12 +64,12 @@ export const beatInMatch = (code: string, me: Me) => post({ action: 'beat', code
 export const awayInMatch = (code: string, me: Me, handle: string, over: number) => post({ action: 'away', code, handle, over, ...as(me) });
 
 export async function readMatch(code: string): Promise<MatchResult> {
-  return result(await ask(`${API}/api/knockout?code=${encodeURIComponent(code)}`));
+  return result(await ask(`${API}/api/challenge?knockout=1&code=${encodeURIComponent(code)}`));
 }
 
 /** This player's open invites to matches, newest first; empty when the store cannot be reached. */
 export async function readMatchInvites(playerId: string): Promise<MatchInviteView[]> {
-  const answer = await ask<{ invites?: MatchInviteView[] }>(`${API}/api/knockout?invites=${encodeURIComponent(playerId)}`);
+  const answer = await ask<{ invites?: MatchInviteView[] }>(`${API}/api/challenge?knockout=1&invites=${encodeURIComponent(playerId)}`);
   return Array.isArray(answer?.invites) ? answer!.invites : [];
 }
 

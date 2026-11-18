@@ -5,7 +5,9 @@
 // ERR_MODULE_NOT_FOUND before any handler runs — a 500 with no log of its own.
 import { challengeRefused } from '../src/server/challenge-store.js';
 import { cacheable, challengeRequest } from '../src/server/challenge-endpoint.js';
-import { NoDatabase, redisFromEnv, upstashChallenges } from '../src/server/upstash.js';
+import { NoDatabase, redisFromEnv, upstashChallenges, upstashKnockouts } from '../src/server/upstash.js';
+import { matchRefused } from '../src/server/knockout-store.js';
+import { knockoutCacheable, knockoutRequest } from '../src/server/knockout-endpoint.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 
 /**
@@ -27,6 +29,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (cors(req, res)) return;
   try {
     const request = { method: req.method, query: req.query ?? {}, body: req.body, address: addressOf(req) };
+    // Super Knockout's matches with friends (`knockout-store.ts`) answer here too, asked with `?knockout=1`: the Hobby plan
+    // allows a deployment twelve functions, and a thirteenth of their own failed the build.
+    if (request.query.knockout) {
+      const outcome = await knockoutRequest(upstashKnockouts(redisFromEnv()), request);
+      if (matchRefused(outcome)) return failed(res, outcome.status, outcome.reason);
+      res.setHeader('Cache-Control', knockoutCacheable(request) ? 'public, s-maxage=1, stale-while-revalidate=2' : 'no-store');
+      return res.status(200).json(outcome);
+    }
     // Reads use the read-only token: they cannot write, whatever they are sent.
     // All but one: a player's list is where a finished match is added to their
     // record, because nothing on the server fires when a match ends, so that
