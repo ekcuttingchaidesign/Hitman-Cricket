@@ -174,15 +174,18 @@ const [ka, kb] = [await ko(a), await ko(b)];
 check(ka?.left === 12 && kb?.left === 12, 'twelve seats, the empty ten subs');
 check(ka?.table === kb?.table, 'the same room on both phones at the start');
 // Through the first over: somebody waits on the other at its end.
-let held = false;
+let held = false, outEarly = false;
 const firstOver = await until('over 1', async () => {
   const [x, y] = [await ko(a), await ko(b)];
   // Remembered by the game (`held`), since two phones can finish the over close enough that a look every 0.4s misses it.
   if (x?.match?.held || y?.match?.held) held = true;
+  // Out, a phone waits for nobody at the crease: its end screen comes at once, the room playing on under it.
+  if ([x, y].some(k => k?.match?.out && k.roomOn)) outEarly = true;
   return x && y && x.roomBalls >= 6 && y.roomBalls >= 6;
 }, 240_000, 400);
 check(firstOver, 'both phones bat the first over and the cut lands on both');
-check(held, 'the phone through first waited at the over’s end with the pill up');
+// Nobody swings, so which it is goes by the bowling: through the over not out, the pill; out in it, the end screen.
+check(held || outEarly, `the phone through first waited at the over’s end with the pill up, or was out and went to its end screen (${held ? 'the pill' : 'out'})`);
 check(turnedAway === 1, 'the guest’s first ball was turned away once');
 const guestCard = (await (await fetch(`${base}/api/challenge?knockout=1&code=${code}`)).json()).match.members.find(m => m.name === guest)?.card ?? '';
 check(guestCard.length >= 6 || guestCard.includes('W'), 'and sent again: the guest’s card has no gap', guestCard);
