@@ -345,6 +345,8 @@ const INVITE_POLL_MS = 6000;
 /** A ball on its way or being played: nothing of a match is worked out or drawn until it is dead. */
 const MATCH_BALL_LIVE: GamePhase[] = ['BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE'];
 /** How soon the room asks again to have a sub bat for somebody the store said was not away yet. */
+/** A check-in this long overdue goes even with a ball live: well inside the store's wait before it takes a phone for away. */
+const MATCH_BEAT_OVERDUE_MS = 11_000;
 const MATCH_REASK_MS = 8000;
 /** Its innings, for `ScoreManager`: one wicket, and balls enough for the room's longest match. */
 const KNOCKOUT_LIMITS: InningsLimits = { totalBalls: KNOCKOUT.maxBalls, maxWickets: 1, ballsPerOver: KNOCKOUT.ballsPerOver };
@@ -2939,7 +2941,10 @@ export class Game {
     if (play.dirty && !live) this.matchNews(play.view);
     // Still here: a check-in every few seconds for as long as this phone is in the match, never with a ball live, and
     // not while paused, so a pause is the same as dropping out.
-    if (!live && this.phase !== 'PAUSED' && now - play.beatAt > MATCH_BEAT_MS) {
+    // (With a ball live only once it is well overdue: the store takes twenty seconds of silence for away, and a ball that
+    // took that long, on a phone that stalled or a page starved of frames, had its batter's over handed to a sub. The
+    // check-in is one small request; what it answers still waits for the dead ball.)
+    if ((!live || now - play.beatAt > MATCH_BEAT_OVERDUE_MS) && this.phase !== 'PAUSED' && now - play.beatAt > MATCH_BEAT_MS) {
       play.beatAt = now;
       void beatInMatch(play.code, play.me).then(answer => this.matchLink?.take(answer));
     }

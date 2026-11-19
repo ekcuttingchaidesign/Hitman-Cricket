@@ -2808,7 +2808,11 @@ card had got to, and at the innings' end as a thirty-first, which the store
 never takes and BACK TO ROOM kept trying to send before it would go. The
 way back gives up on a ball turned away twice. A phone checks in every
 five seconds while its player bats or waits (`MATCH_BEAT_MS`), and not while
-paused, so a pause is the same as dropping out. Nothing about a match is
+paused, so a pause is the same as dropping out. With a ball live it waits
+for the dead ball, unless it is eleven seconds overdue
+(`MATCH_BEAT_OVERDUE_MS`): one ball that took twenty seconds of wall time, on
+a phone that stalled or a browser starved of frames, was otherwise enough to
+be taken for away and subbed. Nothing about a match is
 cached (`KNOCKOUT_CACHE`, `no-store`), and an answer older than the one a
 phone holds (by the store's `now`) is let go (`MatchLink.take`).
 
