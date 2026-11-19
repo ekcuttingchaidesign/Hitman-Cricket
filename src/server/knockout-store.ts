@@ -1,9 +1,9 @@
 import { AVATARS, NAME_MAX, cleanName, isPlayerId } from './board-store.js';
 import { NAME_BLOCKED_REASON, nameBlocked } from './name-filter.js';
 import { handleOf, isHandle } from '../game/handle.js';
-import { MATCH_CODE_ALPHABET, MATCH_CODE_LENGTH, MATCH_SEATS, cleanMatchCode } from '../game/match-code.js';
+import { MATCH_CODE_ALPHABET, MATCH_CODE_LENGTH, MATCH_SEATS, cleanMatchCode, namesOf } from '../game/match-code.js';
 
-export { MATCH_CODE_ALPHABET, MATCH_CODE_LENGTH, MATCH_SEATS, cleanMatchCode };
+export { MATCH_CODE_ALPHABET, MATCH_CODE_LENGTH, MATCH_SEATS, cleanMatchCode, namesOf };
 
 /**
  * Super Knockout with friends: a match a player hosts, a code their friends
@@ -69,6 +69,8 @@ export type MatchState = 'lobby' | 'live';
 export const REACTIONS = ['😂', '🔥', '👏', '😱', '🦆'] as const;
 /** A reaction is news for this long: every phone it is for shows it once, and one that opens later never sees it. */
 export const REACTION_FRESH_MS = 20_000;
+/** A nudge from the host to somebody not ready, at most this often for each of them. */
+export const NUDGE_GAP_MS = 10_000;
 /** One a watcher at most this often. */
 export const REACTION_GAP_MS = 350;
 /** One reaction as kept, under `rx:<round>:<when>:<who>`. */
@@ -123,6 +125,8 @@ export interface StoredMatch {
   invited: Record<string, StoredMatchInvite>;
   /** Reactions sent this round, by their field. */
   reactions: Record<string, StoredReaction>;
+  /** When the host last nudged each member, by player id (a field of its own each, so it never writes over their ready). */
+  nudged: Record<string, number>;
 }
 
 export interface KnockoutStore {
@@ -164,6 +168,8 @@ export interface MatchMember {
   playing: boolean;
   /** Back in the room from the match being played (BACK TO ROOM). */
   back: boolean;
+  /** When the host last nudged them to say I'M READY, by the store's clock; 0 for never. */
+  nudged: number;
 }
 
 export interface MatchView {
@@ -234,11 +240,12 @@ export function parseMatch(held: Record<string, unknown> | null): StoredMatch | 
   if (!held || typeof held.host !== 'string') return null;
   const round = Math.max(1, Math.floor(Number(held.round)) || 1);
   const match: StoredMatch = { host: held.host, at: Number(held.at) || 0, seed: Number(held.seed) >>> 0, members: {}, removed: {}, start: null, round,
-    over: Math.floor(Number(held.over)) || 0, balls: {}, invited: {}, reactions: {} };
+    over: Math.floor(Number(held.over)) || 0, balls: {}, invited: {}, reactions: {}, nudged: {} };
   for (const [field, raw] of Object.entries(held)) {
     const value = typeof raw === 'string' && raw.startsWith('{') ? safeJson(raw) : raw;
     if (field.startsWith('m:') && value && typeof value === 'object') match.members[field.slice(2)] = value as StoredMember;
     else if (field.startsWith('rm:')) match.removed[field.slice(3)] = Number(value) || 0;
+    else if (field.startsWith('ng:')) match.nudged[field.slice(3)] = Number(value) || 0;
     else if (field.startsWith('iv:') && value && typeof value === 'object') match.invited[field.slice(3)] = value as StoredMatchInvite;
     else if (field === 'start' && value && typeof value === 'object' && Array.isArray((value as StoredStart).seats)) {
       // A start is this round's or nobody's: one left behind by a room going back to its lobby is not a match.
@@ -310,6 +317,7 @@ export function viewOf(code: string, match: StoredMatch, now = Date.now()): Matc
       seat: seat >= 0 ? seat : null, card: cardOf(match, id), quiet: Math.max(0, now - heardAt(match, id)),
       idle: match.start ? Math.max(0, now - Math.max(m.ballAt ?? 0, match.start.at)) : 0, left: !!m.left,
       playing: playingIn(match, id), back: !!match.start && seat >= 0 && m.back === match.round,
+      nudged: match.nudged[id] ?? 0,
     };
   });
   const here = new Set(members.map(m => m.handle));
@@ -474,8 +482,36 @@ export async function startMatch(store: KnockoutStore, code: string, input: Memb
   if (match.start) return answer(store, clean, now);
   const seats = joinOrder(match).filter(id => !match.members[id].left).slice(0, MATCH_SEATS);
   if (seats.length < 2) return refuse(409, 'Wait for one friend to join.');
+  // Everybody, or nobody (Figma section 56): the owner started a match from the computer while the phone had not said
+  // I'M READY. The host's own ready is pressing START; every friend in the room has to have said theirs.
+  const waiting = notReady(match);
+  if (waiting.length) return refuse(409, `Waiting for ${namesOf(waiting.map(id => match.members[id].name))} to be ready.`);
   // Invites stand through a match: somebody asked in late joins the room and waits for the next one.
   await store.setOnce(clean, 'start', { at: now + START_IN_MS, seats, round: match.round } satisfies StoredStart);
+  return answer(store, clean, now);
+}
+
+/** Friends in the room who have not said I'M READY, in the order they joined. The host is never one: START is theirs. */
+function notReady(match: StoredMatch): string[] {
+  return joinOrder(match).filter(id => id !== match.host && !match.members[id].left && !match.members[id].ready);
+}
+
+/**
+ * The host's nudge (section 56, A2 and A3): somebody in the room who has not said I'M READY is told the room is waiting,
+ * one of them by handle or all of them at once, each no more often than `NUDGE_GAP_MS`. Only the time is kept, under a
+ * field of its own for each of them; their phone shows it when it is newer than the last it showed.
+ */
+export async function nudgeInMatch(store: KnockoutStore, code: string, input: Member, handle: unknown, now = Date.now()): Promise<MatchOutcome> {
+  const match = await load(store, code);
+  if ('ok' in match) return match;
+  const clean = cleanMatchCode(code)!;
+  if (match.host !== input.playerId) return refuse(403, 'Only the host can nudge.');
+  if (match.start) return answer(store, clean, now);
+  const targets = notReady(match).filter(id => (handle ? handleOf(id) === handle : true) && now - (match.nudged[id] ?? 0) >= NUDGE_GAP_MS);
+  if (!targets.length) return answer(store, clean, now);
+  const limit = await limited(store, 'write', input.address);
+  if (limit) return limit;
+  await store.set(clean, Object.fromEntries(targets.map(id => [`ng:${id}`, now])), MATCH_TTL_SECONDS);
   return answer(store, clean, now);
 }
 

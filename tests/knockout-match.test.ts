@@ -3,7 +3,7 @@ import { handleOf } from '../src/game/handle';
 import { codeIn } from '../src/game/match-code';
 import {
   AWAY_MS, INVITE_FRESH_MS, STALL_MS, MATCH_SEATS, START_IN_MS, awayInMatch, backToRoom, doneMatch, settleMatch, ballInMatch, beatInMatch, cleanMatchCode, hostMatch, inviteToMatch, joinMatch, leaveMatch, matchRefused,
-  memoryKnockouts, reactInMatch, readInvites, readMatch, readyMatch, removeFromMatch, startMatch, REACTION_FRESH_MS, REACTION_GAP_MS,
+  memoryKnockouts, namesOf, nudgeInMatch, reactInMatch, readInvites, NUDGE_GAP_MS, readMatch, readyMatch, removeFromMatch, startMatch, REACTION_FRESH_MS, REACTION_GAP_MS,
   type MatchOutcome, type MatchView, type Member,
 } from '../src/server/knockout-store';
 
@@ -25,6 +25,12 @@ const ok = (outcome: MatchOutcome): MatchView => {
   if (matchRefused(outcome)) throw new Error(outcome.reason);
   return outcome.match;
 };
+/** START with everybody in the room ready, as the host can only start it: each friend says so a moment before. */
+async function begin(store: ReturnType<typeof setup>, code: string, at: number): Promise<MatchOutcome> {
+  const lobby = ok(await readMatch(store, code, at));
+  for (const m of lobby.members) if (!m.host && !m.ready && !m.left) ok(await readyMatch(store, code, as(names.indexOf(m.name)), true, at));
+  return startMatch(store, code, as(names.indexOf(lobby.members.find(m => m.host)!.name)), at);
+}
 
 describe('a match with friends', () => {
   it('is hosted on a four-character code, with the host in and ready', async () => {
@@ -132,7 +138,7 @@ describe('a match with friends', () => {
     const { code } = ok(await hostMatch(store, as(0), T0));
     ok(await joinMatch(store, code, as(1), T0 + 5));
     ok(await inviteToMatch(store, code, as(0), handleOf(ids[3]), T0 + 10));
-    ok(await startMatch(store, code, as(0), T0 + 20));
+    ok(await begin(store, code, T0 + 20));
     // Asked in while it is being played, too.
     ok(await inviteToMatch(store, code, as(1), handleOf(ids[4]), T0 + 6000));
     for (const i of [3, 4]) {
@@ -152,6 +158,8 @@ describe('a match with friends', () => {
     ok(await joinMatch(store, code, as(2), T0 + 20));
     const guest = await startMatch(store, code, as(1), T0 + 25);
     expect(matchRefused(guest) && guest.status).toBe(403);
+    ok(await readyMatch(store, code, as(1), true, T0 + 26));
+    ok(await readyMatch(store, code, as(2), true, T0 + 27));
     const match = ok(await startMatch(store, code, as(0), T0 + 30));
     expect(match.state).toBe('live');
     expect(match.startAt).toBe(T0 + 30 + START_IN_MS);
@@ -169,9 +177,85 @@ describe('a match with friends', () => {
     const store = setup();
     const { code } = ok(await hostMatch(store, as(0), T0));
     ok(await joinMatch(store, code, as(1), T0 + 10));
-    ok(await startMatch(store, code, as(0), T0 + 20));
+    ok(await begin(store, code, T0 + 20));
     return { store, code };
   }
+
+  describe('everybody ready before the start', () => {
+    async function room() {
+      const store = setup();
+      const { code } = ok(await hostMatch(store, as(0), T0));
+      for (const i of [1, 2, 3]) ok(await joinMatch(store, code, as(i), T0 + 10 * i));
+      return { store, code };
+    }
+    it('refuses the host’s START while anybody is not ready, and says who', async () => {
+      const { store, code } = await room();
+      const none = await startMatch(store, code, as(0), T0 + 100);
+      expect(matchRefused(none) && none.status).toBe(409);
+      expect(matchRefused(none) && none.reason).toBe('Waiting for Riya, Zoya and 1 more to be ready.');
+      ok(await readyMatch(store, code, as(1), true, T0 + 110));
+      const two = await startMatch(store, code, as(0), T0 + 120);
+      expect(matchRefused(two) && two.reason).toBe('Waiting for Zoya and Arjun to be ready.');
+      ok(await readyMatch(store, code, as(2), true, T0 + 130));
+      const one = await startMatch(store, code, as(0), T0 + 140);
+      expect(matchRefused(one) && one.reason).toBe('Waiting for Arjun to be ready.');
+      expect(ok(await readMatch(store, code, T0 + 150)).state).toBe('lobby');
+      ok(await readyMatch(store, code, as(3), true, T0 + 160));
+      expect(ok(await startMatch(store, code, as(0), T0 + 170)).state).toBe('live');
+    });
+    it('puts START back to sleep when somebody steps back, or a friend arrives', async () => {
+      const { store, code } = await room();
+      for (const i of [1, 2, 3]) ok(await readyMatch(store, code, as(i), true, T0 + 100 + i));
+      ok(await readyMatch(store, code, as(2), false, T0 + 200));
+      const back = await startMatch(store, code, as(0), T0 + 210);
+      expect(matchRefused(back) && back.reason).toBe('Waiting for Zoya to be ready.');
+      ok(await readyMatch(store, code, as(2), true, T0 + 220));
+      ok(await joinMatch(store, code, as(4), T0 + 230));
+      const arrived = await startMatch(store, code, as(0), T0 + 240);
+      expect(matchRefused(arrived) && arrived.reason).toBe('Waiting for Meera to be ready.');
+    });
+    it('does not wait for somebody the host took out, or who left', async () => {
+      const { store, code } = await room();
+      ok(await readyMatch(store, code, as(1), true, T0 + 100));
+      ok(await removeFromMatch(store, code, as(0), handleOf(ids[2]), T0 + 110));
+      ok(await leaveMatch(store, code, as(3), T0 + 120));
+      expect(ok(await startMatch(store, code, as(0), T0 + 130)).state).toBe('live');
+    });
+    it('asks again every match: back in the lobby nobody but the host is ready', async () => {
+      const { store, code } = await room();
+      ok(await begin(store, code, T0 + 100));
+      for (const i of [0, 1, 2, 3]) ok(await backToRoom(store, code, as(i), T0 + 7000 + i));
+      const lobby = ok(await readMatch(store, code, T0 + 8000));
+      expect(lobby.round).toBe(2);
+      expect(lobby.members.map(m => m.ready)).toEqual([true, false, false, false]);
+      const again = await startMatch(store, code, as(0), T0 + 8100);
+      expect(matchRefused(again) && again.status).toBe(409);
+    });
+    it('lets the host nudge whoever is not ready: one of them or all, each no more often than the gap, and only the host', async () => {
+      const { store, code } = await room();
+      ok(await readyMatch(store, code, as(1), true, T0 + 100));
+      const guest = await nudgeInMatch(store, code, as(1), handleOf(ids[2]), T0 + 200);
+      expect(matchRefused(guest) && guest.status).toBe(403);
+      // One, by handle: the others are left alone, and somebody ready is never nudged.
+      const one = ok(await nudgeInMatch(store, code, as(0), handleOf(ids[2]), T0 + 1000));
+      expect(one.members.map(m => m.nudged)).toEqual([0, 0, T0 + 1000, 0]);
+      expect(ok(await nudgeInMatch(store, code, as(0), handleOf(ids[1]), T0 + 1100)).members[1].nudged).toBe(0);
+      // All of them: Zoya was nudged a moment ago and is not nudged again until the gap is up.
+      const all = ok(await nudgeInMatch(store, code, as(0), undefined, T0 + 2000));
+      expect(all.members.map(m => m.nudged)).toEqual([0, 0, T0 + 1000, T0 + 2000]);
+      const later = ok(await nudgeInMatch(store, code, as(0), undefined, T0 + 1000 + NUDGE_GAP_MS));
+      expect(later.members.map(m => m.nudged)).toEqual([0, 0, T0 + 1000 + NUDGE_GAP_MS, T0 + 2000]);
+      // A nudge never writes over what they said: ready a moment before it lands is still ready.
+      ok(await readyMatch(store, code, as(3), true, T0 + 30_000));
+      expect(ok(await nudgeInMatch(store, code, as(0), undefined, T0 + 40_000)).members.map(m => m.ready)).toEqual([true, true, false, true]);
+      expect(JSON.stringify(later)).not.toContain(ids[2]);
+    });
+    it('names who is waited for: one, two, or two and how many more', () => {
+      expect(namesOf(['Kabir'])).toBe('Kabir');
+      expect(namesOf(['Kabir', 'Meera'])).toBe('Kabir and Meera');
+      expect(namesOf(['Kabir', 'Meera', 'Dev', 'Sana'])).toBe('Kabir, Meera and 2 more');
+    });
+  });
 
   it('takes each ball in order, and nothing after a wicket', async () => {
     const { store, code } = await started();
@@ -268,7 +352,7 @@ describe('a match with friends', () => {
       const { code } = ok(await hostMatch(store, as(0), T0));
       ok(await joinMatch(store, code, as(1), T0 + 10));
       ok(await joinMatch(store, code, as(2), T0 + 15));
-      ok(await startMatch(store, code, as(0), T0 + 20));
+      ok(await begin(store, code, T0 + 20));
       return { store, code };
     }
     it('is told to every phone for a few seconds: who it is for and who sent it by handle, the sender by name, never an id', async () => {
@@ -321,7 +405,7 @@ describe('a match with friends', () => {
       const { code } = ok(await hostMatch(store, as(0), T0));
       ok(await joinMatch(store, code, as(1), T0 + 10));
       ok(await joinMatch(store, code, as(2), T0 + 15));
-      ok(await startMatch(store, code, as(0), T0 + 20));
+      ok(await begin(store, code, T0 + 20));
       return { store, code };
     }
     const tags = (match: MatchView) => match.members.map(m => `${m.name}:${m.playing ? 'playing' : m.back ? 'back' : 'in'}`).join(' ');
@@ -355,7 +439,7 @@ describe('a match with friends', () => {
       expect(lobby.seats).toEqual([]);
       expect(lobby.members.map(m => [m.name, m.card, m.ready, m.playing])).toEqual([['Kabir', '', true, false], ['Riya', '', false, false], ['Zoya', '', false, false]]);
       // And the next match is the host's to start, on fresh cards.
-      const next = ok(await startMatch(store, code, as(0), T0 + 9000));
+      const next = ok(await begin(store, code, T0 + 9000));
       expect(next.state).toBe('live');
       expect(next.round).toBe(2);
       ok(await ballInMatch(store, code, as(0), 0, '4', T0 + 15_000, 2));
@@ -367,7 +451,7 @@ describe('a match with friends', () => {
       for (const i of [0, 1, 2]) ok(await backToRoom(store, code, as(i), T0 + 7000 + i));
       const late = await ballInMatch(store, code, as(1), 0, '6', T0 + 8000, 1);
       expect(matchRefused(late) && late.status).toBe(403);
-      ok(await startMatch(store, code, as(0), T0 + 9000));
+      ok(await begin(store, code, T0 + 9000));
       const stale = await ballInMatch(store, code, as(1), 0, '6', T0 + 15_000, 1);
       expect(matchRefused(stale) && stale.status).toBe(410);
       expect(ok(await readMatch(store, code, T0 + 16_000)).members[1].card).toBe('');

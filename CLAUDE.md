@@ -2446,7 +2446,9 @@ the places, sizes, colours, the rays' conic gradient and the grain are read
 off them, and the way there is the claude.ai artifact "Knockout Moments", on
 one clock as the Verdict is. The card is out of sight underneath while it is
 up (`ko-up`), so what shows through K9 v2's dark is the match, blurred. Its
-keys are LEADERBOARD in the design's dark key and PLAY AGAIN in Knockout Red
+keys are LEADERBOARD, in the knockout's gold on a warm dark face with a trophy
+(in the design's slate key it read as switched off beside BACK TO ROOM, the
+owner found), and PLAY AGAIN in Knockout Red
 (`board` on the moment's keys, `openStandings` in `src/Game.ts`). It was
 SCORECARD, and WATCH ON while the room played on: the owner, out early in a
 match, could read the scorecard or go back to the room and had no way to see
@@ -2714,10 +2716,35 @@ line under it saying where the room stands (`#ko-lobby-note`), the twelve
 seats in two rows of six (HOST under the host's face, a tick on a guest who
 has said I'M READY, you ringed white, the first empty seat + Invite, which
 shares), MATCH CODE · FRIENDS TYPE THIS IN with COPY, AROUND NOW as a strip
-of faces with INVITE turning SENT ✓, and the keys: INVITE, the quiet dark
-key (the phone's share sheet with the match's link, `?k=CODE`, or the link
-copied), beside the hero key, START NOW for the host, asleep until one
-friend is in, or I'M READY for a guest, green once it says READY ✓. The
+of faces with INVITE turning SENT ✓, and the keys: INVITE in green, the
+narrower (the phone's share sheet with the match's link, `?k=CODE`, or the
+link copied; it went dark for a day and the owner wanted the green kept),
+beside the hero key, START NOW for the host or I'M READY for a guest, green
+once it says READY ✓. One row of six seats until the sixth is in, then both.
+
+Everybody ready before the start (Figma Battle Royale page, section 56, node
+`1035:13860`; the owner started a match from the computer while the phone had
+not said I'M READY, 19 November 2026). START NOW sleeps until every friend in
+the room has said I'M READY and there is at least one; the host's own ready
+is pressing START. The store keeps it (`startMatch`, `notReady`): a START with
+anybody not ready is refused, "Waiting for Kabir and Meera to be ready."
+(`namesOf` in `match-code.ts`, the screen's words too). Each friend's seat
+says READY ✓ or NOT READY (amber, dashed, a little dimmed); the line under
+the count keeps score (2 of 4 friends ready); and a bar over the keys
+(`#ko-lobby-bar`, `bar` in `LobbyScreen`) names who the room is waiting for,
+with one NUDGE for all of them on the host's phone, and on a guest's says
+You're not ready yet or who is still to come. A tap on a friend's seat is the
+host's sheet (`#ko-seat-sheet`): NUDGE KABIR, and REMOVE FROM MATCH (the
+store's `remove`, as before: back once with the link). A nudge
+(`nudgeInMatch`, the store's `nudge`: the host's alone, in the lobby only,
+each friend no more often than `NUDGE_GAP_MS`, kept as a time under a field
+of its own, `ng:<player>`, so it never writes over what they said) reaches
+that phone as a banner with a buzz (`#ko-nudge`, shown when the time is newer
+than the last one shown). READY ✓ tapped again steps back, and a friend who
+arrives is not ready, so START NOW can go back to sleep; the last tick wakes
+it with a glow (`is-go`) and a buzz. Every match asks again: the room back in
+its lobby has nobody ready but the host. Not built: a timer that starts the
+match by itself, and marking a phone gone quiet as away. The
 room does not drag and nothing runs off its edge (the owner's phone, 19
 November 2026): the glow and the grain overflowed the scroller, which panned
 it sideways and scrolled it to the design phone's height with nothing to
@@ -2907,6 +2934,31 @@ screens is BACK TO ROOM (above), never a practice room; a restart with
 batting still to do, or Choose a mode, lets the match and the room go,
 running away (5A) if the player was still in it.
 
+Watching from the room (Figma Battle Royale page, section 57, node
+`1036:13910`; the owner's ask of 19 November 2026: out early and back in the
+room, the faces tagged PLAYING should open their game as the stories do).
+BACK TO ROOM while the match is still being played keeps it (`park`, `parked`
+on `matchPlay`): the room, its end screen's state and the store's link all
+stay as they are under the room's screen, the match moving on as balls
+arrive (`lobbyNews` passes each answer to `matchNews` and then draws the room
+over it). The room then says how the match stands (`match` on `LobbyView`):
+MATCH ON · OVER 3 where the count was, how many are still in, a friend still
+batting in the end screen's story ring with their score under the face
+(`is-watch`), those out OUT · 9TH, everybody still in (subs too) as a strip
+of rings where AROUND NOW stood with LEADERBOARD beside its head, the bar
+saying how this player went, and WATCH as the hero key. A tap on a ringed
+seat, a ring, or WATCH (the leader) opens that player's game as section 51's
+story (`watchFromRoom`); ✕ is the room (`unwatch`, `showMatchRoom`), where
+opened from the end screen it is the end screen. LEADERBOARD in the room is
+the standings as they are, over the room. Watching when the match ends, MATCH
+OVER and the Results play as ever and their key is the room; sat in the room
+when it ends, nothing is played over it: the kept match is let go
+(`dropParked`, also when the room moves on to its next round or is left) and
+one card keeps who won it and where this player came, with LEADERBOARD for
+its Results (`lastMatch`, `#ko-lobby-last`), until the next match starts. A
+phone that never batted the match (joined the room late, or reloaded) has
+nothing to watch from: it sees who is PLAYING as before.
+
 Reactions travel (the owner sent one and the other device never showed it,
 19 November 2026: they only floated where they were sent from). The tray's
 tap goes to the store for the friend watched (`sendReaction`, the store's
@@ -2925,12 +2977,15 @@ touch). They are shown as the room's news is, so never with a ball live. A
 sub has nobody to tell.
 
 Not yet: points with three real players, the timer, the host's
-start-with-subs question, N WATCHING, and invites in Notifications.
+start-with-subs question, N WATCHING, invites in Notifications, and watching
+a match from the room on a phone that was never in it.
 
 `scripts/friends-check.mjs` walks it in two browsers in real time, nobody
 swinging: Play with friends, a wrong code, PASTE and a paste of INVITE's
 line, the lobby, an invite into the other player's list, a friend opening the
-link, I'M READY, START NOW, the walk-out on both, the bowler held at the
+link, START NOW asleep and the store turning a START away while the friend is
+not ready, the host's sheet and a nudge reaching the guest as a banner, I'M
+READY, START NOW, the walk-out on both, the bowler held at the
 over's end, the first cut, the guest's first ball turned away by the store and
 sent again, `?matchlog=1`'s line, the same seats and winner on both phones at
 the end, and a third match whose other phone never
@@ -2944,8 +2999,11 @@ LEADERBOARD on the end screen, the live standings and back, a ring's game
 watched, a swipe, a reaction from the tray reaching the store and one sent
 to the guest floating up on their phone, the fielding side in one kit
 through the host's balls, ✕), going
-back to the room where the host is tagged PLAYING, then the match over and
-the host's next START; and an invite reaching a phone on the cover as a banner
+back to the room where the match is kept (MATCH ON, the host's seat in the
+story ring with their score, the rings and WATCH), a tap on their seat
+opening their game and ✕ coming back to the room, a ring doing the same,
+LEADERBOARD over the room, then the match over, the kept match let go and
+the host's next START once the guest is ready again; and an invite reaching a phone on the cover as a banner
 with JOIN, and listed on Play with friends. Never edit the source while it
 runs: the dev server reloads the pages under it.
 

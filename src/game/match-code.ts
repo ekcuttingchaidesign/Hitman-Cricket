@@ -33,3 +33,10 @@ export function codeIn(text: unknown): string | null {
   const words = new Set(text.split(/[^A-Za-z0-9]+/).map(word => cleanMatchCode(word)).filter((code): code is string => !!code));
   return words.size === 1 ? [...words][0] : null;
 }
+
+/** Who is waited for, in so many words: Kabir · Kabir and Meera · Kabir, Meera and 2 more. */
+export function namesOf(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? 'everybody';
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names[0]}, ${names[1]} and ${names.length - 2} more`;
+}

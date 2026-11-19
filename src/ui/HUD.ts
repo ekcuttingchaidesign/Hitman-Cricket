@@ -2952,13 +2952,16 @@ ${knockoutRulesMarkup()}
   knockoutCountdown(now: () => void) { this.koMoment?.countToResults(now); }
   knockoutCount(n: number) { this.koWatch?.count(n); this.koMoment?.roomCount(n); }
   private koResults: KnockoutResults | null = null;
+  /** The room's Results or its standings are up. */
+  get knockoutResultsOpen() { return this.koResults !== null; }
   /** The room's Results (A4), over the end screen: back is the end screen, PLAY AGAIN plays again. */
-  knockoutResults(view: ResultsView | null, back?: () => void) {
+  knockoutResults(view: ResultsView | null, back?: () => void, again?: () => void) {
     this.koResults?.close(); this.koResults = null;
     if (!view) return;
     this.koResults = new KnockoutResults(this.viewport, view, {
       back: () => { this.koResults = null; back?.(); },
-      again: () => { this.koResults = null; this.koMoment?.close(); this.koMoment = null; this.$('again').click(); },
+      // Opened from the room (its LEADERBOARD, or the last match's card) the key under it is the room's own way back.
+      again: () => { this.koResults = null; if (again) { again(); return; } this.koMoment?.close(); this.koMoment = null; this.$('again').click(); },
     });
   }
   /** The standings of a room still being played, kept up while they are open (`view` is asked for only then). */

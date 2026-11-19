@@ -179,7 +179,7 @@ import { markRulesSeen, readTally, rulesSeen, tallyRoom } from './ui/KnockoutHom
 import { FriendsScreen, LobbyScreen, type AroundPlayer, type LobbyView } from './ui/KnockoutFriends';
 import {
   MATCH_BEAT_MS, MATCH_PARAM, MatchLink, awayInMatch, backToRoom, ballChar, ballInMatch, beatInMatch, doneMatch, hostMatch, inviteToMatch, joinMatch, keepMatch, leaveMatch, settleMatch,
-  reactInMatch, readMatchInvites, readyMatch, startMatch, type MatchView, type Me as MatchMe,
+  nudgeInMatch, reactInMatch, readMatchInvites, readyMatch, removeFromMatch, startMatch, type MatchView, type Me as MatchMe,
 } from './game/knockout-api';
 import { cleanMatchCode } from './game/match-code';
 import { AWAY_MS, STALL_MS } from './server/knockout-store';
@@ -2555,6 +2555,8 @@ export class Game {
     reacted: Set<string>;
     /** Which ball of the match the one being bowled is, as it was bowled. */
     facing: number;
+    /** Back in the room with the match still being played: kept under the room, to be watched from it. */
+    parked: boolean;
   } | null = null;
   /** Walking out of the lobby: the moment every phone counts to, by the store's clock. */
   private walkOutAt: { at: number; timer: number } | null = null;
@@ -2626,6 +2628,22 @@ export class Game {
       invite: handle => void this.inviteFriend(handle),
       start: () => void this.startFriends(),
       ready: on => { const me = this.matchMe(), link = this.matchLink; if (me && link) void readyMatch(link.code, me, on).then(answer => link.take(answer)); },
+      nudge: handle => {
+        const me = this.matchMe(), link = this.matchLink;
+        if (!me || !link) return;
+        track('knockout-nudge', 'The host nudged somebody not ready');
+        void nudgeInMatch(link.code, me, handle).then(answer => link.take(answer));
+      },
+      remove: handle => {
+        const me = this.matchMe(), link = this.matchLink;
+        if (!me || !link) return;
+        track('knockout-removed', 'The host took somebody out of the match');
+        void removeFromMatch(link.code, me, handle).then(answer => { if (!answer.ok) this.hud.notice(answer.reason ?? 'They could not be taken out. Try again.'); link.take(answer); });
+      },
+      watchSeat: handle => this.watchFromRoom(handle, null),
+      watchRing: id => this.watchFromRoom(null, id),
+      board: () => { if (this.knockout && this.matchPlay?.parked) { this.mark('knockout-leaderboard-room', 'The leaderboard opened from the room'); this.hud.knockoutResults(this.resultsView(), undefined, () => undefined); } },
+      lastBoard: () => { if (this.lastMatch) { this.mark('knockout-last-match', 'The last match’s results opened from the room'); this.hud.knockoutResults(this.lastMatch.results, undefined, () => undefined); } },
     });
     this.matchLink = new MatchLink(match.code, view => this.lobbyNews(view), reason => this.matchGone(reason));
     this.matchLink.take({ ok: true, match });
@@ -2635,7 +2653,12 @@ export class Game {
   /** The lobby as the store says it stands, or the walk-out counted to the start every phone was given. */
   private lobbyNews(match: MatchView) {
     // An answer that throws on the way into the room is caught and said (`?matchlog=1`), never left to stop the match unseen.
-    if (this.matchPlay) { try { this.matchNews(match); } catch (error) { this.frameFailed(error); } return; }
+    if (this.matchPlay) {
+      try { this.matchNews(match); } catch (error) { this.frameFailed(error); }
+      // Kept under the room (section 57), the match moves on there and the room is drawn over it, unless somebody is being
+      // watched from it; `matchNews` lets it go once it is over.
+      if (this.matchPlay && (!this.matchPlay.parked || this.room?.watching != null || this.room?.ending)) return;
+    }
     const me = this.matchMe(), lobby = this.lobbyScreen;
     if (!me || !lobby) return;
     const mine = handleOf(me.playerId);
@@ -2665,13 +2688,78 @@ export class Game {
       void settleMatch(match.code, me).then(answer => { if (link === this.matchLink) link?.take(answer); });
     }
     const members = match.members.filter(m => !m.left);
+    // A match this phone batted in and kept under the room: who is still batting it, their scores, and who can be watched.
+    const play = this.matchPlay?.parked ? this.matchPlay : null, room = play && this.knockout && !this.knockout.done ? this.knockout : null;
+    const seatOf = (handle: string) => room?.seats.find(seat => seat.handle === handle) ?? null;
+    const still = (seat: Seat | null) => !!seat && seat.place === null && !seat.out;
+    const you = room?.you ?? null;
     const view: LobbyView = {
       code: match.code, hosting: match.host === mine, hostName: match.members.find(m => m.host)?.name ?? 'the host',
-      ready: !!self.ready, live, playing: members.filter(m => m.playing).length,
-      seats: members.map(m => ({ handle: m.handle, name: m.name, avatar: m.avatar, host: m.host, ready: m.ready, you: m.handle === mine, playing: m.playing })),
+      ready: !!self.ready, live, playing: members.filter(m => m.playing).length, now: match.now, nudged: self.nudged ?? 0,
+      seats: members.map(m => {
+        const seat = seatOf(m.handle), own = m.handle === mine, batting = still(seat) && !(own && play?.out);
+        return {
+          handle: m.handle, name: m.name, avatar: m.avatar, host: m.host, ready: m.ready, you: own, joined: m.joined,
+          playing: m.playing || batting, score: batting ? `${seat!.runs}*` : undefined, watch: batting && !own,
+          out: seat && !batting ? (seat.place !== null ? `OUT · ${ordinal(seat.place)}` : 'OUT') : undefined,
+        };
+      }),
       around: this.aroundNow(match.invited),
+      match: room && you ? {
+        heading: room.final ? 'MATCH ON · THE FINAL' : `MATCH ON · OVER ${Math.min(KNOCKOUT.cuts.length + 1, Math.floor(room.roomBalls / KNOCKOUT.ballsPerOver) + 1)}`,
+        line: (() => {
+          const friends = room.seats.filter(seat => !seat.sub && seat !== you && still(seat)).length;
+          return `${room.alive.length} still in${friends ? `, ${friends} of them your friend${friends === 1 ? '' : 's'}` : ''} · tap a face to watch`;
+        })(),
+        rings: this.ringsOf(),
+        you: {
+          title: you.place !== null ? `You went out ${ordinal(you.place).toLowerCase()} · ${you.runs} off ${you.balls}` : `You are out · ${this.score.runs} off ${this.score.balls}`,
+          line: 'The next match starts when this one’s over',
+        },
+      } : null,
+      last: !live && this.lastMatch?.code === match.code ? { title: this.lastMatch.title, line: this.lastMatch.line, face: this.lastMatch.face } : null,
     };
     lobby.render(view);
+  }
+  /** The match that just ended in the room this phone is in: who won it, and its Results for the room's LEADERBOARD. */
+  private lastMatch: { code: string; title: string; line: string; face: number; results: ResultsView } | null = null;
+  /**
+   * BACK TO ROOM with the match still being played (section 57): the match is kept as it stands under the room, moving on
+   * as the store's balls arrive, so everybody still batting can be watched from it. The end screen waits out of sight.
+   */
+  private park(match: MatchView) {
+    const play = this.matchPlay;
+    if (!play) return;
+    play.parked = true;
+    this.hud.knockoutWaiting(null); this.hud.knockoutResults(null);
+    this.audio.music(null);
+    track('knockout-back-to-room', 'Back to the room from a match with friends');
+    this.enterLobby(match);
+    this.showMatchRoom();
+  }
+  /** The room, over a match kept under it. */
+  private showMatchRoom() {
+    document.body.classList.add('ko-parked');
+    const view = this.matchLink?.match;
+    if (view) this.lobbyNews(view);
+  }
+  /** A face with the story ring, tapped in the room: that player's game as a story, and ✕ is the room. */
+  private watchFromRoom(handle: string | null, id: number | null) {
+    const play = this.matchPlay, room = this.knockout, on = this.room;
+    if (!play?.parked || !room || !on || room.done || on.ending) return;
+    const seat = handle ? room.seats.find(one => one.handle === handle) : id !== null ? room.seats[id] : null;
+    this.lobbyScreen?.hide();
+    this.hud.knockoutResults(null);
+    document.body.classList.remove('ko-parked');
+    this.watch(seat ? seat.id : null);
+    if (on.watching === null) { this.showMatchRoom(); return; }
+    track('knockout-watch-room', 'Watched somebody’s game from the room');
+  }
+  /** A match kept under the room, let go: it is over, or the room has moved on, or the player has left the room. */
+  private dropParked() {
+    if (!this.matchPlay?.parked) return;
+    this.hud.knockoutWatch(null, this.watchKeys);
+    this.leaveMatchScreens();
   }
   private settleAsked = 0;
   private async inviteFriend(handle: string) {
@@ -2705,6 +2793,7 @@ export class Game {
   }
   private async leaveLobby() {
     const me = this.matchMe(), link = this.matchLink;
+    this.dropParked();
     this.closeLobby();
     this.friendsScreen?.show(this.aroundNow());
     if (me && link) await leaveMatch(link.code, me);
@@ -2712,11 +2801,13 @@ export class Game {
   private closeLobby() {
     this.matchLink?.stop(); this.matchLink = null; keepMatch(null);
     if (this.walkOutAt) { window.clearTimeout(this.walkOutAt.timer); this.walkOutAt = null; }
-    this.lobbyScreen?.hide();
+    this.lastMatch = null;
+    this.lobbyScreen?.hide(); this.lobbyScreen?.forget();
   }
   /** A match that has closed, or started without this player: said once, and back to Play with friends. */
   private matchGone(reason: string) {
-    if (this.matchPlay) return;
+    if (this.matchPlay && !this.matchPlay.parked) return;
+    this.dropParked();
     this.closeLobby();
     this.hud.notice(reason);
     if (this.friendsOpen && this.matchMe()) this.friendsScreen?.show(this.aroundNow());
@@ -2736,7 +2827,9 @@ export class Game {
     this.lobbyScreen?.hide(); this.friendsScreen?.hide();
     this.hud.knockoutRules(false); this.hud.knockoutHome(null); this.hud.closeModes();
     this.matchPlay = { code: match.code, me, seed: match.seed, seats, you: match.seats.indexOf(mine), deliveries: [], balls: [], sending: false, sendAt: 0, refused: null, sendFails: 0,
-      batted: 0, out: false, asked: new Map(), beatAt: 0, fresh: true, view: match, logAt: 0, held: false, round: match.round, dirty: false, doneSent: false, leaving: false, reacted: new Set(), facing: 0 };
+      batted: 0, out: false, asked: new Map(), beatAt: 0, fresh: true, view: match, logAt: 0, held: false, round: match.round, dirty: false, doneSent: false, leaving: false, reacted: new Set(), facing: 0, parked: false };
+    this.lastMatch = null;
+    document.body.classList.remove('ko-parked');
     this.mode = 'CLASSIC';
     this.knockoutPicked = true;
     track('knockout-match-walkout', 'Walked out in a match with friends');
@@ -2763,6 +2856,15 @@ export class Game {
   }
   /** The match's screens put away, the game left on Choose a mode under whatever comes next (the room, or Play with friends). */
   private leaveMatchScreens() {
+    // The match over, the room keeps who won it and its Results, for one card and its LEADERBOARD until the next begins.
+    const play = this.matchPlay, room = this.knockout;
+    if (play && room?.done && room.winner) {
+      const won = room.winner === room.you, place = room.you.place ?? room.seats.length;
+      this.lastMatch = { code: play.code, face: room.winner.face, results: this.resultsView(),
+        title: won ? 'YOU WON IT' : `${room.winner.name.toUpperCase()} WON IT`,
+        line: `${room.winner.runs} off ${room.winner.balls} · ${won ? 'the room was yours' : `you were ${ordinal(place).toLowerCase()}`}` };
+    }
+    document.body.classList.remove('ko-parked');
     this.matchPlay = null;
     this.knockout = null; this.room = null;
     this.hud.knockoutWaiting(null); this.hud.knockoutResults(null); this.hud.knockoutEnd(null); this.hud.knockoutTrack(null); this.hud.knockout(null);
@@ -2778,6 +2880,8 @@ export class Game {
   private backToRoom = async () => {
     const play = this.matchPlay;
     if (!play || play.leaving) return;
+    // Already back, the match kept under the room: the room again.
+    if (play.parked) { this.hud.knockoutResults(null); this.showMatchRoom(); return; }
     play.leaving = true;
     this.hud.knockoutWaiting('BACK TO THE ROOM…');
     for (let tries = 0, refused = 0; tries < 6 && refused < 2 && this.matchPlay === play && this.storedCard(play).length < play.balls.length; tries++) {
@@ -2794,6 +2898,8 @@ export class Game {
     if (this.matchPlay !== play) return;
     play.leaving = false;
     if (!answer.ok || !answer.match) { this.hud.notice(answer.reason ?? 'The room could not be reached. Try again.'); this.matchWaitLine(); return; }
+    // Still being played, and this phone has it (its end screen and rings): kept under the room to be watched from it.
+    if (this.knockout && !this.knockout.done && this.room && !this.room.ending && answer.match.round === play.round && answer.match.state === 'live') { this.park(answer.match); return; }
     track('knockout-back-to-room', 'Back to the room from a match with friends');
     this.toRoom(answer.match);
   };
@@ -2876,6 +2982,8 @@ export class Game {
     // nothing of the new round is this match's. Left on its own screens until the next match is this player's to walk out
     // to, which takes the phone to the room for the count.
     if (match.round !== play.round) {
+      // Kept under the room: let go, unless its end is being watched (MATCH OVER and the Results, whose key is the room).
+      if (play.parked) { if (this.room?.watching == null && !this.room?.ending && !this.hud.knockoutResultsOpen) this.dropParked(); return; }
       const self = match.members.find(m => m.handle === handleOf(me.playerId));
       if (match.state === 'live' && self?.playing) { this.hud.notice('The next match is starting'); this.toRoom(match); }
       return;
@@ -2896,6 +3004,8 @@ export class Game {
       play.doneSent = true;
       void doneMatch(play.code, me, play.round).then(answer => { if (!answer.ok && answer.retry && this.matchPlay === play) play.doneSent = false; else if (this.matchPlay === play) this.matchLink?.take(answer); });
     }
+    // Over while this player sat in the room: nothing is played over the room. The match is let go, and the room says who won.
+    if (play.parked && room.done && this.room?.watching == null && !this.hud.knockoutResultsOpen) { this.dropParked(); return; }
     const over = Math.floor(room.roomBalls / KNOCKOUT.ballsPerOver), now = performance.now();
     for (const seat of room.waitingOn()) {
       if (seat === room.you || !seat.handle) continue;
@@ -8241,6 +8351,8 @@ export class Game {
     if (ball && !ball.told && !quiet) { ball.told = true; this.roomNews(ball.news, false); }
     // The room ended while it was being watched: its end plays on the end screen now.
     if (on.endDue && !quiet) { on.endDue = false; this.roomEnd(false); }
+    // Watched from the room, the way back is the room.
+    if (this.matchPlay?.parked && !quiet && !on.ending) this.showMatchRoom();
   }
   /** The next one along the rings, or the one before; the ball now being bowled is played again for them. */
   private watchStep(by: 1 | -1) {

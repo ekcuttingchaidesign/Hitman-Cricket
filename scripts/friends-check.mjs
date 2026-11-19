@@ -144,14 +144,37 @@ check(landed, 'the link lands a friend in the lobby', landed ? '' : JSON.stringi
   lobby: document.getElementById('knockout-lobby')?.className ?? null, line: document.getElementById('ko-join-line')?.textContent ?? null, phase: window.__cricket?.snapshot?.().phase, player: window.__cricket?.player?.() }))));
 if (!landed) await b.screenshot({ path: `${out}/guest-stuck.png` });
 check(await until('two', async () => (await text(a, '#ko-lobby-count')) === '2 OF 12 IN', 15_000), 'the host sees them arrive: 2 OF 12 IN');
-check((await text(b, '#ko-lobby-note')).startsWith(`Waiting for ${host}`) && await visible(b, '#ko-lobby-ready'), 'the guest is told who starts it, and has I’M READY');
+check((await text(b, '#ko-lobby-note')).startsWith(`${host} starts when everyone`) && await visible(b, '#ko-lobby-ready'), 'the guest is told who starts it, and has I’M READY', await text(b, '#ko-lobby-note'));
+// Everybody ready before the start (Figma section 56): with a friend in who has not said so, START NOW still sleeps, the
+// room says who it is waiting for, and the store turns a START away. The owner started one from the computer while the
+// phone had not said I'M READY.
+const waitingFor = await a.evaluate(() => ({ start: document.getElementById('ko-lobby-start').disabled, bar: document.getElementById('ko-bar-title')?.textContent, line: document.getElementById('ko-lobby-note')?.textContent,
+  tag: document.querySelector('#ko-seats .ko-lseat.is-not-ready .ko-lseat-not')?.textContent, nudge: !document.getElementById('ko-lobby-nudge')?.classList.contains('hidden') }));
+check(waitingFor.start && waitingFor.bar === `Waiting for ${guest}` && /^0 of 1 friend ready/.test(waitingFor.line ?? '') && waitingFor.tag === 'NOT READY' && waitingFor.nudge,
+  'a friend in and not ready: START NOW sleeps, their seat says NOT READY and the bar names them, with NUDGE', JSON.stringify(waitingFor));
+const early = await post('/api/challenge?knockout=1', { action: 'start', code, playerId: hostId, name: host, avatar: 1 });
+check(early.status === 409 && early.error === `Waiting for ${guest} to be ready.`, 'and the store turns a START away, saying who it waits for', JSON.stringify(early));
+await a.screenshot({ path: `${out}/lobby-waiting.png` });
+// A tap on their seat is the host's sheet: NUDGE, and REMOVE FROM MATCH.
+await a.locator('#ko-seats .ko-lseat.is-not-ready').first().click();
+const sheet = await a.evaluate(() => ({ up: !document.getElementById('ko-seat-sheet').classList.contains('hidden'), title: document.getElementById('ko-sheet-title')?.textContent,
+  nudge: document.getElementById('ko-sheet-nudge')?.textContent?.trim(), remove: document.getElementById('ko-sheet-remove')?.textContent?.trim(), line: document.getElementById('ko-sheet-line')?.textContent }));
+check(sheet.up && sheet.title === `${guest.toUpperCase()} ISN’T READY` && sheet.nudge === `NUDGE ${guest.toUpperCase()}` && sheet.remove === 'REMOVE FROM MATCH' && /^In the room for \d+:\d\d/.test(sheet.line ?? ''),
+  'a tap on their seat opens the host’s sheet: NUDGE and REMOVE FROM MATCH', JSON.stringify(sheet));
+await a.screenshot({ path: `${out}/lobby-sheet.png`, animations: 'disabled' });
+await a.locator('#ko-sheet-nudge').click();
+check(await until('nudged', () => b.evaluate(who => !document.getElementById('ko-nudge').classList.contains('hidden') && document.getElementById('ko-nudge-title').textContent === `${who} is waiting for you`, host), 10_000),
+  'the nudge reaches the guest’s phone as a banner');
+check(await a.evaluate(() => document.getElementById('ko-seat-sheet').classList.contains('hidden') && document.getElementById('ko-lobby-nudge').textContent === 'NUDGED ✓'), 'and the host’s NUDGE says it went');
+await b.screenshot({ path: `${out}/lobby-nudged.png`, animations: 'disabled' });
 await b.locator('#ko-lobby-ready').click();
 check(await until('tick', () => a.evaluate(() => !!document.querySelector('#ko-seats .ko-lseat.is-ready:not(.is-you)')), 8000), 'the host sees the guest’s tick');
+check(await until('ready key', () => b.evaluate(() => document.getElementById('ko-lobby-ready').classList.contains('is-ready') && document.getElementById('ko-nudge').classList.contains('hidden')), 8000), 'the guest’s key says READY ✓ and the banner goes');
 await b.screenshot({ path: `${out}/lobby-guest.png` });
 
 // 4. START NOW, and the match batted on both phones.
 console.log('Batting together');
-check(await a.evaluate(() => !document.getElementById('ko-lobby-start').disabled), 'START NOW wakes with a friend in');
+check(await until('awake', () => a.evaluate(() => !document.getElementById('ko-lobby-start').disabled && document.getElementById('ko-bar-title')?.textContent === 'Everybody’s ready'), 8000), 'START NOW wakes once everybody is ready');
 // The guest's first ball is turned away by the store: it used to be dropped for good, every ball after it refused as out of
 // order, and the room held at the over's end on a player whose card never moved. It is sent again from the store's card.
 let turnedAway = 0;
@@ -229,7 +252,9 @@ const pressAgain = page => page.evaluate(() => [...document.querySelectorAll('#k
 check(await until('keys', async () => (await againKey(a)) === 'BACK TO ROOM' && (await againKey(b)) === 'BACK TO ROOM', 60_000), 'the key under the end screens is BACK TO ROOM on both', `${await againKey(a)} / ${await againKey(b)}`);
 await pressAgain(a);
 check(await until('host room', () => visible(a, '#knockout-lobby'), 20_000), 'the host is back in the room');
-check((await text(a, '#ko-lobby-code')).replace(/\s/g, '') === code && (await text(a, '#ko-lobby-count')) === '2 OF 12 IN', 'the same room: its code, and both still in it', `${await text(a, '#ko-lobby-code')} · ${await text(a, '#ko-lobby-count')}`);
+// (The count says MATCH ON while the match is still being played under the room, as it is when subs are still batting it.)
+check((await text(a, '#ko-lobby-code')).replace(/\s/g, '') === code && await a.evaluate(() => document.querySelectorAll('#ko-seats .ko-lseat[data-handle]').length) === 2
+  && /^(2 OF 12 IN|MATCH ON)/.test(await text(a, '#ko-lobby-count')), 'the same room: its code, and both still in it', `${await text(a, '#ko-lobby-code')} · ${await text(a, '#ko-lobby-count')}`);
 const before = { key: await againKey(b), ko: await ko(b), store: (await (await fetch(`${base}/api/challenge?knockout=1&code=${code}`)).json()).match };
 await pressAgain(b);
 const guestBack = await until('guest room', () => visible(b, '#knockout-lobby'), 20_000);
@@ -239,8 +264,13 @@ check(guestBack, 'the guest is back in the room', guestBack ? '' : JSON.stringif
   now: await ko(b), phase: await phase(b), waiting: await text(b, '#ko-waiting'), keyNow: await againKey(b), errors: b.errors,
   screens: await b.evaluate(() => ['ko-moment', 'ko-results', 'knockout-lobby', 'knockout-friends', 'knockout-home', 'modes', 'end'].map(id => { const el = document.getElementById(id); return `${id}:${!el ? 'none' : el.classList.contains('hidden') ? 'hidden' : 'up'}`; }).join(' ')),
   notice: await b.evaluate(() => [...document.querySelectorAll('.notice, #notice, .toast, [role="status"]')].map(el => el.textContent?.trim()).filter(Boolean).join(' | ').slice(0, 300)) }));
+// Every match asks again: the guest says I'M READY for the next one, and only then does START NOW wake.
+check(await until('asked again', () => b.evaluate(() => { const key = document.getElementById('ko-lobby-ready'); return !key.classList.contains('hidden') && !key.disabled && !key.classList.contains('is-ready'); }), 30_000),
+  'with the match over the guest is not ready again, and has I’M READY');
+check(await a.evaluate(() => document.getElementById('ko-lobby-start').disabled), 'and START NOW sleeps until they say so');
+await b.locator('#ko-lobby-ready').click();
 check(await until('lobby again', async () => !(await a.evaluate(() => document.getElementById('ko-lobby-start').disabled)) && !(await a.evaluate(() => !!document.querySelector('#ko-seats .is-playing'))), 20_000),
-  'with the match over nobody is tagged PLAYING and START NOW is awake');
+  'ready again, nobody is tagged PLAYING and START NOW is awake');
 await a.screenshot({ path: `${out}/room-again.png` });
 await a.locator('#ko-lobby-start').click();
 const again = await Promise.all([a, b].map(p => until('round two', async () => (await ko(p))?.match?.round === 2, 30_000)));
@@ -255,6 +285,7 @@ await a.close(); await b.close();
 const answer = await post('/api/challenge?knockout=1', { action: 'host', playerId: hostId, name: host, avatar: 1 });
 const second = answer.match.code;
 await post('/api/challenge?knockout=1', { action: 'join', code: second, playerId: goneId, name: gone, avatar: 4 });
+await post('/api/challenge?knockout=1', { action: 'ready', code: second, ready: true, playerId: goneId, name: gone, avatar: 4 });
 const c = await as(hostId, host, 1, `&k=${second}`);
 check(await until('lobby again', () => visible(c, '#knockout-lobby'), 15_000), 'the host back in a second match’s lobby');
 await post('/api/challenge?knockout=1', { action: 'start', code: second, playerId: hostId, name: host, avatar: 1 });
@@ -271,6 +302,7 @@ await c.close();
 const third = (await post('/api/challenge?knockout=1', { action: 'host', playerId: goneId, name: gone, avatar: 4 })).match.code;
 const d = await as(guestId, guest, 2, `&k=${third}&matchlog=1`);
 check(await until('lobby three', () => visible(d, '#knockout-lobby'), 30_000), 'a guest in the quiet host’s lobby');
+await post('/api/challenge?knockout=1', { action: 'ready', code: third, ready: true, playerId: guestId, name: guest, avatar: 2 });
 await post('/api/challenge?knockout=1', { action: 'start', code: third, playerId: goneId, name: gone, avatar: 4 });
 check(await until('walk three', async () => !!(await ko(d))?.match, 15_000), 'the guest walks out; the host never does');
 const pastHost = await until('host subbed', async () => ((await ko(d))?.roomBalls ?? 0) >= 6 || !!(await ko(d))?.done, 300_000, 1000);
@@ -287,6 +319,7 @@ const api = (action, playerId, name, avatar, more = {}) => post('/api/challenge?
 const fourth = (await api('host', goneId, gone, 4)).match.code;
 const e = await as(guestId, guest, 2, `&k=${fourth}`);
 check(await until('lobby four', () => visible(e, '#knockout-lobby'), 30_000), 'a guest in the lobby');
+await api('ready', guestId, guest, 2, { code: fourth, ready: true });
 await api('start', goneId, gone, 4, { code: fourth });
 check(await until('walk four', async () => !!(await ko(e))?.match, 15_000), 'the guest walks out');
 // The host bats on, by the script: a six every eighteen seconds (slower than the guest is bowled to, so a guest out in an over is out before its cut), so the match is still being played when the guest is out of it.
@@ -383,16 +416,46 @@ check(sideAfter.seat !== 0 || sideAfter.kit === sideKit, 'the fielding side wear
 await e.locator('#ko-watch-close').click();
 check(await until('closed', () => e.evaluate(() => !document.body.classList.contains('ko-watch') && window.__cricket.knockout().watching === null), 5000), '✕ goes back to the end screen');
 await e.evaluate(() => [...document.querySelectorAll('#ko-res-again, #ko-again')].find(el => el.getBoundingClientRect().height > 0)?.click());
-check(await until('room four', () => visible(e, '#knockout-lobby'), 20_000), 'BACK TO ROOM opens the room');
+check(await until('room four', () => visible(e, '#knockout-lobby'), 20_000), 'BACK TO ROOM opens the room', JSON.stringify({ ko: await ko(e), waiting: await text(e, '#ko-waiting') }).slice(0, 600));
 check(await until('playing', () => e.evaluate(() => document.querySelector('#ko-seats .ko-lseat.is-playing .ko-lseat-playing')?.textContent === 'PLAYING'), 10_000), 'the host, still batting, is tagged PLAYING');
-check(await e.evaluate(() => document.getElementById('ko-lobby-ready').disabled) && (await text(e, '.ko-lobby-line')).includes('still batting'), 'and the next match waits for them', await text(e, '.ko-lobby-line'));
+// Watching from the room (Figma section 57): the match is kept under the room, so the room says how it stands, the host's
+// seat wears the story ring with their score, everybody still in is a ring where AROUND NOW was, and the hero key is WATCH.
+const roomOn = await e.evaluate(() => ({ count: document.getElementById('ko-lobby-count')?.textContent, line: document.getElementById('ko-lobby-note')?.textContent,
+  seat: document.querySelector('#ko-seats .ko-lseat.is-watch .ko-lseat-name')?.textContent?.replace(/\s+/g, ' ').trim(), you: document.querySelector('#ko-seats .ko-lseat.is-you .ko-lseat-out')?.textContent,
+  rings: document.querySelectorAll('#ko-lobby-rings .ko-ring').length, watch: !document.getElementById('ko-lobby-watch').classList.contains('hidden'), ready: document.getElementById('ko-lobby-ready').classList.contains('hidden'),
+  bar: document.getElementById('ko-bar-title')?.textContent, around: document.getElementById('ko-lobby-aroundwrap').classList.contains('hidden'), moment: document.getElementById('ko-moment') ? getComputedStyle(document.getElementById('ko-moment')).visibility : 'gone' }));
+check(/^MATCH ON · (OVER \d|THE FINAL)$/.test(roomOn.count ?? '') && /still in.* your friend · tap a face to watch$/.test(roomOn.line ?? '') && new RegExp(`^${gone} ?\\d+\\*$`).test(roomOn.seat ?? '') && /^OUT/.test(roomOn.you ?? '')
+  && roomOn.rings > 3 && roomOn.watch && roomOn.ready && roomOn.around && /^You (went out|are out)/.test(roomOn.bar ?? '') && roomOn.moment !== 'visible',
+  'the room says the match is on: the host’s seat in the story ring with their score, your seat OUT, the rings and WATCH', JSON.stringify(roomOn));
 await e.screenshot({ path: `${out}/room-playing.png` });
+// A tap on the host's seat opens their game as a story, and ✕ is the room.
+await e.locator('#ko-seats .ko-lseat.is-watch').first().click();
+check(await until('story from room', () => e.evaluate(() => document.body.classList.contains('ko-watch') && window.__cricket.knockout().watching === 0 && document.getElementById('knockout-lobby').classList.contains('hidden')), 10_000),
+  'a tap on their seat opens their game as a story, from the room');
+check(await until('a ball from the room', async () => !!(await ko(e)).watchBall, 30_000, 300), 'and a ball of theirs is played on the ground');
+await e.screenshot({ path: `${out}/room-watching.png` });
+await e.locator('#ko-watch-close').click();
+check(await until('room again', () => e.evaluate(() => !document.body.classList.contains('ko-watch') && !document.getElementById('knockout-lobby').classList.contains('hidden') && window.__cricket.knockout().watching === null), 8000),
+  '✕ goes back to the room, not the end screen');
+// A ring in the strip does the same; and LEADERBOARD is the match as it stands, over the room.
+await e.locator('#ko-lobby-rings .ko-ring:not(.is-out)').first().click({ force: true });
+check(await until('ring from room', () => e.evaluate(() => document.body.classList.contains('ko-watch') && window.__cricket.knockout().watching !== null), 10_000), 'a ring in the strip opens that player’s game');
+await e.locator('#ko-watch-close').click();
+await until('room once more', () => visible(e, '#knockout-lobby'), 8000);
+await e.locator('#ko-lobby-board').click();
+check(await until('board from room', () => e.evaluate(() => document.querySelector('#ko-res-title')?.textContent === 'LEADERBOARD' && document.getElementById('ko-results').classList.contains('is-live')), 8000), 'LEADERBOARD in the room is the match as it stands');
+await e.locator('#ko-res-close').click();
+check(await until('board closed', () => e.evaluate(() => !document.getElementById('ko-results') && !document.getElementById('knockout-lobby').classList.contains('hidden')), 5000), 'and back is the room');
 // The match over, the room is its lobby again and the host starts the next one.
 clearInterval(hostBats);
 await api('done', goneId, gone, 4, { code: fourth, round: 1 });
-check(await until('settled', () => e.evaluate(() => !document.querySelector('#ko-seats .is-playing') && !document.getElementById('ko-lobby-ready').disabled), 20_000), 'the match over, the tag goes and the room is a lobby again');
+check(await until('settled', () => e.evaluate(() => { const key = document.getElementById('ko-lobby-ready'); return !document.querySelector('#ko-seats .is-playing') && !key.classList.contains('hidden') && !key.disabled
+  && document.getElementById('ko-lobby-watch').classList.contains('hidden') && /OF 12 IN$/.test(document.getElementById('ko-lobby-count').textContent) && !document.getElementById('ko-moment'); }), 30_000),
+  'the match over, the tags and the rings go, the match under the room is let go and the room is a lobby again');
 clearInterval(beats);
 await api('back', goneId, gone, 4, { code: fourth });
+await e.locator('#ko-lobby-ready').click();
+await until('ready for two', async () => (await matchNow()).members.find(m => m.name === guest)?.ready === true, 8000);
 await api('start', goneId, gone, 4, { code: fourth });
 check(await until('round two again', async () => (await ko(e))?.match?.round === 2, 30_000), 'and the host’s next START walks the guest out again');
 await e.close();
