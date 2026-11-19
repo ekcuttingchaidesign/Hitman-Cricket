@@ -2968,6 +2968,8 @@ ${knockoutRulesMarkup()}
     this.koWatch ??= new WatchView(this.viewport, on);
     this.koWatch.show(header, turned);
   }
+  /** The cut landed on a player whose end screen went up when they were out: the place stamped on it. */
+  knockoutSettle(view: MomentView) { this.koMoment?.settle(view); }
   /** The end of the player's knockout match, over the card: KNOCKED OUT or WINNER (`KnockoutMoment.ts`). */
   knockoutEnd(view: MomentView | null, sound?: (cue: MomentSound) => void, watch?: (id: number | null) => void) {
     this.koMoment?.close(); this.koMoment = null;

@@ -277,14 +277,31 @@ await hostBat();
 const hostBats = setInterval(() => { void hostBat(); }, 12_000);
 // Nobody swings: the guest is knocked out sooner or later. The way back to the room is on the end screen, and only there:
 // never over the game while they wait on a cut.
-let inPlay = false;
+let inPlay = false, early = null, pill = '';
 const wayBack = () => e.evaluate(() => [...document.querySelectorAll('#ko-res-again, #ko-again')].find(el => el.getBoundingClientRect().height > 0)?.id ?? null);
 const offered = await until('way back', async () => {
   if (await e.evaluate(() => [...document.querySelectorAll('button')].some(key => key.textContent?.trim() === 'BACK TO ROOM' && key.getBoundingClientRect().height > 0 && !key.closest('.ko-moment, #ko-results')))) inPlay = true;
-  return !!(await wayBack());
-}, 480_000, 1000);
-check(offered, 'knocked out, the end screen has BACK TO ROOM', await text(e, '#ko-waiting'));
+  // Out, the waiting pill never says so over the pitch: the end screen is what comes.
+  const waiting = await visible(e, '#ko-waiting') ? await text(e, '#ko-waiting') : '';
+  if (/^OUT ON/.test(waiting)) pill = waiting;
+  const back = await wayBack();
+  // Out before the cut has fallen: the end screen is up with the room not yet done with them, stamped OUT.
+  if (back && early === null) { const now = await ko(e); early = { pending: now.pending, finished: now.finished, out: now.match?.out, stamp: await e.evaluate(() => document.getElementById('ko-moment')?.dataset.pending ?? null) }; }
+  return !!back;
+}, 480_000, 500);
+check(offered, 'out, the end screen has BACK TO ROOM', await text(e, '#ko-waiting'));
 check(!inPlay, 'and it was never over the game while they waited');
+check(!pill, 'out, nothing waits at the crease: no OUT ON pill over the pitch', pill);
+// Bowled before the over's cut (nobody swings, so nearly always), the glass and the end screen come at once and the place lands on it
+// with the cut; cut without being out, the end screen comes with its place as ever.
+if (early?.out && early.pending) {
+  check(early.stamp === '1' && !early.finished, 'out before the cut, the end screen is up at once, stamped OUT', JSON.stringify(early));
+  const landed = await until('place', () => e.evaluate(() => { const m = document.getElementById('ko-moment'); return !m || (m.dataset.pending === '0' && Number(m.dataset.place) > 1); }), 240_000, 500);
+  const after = await ko(e);
+  check(landed && after.finished && !after.pending, 'and the cut stamps the place on it', JSON.stringify({ place: await e.evaluate(() => document.getElementById('ko-moment')?.dataset.place ?? null), finished: after.finished, you: after.you.place }));
+  check(await e.evaluate(place => { const m = document.getElementById('ko-moment'); return !!m && Number(m.dataset.place) === place && (m.getAttribute('aria-label') ?? '').startsWith('Knocked out'); }, after.you.place), 'the place it says is the room’s', await e.evaluate(() => document.getElementById('ko-moment')?.getAttribute('aria-label')));
+  await e.screenshot({ path: `${out}/match-out-settled.png` });
+} else console.log(`  (the guest was ${early?.out ? 'out and placed by the same answer' : 'cut without being out'}: the early end screen was not walked) ${JSON.stringify(early)}`);
 // The host is still batting, as far as the room knows: heard from, and not back. And the match is not over for one
 // player being out of it: a knocked-out phone once told the store it was, which ended it under everybody still batting.
 await api('beat', goneId, gone, 4, { code: fourth });

@@ -1350,7 +1350,7 @@ export class Game {
       knockoutFlood: (kind: 'flash' | 'dip' | null) => { this.scene.floodlights(kind, this.elapsed); },
       knockout: () => this.knockout && { standing: this.knockout.standing(), bowled: this.knockout.bowled, left: this.knockout.alive.length, you: { ...this.knockout.you },
         freeNext: this.knockout.freeHit(), freeAhead: this.knockout.freeHitAhead(), freeBall: this.knockout.freeBallNext, hitStops: this.hitStops, flood: this.scene.floodShown, night: this.scene.lit === 'night',
-        roomOn: !!this.room, watching: this.room?.watching ?? null, watchBall: this.room?.ball ? { seat: this.room.ball.seat, struck: this.room.ball.struck, shown: this.room.ball.shown } : null, done: this.knockout.done,
+        roomOn: !!this.room, pending: !!this.room?.pending, finished: this.knockout.finished, watching: this.room?.watching ?? null, watchBall: this.room?.ball ? { seat: this.room.ball.seat, struck: this.room.ball.struck, shown: this.room.ball.shown } : null, done: this.knockout.done,
         ending: this.room?.ending ? (this.room.ending.wiped ? 'wipe' : this.room.ending.shown ? 'over' : 'last') : null, results: !!document.getElementById('ko-results'),
         winner: this.knockout.winner?.name ?? null, rings: this.room ? this.ringsOf().map(r => `${r.name}${r.out ? ':out' : ''}`) : [],
         // A match with friends: the room's own clock, every seat as it stands, and this phone's balls sent and to send.
@@ -2845,7 +2845,7 @@ export class Game {
     if (!news.length && !moved && !this.matchPlay.fresh) { this.matchWaitLine(); return; }
     this.matchPlay.fresh = false;
     // Knocked out, the room is the end screen's rings (and a watched seat's story): they keep up with every ball, not only a cut.
-    if (this.room) { this.hud.knockoutRings(this.ringsOf()); for (const one of news) this.roomNews(one, false); return; }
+    if (this.room) { this.settleOut(); this.hud.knockoutRings(this.ringsOf()); for (const one of news) this.roomNews(one, false); return; }
     this.knockoutNews(news);
     this.matchWaitLine();
     // Settled with the player between balls (the final won as the other's wicket arrives): the innings ends there.
@@ -2977,17 +2977,17 @@ export class Game {
     const room = this.knockout;
     // While somebody is being watched the pill is the watcher's (waiting for their next ball).
     if (this.room && this.room.watching !== null) return;
-    if (!room || !this.matchPlay || !this.matchHolding) { this.hud.knockoutWaiting(null); return; }
+    // Out, the end screen is on its way or up: nothing is waited for at the crease.
+    if (!room || !this.matchPlay || !this.matchHolding || this.matchPlay.out || room.you.out || this.room) { this.hud.knockoutWaiting(null); return; }
     const overEnd = Math.min(KNOCKOUT.maxBalls, (Math.floor(room.roomBalls / KNOCKOUT.ballsPerOver) + 1) * KNOCKOUT.ballsPerOver);
     this.matchPlay.held = true;
     const real = room.waitingOn().filter(seat => seat !== room.you && !seat.sub);
     if (this.matchPlay.leaving) return;
-    const head = room.you.out || this.matchPlay.out ? `OUT ON ${this.score.runs} · ` : '';
     // Subs bat as soon as their balls are bowled: only a friend is ever waited on by name.
-    if (!real.length) { this.hud.knockoutWaiting(`${head}THE CUT IS COMING`); return; }
+    if (!real.length) { this.hud.knockoutWaiting('THE CUT IS COMING'); return; }
     const first = real[0], left = overEnd - first.played;
     const who = real.length > 1 ? `${first.name.toUpperCase()} AND ${real.length - 1} MORE` : first.name.toUpperCase();
-    this.hud.knockoutWaiting(`${head}WAITING FOR ${who} · ${left} ${left === 1 ? 'BALL' : 'BALLS'} TO GO`);
+    this.hud.knockoutWaiting(`WAITING FOR ${who} · ${left} ${left === 1 ? 'BALL' : 'BALLS'} TO GO`);
   }
   private walkOut = () => this.start();
   start = () => {
@@ -5500,7 +5500,8 @@ export class Game {
         else { this.setPhase('READY'); this.hud.coach(TUTORIAL[this.lesson], this.lesson + 1, TUTORIAL.length); }
       } else if (this.matchHolding) {
         // A match with friends: the bowler waits at his mark until the room has batted the over too (4A).
-        this.matchWaitLine();
+        // Out, there is nothing to wait at the crease for: the end screen comes now, and the cut settles the place on it.
+        if (this.matchPlay!.out) this.end(); else this.matchWaitLine();
       } else if (this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.blastOver) this.end();
       else {
         // Out, or carried off, with the innings going on: the next man walks in (`arrival.ts`).
@@ -7050,22 +7051,53 @@ export class Game {
     this.showLevelUp(mode, was, now, null, true);
   }
 
+  /**
+   * The knockout's end screen: KNOCKED OUT or WINNER. In a match with friends a player who is out
+   * gets it there and then, before the over's cut has said where they finished (`pending`): the
+   * owner, out first ball, sat on the pitch until a friend had batted the over. The room plays on
+   * as the end screen's rings either way, and `settleOut` stamps the place when the cut lands.
+   */
+  private knockoutEnding() {
+    const room = this.knockout!, view = this.knockoutView(), pending = !!view.pending;
+    this.mark(view.won ? 'knockout-won' : pending ? 'knockout-out-early' : `knockout-out-${view.place}`,
+      view.won ? 'Super Knockout room won' : pending ? 'Out in a match before the cut' : 'Knocked out of a Super Knockout room');
+    if (!this.matchPlay) tallyRoom(view.won ? 1 : view.place);
+    this.hud.knockoutWaiting(null);
+    // Out before the cut, the scoreboard's dress and the bar go as they do when a cut takes the player: the glass puts the scoreboard back to break it.
+    if (pending) { this.hud.knockout(null); this.hud.knockoutTrack(null); this.hud.knockoutFreeHit(null, false, false); }
+    // Knocked out, the glass is heard (`MomentSound`) and Moye moye comes in with the lights going out.
+    this.hud.knockoutEnd(view, view.won ? undefined : cue => { if (cue === 'music') this.audio.music('knockout'); else this.audio.layer(cue); },
+      view.won || room.done ? undefined : id => this.watch(id));
+    // In a match with friends the way on is the room, where the next match is started.
+    this.hud.knockoutAgain(this.matchPlay ? 'BACK TO ROOM' : null);
+    // Knocked out with the room still going: it plays on, a ball at a time, as rings on the end screen (section 51).
+    if (!view.won && !room.done) { this.room = { nextAt: this.elapsed + ROOM_FIRST_MS, watching: null, ball: null, pending }; this.hud.knockoutRings(this.ringsOf()); }
+    // Won, WINNER plays and then counts to the room's Results, as any room's end does (section 52): never left standing.
+    if (view.won) this.room = { nextAt: Infinity, watching: null, ball: null, ending: { from: performance.now() + WON_RESULTS_MS, lit: true, shown: false, wiped: false, done: false } };
+  }
+  /**
+   * The cut has fallen on a player whose end screen is already up: the place goes on its stamp.
+   * An out player a cut passed over (more were out than it took) waits on for the next; one who
+   * wins the final from the pavilion, the other finalist never passing them, gets WINNER.
+   */
+  private settleOut() {
+    const on = this.room, room = this.knockout;
+    if (!on?.pending || !room?.finished) return;
+    on.pending = false;
+    const view = this.knockoutView();
+    if (view.won) {
+      if (on.watching !== null) this.unwatch(true);
+      this.room = null;
+      this.knockoutEnding();
+      this.audio.music('winner');
+      return;
+    }
+    this.mark(`knockout-out-${view.place}`, 'Knocked out of a Super Knockout room');
+    this.hud.knockoutSettle(view);
+  }
   private end() {
     this.setPhase('INNINGS_END');
-    if (this.knockout?.finished) {
-      const view = this.knockoutView();
-      this.mark(view.won ? 'knockout-won' : `knockout-out-${view.place}`, view.won ? 'Super Knockout practice room won' : 'Knocked out of a Super Knockout practice room');
-      if (!this.matchPlay) tallyRoom(view.won ? 1 : view.place);
-      // Knocked out, the glass is heard (`MomentSound`) and Moye moye comes in with the lights going out.
-      this.hud.knockoutEnd(view, view.won ? undefined : cue => { if (cue === 'music') this.audio.music('knockout'); else this.audio.layer(cue); },
-        view.won || this.knockout.done ? undefined : id => this.watch(id));
-      // In a match with friends the way on is the room, where the next match is started.
-      this.hud.knockoutAgain(this.matchPlay ? 'BACK TO ROOM' : null);
-      // Knocked out with the room still going: it plays on, a ball at a time, as rings on the end screen (section 51).
-      if (!view.won && !this.knockout.done) { this.room = { nextAt: this.elapsed + ROOM_FIRST_MS, watching: null, ball: null }; this.hud.knockoutRings(this.ringsOf()); }
-      // Won, WINNER plays and then counts to the room's Results, as any room's end does (section 52): never left standing.
-      if (view.won) this.room = { nextAt: Infinity, watching: null, ball: null, ending: { from: performance.now() + WON_RESULTS_MS, lit: true, shown: false, wiped: false, done: false } };
-    }
+    if (this.knockout && (this.knockout.finished || this.matchPlay)) this.knockoutEnding();
     this.hud.rankHero(null, null);
     this.chaseCard();
     this.hud.cardAround(null);
@@ -7078,7 +7110,7 @@ export class Game {
     // below: the innings that just ended is a different innings in each of
     // them, but the screen it ends on is the same screen. Knocked out, the glass is heard in silence and its
     // own music comes in with the lights going out (`MomentSound`).
-    this.audio.music(this.knockout?.finished ? (this.knockout.you.place === 1 ? 'winner' : null) : 'result');
+    this.audio.music(this.knockout && (this.knockout.finished || this.matchPlay) ? (this.knockout.you.place === 1 ? 'winner' : null) : 'result');
     [...strokeMarks(this.spinPulls, COUNTED.spinPull), ...strokeMarks(this.hooks, COUNTED.hook)].forEach(([name, title]) => this.mark(name, title));
     // Which team's kit a Super10 innings was played in (`super10-kit-s10-neon`):
     // the pick in the room, or the earned kit drawn for it.
@@ -7992,6 +8024,8 @@ export class Game {
     nextAt: number; watching: number | null; ball: RoomBall | null; ending?: RoomEnding;
     /** In a match with friends: how many of each seat's balls the watcher has been shown; the room's end held until the one watched is caught up; and nothing new to show. */
     seen?: Map<number, number>; endDue?: boolean; idle?: boolean;
+    /** Out in a match, the end screen up, and the cut that places the player still to fall. */
+    pending?: boolean;
   } | null = null;
   private readonly watchKeys = { close: () => this.unwatch(), step: (by: 1 | -1) => this.watchStep(by), react: () => this.mark('knockout-react', 'A reaction sent while watching') };
   /** The rings: everybody still in but the player, best first, those out greyed until the cut takes them. */
@@ -8281,20 +8315,26 @@ export class Game {
   }
   /** KNOCKED OUT or WINNER, from the room as it stands once the player's match is over. */
   private knockoutView(): MomentView {
-    const room = this.knockout!, you = room.you, table = room.table();
-    const at = table.indexOf(you), won = you.place === 1;
+    const room = this.knockout!, seat = room.you, table = room.table();
+    // Out in a match before the cut (`knockoutEnding`): no place yet, and the room may not have counted the
+    // wicket's ball, which goes by the store, so the figures are this phone's own.
+    const pending = !!this.matchPlay && seat.place === null;
+    const you = pending ? { ...seat, runs: this.score.runs, balls: this.score.balls, out: true } : seat;
+    const at = table.indexOf(seat), won = seat.place === 1;
     // The standings round the player, seven rows at most: two who stayed above the line (one, if a big cut needs the room), then those who went with them.
-    const firstGone = table.findIndex(seat => seat.wentAt === you.wentAt && seat.place !== null && seat.place !== 1);
+    // Before the cut the line is where the over's cut would fall as the room stands, or just over the player if it would pass them by.
+    const line = Math.min(at, Math.max(0, room.alive.length - room.nextCut.count));
+    const firstGone = pending ? line : table.findIndex(one => one.wentAt === seat.wentAt && one.place !== null && one.place !== 1);
     const start = won ? 0 : Math.max(0, Math.max(firstGone - 2, at - 6));
     const window = table.slice(start, start + 7);
-    const rows = window.map(seat => ({
-      place: seat.place ?? table.indexOf(seat) + 1, name: seat.name, runs: seat.runs, face: seat.face,
-      you: seat === you, out: seat.out, sub: seat.sub,
+    const rows = window.map(one => ({
+      place: one.place ?? table.indexOf(one) + 1, name: one.name, runs: one === seat ? you.runs : one.runs, face: one.face,
+      you: one === seat, out: one === seat ? you.out : one.out, sub: one.sub,
     }));
-    const above = Math.max(0, window.findIndex(seat => seat.wentAt === you.wentAt && seat.place !== null && seat.place !== 1));
-    const over = Math.ceil((you.wentAt ?? room.bowled) / KNOCKOUT.ballsPerOver);
+    const above = pending ? Math.max(0, line - start) : Math.max(0, window.findIndex(one => one.wentAt === seat.wentAt && one.place !== null && one.place !== 1));
+    const over = Math.ceil((you.wentAt ?? (pending ? Math.max(1, you.balls) : room.bowled)) / KNOCKOUT.ballsPerOver);
     const final = (you.wentAt ?? 0) > KNOCKOUT.cuts.length * KNOCKOUT.ballsPerOver;
-    const runner = room.seats.find(seat => seat.place === 2) ?? null;
+    const runner = room.seats.find(one => one.place === 2) ?? null;
     // How the player went, in the words K9 v2's line uses: bowled, caught, stumped.
     const how = you.out ? (this.score.history.at(-1)?.wicketType ?? 'out').toLowerCase().replace(/_/g, ' ') : null;
     const lastOne = final ? 'in the final' : `at the end of over ${over}`;
@@ -8302,9 +8342,11 @@ export class Game {
     return {
       won, place: you.place ?? room.alive.length, of: room.seats.length,
       you: { name: you.name, face: you.face, runs: you.runs, balls: you.balls, sixes: you.sixes },
-      heading: final ? 'THE FINAL' : `END OF OVER ${over}`,
+      pending,
+      heading: final ? 'THE FINAL' : pending ? `OVER ${over} · OUT` : `END OF OVER ${over}`,
       line: won
         ? (runner ? `Outlasted ${runner.name}${by > 0 ? ` by ${by}` : ''} ${lastOne}.` : 'The room is yours.')
+        : pending ? `${you.runs} off ${you.balls} · ${how} · your place comes with the cut`
         : how ? `${you.runs} off ${you.balls} · ${how} in over ${Math.ceil(you.balls / KNOCKOUT.ballsPerOver) || 1}` : `${you.runs} off ${you.balls} · cut ${lastOne}`,
       figures: `${you.runs} runs · ${you.balls} balls · ${you.sixes} ${you.sixes === 1 ? 'six' : 'sixes'}`,
       rows, above,

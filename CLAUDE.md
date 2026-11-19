@@ -2829,9 +2829,19 @@ through it; the final is taken a ball at a time across both finalists, since
 it can be settled on any ball and its order must not depend on what arrived
 first. Through the over first, the bowler waits at his mark (`matchHolding`,
 on the phone's own count of balls batted) under one pill
-(`hud.knockoutWaiting`, `#ko-waiting`): WAITING FOR RIYA · 2 BALLS TO GO, or
-OUT ON 23 · WAITING FOR … while an out player waits for the cut that settles
-them. Knocked out, the room plays on as the store's balls arrive, on the end
+(`hud.knockoutWaiting`, `#ko-waiting`): WAITING FOR RIYA · 2 BALLS TO GO. Out, nothing is
+waited for at the crease: the glass break and the end screen come there and
+then, as in a practice room, before the over's cut has said where the player
+finished (`knockoutEnding`, `pending` on the view and on `room`). The owner,
+out first ball on one device, sat on the pitch until the other had batted the
+over (19 November 2026). The stamp on the face says OUT and the line that the
+place comes with the cut; when the store's balls bring the cut that takes
+them (`settleOut`, from `matchStep`) the place is stamped over it
+(`KnockoutMoment.settle`, the stamp slammed in again, nothing else restarted)
+and the line says how it ended. A cut that passes an out player over leaves
+the screen as it is for the next; one who wins the final from the pavilion
+gets WINNER. The rings, WATCH ON and BACK TO ROOM are there from the start.
+Knocked out, the room plays on as the store's balls arrive, on the end
 screen's rings, with WATCH ON and the stories as a practice room has them (the
 owner missed them in a match, 19 November 2026). The room there is the
 store's, so a seat is not bowled to for the watcher: it is played back from
@@ -2863,7 +2873,8 @@ the end, and a third match whose other phone never
 walks out, the sub batting its over, and a fourth whose host is the one who
 never walks out, the guest's room carried past a sub batting seat 0; BACK TO
 ROOM from both end screens and the room's second match started and walked out
-to; a guest knocked out of a match the script's host is still batting (BACK
+to; a guest out of a match the script's host is still batting (the end screen
+at once, stamped OUT, and the place landing on it with the cut; BACK
 TO ROOM never over the game, the store not told it is over, the rings and
 WATCH ON on the end screen, a ball of somebody's watched, a swipe, ✕), going
 back to the room where the host is tagged PLAYING, then the match over and

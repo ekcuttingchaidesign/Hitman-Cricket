@@ -49,6 +49,11 @@ export interface MomentView {
   points: string;
   /** Where the stumps stand on the screen, as shares of its width and height: the glass cracks out from there. */
   origin?: { x: number; y: number };
+  /**
+   * Out in a match with friends before the over's cut has fallen: the place is not known yet.
+   * The stamp says OUT, and `settle` stamps the place over it when the cut lands.
+   */
+  pending?: boolean;
 }
 
 /** The glass break's beats (Figma section 37): the hit, the cracks running out, the scoreboard going, and the rest after it by `LATER`. */
@@ -221,18 +226,18 @@ export class KnockoutMoment {
   /** The scoreboard's box on the screen, for its cracks before it goes. */
   private bugAt: { x: number; y: number; ix: number; iy: number } | null = null;
 
-  constructor(private readonly host: HTMLElement, private readonly view: MomentView, keys: { again(): void; card(): void; sound?(cue: MomentSound): void; watch?(id: number | null): void }) {
+  constructor(private readonly host: HTMLElement, private view: MomentView, keys: { again(): void; card(): void; sound?(cue: MomentSound): void; watch?(id: number | null): void }) {
     this.sound = keys.sound ?? null;
     this.times = view.won ? TIMES.won : TIMES.lost;
     this.root = document.createElement('div');
     this.root.className = `ko-moment ${view.won ? 'is-won' : 'is-lost'}`;
     this.root.id = 'ko-moment';
     this.root.setAttribute('role', 'dialog');
-    this.root.setAttribute('aria-label', view.won ? 'Winner' : `Knocked out, ${ordinal(view.place).toLowerCase()} of ${view.of}`);
     this.root.innerHTML = `${view.won ? '' : '<div class="ko-drain" aria-hidden="true"></div>'}<canvas class="ko-moment-stage" aria-hidden="true"></canvas>
-      <p class="ko-moment-said">${view.won ? 'Winner.' : `Knocked out. ${ordinal(view.place)} of ${view.of}.`} ${view.line}</p>
+      <p class="ko-moment-said"></p>
       <div class="ko-moment-keys">${cta({ kind: 'secondary', label: 'SCORECARD', id: 'ko-card' })}${cta({ kind: 'primary', label: 'PLAY AGAIN', id: 'ko-again', moving: true })}</div>`;
     host.append(this.root);
+    this.say();
     // The card waits underneath, out of sight: what shows through the dark is the match.
     document.body.classList.add('ko-up');
     this.canvas = this.root.querySelector('canvas')!;
@@ -253,6 +258,30 @@ export class KnockoutMoment {
     void this.prepare();
   }
 
+  /** What the screen says, for a reader: the place once it is known. */
+  private say() {
+    const view = this.view;
+    this.root.dataset.pending = view.pending ? '1' : '0';
+    this.root.dataset.place = view.pending ? '' : String(view.place);
+    this.root.setAttribute('aria-label', view.won ? 'Winner' : view.pending ? 'Out' : `Knocked out, ${ordinal(view.place).toLowerCase()} of ${view.of}`);
+    const said = this.root.querySelector('.ko-moment-said');
+    if (said) said.textContent = `${view.won ? 'Winner.' : view.pending ? 'Out.' : `Knocked out. ${ordinal(view.place)} of ${view.of}.`} ${view.line}`;
+  }
+  /** When the place was stamped over OUT, on the page's clock: the stamp slams in again from there. */
+  private stampedAt: number | null = null;
+  /**
+   * The cut has landed on a player who was out before it (a match with friends): the place is
+   * stamped over OUT and the line says how it ended. Nothing else on the screen starts again.
+   */
+  settle(view: MomentView) {
+    if (!this.view.pending || view.won) return;
+    this.view = { ...this.view, place: view.place, of: view.of, line: view.line, pending: false };
+    this.say();
+    if (this.still) { this.draw(); return; }
+    this.stampedAt = performance.now();
+    const pop = () => { this.draw(); if (this.stampedAt !== null && performance.now() - this.stampedAt < 500) requestAnimationFrame(pop); };
+    requestAnimationFrame(pop);
+  }
   /** The room as story rings, while it plays on after the player has gone (`KnockoutWatch.ts`). */
   private rings: Rings | null = null;
   private roomOn = false;
@@ -557,11 +586,14 @@ export class KnockoutMoment {
       }
     }
     if (t >= 2.1) {
-      const p = prog(t, 2.1, 2.32), q = prog(t, 2.32, 2.52);
+      // Stamped once as the face lands; and again, the place over OUT, when a cut settles a player who was out before it.
+      const again = this.stampedAt === null ? null : (performance.now() - this.stampedAt) / 1000;
+      const p = again === null ? prog(t, 2.1, 2.32) : prog(again, 0, 0.22), q = again === null ? prog(t, 2.32, 2.52) : prog(again, 0.22, 0.42);
       const s = p < 1 ? lerp(2.6, 1, inCubic(p)) : 1 + 0.07 * Math.sin(Math.PI * q) * (1 - q);
+      const stamp = this.view.pending ? 'OUT' : ordinal(this.view.place);
       c.save(); c.globalAlpha = 0.92 * clamp(p * 4); c.translate(229.4, 437.8); c.rotate(rad(-14)); c.scale(s, s);
       rr(c, -59, -30, 118, 60, 8); c.lineWidth = 4; c.strokeStyle = C.red; c.stroke();
-      boxText(c, ordinal(this.view.place), 0, -29, 58, `${this.view.place >= 10 ? 40 : 46}px Jaro`, C.red);
+      boxText(c, stamp, 0, -29, 58, `${stamp.length >= 4 ? 40 : 46}px Jaro`, C.red);
       c.restore();
       if (t >= 2.32) {
         this.haptic(2.32 + LATER, [50, 30, 20]);
