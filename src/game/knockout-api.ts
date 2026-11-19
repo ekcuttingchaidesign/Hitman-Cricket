@@ -59,7 +59,13 @@ export const leaveMatch = (code: string, me: Me) => post({ action: 'leave', code
 export const removeFromMatch = (code: string, me: Me, handle: string) => post({ action: 'remove', code, handle, ...as(me) });
 export const inviteToMatch = (code: string, me: Me, handle: string) => post({ action: 'invite', code, handle, ...as(me) });
 export const startMatch = (code: string, me: Me) => post({ action: 'start', code, ...as(me) });
-export const ballInMatch = (code: string, me: Me, ball: number, value: string) => post({ action: 'ball', code, ball, value, ...as(me) });
+export const ballInMatch = (code: string, me: Me, ball: number, value: string, round: number) => post({ action: 'ball', code, ball, value, round, ...as(me) });
+/** BACK TO ROOM: batting done, back to the room under the same code. */
+export const backToRoom = (code: string, me: Me) => post({ action: 'back', code, ...as(me) });
+/** The match is over on this phone: nobody is PLAYING it any more. */
+export const doneMatch = (code: string, me: Me, round: number) => post({ action: 'done', code, round, ...as(me) });
+/** Asks the room back to its lobby; the store does it only once nobody is still batting. */
+export const settleMatch = (code: string, me: Me) => post({ action: 'settle', code, ...as(me) });
 export const beatInMatch = (code: string, me: Me) => post({ action: 'beat', code, ...as(me) });
 export const awayInMatch = (code: string, me: Me, handle: string, over: number) => post({ action: 'away', code, handle, over, ...as(me) });
 
@@ -102,6 +108,8 @@ export class MatchLink {
   serverNow() { return Date.now() + this.offset; }
   /** An answer from anywhere (a write's, too) taken as the match's latest. */
   take(answer: MatchResult) {
+    // A link put away hears nothing more: an answer still on its way is not this screen's.
+    if (this.stopped) return;
     if (!answer.ok || !answer.match) {
       if (answer.status === 404) this.onGone?.(answer.reason ?? 'This match has closed.');
       return;

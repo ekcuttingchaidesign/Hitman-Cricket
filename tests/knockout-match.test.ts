@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { handleOf } from '../src/game/handle';
 import { codeIn } from '../src/game/match-code';
 import {
-  AWAY_MS, STALL_MS, MATCH_SEATS, START_IN_MS, awayInMatch, ballInMatch, beatInMatch, cleanMatchCode, hostMatch, inviteToMatch, joinMatch, leaveMatch, matchRefused,
+  AWAY_MS, INVITE_FRESH_MS, STALL_MS, MATCH_SEATS, START_IN_MS, awayInMatch, backToRoom, doneMatch, settleMatch, ballInMatch, beatInMatch, cleanMatchCode, hostMatch, inviteToMatch, joinMatch, leaveMatch, matchRefused,
   memoryKnockouts, readInvites, readMatch, readyMatch, removeFromMatch, startMatch,
   type MatchOutcome, type MatchView, type Member,
 } from '../src/server/knockout-store';
@@ -119,12 +119,28 @@ describe('a match with friends', () => {
     const { code } = ok(await hostMatch(store, as(0), T0));
     const match = ok(await inviteToMatch(store, code, as(0), handleOf(ids[3]), T0 + 10));
     expect(match.invited).toEqual([handleOf(ids[3])]);
-    const listed = await readInvites(store, ids[3]);
+    const listed = await readInvites(store, ids[3], T0 + 15);
     expect(listed.ok && listed.invites).toEqual([{ code, by: 'Kabir', byAvatar: 0, at: T0 + 10, size: 1 }]);
     const joined = ok(await joinMatch(store, code, as(3), T0 + 20));
     expect(joined.invited).toEqual([]);
-    const after = await readInvites(store, ids[3]);
+    const after = await readInvites(store, ids[3], T0 + 25);
     expect(after.ok && after.invites).toEqual([]);
+  });
+
+  it('keeps an invite through the match it was for, and lets it go after half an hour', async () => {
+    const store = setup();
+    const { code } = ok(await hostMatch(store, as(0), T0));
+    ok(await joinMatch(store, code, as(1), T0 + 5));
+    ok(await inviteToMatch(store, code, as(0), handleOf(ids[3]), T0 + 10));
+    ok(await startMatch(store, code, as(0), T0 + 20));
+    // Asked in while it is being played, too.
+    ok(await inviteToMatch(store, code, as(1), handleOf(ids[4]), T0 + 6000));
+    for (const i of [3, 4]) {
+      const listed = await readInvites(store, ids[i], T0 + 7000);
+      expect(listed.ok && listed.invites.map(invite => invite.code)).toEqual([code]);
+    }
+    const stale = await readInvites(store, ids[3], T0 + 10 + INVITE_FRESH_MS + 1);
+    expect(stale.ok && stale.invites).toEqual([]);
   });
 
   it('starts at the host’s word with a friend in, the seats fixed in join order and the walk-out a moment ahead', async () => {
@@ -143,9 +159,10 @@ describe('a match with friends', () => {
     expect(match.members.map(m => m.seat)).toEqual([0, 1, 2]);
     // Started once: a second tap changes nothing.
     expect(ok(await startMatch(store, code, as(0), T0 + 900)).startAt).toBe(T0 + 30 + START_IN_MS);
-    // And nobody new gets in after it.
-    const late = await joinMatch(store, code, as(5), T0 + 1000);
-    expect(matchRefused(late) && late.status).toBe(409);
+    // Somebody new after it waits in the room for the next one: in, with no seat in this match.
+    const late = ok(await joinMatch(store, code, as(5), T0 + 1000));
+    expect(late.seats).toHaveLength(3);
+    expect(late.members.find(m => m.name === 'Dev')).toMatchObject({ seat: null, playing: false });
   });
 
   async function started() {
@@ -225,5 +242,111 @@ describe('a match with friends', () => {
     expect(left.members[1].left).toBe(true);
     ok(await awayInMatch(store, code, as(0), handleOf(ids[1]), 0, T0 + 5001));
     expect(ok(await readMatch(store, code, T0 + 6000)).members[1].card).toBe('SSSSSS');
+  });
+
+  describe('the room, between matches', () => {
+    async function three() {
+      const store = setup();
+      const { code } = ok(await hostMatch(store, as(0), T0));
+      ok(await joinMatch(store, code, as(1), T0 + 10));
+      ok(await joinMatch(store, code, as(2), T0 + 15));
+      ok(await startMatch(store, code, as(0), T0 + 20));
+      return { store, code };
+    }
+    const tags = (match: MatchView) => match.members.map(m => `${m.name}:${m.playing ? 'playing' : m.back ? 'back' : 'in'}`).join(' ');
+
+    it('tags everybody batting the match as playing, and somebody out who goes back as back', async () => {
+      const { store, code } = await three();
+      const live = ok(await readMatch(store, code, T0 + 5000));
+      expect(live.round).toBe(1);
+      expect(tags(live)).toBe('Kabir:playing Riya:playing Zoya:playing');
+      expect(live.busy).toBe(3);
+      ok(await ballInMatch(store, code, as(1), 0, 'W', T0 + 6000, 1));
+      const back = ok(await backToRoom(store, code, as(1), T0 + 7000));
+      expect(back.state).toBe('live');
+      expect(tags(back)).toBe('Kabir:playing Riya:back Zoya:playing');
+      expect(back.busy).toBe(2);
+      // Their card stands: the match the others are batting still has it.
+      expect(back.members[1].card).toBe('W');
+    });
+
+    it('goes back to its lobby once nobody is still batting, a round on, on a new seed, everybody in it kept', async () => {
+      const { store, code } = await three();
+      const before = ok(await readMatch(store, code, T0 + 5000));
+      for (const i of [0, 1, 2]) ok(await ballInMatch(store, code, as(i), 0, 'W', T0 + 6000, 1));
+      ok(await backToRoom(store, code, as(1), T0 + 7000));
+      ok(await backToRoom(store, code, as(2), T0 + 7100));
+      expect(ok(await readMatch(store, code, T0 + 7200)).state).toBe('live');
+      const lobby = ok(await backToRoom(store, code, as(0), T0 + 7300));
+      expect(lobby.state).toBe('lobby');
+      expect(lobby.round).toBe(2);
+      expect(lobby.seed).not.toBe(before.seed);
+      expect(lobby.seats).toEqual([]);
+      expect(lobby.members.map(m => [m.name, m.card, m.ready, m.playing])).toEqual([['Kabir', '', true, false], ['Riya', '', false, false], ['Zoya', '', false, false]]);
+      // And the next match is the host's to start, on fresh cards.
+      const next = ok(await startMatch(store, code, as(0), T0 + 9000));
+      expect(next.state).toBe('live');
+      expect(next.round).toBe(2);
+      ok(await ballInMatch(store, code, as(0), 0, '4', T0 + 15_000, 2));
+      expect(ok(await readMatch(store, code, T0 + 16_000)).members[0].card).toBe('4');
+    });
+
+    it('turns away a ball of the match before, so it is never read as the next one’s', async () => {
+      const { store, code } = await three();
+      for (const i of [0, 1, 2]) ok(await backToRoom(store, code, as(i), T0 + 7000 + i));
+      const late = await ballInMatch(store, code, as(1), 0, '6', T0 + 8000, 1);
+      expect(matchRefused(late) && late.status).toBe(403);
+      ok(await startMatch(store, code, as(0), T0 + 9000));
+      const stale = await ballInMatch(store, code, as(1), 0, '6', T0 + 15_000, 1);
+      expect(matchRefused(stale) && stale.status).toBe(410);
+      expect(ok(await readMatch(store, code, T0 + 16_000)).members[1].card).toBe('');
+    });
+
+    it('goes back to its lobby when the match is said to be over, whoever has not come back yet', async () => {
+      const { store, code } = await three();
+      ok(await backToRoom(store, code, as(1), T0 + 7000));
+      // Still two batting: asking changes nothing.
+      expect(ok(await settleMatch(store, code, as(1), T0 + 8000)).state).toBe('live');
+      const stranger = await doneMatch(store, code, as(6), 1, T0 + 8500);
+      expect(matchRefused(stranger) && stranger.status).toBe(403);
+      const over = ok(await doneMatch(store, code, as(0), 1, T0 + 9000));
+      expect(over.over).toBe(true);
+      expect(over.busy).toBe(0);
+      expect(tags(over)).toBe('Kabir:in Riya:back Zoya:in');
+      const lobby = ok(await settleMatch(store, code, as(1), T0 + 9500));
+      expect(lobby.state).toBe('lobby');
+      expect(lobby.members).toHaveLength(3);
+    });
+
+    it('does not wait for a phone that has gone quiet', async () => {
+      const { store, code } = await three();
+      ok(await backToRoom(store, code, as(0), T0 + 7000));
+      ok(await backToRoom(store, code, as(1), T0 + 7000));
+      // Zoya was last heard from when she joined: quiet long enough, and the room is free.
+      const lobby = ok(await settleMatch(store, code, as(0), T0 + 20 + AWAY_MS));
+      expect(lobby.state).toBe('lobby');
+      expect(lobby.members.map(m => m.name)).toEqual(['Kabir', 'Riya', 'Zoya']);
+    });
+
+    it('drops somebody who ran away, and hands the room on if that was the host', async () => {
+      const { store, code } = await three();
+      const ran = ok(await leaveMatch(store, code, as(0), T0 + 6000));
+      expect(ran.members.find(m => m.name === 'Kabir')?.left).toBe(true);
+      expect(ran.host).toBe(handleOf(ids[1]));
+      for (const i of [1, 2]) ok(await backToRoom(store, code, as(i), T0 + 7000 + i));
+      const lobby = ok(await readMatch(store, code, T0 + 8000));
+      expect(lobby.state).toBe('lobby');
+      expect(lobby.members.map(m => [m.name, m.host, m.ready])).toEqual([['Riya', true, true], ['Zoya', false, false]]);
+    });
+
+    it('lets somebody back in the room leave it without a sub being asked for', async () => {
+      const { store, code } = await three();
+      ok(await ballInMatch(store, code, as(1), 0, 'W', T0 + 6000, 1));
+      ok(await backToRoom(store, code, as(1), T0 + 7000));
+      const gone = ok(await leaveMatch(store, code, as(1), T0 + 8000));
+      expect(gone.members.map(m => m.name)).toEqual(['Kabir', 'Zoya']);
+      // Their seat in the match being played is still theirs, out on nothing.
+      expect(gone.seats).toHaveLength(3);
+    });
   });
 });

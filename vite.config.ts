@@ -347,6 +347,9 @@ function boardEndpoints(): Plugin {
             const claimed = await claimOnly(boards[''], who);
             if (nameRefused(claimed)) return turnedDown(claimed);
             const name = (claimed as { ok: true; name: string }).name;
+            // The handle their rows go by, as `api/name.ts` keeps it: without it here a player who had only claimed a name
+            // could not be invited to a match on the dev server.
+            await rememberHandle(profiles.players, who.playerId);
             await Promise.all([
               ...[boards[''], boards['survive:'], marathon.team, marathon.solo, super10.team, super10.solo].map(board => board.rename(who.playerId, name)),
               nameCareer(careers.classic, BLAST_CAREER, who.playerId, name, who.avatar),

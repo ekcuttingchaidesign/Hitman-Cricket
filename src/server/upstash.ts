@@ -673,6 +673,13 @@ export function upstashKnockouts(redis: Redis): KnockoutStore {
     },
     async setOnce(code, field, value) { return (await redis.hsetnx(key(code), field, value)) === 1; },
     async drop(code, fields) { if (fields.length) await redis.hdel(key(code), ...fields); },
+    async swap(code, fields, drop, ttl) {
+      const step = redis.multi();
+      if (drop.length) step.hdel(key(code), ...drop);
+      if (Object.keys(fields).length) step.hset(key(code), fields);
+      step.expire(key(code), ttl);
+      await step.exec();
+    },
     async hits(kind, address, windowSeconds) {
       const count = await redis.incr(rate(kind, address));
       if (count === 1) await redis.expire(rate(kind, address), windowSeconds);

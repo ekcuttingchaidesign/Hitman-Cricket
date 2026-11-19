@@ -1,5 +1,6 @@
 import {
-  awayInMatch, ballInMatch, beatInMatch, hostMatch, inviteToMatch, joinMatch, leaveMatch, readInvites, readMatch, readyMatch, removeFromMatch, startMatch,
+  awayInMatch, backToRoom, ballInMatch, beatInMatch, doneMatch, hostMatch, inviteToMatch, joinMatch, leaveMatch, readInvites, readMatch, readyMatch, removeFromMatch,
+  settleMatch, startMatch,
   type KnockoutStore, type MatchInvitesAccepted, type MatchOutcome, type MatchRefusal, type Member,
 } from './knockout-store.js';
 
@@ -9,7 +10,7 @@ import {
  *
  *   GET ?code=K7Q2          the match as it stands, never cached
  *   GET ?invites=<player>   that player's open invites, never cached
- *   POST {action: …}        host · join · ready · leave · remove · invite · start · ball · beat · away
+ *   POST {action: …}        host · join · ready · leave · remove · invite · start · ball · beat · away · back · done · settle
  */
 export interface KnockoutRequest {
   method?: string;
@@ -37,7 +38,10 @@ export async function knockoutRequest(store: KnockoutStore, req: KnockoutRequest
     case 'remove': return removeFromMatch(store, code, member, body.handle);
     case 'invite': return inviteToMatch(store, code, member, body.handle);
     case 'start': return startMatch(store, code, member);
-    case 'ball': return ballInMatch(store, code, member, body.ball, body.value);
+    case 'ball': return ballInMatch(store, code, member, body.ball, body.value, Date.now(), body.round);
+    case 'back': return backToRoom(store, code, member);
+    case 'done': return doneMatch(store, code, member, body.round);
+    case 'settle': return settleMatch(store, code, member);
     case 'beat': return beatInMatch(store, code, member);
     case 'away': return awayInMatch(store, code, member, body.handle, body.over);
     default: return { ok: false, status: 400, reason: 'Say what to do with the match.' };

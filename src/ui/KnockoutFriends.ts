@@ -60,6 +60,7 @@ export class FriendsScreen {
       </div>
       <div class="ko-friends-body">
         <img class="ko-mark is-small" src="${KNOCKOUT_MARK}" alt="Super Knockout" decoding="async">
+        <ul class="ko-invites" id="ko-friends-invites" hidden></ul>
         <form class="ko-card ko-join" id="ko-join" autocomplete="off">
           <span class="ko-join-head"><b class="ko-join-title">JOIN A FRIEND’S MATCH</b>
             <button id="ko-join-paste" class="ko-pill is-quiet" type="button">PASTE</button></span>
@@ -101,6 +102,10 @@ export class FriendsScreen {
       const code = cleanMatchCode(this.input.value);
       if (code) this.keys.join(code);
     });
+    this.root.querySelector('#ko-friends-invites')!.addEventListener('click', event => {
+      const key = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-join]');
+      if (key && !key.disabled) { key.disabled = true; this.keys.join(key.dataset.join!); }
+    });
     this.root.querySelector('#ko-friends-around')!.addEventListener('click', event => {
       const key = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-invite]');
       if (key && !key.disabled) { key.disabled = true; this.keys.invite(key.dataset.invite!); }
@@ -133,6 +138,17 @@ export class FriendsScreen {
     this.typed();
     this.keys.join(code);
   }
+  /** Matches this player has been asked into, at the head of the screen with JOIN each: an invite missed as a banner is still here. */
+  invites(list: readonly InviteRow[]) {
+    const host = this.root.querySelector<HTMLElement>('#ko-friends-invites')!;
+    host.hidden = !list.length;
+    host.innerHTML = list.map(invite => `
+      <li class="ko-card ko-invite-row">
+        <span class="ko-around-face">${face(invite.byAvatar)}</span>
+        <span class="ko-around-who"><b>${esc(invite.by)} invited you</b><span>${invite.size} in the room · code ${esc(invite.code)}</span></span>
+        <button class="ko-pill" type="button" data-join="${esc(invite.code)}">JOIN</button>
+      </li>`).join('');
+  }
   /** The code boxes keep up with what is typed; anything longer than a code (a link typed or dropped in) is read for one. */
   private typed() {
     const raw = this.input.value;
@@ -163,7 +179,7 @@ export class FriendsScreen {
 }
 
 /** One seat in the lobby. */
-export interface LobbySeat { handle: string; name: string; avatar: number; host: boolean; ready: boolean; you: boolean }
+export interface LobbySeat { handle: string; name: string; avatar: number; host: boolean; ready: boolean; you: boolean; /** Batting the match being played. */ playing?: boolean }
 export interface LobbyView {
   code: string;
   seats: LobbySeat[];
@@ -174,7 +190,14 @@ export interface LobbyView {
   ready: boolean;
   /** The host's name, for a guest's line. */
   hostName: string;
+  /** A match is being played: those batting it are tagged PLAYING, and the next waits for them. */
+  live?: boolean;
+  /** How many are still batting it. */
+  playing?: number;
 }
+
+/** A match somebody asked this player into. */
+export interface InviteRow { code: string; by: string; byAvatar: number; size: number }
 
 /**
  * The lobby (2A to 2D, with Around now): N OF 12 IN, the seats, the code, who
@@ -242,8 +265,10 @@ export class LobbyScreen {
       const seat = view.seats[i];
       if (!seat) return `<li class="ko-lseat is-empty${i === view.seats.length ? ' is-first' : ''}">${i === view.seats.length ? '<i class="ko-lseat-plus">+</i><span>Invite</span>' : ''}</li>`;
       const arrived = known.size && !known.has(seat.handle) ? ' is-arriving' : '';
-      return `<li class="ko-lseat${seat.you ? ' is-you' : ''}${seat.ready ? ' is-ready' : ''}${arrived}" data-handle="${seat.handle}">
-        <span class="ko-lseat-face">${face(seat.avatar)}${seat.host ? '<i class="ko-lseat-host">HOST</i>' : seat.ready ? '<i class="ko-lseat-tick">✓</i>' : ''}</span>
+      // PLAYING goes over HOST and the tick: while a match is on, who is still batting it is what the room wants to know.
+      const tag = seat.playing ? '<i class="ko-lseat-playing">PLAYING</i>' : seat.host ? '<i class="ko-lseat-host">HOST</i>' : seat.ready && !view.live ? '<i class="ko-lseat-tick">✓</i>' : '';
+      return `<li class="ko-lseat${seat.you ? ' is-you' : ''}${seat.ready && !view.live ? ' is-ready' : ''}${seat.playing ? ' is-playing' : ''}${arrived}" data-handle="${seat.handle}">
+        <span class="ko-lseat-face">${face(seat.avatar)}${tag}</span>
         <span class="ko-lseat-name">${seat.you ? 'You' : esc(seat.name)}</span></li>`;
     }).join('');
     const around = view.around.filter(p => !view.seats.some(s => s.handle === p.handle));
@@ -256,12 +281,19 @@ export class LobbyScreen {
     const start = this.root.querySelector<HTMLButtonElement>('#ko-lobby-start')!, ready = this.root.querySelector<HTMLButtonElement>('#ko-lobby-ready')!;
     start.classList.toggle('hidden', !view.hosting);
     ready.classList.toggle('hidden', view.hosting);
-    start.disabled = friends < 1;
-    ready.classList.toggle('is-ready', view.ready);
-    ready.querySelector('span')!.textContent = view.ready ? 'READY ✓' : 'I’M READY';
-    this.root.querySelector('#ko-lobby-note')!.textContent = view.hosting
-      ? (friends < 1 ? 'START NOW wakes up when one friend is in. Empty seats get subs.' : `${view.seats.filter(s => s.ready).length} of ${view.seats.length} ready · empty seats get subs`)
-      : `Waiting for ${view.hostName} to start.`;
+    start.disabled = friends < 1 || !!view.live;
+    ready.disabled = !!view.live;
+    ready.classList.toggle('is-ready', view.ready && !view.live);
+    ready.querySelector('span')!.textContent = view.live ? 'MATCH ON' : view.ready ? 'READY ✓' : 'I’M READY';
+    const batting = view.playing ?? 0;
+    this.root.querySelector('.ko-lobby-line')!.textContent = view.live
+      ? (batting ? `${batting} still batting this match. The next one starts when it’s over.` : 'The match is over. Back to the lobby in a moment.')
+      : 'Friends join with your code or link, or invite who’s around.';
+    this.root.querySelector('#ko-lobby-note')!.textContent = view.live
+      ? (view.hosting ? 'START NOW wakes up when this match is over.' : `${view.hostName} starts the next match when this one is over.`)
+      : view.hosting
+        ? (friends < 1 ? 'START NOW wakes up when one friend is in. Empty seats get subs.' : `${view.seats.filter(s => s.ready).length} of ${view.seats.length} ready · empty seats get subs`)
+        : `Waiting for ${view.hostName} to start.`;
   }
   /** The three seconds every phone counts together (3B), or put away. */
   walkOut(n: number | null) {

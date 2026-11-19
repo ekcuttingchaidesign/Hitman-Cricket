@@ -22,6 +22,8 @@ export interface ResultsView {
   winner: { title: string; line: string };
   /** A practice room of subs; a match with friends is false. */
   practice?: boolean;
+  /** The key in the dock: PLAY AGAIN, or BACK TO ROOM in a match with friends. */
+  again?: string;
 }
 
 /** Knockout Red, the knockout's own colour. */
@@ -43,7 +45,7 @@ export class KnockoutResults {
       mode: 'classic', modes: [], ladder: 'room', ladders: [], rows, state: 'ready',
       banner: { icon: '👑', tone: 'gold', title: view.winner.title, line: view.winner.line },
       dock: { avatar: view.you.face, sentence: `You finished <em>${ordinal(view.you.place).toLowerCase()}</em> of ${view.you.of}`, detail: view.you.line, score: String(view.you.runs) },
-      play: { id: 'board-again', label: 'PLAY AGAIN' }, focus: 'top', rules: '',
+      play: { id: 'board-again', label: view.again ?? 'PLAY AGAIN' }, focus: 'top', rules: '',
       look: { cls: 'knockout', colour: RED, art: hero, name: 'Super Knockout', title: 'RESULTS', ladder: view.practice === false ? 'With friends' : 'Practice room' },
     });
     // The board's ids are the board's: these are this screen's own, so the two never answer for each other.

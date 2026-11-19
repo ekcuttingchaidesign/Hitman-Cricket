@@ -648,6 +648,25 @@ body.ko-watch #end{visibility:hidden}
 .ko-lseat-host,.ko-lseat-tick{position:absolute;left:50%;bottom:calc(var(--u) * -6);transform:translateX(-50%);padding:calc(var(--u) * 2) calc(var(--u) * 6);border-radius:999px;
   background:#fff;color:#14050a;font:800 calc(var(--u) * 9)/1.2 var(--f-ui);font-style:normal;letter-spacing:.06em}
 .ko-lseat-tick{background:#3fbf5a;color:#fff;font-size:calc(var(--u) * 11)}
+.ko-lseat-playing{position:absolute;left:50%;bottom:calc(var(--u) * -6);transform:translateX(-50%);padding:calc(var(--u) * 2) calc(var(--u) * 6);border-radius:999px;
+  background:#ee2a2a;color:#fff;font:800 calc(var(--u) * 8)/1.2 var(--f-ui);font-style:normal;letter-spacing:.06em;white-space:nowrap}
+.ko-lseat.is-playing .ko-lseat-face img{border-color:#ee2a2a}
+@media (prefers-reduced-motion:no-preference){.ko-lseat-playing{animation:ko-playing 1.6s ease-in-out infinite}}
+@keyframes ko-playing{50%{opacity:.62}}
+.ko-ready-key:disabled{opacity:.55;cursor:default}
+.ko-invites{list-style:none;margin:calc(var(--u) * 12) 0 0;padding:0;display:grid;gap:calc(var(--u) * 8)}
+.ko-invite-row{display:flex;align-items:center;gap:calc(var(--u) * 12);padding:calc(var(--u) * 10) calc(var(--u) * 14);border-radius:16px;background:#2a1014f2;border:1px solid #ee2a2a80}
+/* Somebody asked this player into a match: over whatever screen they are on, bar an innings. */
+.ko-invite{position:absolute;left:calc(var(--u) * 12);right:calc(var(--u) * 12);top:calc(var(--top-gap) + var(--u) * 10);z-index:40;display:flex;align-items:center;gap:calc(var(--u) * 12);
+  padding:calc(var(--u) * 10) calc(var(--u) * 12);border-radius:16px;background:#1d1114f7;border:1px solid #ee2a2a99;box-shadow:0 calc(var(--u) * 10) calc(var(--u) * 30) #000a;
+  font-family:var(--f-ui);color:#fff;cursor:pointer}
+.ko-invite img{flex:none;width:calc(var(--u) * 40);height:calc(var(--u) * 40);border-radius:50%;object-fit:cover;background:#2a1a1e}
+.ko-invite-text{flex:1;min-width:0;display:grid;gap:calc(var(--u) * 2)}
+.ko-invite-text b{font:800 calc(var(--u) * 14)/1.2 var(--f-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ko-invite-text small{font:600 calc(var(--u) * 12)/1.2 var(--f-ui);color:#bfaeb1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ko-invite-x{flex:none;width:calc(var(--u) * 32);height:calc(var(--u) * 44);border:0;background:none;color:#bfaeb1;font:400 calc(var(--u) * 20)/1 var(--f-ui);cursor:pointer}
+@media (prefers-reduced-motion:no-preference){.ko-invite.is-in{animation:ko-invite-in .45s cubic-bezier(.2,1.2,.4,1) both}}
+@keyframes ko-invite-in{from{transform:translateY(calc(var(--u) * -80));opacity:0}}
 .ko-lseat-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 calc(var(--u) * 13)/1.2 var(--f-ui);color:#fff}
 .ko-lseat.is-empty{position:relative}
 .ko-lseat.is-empty::before{content:'';width:calc(var(--u) * 64);height:calc(var(--u) * 64);box-sizing:border-box;border-radius:50%;border:1.5px dashed #ffffff33}
@@ -679,6 +698,9 @@ body.ko-watch #end{visibility:hidden}
 @keyframes ko-tick{from{transform:scale(1.6);opacity:0}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.ko-join.is-shake,.ko-lseat.is-arriving .ko-lseat-face,.ko-walkout b.is-tick{animation:none}}
 /* In a match with friends, waiting at the over's end (4A): one quiet pill under the scoreboard. */
+.ko-waiting-back{position:absolute;left:50%;top:calc(var(--top-gap) + var(--u) * 130);transform:translateX(-50%);z-index:6;height:calc(var(--u) * 44);padding:0 calc(var(--u) * 22);
+  border-radius:999px;border:1.5px solid #ee2a2a;background:#ee2a2a;color:#fff;font:400 calc(var(--u) * 16)/1 var(--f-display);letter-spacing:.06em;cursor:pointer;
+  box-shadow:0 calc(var(--u) * 6) calc(var(--u) * 18) #0008}
 .ko-waiting{position:absolute;left:50%;top:calc(var(--top-gap) + var(--u) * 92);transform:translateX(-50%);z-index:6;max-width:calc(100% - var(--u) * 40);
   padding:calc(var(--u) * 7) calc(var(--u) * 14);border-radius:999px;background:#0c0809d9;border:1px solid #ffb02066;color:#ffd27a;
   font:800 calc(var(--u) * 11)/1.25 var(--f-ui);letter-spacing:.06em;text-align:center;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

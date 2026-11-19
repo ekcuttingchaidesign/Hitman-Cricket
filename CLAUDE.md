@@ -2701,9 +2701,44 @@ match's link, `?k=CODE`, or the link copied) beside START NOW for the host,
 asleep until one friend is in, or I'M READY for a guest. START NOW counts
 WALKING OUT IN 3 on every phone to the same moment (`walkOutAt`, the store's
 clock through `MatchLink.serverNow`). A match's link opens the game straight
-into joining it. An invite arrives as the banner over Choose a mode with JOIN
-(`bannerMatchInvite`, `modesAlert`'s `title`, `key` and `answer`); the bell
-and Notifications do not carry them yet.
+into joining it. An invite is asked for every six seconds (`INVITE_POLL_MS`,
+`bannerMatchInvite`) wherever the player is that is not an innings or a room
+of their own — the cover, Choose a mode, the Knockout home, Play with
+friends, an end card, a match they are out of — and told once a match by a
+banner over that screen with JOIN (`hud.matchInvite`, `#ko-invite`,
+`joinInvite`); every one still open is listed at the head of Play with
+friends (`FriendsScreen.invites`, `#ko-friends-invites`). It was asked for
+only as Choose a mode opened, so the owner's phone, sat on a match's end
+screen, never heard of the second match (19 November 2026). An invite stands
+through the match it was for and half an hour in all (`INVITE_FRESH_MS`); the
+bell and Notifications do not carry them yet.
+
+The room outlives its matches (the owner's ask, 19 November 2026: somebody
+out should be able to go back to the room, and everybody still in the game
+tagged there). The store keeps a `round`, from 1, and files each ball under
+it (`b:<round>:<player>:<ball>`), so one that lands late from the round
+before is never read as the next one's. BACK TO ROOM (`backToRoom` in
+`src/Game.ts`, the store's `back`) is the key under a match's end screens in
+place of PLAY AGAIN (`hud.knockoutAgain`, the Results' `again`), and stands
+under the waiting pill for a player who is out and waiting on the cut
+(`#ko-waiting-back`): the phone leaves the match's screens for the room's
+(`toRoom`, the lobby over Choose a mode), its unsent balls going first. In
+the room everybody still batting is tagged PLAYING (`playing` on the member:
+seated, not back, not away from it, the match not over) and START NOW and
+I'M READY sleep until the match is over. A phone that bats the match to its
+end says so once (`doneMatch`, `over`); and once nobody is still batting and
+being heard from (`busy` on the view: every seat back, quiet past `AWAY_MS`,
+or the match over) any phone in the room asks it back to its lobby
+(`settleMatch`, from `lobbyNews` a few seconds apart, and from `back` itself):
+a round on, a new seed, every ball and the start dropped in one step
+(`swap`, a Redis MULTI), everybody still in it kept, whoever ran away dropped,
+the host handed on if it was the host. Then it is the lobby it always was:
+friends join, invites go, START NOW. Somebody who joins by the code while a
+match is on waits in the room for the next. A phone still on the last
+match's end screens when the next begins is taken to the room for the
+walk-out (`matchNews` on a round it does not know). Leaving the room from
+anywhere else (Choose a mode, an invite's JOIN, a restart with batting still
+to do, which is running away) lets the seat go (`endMatch`).
 
 The store (`src/server/knockout-store.ts`, answered by `/api/challenge?knockout=1`
 (a function of its own made a thirteenth, and the Hobby plan stops a
@@ -2750,7 +2785,22 @@ else goes wrong; and `frame` catches what a frame throws (`frameFailed`,
 `frame-error` on GoatCounter once). `?matchlog=1` puts a line over the screen
 on a phone in a match: its balls batted and stored, every seat's card, how
 long since the store answered, the room's waits and the last error, for the
-next real test to say what it saw.
+next real test to say what it saw. Its first line is the picture's pace over
+the last two seconds: frames a second, the slowest frame, and the game's own
+work a frame.
+
+The owner's second test lagged, 15 to 20 frames a second by eye (19 November
+2026), and it was not found: profiled in a browser, a match costs a frame
+what a practice room does (the game's own work under one per cent of a frame
+in software in both, no shader linked after the innings begins in either),
+so nothing in the match's code runs every frame that a practice room's does
+not. What a match did do that a room does not was work at any moment: a
+friend's ball arriving redrew the scoreboard and the bar while this player's
+ball was in flight. Now nothing of the room is worked out or drawn with a
+ball live (`MATCH_BALL_LIVE`, `dirty` on `matchPlay`: the store's answer is
+kept and taken up once the ball is dead), and the check-in waits for a dead
+ball too. If it lags again, `?matchlog=1`'s first line says whether it is
+the game's work or the picture.
 
 Every phone builds the same room (`KnockoutRoom` with `seats` and `you`, every
 case in `tests/knockout-together.test.ts`): the match's seed, the seats in the
@@ -2780,12 +2830,12 @@ on the phone's own count of balls batted) under one pill
 OUT ON 23 · WAITING FOR … while an out player waits for the cut that settles
 them. Knocked out, the room plays on as the store's balls arrive, on the end
 screen's rings (no WATCH ON yet in a match), to MATCH OVER and the Results
-(`With friends`, real players' podium line `friend`). Leaving a match from
-anywhere — PLAY AGAIN, restart, Choose a mode — lets it go, running away
-(5A) if the player was still in it, and PLAY AGAIN goes back to Play with
-friends, never a practice room. Not yet: points with three real players,
-the timer, the host's start-with-subs question, rematch, watching a friend's
-balls, and invites in Notifications.
+(`With friends`, real players' podium line `friend`). The key under its end
+screens is BACK TO ROOM (above), never a practice room; a restart with
+batting still to do, or Choose a mode, lets the match and the room go,
+running away (5A) if the player was still in it. Not yet: points with three real players,
+the timer, the host's start-with-subs question, watching a friend's balls,
+and invites in Notifications.
 
 `scripts/friends-check.mjs` walks it in two browsers in real time, nobody
 swinging: Play with friends, a wrong code, PASTE and a paste of INVITE's
@@ -2795,8 +2845,13 @@ over's end, the first cut, the guest's first ball turned away by the store and
 sent again, `?matchlog=1`'s line, the same seats and winner on both phones at
 the end, and a third match whose other phone never
 walks out, the sub batting its over, and a fourth whose host is the one who
-never walks out, the guest's room carried past a sub batting seat 0. Never
-edit the source while it runs: the dev server reloads the pages under it.
+never walks out, the guest's room carried past a sub batting seat 0; BACK TO
+ROOM from both end screens and the room's second match started and walked out
+to; a guest out of a match going back to the room while the host, kept
+checking in by the script, is tagged PLAYING, then the match over and the
+host's next START; and an invite reaching a phone on the cover as a banner
+with JOIN, and listed on Play with friends. Never edit the source while it
+runs: the dev server reloads the pages under it.
 
 ## Super10's kits
 

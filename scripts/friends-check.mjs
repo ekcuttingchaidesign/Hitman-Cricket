@@ -87,6 +87,8 @@ async function until(what, test, ms = 30_000, step = 250) {
   return false;
 }
 
+// `ONLY=room` walks the last two parts alone (back to the room mid-match, and the invite), which need nothing from the first six.
+if (process.env.ONLY !== 'room') {
 // 1. Play with friends, off the Knockout home.
 console.log('Play with friends');
 const a = await as(hostId, host, 1);
@@ -204,6 +206,28 @@ check(moments.every(Boolean), 'each phone ends on its own KNOCKED OUT or WINNER'
 await a.screenshot({ path: `${out}/end-host.png` });
 await b.screenshot({ path: `${out}/end-guest.png` });
 
+// 4b. BACK TO ROOM: the key under the end screens goes to the room under the same code, and the host starts the next match there.
+console.log('Back to the room');
+const againKey = page => page.evaluate(() => {
+  const key = [...document.querySelectorAll('#ko-res-again, #ko-again')].find(el => el.getBoundingClientRect().height > 0);
+  return key?.textContent?.trim() ?? '';
+});
+const pressAgain = page => page.evaluate(() => [...document.querySelectorAll('#ko-res-again, #ko-again')].find(el => el.getBoundingClientRect().height > 0)?.click());
+check(await until('keys', async () => (await againKey(a)) === 'BACK TO ROOM' && (await againKey(b)) === 'BACK TO ROOM', 60_000), 'the key under the end screens is BACK TO ROOM on both', `${await againKey(a)} / ${await againKey(b)}`);
+await pressAgain(a);
+check(await until('host room', () => visible(a, '#knockout-lobby'), 20_000), 'the host is back in the room');
+check((await text(a, '#ko-lobby-code')).replace(/\s/g, '') === code && (await text(a, '#ko-lobby-count')) === '2 OF 12 IN', 'the same room: its code, and both still in it', `${await text(a, '#ko-lobby-code')} · ${await text(a, '#ko-lobby-count')}`);
+await pressAgain(b);
+check(await until('guest room', () => visible(b, '#knockout-lobby'), 20_000), 'the guest is back in the room');
+check(await until('lobby again', async () => !(await a.evaluate(() => document.getElementById('ko-lobby-start').disabled)) && !(await a.evaluate(() => !!document.querySelector('#ko-seats .is-playing'))), 20_000),
+  'with the match over nobody is tagged PLAYING and START NOW is awake');
+await a.screenshot({ path: `${out}/room-again.png` });
+await a.locator('#ko-lobby-start').click();
+const again = await Promise.all([a, b].map(p => until('round two', async () => (await ko(p))?.match?.round === 2, 30_000)));
+check(again.every(Boolean), 'START NOW walks both out into the room’s second match');
+const [ra, rb] = [await ko(a), await ko(b)];
+check(ra?.table === rb?.table && ra?.roomBalls === 0, 'a fresh match, the same on both phones', `${ra?.roomBalls} · ${ra?.table === rb?.table}`);
+
 // 5. A phone that goes away. The first match's two pages are put away first: three renderers in software starve the one batting.
 console.log('A phone that goes away');
 await a.close(); await b.close();
@@ -232,6 +256,57 @@ const pastHost = await until('host subbed', async () => ((await ko(d))?.roomBall
 check(pastHost, 'a sub bats the host’s over and the guest’s room moves on', await text(d, '#match-log'));
 check(!(await text(d, '#match-log')).includes('ERROR'), 'and nothing threw on the way', await text(d, '#match-log'));
 await d.screenshot({ path: `${out}/host-away.png` });
+
+await d.close();
+}
+
+// 7. Out, with the match still going: BACK TO ROOM, where whoever is still batting is tagged PLAYING and the next match waits.
+console.log('Out, and back to the room while the match goes on');
+const api = (action, playerId, name, avatar, more = {}) => post('/api/challenge?knockout=1', { action, playerId, name, avatar, ...more });
+const fourth = (await api('host', goneId, gone, 4)).match.code;
+const e = await as(guestId, guest, 2, `&k=${fourth}`);
+check(await until('lobby four', () => visible(e, '#knockout-lobby'), 30_000), 'a guest in the lobby');
+await api('start', goneId, gone, 4, { code: fourth });
+check(await until('walk four', async () => !!(await ko(e))?.match, 15_000), 'the guest walks out');
+// Nobody swings: the guest is out, or cut, sooner or later. Either way a key takes them back to the room.
+const wayBack = () => e.evaluate(() => [...document.querySelectorAll('#ko-waiting-back, #ko-res-again, #ko-again')].find(el => el.getBoundingClientRect().height > 0)?.id ?? null);
+const offered = await until('way back', async () => !!(await wayBack()), 420_000, 1000);
+check(offered, 'out of the match, the guest is offered the way back', await text(e, '#ko-waiting'));
+// The host is still batting, as far as the room knows: heard from, and not back.
+await api('beat', goneId, gone, 4, { code: fourth });
+const beats = setInterval(() => { void api('beat', goneId, gone, 4, { code: fourth }).catch(() => {}); }, 4000);
+await e.evaluate(() => [...document.querySelectorAll('#ko-waiting-back, #ko-res-again, #ko-again')].find(el => el.getBoundingClientRect().height > 0)?.click());
+check(await until('room four', () => visible(e, '#knockout-lobby'), 20_000), 'BACK TO ROOM opens the room');
+check(await until('playing', () => e.evaluate(() => document.querySelector('#ko-seats .ko-lseat.is-playing .ko-lseat-playing')?.textContent === 'PLAYING'), 10_000), 'the host, still batting, is tagged PLAYING');
+check(await e.evaluate(() => document.getElementById('ko-lobby-ready').disabled) && (await text(e, '.ko-lobby-line')).includes('still batting'), 'and the next match waits for them', await text(e, '.ko-lobby-line'));
+await e.screenshot({ path: `${out}/room-playing.png` });
+// The match over, the room is its lobby again and the host starts the next one.
+await api('done', goneId, gone, 4, { code: fourth, round: 1 });
+check(await until('settled', () => e.evaluate(() => !document.querySelector('#ko-seats .is-playing') && !document.getElementById('ko-lobby-ready').disabled), 20_000), 'the match over, the tag goes and the room is a lobby again');
+clearInterval(beats);
+await api('back', goneId, gone, 4, { code: fourth });
+await api('start', goneId, gone, 4, { code: fourth });
+check(await until('round two again', async () => (await ko(e))?.match?.round === 2, 30_000), 'and the host’s next START walks the guest out again');
+await e.close();
+
+// 8. An invite reaches a phone wherever it is: here on the cover, where nothing used to ask.
+console.log('An invite, off Choose a mode');
+const { createHash } = await import('node:crypto');
+const f = await as(passerId, passer, 3);
+const fifth = (await api('host', goneId, gone, 4)).match.code;
+await api('invite', goneId, gone, 4, { code: fifth, handle: createHash('sha256').update(`hitman-handle:${passerId}`).digest('hex').slice(0, 16) });
+// (An earlier invite of theirs may still stand, and is told first: the one waited for is this one's.)
+check(await until('banner', async () => (await text(f, '#ko-invite')).includes(`${gone} invited you`), 40_000), 'a banner on the cover says who invited them, with JOIN', await text(f, '#ko-invite'));
+await f.screenshot({ path: `${out}/invite-banner.png` });
+await f.locator('#ko-invite-join').click();
+check(await until('joined', () => visible(f, '#knockout-lobby'), 30_000), 'JOIN lands them in the room');
+check((await text(f, '#ko-lobby-code')).replace(/\s/g, '') === fifth, 'the room they were asked into', await text(f, '#ko-lobby-code'));
+// And one not answered is listed at the head of Play with friends.
+const sixth = (await api('host', hostId, host, 1)).match.code;
+await api('invite', hostId, host, 1, { code: sixth, handle: createHash('sha256').update(`hitman-handle:${passerId}`).digest('hex').slice(0, 16) });
+await f.locator('#ko-lobby-back').click();
+check(await until('listed', async () => (await text(f, '#ko-friends-invites')).includes(`${host} invited you`), 20_000), 'an invite is listed on Play with friends, with JOIN', await text(f, '#ko-friends-invites'));
+await f.screenshot({ path: `${out}/invite-listed.png` });
 
 for (const page of pages) check(page.errors.length === 0, 'nothing in the console', page.errors.join(' | '));
 await browser.close();

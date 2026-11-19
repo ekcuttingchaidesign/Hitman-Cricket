@@ -56,6 +56,8 @@ export const MATCH_BALL_CHARS = '012346WS';
 const REMOVALS_KEPT_OUT = 2;
 /** Invites one member can send in one match. */
 export const INVITES_MAX = 30;
+/** An invite is offered for this long: after it the match it was for has long since been played. */
+export const INVITE_FRESH_MS = 30 * 60_000;
 export const CREATE_LIMIT = 30;
 export const WRITE_LIMIT = 4000;
 export const RATE_WINDOW_SECONDS = 3600;
@@ -75,10 +77,12 @@ export interface StoredMember {
   left?: boolean;
   /** When their last ball was written. */
   ballAt?: number;
+  /** The round they went back to the room from, having batted in it (BACK TO ROOM). */
+  back?: number;
 }
 
 /** The start, written once by the host: when everybody walks out, and the seats in order. */
-export interface StoredStart { at: number; seats: string[] }
+export interface StoredStart { at: number; seats: string[]; round: number }
 
 /** An invite, kept in the invited player's list (`koinv:<playerId>`) until the match starts. */
 export interface StoredMatchInvite { by: string; byAvatar: number; at: number }
@@ -91,7 +95,16 @@ export interface StoredMatch {
   members: Record<string, StoredMember>;
   removed: Record<string, number>;
   start: StoredStart | null;
-  /** Every ball written, by player id and ball. */
+  /**
+   * Which match of the room this is, from 1. A room outlives its matches: when
+   * one is over the room goes back to its lobby under the same code and the
+   * next is a round on (`settleMatch`). Balls are filed under their round, so
+   * one that lands late from the round before can never be read as this one's.
+   */
+  round: number;
+  /** The round somebody's phone has said is over (`doneMatch`): the room's result is in. */
+  over: number;
+  /** Every ball written this round, by player id and ball. */
   balls: Record<string, Record<number, string>>;
   /** Who has been asked in, by handle. */
   invited: Record<string, StoredMatchInvite>;
@@ -105,6 +118,8 @@ export interface KnockoutStore {
   /** Writes one field only if it is not there yet; true if this call wrote it. */
   setOnce(code: string, field: string, value: unknown): Promise<boolean>;
   drop(code: string, fields: string[]): Promise<void>;
+  /** Fields dropped and others set, in one step. */
+  swap(code: string, fields: Record<string, unknown>, drop: string[], ttlSeconds: number): Promise<void>;
   hits(kind: string, address: string, windowSeconds: number): Promise<number>;
   invite(playerId: string, code: string, invite: StoredMatchInvite, ttlSeconds: number): Promise<void>;
   invites(playerId: string): Promise<Record<string, StoredMatchInvite>>;
@@ -130,6 +145,10 @@ export interface MatchMember {
   /** How long since their last ball (or the walk-out, before one), by the store's clock; 0 in the lobby. */
   idle: number;
   left: boolean;
+  /** Batting in the match being played: seated, not gone back to the room, and the match not over. */
+  playing: boolean;
+  /** Back in the room from the match being played (BACK TO ROOM). */
+  back: boolean;
 }
 
 export interface MatchView {
@@ -145,6 +164,12 @@ export interface MatchView {
   members: MatchMember[];
   /** Who has been asked in and not yet come, by handle. */
   invited: string[];
+  /** Which match of the room this is, from 1. */
+  round: number;
+  /** The match being played is over: its result is in. */
+  over: boolean;
+  /** How many are still batting it and being heard from: the room's next match waits for none. */
+  busy: number;
   /** The store's clock, so every phone counts the walk-out to the same moment. */
   now: number;
 }
@@ -165,6 +190,7 @@ export interface Member { playerId: string; name: unknown; avatar: unknown; addr
 export const NO_MATCH = 'No match with that code.';
 export const MATCH_FULL = 'This match is full.';
 export const MATCH_UNDERWAY = 'This match has started.';
+export const MATCH_OVER = 'That match is over.';
 
 export function newMatchCode(random: () => number = Math.random): string {
   let code = '';
@@ -189,17 +215,24 @@ function who(input: Member): { name: string; avatar: number } | MatchRefusal {
 /** The hash, picked apart. Anything not understood is left out rather than trusted. */
 export function parseMatch(held: Record<string, unknown> | null): StoredMatch | null {
   if (!held || typeof held.host !== 'string') return null;
-  const match: StoredMatch = { host: held.host, at: Number(held.at) || 0, seed: Number(held.seed) >>> 0, members: {}, removed: {}, start: null, balls: {}, invited: {} };
+  const round = Math.max(1, Math.floor(Number(held.round)) || 1);
+  const match: StoredMatch = { host: held.host, at: Number(held.at) || 0, seed: Number(held.seed) >>> 0, members: {}, removed: {}, start: null, round,
+    over: Math.floor(Number(held.over)) || 0, balls: {}, invited: {} };
   for (const [field, raw] of Object.entries(held)) {
     const value = typeof raw === 'string' && raw.startsWith('{') ? safeJson(raw) : raw;
     if (field.startsWith('m:') && value && typeof value === 'object') match.members[field.slice(2)] = value as StoredMember;
     else if (field.startsWith('rm:')) match.removed[field.slice(3)] = Number(value) || 0;
     else if (field.startsWith('iv:') && value && typeof value === 'object') match.invited[field.slice(3)] = value as StoredMatchInvite;
-    else if (field === 'start' && value && typeof value === 'object' && Array.isArray((value as StoredStart).seats)) match.start = value as StoredStart;
+    else if (field === 'start' && value && typeof value === 'object' && Array.isArray((value as StoredStart).seats)) {
+      // A start is this round's or nobody's: one left behind by a room going back to its lobby is not a match.
+      const start = { ...(value as StoredStart), round: Number((value as StoredStart).round) || round };
+      if (start.round === round) match.start = start;
+    }
     else if (field.startsWith('b:')) {
-      const cut = field.lastIndexOf(':'), id = field.slice(2, cut), ball = Number(field.slice(cut + 1));
+      // `b:<round>:<player>:<ball>`: only this round's are the match's.
+      const [, of, id, at] = field.split(':'), ball = Number(at);
       const char = String(value);
-      if (Number.isInteger(ball) && ball >= 0 && ball < MATCH_BALLS && char.length === 1 && MATCH_BALL_CHARS.includes(char)) {
+      if (Number(of) === round && id && Number.isInteger(ball) && ball >= 0 && ball < MATCH_BALLS && char.length === 1 && MATCH_BALL_CHARS.includes(char)) {
         (match.balls[id] ??= {})[ball] = char;
       }
     }
@@ -223,6 +256,17 @@ function joinOrder(match: StoredMatch): string[] {
     Number(b === match.host) - Number(a === match.host) || match.members[a].joined - match.members[b].joined || a.localeCompare(b));
 }
 
+/** Batting in the match being played: seated in it, not gone back to the room or away from it, and the match not over. */
+function playingIn(match: StoredMatch, id: string): boolean {
+  const m = match.members[id];
+  return !!match.start && !!m && match.over !== match.round && match.start.seats.includes(id) && !m.left && m.back !== match.round;
+}
+
+/** How many are still batting the match and being heard from: the room goes back to its lobby when it is none. */
+function busyIn(match: StoredMatch, now: number): number {
+  return Object.keys(match.members).filter(id => playingIn(match, id) && now - (match.members[id].seen || 0) < AWAY_MS).length;
+}
+
 export function viewOf(code: string, match: StoredMatch, now = Date.now()): MatchView {
   const seats = match.start?.seats ?? [];
   const members = joinOrder(match).map(id => {
@@ -232,13 +276,15 @@ export function viewOf(code: string, match: StoredMatch, now = Date.now()): Matc
       handle: handleOf(id), name: m.name, avatar: m.avatar, joined: m.joined, ready: !!m.ready, host: id === match.host,
       seat: seat >= 0 ? seat : null, card: cardOf(match, id), quiet: Math.max(0, now - (m.seen || m.joined)),
       idle: match.start ? Math.max(0, now - Math.max(m.ballAt ?? 0, match.start.at)) : 0, left: !!m.left,
+      playing: playingIn(match, id), back: !!match.start && seat >= 0 && m.back === match.round,
     };
   });
   const here = new Set(members.map(m => m.handle));
   return {
     code, state: match.start ? 'live' : 'lobby', at: match.at, seed: match.seed, host: handleOf(match.host),
     startAt: match.start?.at ?? null, seats: seats.map(id => handleOf(id)), members,
-    invited: Object.keys(match.invited).filter(handle => !here.has(handle)), now,
+    invited: Object.keys(match.invited).filter(handle => !here.has(handle)),
+    round: match.round, over: !!match.start && match.over === match.round, busy: busyIn(match, now), now,
   };
 }
 
@@ -269,12 +315,16 @@ export async function hostMatch(store: KnockoutStore, input: Member, now = Date.
   const seed = Math.floor(random() * 2 ** 32) >>> 0;
   for (let i = 0; i < CODE_TRIES; i++) {
     const code = newMatchCode(random);
-    if (await store.claim(code, { host: input.playerId, at: now, seed, [`m:${input.playerId}`]: member }, MATCH_TTL_SECONDS)) return answer(store, code, now);
+    if (await store.claim(code, { host: input.playerId, at: now, seed, round: 1, [`m:${input.playerId}`]: member }, MATCH_TTL_SECONDS)) return answer(store, code, now);
   }
   return refuse(503, 'No free code just now. Try again.');
 }
 
-/** JOIN: into the lobby, or back into a match already batting for somebody who holds a seat in it. */
+/**
+ * JOIN: into the lobby; back into a match already batting for somebody who
+ * holds a seat in it; or, with a match being played, into the room to wait
+ * for the next one (they are shown who is still PLAYING).
+ */
 export async function joinMatch(store: KnockoutStore, code: string, input: Member, now = Date.now()): Promise<MatchOutcome> {
   const me = who(input);
   if ('ok' in me) return me;
@@ -284,9 +334,10 @@ export async function joinMatch(store: KnockoutStore, code: string, input: Membe
   if ('ok' in match) return match;
   const clean = cleanMatchCode(code)!;
   const held = match.members[input.playerId];
-  if (match.start) {
-    if (!match.start.seats.includes(input.playerId)) return refuse(409, MATCH_UNDERWAY);
-    await store.set(clean, { [`m:${input.playerId}`]: { ...held!, seen: now } }, MATCH_TTL_SECONDS);
+  if (match.start && held && match.start.seats.includes(input.playerId)) {
+    // Somebody who ran away and came back waits in the room: their seat is a sub's by now.
+    const member: StoredMember = held.left ? { ...held, left: false, back: match.round, seen: now } : { ...held, seen: now };
+    await store.set(clean, { [`m:${input.playerId}`]: member }, MATCH_TTL_SECONDS);
     return answer(store, clean, now);
   }
   if (!held) {
@@ -321,15 +372,18 @@ export async function leaveMatch(store: KnockoutStore, code: string, input: Memb
   const clean = cleanMatchCode(code)!;
   const held = match.members[input.playerId];
   if (!held) return answer(store, clean, now);
-  if (match.start) {
+  // The room is somebody else's to start from here on: whoever has waited longest and is still in it.
+  if (match.host === input.playerId) {
+    const next = joinOrder(match).find(id => id !== input.playerId && !match.members[id].left);
+    if (next) await store.set(clean, { host: next }, MATCH_TTL_SECONDS);
+  }
+  // Still to bat in a match being played: that is running away (5A), and a sub bats the seat.
+  if (match.start?.seats.includes(input.playerId) && match.over !== match.round && held.back !== match.round) {
     await store.set(clean, { [`m:${input.playerId}`]: { ...held, left: true } }, MATCH_TTL_SECONDS);
     return answer(store, clean, now);
   }
+  // From the lobby, or from the room while others play: the seat simply empties.
   await store.drop(clean, [`m:${input.playerId}`]);
-  if (match.host === input.playerId) {
-    const next = joinOrder(match).find(id => id !== input.playerId);
-    if (next) await store.set(clean, { host: next }, MATCH_TTL_SECONDS);
-  }
   return answer(store, clean, now);
 }
 
@@ -360,7 +414,6 @@ export async function inviteToMatch(store: KnockoutStore, code: string, input: M
   const clean = cleanMatchCode(code)!;
   const held = match.members[input.playerId];
   if (!held) return refuse(403, 'Join the match first.');
-  if (match.start) return refuse(409, MATCH_UNDERWAY);
   if (typeof handle !== 'string' || !isHandle(handle)) return refuse(400, 'That is not a player.');
   if (Object.keys(match.invited).length >= INVITES_MAX) return refuse(429, 'That is a lot of invites for one match.');
   const id = await store.idOf(handle);
@@ -383,13 +436,10 @@ export async function startMatch(store: KnockoutStore, code: string, input: Memb
   const clean = cleanMatchCode(code)!;
   if (match.host !== input.playerId) return refuse(403, 'Only the host can start the match.');
   if (match.start) return answer(store, clean, now);
-  const seats = joinOrder(match).slice(0, MATCH_SEATS);
+  const seats = joinOrder(match).filter(id => !match.members[id].left).slice(0, MATCH_SEATS);
   if (seats.length < 2) return refuse(409, 'Wait for one friend to join.');
-  await store.setOnce(clean, 'start', { at: now + START_IN_MS, seats } satisfies StoredStart);
-  for (const handle of Object.keys(match.invited)) {
-    const id = await store.idOf(handle);
-    if (id) await store.uninvite(id, clean);
-  }
+  // Invites stand through a match: somebody asked in late joins the room and waits for the next one.
+  await store.setOnce(clean, 'start', { at: now + START_IN_MS, seats, round: match.round } satisfies StoredStart);
   return answer(store, clean, now);
 }
 
@@ -398,20 +448,21 @@ export async function startMatch(store: KnockoutStore, code: string, input: Memb
  * goes in only as the next ball of their card, never over one already there
  * — a sub's included — and nothing follows a wicket.
  */
-export async function ballInMatch(store: KnockoutStore, code: string, input: Member, ball: unknown, value: unknown, now = Date.now()): Promise<MatchOutcome> {
+export async function ballInMatch(store: KnockoutStore, code: string, input: Member, ball: unknown, value: unknown, now = Date.now(), round?: unknown): Promise<MatchOutcome> {
   const busy = await limited(store, 'write', input.address);
   if (busy) return busy;
   const match = await load(store, code);
   if ('ok' in match) return match;
   const clean = cleanMatchCode(code)!;
   if (!match.start?.seats.includes(input.playerId)) return refuse(403, 'You are not batting in this match.');
+  if (round !== undefined && Number(round) !== match.round) return refuse(410, MATCH_OVER);
   const index = Number(ball), char = String(value);
   if (!Number.isInteger(index) || index < 0 || index >= MATCH_BALLS) return refuse(400, 'That is not a ball of this match.');
   if (char.length !== 1 || !'012346W'.includes(char)) return refuse(400, 'That is not what a ball can be worth.');
   const card = cardOf(match, input.playerId);
   if (card.includes('W')) return refuse(409, 'You are out.');
   if (index > card.length) return refuse(409, 'A ball was missed. Send them in order.');
-  const written = index === card.length && await store.setOnce(clean, `b:${input.playerId}:${index}`, char);
+  const written = index === card.length && await store.setOnce(clean, `b:${match.round}:${input.playerId}:${index}`, char);
   const member = match.members[input.playerId];
   await store.set(clean, { [`m:${input.playerId}`]: { ...member, seen: now, ballAt: written ? now : member?.ballAt } }, MATCH_TTL_SECONDS);
   return answer(store, clean, now);
@@ -448,9 +499,66 @@ export async function awayInMatch(store: KnockoutStore, code: string, input: Mem
   const card = cardOf(match, target);
   if (card.includes('W')) return answer(store, clean, now);
   const idle = now - Math.max(held?.ballAt ?? 0, match.start.at);
-  if (!held?.left && quiet < AWAY_MS && idle < STALL_MS) return answer(store, clean, now);
+  // Gone back to the room without being out (somebody who ran away and came back): their seat is a sub's.
+  if (!held?.left && held?.back !== match.round && quiet < AWAY_MS && idle < STALL_MS) return answer(store, clean, now);
   const end = Math.min(MATCH_BALLS, (which + 1) * OVER_BALLS);
-  for (let i = card.length; i < end; i++) await store.setOnce(clean, `b:${target}:${i}`, 'S');
+  for (let i = card.length; i < end; i++) await store.setOnce(clean, `b:${match.round}:${target}:${i}`, 'S');
+  return answer(store, clean, now);
+}
+
+/**
+ * BACK TO ROOM: somebody whose batting is done (out, knocked out, or the match
+ * over) goes back to the room under the same code, where everybody still
+ * batting is tagged PLAYING and the host starts the next match once nobody is.
+ */
+export async function backToRoom(store: KnockoutStore, code: string, input: Member, now = Date.now()): Promise<MatchOutcome> {
+  const match = await load(store, code);
+  if ('ok' in match) return match;
+  const clean = cleanMatchCode(code)!;
+  const held = match.members[input.playerId];
+  if (!held) return refuse(403, 'Join the match first.');
+  if (match.start?.seats.includes(input.playerId) && held.back !== match.round) {
+    await store.set(clean, { [`m:${input.playerId}`]: { ...held, back: match.round, seen: now } }, MATCH_TTL_SECONDS);
+  }
+  return settleMatch(store, clean, input, now);
+}
+
+/** The match is over, as a phone that has batted it to the end says: nobody is PLAYING it any more. */
+export async function doneMatch(store: KnockoutStore, code: string, input: Member, round: unknown, now = Date.now()): Promise<MatchOutcome> {
+  const match = await load(store, code);
+  if ('ok' in match) return match;
+  const clean = cleanMatchCode(code)!;
+  if (!match.start?.seats.includes(input.playerId)) return refuse(403, 'You are not batting in this match.');
+  if (Number(round) !== match.round) return refuse(410, MATCH_OVER);
+  if (match.over !== match.round) await store.set(clean, { over: match.round }, MATCH_TTL_SECONDS);
+  return answer(store, clean, now);
+}
+
+/**
+ * The room back to its lobby, once nobody is still batting the match (every
+ * seat back, away, or the match over): the next match is a round on, on a new
+ * seed, with everybody still in the room and nobody who ran away. Any phone in
+ * the room may ask; the store decides. Asked while somebody is still batting,
+ * nothing happens.
+ */
+export async function settleMatch(store: KnockoutStore, code: string, input: Member, now = Date.now(), random: () => number = Math.random): Promise<MatchOutcome> {
+  const match = await load(store, code);
+  if ('ok' in match) return match;
+  const clean = cleanMatchCode(code)!;
+  if (!match.members[input.playerId]) return refuse(403, 'Join the match first.');
+  if (!match.start || busyIn(match, now) > 0) return answer(store, clean, now);
+  const held = await store.read(clean) ?? {};
+  const stay = joinOrder(match).filter(id => !match.members[id].left);
+  const host = stay.includes(match.host) ? match.host : stay[0] ?? match.host;
+  const fields: Record<string, unknown> = { round: match.round + 1, seed: Math.floor(random() * 2 ** 32) >>> 0, host };
+  for (const id of stay) {
+    const { back: _back, ballAt: _ballAt, ...member } = match.members[id];
+    fields[`m:${id}`] = { ...member, ready: id === host };
+  }
+  // In one step, so no phone reads the old start under the new round: a ball of the old round landing after it is filed
+  // under that round, where nobody reads it.
+  await store.swap(clean, fields, ['start', 'over', ...Object.keys(held).filter(field => field.startsWith('b:')),
+    ...Object.keys(match.members).filter(id => match.members[id].left).map(id => `m:${id}`)], MATCH_TTL_SECONDS);
   return answer(store, clean, now);
 }
 
@@ -461,13 +569,13 @@ export async function readMatch(store: KnockoutStore, code: string, now = Date.n
 }
 
 /** A player's invites still open: matches in their lobby, newest first (1K to 1M). */
-export async function readInvites(store: KnockoutStore, playerId: string): Promise<MatchInvitesAccepted | MatchRefusal> {
+export async function readInvites(store: KnockoutStore, playerId: string, now = Date.now()): Promise<MatchInvitesAccepted | MatchRefusal> {
   if (!isPlayerId(playerId)) return refuse(400, 'That is not a player.');
   const kept = await store.invites(playerId);
   const open: MatchInviteView[] = [];
   for (const [code, invite] of Object.entries(kept)) {
     const match = parseMatch(await store.read(code));
-    if (!match || match.start || match.members[playerId]) { await store.uninvite(playerId, code); continue; }
+    if (!match || match.members[playerId] || now - invite.at > INVITE_FRESH_MS) { await store.uninvite(playerId, code); continue; }
     open.push({ code, by: invite.by, byAvatar: invite.byAvatar, at: invite.at, size: Object.keys(match.members).length });
   }
   return { ok: true, invites: open.sort((a, b) => b.at - a.at) };
@@ -508,6 +616,13 @@ export function memoryKnockouts(handles: (handle: string) => string | null | Pro
       return true;
     },
     async drop(code, fields) { const held = live(code); if (held) for (const f of fields) delete held.fields[f]; },
+    async swap(code, fields, drop, ttl) {
+      const held = live(code);
+      if (!held) return;
+      for (const f of drop) delete held.fields[f];
+      Object.assign(held.fields, structuredClone(fields));
+      held.until = Date.now() + ttl * 1000;
+    },
     async hits(kind, address, windowSeconds) {
       const key = `${kind}:${address}`, now = Date.now(), held = rate.get(key);
       if (!held || held.until <= now) { rate.set(key, { count: 1, until: now + windowSeconds * 1000 }); return 1; }

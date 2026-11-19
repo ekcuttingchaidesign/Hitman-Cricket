@@ -2901,9 +2901,9 @@ ${knockoutRulesMarkup()}
    * over's end (Figma section 53, 4A): who is still batting and how far they
    * have to go. Nothing else is laid over the game.
    */
-  knockoutWaiting(line: string | null) {
-    let pill = this.viewport.querySelector<HTMLElement>('#ko-waiting');
-    if (!line) { pill?.classList.add('hidden'); return; }
+  knockoutWaiting(line: string | null, back?: () => void) {
+    let pill = this.viewport.querySelector<HTMLElement>('#ko-waiting'), key = this.viewport.querySelector<HTMLButtonElement>('#ko-waiting-back');
+    if (!line) { pill?.classList.add('hidden'); key?.classList.add('hidden'); return; }
     if (!pill) {
       pill = document.createElement('div');
       pill.id = 'ko-waiting';
@@ -2913,6 +2913,41 @@ ${knockoutRulesMarkup()}
     }
     if (pill.textContent !== line) pill.textContent = line;
     pill.classList.remove('hidden');
+    // Out, with nothing left to bat: BACK TO ROOM under the pill, where the rest are tagged PLAYING.
+    if (back && !key) {
+      key = document.createElement('button');
+      key.id = 'ko-waiting-back';
+      key.type = 'button';
+      key.className = 'ko-waiting-back';
+      key.textContent = 'BACK TO ROOM';
+      this.viewport.append(key);
+    }
+    if (key) { key.classList.toggle('hidden', !back); key.onclick = back ? event => { event.stopPropagation(); back(); } : null; }
+  }
+  /** Somebody asked this player into a match: a banner over whatever screen is up, with JOIN, for a while. */
+  matchInvite(view: { by: string; avatar: number; size: number } | null, join?: () => void) {
+    window.clearTimeout(this.inviteTimer);
+    this.viewport.querySelector('#ko-invite')?.remove();
+    if (!view) return;
+    const banner = document.createElement('div');
+    banner.id = 'ko-invite';
+    banner.className = 'ko-invite is-in';
+    banner.setAttribute('role', 'alert');
+    banner.innerHTML = `<img src="${avatarSrc(view.avatar)}" alt="" width="40" height="40">
+      <span class="ko-invite-text"><b>${escape(view.by)} invited you</b><small>Super Knockout · ${view.size} in the room</small></span>
+      <button type="button" class="ko-pill" id="ko-invite-join">JOIN</button>
+      <button type="button" class="ko-invite-x" id="ko-invite-x" aria-label="Not now">×</button>`;
+    banner.onclick = () => join?.();
+    banner.querySelector<HTMLElement>('#ko-invite-x')!.onclick = event => { event.stopPropagation(); this.matchInvite(null); };
+    this.viewport.append(banner);
+    this.inviteTimer = window.setTimeout(() => this.matchInvite(null), 20_000);
+  }
+  private inviteTimer = 0;
+  /** The key under a match's end screens: BACK TO ROOM in a match with friends, PLAY AGAIN (null) anywhere else. */
+  knockoutAgain(label: string | null) {
+    this.againLabel(label);
+    const face = this.viewport.querySelector<HTMLElement>('#ko-again .k-cta-face>span') ?? this.viewport.querySelector<HTMLElement>('#ko-again span');
+    if (face) face.textContent = label ?? 'PLAY AGAIN';
   }
   knockoutRoomOver(line: string) { this.koMoment?.roomOver(line); }
   /** The room down to its final, on the end screen's rings. */
