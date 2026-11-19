@@ -2701,21 +2701,14 @@ export class Game {
         return {
           handle: m.handle, name: m.name, avatar: m.avatar, host: m.host, ready: m.ready, you: own, joined: m.joined,
           playing: m.playing || batting, score: batting ? `${seat!.runs}*` : undefined, watch: batting && !own,
-          out: seat && !batting ? (seat.place !== null ? `OUT · ${ordinal(seat.place)}` : 'OUT') : undefined,
+          out: seat && !batting ? (seat.place !== null ? `Out · ${ordinal(seat.place).toLowerCase()}` : 'Out') : undefined,
         };
       }),
       around: this.aroundNow(match.invited),
       match: room && you ? {
         heading: room.final ? 'MATCH ON · THE FINAL' : `MATCH ON · OVER ${Math.min(KNOCKOUT.cuts.length + 1, Math.floor(room.roomBalls / KNOCKOUT.ballsPerOver) + 1)}`,
-        line: (() => {
-          const friends = room.seats.filter(seat => !seat.sub && seat !== you && still(seat)).length;
-          return `${room.alive.length} still in${friends ? `, ${friends} of them your friend${friends === 1 ? '' : 's'}` : ''} · tap a face to watch`;
-        })(),
+        line: `${room.alive.length} still in · tap a face to watch`,
         rings: this.ringsOf(),
-        you: {
-          title: you.place !== null ? `You went out ${ordinal(you.place).toLowerCase()} · ${you.runs} off ${you.balls}` : `You are out · ${this.score.runs} off ${this.score.balls}`,
-          line: 'The next match starts when this one’s over',
-        },
       } : null,
       last: !live && this.lastMatch?.code === match.code ? { title: this.lastMatch.title, line: this.lastMatch.line, face: this.lastMatch.face } : null,
     };

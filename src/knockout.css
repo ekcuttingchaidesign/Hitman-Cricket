@@ -656,45 +656,74 @@ body.ko-watch #end{visibility:hidden}
 .ko-lobby-body{position:relative;z-index:1;padding:calc(var(--u) * 88) calc(var(--u) * 20) 0}
 /* Only its two keys stand at the foot, so only their height is kept clear under the list: with the home's allowance the
    room dragged on a phone that already showed all of it. */
-#knockout-lobby .ko-scroll{padding-bottom:calc(var(--u) * 168 + var(--pad-bottom))}
+#knockout-lobby .ko-scroll{padding-bottom:calc(var(--u) * 104 + var(--pad-bottom))}
 /* The grain is as tall as the design's phone on the other screens, which made this one scroll that far with nothing to show for it. */
 #knockout-lobby .ko-grain{height:100%}
 .ko-lobby-count{margin:0;font:400 calc(var(--u) * 36)/1.1 var(--f-display);color:#f5efe6}
-.ko-lobby-line{margin:calc(var(--u) * 2) 0 0;color:#bfaeb1;font:500 calc(var(--u) * 14)/1.3 var(--f-ui)}
-/* Twelve seats in two rows of six: three rows of four took the room past the foot of a phone, which made it drag. */
-.ko-lseats{list-style:none;margin:calc(var(--u) * 16) 0 0;padding:0;display:grid;grid-template-columns:repeat(6,1fr);row-gap:calc(var(--u) * 10)}
-.ko-lseat{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 6);min-width:0;min-height:calc(var(--u) * 70)}
-.ko-lseat-face{position:relative;width:calc(var(--u) * 50);height:calc(var(--u) * 50)}
-.ko-lseat-face img{width:100%;height:100%;border-radius:50%;object-fit:cover;background:#2a1a1e;box-sizing:border-box;border:2px solid #ffffff26}
+/* One line says where the room stands, in the colour of it, with the host's NUDGE beside it: a line, a tag on every face
+   and a bar over the keys all said it at first, and the room read as cluttered (the owner, 19 November 2026). */
+.ko-lobby-status{display:flex;align-items:center;gap:calc(var(--u) * 10);min-height:calc(var(--u) * 30);margin-top:calc(var(--u) * 4)}
+.ko-lobby-line{flex:1;min-width:0;margin:0;color:#bfaeb1;font:500 calc(var(--u) * 15)/1.3 var(--f-ui)}
+.ko-lobby-line.is-waiting{color:#ffcc66}
+.ko-lobby-line.is-good{color:#7be495}
+.ko-lobby-status .ko-pill{min-width:calc(var(--u) * 78);height:calc(var(--u) * 30);padding:0 calc(var(--u) * 10)}
+/* The people who are in, and only they: big, four to a row, an Invite tile after them, a plain word under each name.
+   Twelve seats drawn six to a row, most of them empty circles, left the ones taken small and the room busy. Six to a row
+   only once a ninth tile is wanted, which keeps the room on a phone's screen with all twelve in. */
+.ko-people{--face:calc(var(--u) * 68);list-style:none;margin:calc(var(--u) * 18) 0 0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);row-gap:calc(var(--u) * 14)}
+.ko-people.is-many{--face:calc(var(--u) * 50);grid-template-columns:repeat(6,1fr);row-gap:calc(var(--u) * 10)}
+.ko-lseat{display:flex;flex-direction:column;align-items:center;min-width:0;-webkit-tap-highlight-color:transparent}
+.ko-lseat-face{position:relative;width:var(--face);height:var(--face);margin-bottom:calc(var(--u) * 7);box-sizing:border-box;border-radius:50%}
+.ko-lseat-face img{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover;background:#2a1a1e;box-sizing:border-box;border:2.5px solid #ffffff38}
 .ko-lseat.is-you .ko-lseat-face img{border:3px solid #fff}
-.ko-lseat-host,.ko-lseat-tick{position:absolute;left:50%;bottom:calc(var(--u) * -6);transform:translateX(-50%);padding:calc(var(--u) * 2) calc(var(--u) * 6);border-radius:999px;
-  background:#fff;color:#14050a;font:800 calc(var(--u) * 9)/1.2 var(--f-ui);font-style:normal;letter-spacing:.06em}
-.ko-lseat-host,.ko-lseat-tick,.ko-lseat-not,.ko-lseat-out{white-space:nowrap}
-.ko-lseat-tick{background:#3fbf5a;color:#fff;font-size:calc(var(--u) * 8)}
-/* Everybody ready before the start (Figma section 56): who is, and who the room is waiting for. */
-.ko-lseat-not,.ko-lseat-out{position:absolute;left:50%;bottom:calc(var(--u) * -6);transform:translateX(-50%);padding:calc(var(--u) * 2) calc(var(--u) * 6);border-radius:999px;
-  font:800 calc(var(--u) * 8)/1.2 var(--f-ui);font-style:normal;letter-spacing:.06em}
-.ko-lseat-not{background:#2a1c05;color:#ffcc66;border:1px solid #ffb020cc}
-.ko-lseat-out{background:#2a2e35;color:#c9ced6;border:1px solid #ffffff2e}
-.ko-lseat.is-ready .ko-lseat-face img{border-color:#3fbf5a}
-.ko-lseat.is-not-ready .ko-lseat-face img{border:2px dashed #ffb020e6}
-.ko-lseat.is-not-ready:not(.is-you) .ko-lseat-face img{opacity:.62}
+.ko-lseat-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 calc(var(--u) * 13)/1.25 var(--f-ui);color:#fff}
+.ko-lseat-sub{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 calc(var(--u) * 11)/1.35 var(--f-ui);color:#bfaeb1}
+.ko-lseat-sub.is-ready{color:#7be495}
+.ko-lseat-sub.is-not{color:#ffcc66}
+.ko-lseat-sub.is-playing{color:#ffd98a}
+.ko-lseat-sub.is-out{color:#9a9a9a}
+.ko-people.is-many .ko-lseat-name{font-size:calc(var(--u) * 11)}
+.ko-people.is-many .ko-lseat-sub{font-size:calc(var(--u) * 9.5)}
+/* Everybody ready before the start (Figma section 56): a green ring and a tick on a ready face, a dashed amber ring on
+   one the room is waiting for. */
+.ko-lseat-tick{position:absolute;right:calc(var(--u) * -2);bottom:calc(var(--u) * -2);display:grid;place-items:center;width:calc(var(--u) * 22);height:calc(var(--u) * 22);border-radius:50%;
+  background:#3fbf5a;color:#fff;font:800 calc(var(--u) * 12)/1 var(--f-ui);font-style:normal;box-shadow:0 0 0 2.5px #150e10}
+.ko-people.is-many .ko-lseat-tick{width:calc(var(--u) * 17);height:calc(var(--u) * 17);font-size:calc(var(--u) * 10)}
+.ko-lseat.is-ready:not(.is-you) .ko-lseat-face img{border-color:#3fbf5a}
+.ko-lseat.is-not-ready:not(.is-you) .ko-lseat-face img{border:2.5px dashed #ffb020e6;opacity:.6}
 .ko-lseat.is-out:not(.is-you) .ko-lseat-face img{filter:grayscale(1) brightness(.75)}
 .ko-lseat.is-out:not(.is-you) .ko-lseat-name{color:#9a9a9a}
-.ko-lseat.is-tap,.ko-lseat.is-watch{cursor:pointer;-webkit-tap-highlight-color:transparent}
-.ko-lseat-name{display:flex;justify-content:center;gap:calc(var(--u) * 3)}
-.ko-lseat-name span{min-width:0;overflow:hidden;text-overflow:ellipsis}
-.ko-lseat-name em{flex:none;font-style:normal;color:#ffd98a}
-/* Watching from the room (section 57): a friend still batting wears the end screen's story ring, and a tap opens their game. */
-.ko-lseat.is-watch .ko-lseat-face{padding:calc(var(--u) * 2.5);box-sizing:border-box;border-radius:50%;background:linear-gradient(180deg,#ff8a1f,#ee2a2a)}
-.ko-lseat.is-watch .ko-lseat-face img{border:calc(var(--u) * 2) solid #0c0809}
-.ko-lobby-count.is-match{font-size:calc(var(--u) * 30)}
-.ko-lobby-line.is-good{color:#7be495}
-.ko-lseat-playing{position:absolute;left:50%;bottom:calc(var(--u) * -6);transform:translateX(-50%);padding:calc(var(--u) * 2) calc(var(--u) * 6);border-radius:999px;
-  background:#ee2a2a;color:#fff;font:800 calc(var(--u) * 8)/1.2 var(--f-ui);font-style:normal;letter-spacing:.06em;white-space:nowrap}
+.ko-lseat.is-tap,.ko-lseat.is-watch,.ko-lseat.is-invite{cursor:pointer}
 .ko-lseat.is-playing .ko-lseat-face img{border-color:#ee2a2a}
-@media (prefers-reduced-motion:no-preference){.ko-lseat-playing{animation:ko-playing 1.6s ease-in-out infinite}}
-@keyframes ko-playing{50%{opacity:.62}}
+/* Watching from the room (section 57): a friend still batting wears the end screen's story ring, and a tap opens their game. */
+.ko-lseat.is-watch .ko-lseat-face{padding:calc(var(--u) * 3);background:linear-gradient(180deg,#ff8a1f,#ee2a2a)}
+.ko-lseat.is-watch .ko-lseat-face img{border:calc(var(--u) * 2.5) solid #0c0809}
+.ko-lobby-count.is-match{font-size:calc(var(--u) * 30)}
+/* The tile after the last of them: a tap shares the match. */
+.ko-lseat.is-invite .ko-lseat-face{display:grid;place-items:center;border:1.5px dashed #ffffff47;background:#ffffff0a}
+.ko-lseat-plus{font:400 calc(var(--u) * 28)/1 var(--f-ui);font-style:normal;color:#f5efe6}
+.ko-people.is-many .ko-lseat-plus{font-size:calc(var(--u) * 22)}
+.ko-lseat.is-invite .ko-lseat-name{font-weight:600;color:#bfaeb1}
+.ko-lseat.is-arriving .ko-lseat-face{animation:ko-arrive .5s cubic-bezier(.2,1.5,.4,1)}
+@keyframes ko-arrive{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
+/* The match code, one slim row. */
+.ko-coderow{display:flex;align-items:center;gap:calc(var(--u) * 14);margin-top:calc(var(--u) * 18);padding:calc(var(--u) * 9) calc(var(--u) * 12) calc(var(--u) * 9) calc(var(--u) * 18);border-radius:16px}
+.ko-coderow i{flex:none;font:800 calc(var(--u) * 10)/1 var(--f-ui);font-style:normal;color:#9a9a9a;letter-spacing:.06em}
+.ko-coderow b{flex:1;min-width:0;font:400 calc(var(--u) * 24)/1.2 var(--f-display);color:#fff;letter-spacing:.08em}
+.ko-coderow .ko-pill{min-width:calc(var(--u) * 68);height:calc(var(--u) * 30)}
+/* Who is around, one line of chips: a tap asks them in, and the chip says it went. */
+.ko-around-head.is-row{margin:calc(var(--u) * 20) 0 calc(var(--u) * 9);font-size:calc(var(--u) * 10);letter-spacing:.06em}
+.ko-chips{list-style:none;display:flex;gap:calc(var(--u) * 8);overflow-x:auto;scrollbar-width:none;margin:0 calc(var(--u) * -20);padding:0 calc(var(--u) * 20)}
+.ko-chips::-webkit-scrollbar{display:none}
+.ko-chips li{flex:none}
+.ko-chip{display:flex;align-items:center;gap:calc(var(--u) * 7);height:calc(var(--u) * 40);padding:0 calc(var(--u) * 12) 0 calc(var(--u) * 5);border-radius:999px;border:1px solid #ffffff24;background:#ffffff12;
+  color:#fff;font:700 calc(var(--u) * 13)/1 var(--f-ui);white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ko-chip-face{position:relative;flex:none;width:calc(var(--u) * 30);height:calc(var(--u) * 30)}
+.ko-chip-face img{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover;background:#2a1a1e}
+.ko-chip-face .ko-dot{width:calc(var(--u) * 9);height:calc(var(--u) * 9);border-width:1.5px}
+.ko-chip i{font:800 calc(var(--u) * 14)/1 var(--f-ui);font-style:normal;color:#ff8a8a}
+.ko-chip.is-sent,.ko-chip:disabled{opacity:1;border-color:#3fbf5a99;background:#1f3a24;cursor:default}
+.ko-chip.is-sent i{color:#7be495}
 
 .ko-invites{list-style:none;margin:calc(var(--u) * 12) 0 0;padding:0;display:grid;gap:calc(var(--u) * 8)}
 .ko-invite-row{display:flex;align-items:center;gap:calc(var(--u) * 12);padding:calc(var(--u) * 10) calc(var(--u) * 14);border-radius:16px;background:#2a1014f2;border:1px solid #ee2a2a80}
@@ -709,23 +738,6 @@ body.ko-watch #end{visibility:hidden}
 .ko-invite-x{flex:none;width:calc(var(--u) * 32);height:calc(var(--u) * 44);border:0;background:none;color:#bfaeb1;font:400 calc(var(--u) * 20)/1 var(--f-ui);cursor:pointer}
 @media (prefers-reduced-motion:no-preference){.ko-invite.is-in{animation:ko-invite-in .45s cubic-bezier(.2,1.2,.4,1) both}}
 @keyframes ko-invite-in{from{transform:translateY(calc(var(--u) * -80));opacity:0}}
-.ko-lseat-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 calc(var(--u) * 11)/1.2 var(--f-ui);color:#fff}
-.ko-lseat.is-empty{position:relative}
-.ko-lseat.is-empty::before{content:'';width:calc(var(--u) * 50);height:calc(var(--u) * 50);box-sizing:border-box;border-radius:50%;border:1.5px dashed #ffffff33}
-.ko-lseat.is-empty.is-first{cursor:pointer}
-.ko-lseat-plus{position:absolute;top:calc(var(--u) * 12);font:300 calc(var(--u) * 24)/1 var(--f-ui);font-style:normal;color:#bfaeb1}
-.ko-lseat.is-empty span{font:600 calc(var(--u) * 11)/1.2 var(--f-ui);color:#9a9a9a}
-.ko-lseat.is-arriving .ko-lseat-face{animation:ko-arrive .5s cubic-bezier(.2,1.5,.4,1)}
-@keyframes ko-arrive{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
-.ko-codecard{display:flex;align-items:center;justify-content:space-between;margin-top:calc(var(--u) * 14);padding:calc(var(--u) * 12) calc(var(--u) * 18);border-radius:16px}
-.ko-codecard i{display:block;font:800 calc(var(--u) * 10)/1.3 var(--f-ui);font-style:normal;color:#9a9a9a;letter-spacing:.06em}
-.ko-codecard b{display:block;font:400 calc(var(--u) * 26)/1.2 var(--f-display);color:#fff;letter-spacing:.08em}
-.ko-around-head.is-row{margin:calc(var(--u) * 18) 0 calc(var(--u) * 8)}
-.ko-around-strip{display:flex;gap:calc(var(--u) * 6);overflow-x:auto;scrollbar-width:none;margin:0 calc(var(--u) * -20);padding:0 calc(var(--u) * 20)}
-.ko-around-strip::-webkit-scrollbar{display:none}
-.ko-around-cell{flex:none;width:calc(var(--u) * 68);display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 5)}
-.ko-around-cell .ko-around-face{width:calc(var(--u) * 52);height:calc(var(--u) * 52)}
-.ko-around-cell b{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 calc(var(--u) * 13)/1.2 var(--f-ui);color:#fff}
 .ko-keys-pair{display:flex;gap:calc(var(--u) * 10)}
 .ko-keys-pair>*{flex:1}
 .ko-keys-pair .hidden{display:none}
@@ -738,19 +750,6 @@ body.ko-watch #end{visibility:hidden}
 .ko-keys .k-cta.is-go{box-shadow:0 0 calc(var(--u) * 26) #ee2a2a8c}
 @media (prefers-reduced-motion:no-preference){.ko-keys .k-cta.is-go{animation:ko-go 1.8s ease-in-out infinite}}
 @keyframes ko-go{50%{box-shadow:0 0 calc(var(--u) * 34) #ee2a2ad9}}
-/* The bar over the keys: who the room is waiting for, with the host's NUDGE; or how this player went in the match on. */
-.ko-lobby-bar{display:flex;align-items:center;gap:calc(var(--u) * 10);min-height:calc(var(--u) * 46);box-sizing:border-box;padding:calc(var(--u) * 7) calc(var(--u) * 12);border-radius:16px;
-  background:#1d1114f5;border:1px solid #ffffff1f}
-.ko-lobby-bar.is-waiting{border-color:#ffb02073}
-.ko-lobby-bar.is-good{border-color:#3fbf5a73}
-.ko-lobby-bar.is-out{border-color:#ee2a2a73}
-.ko-bar-faces{display:flex;flex:none}
-.ko-bar-faces:empty{display:none}
-.ko-bar-faces img{width:calc(var(--u) * 24);height:calc(var(--u) * 24);border-radius:50%;object-fit:cover;background:#2a1a1e;border:2px solid #1d1114;box-sizing:border-box}
-.ko-bar-faces img+img{margin-left:calc(var(--u) * -8)}
-.ko-bar-text{flex:1;min-width:0;display:grid;gap:calc(var(--u) * 2)}
-.ko-bar-text b{font:700 calc(var(--u) * 13)/1.2 var(--f-ui);color:#f5efe6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ko-bar-text small{font:500 calc(var(--u) * 11)/1.2 var(--f-ui);color:#bfaeb1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ko-pill.is-gold{border-color:#ffb020cc;background:#3a2a08;color:#ffd98a}
 .ko-pill.is-gold.is-sent{border-color:#ffffff24;background:#ffffff0f;color:#bfaeb1}
 /* A nudge from the host, on the phone holding the room up: the invite's banner, in amber. */
@@ -775,17 +774,17 @@ body.ko-watch #end{visibility:hidden}
 .ko-remove-key span{color:#ff8a8a;font-size:calc(var(--u) * 18)}
 .ko-sheet-note{margin:0;color:#8e7c80;font:500 calc(var(--u) * 12)/1.4 var(--f-ui)}
 /* The match on, in the room: everybody still in, as the end screen's rings, where AROUND NOW stands. */
-.ko-still{margin:calc(var(--u) * 16) calc(var(--u) * -20) 0}
+.ko-still{margin:calc(var(--u) * 18) calc(var(--u) * -20) 0}
 .ko-still-head{display:flex;align-items:center;justify-content:space-between;margin:0 0 calc(var(--u) * 6);padding:0 calc(var(--u) * 20);font:800 calc(var(--u) * 10)/1 var(--f-ui);letter-spacing:.1em;color:#f5efe680}
 .ko-still-head button{border:0;background:none;padding:calc(var(--u) * 6) 0;font:800 calc(var(--u) * 11)/1 var(--f-ui);letter-spacing:.06em;color:#ffd98a;cursor:pointer}
 .ko-still .ko-ring{position:relative}
 /* The match that just ended: who won it, where this player came, and its Results. */
-.ko-last{display:flex;align-items:center;gap:calc(var(--u) * 12);margin-top:calc(var(--u) * 12);padding:calc(var(--u) * 10) calc(var(--u) * 14);border-radius:20px;
+.ko-last{display:flex;align-items:center;gap:calc(var(--u) * 12);margin-top:calc(var(--u) * 12);padding:calc(var(--u) * 8) calc(var(--u) * 12);border-radius:16px;
   background:linear-gradient(180deg,#2b2110,#1a1408);border:1px solid #ffb02080}
-.ko-last img{flex:none;width:calc(var(--u) * 46);height:calc(var(--u) * 46);border-radius:50%;object-fit:cover;background:#2a1a1e;border:2.5px solid #ffb020;box-sizing:border-box}
+.ko-last img{flex:none;width:calc(var(--u) * 40);height:calc(var(--u) * 40);border-radius:50%;object-fit:cover;background:#2a1a1e;border:2.5px solid #ffb020;box-sizing:border-box}
 .ko-last-text{flex:1;min-width:0;display:grid;gap:calc(var(--u) * 2)}
 .ko-last-text i{font:800 calc(var(--u) * 10)/1.2 var(--f-ui);font-style:normal;letter-spacing:.06em;color:#ffd98a}
-.ko-last-text b{font:400 calc(var(--u) * 20)/1.1 var(--f-display);color:#f5efe6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ko-last-text b{font:400 calc(var(--u) * 18)/1.1 var(--f-display);color:#f5efe6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ko-last-text small{font:500 calc(var(--u) * 12)/1.2 var(--f-ui);color:#bfaeb1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ko-last .ko-pill{min-width:0;padding:0 calc(var(--u) * 10)}
 /* A match kept under the room (BACK TO ROOM while it is still being played): its end screen waits out of sight. */

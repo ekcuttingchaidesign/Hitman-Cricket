@@ -2711,16 +2711,28 @@ INVITE's line off before its link, and a long press on four invisible boxes
 was hard to find on a phone (the owner could not paste a copied code, 18
 November 2026).
 
-The lobby (`LobbyScreen`, `#knockout-lobby`): YOUR MATCH, N OF 12 IN, one
-line under it saying where the room stands (`#ko-lobby-note`), the twelve
-seats in two rows of six (HOST under the host's face, a tick on a guest who
-has said I'M READY, you ringed white, the first empty seat + Invite, which
-shares), MATCH CODE · FRIENDS TYPE THIS IN with COPY, AROUND NOW as a strip
-of faces with INVITE turning SENT ✓, and the keys: INVITE in green, the
-narrower (the phone's share sheet with the match's link, `?k=CODE`, or the
-link copied; it went dark for a day and the owner wanted the green kept),
-beside the hero key, START NOW for the host or I'M READY for a guest, green
-once it says READY ✓. One row of six seats until the sixth is in, then both.
+The lobby (`LobbyScreen`, `#knockout-lobby`) is drawn for the people in it
+(sections 56 and 57 as redrawn; the owner found the first cut cluttered and
+the players cramped, 19 November 2026): YOUR MATCH, N OF 12 IN, one line
+under it saying where the room stands (`status`, `#ko-lobby-note`, amber
+while somebody is waited for, green once everybody is ready, the host's
+NUDGE beside it); then only the players who have joined (`.ko-people`,
+`#ko-seats`), faces 68 across and four to a row, a plain word under each
+name (`.ko-lseat-sub`: Host, Ready, Not ready), a green ring and a tick on a
+ready face, a dashed amber ring on one waited for, you ringed white, and one
+Invite tile after them, which shares; six to a row at 50 once a ninth tile is
+wanted (`is-many`), so all twelve still fit a phone. Then MATCH CODE as one
+slim row with COPY, AROUND NOW · TAP TO INVITE as one line of chips
+(`.ko-chip`, a tap turning its + to a green ✓; left out when nobody is
+around), and the keys: INVITE in green, the narrower (the phone's share
+sheet with the match's link, `?k=CODE`, or the link copied; it went dark for
+a day and the owner wanted the green kept), beside the hero key, START NOW
+for the host or I'M READY for a guest, green once it says READY ✓. What it
+replaced, not to be built again: twelve seats drawn six to a row, most of
+them empty dashed circles, a pill stuck over every face (HOST, READY ✓, NOT
+READY), a tall code card, Around now as a strip of big faces each with an
+INVITE pill, and a status bar over the keys saying what the line under the
+count already said.
 
 Everybody ready before the start (Figma Battle Royale page, section 56, node
 `1035:13860`; the owner started a match from the computer while the phone had
@@ -2728,13 +2740,12 @@ not said I'M READY, 19 November 2026). START NOW sleeps until every friend in
 the room has said I'M READY and there is at least one; the host's own ready
 is pressing START. The store keeps it (`startMatch`, `notReady`): a START with
 anybody not ready is refused, "Waiting for Kabir and Meera to be ready."
-(`namesOf` in `match-code.ts`, the screen's words too). Each friend's seat
-says READY ✓ or NOT READY (amber, dashed, a little dimmed); the line under
-the count keeps score (2 of 4 friends ready); and a bar over the keys
-(`#ko-lobby-bar`, `bar` in `LobbyScreen`) names who the room is waiting for,
-with one NUDGE for all of them on the host's phone, and on a guest's says
-You're not ready yet or who is still to come. A tap on a friend's seat is the
-host's sheet (`#ko-seat-sheet`): NUDGE KABIR, and REMOVE FROM MATCH (the
+(`namesOf` in `match-code.ts`, the screen's words too). Each friend says
+Ready or Not ready under their name (amber, dashed, a little dimmed); and
+the line under the count names who the room is waiting for (Waiting for
+Kabir and Meera), with one NUDGE for all of them on the host's phone, and on
+a guest's says Mojo is waiting for you to be ready, or who is still to come.
+A tap on a friend's face is the host's sheet (`#ko-seat-sheet`): NUDGE KABIR, and REMOVE FROM MATCH (the
 store's `remove`, as before: back once with the link). A nudge
 (`nudgeInMatch`, the store's `nudge`: the host's alone, in the lobby only,
 each friend no more often than `NUDGE_GAP_MS`, kept as a time under a field
@@ -2752,8 +2763,9 @@ show (`overflow-x:hidden` on `.ko-scroll`, the lobby's grain its own
 height); the kit's hero key is never narrower than 210, which beside INVITE
 at 46% was wider than the screen (`.ko-keys-pair .k-cta--primary`); and
 three rows of four seats with a second line under the list ran past the
-foot. It fits a phone 680 high with Around now showing, and scrolls only on
-one shorter. I'M READY was a dark key beside a green INVITE and read as
+foot. It fits a phone 680 high with Around now showing, with five in it or
+all twelve, and scrolls only on one shorter (`friends-check` holds the fit
+and the faces' size). I'M READY was a dark key beside a green INVITE and read as
 switched off. JOIN on Play with friends is a face on a ledge in Knockout Red
 (`.ko-join-go`): flat red, it had no depth beside every other key. START NOW counts
 WALKING OUT IN 3 on every phone to the same moment (`walkOutAt`, the store's
@@ -2781,7 +2793,7 @@ else: it stood under the waiting pill too, for a player out and waiting on the
 cut, and the owner wanted it off the game and on the ending screens only. The
 phone leaves the match's screens for the room's (`toRoom`, the lobby over
 Choose a mode), its unsent balls going first. In
-the room everybody still batting is tagged PLAYING (`playing` on the member:
+the room everybody still batting is said to be Batting (`playing` on the member:
 seated, not back, not away from it, the match not over) and START NOW and
 I'M READY sleep until the match is over. A phone on which the match is over,
 somebody having won it (`room.done`), says so once (`doneMatch`, `over`): not
@@ -2943,11 +2955,11 @@ stay as they are under the room's screen, the match moving on as balls
 arrive (`lobbyNews` passes each answer to `matchNews` and then draws the room
 over it). The room then says how the match stands (`match` on `LobbyView`):
 MATCH ON · OVER 3 where the count was, how many are still in, a friend still
-batting in the end screen's story ring with their score under the face
-(`is-watch`), those out OUT · 9TH, everybody still in (subs too) as a strip
-of rings where AROUND NOW stood with LEADERBOARD beside its head, the bar
-saying how this player went, and WATCH as the hero key. A tap on a ringed
-seat, a ring, or WATCH (the leader) opens that player's game as section 51's
+batting in the end screen's story ring with their score under the name
+(`is-watch`, 41* · batting), those out Out · 9th, this player too, no Invite
+tile, everybody still in (subs too) as a strip of rings where AROUND NOW
+stood with LEADERBOARD beside its head, and WATCH as the hero key. A tap on
+a ringed face, a ring, or WATCH (the leader) opens that player's game as section 51's
 story (`watchFromRoom`); ✕ is the room (`unwatch`, `showMatchRoom`), where
 opened from the end screen it is the end screen. LEADERBOARD in the room is
 the standings as they are, over the room. Watching when the match ends, MATCH
@@ -2957,7 +2969,7 @@ when it ends, nothing is played over it: the kept match is let go
 one card keeps who won it and where this player came, with LEADERBOARD for
 its Results (`lastMatch`, `#ko-lobby-last`), until the next match starts. A
 phone that never batted the match (joined the room late, or reloaded) has
-nothing to watch from: it sees who is PLAYING as before.
+nothing to watch from: it sees who is Batting as before.
 
 Reactions travel (the owner sent one and the other device never showed it,
 19 November 2026: they only floated where they were sent from). The tray's
