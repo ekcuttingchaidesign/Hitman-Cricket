@@ -2551,6 +2551,8 @@ export class Game {
     held: boolean;
     /** Reactions already shown here, by the store's id for each. */
     reacted: Set<string>;
+    /** Which ball of the match the one being bowled is, as it was bowled. */
+    facing: number;
   } | null = null;
   /** Walking out of the lobby: the moment every phone counts to, by the store's clock. */
   private walkOutAt: { at: number; timer: number } | null = null;
@@ -2732,7 +2734,7 @@ export class Game {
     this.lobbyScreen?.hide(); this.friendsScreen?.hide();
     this.hud.knockoutRules(false); this.hud.knockoutHome(null); this.hud.closeModes();
     this.matchPlay = { code: match.code, me, seed: match.seed, seats, you: match.seats.indexOf(mine), deliveries: [], balls: [], sending: false, sendAt: 0, refused: null, sendFails: 0,
-      batted: 0, out: false, asked: new Map(), beatAt: 0, fresh: true, view: match, logAt: 0, held: false, round: match.round, dirty: false, doneSent: false, leaving: false, reacted: new Set() };
+      batted: 0, out: false, asked: new Map(), beatAt: 0, fresh: true, view: match, logAt: 0, held: false, round: match.round, dirty: false, doneSent: false, leaving: false, reacted: new Set(), facing: 0 };
     this.mode = 'CLASSIC';
     this.knockoutPicked = true;
     track('knockout-match-walkout', 'Walked out in a match with friends');
@@ -2776,10 +2778,15 @@ export class Game {
     if (!play || play.leaving) return;
     play.leaving = true;
     this.hud.knockoutWaiting('BACK TO THE ROOM…');
-    for (let tries = 0; tries < 6 && this.matchPlay === play && this.storedCard(play).length < play.balls.length; tries++) {
+    for (let tries = 0, refused = 0; tries < 6 && refused < 2 && this.matchPlay === play && this.storedCard(play).length < play.balls.length; tries++) {
       const next = this.storedCard(play).length;
+      if (play.balls[next] === undefined) break;
       const sent = await ballInMatch(play.code, play.me, next, play.balls[next], play.round);
-      if (sent.ok && sent.match) play.view = sent.match; else await new Promise(done => window.setTimeout(done, 400));
+      if (sent.ok && sent.match) { play.view = sent.match; continue; }
+      // Turned away twice, it is not going to land (the room has moved on to its next match, a sub has the ball): the way
+      // back is not held up for it. A send lost on the way is tried again.
+      if (!sent.retry) refused++;
+      await new Promise(done => window.setTimeout(done, 400));
     }
     const answer = await backToRoom(play.code, play.me);
     if (this.matchPlay !== play) return;
@@ -2834,6 +2841,7 @@ export class Game {
   /** The ball this player is bowled next in a match, released when the run-up says. */
   private matchBowled(release: number): Delivery {
     const play = this.matchPlay!;
+    play.facing = play.batted;
     const ball = this.matchDelivery(Math.min(play.batted, KNOCKOUT.maxBalls - 1))!;
     return { ...ball, releaseTimeMs: release, idealContactTimeMs: release + ball.durationMs };
   }
@@ -2913,7 +2921,7 @@ export class Game {
     // The next ball the store does not have yet, sent from where its card has got to: a ball lost on the way, or
     // turned away, is sent again from there, a little later each time it fails (up to four seconds).
     const next = this.storedCard(play).length;
-    if (!play.sending && now >= play.sendAt && next < play.balls.length && play.balls[next] !== undefined) {
+    if (!play.sending && now >= play.sendAt && next < Math.min(play.balls.length, KNOCKOUT.maxBalls) && play.balls[next] !== undefined) {
       play.sending = true;
       void ballInMatch(play.code, play.me, next, play.balls[next], play.round).then(answer => {
         play.sending = false;
@@ -7986,7 +7994,13 @@ export class Game {
     const room = this.knockout!;
     if (this.matchPlay) {
       // A match with friends: the ball goes to the store, and the room counts it once the store has it, as every other phone will.
-      const play = this.matchPlay, ball = play.batted++;
+      const play = this.matchPlay;
+      // The store went on while this ball was in the air: it took the phone for away (a bad connection, a page starved of
+      // frames) and a sub has batted the over, this ball with it. The ball is the sub's. Counted as the player's it was filed
+      // under whichever ball the store's card had got to, and at the innings' end as a thirty-first, which the store never
+      // takes and BACK TO ROOM kept trying to send before it would go (seen in friends-check, 19 November 2026).
+      if (play.facing !== play.batted || play.batted >= KNOCKOUT.maxBalls) { this.matchWaitLine(); return; }
+      const ball = play.batted++;
       play.out ||= outcome.isWicket;
       play.balls[ball] = ballChar(outcome.runs, outcome.isWicket);
       this.matchWaitLine();

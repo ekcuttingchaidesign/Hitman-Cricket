@@ -2800,7 +2800,13 @@ the guest's own balls were turned away (seen in `friends-check`, 19 November
 2026; it is how most real matches start). Everybody seated is taken as there
 at the walk-out and has `AWAY_MS` from it, in the view's `quiet`, in `busy`
 and in the store's own judgement. An ask the store turns down is
-asked again `MATCH_REASK_MS` later, never given up on. A phone checks in every
+asked again `MATCH_REASK_MS` later, never given up on. A ball in the air when the
+store's card goes on past it (the phone taken for away and its over handed
+to a sub) is the sub's and is not counted here (`facing` on `matchPlay`,
+checked in `knockoutBall`): counted, it was filed under whichever ball the
+card had got to, and at the innings' end as a thirty-first, which the store
+never takes and BACK TO ROOM kept trying to send before it would go. The
+way back gives up on a ball turned away twice. A phone checks in every
 five seconds while its player bats or waits (`MATCH_BEAT_MS`), and not while
 paused, so a pause is the same as dropping out. Nothing about a match is
 cached (`KNOCKOUT_CACHE`, `no-store`), and an answer older than the one a
