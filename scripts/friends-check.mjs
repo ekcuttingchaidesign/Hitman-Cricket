@@ -223,8 +223,15 @@ check(await until('keys', async () => (await againKey(a)) === 'BACK TO ROOM' && 
 await pressAgain(a);
 check(await until('host room', () => visible(a, '#knockout-lobby'), 20_000), 'the host is back in the room');
 check((await text(a, '#ko-lobby-code')).replace(/\s/g, '') === code && (await text(a, '#ko-lobby-count')) === '2 OF 12 IN', 'the same room: its code, and both still in it', `${await text(a, '#ko-lobby-code')} · ${await text(a, '#ko-lobby-count')}`);
+const before = { key: await againKey(b), ko: await ko(b), store: (await (await fetch(`${base}/api/challenge?knockout=1&code=${code}`)).json()).match };
 await pressAgain(b);
-check(await until('guest room', () => visible(b, '#knockout-lobby'), 20_000), 'the guest is back in the room');
+const guestBack = await until('guest room', () => visible(b, '#knockout-lobby'), 20_000);
+check(guestBack, 'the guest is back in the room', guestBack ? '' : JSON.stringify({
+  key: before.key, was: { pending: before.ko?.pending, finished: before.ko?.finished, done: before.ko?.done, ending: before.ko?.ending, results: before.ko?.results, match: before.ko?.match },
+  store: { state: before.store?.state, round: before.store?.round, over: before.store?.over, busy: before.store?.busy, members: before.store?.members.map(m => `${m.name}:${m.playing ? 'playing' : m.back ? 'back' : 'in'}:${m.card.length}`) },
+  now: await ko(b), phase: await phase(b), waiting: await text(b, '#ko-waiting'), keyNow: await againKey(b), errors: b.errors,
+  screens: await b.evaluate(() => ['ko-moment', 'ko-results', 'knockout-lobby', 'knockout-friends', 'knockout-home', 'modes', 'end'].map(id => { const el = document.getElementById(id); return `${id}:${!el ? 'none' : el.classList.contains('hidden') ? 'hidden' : 'up'}`; }).join(' ')),
+  notice: await b.evaluate(() => [...document.querySelectorAll('.notice, #notice, .toast, [role="status"]')].map(el => el.textContent?.trim()).filter(Boolean).join(' | ').slice(0, 300)) }));
 check(await until('lobby again', async () => !(await a.evaluate(() => document.getElementById('ko-lobby-start').disabled)) && !(await a.evaluate(() => !!document.querySelector('#ko-seats .is-playing'))), 20_000),
   'with the match over nobody is tagged PLAYING and START NOW is awake');
 await a.screenshot({ path: `${out}/room-again.png` });
@@ -234,6 +241,7 @@ check(again.every(Boolean), 'START NOW walks both out into the room’s second m
 const [ra, rb] = [await ko(a), await ko(b)];
 check(ra?.table === rb?.table && ra?.roomBalls === 0, 'a fresh match, the same on both phones', `${ra?.roomBalls} · ${ra?.table === rb?.table}`);
 
+if (process.env.ONLY === 'match') { await browser.close(); console.log(failures ? `\n${failures} failed` : '\nall passed'); process.exit(failures ? 1 : 0); }
 // 5. A phone that goes away. The first match's two pages are put away first: three renderers in software starve the one batting.
 console.log('A phone that goes away');
 await a.close(); await b.close();
