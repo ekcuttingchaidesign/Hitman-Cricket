@@ -283,9 +283,21 @@ function playingIn(match: StoredMatch, id: string): boolean {
   return !!match.start && !!m && match.over !== match.round && match.start.seats.includes(id) && !m.left && m.back !== match.round;
 }
 
+/**
+ * When a member was last heard from, for judging who has gone quiet in a match: never before its walk-out. A phone
+ * checks in only once it is batting, so a guest who said I'M READY and waited half a minute for the host to start was
+ * already "quiet" as the match began, and if the host's phone asked before the guest's first check-in landed a sub
+ * batted the guest's first over (seen in friends-check, 19 November 2026). Everybody seated is taken as there at the
+ * walk-out, and has `AWAY_MS` from it.
+ */
+function heardAt(match: StoredMatch, id: string): number {
+  const m = match.members[id];
+  return Math.max(m?.seen || m?.joined || 0, match.start?.seats.includes(id) ? match.start.at : 0);
+}
+
 /** How many are still batting the match and being heard from: the room goes back to its lobby when it is none. */
 function busyIn(match: StoredMatch, now: number): number {
-  return Object.keys(match.members).filter(id => playingIn(match, id) && now - (match.members[id].seen || 0) < AWAY_MS).length;
+  return Object.keys(match.members).filter(id => playingIn(match, id) && now - heardAt(match, id) < AWAY_MS).length;
 }
 
 export function viewOf(code: string, match: StoredMatch, now = Date.now()): MatchView {
@@ -295,7 +307,7 @@ export function viewOf(code: string, match: StoredMatch, now = Date.now()): Matc
     const seat = seats.indexOf(id);
     return {
       handle: handleOf(id), name: m.name, avatar: m.avatar, joined: m.joined, ready: !!m.ready, host: id === match.host,
-      seat: seat >= 0 ? seat : null, card: cardOf(match, id), quiet: Math.max(0, now - (m.seen || m.joined)),
+      seat: seat >= 0 ? seat : null, card: cardOf(match, id), quiet: Math.max(0, now - heardAt(match, id)),
       idle: match.start ? Math.max(0, now - Math.max(m.ballAt ?? 0, match.start.at)) : 0, left: !!m.left,
       playing: playingIn(match, id), back: !!match.start && seat >= 0 && m.back === match.round,
     };
@@ -548,7 +560,7 @@ export async function awayInMatch(store: KnockoutStore, code: string, input: Mem
   const which = Number(over);
   if (!target || !Number.isInteger(which) || which < 0 || which * OVER_BALLS >= MATCH_BALLS) return refuse(400, 'That is not somebody in this match.');
   const held = match.members[target];
-  const quiet = now - (held?.seen ?? 0);
+  const quiet = now - heardAt(match, target);
   const card = cardOf(match, target);
   if (card.includes('W')) return answer(store, clean, now);
   const idle = now - Math.max(held?.ballAt ?? 0, match.start.at);

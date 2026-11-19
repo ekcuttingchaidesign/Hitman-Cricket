@@ -284,7 +284,7 @@ check(await until('lobby four', () => visible(e, '#knockout-lobby'), 30_000), 'a
 await api('start', goneId, gone, 4, { code: fourth });
 check(await until('walk four', async () => !!(await ko(e))?.match, 15_000), 'the guest walks out');
 // The host bats on, by the script: a six every eighteen seconds (slower than the guest is bowled to, so a guest out in an over is out before its cut), so the match is still being played when the guest is out of it.
-// (Heard from at once, and its first ball with it: a host last heard from in the lobby is away from the first ball, and a sub's.)
+// (Heard from at once, and its first ball with it: the script is no phone, so nothing checks in for the host but this.)
 let hostBall = 0;
 const hostBat = () => api('ball', goneId, gone, 4, { code: fourth, ball: hostBall, value: '6', round: 1 }).then(sent => { if (sent.match) hostBall = sent.match.members.find(m => m.name === gone)?.card.length ?? hostBall; }).catch(() => {});
 await api('beat', goneId, gone, 4, { code: fourth });

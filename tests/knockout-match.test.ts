@@ -215,6 +215,24 @@ describe('a match with friends', () => {
     expect(ok(await readMatch(store, code, T0 + 33_000)).members[1].card).toBe('12SSSS4');
   });
 
+  it('takes everybody seated as there at the walk-out: a guest who waited in the lobby is not away as the match begins', async () => {
+    const store = setup();
+    const { code } = ok(await hostMatch(store, as(0), T0));
+    // Ready, and then a minute in the lobby with nothing to say: a phone checks in only once it is batting.
+    ok(await joinMatch(store, code, as(1), T0 + 10));
+    ok(await readyMatch(store, code, as(1), true, T0 + 20));
+    const begun = T0 + 60_000;
+    const live = ok(await startMatch(store, code, as(0), begun));
+    expect(live.members[1].quiet).toBe(0);
+    expect(live.busy).toBe(2);
+    // The host's phone asks the moment it walks out, before the guest's first check-in has landed: nobody is subbed.
+    const walkOut = begun + START_IN_MS;
+    expect(ok(await awayInMatch(store, code, as(0), handleOf(ids[1]), 0, walkOut + 50)).members[1].card).toBe('');
+    expect(ok(await awayInMatch(store, code, as(0), handleOf(ids[1]), 0, walkOut + AWAY_MS - 1)).members[1].card).toBe('');
+    // Still nothing from them a full wait after the walk-out: then they are away, and a sub bats the over.
+    expect(ok(await awayInMatch(store, code, as(0), handleOf(ids[1]), 0, walkOut + AWAY_MS)).members[1].card).toBe('SSSSSS');
+  });
+
   it('subs a player still checking in who has sent no ball for a minute, and only then', async () => {
     const { store, code } = await started();
     ok(await ballInMatch(store, code, as(1), 0, '1', T0 + 6000));
@@ -375,8 +393,11 @@ describe('a match with friends', () => {
       const { store, code } = await three();
       ok(await backToRoom(store, code, as(0), T0 + 7000));
       ok(await backToRoom(store, code, as(1), T0 + 7000));
-      // Zoya was last heard from when she joined: quiet long enough, and the room is free.
-      const lobby = ok(await settleMatch(store, code, as(0), T0 + 20 + AWAY_MS));
+      // Zoya has not been heard from since she joined. She is taken as there at the walk-out, and has a full wait from it:
+      // until then the room is hers to bat in, and after it the room is free.
+      const walkOut = T0 + 20 + START_IN_MS;
+      expect(ok(await settleMatch(store, code, as(0), walkOut + AWAY_MS - 1)).state).toBe('live');
+      const lobby = ok(await settleMatch(store, code, as(0), walkOut + AWAY_MS));
       expect(lobby.state).toBe('lobby');
       expect(lobby.members.map(m => m.name)).toEqual(['Kabir', 'Riya', 'Zoya']);
     });

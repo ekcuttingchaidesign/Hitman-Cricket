@@ -2791,7 +2791,15 @@ still checking in with no ball for `STALL_MS`, ninety seconds (a minute was
 less than one ball takes in a headless check), counted from the
 walk-out before their first, is stuck and away too: `idle` on the member), and
 writes the sub's balls (`S`) into the same fields, so whichever lands first
-owns the ball and every phone reads one answer. An ask the store turns down is
+owns the ball and every phone reads one answer. Quiet is counted from the walk-out at the earliest
+(`heardAt`): a phone checks in only once it is batting, never in the lobby,
+so a guest who said I'M READY and waited half a minute for the host to start
+was already quiet as the match began, and if the host's phone asked before
+the guest's first check-in landed a sub batted the guest's first over and
+the guest's own balls were turned away (seen in `friends-check`, 19 November
+2026; it is how most real matches start). Everybody seated is taken as there
+at the walk-out and has `AWAY_MS` from it, in the view's `quiet`, in `busy`
+and in the store's own judgement. An ask the store turns down is
 asked again `MATCH_REASK_MS` later, never given up on. A phone checks in every
 five seconds while its player bats or waits (`MATCH_BEAT_MS`), and not while
 paused, so a pause is the same as dropping out. Nothing about a match is
