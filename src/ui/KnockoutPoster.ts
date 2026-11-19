@@ -83,7 +83,9 @@ export class KnockoutPoster {
   private readonly frame = (now: number) => {
     this.raf = requestAnimationFrame(this.frame);
     if (document.hidden) { this.last = now; return; }
-    const dt = Math.min(.05, (now - this.last) / 1000);
+    // Never backwards: a frame's own time can be a little before the moment the poster was started in (a busy page), and a
+    // flash aged backwards drew with a radius below nothing, which a canvas refuses.
+    const dt = Math.max(0, Math.min(.05, (now - this.last) / 1000));
     this.last = now;
     const ctx = this.ctx!, c = this.canvas;
     const dpr = Math.min(2, devicePixelRatio || 1), wide = c.clientWidth, high = c.clientHeight;

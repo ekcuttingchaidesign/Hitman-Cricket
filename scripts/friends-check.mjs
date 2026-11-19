@@ -184,6 +184,9 @@ const firstOver = await until('over 1', async () => {
   return x && y && x.roomBalls >= 6 && y.roomBalls >= 6;
 }, 240_000, 400);
 check(firstOver, 'both phones bat the first over and the cut lands on both');
+// Nobody swings and the balls are the same on both phones, so both can be out on the same one: with only subs left the
+// cut lands at once, before either end screen is up, and the loop above has gone. It comes a moment later.
+if (!held && !outEarly) outEarly = await until('end screen', async () => [await ko(a), await ko(b)].some(k => k?.match?.out && k.roomOn), 20_000, 400);
 // Nobody swings, so which it is goes by the bowling: through the over not out, the pill; out in it, the end screen.
 check(held || outEarly, `the phone through first waited at the over’s end with the pill up, or was out and went to its end screen (${held ? 'the pill' : 'out'})`);
 check(turnedAway === 1, 'the guest’s first ball was turned away once');
