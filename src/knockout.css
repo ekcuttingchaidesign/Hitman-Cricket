@@ -187,8 +187,12 @@ body.ko-glass .stage.result-open .score-stack{display:block;z-index:9}
 .ko-moment.is-lost.keys-up .ko-moment-keys .k-cta{transform:none}
 .ko-moment.is-lost.keys-up .ko-moment-keys .k-cta--primary{transition-delay:.04s}
 .ko-moment-keys .k-cta{min-width:0;width:auto}
-.ko-moment-keys .k-cta--secondary{flex:173;--ledge:#1c1f24;--face:#2a2e35;--ink:#c9ced6}
-.ko-moment-keys .k-cta--secondary .k-cta-face{font-size:calc(var(--u,1px) * 20);letter-spacing:.08em}
+/* LEADERBOARD: a key in its own right, in the knockout's gold on a warm dark face with a trophy. In slate grey on the
+   black it read as switched off beside BACK TO ROOM (the owner, 19 November 2026). */
+.ko-moment-keys .k-cta--secondary{flex:173;--ledge:#6b4a08;--face:linear-gradient(180deg,#3d2c0e,#261a07);--ink:#ffd98a}
+.ko-moment-keys .k-cta--secondary .k-cta-face{gap:calc(var(--u,1px) * 6);padding:0 calc(var(--u,1px) * 8);border:1.5px solid #ffb020cc;box-shadow:inset 0 1px 0 #ffe2a340;
+  font-size:calc(var(--u,1px) * 17);letter-spacing:.06em}
+.ko-moment-keys .k-cta--secondary .k-icon{width:calc(var(--u,1px) * 17);height:calc(var(--u,1px) * 17);color:#ffb020}
 /* PLAY AGAIN in Knockout Red: the rim from #ff525b to #c3121b round a face warming from white to pink. */
 .ko-moment-keys .k-cta--primary{flex:179;--c-cta-rim-top:#ff525b;--c-cta-rim-bottom:#c3121b;--c-cta-face-bottom:#ffbdc0;
   --g-cta-rim:linear-gradient(180deg,#ff525b,#c3121b);--g-cta-face:linear-gradient(180deg,#fff,#ffbdc0);--ledge:#c3121b}
@@ -705,9 +709,11 @@ body.ko-watch #end{visibility:hidden}
 .ko-keys-pair{display:flex;gap:calc(var(--u) * 10)}
 .ko-keys-pair>*{flex:1}
 .ko-keys-pair .hidden{display:none}
-/* INVITE is the quiet key and the hero beside it has the room: START NOW for the host, I'M READY for a guest. The kit's
-   hero key is never narrower than 210, which with INVITE at 46% ran START NOW off the screen's edge. */
-.ko-invite-key{flex:0 0 36%}
+/* INVITE in green, as it was and as the owner wanted it kept (it went dark for a day), the narrower of the two: the hero
+   beside it has the room, START NOW for the host, I'M READY for a guest. The kit's hero key is never narrower than 210,
+   which with INVITE at 46% ran START NOW off the screen's edge. */
+.ko-invite-key{flex:0 0 36%;background:#0f4a1f}
+.ko-invite-key::before{background:linear-gradient(180deg,#2aa64b,#1f8a3a);border-color:#166b2c;box-shadow:inset 0 1px 0 #ffffff40}
 .ko-keys-pair .k-cta--primary{width:auto;min-width:0}
 .ko-ready-key.is-ready{--g-cta-rim:linear-gradient(180deg,#58d877,#1f8a3a);--g-cta-face:linear-gradient(180deg,#f2fff5,#b8f0c6);--ledge:#1f8a3a}
 .ko-walkout{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u) * 8);

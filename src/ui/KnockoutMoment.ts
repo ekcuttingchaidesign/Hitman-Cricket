@@ -235,7 +235,7 @@ export class KnockoutMoment {
     this.root.setAttribute('role', 'dialog');
     this.root.innerHTML = `${view.won ? '' : '<div class="ko-drain" aria-hidden="true"></div>'}<canvas class="ko-moment-stage" aria-hidden="true"></canvas>
       <p class="ko-moment-said"></p>
-      <div class="ko-moment-keys">${cta({ kind: 'secondary', label: 'SCORECARD', id: 'ko-card' })}${cta({ kind: 'primary', label: 'PLAY AGAIN', id: 'ko-again', moving: true })}</div>`;
+      <div class="ko-moment-keys">${cta({ kind: 'secondary', label: 'SCORECARD', id: 'ko-card', icon: 'trophy' })}${cta({ kind: 'primary', label: 'PLAY AGAIN', id: 'ko-again', moving: true })}</div>`;
     host.append(this.root);
     this.say();
     // The card waits underneath, out of sight: what shows through the dark is the match.
@@ -294,7 +294,8 @@ export class KnockoutMoment {
   private board: (() => void) | null = null;
   private lineNow: string | null = null;
   private label(text: string) {
-    const face = this.root.querySelector('#ko-card .k-cta-face') ?? this.root.querySelector('#ko-card');
+    // The words alone: the key's trophy stays beside them.
+    const face = this.root.querySelector('#ko-card .k-cta-face>span') ?? this.root.querySelector('#ko-card .k-cta-face') ?? this.root.querySelector('#ko-card');
     if (face) face.textContent = text;
   }
   /** The room as it stands, for the rings. */
