@@ -183,7 +183,13 @@ const firstOver = await until('over 1', async () => {
   if (x?.match?.held || y?.match?.held) held = true;
   return x && y && x.roomBalls >= 6 && y.roomBalls >= 6;
 }, 240_000, 400);
-check(firstOver, 'both phones bat the first over and the cut lands on both');
+// (If not: what each phone and the store say, and the guest's own log line with its picture's pace, so a phone starved of
+// frames can be told from one that stopped.)
+check(firstOver, 'both phones bat the first over and the cut lands on both', firstOver ? '' : JSON.stringify({
+  host: await a.evaluate(() => { const k = window.__cricket.knockout(), s = window.__cricket.snapshot(); return { phase: s.phase, roomBalls: k?.roomBalls, match: k?.match, table: k?.table }; }),
+  guest: await b.evaluate(() => { const k = window.__cricket.knockout(), s = window.__cricket.snapshot(); return { phase: s.phase, roomBalls: k?.roomBalls, match: k?.match, table: k?.table }; }),
+  store: (m => ({ state: m?.state, round: m?.round, members: m?.members.map(x => `${x.name}:${x.card}:quiet ${x.quiet}:idle ${x.idle}`) }))((await (await fetch(`${base}/api/challenge?knockout=1&code=${code}`)).json()).match),
+  log: await text(b, '#match-log'), errors: [a.errors, b.errors] }));
 // Out, a phone waits for nobody at the crease: its end screen comes at once. Nobody swings and the balls are the same on
 // both phones, so both are often out on the same one; with only subs left the room is then played to its end there and
 // then, so the end screen is all there is to see of it (no rings: nobody is left to watch).
