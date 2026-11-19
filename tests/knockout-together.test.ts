@@ -94,6 +94,20 @@ describe('a match with friends, batted together', () => {
     expect(tables[0]).toBe(tables[1]);
   });
 
+  it('keeps every ball of every seat as it was played, for somebody watching to be shown a ball at a time', () => {
+    const { room } = play(13, 0, {});
+    for (const seat of room.seats) {
+      const plays = room.history.get(seat.id) ?? [], log = room.logs.get(seat.id) ?? [];
+      expect(plays).toHaveLength(seat.played);
+      // Each is the stroke and what it came to, the same ball the room counted.
+      plays.forEach((one, i) => { expect(one).not.toBeNull(); expect(one!.outcome).toEqual(log[i]); });
+    }
+    // A friend's ball is drawn as a stroke that suits it: nothing of their own swing travels.
+    const kabir = room.history.get(0)!;
+    expect(kabir[0]!.shot).toBeTruthy();
+    expect(kabir.map(one => one!.outcome.runs).slice(0, 4)).toEqual([1, 4, 6, 0]);
+  });
+
   it('fills the empty seats with subs, never named as a player in the match', () => {
     const room = new KnockoutRoom(3, { seats: SEATS, you: 1 });
     expect(room.seats).toHaveLength(KNOCKOUT.seats);

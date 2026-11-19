@@ -2719,14 +2719,17 @@ tagged there). The store keeps a `round`, from 1, and files each ball under
 it (`b:<round>:<player>:<ball>`), so one that lands late from the round
 before is never read as the next one's. BACK TO ROOM (`backToRoom` in
 `src/Game.ts`, the store's `back`) is the key under a match's end screens in
-place of PLAY AGAIN (`hud.knockoutAgain`, the Results' `again`), and stands
-under the waiting pill for a player who is out and waiting on the cut
-(`#ko-waiting-back`): the phone leaves the match's screens for the room's
-(`toRoom`, the lobby over Choose a mode), its unsent balls going first. In
+place of PLAY AGAIN (`hud.knockoutAgain`, the Results' `again`), and nowhere
+else: it stood under the waiting pill too, for a player out and waiting on the
+cut, and the owner wanted it off the game and on the ending screens only. The
+phone leaves the match's screens for the room's (`toRoom`, the lobby over
+Choose a mode), its unsent balls going first. In
 the room everybody still batting is tagged PLAYING (`playing` on the member:
 seated, not back, not away from it, the match not over) and START NOW and
-I'M READY sleep until the match is over. A phone that bats the match to its
-end says so once (`doneMatch`, `over`); and once nobody is still batting and
+I'M READY sleep until the match is over. A phone on which the match is over,
+somebody having won it (`room.done`), says so once (`doneMatch`, `over`): not
+`room.finished`, which is this player's part alone, and told the store the
+match was over under everybody still batting it; and once nobody is still batting and
 being heard from (`busy` on the view: every seat back, quiet past `AWAY_MS`,
 or the match over) any phone in the room asks it back to its lobby
 (`settleMatch`, from `lobbyNews` a few seconds apart, and from `back` itself):
@@ -2829,13 +2832,26 @@ on the phone's own count of balls batted) under one pill
 (`hud.knockoutWaiting`, `#ko-waiting`): WAITING FOR RIYA · 2 BALLS TO GO, or
 OUT ON 23 · WAITING FOR … while an out player waits for the cut that settles
 them. Knocked out, the room plays on as the store's balls arrive, on the end
-screen's rings (no WATCH ON yet in a match), to MATCH OVER and the Results
+screen's rings, with WATCH ON and the stories as a practice room has them (the
+owner missed them in a match, 19 November 2026). The room there is the
+store's, so a seat is not bowled to for the watcher: it is played back from
+what the room has kept of it (`history` on `KnockoutRoom`, every ball's play
+by seat; a friend's drawn by `playOf`, since their swing never travels), a
+ball at a time on the ground from the top of the over the room is in
+(`watchStored`, `seenOf`, `seen` on the room, kept by seat so a swipe away and
+back goes on from where it was). Caught up, the bowler waits at his mark under
+WAITING FOR RIYA'S NEXT BALL: a friend's balls are a few seconds behind them,
+a sub's come an over at a time. The header counts what the watcher has been
+shown, not where the room has got to, and the room's end waits for the seat
+watched to be caught up (`endDue`). WATCH ON is offered only while the room
+is still going (it stood as a dead key, in a practice room too, when the
+room was over as the player went). Then MATCH OVER and the Results
 (`With friends`, real players' podium line `friend`). The key under its end
 screens is BACK TO ROOM (above), never a practice room; a restart with
 batting still to do, or Choose a mode, lets the match and the room go,
 running away (5A) if the player was still in it. Not yet: points with three real players,
-the timer, the host's start-with-subs question, watching a friend's balls,
-and invites in Notifications.
+the timer, the host's start-with-subs question, reactions sent to whoever is
+watched, and invites in Notifications.
 
 `scripts/friends-check.mjs` walks it in two browsers in real time, nobody
 swinging: Play with friends, a wrong code, PASTE and a paste of INVITE's
@@ -2847,9 +2863,11 @@ the end, and a third match whose other phone never
 walks out, the sub batting its over, and a fourth whose host is the one who
 never walks out, the guest's room carried past a sub batting seat 0; BACK TO
 ROOM from both end screens and the room's second match started and walked out
-to; a guest out of a match going back to the room while the host, kept
-checking in by the script, is tagged PLAYING, then the match over and the
-host's next START; and an invite reaching a phone on the cover as a banner
+to; a guest knocked out of a match the script's host is still batting (BACK
+TO ROOM never over the game, the store not told it is over, the rings and
+WATCH ON on the end screen, a ball of somebody's watched, a swipe, ✕), going
+back to the room where the host is tagged PLAYING, then the match over and
+the host's next START; and an invite reaching a phone on the cover as a banner
 with JOIN, and listed on Play with friends. Never edit the source while it
 runs: the dev server reloads the pages under it.
 

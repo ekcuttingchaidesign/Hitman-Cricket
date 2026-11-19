@@ -2844,7 +2844,8 @@ export class Game {
     const moved = room.seats.reduce((n, seat) => n + seat.played, 0) !== before;
     if (!news.length && !moved && !this.matchPlay.fresh) { this.matchWaitLine(); return; }
     this.matchPlay.fresh = false;
-    if (this.room) { for (const one of news) this.roomNews(one, false); return; }
+    // Knocked out, the room is the end screen's rings (and a watched seat's story): they keep up with every ball, not only a cut.
+    if (this.room) { this.hud.knockoutRings(this.ringsOf()); for (const one of news) this.roomNews(one, false); return; }
     this.knockoutNews(news);
     this.matchWaitLine();
     // Settled with the player between balls (the final won as the other's wicket arrives): the innings ends there.
@@ -2871,8 +2872,9 @@ export class Game {
     if (MATCH_BALL_LIVE.includes(this.phase)) { play.dirty = true; return; }
     play.dirty = false;
     this.matchStep();
-    // The match is over on this phone: the store is told once, so the room knows nobody is still batting it.
-    if (room.finished && !play.doneSent) {
+    // The match is over, somebody having won it (not this player's part of it alone, which leaves the rest batting): the
+    // store is told once, so the room knows nobody is still batting it.
+    if (room.done && !play.doneSent) {
       play.doneSent = true;
       void doneMatch(play.code, me, play.round).then(answer => { if (!answer.ok && answer.retry && this.matchPlay === play) play.doneSent = false; else if (this.matchPlay === play) this.matchLink?.take(answer); });
     }
@@ -2973,20 +2975,19 @@ export class Game {
   /** The pill while the room is waited on: who is still batting the over, and how far they have to go. */
   private matchWaitLine() {
     const room = this.knockout;
+    // While somebody is being watched the pill is the watcher's (waiting for their next ball).
+    if (this.room && this.room.watching !== null) return;
     if (!room || !this.matchPlay || !this.matchHolding) { this.hud.knockoutWaiting(null); return; }
     const overEnd = Math.min(KNOCKOUT.maxBalls, (Math.floor(room.roomBalls / KNOCKOUT.ballsPerOver) + 1) * KNOCKOUT.ballsPerOver);
     this.matchPlay.held = true;
     const real = room.waitingOn().filter(seat => seat !== room.you && !seat.sub);
     if (this.matchPlay.leaving) return;
-    const out = room.you.out || this.matchPlay.out;
-    const head = out ? `OUT ON ${this.score.runs} · ` : '';
-    // Out, there is no more batting to wait for: the room is one tap away, where the rest are tagged PLAYING.
-    const back = out ? this.backToRoom : undefined;
+    const head = room.you.out || this.matchPlay.out ? `OUT ON ${this.score.runs} · ` : '';
     // Subs bat as soon as their balls are bowled: only a friend is ever waited on by name.
-    if (!real.length) { this.hud.knockoutWaiting(`${head}THE CUT IS COMING`, back); return; }
+    if (!real.length) { this.hud.knockoutWaiting(`${head}THE CUT IS COMING`); return; }
     const first = real[0], left = overEnd - first.played;
     const who = real.length > 1 ? `${first.name.toUpperCase()} AND ${real.length - 1} MORE` : first.name.toUpperCase();
-    this.hud.knockoutWaiting(`${head}WAITING FOR ${who} · ${left} ${left === 1 ? 'BALL' : 'BALLS'} TO GO`, back);
+    this.hud.knockoutWaiting(`${head}WAITING FOR ${who} · ${left} ${left === 1 ? 'BALL' : 'BALLS'} TO GO`);
   }
   private walkOut = () => this.start();
   start = () => {
@@ -7057,7 +7058,7 @@ export class Game {
       if (!this.matchPlay) tallyRoom(view.won ? 1 : view.place);
       // Knocked out, the glass is heard (`MomentSound`) and Moye moye comes in with the lights going out.
       this.hud.knockoutEnd(view, view.won ? undefined : cue => { if (cue === 'music') this.audio.music('knockout'); else this.audio.layer(cue); },
-        view.won || this.matchPlay ? undefined : id => this.watch(id));
+        view.won || this.knockout.done ? undefined : id => this.watch(id));
       // In a match with friends the way on is the room, where the next match is started.
       this.hud.knockoutAgain(this.matchPlay ? 'BACK TO ROOM' : null);
       // Knocked out with the room still going: it plays on, a ball at a time, as rings on the end screen (section 51).
@@ -7987,7 +7988,11 @@ export class Game {
    * scoreboard and the cuts landing as the ball does. Nothing of the player's
    * innings is touched: it is over, counted and on the card underneath.
    */
-  private room: { nextAt: number; watching: number | null; ball: RoomBall | null; ending?: RoomEnding } | null = null;
+  private room: {
+    nextAt: number; watching: number | null; ball: RoomBall | null; ending?: RoomEnding;
+    /** In a match with friends: how many of each seat's balls the watcher has been shown; the room's end held until the one watched is caught up; and nothing new to show. */
+    seen?: Map<number, number>; endDue?: boolean; idle?: boolean;
+  } | null = null;
   private readonly watchKeys = { close: () => this.unwatch(), step: (by: 1 | -1) => this.watchStep(by), react: () => this.mark('knockout-react', 'A reaction sent while watching') };
   /** The rings: everybody still in but the player, best first, those out greyed until the cut takes them. */
   private ringsOf(): RingView[] {
@@ -8000,7 +8005,7 @@ export class Game {
     if (!on || !room) return;
     if (on.ending) { if (on.ball) this.watchFrame(on.ball); this.endingFrame(on.ending); return; }
     if (on.ball) { this.watchFrame(on.ball); return; }
-    if (on.watching !== null) { this.watchBall(); return; }
+    if (on.watching !== null) { if (this.matchPlay) this.watchStored(); else this.watchBall(); return; }
     if (this.matchPlay) return;
     if (this.elapsed < on.nextAt) return;
     on.nextAt = this.elapsed + ROOM_BALL_MS;
@@ -8025,6 +8030,8 @@ export class Game {
   private roomEnd(watched: boolean) {
     const on = this.room;
     if (!on || on.ending) return;
+    // In a match the room can be over before a watcher has seen the balls that ended it: it waits for the seat watched to be caught up.
+    if (this.matchPlay && on.watching !== null && (on.ball || this.seenOf(on.watching) < this.knockout!.seats[on.watching].played)) { on.endDue = true; return; }
     const wait = watched && on.ball ? Math.max(0, on.ball.endAt - this.elapsed) : 0;
     on.ending = { from: performance.now() + wait, lit: false, shown: false, wiped: false, done: false };
   }
@@ -8119,10 +8126,14 @@ export class Game {
     // ✕ through MATCH OVER goes on to the results, as a tap does.
     if (on.ending && !quiet) { this.resultsNow(); return; }
     const ball = on.ball;
-    on.watching = null; on.ball = null; on.nextAt = this.elapsed + ROOM_BALL_MS;
+    this.dropWatched();
+    on.watching = null; on.ball = null; on.nextAt = this.elapsed + ROOM_BALL_MS; on.idle = false;
+    this.hud.knockoutWaiting(null);
     this.hud.knockoutWatch(null, this.watchKeys); this.hud.knockout(null);
     this.audio.crowd(null); this.scene.reset();
     if (ball && !ball.told && !quiet) { ball.told = true; this.roomNews(ball.news, false); }
+    // The room ended while it was being watched: its end plays on the end screen now.
+    if (on.endDue && !quiet) { on.endDue = false; this.roomEnd(false); }
   }
   /** The next one along the rings, or the one before; the ball now being bowled is played again for them. */
   private watchStep(by: 1 | -1) {
@@ -8131,8 +8142,10 @@ export class Game {
     const batting = this.batting(), at = batting.findIndex(s => s.id === on.watching);
     const next = batting[(Math.max(0, at) + by + batting.length) % batting.length];
     if (!next || next.id === on.watching) return;
-    on.watching = next.id;
     this.mark('knockout-watch-swipe', 'Swiped to another player while watching');
+    // In a match each seat's balls are its own, shown from where the watcher left them: the next one's are staged on the next frame.
+    if (this.matchPlay) { this.dropWatched(); on.watching = next.id; on.idle = false; this.hud.knockoutWaiting(null); this.scene.reset(true); this.watchHeader(by); return; }
+    on.watching = next.id;
     if (on.ball) this.watchStage(on.ball, next.id);
     this.watchHeader(by);
   }
@@ -8141,12 +8154,14 @@ export class Game {
     const seat = room.seats[id], batting = this.batting(), at = batting.findIndex(s => s.id === id);
     const ranked = room.ranked, place = ranked.indexOf(seat) + 1;
     const shown = on.ball?.shown ? 0 : on.ball ? 1 : 0;
-    const log = (room.logs.get(id) ?? []).slice(0, Math.max(0, (room.logs.get(id)?.length ?? 0) - shown));
+    // In a match the room may be balls ahead of what has been shown: the header counts what the watcher has seen.
+    const told = this.matchPlay ? this.seenOf(id) + (on.ball?.seat === id && on.ball.shown ? 1 : 0) : Math.max(0, (room.logs.get(id)?.length ?? 0) - shown);
+    const log = (room.logs.get(id) ?? []).slice(0, told);
     const runs = log.reduce((sum, ball) => sum + ball.runs, 0), out = log.some(ball => ball.isWicket);
     const header: WatchHeader = {
       id, name: seat.name, face: seat.face,
       line: `${runs}${out ? '' : '*'} off ${log.length} · ${place > 0 ? ordinal(place).toLowerCase() : '–'} of ${ranked.length}`,
-      bowled: room.bowled - shown,
+      bowled: this.matchPlay ? told : room.bowled - shown,
       prev: batting.length > 1 ? batting[(at - 1 + batting.length) % batting.length] : null,
       next: batting.length > 1 ? batting[(at + 1) % batting.length] : null,
     };
@@ -8163,6 +8178,54 @@ export class Game {
     const news = room.ball(delivery, null);
     on.ball = { start: 0, delivery, news, seat: on.watching!, play: null, swung: false, struck: false, shown: false, told: false, presentAt: Infinity, endAt: Infinity, outcome: null };
     this.watchStage(on.ball, on.watching!);
+    this.watchHeader(0);
+  }
+  /** How many of a seat's balls the watcher of a match has been shown: from the top of the over the room is in, the first time. */
+  private seenOf(id: number): number {
+    const on = this.room!, room = this.knockout!;
+    on.seen ??= new Map();
+    let seen = on.seen.get(id);
+    if (seen === undefined) {
+      seen = Math.min(room.seats[id].played, Math.floor(room.roomBalls / KNOCKOUT.ballsPerOver) * KNOCKOUT.ballsPerOver);
+      on.seen.set(id, seen);
+    }
+    return seen;
+  }
+  /** The ball being watched put away: seen, if it had got as far as its call. */
+  private dropWatched() {
+    const on = this.room;
+    if (!on?.ball || !this.matchPlay) return;
+    if (on.ball.shown) on.seen!.set(on.ball.seat, this.seenOf(on.ball.seat) + 1);
+    on.ball = null;
+  }
+  /**
+   * Watching a match with friends (section 51, on real seats): the room is
+   * the store's, moved on as balls arrive, so the seat watched is played back
+   * from what the room has kept of it (`history`), a ball at a time on the
+   * ground, from the top of the over. Caught up, the bowler waits at his mark
+   * for their next ball; a friend's are a few seconds behind them, a sub's come
+   * an over at a time.
+   */
+  private watchStored() {
+    const on = this.room!, room = this.knockout!, id = on.watching!, seat = room.seats[id];
+    const at = this.seenOf(id), play = room.history.get(id)?.[at], delivery = this.matchDelivery(at);
+    if (at >= seat.played || play === undefined || !delivery) {
+      if (on.endDue) { on.endDue = false; this.roomEnd(true); return; }
+      // Nothing more of theirs to come: on to the next still batting, as stories go on, or back to the end screen.
+      if (seat.out || seat.place !== null) {
+        const next = this.batting().find(one => one.id !== id);
+        if (next) { on.watching = next.id; on.idle = false; this.watchHeader(1); } else this.unwatch();
+        return;
+      }
+      if (!on.idle) { on.idle = true; this.scene.reset(true); this.hud.knockoutWaiting(`WAITING FOR ${seat.name.toUpperCase()}’S NEXT BALL`); }
+      return;
+    }
+    if (on.idle) { on.idle = false; this.hud.knockoutWaiting(null); }
+    const none: BallNews = { gone: [], kind: null, over: null } as unknown as BallNews;
+    on.ball = { start: 0, delivery: { ...delivery, releaseTimeMs: this.elapsed + WATCH_LEAD + GAME.runupMs }, news: none, seat: id, play: null,
+      swung: false, struck: false, shown: false, told: true, presentAt: Infinity, endAt: Infinity, outcome: null };
+    this.watchStage(on.ball, id);
+    on.ball.play = play;
     this.watchHeader(0);
   }
   /** The ball from the top, for this seat: dressed as their own, the bowler at his mark. */
@@ -8205,6 +8268,8 @@ export class Game {
     }
     if (this.elapsed < ball.endAt) return;
     const on = this.room!;
+    // In a match the next ball of theirs, or the wait for it, is `watchStored`'s on the next frame.
+    if (this.matchPlay) { on.seen!.set(ball.seat, this.seenOf(ball.seat) + 1); on.ball = null; return; }
     on.ball = null;
     // The room is over: the game holds on this ball under MATCH OVER, and goes nowhere else.
     if (on.ending) return;

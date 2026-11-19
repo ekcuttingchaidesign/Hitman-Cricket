@@ -185,6 +185,12 @@ export class KnockoutRoom {
   winner: Seat | null = null;
   /** The last ball's plays, by seat: what a watcher is shown. */
   plays = new Map<number, Play>();
+  /**
+   * Every ball's play, by seat, in order (null where nothing was swung): what
+   * somebody watching a match with friends is shown, a ball at a time, however
+   * far ahead of them the room has got.
+   */
+  history = new Map<number, (Play | null)[]>();
   /** Every ball each seat has batted, in order, for a watcher's scoreboard. */
   logs = new Map<number, ShotOutcome[]>();
 
@@ -269,6 +275,7 @@ export class KnockoutRoom {
     const outcome = given.isWicket && free ? freeHitOf(given) : given;
     const play = this.plays.get(seat.id); if (play) play.outcome = outcome;
     this.logs.set(seat.id, [...(this.logs.get(seat.id) ?? []), outcome]);
+    this.history.set(seat.id, [...(this.history.get(seat.id) ?? []), play ? { ...play } : null]);
     seat.runs += outcome.runs; seat.balls++; seat.played++;
     seat.fours += Number(outcome.runs === 4); seat.sixes += Number(outcome.runs === 6);
     // On a free hit the wicket does not count (the game has already said so for the player: `freeHitOf`).

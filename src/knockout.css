@@ -698,9 +698,6 @@ body.ko-watch #end{visibility:hidden}
 @keyframes ko-tick{from{transform:scale(1.6);opacity:0}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.ko-join.is-shake,.ko-lseat.is-arriving .ko-lseat-face,.ko-walkout b.is-tick{animation:none}}
 /* In a match with friends, waiting at the over's end (4A): one quiet pill under the scoreboard. */
-.ko-waiting-back{position:absolute;left:50%;top:calc(var(--top-gap) + var(--u) * 130);transform:translateX(-50%);z-index:6;height:calc(var(--u) * 44);padding:0 calc(var(--u) * 22);
-  border-radius:999px;border:1.5px solid #ee2a2a;background:#ee2a2a;color:#fff;font:400 calc(var(--u) * 16)/1 var(--f-display);letter-spacing:.06em;cursor:pointer;
-  box-shadow:0 calc(var(--u) * 6) calc(var(--u) * 18) #0008}
 .ko-waiting{position:absolute;left:50%;top:calc(var(--top-gap) + var(--u) * 92);transform:translateX(-50%);z-index:6;max-width:calc(100% - var(--u) * 40);
   padding:calc(var(--u) * 7) calc(var(--u) * 14);border-radius:999px;background:#0c0809d9;border:1px solid #ffb02066;color:#ffd27a;
   font:800 calc(var(--u) * 11)/1.25 var(--f-ui);letter-spacing:.06em;text-align:center;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

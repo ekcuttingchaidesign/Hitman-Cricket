@@ -268,19 +268,57 @@ const e = await as(guestId, guest, 2, `&k=${fourth}`);
 check(await until('lobby four', () => visible(e, '#knockout-lobby'), 30_000), 'a guest in the lobby');
 await api('start', goneId, gone, 4, { code: fourth });
 check(await until('walk four', async () => !!(await ko(e))?.match, 15_000), 'the guest walks out');
-// Nobody swings: the guest is out, or cut, sooner or later. Either way a key takes them back to the room.
-const wayBack = () => e.evaluate(() => [...document.querySelectorAll('#ko-waiting-back, #ko-res-again, #ko-again')].find(el => el.getBoundingClientRect().height > 0)?.id ?? null);
-const offered = await until('way back', async () => !!(await wayBack()), 420_000, 1000);
-check(offered, 'out of the match, the guest is offered the way back', await text(e, '#ko-waiting'));
-// The host is still batting, as far as the room knows: heard from, and not back.
+// The host bats on, by the script: a six every twelve seconds, so the match is still being played when the guest is out of it.
+// (Heard from at once, and its first ball with it: a host last heard from in the lobby is away from the first ball, and a sub's.)
+let hostBall = 0;
+const hostBat = () => api('ball', goneId, gone, 4, { code: fourth, ball: hostBall, value: '6', round: 1 }).then(sent => { if (sent.match) hostBall = sent.match.members.find(m => m.name === gone)?.card.length ?? hostBall; }).catch(() => {});
+await api('beat', goneId, gone, 4, { code: fourth });
+await hostBat();
+const hostBats = setInterval(() => { void hostBat(); }, 12_000);
+// Nobody swings: the guest is knocked out sooner or later. The way back to the room is on the end screen, and only there:
+// never over the game while they wait on a cut.
+let inPlay = false;
+const wayBack = () => e.evaluate(() => [...document.querySelectorAll('#ko-res-again, #ko-again')].find(el => el.getBoundingClientRect().height > 0)?.id ?? null);
+const offered = await until('way back', async () => {
+  if (await e.evaluate(() => [...document.querySelectorAll('button')].some(key => key.textContent?.trim() === 'BACK TO ROOM' && key.getBoundingClientRect().height > 0 && !key.closest('.ko-moment, #ko-results')))) inPlay = true;
+  return !!(await wayBack());
+}, 480_000, 1000);
+check(offered, 'knocked out, the end screen has BACK TO ROOM', await text(e, '#ko-waiting'));
+check(!inPlay, 'and it was never over the game while they waited');
+// The host is still batting, as far as the room knows: heard from, and not back. And the match is not over for one
+// player being out of it: a knocked-out phone once told the store it was, which ended it under everybody still batting.
 await api('beat', goneId, gone, 4, { code: fourth });
 const beats = setInterval(() => { void api('beat', goneId, gone, 4, { code: fourth }).catch(() => {}); }, 4000);
-await e.evaluate(() => [...document.querySelectorAll('#ko-waiting-back, #ko-res-again, #ko-again')].find(el => el.getBoundingClientRect().height > 0)?.click());
+const mid = (await (await fetch(`${base}/api/challenge?knockout=1&code=${fourth}`)).json()).match;
+check(mid.state === 'live' && mid.over === false && mid.round === 1, 'the match is still on for the host: nobody has called it over', JSON.stringify({ state: mid.state, over: mid.over, round: mid.round }));
+// The room plays on, and can be watched as stories from the end screen, as a practice room's can (section 51).
+const rung = await until('rings', () => e.evaluate(() => !document.getElementById('ko-rings')?.hidden && document.querySelectorAll('#ko-rings .ko-ring').length > 3
+  && document.querySelector('#ko-card')?.textContent?.trim() === 'WATCH ON'), 30_000);
+check(rung, 'the end screen has the rings of who is still in, and WATCH ON', `${await e.evaluate(() => `${document.querySelectorAll('#ko-rings .ko-ring').length} rings · ${document.querySelector('#ko-card')?.textContent?.trim()} · ${document.getElementById('ko-rings')?.outerHTML.slice(0, 200)}`)} ${JSON.stringify(await ko(e)).slice(0, 700)}`);
+await e.screenshot({ path: `${out}/match-rings.png` });
+await e.locator('#ko-card').click({ force: true });
+check(await until('story', () => e.evaluate(() => document.body.classList.contains('ko-watch') && window.__cricket.knockout().watching !== null), 10_000), 'WATCH ON opens somebody’s game as a story');
+// Whoever it opened on, a ball of somebody's is played on the ground: a seat with nothing new yet says it is waiting, and a swipe goes on.
+let played = false;
+for (let tries = 0; tries < 8 && !played; tries++) {
+  played = await until('watched ball', async () => !!(await ko(e))?.watchBall?.shown, 45_000, 400);
+  if (!played) await e.evaluate(() => window.__cricket.knockoutStep(1));
+}
+const story = await e.evaluate(() => ({ name: document.querySelector('.ko-watch-name')?.textContent, line: document.querySelector('.ko-watch-line')?.textContent }));
+check(played && /off \d+ · \d+(st|nd|rd|th) of \d+/.test(story.line ?? ''), 'a ball of theirs is played on the ground, their line over it', JSON.stringify(story));
+await e.screenshot({ path: `${out}/match-watching.png` });
+const seat = (await ko(e)).watching;
+await e.evaluate(() => window.__cricket.knockoutStep(1));
+check(await until('swiped', async () => (await ko(e)).watching !== seat, 5000), 'a swipe goes to the next one along');
+await e.locator('#ko-watch-close').click();
+check(await until('closed', () => e.evaluate(() => !document.body.classList.contains('ko-watch') && window.__cricket.knockout().watching === null), 5000), '✕ goes back to the end screen');
+await e.evaluate(() => [...document.querySelectorAll('#ko-res-again, #ko-again')].find(el => el.getBoundingClientRect().height > 0)?.click());
 check(await until('room four', () => visible(e, '#knockout-lobby'), 20_000), 'BACK TO ROOM opens the room');
 check(await until('playing', () => e.evaluate(() => document.querySelector('#ko-seats .ko-lseat.is-playing .ko-lseat-playing')?.textContent === 'PLAYING'), 10_000), 'the host, still batting, is tagged PLAYING');
 check(await e.evaluate(() => document.getElementById('ko-lobby-ready').disabled) && (await text(e, '.ko-lobby-line')).includes('still batting'), 'and the next match waits for them', await text(e, '.ko-lobby-line'));
 await e.screenshot({ path: `${out}/room-playing.png` });
 // The match over, the room is its lobby again and the host starts the next one.
+clearInterval(hostBats);
 await api('done', goneId, gone, 4, { code: fourth, round: 1 });
 check(await until('settled', () => e.evaluate(() => !document.querySelector('#ko-seats .is-playing') && !document.getElementById('ko-lobby-ready').disabled), 20_000), 'the match over, the tag goes and the room is a lobby again');
 clearInterval(beats);

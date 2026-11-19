@@ -298,7 +298,9 @@ for (const mood of ['calm', 'edge', 'level', 'drop', 'final']) {
     return { mood: document.getElementById('ko-track').dataset.mood, say: document.getElementById('ko-say').hidden ? null : document.getElementById('ko-say').textContent,
       drop: [...document.querySelectorAll('#ko-track .ko-zone')].filter(z => !z.hidden).map(z => z.textContent).join(' ') };
   }, mood);
-  const got = await read();
+  // And read again if it did: a real ball landing inside those two frames shows the live room's bar, not the one put up.
+  let got = await read();
+  for (let tries = 0; tries < 4 && got.mood !== mood; tries++) { await page.waitForTimeout(400); got = await read(); }
   await page.waitForTimeout(1500);
   await read();
   check(got.mood === mood, `the bar stands ${mood}`, JSON.stringify(got));
