@@ -67,6 +67,8 @@ export const doneMatch = (code: string, me: Me, round: number) => post({ action:
 /** Asks the room back to its lobby; the store does it only once nobody is still batting. */
 export const settleMatch = (code: string, me: Me) => post({ action: 'settle', code, ...as(me) });
 export const beatInMatch = (code: string, me: Me) => post({ action: 'beat', code, ...as(me) });
+/** A reaction to whoever is being watched, by their handle. */
+export const reactInMatch = (code: string, me: Me, to: string, emoji: string) => post({ action: 'react', code, to, emoji, ...as(me) });
 export const awayInMatch = (code: string, me: Me, handle: string, over: number) => post({ action: 'away', code, handle, over, ...as(me) });
 
 export async function readMatch(code: string): Promise<MatchResult> {

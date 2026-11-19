@@ -70,7 +70,7 @@ export class FriendsScreen {
               ${Array.from({ length: MATCH_CODE_LENGTH }, (_, i) => `<i data-box="${i}"></i>`).join('')}
               <input id="ko-join-code" class="ko-code-input" type="text" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" aria-label="Match code">
             </label>
-            <button id="ko-join-go" class="ko-join-go" type="submit" disabled>JOIN</button>
+            <button id="ko-join-go" class="ko-join-go" type="submit" disabled><span>JOIN</span></button>
           </span>
         </form>
         <h3 class="ko-around-head">AROUND NOW · INVITE STRAIGHT IN</h3>
@@ -218,7 +218,7 @@ export class LobbyScreen {
       </div>
       <div class="ko-lobby-body">
         <h2 class="ko-lobby-count" id="ko-lobby-count">1 OF ${MATCH_SEATS} IN</h2>
-        <p class="ko-lobby-line">Friends join with your code or link, or invite who’s around.</p>
+        <p class="ko-lobby-line" id="ko-lobby-note">Share the code, or invite who’s around.</p>
         <ol class="ko-lseats" id="ko-seats"></ol>
         <div class="ko-card ko-codecard">
           <span><i>MATCH CODE · FRIENDS TYPE THIS IN</i><b id="ko-lobby-code">····</b></span>
@@ -226,15 +226,16 @@ export class LobbyScreen {
         </div>
         <h3 class="ko-around-head is-row">AROUND NOW</h3>
         <ul class="ko-around-strip" id="ko-lobby-around"></ul>
-        <p class="ko-note" id="ko-lobby-note"></p>
       </div>
       <div class="ko-walkout hidden" id="ko-walkout" aria-live="assertive"><i>WALKING OUT IN</i><b id="ko-walkout-n">3</b></div>`,
     `<span class="ko-keys-pair">
       <button id="ko-lobby-invite" class="ko-friends ko-invite-key" type="button">${icon('share')}<span>INVITE</span></button>
       ${cta({ kind: 'primary', label: 'START NOW', id: 'ko-lobby-start', moving: true })}
-      <button id="ko-lobby-ready" class="ko-friends ko-ready-key hidden" type="button"><span>I’M READY</span></button>
+      ${cta({ kind: 'primary', label: 'I’M READY', id: 'ko-lobby-ready', moving: true })}
     </span>`);
     host.append(this.root);
+    // A guest's key is the hero as the host's START NOW is: as a dark key beside a green INVITE it read as switched off.
+    this.root.querySelector('#ko-lobby-ready')!.classList.add('ko-ready-key', 'hidden');
     const on = (id: string, fn: () => void) => { this.root.querySelector<HTMLButtonElement>(`#${id}`)!.onclick = fn; };
     on('ko-lobby-back', () => this.keys.back());
     on('ko-lobby-share', () => this.keys.share());
@@ -284,15 +285,14 @@ export class LobbyScreen {
     start.disabled = friends < 1 || !!view.live;
     ready.disabled = !!view.live;
     ready.classList.toggle('is-ready', view.ready && !view.live);
-    ready.querySelector('span')!.textContent = view.live ? 'MATCH ON' : view.ready ? 'READY ✓' : 'I’M READY';
+    ready.querySelector('.k-cta-face>span')!.textContent = view.live ? 'MATCH ON' : view.ready ? 'READY ✓' : 'I’M READY';
     const batting = view.playing ?? 0;
-    this.root.querySelector('.ko-lobby-line')!.textContent = view.live
-      ? (batting ? `${batting} still batting this match. The next one starts when it’s over.` : 'The match is over. Back to the lobby in a moment.')
-      : 'Friends join with your code or link, or invite who’s around.';
+    // One line under the count says where the room stands: it was two, one of them under the list, and with the twelve seats
+    // four to a row the room ran past the foot of a phone and dragged (the owner, 19 November 2026).
     this.root.querySelector('#ko-lobby-note')!.textContent = view.live
-      ? (view.hosting ? 'START NOW wakes up when this match is over.' : `${view.hostName} starts the next match when this one is over.`)
+      ? (batting ? `${batting} still batting this match. The next one starts when it’s over.` : 'The match is over. Back to the lobby in a moment.')
       : view.hosting
-        ? (friends < 1 ? 'START NOW wakes up when one friend is in. Empty seats get subs.' : `${view.seats.filter(s => s.ready).length} of ${view.seats.length} ready · empty seats get subs`)
+        ? (friends < 1 ? 'Share the code, or invite who’s around. Empty seats get subs.' : `${view.seats.filter(s => s.ready).length} of ${view.seats.length} ready · empty seats get subs`)
         : `Waiting for ${view.hostName} to start.`;
   }
   /** The three seconds every phone counts together (3B), or put away. */

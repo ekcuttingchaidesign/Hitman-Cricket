@@ -2439,7 +2439,8 @@ ${knockoutRulesMarkup()}
     this.$('ko-home-best').textContent = tally.best ? `#${tally.best}` : '–';
     this.$('ko-home-wins').textContent = String(tally.wins);
     home.querySelector('.ko-scroll')?.scrollTo({ top: 0 });
-    (this.$('ko-quick') as HTMLButtonElement).focus({ preventScroll: true });
+    const hero = this.$('ko-friends') as HTMLButtonElement;
+    (hero.disabled ? this.$('ko-quick') as HTMLButtonElement : hero).focus({ preventScroll: true });
   }
   /** How Super Knockout works (K2b), over whatever opened it. */
   knockoutRules(open: boolean) {
@@ -2960,6 +2961,29 @@ ${knockoutRulesMarkup()}
       again: () => { this.koResults = null; this.koMoment?.close(); this.koMoment = null; this.$('again').click(); },
     });
   }
+  /** The standings of a room still being played, kept up while they are open (`view` is asked for only then). */
+  knockoutStandings(view: () => ResultsView) { if (this.koResults?.live) this.koResults.update(view()); }
+  /**
+   * A reaction sent to this player, or to whoever they are watching: the emoji and who sent it float up the
+   * left edge and go. Nothing is laid out for it mid-ball (the game shows them between balls), and it takes no touch.
+   */
+  private rxShown = 0;
+  knockoutReaction(emoji: string, from: string, face: number) {
+    const el = document.createElement('div');
+    el.className = 'ko-rx';
+    el.style.setProperty('--lane', String(this.rxShown++ % 3));
+    el.innerHTML = `<b></b><img src="${avatarSrc(face)}" alt="" width="20" height="20" decoding="async"><span></span>`;
+    el.querySelector('b')!.textContent = emoji;
+    el.querySelector('span')!.textContent = from;
+    this.viewport.append(el);
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches, rise = this.viewport.clientHeight * .26;
+    const move = el.animate(still
+      ? [{ opacity: 0 }, { opacity: 1, offset: .15 }, { opacity: 1, offset: .8 }, { opacity: 0 }]
+      : [{ opacity: 0, transform: 'translateY(20px) scale(.6)' }, { opacity: 1, transform: 'translateY(0) scale(1.12)', offset: .14 },
+        { opacity: 1, transform: `translateY(${-rise * .7}px) scale(1)`, offset: .75 }, { opacity: 0, transform: `translateY(${-rise}px) scale(.96)` }],
+      { duration: 2600, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'forwards' });
+    move.onfinish = () => el.remove();
+  }
   private koWatch: WatchView | null = null;
   /** A sub's game watched as a story, or null to put it away; `on` is wired once. */
   knockoutWatch(header: WatchHeader | null, on: { close(): void; step(by: 1 | -1): void; react(emoji: string): void }, turned: 1 | -1 | 0 = 0) {
@@ -2971,7 +2995,7 @@ ${knockoutRulesMarkup()}
   /** The cut landed on a player whose end screen went up when they were out: the place stamped on it. */
   knockoutSettle(view: MomentView) { this.koMoment?.settle(view); }
   /** The end of the player's knockout match, over the card: KNOCKED OUT or WINNER (`KnockoutMoment.ts`). */
-  knockoutEnd(view: MomentView | null, sound?: (cue: MomentSound) => void, watch?: (id: number | null) => void) {
+  knockoutEnd(view: MomentView | null, sound?: (cue: MomentSound) => void, watch?: (id: number | null) => void, board?: () => void) {
     this.koMoment?.close(); this.koMoment = null;
     this.koResults?.close(); this.koResults = null;
     this.viewport.classList.remove('ko-drop');
@@ -2979,7 +3003,7 @@ ${knockoutRulesMarkup()}
     this.koMoment = new KnockoutMoment(this.viewport, view, {
       again: () => { this.koMoment = null; this.$('again').click(); },
       card: () => { this.koMoment = null; this.$('again').focus(); },
-      sound, watch,
+      sound, watch, board,
     });
   }
   /**

@@ -239,7 +239,7 @@ body.ko-glass .stage.result-open .score-stack{display:block;z-index:9}
 
 /* The home (K2) and how it works (K2b): a scroll over the picture, the keys pinned at the thumb. */
 .modal-overlay.ko-screen{display:block;padding:0;overflow:hidden;background:#0c0809;font-family:var(--f-ui);color:#f5efe6;z-index:9}
-.ko-scroll{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:calc(var(--u) * 170 + var(--pad-bottom))}
+.ko-scroll{position:absolute;inset:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;padding-bottom:calc(var(--u) * 170 + var(--pad-bottom))}
 .ko-hero{position:absolute;left:0;right:0;top:0;height:calc(var(--u) * 500);overflow:hidden;pointer-events:none}
 .ko-hero img{position:absolute;left:0;top:calc(var(--u) * -50);width:100%;height:calc(var(--u) * 603);object-fit:cover;object-position:50% 0}
 .ko-hero::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,#0c080900 0%,#0c080900 60%,#0c0809d9 86%,#0c0809 100%)}
@@ -307,7 +307,7 @@ body.ko-glass .stage.result-open .score-stack{display:block;z-index:9}
 .ko-keys{position:absolute;left:0;right:0;bottom:0;z-index:3;display:flex;flex-direction:column;gap:calc(var(--u) * 11);
   padding:calc(var(--u) * 40) calc(var(--u) * 20) calc(var(--pad-bottom) + var(--u) * 20);
   background:linear-gradient(180deg,#0c080900,#0c0809f5 35%,#0c0809)}
-/* QUICK MATCH in Knockout Red, as PLAY AGAIN is on the end moments. */
+/* The hero key in Knockout Red, as PLAY AGAIN is on the end moments: PLAY WITH FRIENDS on the home, HOST A MATCH, START NOW and I'M READY. */
 .ko-keys .k-cta--primary{width:100%;--c-cta-rim-top:#ff525b;--c-cta-rim-bottom:#c3121b;--c-cta-face-bottom:#ffbdc0;
   --g-cta-rim:linear-gradient(180deg,#ff525b,#c3121b);--g-cta-face:linear-gradient(180deg,#fff,#ffbdc0);--ledge:#c3121b}
 .ko-friends{position:relative;display:flex;align-items:center;justify-content:center;gap:calc(var(--u) * 8);width:100%;height:calc(var(--u) * 56);margin:0;padding:0 0 calc(var(--u) * 5);
@@ -317,6 +317,11 @@ body.ko-glass .stage.result-open .score-stack{display:block;z-index:9}
 .ko-friends svg{width:calc(var(--u) * 18);height:calc(var(--u) * 18)}
 .ko-friends svg *{stroke:#f5efe6}
 .ko-friends:disabled{cursor:default;opacity:.62}
+.ko-keys .k-cta:disabled{cursor:default;opacity:.5;filter:saturate(.5)}
+.ko-hero-key .k-icon{position:relative;width:calc(var(--u) * 20);height:calc(var(--u) * 20)}
+.ko-hero-key .ko-soon{position:relative}
+/* PRACTICE under it: the dark key, with what it is in small beside the word. */
+.ko-practice-key small{font:600 calc(var(--u) * 12)/1 var(--f-ui);letter-spacing:.02em;color:#bfaeb1;text-transform:none}
 .ko-soon{font-style:normal;padding:calc(var(--u) * 3) calc(var(--u) * 7);border-radius:999px;background:var(--ko-gold);color:#14050a;font:800 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.08em}
 
 /* How it works (K2b). */
@@ -609,8 +614,15 @@ body.ko-watch #end{visibility:hidden}
 .ko-code i.is-next{border-color:#ffffffa6}
 .ko-join.is-wrong .ko-code i{border-color:#ee2a2a;color:#ff8a8a}
 .ko-code-input{position:absolute;inset:0;width:100%;opacity:0;font-size:16px;caret-color:transparent;border:0;background:transparent;color:transparent}
-.ko-join-go{flex:1;height:calc(var(--u) * 52);border:0;border-radius:12px;background:#ee2a2a;color:#fff;font:400 calc(var(--u) * 20)/1 var(--f-display);letter-spacing:.06em;cursor:pointer}
-.ko-join-go:disabled{background:#2a1a1e;color:#8a8a8a;cursor:default}
+/* JOIN is a key of the kit's build, a face on a ledge, in Knockout Red: flat red it had no depth beside every other key (the owner, 19 November 2026). */
+.ko-join-go{position:relative;flex:1;height:calc(var(--u) * 52);padding:0 0 calc(var(--u) * 5);border:0;border-radius:calc(var(--u) * 14);background:#8f0d14;color:#fff7f5;
+  font:400 calc(var(--u) * 20)/1 var(--f-display);letter-spacing:.08em;cursor:pointer}
+.ko-join-go::before{content:'';position:absolute;inset:0 0 calc(var(--u) * 5);border:1px solid #ff9ea18c;border-radius:calc(var(--u) * 12);
+  background:linear-gradient(180deg,#ff5a60,#e0212a);box-shadow:inset 0 1px 0 #ffffff4d;transition:transform .08s}
+.ko-join-go span{position:relative;display:block;transition:transform .08s}
+.ko-join-go:active:not(:disabled)::before,.ko-join-go:active:not(:disabled) span{transform:translateY(calc(var(--u) * 3))}
+.ko-join-go:disabled{background:#150c0e;color:#8a7c7f;cursor:default}
+.ko-join-go:disabled::before{border-color:#ffffff14;background:linear-gradient(180deg,#2e1d21,#261619);box-shadow:inset 0 1px 0 #ffffff0f}
 .ko-join.is-shake{animation:ko-shake .42s cubic-bezier(.36,.07,.19,.97)}
 @keyframes ko-shake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(3px)}30%,50%,70%{transform:translateX(-6px)}40%,60%{transform:translateX(6px)}}
 .ko-around-head{margin:calc(var(--u) * 24) 0 calc(var(--u) * 10);color:#9a9a9a;font:800 calc(var(--u) * 12)/1.2 var(--f-ui);letter-spacing:.08em}
@@ -637,12 +649,18 @@ body.ko-watch #end{visibility:hidden}
 /* The lobby. */
 .ko-lobby-glow{position:absolute;left:calc(var(--u) * -120);top:calc(var(--u) * -220);width:calc(var(--u) * 640);height:calc(var(--u) * 520);border-radius:50%;
   background:radial-gradient(closest-side,#ee2a2a40,#ee2a2a00);pointer-events:none}
-.ko-lobby-body{position:relative;z-index:1;padding:calc(var(--u) * 112) calc(var(--u) * 20) 0}
-.ko-lobby-count{margin:0;font:400 calc(var(--u) * 40)/1.1 var(--f-display);color:#f5efe6}
+.ko-lobby-body{position:relative;z-index:1;padding:calc(var(--u) * 88) calc(var(--u) * 20) 0}
+/* Only its two keys stand at the foot, so only their height is kept clear under the list: with the home's allowance the
+   room dragged on a phone that already showed all of it. */
+#knockout-lobby .ko-scroll{padding-bottom:calc(var(--u) * 112 + var(--pad-bottom))}
+/* The grain is as tall as the design's phone on the other screens, which made this one scroll that far with nothing to show for it. */
+#knockout-lobby .ko-grain{height:100%}
+.ko-lobby-count{margin:0;font:400 calc(var(--u) * 36)/1.1 var(--f-display);color:#f5efe6}
 .ko-lobby-line{margin:calc(var(--u) * 2) 0 0;color:#bfaeb1;font:500 calc(var(--u) * 14)/1.3 var(--f-ui)}
-.ko-lseats{list-style:none;margin:calc(var(--u) * 18) 0 0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);row-gap:calc(var(--u) * 10)}
-.ko-lseat{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 6);min-height:calc(var(--u) * 84)}
-.ko-lseat-face{position:relative;width:calc(var(--u) * 64);height:calc(var(--u) * 64)}
+/* Twelve seats in two rows of six: three rows of four took the room past the foot of a phone, which made it drag. */
+.ko-lseats{list-style:none;margin:calc(var(--u) * 16) 0 0;padding:0;display:grid;grid-template-columns:repeat(6,1fr);row-gap:calc(var(--u) * 10)}
+.ko-lseat{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 6);min-width:0;min-height:calc(var(--u) * 70)}
+.ko-lseat-face{position:relative;width:calc(var(--u) * 50);height:calc(var(--u) * 50)}
 .ko-lseat-face img{width:100%;height:100%;border-radius:50%;object-fit:cover;background:#2a1a1e;box-sizing:border-box;border:2px solid #ffffff26}
 .ko-lseat.is-you .ko-lseat-face img{border:3px solid #fff}
 .ko-lseat-host,.ko-lseat-tick{position:absolute;left:50%;bottom:calc(var(--u) * -6);transform:translateX(-50%);padding:calc(var(--u) * 2) calc(var(--u) * 6);border-radius:999px;
@@ -653,7 +671,7 @@ body.ko-watch #end{visibility:hidden}
 .ko-lseat.is-playing .ko-lseat-face img{border-color:#ee2a2a}
 @media (prefers-reduced-motion:no-preference){.ko-lseat-playing{animation:ko-playing 1.6s ease-in-out infinite}}
 @keyframes ko-playing{50%{opacity:.62}}
-.ko-ready-key:disabled{opacity:.55;cursor:default}
+
 .ko-invites{list-style:none;margin:calc(var(--u) * 12) 0 0;padding:0;display:grid;gap:calc(var(--u) * 8)}
 .ko-invite-row{display:flex;align-items:center;gap:calc(var(--u) * 12);padding:calc(var(--u) * 10) calc(var(--u) * 14);border-radius:16px;background:#2a1014f2;border:1px solid #ee2a2a80}
 /* Somebody asked this player into a match: over whatever screen they are on, bar an innings. */
@@ -667,12 +685,12 @@ body.ko-watch #end{visibility:hidden}
 .ko-invite-x{flex:none;width:calc(var(--u) * 32);height:calc(var(--u) * 44);border:0;background:none;color:#bfaeb1;font:400 calc(var(--u) * 20)/1 var(--f-ui);cursor:pointer}
 @media (prefers-reduced-motion:no-preference){.ko-invite.is-in{animation:ko-invite-in .45s cubic-bezier(.2,1.2,.4,1) both}}
 @keyframes ko-invite-in{from{transform:translateY(calc(var(--u) * -80));opacity:0}}
-.ko-lseat-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 calc(var(--u) * 13)/1.2 var(--f-ui);color:#fff}
+.ko-lseat-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 calc(var(--u) * 11)/1.2 var(--f-ui);color:#fff}
 .ko-lseat.is-empty{position:relative}
-.ko-lseat.is-empty::before{content:'';width:calc(var(--u) * 64);height:calc(var(--u) * 64);box-sizing:border-box;border-radius:50%;border:1.5px dashed #ffffff33}
+.ko-lseat.is-empty::before{content:'';width:calc(var(--u) * 50);height:calc(var(--u) * 50);box-sizing:border-box;border-radius:50%;border:1.5px dashed #ffffff33}
 .ko-lseat.is-empty.is-first{cursor:pointer}
-.ko-lseat-plus{position:absolute;top:calc(var(--u) * 14);font:300 calc(var(--u) * 28)/1 var(--f-ui);font-style:normal;color:#bfaeb1}
-.ko-lseat.is-empty span{font:600 calc(var(--u) * 13)/1.2 var(--f-ui);color:#9a9a9a}
+.ko-lseat-plus{position:absolute;top:calc(var(--u) * 12);font:300 calc(var(--u) * 24)/1 var(--f-ui);font-style:normal;color:#bfaeb1}
+.ko-lseat.is-empty span{font:600 calc(var(--u) * 11)/1.2 var(--f-ui);color:#9a9a9a}
 .ko-lseat.is-arriving .ko-lseat-face{animation:ko-arrive .5s cubic-bezier(.2,1.5,.4,1)}
 @keyframes ko-arrive{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
 .ko-codecard{display:flex;align-items:center;justify-content:space-between;margin-top:calc(var(--u) * 14);padding:calc(var(--u) * 12) calc(var(--u) * 18);border-radius:16px}
@@ -687,9 +705,11 @@ body.ko-watch #end{visibility:hidden}
 .ko-keys-pair{display:flex;gap:calc(var(--u) * 10)}
 .ko-keys-pair>*{flex:1}
 .ko-keys-pair .hidden{display:none}
-.ko-invite-key{flex:0 0 46%}
-.ko-invite-key::before{background:#1f8a3a;border-color:#166b2c}
-.ko-ready-key.is-ready::before{background:#1f3a24;border-color:#3fbf5a}
+/* INVITE is the quiet key and the hero beside it has the room: START NOW for the host, I'M READY for a guest. The kit's
+   hero key is never narrower than 210, which with INVITE at 46% ran START NOW off the screen's edge. */
+.ko-invite-key{flex:0 0 36%}
+.ko-keys-pair .k-cta--primary{width:auto;min-width:0}
+.ko-ready-key.is-ready{--g-cta-rim:linear-gradient(180deg,#58d877,#1f8a3a);--g-cta-face:linear-gradient(180deg,#f2fff5,#b8f0c6);--ledge:#1f8a3a}
 .ko-walkout{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u) * 8);
   background:#0c0809d9;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .ko-walkout i{font:800 calc(var(--u) * 14)/1 var(--f-ui);font-style:normal;letter-spacing:.14em;color:#bfaeb1}
@@ -701,3 +721,10 @@ body.ko-watch #end{visibility:hidden}
 .ko-waiting{position:absolute;left:50%;top:calc(var(--top-gap) + var(--u) * 92);transform:translateX(-50%);z-index:6;max-width:calc(100% - var(--u) * 40);
   padding:calc(var(--u) * 7) calc(var(--u) * 14);border-radius:999px;background:#0c0809d9;border:1px solid #ffb02066;color:#ffd27a;
   font:800 calc(var(--u) * 11)/1.25 var(--f-ui);letter-spacing:.06em;text-align:center;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* A reaction sent to this player, or to whoever they are watching: up the left edge and away, taking no touch. */
+.ko-rx{position:absolute;left:calc(var(--u) * 12 + var(--lane,0) * var(--u) * 26);bottom:calc(var(--pad-bottom) + var(--u) * 150);z-index:46;pointer-events:none;
+  display:flex;align-items:center;gap:calc(var(--u) * 6);padding:calc(var(--u) * 5) calc(var(--u) * 10) calc(var(--u) * 5) calc(var(--u) * 6);border-radius:999px;
+  background:#0c0809d9;border:1px solid #ffffff24;box-shadow:0 calc(var(--u) * 6) calc(var(--u) * 18) #0009;color:#f5efe6;font:700 calc(var(--u) * 12)/1 var(--f-ui);will-change:transform,opacity}
+.ko-rx b{font:400 calc(var(--u) * 26)/1 var(--f-ui)}
+.ko-rx img{width:calc(var(--u) * 20);height:calc(var(--u) * 20);border-radius:50%;object-fit:cover;background:#2a1a1e}
+.ko-rx span{max-width:calc(var(--u) * 110);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

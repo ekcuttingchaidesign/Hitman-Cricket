@@ -65,6 +65,17 @@ const CODE_TRIES = 6;
 
 export type MatchState = 'lobby' | 'live';
 
+/** What somebody watching a match can send the batter they are watching (section 51's tray). */
+export const REACTIONS = ['😂', '🔥', '👏', '😱', '🦆'] as const;
+/** A reaction is news for this long: every phone it is for shows it once, and one that opens later never sees it. */
+export const REACTION_FRESH_MS = 20_000;
+/** One a watcher at most this often. */
+export const REACTION_GAP_MS = 350;
+/** One reaction as kept, under `rx:<round>:<when>:<who>`. */
+export interface StoredReaction { to: string; by: string; from: string; face: number; e: number; at: number }
+/** One reaction as any browser may be told: who it is for by handle, who sent it by name. */
+export interface MatchReaction { id: string; to: string; by: string; from: string; face: number; emoji: string; at: number }
+
 /** One member as kept, under `m:<playerId>`. */
 export interface StoredMember {
   name: string;
@@ -79,6 +90,8 @@ export interface StoredMember {
   ballAt?: number;
   /** The round they went back to the room from, having batted in it (BACK TO ROOM). */
   back?: number;
+  /** When they last sent a reaction. */
+  rxAt?: number;
 }
 
 /** The start, written once by the host: when everybody walks out, and the seats in order. */
@@ -108,6 +121,8 @@ export interface StoredMatch {
   balls: Record<string, Record<number, string>>;
   /** Who has been asked in, by handle. */
   invited: Record<string, StoredMatchInvite>;
+  /** Reactions sent this round, by their field. */
+  reactions: Record<string, StoredReaction>;
 }
 
 export interface KnockoutStore {
@@ -170,6 +185,8 @@ export interface MatchView {
   over: boolean;
   /** How many are still batting it and being heard from: the room's next match waits for none. */
   busy: number;
+  /** Reactions of the last few seconds, oldest first: each phone shows the ones for its player, or for whoever it watches. */
+  reactions: MatchReaction[];
   /** The store's clock, so every phone counts the walk-out to the same moment. */
   now: number;
 }
@@ -217,7 +234,7 @@ export function parseMatch(held: Record<string, unknown> | null): StoredMatch | 
   if (!held || typeof held.host !== 'string') return null;
   const round = Math.max(1, Math.floor(Number(held.round)) || 1);
   const match: StoredMatch = { host: held.host, at: Number(held.at) || 0, seed: Number(held.seed) >>> 0, members: {}, removed: {}, start: null, round,
-    over: Math.floor(Number(held.over)) || 0, balls: {}, invited: {} };
+    over: Math.floor(Number(held.over)) || 0, balls: {}, invited: {}, reactions: {} };
   for (const [field, raw] of Object.entries(held)) {
     const value = typeof raw === 'string' && raw.startsWith('{') ? safeJson(raw) : raw;
     if (field.startsWith('m:') && value && typeof value === 'object') match.members[field.slice(2)] = value as StoredMember;
@@ -227,6 +244,10 @@ export function parseMatch(held: Record<string, unknown> | null): StoredMatch | 
       // A start is this round's or nobody's: one left behind by a room going back to its lobby is not a match.
       const start = { ...(value as StoredStart), round: Number((value as StoredStart).round) || round };
       if (start.round === round) match.start = start;
+    }
+    else if (field.startsWith('rx:')) {
+      const rx = value as StoredReaction | null;
+      if (Number(field.split(':')[1]) === round && rx && typeof rx === 'object' && typeof rx.to === 'string' && REACTIONS[rx.e] !== undefined) match.reactions[field] = rx;
     }
     else if (field.startsWith('b:')) {
       // `b:<round>:<player>:<ball>`: only this round's are the match's.
@@ -284,7 +305,10 @@ export function viewOf(code: string, match: StoredMatch, now = Date.now()): Matc
     code, state: match.start ? 'live' : 'lobby', at: match.at, seed: match.seed, host: handleOf(match.host),
     startAt: match.start?.at ?? null, seats: seats.map(id => handleOf(id)), members,
     invited: Object.keys(match.invited).filter(handle => !here.has(handle)),
-    round: match.round, over: !!match.start && match.over === match.round, busy: busyIn(match, now), now,
+    round: match.round, over: !!match.start && match.over === match.round, busy: busyIn(match, now),
+    reactions: Object.entries(match.reactions).filter(([, rx]) => now - rx.at < REACTION_FRESH_MS).sort((a, b) => a[1].at - b[1].at)
+      .map(([id, rx]) => ({ id, to: rx.to, by: String(rx.by ?? ''), from: String(rx.from).slice(0, 14), face: Number(rx.face) || 0, emoji: REACTIONS[rx.e], at: rx.at })),
+    now,
   };
 }
 
@@ -480,6 +504,35 @@ export async function beatInMatch(store: KnockoutStore, code: string, input: Mem
 }
 
 /**
+ * A reaction from somebody in the match to a player batting in it (section 51's
+ * tray): kept a few seconds under a field of its own, so two sent at once never
+ * overwrite each other, and told in every answer while it is fresh. To a real
+ * player seated in this match only, never to oneself, and no faster than
+ * `REACTION_GAP_MS`. The stale ones are swept as new ones arrive.
+ */
+export async function reactInMatch(store: KnockoutStore, code: string, input: Member, to: unknown, emoji: unknown, now = Date.now()): Promise<MatchOutcome> {
+  const match = await load(store, code);
+  if ('ok' in match) return match;
+  const clean = cleanMatchCode(code)!;
+  const held = match.members[input.playerId];
+  if (!held) return refuse(403, 'Join the match first.');
+  const e = REACTIONS.indexOf(emoji as typeof REACTIONS[number]);
+  const mine = handleOf(input.playerId);
+  const target = match.start?.seats.find(id => handleOf(id) === to);
+  if (!match.start || e < 0 || !target || to === mine) return refuse(400, 'Nobody to send that to.');
+  if (now - (held.rxAt ?? 0) < REACTION_GAP_MS) return answer(store, clean, now);
+  const limit = await limited(store, 'write', input.address);
+  if (limit) return limit;
+  const stale = Object.entries(match.reactions).filter(([, rx]) => now - rx.at > REACTION_FRESH_MS * 2).map(([field]) => field);
+  if (stale.length) await store.drop(clean, stale);
+  await store.set(clean, {
+    [`m:${input.playerId}`]: { ...held, seen: now, rxAt: now },
+    [`rx:${match.round}:${now}:${mine.slice(0, 6)}`]: { to: String(to), by: mine, from: held.name, face: held.avatar, e, at: now } satisfies StoredReaction,
+  }, MATCH_TTL_SECONDS);
+  return answer(store, clean, now);
+}
+
+/**
  * Somebody the room is waiting on has gone quiet (4B, 4C): any phone in the
  * match may say so, and the store decides by its own clock. A sub bats out the
  * rest of that player's over, written ball by ball into the fields they would
@@ -552,12 +605,12 @@ export async function settleMatch(store: KnockoutStore, code: string, input: Mem
   const host = stay.includes(match.host) ? match.host : stay[0] ?? match.host;
   const fields: Record<string, unknown> = { round: match.round + 1, seed: Math.floor(random() * 2 ** 32) >>> 0, host };
   for (const id of stay) {
-    const { back: _back, ballAt: _ballAt, ...member } = match.members[id];
+    const { back: _back, ballAt: _ballAt, rxAt: _rxAt, ...member } = match.members[id];
     fields[`m:${id}`] = { ...member, ready: id === host };
   }
   // In one step, so no phone reads the old start under the new round: a ball of the old round landing after it is filed
   // under that round, where nobody reads it.
-  await store.swap(clean, fields, ['start', 'over', ...Object.keys(held).filter(field => field.startsWith('b:')),
+  await store.swap(clean, fields, ['start', 'over', ...Object.keys(held).filter(field => field.startsWith('b:') || field.startsWith('rx:')),
     ...Object.keys(match.members).filter(id => match.members[id].left).map(id => `m:${id}`)], MATCH_TTL_SECONDS);
   return answer(store, clean, now);
 }

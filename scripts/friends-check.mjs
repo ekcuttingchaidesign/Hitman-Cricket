@@ -268,13 +268,13 @@ const e = await as(guestId, guest, 2, `&k=${fourth}`);
 check(await until('lobby four', () => visible(e, '#knockout-lobby'), 30_000), 'a guest in the lobby');
 await api('start', goneId, gone, 4, { code: fourth });
 check(await until('walk four', async () => !!(await ko(e))?.match, 15_000), 'the guest walks out');
-// The host bats on, by the script: a six every twelve seconds, so the match is still being played when the guest is out of it.
+// The host bats on, by the script: a six every eighteen seconds (slower than the guest is bowled to, so a guest out in an over is out before its cut), so the match is still being played when the guest is out of it.
 // (Heard from at once, and its first ball with it: a host last heard from in the lobby is away from the first ball, and a sub's.)
 let hostBall = 0;
 const hostBat = () => api('ball', goneId, gone, 4, { code: fourth, ball: hostBall, value: '6', round: 1 }).then(sent => { if (sent.match) hostBall = sent.match.members.find(m => m.name === gone)?.card.length ?? hostBall; }).catch(() => {});
 await api('beat', goneId, gone, 4, { code: fourth });
 await hostBat();
-const hostBats = setInterval(() => { void hostBat(); }, 12_000);
+const hostBats = setInterval(() => { void hostBat(); }, 18_000);
 // Nobody swings: the guest is knocked out sooner or later. The way back to the room is on the end screen, and only there:
 // never over the game while they wait on a cut.
 let inPlay = false, early = null, pill = '';
@@ -285,8 +285,9 @@ const offered = await until('way back', async () => {
   const waiting = await visible(e, '#ko-waiting') ? await text(e, '#ko-waiting') : '';
   if (/^OUT ON/.test(waiting)) pill = waiting;
   const back = await wayBack();
-  // Out before the cut has fallen: the end screen is up with the room not yet done with them, stamped OUT.
-  if (back && early === null) { const now = await ko(e); early = { pending: now.pending, finished: now.finished, out: now.match?.out, stamp: await e.evaluate(() => document.getElementById('ko-moment')?.dataset.pending ?? null) }; }
+  // Out before the cut has fallen: the end screen is up with the room not yet done with them, stamped OUT. (Read as the
+  // screen goes up, before its keys have landed: a cut can fall in those three seconds.)
+  if (early === null && await e.evaluate(() => !!document.getElementById('ko-moment'))) { const now = await ko(e); early = { pending: now.pending, finished: now.finished, out: now.match?.out, batted: now.match?.batted, roomBalls: now.roomBalls, table: now.table, stamp: await e.evaluate(() => document.getElementById('ko-moment')?.dataset.pending ?? null) }; }
   return !!back;
 }, 480_000, 500);
 check(offered, 'out, the end screen has BACK TO ROOM', await text(e, '#ko-waiting'));
@@ -310,11 +311,21 @@ const mid = (await (await fetch(`${base}/api/challenge?knockout=1&code=${fourth}
 check(mid.state === 'live' && mid.over === false && mid.round === 1, 'the match is still on for the host: nobody has called it over', JSON.stringify({ state: mid.state, over: mid.over, round: mid.round }));
 // The room plays on, and can be watched as stories from the end screen, as a practice room's can (section 51).
 const rung = await until('rings', () => e.evaluate(() => !document.getElementById('ko-rings')?.hidden && document.querySelectorAll('#ko-rings .ko-ring').length > 3
-  && document.querySelector('#ko-card')?.textContent?.trim() === 'WATCH ON'), 30_000);
-check(rung, 'the end screen has the rings of who is still in, and WATCH ON', `${await e.evaluate(() => `${document.querySelectorAll('#ko-rings .ko-ring').length} rings · ${document.querySelector('#ko-card')?.textContent?.trim()} · ${document.getElementById('ko-rings')?.outerHTML.slice(0, 200)}`)} ${JSON.stringify(await ko(e)).slice(0, 700)}`);
+  && document.querySelector('#ko-card')?.textContent?.trim() === 'LEADERBOARD'), 30_000);
+check(rung, 'the end screen has the rings of who is still in, and LEADERBOARD', `${await e.evaluate(() => `${document.querySelectorAll('#ko-rings .ko-ring').length} rings · ${document.querySelector('#ko-card')?.textContent?.trim()} · ${document.getElementById('ko-rings')?.outerHTML.slice(0, 200)}`)} ${JSON.stringify(await ko(e)).slice(0, 700)}`);
 await e.screenshot({ path: `${out}/match-rings.png` });
+// LEADERBOARD: the match as it stands, on the boards' own screen, while it is still being played. Out early, there was
+// the scorecard and the way back to the room, and no way to see where everybody stood.
 await e.locator('#ko-card').click({ force: true });
-check(await until('story', () => e.evaluate(() => document.body.classList.contains('ko-watch') && window.__cricket.knockout().watching !== null), 10_000), 'WATCH ON opens somebody’s game as a story');
+const stood = await until('standings', () => e.evaluate(() => document.querySelector('#ko-res-title')?.textContent === 'LEADERBOARD' && / leads$/.test(document.querySelector('#ko-results .lb-banner b')?.textContent ?? '')
+  && document.querySelectorAll('#ko-results .lb-row, #ko-results .lb-step').length === 12 && document.getElementById('ko-res-again')?.textContent?.trim() === 'BACK TO ROOM'), 10_000);
+check(stood, 'LEADERBOARD opens the match as it stands: who leads, all twelve, and BACK TO ROOM', await e.evaluate(() => document.getElementById('ko-results')?.textContent?.replace(/\s+/g, ' ').slice(0, 300)));
+await e.screenshot({ path: `${out}/match-standings.png` });
+await e.locator('#ko-res-close').click();
+check(await until('standings closed', () => e.evaluate(() => !document.getElementById('ko-results') && !!document.getElementById('ko-moment')), 5000), 'and back is the end screen');
+// A ring is the way to watch.
+await e.locator('#ko-rings .ko-ring:not(.is-out)').first().click({ force: true });
+check(await until('story', () => e.evaluate(() => document.body.classList.contains('ko-watch') && window.__cricket.knockout().watching !== null), 10_000), 'a ring opens somebody’s game as a story');
 // Whoever it opened on, a ball of somebody's is played on the ground: a seat with nothing new yet says it is waiting, and a swipe goes on.
 let played = false;
 for (let tries = 0; tries < 8 && !played; tries++) {
@@ -327,6 +338,27 @@ await e.screenshot({ path: `${out}/match-watching.png` });
 const seat = (await ko(e)).watching;
 await e.evaluate(() => window.__cricket.knockoutStep(1));
 check(await until('swiped', async () => (await ko(e)).watching !== seat, 5000), 'a swipe goes to the next one along');
+// A reaction from the tray goes to the friend watched, by way of the store; and one sent to this player shows on their phone.
+// (They only floated where they were sent from: with subs there was nobody to tell, and a friend never saw them.)
+await e.evaluate(() => window.__cricket.knockoutWatch(0));
+check(await until('on the host', async () => (await ko(e)).watching === 0, 5000), 'the host’s game is watched');
+await e.locator('.ko-watch-tray [data-react="🔥"]').click({ force: true });
+const matchNow = async () => (await (await fetch(`${base}/api/challenge?knockout=1&code=${fourth}`)).json()).match;
+check(await until('reaction stored', async () => { const m = await matchNow(); return m.reactions.some(rx => rx.from === guest && rx.emoji === '🔥' && rx.to === m.host); }, 8000),
+  'a reaction from the tray reaches the store for the friend watched', JSON.stringify((await matchNow()).reactions));
+const guestHandle = (await matchNow()).members.find(m => m.name === guest).handle;
+await api('react', goneId, gone, 4, { code: fourth, to: guestHandle, emoji: '😂' });
+const floated = await until('reaction shown', () => e.evaluate(who => [...document.querySelectorAll('.ko-rx')].some(el => el.textContent.includes(who) && el.textContent.includes('😂')), gone), 10_000, 100);
+check(floated, 'and one sent to this player floats up on their phone, with who sent it');
+if (floated) await e.screenshot({ path: `${out}/match-reaction.png` });
+// The side in the field keeps its kit through the batter watched: dressed again every ball, it changed shirts between balls.
+// (Read once a ball of the host's is staged: that is when the batter is dressed as them.)
+await until('a ball of the host’s', async () => { const ball = (await ko(e)).watchBall; return !!ball && ball.seat === 0 && !ball.shown; }, 45_000, 200);
+const sideKit = await e.evaluate(() => window.__cricket.snapshot().fieldingKit);
+await until('shown', async () => { const ball = (await ko(e)).watchBall; return !!ball && ball.seat === 0 && ball.shown; }, 45_000, 200);
+await until('and the one after', async () => { const ball = (await ko(e)).watchBall; return !!ball && ball.seat === 0 && !ball.shown; }, 45_000, 200);
+const sideAfter = await e.evaluate(() => ({ kit: window.__cricket.snapshot().fieldingKit, seat: window.__cricket.knockout().watching }));
+check(sideAfter.seat !== 0 || sideAfter.kit === sideKit, 'the fielding side wears one kit through the batter watched', JSON.stringify({ sideKit, sideAfter }));
 await e.locator('#ko-watch-close').click();
 check(await until('closed', () => e.evaluate(() => !document.body.classList.contains('ko-watch') && window.__cricket.knockout().watching === null), 5000), '✕ goes back to the end screen');
 await e.evaluate(() => [...document.querySelectorAll('#ko-res-again, #ko-again')].find(el => el.getBoundingClientRect().height > 0)?.click());

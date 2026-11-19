@@ -3,7 +3,7 @@ import { handleOf } from '../src/game/handle';
 import { codeIn } from '../src/game/match-code';
 import {
   AWAY_MS, INVITE_FRESH_MS, STALL_MS, MATCH_SEATS, START_IN_MS, awayInMatch, backToRoom, doneMatch, settleMatch, ballInMatch, beatInMatch, cleanMatchCode, hostMatch, inviteToMatch, joinMatch, leaveMatch, matchRefused,
-  memoryKnockouts, readInvites, readMatch, readyMatch, removeFromMatch, startMatch,
+  memoryKnockouts, reactInMatch, readInvites, readMatch, readyMatch, removeFromMatch, startMatch, REACTION_FRESH_MS, REACTION_GAP_MS,
   type MatchOutcome, type MatchView, type Member,
 } from '../src/server/knockout-store';
 
@@ -242,6 +242,59 @@ describe('a match with friends', () => {
     expect(left.members[1].left).toBe(true);
     ok(await awayInMatch(store, code, as(0), handleOf(ids[1]), 0, T0 + 5001));
     expect(ok(await readMatch(store, code, T0 + 6000)).members[1].card).toBe('SSSSSS');
+  });
+
+  describe('a reaction, from somebody watching to the batter they watch', () => {
+    async function three() {
+      const store = setup();
+      const { code } = ok(await hostMatch(store, as(0), T0));
+      ok(await joinMatch(store, code, as(1), T0 + 10));
+      ok(await joinMatch(store, code, as(2), T0 + 15));
+      ok(await startMatch(store, code, as(0), T0 + 20));
+      return { store, code };
+    }
+    it('is told to every phone for a few seconds: who it is for and who sent it by handle, the sender by name, never an id', async () => {
+      const { store, code } = await three();
+      const sent = ok(await reactInMatch(store, code, as(1), handleOf(ids[0]), '🔥', T0 + 5000));
+      expect(sent.reactions).toHaveLength(1);
+      expect(sent.reactions[0]).toMatchObject({ to: handleOf(ids[0]), by: handleOf(ids[1]), from: 'Riya', emoji: '🔥', at: T0 + 5000 });
+      expect(JSON.stringify(sent)).not.toContain(ids[1]);
+      // Still news to a phone that reads a moment later, and gone once it is old.
+      expect(ok(await readMatch(store, code, T0 + 5000 + REACTION_FRESH_MS - 1)).reactions).toHaveLength(1);
+      expect(ok(await readMatch(store, code, T0 + 5000 + REACTION_FRESH_MS)).reactions).toHaveLength(0);
+    });
+    it('keeps two sent in the same moment by two watchers, oldest first, each under an id of its own', async () => {
+      const { store, code } = await three();
+      ok(await reactInMatch(store, code, as(1), handleOf(ids[0]), '😂', T0 + 5000));
+      const both = ok(await reactInMatch(store, code, as(2), handleOf(ids[0]), '🦆', T0 + 5000));
+      expect(both.reactions.map(rx => `${rx.from}${rx.emoji}`)).toEqual(['Riya😂', 'Zoya🦆']);
+      expect(new Set(both.reactions.map(rx => rx.id)).size).toBe(2);
+    });
+    it('lets one watcher send no faster than the gap, and nothing that is not on the tray', async () => {
+      const { store, code } = await three();
+      ok(await reactInMatch(store, code, as(1), handleOf(ids[0]), '👏', T0 + 5000));
+      expect(ok(await reactInMatch(store, code, as(1), handleOf(ids[0]), '👏', T0 + 5000 + REACTION_GAP_MS - 1)).reactions).toHaveLength(1);
+      expect(ok(await reactInMatch(store, code, as(1), handleOf(ids[0]), '👏', T0 + 5000 + REACTION_GAP_MS)).reactions).toHaveLength(2);
+      const odd = await reactInMatch(store, code, as(1), handleOf(ids[0]), '<b>hi</b>', T0 + 9000);
+      expect(matchRefused(odd) && odd.status).toBe(400);
+    });
+    it('goes only to a player seated in the match, never to oneself, and only from somebody in it', async () => {
+      const { store, code } = await three();
+      const self = await reactInMatch(store, code, as(1), handleOf(ids[1]), '🔥', T0 + 5000);
+      expect(matchRefused(self) && self.status).toBe(400);
+      const nobody = await reactInMatch(store, code, as(1), handleOf(ids[9]), '🔥', T0 + 5000);
+      expect(matchRefused(nobody) && nobody.status).toBe(400);
+      const outsider = await reactInMatch(store, code, as(9), handleOf(ids[0]), '🔥', T0 + 5000);
+      expect(matchRefused(outsider) && outsider.status).toBe(403);
+    });
+    it('is the match’s own: none are carried into the room’s next one', async () => {
+      const { store, code } = await three();
+      ok(await reactInMatch(store, code, as(1), handleOf(ids[0]), '🔥', T0 + 5000));
+      for (const i of [0, 1, 2]) ok(await backToRoom(store, code, as(i), T0 + 6000 + i));
+      const lobby = ok(await settleMatch(store, code, as(0), T0 + 7000));
+      expect(lobby.round).toBe(2);
+      expect(lobby.reactions).toHaveLength(0);
+    });
   });
 
   describe('the room, between matches', () => {

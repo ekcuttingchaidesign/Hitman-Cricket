@@ -17,13 +17,15 @@ export interface ResultsRow { place: number; name: string; face: number; runs: n
 export interface ResultsView {
   /** Every seat, by where they finished: 1 first. */
   rows: ResultsRow[];
-  you: { place: number; of: number; face: number; runs: number; line: string };
+  you: { place: number; of: number; face: number; runs: number; line: string; sentence?: string };
   /** The banner at the head of the list: who won it and how. */
   winner: { title: string; line: string };
   /** A practice room of subs; a match with friends is false. */
   practice?: boolean;
   /** The key in the dock: PLAY AGAIN, or BACK TO ROOM in a match with friends. */
   again?: string;
+  /** The room is still being played: the standings as they are, kept up as balls arrive (LEADERBOARD on the end screen). */
+  live?: boolean;
 }
 
 /** Knockout Red, the knockout's own colour. */
@@ -31,30 +33,48 @@ const RED = '#ee2a2a';
 
 export class KnockoutResults {
   private readonly root: HTMLElement;
-  constructor(host: HTMLElement, view: ResultsView, keys: { again(): void; back(): void }) {
+  private shown = '';
+  /** Whether it is the standings of a room still being played. */
+  live = false;
+  constructor(host: HTMLElement, view: ResultsView, private readonly keys: { again(): void; back(): void }) {
     this.root = document.createElement('div');
     this.root.className = 'ko-results';
     this.root.id = 'ko-results';
     this.root.setAttribute('role', 'dialog');
-    this.root.setAttribute('aria-label', 'Results');
+    host.append(this.root);
+    this.update(view);
+  }
+  /** Drawn, or drawn again where it stands as the room moves on under it: where the list was scrolled to is kept. */
+  update(view: ResultsView) {
+    const key = JSON.stringify(view);
+    if (key === this.shown) return;
+    const first = !this.shown;
+    this.shown = key;
+    this.live = !!view.live;
+    this.root.classList.toggle('is-live', this.live);
+    this.root.classList.toggle('is-redrawn', !first);
+    this.root.setAttribute('aria-label', view.live ? 'Leaderboard' : 'Results');
+    const at = this.root.querySelector<HTMLElement>('#ko-res-body')?.scrollTop ?? 0;
+    const keys = this.keys;
     const rows: BoardEntry[] = view.rows.map(row => ({
       place: row.place, name: row.name, avatar: row.face, sub: row.line, score: String(row.runs), you: row.you,
       podiumSub: row.you ? 'you' : row.sub === false ? 'friend' : 'sub',
     }));
     const markup = boardScreenMarkup({
       mode: 'classic', modes: [], ladder: 'room', ladders: [], rows, state: 'ready',
-      banner: { icon: '👑', tone: 'gold', title: view.winner.title, line: view.winner.line },
-      dock: { avatar: view.you.face, sentence: `You finished <em>${ordinal(view.you.place).toLowerCase()}</em> of ${view.you.of}`, detail: view.you.line, score: String(view.you.runs) },
+      banner: { icon: view.live ? '🏏' : '👑', tone: 'gold', title: view.winner.title, line: view.winner.line },
+      dock: { avatar: view.you.face, sentence: view.you.sentence ?? `You finished <em>${ordinal(view.you.place).toLowerCase()}</em> of ${view.you.of}`, detail: view.you.line, score: String(view.you.runs) },
       play: { id: 'board-again', label: view.again ?? 'PLAY AGAIN' }, focus: 'top', rules: '',
-      look: { cls: 'knockout', colour: RED, art: hero, name: 'Super Knockout', title: 'RESULTS', ladder: view.practice === false ? 'With friends' : 'Practice room' },
+      look: { cls: 'knockout', colour: RED, art: hero, name: 'Super Knockout', title: view.live ? 'LEADERBOARD' : 'RESULTS', ladder: view.practice === false ? 'With friends' : 'Practice room' },
     });
     // The board's ids are the board's: these are this screen's own, so the two never answer for each other.
     this.root.innerHTML = markup.replace(/id="board-/g, 'id="ko-res-');
-    host.append(this.root);
     this.root.querySelector<HTMLButtonElement>('#ko-res-close')!.onclick = () => { this.close(); keys.back(); };
     this.root.querySelector<HTMLButtonElement>('#ko-res-again')!.onclick = () => { this.close(); keys.again(); };
     const body = this.root.querySelector<HTMLElement>('#ko-res-body')!;
     body.addEventListener('scroll', () => this.fold(), { passive: true });
+    if (at) body.scrollTop = at;
+    this.fold();
     requestAnimationFrame(() => this.fold());
   }
   /** As the board folds (`foldBoard` in the HUD): the podium to chips, the art to the page, the dock card aside while the row shows. */

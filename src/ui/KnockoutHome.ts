@@ -82,7 +82,11 @@ export function knockoutCardWords(tally: KnockoutTally): { tag: string; line: st
 const BEAMS = `<span class="ko-beams">${[[63, 3], [95, 2], [129, 1], [274, -1], [305, -2], [337, -3]]
   .map(([x, lean], i) => `<i style="--x:${x};--lean:${lean};--n:${i}"></i>`).join('')}</span>`;
 
-/** The home (K2): the picture, the mark, the format in two lines, your rooms, and QUICK MATCH and PLAY WITH FRIENDS at the thumb. */
+/**
+ * The home (K2): the picture, the mark, the format in two lines, your rooms, and at the thumb PLAY WITH FRIENDS,
+ * the hero key, over PRACTICE (a room of subs; it was QUICK MATCH and the hero until matches with friends were
+ * live, and the owner had the two changed places and the name changed, 19 November 2026).
+ */
 export function knockoutHomeMarkup(): string {
   return `<div id="knockout-home" class="modal-overlay ko-screen hidden" role="dialog" aria-modal="true" aria-label="Super Knockout">
           <div class="ko-scroll">
@@ -105,12 +109,12 @@ export function knockoutHomeMarkup(): string {
                 <span><b id="ko-home-best" class="is-gold">–</b><i>Best finish</i></span>
                 <span><b id="ko-home-wins">0</b><i>Wins</i></span>
               </div>
-              <p class="ko-practice">Practice for now: you and eleven subs, no points.</p>
+              <p class="ko-practice">Practice is you and eleven subs: no points.</p>
             </div>
           </div>
           <div class="ko-keys">
-            ${cta({ kind: 'primary', label: 'QUICK MATCH', id: 'ko-quick', moving: true })}
-            <button id="ko-friends" class="ko-friends" type="button" disabled aria-disabled="true">${icon('users')}<span>PLAY WITH FRIENDS</span><i class="ko-soon">SOON</i></button>
+            <button id="ko-friends" class="k-cta k-cta--primary is-wide ko-hero-key" type="button" disabled aria-disabled="true"><span class="k-cta-face"><i class="k-cta-chevrons" aria-hidden="true"></i>${icon('users')}<span>PLAY WITH FRIENDS</span><i class="ko-soon">SOON</i></span></button>
+            <button id="ko-quick" class="ko-friends ko-practice-key" type="button"><span>PRACTICE</span><small>vs 11 subs</small></button>
           </div>
         </div>`;
 }
@@ -173,7 +177,7 @@ export function knockoutRulesMarkup(): string {
             </div>
           </div>
           <div class="ko-keys is-pinned">
-            ${cta({ kind: 'primary', label: 'QUICK MATCH', id: 'ko-rules-quick', moving: true })}
+            ${cta({ kind: 'primary', label: 'PRACTICE', id: 'ko-rules-quick', moving: true })}
           </div>
         </div>`;
 }

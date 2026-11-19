@@ -226,7 +226,7 @@ export class KnockoutMoment {
   /** The scoreboard's box on the screen, for its cracks before it goes. */
   private bugAt: { x: number; y: number; ix: number; iy: number } | null = null;
 
-  constructor(private readonly host: HTMLElement, private view: MomentView, keys: { again(): void; card(): void; sound?(cue: MomentSound): void; watch?(id: number | null): void }) {
+  constructor(private readonly host: HTMLElement, private view: MomentView, keys: { again(): void; card(): void; sound?(cue: MomentSound): void; watch?(id: number | null): void; board?(): void }) {
     this.sound = keys.sound ?? null;
     this.times = view.won ? TIMES.won : TIMES.lost;
     this.root = document.createElement('div');
@@ -244,14 +244,20 @@ export class KnockoutMoment {
     this.drain = this.root.querySelector<HTMLElement>('.ko-drain');
     this.ctx = this.canvas.getContext('2d')!;
     this.root.querySelector<HTMLButtonElement>('#ko-again')!.onclick = event => { event.stopPropagation(); this.close(); keys.again(); };
-    // While the room plays on, the left key is WATCH ON: the first ring's game. Once it is over, SCORECARD again.
+    // The left key is LEADERBOARD: the room's standings as they are, or its Results once it is over. The owner, out early
+    // in a match, could go back to the room or read the scorecard and had no way to see where everybody stood
+    // (19 November 2026); WATCH ON, which it was while the room played on, is the rings' own tap. Counting to the
+    // Results (RESULTS · 3) a tap goes now.
+    this.board = keys.board ?? null;
     this.root.querySelector<HTMLButtonElement>('#ko-card')!.onclick = event => {
       event.stopPropagation();
-      if (this.roomOn && keys.watch) { keys.watch(null); return; }
       if (this.toResults) { this.toResults(); return; }
+      if (this.board) { this.board(); return; }
+      if (this.roomOn && keys.watch) { keys.watch(null); return; }
       this.close(); keys.card();
     };
-    if (keys.watch && !view.won) { this.rings = new Rings(this.root, id => keys.watch!(id)); this.roomOn = true; this.label('WATCH ON'); }
+    if (keys.watch && !view.won) { this.rings = new Rings(this.root, id => keys.watch!(id)); this.roomOn = true; }
+    this.label(this.board ? 'LEADERBOARD' : this.roomOn ? 'WATCH ON' : 'SCORECARD');
     // A tap skips to the end, as a tap does over every celebration in the game.
     this.root.onclick = () => { if (this.t < this.times.lock) { this.from -= (this.times.lock - this.t) * 1000; } };
     this.waves = [{ t0: 1.6, bits: paperWave(3, 90) }, { t0: 1.98, bits: paperWave(11, 56) }];
@@ -285,6 +291,7 @@ export class KnockoutMoment {
   /** The room as story rings, while it plays on after the player has gone (`KnockoutWatch.ts`). */
   private rings: Rings | null = null;
   private roomOn = false;
+  private board: (() => void) | null = null;
   private lineNow: string | null = null;
   private label(text: string) {
     const face = this.root.querySelector('#ko-card .k-cta-face') ?? this.root.querySelector('#ko-card');
@@ -297,7 +304,7 @@ export class KnockoutMoment {
     this.roomOn = false; this.lineNow = line; this.toResults = null;
     this.root.querySelector('#ko-card')?.classList.remove('is-counting');
     this.rings?.remove(); this.rings = null;
-    this.label('SCORECARD');
+    this.label(this.board ? 'LEADERBOARD' : 'SCORECARD');
     this.draw();
   }
   /** The room down to its last two (B1). */

@@ -3,7 +3,7 @@
  * shorter scoreboard (the over of five and this over ball by ball, no LAST
  * cell), the knockout bar with the place, every seat and the face, its mood
  * and the fire in the drop, the red edge, the player bowled and the room playing on to the cut that takes them, KNOCKED
- * OUT over the card with SCORECARD and PLAY AGAIN; then a room won with a six
+ * OUT over the card with LEADERBOARD and PLAY AGAIN; then a room won with a six
  * every ball, the free hit it earns and a wicket on it not counting, WINNER,
  * and PLAY AGAIN walking out into a new room; the scoreboard held between
  * balls, the bowler waiting, a touch with the ball live doing nothing, and
@@ -90,22 +90,40 @@ check(/^circle\(/.test(cracking.drain ?? '') && cracking.bugs > 5 && !cracking.h
 const shattered = await glassAt(0.75);
 check(shattered.hidden && shattered.falling > 5 && shattered.drain === 'none', 'the scoreboard breaks into pieces that fall', JSON.stringify(shattered));
 for (const t of [0.06, 0.35, 0.75, 1.42, 2.05, 2.5, 2.9, 3.5]) await pin(page, t, 'ko-lost');
-check(await page.locator('#ko-again').isVisible(), 'WATCH ON and PLAY AGAIN are up once it lands');
+check(await page.locator('#ko-again').isVisible(), 'LEADERBOARD and PLAY AGAIN are up once it lands');
 // The room plays on (section 51): its rings once the sting has landed, a sub's game watched as a story, a swipe, and back.
 await page.evaluate(() => window.__cricket.knockoutAt(5.2));
 await page.waitForTimeout(500);
 const rings = await page.evaluate(() => ({ shown: !document.getElementById('ko-rings')?.hidden, count: document.querySelectorAll('#ko-rings .ko-ring').length, key: document.querySelector('#ko-card')?.textContent?.trim(), room: window.__cricket.knockout().roomOn }));
-check(rings.room && rings.shown && rings.count > 3 && rings.key === 'WATCH ON', 'the room plays on: its rings on the end screen, and WATCH ON', JSON.stringify(rings));
+check(rings.room && rings.shown && rings.count > 3 && rings.key === 'LEADERBOARD', 'the room plays on: its rings on the end screen, and LEADERBOARD on the key', JSON.stringify(rings));
 await page.screenshot({ path: out + '/ko-rings.png' });
 await page.evaluate(() => window.__cricket.knockoutAt(null));
+// LEADERBOARD: the room as it stands, on the boards' own screen, kept up as the room bowls on; back is the end screen.
 await page.locator('#ko-card').click();
+await page.waitForFunction(() => !!document.getElementById('ko-results'), null, { timeout: 10000 }).catch(() => {});
+const standings = await page.evaluate(() => ({ title: document.querySelector('#ko-res-title')?.textContent, banner: document.querySelector('#ko-results .lb-banner b')?.textContent, line: document.querySelector('#ko-results .lb-banner')?.textContent,
+  rows: document.querySelectorAll('#ko-results .lb-row').length + document.querySelectorAll('#ko-results .lb-step').length, you: document.querySelector('#ko-res-you b')?.textContent, live: document.getElementById('ko-results').classList.contains('is-live'),
+  moment: !!document.getElementById('ko-moment'), room: window.__cricket.knockout().roomOn }));
+check(standings.title === 'LEADERBOARD' && / leads$/.test(standings.banner ?? '') && /still in/.test(standings.line ?? '') && standings.rows === 12 && /^You finished \d+(st|nd|rd|th) of 12$/.test(standings.you ?? '') && standings.live && standings.moment && standings.room,
+  'LEADERBOARD opens the room as it stands: who leads, how many are still in, all twelve, and where you finished', JSON.stringify(standings));
+await page.screenshot({ path: out + '/ko-standings.png' });
+await page.locator('#ko-res-close').click();
 await page.waitForTimeout(300);
+check(await page.evaluate(() => !document.getElementById('ko-results') && !!document.getElementById('ko-moment') && window.__cricket.knockout().roomOn), 'and back is the end screen, the room still playing on');
+// A ring is the way to watch: the first is the leader's.
+await page.locator('#ko-rings .ko-ring').first().click();
+await page.waitForTimeout(300);
+const sideKit = await page.evaluate(() => window.__cricket.snapshot().fieldingKit);
 const watching = await page.evaluate(() => ({ body: document.body.classList.contains('ko-watch'), name: document.querySelector('.ko-watch-name')?.textContent, line: document.querySelector('.ko-watch-line')?.textContent, id: window.__cricket.knockout().watching,
   board: getComputedStyle(document.querySelector('.score-bug:not([aria-hidden])')).visibility }));
-check(watching.body && watching.name && /off \d+ · \d+(st|nd|rd|th) of \d+/.test(watching.line ?? '') && watching.id > 0 && watching.board === 'visible', 'WATCH ON opens the leader\'s game as a story, their scoreboard showing', JSON.stringify(watching));
+check(watching.body && watching.name && /off \d+ · \d+(st|nd|rd|th) of \d+/.test(watching.line ?? '') && watching.id > 0 && watching.board === 'visible', 'a ring opens the leader\'s game as a story, their scoreboard showing', JSON.stringify(watching));
 for (let i = 0; i < 160; i++) { if ((await page.evaluate(() => window.__cricket.knockout().watchBall))?.shown) break; await page.waitForTimeout(400); }
 await snap(page, out + '/ko-watching.png');
-const before = watching.id;
+// The side in the field keeps its kit from one ball of theirs to the next: the batter was dressed again every ball, which dealt it afresh.
+for (let i = 0; i < 160; i++) { const ball = await page.evaluate(() => window.__cricket.knockout().watchBall); if (ball && !ball.shown) break; await page.waitForTimeout(250); }
+const sideKitNext = await page.evaluate(() => ({ kit: window.__cricket.snapshot().fieldingKit, seat: window.__cricket.knockout().watching }));
+check(sideKitNext.seat !== watching.id || sideKitNext.kit === sideKit, 'the fielding side wears one kit through the batter watched', JSON.stringify({ sideKit, sideKitNext }));
+const before = sideKitNext.seat ?? watching.id;
 await page.evaluate(() => window.__cricket.knockoutStep(1));
 await page.waitForTimeout(300);
 const stepped = await page.evaluate(() => ({ id: window.__cricket.knockout().watching, name: document.querySelector('.ko-watch-name')?.textContent }));
@@ -114,7 +132,7 @@ await page.locator('#ko-watch-close').click();
 await page.waitForTimeout(300);
 check(await page.evaluate(() => !document.body.classList.contains('ko-watch') && window.__cricket.knockout().watching === null), '\u2715 goes back to the end screen');
 // The room's end, never abrupt (section 52, lane A): watched to its end, MATCH OVER over the game with a count, then the wipe and Results.
-await page.locator('#ko-card').click();
+await page.locator('#ko-rings .ko-ring:not(.is-out)').first().click();
 await page.waitForTimeout(300);
 await page.evaluate(() => { window.__cricket.knockoutPlayOn(); window.__cricket.knockoutEndAt(1800); });
 await page.waitForFunction(() => !!document.getElementById('ko-match-over'), null, { timeout: 30000 }).catch(() => {});
@@ -144,7 +162,7 @@ await snap(page, out + '/ko-results.png');
 await page.locator('#ko-res-close').click();
 await page.waitForTimeout(300);
 const over = await page.evaluate(() => ({ room: window.__cricket.knockout().roomOn, results: window.__cricket.knockout().results, rings: document.querySelectorAll('#ko-rings').length, key: document.querySelector('#ko-card')?.textContent?.trim(), said: document.querySelector('.ko-moment-said')?.textContent }));
-check(!over.room && !over.results && over.rings === 0 && over.key === 'SCORECARD', 'back from the results: the end screen, its rings gone and SCORECARD on its key', JSON.stringify(over));
+check(!over.room && !over.results && over.rings === 0 && over.key === 'LEADERBOARD', 'back from the results: the end screen, its rings gone and LEADERBOARD on its key', JSON.stringify(over));
 // Lane B: the room won while the player waits on the end screen, the winner's ring crowned and the key counting.
 {
   const other = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
@@ -165,10 +183,16 @@ check(!over.room && !over.results && over.rings === 0 && over.key === 'SCORECARD
   check(await other.evaluate(() => !!document.getElementById('ko-results')), 'and the count runs out into the Results by itself');
   await other.close();
 }
+// The room over, LEADERBOARD is its Results again; and PLAY AGAIN puts the end screen away for a new room.
 await page.locator('#ko-card').click();
-await page.waitForTimeout(500);
-check(await page.locator('#ko-moment').count() === 0 && await page.locator('#again').isVisible(), 'SCORECARD leaves the card');
-check(await page.evaluate(() => document.querySelectorAll('.score-bug').length === 1 && document.querySelector('.score-bug').style.visibility === ''), 'the scoreboard is whole again under the card');
+await page.waitForFunction(() => !!document.getElementById('ko-results'), null, { timeout: 10000 }).catch(() => {});
+check(await page.evaluate(() => document.querySelector('#ko-res-title')?.textContent === 'RESULTS' && !document.getElementById('ko-results').classList.contains('is-live')), 'the room over, LEADERBOARD opens its Results again');
+await page.locator('#ko-res-close').click();
+await page.waitForTimeout(300);
+await page.locator('#ko-again').click();
+await page.waitForFunction(() => !document.getElementById('ko-moment') && window.__cricket.knockout()?.left === 12, null, { timeout: 20000 }).catch(() => {});
+check(await page.locator('#ko-moment').count() === 0 && (await page.evaluate(() => window.__cricket.knockout()?.left)) === 12, 'PLAY AGAIN puts the end screen away for a new room of twelve');
+check(await page.evaluate(() => document.querySelectorAll('.score-bug').length === 1 && document.querySelector('.score-bug').style.visibility === ''), 'the scoreboard is whole again');
 await page.screenshot({ path: out + '/ko-card.png' });
 await page.close();
 
@@ -309,7 +333,7 @@ for (const mood of ['calm', 'edge', 'level', 'drop', 'final']) {
   await page.screenshot({ path: `${out}/ko-mood-${mood}.png`, clip: { x: 0, y: 560, width: 390, height: 284 } });
 }
 await page.close();
-// 5. The way in (K1, K2, K2b): Choose a mode's rail, the card, the rules the first time, the home and QUICK MATCH.
+// 5. The way in (K1, K2, K2b): Choose a mode's rail, the card, the rules the first time, the home and PRACTICE.
 page = await b.newPage({ viewport: { width: 402, height: 874 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
 page.on('pageerror', e => errors.push(e.message));
 await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); localStorage.setItem('hitman-whatsnew', 'rivals:9,diwali:9,cams:9'); localStorage.setItem('hitman-keeper-intro','done'); } catch {} });
@@ -348,7 +372,7 @@ check(await page.locator('#knockout-rules.hidden').count() === 1, 'the second ti
 await page.locator('#ko-quick').click();
 for (let i = 0; i < 60; i++) { const ph = await page.evaluate(() => window.__cricket?.snapshot().phase); if (ph === 'READY' || ph === 'BOWLER_RUNUP') break; await page.waitForTimeout(250); }
 const inRoom = await page.evaluate(() => ({ room: window.__cricket.knockout()?.left, bar: !document.getElementById('ko-track').hidden, mode: localStorage.getItem('hitman-last-mode') }));
-check(inRoom.room === 12 && inRoom.bar && inRoom.mode === 'KNOCKOUT', 'QUICK MATCH walks out into a room of twelve', JSON.stringify(inRoom));
+check(inRoom.room === 12 && inRoom.bar && inRoom.mode === 'KNOCKOUT', 'PRACTICE walks out into a room of twelve', JSON.stringify(inRoom));
 await page.close();
 
 // 6. A real ball: a yorker left alone bowls him, and the game holds still on the stumps flying (the hit-stop).
