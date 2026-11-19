@@ -2446,8 +2446,17 @@ the places, sizes, colours, the rays' conic gradient and the grain are read
 off them, and the way there is the claude.ai artifact "Knockout Moments", on
 one clock as the Verdict is. The card is out of sight underneath while it is
 up (`ko-up`), so what shows through K9 v2's dark is the match, blurred. Its
-keys are SCORECARD in the design's dark key and PLAY AGAIN in Knockout Red;
-the design's WATCH ON and SHARE come with real rooms and the share picture.
+keys are LEADERBOARD in the design's dark key and PLAY AGAIN in Knockout Red
+(`board` on the moment's keys, `openStandings` in `src/Game.ts`). It was
+SCORECARD, and WATCH ON while the room played on: the owner, out early in a
+match, could read the scorecard or go back to the room and had no way to see
+where everybody stood (19 November 2026). It opens the room's Results screen
+(below): while the room is still being played, live (`live` on `ResultsView`:
+LEADERBOARD over who leads, the over and how many are still in, every seat
+as it stands, kept up as balls arrive through `hud.knockoutStandings`,
+redrawn where it is scrolled to); once it is over, its Results. The innings'
+own scorecard is not reached from there any more. The design's SHARE comes
+with the share picture.
 KNOCKED OUT opens on the glass break (Figma section 37, "Knocked out,
 version 2: it should hurt", `830:8574`, the owner's pick on 18 November
 2026), about 3.4 seconds before the keys: the hit, a white frame and the
@@ -2566,14 +2575,13 @@ stands and `__cricket.knockoutAt(t)` holds the end moment's clock;
 
 Knocked out, the room plays on and can be watched (Battle Royale page,
 section 51, "Watching the room, as stories"; `src/ui/KnockoutWatch.ts`,
-`roomFrame`, `watch` and `watchFrame` in `src/Game.ts`). The end moment's
-dark key is WATCH ON while the room is still going, and two seconds after
-the keys land a row of story rings rises under them (`Rings`, `RINGS_AFTER`
+`roomFrame`, `watch` and `watchFrame` in `src/Game.ts`). Two seconds after
+the end moment's keys land a row of story rings rises under them (`Rings`, `RINGS_AFTER`
 in `KnockoutMoment.ts`): STILL IN · TAP TO WATCH, everybody left best
 first, no LIVE badge (the owner took it off). A batter out greys with OUT;
 a seat the cut takes greys, shrinks and leaves the row; down to the final
 the head says THE FINAL with a v between the two faces (`final`). Unwatched,
-the room bowls on a ball every `ROOM_BALL_MS`. A ring (or WATCH ON, the leader) opens that
+the room bowls on a ball every `ROOM_BALL_MS`. A ring opens that
 sub's game full screen as a story (`WatchView`): a bar an over, their face,
 name and line (41* off 18 · 1st of 10), ✕ back; their neighbours' faces at
 the edges, a swipe left or right to them, down to go back; nothing laid over
@@ -2583,10 +2591,14 @@ the room keeps what every seat swung and when (`Play`, `plays` and `logs` on
 the delivery, the swing at its offset and the outcome, as the replay is,
 with their scoreboard, over chips and the call; the player's own innings is
 never touched. A cut while watching is called on the guard with the
-floodlights' flash. The tray of reactions (😂🔥👏😱🦆) only floats them
-up: with subs there is nobody to send them to. Sending balls between phones,
-N WATCHING for whoever is watched, and the call back to the room are stage
-two's. `__cricket.knockoutWatch(id)`, `knockoutStep(1)`, `knockoutUnwatch()`
+floodlights' flash. The batter on the ground is dressed as the seat watched
+once, when it is first staged (`dressed` on `room`, in `watchStage`), not
+every ball: dressing him deals the fielding side a kit afresh
+(`pickSide`), so the men in the field changed shirts between balls, which
+the owner saw (19 November 2026). The tray of reactions (😂🔥👏😱🦆) floats
+them up; in a practice room that is all, with subs there being nobody to
+send them to, and in a match they travel (stage two, below). N WATCHING for
+whoever is watched is still to come. `__cricket.knockoutWatch(id)`, `knockoutStep(1)`, `knockoutUnwatch()`
 and `knockoutPlayOn()` (the room to its end at once) are for the checks;
 `knockout-check` walks the rings, a watched ball, a swipe, ✕ and the room's
 end both ways.
@@ -2603,7 +2615,7 @@ winner's face rising into a gold ring with the crown dropping on, what it took
 and a pill counting three seconds, its ring draining (`matchOver` on
 `WatchView`, `#ko-match-over`); on the end screen, every ring but the winner's goes,
 the winner's grows gold and crowned, the head says MATCH OVER · SANA WON THE
-ROOM, the line under KNOCKED OUT the result, and WATCH ON becomes RESULTS · 3,
+ROOM, the line under KNOCKED OUT the result, and LEADERBOARD becomes RESULTS · 3,
 its face draining red (`roomEnd` on the moment, `over` on `Rings`). A tap, ✕
 or the key goes now (`resultsNow`). Then the replay's wipe in Knockout red,
 SUPER KNOCKOUT over RESULTS (`replayWipe('knockout')`), and under it the
@@ -2615,8 +2627,9 @@ do, the podium folding to chips as the list rises, with a banner of who won
 it and how and the player's finish in the dock over PLAY AGAIN; a practice
 room's podium says sub. A first build drew its own sheet, which scrolled
 nothing like the boards and whose design the owner found off. Back is the
-end screen, the result in its line and SCORECARD on its key. WINNER counts
-on to the same Results (`WON_RESULTS_MS` after it goes up: its SCORECARD key
+end screen, the result in its line and LEADERBOARD on its key, which opens
+them again. WINNER counts
+on to the same Results (`WON_RESULTS_MS` after it goes up: its left key
 turns RESULTS · 3 and drains, `countToResults`), as the owner asked: it was
 left standing. Its crown sits on the ring along its 8° lean (`CROWN.sit`:
 its band is an arc made to sit on a circle), where by eye it floated a gap
@@ -2644,11 +2657,15 @@ PLAY came first, and the owner wanted it smooth and subtle); embers drift up
 all the while; nothing moves under reduced motion. The card opens the home (K2,
 `#knockout-home`): the picture, the mark, the format in two lines, this
 browser's practice rooms, best finish and wins (`readTally`, `tallyRoom`,
-kept in `hitman-knockout`, since practice scores no points), QUICK MATCH
-(`#ko-quick`) and PLAY WITH FRIENDS, which opens matches with friends (below; drawn and marked SOON only where a name cannot be kept). How
+kept in `hitman-knockout`, since practice scores no points), and at the
+thumb PLAY WITH FRIENDS (`#ko-friends`), the hero key, which opens matches
+with friends (below; drawn and marked SOON only where a name cannot be kept),
+over PRACTICE (`#ko-quick`, the dark key, "vs 11 subs"). PRACTICE was QUICK
+MATCH and the hero until matches with friends were live; the owner had the
+two change places and the name changed (19 November 2026). How
 it works (K2b, `#knockout-rules`: the ladder off `KNOCKOUT.cuts`, the eight
 rules, while you bat) opens by itself the first time a browser chooses it
-(`hitman-knockout-rules`) and from either (i). QUICK MATCH walks out into
+(`hitman-knockout-rules`) and from either (i). PRACTICE walks out into
 the same practice room the switch does (`knockoutPicked`), so it is
 practice too; the rail remembers it as the last mode played.
 
@@ -2692,13 +2709,26 @@ INVITE's line off before its link, and a long press on four invisible boxes
 was hard to find on a phone (the owner could not paste a copied code, 18
 November 2026).
 
-The lobby (`LobbyScreen`, `#knockout-lobby`): YOUR MATCH, N OF 12 IN, the
-twelve seats (HOST under the host's face, a tick on a guest who has said I'M
-READY, you ringed white, the first empty seat + Invite, which shares), MATCH
-CODE · FRIENDS TYPE THIS IN with COPY, AROUND NOW as a strip of faces with
-INVITE turning SENT ✓, and the keys: INVITE (the phone's share sheet with the
-match's link, `?k=CODE`, or the link copied) beside START NOW for the host,
-asleep until one friend is in, or I'M READY for a guest. START NOW counts
+The lobby (`LobbyScreen`, `#knockout-lobby`): YOUR MATCH, N OF 12 IN, one
+line under it saying where the room stands (`#ko-lobby-note`), the twelve
+seats in two rows of six (HOST under the host's face, a tick on a guest who
+has said I'M READY, you ringed white, the first empty seat + Invite, which
+shares), MATCH CODE · FRIENDS TYPE THIS IN with COPY, AROUND NOW as a strip
+of faces with INVITE turning SENT ✓, and the keys: INVITE, the quiet dark
+key (the phone's share sheet with the match's link, `?k=CODE`, or the link
+copied), beside the hero key, START NOW for the host, asleep until one
+friend is in, or I'M READY for a guest, green once it says READY ✓. The
+room does not drag and nothing runs off its edge (the owner's phone, 19
+November 2026): the glow and the grain overflowed the scroller, which panned
+it sideways and scrolled it to the design phone's height with nothing to
+show (`overflow-x:hidden` on `.ko-scroll`, the lobby's grain its own
+height); the kit's hero key is never narrower than 210, which beside INVITE
+at 46% was wider than the screen (`.ko-keys-pair .k-cta--primary`); and
+three rows of four seats with a second line under the list ran past the
+foot. It fits a phone 680 high with Around now showing, and scrolls only on
+one shorter. I'M READY was a dark key beside a green INVITE and read as
+switched off. JOIN on Play with friends is a face on a ledge in Knockout Red
+(`.ko-join-go`): flat red, it had no depth beside every other key. START NOW counts
 WALKING OUT IN 3 on every phone to the same moment (`walkOutAt`, the store's
 clock through `MatchLink.serverNow`). A match's link opens the game straight
 into joining it. An invite is asked for every six seconds (`INVITE_POLL_MS`,
@@ -2840,9 +2870,9 @@ them (`settleOut`, from `matchStep`) the place is stamped over it
 (`KnockoutMoment.settle`, the stamp slammed in again, nothing else restarted)
 and the line says how it ended. A cut that passes an out player over leaves
 the screen as it is for the next; one who wins the final from the pavilion
-gets WINNER. The rings, WATCH ON and BACK TO ROOM are there from the start.
+gets WINNER. The rings, LEADERBOARD and BACK TO ROOM are there from the start.
 Knocked out, the room plays on as the store's balls arrive, on the end
-screen's rings, with WATCH ON and the stories as a practice room has them (the
+screen's rings, with the stories as a practice room has them (the
 owner missed them in a match, 19 November 2026). The room there is the
 store's, so a seat is not bowled to for the watcher: it is played back from
 what the room has kept of it (`history` on `KnockoutRoom`, every ball's play
@@ -2853,15 +2883,31 @@ back goes on from where it was). Caught up, the bowler waits at his mark under
 WAITING FOR RIYA'S NEXT BALL: a friend's balls are a few seconds behind them,
 a sub's come an over at a time. The header counts what the watcher has been
 shown, not where the room has got to, and the room's end waits for the seat
-watched to be caught up (`endDue`). WATCH ON is offered only while the room
-is still going (it stood as a dead key, in a practice room too, when the
-room was over as the player went). Then MATCH OVER and the Results
+watched to be caught up (`endDue`). Then MATCH OVER and the Results
 (`With friends`, real players' podium line `friend`). The key under its end
 screens is BACK TO ROOM (above), never a practice room; a restart with
 batting still to do, or Choose a mode, lets the match and the room go,
-running away (5A) if the player was still in it. Not yet: points with three real players,
-the timer, the host's start-with-subs question, reactions sent to whoever is
-watched, and invites in Notifications.
+running away (5A) if the player was still in it.
+
+Reactions travel (the owner sent one and the other device never showed it,
+19 November 2026: they only floated where they were sent from). The tray's
+tap goes to the store for the friend watched (`sendReaction`, the store's
+`react`, `reactInMatch`): a field of its own each
+(`rx:<round>:<when>:<who>`), so two sent at once never overwrite each other,
+told in every answer for twenty seconds (`reactions` on the view,
+`REACTION_FRESH_MS`: who it is for and who sent it by handle, the sender by
+name and face), one a watcher every 350ms at most (`REACTION_GAP_MS`), only
+one of the tray's five, only to a player seated in the match and never to
+oneself; the stale ones are swept as new ones come and all go with the
+round. A phone shows each once (`showReactions`, `reacted` on `matchPlay`):
+the ones for its own player, and the ones for whoever it is watching that
+somebody else sent, as the emoji with the sender's face and name floating up
+the left edge (`hud.knockoutReaction`, `.ko-rx`, Web Animations, taking no
+touch). They are shown as the room's news is, so never with a ball live. A
+sub has nobody to tell.
+
+Not yet: points with three real players, the timer, the host's
+start-with-subs question, N WATCHING, and invites in Notifications.
 
 `scripts/friends-check.mjs` walks it in two browsers in real time, nobody
 swinging: Play with friends, a wrong code, PASTE and a paste of INVITE's
@@ -2876,7 +2922,10 @@ ROOM from both end screens and the room's second match started and walked out
 to; a guest out of a match the script's host is still batting (the end screen
 at once, stamped OUT, and the place landing on it with the cut; BACK
 TO ROOM never over the game, the store not told it is over, the rings and
-WATCH ON on the end screen, a ball of somebody's watched, a swipe, ✕), going
+LEADERBOARD on the end screen, the live standings and back, a ring's game
+watched, a swipe, a reaction from the tray reaching the store and one sent
+to the guest floating up on their phone, the fielding side in one kit
+through the host's balls, ✕), going
 back to the room where the host is tagged PLAYING, then the match over and
 the host's next START; and an invite reaching a phone on the cover as a banner
 with JOIN, and listed on Play with friends. Never edit the source while it
