@@ -169,6 +169,8 @@ export interface KnockoutBoards {
   ok: true;
   week: string;
   size: number;
+  /** How many real players a match needs before it pays, as the store's rules have it (the endpoint adds it). */
+  pointsFrom?: number;
   boards: { points: { week: KnockoutRow[]; all: KnockoutRow[] }; wins: { week: KnockoutRow[]; all: KnockoutRow[] }; best: KnockoutRow[]; rate: KnockoutRow[] };
 }
 

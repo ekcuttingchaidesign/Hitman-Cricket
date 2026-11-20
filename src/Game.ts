@@ -172,6 +172,7 @@ import { encodeInnings, limitsOf } from './game/ball-string';
 import { HOLD_MS, READY_MS, heldOf } from './ui/KnockoutHeld';
 import { swingFourthOf } from './game/free-hit';
 import { matchPlan, seatBallOf } from './game/knockout-replay';
+import { lastCard, mineIn, pointsNote, pointsWord, resultsOf } from './game/knockout-told';
 import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, freeHitOf, knockoutScreen, overLine, type BallNews, type Play, type Seat, type SeatBall, type SeatSpec, sampleTrack, storyFrom, trackOf, type TrackMood } from './game/knockout';
 import { KnockoutMoment, ordinal, type MomentView } from './ui/KnockoutMoment';
 import type { RingView, WatchHeader } from './ui/KnockoutWatch';
@@ -180,8 +181,10 @@ import { markRulesSeen, readTally, rulesSeen, tallyRoom } from './ui/KnockoutHom
 import { FriendsScreen, LobbyScreen, type AroundPlayer, type LobbyView } from './ui/KnockoutFriends';
 import {
   MATCH_BEAT_MS, MATCH_PARAM, MatchLink, awayInMatch, backToRoom, ballChar, ballInMatch, beatInMatch, doneMatch, hostMatch, inviteToMatch, joinMatch, keepMatch, leaveMatch, settleMatch,
-  nudgeInMatch, reactInMatch, readMatchInvites, readyMatch, removeFromMatch, startMatch, type MatchView, type Me as MatchMe,
+  nudgeInMatch, reactInMatch, readKnockoutBoards, readKnockoutStanding, readMatchInvites, readyMatch, removeFromMatch, startMatch,
+  type KnockoutStanding, type MatchView, type Me as MatchMe, type StoredResult,
 } from './game/knockout-api';
+import { KnockoutBoard } from './ui/KnockoutBoard';
 import { cleanMatchCode } from './game/match-code';
 import { AWAY_MS, STALL_MS } from './server/knockout-store';
 import { type BallHow, packHow, readHow } from './game/ball-how';
@@ -1005,6 +1008,7 @@ export class Game {
     // PLAY WITH FRIENDS, live where matches can be kept: off production, with a board, in a window that can keep a name.
     this.hud.knockoutFriendsLive(this.friendsOpen);
     this.hud.on('ko-friends', () => this.openFriends());
+    this.hud.on('ko-home-figures', this.openKnockoutBoard);
     this.hud.on('ko-home-info', () => { markRulesSeen(); this.hud.knockoutRules(true); });
     this.hud.on('ko-rules-back', () => this.hud.knockoutRules(false));
     this.hud.on('ko-quick', this.chooseKnockout);
@@ -2528,9 +2532,39 @@ export class Game {
   };
   /** Super Knockout's home over Choose a mode, with its rules over it the first time a browser opens it. */
   private openKnockout = () => {
-    this.hud.knockoutHome(readTally());
+    this.showKnockoutHome();
     track('knockout-home', 'Opened Super Knockout');
     if (!rulesSeen()) { markRulesSeen(); this.hud.knockoutRules(true); }
+    // The card's figures are the store's once matches with friends have counted: asked each time the home opens.
+    const me = this.friendsOpen ? this.matchMe() : null;
+    if (me && !this.knockoutStanding) void readKnockoutStanding(me.playerId).then(standing => { if (standing) { this.knockoutStanding = standing; if (this.hud.knockoutHomeOpen) this.showKnockoutHome(); } });
+  };
+  /** This player's Knockout record and places as the store last said; let go when a match pays, so the next look asks again. */
+  private knockoutStanding: KnockoutStanding | null = null;
+  private showKnockoutHome() {
+    const career = this.knockoutStanding?.career ?? null;
+    this.hud.knockoutHome(readTally(), career && { weekPoints: career.weekPoints, bestPlace: career.bestPlace ?? 0, wins: career.wins, played: career.played }, this.friendsOpen);
+  }
+  /**
+   * Super Knockout's leaderboard (K13), over its home: the ladders and this player's standing asked for as it opens.
+   * Its key plays with friends.
+   */
+  private knockoutBoard: KnockoutBoard | null = null;
+  private openKnockoutBoard = () => {
+    if (!this.friendsOpen || this.knockoutBoard) return;
+    const me = this.matchMe();
+    track('knockout-board', 'Opened the Super Knockout leaderboard');
+    const board = this.knockoutBoard = new KnockoutBoard(this.hud.viewport, me && { playerId: me.playerId, avatar: me.avatar }, {
+      back: () => { this.knockoutBoard = null; },
+      play: () => { this.knockoutBoard = null; this.openFriends(); },
+      open: (row, from) => { track('profile-open-knockout', 'A player’s profile opened off the Super Knockout leaderboard'); this.hud.openPlayer({ ...row, mode: 'classic', place: null, best: null }, from); },
+      mine: () => { board.close(); this.knockoutBoard = null; this.hud.knockoutHome(null); this.showStats(); },
+    });
+    void Promise.all([readKnockoutBoards(), me ? readKnockoutStanding(me.playerId) : Promise.resolve(null)]).then(([boards, standing]) => {
+      if (this.knockoutBoard !== board) return;
+      if (standing) this.knockoutStanding = standing;
+      board.fill(boards, standing);
+    });
   };
   /* ── Super Knockout with friends (Figma Battle Royale page, sections 53 and 54) ─────────────────────── */
 
@@ -2556,6 +2590,8 @@ export class Game {
     asked: Map<string, number>; beatAt: number; fresh: boolean; view: MatchView; logAt: number;
     /** Which match of the room this is; whether the room has news the screen has not been shown (held while a ball is live); and whether the store has been told it is over. */
     round: number; dirty: boolean; doneSent: boolean; leaving: boolean;
+    /** The store's result for this match has been shown (`resultIn`). */
+    paid?: boolean;
     /** Whether the bowler has ever waited at his mark for the room, for the checks. */
     held: boolean;
     /** Reactions already shown here, by the store's id for each. */
@@ -2650,7 +2686,10 @@ export class Game {
       watchSeat: handle => this.watchFromRoom(handle, null),
       watchRing: id => this.watchFromRoom(null, id),
       board: () => { if (this.knockout && this.matchPlay?.parked) { this.mark('knockout-leaderboard-room', 'The leaderboard opened from the room'); this.hud.knockoutResults(this.resultsView(), undefined, () => undefined); } },
-      lastBoard: () => { if (this.lastMatch) { this.mark('knockout-last-match', 'The last match’s results opened from the room'); this.hud.knockoutResults(this.lastMatch.results, undefined, () => undefined); } },
+      lastBoard: () => {
+        const results = this.lastResults();
+        if (results) { this.mark('knockout-last-match', 'The last match’s results opened from the room'); this.hud.knockoutResults(results, undefined, () => undefined); }
+      },
     });
     this.matchLink = new MatchLink(match.code, view => this.lobbyNews(view), reason => this.matchGone(reason));
     this.matchLink.take({ ok: true, match });
@@ -2717,12 +2756,32 @@ export class Game {
         line: `${room.alive.length} still in · tap a face to watch`,
         rings: this.ringsOf(),
       } : null,
-      last: !live && this.lastMatch?.code === match.code ? { title: this.lastMatch.title, line: this.lastMatch.line, face: this.lastMatch.face } : null,
+      last: !live ? this.lastOf(match) : null,
+      worth: live ? null : { first: match.worth?.[0] ?? 0, from: match.pointsFrom ?? 3 },
     };
     lobby.render(view);
   }
-  /** The match that just ended in the room this phone is in: who won it, and its Results for the room's LEADERBOARD. */
+  /** The match that just ended in the room this phone is in, as this phone had it: who won it, and its Results for the room's LEADERBOARD. */
   private lastMatch: { code: string; title: string; line: string; face: number; results: ResultsView } | null = null;
+  /** The store's result for the match before the one the room is waiting to start, if it has one. */
+  private storedLast(match: MatchView | null | undefined) {
+    return match?.result && match.state === 'lobby' && match.result.round === match.round - 1 ? match.result : null;
+  }
+  /**
+   * The lobby's card for the match before: off the store's result, which every phone in the room has, whoever asked the
+   * room back to its lobby first; this phone's own memory of it only where the store has none. The card used to go by
+   * the phone's memory alone, and was missing on any phone another had beaten back to the lobby.
+   */
+  private lastOf(match: MatchView): { title: string; line: string; face: number } | null {
+    const stored = this.storedLast(match), me = this.matchMe();
+    if (stored && me) return lastCard(stored, handleOf(me.playerId));
+    return this.lastMatch?.code === match.code ? { title: this.lastMatch.title, line: this.lastMatch.line, face: this.lastMatch.face } : null;
+  }
+  private lastResults(): ResultsView | null {
+    const match = this.matchLink?.match, stored = this.storedLast(match), me = this.matchMe();
+    if (stored && me && match) return resultsOf(stored, handleOf(me.playerId), match.code, 'BACK TO ROOM');
+    return this.lastMatch?.results ?? null;
+  }
   /**
    * BACK TO ROOM with the match still being played (section 57): the match is kept as it stands under the room, moving on
    * as the store's balls arrive, so everybody still batting can be watched from it. The end screen waits out of sight.
@@ -3005,6 +3064,8 @@ export class Game {
       return;
     }
     play.view = match;
+    // The store has worked the match's result out: what it paid goes on the end screen and under the Results, once.
+    if (match.result && match.result.round === play.round && !play.paid) { play.paid = true; this.resultIn(match.result); }
     const mine = match.members.find(m => m.handle === handleOf(me.playerId));
     // The store went on ahead of this phone (a sub batted for it while it was away): what is batted here catches up.
     if (mine && mine.card.length > play.batted) play.batted = mine.card.length;
@@ -3018,7 +3079,14 @@ export class Game {
     // store is told once, so the room knows nobody is still batting it.
     if (room.done && !play.doneSent) {
       play.doneSent = true;
-      void doneMatch(play.code, me, play.round).then(answer => { if (!answer.ok && answer.retry && this.matchPlay === play) play.doneSent = false; else if (this.matchPlay === play) this.matchLink?.take(answer); });
+      void doneMatch(play.code, me, play.round).then(answer => {
+        if (this.matchPlay !== play) return;
+        if (!answer.ok) { if (answer.retry) play.doneSent = false; return; }
+        this.matchLink?.take(answer);
+        // The store plays the room back itself and says over only when it comes to the same end: said again in a while if
+        // it had not (a ball of somebody's still on its way to it).
+        if (answer.match && answer.match.round === play.round && !answer.match.over) window.setTimeout(() => { if (this.matchPlay === play) play.doneSent = false; }, 4000);
+      });
     }
     // Over while this player sat in the room: nothing is played over the room. The match is let go, and the room says who won.
     if (play.parked && room.done && this.room?.watching == null && !this.hud.knockoutResultsOpen) { this.dropParked(); return; }
@@ -7237,6 +7305,9 @@ export class Game {
       view.won || room.done ? undefined : id => this.watch(id), () => this.openStandings());
     // In a match with friends the way on is the room, where the next match is started.
     this.hud.knockoutAgain(this.matchPlay ? 'BACK TO ROOM' : null);
+    // The store's result was in before this screen went up (the match ended on the ball that settled this player): said on it now.
+    const stored = this.matchPlay?.view.result;
+    if (stored && stored.round === this.matchPlay!.round) this.tellPaid(stored);
     // Knocked out with the room still going: it plays on, a ball at a time, as rings on the end screen (section 51).
     if (!view.won && !room.done) { this.room = { nextAt: this.elapsed + ROOM_FIRST_MS, watching: null, ball: null, pending }; this.hud.knockoutRings(this.ringsOf()); }
     // Won, WINNER plays and then counts to the room's Results, as any room's end does (section 52): never left standing.
@@ -8335,8 +8406,36 @@ export class Game {
     this.mark('knockout-leaderboard', 'The leaderboard opened from the end screen');
     this.hud.knockoutResults(this.resultsView());
   }
+  /** WINNER's pill: practice, what the store paid this player, or what first place is worth until it has said. */
+  private matchPoints(won: boolean): string {
+    const play = this.matchPlay;
+    if (!play) return 'PRACTICE · NO POINTS';
+    const result = play.view.result?.round === play.round ? play.view.result : null;
+    if (result) return pointsWord(mineIn(result, handleOf(play.me.playerId))?.points ?? 0, result.counted);
+    // Not said yet: the winner's is what first place is worth as the room stood; anybody else's waits for the store.
+    const first = play.view.worth?.[0] ?? 0;
+    return won ? pointsWord(first, first > 0) : '';
+  }
+  /** What the store paid this player, on the end screen: WINNER's pill, or the end of a knocked-out line that was in the points. */
+  private tellPaid(result: StoredResult): number {
+    const paid = (this.matchPlay && mineIn(result, handleOf(this.matchPlay.me.playerId))?.points) || 0;
+    this.hud.knockoutPaid(pointsWord(paid, result.counted), paid > 0 ? pointsNote(paid, true) : null);
+    return paid;
+  }
+  /** The store's result for the match this phone batted: what it paid on the end screen, and the Results drawn from it. */
+  private resultIn(result: StoredResult) {
+    const play = this.matchPlay;
+    if (!play) return;
+    const paid = this.tellPaid(result);
+    this.hud.knockoutResultsPaid(() => this.resultsView());
+    this.knockoutStanding = null;
+    if (result.counted) track(paid > 0 ? 'knockout-paid' : 'knockout-unpaid', paid > 0 ? 'A match with friends paid points' : 'A match with friends that counted and paid this player nothing');
+  }
   private resultsView(): ResultsView {
     const room = this.knockout!, live = !room.done;
+    // Over, with the store's result in: the Results are the store's, with what each place paid and who ran away.
+    const stored = this.matchPlay && !live && this.matchPlay.view.result?.round === this.matchPlay.round ? this.matchPlay.view.result : null;
+    if (stored) return resultsOf(stored, handleOf(this.matchPlay!.me.playerId), this.matchPlay!.code, 'BACK TO ROOM');
     // Still being played, the room as it stands: those still in best first, then the gone by where they finished.
     const seats = live ? room.table() : [...room.seats].sort((a, b) => (a.place ?? 99) - (b.place ?? 99));
     // A cut takes those out first, so a total still batting can stand above a bigger one that was out: the line says which.
@@ -8618,8 +8717,9 @@ export class Game {
       figures: `${you.runs} runs · ${you.balls} balls · ${you.sixes} ${you.sixes === 1 ? 'six' : 'sixes'}`,
       rows, above,
       other: won ? (runner && { name: runner.name, face: runner.face, runs: runner.runs }) : null,
-      // A room of subs is practice: no points (PRODUCT.md).
-      points: 'PRACTICE · NO POINTS',
+      // A room of subs is practice: no points (PRODUCT.md). A match with friends says what the store paid, or until it
+      // has answered what first place is worth as the room stood.
+      points: this.matchPoints(won),
       origin: this.stumpsOnScreen(),
     };
   }

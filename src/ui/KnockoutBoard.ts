@@ -14,7 +14,7 @@ import { ownsHandle } from '../game/handle';
 import type { KnockoutBoards, KnockoutRow, KnockoutStanding } from '../server/knockout-ledger';
 import { boardScreenMarkup, type BoardDock, type BoardEntry } from './Board';
 import { icon } from './Kit';
-import { ordinal } from '../game/knockout-points';
+import { LIVE_RULES, ordinal } from '../game/knockout-points';
 import hero from '../assets/knockout/hero.webp';
 
 /** Knockout Red, the knockout's own colour. */
@@ -88,11 +88,19 @@ export function knockoutBoardView(boards: KnockoutBoards | null, standing: Knock
       : week && !mine.played ? 'No match yet this week' : figures;
     return { rows, ladder, dock: { avatar: me.avatar, sentence: `You are <em>not ranked</em>${when}`, detail: why, score } };
   }
-  const behind = pick === 'points-week' && standing?.behind !== null && standing?.behind !== undefined && place > 1 ? ` · ${standing.behind} behind #${place - 1}` : '';
+  // Level on points with the place above (the tie went to them): said as level, not as nothing behind.
+  const gap = pick === 'points-week' && place > 1 ? standing?.behind ?? null : null;
+  const behind = gap === null ? '' : gap > 0 ? ` · ${gap} behind #${place - 1}` : ` · level with #${place - 1}`;
   return { rows, ladder, dock: { avatar: me.avatar, sentence: `You are <em>#${place}</em>${when}`, detail: `${figures}${behind}`, score } };
 }
 
-interface BoardKeys { back(): void; play(): void; open?(handle: string): void; mine?(): void }
+interface BoardKeys {
+  back(): void; play(): void;
+  /** A named row, a step or a chip tapped: that player's profile, risen over this board from the face tapped. */
+  open(row: { handle: string; name: string; avatar: number | null }, from: HTMLElement): void;
+  /** The player's own row: My profile. */
+  mine(): void;
+}
 
 export class KnockoutBoard {
   private readonly root: HTMLElement;
@@ -100,7 +108,9 @@ export class KnockoutBoard {
   private boards: KnockoutBoards | null = null;
   private standing: KnockoutStanding | null = null;
   private state: 'loading' | 'ready' | 'offline' = 'loading';
-  constructor(host: HTMLElement, private readonly me: { playerId: string; avatar: number } | null, private readonly pointsFrom: number, private readonly keys: BoardKeys) {
+  /** How many real players a match needs before it pays: the game's own figure until the store says its own. */
+  private pointsFrom = LIVE_RULES.pointsFrom;
+  constructor(host: HTMLElement, private readonly me: { playerId: string; avatar: number } | null, private readonly keys: BoardKeys) {
     this.root = document.createElement('div');
     this.root.className = 'ko-results ko-board';
     this.root.id = 'ko-board';
@@ -112,6 +122,7 @@ export class KnockoutBoard {
   /** The store's answers, as they arrive: the ladders, and the player's own standing. A null board is the store out of reach. */
   fill(boards: KnockoutBoards | null, standing: KnockoutStanding | null) {
     this.boards = boards; this.standing = standing;
+    if (boards?.pointsFrom) this.pointsFrom = boards.pointsFrom;
     this.state = boards ? 'ready' : 'offline';
     this.draw();
   }
@@ -152,9 +163,10 @@ export class KnockoutBoard {
     el('ko-board-mode').setAttribute('aria-disabled', 'true');
     this.root.querySelector<HTMLElement>('.lb-screen')!.addEventListener('click', event => {
       const row = (event.target as HTMLElement).closest<HTMLElement>('[data-handle], [data-mine]');
-      if (!row) return;
-      if (row.dataset.mine) this.keys.mine?.();
-      else if (row.dataset.handle) this.keys.open?.(row.dataset.handle);
+      if (!row || this.root.querySelector('.lb-pop')) return;
+      if (row.dataset.mine) { this.keys.mine(); return; }
+      const entry = view.rows.find(one => one.handle === row.dataset.handle);
+      if (entry?.handle) this.keys.open({ handle: entry.handle, name: entry.name, avatar: entry.avatar }, row);
     });
     const body = el('ko-board-body');
     body.addEventListener('scroll', () => this.fold(), { passive: true });

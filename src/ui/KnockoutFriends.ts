@@ -220,6 +220,11 @@ export interface LobbyView {
   match?: { heading: string; line: string; rings: LobbyRing[] } | null;
   /** The match that just ended in this room: who won it and where this player came. */
   last?: { title: string; line: string; face: number } | null;
+  /**
+   * What the next match is worth as the room stands (the store's figure): first place's points, or none with how many
+   * real players it takes before a match pays.
+   */
+  worth?: { first: number; from: number } | null;
 }
 
 /** A match somebody asked this player into. */
@@ -287,7 +292,10 @@ export class LobbyScreen {
         <button id="ko-lobby-share" class="k-icon-button" type="button" aria-label="Share the match">${icon('share')}</button>
       </div>
       <div class="ko-lobby-body">
-        <h2 class="ko-lobby-count" id="ko-lobby-count">1 OF ${MATCH_SEATS} IN</h2>
+        <div class="ko-lobby-head">
+          <h2 class="ko-lobby-count" id="ko-lobby-count">1 OF ${MATCH_SEATS} IN</h2>
+          <span class="ko-worth hidden" id="ko-lobby-worth"></span>
+        </div>
         <div class="ko-lobby-status">
           <p class="ko-lobby-line" id="ko-lobby-note">Share the code, or invite who’s around.</p>
           <button id="ko-lobby-nudge" class="ko-mini hidden" type="button"><span>${icon('bell')}<b>NUDGE</b></span></button>
@@ -472,6 +480,12 @@ export class LobbyScreen {
     const count = this.root.querySelector<HTMLElement>('#ko-lobby-count')!;
     count.textContent = match ? match.heading : `${view.seats.length} OF ${MATCH_SEATS} IN`;
     count.classList.toggle('is-match', !!match);
+    // What the match is worth, beside the count: gold once it pays, grey with what it takes while it does not.
+    const worth = this.root.querySelector<HTMLElement>('#ko-lobby-worth')!;
+    const pays = !!view.worth && view.worth.first > 0;
+    worth.classList.toggle('hidden', !view.worth || live);
+    worth.classList.toggle('is-gold', pays);
+    if (view.worth) worth.textContent = pays ? `UP TO ${view.worth.first} POINTS` : `POINTS FROM ${view.worth.from} PLAYERS`;
     const seats = this.root.querySelector<HTMLElement>('#ko-seats')!;
     const known = new Set([...seats.querySelectorAll<HTMLElement>('[data-handle]')].map(el => el.dataset.handle));
     // Only the people who are in, with one Invite tile after them: twelve seats drawn, most of them empty, left the ones

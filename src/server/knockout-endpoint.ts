@@ -1,6 +1,6 @@
 import {
   awayInMatch, backToRoom, ballInMatch, beatInMatch, doneMatch, hostMatch, inviteToMatch, joinMatch, leaveMatch, nudgeInMatch, reactInMatch, readInvites, readMatch, readyMatch, removeFromMatch,
-  settleMatch, startMatch,
+  settleMatch, startMatch, POINTS_RULES,
   type KnockoutStore, type MatchInvitesAccepted, type MatchOutcome, type MatchRefusal, type Member,
 } from './knockout-store.js';
 import { knockoutBoards, knockoutStanding, type KnockoutBoards, type KnockoutLedger, type KnockoutStanding } from './knockout-ledger.js';
@@ -27,7 +27,7 @@ Promise<MatchOutcome | MatchInvitesAccepted | MatchRefusal | KnockoutBoards | Kn
   if (req.method === 'GET') {
     const invites = one(req.query.invites);
     if (invites) return readInvites(store, invites);
-    if (one(req.query.board)) return ledger ? knockoutBoards(ledger) : { ok: false, status: 503, reason: 'The board is out of reach.' };
+    if (one(req.query.board)) return ledger ? { ...await knockoutBoards(ledger), pointsFrom: POINTS_RULES.pointsFrom } : { ok: false, status: 503, reason: 'The board is out of reach.' };
     const standing = one(req.query.standing);
     if (standing) return ledger ? knockoutStanding(ledger, standing) : { ok: false, status: 503, reason: 'The board is out of reach.' };
     return readMatch(store, one(req.query.code));

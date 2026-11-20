@@ -56,6 +56,9 @@ describe('the Super Knockout leaderboard', () => {
     const top = knockoutBoardView(boards, await standing(0), 'points-all', { playerId: ids[0], avatar: 0 }, 3);
     expect(top.dock!.sentence).toBe('You are <em>#1</em>');
     expect(top.dock!.detail).toBe('10 pts · 1 win');
+    // Level on points with the place above: said as level.
+    const level = knockoutBoardView(boards, { ...(await standing(2)), behind: 0 }, 'points-week', { playerId: ids[2], avatar: 2 }, 3);
+    expect(level.dock!.detail).toBe('2 pts · 0 wins · level with #2');
   });
 
   it('says how many more matches a win rate takes, and how the first points come', async () => {

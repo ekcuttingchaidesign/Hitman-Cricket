@@ -15,6 +15,11 @@ export const KNOCKOUT_FACEOFF = new URL('../assets/knockout/faceoff.webp', impor
 
 /** The practice rooms this browser has played, for the home's card: how many, the best finish, and how many won. */
 export interface KnockoutTally { played: number; best: number | null; wins: number }
+/**
+ * What the home's card says once matches with friends have counted for this player (K2 as designed): points this
+ * week, the best finish and the wins, off the store's record. Until then the card is the browser's practice rooms.
+ */
+export interface KnockoutHomeCareer { weekPoints: number; bestPlace: number; wins: number; played: number }
 
 const TALLY_KEY = 'hitman-knockout';
 export function readTally(): KnockoutTally {
@@ -104,12 +109,13 @@ export function knockoutHomeMarkup(): string {
               <span class="ko-mark-wrap" style="--mark:url('${KNOCKOUT_MARK}')"><img class="ko-mark" src="${KNOCKOUT_MARK}" alt="Super Knockout" decoding="async"><i class="ko-mark-glint" aria-hidden="true"></i></span>
               <p class="ko-lede">Twelve players. Same balls. One wicket.</p>
               <p class="ko-sub">The bottom totals go after every over. The last two play the final.</p>
-              <div class="ko-card ko-figures" id="ko-home-figures">
-                <span><b id="ko-home-played">0</b><i>Practice rooms</i></span>
+              <button class="ko-card ko-figures" id="ko-home-figures" type="button" aria-label="Super Knockout leaderboard">
+                <span><b id="ko-home-played">0</b><i id="ko-home-played-label">Practice rooms</i></span>
                 <span><b id="ko-home-best" class="is-gold">–</b><i>Best finish</i></span>
                 <span><b id="ko-home-wins">0</b><i>Wins</i></span>
-              </div>
-              <p class="ko-practice">Practice is you and eleven subs: no points.</p>
+                <em class="ko-figures-go" aria-hidden="true">${icon('chevron-right')}</em>
+              </button>
+              <p class="ko-practice" id="ko-home-note">Practice is you and eleven subs: no points.</p>
             </div>
           </div>
           <div class="ko-keys">

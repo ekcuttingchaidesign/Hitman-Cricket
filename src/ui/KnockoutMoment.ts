@@ -268,10 +268,11 @@ export class KnockoutMoment {
   private say() {
     const view = this.view;
     this.root.dataset.pending = view.pending ? '1' : '0';
+    this.root.dataset.points = view.points;
     this.root.dataset.place = view.pending ? '' : String(view.place);
     this.root.setAttribute('aria-label', view.won ? 'Winner' : view.pending ? 'Out' : `Knocked out, ${ordinal(view.place).toLowerCase()} of ${view.of}`);
     const said = this.root.querySelector('.ko-moment-said');
-    if (said) said.textContent = `${view.won ? 'Winner.' : view.pending ? 'Out.' : `Knocked out. ${ordinal(view.place)} of ${view.of}.`} ${view.line}`;
+    if (said) said.textContent = `${view.won ? `Winner. ${view.points}.` : view.pending ? 'Out.' : `Knocked out. ${ordinal(view.place)} of ${view.of}.`} ${view.won ? view.line : this.lostLine}`;
   }
   /** When the place was stamped over OUT, on the page's clock: the stamp slams in again from there. */
   private stampedAt: number | null = null;
@@ -288,6 +289,19 @@ export class KnockoutMoment {
     const pop = () => { this.draw(); if (this.stampedAt !== null && performance.now() - this.stampedAt < 500) requestAnimationFrame(pop); };
     requestAnimationFrame(pop);
   }
+  /**
+   * The store's result is in (a match with friends): WINNER's pill says what the win paid, and a knocked-out place
+   * that was in the points says so at the end of its line. Nothing on the screen starts again.
+   */
+  paid(points: string, note: string | null) {
+    this.view = { ...this.view, points };
+    if (!this.view.won) this.paidNote = note;
+    this.say();
+    this.draw();
+  }
+  private paidNote: string | null = null;
+  /** The line under KNOCKED OUT: how it ended, the room's result once that is in, and what the place paid. */
+  private get lostLine() { const line = this.lineNow ?? this.view.line; return this.paidNote ? `${line} · ${this.paidNote}` : line; }
   /** The room as story rings, while it plays on after the player has gone (`KnockoutWatch.ts`). */
   private rings: Rings | null = null;
   private roomOn = false;
@@ -639,7 +653,7 @@ export class KnockoutMoment {
     if (t >= 3.3) this.haptic(3.3 + LATER, 25);
     // Rest: the line of figures fades up in grey.
     const sub = prog(at, 3.0, 3.25);
-    if (sub > 0) { c.save(); c.globalAlpha = sub; boxText(c, this.lineNow ?? this.view.line, CX, 690 + 8 * (1 - sub), 16, '600 13px Satoshi', '#8a8f96'); c.restore(); }
+    if (sub > 0) { c.save(); c.globalAlpha = sub; boxText(c, this.lostLine, CX, 690 + 8 * (1 - sub), 16, '600 13px Satoshi', '#8a8f96'); c.restore(); }
     c.restore();
     if (t >= 2.32 && t < 2.42) { c.fillStyle = `rgba(238,42,42,${0.18 * (1 - (t - 2.32) / 0.1)})`; c.fillRect(edge.x, edge.y, edge.w, edge.h); }
   }

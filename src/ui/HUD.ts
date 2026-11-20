@@ -3,7 +3,7 @@ import { WatchView, type MatchOverView, type RingView, type WatchHeader } from '
 import { KnockoutResults, type ResultsView } from './KnockoutResults';
 import { oversWord, type Track } from '../game/knockout';
 import { KnockoutBar, knockoutBarMarkup } from './KnockoutBar';
-import { knockoutHomeMarkup, knockoutRulesMarkup, type KnockoutTally } from './KnockoutHome';
+import { knockoutHomeMarkup, knockoutRulesMarkup, type KnockoutHomeCareer, type KnockoutTally } from './KnockoutHome';
 import { KnockoutPoster } from './KnockoutPoster';
 import { limitsOf } from '../game/ball-string';
 import { WIPE_MS, type ReplayLook } from '../game/replay';
@@ -1089,6 +1089,9 @@ ${knockoutRulesMarkup()}
   private playerHost(): HTMLElement | null {
     const notices = this.$('notices');
     if (!notices.classList.contains('hidden')) return notices.querySelector<HTMLElement>('.nt-screen') ?? notices;
+    // Super Knockout's own leaderboard, a screen of its own over its home.
+    const knockout = document.querySelector<HTMLElement>('#ko-board .lb-screen');
+    if (knockout) return knockout;
     const board = document.querySelector<HTMLElement>('#board-overlay .lb-screen');
     if (board && !this.$('board-overlay').classList.contains('hidden')) return board;
     const list = this.$('challenge-list');
@@ -2427,7 +2430,9 @@ ${knockoutRulesMarkup()}
   }
   /** Super Knockout's home (K2) over Choose a mode, with this browser's practice rooms; null puts it away. */
   private koPoster: KnockoutPoster | null = null;
-  knockoutHome(tally: KnockoutTally | null) {
+  /** Super Knockout's home is up. */
+  get knockoutHomeOpen() { return !this.$('knockout-home').classList.contains('hidden'); }
+  knockoutHome(tally: KnockoutTally | null, career: KnockoutHomeCareer | null = null, board = false) {
     const home = this.$('knockout-home');
     const opening = !!tally && home.classList.contains('hidden');
     home.classList.toggle('hidden', !tally);
@@ -2435,9 +2440,17 @@ ${knockoutRulesMarkup()}
     if (!tally) { this.koPoster.stop(); home.classList.remove('is-lit'); return; }
     // The poster comes on each time the home is opened: the floodlights strike, the mark lands, then the air moves.
     if (opening) { replayClass(home, 'is-lit'); this.koPoster.start(); }
-    this.$('ko-home-played').textContent = String(tally.played);
-    this.$('ko-home-best').textContent = tally.best ? `#${tally.best}` : '–';
-    this.$('ko-home-wins').textContent = String(tally.wins);
+    // Matches with friends that counted are the card's figures once there are any (K2); until then, this browser's practice rooms.
+    const counted = !!career && career.played > 0;
+    this.$('ko-home-played').textContent = String(counted ? career!.weekPoints : tally.played);
+    this.$('ko-home-played-label').textContent = counted ? 'Points this week' : 'Practice rooms';
+    this.$('ko-home-best').textContent = counted ? (career!.bestPlace ? `#${career!.bestPlace}` : '–') : tally.best ? `#${tally.best}` : '–';
+    this.$('ko-home-wins').textContent = String(counted ? career!.wins : tally.wins);
+    this.$('ko-home-note').textContent = counted ? `${career!.played} ${career!.played === 1 ? 'match' : 'matches'} with friends counted` : 'Practice is you and eleven subs: no points.';
+    // The card opens the Knockout leaderboard where there is one.
+    const card = this.$('ko-home-figures') as HTMLButtonElement;
+    card.disabled = !board; card.classList.toggle('is-open', board);
+    if (!opening) return;
     home.querySelector('.ko-scroll')?.scrollTo({ top: 0 });
     const hero = this.$('ko-friends') as HTMLButtonElement;
     (hero.disabled ? this.$('ko-quick') as HTMLButtonElement : hero).focus({ preventScroll: true });
@@ -2968,6 +2981,10 @@ ${knockoutRulesMarkup()}
   }
   /** The standings of a room still being played, kept up while they are open (`view` is asked for only then). */
   knockoutStandings(view: () => ResultsView) { if (this.koResults?.live) this.koResults.update(view()); }
+  /** The room's Results drawn again where they stand: the store's result has come in under them, with what each place paid. */
+  knockoutResultsPaid(view: () => ResultsView) { if (this.koResults && !this.koResults.live) this.koResults.update(view()); }
+  /** What the store paid, on the end screen: WINNER's pill, or the end of a knocked-out line. */
+  knockoutPaid(points: string, note: string | null) { this.koMoment?.paid(points, note); }
   /**
    * A reaction sent to this player, or to whoever they are watching: the emoji and who sent it float up the
    * left edge and go. Nothing is laid out for it mid-ball (the game shows them between balls), and it takes no touch.

@@ -127,6 +127,9 @@ check(await until('lobby', () => visible(a, '#knockout-lobby'), 8000), 'HOST A M
 const code = (await text(a, '#ko-lobby-code')).replace(/\s/g, '');
 check(/^[2-9A-HJ-NP-Z]{4}$/.test(code), 'the match has a four-character code', code);
 check((await text(a, '#ko-lobby-count')) === '1 OF 12 IN', 'one of twelve in');
+// What the match is worth, beside the count (the dev server pays as a preview does, from two real players).
+check((await text(a, '#ko-lobby-worth')) === 'POINTS FROM 2 PLAYERS' && await a.evaluate(() => !document.getElementById('ko-lobby-worth').classList.contains('is-gold')),
+  'alone in the room, the chip says how many players points take', await text(a, '#ko-lobby-worth'));
 check(await a.evaluate(() => document.getElementById('ko-lobby-start').disabled), 'START NOW waits for a friend');
 check(await until('strip', async () => (await text(a, '#ko-lobby-around')).includes(passer), 8000), 'who is around is in the lobby to ask in');
 check(await a.evaluate(() => document.querySelectorAll('#ko-seats .ko-lseat[data-handle]').length === 1 && document.querySelectorAll('#ko-seats .ko-lseat.is-invite').length === 1
@@ -188,6 +191,8 @@ await b.screenshot({ path: `${out}/lobby-guest.png` });
 
 // 4. START NOW, and the match batted on both phones.
 console.log('Batting together');
+check((await text(a, '#ko-lobby-worth')) === 'UP TO 3 POINTS' && await a.evaluate(() => document.getElementById('ko-lobby-worth').classList.contains('is-gold')),
+  'with a friend in, the chip says what the match is worth, in gold', await text(a, '#ko-lobby-worth'));
 check(await until('awake', () => a.evaluate(() => !document.getElementById('ko-lobby-start').disabled && document.getElementById('ko-lobby-note')?.textContent.startsWith('Everybody’s ready') && document.getElementById('ko-lobby-note').classList.contains('is-good')), 8000), 'START NOW wakes once everybody is ready, and the line says so in green');
 // The guest's first ball is turned away by the store: it used to be dropped for good, every ball after it refused as out of
 // order, and the room held at the over's end on a player whose card never moved. It is sent again from the store's card.
@@ -268,6 +273,33 @@ const moments = await Promise.all([a, b].map(p => until('moment', async () => (a
 check(moments.every(Boolean), 'each phone ends on its own KNOCKED OUT or WINNER');
 await a.screenshot({ path: `${out}/end-host.png` });
 await b.screenshot({ path: `${out}/end-guest.png` });
+// The store works the result out itself, from the cards it holds, once a phone says the match is over: every seat placed,
+// the two who batted it counted, and what each place paid. Nobody swings here, so who is paid goes by the bowling.
+const told = async () => (await (await fetch(`${base}/api/challenge?knockout=1&code=${code}`)).json()).match;
+check(await until('result', async () => (await told())?.result?.round === 1, 30_000), 'the store has worked out the match’s result');
+const stored = (await told()).result;
+const paidRows = stored.rows.filter(row => row.points > 0);
+// (How many real players it counts goes by who batted a ball of their own: a page this machine starved into a sub's hands
+// all match does not count, and then the match is practice. The checks below follow what the store says of it.)
+const reals = stored.reals, counts = reals >= 2;
+check(stored.rows.length === 12 && stored.rows.map(row => row.place).join() === '1,2,3,4,5,6,7,8,9,10,11,12' && stored.counted === counts && stored.worth.join() === (counts ? '3,1,0' : '0,0,0')
+  && stored.rows[0].name === ea.winner && stored.rows.filter(row => !row.sub).map(row => row.name).sort().join() === [host, guest].sort().join()
+  && paidRows.every(row => !row.sub && !row.stood && row.place <= 2) && !JSON.stringify(stored).includes(hostId) && !JSON.stringify(stored).includes(guestId),
+  `twelve seats placed, the same winner as the phones, ${reals} real ${reals === 1 ? 'player' : 'players'} counted, worth ${stored.worth.join('/')}, a sub paid nothing, no id told (paid: ${paidRows.map(row => `${row.name} +${row.points}`).join(', ') || 'nobody'})`,
+  JSON.stringify(stored).slice(0, 700));
+// And paid it, once: each player's Knockout record has the one match.
+const standingOf = async id => (await fetch(`${base}/api/challenge?knockout=1&standing=${id}`)).json();
+const [hostStands, guestStands] = [await standingOf(hostId), await standingOf(guestId)];
+const hostRow = stored.rows.find(row => row.name === host), guestRow = stored.rows.find(row => row.name === guest);
+const recorded = (stands, row) => stands.career?.played === 1 && stands.career.points === row.points && stands.career.last.join() === String(row.place) && stands.career.weekPlayed === 1;
+check(counts ? recorded(hostStands, hostRow) && recorded(guestStands, guestRow) : !hostStands.career && !guestStands.career,
+  counts ? 'each player’s Knockout record has the match, its finish and what it paid' : 'a match one real player batted is practice: nothing goes on anybody’s record',
+  JSON.stringify({ host: hostStands.career, guest: guestStands.career }));
+// The end screen says what the store paid: WINNER's pill, or a knocked-out line with its points.
+const pill = await Promise.all([a, b].map(p => p.evaluate(() => document.getElementById('ko-moment')?.dataset.points ?? null)));
+const pillFor = row => row.points > 0 ? `+${row.points} ${row.points === 1 ? 'POINT' : 'POINTS'}` : counts ? 'NO POINTS THIS MATCH' : 'PRACTICE · NO POINTS';
+check(await until('paid', async () => (await Promise.all([a, b].map(p => p.evaluate(() => document.getElementById('ko-moment')?.dataset.points ?? null)))).join('|') === [pillFor(hostRow), pillFor(guestRow)].join('|'), 20_000),
+  'each end screen is told what the store paid its player', JSON.stringify({ pill, want: [pillFor(hostRow), pillFor(guestRow)] }));
 
 // 4b. BACK TO ROOM: the key under the end screens goes to the room under the same code, and the host starts the next match there.
 console.log('Back to the room');
@@ -295,6 +327,22 @@ check(guestBack, 'the guest is back in the room', guestBack ? '' : JSON.stringif
 check(await until('asked again', () => b.evaluate(() => { const key = document.getElementById('ko-lobby-ready'); return !key.classList.contains('hidden') && !key.disabled && !key.classList.contains('is-ready'); }), 30_000),
   'with the match over the guest is not ready again, and has I’M READY');
 check(await a.evaluate(() => document.getElementById('ko-lobby-start').disabled), 'and START NOW sleeps until they say so');
+// The card for the match before is the store's, so it is up on both phones whichever asked the room back to its lobby.
+const lastOn = page => page.evaluate(() => ({ up: !document.getElementById('ko-lobby-last').classList.contains('hidden'), title: document.getElementById('ko-last-title')?.textContent ?? '', line: document.getElementById('ko-last-line')?.textContent ?? '' }));
+const wonTitle = who => (stored.rows[0].name === who ? 'YOU WON IT' : `${stored.rows[0].name.toUpperCase()} WON IT`);
+check(await until('last cards', async () => { const [x, y] = [await lastOn(a), await lastOn(b)]; return x.up && y.up && x.title === wonTitle(host) && y.title === wonTitle(guest); }, 20_000),
+  'the last match’s card is up on both phones, off the store’s result', JSON.stringify([await lastOn(a), await lastOn(b)]));
+check(/ · (you were \d+(st|nd|rd|th)|\+\d+ points?|the room was yours)/.test((await lastOn(b)).line), 'and says where this player came', (await lastOn(b)).line);
+// Its LEADERBOARD is the room's Results off the same result: the room's code on the pill, and what this player was paid.
+await b.locator('#ko-lobby-last-board').click();
+check(await until('last results', () => b.evaluate(() => document.querySelector('#ko-res-title')?.textContent === 'RESULTS'), 8000), 'its LEADERBOARD opens the match’s Results');
+const lastResults = await b.evaluate(() => ({ pill: document.querySelector('#ko-res-ladder .k-pill-label')?.textContent, dock: document.querySelector('#ko-results .lb-dock')?.textContent?.replace(/\s+/g, ' ') ?? '',
+  rows: document.querySelectorAll('#ko-results .lb-row').length + document.querySelectorAll('#ko-results .lb-podium .lb-step:not(.is-open)').length }));
+const paidWords = guestRow.stood ? 'a sub finished for you, so no points' : guestRow.points > 0 ? `+${guestRow.points} point` : counts ? 'no points this time' : 'practice, no points';
+check(lastResults.pill === `Room ${code}` && lastResults.rows === 12 && lastResults.dock.includes(paidWords),
+  'with the room’s code, all twelve seats, and what this player was paid', JSON.stringify(lastResults));
+await b.screenshot({ path: `${out}/last-results.png` });
+await b.locator('#ko-res-close').click();
 await b.locator('#ko-lobby-ready').click();
 check(await until('lobby again', async () => !(await a.evaluate(() => document.getElementById('ko-lobby-start').disabled)) && !(await a.evaluate(() => !!document.querySelector('#ko-seats .is-playing'))), 20_000),
   'ready again, nobody is tagged PLAYING and START NOW is awake');
@@ -492,19 +540,19 @@ await e.locator('#ko-res-close').click();
 check(await until('board closed', () => e.evaluate(() => !document.getElementById('ko-results') && !document.getElementById('knockout-lobby').classList.contains('hidden')), 5000), 'and back is the room');
 // The match over, the room is its lobby again and the host starts the next one.
 clearInterval(hostBats);
-await api('done', goneId, gone, 4, { code: fourth, round: 1 });
+// (The store no longer takes a phone's word that a match is over: the script's host goes back to the room still batting,
+// which hands their seat to a sub, and with nobody left batting the store brings the match to its end itself.)
+clearInterval(beats);
+await api('back', goneId, gone, 4, { code: fourth });
 check(await until('settled', () => e.evaluate(() => { const key = document.getElementById('ko-lobby-ready'); return !document.querySelector('#ko-seats .is-playing') && !key.classList.contains('hidden') && !key.disabled
   && document.getElementById('ko-lobby-watch').classList.contains('hidden') && /OF 12 IN$/.test(document.getElementById('ko-lobby-count').textContent) && !document.getElementById('ko-moment'); }), 30_000),
   'the match over, the tags and the rings go, the match under the room is let go and the room is a lobby again');
 const after = await e.evaluate(() => ({ last: !document.getElementById('ko-lobby-last').classList.contains('hidden'), title: document.getElementById('ko-last-title')?.textContent,
   code: !document.querySelector('#knockout-lobby .ko-coderow').classList.contains('hidden'), around: document.getElementById('ko-lobby-aroundwrap').classList.contains('hidden'),
   sub: document.querySelector('#ko-seats .ko-lseat.is-you .ko-lseat-sub')?.textContent }));
-// (The card for the match just ended needs the room's own winner, and the script ends this one by telling the store it is
-// over: where the card is up, it has taken Around now's place.)
-check(after.code && after.sub === 'Not ready' && (!after.last || (/WON IT$/.test(after.title ?? '') && after.around)), 'the code is back and everybody is not ready again', JSON.stringify(after));
+// (The card for the match just ended is the store's result, so it is up whoever ended the match; it takes Around now's place.)
+check(after.code && after.sub === 'Not ready' && after.last && /WON IT$/.test(after.title ?? '') && after.around, 'the code is back, everybody is not ready again, and the last match’s card is up', JSON.stringify(after));
 await e.screenshot({ path: `${out}/room-after.png` });
-clearInterval(beats);
-await api('back', goneId, gone, 4, { code: fourth });
 await e.locator('#ko-lobby-ready').click();
 await until('ready for two', async () => (await matchNow()).members.find(m => m.name === guest)?.ready === true, 8000);
 await api('start', goneId, gone, 4, { code: fourth });
@@ -529,6 +577,45 @@ await api('invite', hostId, host, 1, { code: sixth, handle: createHash('sha256')
 await f.locator('#ko-lobby-back').click();
 check(await until('listed', async () => (await text(f, '#ko-friends-invites')).includes(`${host} invited you`), 20_000), 'an invite is listed on Play with friends, with JOIN', await text(f, '#ko-friends-invites'));
 await f.screenshot({ path: `${out}/invite-listed.png` });
+
+// 9. Points on the Knockout home, and the Super Knockout leaderboard. The guest batted the match above, which counted.
+console.log('The home’s card and the leaderboard');
+await f.close();
+const g = await as(guestId, guest, 2);
+await g.locator('#start').click({ force: true });
+await g.waitForSelector('#modes:not(.hidden)', { timeout: 30_000 });
+await g.locator('#mode-knockout').click();
+await g.waitForSelector('#knockout-home:not(.hidden)');
+const guestNow = await (await fetch(`${base}/api/challenge?knockout=1&standing=${guestId}`)).json();
+check(guestNow.career?.played >= 1, 'the store has the guest’s match on their Knockout record', JSON.stringify(guestNow.career));
+check(await until('card', () => g.evaluate(() => document.getElementById('ko-home-played-label')?.textContent === 'Points this week'), 15_000), 'the home’s card turns to points this week once a match has counted');
+const homeCard = await g.evaluate(() => ({ points: document.getElementById('ko-home-played').textContent, best: document.getElementById('ko-home-best').textContent, wins: document.getElementById('ko-home-wins').textContent,
+  note: document.getElementById('ko-home-note').textContent, open: !document.getElementById('ko-home-figures').disabled }));
+check(homeCard.points === String(guestNow.career.weekPoints) && homeCard.wins === String(guestNow.career.wins) && /matche?s? with friends counted$/.test(homeCard.note) && homeCard.open
+  && homeCard.best === (guestNow.career.bestPlace ? `#${guestNow.career.bestPlace}` : '–'), 'with the store’s figures: points this week, best finish, wins', JSON.stringify(homeCard));
+await g.screenshot({ path: `${out}/home-points.png` });
+await g.locator('#ko-home-figures').click();
+check(await until('board', () => g.evaluate(() => !!document.querySelector('#ko-board .lb-screen') && !document.querySelector('#ko-board .lb-podium.is-loading')), 15_000), 'the card opens the Super Knockout leaderboard');
+const boardNow = await g.evaluate(() => ({ title: document.getElementById('ko-board-title')?.textContent, mode: document.querySelector('#ko-board-mode .k-pill-label')?.textContent, ladder: document.querySelector('#ko-board-ladder .k-pill-label')?.textContent,
+  names: [...document.querySelectorAll('#ko-board .lb-step .lb-name, #ko-board .lb-row .lb-who-name b')].map(el => el.textContent), dock: document.querySelector('#ko-board .lb-dock')?.textContent?.replace(/\s+/g, ' ') ?? '',
+  play: document.getElementById('ko-board-play')?.textContent?.trim() }));
+check(boardNow.title === 'LEADERBOARD' && boardNow.mode === 'Super Knockout' && boardNow.ladder === 'Points · This week' && boardNow.names.includes('You') && boardNow.names.includes(gone)
+  && /You are (#\d+|not ranked) this week/.test(boardNow.dock) && boardNow.play === 'PLAY SUPER KNOCKOUT',
+  'points this week, with both who batted the match on it and where this player stands', JSON.stringify(boardNow));
+await g.screenshot({ path: `${out}/knockout-board.png` });
+await g.locator('#ko-board-ladder').click();
+check(await until('picker', () => visible(g, '#ko-board-sheet'), 5000) && await g.evaluate(() => document.querySelectorAll('#ko-board-sheet [data-pick]').length === 6), 'the ladder pill opens the picker: six ladders');
+await g.screenshot({ path: `${out}/knockout-board-picker.png` });
+await g.locator('#ko-board-sheet [data-pick="best"]').click();
+check(await until('picked', () => g.evaluate(() => document.querySelector('#ko-board-ladder .k-pill-label')?.textContent === 'Highest total' && document.getElementById('ko-board-sheet').classList.contains('hidden')), 5000),
+  'a pick changes the ladder and puts the picker away');
+// A row opens that player's profile over the board.
+await g.evaluate(who => [...document.querySelectorAll('#ko-board [data-handle]')].find(el => el.textContent.includes(who))?.click(), gone);
+check(await until('profile', () => g.evaluate(() => !!document.querySelector('#ko-board .ps-layer')), 8000), 'a row opens that player’s profile over the board');
+await g.keyboard.press('Escape');
+await until('profile shut', () => g.evaluate(() => !document.querySelector('#ko-board .ps-layer')), 5000);
+await g.locator('#ko-board-close').click();
+check(await until('board shut', () => g.evaluate(() => !document.getElementById('ko-board') && !document.getElementById('knockout-home').classList.contains('hidden')), 5000), 'back is the Knockout home');
 
 for (const page of pages) check(page.errors.length === 0, 'nothing in the console', page.errors.join(' | '));
 await browser.close();

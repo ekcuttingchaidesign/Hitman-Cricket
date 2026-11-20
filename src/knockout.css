@@ -307,6 +307,29 @@ body.ko-glass .stage.result-open .score-stack{display:block;z-index:9}
 .ko-card{display:block;box-sizing:border-box;border:1px solid #ffffff14;border-radius:24px;background:linear-gradient(180deg,#221719,#150e10);
   box-shadow:inset 0 1px 0 #ffffff0f,0 12px 28px #00000080}
 .ko-figures{display:grid;grid-template-columns:repeat(3,1fr);margin-top:calc(var(--u) * 32);padding:calc(var(--u) * 16) calc(var(--u) * 20) calc(var(--u) * 18)}
+/* The card is a key where there is a Knockout leaderboard to open (K2's chevron): the same card, with the way on at its right edge. */
+button.ko-figures{position:relative;width:100%;text-align:left;font:inherit;color:inherit;cursor:default;-webkit-tap-highlight-color:transparent}
+button.ko-figures.is-open{cursor:pointer;padding-right:calc(var(--u) * 40)}
+button.ko-figures.is-open:active{transform:translateY(1px)}
+.ko-figures-go{display:none;position:absolute;right:calc(var(--u) * 14);top:50%;width:calc(var(--u) * 20);height:calc(var(--u) * 20);margin-top:calc(var(--u) * -10);color:#bfaeb1}
+.ko-figures.is-open .ko-figures-go{display:block}
+.ko-figures-go .k-icon{width:100%;height:100%}
+/* The ladder picker on the Knockout leaderboard: the lobby's sheet, a row a ladder. */
+.ko-picks-head{margin:0 0 calc(var(--u) * 8);color:#9c8f92;font:800 calc(var(--u) * 11)/1 var(--f-ui);letter-spacing:.12em}
+.ko-picks ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:calc(var(--u) * 6)}
+.ko-pick{display:flex;align-items:center;justify-content:space-between;gap:calc(var(--u) * 12);width:100%;min-height:calc(var(--u) * 52);padding:calc(var(--u) * 8) calc(var(--u) * 14);
+  border-radius:calc(var(--u) * 14);border:1px solid #ffffff14;background:#ffffff08;color:#f5efe6;text-align:left;font:inherit;cursor:pointer}
+.ko-pick span{display:flex;flex-direction:column;gap:calc(var(--u) * 3);min-width:0}
+.ko-pick b{font:700 calc(var(--u) * 15)/1.2 var(--f-ui)}
+.ko-pick small{color:#bfaeb1;font:500 calc(var(--u) * 12)/1.2 var(--f-ui)}
+.ko-pick.is-on{border-color:#ee2a2a99;background:#ee2a2a1f}
+.ko-pick .k-icon{flex:none;width:calc(var(--u) * 18);height:calc(var(--u) * 18);color:#ff6b6b}
+/* The Knockout leaderboard is the Results' screen with a ladder to pick: its ladder pill is a key again, and the wider of
+   the two, since its words are (Points · This week); the mode's names the mode and opens nothing. */
+.ko-board .lb-screen.is-knockout #ko-board-info,.ko-board .lb-screen.is-knockout #ko-board-sound{display:none}
+.ko-board .lb-screen.is-knockout #ko-board-ladder{pointer-events:auto;flex:1;width:auto}
+.ko-board .lb-screen.is-knockout #ko-board-ladder svg{display:block}
+.ko-board .lb-screen.is-knockout #ko-board-mode{flex:none}
 .ko-figures span,.ko-three span{display:flex;flex-direction:column;gap:calc(var(--u) * 6)}
 .ko-figures b{font:400 calc(var(--u) * 30)/1.1 var(--f-display);color:#f5efe6}
 .ko-figures b.is-gold{color:var(--ko-gold)}
@@ -665,6 +688,11 @@ body.ko-watch #end{visibility:hidden}
 /* The grain is as tall as the design's phone on the other screens, which made this one scroll that far with nothing to show for it. */
 #knockout-lobby .ko-grain{height:100%}
 .ko-lobby-count{margin:0;font:400 calc(var(--u) * 36)/1.1 var(--f-display);color:#f5efe6}
+/* What the next match is worth, beside the count: one quiet chip, gold only once it pays (gold is a reward). */
+.ko-lobby-head{display:flex;align-items:center;justify-content:space-between;gap:calc(var(--u) * 10)}
+.ko-worth{flex:none;padding:calc(var(--u) * 5) calc(var(--u) * 10);border-radius:999px;border:1px solid #ffffff1f;background:#ffffff0a;color:#9c8f92;
+  font:800 calc(var(--u) * 10)/1 var(--f-ui);letter-spacing:.08em;white-space:nowrap}
+.ko-worth.is-gold{border-color:#ffb02066;background:#ffb0201f;color:#ffc24d}
 /* One line says where the room stands, in the colour of it, with the host's NUDGE beside it: a line, a tag on every face
    and a bar over the keys all said it at first, and the room read as cluttered (the owner, 19 November 2026). */
 .ko-lobby-status{display:flex;align-items:center;gap:calc(var(--u) * 10);min-height:calc(var(--u) * 30);margin-top:calc(var(--u) * 4)}

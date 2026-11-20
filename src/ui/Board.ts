@@ -70,6 +70,8 @@ export interface BoardEntry {
   ghost?: boolean;
   /** The podium's own line, where it says more than the row does. */
   podiumSub?: string;
+  /** That line is something won (a Knockout match's points), and is drawn in gold. */
+  podiumGold?: boolean;
   /** The player's public handle, which opens their profile; absent for a guest's innings. */
   handle?: string;
 }
@@ -223,7 +225,7 @@ function podiumMarkup(top: readonly BoardEntry[], mode: BoardMode, loading: bool
             <span class="lb-face">${row.avatar === null ? '' : kitMarkup(row.avatar, row.name)}${badge}${you}</span>
             <span class="lb-name">${escape(row.you ? 'You' : row.name)}</span>
             <span class="lb-score">${escape(row.score)}</span>
-            <span class="lb-sub">${escape(row.podiumSub ?? row.sub)}</span>${numeral}</div>`;
+            <span class="lb-sub${row.podiumGold ? ' is-gold' : ''}">${escape(row.podiumSub ?? row.sub)}</span>${numeral}</div>`;
   });
   void mode;
   return slots.join('');
@@ -242,7 +244,7 @@ export function rowMarkup(row: BoardEntry): string {
   const name = row.ghost ? 'Your innings' : row.you ? 'You' : row.name;
   return `
           <li class="${classes}"${row.you || row.ghost ? ' aria-current="true"' : ''}${opens(row)}>
-            <span class="lb-place">${row.place}</span>
+            <span class="lb-place">${row.place || '–'}</span>
             ${row.chip ? `<i class="lb-result is-${row.chip}" aria-label="${RESULT_WORD[row.chip]}">${row.chip}</i>` : ''}
             ${face}
             <span class="lb-who"><span class="lb-who-name"><b>${escape(name)}</b>${tag}</span><small>${escape(row.sub)}</small></span>

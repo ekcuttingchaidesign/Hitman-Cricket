@@ -7946,6 +7946,7 @@ video.whatsnew-film.is-fit{height:auto;object-fit:contain;
 .lb-name{top:calc(var(--u) * (var(--ft) + var(--fs) + 8));width:calc(var(--u) * 110);overflow:hidden;text-overflow:ellipsis;font:700 calc(var(--u) * 14)/1.18 var(--f-ui)}
 .lb-score{top:calc(var(--u) * (var(--ft) + var(--fs) + 27));font:900 calc(var(--u) * 20)/1.2 var(--f-ui)}
 .lb-sub{top:calc(var(--u) * (var(--ft) + var(--fs) + 53));font:500 calc(var(--u) * 10)/1.2 var(--f-ui);color:var(--c-text-3)}
+.lb-sub.is-gold{color:#ffc24d;font-weight:800}
 .lb-step.is-open .lb-name{color:var(--c-text-3)}
 .lb-step.is-open .lb-score{color:#ffffff4d}
 .lb-numeral{position:absolute;left:50%;top:calc(var(--u) * var(--num-top));transform:translateX(-50%);

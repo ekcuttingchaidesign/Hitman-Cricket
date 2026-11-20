@@ -1,7 +1,10 @@
 import { handleOf } from './handle';
 import type { MatchInviteView, MatchMember, MatchView } from '../server/knockout-store';
+import type { KnockoutBoards, KnockoutStanding } from '../server/knockout-ledger';
 
 export type { MatchInviteView, MatchMember, MatchView } from '../server/knockout-store';
+export type { MatchResult as StoredResult, MatchResultRow } from '../server/knockout-result';
+export type { KnockoutBoards, KnockoutCareer, KnockoutStanding } from '../server/knockout-ledger';
 
 /**
  * Super Knockout with friends, from the browser's side (`knockout-store.ts`
@@ -81,6 +84,18 @@ export async function readMatch(code: string): Promise<MatchResult> {
 export async function readMatchInvites(playerId: string): Promise<MatchInviteView[]> {
   const answer = await ask<{ invites?: MatchInviteView[] }>(`${API}/api/challenge?knockout=1&invites=${encodeURIComponent(playerId)}`);
   return Array.isArray(answer?.invites) ? answer!.invites : [];
+}
+
+/** Super Knockout's ladders, every one at once; null when the store cannot be reached. */
+export async function readKnockoutBoards(): Promise<KnockoutBoards | null> {
+  const answer = await ask<KnockoutBoards>(`${API}/api/challenge?knockout=1&board=1`);
+  return answer?.ok && answer.boards ? answer : null;
+}
+
+/** One player's Knockout record and where they stand on each ladder; null when the store cannot be reached. */
+export async function readKnockoutStanding(playerId: string): Promise<KnockoutStanding | null> {
+  const answer = await ask<KnockoutStanding>(`${API}/api/challenge?knockout=1&standing=${encodeURIComponent(playerId)}`);
+  return answer?.ok && answer.places ? answer : null;
 }
 
 /** What a ball is written as: its runs, or W. A free hit's wicket was turned not out before it gets here. */

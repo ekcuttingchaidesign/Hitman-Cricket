@@ -3047,9 +3047,78 @@ the left edge (`hud.knockoutReaction`, `.ko-rx`, Web Animations, taking no
 touch). They are shown as the room's news is, so never with a ball live. A
 sub has nobody to tell.
 
-Not yet: points with three real players, the timer, the host's
-start-with-subs question, N WATCHING, invites in Notifications, and watching
-a match from the room on a phone that was never in it.
+Points (`PRODUCT.md`; Figma Battle Royale page, "Points by real players",
+K11 to K13 and section 42). Who won is the one thing the store does not
+leave to the phones. When a phone says a match is over (`doneMatch`) the
+store plays the room back itself from the seed and the cards it holds
+(`src/game/knockout-replay.ts`, `src/server/knockout-result.ts`), with the
+phones' own engine: only if that comes to a winner is the match over, and
+said too soon nothing changes. A room everybody has left is brought to its
+end the same way, a sub batting every ball never sent (`settleMatch`, the
+replay's `fill`). The engine is loaded by the function for it, so
+`knockout.ts`, `DeliveryGenerator.ts`, `ShotResolver.ts`,
+`DeliveryTrajectory.ts`, `super10-field.ts` and `free-hit.ts` carry `.js` on
+their imports like every server file (`function-check` holds it), and
+`KnockoutScreen` lives in `src/game/knockout-screen.ts` so the engine never
+reaches the scene. The game takes its match bowling (`matchPlan`) and a
+card's balls (`seatBallOf`) from the same file, so the two cannot bowl or
+count a match differently.
+
+The result (`MatchResult`, kept on the match under `res` and told in every
+answer as `result`: this round's once it is over, the round before's in the
+lobby) places all twelve seats, handles only. What it is worth is
+`src/game/knockout-points.ts`: the top three by place in the whole field, by
+how many real players batted a ball of their own (3: 3/1/0, 4 to 5: 5/2/1,
+6 to 7: 7/3/1, 8 to 9: 8/4/2, 10 to 12: 10/5/2); fewer than three is
+practice and counts for nothing, and a win goes on the record only with
+four. A place a sub took pays nobody, and neither does a seat a sub batted
+to its finish (`stood`: the player's place stands); walked out of while
+still batting it is `ran`, RAN AWAY. **A preview and the dev server pay from
+two real players** (`PREVIEW_RULES`, `POINTS_RULES` in the store, by
+`VERCEL_ENV`), on their own keys, so a phone and a computer are enough to
+see points land; production is the product's three and four. Paid once a
+round (`paid:<round>`, set if absent, kept through the room's swap so a
+second phone settling off the same read pays nothing), and a ledger out of
+reach never fails the match.
+
+Where it lands is `src/server/knockout-ledger.ts` (`upstashLedger`:
+`kocareers`, `koboard:<ladder>`): one Knockout career a player (played,
+wins, top three, finishes added up, best total, best finish, points, the
+last five finishes with 0 for a match run away from, and the week's points,
+wins and matches, the week turning over on Monday in India, `weekOf`), and
+six ladders, Points and Wins this week and all time, Highest total, and Win
+rate from ten matches. No tiers. A match run away from counts as a match
+and as last place, so leaving never helps an average. Only a player whose
+name the registry says is theirs is ranked. `GET
+/api/challenge?knockout=1&board=1` is every ladder at once (edge cached,
+`KNOCKOUT_BOARD_CACHE`) and `&standing=<player>` one player's record,
+places and how far the place above is this week.
+
+On screen: the lobby's chip beside the count (`#ko-lobby-worth`: UP TO 5
+POINTS in gold, or POINTS FROM 3 PLAYERS in grey; the store's `worth` and
+`pointsFrom`, so the game holds no table of its own); WINNER's pill and a
+knocked-out line that was in the points (`KnockoutMoment.paid`,
+`tellPaid`, `data-points` on the moment); the room's Results off the
+store's result once it is in (`src/game/knockout-told.ts`, `resultsOf`: +N
+pts in gold on the podium, the room's code on the pill, the dock's line
+with what this player was paid, somebody who ran away at the foot with no
+place and their seat the sub's); the lobby's Last match card off the same
+(`lastCard`, `lastOf`), so it is up on every phone whichever asked the room
+back to its lobby; the home's card, which turns from practice rooms to
+Points this week, Best finish and Wins once a match has counted and opens
+the leaderboard (`#ko-home-figures`, `showKnockoutHome`); and Super
+Knockout's leaderboard (`src/ui/KnockoutBoard.ts`, `#ko-board`,
+`knockoutBoardView`): the game's leaderboard screen in Knockout red, the
+ladder pill opening the picker, the dock saying where the player stands and
+what the place above is ahead by, a row opening that player's profile over
+it. `tests/knockout-points.test.ts`, `knockout-told.test.ts` and
+`knockout-board.test.ts` hold it; `tests/knockout-play.ts` bats a match to
+its end against the store as the phones do.
+
+Not yet: Knockout on My Stats, My profile and the main Leaderboard's mode
+menu, the timer, the host's start-with-subs question, N WATCHING, invites
+in Notifications, and watching a match from the room on a phone that was
+never in it.
 
 `scripts/friends-check.mjs` walks it in two browsers in real time, nobody
 swinging: Play with friends, a wrong code, PASTE and a paste of INVITE's
@@ -3075,7 +3144,15 @@ story ring with their score, the rings and WATCH), a tap on their seat
 opening their game and ✕ coming back to the room, a ring doing the same,
 LEADERBOARD over the room, then the match over, the kept match let go and
 the host's next START once the guest is ready again; and an invite reaching a phone on the cover as a banner
-with JOIN, and listed on Play with friends. Never edit the source while it
+with JOIN, and listed on Play with friends. For the points it reads the
+lobby's worth chip alone and with a friend in, the store's result after the
+first match (twelve seats placed, the phones' own winner, no id told), each
+player's record, what each end screen was told it paid, the last match's card
+on both phones and its Results, and at the end the home's card and the
+leaderboard: its rows, the picker, a row's profile and the way back. Its
+expectations follow the store's result: a page this machine starves into a
+sub's hands all match does not count as a real player, and then the match is
+practice. Never edit the source while it
 runs: the dev server reloads the pages under it.
 
 ## Super10's kits
