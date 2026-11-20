@@ -213,11 +213,13 @@ check(ka?.left === 12 && kb?.left === 12, 'twelve seats, the empty ten subs');
 const sameRoom = await until('same room', async () => { [ka, kb] = await Promise.all([ko(a), ko(b)]); return !!ka && ka.table === kb?.table; }, 20_000, 300);
 check(sameRoom, 'the same room on both phones at the start', `${ka?.table}\n        ${kb?.table}`);
 // Through the first over: somebody waits on the other at its end.
-let held = false, outEarly = false;
+let held = false, outEarly = false, ranAhead = false;
 const firstOver = await until('over 1', async () => {
   const [x, y] = [await ko(a), await ko(b)];
   // Remembered by the game (`held`), since two phones can finish the over close enough that a look every 0.4s misses it.
   if (x?.match?.held || y?.match?.held) held = true;
+  // A phone bowled to in the second over before the first one's cut has landed did not wait when it had to.
+  for (const k of [x, y]) if (k?.match && !k.match.out && k.match.batted > 6 && k.roomBalls < 6) ranAhead = true;
   return x && y && x.roomBalls >= 6 && y.roomBalls >= 6;
 }, 240_000, 400);
 // (If not: what each phone and the store say, and the guest's own log line with its picture's pace, so a phone starved of
@@ -230,9 +232,12 @@ check(firstOver, 'both phones bat the first over and the cut lands on both', fir
 // Out, a phone waits for nobody at the crease: its end screen comes at once. Nobody swings and the balls are the same on
 // both phones, so both are often out on the same one; with only subs left the room is then played to its end there and
 // then, so the end screen is all there is to see of it (no rings: nobody is left to watch).
-if (!held) outEarly = await until('end screen', async () => (await Promise.all([a, b].map(p => p.evaluate(() => !!document.getElementById('ko-moment') && !!window.__cricket.knockout()?.match?.out)))).some(Boolean), 20_000, 400);
+const through = !held && !(await Promise.all([a, b].map(p => p.evaluate(() => !!window.__cricket.knockout()?.match?.out)))).some(Boolean);
+if (!held && !through) outEarly = await until('end screen', async () => (await Promise.all([a, b].map(p => p.evaluate(() => !!document.getElementById('ko-moment') && !!window.__cricket.knockout()?.match?.out)))).some(Boolean), 20_000, 400);
 // Nobody swings, so which it is goes by the bowling: through the over not out, the pill; out in it, the end screen.
-check(held || outEarly, `the phone through first waited at the over’s end with the pill up, or was out and went to its end screen (${held ? 'the pill' : 'out'})`);
+// Or neither: both through the over inside one answer of the store's, so nobody was first and nobody had to wait. Then
+// what is held is that neither was bowled to again before the cut.
+check(held || outEarly || (through && !ranAhead), `the phone through first waited at the over’s end with the pill up, or was out and went to its end screen (${held ? 'the pill' : outEarly ? 'out' : 'both through together'})`, JSON.stringify({ held, outEarly, through, ranAhead }));
 check(turnedAway === 1, 'the guest’s first ball was turned away once');
 const guestCard = (await (await fetch(`${base}/api/challenge?knockout=1&code=${code}`)).json()).match.members.find(m => m.name === guest)?.card ?? '';
 check(guestCard.length >= 6 || guestCard.includes('W'), 'and sent again: the guest’s card has no gap', guestCard);
