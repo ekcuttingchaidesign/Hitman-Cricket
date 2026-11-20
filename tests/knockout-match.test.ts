@@ -257,6 +257,39 @@ describe('a match with friends', () => {
     });
   });
 
+  it('keeps how a ball was played beside it, and tells a player’s latest few to whoever is watching', async () => {
+    // Only a ball's figure used to travel, so a watcher's phone made up a stroke to fit: a helicopter for one was shown as
+    // a cover drive for one. The how is the picture alone: the card is what the room counts.
+    const { store, code } = await started();
+    const how = (n: number) => JSON.stringify({ s: 'STRAIGHT', f: 64, v: 2, m: 1, a: 500 + n, r: 800, o: { runs: 1, isWicket: false, timingGrade: 'OK' } });
+    for (let i = 0; i < 5; i++) ok(await ballInMatch(store, code, as(0), i, '1', T0 + 5000 + i * 1000, undefined, how(i)));
+    // A ball sent with none, and one too long to keep: the ball counts all the same.
+    ok(await ballInMatch(store, code, as(1), 0, '4', T0 + 5000));
+    ok(await ballInMatch(store, code, as(1), 1, '2', T0 + 6000, undefined, 'x'.repeat(2000)));
+    const view = ok(await readMatch(store, code, T0 + 12_000));
+    const [kabir, riya] = view.members;
+    expect(kabir.card).toBe('11111');
+    // The last three, from where they start: a story never shows an older ball.
+    expect(kabir.hows).toEqual({ from: 2, list: [how(2), how(3), how(4)] });
+    expect(riya.card).toBe('42');
+    expect(riya.hows).toBeNull();
+    // Told once: a ball sent again does not change how it was played.
+    ok(await ballInMatch(store, code, as(0), 4, '1', T0 + 13_000, undefined, how(99)));
+    expect(ok(await readMatch(store, code, T0 + 14_000)).members[0].hows!.list[2]).toBe(how(4));
+    // Nobody's id rides on it.
+    expect(JSON.stringify(view)).not.toContain(ids[0]);
+  });
+  it('lets the hows go with the balls when the room goes back to its lobby', async () => {
+    const { store, code } = await started();
+    ok(await ballInMatch(store, code, as(0), 0, 'W', T0 + 5000, undefined, '{"r":700,"o":{"runs":0,"isWicket":true,"timingGrade":"MISS"}}'));
+    ok(await ballInMatch(store, code, as(1), 0, 'W', T0 + 5000));
+    expect(ok(await readMatch(store, code, T0 + 6000)).members[0].hows).not.toBeNull();
+    ok(await doneMatch(store, code, as(0), 1));
+    const lobby = ok(await settleMatch(store, code, as(0), T0 + 8000));
+    expect(lobby.state).toBe('lobby');
+    expect(lobby.members.every(m => m.hows === null && m.card === '')).toBe(true);
+  });
+
   it('takes each ball in order, and nothing after a wicket', async () => {
     const { store, code } = await started();
     ok(await ballInMatch(store, code, as(0), 0, '4', T0 + 5000));

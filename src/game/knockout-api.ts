@@ -59,7 +59,7 @@ export const leaveMatch = (code: string, me: Me) => post({ action: 'leave', code
 export const removeFromMatch = (code: string, me: Me, handle: string) => post({ action: 'remove', code, handle, ...as(me) });
 export const inviteToMatch = (code: string, me: Me, handle: string) => post({ action: 'invite', code, handle, ...as(me) });
 export const startMatch = (code: string, me: Me) => post({ action: 'start', code, ...as(me) });
-export const ballInMatch = (code: string, me: Me, ball: number, value: string, round: number) => post({ action: 'ball', code, ball, value, round, ...as(me) });
+export const ballInMatch = (code: string, me: Me, ball: number, value: string, round: number, how?: string) => post({ action: 'ball', code, ball, value, round, ...(how ? { how } : {}), ...as(me) });
 /** BACK TO ROOM: batting done, back to the room under the same code. */
 export const backToRoom = (code: string, me: Me) => post({ action: 'back', code, ...as(me) });
 /** The match is over on this phone: nobody is PLAYING it any more. */

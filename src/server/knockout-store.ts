@@ -1,4 +1,5 @@
 import { AVATARS, NAME_MAX, cleanName, isPlayerId } from './board-store.js';
+import { HOW_MAX, HOWS_TOLD } from '../game/ball-how.js';
 import { NAME_BLOCKED_REASON, nameBlocked } from './name-filter.js';
 import { handleOf, isHandle } from '../game/handle.js';
 import { MATCH_CODE_ALPHABET, MATCH_CODE_LENGTH, MATCH_SEATS, cleanMatchCode, namesOf } from '../game/match-code.js';
@@ -73,6 +74,9 @@ export const REACTION_FRESH_MS = 20_000;
 export const NUDGE_GAP_MS = 10_000;
 /** One a watcher at most this often. */
 export const REACTION_GAP_MS = 350;
+/** What a how is kept behind, under `h:<round>:<player>:<ball>`: a store that reads JSON back as an object leaves it a string. */
+const HOW_MARK = '~';
+
 /** One reaction as kept, under `rx:<round>:<when>:<who>`. */
 export interface StoredReaction { to: string; by: string; from: string; face: number; e: number; at: number }
 /** One reaction as any browser may be told: who it is for by handle, who sent it by name. */
@@ -121,6 +125,8 @@ export interface StoredMatch {
   over: number;
   /** Every ball written this round, by player id and ball. */
   balls: Record<string, Record<number, string>>;
+  /** How each of those balls was played, as its phone told it (`ball-how.ts`): for the picture a watcher is shown, and read by nothing else. */
+  hows: Record<string, Record<number, string>>;
   /** Who has been asked in, by handle. */
   invited: Record<string, StoredMatchInvite>;
   /** Reactions sent this round, by their field. */
@@ -159,6 +165,8 @@ export interface MatchMember {
   seat: number | null;
   /** Their balls so far, one character each, in order. */
   card: string;
+  /** How their latest balls were played (`ball-how.ts`), from the ball at `from` on; null where their phone told none. */
+  hows: { from: number; list: string[] } | null;
   /** How long since they were heard from, by the store's clock. */
   quiet: number;
   /** How long since their last ball (or the walk-out, before one), by the store's clock; 0 in the lobby. */
@@ -240,7 +248,7 @@ export function parseMatch(held: Record<string, unknown> | null): StoredMatch | 
   if (!held || typeof held.host !== 'string') return null;
   const round = Math.max(1, Math.floor(Number(held.round)) || 1);
   const match: StoredMatch = { host: held.host, at: Number(held.at) || 0, seed: Number(held.seed) >>> 0, members: {}, removed: {}, start: null, round,
-    over: Math.floor(Number(held.over)) || 0, balls: {}, invited: {}, reactions: {}, nudged: {} };
+    over: Math.floor(Number(held.over)) || 0, balls: {}, hows: {}, invited: {}, reactions: {}, nudged: {} };
   for (const [field, raw] of Object.entries(held)) {
     const value = typeof raw === 'string' && raw.startsWith('{') ? safeJson(raw) : raw;
     if (field.startsWith('m:') && value && typeof value === 'object') match.members[field.slice(2)] = value as StoredMember;
@@ -255,6 +263,13 @@ export function parseMatch(held: Record<string, unknown> | null): StoredMatch | 
     else if (field.startsWith('rx:')) {
       const rx = value as StoredReaction | null;
       if (Number(field.split(':')[1]) === round && rx && typeof rx === 'object' && typeof rx.to === 'string' && REACTIONS[rx.e] !== undefined) match.reactions[field] = rx;
+    }
+    else if (field.startsWith('h:')) {
+      // `h:<round>:<player>:<ball>`: how that ball was played, kept behind a mark so it is never read as an object.
+      const [, of, id, at] = field.split(':'), ball = Number(at);
+      if (Number(of) === round && id && Number.isInteger(ball) && ball >= 0 && ball < MATCH_BALLS && typeof raw === 'string' && raw.startsWith(HOW_MARK) && raw.length <= HOW_MAX + 1) {
+        (match.hows[id] ??= {})[ball] = raw.slice(1);
+      }
     }
     else if (field.startsWith('b:')) {
       // `b:<round>:<player>:<ball>`: only this round's are the match's.
@@ -276,6 +291,18 @@ export function cardOf(match: StoredMatch, playerId: string): string {
   let card = '';
   for (let i = 0; i < MATCH_BALLS && balls[i] !== undefined; i++) card += balls[i];
   return card;
+}
+
+/**
+ * How a player's latest balls were played, for whoever is watching them: the last `HOWS_TOLD` of their card and no more,
+ * since a story never shows an older one and every answer carries these. Null where none was told.
+ */
+function howsOf(match: StoredMatch, playerId: string): { from: number; list: string[] } | null {
+  const told = match.hows[playerId], length = cardOf(match, playerId).length;
+  if (!told || !length) return null;
+  const from = Math.max(0, length - HOWS_TOLD);
+  const list = Array.from({ length: length - from }, (_, i) => told[from + i] ?? '');
+  return list.some(Boolean) ? { from, list } : null;
 }
 
 /** Members in the order they joined: the host first, then whoever came first. */
@@ -314,7 +341,7 @@ export function viewOf(code: string, match: StoredMatch, now = Date.now()): Matc
     const seat = seats.indexOf(id);
     return {
       handle: handleOf(id), name: m.name, avatar: m.avatar, joined: m.joined, ready: !!m.ready, host: id === match.host,
-      seat: seat >= 0 ? seat : null, card: cardOf(match, id), quiet: Math.max(0, now - heardAt(match, id)),
+      seat: seat >= 0 ? seat : null, card: cardOf(match, id), hows: howsOf(match, id), quiet: Math.max(0, now - heardAt(match, id)),
       idle: match.start ? Math.max(0, now - Math.max(m.ballAt ?? 0, match.start.at)) : 0, left: !!m.left,
       playing: playingIn(match, id), back: !!match.start && seat >= 0 && m.back === match.round,
       nudged: match.nudged[id] ?? 0,
@@ -520,7 +547,7 @@ export async function nudgeInMatch(store: KnockoutStore, code: string, input: Me
  * goes in only as the next ball of their card, never over one already there
  * — a sub's included — and nothing follows a wicket.
  */
-export async function ballInMatch(store: KnockoutStore, code: string, input: Member, ball: unknown, value: unknown, now = Date.now(), round?: unknown): Promise<MatchOutcome> {
+export async function ballInMatch(store: KnockoutStore, code: string, input: Member, ball: unknown, value: unknown, now = Date.now(), round?: unknown, how?: unknown): Promise<MatchOutcome> {
   const busy = await limited(store, 'write', input.address);
   if (busy) return busy;
   const match = await load(store, code);
@@ -534,6 +561,9 @@ export async function ballInMatch(store: KnockoutStore, code: string, input: Mem
   const card = cardOf(match, input.playerId);
   if (card.includes('W')) return refuse(409, 'You are out.');
   if (index > card.length) return refuse(409, 'A ball was missed. Send them in order.');
+  // How it was played goes in first, and once, so nobody reads the ball without it. It is only the picture: a watcher holds
+  // it to the ball's own figure, so one left beside a ball a sub got to first reads as nothing (`readHow`).
+  if (index === card.length && typeof how === 'string' && how.length > 0 && how.length <= HOW_MAX) await store.setOnce(clean, `h:${match.round}:${input.playerId}:${index}`, HOW_MARK + how);
   const written = index === card.length && await store.setOnce(clean, `b:${match.round}:${input.playerId}:${index}`, char);
   const member = match.members[input.playerId];
   await store.set(clean, { [`m:${input.playerId}`]: { ...member, seen: now, ballAt: written ? now : member?.ballAt } }, MATCH_TTL_SECONDS);
@@ -658,7 +688,7 @@ export async function settleMatch(store: KnockoutStore, code: string, input: Mem
   }
   // In one step, so no phone reads the old start under the new round: a ball of the old round landing after it is filed
   // under that round, where nobody reads it.
-  await store.swap(clean, fields, ['start', 'over', ...Object.keys(held).filter(field => field.startsWith('b:') || field.startsWith('rx:')),
+  await store.swap(clean, fields, ['start', 'over', ...Object.keys(held).filter(field => field.startsWith('b:') || field.startsWith('h:') || field.startsWith('rx:')),
     ...Object.keys(match.members).filter(id => match.members[id].left).map(id => `m:${id}`)], MATCH_TTL_SECONDS);
   return answer(store, clean, now);
 }

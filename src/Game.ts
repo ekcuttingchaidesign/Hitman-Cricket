@@ -183,6 +183,7 @@ import {
 } from './game/knockout-api';
 import { cleanMatchCode } from './game/match-code';
 import { AWAY_MS, STALL_MS } from './server/knockout-store';
+import { type BallHow, packHow, readHow } from './game/ball-how';
 import { demoRoom, demoWanted as roomDemoWanted } from './game/room-demo';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
 const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'];
@@ -291,6 +292,8 @@ const CAMERA_QUIT_BALLS = 6;
  */
 interface RoomBall {
   start: number; delivery: Delivery; news: BallNews; seat: number; play: Play | null;
+  /** A friend's ball as their phone told it (`ball-how.ts`): staged as a replay stages one's own, where there is one. */
+  how?: BallHow | null;
   swung: boolean; struck: boolean; shown: boolean; told: boolean; presentAt: number; endAt: number; outcome: ShotOutcome | null;
 }
 /** What somebody around now is batting, said in the friends screen's list. */
@@ -1352,7 +1355,8 @@ export class Game {
       knockoutFlood: (kind: 'flash' | 'dip' | null) => { this.scene.floodlights(kind, this.elapsed); },
       knockout: () => this.knockout && { standing: this.knockout.standing(), bowled: this.knockout.bowled, left: this.knockout.alive.length, you: { ...this.knockout.you },
         freeNext: this.knockout.freeHit(), freeAhead: this.knockout.freeHitAhead(), freeBall: this.knockout.freeBallNext, hitStops: this.hitStops, flood: this.scene.floodShown, night: this.scene.lit === 'night',
-        roomOn: !!this.room, pending: !!this.room?.pending, finished: this.knockout.finished, watching: this.room?.watching ?? null, watchBall: this.room?.ball ? { seat: this.room.ball.seat, struck: this.room.ball.struck, shown: this.room.ball.shown } : null, done: this.knockout.done,
+        roomOn: !!this.room, pending: !!this.room?.pending, finished: this.knockout.finished, watching: this.room?.watching ?? null, watchBall: this.room?.ball ? { seat: this.room.ball.seat, struck: this.room.ball.struck, shown: this.room.ball.shown, told: !!this.room.ball.how,
+          shot: this.room.ball.how ? this.room.ball.how.swing?.shot ?? null : this.room.ball.play?.shot ?? null, helicopter: !!this.room.ball.how?.swing?.helicopter } : null, done: this.knockout.done,
         ending: this.room?.ending ? (this.room.ending.wiped ? 'wipe' : this.room.ending.shown ? 'over' : 'last') : null, results: !!document.getElementById('ko-results'),
         winner: this.knockout.winner?.name ?? null, rings: this.room ? this.ringsOf().map(r => `${r.name}${r.out ? ':out' : ''}`) : [],
         // A match with friends: the room's own clock, every seat as it stands, and this phone's balls sent and to send.
@@ -2544,6 +2548,8 @@ export class Game {
   private matchPlay: {
     code: string; me: MatchMe; seed: number; seats: SeatSpec[]; you: number;
     deliveries: Delivery[]; balls: string[]; sending: boolean; sendAt: number; refused: string | null; sendFails: number;
+    /** How each of this phone's balls was played, sent with it; and how the other players' were, as their phones told it, by handle and ball. */
+    hows: string[]; told: Map<string, Map<number, BallHow>>;
     /** Balls this player has batted on this phone, sent or not, and whether one of them was the wicket. */
     batted: number; out: boolean;
     asked: Map<string, number>; beatAt: number; fresh: boolean; view: MatchView; logAt: number;
@@ -2819,7 +2825,7 @@ export class Game {
     });
     this.lobbyScreen?.hide(); this.friendsScreen?.hide();
     this.hud.knockoutRules(false); this.hud.knockoutHome(null); this.hud.closeModes();
-    this.matchPlay = { code: match.code, me, seed: match.seed, seats, you: match.seats.indexOf(mine), deliveries: [], balls: [], sending: false, sendAt: 0, refused: null, sendFails: 0,
+    this.matchPlay = { code: match.code, me, seed: match.seed, seats, you: match.seats.indexOf(mine), deliveries: [], balls: [], hows: [], told: new Map(), sending: false, sendAt: 0, refused: null, sendFails: 0,
       batted: 0, out: false, asked: new Map(), beatAt: 0, fresh: true, view: match, logAt: 0, held: false, round: match.round, dirty: false, doneSent: false, leaving: false, reacted: new Set(), facing: 0, parked: false };
     this.lastMatch = null;
     document.body.classList.remove('ko-parked');
@@ -2880,7 +2886,7 @@ export class Game {
     for (let tries = 0, refused = 0; tries < 6 && refused < 2 && this.matchPlay === play && this.storedCard(play).length < play.balls.length; tries++) {
       const next = this.storedCard(play).length;
       if (play.balls[next] === undefined) break;
-      const sent = await ballInMatch(play.code, play.me, next, play.balls[next], play.round);
+      const sent = await ballInMatch(play.code, play.me, next, play.balls[next], play.round, play.hows[next]);
       if (sent.ok && sent.match) { play.view = sent.match; continue; }
       // Turned away twice, it is not going to land (the room has moved on to its next match, a sub has the ball): the way
       // back is not held up for it. A send lost on the way is tried again.
@@ -2946,6 +2952,25 @@ export class Game {
     const ball = this.matchDelivery(Math.min(play.batted, KNOCKOUT.maxBalls - 1))!;
     return { ...ball, releaseTimeMs: release, idealContactTimeMs: release + ball.durationMs };
   }
+  /**
+   * How the other players' latest balls were played, kept as their phones tell it (the store's answers carry each
+   * player's last few): read once each against the ball's own figure on their card, for the stories (`watchStored`).
+   */
+  private hearHows(match: MatchView) {
+    const play = this.matchPlay;
+    if (!play || match.round !== play.round) return;
+    const mine = handleOf(play.me.playerId);
+    for (const member of match.members) {
+      if (!member.hows || member.handle === mine) continue;
+      let told = play.told.get(member.handle);
+      member.hows.list.forEach((raw, i) => {
+        const at = member.hows!.from + i;
+        if (!raw || told?.has(at)) return;
+        const how = readHow(raw, member.card[at]);
+        if (how) { if (!told) play.told.set(member.handle, told = new Map()); told.set(at, how); }
+      });
+    }
+  }
   /** The room moved on as far as the balls that have arrived allow, its news shown as a practice room's is. */
   private matchStep() {
     const room = this.knockout;
@@ -2974,6 +2999,7 @@ export class Game {
     // The room has moved on from the match this phone was batting (it went back to its lobby, or the next match has begun):
     // nothing of the new round is this match's. Left on its own screens until the next match is this player's to walk out
     // to, which takes the phone to the room for the count.
+    this.hearHows(match);
     if (match.round !== play.round) {
       // Kept under the room: let go, unless its end is being watched (MATCH OVER and the Results, whose key is the room).
       if (play.parked) { if (this.room?.watching == null && !this.room?.ending && !this.hud.knockoutResultsOpen) this.dropParked(); return; }
@@ -3028,7 +3054,7 @@ export class Game {
     const next = this.storedCard(play).length;
     if (!play.sending && now >= play.sendAt && next < Math.min(play.balls.length, KNOCKOUT.maxBalls) && play.balls[next] !== undefined) {
       play.sending = true;
-      void ballInMatch(play.code, play.me, next, play.balls[next], play.round).then(answer => {
+      void ballInMatch(play.code, play.me, next, play.balls[next], play.round, play.hows[next]).then(answer => {
         play.sending = false;
         if (answer.ok) { play.sendFails = 0; play.refused = null; }
         else {
@@ -8131,6 +8157,14 @@ export class Game {
       const ball = play.batted++;
       play.out ||= outcome.isWicket;
       play.balls[ball] = ballChar(outcome.runs, outcome.isWicket);
+      // How it was played goes with it, for whoever is watching this player's game: the swing as the scene was told it,
+      // when it came, when the ball was resolved (now) and what came of it. Only its figure used to travel, and the
+      // watching phone made up a stroke to fit: a helicopter for one was shown as a cover drive for one.
+      const swing = this.keptSwing, release = delivery.releaseTimeMs;
+      play.hows[ball] = packHow({
+        swing: swing ? { shot: swing.shot, charging: swing.charging, lofted: swing.lofted, sweeping: swing.sweeping, levelled: swing.levelled, version: swing.version,
+          meets: swing.meets, cutting: swing.cutting, spinPulling: swing.spinPulling, helicopter: !!swing.helicopter } : null,
+        swingAfter: swing ? swing.at - release : this.elapsed - release, resolveAfter: this.elapsed - release, outcome });
       this.matchWaitLine();
       return;
     }
@@ -8350,7 +8384,7 @@ export class Game {
     // A match's story opens where it picks up (`storyFrom`), never on a ball being shown for somebody else.
     if (this.matchPlay) {
       if (on.ball && on.ball.seat !== seat.id) { this.dropWatched(); this.scene.reset(true); }
-      if (!on.ball) this.storySkip(seat.id, true);
+      if (!on.ball) this.storySkip(seat.id);
     }
     this.watchHeader(0);
   }
@@ -8381,7 +8415,7 @@ export class Game {
     if (!next || next.id === on.watching) return;
     this.mark('knockout-watch-swipe', 'Swiped to another player while watching');
     // In a match each seat's balls are its own, shown from where the watcher left them: the next one's are staged on the next frame.
-    if (this.matchPlay) { this.dropWatched(); on.watching = next.id; on.idle = false; this.hud.knockoutWaiting(null); this.scene.reset(true); this.storySkip(next.id, true); this.watchHeader(by); return; }
+    if (this.matchPlay) { this.dropWatched(); on.watching = next.id; on.idle = false; this.hud.knockoutWaiting(null); this.scene.reset(true); this.storySkip(next.id); this.watchHeader(by); return; }
     on.watching = next.id;
     if (on.ball) this.watchStage(on.ball, next.id);
     this.watchHeader(by);
@@ -8429,12 +8463,12 @@ export class Game {
     return seen;
   }
   /**
-   * A seat's story skipped on to where it picks up (`storyFrom`): a friend's latest ball as it opens, and never more
-   * than a ball or two behind them after; a sub's latest over. Only between balls, never under one being shown.
+   * A seat's story skipped on to where it picks up (`storyFrom`): a friend's latest ball, one at a time, the older
+   * passed over whenever more than one is waiting; a sub's latest over. Only between balls, never under one being shown.
    */
-  private storySkip(id: number, opening: boolean) {
+  private storySkip(id: number) {
     const on = this.room!, seat = this.knockout!.seats[id], seen = this.seenOf(id);
-    const from = storyFrom(seen, seat.played, seat.sub, opening);
+    const from = storyFrom(seen, seat.played, seat.sub);
     if (from !== seen) on.seen!.set(id, from);
   }
   /** The ball being watched put away: seen, if it had got as far as its call. */
@@ -8455,7 +8489,7 @@ export class Game {
    */
   private watchStored() {
     const on = this.room!, room = this.knockout!, id = on.watching!, seat = room.seats[id];
-    this.storySkip(id, false);
+    this.storySkip(id);
     const at = this.seenOf(id), play = room.history.get(id)?.[at], delivery = this.matchDelivery(at);
     if (at >= seat.played || play === undefined || !delivery) {
       if (on.endDue) { on.endDue = false; this.roomEnd(true); return; }
@@ -8474,6 +8508,8 @@ export class Game {
       swung: false, struck: false, shown: false, told: true, presentAt: Infinity, endAt: Infinity, outcome: null };
     this.watchStage(on.ball, id);
     on.ball.play = play;
+    // A friend's ball as their own phone told it, where it did: the stroke they played, not one made up to fit the figure.
+    on.ball.how = seat.handle ? this.matchPlay?.told.get(seat.handle)?.get(at) ?? null : null;
     this.watchHeader(0);
   }
   /** The ball from the top, for this seat: dressed as their own, the bowler at his mark. */
@@ -8500,12 +8536,27 @@ export class Game {
       if (d.releaseTimeMs !== release) { d.releaseTimeMs = release; d.idealContactTimeMs = release + d.durationMs; }
       const since = this.elapsed - release, progress = flightProgress(d, since);
       this.scene.delivery(d, progress, since);
-      const play = ball.play, swingAt = play ? d.idealContactTimeMs + play.offset : Infinity;
-      if (play && !ball.swung && this.elapsed >= swingAt) { ball.swung = true; this.scene.swing(play.shot, this.elapsed, d, false, false, false, false, 2, 1); }
-      // Met when the ball arrives and the bat has come down, or let go: as the game resolves the player's.
-      if (this.elapsed < Math.max(d.idealContactTimeMs, Math.min(swingAt, d.idealContactTimeMs + this.swingWindow))) return;
-      const outcome = play?.outcome ?? { runs: 0 as const, isWicket: false, quality: 0, feedback: 'LEFT ALONE', timingGrade: 'MISS' as const, timingDeltaMs: null, compatibility: 0, madeBatContact: false, aerial: false };
-      const flight = this.scene.hit(outcome, play?.shot, d, this.elapsed);
+      const play = ball.play, how = ball.how ?? null;
+      let outcome: ShotOutcome, shot: ShotType | undefined;
+      if (how) {
+        // Told by their own phone: the swing with every argument at the moment it came, and the ball resolved when
+        // theirs was, as a replay tells the scene one's own ball again (`replayFrame`).
+        const swing = how.swing;
+        if (swing && !ball.swung && since >= how.swingAfter) {
+          ball.swung = true;
+          this.scene.swing(swing.shot, this.elapsed, d, swing.charging, swing.lofted, swing.sweeping, swing.levelled, swing.version, swing.meets, swing.cutting, swing.spinPulling, swing.helicopter);
+        }
+        if (since < how.resolveAfter) return;
+        outcome = how.outcome; shot = swing?.shot;
+      } else {
+        const swingAt = play ? d.idealContactTimeMs + play.offset : Infinity;
+        if (play && !ball.swung && this.elapsed >= swingAt) { ball.swung = true; this.scene.swing(play.shot, this.elapsed, d, false, false, false, false, 2, 1); }
+        // Met when the ball arrives and the bat has come down, or let go: as the game resolves the player's.
+        if (this.elapsed < Math.max(d.idealContactTimeMs, Math.min(swingAt, d.idealContactTimeMs + this.swingWindow))) return;
+        outcome = play?.outcome ?? { runs: 0 as const, isWicket: false, quality: 0, feedback: 'LEFT ALONE', timingGrade: 'MISS' as const, timingDeltaMs: null, compatibility: 0, madeBatContact: false, aerial: false };
+        shot = play?.shot;
+      }
+      const flight = this.scene.hit(outcome, shot, d, this.elapsed);
       ball.struck = true; ball.outcome = outcome; ball.presentAt = flight.presentAt; ball.endAt = flight.endAt + WATCH_TAIL;
       if (outcome.madeBatContact && !outcome.aerial) this.audio.play(outcome.edged ? 'edge' : 'hit');
     }

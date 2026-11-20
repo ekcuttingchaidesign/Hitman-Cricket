@@ -38,7 +38,7 @@ export async function knockoutRequest(store: KnockoutStore, req: KnockoutRequest
     case 'remove': return removeFromMatch(store, code, member, body.handle);
     case 'invite': return inviteToMatch(store, code, member, body.handle);
     case 'start': return startMatch(store, code, member);
-    case 'ball': return ballInMatch(store, code, member, body.ball, body.value, Date.now(), body.round);
+    case 'ball': return ballInMatch(store, code, member, body.ball, body.value, Date.now(), body.round, body.how);
     case 'back': return backToRoom(store, code, member);
     case 'done': return doneMatch(store, code, member, body.round);
     case 'settle': return settleMatch(store, code, member);

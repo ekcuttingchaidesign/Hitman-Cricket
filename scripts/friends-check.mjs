@@ -245,6 +245,10 @@ check(held || outEarly || (through && !ranAhead), `the phone through first waite
 check(turnedAway === 1, 'the guest’s first ball was turned away once');
 const guestCard = (await (await fetch(`${base}/api/challenge?knockout=1&code=${code}`)).json()).match.members.find(m => m.name === guest)?.card ?? '';
 check(guestCard.length >= 6 || guestCard.includes('W'), 'and sent again: the guest’s card has no gap', guestCard);
+// Each ball goes to the store with how it was played, for whoever watches that player: nobody swings here, so a ball left alone.
+const guestHows = (await (await fetch(`${base}/api/challenge?knockout=1&code=${code}`)).json()).match.members.find(m => m.name === guest)?.hows ?? null;
+check(!!guestHows && guestHows.list.some(how => { try { const told = JSON.parse(how); return told.s === undefined && typeof told.r === 'number' && typeof told.o?.runs === 'number'; } catch { return false; } }),
+  'and each ball carries how it was played, for whoever is watching', JSON.stringify(guestHows).slice(0, 300));
 check((await text(b, '#match-log')).includes(code), '?matchlog=1 says where the match stands on this phone', await text(b, '#match-log'));
 await b.screenshot({ path: `${out}/matchlog.png` });
 // The ladder: 12, then 10 after the first over, 8, 5 and 2. Read once both phones stand on the same over.
@@ -348,7 +352,9 @@ check(await until('walk four', async () => !!(await ko(e))?.match, 15_000), 'the
 // The host bats on, by the script: a six every eighteen seconds (slower than the guest is bowled to, so a guest out in an over is out before its cut), so the match is still being played when the guest is out of it.
 // (Heard from at once, and its first ball with it: the script is no phone, so nothing checks in for the host but this.)
 let hostBall = 0;
-const hostBat = () => api('ball', goneId, gone, 4, { code: fourth, ball: hostBall, value: '6', round: 1 }).then(sent => { if (sent.match) hostBall = sent.match.members.find(m => m.name === gone)?.card.length ?? hostBall; }).catch(() => {});
+// Each of them a helicopter for six, told as a phone tells its own ball (`ball-how.ts`): the swing, when it came, and what came of it.
+const hostHow = JSON.stringify({ s: 'STRAIGHT', f: 64, v: 2, m: 1, a: 430, r: 760, o: { runs: 6, isWicket: false, quality: 1, feedback: 'PERFECT TIMING', timingGrade: 'PERFECT', timingDeltaMs: 4, compatibility: 1, madeBatContact: true, aerial: false, helicopter: true } });
+const hostBat = () => api('ball', goneId, gone, 4, { code: fourth, ball: hostBall, value: '6', round: 1, how: hostHow }).then(sent => { if (sent.match) hostBall = sent.match.members.find(m => m.name === gone)?.card.length ?? hostBall; }).catch(() => {});
 await api('beat', goneId, gone, 4, { code: fourth });
 await hostBat();
 const hostBats = setInterval(() => { void hostBat(); }, 18_000);
@@ -440,6 +446,10 @@ if (floated) await e.screenshot({ path: `${out}/match-reaction.png` });
 // The side in the field keeps its kit through the batter watched: dressed again every ball, it changed shirts between balls.
 // (Read once a ball of the host's is staged: that is when the batter is dressed as them.)
 await until('a ball of the host’s', async () => { const ball = (await ko(e)).watchBall; return !!ball && ball.seat === 0 && !ball.shown; }, 45_000, 200);
+// The stroke shown is the one they played, as their own phone told it: only what a ball was worth used to travel, and the
+// watcher's phone made one up to fit (the owner's helicopter for one was shown as a cover drive for one, 20 November 2026).
+const staged = (await ko(e)).watchBall;
+check(!!staged && staged.seat === 0 && staged.told && staged.shot === 'STRAIGHT' && staged.helicopter, 'the host’s ball is shown as the stroke they played, a helicopter, not one made up to fit', JSON.stringify(staged));
 const sideKit = await e.evaluate(() => window.__cricket.snapshot().fieldingKit);
 await until('shown', async () => { const ball = (await ko(e)).watchBall; return !!ball && ball.seat === 0 && ball.shown; }, 45_000, 200);
 await until('and the one after', async () => { const ball = (await ko(e)).watchBall; return !!ball && ball.seat === 0 && !ball.shown; }, 45_000, 200);

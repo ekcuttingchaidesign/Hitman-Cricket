@@ -15,6 +15,20 @@ nuisance (the owner asked for this on 10 November 2026). One link a line,
 with what it shows; where two switches belong together, one link carrying
 both.
 
+A branch's preview address is not the branch's name with the team's on the
+end: Vercel cuts a long one. It is the first 33 characters of
+`hitman-cricket-git-<branch, its slash a dash>`, then a dash and the first
+six hex digits of the SHA-256 of `git-<branch>hitman-cricket` (the branch as
+it is, slash and all), then `-ek-cutting-chai-design.vercel.app`. For
+`claude/confident-faraday-puyn02` that is
+`hitman-cricket-git-claude-confide-1142c4-ek-cutting-chai-design.vercel.app`.
+Work it out, never guess it: a made-up address ending `-puyn02-ek.vercel.app`
+was given to the owner for two days and opened nothing (20 November 2026). A
+cloud session cannot open it to check (its proxy turns `vercel.app` away), so
+the rule is the check: it gives `…-claude-keen-ha-570be4-…` for
+`claude/keen-hamilton-81xri8`, which Vercel's own comment on that branch's
+pull request named.
+
 ## Going live
 
 `docs/LAUNCH.md` is the running order for shipping the career update: seed the
@@ -2957,15 +2971,31 @@ by seat; a friend's drawn by `playOf`, since their swing never travels), a
 ball at a time on the ground (`watchStored`, `seenOf`, `seen` on the room, by
 seat, so nothing shown is shown again). Where a story picks up is `storyFrom`
 in `knockout.ts` (`storySkip` in `src/Game.ts`, every case in
-`tests/knockout-together.test.ts`): a friend's opens on their latest ball,
-shows that one and waits for the next, and left running it is let fall two
-balls behind (`STORY_BEHIND`) and no further; a sub's, whose balls come an
-over at a time, is the top of their latest over. Played back quicker than it
-was batted, a story that picked up where it was left, or at the top of the
-room's over the first time, ran through the innings at two or three times the
-pace to catch up: the owner, out early, opened a friend's at fifty and
-watched it from the first ball (20 November 2026). Not to be built again: no
-story fast-forwards. Caught up, the bowler waits at his mark under
+`tests/knockout-together.test.ts`): a friend's is one ball at a time, their
+latest ball and then the wait for the next, the older passed over whenever
+more than one is waiting; a sub's, whose balls come an over at a time, is the
+top of their latest over. A story that picked up where it was left, or at the
+top of the room's over the first time, ran through the innings ball after
+ball to catch up: the owner, out early, opened a friend's at fifty and
+watched it from the first ball, and opened on their latest still saw two run
+together (20 November 2026). Not to be built again: no story plays two of a
+friend's balls in a row to catch up. The stroke shown is the one they played
+(`src/game/ball-how.ts`, in `tests/ball-how.test.ts`): each phone sends, with
+a ball's figure, how it was played (`packHow` in `knockoutBall`: the swing
+with every argument as the scene was told it, when it came, when the ball
+was resolved and what came of it, what a replay keeps), the store keeps it
+beside the ball under a field of its own written once and first
+(`h:<round>:<player>:<ball>`, behind a mark so it is never read back as an
+object) and tells each player's last three in every answer (`hows` on the
+member, `HOWS_TOLD`), and the watcher stages it as a replay stages one's own
+ball (`hearHows`, `how` on the ball watched, `watchFrame`). Only a ball's
+figure travelled before, so the watcher's phone made up a stroke to fit
+(`playOf`): the owner's helicopter at a yorker for one was shown as a cover
+drive for one. It is the picture alone: the room counts the card, the same on
+every phone, and a how that does not say what the card says, or does not
+read, is let go and the stroke made up as before (`readHow`, which also holds
+another player's every field to its kind and range, and the call's words to
+capitals and the game's own marks). Caught up, the bowler waits at his mark under
 WAITING FOR RIYA'S NEXT BALL: a friend's balls are a few seconds behind them,
 a sub's come an over at a time. The header counts what the watcher has been
 shown, not where the room has got to, and the room's end waits for the seat
