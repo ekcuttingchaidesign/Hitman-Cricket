@@ -233,7 +233,9 @@ check(firstOver, 'both phones bat the first over and the cut lands on both', fir
 // both phones, so both are often out on the same one; with only subs left the room is then played to its end there and
 // then, so the end screen is all there is to see of it (no rings: nobody is left to watch).
 const through = !held && !(await Promise.all([a, b].map(p => p.evaluate(() => !!window.__cricket.knockout()?.match?.out)))).some(Boolean);
-if (!held && !through) outEarly = await until('end screen', async () => (await Promise.all([a, b].map(p => p.evaluate(() => !!document.getElementById('ko-moment') && !!window.__cricket.knockout()?.match?.out)))).some(Boolean), 20_000, 400);
+if (!held && !through) outEarly = await until('end screen', async () => (await Promise.all([a, b].map(p => p.evaluate(() => !!document.getElementById('ko-moment') && !!window.__cricket.knockout()?.match?.out)))).some(Boolean), 240_000, 400);
+// (Minutes, not seconds: the end screen comes when the wicket's ball is done with on the game's clock, and two pages drawn in
+// software at a frame a second each take most of a minute over that.)
 // Nobody swings, so which it is goes by the bowling: through the over not out, the pill; out in it, the end screen.
 // Or neither: both through the over inside one answer of the store's, so nobody was first and nobody had to wait. Then
 // what is held is that neither was bowled to again before the cut.
