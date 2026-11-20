@@ -9,8 +9,8 @@
  * (`KnockoutRoom`), and the bowling plan to bowl it (`knockoutPlan`), so every
  * seat faces the same ball. Pure: nothing here reads the page or the clock.
  */
-import { SeededRandom } from './SeededRandom';
-import type { DeliveryStyle } from './types';
+import { SeededRandom } from './SeededRandom.js';
+import type { DeliveryStyle } from './types.js';
 
 /** The free hit ball of an over: which ball (0 to 5, never 0), what it is, and its name on the call. */
 export interface HardBall { ball: number; style: DeliveryStyle; full?: boolean; name: string }

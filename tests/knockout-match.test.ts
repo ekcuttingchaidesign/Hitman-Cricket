@@ -6,6 +6,7 @@ import {
   memoryKnockouts, namesOf, nudgeInMatch, reactInMatch, readInvites, NUDGE_GAP_MS, readMatch, readyMatch, removeFromMatch, startMatch, REACTION_FRESH_MS, REACTION_GAP_MS,
   type MatchOutcome, type MatchView, type Member,
 } from '../src/server/knockout-store';
+import { playMatch } from './knockout-play';
 
 /**
  * Super Knockout with friends (`knockout-store.ts`, Figma section 53): the
@@ -497,11 +498,17 @@ describe('a match with friends', () => {
       expect(ok(await settleMatch(store, code, as(1), T0 + 8000)).state).toBe('live');
       const stranger = await doneMatch(store, code, as(6), 1, T0 + 8500);
       expect(matchRefused(stranger) && stranger.status).toBe(403);
-      const over = ok(await doneMatch(store, code, as(0), 1, T0 + 9000));
+      // Said too soon, with two still to bat: the store plays the room back itself, and nothing changes.
+      const soon = ok(await doneMatch(store, code, as(0), 1, T0 + 9000));
+      expect(soon.over).toBe(false);
+      expect(tags(soon)).toBe('Kabir:playing Riya:back Zoya:playing');
+      // Batted to its end (Riya went back still batting: a sub has her seat), it is over when a phone says so.
+      const played = await playMatch(store, code, [as(0), as(1), as(2)], T0 + 9000, () => '1', new Set([1]));
+      const over = ok(await doneMatch(store, code, as(0), 1, played.at + 100));
       expect(over.over).toBe(true);
       expect(over.busy).toBe(0);
       expect(tags(over)).toBe('Kabir:in Riya:back Zoya:in');
-      const lobby = ok(await settleMatch(store, code, as(1), T0 + 9500));
+      const lobby = ok(await settleMatch(store, code, as(1), played.at + 500));
       expect(lobby.state).toBe('lobby');
       expect(lobby.members).toHaveLength(3);
     });

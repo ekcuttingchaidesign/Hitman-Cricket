@@ -1,15 +1,15 @@
-import { CLASSIC_SPIN, DRAGGED, FLIGHT, FULLER, GAME, LINES, LINE_X, QUICK_STYLES, SPECIALS, STYLES } from '../config/gameplay';
+import { CLASSIC_SPIN, DRAGGED, FLIGHT, FULLER, GAME, LINES, LINE_X, QUICK_STYLES, SPECIALS, STYLES } from '../config/gameplay.js';
 import {
   BOUNCERS, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES as SURVIVE_STYLES, SURVIVE,
-} from '../config/survive';
+} from '../config/survive.js';
 import {
   EXPRESS_OVER, MARATHON, BLOCK_OVERS, REVERSE, ROUND, SWING_FROM, SWING_LINES, isReverse, levelAt as marathonLevelAt, levelOf, type Level, type OverKind,
-} from '../config/marathon';
-import { BOWL_TO, DEATH_OVER, KIND, SEAM_LEVEL, SUPER10, SWING_LEVEL, scheduleOf } from '../config/super10';
-import { bookOf, bowlerOf } from './super10-field';
-import { SeededRandom } from './SeededRandom';
-import { freeHitBall, type HardBall } from './free-hit';
-import type { BallLine, Delivery, DeliveryStyle, ShotOutcome } from './types';
+} from '../config/marathon.js';
+import { BOWL_TO, DEATH_OVER, KIND, SEAM_LEVEL, SUPER10, SWING_LEVEL, scheduleOf } from '../config/super10.js';
+import { bookOf, bowlerOf } from './super10-field.js';
+import { SeededRandom } from './SeededRandom.js';
+import { freeHitBall, type HardBall } from './free-hit.js';
+import type { BallLine, Delivery, DeliveryStyle, ShotOutcome } from './types.js';
 /** What a gentle over (`OverRules.gentle`) is bowled off: the seamer's stock ball and his swing. */
 const GENTLE: readonly DeliveryStyle[] = ['NORMAL', 'SWING_IN', 'SWING_OUT'];
 /** The express bowler's over, with how many yorkers it holds left open: a newcomer is bowled none. */

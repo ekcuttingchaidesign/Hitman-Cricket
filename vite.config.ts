@@ -12,6 +12,7 @@ import { memoryFeedback } from './src/server/memory-feedback';
 import { challengeRefused } from './src/server/challenge-store';
 import { matchRefused, memoryKnockouts } from './src/server/knockout-store';
 import { KNOCKOUT_CACHE, knockoutRequest } from './src/server/knockout-endpoint';
+import { memoryLedger } from './src/server/knockout-ledger';
 import { cacheable, challengeRequest } from './src/server/challenge-endpoint';
 import {
   CAREER_BOARD_SIZE, countInnings, nameCareer, readCareer, readCareerBoards, refusedCareer,
@@ -90,6 +91,8 @@ function boardEndpoints(): Plugin {
   const challenges = memoryChallenges(names, handle => profiles.players.idOf(handle));
   // Super Knockout's matches with friends, over memory, finding players by handle as the profiles do.
   const knockouts = memoryKnockouts(handle => profiles.players.idOf(handle));
+  // Its careers and ladders, checked against the same name registry.
+  const ledger = memoryLedger(folded => names.get(folded) ?? null);
   const dressing = memoryDressing();
   const recap = memoryRecap();
   // Who is around, checked against the same name registry.
@@ -155,7 +158,7 @@ function boardEndpoints(): Plugin {
               body: req.method === 'POST' ? await read(req) : undefined,
               address: 'dev',
             };
-            const outcome = await knockoutRequest(knockouts, request);
+            const outcome = await knockoutRequest(knockouts, request, ledger);
             if (matchRefused(outcome)) return send(outcome.status, { error: outcome.reason, status: outcome.status, retry: outcome.status >= 500 });
             return send(200, outcome, KNOCKOUT_CACHE);
           }

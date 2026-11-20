@@ -171,6 +171,7 @@ import { kitDeal } from './config/board';
 import { encodeInnings, limitsOf } from './game/ball-string';
 import { HOLD_MS, READY_MS, heldOf } from './ui/KnockoutHeld';
 import { swingFourthOf } from './game/free-hit';
+import { matchPlan, seatBallOf } from './game/knockout-replay';
 import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, freeHitOf, knockoutScreen, overLine, type BallNews, type Play, type Seat, type SeatBall, type SeatSpec, sampleTrack, storyFrom, trackOf, type TrackMood } from './game/knockout';
 import { KnockoutMoment, ordinal, type MomentView } from './ui/KnockoutMoment';
 import type { RingView, WatchHeader } from './ui/KnockoutWatch';
@@ -2912,11 +2913,7 @@ export class Game {
     const play = this.matchPlay;
     if (!play || seat.sub || !seat.handle) return 'sub';
     const card = play.view.members.find(m => m.handle === seat.handle)?.card ?? '';
-    const char = card[ball];
-    if (char === undefined) return null;
-    if (char === 'S') return 'sub';
-    return { runs: char === 'W' ? 0 : Number(char) as ShotOutcome['runs'], isWicket: char === 'W', quality: 0, feedback: '', timingGrade: 'GOOD', timingDeltaMs: 0,
-      compatibility: 1, madeBatContact: char !== '0' && char !== 'W', aerial: false } as ShotOutcome;
+    return seatBallOf(card[ball]);
   };
   /**
    * A ball of the match, by index, off the match's own bowler: the same list on
@@ -3719,7 +3716,7 @@ export class Game {
   private get plan() {
     // A match with friends: the knockout's own overs off the match's seed, nothing the link asks for, and no yorker owed for one
     // player's sixes, which would bowl the next ball differently on their phone than on everybody else's.
-    if (this.matchPlay) { const plan = knockoutPlan(swingFourthOf(this.seed), this.seed); return { ...plan, specials: { ...plan.specials, sixesForYorker: Infinity } }; }
+    if (this.matchPlay) return matchPlan(this.seed);
     // A Rival Match is bowled as its room's mode is, whatever the link asks for.
     if (this.challenge.playing) return this.challenge.room?.mode === 'super10' ? SUPER10_PLAN : CLASSIC_PLAN;
     const plain = this.ease > 1 ? withoutYorkers(this.basePlan) : this.basePlan;

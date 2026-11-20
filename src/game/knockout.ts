@@ -10,13 +10,13 @@
  * room is a pure thing of the seed and the balls: nothing here reads the page,
  * the clock or `Math.random`, and `tests/knockout.test.ts` holds every rule.
  */
-import { COMPATIBILITY, SHOTS } from '../config/gameplay';
-import { effectiveLine } from './DeliveryTrajectory';
-import { resolveShot } from './ShotResolver';
-import { SeededRandom } from './SeededRandom';
-import type { Delivery, ShotOutcome, ShotType } from './types';
-import type { KnockoutScreen } from '../scene/arena';
-import { freeHitBall, type HardBall } from './free-hit';
+import { COMPATIBILITY, SHOTS } from '../config/gameplay.js';
+import { effectiveLine } from './DeliveryTrajectory.js';
+import { resolveShot } from './ShotResolver.js';
+import { SeededRandom } from './SeededRandom.js';
+import type { Delivery, ShotOutcome, ShotType } from './types.js';
+import type { KnockoutScreen } from './knockout-screen.js';
+import { freeHitBall, type HardBall } from './free-hit.js';
 
 export const KNOCKOUT = {
   seats: 12,

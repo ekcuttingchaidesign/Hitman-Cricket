@@ -5,9 +5,9 @@
 // ERR_MODULE_NOT_FOUND before any handler runs — a 500 with no log of its own.
 import { challengeRefused } from '../src/server/challenge-store.js';
 import { cacheable, challengeRequest } from '../src/server/challenge-endpoint.js';
-import { NoDatabase, redisFromEnv, upstashChallenges, upstashKnockouts } from '../src/server/upstash.js';
+import { NoDatabase, redisFromEnv, upstashChallenges, upstashKnockouts, upstashLedger } from '../src/server/upstash.js';
 import { matchRefused } from '../src/server/knockout-store.js';
-import { KNOCKOUT_CACHE, knockoutRequest } from '../src/server/knockout-endpoint.js';
+import { KNOCKOUT_BOARD_CACHE, KNOCKOUT_CACHE, knockoutRequest } from '../src/server/knockout-endpoint.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 
 /**
@@ -32,9 +32,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     // Super Knockout's matches with friends (`knockout-store.ts`) answer here too, asked with `?knockout=1`: the Hobby plan
     // allows a deployment twelve functions, and a thirteenth of their own failed the build.
     if (request.query.knockout) {
-      const outcome = await knockoutRequest(upstashKnockouts(redisFromEnv()), request);
+      const redis = redisFromEnv();
+      const outcome = await knockoutRequest(upstashKnockouts(redis), request, upstashLedger(redis));
       if (matchRefused(outcome)) return failed(res, outcome.status, outcome.reason);
-      res.setHeader('Cache-Control', KNOCKOUT_CACHE);
+      // Its ladders are the same for everybody and move when a match ends, so they sit in the edge cache as the Rivals
+      // board does; a match, and one player's standing, never.
+      res.setHeader('Cache-Control', req.method === 'GET' && request.query.board ? KNOCKOUT_BOARD_CACHE : KNOCKOUT_CACHE);
       return res.status(200).json(outcome);
     }
     // Reads use the read-only token: they cannot write, whatever they are sent.

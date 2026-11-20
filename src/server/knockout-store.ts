@@ -3,6 +3,9 @@ import { HOW_MAX, HOWS_TOLD } from '../game/ball-how.js';
 import { NAME_BLOCKED_REASON, nameBlocked } from './name-filter.js';
 import { handleOf, isHandle } from '../game/handle.js';
 import { MATCH_CODE_ALPHABET, MATCH_CODE_LENGTH, MATCH_SEATS, cleanMatchCode, namesOf } from '../game/match-code.js';
+import { LIVE_RULES, PREVIEW_RULES, worthOf, type PointsRules } from '../game/knockout-points.js';
+import { creditMatch, type KnockoutLedger } from './knockout-ledger.js';
+import { resultOf, type MatchResult } from './knockout-result.js';
 
 export { MATCH_CODE_ALPHABET, MATCH_CODE_LENGTH, MATCH_SEATS, cleanMatchCode, namesOf };
 
@@ -29,7 +32,19 @@ export { MATCH_CODE_ALPHABET, MATCH_CODE_LENGTH, MATCH_SEATS, cleanMatchCode, na
  * Nothing in an answer is a player id. A match is read by its code by anybody
  * holding the link, so the members come back by handle (`game/handle.ts`), as
  * every board row does, and a browser finds itself by hashing its own id.
+ *
+ * Who won is the one thing the store does not leave to the phones. When a
+ * match is over it plays the room back itself from the same seed and cards
+ * (`knockout-result.ts`), keeps the result, and pays its points once
+ * (`knockout-ledger.ts`): a phone can say a match is over, never how it ended.
  */
+
+/**
+ * How many real players a match needs before it pays. Production's are the
+ * game's own; a preview and the dev server pay from two, on their own keys, so
+ * a phone and a computer are enough to see points land.
+ */
+export const POINTS_RULES: PointsRules = typeof process !== 'undefined' && process.env?.VERCEL_ENV === 'production' ? LIVE_RULES : PREVIEW_RULES;
 
 /** How long a match is kept: an evening, comfortably. Every write pushes it out again. */
 export const MATCH_TTL_SECONDS = 6 * 3600;
@@ -133,6 +148,8 @@ export interface StoredMatch {
   reactions: Record<string, StoredReaction>;
   /** When the host last nudged each member, by player id (a field of its own each, so it never writes over their ready). */
   nudged: Record<string, number>;
+  /** The last result the store worked out for this room (`res`): this round's once it is over, the round before's in the lobby. */
+  result: MatchResult | null;
 }
 
 export interface KnockoutStore {
@@ -201,6 +218,15 @@ export interface MatchView {
   busy: number;
   /** Reactions of the last few seconds, oldest first: each phone shows the ones for its player, or for whoever it watches. */
   reactions: MatchReaction[];
+  /**
+   * What first, second and third are worth as the room stands: by who is in it in the lobby, by who was seated once it
+   * has started. All nothing where it is practice (too few real players).
+   */
+  worth: [number, number, number];
+  /** How many real players a match needs before it pays at all. */
+  pointsFrom: number;
+  /** The last result the store worked out for this room: this round's once the match is over, the round before's in the lobby. */
+  result: MatchResult | null;
   /** The store's clock, so every phone counts the walk-out to the same moment. */
   now: number;
 }
@@ -248,11 +274,12 @@ export function parseMatch(held: Record<string, unknown> | null): StoredMatch | 
   if (!held || typeof held.host !== 'string') return null;
   const round = Math.max(1, Math.floor(Number(held.round)) || 1);
   const match: StoredMatch = { host: held.host, at: Number(held.at) || 0, seed: Number(held.seed) >>> 0, members: {}, removed: {}, start: null, round,
-    over: Math.floor(Number(held.over)) || 0, balls: {}, hows: {}, invited: {}, reactions: {}, nudged: {} };
+    over: Math.floor(Number(held.over)) || 0, balls: {}, hows: {}, invited: {}, reactions: {}, nudged: {}, result: null };
   for (const [field, raw] of Object.entries(held)) {
     const value = typeof raw === 'string' && raw.startsWith('{') ? safeJson(raw) : raw;
     if (field.startsWith('m:') && value && typeof value === 'object') match.members[field.slice(2)] = value as StoredMember;
     else if (field.startsWith('rm:')) match.removed[field.slice(3)] = Number(value) || 0;
+    else if (field === 'res' && value && typeof value === 'object' && Array.isArray((value as MatchResult).rows)) match.result = value as MatchResult;
     else if (field.startsWith('ng:')) match.nudged[field.slice(3)] = Number(value) || 0;
     else if (field.startsWith('iv:') && value && typeof value === 'object') match.invited[field.slice(3)] = value as StoredMatchInvite;
     else if (field === 'start' && value && typeof value === 'object' && Array.isArray((value as StoredStart).seats)) {
@@ -353,6 +380,8 @@ export function viewOf(code: string, match: StoredMatch, now = Date.now()): Matc
     startAt: match.start?.at ?? null, seats: seats.map(id => handleOf(id)), members,
     invited: Object.keys(match.invited).filter(handle => !here.has(handle)),
     round: match.round, over: !!match.start && match.over === match.round, busy: busyIn(match, now),
+    worth: worthOf(match.start ? seats.length : members.filter(m => !m.left).length, POINTS_RULES), pointsFrom: POINTS_RULES.pointsFrom,
+    result: match.result,
     reactions: Object.entries(match.reactions).filter(([, rx]) => now - rx.at < REACTION_FRESH_MS).sort((a, b) => a[1].at - b[1].at)
       .map(([id, rx]) => ({ id, to: rx.to, by: String(rx.by ?? ''), from: String(rx.from).slice(0, 14), face: Number(rx.face) || 0, emoji: REACTIONS[rx.e], at: rx.at })),
     now,
@@ -642,7 +671,7 @@ export async function awayInMatch(store: KnockoutStore, code: string, input: Mem
  * over) goes back to the room under the same code, where everybody still
  * batting is tagged PLAYING and the host starts the next match once nobody is.
  */
-export async function backToRoom(store: KnockoutStore, code: string, input: Member, now = Date.now()): Promise<MatchOutcome> {
+export async function backToRoom(store: KnockoutStore, code: string, input: Member, now = Date.now(), ledger: KnockoutLedger | null = null): Promise<MatchOutcome> {
   const match = await load(store, code);
   if ('ok' in match) return match;
   const clean = cleanMatchCode(code)!;
@@ -651,17 +680,40 @@ export async function backToRoom(store: KnockoutStore, code: string, input: Memb
   if (match.start?.seats.includes(input.playerId) && held.back !== match.round) {
     await store.set(clean, { [`m:${input.playerId}`]: { ...held, back: match.round, seen: now } }, MATCH_TTL_SECONDS);
   }
-  return settleMatch(store, clean, input, now);
+  return settleMatch(store, clean, input, now, Math.random, ledger);
 }
 
-/** The match is over, as a phone that has batted it to the end says: nobody is PLAYING it any more. */
-export async function doneMatch(store: KnockoutStore, code: string, input: Member, round: unknown, now = Date.now()): Promise<MatchOutcome> {
+/**
+ * The result of the round being played, kept and paid: the room played back from the cards the store holds, its points
+ * written once (`paid:<round>`, set if absent, so two phones saying so at once pay once), and the result kept under `res`
+ * for every phone to read. Null where the match is not at its end on those cards. A ledger out of reach never fails the
+ * match it rides on: the result is still kept.
+ */
+async function settleResult(store: KnockoutStore, clean: string, match: StoredMatch, now: number, ledger: KnockoutLedger | null, fill: boolean): Promise<MatchResult | null> {
+  const found = resultOf(match, id => cardOf(match, id), POINTS_RULES, now, fill);
+  if (!found) return null;
+  const first = await store.setOnce(clean, `paid:${match.round}`, now);
+  if (first && ledger && found.credits.length) {
+    try { await creditMatch(ledger, found.credits, now); } catch { /* the match is not held up for the ledger */ }
+  }
+  return found.result;
+}
+
+/**
+ * The match is over, as a phone that has batted it to the end says. The store checks: it plays the room back from the
+ * cards it holds, and only if that comes to a winner is the match over, its result kept and its points paid. Said too
+ * soon, nothing changes.
+ */
+export async function doneMatch(store: KnockoutStore, code: string, input: Member, round: unknown, now = Date.now(), ledger: KnockoutLedger | null = null): Promise<MatchOutcome> {
   const match = await load(store, code);
   if ('ok' in match) return match;
   const clean = cleanMatchCode(code)!;
   if (!match.start?.seats.includes(input.playerId)) return refuse(403, 'You are not batting in this match.');
   if (Number(round) !== match.round) return refuse(410, MATCH_OVER);
-  if (match.over !== match.round) await store.set(clean, { over: match.round }, MATCH_TTL_SECONDS);
+  if (match.over !== match.round) {
+    const result = await settleResult(store, clean, match, now, ledger, false);
+    if (result) await store.set(clean, { over: match.round, res: result }, MATCH_TTL_SECONDS);
+  }
   return answer(store, clean, now);
 }
 
@@ -672,23 +724,28 @@ export async function doneMatch(store: KnockoutStore, code: string, input: Membe
  * the room may ask; the store decides. Asked while somebody is still batting,
  * nothing happens.
  */
-export async function settleMatch(store: KnockoutStore, code: string, input: Member, now = Date.now(), random: () => number = Math.random): Promise<MatchOutcome> {
+export async function settleMatch(store: KnockoutStore, code: string, input: Member, now = Date.now(), random: () => number = Math.random, ledger: KnockoutLedger | null = null): Promise<MatchOutcome> {
   const match = await load(store, code);
   if ('ok' in match) return match;
   const clean = cleanMatchCode(code)!;
   if (!match.members[input.playerId]) return refuse(403, 'Join the match first.');
   if (!match.start || busyIn(match, now) > 0) return answer(store, clean, now);
   const held = await store.read(clean) ?? {};
+  // Nobody said it was over (everybody went back, or away): the store brings it to its end itself, a sub batting every
+  // ball never sent, so the places the match had already settled are still paid.
+  const result = match.over === match.round ? null : await settleResult(store, clean, match, now, ledger, true);
   const stay = joinOrder(match).filter(id => !match.members[id].left);
   const host = stay.includes(match.host) ? match.host : stay[0] ?? match.host;
-  const fields: Record<string, unknown> = { round: match.round + 1, seed: Math.floor(random() * 2 ** 32) >>> 0, host };
+  const fields: Record<string, unknown> = { round: match.round + 1, seed: Math.floor(random() * 2 ** 32) >>> 0, host, ...(result ? { res: result } : {}) };
   for (const id of stay) {
     const { back: _back, ballAt: _ballAt, rxAt: _rxAt, ...member } = match.members[id];
     fields[`m:${id}`] = { ...member, ready: id === host };
   }
   // In one step, so no phone reads the old start under the new round: a ball of the old round landing after it is filed
   // under that round, where nobody reads it.
-  await store.swap(clean, fields, ['start', 'over', ...Object.keys(held).filter(field => field.startsWith('b:') || field.startsWith('h:') || field.startsWith('rx:')),
+  // `paid:` of this round stays: a second phone settling off the same read must find it there and pay nothing.
+  await store.swap(clean, fields, ['start', 'over', ...Object.keys(held).filter(field => field.startsWith('b:') || field.startsWith('h:') || field.startsWith('rx:')
+    || field.startsWith('paid:') && Number(field.slice(5)) < match.round),
     ...Object.keys(match.members).filter(id => match.members[id].left).map(id => `m:${id}`)], MATCH_TTL_SECONDS);
   return answer(store, clean, now);
 }
