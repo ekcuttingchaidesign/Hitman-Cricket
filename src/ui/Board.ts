@@ -132,7 +132,7 @@ export interface BoardScreen {
    * room Results): its own class, colour, picture, name and title, and the
    * ladder pill's words, in place of the mode's.
    */
-  look?: { cls: string; colour: string; art: string; name: string; title: string; ladder: string };
+  look?: { cls: string; colour: string; art: string; name: string; title: string; ladder: string; few?: { none: string; one: string; two: string } };
   /**
    * Boards the mode menu also offers that are screens of their own (Super Knockout's leaderboard): a row each
    * under the modes', which opens it over this one.
@@ -194,7 +194,7 @@ export function boardScreenMarkup(s: BoardScreen): string {
         ${offline ? '' : `
         <div class="lb-podium${loading ? ' is-loading' : ''}">${podiumMarkup(top, s.mode, loading)}</div>`}
         <section class="lb-sheet${offline ? ' is-offline' : ''}" aria-label="${escape(`${meta.name}, ${ladder?.name ?? ''}`)}">
-          ${offline ? offlineMarkup() : loading ? skeletonRows() : empty || s.rows.length < 3 ? fewMarkup(s.rows.length) : ''}
+          ${offline ? offlineMarkup() : loading ? skeletonRows() : empty || s.rows.length < 3 ? fewMarkup(s.rows.length, s.look?.few) : ''}
           ${s.banner && !offline && !loading ? bannerMarkup(s.banner) : ''}
           ${rest.length ? `<ol class="lb-list">${rest.map(row => rowMarkup(row)).join('')}</ol>` : ''}
         </section>
@@ -281,13 +281,14 @@ function skeletonRows(): string {
 }
 
 /** Nobody yet, or only one or two: what the empty steps are waiting for. */
-function fewMarkup(count: number): string {
+function fewMarkup(count: number, words?: { none: string; one: string; two: string }): string {
   if (count === 0) {
     return `<div class="lb-message"><span class="lb-message-icon" aria-hidden="true">${icon('trophy')}</span>
-          <h3>THE BOARD IS WIDE OPEN</h3><p>Nobody has played this ladder yet. Finish one innings and the top spot is yours.</p></div>`;
+          <h3>THE BOARD IS WIDE OPEN</h3><p>${escape(words?.none ?? 'Nobody has played this ladder yet. Finish one innings and the top spot is yours.')}</p></div>`;
   }
   const next = count === 1 ? 2 : 3;
-  return `<div class="lb-message is-few"><h3>#${next} IS UP FOR GRABS</h3><p>Only ${count === 1 ? 'one innings' : 'two innings'} on the board. Any finished innings takes ${next === 2 ? 'second' : 'third'}.</p></div>`;
+  const said = words ? (count === 1 ? words.one : words.two) : `Only ${count === 1 ? 'one innings' : 'two innings'} on the board. Any finished innings takes ${next === 2 ? 'second' : 'third'}.`;
+  return `<div class="lb-message is-few"><h3>#${next} IS UP FOR GRABS</h3><p>${escape(said)}</p></div>`;
 }
 
 function offlineMarkup(): string {

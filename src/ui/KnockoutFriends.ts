@@ -192,6 +192,8 @@ export interface LobbySeat {
   watch?: boolean;
   /** Out of the match being played: Out, or Out · 9th once a cut has placed them. */
   out?: string;
+  /** Their phone has gone quiet in the lobby: shown as away, and not waited for. */
+  away?: boolean;
 }
 /** Somebody still in a match being played, for the room's strip of story rings. */
 export interface LobbyRing { id: number; name: string; face: number; out: boolean }
@@ -407,11 +409,12 @@ export class LobbyScreen {
     if (!seat || !this.view) return;
     const name = seat.name.toUpperCase();
     scrim.querySelector('img')!.src = avatarSrc(seat.avatar);
-    scrim.querySelector('#ko-sheet-title')!.textContent = seat.ready ? `${name} IS READY` : `${name} ISN’T READY`;
+    scrim.querySelector('#ko-sheet-title')!.textContent = seat.away ? `${name} IS AWAY` : seat.ready ? `${name} IS READY` : `${name} ISN’T READY`;
     const here = seat.joined && this.view.now ? `In the room for ${clock(this.view.now - seat.joined)}` : 'In the room';
-    scrim.querySelector('#ko-sheet-line')!.textContent = seat.ready ? `${here} · ready to play` : `${here} · hasn’t tapped I’M READY`;
+    scrim.querySelector('#ko-sheet-line')!.textContent = seat.away ? (seat.ready ? 'Their phone has gone quiet · a sub bats for them until they’re back' : 'Their phone has gone quiet · the match won’t wait for them')
+      : seat.ready ? `${here} · ready to play` : `${here} · hasn’t tapped I’M READY`;
     const nudge = scrim.querySelector<HTMLButtonElement>('#ko-sheet-nudge')!;
-    nudge.classList.toggle('hidden', seat.ready);
+    nudge.classList.toggle('hidden', seat.ready || !!seat.away);
     nudge.querySelector('.k-cta-face>span')!.textContent = `NUDGE ${name}`;
     scrim.querySelector<HTMLElement>('.ko-sheet-note')!.textContent = seat.ready
       ? 'Taken out, they can come back once with the link.'
@@ -438,7 +441,8 @@ export class LobbyScreen {
     const view = this.view;
     if (!view) return;
     const match = view.match ?? null, live = !!view.live;
-    const friends = view.seats.filter(s => !s.host), waiting = friends.filter(s => !s.ready);
+    const friends = view.seats.filter(s => !s.host), waiting = friends.filter(s => !s.ready && !s.away);
+    const gone = friends.filter(s => s.away), here = friends.filter(s => !s.away);
     const others = waiting.filter(s => !s.you), batting = view.playing ?? 0;
     let line = '', tone = '', canNudge = false;
     if (match) line = match.line;
@@ -446,7 +450,8 @@ export class LobbyScreen {
     else if (!friends.length) line = view.hosting ? 'Share the code, or invite who’s around.' : `${view.hostName} starts when everyone’s ready`;
     else if (view.hosting) {
       if (waiting.length) { line = `Waiting for ${namesOf(waiting.map(s => s.name))}`; tone = 'is-waiting'; canNudge = true; }
-      else { line = 'Everybody’s ready · subs fill the empty seats'; tone = 'is-good'; }
+      else if (!here.some(s => s.ready)) line = gone.some(s => s.ready) ? `${namesOf(gone.map(s => s.name))} ${gone.length === 1 ? 'is' : 'are'} away · START wakes when a friend is here` : `${namesOf(gone.map(s => s.name))} ${gone.length === 1 ? 'is' : 'are'} away`;
+      else { line = gone.length ? `Everybody here is ready · ${namesOf(gone.map(s => s.name))} ${gone.length === 1 ? 'is' : 'are'} away` : 'Everybody’s ready · subs fill the empty seats'; tone = 'is-good'; }
     } else if (!view.ready) { line = `${view.hostName} is waiting for you to be ready`; tone = 'is-waiting'; }
     else if (others.length) line = `Waiting for ${namesOf(others.map(s => s.name))}`;
     else { line = `Everybody’s ready · waiting for ${view.hostName} to start`; tone = 'is-good'; }
@@ -474,8 +479,9 @@ export class LobbyScreen {
     if (key === this.shown) return;
     this.shown = key;
     const match = view.match ?? null, live = !!view.live;
-    const friends = view.seats.filter(s => !s.host), waiting = friends.filter(s => !s.ready);
-    const everybody = !live && friends.length > 0 && !waiting.length;
+    // A friend whose phone has gone quiet is not waited for: START wakes on everybody still here, and at least one of them ready.
+    const friends = view.seats.filter(s => !s.host), waiting = friends.filter(s => !s.ready && !s.away);
+    const everybody = !live && friends.some(s => s.ready) && !waiting.length;
     this.root.querySelector('#ko-lobby-code')!.textContent = view.code.split('').join(' ');
     const count = this.root.querySelector<HTMLElement>('#ko-lobby-count')!;
     count.textContent = match ? match.heading : `${view.seats.length} OF ${MATCH_SEATS} IN`;
@@ -494,16 +500,18 @@ export class LobbyScreen {
     seats.classList.toggle('is-many', view.seats.length + (asking ? 1 : 0) > 8);
     seats.innerHTML = view.seats.map(seat => {
       const arrived = known.size && !known.has(seat.handle) ? ' is-arriving' : '';
-      const ready = !live && !seat.host && seat.ready, unready = !live && !seat.host && !seat.ready;
+      const away = !live && !seat.host && !!seat.away;
+      const ready = !live && !seat.host && seat.ready && !away, unready = !live && !seat.host && !seat.ready && !away;
       const out = live && !!seat.out;
       // Under the name, a plain word: while a match is on, how they are going in it; otherwise where they stand for the next.
       const [word, kind] = seat.playing ? [seat.score ? `${seat.score} · batting` : 'Batting', 'playing']
         : out ? [seat.out!, 'out']
         : seat.host ? ['Host', 'host']
         : live ? ['In the room', 'host']
+        : away ? ['Away', 'away']
         : seat.ready ? ['Ready', 'ready'] : ['Not ready', 'not'];
       const tap = view.hosting && !seat.you && !live;
-      const cls = `${seat.you ? ' is-you' : ''}${ready ? ' is-ready' : ''}${unready ? ' is-not-ready' : ''}${seat.playing ? ' is-playing' : ''}`
+      const cls = `${seat.you ? ' is-you' : ''}${ready ? ' is-ready' : ''}${unready ? ' is-not-ready' : ''}${away ? ' is-away' : ''}${seat.playing ? ' is-playing' : ''}`
         + `${out ? ' is-out' : ''}${seat.watch ? ' is-watch' : ''}${tap ? ' is-tap' : ''}${arrived}`;
       const said = seat.you ? 'You' : esc(seat.name);
       const act = seat.watch || tap ? ` role="button" tabindex="0" aria-label="${seat.watch ? `Watch ${esc(seat.name)}` : `${esc(seat.name)}, ${word}`}"` : '';

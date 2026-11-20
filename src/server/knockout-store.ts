@@ -63,6 +63,12 @@ export const AWAY_MS = 20_000;
  * others at the over's end for good. A real ball takes a few seconds.
  */
 export const STALL_MS = 90_000;
+/**
+ * How long a friend in a room's lobby may go unheard before they are away. A phone with the room on screen checks in
+ * every few seconds, so this long with nothing is a closed tab or a phone put down: they are shown as away, and are
+ * not waited for (section 56's "not in this build", built).
+ */
+export const LOBBY_AWAY_MS = 25_000;
 /** The balls in a match: five overs. */
 export const MATCH_BALLS = 30;
 export const OVER_BALLS = 6;
@@ -195,6 +201,8 @@ export interface MatchMember {
   back: boolean;
   /** When the host last nudged them to say I'M READY, by the store's clock; 0 for never. */
   nudged: number;
+  /** In the lobby with their phone gone quiet (`LOBBY_AWAY_MS`): not waited for, and seated only if they had said I'M READY. */
+  away: boolean;
 }
 
 export interface MatchView {
@@ -356,6 +364,15 @@ function heardAt(match: StoredMatch, id: string): number {
   return Math.max(m?.seen || m?.joined || 0, match.start?.seats.includes(id) ? match.start.at : 0);
 }
 
+/**
+ * A friend in the lobby whose phone has gone quiet. Never the host, whose START it is, and never once a match has begun,
+ * where being away is a sub's business (`awayInMatch`).
+ */
+function awayInLobby(match: StoredMatch, id: string, now: number): boolean {
+  const m = match.members[id];
+  return !match.start && id !== match.host && !!m && !m.left && now - (m.seen || m.joined) > LOBBY_AWAY_MS;
+}
+
 /** How many are still batting the match and being heard from: the room goes back to its lobby when it is none. */
 function busyIn(match: StoredMatch, now: number): number {
   return Object.keys(match.members).filter(id => playingIn(match, id) && now - heardAt(match, id) < AWAY_MS).length;
@@ -371,7 +388,7 @@ export function viewOf(code: string, match: StoredMatch, now = Date.now()): Matc
       seat: seat >= 0 ? seat : null, card: cardOf(match, id), hows: howsOf(match, id), quiet: Math.max(0, now - heardAt(match, id)),
       idle: match.start ? Math.max(0, now - Math.max(m.ballAt ?? 0, match.start.at)) : 0, left: !!m.left,
       playing: playingIn(match, id), back: !!match.start && seat >= 0 && m.back === match.round,
-      nudged: match.nudged[id] ?? 0,
+      nudged: match.nudged[id] ?? 0, away: awayInLobby(match, id, now),
     };
   });
   const here = new Set(members.map(m => m.handle));
@@ -380,7 +397,8 @@ export function viewOf(code: string, match: StoredMatch, now = Date.now()): Matc
     startAt: match.start?.at ?? null, seats: seats.map(id => handleOf(id)), members,
     invited: Object.keys(match.invited).filter(handle => !here.has(handle)),
     round: match.round, over: !!match.start && match.over === match.round, busy: busyIn(match, now),
-    worth: worthOf(match.start ? seats.length : members.filter(m => !m.left).length, POINTS_RULES), pointsFrom: POINTS_RULES.pointsFrom,
+    // In the lobby, by who would be seated if it started now: everybody in the room but a friend away who never said ready.
+    worth: worthOf(match.start ? seats.length : members.filter(m => !m.left && !(m.away && !m.ready)).length, POINTS_RULES), pointsFrom: POINTS_RULES.pointsFrom,
     result: match.result,
     reactions: Object.entries(match.reactions).filter(([, rx]) => now - rx.at < REACTION_FRESH_MS).sort((a, b) => a[1].at - b[1].at)
       .map(([id, rx]) => ({ id, to: rx.to, by: String(rx.by ?? ''), from: String(rx.from).slice(0, 14), face: Number(rx.face) || 0, emoji: REACTIONS[rx.e], at: rx.at })),
@@ -536,20 +554,27 @@ export async function startMatch(store: KnockoutStore, code: string, input: Memb
   const clean = cleanMatchCode(code)!;
   if (match.host !== input.playerId) return refuse(403, 'Only the host can start the match.');
   if (match.start) return answer(store, clean, now);
-  const seats = joinOrder(match).filter(id => !match.members[id].left).slice(0, MATCH_SEATS);
-  if (seats.length < 2) return refuse(409, 'Wait for one friend to join.');
+  const here = joinOrder(match).filter(id => !match.members[id].left);
+  if (here.length < 2) return refuse(409, 'Wait for one friend to join.');
   // Everybody, or nobody (Figma section 56): the owner started a match from the computer while the phone had not said
-  // I'M READY. The host's own ready is pressing START; every friend in the room has to have said theirs.
-  const waiting = notReady(match);
+  // I'M READY. The host's own ready is pressing START; every friend in the room has to have said theirs. A friend whose
+  // phone has gone quiet is not waited for: seated if they had said ready (a sub bats until they are back), left in the
+  // room for the next match if they had not.
+  const waiting = notReady(match, now);
   if (waiting.length) return refuse(409, `Waiting for ${namesOf(waiting.map(id => match.members[id].name))} to be ready.`);
+  const seats = here.filter(id => id === match.host || match.members[id].ready).slice(0, MATCH_SEATS);
+  if (seats.length < 2) return refuse(409, 'Nobody else is here and ready.');
   // Invites stand through a match: somebody asked in late joins the room and waits for the next one.
   await store.setOnce(clean, 'start', { at: now + START_IN_MS, seats, round: match.round } satisfies StoredStart);
   return answer(store, clean, now);
 }
 
-/** Friends in the room who have not said I'M READY, in the order they joined. The host is never one: START is theirs. */
-function notReady(match: StoredMatch): string[] {
-  return joinOrder(match).filter(id => id !== match.host && !match.members[id].left && !match.members[id].ready);
+/**
+ * Friends in the room who have not said I'M READY and whose phones are still heard from, in the order they joined: who
+ * START waits for. The host is never one: START is theirs.
+ */
+function notReady(match: StoredMatch, now: number): string[] {
+  return joinOrder(match).filter(id => id !== match.host && !match.members[id].left && !match.members[id].ready && !awayInLobby(match, id, now));
 }
 
 /**
@@ -563,7 +588,7 @@ export async function nudgeInMatch(store: KnockoutStore, code: string, input: Me
   const clean = cleanMatchCode(code)!;
   if (match.host !== input.playerId) return refuse(403, 'Only the host can nudge.');
   if (match.start) return answer(store, clean, now);
-  const targets = notReady(match).filter(id => (handle ? handleOf(id) === handle : true) && now - (match.nudged[id] ?? 0) >= NUDGE_GAP_MS);
+  const targets = notReady(match, now).filter(id => (handle ? handleOf(id) === handle : true) && now - (match.nudged[id] ?? 0) >= NUDGE_GAP_MS);
   if (!targets.length) return answer(store, clean, now);
   const limit = await limited(store, 'write', input.address);
   if (limit) return limit;
@@ -739,7 +764,8 @@ export async function settleMatch(store: KnockoutStore, code: string, input: Mem
   const fields: Record<string, unknown> = { round: match.round + 1, seed: Math.floor(random() * 2 ** 32) >>> 0, host, ...(result ? { res: result } : {}) };
   for (const id of stay) {
     const { back: _back, ballAt: _ballAt, rxAt: _rxAt, ...member } = match.members[id];
-    fields[`m:${id}`] = { ...member, ready: id === host };
+    // Heard from now: a phone in the room checks in from here on, and nobody is away the moment the lobby comes back.
+    fields[`m:${id}`] = { ...member, ready: id === host, seen: now };
   }
   // In one step, so no phone reads the old start under the new round: a ball of the old round landing after it is filed
   // under that round, where nobody reads it.

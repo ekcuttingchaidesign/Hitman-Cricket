@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { handleOf } from '../src/game/handle';
-import { bellLabel, noticeGroups, noticesOf, unseenCount } from '../src/game/notices';
+import { bellLabel, knockoutNotices, noticeGroups, noticesOf, unseenCount } from '../src/game/notices';
+import { noticesBodyMarkup } from '../src/ui/Notices';
 import type { Challenge, ChallengeRow, InviteView } from '../src/game/challenge-api';
 import type { OwnActivity } from '../src/game/profile-api';
 
@@ -71,5 +72,50 @@ describe('notifications', () => {
     // Opened since: only the challenge still waiting counts.
     expect(unseenCount(notices, NOW - HOUR)).toBe(1);
     expect([bellLabel(0), bellLabel(4), bellLabel(12)]).toEqual(['', '4', '9+']);
+  });
+});
+
+describe('Super Knockout on Notifications', () => {
+  const NOW = Date.UTC(2026, 10, 20, 12);
+  const news = {
+    invites: [{ code: 'K7Q2', by: 'Riya', byAvatar: 2, at: NOW - 60_000, size: 4 }],
+    recent: [{ at: NOW - 2 * 3_600_000, place: 2, points: 5 }, { at: NOW - 26 * 3_600_000, place: 9, points: 0 }, { at: NOW - 3 * 3_600_000, place: 0, points: 0 }, { at: 0, place: 4, points: 0 }],
+    you: { name: 'Mojo', avatar: 1 },
+  };
+
+  it('puts an invite waiting under NEEDS YOU with JOIN, and counts it on the bell until it is answered', () => {
+    const [invite] = knockoutNotices(news, NOW);
+    expect(invite).toMatchObject({ id: 'ko-invite:K7Q2', kind: 'challenges', needsYou: true, mode: 'knockout', title: 'Riya invited you to a match', sub: '4 in · code K7Q2', key: { kind: 'join', code: 'K7Q2' } });
+    expect(invite.face).toEqual({ handle: '', name: 'Riya', avatar: 2 });
+    const all = noticesOf([], null, 'abcdef-abcdefghijkl', NOW, news);
+    expect(all[0].id).toBe('ko-invite:K7Q2');
+    expect(unseenCount(all, NOW)).toBe(1);
+    expect(noticeGroups(all, 'challenges', NOW)[0]).toMatchObject({ title: 'NEEDS YOU' });
+  });
+
+  it('makes a match played a result with the place it ended in and what it paid', () => {
+    const results = knockoutNotices(news, NOW).filter(one => one.kind === 'results');
+    expect(results.map(one => [one.title, one.sub, one.finish?.word ?? null, one.finish?.top ?? null])).toEqual([
+      ['You finished 2nd of 12', '+5 points · 2h', '2nd', true],
+      ['You finished 9th of 12', 'no points · 1d', '9th', false],
+      ['You ran away from a match', 'no points · 3h', null, null],
+    ]);
+    // One from before the time was kept is left out: it would say "now" for ever.
+    expect(results).toHaveLength(3);
+    const groups = noticeGroups(noticesOf([], null, 'abcdef-abcdefghijkl', NOW, news), 'results', NOW);
+    expect(groups.map(group => [group.title, group.notices.length])).toEqual([['TODAY', 2], ['EARLIER', 1]]);
+  });
+
+  it('draws JOIN and the finish on their rows, in the knockout’s name', () => {
+    const markup = noticesBodyMarkup({ notices: noticesOf([], null, 'abcdef-abcdefghijkl', NOW, news), filter: 'all', seenAt: 0, you: { avatar: 1 }, now: NOW });
+    expect(markup).toContain('class="nt-key is-join"');
+    expect(markup).toContain('>JOIN<');
+    expect(markup).toMatch(/class="nt-chip is-finish is-W"[^>]*>2nd</);
+    expect(markup).toMatch(/class="nt-chip is-finish is-D"[^>]*>9th</);
+    expect(markup).toContain('Super Knockout');
+  });
+
+  it('adds nothing where matches with friends are not played', () => {
+    expect(noticesOf([], null, 'abcdef-abcdefghijkl', NOW)).toEqual([]);
   });
 });

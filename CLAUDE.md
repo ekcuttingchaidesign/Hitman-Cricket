@@ -3141,10 +3141,40 @@ the HUD): its own board opens over that one, with no key to play, since the
 Leaderboard may be up in the middle of an innings; and the player's own row
 on the Knockout board opens My profile.
 
+Away in the lobby (section 56's "not in this build", built). A phone with a
+room's lobby on screen says it is still there every eight seconds
+(`LOBBY_BEAT_MS`, `beatInMatch` from `lobbyNews`; the poll alone is a read
+and tells the store nothing), and a friend unheard from for `LOBBY_AWAY_MS`
+(25 seconds: a closed tab, a phone put down) is `away` on their member,
+never the host, never once a match has begun. Away, they are not waited
+for: START wakes on everybody still here with at least one of them ready
+(`notReady` takes the clock), they are not nudged, their face is dimmed with
+Away under it and the line says who is away. Seated only if they had said
+I'M READY before going quiet (a sub bats until they are back); one who never
+said it sits the match out and stays in the room for the next. Nobody is
+away the moment a room comes back to its lobby (`settleMatch` marks everybody
+heard from). Not built, and left for the owner to decide, since both cut
+across "everybody ready before the start": a timer that starts the match by
+itself, and the host's start-with-subs question (empty seats are not waited
+for as it is).
+
+On Notifications (Figma section 42, R5; `knockoutNotices` in
+`src/game/notices.ts`, in `tests/notices.test.ts`) Super Knockout adds two
+kinds of row for a player wherever matches with friends are played, from
+what the game already asks the store for: a match they have been asked into
+and not joined is NEEDS YOU with JOIN in gold (`readMatchInvites`, kept from
+the banner's poll as `matchInvites`), counted on the bell until it is joined
+or lapses; and each of their last five matches is a result, You finished 2nd
+of 12 with what it paid and its finish on a chip, green in the points' places
+(`recent` on the Knockout career, a time and what was paid beside each of the
+last five; the standing asked again once a minute old). A row's tap joins
+the match, or opens the Knockout leaderboard. Not built: a place taken on its
+board, and a room that ended without you, which need events the store does
+not keep.
+
 Not yet: Super Knockout on another player's profile (the sheet's modes are
-the four careers'), a Knockout card to share, the timer, the host's
-start-with-subs question, N WATCHING, invites in Notifications, and watching
-a match from the room on a phone that was never in it.
+the four careers'), a Knockout card to share, N WATCHING, and watching a
+match from the room on a phone that was never in it.
 
 `scripts/friends-check.mjs` walks it in two browsers in real time, nobody
 swinging: Play with friends, a wrong code, PASTE and a paste of INVITE's

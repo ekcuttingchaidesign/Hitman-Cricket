@@ -31,6 +31,20 @@ export const KNOCKOUT_PICKS: readonly { key: KnockoutPick; name: string; blurb: 
   { key: 'rate', name: 'Win rate', blurb: 'Share of matches won, from 10 matches' },
 ];
 
+/** What an all but empty ladder says, in the knockout's words: the board's own speak of innings. */
+const FEW: Record<KnockoutPick, { none: string; one: string; two: string }> = (() => {
+  const of = (what: string, how: string) => ({
+    none: `Nobody is on this ladder yet. ${how} and the top spot is yours.`,
+    one: `Only one player on it ${what}. ${how} to take second.`,
+    two: `Only two players on it ${what}. ${how} to take third.`,
+  });
+  const points = 'Finish top 3 in a match with friends', win = 'Win a match with friends';
+  return {
+    'points-week': of('this week', points), 'points-all': of('so far', points), 'wins-week': of('this week', win), 'wins-all': of('so far', win),
+    best: of('so far', 'Bat a match with friends to its end'), rate: of('so far', 'Play ten matches with friends'),
+  };
+})();
+
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const rate = (row: { wins: number; played: number }) => (row.played ? Math.round(row.wins / row.played * 100) : 0);
 
@@ -135,7 +149,7 @@ export class KnockoutBoard {
       mode: 'classic', modes: [], ladder: 'room', ladders: [], rows: view.rows, state: this.state, banner: null,
       dock: this.state === 'ready' ? view.dock : null,
       play: this.keys.play ? { id: 'board-play', label: 'PLAY SUPER KNOCKOUT' } : null, focus: 'top', rules: '',
-      look: { cls: 'knockout', colour: RED, art: hero, name: 'Super Knockout', title: 'LEADERBOARD', ladder: view.ladder },
+      look: { cls: 'knockout', colour: RED, art: hero, name: 'Super Knockout', title: 'LEADERBOARD', ladder: view.ladder, few: FEW[this.pick] },
     });
     this.root.innerHTML = `${markup.replace(/id="board-/g, 'id="ko-board-')}
       <div class="ko-sheet-scrim hidden" id="ko-board-sheet">

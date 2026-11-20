@@ -140,6 +140,15 @@ check(await until('sent', () => a.locator('#ko-lobby-around [data-invite]', { ha
 await until('listed', async () => (await (await fetch(`${base}/api/challenge?knockout=1&invites=${passerId}`)).json()).invites?.length > 0, 8000);
 const invited = await (await fetch(`${base}/api/challenge?knockout=1&invites=${passerId}`)).json();
 check(invited.invites?.some(i => i.code === code && i.by === host), 'the match is in the invited player’s list', JSON.stringify(invited));
+// A friend whose phone has gone quiet is away: here one who joins through the store and never checks in, as a closed tab
+// does not. Dimmed, said in the line, and not waited for; START still sleeps, since nobody here is ready.
+await post('/api/challenge?knockout=1', { action: 'join', code, playerId: goneId, name: gone, avatar: 4 });
+check(await until('joined', () => a.evaluate(() => document.querySelectorAll('#ko-seats .ko-lseat[data-handle]').length === 2), 10_000), 'a friend who joins is drawn beside the host');
+check(await until('away', () => a.evaluate(() => document.querySelector('#ko-seats .ko-lseat.is-away .ko-lseat-sub')?.textContent === 'Away'), 60_000), 'unheard from for a while, they are shown as away');
+check((await text(a, '#ko-lobby-note')) === `${gone} is away` && await a.evaluate(() => document.getElementById('ko-lobby-start').disabled), 'the line says so, and START NOW still sleeps with nobody here ready', await text(a, '#ko-lobby-note'));
+await a.screenshot({ path: `${out}/lobby-away.png` });
+await post('/api/challenge?knockout=1', { action: 'leave', code, playerId: goneId, name: gone, avatar: 4 });
+await until('left', () => a.evaluate(() => document.querySelectorAll('#ko-seats .ko-lseat[data-handle]').length === 1), 10_000);
 await a.screenshot({ path: `${out}/lobby-host.png` });
 
 // 3. A friend opens the link.
@@ -252,8 +261,11 @@ const guestCard = (await (await fetch(`${base}/api/challenge?knockout=1&code=${c
 check(guestCard.length >= 6 || guestCard.includes('W'), 'and sent again: the guest’s card has no gap', guestCard);
 // Each ball goes to the store with how it was played, for whoever watches that player: nobody swings here, so a ball left alone.
 const guestHows = (await (await fetch(`${base}/api/challenge?knockout=1&code=${code}`)).json()).match.members.find(m => m.name === guest)?.hows ?? null;
-check(!!guestHows && guestHows.list.some(how => { try { const told = JSON.parse(how); return told.s === undefined && typeof told.r === 'number' && typeof told.o?.runs === 'number'; } catch { return false; } }),
-  'and each ball carries how it was played, for whoever is watching', JSON.stringify(guestHows).slice(0, 300));
+// (Only of a ball the guest batted: on a machine that starves the page into a sub's hands the card is the sub's, with no
+// stroke of theirs to carry.)
+const guestOwn = [...guestCard].some(char => char !== 'S');
+check(guestOwn ? !!guestHows && guestHows.list.some(how => { try { const told = JSON.parse(how); return told.s === undefined && typeof told.r === 'number' && typeof told.o?.runs === 'number'; } catch { return false; } }) : !guestHows,
+  guestOwn ? 'and each ball carries how it was played, for whoever is watching' : 'a sub batted the guest’s balls on this machine: no stroke of theirs to carry, and none is told', JSON.stringify({ guestCard, guestHows }).slice(0, 300));
 check((await text(b, '#match-log')).includes(code), '?matchlog=1 says where the match stands on this phone', await text(b, '#match-log'));
 await b.screenshot({ path: `${out}/matchlog.png` });
 // The ladder: 12, then 10 after the first over, 8, 5 and 2. Read once both phones stand on the same over.

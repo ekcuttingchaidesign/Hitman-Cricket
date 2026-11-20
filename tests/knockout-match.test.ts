@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { handleOf } from '../src/game/handle';
 import { codeIn } from '../src/game/match-code';
 import {
-  AWAY_MS, INVITE_FRESH_MS, STALL_MS, MATCH_SEATS, START_IN_MS, awayInMatch, backToRoom, doneMatch, settleMatch, ballInMatch, beatInMatch, cleanMatchCode, hostMatch, inviteToMatch, joinMatch, leaveMatch, matchRefused,
+  AWAY_MS, INVITE_FRESH_MS, LOBBY_AWAY_MS, STALL_MS, MATCH_SEATS, START_IN_MS, awayInMatch, backToRoom, doneMatch, settleMatch, ballInMatch, beatInMatch, cleanMatchCode, hostMatch, inviteToMatch, joinMatch, leaveMatch, matchRefused,
   memoryKnockouts, namesOf, nudgeInMatch, reactInMatch, readInvites, NUDGE_GAP_MS, readMatch, readyMatch, removeFromMatch, startMatch, REACTION_FRESH_MS, REACTION_GAP_MS,
   type MatchOutcome, type MatchView, type Member,
 } from '../src/server/knockout-store';
@@ -181,6 +181,81 @@ describe('a match with friends', () => {
     ok(await begin(store, code, T0 + 20));
     return { store, code };
   }
+
+  describe('a friend whose phone has gone quiet in the lobby', () => {
+    async function room() {
+      const store = setup();
+      const { code } = ok(await hostMatch(store, as(0), T0));
+      for (const i of [1, 2]) ok(await joinMatch(store, code, as(i), T0 + 10 * i));
+      return { store, code };
+    }
+    const away = (match: MatchView) => match.members.map(m => `${m.name}:${m.away ? 'away' : 'here'}`).join(' ');
+
+    it('is away once unheard for long enough, never the host, and here again at their next check-in', async () => {
+      const { store, code } = await room();
+      expect(away(ok(await readMatch(store, code, T0 + LOBBY_AWAY_MS)))).toBe('Kabir:here Riya:here Zoya:here');
+      // Riya's phone checks in; Zoya's has gone quiet.
+      ok(await beatInMatch(store, code, as(1), T0 + LOBBY_AWAY_MS));
+      const later = ok(await readMatch(store, code, T0 + LOBBY_AWAY_MS + 1000));
+      expect(away(later)).toBe('Kabir:here Riya:here Zoya:away');
+      expect(away(ok(await beatInMatch(store, code, as(2), T0 + LOBBY_AWAY_MS + 2000)))).toBe('Kabir:here Riya:here Zoya:here');
+    });
+
+    it('is not waited for: START wakes on everybody still here, and somebody away who never said ready sits the match out', async () => {
+      const { store, code } = await room();
+      const at = T0 + LOBBY_AWAY_MS + 5000;
+      ok(await readyMatch(store, code, as(1), true, at));
+      const started = ok(await startMatch(store, code, as(0), at + 100));
+      expect(started.state).toBe('live');
+      expect(started.seats).toEqual([handleOf(ids[0]), handleOf(ids[1])]);
+      // Still in the room, for the next one.
+      expect(started.members.map(m => m.name)).toEqual(['Kabir', 'Riya', 'Zoya']);
+      expect(started.members[2]).toMatchObject({ seat: null, playing: false, left: false });
+    });
+
+    it('keeps the seat of somebody who had said ready before going quiet: a sub bats until they are back', async () => {
+      const { store, code } = await room();
+      ok(await readyMatch(store, code, as(2), true, T0 + 100));
+      const at = T0 + LOBBY_AWAY_MS + 5000;
+      ok(await readyMatch(store, code, as(1), true, at));
+      const started = ok(await startMatch(store, code, as(0), at + 100));
+      expect(started.seats).toEqual([handleOf(ids[0]), handleOf(ids[1]), handleOf(ids[2])]);
+    });
+
+    it('still holds START for a friend who is here and not ready, and says so of nobody but them', async () => {
+      const { store, code } = await room();
+      const at = T0 + LOBBY_AWAY_MS + 5000;
+      ok(await beatInMatch(store, code, as(1), at));
+      const refused = await startMatch(store, code, as(0), at + 100);
+      expect(matchRefused(refused) && refused.reason).toBe('Waiting for Riya to be ready.');
+      // With everybody else away and none of them ready, there is nobody to bat with.
+      const alone = await startMatch(store, code, as(0), at + LOBBY_AWAY_MS + 5000);
+      expect(matchRefused(alone) && alone.reason).toBe('Nobody else is here and ready.');
+    });
+
+    it('is not nudged, and does not count toward what the match is worth unless they said ready', async () => {
+      const { store, code } = await room();
+      const at = T0 + LOBBY_AWAY_MS + 5000;
+      ok(await beatInMatch(store, code, as(1), at));
+      const nudged = ok(await nudgeInMatch(store, code, as(0), undefined, at + 100));
+      expect(nudged.members.map(m => m.nudged > 0)).toEqual([false, true, false]);
+      // Three in the room, one of them away and not ready: worth what two are.
+      expect(nudged.worth).toEqual([3, 1, 0]);
+    });
+
+    it('is nobody the moment a room comes back to its lobby', async () => {
+      const store = setup();
+      const { code } = ok(await hostMatch(store, as(0), T0));
+      ok(await joinMatch(store, code, as(1), T0 + 10));
+      ok(await begin(store, code, T0 + 20));
+      for (const i of [0, 1]) ok(await ballInMatch(store, code, as(i), 0, 'W', T0 + 5000));
+      const later = T0 + 10 * 60_000;
+      for (const i of [0, 1]) ok(await backToRoom(store, code, as(i), later + i));
+      const lobby = ok(await readMatch(store, code, later + 1000));
+      expect(lobby.state).toBe('lobby');
+      expect(lobby.members.every(m => !m.away)).toBe(true);
+    });
+  });
 
   describe('everybody ready before the start', () => {
     async function room() {

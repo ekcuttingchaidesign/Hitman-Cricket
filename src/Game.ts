@@ -183,7 +183,7 @@ import { FriendsScreen, LobbyScreen, type AroundPlayer, type LobbyView } from '.
 import {
   MATCH_BEAT_MS, MATCH_PARAM, MatchLink, awayInMatch, backToRoom, ballChar, ballInMatch, beatInMatch, doneMatch, hostMatch, inviteToMatch, joinMatch, keepMatch, leaveMatch, settleMatch,
   nudgeInMatch, reactInMatch, readKnockoutBoards, readKnockoutStanding, readMatchInvites, readyMatch, removeFromMatch, startMatch,
-  type KnockoutStanding, type MatchView, type Me as MatchMe, type StoredResult,
+  type KnockoutStanding, type MatchInviteView, type MatchView, type Me as MatchMe, type StoredResult,
 } from './game/knockout-api';
 import { KnockoutBoard } from './ui/KnockoutBoard';
 import { cleanMatchCode } from './game/match-code';
@@ -345,6 +345,8 @@ const KNOCKOUT_ASKED = !NO_BOARD && new URLSearchParams(location.search).get('kn
  * two Pages builds. Until rooms with real players come, every match from
  * there is a practice room against subs, as `?knockout=1` is.
  */
+/** How often a phone with a room's lobby on screen says it is still there (the store calls a friend away after `LOBBY_AWAY_MS`). */
+const LOBBY_BEAT_MS = 8000;
 const KNOCKOUT_OPEN = !NO_BOARD && !SURVIVE_ONLY && !SUPER10_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production';
 /** `?matchlog=1`: where a match with friends stands on this phone, on a line over the screen (`matchLog`). */
 const MATCH_LOG = new URLSearchParams(location.search).get('matchlog') === '1';
@@ -2734,6 +2736,13 @@ export class Game {
       return;
     }
     const live = match.state === 'live';
+    // Still here: a phone with the room on screen says so every few seconds, so one that has gone quiet (a closed tab, a
+    // phone put down) is shown as away and not waited for. The poll alone is a read, which tells the store nothing.
+    if (!live && performance.now() - this.lobbyBeatAt > LOBBY_BEAT_MS && !document.hidden) {
+      this.lobbyBeatAt = performance.now();
+      const link = this.matchLink;
+      void beatInMatch(match.code, me).then(answer => { if (link === this.matchLink && answer.ok) link?.take(answer); });
+    }
     // Nobody still batting it: the room is asked back to its lobby (the store decides), a few seconds apart.
     if (live && match.busy === 0 && performance.now() - this.settleAsked > 3000) {
       this.settleAsked = performance.now();
@@ -2752,7 +2761,7 @@ export class Game {
       seats: members.map(m => {
         const seat = seatOf(m.handle), own = m.handle === mine, batting = still(seat) && !(own && play?.out);
         return {
-          handle: m.handle, name: m.name, avatar: m.avatar, host: m.host, ready: m.ready, you: own, joined: m.joined,
+          handle: m.handle, name: m.name, avatar: m.avatar, host: m.host, ready: m.ready, you: own, joined: m.joined, away: !own && !!m.away,
           playing: m.playing || batting, score: batting ? `${seat!.runs}*` : undefined, watch: batting && !own,
           out: seat && !batting ? (seat.place !== null ? `Out · ${ordinal(seat.place).toLowerCase()}` : 'Out') : undefined,
         };
@@ -2768,6 +2777,7 @@ export class Game {
     };
     lobby.render(view);
   }
+  private lobbyBeatAt = -Infinity;
   /** The match that just ended in the room this phone is in, as this phone had it: who won it, and its Results for the room's LEADERBOARD. */
   private lastMatch: { code: string; title: string; line: string; face: number; results: ResultsView } | null = null;
   /** The store's result for the match before the one the room is waiting to start, if it has one. */
@@ -5115,6 +5125,10 @@ export class Game {
     this.inviteAsking = true;
     const invites = await readMatchInvites(this.player!).finally(() => { this.inviteAsking = false; });
     if (!idle()) return;
+    // The bell counts them, and Notifications lists them under NEEDS YOU.
+    const changed = invites.map(one => one.code).join() !== this.matchInvites.map(one => one.code).join();
+    this.matchInvites = invites;
+    if (changed) this.refreshBell();
     this.friendsScreen?.invites(invites);
     const fresh = invites.find(invite => !this.alerted.has(`k:${invite.code}`));
     if (!fresh || this.hud.noticesOpen) return;
@@ -5143,8 +5157,16 @@ export class Game {
 
   /** Everything Notifications holds now, from the rooms and the activity already asked for. */
   private noticesNow(): Notice[] {
-    return this.player ? noticesOf(this.allRooms(), this.ownActivity, this.player) : [];
+    if (!this.player) return [];
+    // Super Knockout's rows, where matches with friends are played: the invites the banner asks for, and the player's last matches.
+    const who = readPlayer();
+    const knockout = this.friendsOpen && who?.name
+      ? { invites: this.matchInvites, recent: this.knockoutStanding?.career?.recent ?? [], you: { name: who.name, avatar: who.avatar ?? 0 } } : null;
+    return noticesOf(this.allRooms(), this.ownActivity, this.player, Date.now(), knockout);
   }
+  /** The matches this player has been asked into and not joined, as the store last said (`bannerMatchInvite`). */
+  private matchInvites: MatchInviteView[] = [];
+  private standingAt = 0;
 
   /** The bell's count, and the screen drawn again where it is up. */
   private refreshBell() {
@@ -5159,6 +5181,11 @@ export class Game {
     if (!this.noticed) { this.hud.bell(null); return; }
     this.refreshBell();
     if (Date.now() - this.activityAt > 60_000) void this.askActivity();
+    // The player's Knockout matches, for their results on the list: asked again once a minute old.
+    if (this.friendsOpen && this.player && Date.now() - this.standingAt > 60_000) {
+      this.standingAt = Date.now();
+      void readKnockoutStanding(this.player).then(standing => { if (standing) { this.knockoutStanding = standing; this.refreshBell(); } });
+    }
   }
 
   /** Notifications (Figma 23, E2): opened on a filter; what is there now counts as seen. */
@@ -5179,6 +5206,7 @@ export class Game {
     if (!key) return;
     track(`notices-${key.kind}`, 'A key on Notifications');
     if (key.kind === 'answer') { this.answerInvite(key.code); return; }
+    if (key.kind === 'join') { this.hud.closeNotices(); this.joinInvite(key.code); return; }
     if (key.kind === 'again') { this.challengeFrom({ handle: key.handle, name: notice.face.name, avatar: notice.face.avatar, profile: null }); return; }
     const event = this.ownActivity?.events[key.event];
     if (!event) return;
@@ -5189,6 +5217,14 @@ export class Game {
   /** A row itself: a challenge waiting opens its invite, a match its room, anything else the player's profile. */
   private noticeRow(notice: Notice) {
     if (notice.key?.kind === 'answer') { this.answerInvite(notice.key.code); return; }
+    // Super Knockout's rows: an invite joins its match, a match played opens the Knockout leaderboard.
+    if (notice.mode === 'knockout') {
+      this.hud.closeNotices();
+      if (notice.key?.kind === 'join') { this.joinInvite(notice.key.code); return; }
+      track('notices-knockout-board', 'The Super Knockout leaderboard opened from Notifications');
+      this.modes('KNOCKOUT'); this.openKnockout(); this.openKnockoutBoard('home');
+      return;
+    }
     if (notice.code && (notice.kind === 'results' || notice.kind === 'challenges')) {
       track('notices-room', 'A match opened from Notifications');
       this.hud.closeNotices(); this.hud.closeModes();

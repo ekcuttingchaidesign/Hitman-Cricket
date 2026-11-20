@@ -32,6 +32,8 @@ export interface KnockoutCareer {
   points: number;
   /** The last five finishes, oldest first; 0 is a match run away from. */
   last: number[];
+  /** The same five with when each was and what it paid, for the player's own Notifications; absent on a record from before it was kept. */
+  recent?: { at: number; place: number; points: number }[];
   /** The week the three below are counting (`weekOf`): a new week starts them again. */
   week: string;
   weekPoints: number;
@@ -106,7 +108,7 @@ export function ladderScores(career: KnockoutCareer): Record<KnockoutLadder | 'w
 }
 
 /** One match added to a career. */
-export function creditCareer(held: KnockoutCareer | null, credit: KnockoutCredit, week: string): KnockoutCareer {
+export function creditCareer(held: KnockoutCareer | null, credit: KnockoutCredit, week: string, at = 0): KnockoutCareer {
   const was = { ...EMPTY_KNOCKOUT_CAREER, ...held };
   const same = was.week === week;
   const own = !credit.stood && !credit.ran;
@@ -119,6 +121,7 @@ export function creditCareer(held: KnockoutCareer | null, credit: KnockoutCredit
     bestPlace: own && (!was.bestPlace || credit.place < was.bestPlace) ? credit.place : was.bestPlace,
     points: was.points + credit.points,
     last: [...was.last, credit.ran ? 0 : credit.place].slice(-5),
+    recent: [...(was.recent ?? []), { at, place: credit.ran ? 0 : credit.place, points: credit.points }].slice(-5),
     week,
     weekPoints: (same ? was.weekPoints : 0) + credit.points,
     weekWins: (same ? was.weekWins : 0) + Number(credit.win),
@@ -139,7 +142,7 @@ export async function creditMatch(ledger: KnockoutLedger, credits: readonly Knoc
   const records: Record<string, StoredKnockoutCareer> = {};
   const ranks: LedgerRank[] = [];
   real.forEach((credit, i) => {
-    const career = creditCareer(held[i]?.career ?? null, credit, week);
+    const career = creditCareer(held[i]?.career ?? null, credit, week, now);
     records[credit.id] = { career, name: credit.name, avatar: credit.avatar, at: now };
     if (owners[i] !== credit.id) return;
     // A ladder ranks only who has something on it: no points is no place on Points, no win none on Wins. A player with

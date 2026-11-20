@@ -692,6 +692,9 @@ body.ko-watch #end{visibility:hidden}
 .ko-lobby-head{display:flex;align-items:center;justify-content:space-between;gap:calc(var(--u) * 10)}
 .ko-worth{flex:none;padding:calc(var(--u) * 5) calc(var(--u) * 10);border-radius:999px;border:1px solid #ffffff1f;background:#ffffff0a;color:#9c8f92;
   font:800 calc(var(--u) * 10)/1 var(--f-ui);letter-spacing:.08em;white-space:nowrap}
+/* A friend whose phone has gone quiet in the lobby: the face dimmed and grey, the word under it saying so. */
+.ko-lseat.is-away .ko-lseat-face{filter:grayscale(1);opacity:.5}
+.ko-lseat-sub.is-away{color:#8d8387}
 .ko-worth.is-gold{border-color:#ffb02066;background:#ffb0201f;color:#ffc24d}
 /* One line says where the room stands, in the colour of it, with the host's NUDGE beside it: a line, a tag on every face
    and a bar over the keys all said it at first, and the room read as cluttered (the owner, 19 November 2026). */
