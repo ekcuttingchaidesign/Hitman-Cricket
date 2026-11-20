@@ -171,7 +171,7 @@ import { kitDeal } from './config/board';
 import { encodeInnings, limitsOf } from './game/ball-string';
 import { HOLD_MS, READY_MS, heldOf } from './ui/KnockoutHeld';
 import { swingFourthOf } from './game/free-hit';
-import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, freeHitOf, knockoutScreen, overLine, type BallNews, type Play, type Seat, type SeatBall, type SeatSpec, sampleTrack, trackOf, type TrackMood } from './game/knockout';
+import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, freeHitOf, knockoutScreen, overLine, type BallNews, type Play, type Seat, type SeatBall, type SeatSpec, sampleTrack, storyFrom, trackOf, type TrackMood } from './game/knockout';
 import { KnockoutMoment, ordinal, type MomentView } from './ui/KnockoutMoment';
 import type { RingView, WatchHeader } from './ui/KnockoutWatch';
 import type { ResultsView } from './ui/KnockoutResults';
@@ -8347,6 +8347,11 @@ export class Game {
     const first = on.watching === null;
     on.watching = seat.id;
     if (first) { this.audio.music(null); this.audio.crowd(MURMUR.blast); this.mark('knockout-watch', 'Watching the room after a knock-out'); }
+    // A match's story opens where it picks up (`storyFrom`), never on a ball being shown for somebody else.
+    if (this.matchPlay) {
+      if (on.ball && on.ball.seat !== seat.id) { this.dropWatched(); this.scene.reset(true); }
+      if (!on.ball) this.storySkip(seat.id, true);
+    }
     this.watchHeader(0);
   }
   /** Back to the end screen. The ball being watched still counts: its news is shown at once. */
@@ -8376,7 +8381,7 @@ export class Game {
     if (!next || next.id === on.watching) return;
     this.mark('knockout-watch-swipe', 'Swiped to another player while watching');
     // In a match each seat's balls are its own, shown from where the watcher left them: the next one's are staged on the next frame.
-    if (this.matchPlay) { this.dropWatched(); on.watching = next.id; on.idle = false; this.hud.knockoutWaiting(null); this.scene.reset(true); this.watchHeader(by); return; }
+    if (this.matchPlay) { this.dropWatched(); on.watching = next.id; on.idle = false; this.hud.knockoutWaiting(null); this.scene.reset(true); this.storySkip(next.id, true); this.watchHeader(by); return; }
     on.watching = next.id;
     if (on.ball) this.watchStage(on.ball, next.id);
     this.watchHeader(by);
@@ -8423,6 +8428,15 @@ export class Game {
     }
     return seen;
   }
+  /**
+   * A seat's story skipped on to where it picks up (`storyFrom`): a friend's latest ball as it opens, and never more
+   * than a ball or two behind them after; a sub's latest over. Only between balls, never under one being shown.
+   */
+  private storySkip(id: number, opening: boolean) {
+    const on = this.room!, seat = this.knockout!.seats[id], seen = this.seenOf(id);
+    const from = storyFrom(seen, seat.played, seat.sub, opening);
+    if (from !== seen) on.seen!.set(id, from);
+  }
   /** The ball being watched put away: seen, if it had got as far as its call. */
   private dropWatched() {
     const on = this.room;
@@ -8434,12 +8448,14 @@ export class Game {
    * Watching a match with friends (section 51, on real seats): the room is
    * the store's, moved on as balls arrive, so the seat watched is played back
    * from what the room has kept of it (`history`), a ball at a time on the
-   * ground, from the top of the over. Caught up, the bowler waits at his mark
-   * for their next ball; a friend's are a few seconds behind them, a sub's come
-   * an over at a time.
+   * ground: a friend's from their latest ball, a sub's from the top of their
+   * latest over, never the innings run through to catch up (`storyFrom`).
+   * Caught up, the bowler waits at his mark for their next ball; a friend's are
+   * a few seconds behind them, a sub's come an over at a time.
    */
   private watchStored() {
     const on = this.room!, room = this.knockout!, id = on.watching!, seat = room.seats[id];
+    this.storySkip(id, false);
     const at = this.seenOf(id), play = room.history.get(id)?.[at], delivery = this.matchDelivery(at);
     if (at >= seat.played || play === undefined || !delivery) {
       if (on.endDue) { on.endDue = false; this.roomEnd(true); return; }

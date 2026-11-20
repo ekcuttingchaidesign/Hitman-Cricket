@@ -2954,9 +2954,18 @@ owner missed them in a match, 19 November 2026). The room there is the
 store's, so a seat is not bowled to for the watcher: it is played back from
 what the room has kept of it (`history` on `KnockoutRoom`, every ball's play
 by seat; a friend's drawn by `playOf`, since their swing never travels), a
-ball at a time on the ground from the top of the over the room is in
-(`watchStored`, `seenOf`, `seen` on the room, kept by seat so a swipe away and
-back goes on from where it was). Caught up, the bowler waits at his mark under
+ball at a time on the ground (`watchStored`, `seenOf`, `seen` on the room, by
+seat, so nothing shown is shown again). Where a story picks up is `storyFrom`
+in `knockout.ts` (`storySkip` in `src/Game.ts`, every case in
+`tests/knockout-together.test.ts`): a friend's opens on their latest ball,
+shows that one and waits for the next, and left running it is let fall two
+balls behind (`STORY_BEHIND`) and no further; a sub's, whose balls come an
+over at a time, is the top of their latest over. Played back quicker than it
+was batted, a story that picked up where it was left, or at the top of the
+room's over the first time, ran through the innings at two or three times the
+pace to catch up: the owner, out early, opened a friend's at fifty and
+watched it from the first ball (20 November 2026). Not to be built again: no
+story fast-forwards. Caught up, the bowler waits at his mark under
 WAITING FOR RIYA'S NEXT BALL: a friend's balls are a few seconds behind them,
 a sub's come an over at a time. The header counts what the watcher has been
 shown, not where the room has got to, and the room's end waits for the seat

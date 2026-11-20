@@ -557,6 +557,24 @@ export function trackOf(room: KnockoutRoom): Track {
 }
 
 /**
+ * Where a seat's story picks up in a match with friends: how many of its balls count as shown before the next one is
+ * played on the ground. The watcher's device plays back what the store holds of a seat, quicker than it was batted, so
+ * from an old place it ran through the innings at two or three times the pace to catch up: the owner, out early, opened
+ * a friend's story at fifty and watched it from the first ball (20 November 2026).
+ *
+ * A friend's story opens on their latest ball, shows that one and waits for the next; left running, it is let fall a
+ * ball or two behind (two can come in one answer of the store's) and no further. A sub's balls come a whole over at a
+ * time, so theirs is the top of their latest over: on their latest ball it would be one ball and a long wait.
+ */
+export function storyFrom(seen: number, played: number, sub: boolean, opening: boolean): number {
+  if (sub) return Math.max(seen, Math.floor(Math.max(0, played - 1) / KNOCKOUT.ballsPerOver) * KNOCKOUT.ballsPerOver);
+  const latest = Math.max(0, played - 1);
+  return opening || played - seen > STORY_BEHIND ? Math.max(seen, latest) : seen;
+}
+/** How many balls behind a friend's story may run before it skips on to their latest. */
+export const STORY_BEHIND = 2;
+
+/**
  * Across the top of the bar, what is at stake and when, in so many words
  * (the owner found END OF OVER 1 · 2 GO said neither): how many are knocked
  * out and how many balls are left before they are; in the final, that the

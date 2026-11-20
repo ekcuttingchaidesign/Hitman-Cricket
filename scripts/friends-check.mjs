@@ -423,6 +423,11 @@ check(await until('swiped', async () => (await ko(e)).watching !== seat, 5000), 
 // (They only floated where they were sent from: with subs there was nobody to tell, and a friend never saw them.)
 await e.evaluate(() => window.__cricket.knockoutWatch(0));
 check(await until('on the host', async () => (await ko(e)).watching === 0, 5000), 'the host’s game is watched');
+// A friend's story opens on their latest ball: the owner, out early, opened one at fifty and it ran from the first ball at
+// two or three times the pace to catch up (20 November 2026). The header counts what has been shown, so it says where it opened.
+const opened = await e.evaluate(who => { const k = window.__cricket.knockout(), seat = k.table.split(' ').find(one => one.startsWith(`${who}:`))?.match(/\/(\d+)#/);
+  const line = document.querySelector('.ko-watch-line')?.textContent ?? ''; return { played: seat ? Number(seat[1]) : null, shown: Number(line.match(/off (\d+)/)?.[1] ?? -1), line }; }, gone);
+check(opened.played !== null && opened.shown >= opened.played - 1 && opened.shown <= opened.played, 'their story opens on their latest ball, not from the top of their innings', JSON.stringify(opened));
 await e.locator('.ko-watch-tray [data-react="🔥"]').click({ force: true });
 const matchNow = async () => (await (await fetch(`${base}/api/challenge?knockout=1&code=${fourth}`)).json()).match;
 check(await until('reaction stored', async () => { const m = await matchNow(); return m.reactions.some(rx => rx.from === guest && rx.emoji === '🔥' && rx.to === m.host); }, 8000),

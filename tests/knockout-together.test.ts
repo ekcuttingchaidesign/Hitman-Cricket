@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DeliveryGenerator, knockoutPlan } from '../src/game/DeliveryGenerator';
-import { KNOCKOUT, KnockoutRoom, knockoutScreen, trackOf, type SeatBall, type SeatSpec } from '../src/game/knockout';
+import { KNOCKOUT, KnockoutRoom, STORY_BEHIND, knockoutScreen, storyFrom, trackOf, type SeatBall, type SeatSpec } from '../src/game/knockout';
 import { SeededRandom } from '../src/game/SeededRandom';
 import { swingFourthOf } from '../src/game/free-hit';
 import type { Delivery, ShotOutcome } from '../src/game/types';
@@ -73,6 +73,34 @@ describe('a match with friends, batted together', () => {
     expect(on.filter(Boolean).length).toBeLessThanOrEqual(1);
     expect(on[0]).toBe(false);
     if (room.freeHit()) expect(knockoutScreen(room, null, false)?.kind).not.toBe('freehit');
+  });
+  it('opens a friend’s story on their latest ball, and a sub’s on the top of their latest over', () => {
+    // The owner, out early, opened a friend's story at fifty and it ran from the first ball at speed to catch up.
+    // A friend on 14 balls, never watched: their fourteenth ball is shown, then the wait for the next.
+    expect(storyFrom(0, 14, false, true)).toBe(13);
+    // Opened again after a look in the first over: not from where it was left.
+    expect(storyFrom(2, 14, false, true)).toBe(13);
+    // Caught up, or a ball behind, it stays where it is; nothing shown is ever shown again.
+    expect(storyFrom(14, 14, false, true)).toBe(14);
+    expect(storyFrom(13, 14, false, true)).toBe(13);
+    // Nobody has batted yet: from the top.
+    expect(storyFrom(0, 0, false, true)).toBe(0);
+    // Left running, two balls in one answer of the store's are both shown; further behind, it skips on to the latest.
+    expect(storyFrom(10, 10 + STORY_BEHIND, false, false)).toBe(10);
+    expect(storyFrom(10, 11 + STORY_BEHIND, false, false)).toBe(10 + STORY_BEHIND);
+    // A sub's balls come an over at a time: the top of their latest over, however it is reached, and on through it.
+    expect(storyFrom(0, 18, true, true)).toBe(12);
+    expect(storyFrom(0, 18, true, false)).toBe(12);
+    expect(storyFrom(14, 18, true, false)).toBe(14);
+    expect(storyFrom(12, 12, true, true)).toBe(12);
+    // A sub out in the middle of an over: the top of that over.
+    expect(storyFrom(0, 8, true, true)).toBe(6);
+    // Never past what has been batted, and never back.
+    for (const sub of [true, false]) for (const opening of [true, false]) for (let played = 0; played <= 30; played++) for (let seen = 0; seen <= played; seen++) {
+      const from = storyFrom(seen, played, sub, opening);
+      expect(from).toBeGreaterThanOrEqual(seen);
+      expect(from).toBeLessThanOrEqual(played);
+    }
   });
   it('ends the same whatever order the balls arrive in', () => {
     expect(result(play(11, 0, {}, 'reverse').room)).toBe(result(play(11, 0, {}).room));
