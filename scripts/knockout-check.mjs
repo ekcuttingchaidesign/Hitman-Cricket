@@ -27,7 +27,9 @@ async function walkOut(page, link) {
   await page.addStyleTag({ content: '#debug{display:none!important}' });
   await page.waitForTimeout(1500);
   const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i }); if (await anyway.count()) await anyway.first().click();
-  await page.locator('#start').click({ force: true });
+  // (Walking out compiles the ground's shaders, which in software, beside another page still drawing, can hold the page
+  // past a click's half minute.)
+  await page.locator('#start').click({ force: true, timeout: 120_000 });
   for (let i = 0; i < 60; i++) { const ph = await page.evaluate(() => window.__cricket?.snapshot().phase); if (ph === 'READY' || ph === 'BOWLER_RUNUP') break; const d = page.locator('#whatsnew-done'); if (await d.isVisible().catch(() => false)) await d.click({ force: true }); await page.waitForTimeout(400); }
 }
 const errors = [];
