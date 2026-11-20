@@ -2677,12 +2677,12 @@ ${knockoutRulesMarkup()}
   /** The balls of this innings that were the player's free hits, by index, and the one still to come. */
   private koFree = new Set<number>();
   /**
-   * Super Knockout's free hit (`free-hit.ts`): the index of the player's next
-   * ball when it is the free hit, or null; and whether they have one still to
-   * come this over. While one is to come the scoreboard is ringed in gold; on
-   * the ball itself FH stands in its slot, shimmering once, and gold beats
-   * round the screen's edges, and the slot keeps a gold edge once played.
-   * `fresh` forgets the innings before.
+   * Super Knockout's free hit (`free-hit.ts`): the index of the player's ball
+   * when it is the free hit, given as the bowler sets off for it, or null once
+   * it is dead; and whether they have one still to come this over. From his
+   * first stride FH stands in its slot, the screen's edges glow cyan and the
+   * line under the pitch says FREE HIT (`phase`); the slot keeps a cyan edge
+   * once played. `fresh` forgets the innings before.
    */
   knockoutFreeHit(next: number | null, fresh = false, ahead = false) {
     if (fresh) this.koFree.clear();
@@ -2740,8 +2740,10 @@ ${knockoutRulesMarkup()}
     const quiet = this.marathon && (phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
     // Super Knockout's free hit edge settles while the ball is live.
     this.viewport.classList.toggle('ko-live', phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
+    // Super Knockout's free hit is said as the bowler sets off, and stands through the ball.
+    const free = this.viewport.classList.contains('ko-fh-next') && (phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
     label.textContent = on ? CUES[primed!].replace(' — ', ' · ')
-      : phase === 'READY' ? this.walking ?? 'TAKE YOUR GUARD' : quiet ? ''
+      : phase === 'READY' ? this.walking ?? 'TAKE YOUR GUARD' : quiet ? '' : free ? 'FREE HIT'
       : phase === 'BOWLER_RUNUP' ? 'HERE COMES THE NEXT BALL' : phase === 'BALL_IN_FLIGHT' ? 'WATCH THE BALL' : '';
     label.classList.toggle('is-primed', on);
     // The edge of the field lights up too: a line of text at the bottom is easy

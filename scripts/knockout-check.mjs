@@ -217,28 +217,48 @@ const told = await page.evaluate(() => ({ toast: !!document.getElementById('ko-f
 check(given.freeAhead && !given.freeNext && !told.toast && !told.edge && given.bowled === 6, 'top of the first over: a free hit earned, and nothing put up for it until its ball', JSON.stringify({ given, told }));
 check(given.night && given.flood.kind === 'flash', 'the room is under lights, and they flash once at the cut', JSON.stringify({ night: given.night, flood: given.flood }));
 await snap(page, out + '/ko-free-hit-earned.png');
-// Ones up to the over's free hit ball (never its first), then out on it: all in one turn, before the bowler can run in.
-const run = await (async () => {
+// Ones up to the over's free hit ball (never its first), written in one turn between balls. With its ball next, nothing is
+// put up yet: the owner found it notified too early, standing through the bowler's walk back (20 November 2026).
+const upTo = await (async () => {
   for (let i = 0; i < 400; i++) {
     const seen = await page.evaluate(() => {
       const k = window.__cricket.knockout, view = document.getElementById('viewport');
-      const slots = () => [...document.querySelectorAll('#ko-over i')].map(i => `${i.textContent}${i.className ? `[${i.className}]` : ''}`).join(',');
       if (window.__cricket.snapshot().phase !== 'READY') return null;
       for (let n = 0; n < 6 && !k().freeNext; n++) if (!window.__cricket.blast([1])) return null;
-      const upTo = { ...k(), edge: view.classList.contains('ko-fh-next') && !!view.querySelector('.ko-fh-edge'), label: document.getElementById('phase-label')?.textContent, slots: slots() };
-      if (!window.__cricket.blast(['W'])) return null;
-      return { upTo, after: { ...k(), edge: view.classList.contains('ko-fh-next'), fh: slots() } };
+      return { ...k(), edge: view.classList.contains('ko-fh-next'), glow: Number(getComputedStyle(view.querySelector('.ko-fh-edge')).opacity), label: document.getElementById('phase-label')?.textContent,
+        slots: [...document.querySelectorAll('#ko-over i')].map(i => `${i.textContent}${i.className ? `[${i.className}]` : ''}`).join(','), screen: JSON.stringify(window.__cricket.arena()?.knockout ?? null) };
     });
     if (seen) return seen;
     await page.waitForTimeout(150);
   }
   throw new Error('never between balls for the free hit');
 })();
-const { upTo, after } = run;
+check(upTo.freeNext && upTo.freeBall && upTo.freeBall.ball >= 1 && upTo.bowled % 6 === upTo.freeBall.ball && !upTo.edge && upTo.glow === 0 && !/FH/.test(upTo.slots) && upTo.label !== 'FREE HIT' && !/freehit/.test(upTo.screen),
+  `the free hit ball comes later in the over (ball ${(upTo.freeBall?.ball ?? -1) + 1}, a ${upTo.freeBall?.name}), and between balls nothing says so yet`, JSON.stringify(upTo));
+// As the bowler sets off for it: the cyan edge, FH in its slot, FREE HIT on the line under the pitch and on the ground's screen.
+let onBall = null;
+for (let i = 0; i < 400 && !onBall; i++) {
+  onBall = await page.evaluate(() => {
+    const view = document.getElementById('viewport'), phase = window.__cricket.snapshot().phase;
+    if (phase !== 'BOWLER_RUNUP' && phase !== 'BALL_IN_FLIGHT') return null;
+    return { phase, edge: view.classList.contains('ko-fh-next') && view.classList.contains('ko-live'), label: document.getElementById('phase-label')?.textContent,
+      slots: [...document.querySelectorAll('#ko-over i')].map(i => `${i.textContent}${i.className ? `[${i.className}]` : ''}`).join(','), screen: JSON.stringify(window.__cricket.arena()?.knockout ?? null) };
+  });
+  if (!onBall) await page.waitForTimeout(60);
+}
+check(!!onBall && onBall.edge && /FH\[is-free is-next\]/.test(onBall.slots) && onBall.label === 'FREE HIT' && /freehit/.test(onBall.screen),
+  'as the bowler sets off for it: the cyan edge round the screen, FREE HIT on the line and the ground’s screen, and FH in its slot', JSON.stringify(onBall));
+await snap(page, out + '/ko-free-hit-onBall.png');
+// The ball left alone: whatever it does, they are not out on it, the slot keeps its cyan and the edge is let go.
+let after = null;
+for (let i = 0; i < 400; i++) {
+  after = await page.evaluate(() => ({ ...window.__cricket.knockout(), phase: window.__cricket.snapshot().phase, edge: document.getElementById('viewport').classList.contains('ko-fh-next'),
+    fh: [...document.querySelectorAll('#ko-over i')].map(i => `${i.textContent}${i.className ? `[${i.className}]` : ''}`).join(',') }));
+  if (after.bowled === upTo.bowled + 1 && (after.phase === 'RESULT' || after.phase === 'READY')) break;
+  await page.waitForTimeout(150);
+}
 let fh = after.fh;
-check(upTo.freeNext && upTo.freeBall && upTo.freeBall.ball >= 1 && upTo.bowled % 6 === upTo.freeBall.ball && upTo.edge && /FH\[is-free is-next\]/.test(upTo.slots) && upTo.label === 'FREE HIT',
-  `the free hit ball comes later in the over (ball ${(upTo.freeBall?.ball ?? -1) + 1}, a ${upTo.freeBall?.name}), the cyan edge round the screen, FREE HIT on the guard line and FH in its slot`, JSON.stringify(upTo));
-check(!after.you.out && after.bowled === upTo.bowled + 1 && /is-free/.test(fh) && !after.edge, 'bowled on the free hit: not out, the slot kept cyan, the edge let go', JSON.stringify({ fh, you: after.you }));
+check(!after.you.out && after.bowled === upTo.bowled + 1 && /is-free/.test(fh) && !/is-next/.test(fh) && !after.edge, 'bowled on the free hit: not out, the slot kept cyan, the edge let go', JSON.stringify({ fh, you: after.you }));
 await snap(page, out + '/ko-free-hit.png');
 
 // The rest of the room in one write, so no live ball falls between two (the writer stops once the room is done with the player).
@@ -329,6 +349,13 @@ for (const mood of ['calm', 'edge', 'level', 'drop', 'final']) {
   await read();
   check(got.mood === mood, `the bar stands ${mood}`, JSON.stringify(got));
   if (mood === 'final') check(got.drop === 'GONE BEHIND AHEAD' && got.say === 'NEED 7 RUNS TO WIN', 'the final: behind and ahead, and what it takes to win', JSON.stringify(got));
+  if (mood === 'final') {
+    // One seat a side of the line in the final: the two words stand either side of it. Centred under their seats they
+    // ran into each other on the owner's phone (BEHINDAHEAD).
+    const words = await page.evaluate(() => { const box = sel => { const r = document.querySelector(`#ko-track .ko-zone.${sel}`).getBoundingClientRect(); return [Math.round(r.left), Math.round(r.right)]; };
+      const bar = document.getElementById('ko-track').getBoundingClientRect(); return { behind: box('is-drop'), ahead: box('is-safe'), bar: [Math.round(bar.left), Math.round(bar.right)] }; });
+    check(words.behind[1] + 4 <= words.ahead[0] && words.ahead[1] <= words.bar[1], 'BEHIND and AHEAD stand clear of each other, inside the bar', JSON.stringify(words));
+  }
   if (mood === 'drop' || mood === 'final') check(await burning(page), `${mood === 'drop' ? 'the drop is on fire' : 'the fuse is lit'}`);
   await page.screenshot({ path: `${out}/ko-mood-${mood}.png`, clip: { x: 0, y: 560, width: 390, height: 284 } });
 }

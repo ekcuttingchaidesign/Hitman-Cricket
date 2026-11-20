@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DeliveryGenerator, knockoutPlan } from '../src/game/DeliveryGenerator';
-import { KNOCKOUT, KnockoutRoom, type SeatBall, type SeatSpec } from '../src/game/knockout';
+import { KNOCKOUT, KnockoutRoom, knockoutScreen, trackOf, type SeatBall, type SeatSpec } from '../src/game/knockout';
 import { SeededRandom } from '../src/game/SeededRandom';
 import { swingFourthOf } from '../src/game/free-hit';
 import type { Delivery, ShotOutcome } from '../src/game/types';
@@ -53,6 +53,27 @@ describe('a match with friends, batted together', () => {
     expect(b.room.winner!.name).toBe(a.room.winner!.name);
   });
 
+  it('rides the bar on the phone’s own seat, whichever seat that is', () => {
+    // The owner led a final as the guest and their face stood at the bar's far left: the bar looked for seat 0, the
+    // host's, where the phone's own seat rides it.
+    for (const you of [0, 1, 2]) for (const upTo of [6, 12, 24]) {
+      const { room } = play(77, you, { a: upTo, b: upTo, c: upTo });
+      if (room.finished) continue;
+      const track = trackOf(room);
+      expect(track.pips[track.you]?.you).toBe(true);
+      expect(track.pips.filter(pip => pip.you)).toHaveLength(1);
+      // Leading, the face is at the right-hand end, with the safe.
+      if (track.place === 1) expect(track.you).toBe(track.seats - 1);
+    }
+  });
+  it('says a free hit by the phone’s own count of balls, and keeps it off the screen between balls when asked', () => {
+    const { room } = play(77, 0, { a: 6, b: 6, c: 6 });
+    const on = Array.from({ length: 6 }, (_, i) => room.freeHitOn(6 + i));
+    // One ball of the over at most, never its first, and only for a seat that earned one.
+    expect(on.filter(Boolean).length).toBeLessThanOrEqual(1);
+    expect(on[0]).toBe(false);
+    if (room.freeHit()) expect(knockoutScreen(room, null, false)?.kind).not.toBe('freehit');
+  });
   it('ends the same whatever order the balls arrive in', () => {
     expect(result(play(11, 0, {}, 'reverse').room)).toBe(result(play(11, 0, {}).room));
   });

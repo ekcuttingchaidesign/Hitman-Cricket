@@ -248,6 +248,11 @@ export class KnockoutRoom {
   }
   /** Whether this seat bats its next ball as a free hit: the player's, unless asked about another. */
   freeHit(id = this.youId) { return this.free.has(id) && this.freeBallAt(this.seats[id].played) !== null; }
+  /**
+   * Whether the player's ball at this index of their innings is their free hit. The game asks by its own count of balls
+   * batted: in a match the room counts a ball only once the store has it, so `freeHit` can be a ball behind the crease.
+   */
+  freeHitOn(index: number) { return this.free.has(this.youId) && this.freeBallAt(index) !== null; }
   /** Whether this seat has a free hit still to come this over. */
   freeHitAhead(id = this.youId) { return this.free.has(id); }
 
@@ -544,7 +549,7 @@ export function trackOf(room: KnockoutRoom): Track {
     : mood === 'edge' && clear! > 0 ? { words: `${runs(clear!)} ${standing.final ? 'AHEAD' : 'CLEAR'}`, tone: 'edge' as const } : null;
   const ballsLeft = KNOCKOUT.ballsPerOver - standing.ball;
   return {
-    seats: row.length, gone: gone.length, drop: drop.size, pips, you: row.findIndex(seat => seat.id === 0), mood,
+    seats: row.length, gone: gone.length, drop: drop.size, pips, you: row.indexOf(room.you), mood,
     eyebrow: eyebrowOf(standing.final, count, ballsLeft), final: standing.final,
     place: standing.place, of: standing.left, clear,
     ballsLeft, say,
@@ -615,10 +620,11 @@ export function cutLine(news: BallNews, left: number, youId = 0): string | null 
  * player is in it, the lowest still safe). Null once the player is done with,
  * or when there is no line to show.
  */
-export function knockoutScreen(room: KnockoutRoom, cut: readonly Seat[] | null): KnockoutScreen | null {
+export function knockoutScreen(room: KnockoutRoom, cut: readonly Seat[] | null, freeHit = true): KnockoutScreen | null {
   if (room.finished) return null;
-  // The free hit's ball, before it and while it is bowled (`953:8055`).
-  if (room.freeHit()) return { kind: 'freehit' };
+  // The free hit's ball (`953:8055`). The game asks without it between balls (`freeHit` false): the player is told as
+  // the bowler sets off, not while he walks back.
+  if (freeHit && room.freeHit()) return { kind: 'freehit' };
   if (cut?.length) return { kind: 'cut', out: cut.length, left: room.alive.length, names: cut.map(s => (s === room.you ? 'You' : s.name)) };
   const { count, by } = room.nextCut;
   const alive = room.ranked;

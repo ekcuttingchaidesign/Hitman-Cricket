@@ -107,6 +107,7 @@ export class KnockoutBar {
     // In the final the two stretches are who is behind and who is ahead: nobody is cut until it is settled.
     zone('is-drop', next.gone, line - 1).textContent = next.final ? 'BEHIND' : 'DROP';
     zone('is-safe', line, n - 1).textContent = next.final ? 'AHEAD' : 'SAFE';
+    this.box.classList.toggle('is-final', next.final);
     this.box.dataset.mood = next.mood;
     this.box.querySelector('#ko-brow')!.textContent = next.eyebrow;
     this.box.querySelector('#ko-at')!.textContent = `#${next.place}`;

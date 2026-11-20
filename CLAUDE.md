@@ -2412,8 +2412,12 @@ what is at stake and when, in so many words (`eyebrowOf`: BOTTOM 2 KNOCKED
 OUT IN 4 BALLS, … AFTER THIS BALL, or THE FINAL · HIGHER TOTAL WINS · 3 BALLS
 LEFT; END OF OVER 1 · 2 GO, the owner found, said neither) and #9 OF 10; then every seat, worst on the left, those knocked
 out in grey, the drop in red, the safe in green, the cut a white line between,
-the player's face riding it by their place; GONE, DROP and SAFE under their
-stretches (BEHIND and AHEAD in the final); and over the face, only where it
+the player's face riding it by their place (the phone's own seat, `room.you`:
+it looked for seat 0, the host's in a match with friends, so a guest leading
+the final had their face at the bar's far left, as the owner saw, 20 November
+2026); GONE, DROP and SAFE under their stretches (BEHIND and AHEAD in the
+final, stood either side of the line, `is-final`: centred under one seat each
+they ran into each other); and over the face, only where it
 matters, a pill: NEED 5 RUNS TO BE SAFE (TO WIN in the final), 2 RUNS CLEAR
 (AHEAD), or LEVEL ON THE LINE · SAFE. "3 TO SAFE" in a scoreboard cell said nothing, the
 owner found, and a longer line pushed the bar into the keys with the meter
@@ -2509,21 +2513,27 @@ the seamer's yorker, bouncer, slower ball, full one or swinger, the spinner's
 ball tossed up or his arm ball, the swing bowler's swingers and yorker, the
 sling bowler's yorker, bouncer and slower ball — which the plan bowls there
 whatever the over would have (`hardBall` on the plan, `hardNow` in the
-generator), so every seat faces it. The player is told only before its own
-ball (a popup at the cut, FREE HIT EARNED, and the scoreboard ringed gold
-all over were tried and the owner found them distracting; earning one is
-counted, `knockout-free-hit-earned`, and never shown), as the owner drew
-it, combining two of the five quiet ways in section 48 (Figma Battle Royale
-page, `953:8055`): the screen's edges glow cyan (`--ko-fh`, #4efffc: red is
-the drop, green safe, gold the reward and light blue the meter), steady but
-for one slow breath, settling to under half once the bowler runs in
-(`.ko-fh-edge`, `ko-fh-next`, `ko-live`); the ball's slot is FH in the
-same cyan (`--ko-fh-chip`, magenta at first, which the owner had made cyan
-to match the edge) and keeps a cyan edge once played (`knockoutFreeHit`),
-as the held list's FH tag does; the guard line says FREE HIT; and the
-ground's screen says FREE HIT in white over a magenta glow before the ball
-and while it is bowled (`knockoutScreen`'s `freehit`, painted by
-`paintFreeHit`), coming on in `FREE_HIT_IN_MS`: a cyan line opening the
+generator), so every seat faces it. The player is told on its own ball, as
+the bowler sets off for it and not before (`tellFreeHit` in `src/Game.ts`,
+from `setPhase`; `freeHitTold`): it went up the moment the ball before it was
+dead and stood through the whole walk back, which the owner found too early
+(20 November 2026). Between balls, with its ball next, nothing shows
+(`knockoutScreen`'s third argument keeps it off the ground's screen then).
+A popup at the cut, FREE HIT EARNED, and the scoreboard ringed gold
+all over were tried before and the owner found them distracting; earning one is
+counted, `knockout-free-hit-earned`, and never shown. From his first stride,
+as the owner drew it, combining two of the five quiet ways in section 48
+(Figma Battle Royale page, `953:8055`): the screen's edges glow cyan
+(`--ko-fh`, #4efffc: red is the drop, green safe, gold the reward and light
+blue the meter), on full and settling while the ball is bowled
+(`.ko-fh-edge`, `ko-fh-next` with `ko-live`, `ko-fh-on`); the ball's slot is
+FH in the same cyan (`--ko-fh-chip`, magenta at first, which the owner had
+made cyan to match the edge) and keeps a cyan edge once played
+(`knockoutFreeHit`), as the held list's FH tag does; the line under the
+pitch says FREE HIT through the run-up and the flight (`phase` in the HUD);
+and the ground's screen says FREE HIT in white over a magenta glow while it
+is bowled (the game's `scoreboard`, painted by `paintFreeHit`), coming on in
+`FREE_HIT_IN_MS`: a cyan line opening the
 screen from its middle, the glow blooming, the letters slammed in one by
 one from big with a cyan flash as each lands, cyan slashes at the lean
 sliding in either side and a light run across the words, which runs again
@@ -2533,7 +2543,10 @@ stings' fifteen a second only while it moves (`freeHitFrame` in the
 screen's key), and still under reduced motion. The player's wicket on it is
 turned not out in `resolve` before the score sees it (`freeHitOf`, FREE HIT ·
 NOT OUT, the picture still the ball that would have had them), the subs' in
-`KnockoutRoom.ball` (`freeHit`, `freeHitAhead`, `freeBallNext`).
+`KnockoutRoom.ball` (`freeHit`, `freeHitAhead`, `freeBallNext`). The game asks
+which ball is the player's free hit by its own count of balls batted
+(`freeHitOn`): in a match the room counts a ball only once the store has it,
+and can be a ball behind the crease.
 
 Hold the scoreboard between balls (P8, H1 to H3, `src/ui/KnockoutHeld.ts`,
 `holdBoard` and `letGoBoard` in `src/Game.ts`): everyone still in drops down
@@ -2727,7 +2740,14 @@ slim row with COPY, AROUND NOW · TAP TO INVITE as one line of chips
 around), and the keys: INVITE in green, the narrower (the phone's share
 sheet with the match's link, `?k=CODE`, or the link copied; it went dark for
 a day and the owner wanted the green kept), beside the hero key, START NOW
-for the host or I'M READY for a guest, green once it says READY ✓. What it
+for the host or I'M READY for a guest, green once it says READY ✓. The
+room's two small keys, NUDGE (with a bell, which rings every few seconds)
+and the last match's LEADERBOARD, are a gold face on a ledge (`.ko-mini`),
+NUDGE staying down in green as NUDGED ✓; and the last match's card
+(`.ko-last`) is a winner's card, the face crowned in a gold ring with a glow
+behind it, a gold edge and a light crossing it. As flat outlined pills on a
+plain card they read as labels, and the owner asked for better (20 November
+2026). What it
 replaced, not to be built again: twelve seats drawn six to a row, most of
 them empty dashed circles, a pill stuck over every face (HOST, READY ✓, NOT
 READY), a tall code card, Around now as a strip of big faces each with an

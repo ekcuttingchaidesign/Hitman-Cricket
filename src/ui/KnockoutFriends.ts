@@ -15,6 +15,7 @@
 import { avatarSrc } from '../config/board';
 import { cta, icon } from './Kit';
 import { KNOCKOUT_HERO, KNOCKOUT_MARK } from './KnockoutHome';
+import crownUrl from '../assets/knockout/crown.svg';
 import { MATCH_CODE_ALPHABET, MATCH_CODE_LENGTH, MATCH_SEATS, cleanMatchCode, codeIn, namesOf } from '../game/match-code';
 import { buzz } from '../game/haptics';
 
@@ -289,7 +290,7 @@ export class LobbyScreen {
         <h2 class="ko-lobby-count" id="ko-lobby-count">1 OF ${MATCH_SEATS} IN</h2>
         <div class="ko-lobby-status">
           <p class="ko-lobby-line" id="ko-lobby-note">Share the code, or invite who’s around.</p>
-          <button id="ko-lobby-nudge" class="ko-pill is-gold is-small hidden" type="button">NUDGE</button>
+          <button id="ko-lobby-nudge" class="ko-mini hidden" type="button"><span>${icon('bell')}<b>NUDGE</b></span></button>
         </div>
         <ol class="ko-people" id="ko-seats"></ol>
         <div class="ko-card ko-coderow">
@@ -297,9 +298,9 @@ export class LobbyScreen {
           <button id="ko-lobby-copy" class="ko-pill is-quiet is-small" type="button">COPY</button>
         </div>
         <div class="ko-last hidden" id="ko-lobby-last">
-          <img alt="" width="40" height="40" decoding="async">
+          <span class="ko-last-face"><img class="ko-last-crown" src="${crownUrl}" alt="" decoding="async"><img id="ko-last-face" alt="" width="46" height="46" decoding="async"></span>
           <span class="ko-last-text"><i>LAST MATCH</i><b id="ko-last-title"></b><small id="ko-last-line"></small></span>
-          <button id="ko-lobby-last-board" class="ko-pill is-gold is-small" type="button">LEADERBOARD</button>
+          <button id="ko-lobby-last-board" class="ko-mini" type="button"><span><b>LEADERBOARD</b></span></button>
         </div>
         <div class="ko-still hidden" id="ko-lobby-still">
           <p class="ko-still-head"><span>STILL IN · TAP TO WATCH</span><button id="ko-lobby-board" type="button">LEADERBOARD ›</button></p>
@@ -449,7 +450,7 @@ export class LobbyScreen {
     const fresh = waiting.some(s => Date.now() - (this.nudgedAt.get(s.handle) ?? 0) >= 10_000);
     nudge.classList.toggle('hidden', !canNudge);
     nudge.disabled = !fresh;
-    nudge.textContent = fresh ? 'NUDGE' : 'NUDGED ✓';
+    nudge.querySelector('b')!.textContent = fresh ? 'NUDGE' : 'NUDGED ✓';
     nudge.classList.toggle('is-sent', !fresh);
   }
   render(view: LobbyView) {
@@ -505,7 +506,7 @@ export class LobbyScreen {
     const last = this.root.querySelector<HTMLElement>('#ko-lobby-last')!;
     last.classList.toggle('hidden', !view.last || live);
     if (view.last) {
-      last.querySelector('img')!.src = avatarSrc(view.last.face);
+      last.querySelector<HTMLImageElement>('#ko-last-face')!.src = avatarSrc(view.last.face);
       last.querySelector('#ko-last-title')!.textContent = view.last.title;
       last.querySelector('#ko-last-line')!.textContent = view.last.line;
     }

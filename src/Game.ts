@@ -3567,7 +3567,8 @@ export class Game {
     if (this.knockout) {
       const dead = this.phase === 'READY' || this.phase === 'RESULT';
       const cut = this.koCut && this.koCut.at === this.knockout.bowled ? this.koCut.gone : null;
-      return { title: 'SUPER KNOCKOUT', score: String(runs), detail: overLine(balls), knockout: dead ? knockoutScreen(this.knockout, cut) : this.knockout.freeHit() && !this.knockout.finished ? { kind: 'freehit' as const } : null };
+      // The free hit is the screen's from the bowler's first stride, with every other word of it (`tellFreeHit`).
+      return { title: 'SUPER KNOCKOUT', score: String(runs), detail: overLine(balls), knockout: dead ? knockoutScreen(this.knockout, cut, false) : this.freeHitTold ? { kind: 'freehit' as const } : null };
     }
     const title = this.super10 ? 'SUPER10' : this.marathoning ? 'TEST MARATHON' : this.surviving ? 'TEST SURVIVAL' : 'THE BLAST';
     return { title, score: `${runs}/${wickets}`, detail: this.super10 ? `${overs} · ${super10Batter(wickets).title}` : overs };
@@ -3809,7 +3810,10 @@ export class Game {
     return this.practising ? [`practice-${moded}`, `Practice: ${said}`] : [moded, said];
   }
   private setPhase(phase: GamePhase) {
-    this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials);
+    this.phase = phase; this.phaseStart = this.elapsed;
+    if (phase === 'BOWLER_RUNUP') this.tellFreeHit();
+    else if (phase === 'READY' || phase === 'RESULT') this.freeHitTold = false;
+    this.hud.phase(phase, this.isPrimed, this.specials);
     this.presence?.changed();
     if (phase === 'READY' && this.marathon) this.tellLevel();
     if (phase === 'READY' && this.super10 && this.lesson < 0) this.super10Over(true);
@@ -3818,6 +3822,20 @@ export class Game {
     if (phase === 'BOWLER_RUNUP' && this.super10) { this.surgeShown(); this.fieldUi.shot(null, null); }
     if (phase === 'READY' && this.momentAsked) { const moment = this.momentAsked; this.momentAsked = null; this.askMoment(moment); }
     if (phase === 'READY' && this.actionAsked) { const kind = this.actionAsked; this.actionAsked = null; this.askAction(kind); }
+  }
+  /**
+   * Super Knockout's free hit, told as the bowler sets off and not before (the owner found it notified too early, 20
+   * November 2026: it went up the moment the ball before it was dead, and stood through the whole walk back): the cyan
+   * edge, FH in the ball's slot, FREE HIT on the line under the pitch and on the ground's screen, all from his first stride.
+   */
+  private freeHitTold = false;
+  private tellFreeHit() {
+    const room = this.knockout;
+    this.freeHitTold = !!room && !room.finished && !room.you.out && room.freeHitOn(this.score.balls);
+    // (Let go here too: in a match the room's word that the last one is done with can come after the next run-up.)
+    if (!this.freeHitTold) { if (room) this.hud.knockoutFreeHit(null, false, !room.finished && room.freeHitAhead()); return; }
+    this.hud.knockoutFreeHit(this.score.balls, false, true);
+    this.hud.score(this.score);
   }
   /**
    * A moment asked for with `?moments=1`'s keys. Between balls it goes up at
@@ -5662,7 +5680,7 @@ export class Game {
       if (lane && struck >= 4 && this.outcome.runs >= 4) this.s10.boundaries.push(line);
     }
     // Super Knockout's free hit: a wicket on it does not count (`freeHitOf`).
-    if (!step && this.knockout?.freeHit()) this.outcome = freeHitOf(this.outcome);
+    if (!step && this.knockout?.freeHitOn(this.score.balls)) this.outcome = freeHitOf(this.outcome);
     if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);
     else {
       this.score.record(this.outcome); this.generator.record(this.outcome);
@@ -5759,7 +5777,9 @@ export class Game {
         runs: typeof ball === 'number' ? ball : 0, isWicket: ball === 'W', quality: 0, feedback: '',
         timingGrade: 'MISS', timingDeltaMs: null, compatibility: 0, madeBatContact: false, aerial: false,
       } as ShotOutcome;
-      const played = this.knockout?.freeHit() ? freeHitOf(outcome) : outcome;
+      const free = !!this.knockout?.freeHitOn(this.score.balls), played = free ? freeHitOf(outcome) : outcome;
+      // Written, not bowled, the ball had no run-up to say it at: its slot is marked as a bowled one's is.
+      if (free) this.hud.knockoutFreeHit(this.score.balls, false, true);
       this.score.record(played); this.generator.record(played);
       if (this.knockout) this.knockoutBall(this.delivery, played);
       this.chaseBall(played);
@@ -8134,12 +8154,12 @@ export class Game {
     }
     this.hud.knockout(room.finished ? null : chipOf(room.standing()));
     this.hud.knockoutTrack(room.finished ? null : trackOf(room), room.you.face);
-    // The free hit (`free-hit.ts`): told when it is earned, the scoreboard ringed while it is to come, and on its ball, said.
-    const coming = !room.finished && room.freeHit(), ahead = !room.finished && room.freeHitAhead();
-    this.hud.knockoutFreeHit(coming ? room.bowled : null, false, ahead);
+    // The free hit (`free-hit.ts`): nothing of it is put up here, between balls. It is told as the bowler sets off for
+    // its ball (`tellFreeHit`), and let go once that ball is dead.
+    const ahead = !room.finished && room.freeHitAhead();
+    this.hud.knockoutFreeHit(null, false, ahead);
     // Earned is counted, never put on screen: the owner found a popup at the cut distracting, and the player is told on the ball itself.
     if (ahead && last && room.bowled % KNOCKOUT.ballsPerOver === 0) this.mark('knockout-free-hit-earned', 'A free hit earned');
-    if (coming) this.hud.callOut('FREE HIT');
   }
   /**
    * The room after the player has gone (Figma section 51, `KnockoutWatch.ts`).
