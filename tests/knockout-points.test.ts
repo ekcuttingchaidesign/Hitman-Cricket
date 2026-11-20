@@ -310,7 +310,9 @@ describe('the Knockout career and its ladders', () => {
     expect(answer.week).toBe('2026-11-16');
     expect(answer.boards.points.week.map(r => [r.name, r.points, r.wins, r.played])).toEqual([['Mojo', 5, 1, 1], ['Tanvi', 2, 0, 1]]);
     expect(answer.boards.points.all.map(r => r.name)).toEqual(['Mojo', 'Tanvi']);
-    expect(answer.boards.wins.all.map(r => r.name)).toEqual(['Mojo', 'Tanvi']);
+    // A ladder ranks only who has something on it: no wins, no place on Wins.
+    expect(answer.boards.wins.all.map(r => r.name)).toEqual(['Mojo']);
+    expect(answer.boards.wins.week.map(r => r.name)).toEqual(['Mojo']);
     expect(answer.boards.best.map(r => [r.name, r.best])).toEqual([['Mojo', 95], ['Tanvi', 80]]);
     expect(answer.boards.rate).toEqual([]);
     expect(answer.boards.points.week[0].handle).toBe(handleOf(ids[0]));
@@ -337,6 +339,9 @@ describe('the Knockout career and its ladders', () => {
       credit({ id: ids[1], name: 'Tanvi', place: 2, points: 5 }),
       credit({ id: ids[3], name: 'Gauri', place: 9 }),
     ], now);
+    // Nothing won yet is no place on Points or Wins: only the total she made ranks her.
+    const gauri = await knockoutStanding(ledger, ids[3], now);
+    expect(gauri.ok && gauri.places).toMatchObject({ points: { week: null, all: null }, wins: { week: null, all: null }, best: expect.any(Number) });
     const tanvi = await knockoutStanding(ledger, ids[1], now);
     if (!tanvi.ok) throw new Error(tanvi.reason);
     expect(tanvi.career).toMatchObject({ points: 5, played: 1 });

@@ -29,7 +29,11 @@ Promise<MatchOutcome | MatchInvitesAccepted | MatchRefusal | KnockoutBoards | Kn
     if (invites) return readInvites(store, invites);
     if (one(req.query.board)) return ledger ? { ...await knockoutBoards(ledger), pointsFrom: POINTS_RULES.pointsFrom } : { ok: false, status: 503, reason: 'The board is out of reach.' };
     const standing = one(req.query.standing);
-    if (standing) return ledger ? knockoutStanding(ledger, standing) : { ok: false, status: 503, reason: 'The board is out of reach.' };
+    if (standing) {
+      if (!ledger) return { ok: false, status: 503, reason: 'The board is out of reach.' };
+      const answer = await knockoutStanding(ledger, standing);
+      return answer.ok ? { ...answer, pointsFrom: POINTS_RULES.pointsFrom } : answer;
+    }
     return readMatch(store, one(req.query.code));
   }
   if (req.method !== 'POST') return { ok: false, status: 405, reason: 'Use GET or POST.' };

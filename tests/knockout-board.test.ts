@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { handleOf } from '../src/game/handle';
 import { foldName } from '../src/server/board-store';
 import { creditMatch, knockoutBoards, knockoutStanding, memoryLedger, type KnockoutCredit, type KnockoutStanding } from '../src/server/knockout-ledger';
+import { modeMenuMarkup } from '../src/ui/Board';
 import { KNOCKOUT_PICKS, finishWord, knockoutBoardView } from '../src/ui/KnockoutBoard';
 
 /**
@@ -34,9 +35,9 @@ describe('the Super Knockout leaderboard', () => {
     const view = knockoutBoardView(boards, await standing(1), 'points-week', { playerId: ids[1], avatar: 1 }, 3);
     expect(view.ladder).toBe('Points · This week');
     expect(view.rows.map(r => [r.place, r.name, r.score, r.sub])).toEqual([
-      [1, 'Mojo', '10', '1 win · 2 matches'], [2, 'Tanvi', '8', '1 win · 2 matches'], [3, 'Farhan', '2', '0 wins · 1 match'], [4, 'Gauri', '0', '0 wins · 1 match'],
+      [1, 'Mojo', '10', '1 win · 2 matches'], [2, 'Tanvi', '8', '1 win · 2 matches'], [3, 'Farhan', '2', '0 wins · 1 match'],
     ]);
-    expect(view.rows.map(r => !!r.you)).toEqual([false, true, false, false]);
+    expect(view.rows.map(r => !!r.you)).toEqual([false, true, false]);
     expect(view.rows[0].handle).toBe(handleOf(ids[0]));
     expect(view.rows[0].podiumSub).toBe('1 win');
   });
@@ -75,6 +76,14 @@ describe('the Super Knockout leaderboard', () => {
   it('draws nothing but the picker’s name while the store has not answered', () => {
     const view = knockoutBoardView(null, null, 'wins-week', { playerId: ids[0], avatar: 0 }, 3);
     expect(view).toMatchObject({ rows: [], ladder: 'Wins · This week' });
+  });
+
+  it('is offered on the Leaderboard’s mode menu, as a board that opens over it', () => {
+    const menu = modeMenuMarkup('classic', [{ mode: 'classic', rank: '#4' }, { mode: 'super10', rank: 'Not on this board yet' }],
+      [{ id: 'knockout', name: 'Super Knockout', colour: '#ee2a2a', art: 'art.webp', line: 'Points, wins and totals with friends' }]);
+    expect((menu.match(/data-mode="/g) ?? []).length).toBe(2);
+    expect(menu).toMatch(/data-also="knockout"[^>]*>[\s\S]*Super Knockout[\s\S]*Points, wins and totals with friends/);
+    expect(modeMenuMarkup('classic', [{ mode: 'classic', rank: '#4' }])).not.toContain('data-also');
   });
 
   it('names a finish for the last five', () => {

@@ -3089,7 +3089,10 @@ wins and matches, the week turning over on Monday in India, `weekOf`), and
 six ladders, Points and Wins this week and all time, Highest total, and Win
 rate from ten matches. No tiers. A match run away from counts as a match
 and as last place, so leaving never helps an average. Only a player whose
-name the registry says is theirs is ranked. `GET
+name the registry says is theirs is ranked, and a ladder ranks only who has
+something on it (no points is no place on Points, no win none on Wins): a
+player with one match and nothing from it stood first of the week on an
+empty board. `GET
 /api/challenge?knockout=1&board=1` is every ladder at once (edge cached,
 `KNOCKOUT_BOARD_CACHE`) and `&standing=<player>` one player's record,
 places and how far the place above is this week.
@@ -3115,10 +3118,33 @@ it. `tests/knockout-points.test.ts`, `knockout-told.test.ts` and
 `knockout-board.test.ts` hold it; `tests/knockout-play.ts` bats a match to
 its end against the store as the phones do.
 
-Not yet: Knockout on My Stats, My profile and the main Leaderboard's mode
-menu, the timer, the host's start-with-subs question, N WATCHING, invites
-in Notifications, and watching a match from the room on a phone that was
-never in it.
+On My profile (Figma section 42, S1 and S2; `src/ui/KnockoutStats.ts`,
+`knockoutStats` in `tests/knockout-stats.test.ts`) Super Knockout is one more
+tab on the rail, the last, for a named player wherever matches with friends
+are played: the knockout's picture under a red ground where the careers have
+a rung's material, a red dot on its tab where they carry a badge, SUPER
+KNOCKOUT and the matches played under the name, and at a glance the points
+this week, the place this week and the wins; then THIS WEEK (the points and
+how far the place above is, or how the first points come, Resets Monday),
+LAST FIVE as five chips (a top-three finish in gold, Ran for a match run away
+from) and six figures: Matches, Wins, Top 3, Highest total, Average finish,
+Best rank (the best place held on any of the six ladders,
+`knockoutBestRank`). It rides the rail the careers ride: its stage, hero, tab
+and slide carry the slide number after theirs (`knockout` on
+`StatsSheetView`, `koSlide` and `statsKnockout` in the HUD, set in
+`showStats` from the standing last heard and again when the store answers).
+There is no card of it to send yet, so with it in front the foot's key is
+PLAY SUPER KNOCKOUT (`on-knockout` on the page, `#stats-knockout`), which
+opens the Knockout home. The Leaderboard's mode menu offers Super Knockout
+under the modes (`also` on `modeMenuMarkup`, `boardAlso` and `onBoardAlso` in
+the HUD): its own board opens over that one, with no key to play, since the
+Leaderboard may be up in the middle of an innings; and the player's own row
+on the Knockout board opens My profile.
+
+Not yet: Super Knockout on another player's profile (the sheet's modes are
+the four careers'), a Knockout card to share, the timer, the host's
+start-with-subs question, N WATCHING, invites in Notifications, and watching
+a match from the room on a phone that was never in it.
 
 `scripts/friends-check.mjs` walks it in two browsers in real time, nobody
 swinging: Play with friends, a wrong code, PASTE and a paste of INVITE's

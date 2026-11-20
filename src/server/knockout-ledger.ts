@@ -142,13 +142,15 @@ export async function creditMatch(ledger: KnockoutLedger, credits: readonly Knoc
     const career = creditCareer(held[i]?.career ?? null, credit, week);
     records[credit.id] = { career, name: credit.name, avatar: credit.avatar, at: now };
     if (owners[i] !== credit.id) return;
+    // A ladder ranks only who has something on it: no points is no place on Points, no win none on Wins. A player with
+    // one match and nothing from it stood first of the week on an empty board.
     const scores = ladderScores(career);
-    ranks.push({ board: ladderKey('points'), id: credit.id, score: scores.points! });
-    ranks.push({ board: ladderKey('wins'), id: credit.id, score: scores.wins! });
-    ranks.push({ board: ladderKey('best'), id: credit.id, score: scores.best! });
+    if (career.points > 0) ranks.push({ board: ladderKey('points'), id: credit.id, score: scores.points! });
+    if (career.wins > 0) ranks.push({ board: ladderKey('wins'), id: credit.id, score: scores.wins! });
+    if (career.best > 0) ranks.push({ board: ladderKey('best'), id: credit.id, score: scores.best! });
     if (scores.rate !== null) ranks.push({ board: ladderKey('rate'), id: credit.id, score: scores.rate });
-    ranks.push({ board: ladderKey('points', week), id: credit.id, score: scores.weekPoints!, ttlSeconds: WEEK_TTL_SECONDS });
-    ranks.push({ board: ladderKey('wins', week), id: credit.id, score: scores.weekWins!, ttlSeconds: WEEK_TTL_SECONDS });
+    if (career.weekPoints > 0) ranks.push({ board: ladderKey('points', week), id: credit.id, score: scores.weekPoints!, ttlSeconds: WEEK_TTL_SECONDS });
+    if (career.weekWins > 0) ranks.push({ board: ladderKey('wins', week), id: credit.id, score: scores.weekWins!, ttlSeconds: WEEK_TTL_SECONDS });
   });
   await ledger.save(records, ranks);
 }
@@ -214,6 +216,8 @@ export interface KnockoutStanding {
   places: { points: { week: number | null; all: number | null }; wins: { week: number | null; all: number | null }; best: number | null; rate: number | null };
   /** Points behind the place above on this week's points ladder; null at the top or off it. */
   behind: number | null;
+  /** How many real players a match needs before it pays, as the store's rules have it (the endpoint adds it). */
+  pointsFrom?: number;
 }
 
 export async function knockoutStanding(ledger: KnockoutLedger, playerId: string, now = Date.now()): Promise<KnockoutStanding | { ok: false; status: number; reason: string }> {

@@ -95,7 +95,9 @@ export function knockoutBoardView(boards: KnockoutBoards | null, standing: Knock
 }
 
 interface BoardKeys {
-  back(): void; play(): void;
+  back(): void;
+  /** PLAY SUPER KNOCKOUT at the foot; absent where the board is only a look (opened over the Leaderboard). */
+  play?(): void;
   /** A named row, a step or a chip tapped: that player's profile, risen over this board from the face tapped. */
   open(row: { handle: string; name: string; avatar: number | null }, from: HTMLElement): void;
   /** The player's own row: My profile. */
@@ -132,7 +134,7 @@ export class KnockoutBoard {
     const markup = boardScreenMarkup({
       mode: 'classic', modes: [], ladder: 'room', ladders: [], rows: view.rows, state: this.state, banner: null,
       dock: this.state === 'ready' ? view.dock : null,
-      play: { id: 'board-play', label: 'PLAY SUPER KNOCKOUT' }, focus: 'top', rules: '',
+      play: this.keys.play ? { id: 'board-play', label: 'PLAY SUPER KNOCKOUT' } : null, focus: 'top', rules: '',
       look: { cls: 'knockout', colour: RED, art: hero, name: 'Super Knockout', title: 'LEADERBOARD', ladder: view.ladder },
     });
     this.root.innerHTML = `${markup.replace(/id="board-/g, 'id="ko-board-')}
@@ -148,7 +150,8 @@ export class KnockoutBoard {
       </div>`;
     const el = <T extends HTMLElement>(id: string) => this.root.querySelector<T>(`#${id}`)!;
     el<HTMLButtonElement>('ko-board-close').onclick = () => { this.close(); this.keys.back(); };
-    el<HTMLButtonElement>('ko-board-play').onclick = () => { this.close(); this.keys.play(); };
+    const play = this.root.querySelector<HTMLButtonElement>('#ko-board-play');
+    if (play) play.onclick = () => { this.close(); this.keys.play?.(); };
     const sheet = el('ko-board-sheet');
     el<HTMLButtonElement>('ko-board-ladder').onclick = () => sheet.classList.remove('hidden');
     sheet.onclick = event => {

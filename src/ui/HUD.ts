@@ -4,6 +4,7 @@ import { KnockoutResults, type ResultsView } from './KnockoutResults';
 import { oversWord, type Track } from '../game/knockout';
 import { KnockoutBar, knockoutBarMarkup } from './KnockoutBar';
 import { knockoutHomeMarkup, knockoutRulesMarkup, type KnockoutHomeCareer, type KnockoutTally } from './KnockoutHome';
+import type { KnockoutSlide } from './KnockoutStats';
 import { KnockoutPoster } from './KnockoutPoster';
 import { limitsOf } from '../game/ball-string';
 import { WIPE_MS, type ReplayLook } from '../game/replay';
@@ -69,7 +70,7 @@ import {
 import {
   BOARD_MODES, MODE_ORDER, NO_CONTEXT, blastBody, blurbOf, boardScreenMarkup, careerBody, ladderSheetMarkup, marathonBody, menuRank, super10Body,
   super10SoloBody,
-  modeMenuMarkup, rulesSheetMarkup, surviveBody, type BoardBody, type BoardContext, type BoardMode, type BoardScreen,
+  modeMenuMarkup, rulesSheetMarkup, surviveBody, type BoardAlso, type BoardBody, type BoardContext, type BoardMode, type BoardScreen,
 } from './Board';
 import { battingCardMarkup, battingOf, injuryRingMarkup, injuryWord, overChartMarkup, super10ChartMarkup, wormChartMarkup } from './EndCard';
 import { modeSelectMarkup, modeSelectParts, type ModeSelectView } from './ModeSelect';
@@ -908,10 +909,12 @@ ${knockoutRulesMarkup()}
     };
     const modePill = this.$('board-mode');
     modePill.onclick = () => {
-      const { layer, shut } = popup(modeMenuMarkup(screen.mode, screen.modes), modePill);
+      const { layer, shut } = popup(modeMenuMarkup(screen.mode, screen.modes, this.boardAlso), modePill);
       for (const item of layer.querySelectorAll<HTMLElement>('[data-mode]')) {
         item.onclick = () => { shut(); const to = item.dataset.mode as BoardMode; if (to !== screen.mode) this.onBoardTab?.(to); };
       }
+      // A board that is a screen of its own (Super Knockout's) opens over this one.
+      for (const item of layer.querySelectorAll<HTMLElement>('[data-also]')) item.onclick = () => { shut(); this.onBoardAlso?.(item.dataset.also!); };
     };
     const ladderPill = this.$('board-ladder');
     ladderPill.onclick = () => {
@@ -1700,7 +1703,7 @@ ${knockoutRulesMarkup()}
     this.holdStats(view);
     overlay.innerHTML = statsSheetMarkup({
       ...view, careerKey: this.keyView, who: this.whoNow?.() ?? null, at: this.statsAt, where: 'page', offerRestore: this.offerRestore,
-      password: this.passwordNow?.() ?? null, activity: this.activity,
+      password: this.passwordNow?.() ?? null, activity: this.activity, knockout: this.koSlide,
     });
     this.wireActivity();
     // Seen, once an opening: against `password-open-stats`, how many tap it.
@@ -1726,13 +1729,23 @@ ${knockoutRulesMarkup()}
    */
   private holdStats(view: StatsSheetView) {
     if (view.cards.length !== this.statsCards.length) this.statsAt = view.at ?? 0;
-    this.statsAt = Math.min(Math.max(0, this.statsAt), Math.max(0, view.cards.length - 1));
+    // Super Knockout's tab, where there is one, is the slide after the careers'.
+    this.statsAt = Math.min(Math.max(0, this.statsAt), Math.max(0, view.cards.length - 1 + (this.koSlide ? 1 : 0)));
     this.statsCards = view.cards;
     this.statsShown = view.cards[this.statsAt]?.facts ?? null;
     this.statsView = view;
   }
   /** The page's last view, drawn again when the activity arrives. */
   private statsView: StatsSheetView | null = null;
+  /** Super Knockout's tab on the page (`KnockoutStats.ts`): null where matches with friends are not played, or for a player with no name. */
+  private koSlide: KnockoutSlide | null = null;
+  /** The tab's figures, set as the page opens and again when the store has answered: drawn in where the page is up. */
+  statsKnockout(slide: KnockoutSlide | null) {
+    this.koSlide = slide;
+    if (this.statsView && !this.$('stats-overlay').classList.contains('hidden')) this.stats(this.statsView);
+  }
+  /** PLAY SUPER KNOCKOUT at the foot of the page, with its tab in front. */
+  onStatsKnockout: (() => void) | null = null;
   /** What the player's profile has collected, once the store has said; null before, and for a player with no name. */
   private activity: OwnActivity | null = null;
 
@@ -1773,6 +1786,8 @@ ${knockoutRulesMarkup()}
     if (brag) brag.onclick = () => void this.shareStats();
     const play = document.getElementById('stats-play');
     if (play) play.onclick = () => this.onStatsPlay?.(this.statsCards[this.statsAt]?.facts.mode ?? 'classic');
+    const knockout = document.getElementById('stats-knockout');
+    if (knockout) knockout.onclick = () => this.onStatsKnockout?.();
     for (const pencil of document.querySelectorAll<HTMLElement>('.st-edit')) pencil.onclick = () => this.onProfileEdit?.();
     // The key card is only on the sheet where the player has one.
     const save = document.getElementById('key-save');
@@ -1859,7 +1874,7 @@ ${knockoutRulesMarkup()}
       // as wide as the rail — and a card exactly as wide as the rail is a card
       // with nothing peeking past it, which is the one thing this must not be.
       const at = this.railAt(rail);
-      if (at === this.statsAt || at < 0 || at >= this.statsCards.length) return;
+      if (at === this.statsAt || at < 0 || at >= this.statsCards.length + (this.koSlide ? 1 : 0)) return;
       // The rail was built so the card behind peeks past the edge, on the
       // argument that a player who can see there is something there will go and
       // look. That is a claim about behaviour and this is the only thing that
@@ -1867,6 +1882,8 @@ ${knockoutRulesMarkup()}
       trackOnce('stats-swipe', 'Swiped to the other card');
       this.statsAt = at;
       this.statsShown = this.statsCards[at]?.facts ?? this.statsShown;
+      // With Super Knockout's tab in front the foot's key plays it: there is no card of it to send.
+      rail.closest('.mp-page')?.classList.toggle('on-knockout', at >= this.statsCards.length);
       for (const one of document.querySelectorAll<HTMLElement>('.mp-stage, .mp-hero')) {
         const on = Number(one.dataset.slide) === at;
         one.classList.toggle('is-on', on);
@@ -2464,6 +2481,9 @@ ${knockoutRulesMarkup()}
   get knockoutScreenOpen() { return !this.$('knockout-home').classList.contains('hidden') || !this.$('knockout-rules').classList.contains('hidden'); }
   /** What a tab does. The game decides, because the rows are the game's. */
   onBoardTab: ((tab: SheetTab) => void) | null = null;
+  /** Boards the mode menu also offers that are screens of their own, and what a tap on one does. */
+  boardAlso: readonly BoardAlso[] = [];
+  onBoardAlso: ((id: string) => void) | null = null;
   /** What the sheet's What's New key does. */
   onBoardStories: (() => void) | null = null;
   /** The same, for the row of ladders inside one mode. */

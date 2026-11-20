@@ -870,3 +870,30 @@ body.ko-parked .ko-moment{visibility:hidden;pointer-events:none}
 .ko-rx b{font:400 calc(var(--u) * 26)/1 var(--f-ui)}
 .ko-rx img{width:calc(var(--u) * 20);height:calc(var(--u) * 20);border-radius:50%;object-fit:cover;background:#2a1a1e}
 .ko-rx span{max-width:calc(var(--u) * 110);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── Super Knockout on My profile (Figma section 42, S1 and S2; `KnockoutStats.ts`) ─────────────────────────
+   One more tab on the page's rail, in Knockout red: the knockout's picture under its ground where the careers have a
+   rung's material, a red dot on its tab where they carry a badge, a card for the week and the last five finishes, and
+   six figures. Gold only on what was won (the top-three finishes, the wins). */
+:is(.mp-stage,.mp-hero).is-knockout{--ground:linear-gradient(175deg,#7a1418 0%,#3d0a0d 45%,#16090a 100%);--light:#ff6b6b4d;--ring:#ff8f8f;--pill:#ee2a2a2e;--pill-ink:#ff9d9d}
+.ps-stage>img.ko-stats-art{left:0;right:0;top:0;width:100%;height:calc(var(--u) * 320);object-fit:cover;object-position:50% 16%;opacity:.4;filter:saturate(1.1);
+  -webkit-mask-image:linear-gradient(180deg,#000 25%,#0000 100%);mask-image:linear-gradient(180deg,#000 25%,#0000 100%)}
+.mp-hero.is-knockout .ps-pill{border:1px solid #ee2a2a99;font-weight:800;letter-spacing:.1em}
+.ko-tab-dot{flex:none;width:calc(var(--u) * 10);height:calc(var(--u) * 10);border-radius:50%;background:#ee2a2a;box-shadow:0 0 0 calc(var(--u) * 2) #ee2a2a40}
+.ko-week{padding:calc(var(--u) * 14) calc(var(--u) * 16) calc(var(--u) * 16);border:1px solid #ffffff14;border-radius:18px;background:#ffffff08}
+.ko-week-top{display:flex;align-items:baseline;justify-content:space-between;gap:calc(var(--u) * 10);margin:0}
+.ko-week-top i,.ko-week-label{display:block;font:800 calc(var(--u) * 11)/1 var(--f-ui);font-style:normal;letter-spacing:.1em;color:var(--c-text-3)}
+.ko-week-top small{font:500 calc(var(--u) * 12)/1 var(--f-ui);color:var(--c-text-3)}
+.ko-week-line{display:block;margin:calc(var(--u) * 10) 0 calc(var(--u) * 16);font:700 calc(var(--u) * 16)/1.35 var(--f-ui);color:#fff}
+.ko-five{list-style:none;display:grid;grid-template-columns:repeat(5,1fr);gap:calc(var(--u) * 8);margin:calc(var(--u) * 8) 0 0;padding:0}
+.ko-five li{display:grid;place-items:center;height:calc(var(--u) * 36);border-radius:10px;border:1px solid #ffffff1f;background:#ffffff0a;font:700 calc(var(--u) * 14)/1 var(--f-ui);color:#e8e2e3}
+.ko-five li.is-top{border-color:#ffb020;background:#ffb0201a;color:#ffc24d}
+.ko-five li.is-ran{border-color:#ee2a2a80;color:#ff8f8f}
+.ko-five li.is-none{border-style:dashed;color:#ffffff40}
+.st-tile.is-gold b{color:#ffc24d}
+/* With its tab in front the foot's key plays Super Knockout: there is no card of it to send yet. */
+.mp-page #stats-knockout{display:none}
+.mp-page.on-knockout #stats-knockout{display:inline-flex}
+.mp-page.on-knockout :is(#stats-brag,#stats-play){display:none}
+.mp-page.on-knockout #stats-knockout{--c-cta-rim-top:#ff525b;--c-cta-rim-bottom:#c3121b;--c-cta-face-bottom:#ffbdc0;
+  --g-cta-rim:linear-gradient(180deg,#ff525b,#c3121b);--g-cta-face:linear-gradient(180deg,#fff,#ffbdc0);--ledge:#c3121b}

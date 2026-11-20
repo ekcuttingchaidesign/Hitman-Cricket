@@ -581,6 +581,20 @@ await f.screenshot({ path: `${out}/invite-listed.png` });
 // 9. Points on the Knockout home, and the Super Knockout leaderboard. The guest batted the match above, which counted.
 console.log('The home’s card and the leaderboard');
 await f.close();
+// Two matches through the store alone, so both have points on the ladders whatever the bowling did above: the guest
+// hits every ball of one for six and wins it, the script's host the other. (A ladder ranks only who has something on it.)
+const quick = async (winner, loser) => {
+  const quickCode = (await api('host', winner.id, winner.name, winner.kit)).match.code;
+  await api('join', loser.id, loser.name, loser.kit, { code: quickCode });
+  await api('ready', loser.id, loser.name, loser.kit, { code: quickCode, ready: true });
+  await api('start', winner.id, winner.name, winner.kit, { code: quickCode });
+  await api('ball', loser.id, loser.name, loser.kit, { code: quickCode, ball: 0, value: 'W', round: 1 });
+  for (let ball = 0; ball < 30; ball++) await api('ball', winner.id, winner.name, winner.kit, { code: quickCode, ball, value: '6', round: 1 });
+  const over = (await api('done', winner.id, winner.name, winner.kit, { code: quickCode, round: 1 })).match;
+  return over?.result?.rows[0];
+};
+const [wonByGuest, wonByGone] = [await quick({ id: guestId, name: guest, kit: 2 }, { id: goneId, name: gone, kit: 4 }), await quick({ id: goneId, name: gone, kit: 4 }, { id: guestId, name: guest, kit: 2 })];
+check(wonByGuest?.name === guest && wonByGuest.points === 3 && wonByGone?.name === gone && wonByGone.points === 3, 'a match won through the store pays its winner three points (two real players, as a preview pays)', JSON.stringify([wonByGuest, wonByGone]));
 const g = await as(guestId, guest, 2);
 await g.locator('#start').click({ force: true });
 await g.waitForSelector('#modes:not(.hidden)', { timeout: 30_000 });
@@ -616,6 +630,27 @@ await g.keyboard.press('Escape');
 await until('profile shut', () => g.evaluate(() => !document.querySelector('#ko-board .ps-layer')), 5000);
 await g.locator('#ko-board-close').click();
 check(await until('board shut', () => g.evaluate(() => !document.getElementById('ko-board') && !document.getElementById('knockout-home').classList.contains('hidden')), 5000), 'back is the Knockout home');
+// The player's own row opens My profile, where Super Knockout is one more tab: the week, the last five, six figures.
+await g.locator('#ko-home-figures').click();
+await until('board again', () => g.evaluate(() => !!document.querySelector('#ko-board [data-mine]')), 15_000);
+await g.evaluate(() => document.querySelector('#ko-board [data-mine]')?.click());
+check(await until('my profile', () => g.evaluate(() => !document.getElementById('stats-overlay').classList.contains('hidden') && !!document.querySelector('.stats-dot.is-knockout') && !document.getElementById('ko-board')), 20_000),
+  'the player’s own row opens My profile, with a KNOCKOUT tab on its rail');
+await g.locator('.stats-dot.is-knockout').click();
+check(await until('knockout tab', () => g.evaluate(() => document.querySelector('.mp-page')?.classList.contains('on-knockout') && document.querySelector('.mp-hero.is-on')?.classList.contains('is-knockout')), 10_000),
+  'the tab brings Super Knockout to the front');
+const tab = await g.evaluate(() => ({ pill: document.querySelector('.mp-hero.is-knockout .ps-pill')?.textContent, matches: document.querySelector('.mp-hero.is-knockout .ps-rung span:last-child')?.textContent,
+  glance: [...document.querySelectorAll('.mp-hero.is-knockout .ps-glance-one b')].map(el => el.textContent), week: document.querySelector('.ko-week-line')?.textContent,
+  five: [...document.querySelectorAll('.ko-five li')].map(el => el.textContent), tiles: [...document.querySelectorAll('.stats-slide.is-knockout .st-tile')].map(el => `${el.querySelector('span').textContent}:${el.querySelector('b').textContent}`),
+  key: getComputedStyle(document.getElementById('stats-knockout')).display !== 'none', share: [...document.querySelectorAll('#stats-brag, #stats-play')].some(el => getComputedStyle(el).display !== 'none') }));
+const mine = guestNow.career;
+check(tab.pill === 'SUPER KNOCKOUT' && tab.matches === `${mine.played} ${mine.played === 1 ? 'match' : 'matches'} played` && tab.glance[0] === String(mine.weekPoints) && tab.glance[2] === String(mine.wins)
+  && tab.five.length === 5 && tab.five.filter(word => word !== '–').length === Math.min(5, mine.last.length) && tab.tiles.length === 6 && tab.tiles[0] === `Matches:${mine.played}` && tab.tiles[1] === `Wins:${mine.wins}`
+  && tab.key && !tab.share, 'with the store’s record: the matches, the week, the last five, six figures, and PLAY SUPER KNOCKOUT at the foot', JSON.stringify(tab));
+await g.screenshot({ path: `${out}/profile-knockout.png` });
+await g.locator('#stats-knockout').click();
+check(await until('home again', () => g.evaluate(() => document.getElementById('stats-overlay').classList.contains('hidden') && !document.getElementById('knockout-home').classList.contains('hidden')), 15_000),
+  'and that key goes to the Knockout home');
 
 for (const page of pages) check(page.errors.length === 0, 'nothing in the console', page.errors.join(' | '));
 await browser.close();

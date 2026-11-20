@@ -133,7 +133,13 @@ export interface BoardScreen {
    * ladder pill's words, in place of the mode's.
    */
   look?: { cls: string; colour: string; art: string; name: string; title: string; ladder: string };
+  /**
+   * Boards the mode menu also offers that are screens of their own (Super Knockout's leaderboard): a row each
+   * under the modes', which opens it over this one.
+   */
+  also?: readonly BoardAlso[];
 }
+export interface BoardAlso { id: string; name: string; colour: string; art: string; line: string }
 
 /** The ladder picker's short lines, per mode and key. */
 const BLURBS: Record<BoardMode, Record<string, string>> = {
@@ -291,7 +297,7 @@ function offlineMarkup(): string {
 }
 
 /** The mode menu, opened from the mode pill. */
-export function modeMenuMarkup(current: BoardMode, modes: BoardScreen['modes']): string {
+export function modeMenuMarkup(current: BoardMode, modes: BoardScreen['modes'], also: readonly BoardAlso[] = []): string {
   return `<div class="lb-scrim" data-close></div>
     <div id="board-mode-menu" class="lb-menu" role="listbox" aria-label="Which board">${modes.map(one => {
       const meta = BOARD_MODES[one.mode];
@@ -299,7 +305,9 @@ export function modeMenuMarkup(current: BoardMode, modes: BoardScreen['modes']):
       return `<button type="button" class="lb-menu-item${on ? ' is-on' : ''}" role="option" aria-selected="${on}" data-mode="${one.mode}" style="--tone:${meta.colour}">
           <span class="lb-menu-art"><img src="${meta.art}" alt="" decoding="async"></span>
           <span class="lb-menu-text"><b>${escape(meta.name)}</b><small>${escape(one.rank)}</small></span>${on ? icon('check') : ''}</button>`;
-    }).join('')}
+    }).join('')}${also.map(one => `<button type="button" class="lb-menu-item" role="option" aria-selected="false" data-also="${escape(one.id)}" style="--tone:${one.colour}">
+          <span class="lb-menu-art"><img src="${one.art}" alt="" decoding="async"></span>
+          <span class="lb-menu-text"><b>${escape(one.name)}</b><small>${escape(one.line)}</small></span>${icon('chevron-right')}</button>`).join('')}
       ${modes.length > 1 ? '<p class="lb-menu-tip">Tip: swipe the board left or right to switch modes</p>' : ''}
     </div>`;
 }

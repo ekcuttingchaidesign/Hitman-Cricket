@@ -173,11 +173,12 @@ import { HOLD_MS, READY_MS, heldOf } from './ui/KnockoutHeld';
 import { swingFourthOf } from './game/free-hit';
 import { matchPlan, seatBallOf } from './game/knockout-replay';
 import { lastCard, mineIn, pointsNote, pointsWord, resultsOf } from './game/knockout-told';
+import { LIVE_RULES } from './game/knockout-points';
 import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, freeHitOf, knockoutScreen, overLine, type BallNews, type Play, type Seat, type SeatBall, type SeatSpec, sampleTrack, storyFrom, trackOf, type TrackMood } from './game/knockout';
 import { KnockoutMoment, ordinal, type MomentView } from './ui/KnockoutMoment';
 import type { RingView, WatchHeader } from './ui/KnockoutWatch';
 import type { ResultsView } from './ui/KnockoutResults';
-import { markRulesSeen, readTally, rulesSeen, tallyRoom } from './ui/KnockoutHome';
+import { KNOCKOUT_HERO, markRulesSeen, readTally, rulesSeen, tallyRoom } from './ui/KnockoutHome';
 import { FriendsScreen, LobbyScreen, type AroundPlayer, type LobbyView } from './ui/KnockoutFriends';
 import {
   MATCH_BEAT_MS, MATCH_PARAM, MatchLink, awayInMatch, backToRoom, ballChar, ballInMatch, beatInMatch, doneMatch, hostMatch, inviteToMatch, joinMatch, keepMatch, leaveMatch, settleMatch,
@@ -1008,7 +1009,12 @@ export class Game {
     // PLAY WITH FRIENDS, live where matches can be kept: off production, with a board, in a window that can keep a name.
     this.hud.knockoutFriendsLive(this.friendsOpen);
     this.hud.on('ko-friends', () => this.openFriends());
-    this.hud.on('ko-home-figures', this.openKnockoutBoard);
+    this.hud.on('ko-home-figures', () => this.openKnockoutBoard('home'));
+    // Super Knockout on the Leaderboard's mode menu, where matches with friends are played: its own board, over that one.
+    if (this.friendsOpen) {
+      this.hud.boardAlso = [{ id: 'knockout', name: 'Super Knockout', colour: '#ee2a2a', art: KNOCKOUT_HERO, line: 'Points, wins and totals with friends' }];
+      this.hud.onBoardAlso = () => this.openKnockoutBoard('board');
+    }
     this.hud.on('ko-home-info', () => { markRulesSeen(); this.hud.knockoutRules(true); });
     this.hud.on('ko-rules-back', () => this.hud.knockoutRules(false));
     this.hud.on('ko-quick', this.chooseKnockout);
@@ -2550,15 +2556,16 @@ export class Game {
    * Its key plays with friends.
    */
   private knockoutBoard: KnockoutBoard | null = null;
-  private openKnockoutBoard = () => {
+  private openKnockoutBoard = (from: 'home' | 'board' = 'home') => {
     if (!this.friendsOpen || this.knockoutBoard) return;
     const me = this.matchMe();
-    track('knockout-board', 'Opened the Super Knockout leaderboard');
+    track(`knockout-board-${from}`, 'Opened the Super Knockout leaderboard');
     const board = this.knockoutBoard = new KnockoutBoard(this.hud.viewport, me && { playerId: me.playerId, avatar: me.avatar }, {
       back: () => { this.knockoutBoard = null; },
-      play: () => { this.knockoutBoard = null; this.openFriends(); },
+      // Over the Leaderboard it is a look and nothing more: that board may be up in the middle of an innings.
+      ...(from === 'home' ? { play: () => { this.knockoutBoard = null; this.openFriends(); } } : {}),
       open: (row, from) => { track('profile-open-knockout', 'A player’s profile opened off the Super Knockout leaderboard'); this.hud.openPlayer({ ...row, mode: 'classic', place: null, best: null }, from); },
-      mine: () => { board.close(); this.knockoutBoard = null; this.hud.knockoutHome(null); this.showStats(); },
+      mine: () => { board.close(); this.knockoutBoard = null; if (from === 'home') this.hud.knockoutHome(null); this.showStats(); },
     });
     void Promise.all([readKnockoutBoards(), me ? readKnockoutStanding(me.playerId) : Promise.resolve(null)]).then(([boards, standing]) => {
       if (this.knockoutBoard !== board) return;
@@ -5206,6 +5213,13 @@ export class Game {
       this.hud.stats(view);
     });
     void this.askActivity();
+    // Super Knockout's tab, where matches with friends are played and the player has a name: what the store last said
+    // at once, and asked again as the page opens.
+    const me = this.friendsOpen ? this.matchMe() : null;
+    const slide = (standing: KnockoutStanding | null) => ({ standing, pointsFrom: standing?.pointsFrom ?? LIVE_RULES.pointsFrom });
+    this.hud.statsKnockout(me ? slide(this.knockoutStanding) : null);
+    if (me) void readKnockoutStanding(me.playerId).then(standing => { if (standing && this.statsPage) { this.knockoutStanding = standing; this.hud.statsKnockout(slide(standing)); } });
+    this.hud.onStatsKnockout = () => { track('stats-knockout-play', 'Played Super Knockout from My profile'); this.hud.closeStats(); this.modes('KNOCKOUT'); this.openKnockout(); };
     this.hud.onStatsBack = () => {
       this.statsPage = false;
       this.hud.onStatsBack = null;
