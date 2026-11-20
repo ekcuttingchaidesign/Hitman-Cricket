@@ -237,7 +237,9 @@ if (!held && !through) outEarly = await until('end screen', async () => (await P
 // Nobody swings, so which it is goes by the bowling: through the over not out, the pill; out in it, the end screen.
 // Or neither: both through the over inside one answer of the store's, so nobody was first and nobody had to wait. Then
 // what is held is that neither was bowled to again before the cut.
-check(held || outEarly || (through && !ranAhead), `the phone through first waited at the over’s end with the pill up, or was out and went to its end screen (${held ? 'the pill' : outEarly ? 'out' : 'both through together'})`, JSON.stringify({ held, outEarly, through, ranAhead }));
+check(held || outEarly || (through && !ranAhead), `the phone through first waited at the over’s end with the pill up, or was out and went to its end screen (${held ? 'the pill' : outEarly ? 'out' : 'both through together'})`, JSON.stringify({ held, outEarly, through, ranAhead,
+  phones: await Promise.all([a, b].map(p => p.evaluate(() => { const k = window.__cricket.knockout(), s = window.__cricket.snapshot(); return { phase: s.phase, roomBalls: k?.roomBalls, pending: k?.pending, finished: k?.finished, done: k?.done, match: k?.match, you: k?.you && { out: k.you.out, place: k.you.place, played: k.you.played },
+    moment: !!document.getElementById('ko-moment'), anyMoment: document.querySelector('.ko-moment')?.id ?? null, results: !!document.getElementById('ko-results'), table: k?.table }; }))) }));
 check(turnedAway === 1, 'the guest’s first ball was turned away once');
 const guestCard = (await (await fetch(`${base}/api/challenge?knockout=1&code=${code}`)).json()).match.members.find(m => m.name === guest)?.card ?? '';
 check(guestCard.length >= 6 || guestCard.includes('W'), 'and sent again: the guest’s card has no gap', guestCard);
