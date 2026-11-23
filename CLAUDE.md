@@ -817,8 +817,8 @@ The recap's art direction is "Season '26: The Drop" (the Figma file's Year
 Recap page, section "Season '26 · The Drop · v2 (polished)", which carries
 its style guide): a numbered poster series, 01/11 to 11/11, each poster one
 stat on one flat ground, graphics built from cricket (seam arcs, crease
-stripes and a sun disc, stumps as bars under one long bail, a hundred balls
-in rank order with the player's lit for you against everyone, a clock for a
+stripes and a sun disc, stumps as bars under one long bail, the batter stood
+on one block of everybody below him for you against everyone, a clock for a
 moon), Jaro for the figure printed twice on two plates, one
 word or phrase in Devanagari (Poppins Black) beside the headline, one roast
 in a pill, a
@@ -834,7 +834,7 @@ season card is fitted to the width, never cut: one line from Jaro 150 down to
 the middle for a name over eight characters with a space in it. The batter is the one
 dimensional thing on a poster, cut out with a
 cream edge and never on a plate of his own kit's hue: the game's own render on
-some (sixes, fours, the kit, the season card) and, where he is the whole
+some (sixes, fours, the kit, you against everyone, the season card) and, where he is the whole
 picture (the cover, the night owl, the bat, the personality), a GPT hero
 redrawn from a game render of the pose to the Super10 poster's polish, its
 prompt in the note under the poster. Small type is ink on a light ground or
@@ -843,8 +843,9 @@ shapes only. What the owner turned down, not to be built again: a comic
 ("Hitman Comics": generic), the batter in chrome (a party balloon), barcodes,
 coordinates and label strips lifted off the references, a pixel city and
 ball mascots drawn in code, an AI-painted neon city (AI slop), a spotlight
-still life in vector, and a wagon wheel for you against everyone, which read
-as decoration and not as how much better the player did. `recap-stills.html` (`src/recap-stills.ts`)
+still life in vector, and for you against everyone a wagon wheel (decoration,
+not how much better the player did) and then a hundred dots in rank order
+(clear, but a chart). `recap-stills.html` (`src/recap-stills.ts`)
 renders the stills on a transparent ground — any kit, bat and guard, any
 stroke at a moment of its clock, an after-ball action or a milestone's
 celebration (`celebrate:double`), from any angle, the bat alone (`only:
