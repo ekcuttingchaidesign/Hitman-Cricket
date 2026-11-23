@@ -826,7 +826,10 @@ share. The Devanagari is slang, an English word or a commentator's shout
 written in Hindi script (बूम बूम, क्लासी, नो स्लीप क्लब, ऑन फायर, ड्रिप, बीस्ट,
 बिल्ट डिफरेंट, मेन कैरेक्टर), used sparingly and never a translation of the
 headline: the owner found literal Hindi (तुम्हारी वर्दी, लगातार) cringe. None on
-the cover, and the masthead reads HITMAN CRICKET. The batter is the one
+the cover, and the masthead reads HITMAN CRICKET. The player's name on the
+season card is fitted to the width, never cut: one line from Jaro 150 down to
+50 at fourteen letters, or two lines (88 at most) split at the space nearest
+the middle for a name over eight characters with a space in it. The batter is the one
 dimensional thing on a poster, cut out with a
 cream edge and never on a plate of his own kit's hue: the game's own render on
 some (sixes, fours, the kit, the season card) and, where he is the whole
