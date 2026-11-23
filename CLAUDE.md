@@ -853,10 +853,16 @@ season card is fitted to the width, never cut: one line from Jaro 150 down to
 50 at fourteen letters, or two lines (88 at most) split at the space nearest
 the middle for a name over eight characters with a space in it. The batter is the one
 dimensional thing on a poster, cut out with a
-cream edge and never on a plate of his own kit's hue: the game's own render on
-some (sixes, fours, the kit, the season card) and, where he is the whole
-picture (the cover, the night owl, the bat, the personality), a GPT hero
-redrawn from a game render of the pose to the Super10 poster's polish, its
+cream edge and never on a plate of his own kit's hue. On every screen but
+one he is a GPT hero, redrawn from a game render of the pose to the Super10
+poster's polish, in a kit the owner picked for that screen on 23 November
+2026 (the Diwali kits left out), not the player's own: the cover Electric,
+sixes Thanos Eclipse, fours Crimson or British Racing Green, the night owl
+Bumblebee or Lagoon, the personality Lagoon and British Racing Green, the
+season card OG Navy, British Racing Green and Thanos Eclipse; where a screen
+has two or three, all are made, and which a player sees is not settled. The
+kit screen alone is the game's own render, in the player's most-worn kit,
+bat and guard, as is everything for a player with little to show. The
 prompt in the note under the poster. Small type is ink on a light ground or
 cream on a dark one; tomato, marigold, lime and pink are for figures and
 shapes only. What the owner turned down, not to be built again: a comic
@@ -897,24 +903,27 @@ the left third goes back on a plain cut, a hold pauses, and SHARE always
 sends the finished frame. One clock a poster, as Level Up and New #1 are, and
 transforms and opacity only; reduced motion is the finished frames on a
 160 ms fade. The section under it, "ChatGPT hero pictures · how to prompt",
-opens on the list (the owner asked for it first): each pose, its poster,
-what to attach and the kits it is wanted in — four rows, eight pictures: the
-lofted drive from below (cover), looking up with the bat grounded (night
-owl) and the square cut at pace in its follow-through, from the bowler's
-end a little to the off side: feet together, knees bent, the gloves at his
-chest and the bat angled up past his helmet over the front shoulder
-(personality: `CUT` at 660ms, az 75, on `recap-stills`; the owner picked it
-from a screenshot of the game, over the slog sweep and then the cut off the
-spinner with the bat on his shoulder), each in OG Navy and
-Papaya, and the bat in gloves as Plain and Boom. One prompt a pose, pasted
-once: the prompt names every colourway itself and asks for them as separate
-pictures of the same picture, so nothing is pasted again for a second kit (a
-step of recolouring in the same chat came first and the owner did not want
-it). Another plain kit is one more numbered line in the three batters'
-prompts; the printed Diwali and Super10 kits need rows of their own. The
-batter always holds the plain bat there, or every picture would be
-multiplied by the bats. None had been run when it was written. Everybody in
-another kit keeps the game's render.
+opens on the list (the owner asked for it first): each screen with the
+batter on it, its pose, what to attach and the kits it is wanted in — seven
+rows, thirteen pictures: the lofted drive from below (cover), the lofted six
+at full stretch (sixes: `LOFTED` at 560ms, az 40, el -12 on `recap-stills`),
+the cover drive held high (fours: `COVER` 620, az 70, el -8), looking up
+with the bat grounded (night owl: `after:sky` 900, az 40, el -10), the
+square cut at pace in its follow-through, from the bowler's end a little to
+the off side, the gloves at his chest and the bat angled up past his helmet
+(personality: `CUT` 660, az 75, el 3; the owner picked it from a screenshot
+of the game, over the slog sweep and then the cut off the spinner), the bat
+raised (season card: `celebrate:double` 1800, az 20, el -12), and the bat in
+gloves as Plain and Boom. Under the list every kit is shown on its poster,
+the game's renders standing in. One prompt a pose, pasted once: the prompt
+names every colourway itself and asks for them as separate pictures of the
+same picture, so nothing is pasted again for a second kit (a step of
+recolouring in the same chat came first and the owner did not want it; so
+did OG Navy and Papaya on every screen, with the player's own kit from the
+game). Another plain kit is one more numbered line in a prompt; the printed
+Diwali and Super10 kits cannot be asked for by a colour line. The batter
+always holds the plain bat there, or every picture would be multiplied by
+the bats. None had been run when it was written.
 
 GoatCounter counts the same things across everybody, by name (it keeps the
 path, not the title, so the item is in the name): `dressing-open-modes` and
