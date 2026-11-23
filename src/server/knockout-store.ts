@@ -92,7 +92,7 @@ const CODE_TRIES = 6;
 export type MatchState = 'lobby' | 'live';
 
 /** What somebody watching a match can send the batter they are watching (section 51's tray). */
-export const REACTIONS = ['😂', '🔥', '👏', '😱', '🦆'] as const;
+export const REACTIONS = ['😂', '🔥', '👏', '😱', '🦆', '💩'] as const;
 /** A reaction is news for this long: every phone it is for shows it once, and one that opens later never sees it. */
 export const REACTION_FRESH_MS = 20_000;
 /** A nudge from the host to somebody not ready, at most this often for each of them. */

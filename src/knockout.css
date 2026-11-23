@@ -888,13 +888,10 @@ body.ko-up .ko-watched,body.ko-watch .ko-watched{display:none}
 .ko-waiting{position:absolute;left:50%;top:calc(var(--top-gap) + var(--u) * 92);transform:translateX(-50%);z-index:6;max-width:calc(100% - var(--u) * 40);
   padding:calc(var(--u) * 7) calc(var(--u) * 14);border-radius:999px;background:#0c0809d9;border:1px solid #ffb02066;color:#ffd27a;
   font:800 calc(var(--u) * 11)/1.25 var(--f-ui);letter-spacing:.06em;text-align:center;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* A reaction sent to this player, or to whoever they are watching: up the left edge and away, taking no touch. */
-.ko-rx{position:absolute;left:calc(var(--u) * 12 + var(--lane,0) * var(--u) * 26);bottom:calc(var(--pad-bottom) + var(--u) * 150);z-index:46;pointer-events:none;
-  display:flex;align-items:center;gap:calc(var(--u) * 6);padding:calc(var(--u) * 5) calc(var(--u) * 10) calc(var(--u) * 5) calc(var(--u) * 6);border-radius:999px;
-  background:#0c0809d9;border:1px solid #ffffff24;box-shadow:0 calc(var(--u) * 6) calc(var(--u) * 18) #0009;color:#f5efe6;font:700 calc(var(--u) * 12)/1 var(--f-ui);will-change:transform,opacity}
-.ko-rx b{font:400 calc(var(--u) * 26)/1 var(--f-ui)}
-.ko-rx img{width:calc(var(--u) * 20);height:calc(var(--u) * 20);border-radius:50%;object-fit:cover;background:#2a1a1e}
-.ko-rx span{max-width:calc(var(--u) * 110);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* A reaction sent to this player, or to whoever they are watching: the emoji alone, up the left edge and away, taking no
+   touch. It rode a dark pill with the sender's face and name, which the owner found distracting for the player batting. */
+.ko-rx{position:absolute;left:calc(var(--u) * 14 + var(--lane,0) * var(--u) * 30);bottom:calc(var(--pad-bottom) + var(--u) * 150);z-index:46;pointer-events:none;
+  font:400 calc(var(--u) * 30)/1 var(--f-ui);filter:drop-shadow(0 calc(var(--u) * 2) calc(var(--u) * 5) #0009);will-change:transform,opacity}
 
 /* ── Super Knockout on My profile (Figma section 42, S1 and S2; `KnockoutStats.ts`) ─────────────────────────
    One more tab on the page's rail, in Knockout red: the knockout's picture under its ground where the careers have a

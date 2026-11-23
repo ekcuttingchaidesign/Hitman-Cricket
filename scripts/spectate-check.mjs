@@ -110,6 +110,16 @@ check(await page.locator('.ko-watch-n').textContent() === '2 WATCHING', 'two wat
 const told = (await get(`/api/challenge?knockout=1&code=${code}`)).match?.watching ?? [];
 check(told.some(one => one.seat === 0 && one.n === 2 && one.faces.length === 2) && !JSON.stringify(told).includes(m.playerId), 'the store tells who is watched by seat, with faces and never an id', JSON.stringify(told));
 await snap('watching');
+// Reactions: the tray has the poop emoji among its six, and one somebody else sends the player watched floats up here as
+// the emoji alone, on no pill and with no face or name.
+const tray = await page.evaluate(() => [...document.querySelectorAll('.ko-watch-tray [data-react]')].map(key => key.dataset.react));
+check(tray.length === 6 && tray.includes('💩'), 'the tray has six reactions, the poop emoji among them', tray.join(' '));
+const kabirHandle = started.match.members.find(one => one.name === k.name)?.handle;
+const sent = await api('react', r, { code, to: kabirHandle, emoji: '💩' });
+check(sent.ok !== false && (sent.match?.reactions ?? []).some(rx => rx.emoji === '💩'), 'the store takes the poop emoji', JSON.stringify(sent).slice(0, 200));
+await page.waitForFunction(() => document.querySelector('.ko-rx'), null, { timeout: 30_000 }).catch(() => {});
+const rx = await page.evaluate(() => { const el = document.querySelector('.ko-rx'); return el && { text: el.textContent, kids: el.children.length, bg: getComputedStyle(el).backgroundColor, border: getComputedStyle(el).borderTopWidth }; });
+check(!!rx && rx.text === '💩' && rx.kids === 0 && /rgba\(0, 0, 0, 0\)|transparent/.test(rx.bg) && rx.border === '0px', 'a reaction floats up as the emoji alone: no pill, no face, no name', JSON.stringify(rx));
 // A ball of theirs is played on the ground for the onlooker.
 await page.waitForFunction(() => /[1-9]/.test(document.querySelector('.ko-watch-line')?.textContent ?? '') && (window.__cricket.knockout?.()?.watchBall ?? null) !== null, null, { timeout: 120_000 }).catch(() => {});
 check((await room())?.watchBall != null || /off (9|1\d)/.test(await page.locator('.ko-watch-line').textContent() ?? ''), 'their balls are played on the ground, from the latest', await page.locator('.ko-watch-line').textContent());

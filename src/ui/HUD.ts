@@ -3062,13 +3062,14 @@ ${knockoutRulesMarkup()}
    * left edge and go. Nothing is laid out for it mid-ball (the game shows them between balls), and it takes no touch.
    */
   private rxShown = 0;
-  knockoutReaction(emoji: string, from: string, face: number) {
+  knockoutReaction(emoji: string) {
+    // The emoji alone: on a pill with the sender's face and name it was a distraction to the player batting (the owner,
+    // 23 November 2026).
     const el = document.createElement('div');
     el.className = 'ko-rx';
+    el.setAttribute('aria-hidden', 'true');
     el.style.setProperty('--lane', String(this.rxShown++ % 3));
-    el.innerHTML = `<b></b><img src="${avatarSrc(face)}" alt="" width="20" height="20" decoding="async"><span></span>`;
-    el.querySelector('b')!.textContent = emoji;
-    el.querySelector('span')!.textContent = from;
+    el.textContent = emoji;
     this.viewport.append(el);
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches, rise = this.viewport.clientHeight * .26;
     const move = el.animate(still

@@ -500,8 +500,8 @@ check(await until('reaction stored', async () => { const m = await matchNow(); r
   'a reaction from the tray reaches the store for the friend watched', JSON.stringify((await matchNow()).reactions));
 const guestHandle = (await matchNow()).members.find(m => m.name === guest).handle;
 await api('react', goneId, gone, 4, { code: fourth, to: guestHandle, emoji: '😂' });
-const floated = await until('reaction shown', () => e.evaluate(who => [...document.querySelectorAll('.ko-rx')].some(el => el.textContent.includes(who) && el.textContent.includes('😂')), gone), 10_000, 100);
-check(floated, 'and one sent to this player floats up on their phone, with who sent it');
+const floated = await until('reaction shown', () => e.evaluate(who => [...document.querySelectorAll('.ko-rx')].some(el => el.textContent === '😂' && !el.querySelector('img'))), 10_000, 100);
+check(floated, 'and one sent to this player floats up on their phone, the emoji alone');
 if (floated) await e.screenshot({ path: `${out}/match-reaction.png` });
 // The side in the field keeps its kit through the batter watched: dressed again every ball, it changed shirts between balls.
 // (Read once a ball of the host's is staged: that is when the batter is dressed as them.)

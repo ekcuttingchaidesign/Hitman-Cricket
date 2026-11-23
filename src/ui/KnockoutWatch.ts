@@ -123,7 +123,7 @@ export class WatchView {
       </div>
       <button type="button" class="ko-watch-edge is-prev" aria-label="Watch the one before"><img alt="" decoding="async"><span>‹</span></button>
       <button type="button" class="ko-watch-edge is-next" aria-label="Watch the next"><img alt="" decoding="async"><span>›</span></button>
-      <div class="ko-watch-tray" role="group" aria-label="React">${['😂', '🔥', '👏', '😱', '🦆'].map(e => `<button type="button" data-react="${e}">${e}</button>`).join('')}</div>`;
+      <div class="ko-watch-tray" role="group" aria-label="React">${['😂', '🔥', '👏', '😱', '🦆', '💩'].map(e => `<button type="button" data-react="${e}">${e}</button>`).join('')}</div>`;
     host.append(this.root);
     this.bars = [...this.root.querySelectorAll<HTMLElement>('.ko-watch-bars b')];
     this.root.querySelector<HTMLButtonElement>('.ko-watch-close')!.onclick = () => this.on.close();

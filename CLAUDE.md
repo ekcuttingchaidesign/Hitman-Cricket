@@ -2625,7 +2625,7 @@ floodlights' flash. The batter on the ground is dressed as the seat watched
 once, when it is first staged (`dressed` on `room`, in `watchStage`), not
 every ball: dressing him deals the fielding side a kit afresh
 (`pickSide`), so the men in the field changed shirts between balls, which
-the owner saw (19 November 2026). The tray of reactions (😂🔥👏😱🦆) floats
+the owner saw (19 November 2026). The tray of reactions (😂🔥👏😱🦆💩) floats
 them up; in a practice room that is all, with subs there being nobody to
 send them to, and in a match they travel, and the header counts who is
 watching (stage two, below). `__cricket.knockoutWatch(id)`, `knockoutStep(1)`, `knockoutUnwatch()`
@@ -3060,13 +3060,15 @@ tap goes to the store for the friend watched (`sendReaction`, the store's
 told in every answer for twenty seconds (`reactions` on the view,
 `REACTION_FRESH_MS`: who it is for and who sent it by handle, the sender by
 name and face), one a watcher every 350ms at most (`REACTION_GAP_MS`), only
-one of the tray's five, only to a player seated in the match and never to
-oneself; the stale ones are swept as new ones come and all go with the
+one of the tray's six (`REACTIONS`), only to a player seated in the match and
+never to oneself; the stale ones are swept as new ones come and all go with the
 round. A phone shows each once (`showReactions`, `reacted` on `matchPlay`):
 the ones for its own player, and the ones for whoever it is watching that
-somebody else sent, as the emoji with the sender's face and name floating up
-the left edge (`hud.knockoutReaction`, `.ko-rx`, Web Animations, taking no
-touch). They are shown as the room's news is, so never with a ball live. A
+somebody else sent, as the emoji alone floating up the left edge
+(`hud.knockoutReaction`, `.ko-rx`, Web Animations, taking no touch). It rode
+a dark pill with the sender's face and name at first, which the owner found
+distracting for the player batting (23 November 2026): not to be built
+again. They are shown as the room's news is, so never with a ball live. A
 sub has nobody to tell.
 
 Points (`PRODUCT.md`; Figma Battle Royale page, "Points by real players",
@@ -3240,7 +3242,8 @@ so it does not lean on how fast the machine draws): the link opened while
 the match is on, the room built with no seat of its own, MATCH ON, both
 friends in the story ring, WATCH; a face opening their game with the ground
 put up for it; a second watcher counted on the header and told by the store
-with no id; ✕ to the room; the standings saying this phone is watching; the
+with no id; the tray's six and a reaction floating up as the emoji alone;
+✕ to the room; the standings saying this phone is watching; the
 match ended and the room's card saying who won; then the profile's Knockout
 tab off the Knockout board, its figures, INVITE TO A MATCH, and an unknown
 handle's empty record. `knockout-check` presses SHARE on a practice room's

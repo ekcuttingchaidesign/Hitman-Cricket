@@ -8476,7 +8476,7 @@ export class Game {
       if (play.reacted.has(rx.id)) continue;
       play.reacted.add(rx.id);
       if (rx.by === mine || (rx.to !== mine && rx.to !== watched)) continue;
-      this.hud.knockoutReaction(rx.emoji, rx.from, rx.face);
+      this.hud.knockoutReaction(rx.emoji);
       this.mark('knockout-react-seen', 'A reaction shown');
     }
   }
