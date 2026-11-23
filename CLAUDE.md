@@ -878,6 +878,29 @@ metal figurine, is kept and not used). `scripts/recap-stills.mjs` writes a
 set out as PNGs off a dev server. A dev page: nothing on it is counted or
 sent.
 
+How the posters move is the section beside it, "Season '26 · Motion and
+transitions": a specification to build from, nothing coded yet. A poster is
+printed in front of the player, not faded in: the ground, the figure slammed
+down with its back plate 60 ms behind and counted up, the label and the
+Hindi, the poster's shape drawing on, the batter popping, the sentence, the
+footer, the roast last, the SHARE key at 2.2 s; finished by 2.5 s and then
+still but for one small idle move, on a story bar of 6.5 s (the cover 4, the
+last poster waits). Five durations (tick 80, quick 160, base 280, slow 480, a
+wipe 520 to 900) and four curves (slam, land, carry, steady). Each transition
+belongs to the poster arriving and is made of its shape (stumps up, the seam
+sweeping, the green rolled in behind a ball, the sun setting into the moon,
+the clock's days flying, the stumps toppling, the same sun kept while the
+ground changes, the lights going out to the avatar's ring, the pink slice
+taking over, the ten posters flying back into the set), so an arrival still
+plays after a skipped poster. A tap on the right two thirds goes on at once,
+the left third goes back on a plain cut, a hold pauses, and SHARE always
+sends the finished frame. One clock a poster, as Level Up and New #1 are, and
+transforms and opacity only; reduced motion is the finished frames on a
+160 ms fade. The section under it, "ChatGPT hero pictures · how to prompt",
+has the four prompts whole (cover, night owl, bat, personality), what to
+attach, the checks and the lines that fix a wrong result; none had been run
+when it was written.
+
 GoatCounter counts the same things across everybody, by name (it keeps the
 path, not the title, so the item is in the name): `dressing-open-modes` and
 `-story`, `dressing-wear-<kit|bat>-<id>`, `dressing-unlock-…` and
