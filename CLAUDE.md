@@ -900,9 +900,12 @@ transforms and opacity only; reduced motion is the finished frames on a
 opens on the list (the owner asked for it first): each pose, its poster,
 what to attach and the kits it is wanted in — four rows, eight pictures: the
 lofted drive from below (cover), looking up with the bat grounded (night
-owl) and the cut off the spinner held at its finish, the bat laid back on
-his shoulder (personality: the owner chose it over the slog sweep, and the
-finish over the moment at the ball), each in OG Navy and
+owl) and the square cut at pace in its follow-through, from the bowler's
+end a little to the off side: feet together, knees bent, the gloves at his
+chest and the bat angled up past his helmet over the front shoulder
+(personality: `CUT` at 660ms, az 75, on `recap-stills`; the owner picked it
+from a screenshot of the game, over the slog sweep and then the cut off the
+spinner with the bat on his shoulder), each in OG Navy and
 Papaya, and the bat in gloves as Plain and Boom. One prompt a pose, pasted
 once: the prompt names every colourway itself and asks for them as separate
 pictures of the same picture, so nothing is pasted again for a second kit (a
