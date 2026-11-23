@@ -817,15 +817,17 @@ The recap's art direction is "Season '26: The Drop" (the Figma file's Year
 Recap page, section "Season '26 · The Drop · v2 (polished)", which carries
 its style guide): a numbered poster series, 01/11 to 11/11, each poster one
 stat on one flat ground, graphics built from cricket (seam arcs, crease
-stripes and a sun disc, stumps as bars under one long bail, the wagon wheel, a
-clock for a moon), Jaro for the figure printed twice on two plates, one
+stripes and a sun disc, stumps as bars under one long bail, a hundred balls
+in rank order with the player's lit for you against everyone, a clock for a
+moon), Jaro for the figure printed twice on two plates, one
 word or phrase in Devanagari (Poppins Black) beside the headline, one roast
 in a pill, a
 scorecard footer of two or three real figures, and the last poster as the
 share. The Devanagari is slang, an English word or a commentator's shout
-written in Hindi script (बूम बूम, क्लासी, नो स्लीप क्लब, ऑन फायर, ड्रिप, बीस्ट,
-बिल्ट डिफरेंट, मेन कैरेक्टर), used sparingly and never a translation of the
-headline: the owner found literal Hindi (तुम्हारी वर्दी, लगातार) cringe. None on
+written in Hindi script (बूम बूम, क्लासी, ऑन फायर, ड्रिप, बीस्ट, बिल्ट डिफरेंट,
+मेन कैरेक्टर), or a Hindi phrase with some attitude (रात का उल्लू, which the
+owner kept), used sparingly and never a flat translation of the headline: the
+owner found literal Hindi (तुम्हारी वर्दी, लगातार) cringe. None on
 the cover, and the masthead reads HITMAN CRICKET. The player's name on the
 season card is fitted to the width, never cut: one line from Jaro 150 down to
 50 at fourteen letters, or two lines (88 at most) split at the space nearest
@@ -840,8 +842,9 @@ cream on a dark one; tomato, marigold, lime and pink are for figures and
 shapes only. What the owner turned down, not to be built again: a comic
 ("Hitman Comics": generic), the batter in chrome (a party balloon), barcodes,
 coordinates and label strips lifted off the references, a pixel city and
-ball mascots drawn in code, an AI-painted neon city (AI slop), and a
-spotlight still life in vector. `recap-stills.html` (`src/recap-stills.ts`)
+ball mascots drawn in code, an AI-painted neon city (AI slop), a spotlight
+still life in vector, and a wagon wheel for you against everyone, which read
+as decoration and not as how much better the player did. `recap-stills.html` (`src/recap-stills.ts`)
 renders the stills on a transparent ground — any kit, bat and guard, any
 stroke at a moment of its clock, an after-ball action or a milestone's
 celebration (`celebrate:double`), from any angle, the bat alone (`only:
