@@ -115,7 +115,8 @@ import type { Super10Innings } from '../game/super10-board';
 import { resultOf, type Result } from '../game/Survive';
 import type { SoundSetting } from '../game/Audio';
 import type { CareerMode } from '../game/career';
-import { chaseStanding, chaseTarget, playedMode, playerFootMarkup, playerSheetMarkup, soloOf, type PlayerSeed, type PlayerSheetView } from './PlayerSheet';
+import { chaseStanding, chaseTarget, playedMode, playerFootMarkup, playerSheetMarkup, playerTab, playerTabs, soloOf, type PlayerSeed, type PlayerSheetView, type PlayerTab } from './PlayerSheet';
+import type { KnockoutStanding } from '../server/knockout-ledger';
 import { cachedProfile, type ProfilePayload } from '../game/profile-api';
 import { chipLine, surviveGoal, type Chase, type Mine } from '../game/chase';
 import { chaseChipMarkup, chaseIntroMarkup, passedMarkup } from './ChaseUi';
@@ -1065,8 +1066,17 @@ ${knockoutRulesMarkup()}
       seed, mode: seed.mode, modes: this.boardModes(seed.mode),
       state: held ? 'ready' : 'loading', profile: held,
       challenge: this.onChallengeFoot ? { foot: this.onChallengeFoot(seed.handle) } : null,
+      // Super Knockout's tab, where matches with friends are played: asked for as the sheet opens.
+      knockout: this.onPlayerKnockout ? { standing: null, state: 'loading', invite: !!this.onPlayerInvite } : null,
     };
     if (held) view.mode = playedMode(held, view);
+    if (this.onPlayerKnockout) {
+      void this.onPlayerKnockout(seed.handle).then(standing => {
+        if (this.playerOpen?.view !== view || !view.knockout) return;
+        view.knockout = { ...view.knockout, standing, state: standing ? 'ready' : 'offline' };
+        if (view.onKnockout) this.drawPlayer('data');
+      });
+    }
     const layer = document.createElement('div');
     layer.className = 'lb-pop ps-layer';
     shell.append(layer);
@@ -1143,7 +1153,7 @@ ${knockoutRulesMarkup()}
     const scrolled = before?.querySelector<HTMLElement>('.ps-scroll')?.scrollTop ?? 0;
     const oldStage = before?.querySelector<HTMLElement>('.ps-stage') ?? null;
     const oldTier = before ? [...before.classList].find(one => one.startsWith('tier-')) ?? null : null;
-    const oldMode = before ? [...before.classList].find(one => /^is-(classic|marathon|survive)$/.test(one)) ?? null : null;
+    const oldMode = before ? [...before.classList].find(one => /^is-(classic|marathon|survive|knockout)$/.test(one)) ?? null : null;
     layer.innerHTML = playerSheetMarkup(view);
     const sheet = layer.querySelector<HTMLElement>('#player-sheet')!;
     sheet.classList.add(how === 'open' ? 'is-rising' : how === 'data' ? 'is-arriving' : `is-${how}`);
@@ -1174,8 +1184,19 @@ ${knockoutRulesMarkup()}
       this.askPlayer();
     });
     for (const tab of sheet.querySelectorAll<HTMLElement>('.ps-tab')) {
-      tab.onclick = () => this.playerMode(tab.dataset.mode as CareerMode);
+      tab.onclick = () => this.playerMode(tab.dataset.mode as PlayerTab);
     }
+    // Five tabs run past a narrow sheet: the picked one is brought into the row (only the row moves).
+    const row = sheet.querySelector<HTMLElement>('.ps-switch'), picked = row?.querySelector<HTMLElement>('.ps-tab.is-on');
+    if (row && picked) {
+      const left = picked.offsetLeft - row.offsetLeft;
+      if (left < row.scrollLeft) row.scrollLeft = left;
+      else if (left + picked.offsetWidth > row.scrollLeft + row.clientWidth) row.scrollLeft = left + picked.offsetWidth - row.clientWidth;
+    }
+    // Super Knockout's own key: a match hosted with them asked into it.
+    sheet.querySelector<HTMLElement>('#player-invite')?.addEventListener('click', () => {
+      this.onPlayerInvite?.({ handle: open.view.seed.handle, name: open.view.profile?.name ?? open.view.seed.name });
+    });
     sheet.querySelector<HTMLElement>('#player-chase')?.addEventListener('click', () => {
       const target = chaseTarget(open.view);
       if (target === null) return;
@@ -1253,6 +1274,10 @@ ${knockoutRulesMarkup()}
     }
   }
 
+  /** Another player's Super Knockout record, by their handle; null where matches with friends are not played. */
+  onPlayerKnockout: ((handle: string) => Promise<KnockoutStanding | null>) | null = null;
+  /** INVITE TO A MATCH on Super Knockout's tab of a profile. */
+  onPlayerInvite: ((them: { handle: string; name: string }) => void) | null = null;
   /** What the foot offers between this player and the one on show, from the game's list of matches. */
   onChallengeFoot: ((handle: string) => FootState | null) | null = null;
   /** CHALLENGE on a profile. */
@@ -1373,16 +1398,21 @@ ${knockoutRulesMarkup()}
   private playerStep(by: 1 | -1) {
     const open = this.playerOpen;
     if (!open) return;
-    const to = open.view.modes[open.view.modes.indexOf(open.view.mode) + by];
+    const tabs = playerTabs(open.view);
+    const to = tabs[tabs.indexOf(playerTab(open.view)) + by];
     if (to) this.playerMode(to);
   }
 
   /** Another mode's figures, slid in from the side it lies on. */
-  private playerMode(mode: CareerMode) {
+  private playerMode(mode: PlayerTab) {
     const open = this.playerOpen;
-    if (!open || mode === open.view.mode) return;
-    const dir = open.view.modes.indexOf(mode) > open.view.modes.indexOf(open.view.mode) ? 'next' : 'prev';
-    open.view.mode = mode;
+    if (!open || mode === playerTab(open.view)) return;
+    const tabs = playerTabs(open.view);
+    const dir = tabs.indexOf(mode) > tabs.indexOf(playerTab(open.view)) ? 'next' : 'prev';
+    // Super Knockout's tab is no career's mode: the mode on show is kept for the way back.
+    open.view.onKnockout = mode === 'knockout';
+    if (mode !== 'knockout') open.view.mode = mode;
+    else track('profile-knockout-tab', 'Super Knockout opened on a player’s profile');
     this.drawPlayer(dir);
     open.layer.querySelector<HTMLElement>(`.ps-tab[data-mode="${mode}"]`)?.focus({ preventScroll: true });
   }
@@ -2950,6 +2980,27 @@ ${knockoutRulesMarkup()}
     if (pill.textContent !== line) pill.textContent = line;
     pill.classList.remove('hidden');
   }
+  /**
+   * The player watched sees it, and never more than it (section 51): how many are watching, in a quiet pill under their
+   * scoreboard with a few of the watchers' faces. Null puts it away.
+   */
+  knockoutWatched(view: { n: number; faces: number[] } | null) {
+    let pill = this.viewport.querySelector<HTMLElement>('#ko-watched');
+    if (!view || view.n < 1) { pill?.remove(); return; }
+    if (!pill) {
+      pill = document.createElement('div');
+      pill.id = 'ko-watched'; pill.className = 'ko-watched';
+      pill.setAttribute('aria-live', 'polite');
+      this.viewport.append(pill);
+    }
+    const key = `${view.n}:${view.faces.join()}`;
+    if (pill.dataset.key === key) return;
+    pill.dataset.key = key;
+    pill.innerHTML = `<span>${view.faces.map(face => `<img src="${avatarSrc(face)}" alt="" decoding="async">`).join('')}</span><b></b>`;
+    pill.querySelector('b')!.textContent = `${view.n} watching`;
+  }
+  /** How many are watching the player this phone is watching, on the story's header. */
+  knockoutWatchers(n: number) { this.koWatch?.watchers(n); }
   /** Somebody asked this player into a match: a banner over whatever screen is up, with JOIN, for a while. */
   matchInvite(view: { by: string; avatar: number; size: number } | null, join?: () => void) {
     window.clearTimeout(this.inviteTimer);

@@ -118,6 +118,7 @@ export class WatchView {
       <div class="ko-watch-head">
         <div class="ko-watch-bars">${Array.from({ length: overs }, () => '<i><b></b></i>').join('')}</div>
         <div class="ko-watch-who"><img class="ko-watch-face" alt="" decoding="async"><span><b class="ko-watch-name"></b><small class="ko-watch-line"></small></span>
+          <i class="ko-watch-n" hidden></i>
           <button type="button" class="ko-watch-close" id="ko-watch-close" aria-label="Back to the end screen">✕</button></div>
       </div>
       <button type="button" class="ko-watch-edge is-prev" aria-label="Watch the one before"><img alt="" decoding="async"><span>‹</span></button>
@@ -142,6 +143,13 @@ export class WatchView {
     swipe.addEventListener('pointercancel', () => { this.start = null; });
   }
   get open() { return !this.root.hidden; }
+  /** How many are watching this player with you, in a match with friends: said from two up, since one is only you. */
+  watchers(n: number) {
+    const chip = this.root.querySelector<HTMLElement>('.ko-watch-n')!;
+    chip.hidden = n < 2;
+    const words = `${n} WATCHING`;
+    if (chip.textContent !== words) chip.textContent = words;
+  }
   show(header: WatchHeader, turned: 1 | -1 | 0 = 0) {
     this.root.hidden = false;
     if (!this.over) this.root.querySelector<HTMLButtonElement>('.ko-watch-close')!.onclick = () => this.on.close();

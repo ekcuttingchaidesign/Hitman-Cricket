@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { handleOf } from '../src/game/handle';
 import { codeIn } from '../src/game/match-code';
 import {
-  AWAY_MS, INVITE_FRESH_MS, LOBBY_AWAY_MS, STALL_MS, MATCH_SEATS, START_IN_MS, awayInMatch, backToRoom, doneMatch, settleMatch, ballInMatch, beatInMatch, cleanMatchCode, hostMatch, inviteToMatch, joinMatch, leaveMatch, matchRefused,
+  AWAY_MS, INVITE_FRESH_MS, LOBBY_AWAY_MS, STALL_MS, WATCH_FRESH_MS, watchInMatch, MATCH_SEATS, START_IN_MS, awayInMatch, backToRoom, doneMatch, settleMatch, ballInMatch, beatInMatch, cleanMatchCode, hostMatch, inviteToMatch, joinMatch, leaveMatch, matchRefused,
   memoryKnockouts, namesOf, nudgeInMatch, reactInMatch, readInvites, NUDGE_GAP_MS, readMatch, readyMatch, removeFromMatch, startMatch, REACTION_FRESH_MS, REACTION_GAP_MS,
   type MatchOutcome, type MatchView, type Member,
 } from '../src/server/knockout-store';
@@ -181,6 +181,54 @@ describe('a match with friends', () => {
     ok(await begin(store, code, T0 + 20));
     return { store, code };
   }
+
+  describe('who is watching whom', () => {
+    async function three() {
+      const store = setup();
+      const { code } = ok(await hostMatch(store, as(0), T0));
+      for (const i of [1, 2]) ok(await joinMatch(store, code, as(i), T0 + 10 * i));
+      ok(await begin(store, code, T0 + 20));
+      return { store, code };
+    }
+    it('counts the phones watching each seat, with a few of their faces, for as long as they keep saying so', async () => {
+      const { store, code } = await three();
+      // Riya and Zoya watch the host (seat 0); Kabir watches Riya (seat 1).
+      ok(await watchInMatch(store, code, as(1), 0, T0 + 5000));
+      ok(await watchInMatch(store, code, as(2), 0, T0 + 5100));
+      const view = ok(await watchInMatch(store, code, as(0), 1, T0 + 5200));
+      expect(view.watching).toEqual([{ seat: 0, n: 2, faces: [1, 2] }, { seat: 1, n: 1, faces: [0] }]);
+      // Zoya says so again; Riya's word lapses.
+      ok(await watchInMatch(store, code, as(2), 0, T0 + 5100 + WATCH_FRESH_MS - 1000));
+      const later = ok(await readMatch(store, code, T0 + 5200 + WATCH_FRESH_MS + 1));
+      expect(later.watching).toEqual([{ seat: 0, n: 1, faces: [2] }]);
+      expect(JSON.stringify(later.watching)).not.toContain(ids[2]);
+    });
+    it('lets go when the story is closed, never counts a player watching their own seat, and takes a sub’s seat too', async () => {
+      const { store, code } = await three();
+      ok(await watchInMatch(store, code, as(1), 0, T0 + 5000));
+      expect(ok(await watchInMatch(store, code, as(1), -1, T0 + 6000)).watching).toEqual([]);
+      expect(ok(await watchInMatch(store, code, as(1), 1, T0 + 7000)).watching).toEqual([]);
+      expect(ok(await watchInMatch(store, code, as(1), 7, T0 + 8000)).watching).toEqual([{ seat: 7, n: 1, faces: [1] }]);
+      expect(ok(await watchInMatch(store, code, as(1), 12, T0 + 9000)).watching).toEqual([]);
+      const stranger = await watchInMatch(store, code, as(6), 0, T0 + 9500);
+      expect(matchRefused(stranger) && stranger.status).toBe(403);
+    });
+    it('is the match’s own: nobody is watching in the lobby, before it or after', async () => {
+      const store = setup();
+      const { code } = ok(await hostMatch(store, as(0), T0));
+      ok(await joinMatch(store, code, as(1), T0 + 10));
+      expect(ok(await watchInMatch(store, code, as(1), 0, T0 + 15)).watching).toEqual([]);
+      ok(await begin(store, code, T0 + 20));
+      ok(await watchInMatch(store, code, as(1), 0, T0 + 5000));
+      for (const i of [0, 1]) ok(await ballInMatch(store, code, as(i), 0, 'W', T0 + 5500));
+      for (const i of [0, 1]) ok(await backToRoom(store, code, as(i), T0 + 6000 + i));
+      const lobby = ok(await readMatch(store, code, T0 + 7000));
+      expect(lobby.state).toBe('lobby');
+      expect(lobby.watching).toEqual([]);
+      ok(await begin(store, code, T0 + 8000));
+      expect(ok(await readMatch(store, code, T0 + 9000)).watching).toEqual([]);
+    });
+  });
 
   describe('a friend whose phone has gone quiet in the lobby', () => {
     async function room() {

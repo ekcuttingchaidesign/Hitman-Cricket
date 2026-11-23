@@ -69,6 +69,10 @@ export const STALL_MS = 90_000;
  * not waited for (section 56's "not in this build", built).
  */
 export const LOBBY_AWAY_MS = 25_000;
+/** How long a watcher's word stands: their phone says who it is watching every ten seconds (section 51, "the N watching"). */
+export const WATCH_FRESH_MS = 25_000;
+/** The faces told beside the count: enough for the pill, never the whole room. */
+const WATCH_FACES = 3;
 /** The balls in a match: five overs. */
 export const MATCH_BALLS = 30;
 export const OVER_BALLS = 6;
@@ -156,6 +160,8 @@ export interface StoredMatch {
   nudged: Record<string, number>;
   /** The last result the store worked out for this room (`res`): this round's once it is over, the round before's in the lobby. */
   result: MatchResult | null;
+  /** Which seat each member is watching this round, and when they last said so (`wt:<player>`). */
+  watching: Record<string, { seat: number; at: number }>;
 }
 
 export interface KnockoutStore {
@@ -235,6 +241,8 @@ export interface MatchView {
   pointsFrom: number;
   /** The last result the store worked out for this room: this round's once the match is over, the round before's in the lobby. */
   result: MatchResult | null;
+  /** Who is being watched, by seat: how many are watching them now, and a few of their faces. Only seats somebody is watching. */
+  watching: { seat: number; n: number; faces: number[] }[];
   /** The store's clock, so every phone counts the walk-out to the same moment. */
   now: number;
 }
@@ -282,13 +290,18 @@ export function parseMatch(held: Record<string, unknown> | null): StoredMatch | 
   if (!held || typeof held.host !== 'string') return null;
   const round = Math.max(1, Math.floor(Number(held.round)) || 1);
   const match: StoredMatch = { host: held.host, at: Number(held.at) || 0, seed: Number(held.seed) >>> 0, members: {}, removed: {}, start: null, round,
-    over: Math.floor(Number(held.over)) || 0, balls: {}, hows: {}, invited: {}, reactions: {}, nudged: {}, result: null };
+    over: Math.floor(Number(held.over)) || 0, balls: {}, hows: {}, invited: {}, reactions: {}, nudged: {}, result: null, watching: {} };
   for (const [field, raw] of Object.entries(held)) {
     const value = typeof raw === 'string' && raw.startsWith('{') ? safeJson(raw) : raw;
     if (field.startsWith('m:') && value && typeof value === 'object') match.members[field.slice(2)] = value as StoredMember;
     else if (field.startsWith('rm:')) match.removed[field.slice(3)] = Number(value) || 0;
     else if (field === 'res' && value && typeof value === 'object' && Array.isArray((value as MatchResult).rows)) match.result = value as MatchResult;
     else if (field.startsWith('ng:')) match.nudged[field.slice(3)] = Number(value) || 0;
+    else if (field.startsWith('wt:') && value && typeof value === 'object') {
+      const told = value as { seat?: unknown; at?: unknown; round?: unknown };
+      const seat = Number(told.seat);
+      if (Number(told.round) === round && Number.isInteger(seat) && seat >= 0 && seat < MATCH_SEATS) match.watching[field.slice(3)] = { seat, at: Number(told.at) || 0 };
+    }
     else if (field.startsWith('iv:') && value && typeof value === 'object') match.invited[field.slice(3)] = value as StoredMatchInvite;
     else if (field === 'start' && value && typeof value === 'object' && Array.isArray((value as StoredStart).seats)) {
       // A start is this round's or nobody's: one left behind by a room going back to its lobby is not a match.
@@ -373,6 +386,18 @@ function awayInLobby(match: StoredMatch, id: string, now: number): boolean {
   return !match.start && id !== match.host && !!m && !m.left && now - (m.seen || m.joined) > LOBBY_AWAY_MS;
 }
 
+/** Who is being watched now, by seat: everybody in the room whose phone said so inside `WATCH_FRESH_MS`, longest in the room first. */
+function watchingOf(match: StoredMatch, now: number): MatchView['watching'] {
+  if (!match.start) return [];
+  const bySeat = new Map<number, number[]>();
+  for (const id of joinOrder(match)) {
+    const told = match.watching[id], m = match.members[id];
+    if (!told || !m || m.left || now - told.at > WATCH_FRESH_MS) continue;
+    bySeat.set(told.seat, [...(bySeat.get(told.seat) ?? []), m.avatar]);
+  }
+  return [...bySeat].sort((a, b) => a[0] - b[0]).map(([seat, faces]) => ({ seat, n: faces.length, faces: faces.slice(0, WATCH_FACES) }));
+}
+
 /** How many are still batting the match and being heard from: the room goes back to its lobby when it is none. */
 function busyIn(match: StoredMatch, now: number): number {
   return Object.keys(match.members).filter(id => playingIn(match, id) && now - heardAt(match, id) < AWAY_MS).length;
@@ -400,6 +425,7 @@ export function viewOf(code: string, match: StoredMatch, now = Date.now()): Matc
     // In the lobby, by who would be seated if it started now: everybody in the room but a friend away who never said ready.
     worth: worthOf(match.start ? seats.length : members.filter(m => !m.left && !(m.away && !m.ready)).length, POINTS_RULES), pointsFrom: POINTS_RULES.pointsFrom,
     result: match.result,
+    watching: watchingOf(match, now),
     reactions: Object.entries(match.reactions).filter(([, rx]) => now - rx.at < REACTION_FRESH_MS).sort((a, b) => a[1].at - b[1].at)
       .map(([id, rx]) => ({ id, to: rx.to, by: String(rx.by ?? ''), from: String(rx.from).slice(0, 14), face: Number(rx.face) || 0, emoji: REACTIONS[rx.e], at: rx.at })),
     now,
@@ -665,6 +691,26 @@ export async function reactInMatch(store: KnockoutStore, code: string, input: Me
 }
 
 /**
+ * Who this member is watching (section 51): a seat of the match being played, said again every ten seconds while their
+ * story is open, or none once it is closed. Kept under a field of its own for each watcher, so it never writes over
+ * anything else of theirs; never their own seat. Anybody in the room may watch, whether or not they batted the match.
+ */
+export async function watchInMatch(store: KnockoutStore, code: string, input: Member, seat: unknown, now = Date.now()): Promise<MatchOutcome> {
+  const match = await load(store, code);
+  if ('ok' in match) return match;
+  const clean = cleanMatchCode(code)!;
+  if (!match.members[input.playerId]) return refuse(403, 'Join the match first.');
+  const which = seat === null || seat === undefined ? -1 : Number(seat);
+  const watchable = !!match.start && Number.isInteger(which) && which >= 0 && which < MATCH_SEATS && match.start.seats[which] !== input.playerId;
+  if (!watchable) {
+    if (match.watching[input.playerId]) await store.drop(clean, [`wt:${input.playerId}`]);
+    return answer(store, clean, now);
+  }
+  await store.set(clean, { [`wt:${input.playerId}`]: { seat: which, at: now, round: match.round } }, MATCH_TTL_SECONDS);
+  return answer(store, clean, now);
+}
+
+/**
  * Somebody the room is waiting on has gone quiet (4B, 4C): any phone in the
  * match may say so, and the store decides by its own clock. A sub bats out the
  * rest of that player's over, written ball by ball into the fields they would
@@ -770,7 +816,7 @@ export async function settleMatch(store: KnockoutStore, code: string, input: Mem
   // In one step, so no phone reads the old start under the new round: a ball of the old round landing after it is filed
   // under that round, where nobody reads it.
   // `paid:` of this round stays: a second phone settling off the same read must find it there and pay nothing.
-  await store.swap(clean, fields, ['start', 'over', ...Object.keys(held).filter(field => field.startsWith('b:') || field.startsWith('h:') || field.startsWith('rx:')
+  await store.swap(clean, fields, ['start', 'over', ...Object.keys(held).filter(field => field.startsWith('b:') || field.startsWith('h:') || field.startsWith('rx:') || field.startsWith('wt:')
     || field.startsWith('paid:') && Number(field.slice(5)) < match.round),
     ...Object.keys(match.members).filter(id => match.members[id].left).map(id => `m:${id}`)], MATCH_TTL_SECONDS);
   return answer(store, clean, now);

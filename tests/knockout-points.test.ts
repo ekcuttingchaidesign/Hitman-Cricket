@@ -10,6 +10,7 @@ import {
   type KnockoutCredit,
 } from '../src/server/knockout-ledger';
 import { resultOf } from '../src/server/knockout-result';
+import { knockoutRequest } from '../src/server/knockout-endpoint';
 import {
   POINTS_RULES, backToRoom, cardOf, doneMatch, hostMatch, joinMatch, leaveMatch, matchRefused, memoryKnockouts, parseMatch, readMatch, readyMatch, settleMatch, startMatch,
   type MatchOutcome, type MatchView, type Member,
@@ -329,6 +330,20 @@ describe('the Knockout career and its ladders', () => {
     const answer = await knockoutBoards(ledger, now);
     expect(answer.boards.points.week.map(r => [r.name, r.points])).toEqual([['Tanvi', 3]]);
     expect(answer.boards.points.all.map(r => [r.name, r.points])).toEqual([['Mojo', 10], ['Tanvi', 8]]);
+  });
+
+  it('answers another player’s record by their handle, for their profile, and never with an id', async () => {
+    const { ledger } = setup();
+    const byHandle = new Map(ids.map(id => [handleOf(id), id]));
+    const store = memoryKnockouts(handle => byHandle.get(handle) ?? null);
+    await creditMatch(ledger, [credit({ id: ids[0], name: 'Mojo', place: 1, points: 5, win: true })], Date.now());
+    const ask = (career: string) => knockoutRequest(store, { method: 'GET', query: { knockout: '1', career }, body: undefined, address: '10.0.0.1' }, ledger);
+    const theirs = await ask(handleOf(ids[0]));
+    expect(theirs).toMatchObject({ ok: true, career: { points: 5, wins: 1 }, places: { points: { all: 1 } }, pointsFrom: PREVIEW_RULES.pointsFrom });
+    expect(JSON.stringify(theirs)).not.toContain(ids[0]);
+    // Somebody the store has never filed is a player with no matches, not an error.
+    expect(await ask(handleOf('zzzz99-abcdefghijklm'))).toMatchObject({ ok: true, career: null });
+    expect(await ask('not-a-handle')).toMatchObject({ ok: false, status: 400 });
   });
 
   it('says where one player stands: their record, their places, and how far the place above is this week', async () => {

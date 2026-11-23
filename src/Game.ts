@@ -182,7 +182,7 @@ import { KNOCKOUT_HERO, markRulesSeen, readTally, rulesSeen, tallyRoom } from '.
 import { FriendsScreen, LobbyScreen, type AroundPlayer, type LobbyView } from './ui/KnockoutFriends';
 import {
   MATCH_BEAT_MS, MATCH_PARAM, MatchLink, awayInMatch, backToRoom, ballChar, ballInMatch, beatInMatch, doneMatch, hostMatch, inviteToMatch, joinMatch, keepMatch, leaveMatch, settleMatch,
-  nudgeInMatch, reactInMatch, readKnockoutBoards, readKnockoutStanding, readMatchInvites, readyMatch, removeFromMatch, startMatch,
+  nudgeInMatch, reactInMatch, watchInMatch, readKnockoutBoards, readKnockoutCareer, readKnockoutStanding, readMatchInvites, readyMatch, removeFromMatch, startMatch,
   type KnockoutStanding, type MatchInviteView, type MatchView, type Me as MatchMe, type StoredResult,
 } from './game/knockout-api';
 import { KnockoutBoard } from './ui/KnockoutBoard';
@@ -347,6 +347,8 @@ const KNOCKOUT_ASKED = !NO_BOARD && new URLSearchParams(location.search).get('kn
  */
 /** How often a phone with a room's lobby on screen says it is still there (the store calls a friend away after `LOBBY_AWAY_MS`). */
 const LOBBY_BEAT_MS = 8000;
+/** How often a phone with a friend's story open says who it is watching (the store lets it lapse after `WATCH_FRESH_MS`). */
+const WATCH_BEAT_MS = 10_000;
 const KNOCKOUT_OPEN = !NO_BOARD && !SURVIVE_ONLY && !SUPER10_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production';
 /** `?matchlog=1`: where a match with friends stands on this phone, on a line over the screen (`matchLog`). */
 const MATCH_LOG = new URLSearchParams(location.search).get('matchlog') === '1';
@@ -1012,6 +1014,11 @@ export class Game {
     this.hud.knockoutFriendsLive(this.friendsOpen);
     this.hud.on('ko-friends', () => this.openFriends());
     this.hud.on('ko-home-figures', () => this.openKnockoutBoard('home'));
+    // Super Knockout on another player's profile, and INVITE TO A MATCH under it, where matches with friends are played.
+    if (this.friendsOpen) {
+      this.hud.onPlayerKnockout = handle => readKnockoutCareer(handle);
+      this.hud.onPlayerInvite = them => this.inviteFromProfile(them);
+    }
     // Super Knockout on the Leaderboard's mode menu, where matches with friends are played: its own board, over that one.
     if (this.friendsOpen) {
       this.hud.boardAlso = [{ id: 'knockout', name: 'Super Knockout', colour: '#ee2a2a', art: KNOCKOUT_HERO, line: 'Points, wins and totals with friends' }];
@@ -2549,6 +2556,24 @@ export class Game {
   };
   /** This player's Knockout record and places as the store last said; let go when a match pays, so the next look asks again. */
   private knockoutStanding: KnockoutStanding | null = null;
+  /**
+   * INVITE TO A MATCH on a profile: a match hosted with them asked into it, as INVITE on somebody around now does. Not
+   * in the middle of an innings, where the profile may be up over the Leaderboard.
+   */
+  private inviteFromProfile(them: { handle: string; name: string }) {
+    if (!['START', 'INNINGS_END'].includes(this.phase) || this.matchPlay || this.lobbyScreen?.open) {
+      this.hud.notice(`Finish what you’re playing first, then invite ${them.name} from Play with friends.`);
+      return;
+    }
+    track('knockout-invite-profile', 'Invited a player to a match from their profile');
+    this.hud.closePlayer();
+    this.knockoutBoard?.close(); this.knockoutBoard = null;
+    this.hud.closeBoard(); this.hud.closeNotices(); this.hud.closeList();
+    this.modes('KNOCKOUT');
+    this.openKnockout();
+    this.openFriends();
+    void this.hostFriends(them.handle);
+  }
   private showKnockoutHome() {
     const career = this.knockoutStanding?.career ?? null;
     this.hud.knockoutHome(readTally(), career && { weekPoints: career.weekPoints, bestPlace: career.bestPlace ?? 0, wins: career.wins, played: career.played }, this.friendsOpen);
@@ -2944,6 +2969,7 @@ export class Game {
     this.matchPlay = null;
     this.knockout = null; this.room = null;
     this.hud.knockoutWaiting(null); this.hud.knockoutResults(null); this.hud.knockoutEnd(null); this.hud.knockoutTrack(null); this.hud.knockout(null);
+    this.hud.knockoutWatched(null);
     this.audio.music(null);
     this.modes(); this.openKnockout();
   }
@@ -3081,6 +3107,7 @@ export class Game {
       return;
     }
     play.view = match;
+    this.tellWatching();
     // The store has worked the match's result out: what it paid goes on the end screen and under the Results, once.
     if (match.result && match.result.round === play.round && !play.paid) { play.paid = true; this.resultIn(match.result); }
     const mine = match.members.find(m => m.handle === handleOf(me.playerId));
@@ -3092,6 +3119,9 @@ export class Game {
     play.dirty = false;
     this.matchStep();
     this.showReactions(match);
+    // Who is watching this player bat, under their scoreboard between balls; gone once their batting is.
+    const watched = this.matchDone ? null : match.watching?.find(one => one.seat === play.you) ?? null;
+    this.hud.knockoutWatched(watched && { n: watched.n, faces: watched.faces });
     // The match is over, somebody having won it (not this player's part of it alone, which leaves the rest batting): the
     // store is told once, so the room knows nobody is still batting it.
     if (room.done && !play.doneSent) {
@@ -8342,6 +8372,21 @@ export class Game {
     if (!play || !to) return;
     void reactInMatch(play.code, play.me, to, emoji).then(answer => { if (this.matchPlay === play) this.matchLink?.take(answer); });
   }
+  /**
+   * Who this phone is watching, told to the store (section 51, the N watching): at once when the story opens or turns to
+   * another, every `WATCH_BEAT_MS` while it is open, and once more when it closes. The header says how many are watching
+   * them, this phone among them.
+   */
+  private tellWatching() {
+    const play = this.matchPlay;
+    if (!play) return;
+    const seat = this.room?.watching ?? -1, now = performance.now(), told = this.watchTold;
+    if (seat >= 0) this.hud.knockoutWatchers(play.view.watching?.find(one => one.seat === seat)?.n ?? 0);
+    if (told.code === play.code && told.seat === seat && (seat < 0 || now - told.at < WATCH_BEAT_MS)) return;
+    this.watchTold = { code: play.code, seat, at: now };
+    void watchInMatch(play.code, play.me, seat).then(answer => { if (this.matchPlay === play) this.matchLink?.take(answer); });
+  }
+  private watchTold = { code: '', seat: -1, at: 0 };
   /** Reactions the store has that this phone has not shown: the ones for this player, or for whoever they are watching (never their own). */
   private showReactions(match: MatchView) {
     const play = this.matchPlay;
@@ -8545,6 +8590,7 @@ export class Game {
     on.watching = null; on.ball = null; on.nextAt = this.elapsed + ROOM_BALL_MS; on.idle = false;
     this.hud.knockoutWaiting(null);
     this.hud.knockoutWatch(null, this.watchKeys); this.hud.knockout(null);
+    this.tellWatching();
     this.audio.crowd(null); this.scene.reset();
     if (ball && !ball.told && !quiet) { ball.told = true; this.roomNews(ball.news, false); }
     // The room ended while it was being watched: its end plays on the end screen now.
@@ -8583,6 +8629,7 @@ export class Game {
       next: batting.length > 1 ? batting[(at + 1) % batting.length] : null,
     };
     this.hud.knockoutWatch(header, this.watchKeys, turned);
+    this.tellWatching();
     // Their scoreboard, as the game shows the player's: their balls of the room, and where they stand.
     const score = new ScoreManager(KNOCKOUT_LIMITS); log.forEach(ball => score.record(ball));
     this.hud.knockout({ place: `#${Math.max(1, place)}`, line: `OF ${ranked.length}`, drop: false });

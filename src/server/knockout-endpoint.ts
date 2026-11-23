@@ -1,9 +1,10 @@
 import {
   awayInMatch, backToRoom, ballInMatch, beatInMatch, doneMatch, hostMatch, inviteToMatch, joinMatch, leaveMatch, nudgeInMatch, reactInMatch, readInvites, readMatch, readyMatch, removeFromMatch,
-  settleMatch, startMatch, POINTS_RULES,
+  settleMatch, startMatch, watchInMatch, POINTS_RULES,
   type KnockoutStore, type MatchInvitesAccepted, type MatchOutcome, type MatchRefusal, type Member,
 } from './knockout-store.js';
-import { knockoutBoards, knockoutStanding, type KnockoutBoards, type KnockoutLedger, type KnockoutStanding } from './knockout-ledger.js';
+import { emptyStanding, knockoutBoards, knockoutStanding, type KnockoutBoards, type KnockoutLedger, type KnockoutStanding } from './knockout-ledger.js';
+import { isHandle } from '../game/handle.js';
 
 /**
  * A request to `/api/challenge?knockout=1`, turned into a call on the store; shared by the
@@ -13,7 +14,8 @@ import { knockoutBoards, knockoutStanding, type KnockoutBoards, type KnockoutLed
  *   GET ?invites=<player>   that player's open invites, never cached
  *   GET ?board=1            Super Knockout's ladders, every one at once
  *   GET ?standing=<player>  that player's Knockout record and their place on each ladder
- *   POST {action: …}        host · join · ready · leave · remove · invite · start · ball · beat · away · back · done · settle · react · nudge
+ *   GET ?career=<handle>    another player's, by their handle, for their profile: the same answer, and never an id
+ *   POST {action: …}        host · join · ready · leave · remove · invite · start · ball · beat · away · back · done · settle · react · nudge · watch
  */
 export interface KnockoutRequest {
   method?: string;
@@ -28,6 +30,16 @@ Promise<MatchOutcome | MatchInvitesAccepted | MatchRefusal | KnockoutBoards | Kn
     const invites = one(req.query.invites);
     if (invites) return readInvites(store, invites);
     if (one(req.query.board)) return ledger ? { ...await knockoutBoards(ledger), pointsFrom: POINTS_RULES.pointsFrom } : { ok: false, status: 503, reason: 'The board is out of reach.' };
+    const career = one(req.query.career);
+    if (career) {
+      if (!ledger) return { ok: false, status: 503, reason: 'The board is out of reach.' };
+      if (!isHandle(career)) return { ok: false, status: 400, reason: 'That is not a player.' };
+      // A handle the store has never filed is somebody with no record: the answer of a player who has not played.
+      const id = await store.idOf(career);
+      const answer = id ? await knockoutStanding(ledger, id) : null;
+      if (answer && !answer.ok) return answer;
+      return { ...(answer ?? emptyStanding()), pointsFrom: POINTS_RULES.pointsFrom };
+    }
     const standing = one(req.query.standing);
     if (standing) {
       if (!ledger) return { ok: false, status: 503, reason: 'The board is out of reach.' };
@@ -57,6 +69,7 @@ Promise<MatchOutcome | MatchInvitesAccepted | MatchRefusal | KnockoutBoards | Kn
     case 'react': return reactInMatch(store, code, member, body.to, body.emoji);
     case 'nudge': return nudgeInMatch(store, code, member, body.handle);
     case 'away': return awayInMatch(store, code, member, body.handle, body.over);
+    case 'watch': return watchInMatch(store, code, member, body.seat);
     default: return { ok: false, status: 400, reason: 'Say what to do with the match.' };
   }
 }

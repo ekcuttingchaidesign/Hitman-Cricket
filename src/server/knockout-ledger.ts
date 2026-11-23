@@ -223,6 +223,11 @@ export interface KnockoutStanding {
   pointsFrom?: number;
 }
 
+/** The standing of somebody with no record at all. */
+export function emptyStanding(now = Date.now()): KnockoutStanding {
+  return { ok: true, week: weekOf(now), career: null, places: { points: { week: null, all: null }, wins: { week: null, all: null }, best: null, rate: null }, behind: null };
+}
+
 export async function knockoutStanding(ledger: KnockoutLedger, playerId: string, now = Date.now()): Promise<KnockoutStanding | { ok: false; status: number; reason: string }> {
   if (!isPlayerId(playerId)) return { ok: false, status: 400, reason: 'That is not a player.' };
   const week = weekOf(now);

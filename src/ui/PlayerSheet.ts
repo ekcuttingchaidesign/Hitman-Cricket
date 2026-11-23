@@ -9,6 +9,9 @@ import type { FootState } from '../game/invite';
 import { footMarkup } from './ChallengeCards';
 import { escape, kitMarkup } from './Leaderboard';
 import { TILES } from './StatsSheet';
+import type { KnockoutStanding } from '../server/knockout-ledger';
+import { knockoutStats } from './KnockoutStats';
+import KNOCKOUT_ART from '../assets/knockout/hero.webp';
 
 /**
  * Another player's profile (the handover's section 14, lane A): the sheet that
@@ -55,6 +58,22 @@ export interface PlayerSheetView {
    * challenge at all: the player's own profile, or a build with no board.
    */
   challenge?: { foot: FootState | null } | null;
+  /**
+   * Super Knockout's tab, the last on the switch, wherever matches with friends are played (Figma section 42, S3):
+   * their record and places as the store says them, by their handle. Null where there is none to offer.
+   */
+  knockout?: { standing: KnockoutStanding | null; state: 'loading' | 'ready' | 'offline'; invite: boolean } | null;
+  /** That tab is the one on show: `mode` is kept as it was, for the way back. */
+  onKnockout?: boolean;
+}
+
+/** The switch's places in order: the careers, then Super Knockout where it is offered. */
+export type PlayerTab = CareerMode | 'knockout';
+export function playerTabs(view: Pick<PlayerSheetView, 'modes' | 'knockout'>): PlayerTab[] {
+  return view.knockout ? [...view.modes, 'knockout'] : [...view.modes];
+}
+export function playerTab(view: Pick<PlayerSheetView, 'mode' | 'knockout' | 'onKnockout'>): PlayerTab {
+  return view.onKnockout && view.knockout ? 'knockout' : view.mode;
 }
 
 /** The switch's words, and what the figures call each mode's board. */
@@ -99,6 +118,7 @@ export function chaseLabel(name: string, target: number): string {
 }
 
 export function playerSheetMarkup(view: PlayerSheetView): string {
+  if (playerTab(view) === 'knockout') return knockoutSheetMarkup(view);
   const target = chaseTarget(view);
   return `<div class="lb-scrim ps-scrim" data-close></div>
     <section id="player-sheet" class="ps-sheet ${stageClass(view)} is-${view.mode} is-${view.state}" role="dialog" aria-modal="true" aria-labelledby="player-name">
@@ -115,12 +135,62 @@ export function playerSheetMarkup(view: PlayerSheetView): string {
 
 /** The foot alone, redrawn in place when the challenge between the two moves. */
 export function playerFootMarkup(view: PlayerSheetView): string {
-  return footOf(view, chaseTarget(view));
+  return playerTab(view) === 'knockout' ? footOf(view, null, inviteKey(view)) : footOf(view, chaseTarget(view));
 }
 
-/** The foot: CHALLENGE beside CHASE, or the challenge between the two above CHASE. */
-function footOf(view: PlayerSheetView, target: number | null): string {
-  const chase = target !== null ? cta({ kind: 'primary', ...keyLabel(view, target), id: 'player-chase', wide: true, moving: true }) : '';
+/** Super Knockout's own key at the foot: a match hosted with them asked into it. */
+function inviteKey(view: PlayerSheetView): string {
+  return view.knockout?.invite ? cta({ kind: 'primary', label: 'INVITE TO A MATCH', id: 'player-invite', wide: true, moving: true }) : '';
+}
+
+/**
+ * Super Knockout on another player's profile (S3): the knockout's picture under a red ground, how many they have won,
+ * the week at a glance, six figures, and CHALLENGE beside INVITE TO A MATCH. Points and wins, no rung and nothing to chase.
+ */
+function knockoutSheetMarkup(view: PlayerSheetView): string {
+  const ko = view.knockout!;
+  const profile = view.state === 'ready' ? view.profile : null;
+  const name = profile?.name ?? view.seed.name, avatar = profile?.avatar ?? view.seed.avatar;
+  const stats = knockoutStats({ standing: ko.standing, pointsFrom: ko.standing?.pointsFrom ?? 3 });
+  const career = ko.standing?.career ?? null;
+  const one = (value: string, label: string, tone = '') => `<div class="ps-glance-one${tone}"><b>${escape(value)}</b><span>${escape(label)}</span></div>`;
+  const bone = '<div class="ps-glance-one"><i class="lb-bone ps-bone is-figure"></i></div>';
+  const week = ko.standing?.places.points.week ?? null;
+  const line = ko.state === 'loading' ? '<p class="ps-rung"><i class="lb-bone ps-bone is-pill"></i></p>'
+    : `<p class="ps-rung"><span>${career?.played ? `${career.wins} ${career.wins === 1 ? 'win' : 'wins'} in ${career.played} ${career.played === 1 ? 'match' : 'matches'}` : 'No matches yet'}</span></p>`;
+  const glance = ko.state === 'loading' ? `<div class="ps-glance">${bone}${bone}${bone}</div>`
+    : `<div class="ps-glance">${one(String(career?.weekPoints ?? 0), 'points this week')}${one(week ? `#${week}` : '—', 'Super Knockout', week ? ' is-place' : '')}${one(String(career?.weekWins ?? 0), 'wins this week')}</div>`;
+  const body = ko.state === 'offline'
+    ? `<div class="ps-message is-offline" role="status"><span class="ps-message-icon" aria-hidden="true">${icon('alert')}</span>
+          <h3>Couldn’t load ${escape(name)}’s matches</h3><p>Check your connection.</p></div>`
+    : ko.state === 'ready' && !stats.played
+      ? `<div class="ps-message" role="status"><span class="ps-message-icon" aria-hidden="true">${icon('scan')}</span>
+          <h3>No Super Knockout matches yet</h3><p>${escape(name)} hasn’t played a match with friends that counted.</p></div>`
+      : `<div class="ps-tiles">${stats.tiles.map((tile, i) => ko.state === 'loading'
+        ? `<div class="ps-tile is-bone" style="--i:${i}"><i class="lb-bone ps-bone is-tile"></i><i class="lb-bone ps-bone is-label"></i></div>`
+        : `<div class="ps-tile${tile.tone === 'rank' ? ' is-rank' : tile.tone === 'gold' ? ' is-gold' : ''}" style="--i:${i}"><b>${escape(tile.value)}</b><span>${escape(tile.label)}</span></div>`).join('')}</div>`;
+  return `<div class="lb-scrim ps-scrim" data-close></div>
+    <section id="player-sheet" class="ps-sheet tier-none is-knockout is-${ko.state}" role="dialog" aria-modal="true" aria-labelledby="player-name">
+      <div class="ps-stage" aria-hidden="true"><i class="ps-ground"></i><img class="ko-stats-art" src="${KNOCKOUT_ART}" alt="" decoding="async"><i class="ps-light"></i><i class="ps-melt"></i></div>
+      <i class="lb-grab ps-grab" aria-hidden="true"></i>
+      <button id="player-close" type="button" class="k-icon-button ps-close" aria-label="Close">${icon('close')}</button>
+      <div class="ps-scroll">
+        <header class="ps-hero">
+          <span class="ps-face" data-handle="${escape(view.seed.handle)}">${avatar === null ? '<span class="board-kit is-empty" aria-hidden="true"></span>' : kitMarkup(avatar, name)}</span>
+          <h2 id="player-name" class="ps-name">${escape(name)}</h2>
+          ${line}${profile?.bio ? `<p class="ps-bio">“${escape(profile.bio)}”</p>` : ''}
+          ${glance}
+        </header>
+        ${switchMarkup(view)}
+        <div id="player-body" class="ps-body">${body}</div>
+      </div>
+      ${footOf(view, null, inviteKey(view))}
+    </section>`;
+}
+
+/** The foot: CHALLENGE beside CHASE, or the challenge between the two above CHASE; `main` stands where CHASE does on Super Knockout's tab. */
+function footOf(view: PlayerSheetView, target: number | null, main = ''): string {
+  const chase = main || (target !== null ? cta({ kind: 'primary', ...keyLabel(view, target), id: 'player-chase', wide: true, moving: true }) : '');
   if (!view.challenge) return `<div class="ps-foot">${chase}</div>`;
   const name = view.profile?.name ?? view.seed.name;
   const mode = view.mode === 'super10' ? 'super10' : 'classic';
@@ -224,9 +294,12 @@ function glanceMarkup(view: PlayerSheetView, facts: StatsFacts | null): string {
 }
 
 function switchMarkup(view: PlayerSheetView): string {
-  return `<div class="ps-switch" role="tablist" aria-label="Which mode">${view.modes.map(mode => `
-          <button type="button" class="ps-tab${mode === view.mode ? ' is-on' : ''}" role="tab" aria-selected="${mode === view.mode}" data-mode="${mode}" style="--dot:${DOT[mode]}">
-            <i aria-hidden="true"></i><span>${SHORT[mode]}</span></button>`).join('')}
+  const on = playerTab(view);
+  return `<div class="ps-switch${view.knockout ? ' has-knockout' : ''}" role="tablist" aria-label="Which mode">${view.modes.map(mode => `
+          <button type="button" class="ps-tab${mode === on ? ' is-on' : ''}" role="tab" aria-selected="${mode === on}" data-mode="${mode}" style="--dot:${DOT[mode]}">
+            <i aria-hidden="true"></i><span>${SHORT[mode]}</span></button>`).join('')}${view.knockout ? `
+          <button type="button" class="ps-tab${on === 'knockout' ? ' is-on' : ''}" role="tab" aria-selected="${on === 'knockout'}" data-mode="knockout" style="--dot:#ee2a2a">
+            <i aria-hidden="true"></i><span>Knockout</span></button>` : ''}
         </div>`;
 }
 

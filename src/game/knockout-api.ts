@@ -74,6 +74,8 @@ export const beatInMatch = (code: string, me: Me) => post({ action: 'beat', code
 export const nudgeInMatch = (code: string, me: Me, handle?: string) => post({ action: 'nudge', code, handle, ...as(me) });
 /** A reaction to whoever is being watched, by their handle. */
 export const reactInMatch = (code: string, me: Me, to: string, emoji: string) => post({ action: 'react', code, to, emoji, ...as(me) });
+/** Who this phone is watching: a seat of the match, said again every ten seconds while the story is open; -1 once it is closed. */
+export const watchInMatch = (code: string, me: Me, seat: number) => post({ action: 'watch', code, seat, ...as(me) });
 export const awayInMatch = (code: string, me: Me, handle: string, over: number) => post({ action: 'away', code, handle, over, ...as(me) });
 
 export async function readMatch(code: string): Promise<MatchResult> {
@@ -95,6 +97,12 @@ export async function readKnockoutBoards(): Promise<KnockoutBoards | null> {
 /** One player's Knockout record and where they stand on each ladder; null when the store cannot be reached. */
 export async function readKnockoutStanding(playerId: string): Promise<KnockoutStanding | null> {
   const answer = await ask<KnockoutStanding>(`${API}/api/challenge?knockout=1&standing=${encodeURIComponent(playerId)}`);
+  return answer?.ok && answer.places ? answer : null;
+}
+
+/** Another player's Knockout record and places, by their handle, for their profile; null when the store cannot be reached. */
+export async function readKnockoutCareer(handle: string): Promise<KnockoutStanding | null> {
+  const answer = await ask<KnockoutStanding>(`${API}/api/challenge?knockout=1&career=${encodeURIComponent(handle)}`);
   return answer?.ok && answer.places ? answer : null;
 }
 

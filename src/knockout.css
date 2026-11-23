@@ -863,6 +863,17 @@ body.ko-parked .ko-moment{visibility:hidden;pointer-events:none}
 @keyframes ko-tick{from{transform:scale(1.6);opacity:0}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.ko-join.is-shake,.ko-lseat.is-arriving .ko-lseat-face,.ko-walkout b.is-tick{animation:none}}
 /* In a match with friends, waiting at the over's end (4A): one quiet pill under the scoreboard. */
+/* N watching (section 51): beside the name on a story, and for the player watched a quiet pill under their scoreboard,
+   the watchers' faces and the count, never over the pitch. */
+.ko-watch-n{flex:none;font-style:normal;padding:calc(var(--u,1px) * 5) calc(var(--u,1px) * 9);border-radius:999px;background:#00000080;border:1px solid #ffffff2e;color:#fff;
+  font:800 calc(var(--u,1px) * 10)/1 var(--f-ui);letter-spacing:.08em;white-space:nowrap}
+.ko-watched{position:absolute;left:calc(var(--u) * 16);top:calc(var(--top-gap) + var(--u) * 80);z-index:5;display:flex;align-items:center;gap:calc(var(--u) * 6);
+  padding:calc(var(--u) * 4) calc(var(--u) * 10) calc(var(--u) * 4) calc(var(--u) * 5);border-radius:999px;background:#0c0809b3;border:1px solid #ffffff1f;color:#e9e3e4;
+  font:600 calc(var(--u) * 11)/1 var(--f-ui);pointer-events:none;white-space:nowrap}
+.ko-watched span{display:flex}
+.ko-watched img{width:calc(var(--u) * 18);height:calc(var(--u) * 18);border-radius:50%;border:1px solid #0c0809;object-fit:cover}
+.ko-watched img+img{margin-left:calc(var(--u) * -6)}
+body.ko-up .ko-watched,body.ko-watch .ko-watched{display:none}
 .ko-waiting{position:absolute;left:50%;top:calc(var(--top-gap) + var(--u) * 92);transform:translateX(-50%);z-index:6;max-width:calc(100% - var(--u) * 40);
   padding:calc(var(--u) * 7) calc(var(--u) * 14);border-radius:999px;background:#0c0809d9;border:1px solid #ffb02066;color:#ffd27a;
   font:800 calc(var(--u) * 11)/1.25 var(--f-ui);letter-spacing:.06em;text-align:center;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -878,7 +889,7 @@ body.ko-parked .ko-moment{visibility:hidden;pointer-events:none}
    One more tab on the page's rail, in Knockout red: the knockout's picture under its ground where the careers have a
    rung's material, a red dot on its tab where they carry a badge, a card for the week and the last five finishes, and
    six figures. Gold only on what was won (the top-three finishes, the wins). */
-:is(.mp-stage,.mp-hero).is-knockout{--ground:linear-gradient(175deg,#7a1418 0%,#3d0a0d 45%,#16090a 100%);--light:#ff6b6b4d;--ring:#ff8f8f;--pill:#ee2a2a2e;--pill-ink:#ff9d9d}
+:is(.mp-stage,.mp-hero,.ps-sheet).is-knockout{--ground:linear-gradient(175deg,#7a1418 0%,#3d0a0d 45%,#16090a 100%);--light:#ff6b6b4d;--ring:#ff8f8f;--pill:#ee2a2a2e;--pill-ink:#ff9d9d}
 .ps-stage>img.ko-stats-art{left:0;right:0;top:0;width:100%;height:calc(var(--u) * 320);object-fit:cover;object-position:50% 16%;opacity:.4;filter:saturate(1.1);
   -webkit-mask-image:linear-gradient(180deg,#000 25%,#0000 100%);mask-image:linear-gradient(180deg,#000 25%,#0000 100%)}
 .mp-hero.is-knockout .ps-pill{border:1px solid #ee2a2a99;font-weight:800;letter-spacing:.1em}
@@ -893,7 +904,11 @@ body.ko-parked .ko-moment{visibility:hidden;pointer-events:none}
 .ko-five li.is-top{border-color:#ffb020;background:#ffb0201a;color:#ffc24d}
 .ko-five li.is-ran{border-color:#ee2a2a80;color:#ff8f8f}
 .ko-five li.is-none{border-style:dashed;color:#ffffff40}
-.st-tile.is-gold b{color:#ffc24d}
+.st-tile.is-gold b,.ps-tile.is-gold b{color:#ffc24d}
+/* Another player's profile with Super Knockout's tab (S3): five tabs scroll on one line, each as wide as its word. */
+.ps-switch.has-knockout{overflow-x:auto;scrollbar-width:none}
+.ps-switch.has-knockout::-webkit-scrollbar{display:none}
+.ps-switch.has-knockout .ps-tab{flex:1 0 auto;padding:0 calc(var(--u) * 11)}
 /* With its tab in front the foot's key plays Super Knockout: there is no card of it to send yet. */
 .mp-page #stats-knockout{display:none}
 .mp-page.on-knockout #stats-knockout{display:inline-flex}
