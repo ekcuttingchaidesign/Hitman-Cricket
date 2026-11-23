@@ -818,10 +818,16 @@ Recap page, section "Season '26 · The Drop · v2 (polished)", which carries
 its style guide): a numbered poster series, 01/11 to 11/11, each poster one
 stat on one flat ground, graphics built from cricket (seam arcs, crease
 stripes and a sun disc, stumps as bars under one long bail, the wagon wheel, a
-clock for a moon), Jaro for the figure printed twice on two plates, a real
-Hindi word in Poppins Black beside every headline, one roast in a pill, a
+clock for a moon), Jaro for the figure printed twice on two plates, one
+word or phrase in Devanagari (Poppins Black) beside the headline, one roast
+in a pill, a
 scorecard footer of two or three real figures, and the last poster as the
-share. The batter is the one dimensional thing on a poster, cut out with a
+share. The Devanagari is slang, an English word or a commentator's shout
+written in Hindi script (बूम बूम, क्लासी, नो स्लीप क्लब, ऑन फायर, ड्रिप, बीस्ट,
+बिल्ट डिफरेंट, मेन कैरेक्टर), used sparingly and never a translation of the
+headline: the owner found literal Hindi (तुम्हारी वर्दी, लगातार) cringe. None on
+the cover, and the masthead reads HITMAN CRICKET. The batter is the one
+dimensional thing on a poster, cut out with a
 cream edge and never on a plate of his own kit's hue: the game's own render on
 some (sixes, fours, the kit, the season card) and, where he is the whole
 picture (the cover, the night owl, the bat, the personality), a GPT hero
