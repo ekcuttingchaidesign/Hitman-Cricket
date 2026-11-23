@@ -60,6 +60,8 @@ const STROKE: Record<string, Spec> = {
   PULL: { shot: 'LEG', x: -.30, y: 1.12, z: PULL_MEETS_AT },
   HOOK: { shot: 'HOOK', x: .42, y: 1.134, z: HOOK_MEETS_AT },
   CUT: { shot: 'SQUARE_CUT', x: .40, y: .92 },
+  SPIN_CUT: { shot: 'SQUARE_CUT', x: 0, y: .54, spinCut: true },
+  SPIN_CUT_V2: { shot: 'SQUARE_CUT', x: .42, y: .54, spinCut: true, version: 1 },
   LATE_CUT: { shot: 'LATE_CUT', x: .30, y: .56, z: LATE_CUT_MEETS_AT },
   SLOG_SWEEP: { shot: 'LEG', x: 0, y: .48, sweeping: true },
   SCOOP: { shot: 'SCOOP', x: -.07, y: .54 },
