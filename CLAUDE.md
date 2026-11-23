@@ -900,8 +900,9 @@ transforms and opacity only; reduced motion is the finished frames on a
 opens on the list (the owner asked for it first): each pose, its poster,
 what to attach and the kits it is wanted in — four rows, eight pictures: the
 lofted drive from below (cover), looking up with the bat grounded (night
-owl) and the cut off the spinner, low and wide at the ball (personality: the
-owner chose it over the slog sweep), each in OG Navy and
+owl) and the cut off the spinner held at its finish, the bat laid back on
+his shoulder (personality: the owner chose it over the slog sweep, and the
+finish over the moment at the ball), each in OG Navy and
 Papaya, and the bat in gloves as Plain and Boom. One prompt a pose, pasted
 once: the prompt names every colourway itself and asks for them as separate
 pictures of the same picture, so nothing is pasted again for a second kit (a
