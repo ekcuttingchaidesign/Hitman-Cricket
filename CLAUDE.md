@@ -813,6 +813,15 @@ memory for the checks; nothing deployed reads it yet — the recap itself will.
 `scripts/recap-check.mjs` finishes an innings and unlocks Boom and reads both
 back.
 
+The recap's pictures are the game's own batter, not illustrations: a comic
+("Hitman Comics", the claude.ai artifact "Hitman Comics Sample") whose figures
+are stills of him in the player's kit and bat, inked by a filter in code.
+`recap-stills.html` (`src/recap-stills.ts`) renders one on a transparent
+ground — any kit, bat and guard, any stroke at a moment of its clock, from
+any angle, or the bowler folded over in his follow-through — and
+`scripts/recap-stills.mjs` writes a set out as PNGs off a dev server. A dev
+page: nothing on it is counted or sent.
+
 GoatCounter counts the same things across everybody, by name (it keeps the
 path, not the title, so the item is in the name): `dressing-open-modes` and
 `-story`, `dressing-wear-<kit|bat>-<id>`, `dressing-unlock-…` and
