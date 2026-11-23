@@ -897,15 +897,19 @@ the left third goes back on a plain cut, a hold pauses, and SHARE always
 sends the finished frame. One clock a poster, as Level Up and New #1 are, and
 transforms and opacity only; reduced motion is the finished frames on a
 160 ms fade. The section under it, "ChatGPT hero pictures · how to prompt",
-is eight pictures: the three batters (cover, night owl, personality) made
-once in OG Navy and then recoloured to Papaya in the same chat, never made
-again from scratch, so every kit is the same picture in another colour (the
-four lines to swap for each other plain kit are listed; the printed Diwali
-and Super10 kits need pictures of their own), and the Plain bat with Boom
-made from it the same way. In those three the batter always holds the plain
-bat, or every picture would be multiplied by the bats. With them, what to
-attach, the checks and the lines that fix a wrong result; none had been run
-when it was written. Everybody in another kit keeps the game's render.
+opens on the list (the owner asked for it first): each pose, its poster,
+what to attach and the kits it is wanted in — four rows, eight pictures: the
+lofted drive from below (cover), looking up with the bat grounded (night
+owl) and the slog sweep on one knee (personality), each in OG Navy and
+Papaya, and the bat in gloves as Plain and Boom. One prompt a pose, pasted
+once: the prompt names every colourway itself and asks for them as separate
+pictures of the same picture, so nothing is pasted again for a second kit (a
+step of recolouring in the same chat came first and the owner did not want
+it). Another plain kit is one more numbered line in the three batters'
+prompts; the printed Diwali and Super10 kits need rows of their own. The
+batter always holds the plain bat there, or every picture would be
+multiplied by the bats. None had been run when it was written. Everybody in
+another kit keeps the game's render.
 
 GoatCounter counts the same things across everybody, by name (it keeps the
 path, not the title, so the item is in the name): `dressing-open-modes` and
