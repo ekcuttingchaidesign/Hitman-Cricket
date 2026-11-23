@@ -146,6 +146,21 @@ describe('the year recap, kept', () => {
     expect(old?.camRuns).toEqual({});
   });
 
+  it('counts the runs made in each kit and with each bat', async () => {
+    const store = memoryRecap();
+    await recordInnings(store, { playerId: PLAYER, mode: 'classic', tally: blast(), look: { kit: 'electric', bat: 'venom', guard: 'sterling' }, at: MARCH });
+    await recordInnings(store, { playerId: PLAYER, mode: 'classic', tally: blast({ runs: 12, individual: 12 }), look: { kit: 'electric', bat: 'boom', guard: 'sterling' }, at: MARCH });
+    // An innings with no look counts runs under no kit and no bat.
+    await recordInnings(store, { playerId: PLAYER, mode: 'survive', tally: survive(), look: null, at: MARCH });
+    const mine = await store.read(2026, PLAYER);
+    expect(mine?.kitRuns).toEqual({ electric: 75 });
+    expect(mine?.batRuns).toEqual({ venom: 63, boom: 12 });
+    expect(store.totals(2026)).toMatchObject({ 'kitruns:electric': 75, 'batruns:venom': 63, 'batruns:boom': 12 });
+    const old = cleanRecap({ innings: 1, first: MARCH, last: MARCH, modes: {}, kits: { home: 1 }, bats: {}, guard: {}, days: {}, hours: {}, unlocked: {} });
+    expect(old?.kitRuns).toEqual({});
+    expect(old?.batRuns).toEqual({});
+  });
+
   it('keeps nothing for what is not a player', async () => {
     const store = memoryRecap();
     await recordInnings(store, { playerId: 'nobody', mode: 'classic', tally: blast(), look: null, at: MARCH });

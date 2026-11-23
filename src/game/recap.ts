@@ -91,6 +91,15 @@ export interface YearRecap {
    */
   cams: Record<string, number>;
   camRuns: Record<string, number>;
+  /**
+   * The runs made in each kit and with each bat, by id, beside `kits` and
+   * `bats`. Kept from 23 November 2026, six weeks after the innings counts
+   * began, so the 2026 recap does not read them: set against a whole season's
+   * innings they would understate every kit. The 2027 recap has them from its
+   * first innings. None in a record from before them.
+   */
+  kitRuns: Record<string, number>;
+  batRuns: Record<string, number>;
 }
 
 /** The year, the day and the hour a moment falls in, in India's time. */
@@ -139,7 +148,7 @@ export function factsOf(mode: CareerMode, tally: BlastTally | SurviveTally | Mar
 }
 
 export function emptyRecap(at: number): YearRecap {
-  return { innings: 0, first: at, last: at, modes: {}, kits: {}, bats: {}, guard: {}, days: {}, hours: {}, unlocked: {}, cams: {}, camRuns: {} };
+  return { innings: 0, first: at, last: at, modes: {}, kits: {}, bats: {}, guard: {}, days: {}, hours: {}, unlocked: {}, cams: {}, camRuns: {}, kitRuns: {}, batRuns: {} };
 }
 
 const bump = (counts: Record<string, number>, key: string, by = 1) => ({ ...counts, [key]: (counts[key] ?? 0) + by });
@@ -164,6 +173,8 @@ export function foldInnings(held: YearRecap | null, mode: CareerMode, facts: Inn
     },
     kits: look ? bump(was.kits, look.kit) : was.kits,
     bats: look ? bump(was.bats, look.bat) : was.bats,
+    kitRuns: look ? bump(was.kitRuns, look.kit, facts.runs) : was.kitRuns,
+    batRuns: look ? bump(was.batRuns, look.bat, facts.runs) : was.batRuns,
     guard: look?.guard ? bump(was.guard, look.guard) : was.guard,
     days: bump(was.days, day),
     hours: bump(was.hours, String(hour)),
@@ -200,7 +211,10 @@ export function totalsOf(mode: CareerMode, facts: InningsFacts, look: InningsLoo
   if (facts.fifties) counts.fifties = facts.fifties;
   if (facts.hundreds) counts.hundreds = facts.hundreds;
   if (facts.won) counts[`wins:${mode}`] = 1;
-  if (look) { counts[`kit:${look.kit}`] = 1; counts[`bat:${look.bat}`] = 1; if (look.guard) counts[`guard:${look.guard}`] = 1; }
+  if (look) {
+    counts[`kit:${look.kit}`] = 1; counts[`bat:${look.bat}`] = 1; if (look.guard) counts[`guard:${look.guard}`] = 1;
+    counts[`kitruns:${look.kit}`] = facts.runs; counts[`batruns:${look.bat}`] = facts.runs;
+  }
   if (camera) { counts[`cam:${camera}`] = 1; counts[`camruns:${camera}`] = facts.runs; }
   if (firstOfYear) counts.players = 1;
   return counts;
@@ -220,6 +234,6 @@ export function cleanRecap(raw: unknown): YearRecap | null {
     innings: r.innings, first: r.first, last: r.last,
     modes: counts(r.modes) as YearRecap['modes'],
     kits: counts(r.kits), bats: counts(r.bats), guard: counts(r.guard), days: counts(r.days), hours: counts(r.hours), unlocked: counts(r.unlocked),
-    cams: counts(r.cams), camRuns: counts(r.camRuns),
+    cams: counts(r.cams), camRuns: counts(r.camRuns), kitRuns: counts(r.kitRuns), batRuns: counts(r.batRuns),
   };
 }
