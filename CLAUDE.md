@@ -813,14 +813,21 @@ memory for the checks; nothing deployed reads it yet — the recap itself will.
 `scripts/recap-check.mjs` finishes an innings and unlocks Boom and reads both
 back.
 
-The recap's pictures are the game's own batter, not illustrations: a comic
-("Hitman Comics", the claude.ai artifact "Hitman Comics Sample") whose figures
-are stills of him in the player's kit and bat, inked by a filter in code.
-`recap-stills.html` (`src/recap-stills.ts`) renders one on a transparent
-ground — any kit, bat and guard, any stroke at a moment of its clock, from
-any angle, or the bowler folded over in his follow-through — and
-`scripts/recap-stills.mjs` writes a set out as PNGs off a dev server. A dev
-page: nothing on it is counted or sent.
+The recap's pictures are the game's own batter, not illustrations. Its art
+direction is "Season '26: The Drop" (the Figma file's Year Recap page, section
+"Direction · Season '26: The Drop"): a numbered poster series, 01/11 to 11/11,
+each poster one stat, the batter in chrome tinted by the kit the player wore
+most, graphics built from cricket (seam arcs, stump bars, crease stripes, the
+30-yard ring, the wagon wheel), Jaro with a Hindi word beside every headline,
+a label strip of real figures, and the whole set as the share. A comic
+("Hitman Comics", on the same page) came first and the owner found it
+generic: not to be built again. `recap-stills.html` (`src/recap-stills.ts`)
+renders the stills on a transparent ground — any kit, bat and guard, any
+stroke at a moment of its clock, from any angle, or the bowler folded over in
+his follow-through, and `finish: 'chrome'` turns every material to metal in
+its own colour under a studio's reflections — and `scripts/recap-stills.mjs`
+writes a set out as PNGs off a dev server. A dev page: nothing on it is
+counted or sent.
 
 GoatCounter counts the same things across everybody, by name (it keeps the
 path, not the title, so the item is in the name): `dressing-open-modes` and

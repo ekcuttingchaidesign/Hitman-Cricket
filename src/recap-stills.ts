@@ -10,6 +10,7 @@
  * counted. A dev page.
  */
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { Bowler } from './entities/Bowler';
 import { Batter, CHARGE_MEETS_AT, HOOK_MEETS_AT, LATE_CUT_MEETS_AT, ON_DRIVE_MEETS_AT, PULL_MEETS_AT } from './entities/Batter';
 import { GLOVES, SUPER10_GLOVES } from './entities/gloves';
@@ -34,6 +35,13 @@ export interface StillAsk {
   width?: number; height?: number;
   /** Cut down to the figure and this many pixels round it (the default); `trim: false` keeps the whole frame. */
   trim?: boolean; margin?: number;
+  /**
+   * `chrome` renders him as a polished metal figurine: every material turned
+   * to metal in its own colour (the kit's as anodised metal, the pads and
+   * trousers silver), lit by a studio's reflections. `rough` is how blurred
+   * the reflections are, 0 a mirror. Unset, he is drawn as in the game.
+   */
+  finish?: 'chrome'; rough?: number;
 }
 
 type Spec = { shot: ShotType; x: number; y: number; z?: number; charging?: boolean; lofted?: boolean; sweeping?: boolean; levelled?: boolean; version?: 1 | 2 | 3; spinCut?: boolean; helicopter?: boolean };
@@ -69,6 +77,23 @@ const world = new THREE.Group(); world.scale.x = -1; scene.add(world);
 const batter = new Batter(); world.add(batter.root); batter.mirrorStickers(true);
 const bowler = new Bowler(); world.add(bowler.root); bowler.root.visible = false;
 const camera = new THREE.PerspectiveCamera(28, 2 / 3, .02, 80);
+const studio = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), .04).texture;
+
+/** The materials as the game drew them, so a chrome still can be undone for the next. */
+const asDrawn = new Map<THREE.MeshStandardMaterial, { metalness: number; roughness: number; envMapIntensity: number }>();
+function finishOf(root: THREE.Object3D, chrome: boolean, rough: number) {
+  root.traverse(o => {
+    if (!(o instanceof THREE.Mesh)) return;
+    for (const m of [o.material].flat()) {
+      if (!(m instanceof THREE.MeshStandardMaterial)) continue;
+      if (!asDrawn.has(m)) asDrawn.set(m, { metalness: m.metalness, roughness: m.roughness, envMapIntensity: m.envMapIntensity });
+      const was = asDrawn.get(m)!;
+      if (chrome) { m.metalness = 1; m.roughness = rough; m.envMapIntensity = 1.35; } else Object.assign(m, was);
+    }
+  });
+  scene.environment = chrome ? studio : null;
+  renderer.toneMapping = chrome ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+}
 
 async function dress(kitId: string, batId: string, guardId: string) {
   const team = SUPER10_KITS.find(k => k.id === kitId);
@@ -114,6 +139,7 @@ async function render(ask: StillAsk = {}): Promise<string> {
     pose(ask.shot ?? 'LOFTED', ask.age ?? 520);
   }
   const subject = bowling ? bowler.root : batter.root;
+  finishOf(subject, ask.finish === 'chrome', ask.rough ?? .18);
   renderer.setSize(w, h, false);
   camera.aspect = w / h; camera.fov = ask.fov ?? 28; camera.updateProjectionMatrix();
   // Fit him, bat and all: the bounding sphere at the distance that holds it in the narrower of the two angles.
