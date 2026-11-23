@@ -841,7 +841,14 @@ to show: you against everyone leads with the share only in the top half
 (TOP 38%), and below it with a count, the batters their best beat (2,966
 BEHIND YOU), the base of the pyramid lit, the steps above drawn as outlines
 and the next step given as runs to go; with fewer than a hundred behind the
-poster is skipped. The player's name on the
+poster is skipped. The other posters for such a player are drawn on the same
+page ("A player with little to show"): runs as stumps by mode, since the
+recap keeps runs by mode and innings by day and never runs by month; sixes
+and fours in metres against something their own size, and skipped with none;
+a streak under three days becomes the big day, the most innings in one day;
+one kit or one bat is shown as theirs, with the next one to put on in the
+footer; under twenty innings the personality is the New Ball; and the season
+card's tiles take whatever there is. The player's name on the
 season card is fitted to the width, never cut: one line from Jaro 150 down to
 50 at fourteen letters, or two lines (88 at most) split at the space nearest
 the middle for a name over eight characters with a space in it. The batter is the one
