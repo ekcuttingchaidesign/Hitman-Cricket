@@ -830,7 +830,17 @@ written in Hindi script (बूम बूम, क्लासी, ऑन फा�
 मेन कैरेक्टर), or a Hindi phrase with some attitude (रात का उल्लू, which the
 owner kept), used sparingly and never a flat translation of the headline: the
 owner found literal Hindi (तुम्हारी वर्दी, लगातार) cringe. None on
-the cover, and the masthead reads HITMAN CRICKET. The player's name on the
+the cover, and the masthead reads HITMAN CRICKET with the poster's number
+beside the season. Every poster can be shared by itself: a share key in its
+footer sends that poster as one 1080 by 1920 picture, the poster as a print
+on a dark wall with the player's name over it and the address under it, the
+story bars and the key left off; the last poster's SHARE MY SEASON sends the
+season card or all eleven. A poster is never unkind to a player with little
+to show: you against everyone leads with the share only in the top half
+(TOP 38%), and below it with a count, the batters their best beat (2,966
+BEHIND YOU), the base of the pyramid lit, the steps above drawn as outlines
+and the next step given as runs to go; with fewer than a hundred behind the
+poster is skipped. The player's name on the
 season card is fitted to the width, never cut: one line from Jaro 150 down to
 50 at fourteen letters, or two lines (88 at most) split at the space nearest
 the middle for a name over eight characters with a space in it. The batter is the one
