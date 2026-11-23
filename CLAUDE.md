@@ -831,8 +831,9 @@ written in Hindi script (बूम बूम, क्लासी, ऑन फा�
 owner kept), used sparingly and never a flat translation of the headline: the
 owner found literal Hindi (तुम्हारी वर्दी, लगातार) cringe. None on
 the cover, and the masthead reads HITMAN CRICKET with the poster's number
-beside the season. Every poster can be shared by itself: a share key in its
-footer sends that poster as one 1080 by 1920 picture, the poster as a print
+beside the season. Every poster can be shared by itself: a SHARE key in its
+footer, the word with its icon (an icon alone was easy to miss, the owner
+said), sends that poster as one 1080 by 1920 picture, the poster as a print
 on a dark wall with the player's name over it and the address under it, the
 story bars and the key left off; the last poster's SHARE MY SEASON sends the
 season card or all eleven. A poster is never unkind to a player with little
