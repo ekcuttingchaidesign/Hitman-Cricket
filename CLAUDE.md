@@ -818,9 +818,10 @@ Recap page, section "Season '26 · The Drop · v2 (polished)", which carries
 its style guide): a numbered poster series, 01/11 to 11/11, each poster one
 stat on one flat ground, graphics built from cricket (seam arcs, crease
 stripes and a sun disc, stumps as bars under one long bail, a clock for a
-moon; for you against everyone, four named steps (World Class, State Level,
-Club Level, Gully Cricket) with a row of the game's avatars on each and the
-player's own big on the step they reached), Jaro for the figure printed twice on two plates, one
+moon; for you against everyone, a pyramid of every batter in four named
+slices (World Class, State Level, Club Level, Gully Cricket), each as big as
+its share, with one face on it, the player's own avatar, on the slice they
+reached), Jaro for the figure printed twice on two plates, one
 word or phrase in Devanagari (Poppins Black) beside the headline, one roast
 in a pill, a
 scorecard footer of two or three real figures, and the last poster as the
@@ -847,7 +848,8 @@ ball mascots drawn in code, an AI-painted neon city (AI slop), a spotlight
 still life in vector, and for you against everyone a wagon wheel (decoration,
 not how much better the player did), a hundred dots in rank order (clear,
 but a chart), the batter on a block reading 91% (the headline said twice) and
-a plain sliced pyramid labelled top quarter and top half (unfriendly). `recap-stills.html` (`src/recap-stills.ts`)
+a pyramid labelled top quarter and top half (unfriendly) or stood with rows
+of many avatars (repetitive). `recap-stills.html` (`src/recap-stills.ts`)
 renders the stills on a transparent ground — any kit, bat and guard, any
 stroke at a moment of its clock, an after-ball action or a milestone's
 celebration (`celebrate:double`), from any angle, the bat alone (`only:
