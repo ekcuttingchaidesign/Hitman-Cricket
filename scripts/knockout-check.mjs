@@ -99,6 +99,14 @@ await page.waitForTimeout(500);
 const rings = await page.evaluate(() => ({ shown: !document.getElementById('ko-rings')?.hidden, count: document.querySelectorAll('#ko-rings .ko-ring').length, key: document.querySelector('#ko-card')?.textContent?.trim(), room: window.__cricket.knockout().roomOn }));
 check(rings.room && rings.shown && rings.count > 3 && rings.key === 'LEADERBOARD', 'the room plays on: its rings on the end screen, and LEADERBOARD on the key', JSON.stringify(rings));
 await page.screenshot({ path: out + '/ko-rings.png' });
+// SHARE (X7): a square key at the head of the row, and the finish handed to the share sheet as a picture with its words.
+await page.evaluate(() => { navigator.canShare = () => true; navigator.share = async data => { window.__shared = { text: data.text, file: data.files?.[0]?.name, type: data.files?.[0]?.type, size: data.files?.[0]?.size }; }; });
+const shareKey = await page.evaluate(() => { const key = document.getElementById('ko-share'), box = key?.getBoundingClientRect(), again = document.querySelector('#ko-again .k-cta-face span')?.getBoundingClientRect(); return { there: !!key, w: Math.round(box?.width ?? 0), left: Math.round(box?.left ?? -1), oneLine: (again?.height ?? 99) < 30 }; });
+check(shareKey.there && shareKey.w >= 44 && shareKey.left >= 0 && shareKey.oneLine, 'SHARE stands beside LEADERBOARD and PLAY AGAIN, neither pushed off its line', JSON.stringify(shareKey));
+await page.locator('#ko-share').click({ force: true });
+await page.waitForFunction(() => window.__shared, null, { timeout: 30000 }).catch(() => {});
+const shared = await page.evaluate(() => window.__shared ?? null);
+check(!!shared && shared.type === 'image/jpeg' && shared.size > 50_000 && /of 12 in Super Knockout, with \d+ off \d+\. Can you do better\? http/.test(shared.text ?? ''), 'SHARE hands the share sheet the finish as a picture, with its words and the link', JSON.stringify(shared));
 await page.evaluate(() => window.__cricket.knockoutAt(null));
 // LEADERBOARD: the room as it stands, on the boards' own screen, kept up as the room bowls on; back is the end screen.
 await page.locator('#ko-card').click();

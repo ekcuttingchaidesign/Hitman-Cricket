@@ -191,6 +191,17 @@ body.ko-glass .stage.result-open .score-stack{display:block;z-index:9}
 .ko-moment.is-lost.keys-up .ko-moment-keys .k-cta{transform:none}
 .ko-moment.is-lost.keys-up .ko-moment-keys .k-cta--primary{transition-delay:.04s}
 .ko-moment-keys .k-cta{min-width:0;width:auto}
+/* SHARE (K11, K9 v2): the finish as a picture. A square key in the room's green at the head of the row, so LEADERBOARD
+   and the hero key keep their places; out of the way while the place is still to come. */
+.ko-share-key{flex:none;width:calc(var(--u,1px) * 52);height:calc(var(--u,1px) * 52);align-self:center;border:0;border-radius:calc(var(--u,1px) * 16);
+  display:grid;place-items:center;cursor:pointer;color:#06240f;background:linear-gradient(180deg,#5be08a,#27b35c);
+  box-shadow:0 calc(var(--u,1px) * 4) 0 #14713a,inset 0 1px 0 #ffffff66;-webkit-tap-highlight-color:transparent}
+.ko-share-key:active{transform:translateY(calc(var(--u,1px) * 3));box-shadow:0 calc(var(--u,1px) * 1) 0 #14713a,inset 0 1px 0 #ffffff66}
+.ko-share-key .k-icon{width:calc(var(--u,1px) * 22);height:calc(var(--u,1px) * 22)}
+.ko-moment[data-pending="1"] .ko-share-key{display:none}
+/* Beside it the two keys are 30 narrower each: their words a size down, so BACK TO ROOM still stands on one line. */
+.ko-share-key~.k-cta--primary .k-cta-face{font-size:calc(var(--u,1px) * 16);letter-spacing:.04em;padding:0 calc(var(--u,1px) * 6)}
+.ko-share-key~.k-cta--secondary .k-cta-face{font-size:calc(var(--u,1px) * 15);letter-spacing:.04em}
 /* LEADERBOARD: a key in its own right, in the knockout's gold on a warm dark face with a trophy. In slate grey on the
    black it read as switched off beside BACK TO ROOM (the owner, 19 November 2026). */
 .ko-moment-keys .k-cta--secondary{flex:173;--ledge:#6b4a08;--face:linear-gradient(180deg,#3d2c0e,#261a07);--ink:#ffd98a}

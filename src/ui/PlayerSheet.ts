@@ -159,7 +159,7 @@ function knockoutSheetMarkup(view: PlayerSheetView): string {
   const line = ko.state === 'loading' ? '<p class="ps-rung"><i class="lb-bone ps-bone is-pill"></i></p>'
     : `<p class="ps-rung"><span>${career?.played ? `${career.wins} ${career.wins === 1 ? 'win' : 'wins'} in ${career.played} ${career.played === 1 ? 'match' : 'matches'}` : 'No matches yet'}</span></p>`;
   const glance = ko.state === 'loading' ? `<div class="ps-glance">${bone}${bone}${bone}</div>`
-    : `<div class="ps-glance">${one(String(career?.weekPoints ?? 0), 'points this week')}${one(week ? `#${week}` : '—', 'Super Knockout', week ? ' is-place' : '')}${one(String(career?.weekWins ?? 0), 'wins this week')}</div>`;
+    : `<div class="ps-glance">${one(String(career?.weekPoints ?? 0), career?.weekPoints === 1 ? 'point this week' : 'points this week')}${one(week ? `#${week}` : '—', 'Super Knockout', week ? ' is-place' : '')}${one(String(career?.weekWins ?? 0), career?.weekWins === 1 ? 'win this week' : 'wins this week')}</div>`;
   const body = ko.state === 'offline'
     ? `<div class="ps-message is-offline" role="status"><span class="ps-message-icon" aria-hidden="true">${icon('alert')}</span>
           <h3>Couldn’t load ${escape(name)}’s matches</h3><p>Check your connection.</p></div>`

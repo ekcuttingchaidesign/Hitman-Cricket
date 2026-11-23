@@ -2475,8 +2475,9 @@ where everybody stood (19 November 2026). It opens the room's Results screen
 LEADERBOARD over who leads, the over and how many are still in, every seat
 as it stands, kept up as balls arrive through `hud.knockoutStandings`,
 redrawn where it is scrolled to); once it is over, its Results. The innings'
-own scorecard is not reached from there any more. The design's SHARE comes
-with the share picture.
+own scorecard is not reached from there any more. SHARE is a square green
+key at the head of the row (`#ko-share`, `.ko-share-key`), so neither of the
+two gives up its place, and sends the finish as a picture (below).
 KNOCKED OUT opens on the glass break (Figma section 37, "Knocked out,
 version 2: it should hurt", `830:8574`, the owner's pick on 18 November
 2026), about 3.4 seconds before the keys: the hit, a white frame and the
@@ -2626,8 +2627,8 @@ every ball: dressing him deals the fielding side a kit afresh
 (`pickSide`), so the men in the field changed shirts between balls, which
 the owner saw (19 November 2026). The tray of reactions (😂🔥👏😱🦆) floats
 them up; in a practice room that is all, with subs there being nobody to
-send them to, and in a match they travel (stage two, below). N WATCHING for
-whoever is watched is still to come. `__cricket.knockoutWatch(id)`, `knockoutStep(1)`, `knockoutUnwatch()`
+send them to, and in a match they travel, and the header counts who is
+watching (stage two, below). `__cricket.knockoutWatch(id)`, `knockoutStep(1)`, `knockoutUnwatch()`
 and `knockoutPlayOn()` (the room to its end at once) are for the checks;
 `knockout-check` walks the rings, a watched ball, a swipe, ✕ and the room's
 end both ways.
@@ -3026,9 +3027,30 @@ OVER and the Results play as ever and their key is the room; sat in the room
 when it ends, nothing is played over it: the kept match is let go
 (`dropParked`, also when the room moves on to its next round or is left) and
 one card keeps who won it and where this player came, with LEADERBOARD for
-its Results (`lastMatch`, `#ko-lobby-last`), until the next match starts. A
-phone that never batted the match (joined the room late, or reloaded) has
-nothing to watch from: it sees who is Batting as before.
+its Results (`lastMatch`, `#ko-lobby-last`), until the next match starts.
+
+A phone that never batted the match watches it from the room too (`spectate`
+in `src/Game.ts`): somebody who joined by the code while it was on, or whose
+page was loaded again after they had gone back. When the room's answer says
+a match is being played and this phone holds none, it builds the room as
+every phone in the match does, off the seed, the seats and the cards the
+store holds, with no seat of its own: `you: -1`, for which `KnockoutRoom`
+hands back a seat that is in nobody's room, out and placed after everybody
+(`ghost`), so every reader of `room.you` sees a room whose player's part is
+over. It is kept under the room as a match gone back from is (`parked`,
+`onlooker` on `matchPlay`), so the room says MATCH ON, the scores, the rings
+and WATCH. Nothing on the ground is touched until a story is opened: then
+`stageOnlooker` does what walking out does for a player, with no innings
+begun (the room's screens away, the canopy lit, the batter dressed, the game
+left as it stands after an innings), and ✕ is the room. The standings say
+You are watching this one; MATCH OVER says You watched this one from the
+room, and the Results' back is the room, there being no end screen of this
+phone's under them. A match already won on the cards the store holds is not
+built, and one tried is not tried again that round (`spectated`). A seated
+player whose page is loaded again while they are still heard from is walked
+out again and bats on from where their card stands, as before: only somebody
+not batting is an onlooker. `tests/knockout-together.test.ts` holds the room
+the same on a phone with no seat.
 
 Reactions travel (the owner sent one and the other device never showed it,
 19 November 2026: they only floated where they were sent from). The tray's
@@ -3172,9 +3194,60 @@ the match, or opens the Knockout leaderboard. Not built: a place taken on its
 board, and a room that ended without you, which need events the store does
 not keep.
 
-Not yet: Super Knockout on another player's profile (the sheet's modes are
-the four careers'), a Knockout card to share, N WATCHING, and watching a
-match from the room on a phone that was never in it.
+On another player's profile (Figma section 42, S3; `PlayerSheet.ts`) Super
+Knockout is one more tab after the careers' (`playerTabs`, `playerTab`,
+`knockoutSheetMarkup`), wherever matches with friends are played: the
+knockout's ground, their wins and matches under the name, the points this
+week, the place this week and the wins this week at a glance, and the six
+figures My profile's tab has (`knockoutStats`). It is asked for by handle
+when the sheet opens (`GET /api/challenge?knockout=1&career=<handle>`,
+`readKnockoutCareer`, `onPlayerKnockout`): the store turns the handle back
+into the id itself and answers the standing it answers a player's own, and a
+handle it has never filed answers an empty record (`emptyStanding`), never an
+error. At its foot, beside CHALLENGE, INVITE TO A MATCH (`#player-invite`,
+`inviteFromProfile`): Play with friends hosting a match with them asked into
+it; only from the cover, Choose a mode or an end card, never over an innings
+or a room.
+
+N WATCHING (section 51). A phone with somebody's story open says who it is
+watching, at once and every ten seconds after (`tellWatching`,
+`WATCH_BEAT_MS`, the store's `watch`, `watchInMatch`): a field a watcher
+(`wt:<player>`, the seat, the time and the round), fresh for twenty-five
+seconds (`WATCH_FRESH_MS`), dropped when the story closes or the room moves
+on, never for one's own seat. Every answer says who is watched by seat, how
+many and three faces (`watching` on the view). The story's header counts
+them from two, this phone among them (`.ko-watch-n`, 2 WATCHING); and the
+player watched sees a quiet pill under their scoreboard between balls
+(`#ko-watched`, `hud.knockoutWatched`), gone once their batting is.
+
+The finish as a picture (X7, `893:4879`; `src/game/KnockoutCard.ts`, what it
+says `knockoutCard`, in `tests/knockout-card.test.ts`): the mark, the face in
+a ring, the name on a tag, how it ended, the big word, runs, balls and sixes,
+and at the foot the dare with the address and the QR code, painted in the
+design's own 402 by 714 and scaled to a story's 1080 wide. A winner's is the
+design's: gold, crowned, WINNER, OUTLASTED 11 · LAST ONE STANDING, Can you
+outlast me? Anybody else's is the same card in Knockout red with no crown:
+5TH OF 12, OUTLASTED 7 OF 11 (BEATEN IN THE FINAL for second, FIRST ONE OUT
+for last), Can you do better? SHARE on either end screen sends it through
+the phone's share sheet with its words and the link (`shareKnockout` in the
+HUD), saved where the sheet will not open, WhatsApp's own link with the words
+where no file can leave the browser; hidden while the place is still to come
+with the cut. GoatCounter counts `knockout-share`.
+
+`scripts/spectate-check.mjs` walks the three that need a match in one
+browser, the other two players batting through the API (a ball is one POST,
+so it does not lean on how fast the machine draws): the link opened while
+the match is on, the room built with no seat of its own, MATCH ON, both
+friends in the story ring, WATCH; a face opening their game with the ground
+put up for it; a second watcher counted on the header and told by the store
+with no id; ✕ to the room; the standings saying this phone is watching; the
+match ended and the room's card saying who won; then the profile's Knockout
+tab off the Knockout board, its figures, INVITE TO A MATCH, and an unknown
+handle's empty record. `knockout-check` presses SHARE on a practice room's
+end screen and reads what the share sheet was handed.
+
+Not yet: SHARE MY CARD on My profile's Knockout tab (a career card, where
+the picture is a finish), and the two Notifications rows above.
 
 `scripts/friends-check.mjs` walks it in two browsers in real time, nobody
 swinging: Play with friends, a wrong code, PASTE and a paste of INVITE's

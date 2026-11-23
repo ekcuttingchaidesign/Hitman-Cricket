@@ -25,7 +25,7 @@ import crownUrl from '../assets/knockout/crown.svg';
 import grainUrl from '../assets/entry/grain.webp';
 import { avatarSrc } from '../config/board';
 import { buzz } from '../game/haptics';
-import { cta } from './Kit';
+import { cta, icon } from './Kit';
 import { Rings, type RingView } from './KnockoutWatch';
 
 export interface MomentRow { place: number; name: string; runs: number; face: number; you: boolean; out: boolean; sub: boolean }
@@ -226,7 +226,7 @@ export class KnockoutMoment {
   /** The scoreboard's box on the screen, for its cracks before it goes. */
   private bugAt: { x: number; y: number; ix: number; iy: number } | null = null;
 
-  constructor(private readonly host: HTMLElement, private view: MomentView, keys: { again(): void; card(): void; sound?(cue: MomentSound): void; watch?(id: number | null): void; board?(): void }) {
+  constructor(private readonly host: HTMLElement, private view: MomentView, keys: { again(): void; card(): void; sound?(cue: MomentSound): void; watch?(id: number | null): void; board?(): void; share?(view: MomentView): void }) {
     this.sound = keys.sound ?? null;
     this.times = view.won ? TIMES.won : TIMES.lost;
     this.root = document.createElement('div');
@@ -235,7 +235,7 @@ export class KnockoutMoment {
     this.root.setAttribute('role', 'dialog');
     this.root.innerHTML = `${view.won ? '' : '<div class="ko-drain" aria-hidden="true"></div>'}<canvas class="ko-moment-stage" aria-hidden="true"></canvas>
       <p class="ko-moment-said"></p>
-      <div class="ko-moment-keys">${cta({ kind: 'secondary', label: 'SCORECARD', id: 'ko-card', icon: 'trophy' })}${cta({ kind: 'primary', label: 'PLAY AGAIN', id: 'ko-again', moving: true })}</div>`;
+      <div class="ko-moment-keys">${keys.share ? `<button type="button" class="ko-share-key" id="ko-share" aria-label="Share your finish as a picture">${icon('share')}</button>` : ''}${cta({ kind: 'secondary', label: 'SCORECARD', id: 'ko-card', icon: 'trophy' })}${cta({ kind: 'primary', label: 'PLAY AGAIN', id: 'ko-again', moving: true })}</div>`;
     host.append(this.root);
     this.say();
     // The card waits underneath, out of sight: what shows through the dark is the match.
@@ -244,6 +244,10 @@ export class KnockoutMoment {
     this.drain = this.root.querySelector<HTMLElement>('.ko-drain');
     this.ctx = this.canvas.getContext('2d')!;
     this.root.querySelector<HTMLButtonElement>('#ko-again')!.onclick = event => { event.stopPropagation(); this.close(); keys.again(); };
+    // SHARE (K11, K9 v2): the finish as a picture, X7. A square key beside the two, so neither gives up its place; not
+    // while the place is still to come with the cut.
+    const share = this.root.querySelector<HTMLButtonElement>('#ko-share');
+    if (share) share.onclick = event => { event.stopPropagation(); if (!this.view.pending) keys.share!(this.view); };
     // The left key is LEADERBOARD: the room's standings as they are, or its Results once it is over. The owner, out early
     // in a match, could go back to the room or read the scorecard and had no way to see where everybody stood
     // (19 November 2026); WATCH ON, which it was while the room played on, is the rings' own tap. Counting to the

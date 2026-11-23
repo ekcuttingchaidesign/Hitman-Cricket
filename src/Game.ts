@@ -2634,6 +2634,12 @@ export class Game {
     facing: number;
     /** Back in the room with the match still being played: kept under the room, to be watched from it. */
     parked: boolean;
+    /**
+     * In the room without ever batting this match on this phone (joined late, or the page was loaded again after going
+     * back): the room is built from the store's cards to be watched from, with no seat of this phone's own (`spectate`).
+     * `staged` once the ground has been put up for the first story.
+     */
+    onlooker?: boolean; staged?: boolean;
   } | null = null;
   /** Walking out of the lobby: the moment every phone counts to, by the store's clock. */
   private walkOutAt: { at: number; timer: number } | null = null;
@@ -2774,6 +2780,9 @@ export class Game {
       const link = this.matchLink;
       void settleMatch(match.code, me).then(answer => { if (link === this.matchLink) link?.take(answer); });
     }
+    // A match being played that this phone never batted (joined the room late, or loaded again): the room is built from
+    // the store's cards, so those still batting can be watched from here as from any phone that was in it.
+    if (live && !this.matchPlay && match.busy > 0) this.spectate(match);
     const members = match.members.filter(m => !m.left);
     // A match this phone batted in and kept under the room: who is still batting it, their scores, and who can be watched.
     const play = this.matchPlay?.parked ? this.matchPlay : null, room = play && this.knockout && !this.knockout.done ? this.knockout : null;
@@ -2788,7 +2797,8 @@ export class Game {
         return {
           handle: m.handle, name: m.name, avatar: m.avatar, host: m.host, ready: m.ready, you: own, joined: m.joined, away: !own && !!m.away,
           playing: m.playing || batting, score: batting ? `${seat!.runs}*` : undefined, watch: batting && !own,
-          out: seat && !batting ? (seat.place !== null ? `Out · ${ordinal(seat.place).toLowerCase()}` : 'Out') : undefined,
+          // (Watching a match this phone is not batting, their own seat still going is a sub's.)
+          out: seat && !batting ? (seat.place !== null ? `Out · ${ordinal(seat.place).toLowerCase()}` : own && play?.onlooker && still(seat) ? 'A sub is batting' : 'Out') : undefined,
         };
       }),
       around: this.aroundNow(match.invited),
@@ -2824,6 +2834,73 @@ export class Game {
     if (stored && me && match) return resultsOf(stored, handleOf(me.playerId), match.code, 'BACK TO ROOM');
     return this.lastMatch?.results ?? null;
   }
+  /** The match a phone could not make a room to watch from, by code and round: not tried again each answer. */
+  private spectated = '';
+  /**
+   * Watching from the room on a phone that never batted the match (section 57's last case): somebody who joined by the
+   * code while it was on, or who loaded the page again after going back. The room is built here as every phone in the
+   * match builds it, off the seed, the seats and the cards the store holds, with no seat of this phone's own
+   * (`you: -1`, the room's ghost), and kept under the room's screen as a match gone back from is (`parked`): MATCH ON,
+   * the scores, the rings and WATCH. Nothing on the ground is touched until a story is opened (`stageOnlooker`).
+   */
+  private spectate(match: MatchView) {
+    const me = this.matchMe(), key = `${match.code}:${match.round}`;
+    if (!me || this.matchPlay || this.spectated === key || !match.seats.length || !['START', 'INNINGS_END'].includes(this.phase) || this.walkOutAt) return;
+    this.spectated = key;
+    const seats: SeatSpec[] = match.seats.map(handle => {
+      const m = match.members.find(one => one.handle === handle);
+      return { name: m?.name ?? 'Player', face: m?.avatar ?? 0, sub: false, handle };
+    });
+    this.matchPlay = { code: match.code, me, seed: match.seed, seats, you: -1, deliveries: [], balls: [], hows: [], told: new Map(), sending: false, sendAt: 0, refused: null, sendFails: 0,
+      batted: 0, out: true, asked: new Map(), beatAt: performance.now(), fresh: false, view: match, logAt: 0, held: false, round: match.round, dirty: false, doneSent: false, leaving: false,
+      reacted: new Set(), facing: 0, parked: true, onlooker: true };
+    this.seed = match.seed;
+    this.knockout = new KnockoutRoom(match.seed, { seats, you: -1 });
+    this.generator = new DeliveryGenerator(new SeededRandom(match.seed), matchPlan(match.seed));
+    this.room = { nextAt: Infinity, watching: null, ball: null };
+    this.hearHows(match);
+    this.knockout.advance(this.matchSource, this.matchPaced);
+    // Already won on the balls the store holds (it is about to say so): nothing to watch.
+    if (this.knockout.done) { this.matchPlay = null; this.knockout = null; this.room = null; return; }
+    document.body.classList.add('ko-parked');
+    track('knockout-spectate', 'A match watched from the room by a phone that was not batting it');
+  }
+  /**
+   * The ground put up for an onlooker's first story: what walking out does for a player, with no innings begun. The
+   * room's screens go, the canopy is lit and the batter dressed, and the game stands as it does after an innings, so
+   * the stories play over it and ✕ is the room.
+   */
+  private stageOnlooker() {
+    const play = this.matchPlay;
+    if (!play?.onlooker || play.staged) return;
+    play.staged = true;
+    this.hud.closeNotices(); this.hud.closeChaseEnd(); this.verdict?.close();
+    this.friendsScreen?.hide();
+    this.hud.knockoutRules(false); this.hud.knockoutHome(null); this.hud.closeModes();
+    this.mode = 'CLASSIC'; this.knockoutPicked = true; this.lesson = -1;
+    this.audio.stop(); this.audio.music(null); this.audio.unlock();
+    this.score = new ScoreManager(this.limits); this.confidence = new Confidence(); this.health = new Health();
+    this.marathon = null; this.ending = null;
+    this.koCut = null; this.held = null; this.heldBall = -1; this.hud.knockoutHeld(null); this.scene.floodlights(null);
+    this.hud.knockoutTrack(null); this.hud.knockoutEnd(null); this.hud.knockoutFreeHit(null, true);
+    this.delivery = null; this.attempt = null; this.outcome = null; this.primed = null;
+    this.input.reset(); this.scene.reset();
+    const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat, look.guard, null);
+    this.scene.whites(false);
+    this.light(blastLights());
+    this.scene.prewarm();
+    this.told = { swing: false }; this.bannerUntil = 0; this.keeperHeld = 0; this.hud.closeIntro();
+    this.scene.overcast(false, true); this.hud.levelBanner(null);
+    this.hud.start(false, false);
+    document.body.classList.remove('s10-solid');
+    this.hand();
+    this.s10 = Game.freshField();
+    this.scene.arenaMood('calm');
+    this.fieldUi.show(false, this.scene.mirrored, this.scene.facing);
+    this.nearing = null; this.hud.nearing(null, null);
+    this.hud.score(this.score); this.showConfidence();
+    this.setPhase('INNINGS_END');
+  }
   /**
    * BACK TO ROOM with the match still being played (section 57): the match is kept as it stands under the room, moving on
    * as the store's balls arrive, so everybody still batting can be watched from it. The end screen waits out of sight.
@@ -2849,6 +2926,8 @@ export class Game {
     const play = this.matchPlay, room = this.knockout, on = this.room;
     if (!play?.parked || !room || !on || room.done || on.ending) return;
     const seat = handle ? room.seats.find(one => one.handle === handle) : id !== null ? room.seats[id] : null;
+    if (!this.batting().length) return;
+    this.stageOnlooker();
     this.lobbyScreen?.hide();
     this.hud.knockoutResults(null);
     document.body.classList.remove('ko-parked');
@@ -2902,7 +2981,7 @@ export class Game {
   private closeLobby() {
     this.matchLink?.stop(); this.matchLink = null; keepMatch(null);
     if (this.walkOutAt) { window.clearTimeout(this.walkOutAt.timer); this.walkOutAt = null; }
-    this.lastMatch = null;
+    this.lastMatch = null; this.spectated = '';
     this.lobbyScreen?.hide(); this.lobbyScreen?.forget();
   }
   /** A match that has closed, or started without this player: said once, and back to Play with friends. */
@@ -2963,7 +3042,7 @@ export class Game {
       const won = room.winner === room.you, place = room.you.place ?? room.seats.length;
       this.lastMatch = { code: play.code, face: room.winner.face, results: this.resultsView(),
         title: won ? 'YOU WON IT' : `${room.winner.name.toUpperCase()} WON IT`,
-        line: `${room.winner.runs} off ${room.winner.balls} · ${won ? 'the room was yours' : `you were ${ordinal(place).toLowerCase()}`}` };
+        line: `${room.winner.runs} off ${room.winner.balls} · ${won ? 'the room was yours' : play.onlooker ? 'you sat this one out' : `you were ${ordinal(place).toLowerCase()}`}` };
     }
     document.body.classList.remove('ko-parked');
     this.matchPlay = null;
@@ -8423,7 +8502,7 @@ export class Game {
     this.hud.knockoutRings(this.ringsOf());
     if (!this.knockout!.done) this.hud.knockoutStandings(() => this.resultsView());
     if (watched && news.kind === 'cut') {
-      const line = cutLine(news, this.knockout!.alive.length); if (line) this.hud.callOut(line);
+      const line = cutLine(news, this.knockout!.alive.length, this.knockout!.youId); if (line) this.hud.callOut(line);
       this.scene.floodlights('flash', this.elapsed); this.scene.cheer('hit-four', this.elapsed); this.audio.cheer(CUT_CHEER);
     }
     if (this.knockout!.done) { this.roomEnd(watched); return; }
@@ -8464,7 +8543,7 @@ export class Game {
       this.hud.knockoutMatchOver({
         name: winner.name, face: winner.face,
         line: `${winner.runs} off ${winner.balls}${runner ? ` · outlasted ${runner.name}${by > 0 ? ` by ${by}` : ''} in the final` : ''}`,
-        you: `You finished ${ordinal(you).toLowerCase()} of ${room.seats.length}`,
+        you: this.matchPlay?.onlooker ? 'You watched this one from the room' : `You finished ${ordinal(you).toLowerCase()} of ${room.seats.length}`,
       }, { id: winner.id, name: winner.name, face: winner.face, out: false }, this.roomLine(), watching, () => this.resultsNow());
       this.audio.music('winner');
       this.mark('knockout-room-over', 'A room watched to its end');
@@ -8483,6 +8562,7 @@ export class Game {
   private roomLine() {
     const room = this.knockout!;
     if (room.you.place === 1) return 'You won the room';
+    if (this.matchPlay?.onlooker) return `${room.winner!.name} won the room`;
     return `${room.winner!.name} won the room · you were ${ordinal(room.you.place ?? room.seats.length).toLowerCase()}`;
   }
   /** Under the wipe: the game put away, the end screen told the result, and the room's Results over it. */
@@ -8491,7 +8571,8 @@ export class Game {
     if (this.room?.watching !== null) this.unwatch(true);
     this.room = null;
     this.hud.knockoutRoomOver(this.roomLine());
-    this.hud.knockoutResults(this.resultsView(), () => this.audio.music(null));
+    // (A phone that only watched has no end screen of its own under them: back is the room.)
+    this.hud.knockoutResults(this.resultsView(), () => { this.audio.music(null); if (this.matchPlay?.onlooker) this.showMatchRoom(); });
     this.mark('knockout-results', 'The room\'s results');
     void room;
   }
@@ -8524,7 +8605,7 @@ export class Game {
     const paid = this.tellPaid(result);
     this.hud.knockoutResultsPaid(() => this.resultsView());
     this.knockoutStanding = null;
-    if (result.counted) track(paid > 0 ? 'knockout-paid' : 'knockout-unpaid', paid > 0 ? 'A match with friends paid points' : 'A match with friends that counted and paid this player nothing');
+    if (result.counted && !play.onlooker) track(paid > 0 ? 'knockout-paid' : 'knockout-unpaid', paid > 0 ? 'A match with friends paid points' : 'A match with friends that counted and paid this player nothing');
   }
   private resultsView(): ResultsView {
     const room = this.knockout!, live = !room.done;
@@ -8556,9 +8637,13 @@ export class Game {
       },
       rows: seats.map((seat, i) => ({ place: seat.place ?? i + 1, name: seat.name, face: seat.face, runs: seat === you && mine ? mine.runs : seat.runs,
         line: seat === you && mine ? 'Out · waiting on the cut' : lineOf(seat), you: seat === you, sub: seat.sub })),
-      you: { place: you.place ?? seats.indexOf(you) + 1, of: seats.length, face: you.face, runs: mine?.runs ?? you.runs,
-        line: `${this.knockoutView().line} · ${this.matchPlay ? 'with friends' : 'practice'}`,
-        sentence: you.place === null ? 'You are <em>out</em> · your place comes with the cut' : undefined },
+      // (Watching a match this phone is not batting: no place of its own in the dock.)
+      you: this.matchPlay?.onlooker
+        ? { place: 0, of: seats.length, face: this.matchPlay.me.avatar, runs: null, line: live ? 'Watching from the room' : 'You were not batting in this one',
+          sentence: live ? 'You are <em>watching</em> this one' : 'You <em>sat this one out</em>' }
+        : { place: you.place ?? seats.indexOf(you) + 1, of: seats.length, face: you.face, runs: mine?.runs ?? you.runs,
+          line: `${this.knockoutView().line} · ${this.matchPlay ? 'with friends' : 'practice'}`,
+          sentence: you.place === null ? 'You are <em>out</em> · your place comes with the cut' : undefined },
       practice: !this.matchPlay, again: this.matchPlay ? 'BACK TO ROOM' : undefined,
     };
   }

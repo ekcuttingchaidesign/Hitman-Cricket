@@ -36,9 +36,8 @@ Promise<MatchOutcome | MatchInvitesAccepted | MatchRefusal | KnockoutBoards | Kn
       if (!isHandle(career)) return { ok: false, status: 400, reason: 'That is not a player.' };
       // A handle the store has never filed is somebody with no record: the answer of a player who has not played.
       const id = await store.idOf(career);
-      const answer = id ? await knockoutStanding(ledger, id) : null;
-      if (answer && !answer.ok) return answer;
-      return { ...(answer ?? emptyStanding()), pointsFrom: POINTS_RULES.pointsFrom };
+      const answer = id ? await knockoutStanding(ledger, id) : emptyStanding();
+      return answer.ok ? { ...answer, pointsFrom: POINTS_RULES.pointsFrom } : answer;
     }
     const standing = one(req.query.standing);
     if (standing) {

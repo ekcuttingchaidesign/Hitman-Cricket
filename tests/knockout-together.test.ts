@@ -53,6 +53,24 @@ describe('a match with friends, batted together', () => {
     expect(b.room.winner!.name).toBe(a.room.winner!.name);
   });
 
+  it('builds the same room on a phone that is not batting it, with no seat of its own', () => {
+    // Watching from the room on a phone that joined late (`spectate` in the game): `you` is no seat at all.
+    const seated = play(7, 0, {}), onlooker = play(7, -1, {});
+    expect(result(onlooker.room)).toBe(result(seated.room));
+    expect(onlooker.room.winner!.name).toBe(seated.room.winner!.name);
+    // Part-way through: its own part reads as over, nobody in the room is it, and everybody still in can be watched.
+    const { room } = play(7, -1, { a: 9, b: 9, c: 9 });
+    expect(room.done).toBe(false);
+    expect(room.finished).toBe(true);
+    expect(room.seats.includes(room.you)).toBe(false);
+    expect(room.you.out).toBe(true);
+    expect(room.watchable.map(seat => seat.id)).toEqual(room.ranked.map(seat => seat.id));
+    expect(room.freeHit()).toBe(false);
+    expect(room.freeHitAhead()).toBe(false);
+    // And it stands exactly where a seated phone's room does on the same balls.
+    expect(result(room)).toBe(result(play(7, 1, { a: 9, b: 9, c: 9 }).room));
+  });
+
   it('rides the bar on the phone’s own seat, whichever seat that is', () => {
     // The owner led a final as the guest and their face stood at the bar's far left: the bar looked for seat 0, the
     // host's, where the phone's own seat rides it.

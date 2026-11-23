@@ -212,7 +212,12 @@ export class KnockoutRoom {
     this.hard = Array.from({ length: KNOCKOUT.cuts.length + 1 }, (_, over) => freeHitBall(seed, over));
   }
 
-  get you() { return this.seats[this.youId]; }
+  /**
+   * The player's seat. A phone watching a match it is not batting (`you: -1`) has none: it gets a seat that is in
+   * nobody's room, out and placed after everybody, so the room reads as one whose player's part is over.
+   */
+  get you() { return this.seats[this.youId] ?? this.ghost; }
+  private readonly ghost: Seat = { id: -1, name: 'You', sub: false, face: 0, played: 0, runs: 0, balls: 0, fours: 0, sixes: 0, out: true, place: KNOCKOUT.seats + 1, wentAt: 0 };
   get alive() { return this.seats.filter(s => s.place === null); }
   /**
    * Where the player is in the match: their own next ball while they bat (in

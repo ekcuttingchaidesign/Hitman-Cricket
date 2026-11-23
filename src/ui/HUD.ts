@@ -29,6 +29,7 @@ import type { ChallengeMode } from '../game/challenge-api';
 import { feedbackGiven } from '../game/feedback';
 import { RATED_NAME, type RatedThing } from '../game/rating';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage } from '../game/ShareCard';
+import { knockoutCardFile, knockoutCardImage, knockoutShareText, type KnockoutFinish } from '../game/KnockoutCard';
 import type { ChallengeRow } from '../game/challenge-api';
 import type { ResultView, RivalryView, RoomView } from '../game/Challenge';
 import { animate, stagger } from 'animejs';
@@ -3097,7 +3098,34 @@ ${knockoutRulesMarkup()}
       again: () => { this.koMoment = null; this.$('again').click(); },
       card: () => { this.koMoment = null; this.$('again').focus(); },
       sound, watch, board,
+      share: now => { void this.shareKnockout({ won: now.won, place: now.place, of: now.of, name: now.you.name, face: now.you.face, runs: now.you.runs, balls: now.you.balls, sixes: now.you.sixes }); },
     });
+  }
+  /**
+   * A Super Knockout finish out as a picture (X7, `KnockoutCard.ts`): the share sheet with the picture and the words,
+   * the picture saved where the sheet will not open, and WhatsApp's own link with the words where no file can leave
+   * the browser at all, as the career card goes.
+   */
+  async shareKnockout(finish: KnockoutFinish) {
+    const url = gameLink();
+    const words = knockoutShareText(finish, url);
+    track('knockout-share', 'Shared a Super Knockout finish');
+    if (!canShareImage()) {
+      window.open(`https://wa.me/?text=${encodeURIComponent(words)}`, '_blank', 'noopener');
+      return;
+    }
+    let picture: Blob;
+    try { picture = await knockoutCardImage(finish, url); } catch { return; }
+    try {
+      await navigator.share({ files: [new File([picture], knockoutCardFile(), { type: 'image/jpeg' })], text: words });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      const href = URL.createObjectURL(picture);
+      const link = document.createElement('a');
+      link.href = href; link.download = knockoutCardFile();
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(href), 10_000);
+    }
   }
   /**
    * A Marathon level beginning, put up the way a broadcast would: the swing
