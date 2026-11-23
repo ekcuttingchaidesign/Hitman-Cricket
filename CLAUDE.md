@@ -897,9 +897,15 @@ the left third goes back on a plain cut, a hold pauses, and SHARE always
 sends the finished frame. One clock a poster, as Level Up and New #1 are, and
 transforms and opacity only; reduced motion is the finished frames on a
 160 ms fade. The section under it, "ChatGPT hero pictures · how to prompt",
-has the four prompts whole (cover, night owl, bat, personality), what to
+is eight pictures: the three batters (cover, night owl, personality) made
+once in OG Navy and then recoloured to Papaya in the same chat, never made
+again from scratch, so every kit is the same picture in another colour (the
+four lines to swap for each other plain kit are listed; the printed Diwali
+and Super10 kits need pictures of their own), and the Plain bat with Boom
+made from it the same way. In those three the batter always holds the plain
+bat, or every picture would be multiplied by the bats. With them, what to
 attach, the checks and the lines that fix a wrong result; none had been run
-when it was written.
+when it was written. Everybody in another kit keeps the game's render.
 
 GoatCounter counts the same things across everybody, by name (it keeps the
 path, not the title, so the item is in the name): `dressing-open-modes` and
