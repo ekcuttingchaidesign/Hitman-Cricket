@@ -19,15 +19,17 @@ import { GAME } from './config/gameplay';
 import { ALL_BATS, ALL_OUTFITS } from './game/dressing';
 import { SUPER10_KITS } from './game/super10-kits';
 import type { ShotType } from './game/types';
-import type { AfterBall } from './entities/Batter';
+import type { AfterBall, Celebration } from './entities/Batter';
 
 /** What one still is of. */
 export interface StillAsk {
   /** The batter (the default), or the bowler: `bowler` with `follow` his follow-through's progress, or `run` a moment of his run-up in ms. */
   who?: 'batter' | 'bowler'; follow?: number; run?: number;
   kit?: string; bat?: string; guard?: string;
-  /** A stroke (`LOFTED`, `PULL`, `COVER`…, as `rig-sheet` names them), `GUARD` for his stance, or an after-ball action (`after:admire`). */
+  /** A stroke (`LOFTED`, `PULL`, `COVER`…, as `rig-sheet` names them), `GUARD` for his stance, an after-ball action (`after:admire`) or a milestone's celebration (`celebrate:hundred`). */
   shot?: string;
+  /** `bat` draws the bat alone, as he holds it in the pose asked for; the still is framed on it. */
+  only?: 'bat';
   /** Milliseconds into the stroke, or into the after-ball action. */
   age?: number;
   /** The camera round him in degrees, 0 in front of his chest, and up from level; `dist` is a multiple of the distance that just fits him. */
@@ -39,9 +41,13 @@ export interface StillAsk {
    * `chrome` renders him as a polished metal figurine: every material turned
    * to metal in its own colour (the kit's as anodised metal, the pads and
    * trousers silver), lit by a studio's reflections. `rough` is how blurred
-   * the reflections are, 0 a mirror. Unset, he is drawn as in the game.
+   * the reflections are, 0 a mirror. `studio` is the game's own batter shot as
+   * a poster wants him: matte, a warm key from in front that throws his own
+   * shadows across him, a cool rim down either edge (`rimColor`, the second
+   * rim's colour, the kit's glow by default) and a film's tone curve.
+   * Unset, he is drawn as in the game.
    */
-  finish?: 'chrome'; rough?: number;
+  finish?: 'chrome' | 'studio'; rough?: number; rimColor?: string;
 }
 
 type Spec = { shot: ShotType; x: number; y: number; z?: number; charging?: boolean; lofted?: boolean; sweeping?: boolean; levelled?: boolean; version?: 1 | 2 | 3; spinCut?: boolean; helicopter?: boolean };
@@ -70,9 +76,13 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.setPixelRatio(1);
 const scene = new THREE.Scene();
 // Even, bright light with a clear lit side and a rim, so a comic's ink and flat colour read off it.
-scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f9a, 2.2));
+const sky = new THREE.HemisphereLight(0xffffff, 0x8a8f9a, 2.2); scene.add(sky);
 const key = new THREE.DirectionalLight(0xfff2e0, 2.4); scene.add(key, key.target);
 const rim = new THREE.DirectionalLight(0xd8e6ff, 1.6); scene.add(rim, rim.target);
+// The studio finish's second rim, down his other edge, and the key's shadows: both off for every other finish.
+const rim2 = new THREE.DirectionalLight(0xffffff, 0); scene.add(rim2, rim2.target);
+key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -.0006; key.shadow.normalBias = .02; key.shadow.radius = 5;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const world = new THREE.Group(); world.scale.x = -1; scene.add(world);
 const batter = new Batter(); world.add(batter.root); batter.mirrorStickers(true);
 const bowler = new Bowler(); world.add(bowler.root); bowler.root.visible = false;
@@ -81,18 +91,28 @@ const studio = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(
 
 /** The materials as the game drew them, so a chrome still can be undone for the next. */
 const asDrawn = new Map<THREE.MeshStandardMaterial, { metalness: number; roughness: number; envMapIntensity: number }>();
-function finishOf(root: THREE.Object3D, chrome: boolean, rough: number) {
+function finishOf(root: THREE.Object3D, finish: StillAsk['finish'], rough: number, rimColor: string) {
+  const chrome = finish === 'chrome', lit = finish === 'studio';
   root.traverse(o => {
     if (!(o instanceof THREE.Mesh)) return;
+    o.castShadow = o.receiveShadow = lit;
     for (const m of [o.material].flat()) {
       if (!(m instanceof THREE.MeshStandardMaterial)) continue;
       if (!asDrawn.has(m)) asDrawn.set(m, { metalness: m.metalness, roughness: m.roughness, envMapIntensity: m.envMapIntensity });
       const was = asDrawn.get(m)!;
-      if (chrome) { m.metalness = 1; m.roughness = rough; m.envMapIntensity = 1.35; } else Object.assign(m, was);
+      if (chrome) { m.metalness = 1; m.roughness = rough; m.envMapIntensity = 1.35; }
+      else if (lit) { m.metalness = 0; m.roughness = Math.min(was.roughness, .58); m.envMapIntensity = .3; }
+      else Object.assign(m, was);
     }
   });
-  scene.environment = chrome ? studio : null;
-  renderer.toneMapping = chrome ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+  scene.environment = chrome || lit ? studio : null;
+  renderer.toneMapping = chrome ? THREE.ACESFilmicToneMapping : lit ? THREE.NeutralToneMapping : THREE.NoToneMapping;
+  renderer.toneMappingExposure = lit ? .92 : 1;
+  renderer.shadowMap.enabled = lit; key.castShadow = lit;
+  sky.intensity = lit ? .5 : 2.2;
+  key.intensity = lit ? 2.5 : 2.4; key.color.set(lit ? 0xffe9c9 : 0xfff2e0);
+  rim.intensity = lit ? 3.2 : 1.6; rim.color.set(lit ? 0xbfd8ff : 0xd8e6ff);
+  rim2.intensity = lit ? 3 : 0; rim2.color.set(rimColor);
 }
 
 async function dress(kitId: string, batId: string, guardId: string) {
@@ -115,6 +135,8 @@ function pose(shot: string, age: number) {
   batter.reset(); batter.prepare(1); batter.update(0);
   if (shot.startsWith('after:')) {
     batter.afterBall(shot.slice(6) as AfterBall, 0); batter.update(age);
+  } else if (shot.startsWith('celebrate:')) {
+    batter.celebrate(0, shot.slice(10) as Celebration); batter.update(age);
   } else if (shot !== 'GUARD') {
     const s = STROKE[shot] ?? STROKE.LOFTED;
     batter.swing(s.shot, 0, s.x, s.y, GAME.contactZ + (s.z ?? 0), s.charging ?? false, s.lofted ?? false, s.sweeping ?? false, s.levelled ?? false,
@@ -138,8 +160,16 @@ async function render(ask: StillAsk = {}): Promise<string> {
     await dress(ask.kit ?? 'home', ask.bat ?? 'boom', ask.guard ?? 'sterling');
     pose(ask.shot ?? 'LOFTED', ask.age ?? 520);
   }
-  const subject = bowling ? bowler.root : batter.root;
-  finishOf(subject, ask.finish === 'chrome', ask.rough ?? .18);
+  // The bat alone: everything of him out of sight but the bat and what it is hung from.
+  const alone = !bowling && ask.only === 'bat';
+  const hidden: THREE.Object3D[] = [];
+  if (alone) {
+    const kept = new Set<THREE.Object3D>(); batter.bat.traverse(o => kept.add(o));
+    batter.root.traverse(o => { if (o instanceof THREE.Mesh && !kept.has(o) && o.visible) { o.visible = false; hidden.push(o); } });
+  }
+  const subject = bowling ? bowler.root : alone ? batter.bat : batter.root;
+  const glow = ALL_OUTFITS.find(o => o.id === ask.kit)?.glow ?? '#ffb08f';
+  finishOf(bowling ? bowler.root : batter.root, ask.finish, ask.rough ?? .18, ask.rimColor ?? glow);
   renderer.setSize(w, h, false);
   camera.aspect = w / h; camera.fov = ask.fov ?? 28; camera.updateProjectionMatrix();
   // Fit him, bat and all: the bounding sphere at the distance that holds it in the narrower of the two angles.
@@ -153,7 +183,16 @@ async function render(ask: StillAsk = {}): Promise<string> {
   camera.lookAt(sphere.center);
   key.position.copy(sphere.center).add(new THREE.Vector3(-3, 5, 3).applyAxisAngle(new THREE.Vector3(0, 1, 0), az - Math.PI / 4)); key.target.position.copy(sphere.center);
   rim.position.copy(sphere.center).addScaledVector(dir, -4).setY(sphere.center.y + 2); rim.target.position.copy(sphere.center);
+  if (ask.finish === 'studio') {
+    // The rims come from behind him either side of the lens, so each lights one edge; the key's shadow box holds him whole.
+    const side = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
+    rim.position.copy(sphere.center).addScaledVector(dir, -3).addScaledVector(side, 3.4).setY(sphere.center.y + 1.4);
+    rim2.position.copy(sphere.center).addScaledVector(dir, -3).addScaledVector(side, -3.4).setY(sphere.center.y + .6); rim2.target.position.copy(sphere.center);
+    const cam = key.shadow.camera, r = sphere.radius * 1.15;
+    cam.left = -r; cam.right = r; cam.top = r; cam.bottom = -r; cam.near = .1; cam.far = 20; cam.updateProjectionMatrix();
+  }
   renderer.render(scene, camera);
+  for (const o of hidden) o.visible = true;
   return ask.trim === false ? renderer.domElement.toDataURL('image/png') : trimmed(renderer.domElement, ask.margin ?? 24);
 }
 

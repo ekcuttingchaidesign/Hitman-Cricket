@@ -813,21 +813,35 @@ memory for the checks; nothing deployed reads it yet — the recap itself will.
 `scripts/recap-check.mjs` finishes an innings and unlocks Boom and reads both
 back.
 
-The recap's pictures are the game's own batter, not illustrations. Its art
-direction is "Season '26: The Drop" (the Figma file's Year Recap page, section
-"Direction · Season '26: The Drop"): a numbered poster series, 01/11 to 11/11,
-each poster one stat, the batter in chrome tinted by the kit the player wore
-most, graphics built from cricket (seam arcs, stump bars, crease stripes, the
-30-yard ring, the wagon wheel), Jaro with a Hindi word beside every headline,
-a label strip of real figures, and the whole set as the share. A comic
-("Hitman Comics", on the same page) came first and the owner found it
-generic: not to be built again. `recap-stills.html` (`src/recap-stills.ts`)
+The recap's art direction is "Season '26: The Drop" (the Figma file's Year
+Recap page, section "Season '26 · The Drop · v2 (polished)", which carries
+its style guide): a numbered poster series, 01/11 to 11/11, each poster one
+stat on one flat ground, graphics built from cricket (seam arcs, crease
+stripes and a sun disc, stumps as bars under one long bail, the wagon wheel, a
+clock for a moon), Jaro for the figure printed twice on two plates, a real
+Hindi word in Poppins Black beside every headline, one roast in a pill, a
+scorecard footer of two or three real figures, and the last poster as the
+share. The batter is the one dimensional thing on a poster, cut out with a
+cream edge and never on a plate of his own kit's hue: the game's own render on
+some (sixes, fours, the kit, the season card) and, where he is the whole
+picture (the cover, the night owl, the bat, the personality), a GPT hero
+redrawn from a game render of the pose to the Super10 poster's polish, its
+prompt in the note under the poster. Small type is ink on a light ground or
+cream on a dark one; tomato, marigold, lime and pink are for figures and
+shapes only. What the owner turned down, not to be built again: a comic
+("Hitman Comics": generic), the batter in chrome (a party balloon), barcodes,
+coordinates and label strips lifted off the references, a pixel city and
+ball mascots drawn in code, an AI-painted neon city (AI slop), and a
+spotlight still life in vector. `recap-stills.html` (`src/recap-stills.ts`)
 renders the stills on a transparent ground — any kit, bat and guard, any
-stroke at a moment of its clock, from any angle, or the bowler folded over in
-his follow-through, and `finish: 'chrome'` turns every material to metal in
-its own colour under a studio's reflections — and `scripts/recap-stills.mjs`
-writes a set out as PNGs off a dev server. A dev page: nothing on it is
-counted or sent.
+stroke at a moment of its clock, an after-ball action or a milestone's
+celebration (`celebrate:double`), from any angle, the bat alone (`only:
+'bat'`), or the bowler folded over in his follow-through. `finish: 'studio'`
+is the posters': matte, a warm key that throws his own shadows across him, a
+cool rim down either edge and a neutral tone curve (`finish: 'chrome'`, the
+metal figurine, is kept and not used). `scripts/recap-stills.mjs` writes a
+set out as PNGs off a dev server. A dev page: nothing on it is counted or
+sent.
 
 GoatCounter counts the same things across everybody, by name (it keeps the
 path, not the title, so the item is in the name): `dressing-open-modes` and
