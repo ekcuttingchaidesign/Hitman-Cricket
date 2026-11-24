@@ -70,6 +70,7 @@ const STROKE: Record<string, Spec> = {
   CHARGE: { shot: 'STRAIGHT', x: 0, y: .54, charging: true, z: CHARGE_MEETS_AT },
   HELICOPTER: { shot: 'STRAIGHT', x: 0, y: .12, helicopter: true },
   DEFEND: { shot: 'DEFEND', x: 0, y: .54 },
+  DEFEND_BACK: { shot: 'DEFEND', x: 0, y: .95 },
 };
 export const STILL_STROKES = Object.keys(STROKE);
 

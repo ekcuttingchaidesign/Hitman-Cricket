@@ -869,7 +869,7 @@ stump a mode, the bail on the one with the most, since runs are never kept
 by month. The personality is one of six, each with its own ground, word,
 shape and pose: Six Machine (share of runs in sixes; the cog, the square
 cut), the Artist (share in fours; a gallery frame, the straight drive held),
-the Wall (balls faced an innings in the Tests; a brick wall, the forward
+the Wall (balls faced an innings in the Tests; a brick wall, the back-foot
 defence), the Finisher (share of innings in Super10; the bolt, the
 helicopter), the Grinder (days played; a scorer's tally, marking his guard)
 and, under twenty innings, the New Ball: the type a player stands furthest
@@ -949,7 +949,8 @@ pose is the pull from midwicket as the bat comes round (`PULL` at 320ms,
 az 135, el -8), which the owner picked off a sheet of moments over a later
 moment of it and over the charge with the bat on his shoulder from the
 front, where the bat is hidden behind his back. The new types' poses:
-`STRAIGHT` 500 az 60 (the Artist), `DEFEND` 340 az 60 (the Wall),
+`STRAIGHT` 500 az 60 (the Artist), `DEFEND_BACK` 460 az 70 (the Wall: the back-foot defence, the owner's
+pick over the forward one),
 `HELICOPTER` 320 az 90 (the Finisher), `after:scrub` 1100 az 60 (the
 Grinder), all el -6. The section
 "Season '26 · Every kit, every colour" lists all nineteen kits with the hex
