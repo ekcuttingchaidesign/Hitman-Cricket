@@ -1447,7 +1447,13 @@ place in the over is drawn off a stream of its own (`fullers`, `FULLER.salt`),
 so no other ball of any innings moved when it came, and it is one of his
 ordinary balls pitched up (`FULLER.styles`), never a yorker, a bouncer or a
 slower ball: a place that falls on one of those, or on the spinner, is let go
-that over, so about every other over has one. `tests/fuller.test.ts` holds
+that over, so about every other over has one. Never the reverse swinger
+either: that ball moves only between the pitch and the bat, and pitched full
+it had 27ms to move 30 to 42cm, which the owner saw as the ball changing
+direction abruptly in a Marathon; its place is let go too, so the Marathon
+has one about every third over. And a swing ball pitched up has swung by
+where his stock ball pitches (`STOCK_BOUNCE_T` in `ballPosition`), not by
+its own pitch, 72ms from the bat. `tests/fuller.test.ts` holds
 all of it, the moved balls too. The game scores a ball off its line, pace
 and style, so the fuller ball moved no simulation: `super10-sim` read the
 same to the run. `?heli=1` bowls a pace yorker and the fuller ball in turn
