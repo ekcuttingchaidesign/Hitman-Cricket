@@ -3232,7 +3232,11 @@ heard from). Not to be built, the owner's decision of 24 November 2026: a
 timer that starts the match by itself, and the host starting without a
 friend who is not ready (a sub in their seat). The rule stands as it is:
 until every real player in the room has said I'M READY the host cannot
-start. Empty seats are not waited for, as before.
+start. Empty seats are not waited for, as before. The one exception is the
+away rule above, which the owner kept the same day: a friend gone quiet who
+never said I'M READY is not waited for and sits the match out, so a closed
+tab does not hold the room; made strict, the host's only way on would have
+been REMOVE FROM MATCH.
 
 On Notifications (Figma section 42, R5; `knockoutNotices` in
 `src/game/notices.ts`, in `tests/notices.test.ts`) Super Knockout adds two
