@@ -949,10 +949,12 @@ pose is the pull from midwicket as the bat comes round (`PULL` at 320ms,
 az 135, el -8), which the owner picked off a sheet of moments over a later
 moment of it and over the charge with the bat on his shoulder from the
 front, where the bat is hidden behind his back. The new types' poses:
-`STRAIGHT` 500 az 60 (the Artist), `DEFEND_BACK` 460 az 70 (the Wall: the back-foot defence, the owner's
-pick over the forward one),
+`STRAIGHT` 500 az 60 (the Artist), `DEFEND_BACK` 380 az -15 el -4 (the
+Wall: the back-foot defence, the owner's pick over the forward one, and
+side on from a shade behind square on the off side, the owner's pick over
+it from in front at az 70 and square side on at az 0 and 15),
 `HELICOPTER` 320 az 90 (the Finisher), `after:scrub` 1100 az 60 (the
-Grinder), all el -6. The section
+Grinder), the others el -6. The section
 "Season '26 · Every kit, every colour" lists all nineteen kits with the hex
 of every part.
 
