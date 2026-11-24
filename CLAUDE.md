@@ -698,8 +698,52 @@ plays two devices for one player against the dev server's store; it passes
 `?private=0`, because headless Chromium looks like a private window and would
 otherwise keep nothing.
 
-The update's What's new is the batting cams (`CAMERA_STORIES` in
-`src/game/whats-new.ts`, update key `cams`): one card, about eight seconds,
+The update's What's new is Super Knockout with friends wherever the mode is
+played (`KNOCKOUT_STORIES` in `src/game/whats-new.ts`, update key `knockout`,
+told where `KNOCKOUT_TOLD`: never production or the Pages builds until the
+mode is there, which go on telling the batting cams, below). Four cards
+(Figma Battle Royale page, section 58, node `1178:13947`;
+`src/ui/KnockoutStory.ts`, `src/knockout-story.css`), in the handover's story
+language as the cams' card has it: thin cream bars, the small orange eyebrow,
+the dark close key (`.cams-x`), the words bottom-left in Jaro over a grey
+line. Each shows one real piece of the mode, the screens' own markup and
+classes, so a change to the piece shows on the card: `mode`, the home's poster
+and mark with the format on three chips (12 WALK OUT. 1 SURVIVES.); `cut`, who
+is left after each over counted off `KNOCKOUT.cuts` (`ladderOf`) and the
+game's own bar (`KnockoutBar`, drawn a second time with no ids and no
+haptics, `knockoutBarMarkup(false)`, `quiet`) in the drop with the screen's
+red edges, which 2.6 seconds in plays its own climb over the line to 2 RUNS
+CLEAR (SURVIVE THE CUT); `watch`, the end screen's rings, N WATCHING, the
+story's tray and reactions floating up the left edge as the emoji alone (OUT
+EARLY? WATCH ON.); `friends`, the lobby's seats each ready, its match code and
+what the top three of a full match take off the points table
+(`fullMatchPoints`), holding with PLAY SUPER KNOCKOUT in Knockout red over
+LATER (PLAY WITH FRIENDS). W2 and W3 stand on a picture of a practice room's
+ground at the canopy (`src/assets/knockout/story-ground.webp`, taken by
+`scripts/knockout-story-ground.mjs`; take it again when the ground's look
+changes). The first three move on by themselves (5, 5.5 and 5.5 seconds: the
+design said about four, which was too short to read the line under the
+title); a tap on the picture is on or back, the picture itself taking no
+touch (`.kos-stage`: a glow lifted over the halves once swallowed every tap
+in the middle of a short phone). Between the chrome and the words is the room
+a piece has (`.kos-mid`): `playKnockoutStory` measures the words (`--words`)
+and lays a piece too tall for a short phone out bigger and scaled to fit
+(`--fit`), and hands back what stops the card's timers and bar. PLAY SUPER
+KNOCKOUT opens the Knockout home over Choose a mode (`opens: 'knockout'`,
+`knockoutFromStory`), or only puts the stories away from the board in the
+middle of an innings; put away any other way off the cover, they land on
+Choose a mode with the Knockout poster in front. Under reduced motion each
+card stands as drawn: the bar in the drop, two watching, the points at what
+they are. `?whatsnew=knockout` (or `cams`, `rivals`) asks for an update's
+stories by name on any build, counted as that update's two; `?stories=1`
+shows the stories before every PLAY from that link and counts nothing, for
+looking at them on a phone. Neither is practice. `whatsnew-check` walks the
+cams by name (`?whatsnew=cams`) and then Super Knockout's four in a browser
+of its own: each card, the bar's climb, a tap either side, the card that
+holds, PLAY SUPER KNOCKOUT, LATER, less motion, the twice and the never.
+
+Before it the update was the batting cams (`CAMERA_STORIES`, update key
+`cams`), still the update on production: one card, about eight seconds,
 storyboard D on the claude.ai design canvas "Batting Cams Story", drawn in
 the Figma handover's What's new language (its Dressing Room stories): a thin
 bar, the small orange eyebrow and the dark close key across the top, the

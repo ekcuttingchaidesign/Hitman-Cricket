@@ -1,10 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  CAMERA_STORIES, DIWALI_STORIES, RIVALS_STORIES, SHOT_CALLS, STORIES, TIMES, UPDATE, storiesAt, updateAt, markWhatsNewShown, whatsNewDue, whatsNewShown, type Story,
+  CAMERA_STORIES, DIWALI_STORIES, KNOCKOUT_STORIES, KNOCKOUT_TOLD, RIVALS_STORIES, SHOT_CALLS, STORIES, TIMES, UPDATE, storiesAt, updateAt, markWhatsNewShown, whatsNewDue, whatsNewShown, type Story,
 } from '../src/game/whats-new';
 import { shotCallMarkup, shotCueMarkup, storiesAlt, storiesMarkup, storyHolds, storyKeyMarkup } from '../src/ui/WhatsNew';
 import { CUE, reelSeconds } from '../src/game/ShotReel';
+import { KNOCKOUT } from '../src/game/knockout';
+import { fullMatchPoints, ladderOf } from '../src/ui/KnockoutStory';
+import { knockoutBarMarkup } from '../src/ui/KnockoutBar';
 const DIWALI_WEEK = Date.parse('2026-11-08T20:00:00+05:30'), AFTER_DIWALI = Date.parse('2026-11-12T00:00:00+05:30');
 
 /** localStorage, as a map, so the counting can be tested without a browser. */
@@ -49,8 +52,8 @@ describe('what the update says it did', () => {
     expect(DIWALI_STORIES.map(one => one.stage)).toEqual(['diwali-kits', 'diwali-bats']);
     expect(DIWALI_STORIES.every(one => one.opens === 'dressing')).toBe(true);
     // The kits go off the shelf at midnight in India, 11 November ending; the stories with them.
-    expect(storiesAt(AFTER_DIWALI)).toBe(CAMERA_STORIES);
-    expect(updateAt(AFTER_DIWALI)).toBe('cams');
+    expect(storiesAt(AFTER_DIWALI, false)).toBe(CAMERA_STORIES);
+    expect(updateAt(AFTER_DIWALI, false)).toBe('cams');
     expect(STORIES).toBe(storiesAt(Date.now()));
     expect(UPDATE).toBe(updateAt(Date.now()));
   });
@@ -64,9 +67,9 @@ describe('what the update says it did', () => {
   });
 
   it('gives every card something to show, a name for it, and words for whoever cannot see it', () => {
-    for (const one of [...CAMERA_STORIES, ...RIVALS_STORIES, ...DIWALI_STORIES]) {
+    for (const one of [...KNOCKOUT_STORIES, ...CAMERA_STORIES, ...RIVALS_STORIES, ...DIWALI_STORIES]) {
       expect(one.title.length, one.key).toBeGreaterThan(6);
-      expect(!!(one.art || one.film || one.video || one.stage || one.reel || one.show), one.key).toBe(true);
+      expect(!!(one.art || one.scene || one.film || one.video || one.stage || one.reel || one.show), one.key).toBe(true);
       // A film says its own words; anything else needs a line under it.
       if (!one.film && !one.video && !one.show) expect(one.body?.length ?? 0, one.key).toBeGreaterThan(30);
       expect(one.alt.length, one.key).toBeGreaterThan(20);
@@ -311,5 +314,124 @@ describe('the batting cams\' update', () => {
     expect(card.match(/k-cta--primary/g)?.length).toBe(1);
     expect(card).not.toContain('TRY PRO CAM');
     expect(card).not.toContain('whatsnew-open');
+  });
+});
+
+describe('Super Knockout\'s update', () => {
+  const card = (at: number, where: 'intro' | 'board' = 'intro') => storiesMarkup({ at, where, holdMs: 7000, stories: KNOCKOUT_STORIES });
+
+  it('is told wherever the mode is played, and the cameras where it is not yet', () => {
+    expect(storiesAt(AFTER_DIWALI, true)).toBe(KNOCKOUT_STORIES);
+    expect(updateAt(AFTER_DIWALI, true)).toBe('knockout');
+    expect(storiesAt(AFTER_DIWALI, false)).toBe(CAMERA_STORIES);
+    // Off production, which is where the tests run.
+    expect(KNOCKOUT_TOLD).toBe(true);
+    // Diwali's week came first while it lasted.
+    expect(updateAt(DIWALI_WEEK, true)).toBe('diwali');
+  });
+
+  it('can be asked for by name, as any update still kept can', () => {
+    expect(storiesAt(AFTER_DIWALI, false, 'knockout')).toBe(KNOCKOUT_STORIES);
+    expect(storiesAt(AFTER_DIWALI, true, 'cams')).toBe(CAMERA_STORIES);
+    expect(updateAt(AFTER_DIWALI, true, 'rivals')).toBe('rivals');
+    expect(storiesAt(AFTER_DIWALI, true, 'rivals')).toBe(RIVALS_STORIES);
+    // A name it does not know asks for nothing.
+    expect(updateAt(AFTER_DIWALI, true, 'banana')).toBe('knockout');
+  });
+
+  it('is four cards, one idea each, the first three moving on and the last holding with the way in', () => {
+    expect(KNOCKOUT_STORIES.map(one => one.scene)).toEqual(['mode', 'cut', 'watch', 'friends']);
+    expect(KNOCKOUT_STORIES.map((_, at) => storyHolds(at, KNOCKOUT_STORIES))).toEqual([false, false, false, true]);
+    expect(KNOCKOUT_STORIES.map(one => one.opens)).toEqual([undefined, undefined, undefined, 'knockout']);
+    for (const one of KNOCKOUT_STORIES) {
+      expect(one.eyebrow).toBe('WHAT’S NEW · SUPER KNOCKOUT');
+      // A short title, and a line under it that runs to two lines of the card's width, three at the outside.
+      expect(one.title.split(' ').length).toBeLessThanOrEqual(5);
+      expect(one.body!.length).toBeGreaterThan(40);
+      expect(one.body!.length).toBeLessThanOrEqual(110);
+    }
+  });
+
+  it('draws every card in the stories\' own chrome: a bar a card, the eyebrow, the close key and both halves', () => {
+    KNOCKOUT_STORIES.forEach((one, at) => {
+      const markup = card(at);
+      expect(markup).toContain(`class="whatsnew-sheet is-ko" data-scene="${one.scene}"`);
+      expect(markup.match(/class="whatsnew-bar(?: is-\w+)*"/g)).toHaveLength(KNOCKOUT_STORIES.length);
+      expect(markup.match(/is-done/g) ?? []).toHaveLength(at);
+      expect(markup).toContain('WHAT’S NEW · SUPER KNOCKOUT');
+      expect(markup).toMatch(/id="whatsnew-done" class="cams-x" type="button" aria-label="Skip"/);
+      expect(markup).toContain('id="whatsnew-back"');
+      expect(markup).toContain('id="whatsnew-next"');
+      expect(markup).toContain(`<h2 class="kos-title">${one.title}</h2>`);
+      // The piece is a picture to whoever is listening, and says what it shows.
+      expect(markup).toContain('role="img" aria-label="');
+      expect(markup).toContain('class="kos-mid" aria-hidden="true"');
+    });
+    // An earlier card runs its bar for as long as it holds; the last holds still.
+    expect(card(0)).toContain('--hold:5000ms');
+    expect(card(3)).toContain('is-held');
+    expect(card(3)).not.toContain('--hold:');
+  });
+
+  it('shows the mode on its poster, with the format counted off the rules', () => {
+    const markup = card(0);
+    expect(markup).toContain('class="kos-hero"');
+    expect(markup).toContain('class="kos-mark"');
+    expect(markup).toContain(`${KNOCKOUT.seats} PLAYERS`);
+    expect(markup).toContain('THE SAME BALLS');
+    expect(markup).toContain('1 WICKET');
+  });
+
+  it('counts who is left after each over off the cuts, down to the one the final leaves', () => {
+    expect(ladderOf()).toEqual([
+      { left: 12, when: 'START' }, { left: 10, when: 'OVER 1' }, { left: 8, when: 'OVER 2' },
+      { left: 5, when: 'OVER 3' }, { left: 2, when: 'OVER 4' }, { left: 1, when: 'FINAL' },
+    ]);
+    const markup = card(1);
+    for (const step of ladderOf()) expect(markup).toContain(`<b>${step.left}</b><span>${step.when}</span>`);
+    expect(markup).toContain('THE KNOCKOUT BAR');
+  });
+
+  it('stands the game\'s own bar in the card, without the ids that are the game\'s bar\'s alone', () => {
+    const markup = card(1);
+    expect(markup).toContain('class="ko-track"');
+    expect(markup).toContain('class="ko-seats"');
+    expect(markup).not.toMatch(/id="ko-/);
+    // The game's own still carries them.
+    expect(knockoutBarMarkup()).toContain('id="ko-track"');
+    expect(knockoutBarMarkup()).toContain('id="ko-brow"');
+  });
+
+  it('shows the rings, who is watching, and the tray\'s six with the poop emoji, the reaction floating as the emoji alone', () => {
+    const markup = card(2);
+    expect(markup).toContain('STILL IN · TAP TO WATCH');
+    expect(markup.match(/class="ko-ring[ "]/g)!.length).toBeGreaterThanOrEqual(6);
+    expect(markup).toContain('2 WATCHING');
+    const tray = markup.match(/class="ko-watch-tray">([\s\S]*?)<\/div>/)![1];
+    expect(tray.match(/<button/g)).toHaveLength(6);
+    expect(tray).toContain('💩');
+    // No pill, no face, no name: only the emoji.
+    expect(markup).toMatch(/<span class="kos-rx" style="[^"]*">💩<\/span>/);
+  });
+
+  it('shows a match\'s room and what the top three of a full one take, off the points table', () => {
+    expect(fullMatchPoints()).toEqual({ from: 10, paid: [10, 5, 2] });
+    const markup = card(3);
+    expect(markup.match(/class="ko-lseat is-ready"/g)).toHaveLength(4);
+    expect(markup).toContain('MATCH CODE');
+    expect(markup).toContain('POINTS FOR THE TOP THREE');
+    expect(markup).toContain('10 to 12 playing');
+    expect(markup).toMatch(/data-points="10">\+10<\/b><span>1ST</);
+    expect(markup).toMatch(/data-points="2">\+2<\/b><span>3RD</);
+  });
+
+  it('ends on PLAY SUPER KNOCKOUT over LATER, or CLOSE where it was opened from the board', () => {
+    const last = card(3);
+    expect(last).toMatch(/k-cta--primary[^>]*id="whatsnew-open"[\s\S]*PLAY SUPER KNOCKOUT/);
+    expect(last).toMatch(/id="whatsnew-later"[^>]*>LATER</);
+    expect(card(3, 'board')).toMatch(/id="whatsnew-later"[^>]*>CLOSE</);
+    expect(card(3, 'board')).toMatch(/id="whatsnew-done" class="cams-x" type="button" aria-label="Close"/);
+    // The earlier cards have the close key and nothing else to press.
+    for (const at of [0, 1, 2]) { expect(card(at)).not.toContain('id="whatsnew-open"'); expect(card(at)).not.toContain('id="whatsnew-later"'); }
   });
 });

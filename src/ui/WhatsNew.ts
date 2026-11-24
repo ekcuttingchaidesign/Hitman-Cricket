@@ -5,6 +5,7 @@ import { MARK, type KeyView } from './CareerKey';
 import { cta } from './Kit';
 import type { CameraId } from '../game/camera';
 import { showPlan } from '../game/CameraShow';
+import { knockoutStoryMarkup } from './KnockoutStory';
 import cameraClassic from '../assets/cameras/classic.webp';
 import cameraClose from '../assets/cameras/close.webp';
 import cameraPro from '../assets/cameras/pro.webp';
@@ -54,7 +55,7 @@ export interface StoriesView {
 
 /** What the way in under a story says, by where it goes. */
 const OPENS: Record<NonNullable<Story['opens']>, string> = {
-  dressing: 'GO TO DRESSING ROOM', super10: 'PLAY SUPER10', rivals: 'SEE WHO’S ONLINE',
+  dressing: 'GO TO DRESSING ROOM', super10: 'PLAY SUPER10', rivals: 'SEE WHO’S ONLINE', knockout: 'PLAY SUPER KNOCKOUT',
 };
 
 export function storiesMarkup(view: StoriesView): string {
@@ -63,6 +64,12 @@ export function storiesMarkup(view: StoriesView): string {
   const holds = storyHolds(at, stories);
   if (story.show) return camsMarkup(story, where);
   const live = (i: number) => i !== at ? '' : holds ? ' is-live is-held' : ' is-live';
+  const bars = `<div class="whatsnew-bars${stories.length === 1 ? ' is-single' : ''}" aria-hidden="true">${stories.map((_, i) => `
+        <span class="whatsnew-bar${i < at ? ' is-done' : live(i)}"${
+  i === at && !holds ? ` style="--hold:${story.holdMs ?? holdMs}ms"` : ''}><i></i></span>`).join('')}
+      </div>`;
+  // A card of Super Knockout's story is drawn by its own file, under the same bars.
+  if (story.scene) return knockoutStoryMarkup({ story, bars, where, opens: story.opens ? OPENS[story.opens] : '' });
   const art = story.art ? `<img${story.cut ? ' class="is-cut"' : ''} src="${story.art}" alt="${escape(story.alt)}" width="${story.width}" height="${
     story.height ?? story.width}" draggable="false">` : '';
   // A film is the whole story: played down the sheet from the top, under the
@@ -83,10 +90,7 @@ export function storiesMarkup(view: StoriesView): string {
       <div id="whatsnew-stage" class="whatsnew-stage" data-stage="${story.stage}" role="img" aria-label="${escape(story.alt)}"></div>` : ''}${
   story.reel ? `
       <div class="whatsnew-reel" data-reel="${story.reel}" role="img" aria-label="${escape(story.alt)}"></div>${shotCueMarkup(story.reel)}` : ''}
-      <div class="whatsnew-bars${stories.length === 1 ? ' is-single' : ''}" aria-hidden="true">${stories.map((_, i) => `
-        <span class="whatsnew-bar${i < at ? ' is-done' : live(i)}"${
-  i === at && !holds ? ` style="--hold:${story.holdMs ?? holdMs}ms"` : ''}><i></i></span>`).join('')}
-      </div>
+      ${bars}
       <button id="whatsnew-back" class="whatsnew-half is-back" type="button" aria-label="Previous"></button>
       <button id="whatsnew-next" class="whatsnew-half is-next" type="button" aria-label="Next"></button>
       <div class="whatsnew-body">

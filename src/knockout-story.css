@@ -1,0 +1,172 @@
+/*
+  Super Knockout's What's new (`KnockoutStory.ts`; Figma Battle Royale page, section 58, node 1178:13947).
+
+  The chrome is the handover's story language, as the batting cams' card has it: thin cream bars, the small orange
+  eyebrow, the dark close key, the words bottom-left in Jaro over a grey line. Between the chrome and the words is
+  the room one real piece of the mode has (.kos-mid): the piece is the screens' own markup, so most of what it
+  looks like is knockout.css, and what is here only stands it in the card. --words is the words' height, measured
+  by the card; a piece too tall for a short screen is laid out bigger and scaled to fit (--fit).
+*/
+.whatsnew-sheet.is-ko{
+  --words:calc(var(--u) * 150);
+  --top:calc(var(--u) * 116 + env(safe-area-inset-top,0px));
+  --foot:calc(var(--u) * 30 + env(safe-area-inset-bottom,0px));
+  --ink-2:#a3b3bd;
+  width:100%;max-width:none;display:block;padding:0;background:#06080b;color:#f5efe6;font-family:var(--f-ui)
+}
+.whatsnew-sheet.is-ko[data-scene="friends"]{--foot:calc(var(--u) * 14 + env(safe-area-inset-bottom,0px))}
+.is-ko>*{position:absolute;margin:0}
+/* The picture is never a control: a tap anywhere on it is the page's, back on the left and on on the right. */
+.is-ko .kos-stage{inset:0;overflow:hidden;isolation:isolate;pointer-events:none}
+.is-ko .kos-stage>*{position:absolute}
+/* Dark under the chrome and under the words, so both read on any picture. */
+.kos-shade{inset:0;pointer-events:none;background:
+  linear-gradient(180deg,#000000a8 0%,#00000000 calc(var(--u) * 190)),
+  linear-gradient(0deg,#06080b 0%,#06080bf2 calc(var(--words) + var(--foot)),#06080b00 calc(var(--words) + var(--foot) + var(--u) * 170))}
+
+/* The chrome. */
+.is-ko .whatsnew-bars{left:calc(var(--u) * 20);right:calc(var(--u) * 20);top:calc(var(--u) * 52 + env(safe-area-inset-top,0px));gap:calc(var(--u) * 8)}
+.is-ko .whatsnew-bar{height:calc(var(--u) * 3);background:#f5efe638}
+.is-ko .whatsnew-bar>i{background:#f5efe6}
+.kos-eyebrow{left:calc(var(--u) * 20);top:calc(var(--u) * 74 + env(safe-area-inset-top,0px));font:900 calc(var(--u) * 11)/1 var(--f-ui);letter-spacing:.2em;color:var(--c-accent);text-shadow:0 1px calc(var(--u) * 8) #000c}
+.is-ko .whatsnew-half{bottom:0}
+
+/* The words, and on the last card the way in over the way on. */
+.kos-words{left:calc(var(--u) * 20);right:calc(var(--u) * 20);bottom:var(--foot);display:flex;flex-direction:column;gap:calc(var(--u) * 10);pointer-events:none}
+.kos-title{margin:0;font:400 calc(var(--u) * 42)/.95 var(--f-display);letter-spacing:.02em;color:#f5efe6;text-wrap:balance}
+.kos-say{margin:0;max-width:calc(var(--u) * 350);font:400 calc(var(--u) * 15)/1.45 var(--f-ui);color:var(--ink-2)}
+.kos-keys{display:flex;flex-direction:column;align-items:stretch;gap:calc(var(--u) * 2);margin-top:calc(var(--u) * 6);pointer-events:auto}
+.kos-keys .k-cta--primary{width:100%;--c-cta-rim-top:#ff525b;--c-cta-rim-bottom:#c3121b;--c-cta-face-bottom:#ffbdc0;
+  --g-cta-rim:linear-gradient(180deg,#ff525b,#c3121b);--g-cta-face:linear-gradient(180deg,#fff,#ffbdc0);--ledge:#c3121b}
+.kos-later{min-height:44px;padding:0;border:0;background:none;font:400 calc(var(--u) * 16)/1 var(--f-display);letter-spacing:.12em;color:var(--ink-2);cursor:pointer}
+.kos-later:focus-visible{outline:2px solid #f5efe6;outline-offset:2px;border-radius:8px}
+
+/* The room a piece has, and the piece in it. */
+.kos-mid{left:0;right:0;top:var(--top);bottom:calc(var(--words) + var(--foot) + var(--u) * 22);pointer-events:none}
+.kos-fit{position:absolute;left:0;top:0;width:calc(100% / var(--fit,1));height:calc(100% / var(--fit,1));transform:scale(var(--fit,1));transform-origin:0 0;
+  display:flex;flex-direction:column;justify-content:space-between;gap:calc(var(--u) * 12)}
+/* The coachmarks' white outline round the piece a card is about, and its tag. */
+.kos-outline{position:relative;border:2px solid #fff;border-radius:calc(var(--u) * 22);box-shadow:0 0 calc(var(--u) * 30) #ffffff24}
+.kos-tag{display:inline-flex;align-items:center;padding:calc(var(--u) * 7) calc(var(--u) * 11);border-radius:999px;background:#fff;color:#0c0809;
+  font:800 calc(var(--u) * 10)/1 var(--f-ui);letter-spacing:.12em;white-space:nowrap}
+
+/* ── W1 · the mode: the home's poster, its mark, the format ─────────────────────────── */
+.kos-hero{left:0;top:0;width:100%;height:min(calc(var(--u) * 610),68cqh);object-fit:cover;object-position:50% 0;transform-origin:50% 30%}
+.is-ko[data-scene="mode"] .kos-stage::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#06080b00 0%,#06080b00 calc(min(var(--u) * 610,68cqh) * .5),#06080bf0 calc(min(var(--u) * 610,68cqh) * .9),#06080b calc(min(var(--u) * 610,68cqh)))}
+.kos-glow{left:50%;bottom:calc(var(--words) + var(--u) * 10);width:calc(var(--u) * 560);height:calc(var(--u) * 340);margin-left:calc(var(--u) * -280);z-index:1;
+  background:radial-gradient(closest-side,#ee2a2a52,#ee2a2a00)}
+.is-ko[data-scene="mode"] .kos-fit{justify-content:flex-end;align-items:center;gap:calc(var(--u) * 22)}
+.kos-mark{display:block;width:min(calc(var(--u) * 280),36cqh);height:auto;filter:drop-shadow(0 calc(var(--u) * 10) calc(var(--u) * 24) #000a)}
+.kos-chips{display:flex;justify-content:center;gap:calc(var(--u) * 8);margin:0;padding:0;list-style:none}
+.kos-chips li{padding:calc(var(--u) * 9) calc(var(--u) * 12);border-radius:999px;border:1px solid #ffffff29;background:#ffffff12;
+  font:800 calc(var(--u) * 11)/1 var(--f-ui);letter-spacing:.12em;color:#f5efe6;white-space:nowrap}
+
+/* ── W2 and W3 · the game's own ground, a practice room at the canopy ─────────────────── */
+.kos-ground{inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 38%}
+.kos-dim{inset:0;background:#06080b52}
+.kos-dim.is-deep{background:#06080b75}
+/* The drop's red edges, beating as the screen's do, and let go once the face is over the line. */
+.kos-edge{inset:0;box-shadow:inset 0 0 calc(var(--u) * 50) calc(var(--u) * 8) #ee2a2a8c;transition:opacity .6s}
+.is-ko.is-clear .kos-edge{opacity:0}
+
+/* W2 · who is left after each over, and the bar. */
+.is-ko[data-scene="cut"] .kos-fit{padding-top:calc(var(--u) * 10)}
+.kos-ladder{margin:0 calc(var(--u) * 20);padding:calc(var(--u) * 12) calc(var(--u) * 12) calc(var(--u) * 12);border-radius:calc(var(--u) * 18);border:1px solid #ee2a2a66;background:#14090bdb}
+.kos-ladder>i{display:block;padding:0 calc(var(--u) * 4);font:800 calc(var(--u) * 10)/1 var(--f-ui);font-style:normal;letter-spacing:.16em;color:#bfaeb1}
+.kos-ladder ol{display:grid;grid-template-columns:repeat(6,1fr);margin:calc(var(--u) * 10) 0 0;padding:0;list-style:none}
+.kos-ladder li{position:relative;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 2)}
+.kos-ladder li+li::before{content:"›";position:absolute;left:0;top:calc(var(--u) * 4);transform:translateX(-50%);font:700 calc(var(--u) * 16)/1 var(--f-ui);color:#ee2a2a}
+.kos-ladder b{font:400 calc(var(--u) * 30)/1 var(--f-display);color:#f5efe6}
+.kos-ladder span{font:700 calc(var(--u) * 9)/1 var(--f-ui);letter-spacing:.1em;color:#bfaeb1;white-space:nowrap}
+.kos-ladder .is-last b,.kos-ladder .is-last span{color:var(--ko-gold)}
+.kos-bar{position:relative;margin:0 calc(var(--u) * 12);padding-top:calc(var(--u) * 44)}
+.kos-bar .kos-tag{position:absolute;right:0;top:calc(var(--u) * 8)}
+.kos-bar .kos-outline{padding:calc(var(--u) * 2);border-radius:calc(var(--u) * 24)}
+/* The game's bar, stood in the card: its own place along the foot let go, and never put away by what the stage is doing. */
+.whatsnew-sheet.is-ko .ko-track{position:relative;left:auto;bottom:auto;margin:0;display:block}
+.whatsnew-sheet.is-ko .ko-track[hidden]{display:none}
+
+/* W3 · the rings, who is watching, the tray and what it sends. */
+.kos-watching{margin:calc(var(--u) * 8) calc(var(--u) * 8) 0}
+.kos-watching .kos-outline{overflow:hidden}
+.is-ko .ko-rings{position:relative;left:auto;right:auto;top:auto;padding:calc(var(--u) * 12) 0 calc(var(--u) * 10);animation:none}
+.is-ko .ko-rings-head{padding:0 calc(var(--u) * 12)}
+.is-ko .ko-rings-row{overflow:hidden;padding-left:calc(var(--u) * 12);padding-right:0}
+.is-ko .ko-ring{cursor:default}
+.kos-under{display:flex;align-items:center;justify-content:space-between;margin-top:calc(var(--u) * 10);padding:0 calc(var(--u) * 12)}
+.kos-reacts{position:relative;display:flex;justify-content:center}
+.is-ko .ko-watch-tray{position:relative;left:auto;bottom:auto;transform:none}
+.is-ko .ko-watch-tray button{border-radius:50%}
+.is-ko .ko-watch-tray .is-pressed{background:#ffffff29}
+/* Up the left edge, the emoji alone, as a match floats them. At rest: the one just sent lowest and whole. How far
+   they rise is what a short phone leaves between the tray and the rings: further, they ran over the tag. */
+.kos-floats{position:absolute;left:calc(var(--u) * 16);bottom:calc(100% + var(--u) * 26);width:calc(var(--u) * 90);--rise:clamp(calc(var(--u) * 120),calc(100cqh - var(--u) * 540),calc(var(--u) * 300))}
+.kos-rx{position:absolute;left:calc(var(--u) * 10 + var(--lane,0) * var(--u) * 30);bottom:calc(var(--i) * var(--rise) / 4.2);
+  font:400 calc(var(--u) * (46 - var(--i) * 6))/1 var(--f-ui);opacity:calc(1 - var(--i) * .24);filter:drop-shadow(0 calc(var(--u) * 2) calc(var(--u) * 5) #0009)}
+
+/* ── W4 · a match's room: the lobby's seats, its code, and what the top three take ───────── */
+.kos-room{inset:0;background:radial-gradient(95% 46% at 28% 0%,#6b14196b,#6b141900 72%),radial-gradient(70% 40% at 100% 62%,#ffb0200f,#ffb02000 70%),#0c0809}
+.is-ko .ko-grain{height:100%}
+.is-ko[data-scene="friends"] .kos-fit{justify-content:flex-start}
+.kos-lobby{padding:calc(var(--u) * 26) calc(var(--u) * 20) 0}
+.is-ko .ko-people{margin-top:0}
+.is-ko .ko-lseat-tick{font-style:normal}
+.kos-code{display:flex}
+.is-ko .ko-coderow .ko-pill{display:inline-grid;place-items:center}
+.kos-points{margin-top:calc(var(--u) * 16);padding:calc(var(--u) * 12) calc(var(--u) * 16) calc(var(--u) * 14);border-radius:calc(var(--u) * 18);border:1px solid #ffb02073;background:#ffb02012}
+.kos-points p{display:flex;align-items:center;justify-content:space-between;margin:0}
+.kos-points p i{font:800 calc(var(--u) * 10)/1 var(--f-ui);font-style:normal;letter-spacing:.16em;color:var(--ko-gold)}
+.kos-points p span{font:500 calc(var(--u) * 11)/1 var(--f-ui);color:#bfaeb1}
+.kos-points ol{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(var(--u) * 8);margin:calc(var(--u) * 12) 0 0;padding:0;list-style:none}
+.kos-points li{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 2);padding:calc(var(--u) * 8) 0;border-radius:calc(var(--u) * 12);background:#ffffff0f}
+.kos-points li b{font:400 calc(var(--u) * 28)/1 var(--f-display);color:#f5efe6;font-variant-numeric:tabular-nums}
+.kos-points li span{font:700 calc(var(--u) * 10)/1 var(--f-ui);letter-spacing:.14em;color:#bfaeb1}
+.kos-points li.is-first{background:#ffb02029}
+.kos-points li.is-first b,.kos-points li.is-first span{color:var(--ko-gold)}
+
+/* ── What moves. Everything above is each card at rest, which is what less motion shows. ───── */
+@keyframes kos-rise{from{opacity:0;transform:translateY(calc(var(--u) * 14))}}
+@keyframes kos-pop{0%{opacity:0;transform:scale(.4)}70%{opacity:1;transform:scale(1.1)}100%{transform:none}}
+@keyframes kos-in{from{opacity:0}}
+@keyframes kos-slam{0%{opacity:0;transform:scale(1.7)}55%{opacity:1;transform:scale(.95)}100%{transform:none}}
+@keyframes kos-lights{0%{filter:brightness(.12)}14%{filter:brightness(.95)}20%{filter:brightness(.3)}34%{filter:brightness(1.08)}100%{filter:none}}
+@keyframes kos-push{from{transform:scale(1)}to{transform:scale(1.08)}}
+@keyframes kos-beat{0%,100%{opacity:.55}12%{opacity:1}24%{opacity:.6}36%{opacity:.95}}
+@keyframes kos-gold{0%{opacity:0;transform:scale(.4)}60%{opacity:1;transform:scale(1.35);text-shadow:0 0 calc(var(--u) * 18) #ffb020}100%{transform:none;text-shadow:0 0 calc(var(--u) * 8) #ffb02066}}
+@keyframes kos-ring-in{from{opacity:0;transform:translateX(calc(var(--u) * 60))}}
+@keyframes kos-picked{0%,100%{box-shadow:0 0 0 0 #ffffff00}50%{box-shadow:0 0 0 calc(var(--u) * 4) #ffffffd9}}
+@keyframes kos-press{0%{transform:scale(1)}40%{transform:scale(.72)}100%{transform:none}}
+@keyframes kos-float{
+  0%{opacity:0;transform:translate(0,0) scale(.5)}
+  9%{opacity:1;transform:translate(0,calc(var(--rise) * -.06)) scale(1.2)}
+  18%{transform:translate(calc(var(--u) * 5),calc(var(--rise) * -.16)) scale(1)}
+  60%{opacity:.85;transform:translate(calc(var(--u) * -4),calc(var(--rise) * -.62)) scale(.92)}
+  100%{opacity:0;transform:translate(calc(var(--u) * 4),calc(var(--rise) * -1)) scale(.8)}
+}
+@keyframes kos-up{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:none}}
+@media (prefers-reduced-motion:no-preference){
+  .is-ko .kos-words{animation:kos-rise .5s .12s cubic-bezier(.2,1,.3,1) backwards}
+  /* W1: the lights strike on and the picture pushes in; the mark slams in; the chips pop in turn; the words rise. */
+  .kos-hero{animation:kos-lights 1.2s linear backwards,kos-push 10s ease-out forwards}
+  .kos-mark{animation:kos-slam .5s .5s cubic-bezier(.2,.9,.3,1) backwards}
+  .kos-chips li{animation:kos-pop .4s cubic-bezier(.2,1,.3,1) backwards;animation-delay:calc(1.05s + var(--i) * .12s)}
+  .is-ko[data-scene="mode"] .kos-words{animation-delay:.85s}
+  /* W2: the ladder counts down a step at a time, the one landing gold; the edges beat with the bar. */
+  .kos-ladder li{animation:kos-pop .34s cubic-bezier(.2,1,.3,1) backwards;animation-delay:calc(.3s + var(--i) * .3s)}
+  .kos-ladder li.is-last b{animation:kos-gold .6s 1.8s cubic-bezier(.2,1,.3,1) backwards}
+  .kos-ladder li.is-last{animation-name:kos-in}
+  .kos-edge{animation:kos-beat var(--ko-beat,.7s) ease-in-out infinite}
+  .kos-bar{animation:kos-rise .5s .25s cubic-bezier(.2,1,.3,1) backwards}
+  /* W3: the rings slide in, one asks to be tapped; the tray's key is pressed and the emoji float up in turn. */
+  .is-ko .ko-ring{animation:kos-ring-in .5s cubic-bezier(.2,.9,.3,1) backwards;animation-delay:calc(.15s + var(--i) * .07s)}
+  .is-ko .ko-ring.is-picked .ko-ring-face{animation:kos-picked 1.3s 1s ease-in-out infinite}
+  .is-ko .ko-watch-tray .is-pressed{animation:kos-press .35s 1.45s ease-out backwards}
+  .kos-rx{bottom:0;opacity:0;font-size:calc(var(--u) * 34);animation:kos-float 3.4s linear infinite;animation-delay:calc(1.5s + var(--i) * .75s)}
+  .ko-watch-n.is-up{animation:kos-up .4s ease-out}
+  /* W4: the faces pop in one by one, each tick landing after; the code types itself; the points land. */
+  .is-ko .ko-lseat{animation:kos-pop .45s cubic-bezier(.2,1,.3,1) backwards;animation-delay:calc(.2s + var(--i) * .14s)}
+  .is-ko .ko-lseat-tick{animation:kos-pop .32s cubic-bezier(.2,1,.3,1) backwards;animation-delay:calc(.55s + var(--i) * .14s)}
+  .kos-code span{animation:kos-in .1s backwards;animation-delay:calc(1.1s + var(--i) * .16s)}
+  .kos-points{animation:kos-rise .45s 1.35s cubic-bezier(.2,1,.3,1) backwards}
+  .kos-points li{animation:kos-pop .4s cubic-bezier(.2,1,.3,1) backwards;animation-delay:calc(1.5s + var(--i) * .16s)}
+}

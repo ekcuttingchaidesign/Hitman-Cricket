@@ -1130,7 +1130,8 @@ export class Game {
     this.hud.onBoardStories = () => this.showStories('board');
     // OPEN THE DRESSING ROOM, on the last story: after the stories, the room,
     // over Choose a mode where the stories were on the way to it.
-    this.hud.onStoriesOpen = (what, shown) => (what === 'super10' ? this.playFromStory(shown) : what === 'rivals' ? this.rivalsFromStory(shown) : this.openDressing('story', shown));
+    this.hud.onStoriesOpen = (what, shown) => (what === 'super10' ? this.playFromStory(shown) : what === 'rivals' ? this.rivalsFromStory(shown)
+      : what === 'knockout' ? this.knockoutFromStory(shown) : this.openDressing('story', shown));
     this.hud.onStoryReel = (shot, beat) => this.playReel(shot, beat);
     this.hud.onStoryShow = (kind, beat) => this.playShow(kind, beat);
     this.hud.onLadderTab = this.tabLadder;
@@ -4506,8 +4507,26 @@ export class Game {
     markWhatsNewShown();
     // Put away, or moved on from by themselves, the Super10 film's stories land on its poster.
     const told = STORIES.some(one => one.opens === 'super10') && SUPER10_OPEN && !SUPER10_ONLY;
-    this.showStories('intro', () => (this.locked ? this.walkOut() : this.modes(told ? 'SUPER10' : lastMode())));
+    // And Super Knockout's on its poster, the same way.
+    const knockout = STORIES.some(one => one.opens === 'knockout') && KNOCKOUT_OPEN;
+    this.showStories('intro', () => (this.locked ? this.walkOut() : this.modes(told ? 'SUPER10' : knockout ? 'KNOCKOUT' : lastMode())));
   };
+
+  /**
+   * PLAY SUPER KNOCKOUT under the last card of its story: the stories put away
+   * and the Knockout home opened over Choose a mode, its poster in front, so
+   * its back key lands where the card on Choose a mode would have. From the
+   * board in the middle of an innings, or where the mode is not played, it
+   * only puts them away.
+   */
+  private knockoutFromStory(shown: () => void) {
+    const between = (this.phase === 'START' || this.phase === 'INNINGS_END') && KNOCKOUT_OPEN && !this.matchPlay && !this.lobbyScreen?.open;
+    if (between) this.hud.onStoriesDone = null;
+    shown();
+    if (!between) return;
+    this.modes('KNOCKOUT');
+    this.openKnockout();
+  }
 
   /**
    * PLAY SUPER10 under the Super10 film: the stories put away and straight out

@@ -45,6 +45,8 @@ describe('every switch the game reads', () => {
     lefty: 'where the left-hander bats; the browser checks claim places with it',
     moments: 'celebrations on demand, adding no runs and counting nothing',
     rate: 'the star rating on demand, sending and remembering nothing',
+    whatsnew: 'which update\'s What\'s new stories are told, by name: cards before the innings, nothing about it',
+    stories: 'the What\'s new stories before every PLAY, counted as none of the two a player is shown: cards before the innings, nothing about it',
     levelup: 'the Level Up screen on demand, over a made-up climb, counting and remembering nothing',
     topspot: 'New #1 on demand, over a made-up board, counting and sending nothing',
     intro: 'the walk-on before the first ball, a camera and a pose: nothing bowled, scored or counted until it has landed',

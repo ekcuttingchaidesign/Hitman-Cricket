@@ -27,19 +27,25 @@ const BPM = { slow: 72, step: 12, final: 140 };
 const hot = (m: TrackMood | undefined) => m === 'drop' || m === 'final';
 const stillNow = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** The bar's markup, in the HUD's stage. */
-export const knockoutBarMarkup = () => `
-  <div class="ko-track" id="ko-track" data-mood="calm" hidden>
+/**
+ * The bar's markup, in the HUD's stage. A second bar drawn somewhere else (the What's new card that shows it,
+ * `KnockoutStory.ts`) is drawn without the ids, which are the game's bar's alone.
+ */
+export const knockoutBarMarkup = (ids = true) => {
+  const id = (name: string) => (ids ? ` id="${name}"` : '');
+  return `
+  <div class="ko-track"${id('ko-track')} data-mood="calm" hidden>
     <canvas class="ko-fx" aria-hidden="true"></canvas>
-    <span class="ko-brow" id="ko-brow"></span>
-    <span class="ko-place" aria-hidden="true"><b id="ko-at"></b><span id="ko-of"></span></span>
-    <div class="ko-seats" id="ko-rail" role="img">
+    <span class="ko-brow"${id('ko-brow')}></span>
+    <span class="ko-place" aria-hidden="true"><b${id('ko-at')}></b><span${id('ko-of')}></span></span>
+    <div class="ko-seats"${id('ko-rail')} role="img">
       <span class="ko-sheen"></span><span class="ko-tether"></span><span class="ko-cut"></span>
       <span class="ko-you"><span class="ko-wave"></span><span class="ko-wave w2"></span><span class="ko-ring"></span><img alt="" decoding="async"></span>
     </div>
     <span class="ko-zone is-gone" aria-hidden="true">GONE</span><span class="ko-zone is-drop" aria-hidden="true">DROP</span><span class="ko-zone is-safe" aria-hidden="true">SAFE</span>
-    <p class="ko-say" id="ko-say" aria-live="polite" hidden></p>
+    <p class="ko-say"${id('ko-say')} aria-live="polite" hidden></p>
   </div>`;
+};
 
 interface Ember { x: number; y: number; vx: number; vy: number; life: number; max: number; r: number; ph: number; spark: boolean }
 
@@ -57,7 +63,8 @@ export class KnockoutBar {
   private frame = 0;
   private last = 0;
 
-  constructor(private readonly box: HTMLElement, private readonly beatOn: HTMLElement) {
+  /** `quiet` for a bar that is only shown, not batted under: its moments are drawn and nothing knocks in the hand. */
+  constructor(private readonly box: HTMLElement, private readonly beatOn: HTMLElement, private readonly quiet = false) {
     this.seats = box.querySelector('.ko-seats')!;
     this.you = box.querySelector('.ko-you')!;
     this.say = box.querySelector('.ko-say')!;
@@ -109,9 +116,9 @@ export class KnockoutBar {
     zone('is-safe', line, n - 1).textContent = next.final ? 'AHEAD' : 'SAFE';
     this.box.classList.toggle('is-final', next.final);
     this.box.dataset.mood = next.mood;
-    this.box.querySelector('#ko-brow')!.textContent = next.eyebrow;
-    this.box.querySelector('#ko-at')!.textContent = `#${next.place}`;
-    this.box.querySelector('#ko-of')!.textContent = `OF ${next.of}`;
+    this.box.querySelector('.ko-brow')!.textContent = next.eyebrow;
+    this.box.querySelector('.ko-place b')!.textContent = `#${next.place}`;
+    this.box.querySelector('.ko-place span')!.textContent = `OF ${next.of}`;
     const img = this.you.querySelector('img')!;
     if (img.getAttribute('src') !== face) img.src = face;
     // What it takes over the face, kept inside the bar's ends, its tip on the face.
@@ -142,7 +149,7 @@ export class KnockoutBar {
           { transform: 'translateY(0)', opacity: 1 },
         ], { duration: 900, delay: k * 120, easing: 'ease-in' });
       }
-      buzz([20, 60, 20]);
+      if (!this.quiet) buzz([20, 60, 20]);
       window.setTimeout(() => { this.floaty('SURVIVED', '#3ddc84'); this.burst('#3ddc84', 0); }, 520 + (next.gone - prev.gone) * 120);
       return;
     }
@@ -158,7 +165,7 @@ export class KnockoutBar {
         this.segs[i]?.animate([{ filter: 'brightness(2.2)' }, { filter: 'brightness(1)' }], { duration: 420, delay: (i - prev.you) * 50 });
       }
       window.setTimeout(() => { this.burst('#3ddc84'); this.floaty('SAFE', '#3ddc84'); }, 300);
-      buzz(25);
+      if (!this.quiet) buzz(25);
       return;
     }
     if (!hot(prev.mood) && hot(next.mood)) {
@@ -175,13 +182,13 @@ export class KnockoutBar {
       this.say.animate([{ transform: 'translateY(calc(var(--u, 1px) * -14))', opacity: 0 }, { transform: 'translateY(calc(var(--u, 1px) * 3))', opacity: 1, offset: 0.6 }, { transform: 'none' }],
         { duration: 420, easing: 'ease-out' });
       this.burst('#ee2a2a', 0);
-      buzz([30, 40, 30]);
+      if (!this.quiet) buzz([30, 40, 30]);
       return;
     }
     if (hot(next.mood) && prev.say && next.say && next.say.words !== prev.say.words) {
       // A single, still in the drop: the need ticks down.
       this.say.animate([{ transform: 'translateY(calc(var(--u, 1px) * -8))', opacity: 0.2 }, { transform: 'none', opacity: 1 }], { duration: 260, easing: 'cubic-bezier(.3,1.5,.5,1)' });
-      buzz(10);
+      if (!this.quiet) buzz(10);
     }
   }
 

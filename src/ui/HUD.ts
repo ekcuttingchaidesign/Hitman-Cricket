@@ -78,6 +78,7 @@ import { modeSelectMarkup, modeSelectParts, type ModeSelectView } from './ModeSe
 import { Super10Spark } from './Super10Card';
 /** Each camera's own view, small, on its key on the pause sheet (`scripts/camera-thumbs.mjs` takes them). */
 import { CAMERA_PICTURES, storiesMarkup, storyHolds, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
+import { playKnockoutStory } from './KnockoutStory';
 import { applyNearing, endNearing, nearingMarkup } from './Nearing';
 import type { Nearing, NearingEnd } from '../game/milestone';
 import { milestoneDoodle, powerDoodle, pullDoodle, type BatterOnScreen, type PowerStyle, type PullPen } from './Milestone';
@@ -2006,6 +2007,8 @@ ${knockoutRulesMarkup()}
   private storyFilm: Playing | null = null;
   /** The Dressing Room's stage, for the stories played on it: one for the run of them, put away with them. */
   private storyStage: StoryStage | null = null;
+  /** What stops the card of Super Knockout's story now up (`playKnockoutStory`). */
+  private storyScene: (() => void) | null = null;
   /**
    * A stroke's story asks the game to film it under the card (`Story.reel`),
    * and is told whether it can: only off the cover or after an innings, never
@@ -2118,6 +2121,11 @@ ${knockoutRulesMarkup()}
     sheet?.classList.toggle('is-filmed', filmed || shown);
     // The swipe and the call drawn the way round the game draws them for a left-hander.
     if (filmed) sheet?.classList.toggle('is-left', readHand() === 'left');
+    // A card of Super Knockout's story: its piece fitted to the room it has and set going, stopped when it is left.
+    this.storyScene?.(); this.storyScene = null;
+    if (story?.scene && sheet instanceof HTMLElement) this.storyScene = playKnockoutStory(sheet, story.scene);
+    const later = document.getElementById('whatsnew-later');
+    if (later) later.onclick = () => this.closeStories();
     const open = document.getElementById('whatsnew-open');
     if (open) open.onclick = () => {
       const go = this.onStoriesOpen;
@@ -2293,6 +2301,7 @@ ${knockoutRulesMarkup()}
     window.clearTimeout(this.storyHold);
     this.storyFilm?.destroy(); this.storyFilm = null;
     this.storyStage?.stop(); this.storyStage = null;
+    this.storyScene?.(); this.storyScene = null;
     this.onStoryReel?.(null, () => {}); this.onStoryShow?.(null, () => {}); this.viewport.classList.remove('reel-on');
     // Which card they were standing on when they left. Opening was already
     // counted and answers nothing on its own: three cards read to the end and
