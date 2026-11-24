@@ -853,17 +853,33 @@ season card is fitted to the width, never cut: one line from Jaro 150 down to
 50 at fourteen letters, or two lines (88 at most) split at the space nearest
 the middle for a name over eight characters with a space in it. The batter is the one
 dimensional thing on a poster, cut out with a
-cream edge and never on a plate of his own kit's hue. On every screen but
-one he is a GPT hero, redrawn from a game render of the pose to the Super10
-poster's polish, in a kit the owner picked for that screen on 23 November
-2026 (the Diwali kits left out), not the player's own: the cover Electric,
-sixes Thanos Eclipse, fours Crimson or British Racing Green, the night owl
-Bumblebee or Lagoon, the personality Lagoon and British Racing Green, the
-season card OG Navy, British Racing Green and Thanos Eclipse; where a screen
-has two or three, all are made, and which a player sees is not settled. The
-kit screen alone is the game's own render, in the player's most-worn kit,
-bat and guard, as is everything for a player with little to show. The
-prompt in the note under the poster. Small type is ink on a light ground or
+cream edge and never on a plate of his own kit's hue. Every batter is the
+game's own render from `recap-stills` (ChatGPT was tried for the big ones
+and dropped, below), holding the bat the player has picked in the game. The
+cover and the kit screen wear the player's own kit; the others wear a kit
+the owner picked for the screen on 23 November 2026 (the Diwali kits left
+out), any of which can appear where there are two or three: sixes Thanos
+Eclipse, fours Crimson or British Racing Green, when-you-bat Bumblebee or
+Lagoon, the personality Lagoon or British Racing Green, the season card OG
+Navy, British Racing Green or Thanos Eclipse. On the cover the disc behind
+him is pink and the arch lime unless the kit fights them, by its hue: red
+and orange (Crimson, Papaya) take a cobalt disc, purple (Thanos Eclipse) a
+marigold one, and yellow (Bumblebee) a cream arch. The runs poster is a
+stump a mode, the bail on the one with the most, since runs are never kept
+by month. The personality is one of six, each with its own ground, word,
+shape and pose: Six Machine (share of runs in sixes; the cog, the square
+cut), the Artist (share in fours; a gallery frame, the straight drive held),
+the Wall (balls faced an innings in the Tests; a brick wall, the forward
+defence), the Finisher (share of innings in Super10; the bolt, the
+helicopter), the Grinder (days played; a scorer's tally, marking his guard)
+and, under twenty innings, the New Ball: the type a player stands furthest
+above the average batter on. When-you-bat is named by the peak hour (5 to
+10 AM Early Bird, 11 AM to 4 PM Lunch Break, 5 to 9 PM Prime Time, 10 PM to
+4 AM Night Owl) and wears the day look for the first two, cream with a
+marigold sun for the clock, and the night look for the others. All three
+are in the section "Season '26 · Cover kits, six personalities, day and
+night", to the right of the main set. Each pose's settings are in the
+note under its poster. Small type is ink on a light ground or
 cream on a dark one; tomato, marigold, lime and pink are for figures and
 shapes only. What the owner turned down, not to be built again: a comic
 ("Hitman Comics": generic), the batter in chrome (a party balloon), barcodes,
@@ -928,11 +944,14 @@ the bats. None had been run when it was written.
 The owner then tried ChatGPT and found it a pain to get right (24 November
 2026: "Lets render our own character"), so the posters are going back to
 the game's own renders from `recap-stills`, a screen at a time, the kits
-picked for each screen kept. Sixes is first and settled: the pull from
-midwicket as the bat comes round (`PULL` at 320ms, az 135, el -8), in
-Thanos Eclipse with Rage, which the owner picked off a sheet of moments
-over a later moment of it and over the charge with the bat on his shoulder
-from the front, where the bat is hidden behind his back. The section
+picked for each screen kept, and the ChatGPT section is parked. The sixes
+pose is the pull from midwicket as the bat comes round (`PULL` at 320ms,
+az 135, el -8), which the owner picked off a sheet of moments over a later
+moment of it and over the charge with the bat on his shoulder from the
+front, where the bat is hidden behind his back. The new types' poses:
+`STRAIGHT` 500 az 60 (the Artist), `DEFEND` 340 az 60 (the Wall),
+`HELICOPTER` 320 az 90 (the Finisher), `after:scrub` 1100 az 60 (the
+Grinder), all el -6. The section
 "Season '26 · Every kit, every colour" lists all nineteen kits with the hex
 of every part.
 
