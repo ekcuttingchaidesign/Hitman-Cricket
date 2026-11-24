@@ -925,6 +925,16 @@ Diwali and Super10 kits cannot be asked for by a colour line. The batter
 always holds the plain bat there, or every picture would be multiplied by
 the bats. None had been run when it was written.
 
+The owner then tried ChatGPT and found it a pain to get right (24 November
+2026: "Lets render our own character"), so the posters are going back to
+the game's own renders from `recap-stills`, a screen at a time, the kits
+picked for each screen kept. Sixes is first: two try-outs beside the
+owner's poster, the pull from midwicket (`PULL` at 360ms, az 135, el -8)
+and the charge with the bat on his shoulder from the front (`CHARGE` at
+650ms, az 90, el -8), both in Thanos Eclipse with Rage. The section
+"Season '26 · Every kit, every colour" lists all nineteen kits with the hex
+of every part.
+
 GoatCounter counts the same things across everybody, by name (it keeps the
 path, not the title, so the item is in the name): `dressing-open-modes` and
 `-story`, `dressing-wear-<kit|bat>-<id>`, `dressing-unlock-…` and

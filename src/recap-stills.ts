@@ -58,6 +58,7 @@ const STROKE: Record<string, Spec> = {
   COVER: { shot: 'COVER_LONG_OFF', x: .16, y: .48 },
   ON_LOFT: { shot: 'LONG_ON', x: -.2, y: .54, lofted: true, z: ON_DRIVE_MEETS_AT },
   PULL: { shot: 'LEG', x: -.30, y: 1.12, z: PULL_MEETS_AT },
+  PULL_V1: { shot: 'LEG', x: -.30, y: 1.12, version: 1 },
   HOOK: { shot: 'HOOK', x: .42, y: 1.134, z: HOOK_MEETS_AT },
   CUT: { shot: 'SQUARE_CUT', x: .40, y: .92 },
   SPIN_CUT: { shot: 'SQUARE_CUT', x: 0, y: .54, spinCut: true },
