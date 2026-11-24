@@ -2744,7 +2744,10 @@ it works (K2b, `#knockout-rules`: the ladder off `KNOCKOUT.cuts`, the eight
 rules, while you bat) opens by itself the first time a browser chooses it
 (`hitman-knockout-rules`) and from either (i). PRACTICE walks out into
 the same practice room the switch does (`knockoutPicked`), so it is
-practice too; the rail remembers it as the last mode played.
+practice too; the rail remembers it as the last mode played. The poster and
+the card both say BETA (`.ms-beta`, a quiet outlined chip top right on the
+poster and beside the mark on the card; the owner's word, 24 November 2026),
+always, apart from the card's own tag, which the tally rewrites.
 
 The home is a motion poster (Battle Royale page, section 55, the motion map;
 `src/ui/KnockoutPoster.ts`, `.ko-stage` and its layers in

@@ -3,7 +3,7 @@ import { CLASSIC_PLAN, DeliveryGenerator, knockoutPlan } from '../src/game/Deliv
 import { EDGE_RUNS, KNOCKOUT, KnockoutRoom, chipOf, cutLine, cutOf, freeHitOf, knockoutScreen, overLine, oversWord, trackOf, type Seat } from '../src/game/knockout';
 import { SeededRandom } from '../src/game/SeededRandom';
 import { freeHitBall, swingFourthOf } from '../src/game/free-hit';
-import { knockoutCardWords, tallyRoom } from '../src/ui/KnockoutHome';
+import { knockoutCardMarkup, knockoutCardWords, knockoutPosterMarkup, tallyRoom } from '../src/ui/KnockoutHome';
 import { heldMarkup, heldOf } from '../src/ui/KnockoutHeld';
 import type { ShotOutcome } from '../src/game/types';
 
@@ -259,6 +259,16 @@ describe('the way in', () => {
     expect(knockoutCardWords({ played: 3, best: 4, wins: 0 })).toEqual({ tag: 'BEST #4', line: '3 rooms played', stat: 'Best #4' });
     expect(knockoutCardWords({ played: 1, best: 1, wins: 1 })).toEqual({ tag: 'WON', line: '1 room played', stat: 'Won 1' });
   });
+
+  it('says BETA on the poster and on the card, whatever the card\'s own tag has turned to', () => {
+    const beta = '<span class="ms-beta">BETA</span>';
+    expect(knockoutPosterMarkup('').split(beta)).toHaveLength(2);
+    expect(knockoutCardMarkup().split(beta)).toHaveLength(2);
+    // Its own chip, apart from the tag the tally rewrites (NEW, BEST #4, WON).
+    expect(knockoutCardMarkup()).toContain('id="mode-knockout-tag"');
+    expect(knockoutCardMarkup()).not.toMatch(/id="mode-knockout-tag"[^>]*>BETA/);
+  });
+
   it('tallies a finished room: played, the best place and the wins', () => {
     const one = tallyRoom(5, { played: 0, best: null, wins: 0 });
     expect(one).toEqual({ played: 1, best: 5, wins: 0 });

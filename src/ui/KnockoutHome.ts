@@ -43,11 +43,18 @@ const RULES_SEEN_KEY = 'hitman-knockout-rules';
 export function rulesSeen(): boolean { try { return localStorage.getItem(RULES_SEEN_KEY) === '1'; } catch { return true; } }
 export function markRulesSeen(): void { try { localStorage.setItem(RULES_SEEN_KEY, '1'); } catch { /* Shown again next time. */ } }
 
+/**
+ * BETA, on the poster and on the card under the rail (the owner's word, 24 November 2026): the mode is being played
+ * by its first players and is still changing. Always there, whatever the card's own tag has turned to.
+ */
+const BETA = '<span class="ms-beta">BETA</span>';
+
 /** The poster on the rail (K1b), between the Test Marathon and Test Survival. */
 export function knockoutPosterMarkup(play: string): string {
   return `<button id="mode-knockout-poster" class="ms-poster is-knockout hidden" type="button" data-mode="KNOCKOUT">
                 <img class="ms-art" src="${KNOCKOUT_HERO}" alt="" decoding="async">
                 <span class="ms-tag is-knockout">${KNOCKOUT.seats} PLAYERS</span>
+                ${BETA}
                 <img class="ms-logo is-knockout" src="${KNOCKOUT_MARK}" alt="SUPER KNOCKOUT" decoding="async">
                 <span class="ms-desc">One wicket. Lowest totals go.</span>
                 <span class="ms-foot"><span id="mode-knockout-stat" class="ms-stat">Not played</span>${play}</span>
@@ -57,7 +64,7 @@ export function knockoutPosterMarkup(play: string): string {
 const TRI = '<svg viewBox="0 0 14 16" aria-hidden="true"><path d="M2 1.5 12.5 8 2 14.5Z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
 
 /**
- * The card under the rail (K1): the face-off, the mark, NEW and the format, and a gold PLAY. A tap anywhere opens the home; the (i) opens how it works.
+ * The card under the rail (K1): the face-off, the mark with BETA beside it, NEW and the format, and a gold PLAY. A tap anywhere opens the home; the (i) opens how it works.
  * It moves as Super10's card does, in Knockout's own language (`.ms-ko-fx`): every five seconds the edge beats twice, as the bar's heart does in the
  * drop, then a soft band of light glides across the face-off at an even pace and PLAY glints softly as it passes; embers drift up all the while.
  */
@@ -67,6 +74,7 @@ export function knockoutCardMarkup(): string {
               <img class="ms-art" src="${KNOCKOUT_FACEOFF}" alt="" decoding="async">
               <span class="ms-ko-fx" aria-hidden="true"><i class="ms-ko-beat"></i><i class="ms-ko-cut"></i><span class="ms-ko-embers">${'<i></i>'.repeat(7)}</span></span>
               <img class="ms-knockout-mark" src="${KNOCKOUT_MARK}" alt="" decoding="async">
+              ${BETA}
               <span class="ms-knockout-row"><span id="mode-knockout-tag" class="ms-knockout-tag">NEW</span><span id="mode-knockout-line" class="ms-knockout-line">${KNOCKOUT.seats} players · one wicket</span></span>
               <button id="mode-knockout-info" class="ms-knockout-info" type="button" aria-label="How Super Knockout works"><i></i><b></b></button>
               <span class="ms-knockout-play" aria-hidden="true">${TRI}PLAY<i class="ms-ko-glint"></i></span>

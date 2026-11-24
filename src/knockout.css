@@ -224,6 +224,11 @@ body.ko-glass .stage.result-open .score-stack{display:block;z-index:9}
 .ms-poster.is-knockout::before{background:linear-gradient(180deg,#3a0a1000 0%,#3a0a1000 42%,#3a0a10d1 72%,#3a0a10 100%)}
 .ms-rail .ms-poster.is-knockout .ms-art{object-position:50% 12%}
 .ms-tag.is-knockout{background:var(--ko-red)}
+/* BETA: a quiet outlined chip, top right on the poster and beside the mark on the card, never the loudest thing on either. */
+.ms-beta{position:absolute;z-index:2;padding:calc(var(--u) * 3) calc(var(--u) * 7);border-radius:8px;border:1px solid #ffffff8c;background:#0c0809a6;color:#fff;
+  font:800 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.14em;white-space:nowrap;pointer-events:none}
+.ms-poster .ms-beta{top:calc(var(--u) * 12.5);right:calc(var(--u) * 12.5)}
+.ms-knockout .ms-beta{left:calc(var(--u) * 124);top:calc(var(--u) * 16)}
 .ms-poster .ms-logo.is-knockout{width:calc(var(--u) * 150);margin:0 0 calc(var(--u) * 2) calc(var(--u) * -2);filter:drop-shadow(0 2px 10px #00000099)}
 .ms-pager i.is-knockout.is-on{background:var(--ko-red)}
 
