@@ -2655,7 +2655,10 @@ knockout's picture, RESULTS over Super Knockout and Practice room, its ids
 `ko-res-` so they never answer for the board's), so it scrolls as the boards
 do, the podium folding to chips as the list rises, with a banner of who won
 it and how and the player's finish in the dock over PLAY AGAIN; a practice
-room's podium says sub. A first build drew its own sheet, which scrolled
+room's podium says sub. Its rows open nothing, so none has a chevron or a
+key's role (`still` on the row): the player's own had both, as on the
+boards where it opens My profile, and a tap did nothing, as the owner found
+(24 November 2026). A first build drew its own sheet, which scrolled
 nothing like the boards and whose design the owner found off. Back is the
 end screen, the result in its line and LEADERBOARD on its key, which opens
 them again. WINNER counts

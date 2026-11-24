@@ -68,6 +68,11 @@ export interface BoardEntry {
   tag?: { text: string; tone: 'new' | 'up' | 'best' } | null;
   /** An innings with no name to it yet, drawn where it would stand. */
   ghost?: boolean;
+  /**
+   * A row on a screen where rows open nothing (a Knockout room's Results and standings): no key's role and no chevron,
+   * the player's own row included. It had both there and a tap did nothing, as the owner found (24 November 2026).
+   */
+  still?: boolean;
   /** The podium's own line, where it says more than the row does. */
   podiumSub?: string;
   /** That line is something won (a Knockout match's points), and is drawn in gold. */
@@ -82,7 +87,7 @@ export interface BoardEntry {
  * has no profile and opens nothing.
  */
 function opens(row: BoardEntry): string {
-  if (row.ghost) return '';
+  if (row.ghost || row.still) return '';
   if (row.you) return ' data-mine="1" role="button" tabindex="0" aria-label="Open My profile"';
   if (!row.handle) return '';
   return ` data-handle="${escape(row.handle)}" role="button" tabindex="0" aria-label="${escape(`See ${row.name}’s profile`)}"`;

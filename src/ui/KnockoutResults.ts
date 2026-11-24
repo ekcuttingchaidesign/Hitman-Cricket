@@ -60,7 +60,7 @@ export class KnockoutResults {
     const at = this.root.querySelector<HTMLElement>('#ko-res-body')?.scrollTop ?? 0;
     const keys = this.keys;
     const rows: BoardEntry[] = view.rows.map(row => ({
-      place: row.place, name: row.name, avatar: row.face, sub: row.line, score: row.runs === null ? '–' : String(row.runs), you: row.you,
+      place: row.place, name: row.name, avatar: row.face, sub: row.line, score: row.runs === null ? '–' : String(row.runs), you: row.you, still: true,
       // Gold is a reward: the podium says what a place paid, and who it was where it paid nothing.
       podiumSub: row.points ? `+${row.points} ${row.points === 1 ? 'pt' : 'pts'}` : row.you ? 'you' : row.sub === false ? 'friend' : 'sub', podiumGold: !!row.points,
     }));
