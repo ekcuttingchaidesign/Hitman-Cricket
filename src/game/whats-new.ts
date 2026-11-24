@@ -252,10 +252,10 @@ export const DIWALI_STORIES: readonly Story[] = [
 const DIWALI_RUN: readonly Story[] = [...DIWALI_STORIES, ...RIVALS_STORIES];
 /**
  * Where Super Knockout's story is the update: wherever its home is (`KNOCKOUT_OPEN`
- * in `src/Game.ts`), so never production or the Pages builds until the mode is
- * there, which go on telling the batting cams.
+ * in `src/Game.ts`), production included since its release; never the Pages
+ * builds, which have no Knockout and go on telling the batting cams.
  */
-export const KNOCKOUT_TOLD = !import.meta.env.VITE_SURVIVE_ONLY && !import.meta.env.VITE_SUPER10_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production';
+export const KNOCKOUT_TOLD = !import.meta.env.VITE_SURVIVE_ONLY && !import.meta.env.VITE_SUPER10_ONLY;
 /** The updates a link can ask for by name (`?whatsnew=cams`), for looking at one the build no longer tells. */
 const BY_NAME: Record<string, readonly Story[]> = { knockout: KNOCKOUT_STORIES, cams: CAMERA_STORIES, rivals: RIVALS_STORIES };
 const asked = (name: string) => { try { return new URLSearchParams(location.search).get(name); } catch { return null; } };

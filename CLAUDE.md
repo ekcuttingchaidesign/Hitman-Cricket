@@ -700,8 +700,9 @@ otherwise keep nothing.
 
 The update's What's new is Super Knockout with friends wherever the mode is
 played (`KNOCKOUT_STORIES` in `src/game/whats-new.ts`, update key `knockout`,
-told where `KNOCKOUT_TOLD`: never production or the Pages builds until the
-mode is there, which go on telling the batting cams, below). Four cards
+told where `KNOCKOUT_TOLD`: everywhere but the Pages builds, which have no
+Knockout and go on telling the batting cams, below; production since the
+release of 24 November 2026). Four cards
 (Figma Battle Royale page, section 58, node `1178:13947`;
 `src/ui/KnockoutStory.ts`, `src/knockout-story.css`), in the handover's story
 language as the cams' card has it: thin cream bars, the small orange eyebrow,
@@ -743,7 +744,7 @@ of its own: each card, the bar's climb, a tap either side, the card that
 holds, PLAY SUPER KNOCKOUT, LATER, less motion, the twice and the never.
 
 Before it the update was the batting cams (`CAMERA_STORIES`, update key
-`cams`), still the update on production: one card, about eight seconds,
+`cams`), still the update on the Pages builds: one card, about eight seconds,
 storyboard D on the claude.ai design canvas "Batting Cams Story", drawn in
 the Figma handover's What's new language (its Dressing Room stories): a thin
 bar, the small orange eyebrow and the dark close key across the top, the
@@ -2725,8 +2726,9 @@ page is away, which a room of subs cannot, waits for stage two's SEE
 RESULTS. `__cricket.knockout()` carries `ending` and `results`, and
 `__cricket.knockoutResultsNow()` taps through.
 
-Off production (`KNOCKOUT_OPEN` in `src/Game.ts`: never production, the
-Pages builds or a build with no board) it is on Choose a mode too (Figma
+Everywhere there is a board (`KNOCKOUT_OPEN` in `src/Game.ts`: never the
+Pages builds or a build with no board; production since its release on 24
+November 2026, which the merge to production was) it is on Choose a mode too (Figma
 F1, K1 to K2b; `src/ui/KnockoutHome.ts`, `showKnockout` in the HUD): its
 poster on the rail between the Test Marathon and Test Survival, with
 Super10's poster moved to the head of the rail and Super10's PLAY card

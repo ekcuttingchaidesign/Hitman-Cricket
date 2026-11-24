@@ -341,15 +341,15 @@ const SUPER10_OPEN = SUPER10_ONLY || !SURVIVE_ONLY;
 const KNOCKOUT_ASKED = !NO_BOARD && new URLSearchParams(location.search).get('knockout') === '1';
 /**
  * Super Knockout on Choose a mode (its poster, its card, its home and its
- * rules): off production until it launches, as Super10 was, and never in the
- * two Pages builds. Until rooms with real players come, every match from
- * there is a practice room against subs, as `?knockout=1` is.
+ * rules, and matches with friends): everywhere there is a board, production
+ * included since its release (24 November 2026), and never in the two Pages
+ * builds, which have none.
  */
 /** How often a phone with a room's lobby on screen says it is still there (the store calls a friend away after `LOBBY_AWAY_MS`). */
 const LOBBY_BEAT_MS = 8000;
 /** How often a phone with a friend's story open says who it is watching (the store lets it lapse after `WATCH_FRESH_MS`). */
 const WATCH_BEAT_MS = 10_000;
-const KNOCKOUT_OPEN = !NO_BOARD && !SURVIVE_ONLY && !SUPER10_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production';
+const KNOCKOUT_OPEN = !NO_BOARD && !SURVIVE_ONLY && !SUPER10_ONLY;
 /** `?matchlog=1`: where a match with friends stands on this phone, on a line over the screen (`matchLog`). */
 const MATCH_LOG = new URLSearchParams(location.search).get('matchlog') === '1';
 /** How often a player who is not batting is asked whether somebody has invited them to a match. */
