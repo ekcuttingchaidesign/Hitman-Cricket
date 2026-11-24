@@ -17,6 +17,8 @@ import { FEEDBACK_KEPT, type FeedbackStore, type StoredFeedback } from './feedba
 import type { ActivityEvent, PlayerStore, StoredBio } from './player-store.js';
 import type { ProfileStores } from './profile-endpoint.js';
 import type { LiveStore, StoredLive } from './live-store.js';
+import type { KnockoutStore, StoredMatchInvite } from './knockout-store.js';
+import type { KnockoutLedger, StoredKnockoutCareer } from './knockout-ledger.js';
 import {
   packResult, unpackResult,
   type ChallengeStore, type RivalsResult, type StoredInvite, type StoredPlayer, type StoredRivalsRow,
@@ -638,6 +640,106 @@ export function upstashLive(redis: Redis): LiveStore {
     async write(handle, entry) { await redis.hset(live, { [handle]: entry }); },
     async readAll() { return (await redis.hgetall<Record<string, StoredLive>>(live)) ?? {}; },
     async remove(handles) { if (handles.length) await redis.hdel(live, ...handles); },
+  };
+}
+
+/**
+ * Super Knockout's matches with friends (`knockout-store.ts`): one hash a
+ * match, every member and every ball a field of it, so a read is one HGETALL
+ * however many are batting, and a ball is one HSETNX that can never land on
+ * another. Each player's open invites are a hash of their own, code to who
+ * asked. All of it expires with the evening.
+ */
+export function upstashKnockouts(redis: Redis): KnockoutStore {
+  const key = (code: string) => `${SCOPE}ko:${code}`;
+  const asked = (id: string) => `${SCOPE}koinv:${id}`;
+  const rate = (kind: string, address: string) => `${SCOPE}korate:${kind}:${address}`;
+  const handles = `${SCOPE}handles`;
+  return {
+    async claim(code, fields, ttl) {
+      const claimed = await redis.hsetnx(key(code), 'host', fields.host);
+      if (!claimed) return false;
+      // The expiry first, so a process that dies before the rest leaves a key that still goes.
+      await redis.expire(key(code), ttl);
+      await redis.hset(key(code), fields);
+      return true;
+    },
+    async read(code) { return (await redis.hgetall<Record<string, unknown>>(key(code))) ?? null; },
+    async set(code, fields, ttl) {
+      if (!Object.keys(fields).length) return;
+      const pipe = redis.pipeline();
+      pipe.hset(key(code), fields);
+      pipe.expire(key(code), ttl);
+      await pipe.exec();
+    },
+    async setOnce(code, field, value) { return (await redis.hsetnx(key(code), field, value)) === 1; },
+    async drop(code, fields) { if (fields.length) await redis.hdel(key(code), ...fields); },
+    async swap(code, fields, drop, ttl) {
+      const step = redis.multi();
+      if (drop.length) step.hdel(key(code), ...drop);
+      if (Object.keys(fields).length) step.hset(key(code), fields);
+      step.expire(key(code), ttl);
+      await step.exec();
+    },
+    async hits(kind, address, windowSeconds) {
+      const count = await redis.incr(rate(kind, address));
+      if (count === 1) await redis.expire(rate(kind, address), windowSeconds);
+      return count;
+    },
+    async invite(id, code, invite, ttl) {
+      const pipe = redis.pipeline();
+      pipe.hset(asked(id), { [code]: invite });
+      pipe.expire(asked(id), ttl);
+      await pipe.exec();
+    },
+    async invites(id) { return (await redis.hgetall<Record<string, StoredMatchInvite>>(asked(id))) ?? {}; },
+    async uninvite(id, code) { await redis.hdel(asked(id), code); },
+    async idOf(handle) { return (await redis.hget<string>(handles, handle)) ?? null; },
+  };
+}
+
+/**
+ * Super Knockout's careers and ladders (`knockout-ledger.ts`): one hash of
+ * records by player id, and a sorted set a ladder, the two with a week keeping
+ * one a week that goes three weeks on. A match is paid in three round trips:
+ * the records and the names' owners read, then every write in one pipeline.
+ * Scores are plain writes, not GT: a win rate can fall.
+ */
+export function upstashLedger(redis: Redis): KnockoutLedger {
+  const records = `${SCOPE}kocareers`, names = `${SCOPE}names`;
+  const board = (name: string) => `${SCOPE}koboard:${name}`;
+  return {
+    async many(ids) {
+      if (!ids.length) return [];
+      const found = await redis.hmget<Record<string, StoredKnockoutCareer>>(records, ...ids);
+      return ids.map(id => found?.[id] ?? null);
+    },
+    async owners(folded) {
+      if (!folded.length) return [];
+      const found = await redis.hmget<Record<string, string>>(names, ...folded);
+      return folded.map(name => (found?.[name] != null ? String(found[name]) : null));
+    },
+    async save(written, ranks) {
+      if (!Object.keys(written).length && !ranks.length) return;
+      const pipe = redis.pipeline();
+      if (Object.keys(written).length) pipe.hset(records, written);
+      for (const rank of ranks) {
+        pipe.zadd(board(rank.board), { score: rank.score, member: rank.id });
+        if (rank.ttlSeconds) pipe.expire(board(rank.board), rank.ttlSeconds);
+      }
+      await pipe.exec();
+    },
+    async slice(name, from, count) {
+      if (count <= 0) return [];
+      const flat = await redis.zrange<(string | number)[]>(board(name), from, from + count - 1, { rev: true, withScores: true });
+      const ranked: { id: string; score: number }[] = [];
+      for (let i = 0; i + 1 < flat.length; i += 2) ranked.push({ id: String(flat[i]), score: Number(flat[i + 1]) });
+      return ranked;
+    },
+    async place(name, id) {
+      const rank = await redis.zrevrank(board(name), id);
+      return rank === null || rank === undefined ? null : Number(rank) + 1;
+    },
   };
 }
 

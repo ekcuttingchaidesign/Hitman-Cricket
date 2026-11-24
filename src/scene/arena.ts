@@ -1,3 +1,4 @@
+import type { KnockoutScreen } from '../game/knockout-screen';
 import * as THREE from 'three';
 import { DIWALI_FONTS, DIWALI_SIX_MS, paintDiwaliSix } from './diwaliSix';
 import { Batch, mat } from './build';
@@ -295,7 +296,8 @@ export function stumpWrap(height: number, theme: StumpTheme = 'violet', into?: {
 }
 
 /** What the screen shows between moments. */
-export interface Scoreboard { title: string; score: string; detail: string }
+export type { KnockoutScreen } from '../game/knockout-screen';
+export interface Scoreboard { title: string; score: string; detail: string; knockout?: KnockoutScreen | null }
 
 /** One canvas painted into a texture, sRGB, kept with its context. */
 function painted(width: number, height: number) {
@@ -640,7 +642,15 @@ export class Showboards {
     const name = stingOf(kind, word ?? CUES[kind].word);
     if (name && this.screen && !this.still) this.playSting(name);
   }
-  scoreboard(board: Scoreboard) { this.board = board; }
+  scoreboard(board: Scoreboard) {
+    // When FREE HIT went up, for its entrance (`paintKnockout`'s `since`).
+    const free = board.knockout?.kind === 'freehit';
+    if (free && this.board.knockout?.kind !== 'freehit') this.freeHitAt = this.nowAt;
+    this.board = board;
+  }
+  private freeHitAt = 0;
+  /** How long FREE HIT has been up, or long enough that it stands still under reduced motion. */
+  private freeHitSince() { return this.still ? Infinity : this.nowAt - this.freeHitAt; }
   /**
    * Whether the screen is the brand's, as it is for a Super10 innings and on
    * the arena, or the game's own: a Test at the canopy has the game's title
@@ -674,7 +684,8 @@ export class Showboards {
   get state() {
     const f = this.last;
     return { mood: this.moodNow, word: f?.word ?? null, board: f?.board ?? 'idle', boards: f?.boards ?? 1,
-      screen: this.screen ? this.shown.split('|').slice(0, 2).join('|') : null, sting: this.playing?.name ?? null, diwali: this.diwaliAt !== null };
+      screen: this.screen ? this.shown.split('|').slice(0, 2).join('|') : null, sting: this.playing?.name ?? null, diwali: this.diwaliAt !== null,
+      knockout: this.board.knockout ?? null, canvas: this.screen ? (this.screen.texture.image as HTMLCanvasElement) : null };
   }
 
   /** The boards and the screen at `now`, and the frame they were drawn from, for a ground with more to light by it. `live` is a ball on its way. */
@@ -806,11 +817,12 @@ export class Showboards {
     const ms = kind ? CUES[kind].ms : 0;
     const moving = word !== null && (this.playing !== null || (!this.still && (since < SLAM_MS || since > ms - LEAVE_MS)));
     // A moving screen is painted once a frame of the stings' own thirty a second, not at every refresh.
-    const key = word ? `w|${word}|${moving ? Math.floor(since / STING_FRAME_MS) : 'held'}` : `${this.plain ? 'p' : 'b'}|${this.board.title}|${this.board.score}|${this.board.detail}`;
+    const fh = this.board.knockout?.kind === 'freehit' ? freeHitFrame(this.freeHitSince()) : '';
+    const key = word ? `w|${word}|${moving ? Math.floor(since / STING_FRAME_MS) : 'held'}` : `${this.plain ? 'p' : 'b'}|${this.board.title}|${this.board.score}|${this.board.detail}|${this.board.knockout ? JSON.stringify(this.board.knockout) : ''}|${fh}`;
     if (key === this.shown) return;
     this.shown = key;
     ctx.setTransform(S, 0, 0, S, 0, 0);
-    if (this.plain && !word) { this.paintPlain(ctx, W, H); this.grid(ctx, .18); screen.texture.needsUpdate = true; return; }
+    if (this.plain && !word) { if (this.board.knockout) paintKnockout(ctx, W, H, this.board.knockout, this.freeHitSince()); else this.paintPlain(ctx, W, H); this.grid(ctx, .18); screen.texture.needsUpdate = true; return; }
     ctx.fillStyle = hex(ARENA.ink); ctx.fillRect(0, 0, W, H);
     // The floodlights' violet in the screen's corner, and nothing else behind.
     const haze = ctx.createRadialGradient(W * .15, H, 10, W * .15, H, W * .6);
@@ -891,6 +903,49 @@ export class Showboards {
     ctx.fillText(detail, x, H * .82, 440);
     spaced.letterSpacing = '0px';
   }
+}
+
+/**
+ * Super Knockout on the screen (P5, P6), in the knockout's own ink and red:
+ * THE LINE over two rows with the knockout dashed red between them, the
+ * player's row lit; or at an over's end how many went in red, how many are
+ * left, and their names.
+ */
+export function paintKnockout(ctx: CanvasRenderingContext2D, W: number, H: number, k: KnockoutScreen, since = Infinity) {
+  const ground = ctx.createLinearGradient(0, 0, 0, H);
+  ground.addColorStop(0, '#2a1418'); ground.addColorStop(1, '#12070a');
+  ctx.fillStyle = ground; ctx.fillRect(0, 0, W, H);
+  const spaced = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+  ctx.textBaseline = 'middle';
+  const pad = 56;
+  // The free hit (the owner's frame, `953:8055`): FREE HIT in white over a soft magenta glow on the screen's dark.
+  if (k.kind === 'freehit') { paintFreeHit(ctx, W, H, since); return; }
+  if (k.kind === 'cut') {
+    ctx.textAlign = 'left'; ctx.font = JARO(170); ctx.fillStyle = '#ee2a2a';
+    ctx.fillText(`${k.out} OUT`, pad, H * .42, W * .62);
+    ctx.textAlign = 'right'; spaced.letterSpacing = '4px'; ctx.font = SATOSHI(46); ctx.fillStyle = '#f5efe6';
+    ctx.fillText(`${k.left} LEFT`, W - pad, H * .3);
+    ctx.textAlign = 'left'; ctx.font = SATOSHI(44); ctx.fillStyle = 'rgba(245,239,230,.85)';
+    ctx.fillText(k.names.join(' · ').toUpperCase(), pad, H * .78, W - pad * 2);
+    spaced.letterSpacing = '0px';
+    return;
+  }
+  ctx.textAlign = 'left'; spaced.letterSpacing = '5px'; ctx.font = SATOSHI(36); ctx.fillStyle = '#bfaeb1';
+  ctx.fillText('THE LINE', pad, 62);
+  spaced.letterSpacing = '0px';
+  const top = 112, row = 104;
+  k.rows.forEach((r, i) => {
+    const y = top + i * (row + 24);
+    if (r.you) { ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(pad - 20, y, W - pad * 2 + 40, row); }
+    ctx.textAlign = 'left'; ctx.font = SATOSHI(54); ctx.fillStyle = i > k.cutAfter ? '#ff5252' : '#f5efe6';
+    ctx.fillText(`${r.place}  ${r.you ? 'YOU' : r.name.toUpperCase()}${r.out ? ' · OUT' : ''}`, pad, y + row / 2, W * .66);
+    ctx.textAlign = 'right'; ctx.font = JARO(84);
+    ctx.fillText(String(r.runs), W - pad, y + row / 2 + 4);
+    if (i === k.cutAfter && i < k.rows.length - 1) {
+      ctx.strokeStyle = '#ee2a2a'; ctx.lineWidth = 5; ctx.setLineDash([22, 14]);
+      ctx.beginPath(); ctx.moveTo(pad - 20, y + row + 12); ctx.lineTo(W - pad + 20, y + row + 12); ctx.stroke(); ctx.setLineDash([]);
+    }
+  });
 }
 
 /**
@@ -1053,4 +1108,96 @@ export class Arena {
     if (this.glow) { this.glow.opacity = Math.min(1, f.lamps); this.glow.size = this.glowSize * Math.max(.6, f.lamps); }
     if (this.torches) this.torches.share.value = f.torches;
   }
+}
+
+/**
+ * FREE HIT coming onto the screen (the owner asked for it to animate in):
+ * the screen switched on, a cyan line opening from its middle into the
+ * dark; the magenta glow blooming behind; the letters slammed in one by one
+ * from big, each landing with a flash; cyan slashes at the knockout's lean
+ * sliding in from both sides; and a light run across the words. Then it
+ * holds, the light running across again every few seconds. A function of
+ * the time since it went up, painted at the stings' fifteen a second while
+ * it moves (`freeHitFrame`); `Infinity` is it standing still.
+ */
+export const FREE_HIT_IN_MS = 1250;
+const FREE_HIT_GLINT_MS = 3200, FREE_HIT_GLINT_LASTS = 650;
+/** How far through a glint FREE HIT is, 0 to 1, or -1 between them: the first a few seconds after it lands. */
+function freeHitGlint(since: number) {
+  const g = since - FREE_HIT_IN_MS - (FREE_HIT_GLINT_MS - FREE_HIT_GLINT_LASTS);
+  if (!Number.isFinite(since) || g < 0) return -1;
+  const at = g % FREE_HIT_GLINT_MS;
+  return at < FREE_HIT_GLINT_LASTS ? at / FREE_HIT_GLINT_LASTS : -1;
+}
+/** The frame FREE HIT is on, for the screen's paint key: 'held' while nothing moves. */
+export function freeHitFrame(since: number): string {
+  if (!Number.isFinite(since)) return 'held';
+  if (since < FREE_HIT_IN_MS || freeHitGlint(since) >= 0) return String(Math.floor(since / STING_FRAME_MS));
+  return 'held';
+}
+function paintFreeHit(ctx: CanvasRenderingContext2D, W: number, H: number, since: number) {
+  const t = Number.isFinite(since) ? since / 1000 : 9;
+  const cl = (v: number) => Math.min(1, Math.max(0, v));
+  const pr = (a: number, b: number) => cl((t - a) / (b - a));
+  const out3 = (p: number) => 1 - Math.pow(1 - p, 3);
+  const back = (p: number, s = 2.2) => 1 + (s + 1) * Math.pow(p - 1, 3) + s * Math.pow(p - 1, 2);
+  const CYAN = '78,255,252';
+  ctx.fillStyle = '#05080c'; ctx.fillRect(0, 0, W, H);
+  // Switched on: a line of cyan across the middle, opening up into the screen's dark.
+  const open = out3(pr(0.08, 0.32));
+  const line = pr(0, 0.12) * (1 - pr(0.24, 0.42));
+  ctx.fillStyle = '#0a1620'; ctx.fillRect(0, H / 2 - H / 2 * open, W, H * open);
+  if (line > 0) {
+    const w = W * out3(pr(0, 0.14));
+    ctx.fillStyle = `rgba(${CYAN},${line})`; ctx.fillRect((W - w) / 2, H / 2 - 3 - 4 * (1 - line), w, 6 + 8 * (1 - line));
+  }
+  // The glow blooms behind, a little over its size and back.
+  const bloom = pr(0.18, 0.7);
+  if (bloom > 0) {
+    const g = back(bloom, 1.4);
+    const glow = ctx.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, W * .42 * g);
+    glow.addColorStop(0, `rgba(211,68,163,${.62 * cl(bloom * 2)})`); glow.addColorStop(.55, `rgba(211,68,163,${.22 * cl(bloom * 2)})`); glow.addColorStop(1, 'rgba(211,68,163,0)');
+    ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(1, .42); ctx.translate(-W / 2, -H / 2);
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H); ctx.restore();
+  }
+  // Cyan slashes at the lean, sliding in from both sides to stand either side of the words.
+  const slash = out3(pr(0.55, 0.95));
+  if (slash > 0) {
+    ctx.save(); ctx.fillStyle = `rgba(${CYAN},${.85 * slash})`;
+    for (const side of [-1, 1]) for (let i = 0; i < 3; i++) {
+      const x = W / 2 + side * (W * .44 - i * 26 + (1 - slash) * 260), y = H / 2;
+      ctx.save(); ctx.translate(x, y); ctx.transform(1, 0, -.21, 1, 0, 0); ctx.globalAlpha = 1 - i * .28;
+      ctx.fillRect(-6, -H * .2, 12, H * .4); ctx.restore();
+    }
+    ctx.restore();
+  }
+  // The letters, one by one from big, laid out as the still frame has them.
+  const word = 'FREE HIT', spacing = 10, pad = 56;
+  ctx.font = JARO(190); ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+  const widths = [...word].map(ch => ctx.measureText(ch).width);
+  const total = widths.reduce((a, b) => a + b, 0) + spacing * (word.length - 1);
+  const fit = Math.min(1, (W - pad * 2) / total);
+  let at = W / 2 - total * fit / 2;
+  const y = H / 2 + 8;
+  const sweep = t < FREE_HIT_IN_MS / 1000 ? (t >= .85 ? pr(0.85, 1.25) : -1) : freeHitGlint(since);
+  [...word].forEach((ch, i) => {
+    const w = widths[i] * fit, cx = at + w / 2; at += (widths[i] + spacing) * fit;
+    if (ch === ' ') return;
+    const s0 = 0.28 + i * 0.055, p = pr(s0, s0 + 0.2);
+    if (p <= 0) return;
+    const sc = p < 1 ? 2.4 - 1.4 * back(p) : 1;
+    ctx.save(); ctx.translate(cx, y); ctx.scale(sc * fit, sc * fit); ctx.globalAlpha = cl(p * 2.5);
+    ctx.fillStyle = '#ffffff'; ctx.fillText(ch, 0, 0);
+    // Each landing, a flash of cyan in the letter.
+    const flash = 1 - pr(s0 + 0.2, s0 + 0.42);
+    if (p >= 1 && flash > 0) { ctx.globalAlpha = .9 * flash; ctx.fillStyle = `rgb(${CYAN})`; ctx.fillText(ch, 0, 0); }
+    // The light running across the words: a cyan band down each letter as it passes.
+    if (sweep >= 0 && sweep <= 1) {
+      const bx = -W / 2 + (W * 1.6) * sweep - W * .3 - (cx - W / 2);
+      const band = ctx.createLinearGradient(bx - 90, -60, bx + 90, 60);
+      band.addColorStop(0, `rgba(${CYAN},0)`); band.addColorStop(.5, `rgba(${CYAN},.95)`); band.addColorStop(1, `rgba(${CYAN},0)`);
+      ctx.globalAlpha = 1; ctx.fillStyle = band; ctx.fillText(ch, 0, 0);
+    }
+    ctx.restore();
+  });
 }

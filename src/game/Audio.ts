@@ -1,6 +1,8 @@
 import type { ShotOutcome } from './types';
 import { GROAN_SHAPE, type Cheer, type CheerSize, type Groan } from './crowd';
-type Sound = 'hit' | 'boundary' | 'bounce' | 'wicket' | 'sledge' | 'edge' | 'stumps' | 'defeat';
+type Sound = 'hit' | 'boundary' | 'bounce' | 'wicket' | 'sledge' | 'edge' | 'stumps' | 'defeat' | KnockoutSound;
+/** Super Knockout's glass break (the owner's clips): three cracks spreading, then the shatter. */
+export type KnockoutSound = 'crack1' | 'crack2' | 'crack3' | 'shatter';
 /**
  * The music, and the screen each piece belongs to.
  *
@@ -15,7 +17,14 @@ type Sound = 'hit' | 'boundary' | 'bounce' | 'wicket' | 'sledge' | 'edge' | 'stu
  * The element is still here as the fallback, for a browser with no context or
  * one that will not decode the file.
  */
-export type Track = 'cover' | 'result';
+/**
+ * `knockout` is KNOCKED OUT's: Moye moye, the owner's pick, from the lights
+ * going out. `winner` is Super Knockout's winner, the owner's clip (18 November
+ * 2026), cut to its first sixteen bars so it loops on the beat: under WINNER
+ * when the player takes the room, and from MATCH OVER to the room's Results
+ * when somebody else does.
+ */
+export type Track = 'cover' | 'result' | 'knockout' | 'winner';
 /**
  * Bare relative paths, the same reasoning as the kit pictures in
  * `config/board.ts`: the browser resolves them against the page's own URL,
@@ -28,6 +37,8 @@ export type Track = 'cover' | 'result';
 const TRACKS: Record<Track, string> = {
   cover: 'cover_theme.mp3',
   result: 'test_survival_glory.aac',
+  knockout: 'moye_moye.mp3',
+  winner: 'winner.mp3',
 };
 /**
  * Under the calls rather than over them. A gain in the context, so iOS obeys it
@@ -43,7 +54,10 @@ const MUSIC_GAIN = .5;
  * loud as it always has been. An MP3 as it came rather than an AAC made from
  * it, which would have been a second loss on a file already small.
  */
-const LEVEL: Record<Track, number> = { cover: .16, result: 1 };
+// Moye moye measures −8.9 LUFS, 7.3 dB hotter than the card's track (−16.2): let through at a little over its
+// share of that, the sting being the point.
+// The winner's clip measures −11.0 LUFS, 5.2 dB over the card's: let through a touch over its share, as a celebration.
+const LEVEL: Record<Track, number> = { cover: .16, result: 1, knockout: .5, winner: .62 };
 const gainOf = (track: Track) => MUSIC_GAIN * LEVEL[track];
 /** How long a track started off a tap stays silent before it is let through. */
 const FADE_IN_MS = 220;
@@ -181,6 +195,11 @@ export class GameAudio {
     ['stumps', new URL('../assets/stumps-rattle.aac', import.meta.url)],
     // A challenge's DEFEAT: its hit lands with the L on the face (`Verdict`).
     ['defeat', new URL('../assets/defeat.mp3', import.meta.url)],
+    // KNOCKED OUT's glass: three cracks out of one clip, and the shatter (`KnockoutMoment`).
+    ['crack1', new URL('../assets/knockout/crack-1.mp3', import.meta.url)],
+    ['crack2', new URL('../assets/knockout/crack-2.mp3', import.meta.url)],
+    ['crack3', new URL('../assets/knockout/crack-3.mp3', import.meta.url)],
+    ['shatter', new URL('../assets/knockout/shatter.mp3', import.meta.url)],
   ] as const;
   // The setting a returning player left behind applies before anything plays.
   constructor() { this.share(); }
@@ -271,6 +290,8 @@ export class GameAudio {
     // Music means a screen that is not the innings, so the crowd goes.
     if (track) this.crowd(null);
     if (this.disposed || track === this.wanted) return;
+    // KNOCKED OUT's music is a sting, and the winner's a fanfare: each from its top every time.
+    if (track === 'knockout' || track === 'winner') this.positions.delete(track);
     this.hush(true);
     this.wanted = track;
     this.resume();
@@ -655,6 +676,21 @@ export class GameAudio {
     gain.gain.setValueAtTime(kind === 'bounce' ? .025 : .09, now); gain.gain.exponentialRampToValueAtTime(.001, now + (kind === 'edge' ? .09 : .25));
     osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(now + .26);
     osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+  }
+  /**
+   * A clip laid over whatever is sounding, where `play` stops the last one:
+   * the glass's cracks run into each other and into the shatter. Silent
+   * without its clip; nothing is synthesized for glass.
+   */
+  layer(kind: KnockoutSound, gain = .85) {
+    if (!this.context || this.muted || this.disposed) return;
+    const ctx = this.context, buffer = this.buffers.get(kind);
+    if (!buffer) return;
+    if (ctx.state !== 'running') { try { void ctx.resume().catch(() => {}); } catch { /* Closed. */ } }
+    const source = ctx.createBufferSource(), level = ctx.createGain();
+    source.buffer = buffer; level.gain.value = gain;
+    source.connect(level); level.connect(ctx.destination); this.sources.add(source); source.start();
+    source.onended = () => { this.sources.delete(source); source.disconnect(); level.disconnect(); };
   }
   /** The weight under a middled stroke: a short low knock, felt more than heard. */
   private thock(level: number) {

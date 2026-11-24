@@ -1,3 +1,11 @@
+import { KnockoutMoment, type MomentView, type MomentSound } from './KnockoutMoment';
+import { WatchView, type MatchOverView, type RingView, type WatchHeader } from './KnockoutWatch';
+import { KnockoutResults, type ResultsView } from './KnockoutResults';
+import { oversWord, type Track } from '../game/knockout';
+import { KnockoutBar, knockoutBarMarkup } from './KnockoutBar';
+import { knockoutHomeMarkup, knockoutRulesMarkup, type KnockoutHomeCareer, type KnockoutTally } from './KnockoutHome';
+import type { KnockoutSlide } from './KnockoutStats';
+import { KnockoutPoster } from './KnockoutPoster';
 import { limitsOf } from '../game/ball-string';
 import { WIPE_MS, type ReplayLook } from '../game/replay';
 import { chaseEndMarkup } from './MatchEnd';
@@ -21,6 +29,7 @@ import type { ChallengeMode } from '../game/challenge-api';
 import { feedbackGiven } from '../game/feedback';
 import { RATED_NAME, type RatedThing } from '../game/rating';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage } from '../game/ShareCard';
+import { knockoutCardFile, knockoutCardImage, knockoutShareText, type KnockoutFinish } from '../game/KnockoutCard';
 import type { ChallengeRow } from '../game/challenge-api';
 import type { ResultView, RivalryView, RoomView } from '../game/Challenge';
 import { animate, stagger } from 'animejs';
@@ -62,13 +71,14 @@ import {
 import {
   BOARD_MODES, MODE_ORDER, NO_CONTEXT, blastBody, blurbOf, boardScreenMarkup, careerBody, ladderSheetMarkup, marathonBody, menuRank, super10Body,
   super10SoloBody,
-  modeMenuMarkup, rulesSheetMarkup, surviveBody, type BoardBody, type BoardContext, type BoardMode, type BoardScreen,
+  modeMenuMarkup, rulesSheetMarkup, surviveBody, type BoardAlso, type BoardBody, type BoardContext, type BoardMode, type BoardScreen,
 } from './Board';
 import { battingCardMarkup, battingOf, injuryRingMarkup, injuryWord, overChartMarkup, super10ChartMarkup, wormChartMarkup } from './EndCard';
 import { modeSelectMarkup, modeSelectParts, type ModeSelectView } from './ModeSelect';
 import { Super10Spark } from './Super10Card';
 /** Each camera's own view, small, on its key on the pause sheet (`scripts/camera-thumbs.mjs` takes them). */
 import { CAMERA_PICTURES, storiesMarkup, storyHolds, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
+import { playKnockoutStory } from './KnockoutStory';
 import { applyNearing, endNearing, nearingMarkup } from './Nearing';
 import type { Nearing, NearingEnd } from '../game/milestone';
 import { milestoneDoodle, powerDoodle, pullDoodle, type BatterOnScreen, type PowerStyle, type PullPen } from './Milestone';
@@ -90,6 +100,7 @@ import {
   statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
 import { AVATARS, avatarSrc, kitDeal } from '../config/board';
+import { heldMarkup, heldPanelMarkup, type Held } from './KnockoutHeld';
 import type { WalkOnCard } from '../game/walk-on-card';
 import { walkOnCardMarkup } from './WalkOnCard';
 import type { TutorialStep } from '../game/Tutorial';
@@ -106,7 +117,8 @@ import type { Super10Innings } from '../game/super10-board';
 import { resultOf, type Result } from '../game/Survive';
 import type { SoundSetting } from '../game/Audio';
 import type { CareerMode } from '../game/career';
-import { chaseStanding, chaseTarget, playedMode, playerFootMarkup, playerSheetMarkup, soloOf, type PlayerSeed, type PlayerSheetView } from './PlayerSheet';
+import { chaseStanding, chaseTarget, playedMode, playerFootMarkup, playerSheetMarkup, playerTab, playerTabs, soloOf, type PlayerSeed, type PlayerSheetView, type PlayerTab } from './PlayerSheet';
+import type { KnockoutStanding } from '../server/knockout-ledger';
 import { cachedProfile, type ProfilePayload } from '../game/profile-api';
 import { chipLine, surviveGoal, type Chase, type Mine } from '../game/chase';
 import { chaseChipMarkup, chaseIntroMarkup, passedMarkup } from './ChaseUi';
@@ -118,7 +130,7 @@ const REPLAY_TITLE = new URL('../assets/title.webp', import.meta.url).href;
 import type { OwnActivity } from '../game/profile-api';
 import wifiOff from '../assets/board/wifi-off.svg?raw';
 /** Each poster on Choose a mode's rail, by its mode, to its dot in the pager under it. */
-const POSTER_DOTS: Record<string, string> = { CLASSIC: 'blast', MARATHON: 'marathon', SUPER10: 'super10', SURVIVE: 'survival' };
+const POSTER_DOTS: Record<string, string> = { CLASSIC: 'blast', MARATHON: 'marathon', SUPER10: 'super10', KNOCKOUT: 'knockout', SURVIVE: 'survival' };
 /** OPENER to Opener and NO. 3 to No. 3: the batters' titles as a scorecard writes them. */
 const titleCase = (title: string) => title.charAt(0) + title.slice(1).toLowerCase();
 /** 1st, 2nd, 3rd, 12th. The board sheet spells them the same way. */
@@ -357,6 +369,10 @@ export class HUD {
     // and every control the game needs sits on top of it.
     root.innerHTML = `
       <div id="viewport" class="stage">
+        <div class="ko-edge" aria-hidden="true"></div>
+        <div class="ko-fh-edge" aria-hidden="true"></div>
+        ${knockoutBarMarkup()}
+        ${heldPanelMarkup()}
         <div class="hud-top">
           <div class="hud-actions">
             <button id="sound" class="hud-button" aria-label="Sound on. Turn the music off" title="Sound (M)">${icon('sound')}</button>
@@ -392,9 +408,11 @@ export class HUD {
         <div id="scoreboard" class="scoreboard" role="group" aria-label="Scoreboard">
           <span class="bug-tag" aria-hidden="true">HITMAN<br>OVAL</span>
           <span class="bug-total" id="total" role="img"><span id="runs"></span><span class="bug-slash">/</span><span class="bug-wkts" id="wickets"></span></span>
-          <span class="bug-cell" id="overs-cell"><b id="overs"></b><i>OVERS</i></span>
-          <span class="bug-cell"><b id="last" class="bug-last" role="img"></b><i>LAST</i></span>
+          <span class="bug-cell" id="overs-cell"><b id="overs"></b><i id="overs-label">OVERS</i></span>
+          <span class="bug-cell bug-last-cell"><b id="last" class="bug-last" role="img"></b><i>LAST</i></span>
+          <span class="bug-cell ko-cell" id="ko-cell" aria-live="polite" hidden><b id="ko-place"></b><i id="ko-line"></i></span>
         </div>
+        <span class="ko-over" id="ko-over" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <div id="survive-card" class="survive-card hidden" role="group" aria-label="Match situation">
           <span class="sc-cell sc-main"><b id="sc-score" aria-live="polite"></b><span class="sc-label">TARGET <em id="sc-target"></em></span></span>
           <span class="sc-cell"><b id="sc-need"></b><span class="sc-label">TO WIN</span></span>
@@ -580,6 +598,8 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
             </div>
         </div>
 ${modeSelectMarkup()}
+${knockoutHomeMarkup()}
+${knockoutRulesMarkup()}
         <div id="challenge-room" class="modal-overlay room-screen hidden" role="dialog" aria-modal="true" aria-labelledby="room-title">
           <div class="room-sheet">
             <div class="mode-top room-top">
@@ -892,10 +912,12 @@ ${modeSelectMarkup()}
     };
     const modePill = this.$('board-mode');
     modePill.onclick = () => {
-      const { layer, shut } = popup(modeMenuMarkup(screen.mode, screen.modes), modePill);
+      const { layer, shut } = popup(modeMenuMarkup(screen.mode, screen.modes, this.boardAlso), modePill);
       for (const item of layer.querySelectorAll<HTMLElement>('[data-mode]')) {
         item.onclick = () => { shut(); const to = item.dataset.mode as BoardMode; if (to !== screen.mode) this.onBoardTab?.(to); };
       }
+      // A board that is a screen of its own (Super Knockout's) opens over this one.
+      for (const item of layer.querySelectorAll<HTMLElement>('[data-also]')) item.onclick = () => { shut(); this.onBoardAlso?.(item.dataset.also!); };
     };
     const ladderPill = this.$('board-ladder');
     ladderPill.onclick = () => {
@@ -1046,8 +1068,17 @@ ${modeSelectMarkup()}
       seed, mode: seed.mode, modes: this.boardModes(seed.mode),
       state: held ? 'ready' : 'loading', profile: held,
       challenge: this.onChallengeFoot ? { foot: this.onChallengeFoot(seed.handle) } : null,
+      // Super Knockout's tab, where matches with friends are played: asked for as the sheet opens.
+      knockout: this.onPlayerKnockout ? { standing: null, state: 'loading', invite: !!this.onPlayerInvite } : null,
     };
     if (held) view.mode = playedMode(held, view);
+    if (this.onPlayerKnockout) {
+      void this.onPlayerKnockout(seed.handle).then(standing => {
+        if (this.playerOpen?.view !== view || !view.knockout) return;
+        view.knockout = { ...view.knockout, standing, state: standing ? 'ready' : 'offline' };
+        if (view.onKnockout) this.drawPlayer('data');
+      });
+    }
     const layer = document.createElement('div');
     layer.className = 'lb-pop ps-layer';
     shell.append(layer);
@@ -1073,6 +1104,9 @@ ${modeSelectMarkup()}
   private playerHost(): HTMLElement | null {
     const notices = this.$('notices');
     if (!notices.classList.contains('hidden')) return notices.querySelector<HTMLElement>('.nt-screen') ?? notices;
+    // Super Knockout's own leaderboard, a screen of its own over its home.
+    const knockout = document.querySelector<HTMLElement>('#ko-board .lb-screen');
+    if (knockout) return knockout;
     const board = document.querySelector<HTMLElement>('#board-overlay .lb-screen');
     if (board && !this.$('board-overlay').classList.contains('hidden')) return board;
     const list = this.$('challenge-list');
@@ -1121,7 +1155,7 @@ ${modeSelectMarkup()}
     const scrolled = before?.querySelector<HTMLElement>('.ps-scroll')?.scrollTop ?? 0;
     const oldStage = before?.querySelector<HTMLElement>('.ps-stage') ?? null;
     const oldTier = before ? [...before.classList].find(one => one.startsWith('tier-')) ?? null : null;
-    const oldMode = before ? [...before.classList].find(one => /^is-(classic|marathon|survive)$/.test(one)) ?? null : null;
+    const oldMode = before ? [...before.classList].find(one => /^is-(classic|marathon|survive|knockout)$/.test(one)) ?? null : null;
     layer.innerHTML = playerSheetMarkup(view);
     const sheet = layer.querySelector<HTMLElement>('#player-sheet')!;
     sheet.classList.add(how === 'open' ? 'is-rising' : how === 'data' ? 'is-arriving' : `is-${how}`);
@@ -1152,8 +1186,19 @@ ${modeSelectMarkup()}
       this.askPlayer();
     });
     for (const tab of sheet.querySelectorAll<HTMLElement>('.ps-tab')) {
-      tab.onclick = () => this.playerMode(tab.dataset.mode as CareerMode);
+      tab.onclick = () => this.playerMode(tab.dataset.mode as PlayerTab);
     }
+    // Five tabs run past a narrow sheet: the picked one is brought into the row (only the row moves).
+    const row = sheet.querySelector<HTMLElement>('.ps-switch'), picked = row?.querySelector<HTMLElement>('.ps-tab.is-on');
+    if (row && picked) {
+      const left = picked.offsetLeft - row.offsetLeft;
+      if (left < row.scrollLeft) row.scrollLeft = left;
+      else if (left + picked.offsetWidth > row.scrollLeft + row.clientWidth) row.scrollLeft = left + picked.offsetWidth - row.clientWidth;
+    }
+    // Super Knockout's own key: a match hosted with them asked into it.
+    sheet.querySelector<HTMLElement>('#player-invite')?.addEventListener('click', () => {
+      this.onPlayerInvite?.({ handle: open.view.seed.handle, name: open.view.profile?.name ?? open.view.seed.name });
+    });
     sheet.querySelector<HTMLElement>('#player-chase')?.addEventListener('click', () => {
       const target = chaseTarget(open.view);
       if (target === null) return;
@@ -1231,6 +1276,10 @@ ${modeSelectMarkup()}
     }
   }
 
+  /** Another player's Super Knockout record, by their handle; null where matches with friends are not played. */
+  onPlayerKnockout: ((handle: string) => Promise<KnockoutStanding | null>) | null = null;
+  /** INVITE TO A MATCH on Super Knockout's tab of a profile. */
+  onPlayerInvite: ((them: { handle: string; name: string }) => void) | null = null;
   /** What the foot offers between this player and the one on show, from the game's list of matches. */
   onChallengeFoot: ((handle: string) => FootState | null) | null = null;
   /** CHALLENGE on a profile. */
@@ -1351,16 +1400,21 @@ ${modeSelectMarkup()}
   private playerStep(by: 1 | -1) {
     const open = this.playerOpen;
     if (!open) return;
-    const to = open.view.modes[open.view.modes.indexOf(open.view.mode) + by];
+    const tabs = playerTabs(open.view);
+    const to = tabs[tabs.indexOf(playerTab(open.view)) + by];
     if (to) this.playerMode(to);
   }
 
   /** Another mode's figures, slid in from the side it lies on. */
-  private playerMode(mode: CareerMode) {
+  private playerMode(mode: PlayerTab) {
     const open = this.playerOpen;
-    if (!open || mode === open.view.mode) return;
-    const dir = open.view.modes.indexOf(mode) > open.view.modes.indexOf(open.view.mode) ? 'next' : 'prev';
-    open.view.mode = mode;
+    if (!open || mode === playerTab(open.view)) return;
+    const tabs = playerTabs(open.view);
+    const dir = tabs.indexOf(mode) > tabs.indexOf(playerTab(open.view)) ? 'next' : 'prev';
+    // Super Knockout's tab is no career's mode: the mode on show is kept for the way back.
+    open.view.onKnockout = mode === 'knockout';
+    if (mode !== 'knockout') open.view.mode = mode;
+    else track('profile-knockout-tab', 'Super Knockout opened on a player’s profile');
     this.drawPlayer(dir);
     open.layer.querySelector<HTMLElement>(`.ps-tab[data-mode="${mode}"]`)?.focus({ preventScroll: true });
   }
@@ -1681,7 +1735,7 @@ ${modeSelectMarkup()}
     this.holdStats(view);
     overlay.innerHTML = statsSheetMarkup({
       ...view, careerKey: this.keyView, who: this.whoNow?.() ?? null, at: this.statsAt, where: 'page', offerRestore: this.offerRestore,
-      password: this.passwordNow?.() ?? null, activity: this.activity,
+      password: this.passwordNow?.() ?? null, activity: this.activity, knockout: this.koSlide,
     });
     this.wireActivity();
     // Seen, once an opening: against `password-open-stats`, how many tap it.
@@ -1707,13 +1761,23 @@ ${modeSelectMarkup()}
    */
   private holdStats(view: StatsSheetView) {
     if (view.cards.length !== this.statsCards.length) this.statsAt = view.at ?? 0;
-    this.statsAt = Math.min(Math.max(0, this.statsAt), Math.max(0, view.cards.length - 1));
+    // Super Knockout's tab, where there is one, is the slide after the careers'.
+    this.statsAt = Math.min(Math.max(0, this.statsAt), Math.max(0, view.cards.length - 1 + (this.koSlide ? 1 : 0)));
     this.statsCards = view.cards;
     this.statsShown = view.cards[this.statsAt]?.facts ?? null;
     this.statsView = view;
   }
   /** The page's last view, drawn again when the activity arrives. */
   private statsView: StatsSheetView | null = null;
+  /** Super Knockout's tab on the page (`KnockoutStats.ts`): null where matches with friends are not played, or for a player with no name. */
+  private koSlide: KnockoutSlide | null = null;
+  /** The tab's figures, set as the page opens and again when the store has answered: drawn in where the page is up. */
+  statsKnockout(slide: KnockoutSlide | null) {
+    this.koSlide = slide;
+    if (this.statsView && !this.$('stats-overlay').classList.contains('hidden')) this.stats(this.statsView);
+  }
+  /** PLAY SUPER KNOCKOUT at the foot of the page, with its tab in front. */
+  onStatsKnockout: (() => void) | null = null;
   /** What the player's profile has collected, once the store has said; null before, and for a player with no name. */
   private activity: OwnActivity | null = null;
 
@@ -1754,6 +1818,8 @@ ${modeSelectMarkup()}
     if (brag) brag.onclick = () => void this.shareStats();
     const play = document.getElementById('stats-play');
     if (play) play.onclick = () => this.onStatsPlay?.(this.statsCards[this.statsAt]?.facts.mode ?? 'classic');
+    const knockout = document.getElementById('stats-knockout');
+    if (knockout) knockout.onclick = () => this.onStatsKnockout?.();
     for (const pencil of document.querySelectorAll<HTMLElement>('.st-edit')) pencil.onclick = () => this.onProfileEdit?.();
     // The key card is only on the sheet where the player has one.
     const save = document.getElementById('key-save');
@@ -1840,7 +1906,7 @@ ${modeSelectMarkup()}
       // as wide as the rail — and a card exactly as wide as the rail is a card
       // with nothing peeking past it, which is the one thing this must not be.
       const at = this.railAt(rail);
-      if (at === this.statsAt || at < 0 || at >= this.statsCards.length) return;
+      if (at === this.statsAt || at < 0 || at >= this.statsCards.length + (this.koSlide ? 1 : 0)) return;
       // The rail was built so the card behind peeks past the edge, on the
       // argument that a player who can see there is something there will go and
       // look. That is a claim about behaviour and this is the only thing that
@@ -1848,6 +1914,8 @@ ${modeSelectMarkup()}
       trackOnce('stats-swipe', 'Swiped to the other card');
       this.statsAt = at;
       this.statsShown = this.statsCards[at]?.facts ?? this.statsShown;
+      // With Super Knockout's tab in front the foot's key plays it: there is no card of it to send.
+      rail.closest('.mp-page')?.classList.toggle('on-knockout', at >= this.statsCards.length);
       for (const one of document.querySelectorAll<HTMLElement>('.mp-stage, .mp-hero')) {
         const on = Number(one.dataset.slide) === at;
         one.classList.toggle('is-on', on);
@@ -1939,6 +2007,8 @@ ${modeSelectMarkup()}
   private storyFilm: Playing | null = null;
   /** The Dressing Room's stage, for the stories played on it: one for the run of them, put away with them. */
   private storyStage: StoryStage | null = null;
+  /** What stops the card of Super Knockout's story now up (`playKnockoutStory`). */
+  private storyScene: (() => void) | null = null;
   /**
    * A stroke's story asks the game to film it under the card (`Story.reel`),
    * and is told whether it can: only off the cover or after an innings, never
@@ -2051,6 +2121,11 @@ ${modeSelectMarkup()}
     sheet?.classList.toggle('is-filmed', filmed || shown);
     // The swipe and the call drawn the way round the game draws them for a left-hander.
     if (filmed) sheet?.classList.toggle('is-left', readHand() === 'left');
+    // A card of Super Knockout's story: its piece fitted to the room it has and set going, stopped when it is left.
+    this.storyScene?.(); this.storyScene = null;
+    if (story?.scene && sheet instanceof HTMLElement) this.storyScene = playKnockoutStory(sheet, story.scene);
+    const later = document.getElementById('whatsnew-later');
+    if (later) later.onclick = () => this.closeStories();
     const open = document.getElementById('whatsnew-open');
     if (open) open.onclick = () => {
       const go = this.onStoriesOpen;
@@ -2226,6 +2301,7 @@ ${modeSelectMarkup()}
     window.clearTimeout(this.storyHold);
     this.storyFilm?.destroy(); this.storyFilm = null;
     this.storyStage?.stop(); this.storyStage = null;
+    this.storyScene?.(); this.storyScene = null;
     this.onStoryReel?.(null, () => {}); this.onStoryShow?.(null, () => {}); this.viewport.classList.remove('reel-on');
     // Which card they were standing on when they left. Opening was already
     // counted and answers nothing on its own: three cards read to the end and
@@ -2390,8 +2466,64 @@ ${modeSelectMarkup()}
     this.$('mode-super10-poster').classList.toggle('hidden', !on);
     this.viewport.querySelector('.ms-pager .is-super10')?.classList.toggle('hidden', !on);
   }
+  /**
+   * Super Knockout on Choose a mode (Figma "Super Knockout · Final", K1): its
+   * poster on the rail between the Marathon and Survival, Super10's poster
+   * moved to the front of the rail, and its card under the rail in Super10's
+   * card's place. Where it is not open the screen is as it was.
+   */
+  private knockoutOpen = false;
+  showKnockout(on: boolean) {
+    this.knockoutOpen = on;
+    this.$('mode-knockout-poster').classList.toggle('hidden', !on);
+    this.viewport.querySelector('.ms-pager .is-knockout')?.classList.toggle('hidden', !on);
+    this.$('mode-knockout-card').classList.toggle('hidden', !on);
+    if (!on) return;
+    this.$('mode-super10').classList.add('hidden');
+    const rail = this.$('modes-rail'), pager = this.viewport.querySelector('.ms-pager');
+    rail.prepend(this.$('mode-super10-poster'));
+    const dot = pager?.querySelector('.is-super10');
+    if (pager && dot) pager.prepend(dot);
+  }
+  /** Super Knockout's home (K2) over Choose a mode, with this browser's practice rooms; null puts it away. */
+  private koPoster: KnockoutPoster | null = null;
+  /** Super Knockout's home is up. */
+  get knockoutHomeOpen() { return !this.$('knockout-home').classList.contains('hidden'); }
+  knockoutHome(tally: KnockoutTally | null, career: KnockoutHomeCareer | null = null, board = false) {
+    const home = this.$('knockout-home');
+    const opening = !!tally && home.classList.contains('hidden');
+    home.classList.toggle('hidden', !tally);
+    this.koPoster ??= new KnockoutPoster(this.$('ko-home-air') as HTMLCanvasElement);
+    if (!tally) { this.koPoster.stop(); home.classList.remove('is-lit'); return; }
+    // The poster comes on each time the home is opened: the floodlights strike, the mark lands, then the air moves.
+    if (opening) { replayClass(home, 'is-lit'); this.koPoster.start(); }
+    // Matches with friends that counted are the card's figures once there are any (K2); until then, this browser's practice rooms.
+    const counted = !!career && career.played > 0;
+    this.$('ko-home-played').textContent = String(counted ? career!.weekPoints : tally.played);
+    this.$('ko-home-played-label').textContent = counted ? 'Points this week' : 'Practice rooms';
+    this.$('ko-home-best').textContent = counted ? (career!.bestPlace ? `#${career!.bestPlace}` : '–') : tally.best ? `#${tally.best}` : '–';
+    this.$('ko-home-wins').textContent = String(counted ? career!.wins : tally.wins);
+    this.$('ko-home-note').textContent = counted ? `${career!.played} ${career!.played === 1 ? 'match' : 'matches'} with friends counted` : 'Practice is you and eleven subs: no points.';
+    // The card opens the Knockout leaderboard where there is one.
+    const card = this.$('ko-home-figures') as HTMLButtonElement;
+    card.disabled = !board; card.classList.toggle('is-open', board);
+    if (!opening) return;
+    home.querySelector('.ko-scroll')?.scrollTo({ top: 0 });
+    const hero = this.$('ko-friends') as HTMLButtonElement;
+    (hero.disabled ? this.$('ko-quick') as HTMLButtonElement : hero).focus({ preventScroll: true });
+  }
+  /** How Super Knockout works (K2b), over whatever opened it. */
+  knockoutRules(open: boolean) {
+    const rules = this.$('knockout-rules');
+    rules.classList.toggle('hidden', !open);
+    if (open) { rules.querySelector('.ko-scroll')?.scrollTo({ top: 0 }); (this.$('ko-rules-quick') as HTMLButtonElement).focus({ preventScroll: true }); }
+  }
+  get knockoutScreenOpen() { return !this.$('knockout-home').classList.contains('hidden') || !this.$('knockout-rules').classList.contains('hidden'); }
   /** What a tab does. The game decides, because the rows are the game's. */
   onBoardTab: ((tab: SheetTab) => void) | null = null;
+  /** Boards the mode menu also offers that are screens of their own, and what a tap on one does. */
+  boardAlso: readonly BoardAlso[] = [];
+  onBoardAlso: ((id: string) => void) | null = null;
   /** What the sheet's What's New key does. */
   onBoardStories: (() => void) | null = null;
   /** The same, for the row of ladders inside one mode. */
@@ -2603,6 +2735,33 @@ ${modeSelectMarkup()}
     last$.textContent = last ? last.isWicket ? 'W' : String(last.runs) : '–';
     last$.setAttribute('aria-label', last ? last.isWicket ? 'Out' : `${last.runs} off the last ball` : 'No ball bowled yet');
     last$.className = `bug-last ${last?.isWicket ? 'wicket-color' : last && last.runs >= 4 ? 'boundary-color' : ''}`;
+    // Super Knockout's shorter scoreboard: which over of five, and this over ball by ball.
+    if (!document.body.classList.contains('knockout-mode')) return;
+    const bowled = score.history.length;
+    this.$('overs-label').textContent = oversWord(bowled);
+    const from = bowled ? Math.floor((bowled - 1) / 6) * 6 : 0;
+    [...this.$('ko-over').children].forEach((cell, i) => {
+      const at = from + i, ball = score.history[at], free = this.koFree.has(at);
+      cell.textContent = ball ? ball.isWicket ? 'W' : ball.runs ? String(ball.runs) : '·' : free ? 'FH' : '';
+      const kind = !ball ? '' : ball.isWicket ? 'is-out' : ball.runs >= 4 ? 'is-boundary' : 'is-ball';
+      (cell as HTMLElement).className = `${kind}${free ? ' is-free' : ''}${free && !ball ? ' is-next' : ''}`.trim();
+    });
+  }
+  /** The balls of this innings that were the player's free hits, by index, and the one still to come. */
+  private koFree = new Set<number>();
+  /**
+   * Super Knockout's free hit (`free-hit.ts`): the index of the player's ball
+   * when it is the free hit, given as the bowler sets off for it, or null once
+   * it is dead; and whether they have one still to come this over. From his
+   * first stride FH stands in its slot, the screen's edges glow cyan and the
+   * line under the pitch says FREE HIT (`phase`); the slot keeps a cyan edge
+   * once played. `fresh` forgets the innings before.
+   */
+  knockoutFreeHit(next: number | null, fresh = false, ahead = false) {
+    if (fresh) this.koFree.clear();
+    if (next !== null) this.koFree.add(next);
+    this.viewport.classList.toggle('ko-fh-next', next !== null);
+    this.viewport.classList.toggle('ko-fh-ahead', ahead && next === null);
   }
   start(surviving = false, marathon = false) {
     document.body.classList.remove('tutorial-active', 'start-screen');
@@ -2647,12 +2806,17 @@ ${modeSelectMarkup()}
     // not in the corner with the meter, and it names the stroke this ball is
     // for, because each of the four is swiped for differently.
     const on = !!primed && (phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
+    this.phaseNow = phase; this.guiding = on;
     this.guide(on, specials);
     // The Marathon keeps the run-up and the flight quiet: the speed gun's
     // caption takes that spot the moment the ball leaves the hand.
     const quiet = this.marathon && (phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
+    // Super Knockout's free hit edge settles while the ball is live.
+    this.viewport.classList.toggle('ko-live', phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
+    // Super Knockout's free hit is said as the bowler sets off, and stands through the ball.
+    const free = this.viewport.classList.contains('ko-fh-next') && (phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
     label.textContent = on ? CUES[primed!].replace(' — ', ' · ')
-      : phase === 'READY' ? this.walking ?? 'TAKE YOUR GUARD' : quiet ? ''
+      : phase === 'READY' ? this.walking ?? 'TAKE YOUR GUARD' : quiet ? '' : free ? 'FREE HIT'
       : phase === 'BOWLER_RUNUP' ? 'HERE COMES THE NEXT BALL' : phase === 'BALL_IN_FLIGHT' ? 'WATCH THE BALL' : '';
     label.classList.toggle('is-primed', on);
     // The edge of the field lights up too: a line of text at the bottom is easy
@@ -2714,7 +2878,265 @@ ${modeSelectMarkup()}
     this.$('settle-cap').textContent = view.settled ? '' : `${view.balls}/${view.of}`;
   }
   /** Said on the next guard he takes, once: a batter settled, or walking out. */
-  callOut(words: string) { this.walking = words; }
+  /** The guard line's words for the next wait; put up at once when he is already waiting, as a free hit's is. */
+  callOut(words: string) {
+    this.walking = words;
+    if (this.phaseNow === 'READY' && !this.guiding) this.$('phase-label').textContent = words;
+  }
+  private phaseNow: GamePhase | null = null;
+  private guiding = false;
+  /**
+   * Super Knockout's place on the scoreboard, in the LAST ball's cell: the
+   * place, and SAFE, LEVEL · SAFE or what it takes, with the screen's edges
+   * beating red while the player is in the drop. Null puts the Blast's back.
+   */
+  knockout(chip: { place: string; line: string; drop: boolean } | null) {
+    document.body.classList.toggle('knockout-mode', !!chip);
+    document.querySelector('.score-bug')?.toggleAttribute('data-hold', !!chip);
+    if (!chip) this.$('overs-label').textContent = 'OVERS';
+    const cell = this.$('ko-cell');
+    cell.hidden = !chip;
+    this.viewport.classList.toggle('ko-drop', !!chip?.drop);
+    if (!chip) return;
+    this.$('ko-place').textContent = chip.place;
+    this.$('ko-line').textContent = chip.line;
+    cell.classList.toggle('is-drop', chip.drop);
+    cell.setAttribute('aria-label', `Place ${chip.place.slice(1)}, ${chip.line.toLowerCase()}`);
+  }
+  /**
+   * The knockout bar along the foot of the screen (`trackOf`): every seat in
+   * a row, the knocked out on the left, the drop in red, the safe in green,
+   * the player's face riding it by their place, and over it, near the
+   * knockout, what it takes. Null takes it away.
+   */
+  /**
+   * Super Knockout's held scoreboard (P8, H1): everyone still in, under the
+   * scoreboard, and the ring round it draining over `holdMs`. Laid over the
+   * viewport where the scoreboard stands, since the scoreboard clips what is
+   * inside it. Null takes both away; `ready` ticks the scoreboard once (H2).
+   */
+  knockoutHeld(held: Held | null, holdMs = 0, ready = false) {
+    const panel = this.$('ko-held'), ring = this.$('ko-wait') as unknown as SVGSVGElement, bug = document.querySelector<HTMLElement>('.score-bug')!;
+    if (!held) {
+      panel.hidden = true; ring.setAttribute('hidden', '');
+      if (ready) replayClass(bug, 'is-ready');
+      return;
+    }
+    const at = bug.getBoundingClientRect(), box = this.viewport.getBoundingClientRect();
+    const scale = box.width / (this.viewport.offsetWidth || box.width);
+    const left = (at.left - box.left) / scale, top = (at.top - box.top) / scale, w = at.width / scale, h = at.height / scale;
+    const gap = parseFloat(getComputedStyle(this.viewport).getPropertyValue('--u')) || 1;
+    this.$('ko-held-list').innerHTML = heldMarkup(held);
+    Object.assign(panel.style, { left: `${left}px`, top: `${top + h + 6 * gap}px` });
+    panel.hidden = false;
+    const pad = 5 * gap;
+    Object.assign(ring.style, { left: `${left - pad}px`, top: `${top - pad}px`, '--ko-hold': `${holdMs}ms` });
+    ring.setAttribute('width', String(w + 2 * pad)); ring.setAttribute('height', String(h + 2 * pad));
+    const rect = ring.querySelector('rect')!;
+    for (const [k, v] of [['x', 1.5 * gap], ['y', 1.5 * gap], ['width', w + 2 * pad - 3 * gap], ['height', h + 2 * pad - 3 * gap], ['rx', 18 * gap], ['ry', 18 * gap]] as const) rect.setAttribute(k, String(v));
+    // The drain starts afresh with each hold.
+    ring.removeAttribute('hidden');
+    replayAnimation(rect as unknown as HTMLElement);
+  }
+  /** The scoreboard is held and let go, in a Super Knockout innings only; touches on it never play a stroke there. */
+  onHold(change: (down: boolean) => void) {
+    const bug = document.querySelector<HTMLElement>('.score-bug')!;
+    bug.addEventListener('pointerdown', event => { if (!document.body.classList.contains('knockout-mode')) return; bug.setPointerCapture?.(event.pointerId); change(true); });
+    for (const kind of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) bug.addEventListener(kind, () => change(false));
+  }
+  private koBar: KnockoutBar | null = null;
+  knockoutTrack(track: Track | null, face = 0) {
+    this.koBar ??= new KnockoutBar(this.$('ko-track'), this.viewport);
+    this.koBar.show(track, avatarSrc(face));
+  }
+  /**
+   * The hit-stop's picture (Super Knockout's wicket, `knockoutHit`): the screen
+   * kicked 8 pixels and straight back, and a white frame gone in the hold. Web
+   * Animations, so nothing restarts a class mid-ball; under reduced motion only
+   * the hold, as section 37 has it.
+   */
+  hitStop(ms: number) {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let flash = this.viewport.querySelector<HTMLElement>('.ko-hit');
+    if (!flash) { flash = document.createElement('div'); flash.className = 'ko-hit'; flash.setAttribute('aria-hidden', 'true'); this.viewport.append(flash); }
+    flash.animate([{ opacity: .85 }, { opacity: 0 }], { duration: ms, easing: 'ease-in' });
+    this.viewport.animate([{ translate: '8px -5px' }, { translate: '-4px 3px', offset: .45 }, { translate: '0 0' }], { duration: ms + 40, easing: 'ease-out' });
+  }
+  private koMoment: KnockoutMoment | null = null;
+  /** The room playing on after the player has gone, as rings on the end screen (`KnockoutWatch.ts`). */
+  knockoutRings(rings: RingView[]) { this.koMoment?.roomRings(rings); }
+  /** PLAY WITH FRIENDS on the Knockout home: live, or drawn and marked SOON where matches cannot be kept. */
+  knockoutFriendsLive(on: boolean) {
+    const key = this.$('ko-friends') as HTMLButtonElement;
+    key.disabled = !on;
+    key.setAttribute('aria-disabled', String(!on));
+    key.querySelector('.ko-soon')?.classList.toggle('hidden', on);
+  }
+  /**
+   * In a match with friends, the pill while the room is waited on at the
+   * over's end (Figma section 53, 4A): who is still batting and how far they
+   * have to go. Nothing else is laid over the game.
+   */
+  knockoutWaiting(line: string | null) {
+    let pill = this.viewport.querySelector<HTMLElement>('#ko-waiting');
+    if (!line) { pill?.classList.add('hidden'); return; }
+    if (!pill) {
+      pill = document.createElement('div');
+      pill.id = 'ko-waiting';
+      pill.className = 'ko-waiting';
+      pill.setAttribute('aria-live', 'polite');
+      this.viewport.append(pill);
+    }
+    if (pill.textContent !== line) pill.textContent = line;
+    pill.classList.remove('hidden');
+  }
+  /**
+   * The player watched sees it, and never more than it (section 51): how many are watching, in a quiet pill under their
+   * scoreboard with a few of the watchers' faces. Null puts it away.
+   */
+  knockoutWatched(view: { n: number; faces: number[] } | null) {
+    let pill = this.viewport.querySelector<HTMLElement>('#ko-watched');
+    if (!view || view.n < 1) { pill?.remove(); return; }
+    if (!pill) {
+      pill = document.createElement('div');
+      pill.id = 'ko-watched'; pill.className = 'ko-watched';
+      pill.setAttribute('aria-live', 'polite');
+      this.viewport.append(pill);
+    }
+    const key = `${view.n}:${view.faces.join()}`;
+    if (pill.dataset.key === key) return;
+    pill.dataset.key = key;
+    pill.innerHTML = `<span>${view.faces.map(face => `<img src="${avatarSrc(face)}" alt="" decoding="async">`).join('')}</span><b></b>`;
+    pill.querySelector('b')!.textContent = `${view.n} watching`;
+  }
+  /** How many are watching the player this phone is watching, on the story's header. */
+  knockoutWatchers(n: number) { this.koWatch?.watchers(n); }
+  /** Somebody asked this player into a match: a banner over whatever screen is up, with JOIN, for a while. */
+  matchInvite(view: { by: string; avatar: number; size: number } | null, join?: () => void) {
+    window.clearTimeout(this.inviteTimer);
+    this.viewport.querySelector('#ko-invite')?.remove();
+    if (!view) return;
+    const banner = document.createElement('div');
+    banner.id = 'ko-invite';
+    banner.className = 'ko-invite is-in';
+    banner.setAttribute('role', 'alert');
+    banner.innerHTML = `<img src="${avatarSrc(view.avatar)}" alt="" width="40" height="40">
+      <span class="ko-invite-text"><b>${escape(view.by)} invited you</b><small>Super Knockout · ${view.size} in the room</small></span>
+      <button type="button" class="ko-pill" id="ko-invite-join">JOIN</button>
+      <button type="button" class="ko-invite-x" id="ko-invite-x" aria-label="Not now">×</button>`;
+    banner.onclick = () => join?.();
+    banner.querySelector<HTMLElement>('#ko-invite-x')!.onclick = event => { event.stopPropagation(); this.matchInvite(null); };
+    this.viewport.append(banner);
+    this.inviteTimer = window.setTimeout(() => this.matchInvite(null), 20_000);
+  }
+  private inviteTimer = 0;
+  /** The key under a match's end screens: BACK TO ROOM in a match with friends, PLAY AGAIN (null) anywhere else. */
+  knockoutAgain(label: string | null) {
+    this.againLabel(label);
+    const face = this.viewport.querySelector<HTMLElement>('#ko-again .k-cta-face>span') ?? this.viewport.querySelector<HTMLElement>('#ko-again span');
+    if (face) face.textContent = label ?? 'PLAY AGAIN';
+  }
+  knockoutRoomOver(line: string) { this.koMoment?.roomOver(line); }
+  /** The room down to its final, on the end screen's rings. */
+  knockoutRoomFinal(on: boolean) { this.koMoment?.roomFinal(on); }
+  /** The room won (section 52): MATCH OVER over the game being watched, or the end screen's rings and key, counting to Results. */
+  knockoutMatchOver(over: MatchOverView, winner: RingView, line: string, watching: boolean, now: () => void) {
+    if (watching && this.koWatch) this.koWatch.matchOver(over, now);
+    this.koMoment?.roomEnd(winner, line, now);
+  }
+  /** WINNER's count to Results on its left key. */
+  knockoutCountdown(now: () => void) { this.koMoment?.countToResults(now); }
+  knockoutCount(n: number) { this.koWatch?.count(n); this.koMoment?.roomCount(n); }
+  private koResults: KnockoutResults | null = null;
+  /** The room's Results or its standings are up. */
+  get knockoutResultsOpen() { return this.koResults !== null; }
+  /** The room's Results (A4), over the end screen: back is the end screen, PLAY AGAIN plays again. */
+  knockoutResults(view: ResultsView | null, back?: () => void, again?: () => void) {
+    this.koResults?.close(); this.koResults = null;
+    if (!view) return;
+    this.koResults = new KnockoutResults(this.viewport, view, {
+      back: () => { this.koResults = null; back?.(); },
+      // Opened from the room (its LEADERBOARD, or the last match's card) the key under it is the room's own way back.
+      again: () => { this.koResults = null; if (again) { again(); return; } this.koMoment?.close(); this.koMoment = null; this.$('again').click(); },
+    });
+  }
+  /** The standings of a room still being played, kept up while they are open (`view` is asked for only then). */
+  knockoutStandings(view: () => ResultsView) { if (this.koResults?.live) this.koResults.update(view()); }
+  /** The room's Results drawn again where they stand: the store's result has come in under them, with what each place paid. */
+  knockoutResultsPaid(view: () => ResultsView) { if (this.koResults && !this.koResults.live) this.koResults.update(view()); }
+  /** What the store paid, on the end screen: WINNER's pill, or the end of a knocked-out line. */
+  knockoutPaid(points: string, note: string | null) { this.koMoment?.paid(points, note); }
+  /**
+   * A reaction sent to this player, or to whoever they are watching: the emoji and who sent it float up the
+   * left edge and go. Nothing is laid out for it mid-ball (the game shows them between balls), and it takes no touch.
+   */
+  private rxShown = 0;
+  knockoutReaction(emoji: string) {
+    // The emoji alone: on a pill with the sender's face and name it was a distraction to the player batting (the owner,
+    // 23 November 2026).
+    const el = document.createElement('div');
+    el.className = 'ko-rx';
+    el.setAttribute('aria-hidden', 'true');
+    el.style.setProperty('--lane', String(this.rxShown++ % 3));
+    el.textContent = emoji;
+    this.viewport.append(el);
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches, rise = this.viewport.clientHeight * .26;
+    const move = el.animate(still
+      ? [{ opacity: 0 }, { opacity: 1, offset: .15 }, { opacity: 1, offset: .8 }, { opacity: 0 }]
+      : [{ opacity: 0, transform: 'translateY(20px) scale(.6)' }, { opacity: 1, transform: 'translateY(0) scale(1.12)', offset: .14 },
+        { opacity: 1, transform: `translateY(${-rise * .7}px) scale(1)`, offset: .75 }, { opacity: 0, transform: `translateY(${-rise}px) scale(.96)` }],
+      { duration: 2600, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'forwards' });
+    move.onfinish = () => el.remove();
+  }
+  private koWatch: WatchView | null = null;
+  /** A sub's game watched as a story, or null to put it away; `on` is wired once. */
+  knockoutWatch(header: WatchHeader | null, on: { close(): void; step(by: 1 | -1): void; react(emoji: string): void }, turned: 1 | -1 | 0 = 0) {
+    document.body.classList.toggle('ko-watch', !!header);
+    if (!header) { this.koWatch?.hide(); return; }
+    this.koWatch ??= new WatchView(this.viewport, on);
+    this.koWatch.show(header, turned);
+  }
+  /** The cut landed on a player whose end screen went up when they were out: the place stamped on it. */
+  knockoutSettle(view: MomentView) { this.koMoment?.settle(view); }
+  /** The end of the player's knockout match, over the card: KNOCKED OUT or WINNER (`KnockoutMoment.ts`). */
+  knockoutEnd(view: MomentView | null, sound?: (cue: MomentSound) => void, watch?: (id: number | null) => void, board?: () => void) {
+    this.koMoment?.close(); this.koMoment = null;
+    this.koResults?.close(); this.koResults = null;
+    this.viewport.classList.remove('ko-drop');
+    if (!view) return;
+    this.koMoment = new KnockoutMoment(this.viewport, view, {
+      again: () => { this.koMoment = null; this.$('again').click(); },
+      card: () => { this.koMoment = null; this.$('again').focus(); },
+      sound, watch, board,
+      share: now => { void this.shareKnockout({ won: now.won, place: now.place, of: now.of, name: now.you.name, face: now.you.face, runs: now.you.runs, balls: now.you.balls, sixes: now.you.sixes }); },
+    });
+  }
+  /**
+   * A Super Knockout finish out as a picture (X7, `KnockoutCard.ts`): the share sheet with the picture and the words,
+   * the picture saved where the sheet will not open, and WhatsApp's own link with the words where no file can leave
+   * the browser at all, as the career card goes.
+   */
+  async shareKnockout(finish: KnockoutFinish) {
+    const url = gameLink();
+    const words = knockoutShareText(finish, url);
+    track('knockout-share', 'Shared a Super Knockout finish');
+    if (!canShareImage()) {
+      window.open(`https://wa.me/?text=${encodeURIComponent(words)}`, '_blank', 'noopener');
+      return;
+    }
+    let picture: Blob;
+    try { picture = await knockoutCardImage(finish, url); } catch { return; }
+    try {
+      await navigator.share({ files: [new File([picture], knockoutCardFile(), { type: 'image/jpeg' })], text: words });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      const href = URL.createObjectURL(picture);
+      const link = document.createElement('a');
+      link.href = href; link.download = knockoutCardFile();
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(href), 10_000);
+    }
+  }
   /**
    * A Marathon level beginning, put up the way a broadcast would: the swing
    * coming on under the cloud, or the express bowler marking out his run. Up
@@ -3101,18 +3523,20 @@ ${modeSelectMarkup()}
    * chevrons. A new one each time, so it runs from its first frame with
    * nothing forced; null takes it away.
    */
-  replayWipe(look: ReplayLook | null) {
+  replayWipe(look: ReplayLook | 'knockout' | null) {
     document.getElementById('replay-wipe')?.remove();
     if (look === null) return;
     const super10 = look === 'super10';
+    // Super Knockout's hand-over to the room's Results (section 52, A3): the same train in Knockout red, SUPER KNOCKOUT over RESULTS.
+    const knockout = look === 'knockout';
     const wipe = document.createElement('div');
     wipe.id = 'replay-wipe'; wipe.setAttribute('aria-hidden', 'true');
     wipe.className = look === 'blast' ? '' : `is-${look}`;
     wipe.style.setProperty('--rw', `${WIPE_MS}ms`);
-    const mark = super10 ? `<img class="rw-mark" src="${REPLAY_MARK}" alt="">` : `<img class="rw-title" src="${REPLAY_TITLE}" alt="">`;
+    const mark = knockout ? '<span class="rw-over">SUPER KNOCKOUT</span>' : super10 ? `<img class="rw-mark" src="${REPLAY_MARK}" alt="">` : `<img class="rw-title" src="${REPLAY_TITLE}" alt="">`;
     wipe.innerHTML = '<i class="rw-train"><i class="rw-chev rw-c4"></i><i class="rw-chev rw-c3"></i>'
       + `<i class="rw-panel">${BAND_CHEVRONS.replace('class="ec-chevrons"', 'class="rw-band-chevrons" preserveAspectRatio="none"')}</i><i class="rw-chev rw-c2"></i><i class="rw-chev rw-c1"></i></i>`
-      + `<span class="rw-lock">${mark}<span class="rw-word">ACTION REPLAY</span></span>`;
+      + `<span class="rw-lock">${mark}<span class="rw-word">${knockout ? 'RESULTS' : 'ACTION REPLAY'}</span></span>`;
     // Its children's animations bubble up here too: only its own end takes it away.
     wipe.addEventListener('animationend', event => { if (event.target === wipe) wipe.remove(); });
     this.viewport.append(wipe);
@@ -4638,7 +5062,7 @@ ${modeSelectMarkup()}
   private super10Spark!: Super10Spark;
 
   /** The mode picker, settled on `at` (the mode played last). Skipped entirely when a link has already named the mode. */
-  modes(at: 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' = 'CLASSIC') {
+  modes(at: 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' | 'KNOCKOUT' = 'CLASSIC') {
     // Whatever was over the ground goes first. The picker is a screen, and both
     // end cards sit later in the markup on the same layer — opened from one of
     // them the picker appeared *behind* it, which read as the key doing nothing.
@@ -4659,7 +5083,7 @@ ${modeSelectMarkup()}
     const poster = this.posters().find(p => p.dataset.mode === at) ?? this.posters()[0];
     if (poster) rail.scrollLeft = this.railLeft(poster);
     this.followRail();
-    if (this.super10Tab) this.super10Spark.start();
+    if (this.super10Tab && !this.knockoutOpen) this.super10Spark.start();
   }
   closeModes() {
     this.super10Spark.stop();
@@ -5506,16 +5930,17 @@ ${modeSelectMarkup()}
    * A challenge arriving while Choose a mode is up (Figma 23, C8): a banner
    * over the posters with ANSWER, gone after a few seconds or on a tap.
    */
-  modesAlert(view: { code: string; name: string; avatar: number; line: string } | null) {
+  modesAlert(view: { code: string; name: string; avatar: number; line: string; title?: string; key?: string; answer?: () => void } | null) {
     const alert = this.$('modes-alert');
     window.clearTimeout(this.alertTimer);
     if (!view) { alert.classList.add('hidden'); alert.innerHTML = ''; return; }
     alert.innerHTML = `<span class="ms-alert-face" data-handle-face>${kitMarkup(view.avatar, view.name)}</span>
-      <span class="ms-alert-text"><b>${escape(view.name)} challenged you</b><small>${escape(view.line)}</small></span>
-      <button type="button" id="modes-alert-answer" class="nt-key is-answer">ANSWER</button>`;
+      <span class="ms-alert-text"><b>${escape(view.title ?? `${view.name} challenged you`)}</b><small>${escape(view.line)}</small></span>
+      <button type="button" id="modes-alert-answer" class="nt-key is-answer">${escape(view.key ?? 'ANSWER')}</button>`;
     alert.classList.remove('hidden');
     replayClass(alert, 'is-in');
-    const answer = () => { this.modesAlert(null); this.onInviteAnswer?.(view.code); };
+    // A match with friends answers its own way (JOIN); a challenge opens its invite sheet.
+    const answer = () => { this.modesAlert(null); if (view.answer) view.answer(); else this.onInviteAnswer?.(view.code); };
     alert.querySelector<HTMLElement>('#modes-alert-answer')!.onclick = event => { event.stopPropagation(); track('modes-alert-answer', 'Challenge banner answered'); answer(); };
     alert.onclick = answer;
     this.alertTimer = window.setTimeout(() => this.modesAlert(null), ALERT_MS);
@@ -5726,6 +6151,7 @@ ${modeSelectMarkup()}
     }
     this.$('mode-marathon').classList.toggle('is-played', !!view.marathon.best);
     this.$('mode-survive').classList.toggle('is-played', !!view.survive.best);
+    this.$('mode-knockout-poster').classList.toggle('is-played', view.knockout.played > 0);
     this.$('modes-dressing').classList.toggle('is-visited', view.dressing.visited);
     this.$('modes-dressing').classList.toggle('has-diwali', !!view.dressing.diwali);
     this.$('modes-dressing').setAttribute('aria-label', view.dressing.diwali ? 'Dressing Room, new Diwali kits' : 'Dressing Room');

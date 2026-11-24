@@ -2,6 +2,7 @@ import type { Challenge } from './challenge-api';
 import { ownsHandle } from './handle';
 import { DECLINE_WAIT_MS, left, totalOf } from './invite';
 import type { OwnActivity } from './profile-api';
+import { ordinal } from './knockout-points';
 
 /**
  * The Notifications screen (Figma section 23, lane E): the latest of what
@@ -22,7 +23,7 @@ import type { OwnActivity } from './profile-api';
  */
 
 export type NoticeFilter = 'all' | 'challenges' | 'results' | 'board';
-export type NoticeMode = 'classic' | 'super10' | 'marathon' | 'survive';
+export type NoticeMode = 'classic' | 'super10' | 'marathon' | 'survive' | 'knockout';
 
 export interface Notice {
   /** Stable across reads, for the row's key and a test. */
@@ -37,9 +38,11 @@ export interface Notice {
   /** After the mode: what it left, or how long. */
   sub: string;
   /** The one key on the row. */
-  key: { kind: 'answer'; code: string } | { kind: 'again'; handle: string } | { kind: 'winback'; event: number } | null;
+  key: { kind: 'answer'; code: string } | { kind: 'again'; handle: string } | { kind: 'winback'; event: number } | { kind: 'join'; code: string } | null;
   /** A settled match's verdict. */
   chip: 'W' | 'L' | 'D' | null;
+  /** A Super Knockout match's finish, where a Rival Match has its verdict: 2nd, in green when it was in the points' places. */
+  finish?: { word: string; top: boolean } | null;
   /** The room a challenge or result opens. */
   code: string | null;
 }
@@ -49,7 +52,37 @@ export const NOTICES_KEPT = 50;
 const HOUR = 3_600_000, DAY = 24 * HOUR;
 export const SEEN_KEY = 'hitman-notices-seen';
 
-export const MODE_NAME: Record<NoticeMode, string> = { classic: 'The Blast', super10: 'Super10', marathon: 'Test Marathon', survive: 'Test Survival' };
+export const MODE_NAME: Record<NoticeMode, string> = { classic: 'The Blast', super10: 'Super10', marathon: 'Test Marathon', survive: 'Test Survival', knockout: 'Super Knockout' };
+
+/**
+ * What Super Knockout adds (Figma section 42, R5): the matches this player has been asked into and not joined, and
+ * their own last few matches with what each paid. Both come from what the game already asks the store for
+ * (`readMatchInvites`, the player's standing), so nothing new is kept for the screen.
+ */
+export interface KnockoutNews {
+  invites: readonly { code: string; by: string; byAvatar: number; at: number; size: number }[];
+  recent: readonly { at: number; place: number; points: number }[];
+  you: { name: string; avatar: number };
+}
+
+/** Super Knockout's rows: an invite waiting is NEEDS YOU with JOIN, a match played is a result with the place it ended in. */
+export function knockoutNotices(news: KnockoutNews, now: number): Notice[] {
+  const base = { mode: 'knockout' as const, chip: null, code: null };
+  const invites: Notice[] = news.invites.map(invite => ({
+    ...base, id: `ko-invite:${invite.code}`, kind: 'challenges', at: invite.at, needsYou: true,
+    face: { handle: '', name: invite.by, avatar: invite.byAvatar }, title: `${invite.by} invited you to a match`,
+    sub: `${invite.size} in · code ${invite.code}`, key: { kind: 'join', code: invite.code },
+  }));
+  // A record from before the time was kept has none: it would only say "now" for ever.
+  const results: Notice[] = news.recent.filter(one => one.at > 0).map(one => ({
+    ...base, id: `ko-result:${one.at}`, kind: 'results', at: one.at, needsYou: false,
+    face: { handle: '', name: news.you.name, avatar: news.you.avatar },
+    title: one.place > 0 ? `You finished ${ordinal(one.place)} of 12` : 'You ran away from a match',
+    sub: `${one.points > 0 ? `+${one.points} ${one.points === 1 ? 'point' : 'points'}` : 'no points'} · ${agoOf(one.at, now)}`,
+    key: null, finish: one.place > 0 ? { word: ordinal(one.place), top: one.place <= 3 } : null,
+  }));
+  return [...invites, ...results];
+}
 
 /** How long ago, as the row says it: now, 5m, 3h, 2d. */
 export function agoOf(at: number, now: number): string {
@@ -148,8 +181,8 @@ function boardSub(event: Event): string {
 }
 
 /** Every notice for this player, newest first and NEEDS YOU before everything, thirty days and fifty at most. */
-export function noticesOf(rooms: readonly Challenge[], activity: OwnActivity | null, me: string, now = Date.now()): Notice[] {
-  const out: Notice[] = [];
+export function noticesOf(rooms: readonly Challenge[], activity: OwnActivity | null, me: string, now = Date.now(), knockout: KnockoutNews | null = null): Notice[] {
+  const out: Notice[] = knockout ? knockoutNotices(knockout, now) : [];
   for (const room of rooms) {
     const notice = roomNotice(room, me, now);
     if (notice) out.push(notice);

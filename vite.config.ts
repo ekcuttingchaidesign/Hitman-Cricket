@@ -10,6 +10,9 @@ import { readMarathonFigures, type SoloInnings, type TeamInnings } from './src/g
 import { FEEDBACK_KEPT, feedbackCsv, refusedFeedback, takeFeedback } from './src/server/feedback-store';
 import { memoryFeedback } from './src/server/memory-feedback';
 import { challengeRefused } from './src/server/challenge-store';
+import { matchRefused, memoryKnockouts } from './src/server/knockout-store';
+import { KNOCKOUT_CACHE, knockoutRequest } from './src/server/knockout-endpoint';
+import { memoryLedger } from './src/server/knockout-ledger';
 import { cacheable, challengeRequest } from './src/server/challenge-endpoint';
 import {
   CAREER_BOARD_SIZE, countInnings, nameCareer, readCareer, readCareerBoards, refusedCareer,
@@ -86,6 +89,10 @@ function boardEndpoints(): Plugin {
   // while it runs, so a code left over from an hour of poking about stops
   // working the same way it would in production.
   const challenges = memoryChallenges(names, handle => profiles.players.idOf(handle));
+  // Super Knockout's matches with friends, over memory, finding players by handle as the profiles do.
+  const knockouts = memoryKnockouts(handle => profiles.players.idOf(handle));
+  // Its careers and ladders, checked against the same name registry.
+  const ledger = memoryLedger(folded => names.get(folded) ?? null);
   const dressing = memoryDressing();
   const recap = memoryRecap();
   // Who is around, checked against the same name registry.
@@ -129,7 +136,7 @@ function boardEndpoints(): Plugin {
             res.setHeader('Set-Cookie', ticket ? ticketHeader(ticket, false) : forgetHeader(false));
             return send(200, { ok: true });
           }
-          if (path === '/api/challenge') {
+          if (path === '/api/challenge' && !new URLSearchParams((req.url ?? '').split('?')[1] ?? '').has('knockout')) {
             const request = {
               method: req.method,
               query: Object.fromEntries(new URLSearchParams((req.url ?? '').split('?')[1] ?? '')),
@@ -142,6 +149,18 @@ function boardEndpoints(): Plugin {
             // The same header the deployed endpoint sends on a read, so a check
             // behaves here the way it will behind the edge cache.
             return send(200, outcome, cacheable(request) ? 'public, s-maxage=2, stale-while-revalidate=4' : 'no-store');
+          }
+          if (path === '/api/challenge' && new URLSearchParams((req.url ?? '').split('?')[1] ?? '').has('knockout')) {
+            // What `api/challenge.ts` does for `?knockout=1`, over memory: the same router.
+            const request = {
+              method: req.method,
+              query: Object.fromEntries(new URLSearchParams((req.url ?? '').split('?')[1] ?? '')),
+              body: req.method === 'POST' ? await read(req) : undefined,
+              address: 'dev',
+            };
+            const outcome = await knockoutRequest(knockouts, request, ledger);
+            if (matchRefused(outcome)) return send(outcome.status, { error: outcome.reason, status: outcome.status, retry: outcome.status >= 500 });
+            return send(200, outcome, KNOCKOUT_CACHE);
           }
           if (path === '/api/profile') {
             // What `api/profile.ts` does, over memory: the same router.
@@ -331,6 +350,9 @@ function boardEndpoints(): Plugin {
             const claimed = await claimOnly(boards[''], who);
             if (nameRefused(claimed)) return turnedDown(claimed);
             const name = (claimed as { ok: true; name: string }).name;
+            // The handle their rows go by, as `api/name.ts` keeps it: without it here a player who had only claimed a name
+            // could not be invited to a match on the dev server.
+            await rememberHandle(profiles.players, who.playerId);
             await Promise.all([
               ...[boards[''], boards['survive:'], marathon.team, marathon.solo, super10.team, super10.solo].map(board => board.rename(who.playerId, name)),
               nameCareer(careers.classic, BLAST_CAREER, who.playerId, name, who.avatar),

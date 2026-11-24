@@ -10,6 +10,7 @@ import { cta, icon, roadToHitman, tierBadge } from './Kit';
 import { groundMarkup, rungLine, rungName } from './PlayerSheet';
 import { activityMarkup } from './Activity';
 import type { OwnActivity } from '../game/profile-api';
+import { knockoutHeroMarkup, knockoutSlideMarkup, knockoutStageMarkup, knockoutTabMarkup, type KnockoutSlide } from './KnockoutStats';
 
 /**
  * My Stats, as UI v1 draws it (the handover's section 07).
@@ -70,6 +71,11 @@ export interface StatsSheetView {
   password?: { runs: number } | null;
   /** What their profile has collected — views, who chased and passed them, their bio — once the store has said. */
   activity?: OwnActivity | null;
+  /**
+   * Super Knockout's tab, the last on the rail, where matches with friends are played: points and wins, no tiers
+   * (`KnockoutStats.ts`). Its slide number is the one after the careers'.
+   */
+  knockout?: KnockoutSlide | null;
 }
 
 /** The switch's words, shorter than the modes' names: the switch is narrow. */
@@ -88,23 +94,24 @@ const PENCIL = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d=
 
 export function statsSheetMarkup(view: StatsSheetView): string {
   const { cards, at = 0, where = 'page' } = view;
-  const many = cards.length > 1;
+  const knockout = view.knockout ?? null, koAt = cards.length;
+  const many = cards.length + (knockout ? 1 : 0) > 1;
   const played = cards.some(card => card.facts.played);
   const who = view.who ?? null;
   const bio = view.activity?.bio ?? null;
   return `
-    <div class="stats-sheet-inner st-page mp-page is-${where}" role="document">
-      <div class="mp-stages" aria-hidden="true">${cards.map((card, i) => stageMarkup(card, i, i === at)).join('')}</div>
+    <div class="stats-sheet-inner st-page mp-page is-${where}${knockout && at === koAt ? ' on-knockout' : ''}" role="document">
+      <div class="mp-stages" aria-hidden="true">${cards.map((card, i) => stageMarkup(card, i, i === at)).join('')}${knockout ? knockoutStageMarkup(koAt, at === koAt) : ''}</div>
       <header class="st-head">${where === 'page' ? `
         <button id="stats-back" class="k-icon-button" type="button" aria-label="Back">${icon('arrow-left')}</button>` : ''}
         <h2 class="st-title">MY PROFILE</h2>
         ${who ? `<button id="stats-edit" class="k-icon-button st-edit" type="button" aria-label="Edit your name, kit, batting hand and bio">${PENCIL}</button>` : ''}
       </header>
-      <div class="mp-heroes">${cards.map((card, i) => heroMarkup(card, who, bio, i, i === at)).join('')}</div>
+      <div class="mp-heroes">${cards.map((card, i) => heroMarkup(card, who, bio, i, i === at)).join('')}${knockout ? knockoutHeroMarkup(knockout, who, bio, koAt, at === koAt) : ''}</div>
       <div id="mp-activity" class="mp-activity">${who ? activityMarkup(view.activity ?? null) : ''}</div>
-      ${many ? switchMarkup(cards, at) : ''}
+      ${many ? switchMarkup(cards, at, !!knockout) : ''}
       <div id="stats-rail" class="stats-stage${many ? ' is-rail' : ''}"${many ? ' role="group" aria-label="Your careers, one a mode"' : ''}>${
-  cards.map((card, i) => slideMarkup(card, i === 0, i === at, view.password ?? null)).join('')}</div>
+  cards.map((card, i) => slideMarkup(card, i === 0, i === at, view.password ?? null)).join('')}${knockout ? knockoutSlideMarkup(knockout, at === koAt) : ''}</div>
       ${view.rivals && view.rivals.won + view.rivals.lost + view.rivals.drawn > 0 ? recordMarkup(view.rivals, 'RIVALS RECORD', 'is-stats') : ''}
       ${view.careerKey ? keyCardMarkup(view.careerKey) : ''}
       ${view.offerRestore ? `<p class="stats-note">Played before? ${restoreLinkMarkup('stats-restore', 'Bring your record back')}</p>` : ''}
@@ -112,7 +119,9 @@ export function statsSheetMarkup(view: StatsSheetView): string {
       <div id="stats-toast" class="stats-toast" role="status" aria-live="polite"></div>
       <div class="st-foot">${played
         ? cta({ kind: 'share-wide', label: 'SHARE MY CARD', id: 'stats-brag' })
-        : cta({ kind: 'primary', label: 'PLAY YOUR FIRST INNINGS', id: 'stats-play', wide: true })}</div>
+        : cta({ kind: 'primary', label: 'PLAY YOUR FIRST INNINGS', id: 'stats-play', wide: true })}${
+  // The Knockout tab has no card to send yet: with it in front the foot's key plays Super Knockout (`on-knockout`).
+  knockout ? cta({ kind: 'primary', label: 'PLAY SUPER KNOCKOUT', id: 'stats-knockout', wide: true }) : ''}</div>
     </div>`;
 }
 
@@ -156,7 +165,7 @@ const BOARD_NAME: Record<string, string> = { classic: 'The Blast', marathon: 'Ma
  * it carry them, and a big one only crowded a tab. They keep the old dots'
  * class and slide numbers, so the rail answers them as it always did.
  */
-function switchMarkup(cards: StatsSlide[], at: number): string {
+function switchMarkup(cards: StatsSlide[], at: number, knockout = false): string {
   return `<div class="st-switch stats-dots mp-modes" role="tablist" aria-label="Which mode">${cards.map((card, i) => {
     const { facts } = card;
     return `
@@ -164,7 +173,7 @@ function switchMarkup(cards: StatsSlide[], at: number): string {
             aria-label="${escape(facts.modeName)}" style="--dot:${DOT[facts.mode] ?? DOT.classic}">
             <span class="mp-mode-name">${tierBadge(facts.tier.key, true, facts.tier.name)}${escape((SHORT[facts.mode] ?? facts.modeName).toUpperCase())}</span>
           </button>`;
-  }).join('')}
+  }).join('')}${knockout ? knockoutTabMarkup(cards.length, at === cards.length) : ''}
         </div>`;
 }
 

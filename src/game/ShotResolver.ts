@@ -1,7 +1,7 @@
-import { ADVANCE, HELI, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, FLICK, FLIGHT, GAME, GROUND_RUNS, HOOK, LATE_CUT, PUNCH, SCOOP, SOLID_SHOT, SPIN_CUT, SPIN_PULL, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE, CHOP_ON, RETURN_CATCH } from '../config/gameplay';
-import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory';
-import { spun } from './DeliveryGenerator';
-import type { Delivery, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './types';
+import { ADVANCE, HELI, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, FLICK, FLIGHT, GAME, GROUND_RUNS, HOOK, LATE_CUT, PUNCH, SCOOP, SOLID_SHOT, SPIN_CUT, SPIN_PULL, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE, CHOP_ON, RETURN_CATCH } from '../config/gameplay.js';
+import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory.js';
+import { spun } from './DeliveryGenerator.js';
+import type { Delivery, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './types.js';
 /**
  * How well a stroke was timed, by the size of the error and nothing else. The
  * sign is thrown away here and always has been: which side of the ball a

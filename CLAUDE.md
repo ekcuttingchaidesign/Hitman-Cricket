@@ -15,6 +15,20 @@ nuisance (the owner asked for this on 10 November 2026). One link a line,
 with what it shows; where two switches belong together, one link carrying
 both.
 
+A branch's preview address is not the branch's name with the team's on the
+end: Vercel cuts a long one. It is the first 33 characters of
+`hitman-cricket-git-<branch, its slash a dash>`, then a dash and the first
+six hex digits of the SHA-256 of `git-<branch>hitman-cricket` (the branch as
+it is, slash and all), then `-ek-cutting-chai-design.vercel.app`. For
+`claude/confident-faraday-puyn02` that is
+`hitman-cricket-git-claude-confide-1142c4-ek-cutting-chai-design.vercel.app`.
+Work it out, never guess it: a made-up address ending `-puyn02-ek.vercel.app`
+was given to the owner for two days and opened nothing (20 November 2026). A
+cloud session cannot open it to check (its proxy turns `vercel.app` away), so
+the rule is the check: it gives `…-claude-keen-ha-570be4-…` for
+`claude/keen-hamilton-81xri8`, which Vercel's own comment on that branch's
+pull request named.
+
 ## Going live
 
 `docs/LAUNCH.md` is the running order for shipping the career update: seed the
@@ -684,8 +698,53 @@ plays two devices for one player against the dev server's store; it passes
 `?private=0`, because headless Chromium looks like a private window and would
 otherwise keep nothing.
 
-The update's What's new is the batting cams (`CAMERA_STORIES` in
-`src/game/whats-new.ts`, update key `cams`): one card, about eight seconds,
+The update's What's new is Super Knockout with friends wherever the mode is
+played (`KNOCKOUT_STORIES` in `src/game/whats-new.ts`, update key `knockout`,
+told where `KNOCKOUT_TOLD`: everywhere but the Pages builds, which have no
+Knockout and go on telling the batting cams, below; production since the
+release of 24 November 2026). Four cards
+(Figma Battle Royale page, section 58, node `1178:13947`;
+`src/ui/KnockoutStory.ts`, `src/knockout-story.css`), in the handover's story
+language as the cams' card has it: thin cream bars, the small orange eyebrow,
+the dark close key (`.cams-x`), the words bottom-left in Jaro over a grey
+line. Each shows one real piece of the mode, the screens' own markup and
+classes, so a change to the piece shows on the card: `mode`, the home's poster
+and mark with the format on three chips (12 WALK OUT. 1 SURVIVES.); `cut`, who
+is left after each over counted off `KNOCKOUT.cuts` (`ladderOf`) and the
+game's own bar (`KnockoutBar`, drawn a second time with no ids and no
+haptics, `knockoutBarMarkup(false)`, `quiet`) in the drop with the screen's
+red edges, which 2.6 seconds in plays its own climb over the line to 2 RUNS
+CLEAR (SURVIVE THE CUT); `watch`, the end screen's rings, N WATCHING, the
+story's tray and reactions floating up the left edge as the emoji alone (OUT
+EARLY? WATCH ON.); `friends`, the lobby's seats each ready, its match code and
+what the top three of a full match take off the points table
+(`fullMatchPoints`), holding with PLAY SUPER KNOCKOUT in Knockout red over
+LATER (PLAY WITH FRIENDS). W2 and W3 stand on a picture of a practice room's
+ground at the canopy (`src/assets/knockout/story-ground.webp`, taken by
+`scripts/knockout-story-ground.mjs`; take it again when the ground's look
+changes). The first three move on by themselves (5, 5.5 and 5.5 seconds: the
+design said about four, which was too short to read the line under the
+title); a tap on the picture is on or back, the picture itself taking no
+touch (`.kos-stage`: a glow lifted over the halves once swallowed every tap
+in the middle of a short phone). Between the chrome and the words is the room
+a piece has (`.kos-mid`): `playKnockoutStory` measures the words (`--words`)
+and lays a piece too tall for a short phone out bigger and scaled to fit
+(`--fit`), and hands back what stops the card's timers and bar. PLAY SUPER
+KNOCKOUT opens the Knockout home over Choose a mode (`opens: 'knockout'`,
+`knockoutFromStory`), or only puts the stories away from the board in the
+middle of an innings; put away any other way off the cover, they land on
+Choose a mode with the Knockout poster in front. Under reduced motion each
+card stands as drawn: the bar in the drop, two watching, the points at what
+they are. `?whatsnew=knockout` (or `cams`, `rivals`) asks for an update's
+stories by name on any build, counted as that update's two; `?stories=1`
+shows the stories before every PLAY from that link and counts nothing, for
+looking at them on a phone. Neither is practice. `whatsnew-check` walks the
+cams by name (`?whatsnew=cams`) and then Super Knockout's four in a browser
+of its own: each card, the bar's climb, a tap either side, the card that
+holds, PLAY SUPER KNOCKOUT, LATER, less motion, the twice and the never.
+
+Before it the update was the batting cams (`CAMERA_STORIES`, update key
+`cams`), still the update on the Pages builds: one card, about eight seconds,
 storyboard D on the claude.ai design canvas "Batting Cams Story", drawn in
 the Figma handover's What's new language (its Dressing Room stories): a thin
 bar, the small orange eyebrow and the dark close key across the top, the
@@ -2363,6 +2422,934 @@ screenshot on the frame it was asked for, and the sheet does.
 pitch with a batter at the far end, with a camera to turn round him, set views
 and one that follows his run; `scripts/bowler-artifact.mjs` builds it into
 one file, as `cover-drive-artifact.mjs` does the strokes.
+
+## Super Knockout, stage one: the practice room
+
+`?knockout=1` walks out into a Super Knockout practice room (`PRODUCT.md`,
+Figma "Super Knockout · Final"): the player and eleven subs, the Blast's ball
+with one wicket, the bottom totals knocked out at the end of each of the first
+four overs (two, two, three, then three: 12, 10, 8, 5, 2), and the last two
+batting the fifth, the final, for the higher total. A cut takes exactly its
+count and no more: those out go first, and if more are out than it takes, the
+best of them stay on their totals (they bat no more); a tie on the line takes
+both through. So the match is only ever settled in the final, which the owner
+asked for after a room was won in the fourth over: the old cut took everybody
+out at once. The final ends on its last ball, the higher total winning, then
+not out, then fewer balls, or sooner once settled: one of them out and the
+other past them (`aheadInFinal`, `nextCut`). The rules are `src/game/knockout.ts`
+(`KnockoutRoom`, `cutOf`, every case in `tests/knockout.test.ts`); the subs
+bat the very delivery the player was bowled through the Blast's
+`resolveShot`, each with a timing spread of their own (`SKILLS`) and a share
+of wickets seen off (`KEEP`, 0.8), tuned by `scripts/knockout-sim.ts`: every
+room reaches the final, and is won by 86 to 113. At 0.65 the final's two were
+mostly out before it began and one room in six was settled on its first ball,
+which the owner, watching, saw as the room ending early; at 0.8 both are still
+batting in six finals of seven. Out, the room plays on without the player to the
+cut that takes them, at once.
+
+It is bowled over by over (`knockoutPlan` in `DeliveryGenerator.ts`, the
+owner's plan; `tests/knockout.test.ts`'s "the bowling"): the first over the
+seamer pitching it up, seam and swing only with three fuller balls, no
+yorker, no bouncer, nothing quick or slower, so everybody gets going; the
+second the seamer with the Blast's bouncer back but still no yorker; the
+third the spinner; the fourth the swing bowler or the sling bowler, a coin
+off the room's seed so every seat faces the same (`swingFourthOf`); and the
+fifth, the final, the death bowler. Five overs is the match (`maxBalls` 30). A plan holds an over back through
+`overRules` (`OverRules`): the yorker owed for sixes waits for an over that
+allows it, and the bouncer's roll is still made so the seed's stream moves
+as it would. It moved the subs' rooms hardly at all (the winner's median 86
+to 84) but fewer collapse early.
+
+In the game (`knockoutBall`, `knockoutView` and `blastOver` in `src/Game.ts`)
+it is a Blast innings with `KNOCKOUT_LIMITS`, on the owner's own scoreboard
+(Figma Battle Royale page, section 47, E1 as the owner redrew it,
+`946:7922`): 242 by 64, the total and the overs in a pill of Knockout Red
+at a fifth over the board's dark (the frame's paint is at 20%; drawn solid
+it was far too bright, the owner saw) (OVERS under them, FINAL in the
+final: `oversWord`), this over's six balls beside it as round chips
+(`#ko-over`), and under a hairline CONFIDENCE and its slim meter; no LAST
+cell, no place cell and no "/0" (`.score-bug` as a grid in
+`src/knockout.css`). The keys beside it are in the board's own dark, the
+sound and the pause alone (`#board` off: a practice room has no board). The place is
+in the knockout bar along the foot (`trackOf`, `src/ui/KnockoutBar.ts`,
+`.ko-track` in `src/knockout.css`), 370 by 74 off the design: across its top
+what is at stake and when, in so many words (`eyebrowOf`: BOTTOM 2 KNOCKED
+OUT IN 4 BALLS, … AFTER THIS BALL, or THE FINAL · HIGHER TOTAL WINS · 3 BALLS
+LEFT; END OF OVER 1 · 2 GO, the owner found, said neither) and #9 OF 10; then every seat, worst on the left, those knocked
+out in grey, the drop in red, the safe in green, the cut a white line between,
+the player's face riding it by their place (the phone's own seat, `room.you`:
+it looked for seat 0, the host's in a match with friends, so a guest leading
+the final had their face at the bar's far left, as the owner saw, 20 November
+2026); GONE, DROP and SAFE under their stretches (BEHIND and AHEAD in the
+final, stood either side of the line, `is-final`: centred under one seat each
+they ran into each other); and over the face, only where it
+matters, a pill: NEED 5 RUNS TO BE SAFE (TO WIN in the final), 2 RUNS CLEAR
+(AHEAD), or LEVEL ON THE LINE · SAFE. "3 TO SAFE" in a scoreboard cell said nothing, the
+owner found, and a longer line pushed the bar into the keys with the meter
+full. The bar reacts to where the player stands (`Track.mood`, the claude.ai
+artifact "Knockout Bar Motion"): calm, a slow green breath and a sheen along
+the safe stretch; edge, within `EDGE_RUNS` of somebody in the drop still
+batting, an amber pulse, the cut glowing and a dashed line crawling from it to
+the face; level, a teeter on an amber cut; the drop, a heartbeat whose tempo is
+the deadline (72 a minute with six balls left in the over, 132 on the last,
+`--ko-beat`, which the screen's red edges beat to as well), ripples, the red
+seats throbbing, the pill thumping, and flames and embers off the red seats on
+a canvas (`.ko-fx`), their tips kept under the bar's words; behind in the
+final (`'final'`), the fastest beat, the cut flashing, and a fuse in place of
+the flames, burning from the end of the bar further from the face to the face
+as the final's balls run out. Between two answers it plays what happened (`moment`): the cut (the seats
+it took flash white and go grey, SURVIVED floats up), climbing out (a spring
+over the line, SAFE), falling in (a stumble, a shudder, the pill dropping in),
+and the need ticking down. Loops are CSS; moments are Web Animations, never a
+class restarted mid-ball; the canvas runs only while the player is in the drop
+and for the embers after. Under reduced motion the colours, the cut and the
+words stay and nothing moves. The guard's line and the cut's call stand above
+the bar and its pill (`body.knockout-mode .phase-label`). The screen's edges
+beat red while the player is in the drop (`.ko-edge`), and a cut is called on
+the next guard (`cutLine`). Replays are off. The match ends on
+KNOCKED OUT or WINNER (`src/ui/KnockoutMoment.ts`), each ending exactly on
+its Figma frame, K9 v2 (`858:6160`) and K11 (`858:6267`) on the Final page
+(K9 v2's spotlight re-aimed in both onto the pool under the face, which the
+first frame's beam came down left of):
+the places, sizes, colours, the rays' conic gradient and the grain are read
+off them, and the way there is the claude.ai artifact "Knockout Moments", on
+one clock as the Verdict is. The card is out of sight underneath while it is
+up (`ko-up`), so what shows through K9 v2's dark is the match, blurred. Its
+keys are LEADERBOARD, in the knockout's gold on a warm dark face with a trophy
+(in the design's slate key it read as switched off beside BACK TO ROOM, the
+owner found), and PLAY AGAIN in Knockout Red
+(`board` on the moment's keys, `openStandings` in `src/Game.ts`). It was
+SCORECARD, and WATCH ON while the room played on: the owner, out early in a
+match, could read the scorecard or go back to the room and had no way to see
+where everybody stood (19 November 2026). It opens the room's Results screen
+(below): while the room is still being played, live (`live` on `ResultsView`:
+LEADERBOARD over who leads, the over and how many are still in, every seat
+as it stands, kept up as balls arrive through `hud.knockoutStandings`,
+redrawn where it is scrolled to); once it is over, its Results. The innings'
+own scorecard is not reached from there any more. SHARE is a square green
+key at the head of the row (`#ko-share`, `.ko-share-key`), so neither of the
+two gives up its place, and sends the finish as a picture (below).
+KNOCKED OUT opens on the glass break (Figma section 37, "Knocked out,
+version 2: it should hurt", `830:8574`, the owner's pick on 18 November
+2026), about 3.4 seconds before the keys: the hit, a white frame and the
+screen kicked 8 pixels (`broken`, the host's `translate`) with one heavy
+knock; the screen cracking out like glass from where the stumps stand
+(`origin` on the view, `stumpsOnScreen` in `src/Game.ts`; the cracks
+`glassOf`, rays, branches and a web's rings, drawn to the front's reach by
+`cracks`) with the colour draining after the front (`.ko-drain`, a
+backdrop grey cut to a circle opening from the stumps, which also takes
+the blur when the lights go out: a backdrop filter on the moment itself
+would leave it nothing to grey); at `GLASS.shatter` the player's own
+scoreboard, put back over the card for it (`ko-glass`, the knockout's
+dress with it), breaking into a fan of shards from where the cracks reach
+it, copies of it each cut to one shard and falling with gravity off the
+foot (`breakable`, `Shard`), the keys staying; then the standings, the
+player through the cut line and out of the bottom of them, tumbling and
+shrinking, the row behind closing up; and from the lights going out on,
+K9 v2's beats as before, `LATER` on. A tap skips to the end; under reduced
+motion it is the end frame standing still. It is heard in the owner's
+clips (18 November 2026): the three cracks of one recording, cut apart
+(`src/assets/knockout/crack-1.mp3` to `-3`, out of "Glass Cracking" at its
+three hits), as the cracks run out, the shatter (`shatter.mp3`) as the
+scoreboard goes, laid over each other (`GameAudio.layer`: `play` stops the
+last clip), and Moye moye (`public/moye_moye.mp3`, the `knockout` track,
+from its top each time and let through at half the card's level, being 7
+dB hotter) from the lights going out, as music, so the sound key's music
+setting takes it; the card's own track stays away while knocked out
+(`end`), and the cues are `MomentSound`, heard once each on the moment's
+clock, a crack skipped past by a tap left unheard. Before it, on the ball
+itself, the hit-stop (section 37's first beat, the owner's word): the
+player's wicket in a room holds the game's clock still `HIT_STOP_MS`
+(120) on the stumps flying when bowled (`onStumps`) and on the call for
+any other way out (`presentResult`), once a ball (`knockoutHit`), with the
+screen kicked 8 pixels, a white frame (`HUD.hitStop`, Web Animations on
+`.ko-hit`) and a heavy knock; under reduced motion the hold alone, and a
+free hit's wicket, not out, has none. `__cricket.knockout().hitStops`
+counts them, and `knockout-check` bowls a real yorker on `?yorkers=1` for
+it. The switch is practice (`practice.ts`): no
+board, no career, no points, and a room of subs never scores any. Not in the
+Pages builds. The free hit (`KNOCKOUT.freeHits`, `grantFreeHits`): after
+each over's cut the top three still standing get one ball of the next over
+as a free hit, then the top two, then the top one, anybody level with the
+last of them too, none in the final; a wicket on it does not count and its
+runs do. Which ball, and what it is, is the room's, off its seed
+(`src/game/free-hit.ts`, `freeHitBall`, every case in the knockout tests):
+never the over's first (the owner's word), and a hard ball for the bowler —
+the seamer's yorker, bouncer, slower ball, full one or swinger, the spinner's
+ball tossed up or his arm ball, the swing bowler's swingers and yorker, the
+sling bowler's yorker, bouncer and slower ball — which the plan bowls there
+whatever the over would have (`hardBall` on the plan, `hardNow` in the
+generator), so every seat faces it. The player is told on its own ball, as
+the bowler sets off for it and not before (`tellFreeHit` in `src/Game.ts`,
+from `setPhase`; `freeHitTold`): it went up the moment the ball before it was
+dead and stood through the whole walk back, which the owner found too early
+(20 November 2026). Between balls, with its ball next, nothing shows
+(`knockoutScreen`'s third argument keeps it off the ground's screen then).
+A popup at the cut, FREE HIT EARNED, and the scoreboard ringed gold
+all over were tried before and the owner found them distracting; earning one is
+counted, `knockout-free-hit-earned`, and never shown. From his first stride,
+as the owner drew it, combining two of the five quiet ways in section 48
+(Figma Battle Royale page, `953:8055`): the screen's edges glow cyan
+(`--ko-fh`, #4efffc: red is the drop, green safe, gold the reward and light
+blue the meter), on full and settling while the ball is bowled
+(`.ko-fh-edge`, `ko-fh-next` with `ko-live`, `ko-fh-on`); the ball's slot is
+FH in the same cyan (`--ko-fh-chip`, magenta at first, which the owner had
+made cyan to match the edge) and keeps a cyan edge once played
+(`knockoutFreeHit`), as the held list's FH tag does; the line under the
+pitch says FREE HIT through the run-up and the flight (`phase` in the HUD);
+and the ground's screen says FREE HIT in white over a magenta glow while it
+is bowled (the game's `scoreboard`, painted by `paintFreeHit`), coming on in
+`FREE_HIT_IN_MS`: a cyan line opening the
+screen from its middle, the glow blooming, the letters slammed in one by
+one from big with a cyan flash as each lands, cyan slashes at the lean
+sliding in either side and a light run across the words, which runs again
+every few seconds while it is up (`freeHitGlint`). It is a function of the
+time since it went up (`freeHitAt` on `Showboards`), painted at the
+stings' fifteen a second only while it moves (`freeHitFrame` in the
+screen's key), and still under reduced motion. The player's wicket on it is
+turned not out in `resolve` before the score sees it (`freeHitOf`, FREE HIT ·
+NOT OUT, the picture still the ball that would have had them), the subs' in
+`KnockoutRoom.ball` (`freeHit`, `freeHitAhead`, `freeBallNext`). The game asks
+which ball is the player's free hit by its own count of balls batted
+(`freeHitOn`): in a match the room counts a ball only once the store has it,
+and can be a ball behind the crease.
+
+Hold the scoreboard between balls (P8, H1 to H3, `src/ui/KnockoutHeld.ts`,
+`holdBoard` and `letGoBoard` in `src/Game.ts`): everyone still in drops down
+under it, best first, the knockout line dashed red over the drop, the
+player's row outlined, FH and OUT tagged (`heldOf`); the bowler waits at his
+mark while it is held, up to `HOLD_MS` a ball however often it is let go and
+held again, a ring round the scoreboard draining (`#ko-wait`); let go, or the
+ring out, and the list goes, the scoreboard ticks with a buzz, and he runs in
+`READY_MS` later. With a ball live a touch there does nothing, and it never
+plays a stroke (`[data-hold]` is outside the swipe surface; `.hud-top` lets
+the touch through to it in this mode). The panel and the ring are laid over
+the viewport where the scoreboard stands (`HUD.knockoutHeld`), since the
+scoreboard clips what is inside it.
+
+It is played at the canopy (`groundFor`'s `'knockout'`), for its screen
+(P5, P6, `knockoutScreen`, painted by `paintKnockout` in `arena.ts` in place
+of the game's own screen): between balls THE LINE, the player and the
+nearest across it (the best in the drop, or the lowest still safe when the
+player is in it) with the knockout dashed red between; after a cut how many
+went in red, how many are left and their names, until the next ball; the
+score while a ball is live. `__cricket.arena().knockout` says which. It is
+always played under lights, as Super10 is (`light` in `src/Game.ts`, no
+Lights row on its pause card), because the floodlights answer the room
+(`src/scene/floodlights.ts`, in `tests/floodlights.test.ts`; F4 · Motion on
+the Final page, sections 39 and 40 on Battle Royale): at a cut, while the
+bowler walks back, they flash once (`FLOOD.flash`, up to 1.9 and back in
+0.7 seconds) and the crowd swells (`CUT_CHEER`); going into the final they
+dip (`FLOOD.dip`, to 0.45 and held a moment) and stay a shade down for it
+(0.8). Both `FLOOD_AFTER_MS` after the cut's ball, so its call has landed
+first. The level is laid each frame over the night's own (`flood` in
+`GameScene`): the lamps and their glows by all of it, the light on the
+ground, the key, fill, sky and environment, by `FLOOD.ground` of it, each
+taken as it stands when the cue begins and given back when it ends. One
+flash a cut, never a strobe; under reduced motion no flash, and the final
+straight at its settled level. `__cricket.knockout()` carries `flood` and
+`night`, and `__cricket.knockoutFlood('flash')` puts either up for
+photographing. Still to come: the timeout pause, and real players (stage
+two). `__cricket.knockout()` says where the room
+stands and `__cricket.knockoutAt(t)` holds the end moment's clock;
+`scripts/knockout-check.mjs` walks it.
+
+Knocked out, the room plays on and can be watched (Battle Royale page,
+section 51, "Watching the room, as stories"; `src/ui/KnockoutWatch.ts`,
+`roomFrame`, `watch` and `watchFrame` in `src/Game.ts`). Two seconds after
+the end moment's keys land a row of story rings rises under them (`Rings`, `RINGS_AFTER`
+in `KnockoutMoment.ts`): STILL IN · TAP TO WATCH, everybody left best
+first, no LIVE badge (the owner took it off). A batter out greys with OUT;
+a seat the cut takes greys, shrinks and leaves the row; down to the final
+the head says THE FINAL with a v between the two faces (`final`). Unwatched,
+the room bowls on a ball every `ROOM_BALL_MS`. A ring opens that
+sub's game full screen as a story (`WatchView`): a bar an over, their face,
+name and line (41* off 18 · 1st of 10), ✕ back; their neighbours' faces at
+the edges, a swipe left or right to them, down to go back; nothing laid over
+the pitch or the ball. Each of their balls is played on the ground for real:
+the room keeps what every seat swung and when (`Play`, `plays` and `logs` on
+`KnockoutRoom`, a seen-off wicket kept as a block), and the scene is told
+the delivery, the swing at its offset and the outcome, as the replay is,
+with their scoreboard, over chips and the call; the player's own innings is
+never touched. A cut while watching is called on the guard with the
+floodlights' flash. The batter on the ground is dressed as the seat watched
+once, when it is first staged (`dressed` on `room`, in `watchStage`), not
+every ball: dressing him deals the fielding side a kit afresh
+(`pickSide`), so the men in the field changed shirts between balls, which
+the owner saw (19 November 2026). The tray of reactions (😂🔥👏😱🦆💩) floats
+them up; in a practice room that is all, with subs there being nobody to
+send them to, and in a match they travel, and the header counts who is
+watching (stage two, below). `__cricket.knockoutWatch(id)`, `knockoutStep(1)`, `knockoutUnwatch()`
+and `knockoutPlayOn()` (the room to its end at once) are for the checks;
+`knockout-check` walks the rings, a watched ball, a swipe, ✕ and the room's
+end both ways.
+
+The room's end is never abrupt (Battle Royale page, section 52, `roomEnd`,
+`endingFrame` and `ROOM_END` in `src/Game.ts`): it cut straight to the end
+screen and the rings vanished, which the owner found abrupt. Watched, the
+ball that settles it is played out and its call stands (`endAt`); then, on
+one clock in the page's milliseconds, the lights flash and the crowd swells
+as at a cut, and at `ROOM_END.over` MATCH OVER: over the watched game, held
+and dimmed under the header with its bars full, MATCH OVER slammed in, the
+winner's face rising into a gold ring with the crown dropping on, what it took
+(90 off 30 · outlasted Dev by 7 in the final) and where the player finished,
+and a pill counting three seconds, its ring draining (`matchOver` on
+`WatchView`, `#ko-match-over`); on the end screen, every ring but the winner's goes,
+the winner's grows gold and crowned, the head says MATCH OVER · SANA WON THE
+ROOM, the line under KNOCKED OUT the result, and LEADERBOARD becomes RESULTS · 3,
+its face draining red (`roomEnd` on the moment, `over` on `Rings`). A tap, ✕
+or the key goes now (`resultsNow`). Then the replay's wipe in Knockout red,
+SUPER KNOCKOUT over RESULTS (`replayWipe('knockout')`), and under it the
+room's Results (`src/ui/KnockoutResults.ts`, `#ko-results`): the leaderboard's
+own screen (`boardScreenMarkup` with a `look` of its own, Knockout red, the
+knockout's picture, RESULTS over Super Knockout and Practice room, its ids
+`ko-res-` so they never answer for the board's), so it scrolls as the boards
+do, the podium folding to chips as the list rises, with a banner of who won
+it and how and the player's finish in the dock over PLAY AGAIN; a practice
+room's podium says sub. Its rows open nothing, so none has a chevron or a
+key's role (`still` on the row): the player's own had both, as on the
+boards where it opens My profile, and a tap did nothing, as the owner found
+(24 November 2026). A first build drew its own sheet, which scrolled
+nothing like the boards and whose design the owner found off. Back is the
+end screen, the result in its line and LEADERBOARD on its key, which opens
+them again. WINNER counts
+on to the same Results (`WON_RESULTS_MS` after it goes up: its left key
+turns RESULTS · 3 and drains, `countToResults`), as the owner asked: it was
+left standing. Its crown sits on the ring along its 8° lean (`CROWN.sit`:
+its band is an arc made to sit on a circle), where by eye it floated a gap
+above it, as did the crowns over MATCH OVER and the winner's ring. The winner's music
+(`public/winner.mp3`, the owner's clip of 18 November 2026 cut to its first
+24 seconds from its first beat so it loops on the bar, the `winner` track at
+.62, being −11 LUFS) plays from MATCH OVER through Results, and under the
+player's own WINNER in place of the card's track. A room ended while the
+page is away, which a room of subs cannot, waits for stage two's SEE
+RESULTS. `__cricket.knockout()` carries `ending` and `results`, and
+`__cricket.knockoutResultsNow()` taps through.
+
+Everywhere there is a board (`KNOCKOUT_OPEN` in `src/Game.ts`: never the
+Pages builds or a build with no board; production since its release on 24
+November 2026, which the merge to production was) it is on Choose a mode too (Figma
+F1, K1 to K2b; `src/ui/KnockoutHome.ts`, `showKnockout` in the HUD): its
+poster on the rail between the Test Marathon and Test Survival, with
+Super10's poster moved to the head of the rail and Super10's PLAY card
+under it giving way to Super Knockout's card (the face-off, the mark, NEW
+and the format, a gold PLAY, an (i)), which moves as Super10's does, in
+Knockout's own language and in CSS alone (`.ms-ko-fx`): every five seconds
+the edge beats twice, as the bar's heart does in the drop, then a soft band
+of light, leaning at the brand's 12°, glides across the face-off at an even
+pace and PLAY glints softly as it passes (a hard white line and a pop on
+PLAY came first, and the owner wanted it smooth and subtle); embers drift up
+all the while; nothing moves under reduced motion. The card opens the home (K2,
+`#knockout-home`): the picture, the mark, the format in two lines, this
+browser's practice rooms, best finish and wins (`readTally`, `tallyRoom`,
+kept in `hitman-knockout`, since practice scores no points), and at the
+thumb PLAY WITH FRIENDS (`#ko-friends`), the hero key, which opens matches
+with friends (below; drawn and marked SOON only where a name cannot be kept),
+over PRACTICE (`#ko-quick`, the dark key, "vs 11 subs"). PRACTICE was QUICK
+MATCH and the hero until matches with friends were live; the owner had the
+two change places and the name changed (19 November 2026). How
+it works (K2b, `#knockout-rules`: the ladder off `KNOCKOUT.cuts`, the eight
+rules, while you bat) opens by itself the first time a browser chooses it
+(`hitman-knockout-rules`) and from either (i). PRACTICE walks out into
+the same practice room the switch does (`knockoutPicked`), so it is
+practice too; the rail remembers it as the last mode played. The poster and
+the card both say BETA (`.ms-beta`, a quiet outlined chip top right on the
+poster and beside the mark on the card; the owner's word, 24 November 2026),
+always, apart from the card's own tag, which the tally rewrites.
+
+The home is a motion poster (Battle Royale page, section 55, the motion map;
+`src/ui/KnockoutPoster.ts`, `.ko-stage` and its layers in
+`src/knockout.css`), started each time it opens (`is-lit`, through
+`replayClass`) and stopped when it is put away. The picture's own floodlights
+strike on (dark, a catch, up), breathe, and now and then one catches and comes
+back; the six beams from the roof are laid over the picture's own, each
+swaying on its own clock; a red haze drifts along the turf; the whole picture
+pushes in slowly; the mark slams in and a light glints across it every six
+and a half seconds. The air is one canvas (`.ko-air`): dust that lights up
+inside a beam, embers off the turf round his boots, and phone flashes in the
+stands either side. It moves by the time between frames, runs only while the
+home is up and the page on screen, and not under reduced motion, where the
+lights stand lit and nothing moves. `knockout-check` holds it lit, moving and
+dark again once put away.
+
+## Super Knockout, stage two: matches with friends
+
+PLAY WITH FRIENDS on the Knockout home is live wherever the home is and a
+name can be kept (`friendsOpen` in `src/Game.ts`: `KNOCKOUT_OPEN` and
+`canRegister`), the owner's picks of 18 November 2026 on the Battle Royale
+page (section 54: V2b and the lobby with Around now; section 53 for the rest
+of the flow). A player with no name is asked for one first.
+
+Play with friends (`FriendsScreen` in `src/ui/KnockoutFriends.ts`,
+`#knockout-friends`): JOIN A FRIEND'S MATCH, "Enter the code your friend
+shared." (the owner cut the longer line) over four boxes (one hidden input
+behind them, a whole link pasted in read for its code), a code that is no
+match shaking the card red with "No match with code ZZZZ. Check it with your
+friend."; AROUND NOW · INVITE STRAIGHT IN, the live list with INVITE each,
+which hosts a match and asks them into it; and HOST A MATCH under the thumb,
+"You get a code to share · up to 12 play". HOST A MATCH, not START A ROOM:
+room was our word, not the player's, and every screen says match. PASTE
+beside the card's title reads the clipboard (`navigator.clipboard.readText`),
+and anything pasted into the boxes is read the same way (`codeIn` in
+`match-code.ts`): the code out of INVITE's whole line, a link's `?k=`, or the
+one word that is a code, then joined. The boxes held 64 characters, which cut
+INVITE's line off before its link, and a long press on four invisible boxes
+was hard to find on a phone (the owner could not paste a copied code, 18
+November 2026).
+
+The lobby (`LobbyScreen`, `#knockout-lobby`) is drawn for the people in it
+(sections 56 and 57 as redrawn; the owner found the first cut cluttered and
+the players cramped, 19 November 2026): YOUR MATCH, N OF 12 IN, one line
+under it saying where the room stands (`status`, `#ko-lobby-note`, amber
+while somebody is waited for, green once everybody is ready, the host's
+NUDGE beside it); then only the players who have joined (`.ko-people`,
+`#ko-seats`), faces 68 across and four to a row, a plain word under each
+name (`.ko-lseat-sub`: Host, Ready, Not ready), a green ring and a tick on a
+ready face, a dashed amber ring on one waited for, you ringed white, and one
+Invite tile after them, which shares; six to a row at 50 once a ninth tile is
+wanted (`is-many`), so all twelve still fit a phone. Then MATCH CODE as one
+slim row with COPY, AROUND NOW · TAP TO INVITE as one line of chips
+(`.ko-chip`, a tap turning its + to a green ✓; left out when nobody is
+around), and the keys: INVITE in green, the narrower (the phone's share
+sheet with the match's link, `?k=CODE`, or the link copied; it went dark for
+a day and the owner wanted the green kept), beside the hero key, START NOW
+for the host or I'M READY for a guest, green once it says READY ✓. The
+room's two small keys, NUDGE (with a bell, which rings every few seconds)
+and the last match's LEADERBOARD, are a gold face on a ledge (`.ko-mini`),
+NUDGE staying down in green as NUDGED ✓; and the last match's card
+(`.ko-last`) is a winner's card, the face crowned in a gold ring with a glow
+behind it, a gold edge and a light crossing it. As flat outlined pills on a
+plain card they read as labels, and the owner asked for better (20 November
+2026). What it
+replaced, not to be built again: twelve seats drawn six to a row, most of
+them empty dashed circles, a pill stuck over every face (HOST, READY ✓, NOT
+READY), a tall code card, Around now as a strip of big faces each with an
+INVITE pill, and a status bar over the keys saying what the line under the
+count already said.
+
+Everybody ready before the start (Figma Battle Royale page, section 56, node
+`1035:13860`; the owner started a match from the computer while the phone had
+not said I'M READY, 19 November 2026). START NOW sleeps until every friend in
+the room has said I'M READY and there is at least one; the host's own ready
+is pressing START. The store keeps it (`startMatch`, `notReady`): a START with
+anybody not ready is refused, "Waiting for Kabir and Meera to be ready."
+(`namesOf` in `match-code.ts`, the screen's words too). Each friend says
+Ready or Not ready under their name (amber, dashed, a little dimmed); and
+the line under the count names who the room is waiting for (Waiting for
+Kabir and Meera), with one NUDGE for all of them on the host's phone, and on
+a guest's says Mojo is waiting for you to be ready, or who is still to come.
+A tap on a friend's face is the host's sheet (`#ko-seat-sheet`): NUDGE KABIR, and REMOVE FROM MATCH (the
+store's `remove`, as before: back once with the link). A nudge
+(`nudgeInMatch`, the store's `nudge`: the host's alone, in the lobby only,
+each friend no more often than `NUDGE_GAP_MS`, kept as a time under a field
+of its own, `ng:<player>`, so it never writes over what they said) reaches
+that phone as a banner with a buzz (`#ko-nudge`, shown when the time is newer
+than the last one shown). READY ✓ tapped again steps back, and a friend who
+arrives is not ready, so START NOW can go back to sleep; the last tick wakes
+it with a glow (`is-go`) and a buzz. Every match asks again: the room back in
+its lobby has nobody ready but the host. A timer that starts the match by
+itself is not to be built (below); a phone gone quiet is marked away
+(below). The
+room does not drag and nothing runs off its edge (the owner's phone, 19
+November 2026): the glow and the grain overflowed the scroller, which panned
+it sideways and scrolled it to the design phone's height with nothing to
+show (`overflow-x:hidden` on `.ko-scroll`, the lobby's grain its own
+height); the kit's hero key is never narrower than 210, which beside INVITE
+at 46% was wider than the screen (`.ko-keys-pair .k-cta--primary`); and
+three rows of four seats with a second line under the list ran past the
+foot. It fits a phone 680 high with Around now showing, with five in it or
+all twelve, and scrolls only on one shorter (`friends-check` holds the fit
+and the faces' size). I'M READY was a dark key beside a green INVITE and read as
+switched off. JOIN on Play with friends is a face on a ledge in Knockout Red
+(`.ko-join-go`): flat red, it had no depth beside every other key. START NOW counts
+WALKING OUT IN 3 on every phone to the same moment (`walkOutAt`, the store's
+clock through `MatchLink.serverNow`). A match's link opens the game straight
+into joining it. An invite is asked for every six seconds (`INVITE_POLL_MS`,
+`bannerMatchInvite`) wherever the player is that is not an innings or a room
+of their own — the cover, Choose a mode, the Knockout home, Play with
+friends, an end card, a match they are out of — and told once a match by a
+banner over that screen with JOIN (`hud.matchInvite`, `#ko-invite`,
+`joinInvite`); every one still open is listed at the head of Play with
+friends (`FriendsScreen.invites`, `#ko-friends-invites`). It was asked for
+only as Choose a mode opened, so the owner's phone, sat on a match's end
+screen, never heard of the second match (19 November 2026). An invite stands
+through the match it was for and half an hour in all (`INVITE_FRESH_MS`); the
+bell and Notifications do not carry them yet.
+
+The room outlives its matches (the owner's ask, 19 November 2026: somebody
+out should be able to go back to the room, and everybody still in the game
+tagged there). The store keeps a `round`, from 1, and files each ball under
+it (`b:<round>:<player>:<ball>`), so one that lands late from the round
+before is never read as the next one's. BACK TO ROOM (`backToRoom` in
+`src/Game.ts`, the store's `back`) is the key under a match's end screens in
+place of PLAY AGAIN (`hud.knockoutAgain`, the Results' `again`), and nowhere
+else: it stood under the waiting pill too, for a player out and waiting on the
+cut, and the owner wanted it off the game and on the ending screens only. The
+phone leaves the match's screens for the room's (`toRoom`, the lobby over
+Choose a mode), its unsent balls going first. In
+the room everybody still batting is said to be Batting (`playing` on the member:
+seated, not back, not away from it, the match not over) and START NOW and
+I'M READY sleep until the match is over. A phone on which the match is over,
+somebody having won it (`room.done`), says so once (`doneMatch`, `over`): not
+`room.finished`, which is this player's part alone, and told the store the
+match was over under everybody still batting it; and once nobody is still batting and
+being heard from (`busy` on the view: every seat back, quiet past `AWAY_MS`,
+or the match over) any phone in the room asks it back to its lobby
+(`settleMatch`, from `lobbyNews` a few seconds apart, and from `back` itself):
+a round on, a new seed, every ball and the start dropped in one step
+(`swap`, a Redis MULTI), everybody still in it kept, whoever ran away dropped,
+the host handed on if it was the host. Then it is the lobby it always was:
+friends join, invites go, START NOW. Somebody who joins by the code while a
+match is on waits in the room for the next. A phone still on the last
+match's end screens when the next begins is taken to the room for the
+walk-out (`matchNews` on a round it does not know). Leaving the room from
+anywhere else (Choose a mode, an invite's JOIN, a restart with batting still
+to do, which is running away) lets the seat go (`endMatch`).
+
+The store (`src/server/knockout-store.ts`, answered by `/api/challenge?knockout=1`
+(a function of its own made a thirteenth, and the Hobby plan stops a
+deployment at twelve: the branch's preview failed on it), the dev server's
+mirror through `knockout-endpoint.ts`; every rule in
+`tests/knockout-match.test.ts`) keeps only what the phones cannot agree on by
+themselves: a four-character code (`src/game/match-code.ts`: no 0, O, 1 or I),
+the host, the members by handle (never an id in an answer), the start with
+its seats fixed in join order, and each player's balls. Twelve at most; the
+host leaving the lobby hands it to whoever waited longest; the host can take
+somebody out, back once with the link and kept out the second time; nobody
+new once it has started. Every ball is a field of its own written once
+(HSETNX), and that is what lets a quiet player be replaced safely: any phone
+the room is waiting on them for asks (`awayInMatch`), the store decides by its
+own clock (`AWAY_MS`, twenty seconds; a player who left is away at once; one
+still checking in with no ball for `STALL_MS`, ninety seconds (a minute was
+less than one ball takes in a headless check), counted from the
+walk-out before their first, is stuck and away too: `idle` on the member), and
+writes the sub's balls (`S`) into the same fields, so whichever lands first
+owns the ball and every phone reads one answer. Quiet is counted from the walk-out at the earliest
+(`heardAt`): a phone checks in only once it is batting, never in the lobby,
+so a guest who said I'M READY and waited half a minute for the host to start
+was already quiet as the match began, and if the host's phone asked before
+the guest's first check-in landed a sub batted the guest's first over and
+the guest's own balls were turned away (seen in `friends-check`, 19 November
+2026; it is how most real matches start). Everybody seated is taken as there
+at the walk-out and has `AWAY_MS` from it, in the view's `quiet`, in `busy`
+and in the store's own judgement. An ask the store turns down is
+asked again `MATCH_REASK_MS` later, never given up on. A ball in the air when the
+store's card goes on past it (the phone taken for away and its over handed
+to a sub) is the sub's and is not counted here (`facing` on `matchPlay`,
+checked in `knockoutBall`): counted, it was filed under whichever ball the
+card had got to, and at the innings' end as a thirty-first, which the store
+never takes and BACK TO ROOM kept trying to send before it would go. The
+way back gives up on a ball turned away twice. A phone checks in every
+five seconds while its player bats or waits (`MATCH_BEAT_MS`), and not while
+paused, so a pause is the same as dropping out. With a ball live it waits
+for the dead ball, unless it is eleven seconds overdue
+(`MATCH_BEAT_OVERDUE_MS`): one ball that took twenty seconds of wall time, on
+a phone that stalled or a browser starved of frames, was otherwise enough to
+be taken for away and subbed. Nothing about a match is
+cached (`KNOCKOUT_CACHE`, `no-store`), and an answer older than the one a
+phone holds (by the store's `now`) is let go (`MatchLink.take`).
+
+The first real match, the owner's phone and computer on the preview, stopped
+after two balls on both, the pause sheet still answering. The cause, found by
+`?matchlog=1` in a check: a sub batting for the host. The host is seat 0, the
+player's own seat in a practice room, which no sub ever bats, and `subPlays`
+read its skill at `seat.id - 1`, nothing, and threw: on the phone the room
+stood still with the host at no balls, and on the host's own computer the same
+throw left its room behind while its count had jumped to the over's end, so
+the bowler waited for good. It never showed against the dev server because
+nobody there went quiet for twenty seconds. Around it everything else that
+could stop a match was closed too: match reads came from
+the edge cache, a ball the store turned away was dropped for good and every
+one after it refused as out of order (a gap nobody could fill, with the phone
+still checking in so nobody was ever subbed), and an error thrown in a frame
+stopped the loop for good. Now a phone's balls are kept (`balls` on
+`matchPlay`) and sent from wherever the store's card has got to, again after a
+failure, a little later each time; the stall rule frees the room whatever
+else goes wrong; and `frame` catches what a frame throws (`frameFailed`,
+`frame-error` on GoatCounter once). `?matchlog=1` puts a line over the screen
+on a phone in a match: its balls batted and stored, every seat's card, how
+long since the store answered, the room's waits and the last error, for the
+next real test to say what it saw. Its first line is the picture's pace over
+the last two seconds: frames a second, the slowest frame, and the game's own
+work a frame.
+
+The owner's second test lagged, 15 to 20 frames a second by eye (19 November
+2026), and it was not found: profiled in a browser, a match costs a frame
+what a practice room does (the game's own work under one per cent of a frame
+in software in both, no shader linked after the innings begins in either),
+so nothing in the match's code runs every frame that a practice room's does
+not. What a match did do that a room does not was work at any moment: a
+friend's ball arriving redrew the scoreboard and the bar while this player's
+ball was in flight. Now nothing of the room is worked out or drawn with a
+ball live (`MATCH_BALL_LIVE`, `dirty` on `matchPlay`: the store's answer is
+kept and taken up once the ball is dead), and the check-in waits for a dead
+ball too. If it lags again, `?matchlog=1`'s first line says whether it is
+the game's work or the picture.
+
+Every phone builds the same room (`KnockoutRoom` with `seats` and `you`, every
+case in `tests/knockout-together.test.ts`): the match's seed, the seats in the
+start's order, subs in the empty ones under names no player in the match has
+(`SUB_RESERVE`), each sub on its seat's own dice. The bowling is the match's
+alone: its own dice off the seed, the player's strokes drawing from another
+stream (`this.rng` off the seed), no yorker owed for one player's sixes, and
+no link switch or drill, so the balls are the same on every phone whatever
+anybody does with them. Every delivery is drawn off that one list by ball number
+(`matchDelivery`, `matchBowled`), the player's own and every seat's in the
+room alike: drawn only as each ball was bowled on the phone, a phone the store
+had moved on (a sub batting its over) had nothing for the balls between, and
+its room stood still on the first of them, subs and all. The subs still keep
+pace with the player ball by ball (`matchPaced`: only balls this phone has
+reached, or all of them once it is done batting), or they batted the whole
+over the moment the match began. A player's ball goes to the store first
+(`knockoutBall` puts it in `outbox`, `matchFrame` sends it in order) and is
+counted by the room only once the store has it, exactly as every other phone
+counts it (`matchSource` reads every real seat, the player's own included, off
+the store's card). `advance` lets each seat bat at its own pace up to the end
+of the over the room is in; the cut falls only once everybody still batting is
+through it; the final is taken a ball at a time across both finalists, since
+it can be settled on any ball and its order must not depend on what arrived
+first. Through the over first, the bowler waits at his mark (`matchHolding`,
+on the phone's own count of balls batted) under one pill
+(`hud.knockoutWaiting`, `#ko-waiting`): WAITING FOR RIYA · 2 BALLS TO GO. Out, nothing is
+waited for at the crease: the glass break and the end screen come there and
+then, as in a practice room, before the over's cut has said where the player
+finished (`knockoutEnding`, `pending` on the view and on `room`). The owner,
+out first ball on one device, sat on the pitch until the other had batted the
+over (19 November 2026). The stamp on the face says OUT and the line that the
+place comes with the cut; when the store's balls bring the cut that takes
+them (`settleOut`, from `matchStep`) the place is stamped over it
+(`KnockoutMoment.settle`, the stamp slammed in again, nothing else restarted)
+and the line says how it ended. A cut that passes an out player over leaves
+the screen as it is for the next; one who wins the final from the pavilion
+gets WINNER. The rings, LEADERBOARD and BACK TO ROOM are there from the start.
+Knocked out, the room plays on as the store's balls arrive, on the end
+screen's rings, with the stories as a practice room has them (the
+owner missed them in a match, 19 November 2026). The room there is the
+store's, so a seat is not bowled to for the watcher: it is played back from
+what the room has kept of it (`history` on `KnockoutRoom`, every ball's play
+by seat; a friend's drawn by `playOf`, since their swing never travels), a
+ball at a time on the ground (`watchStored`, `seenOf`, `seen` on the room, by
+seat, so nothing shown is shown again). Where a story picks up is `storyFrom`
+in `knockout.ts` (`storySkip` in `src/Game.ts`, every case in
+`tests/knockout-together.test.ts`): a friend's is one ball at a time, their
+latest ball and then the wait for the next, the older passed over whenever
+more than one is waiting; a sub's, whose balls come an over at a time, is the
+top of their latest over. A story that picked up where it was left, or at the
+top of the room's over the first time, ran through the innings ball after
+ball to catch up: the owner, out early, opened a friend's at fifty and
+watched it from the first ball, and opened on their latest still saw two run
+together (20 November 2026). Not to be built again: no story plays two of a
+friend's balls in a row to catch up. The stroke shown is the one they played
+(`src/game/ball-how.ts`, in `tests/ball-how.test.ts`): each phone sends, with
+a ball's figure, how it was played (`packHow` in `knockoutBall`: the swing
+with every argument as the scene was told it, when it came, when the ball
+was resolved and what came of it, what a replay keeps), the store keeps it
+beside the ball under a field of its own written once and first
+(`h:<round>:<player>:<ball>`, behind a mark so it is never read back as an
+object) and tells each player's last three in every answer (`hows` on the
+member, `HOWS_TOLD`), and the watcher stages it as a replay stages one's own
+ball (`hearHows`, `how` on the ball watched, `watchFrame`). Only a ball's
+figure travelled before, so the watcher's phone made up a stroke to fit
+(`playOf`): the owner's helicopter at a yorker for one was shown as a cover
+drive for one. It is the picture alone: the room counts the card, the same on
+every phone, and a how that does not say what the card says, or does not
+read, is let go and the stroke made up as before (`readHow`, which also holds
+another player's every field to its kind and range, and the call's words to
+capitals and the game's own marks). Caught up, the bowler waits at his mark under
+WAITING FOR RIYA'S NEXT BALL: a friend's balls are a few seconds behind them,
+a sub's come an over at a time. The header counts what the watcher has been
+shown, not where the room has got to, and the room's end waits for the seat
+watched to be caught up (`endDue`). Then MATCH OVER and the Results
+(`With friends`, real players' podium line `friend`). The key under its end
+screens is BACK TO ROOM (above), never a practice room; a restart with
+batting still to do, or Choose a mode, lets the match and the room go,
+running away (5A) if the player was still in it.
+
+Watching from the room (Figma Battle Royale page, section 57, node
+`1036:13910`; the owner's ask of 19 November 2026: out early and back in the
+room, the faces tagged PLAYING should open their game as the stories do).
+BACK TO ROOM while the match is still being played keeps it (`park`, `parked`
+on `matchPlay`): the room, its end screen's state and the store's link all
+stay as they are under the room's screen, the match moving on as balls
+arrive (`lobbyNews` passes each answer to `matchNews` and then draws the room
+over it). The room then says how the match stands (`match` on `LobbyView`):
+MATCH ON · OVER 3 where the count was, how many are still in, a friend still
+batting in the end screen's story ring with their score under the name
+(`is-watch`, 41* · batting), those out Out · 9th, this player too, no Invite
+tile, everybody still in (subs too) as a strip of rings where AROUND NOW
+stood with LEADERBOARD beside its head, and WATCH as the hero key. A tap on
+a ringed face, a ring, or WATCH (the leader) opens that player's game as section 51's
+story (`watchFromRoom`); ✕ is the room (`unwatch`, `showMatchRoom`), where
+opened from the end screen it is the end screen. LEADERBOARD in the room is
+the standings as they are, over the room. Watching when the match ends, MATCH
+OVER and the Results play as ever and their key is the room; sat in the room
+when it ends, nothing is played over it: the kept match is let go
+(`dropParked`, also when the room moves on to its next round or is left) and
+one card keeps who won it and where this player came, with LEADERBOARD for
+its Results (`lastMatch`, `#ko-lobby-last`), until the next match starts.
+
+A phone that never batted the match watches it from the room too (`spectate`
+in `src/Game.ts`): somebody who joined by the code while it was on, or whose
+page was loaded again after they had gone back. When the room's answer says
+a match is being played and this phone holds none, it builds the room as
+every phone in the match does, off the seed, the seats and the cards the
+store holds, with no seat of its own: `you: -1`, for which `KnockoutRoom`
+hands back a seat that is in nobody's room, out and placed after everybody
+(`ghost`), so every reader of `room.you` sees a room whose player's part is
+over. It is kept under the room as a match gone back from is (`parked`,
+`onlooker` on `matchPlay`), so the room says MATCH ON, the scores, the rings
+and WATCH. Nothing on the ground is touched until a story is opened: then
+`stageOnlooker` does what walking out does for a player, with no innings
+begun (the room's screens away, the canopy lit, the batter dressed, the game
+left as it stands after an innings), and ✕ is the room. The standings say
+You are watching this one; MATCH OVER says You watched this one from the
+room, and the Results' back is the room, there being no end screen of this
+phone's under them. A match already won on the cards the store holds is not
+built, and one tried is not tried again that round (`spectated`). A seated
+player whose page is loaded again while they are still heard from is walked
+out again and bats on from where their card stands, as before: only somebody
+not batting is an onlooker. `tests/knockout-together.test.ts` holds the room
+the same on a phone with no seat.
+
+Reactions travel (the owner sent one and the other device never showed it,
+19 November 2026: they only floated where they were sent from). The tray's
+tap goes to the store for the friend watched (`sendReaction`, the store's
+`react`, `reactInMatch`): a field of its own each
+(`rx:<round>:<when>:<who>`), so two sent at once never overwrite each other,
+told in every answer for twenty seconds (`reactions` on the view,
+`REACTION_FRESH_MS`: who it is for and who sent it by handle, the sender by
+name and face), one a watcher every 350ms at most (`REACTION_GAP_MS`), only
+one of the tray's six (`REACTIONS`), only to a player seated in the match and
+never to oneself; the stale ones are swept as new ones come and all go with the
+round. A phone shows each once (`showReactions`, `reacted` on `matchPlay`):
+the ones for its own player, and the ones for whoever it is watching that
+somebody else sent, as the emoji alone floating up the left edge
+(`hud.knockoutReaction`, `.ko-rx`, Web Animations, taking no touch). It rode
+a dark pill with the sender's face and name at first, which the owner found
+distracting for the player batting (23 November 2026): not to be built
+again. They are shown as the room's news is, so never with a ball live. A
+sub has nobody to tell.
+
+Points (`PRODUCT.md`; Figma Battle Royale page, "Points by real players",
+K11 to K13 and section 42). Who won is the one thing the store does not
+leave to the phones. When a phone says a match is over (`doneMatch`) the
+store plays the room back itself from the seed and the cards it holds
+(`src/game/knockout-replay.ts`, `src/server/knockout-result.ts`), with the
+phones' own engine: only if that comes to a winner is the match over, and
+said too soon nothing changes. A room everybody has left is brought to its
+end the same way, a sub batting every ball never sent (`settleMatch`, the
+replay's `fill`). The engine is loaded by the function for it, so
+`knockout.ts`, `DeliveryGenerator.ts`, `ShotResolver.ts`,
+`DeliveryTrajectory.ts`, `super10-field.ts` and `free-hit.ts` carry `.js` on
+their imports like every server file (`function-check` holds it), and
+`KnockoutScreen` lives in `src/game/knockout-screen.ts` so the engine never
+reaches the scene. The game takes its match bowling (`matchPlan`) and a
+card's balls (`seatBallOf`) from the same file, so the two cannot bowl or
+count a match differently.
+
+The result (`MatchResult`, kept on the match under `res` and told in every
+answer as `result`: this round's once it is over, the round before's in the
+lobby) places all twelve seats, handles only. What it is worth is
+`src/game/knockout-points.ts`: the top three by place in the whole field, by
+how many real players batted a ball of their own (3: 3/1/0, 4 to 5: 5/2/1,
+6 to 7: 7/3/1, 8 to 9: 8/4/2, 10 to 12: 10/5/2); fewer than three is
+practice and counts for nothing, and a win goes on the record only with
+four. A place a sub took pays nobody, and neither does a seat a sub batted
+to its finish (`stood`: the player's place stands); walked out of while
+still batting it is `ran`, RAN AWAY. **A preview and the dev server pay from
+two real players** (`PREVIEW_RULES`, `POINTS_RULES` in the store, by
+`VERCEL_ENV`), on their own keys, so a phone and a computer are enough to
+see points land; production is the product's three and four. Paid once a
+round (`paid:<round>`, set if absent, kept through the room's swap so a
+second phone settling off the same read pays nothing), and a ledger out of
+reach never fails the match.
+
+Where it lands is `src/server/knockout-ledger.ts` (`upstashLedger`:
+`kocareers`, `koboard:<ladder>`): one Knockout career a player (played,
+wins, top three, finishes added up, best total, best finish, points, the
+last five finishes with 0 for a match run away from, and the week's points,
+wins and matches, the week turning over on Monday in India, `weekOf`), and
+six ladders, Points and Wins this week and all time, Highest total, and Win
+rate from ten matches. No tiers. A match run away from counts as a match
+and as last place, so leaving never helps an average. Only a player whose
+name the registry says is theirs is ranked, and a ladder ranks only who has
+something on it (no points is no place on Points, no win none on Wins): a
+player with one match and nothing from it stood first of the week on an
+empty board. `GET
+/api/challenge?knockout=1&board=1` is every ladder at once (edge cached,
+`KNOCKOUT_BOARD_CACHE`) and `&standing=<player>` one player's record,
+places and how far the place above is this week.
+
+On screen: the lobby's chip beside the count (`#ko-lobby-worth`: UP TO 5
+POINTS in gold, or POINTS FROM 3 PLAYERS in grey; the store's `worth` and
+`pointsFrom`, so the game holds no table of its own); WINNER's pill and a
+knocked-out line that was in the points (`KnockoutMoment.paid`,
+`tellPaid`, `data-points` on the moment); the room's Results off the
+store's result once it is in (`src/game/knockout-told.ts`, `resultsOf`: +N
+pts in gold on the podium, the room's code on the pill, the dock's line
+with what this player was paid, somebody who ran away at the foot with no
+place and their seat the sub's); the lobby's Last match card off the same
+(`lastCard`, `lastOf`), so it is up on every phone whichever asked the room
+back to its lobby; the home's card, which turns from practice rooms to
+Points this week, Best finish and Wins once a match has counted and opens
+the leaderboard (`#ko-home-figures`, `showKnockoutHome`); and Super
+Knockout's leaderboard (`src/ui/KnockoutBoard.ts`, `#ko-board`,
+`knockoutBoardView`): the game's leaderboard screen in Knockout red, the
+ladder pill opening the picker, the dock saying where the player stands and
+what the place above is ahead by, a row opening that player's profile over
+it. `tests/knockout-points.test.ts`, `knockout-told.test.ts` and
+`knockout-board.test.ts` hold it; `tests/knockout-play.ts` bats a match to
+its end against the store as the phones do.
+
+On My profile (Figma section 42, S1 and S2; `src/ui/KnockoutStats.ts`,
+`knockoutStats` in `tests/knockout-stats.test.ts`) Super Knockout is one more
+tab on the rail, the last, for a named player wherever matches with friends
+are played: the knockout's picture under a red ground where the careers have
+a rung's material, a red dot on its tab where they carry a badge, SUPER
+KNOCKOUT and the matches played under the name, and at a glance the points
+this week, the place this week and the wins; then THIS WEEK (the points and
+how far the place above is, or how the first points come, Resets Monday),
+LAST FIVE as five chips (a top-three finish in gold, Ran for a match run away
+from) and six figures: Matches, Wins, Top 3, Highest total, Average finish,
+Best rank (the best place held on any of the six ladders,
+`knockoutBestRank`). It rides the rail the careers ride: its stage, hero, tab
+and slide carry the slide number after theirs (`knockout` on
+`StatsSheetView`, `koSlide` and `statsKnockout` in the HUD, set in
+`showStats` from the standing last heard and again when the store answers).
+There is no card of it to send yet, so with it in front the foot's key is
+PLAY SUPER KNOCKOUT (`on-knockout` on the page, `#stats-knockout`), which
+opens the Knockout home. The Leaderboard's mode menu offers Super Knockout
+under the modes (`also` on `modeMenuMarkup`, `boardAlso` and `onBoardAlso` in
+the HUD): its own board opens over that one, with no key to play, since the
+Leaderboard may be up in the middle of an innings; and the player's own row
+on the Knockout board opens My profile.
+
+Away in the lobby (section 56's "not in this build", built). A phone with a
+room's lobby on screen says it is still there every eight seconds
+(`LOBBY_BEAT_MS`, `beatInMatch` from `lobbyNews`; the poll alone is a read
+and tells the store nothing), and a friend unheard from for `LOBBY_AWAY_MS`
+(25 seconds: a closed tab, a phone put down) is `away` on their member,
+never the host, never once a match has begun. Away, they are not waited
+for: START wakes on everybody still here with at least one of them ready
+(`notReady` takes the clock), they are not nudged, their face is dimmed with
+Away under it and the line says who is away. Seated only if they had said
+I'M READY before going quiet (a sub bats until they are back); one who never
+said it sits the match out and stays in the room for the next. Nobody is
+away the moment a room comes back to its lobby (`settleMatch` marks everybody
+heard from). Not to be built, the owner's decision of 24 November 2026: a
+timer that starts the match by itself, and the host starting without a
+friend who is not ready (a sub in their seat). The rule stands as it is:
+until every real player in the room has said I'M READY the host cannot
+start. Empty seats are not waited for, as before. The one exception is the
+away rule above, which the owner kept the same day: a friend gone quiet who
+never said I'M READY is not waited for and sits the match out, so a closed
+tab does not hold the room; made strict, the host's only way on would have
+been REMOVE FROM MATCH.
+
+On Notifications (Figma section 42, R5; `knockoutNotices` in
+`src/game/notices.ts`, in `tests/notices.test.ts`) Super Knockout adds two
+kinds of row for a player wherever matches with friends are played, from
+what the game already asks the store for: a match they have been asked into
+and not joined is NEEDS YOU with JOIN in gold (`readMatchInvites`, kept from
+the banner's poll as `matchInvites`), counted on the bell until it is joined
+or lapses; and each of their last five matches is a result, You finished 2nd
+of 12 with what it paid and its finish on a chip, green in the points' places
+(`recent` on the Knockout career, a time and what was paid beside each of the
+last five; the standing asked again once a minute old). A row's tap joins
+the match, or opens the Knockout leaderboard. Not built: a place taken on its
+board, and a room that ended without you, which need events the store does
+not keep.
+
+On another player's profile (Figma section 42, S3; `PlayerSheet.ts`) Super
+Knockout is one more tab after the careers' (`playerTabs`, `playerTab`,
+`knockoutSheetMarkup`), wherever matches with friends are played: the
+knockout's ground, their wins and matches under the name, the points this
+week, the place this week and the wins this week at a glance, and the six
+figures My profile's tab has (`knockoutStats`). It is asked for by handle
+when the sheet opens (`GET /api/challenge?knockout=1&career=<handle>`,
+`readKnockoutCareer`, `onPlayerKnockout`): the store turns the handle back
+into the id itself and answers the standing it answers a player's own, and a
+handle it has never filed answers an empty record (`emptyStanding`), never an
+error. At its foot, beside CHALLENGE, INVITE TO A MATCH (`#player-invite`,
+`inviteFromProfile`): Play with friends hosting a match with them asked into
+it; only from the cover, Choose a mode or an end card, never over an innings
+or a room.
+
+N WATCHING (section 51). A phone with somebody's story open says who it is
+watching, at once and every ten seconds after (`tellWatching`,
+`WATCH_BEAT_MS`, the store's `watch`, `watchInMatch`): a field a watcher
+(`wt:<player>`, the seat, the time and the round), fresh for twenty-five
+seconds (`WATCH_FRESH_MS`), dropped when the story closes or the room moves
+on, never for one's own seat. Every answer says who is watched by seat, how
+many and three faces (`watching` on the view). The story's header counts
+them from two, this phone among them (`.ko-watch-n`, 2 WATCHING); and the
+player watched sees a quiet pill under their scoreboard between balls
+(`#ko-watched`, `hud.knockoutWatched`), gone once their batting is.
+
+The finish as a picture (X7, `893:4879`; `src/game/KnockoutCard.ts`, what it
+says `knockoutCard`, in `tests/knockout-card.test.ts`): the mark, the face in
+a ring, the name on a tag, how it ended, the big word, runs, balls and sixes,
+and at the foot the dare with the address and the QR code, painted in the
+design's own 402 by 714 and scaled to a story's 1080 wide. A winner's is the
+design's: gold, crowned, WINNER, OUTLASTED 11 · LAST ONE STANDING, Can you
+outlast me? Anybody else's is the same card in Knockout red with no crown:
+5TH OF 12, OUTLASTED 7 OF 11 (BEATEN IN THE FINAL for second, FIRST ONE OUT
+for last), Can you do better? SHARE on either end screen sends it through
+the phone's share sheet with its words and the link (`shareKnockout` in the
+HUD), saved where the sheet will not open, WhatsApp's own link with the words
+where no file can leave the browser; hidden while the place is still to come
+with the cut. GoatCounter counts `knockout-share`.
+
+`scripts/spectate-check.mjs` walks the three that need a match in one
+browser, the other two players batting through the API (a ball is one POST,
+so it does not lean on how fast the machine draws): the link opened while
+the match is on, the room built with no seat of its own, MATCH ON, both
+friends in the story ring, WATCH; a face opening their game with the ground
+put up for it; a second watcher counted on the header and told by the store
+with no id; the tray's six and a reaction floating up as the emoji alone;
+✕ to the room; the standings saying this phone is watching; the
+match ended and the room's card saying who won; then the profile's Knockout
+tab off the Knockout board, its figures, INVITE TO A MATCH, and an unknown
+handle's empty record. `knockout-check` presses SHARE on a practice room's
+end screen and reads what the share sheet was handed.
+
+Not yet: SHARE MY CARD on My profile's Knockout tab (a career card, where
+the picture is a finish), and the two Notifications rows above.
+
+`scripts/friends-check.mjs` walks it in two browsers in real time, nobody
+swinging: Play with friends, a wrong code, PASTE and a paste of INVITE's
+line, the lobby, an invite into the other player's list, a friend opening the
+link, START NOW asleep and the store turning a START away while the friend is
+not ready, the host's sheet and a nudge reaching the guest as a banner, I'M
+READY, START NOW, the walk-out on both, the bowler held at the
+over's end, the first cut, the guest's first ball turned away by the store and
+sent again, `?matchlog=1`'s line, the same seats and winner on both phones at
+the end, and a third match whose other phone never
+walks out, the sub batting its over, and a fourth whose host is the one who
+never walks out, the guest's room carried past a sub batting seat 0; BACK TO
+ROOM from both end screens and the room's second match started and walked out
+to; a guest out of a match the script's host is still batting (the end screen
+at once, stamped OUT, and the place landing on it with the cut; BACK
+TO ROOM never over the game, the store not told it is over, the rings and
+LEADERBOARD on the end screen, the live standings and back, a ring's game
+watched, a swipe, a reaction from the tray reaching the store and one sent
+to the guest floating up on their phone, the fielding side in one kit
+through the host's balls, ✕), going
+back to the room where the match is kept (MATCH ON, the host's seat in the
+story ring with their score, the rings and WATCH), a tap on their seat
+opening their game and ✕ coming back to the room, a ring doing the same,
+LEADERBOARD over the room, then the match over, the kept match let go and
+the host's next START once the guest is ready again; and an invite reaching a phone on the cover as a banner
+with JOIN, and listed on Play with friends. For the points it reads the
+lobby's worth chip alone and with a friend in, the store's result after the
+first match (twelve seats placed, the phones' own winner, no id told), each
+player's record, what each end screen was told it paid, the last match's card
+on both phones and its Results, and at the end the home's card and the
+leaderboard: its rows, the picker, a row's profile and the way back. Its
+expectations follow the store's result: a page this machine starves into a
+sub's hands all match does not count as a real player, and then the match is
+practice. Never edit the source while it
+runs: the dev server reloads the pages under it.
 
 ## Super10's kits
 

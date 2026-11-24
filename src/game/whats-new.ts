@@ -10,7 +10,9 @@ import type { CamShow } from './CameraShow';
  * player once, in the shape every phone already knows how to read: a card, a
  * bar across the top, a tap to move on.
  *
- * The update is the batting cams (`CAMERA_STORIES`), one card told through
+ * The update is Super Knockout with friends (`KNOCKOUT_STORIES`), four cards
+ * each showing one real piece of the mode, wherever the mode is played; where
+ * it is not yet, it is still the batting cams (`CAMERA_STORIES`), one card told through
  * the game's own cameras. Diwali week told the Diwali kits and bats on the room's stage
  * (`DIWALI_STORIES`), and between the two the update was Rivals live, told in one film (`public/stories/rivals.mp4`,
  * made as a canvas film by `rivals-film/` on the machine that made it, from
@@ -81,7 +83,7 @@ export interface Story {
    * words. The last card holds still with it (`storyHolds`), so a player
    * tapping through lands on it.
    */
-  opens?: 'dressing' | 'super10' | 'rivals';
+  opens?: 'dressing' | 'super10' | 'rivals' | 'knockout';
   /**
    * The Dressing Room's own stage, the whole of the screen behind the words,
    * playing the real models: every kit on the batter in turn, or every bat on
@@ -103,9 +105,18 @@ export interface Story {
    * on the pause menu with GOT IT. The whole of the card.
    */
   show?: CamShow;
+  /**
+   * A card of Super Knockout's story (`KnockoutStory.ts`): one real piece of
+   * the mode over the words, in the handover's story language. The whole of
+   * the card.
+   */
+  scene?: KnockoutScene;
   /** The card holds still, however it ends, rather than moving on by itself. */
   holds?: boolean;
 }
+
+/** Super Knockout's four cards: the mode, the cut, watching a friend, and a match with friends. */
+export type KnockoutScene = 'mode' | 'cut' | 'watch' | 'friends';
 
 /**
  * What a stroke's story puts over the film as the stroke is played: the swipe
@@ -154,6 +165,55 @@ export const CAMERA_STORIES: readonly Story[] = [
 ];
 
 /**
+ * Super Knockout with friends, four cards (Figma Battle Royale page, section
+ * 58, node `1178:13947`), each one real piece of the mode in the handover's
+ * story language: the home's poster and mark; the ladder of who is left after
+ * each over with the knockout bar in the drop; the story rings, the reactions
+ * tray and a reaction floating up; the lobby with its code and what the top
+ * three are paid. The first three move on by themselves; the last holds with
+ * PLAY SUPER KNOCKOUT, which opens the Knockout home, and LATER.
+ */
+export const KNOCKOUT_STORIES: readonly Story[] = [
+  {
+    key: 'ko-mode',
+    eyebrow: 'WHAT’S NEW · SUPER KNOCKOUT',
+    title: '12 WALK OUT. 1 SURVIVES.',
+    body: 'A new way to play. After every over the lowest totals are knocked out, until one is left standing.',
+    alt: 'Super Knockout: a batter stands under red floodlights with eleven more behind him. Twelve players, the same balls, one wicket.',
+    scene: 'mode',
+    holdMs: 5000,
+  },
+  {
+    key: 'ko-cut',
+    eyebrow: 'WHAT’S NEW · SUPER KNOCKOUT',
+    title: 'SURVIVE THE CUT',
+    body: 'Bat the over, watch the bar. Finish in the red and you are gone. The last two bat a final.',
+    alt: 'Who is left after each over: twelve, ten, eight, five, two, and one after the final. Under it the knockout bar along the foot of the game, your face in the red with five runs needed to be safe, then springing over the line.',
+    scene: 'cut',
+    holdMs: 5500,
+  },
+  {
+    key: 'ko-watch',
+    eyebrow: 'WHAT’S NEW · SUPER KNOCKOUT',
+    title: 'OUT EARLY? WATCH ON.',
+    body: 'Open a friend’s game like a story while they bat, and send them a reaction.',
+    alt: 'Everybody still in the match as a row of story rings over the game. Two are watching. Under it six reactions, and the one pressed floats up the side of the screen.',
+    scene: 'watch',
+    holdMs: 5500,
+  },
+  {
+    key: 'ko-friends',
+    eyebrow: 'WHAT’S NEW · SUPER KNOCKOUT',
+    title: 'PLAY WITH FRIENDS',
+    body: 'Host a match and share the code. Up to twelve play, and the top three take points for the week.',
+    alt: 'A match’s room: you and four friends, each ready, a four-letter match code to share, and the points the top three take.',
+    scene: 'friends',
+    // The last card with a way in holds still (`storyHolds`).
+    opens: 'knockout',
+  },
+];
+
+/**
  * Diwali week: the five kits on the batter in turn, each with one of the
  * firecracker bats, then the five bats on the stand, both on the room's own
  * stage, so there is nothing to download and nothing to go stale, and both
@@ -190,8 +250,22 @@ export const DIWALI_STORIES: readonly Story[] = [
  * last and goes on to Choose a mode as it always has; Rivals alone after it.
  */
 const DIWALI_RUN: readonly Story[] = [...DIWALI_STORIES, ...RIVALS_STORIES];
-export const storiesAt = (now: number): readonly Story[] => (diwaliOn(now) ? DIWALI_RUN : CAMERA_STORIES);
-export const updateAt = (now: number) => (diwaliOn(now) ? 'diwali' : 'cams');
+/**
+ * Where Super Knockout's story is the update: wherever its home is (`KNOCKOUT_OPEN`
+ * in `src/Game.ts`), production included since its release; never the Pages
+ * builds, which have no Knockout and go on telling the batting cams.
+ */
+export const KNOCKOUT_TOLD = !import.meta.env.VITE_SURVIVE_ONLY && !import.meta.env.VITE_SUPER10_ONLY;
+/** The updates a link can ask for by name (`?whatsnew=cams`), for looking at one the build no longer tells. */
+const BY_NAME: Record<string, readonly Story[]> = { knockout: KNOCKOUT_STORIES, cams: CAMERA_STORIES, rivals: RIVALS_STORIES };
+const asked = (name: string) => { try { return new URLSearchParams(location.search).get(name); } catch { return null; } };
+const ASKED = asked('whatsnew');
+export const updateAt = (now: number, knockout = KNOCKOUT_TOLD, named: string | null = ASKED) =>
+  (named && BY_NAME[named] ? named : diwaliOn(now) ? 'diwali' : knockout ? 'knockout' : 'cams');
+export const storiesAt = (now: number, knockout = KNOCKOUT_TOLD, named: string | null = ASKED): readonly Story[] => {
+  const update = updateAt(now, knockout, named);
+  return update === 'diwali' ? DIWALI_RUN : BY_NAME[update];
+};
 /** The update's stories, as the page loaded. */
 export const STORIES: readonly Story[] = storiesAt(Date.now());
 
@@ -221,7 +295,7 @@ const KEY = 'hitman-whatsnew';
  * Diwali's two showings do not use up Rivals' for a player who has seen it
  * once, and Rivals comes back to them after Diwali week.
  */
-const KEPT_UPDATES = ['rivals', 'diwali', 'cams'];
+const KEPT_UPDATES = ['rivals', 'diwali', 'cams', 'knockout'];
 /**
  * What the browser checks seed (`rivals:9`) to keep the stories out of their
  * way. No player is ever shown an update more than `TIMES`, so a count this
@@ -253,12 +327,19 @@ export function whatsNewShown(): number {
   }
 }
 
+/**
+ * `?stories=1`: the stories before every PLAY from that link, counted as none
+ * of the two, for looking at an update on a phone as often as it takes.
+ */
+const EVERY_TIME = asked('stories') === '1';
+
 /** Whether it is shown on its own this time: the first two visits after the update. */
 export function whatsNewDue(): boolean {
-  return whatsNewShown() < TIMES;
+  return EVERY_TIME || whatsNewShown() < TIMES;
 }
 
 export function markWhatsNewShown() {
+  if (EVERY_TIME) return;
   try {
     const counts = held();
     counts.set(UPDATE, whatsNewShown() + 1);
