@@ -928,10 +928,11 @@ the bats. None had been run when it was written.
 The owner then tried ChatGPT and found it a pain to get right (24 November
 2026: "Lets render our own character"), so the posters are going back to
 the game's own renders from `recap-stills`, a screen at a time, the kits
-picked for each screen kept. Sixes is first: two try-outs beside the
-owner's poster, the pull from midwicket (`PULL` at 360ms, az 135, el -8)
-and the charge with the bat on his shoulder from the front (`CHARGE` at
-650ms, az 90, el -8), both in Thanos Eclipse with Rage. The section
+picked for each screen kept. Sixes is first and settled: the pull from
+midwicket as the bat comes round (`PULL` at 320ms, az 135, el -8), in
+Thanos Eclipse with Rage, which the owner picked off a sheet of moments
+over a later moment of it and over the charge with the bat on his shoulder
+from the front, where the bat is hidden behind his back. The section
 "Season '26 · Every kit, every colour" lists all nineteen kits with the hex
 of every part.
 
