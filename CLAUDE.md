@@ -2839,8 +2839,9 @@ that phone as a banner with a buzz (`#ko-nudge`, shown when the time is newer
 than the last one shown). READY ✓ tapped again steps back, and a friend who
 arrives is not ready, so START NOW can go back to sleep; the last tick wakes
 it with a glow (`is-go`) and a buzz. Every match asks again: the room back in
-its lobby has nobody ready but the host. Not built: a timer that starts the
-match by itself, and marking a phone gone quiet as away. The
+its lobby has nobody ready but the host. A timer that starts the match by
+itself is not to be built (below); a phone gone quiet is marked away
+(below). The
 room does not drag and nothing runs off its edge (the owner's phone, 19
 November 2026): the glow and the grain overflowed the scroller, which panned
 it sideways and scrolled it to the design phone's height with nothing to
@@ -3227,10 +3228,11 @@ Away under it and the line says who is away. Seated only if they had said
 I'M READY before going quiet (a sub bats until they are back); one who never
 said it sits the match out and stays in the room for the next. Nobody is
 away the moment a room comes back to its lobby (`settleMatch` marks everybody
-heard from). Not built, and left for the owner to decide, since both cut
-across "everybody ready before the start": a timer that starts the match by
-itself, and the host's start-with-subs question (empty seats are not waited
-for as it is).
+heard from). Not to be built, the owner's decision of 24 November 2026: a
+timer that starts the match by itself, and the host starting without a
+friend who is not ready (a sub in their seat). The rule stands as it is:
+until every real player in the room has said I'M READY the host cannot
+start. Empty seats are not waited for, as before.
 
 On Notifications (Figma section 42, R5; `knockoutNotices` in
 `src/game/notices.ts`, in `tests/notices.test.ts`) Super Knockout adds two
