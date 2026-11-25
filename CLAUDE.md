@@ -1024,7 +1024,14 @@ little out and back, its face to the front, held near the end of the handle
 the front with the fingers round the handle (`ownFace`: without it the
 back of the glove faced the front and the wrist looked broken, the owner
 said) and the blade turned in the fist to face the camera (`spin`); the double
-hundred's flex before it had the bat arm bent with the bat by his helmet. The section
+hundred's flex before it had the bat arm bent with the bat by his helmet. The
+owner liked it (25 November 2026) and may want it for the game's hundred:
+it is kept for that as it stands (`ALOFT`, the `aloft` routine
+`STILL_ROUTINE`, both in `Batter.ts`). Moving it into the game means
+putting `ALOFT` in the hundred's keys (`ROUTINES.hundred`, its pumps redone
+about it) and checking the way down, which no still has needed: from
+`ALOFT` to `RETURNING` its `spin` (π + .7) unwinds to nought and the
+handle slides back, so the blade turns in his fist as he lowers it. The section
 "Season '26 · Every kit, every colour" lists all nineteen kits with the hex
 of every part.
 
