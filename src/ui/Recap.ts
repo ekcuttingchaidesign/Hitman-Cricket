@@ -64,7 +64,7 @@ function inkOf(ground: string): string {
 }
 
 function masthead(p: Poster, ink: string): string {
-  return `<div class="rc-mast" style="color:${ink}"><p class="rc-t rc-j">HITMAN CRICKET</p><p class="rc-t rc-s rc-season">SEASON '26</p>`
+  return `<div class="rc-mast" data-zone="head" style="color:${ink}"><p class="rc-t rc-j">HITMAN CRICKET</p><p class="rc-t rc-s rc-season">SEASON '26</p>`
     + `<p class="rc-t rc-j">${String(p.n).padStart(2, '0')}</p><p class="rc-t rc-j rc-of">/${p.of}</p></div>`;
 }
 
@@ -236,7 +236,7 @@ function bat(p: BatPoster): string {
     const a = i * Math.PI / 12, long = i % 2 === 0, r1 = 228, r0 = long ? 184 : 204;
     rays += `<line x1="${201 + Math.sin(a) * r0}" y1="${606 - Math.cos(a) * r0}" x2="${201 + Math.sin(a) * r1}" y2="${606 - Math.cos(a) * r1}" stroke="${INK.ink}" stroke-width="5"/>`;
   }
-  return `<svg class="rc-spark rc-pop" style="left:0;top:0;width:402px;height:874px;--d:${AT.shape}ms" viewBox="0 0 402 874">${rays}</svg>`
+  return `<svg data-zone="mid" class="rc-spark rc-pop" style="left:0;top:0;width:402px;height:874px;--d:${AT.shape}ms" viewBox="0 0 402 874">${rays}</svg>`
     + disc(36, 441, 330, INK.marigold) + hero(52, 414, 295.1, 380, 'bat') + rect(-600, 790, 1602, 900, INK.tomato)
     + plate(16, 4, 8, 236, INK.ink, INK.cream, p.innings.toLocaleString('en-IN'), AT.figure, 'fig')
     + hindi(257, 78, 50, INK.ink, 'बीस्ट', {}, 'data-after="fig" data-gap="14"')
@@ -291,7 +291,7 @@ function rank(p: RankPoster, avatar: string): string {
       + t(269, 64, 'rc-j rc-in', 'TOP', { 'font-size': 64, color: INK.cream, '--d': `${AT.label}ms` }, 'data-after="fig" data-gap="20"')
       + t(271, 136, 'rc-j rc-in', 'OF ALL\nBATTERS', { 'font-size': 28, 'line-height': .92, color: INK.cream, '--d': `${AT.label}ms` }, 'data-after="fig" data-gap="22"')
       + hindi(24, 240, 44, INK.cyan, p.word) + sentence(24, 318, 354, INK.cream, p.line);
-  return `<svg class="rc-spark rc-rise" style="left:0;top:0;width:402px;height:874px;--d:${AT.shape}ms" viewBox="0 0 402 874">${shapes}</svg>` + labels
+  return `<svg data-zone="mid" class="rc-spark rc-rise" style="left:0;top:0;width:402px;height:874px;--d:${AT.shape}ms" viewBox="0 0 402 874">${shapes}</svg>` + labels
     + avatarHtml + callout
     + sparkle(118, 394, 20, INK.lime) + sparkle(62, 582, 16, INK.cyan) + sparkle(335, 603, 14, INK.pink)
     + roast(24, p.slice === 'world' ? 432 : 420, INK.cream, INK.ink, p.roast) + headline + footer(p, INK.cream, INK.night);
@@ -346,7 +346,7 @@ function typeLook(type: TypeId): TypeLook {
       ink: INK.ink, you: 70, top: [18, 42, 180, INK.ink, INK.lime], bottom: [18, 168, 124, INK.ink, INK.cream], hindi: [248, 214, 46, INK.ink],
       figure: INK.ink, roast: [-24, 736, INK.ink, INK.cream], hero: [96, 398, 224, 400], sentenceX: 76,
       shape: disc(36, 432, 344, INK.ink) + disc(50, 446, 316, INK.cream)
-        + `<svg class="rc-spark rc-pop" style="left:0;top:0;width:402px;height:874px;--d:${AT.shape}ms" viewBox="0 0 402 874"><path d="M137 518Q60 604 137 690M265 518Q342 604 265 690" stroke="${INK.tomato}" stroke-width="5" stroke-dasharray="10 8" fill="none"/></svg>`,
+        + `<svg data-zone="mid" class="rc-spark rc-pop" style="left:0;top:0;width:402px;height:874px;--d:${AT.shape}ms" viewBox="0 0 402 874"><path d="M137 518Q60 604 137 690M265 518Q342 604 265 690" stroke="${INK.tomato}" stroke-width="5" stroke-dasharray="10 8" fill="none"/></svg>`,
     };
   }
 }
@@ -467,6 +467,55 @@ export function dieCut(src: HTMLCanvasElement, edge: number, colour: string = IN
   return out;
 }
 
+/**
+ * Where the middle of each poster begins: what is above stays at the top, the
+ * footer (from 790) stands on the screen's foot, and the middle — the batter
+ * and the poster's shape — gives up height on a screen shorter than the
+ * design's, or stands centred on a taller one.
+ */
+const MIDDLE: Partial<Record<string, number>> = { cover: 320, season: 246 };
+const FOOT = 790;
+
+/** Each piece of each poster into its zone: top, middle or foot, by where it stands (or its own `data-zone`). */
+function zone(root: HTMLElement) {
+  for (const sec of root.querySelectorAll<HTMLElement>('.rc-poster')) {
+    const split = MIDDLE[sec.dataset.poster!] ?? 376;
+    const zones = Object.fromEntries(['head', 'top', 'mid', 'foot'].map(z => {
+      const div = document.createElement('div'); div.className = 'rc-zone'; div.dataset.z = z; return [z, div];
+    }));
+    for (const el of [...sec.children] as HTMLElement[]) {
+      const top = el.offsetTop;
+      const z = el.dataset.zone ?? (top >= FOOT - 1 ? 'foot' : top >= split ? 'mid' : 'top');
+      zones[z].append(el);
+    }
+    sec.dataset.split = String(split);
+    sec.append(zones.head, zones.top, zones.mid, zones.foot);
+  }
+}
+
+/** Under the masthead, the part of a poster that gives up height on a short screen. */
+const HEAD = 56;
+
+/**
+ * Lays a poster's zones into a frame `tall` design pixels high. The masthead
+ * keeps its place and the footer stands on the screen's foot; on a shorter
+ * screen the headline and the middle between them come down together by the
+ * one scale, about the poster's centre line, so neither shrinks alone; on a
+ * taller one the middle stands centred in the room.
+ */
+function fitZones(sec: HTMLElement, tall: number) {
+  const split = Number(sec.dataset.split), extra = tall - 874;
+  const top = sec.querySelector<HTMLElement>('[data-z="top"]')!;
+  const mid = sec.querySelector<HTMLElement>('[data-z="mid"]')!, foot = sec.querySelector<HTMLElement>('[data-z="foot"]')!;
+  foot.style.transform = `translateY(${extra}px)`;
+  if (extra >= 0) { top.style.transform = ''; mid.style.transform = `translateY(${extra / 2}px)`; return; }
+  const s = Math.max(.5, (FOOT - HEAD + extra) / (FOOT - HEAD));
+  top.style.transformOrigin = `201px ${HEAD}px`;
+  top.style.transform = `scale(${s})`;
+  mid.style.transformOrigin = `201px ${split}px`;
+  mid.style.transform = `translateY(${-(split - HEAD) * (1 - s)}px) scale(${s})`;
+}
+
 export interface RecapOptions {
   /** The player's face for You vs everyone. */
   avatar: string;
@@ -494,14 +543,20 @@ export async function openRecap(host: HTMLElement, posters: Poster[], opts: Reca
     + `<button class="rc-close" aria-label="Close"><svg viewBox="0 0 22 22"><path d="M5 5l12 12M17 5 5 17" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button></div>`;
   host.append(root);
   const frame = root.querySelector<HTMLElement>('.rc-frame')!;
+  settle(root);
+  zone(root);
   const fit = () => {
+    // The full width always: the poster is scaled to the screen's width and
+    // takes whatever height that leaves (`fitZones`), never a card with bands
+    // either side of it.
     const w = root.clientWidth, h = root.clientHeight - (opts.foot ?? 0);
-    frame.style.setProperty('--k', String(Math.min(w / 402, h / 874)));
-    frame.style.marginTop = `${-(opts.foot ?? 0) / 2}px`;
+    const k = w / 402, tall = h / k;
+    frame.style.setProperty('--k', String(k));
+    frame.style.height = `${tall}px`;
+    for (const sec of root.querySelectorAll<HTMLElement>('.rc-poster')) fitZones(sec, tall);
   };
   fit();
   addEventListener('resize', fit);
-  settle(root);
 
   const sections = [...root.querySelectorAll<HTMLElement>('.rc-poster')];
   const bars = [...root.querySelectorAll<HTMLElement>('.rc-bar')];

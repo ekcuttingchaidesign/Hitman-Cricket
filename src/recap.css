@@ -9,7 +9,8 @@
 @font-face{font-family:'Poppins';src:url('./assets/poppins-devanagari-900-normal.woff2') format('woff2');font-weight:900;font-display:block;unicode-range:U+0900-097F,U+1CD0-1CF9,U+200C-200D,U+20A8,U+20B9,U+20F0,U+25CC,U+A830-A839,U+A8E0-A8FF,U+11B00-11B09}
 
 .rc{position:absolute;inset:0;z-index:80;overflow:hidden;background:var(--rc-ground,#0B0B0F);touch-action:none;user-select:none;-webkit-user-select:none;transition:background .28s}
-.rc-frame{position:absolute;left:50%;top:50%;width:402px;height:874px;transform:translate(-50%,-50%) scale(var(--k,1));transform-origin:50% 50%}
+.rc-frame{position:absolute;left:0;top:0;width:402px;height:874px;transform:scale(var(--k,1));transform-origin:0 0}
+.rc-zone{position:absolute;left:0;top:0;width:402px;height:874px;overflow:visible}
 /* Full bleed: the screen is the poster's ground (set on .rc as the poster changes), and what runs off a poster's sides runs on to the screen's edges. */
 .rc-poster{position:absolute;inset:0;overflow:visible;opacity:0;pointer-events:none}
 .rc-poster.is-on{opacity:1;pointer-events:auto}

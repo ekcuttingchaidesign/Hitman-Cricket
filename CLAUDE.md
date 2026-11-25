@@ -1047,7 +1047,16 @@ is the poster's ground and grain (`--rc-ground` on `.rc`), and what runs off
 a poster's sides (the sixes' rings, the fours' stripes, the clock's rule,
 the bat's rays, the footer's ground) runs on to the screen's edges, so a
 phone shaped other than the design's has its ground round the poster and
-not a framed card in the middle, which is what the owner first saw. Each poster is printed in as
+not a framed card in the middle, which is what the owner first saw. Ground
+alone round a poster scaled to fit still read as bands (the owner, on a
+phone browser with its bars showing), so the poster takes the screen's full
+width and whatever height that leaves (`fitZones`): the masthead stays at the
+top, the footer (from 790) stands on the screen's foot, and on a shorter
+screen the headline and the middle between them come down together by one
+scale about the centre line (`zone` sorts a poster's pieces by where they
+stand, `data-zone` where that misleads; the middle starts at 376, the cover's
+at 320 and the season card's at 246); on a taller one the middle stands
+centred. Each poster is printed in as
 the motion section times it (`AT`), in CSS for now. The batters are the
 game's own renders, made as the recap opens, the poster in front first,
 through `src/game/recap-render.ts` (the stills page's renderer, moved out of
