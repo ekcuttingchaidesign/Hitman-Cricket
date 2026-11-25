@@ -70,6 +70,12 @@ interface Pose {
    */
   slide?: number;
   /**
+   * The free hand let reach the arm's full length, so a fist put further off
+   * than that is held at the end of a straight arm. Every other fist stops
+   * just short of it, its elbow soft: only `ALOFT` straightens it.
+   */
+  stretch?: boolean;
+  /**
    * The bat turned about its own handle, in the bottom hand: the twirl. The
    * gloves are turned back the other way, so the hand holds still and the
    * blade turns in it.
@@ -2982,11 +2988,12 @@ const LOOKING: Pose = { ...RAISED, face: RAISED.face + .35, headDown: -.28 };
  * the left is: the year recap's season card (`celebrate:aloft` on its stills),
  * never played in the game.
  */
-const ALOFT_REACH = [.46, .36, .06] as const;
+/** Further than the arm reaches, so both arms are held straight at full stretch. */
+const ALOFT_REACH = [.56, .44, .07] as const;
 const ALOFT: Pose = (() => {
   const body = FACING, outR = outwards(body, 1), outL = outwards(body, 0);
   const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw));
-  // Arms up in a wide V and a touch forward, the elbows soft; the bat stood
+  // Arms up in a wide V and a touch forward, both straight; the bat stood
   // up out of the fist, a little out and back, its face to the front.
   const hand = shoulderOf(body, 1).addScaledVector(UP, ALOFT_REACH[0]).addScaledVector(outR, ALOFT_REACH[1]).addScaledVector(ahead, ALOFT_REACH[2]);
   const toe = UP.clone().addScaledVector(outR, .12).addScaledVector(ahead, -.06).normalize();
@@ -2994,7 +3001,7 @@ const ALOFT: Pose = (() => {
   return { ...body,
     // The bat's origin, from where the hand is to hold it: its glove sits `HAND.top` down the handle.
     grip: point(hand.clone().addScaledVector(toe, HAND.top)),
-    batUp: point(toe.clone().negate()), batFace: point(ahead), slide,
+    batUp: point(toe.clone().negate()), batFace: point(ahead), slide, stretch: true,
     fist: point(shoulderOf(body, 0).addScaledVector(UP, ALOFT_REACH[0]).addScaledVector(outL, ALOFT_REACH[1]).addScaledVector(ahead, ALOFT_REACH[2])), release: 1 };
 })();
 /**
@@ -3281,6 +3288,7 @@ function mix(a: Pose, b: Pose, amount: number, curve = ease): Pose {
     fist: a.fist || b.fist ? point(a.fist ?? b.fist!, b.fist ?? a.fist!) : undefined,
     letGo: THREE.MathUtils.lerp(a.letGo ?? 0, b.letGo ?? 0, t),
     slide: THREE.MathUtils.lerp(a.slide ?? 0, b.slide ?? 0, t),
+    stretch: (t < .5 ? a.stretch : b.stretch) || undefined,
     otherFist: a.otherFist || b.otherFist ? point(a.otherFist ?? b.otherFist!, b.otherFist ?? a.otherFist!) : undefined,
   };
 }
@@ -5558,7 +5566,8 @@ export class Batter {
         const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.torso.quaternion);
         const fist = V(freed!);
         const reach = fist.clone().sub(arm.shoulder);
-        if (reach.length() > .64) fist.copy(arm.shoulder).addScaledVector(reach.normalize(), .64);
+        const most = pose.stretch ? .66 : .64;
+        if (reach.length() > most) fist.copy(arm.shoulder).addScaledVector(reach.normalize(), most);
         // A fist let go swings its elbow out beside the shoulder; the bottom
         // hand let go is clamping the bat under that arm (`TUCK`), so its
         // elbow goes down and back against his side, the upper arm pressing

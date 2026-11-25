@@ -1016,8 +1016,9 @@ it from in front at az 70 and square side on at az 0 and 15),
 Grinder), the others el -6. The season card's is `celebrate:aloft`
 1800 az 20 el -12, a still-only routine in `Batter.ts` (`ALOFT`, `Posed`),
 never played in the game: from a photograph the owner sent of a batter
-raising his bat (25 November 2026), both arms up in a wide V with the elbows
-soft and a touch forward, the bat stood upright out of the right fist, a
+raising his bat (25 November 2026), both arms up in a wide V, a touch forward
+and dead straight at full stretch (`stretch` on the pose; the owner wanted
+no bend in either), the bat stood upright out of the right fist, a
 little out and back, its face to the front, held near the end of the handle
 (`slide` on the pose moves the bottom hand up the handle); the double
 hundred's flex before it had the bat arm bent with the bat by his helmet. The section
