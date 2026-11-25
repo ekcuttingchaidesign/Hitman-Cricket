@@ -2994,14 +2994,19 @@ const ALOFT: Pose = (() => {
   const body = FACING, outR = outwards(body, 1), outL = outwards(body, 0);
   const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw));
   // Arms up in a wide V and a touch forward, both straight; the bat stood
-  // up out of the fist, a little out and back, its face to the front.
+  // up out of the fist, a little out and back. The fist is turned with the
+  // palm to the front, the fingers round the front of the handle as in the
+  // owner's photograph (`ownFace`, or the still guard's face is put on it and
+  // the back of the glove faced the front, its fingers pointing sideways);
+  // the blade is then turned back in the hand (`spin`, which leaves the
+  // glove where it is) to show its face to the recap's camera.
   const hand = shoulderOf(body, 1).addScaledVector(UP, ALOFT_REACH[0]).addScaledVector(outR, ALOFT_REACH[1]).addScaledVector(ahead, ALOFT_REACH[2]);
   const toe = UP.clone().addScaledVector(outR, .12).addScaledVector(ahead, -.06).normalize();
   const slide = .08;
   return { ...body,
     // The bat's origin, from where the hand is to hold it: its glove sits `HAND.top` down the handle.
     grip: point(hand.clone().addScaledVector(toe, HAND.top)),
-    batUp: point(toe.clone().negate()), batFace: point(ahead), slide, stretch: true,
+    batUp: point(toe.clone().negate()), batFace: point(ahead.clone().negate()), ownFace: 1, spin: Math.PI + .7, slide, stretch: true,
     fist: point(shoulderOf(body, 0).addScaledVector(UP, ALOFT_REACH[0]).addScaledVector(outL, ALOFT_REACH[1]).addScaledVector(ahead, ALOFT_REACH[2])), release: 1 };
 })();
 /**

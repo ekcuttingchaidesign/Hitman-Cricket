@@ -1020,7 +1020,10 @@ raising his bat (25 November 2026), both arms up in a wide V, a touch forward
 and dead straight at full stretch (`stretch` on the pose; the owner wanted
 no bend in either), the bat stood upright out of the right fist, a
 little out and back, its face to the front, held near the end of the handle
-(`slide` on the pose moves the bottom hand up the handle); the double
+(`slide` on the pose moves the bottom hand up the handle), the palm to
+the front with the fingers round the handle (`ownFace`: without it the
+back of the glove faced the front and the wrist looked broken, the owner
+said) and the blade turned in the fist to face the camera (`spin`); the double
 hundred's flex before it had the bat arm bent with the bat by his helmet. The section
 "Season '26 · Every kit, every colour" lists all nineteen kits with the hex
 of every part.
