@@ -2972,6 +2972,12 @@ const RAISED = aloft(FACING, [.33, .10], [.54, .28]);
 const PUMPED = aloft({ ...FACING, hip: [-.03, .93, -.03], chest: [-.01, 1.27, -.01], headDown: -.14 }, [.26, .10], [.38, .26]);
 const LOOKING: Pose = { ...RAISED, face: RAISED.face + .35, headDown: -.28 };
 /**
+ * Both arms straight up, the bat held up at the full stretch of his right as
+ * the left is: the year recap's season card (`celebrate:aloft` on its stills),
+ * never played in the game.
+ */
+const ALOFT = aloft(FACING, [.54, .28], [.54, .28]);
+/**
  * On the way up, turning, with both hands still on the bat and the bat coming
  * up his right side. From the guard it sits behind the back shoulder, and the
  * straight line from there to beside his head runs through the helmet.
@@ -3123,6 +3129,12 @@ const ROUTINES: Record<Celebration, Routine> = {
       { time: 1700, pose: CHAMPION_LOOK }, { time: 1960, pose: CHAMPION }, { time: 2140, pose: CHAMPION_DONE }],
     back: 2300, down: 2440, settle: 2580, total: 2760 },
 };
+/** The stills' own, kept out of `Celebration` so the game never plays it: up into `ALOFT` and held. */
+export type Posed = Celebration | 'aloft';
+const STILL_ROUTINE: Routine = { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 400, pose: RAISED }, { time: 600, pose: ALOFT },
+    { time: 1900, pose: ALOFT }], back: 2000, down: 2140, settle: 2280, total: 2440 };
+const routineOf = (kind: Posed) => kind === 'aloft' ? STILL_ROUTINE : ROUTINES[kind];
+const celebrationMs = (kind: Posed) => kind === 'aloft' ? STILL_ROUTINE.total : CELEBRATION_LENGTHS[kind];
 /** How long each celebration holds the next ball back. */
 export const CELEBRATION_LENGTHS: Record<Celebration, number> = {
   fifty: FIFTY_MS, hundred: CELEBRATION_MS, double: ROUTINES.double.total, triple: ROUTINES.triple.total, four: ROUTINES.four.total,
@@ -3415,7 +3427,7 @@ export class Batter {
   private followed: Pose | null = null;
   private celebratedFrom: Pose = GUARD;
   /** Which celebration is on: see `ROUTINES`. */
-  private celebration: Celebration = 'hundred';
+  private celebration: Posed = 'hundred';
   private anticipation = 0;
   /** Alive in his guard between balls: the game's batter is. See `WAGGLE`. */
   alive = false;
@@ -3851,7 +3863,7 @@ export class Batter {
   /** Whether he is on his way down or already there. */
   get felled() { return Number.isFinite(this.felledAt); }
   /** His hundred, or any of the others: up, held, and back into his guard. See `ROUTINES`. */
-  celebrate(now: number, kind: Celebration = 'hundred') {
+  celebrate(now: number, kind: Posed = 'hundred') {
     // A celebration takes him from wherever he is; what he was doing after the
     // ball is not resumed.
     this.afterward = null; this.idle = null;
@@ -4144,7 +4156,7 @@ export class Batter {
   private waiting(pose: Pose, now: number, age: number): Pose {
     const sinceStroke = Number.isFinite(age) ? age - STROKE_DURATION_MS - (this.charging ? ADVANCE.walkBackMs : 0) : Infinity;
     const sinceSettle = this.afterward ? now - this.afterward.from - lengthOf(this.afterward.kind, this.shot) : Infinity;
-    const sinceCelebration = now - this.celebratedAt - CELEBRATION_LENGTHS[this.celebration];
+    const sinceCelebration = now - this.celebratedAt - celebrationMs(this.celebration);
     // Readied for a ball only while that ball is coming: once he has played
     // at it, what `prepare` left behind is the last ball's, as the guard's own
     // mix in `update` takes it. Read after a stroke, it held him still for the
@@ -4293,7 +4305,7 @@ export class Batter {
     this.poseAge = age;
     this.travel(age);
     const celebrating = now - this.celebratedAt;
-    if (celebrating >= 0 && celebrating < CELEBRATION_LENGTHS[this.celebration]) {
+    if (celebrating >= 0 && celebrating < celebrationMs(this.celebration)) {
       // Nothing about the stroke he hit it with is left to shape the legs:
       // an unfinished stroke's age would have them bent its way.
       this.poseAge = Infinity;
@@ -5051,7 +5063,7 @@ export class Batter {
   }
 
   private applyCelebration(age: number) {
-    const { keys, back, down, settle, total } = ROUTINES[this.celebration];
+    const { keys, back, down, settle, total } = routineOf(this.celebration);
     const last = keys[keys.length - 1];
     if (age < last.time) return this.apply(flowing([{ time: 0, pose: this.celebratedFrom }, ...keys], age));
     // Down the way it came up: out to his right, where the left hand takes the

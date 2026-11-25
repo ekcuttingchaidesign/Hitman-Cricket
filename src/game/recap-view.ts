@@ -183,7 +183,7 @@ export const POSES = {
   when: { shot: 'after:sky', age: 900, az: 40, el: -10 },
   kit: { shot: 'GUARD', age: 0, az: 215, el: -4 },
   bat: { shot: 'GUARD', age: 0, az: 70, el: 0, only: 'bat' as const },
-  season: { shot: 'celebrate:double', age: 1800, az: 20, el: -12 },
+  season: { shot: 'celebrate:aloft', age: 1800, az: 20, el: -12 },
   six: { shot: 'CUT', age: 660, az: 75, el: 3 },
   artist: { shot: 'STRAIGHT', age: 500, az: 60, el: -6 },
   wall: { shot: 'DEFEND_BACK', age: 380, az: -15, el: -4 },

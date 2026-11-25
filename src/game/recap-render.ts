@@ -21,7 +21,7 @@ import { GAME } from '../config/gameplay';
 import { ALL_BATS, ALL_OUTFITS } from './dressing';
 import { SUPER10_KITS } from './super10-kits';
 import type { ShotType } from './types';
-import type { AfterBall, Celebration } from '../entities/Batter';
+import type { AfterBall, Posed } from '../entities/Batter';
 
 /** What one still is of. */
 export interface StillAsk {
@@ -146,7 +146,7 @@ export function createStillRenderer(): StillRenderer {
     if (shot.startsWith('after:')) {
       batter.afterBall(shot.slice(6) as AfterBall, 0); batter.update(age);
     } else if (shot.startsWith('celebrate:')) {
-      batter.celebrate(0, shot.slice(10) as Celebration); batter.update(age);
+      batter.celebrate(0, shot.slice(10) as Posed); batter.update(age);
     } else if (shot !== 'GUARD') {
       const s = STROKE[shot] ?? STROKE.LOFTED;
       batter.swing(s.shot, 0, s.x, s.y, GAME.contactZ + (s.z ?? 0), s.charging ?? false, s.lofted ?? false, s.sweeping ?? false, s.levelled ?? false,
