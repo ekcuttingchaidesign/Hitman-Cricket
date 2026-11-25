@@ -2990,8 +2990,9 @@ const LOOKING: Pose = { ...RAISED, face: RAISED.face + .35, headDown: -.28 };
  */
 /** Further than the arm reaches, so both arms are held straight at full stretch. */
 const ALOFT_REACH = [.56, .44, .07] as const;
-const ALOFT: Pose = (() => {
-  const body = FACING, outR = outwards(body, 1), outL = outwards(body, 0);
+/** Both arms up straight from `body`'s shoulders, the bat held aloft as `ALOFT` holds it. */
+function aloftOf(body: Pose): Pose {
+  const outR = outwards(body, 1), outL = outwards(body, 0);
   const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw));
   // Arms up in a wide V and a touch forward, both straight; the bat stood
   // up out of the fist, a little out and back. The fist is turned with the
@@ -3008,7 +3009,16 @@ const ALOFT: Pose = (() => {
     grip: point(hand.clone().addScaledVector(toe, HAND.top)),
     batUp: point(toe.clone().negate()), batFace: point(ahead.clone().negate()), ownFace: 1, spin: Math.PI + .7, slide, stretch: true,
     fist: point(shoulderOf(body, 0).addScaledVector(UP, ALOFT_REACH[0]).addScaledVector(outL, ALOFT_REACH[1]).addScaledVector(ahead, ALOFT_REACH[2])), release: 1 };
-})();
+}
+const ALOFT: Pose = aloftOf(FACING);
+/**
+ * A first try at the hundred with the arms held aloft, for the owner to look
+ * at beside the hundred it would replace (`celebration.html`, never played in
+ * the game): the hundred's clock and beats, `ALOFT` where it raises the bat,
+ * the pump the knees giving under straight arms, the look round the same.
+ */
+const ALOFT_PUMPED: Pose = aloftOf({ ...FACING, hip: [-.03, .93, -.03], chest: [-.01, 1.27, -.01], headDown: -.14 });
+const ALOFT_LOOKING: Pose = { ...ALOFT, face: ALOFT.face + .35, headDown: -.28 };
 /**
  * On the way up, turning, with both hands still on the bat and the bat coming
  * up his right side. From the guard it sits behind the back shoulder, and the
@@ -3162,11 +3172,17 @@ const ROUTINES: Record<Celebration, Routine> = {
     back: 2300, down: 2440, settle: 2580, total: 2760 },
 };
 /** The stills' own, kept out of `Celebration` so the game never plays it: up into `ALOFT` and held. */
-export type Posed = Celebration | 'aloft';
+export type Posed = Celebration | 'aloft' | 'hundredAloft';
 const STILL_ROUTINE: Routine = { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 400, pose: RAISED }, { time: 600, pose: ALOFT },
     { time: 1900, pose: ALOFT }], back: 2000, down: 2140, settle: 2280, total: 2440 };
-const routineOf = (kind: Posed) => kind === 'aloft' ? STILL_ROUTINE : ROUTINES[kind];
-const celebrationMs = (kind: Posed) => kind === 'aloft' ? STILL_ROUTINE.total : CELEBRATION_LENGTHS[kind];
+const HUNDRED_ALOFT: Routine = { keys: [{ time: CELEBRATION.rise, pose: RISING }, { time: CELEBRATION.lift, pose: LIFTING }, { time: CELEBRATION.up, pose: ALOFT },
+    { time: CELEBRATION.pump, pose: ALOFT_PUMPED }, { time: CELEBRATION.again, pose: ALOFT }, { time: CELEBRATION.pump2, pose: ALOFT_PUMPED }, { time: CELEBRATION.look, pose: ALOFT_LOOKING }],
+  back: CELEBRATION.back, down: CELEBRATION.down, settle: CELEBRATION.settle, total: CELEBRATION_MS };
+const routineOf = (kind: Posed) => kind === 'aloft' ? STILL_ROUTINE : kind === 'hundredAloft' ? HUNDRED_ALOFT : ROUTINES[kind];
+/** How long any of them runs, the try-outs too. */
+export const celebrationMs = (kind: Posed) => kind === 'aloft' || kind === 'hundredAloft' ? routineOf(kind).total : CELEBRATION_LENGTHS[kind];
+/** Its beats by name, for a page that draws them on its clock. */
+export const celebrationBeats = (kind: Posed) => { const r = routineOf(kind); return { keys: r.keys.map(k => k.time), back: r.back, down: r.down, settle: r.settle, total: r.total }; };
 /** How long each celebration holds the next ball back. */
 export const CELEBRATION_LENGTHS: Record<Celebration, number> = {
   fifty: FIFTY_MS, hundred: CELEBRATION_MS, double: ROUTINES.double.total, triple: ROUTINES.triple.total, four: ROUTINES.four.total,

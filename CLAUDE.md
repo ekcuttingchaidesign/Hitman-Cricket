@@ -1031,7 +1031,12 @@ it is kept for that as it stands (`ALOFT`, the `aloft` routine
 putting `ALOFT` in the hundred's keys (`ROUTINES.hundred`, its pumps redone
 about it) and checking the way down, which no still has needed: from
 `ALOFT` to `RETURNING` its `spin` (π + .7) unwinds to nought and the
-handle slides back, so the blade turns in his fist as he lowers it. The section
+handle slides back, so the blade turns in his fist as he lowers it. A first try at it is `hundredAloft` (`HUNDRED_ALOFT` in `Batter.ts`, a
+`Posed` kind the game never plays: the hundred's clock with `ALOFT` where the
+bat goes up, `ALOFT_PUMPED` and `ALOFT_LOOKING`, and the hundred's own way
+down), shown beside the hundred on one clock in `celebration.html`
+(`src/celebration-preview.ts`, bundled by `scripts/celebration-artifact.mjs`,
+the claude.ai artifact "Hundred, Arms Aloft") for the owner to find its gaps. The section
 "Season '26 · Every kit, every colour" lists all nineteen kits with the hex
 of every part.
 
