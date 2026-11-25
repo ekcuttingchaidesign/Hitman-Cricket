@@ -64,6 +64,12 @@ interface Pose {
   letGo?: number;
   otherFist?: Point;
   /**
+   * The bottom hand moved up the handle by this much, towards its end: the
+   * year recap's bat held aloft by the end of the handle (`ALOFT`). Nought,
+   * where every stroke and celebration keeps it.
+   */
+  slide?: number;
+  /**
    * The bat turned about its own handle, in the bottom hand: the twirl. The
    * gloves are turned back the other way, so the hand holds still and the
    * blade turns in it.
@@ -2976,7 +2982,21 @@ const LOOKING: Pose = { ...RAISED, face: RAISED.face + .35, headDown: -.28 };
  * the left is: the year recap's season card (`celebrate:aloft` on its stills),
  * never played in the game.
  */
-const ALOFT = aloft(FACING, [.54, .28], [.54, .28]);
+const ALOFT_REACH = [.46, .36, .06] as const;
+const ALOFT: Pose = (() => {
+  const body = FACING, outR = outwards(body, 1), outL = outwards(body, 0);
+  const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw));
+  // Arms up in a wide V and a touch forward, the elbows soft; the bat stood
+  // up out of the fist, a little out and back, its face to the front.
+  const hand = shoulderOf(body, 1).addScaledVector(UP, ALOFT_REACH[0]).addScaledVector(outR, ALOFT_REACH[1]).addScaledVector(ahead, ALOFT_REACH[2]);
+  const toe = UP.clone().addScaledVector(outR, .12).addScaledVector(ahead, -.06).normalize();
+  const slide = .08;
+  return { ...body,
+    // The bat's origin, from where the hand is to hold it: its glove sits `HAND.top` down the handle.
+    grip: point(hand.clone().addScaledVector(toe, HAND.top)),
+    batUp: point(toe.clone().negate()), batFace: point(ahead), slide,
+    fist: point(shoulderOf(body, 0).addScaledVector(UP, ALOFT_REACH[0]).addScaledVector(outL, ALOFT_REACH[1]).addScaledVector(ahead, ALOFT_REACH[2])), release: 1 };
+})();
 /**
  * On the way up, turning, with both hands still on the bat and the bat coming
  * up his right side. From the guard it sits behind the back shoulder, and the
@@ -3260,6 +3280,7 @@ function mix(a: Pose, b: Pose, amount: number, curve = ease): Pose {
     // so the hand leaves the handle for where it is going, not for the origin.
     fist: a.fist || b.fist ? point(a.fist ?? b.fist!, b.fist ?? a.fist!) : undefined,
     letGo: THREE.MathUtils.lerp(a.letGo ?? 0, b.letGo ?? 0, t),
+    slide: THREE.MathUtils.lerp(a.slide ?? 0, b.slide ?? 0, t),
     otherFist: a.otherFist || b.otherFist ? point(a.otherFist ?? b.otherFist!, b.otherFist ?? a.otherFist!) : undefined,
   };
 }
@@ -5190,7 +5211,7 @@ export class Batter {
       .applyQuaternion(this.torso.quaternion).add(chest));
     // Both gloves back on the handle every frame; only a hand that has let go
     // is moved off it, below, and only for as long as it is let go.
-    this.arms.forEach((arm, i) => arm.glove.position.set(0, i === 0 ? HAND.top : HAND.bottom, 0));
+    this.arms.forEach((arm, i) => arm.glove.position.set(0, i === 0 ? HAND.top : HAND.bottom + (pose.slide ?? 0), 0));
     for (let pass = 0; pass < 5; pass++) for (let i = 0; i < 2; i++) {
       // A hand mostly off the bat has no say in where the bat can go.
       if ((i === FREE_HAND ? pose.release ?? 0 : pose.letGo ?? 0) > .5) continue;
