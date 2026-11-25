@@ -1,6 +1,6 @@
-import { FLIGHT, GAME, LINES, LINE_X } from '../config/gameplay';
-import { REVERSE } from '../config/marathon';
-import type { BallLine, Delivery } from './types';
+import { FLIGHT, GAME, LINES, LINE_X } from '../config/gameplay.js';
+import { REVERSE } from '../config/marathon.js';
+import type { BallLine, Delivery } from './types.js';
 const smooth = (t: number) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3 - 2 * x); };
 export function effectiveLine(delivery: Delivery): BallLine {
   return LINES.reduce((a, b) => Math.abs(delivery.finalTargetX - LINE_X[a]) <= Math.abs(delivery.finalTargetX - LINE_X[b]) ? a : b);

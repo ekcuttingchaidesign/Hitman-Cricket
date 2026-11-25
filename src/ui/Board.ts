@@ -68,8 +68,15 @@ export interface BoardEntry {
   tag?: { text: string; tone: 'new' | 'up' | 'best' } | null;
   /** An innings with no name to it yet, drawn where it would stand. */
   ghost?: boolean;
+  /**
+   * A row on a screen where rows open nothing (a Knockout room's Results and standings): no key's role and no chevron,
+   * the player's own row included. It had both there and a tap did nothing, as the owner found (24 November 2026).
+   */
+  still?: boolean;
   /** The podium's own line, where it says more than the row does. */
   podiumSub?: string;
+  /** That line is something won (a Knockout match's points), and is drawn in gold. */
+  podiumGold?: boolean;
   /** The player's public handle, which opens their profile; absent for a guest's innings. */
   handle?: string;
 }
@@ -80,7 +87,7 @@ export interface BoardEntry {
  * has no profile and opens nothing.
  */
 function opens(row: BoardEntry): string {
-  if (row.ghost) return '';
+  if (row.ghost || row.still) return '';
   if (row.you) return ' data-mine="1" role="button" tabindex="0" aria-label="Open My profile"';
   if (!row.handle) return '';
   return ` data-handle="${escape(row.handle)}" role="button" tabindex="0" aria-label="${escape(`See ${row.name}’s profile`)}"`;
@@ -125,7 +132,19 @@ export interface BoardScreen {
   rules: string;
   /** Laid over the dock: the key toast, when a key has just been minted. */
   extra?: string;
+  /**
+   * A screen drawn as a board that is not one of the four (Super Knockout's
+   * room Results): its own class, colour, picture, name and title, and the
+   * ladder pill's words, in place of the mode's.
+   */
+  look?: { cls: string; colour: string; art: string; name: string; title: string; ladder: string; few?: { none: string; one: string; two: string } };
+  /**
+   * Boards the mode menu also offers that are screens of their own (Super Knockout's leaderboard): a row each
+   * under the modes', which opens it over this one.
+   */
+  also?: readonly BoardAlso[];
 }
+export interface BoardAlso { id: string; name: string; colour: string; art: string; line: string }
 
 /** The ladder picker's short lines, per mode and key. */
 const BLURBS: Record<BoardMode, Record<string, string>> = {
@@ -150,20 +169,20 @@ const grouped = (n: number) => n.toLocaleString('en-US');
 // ── The screen ───────────────────────────────────────────────────────────────
 
 export function boardScreenMarkup(s: BoardScreen): string {
-  const meta = BOARD_MODES[s.mode];
-  const ladder = s.ladders.find(one => one.key === s.ladder) ?? s.ladders[0];
+  const meta = s.look ?? BOARD_MODES[s.mode];
+  const ladder = s.look ? { name: s.look.ladder } : s.ladders.find(one => one.key === s.ladder) ?? s.ladders[0];
   const empty = s.state === 'ready' && s.rows.length === 0;
   const offline = s.state === 'offline' && s.rows.length === 0;
   const loading = s.state === 'loading' && s.rows.length === 0;
   const top = s.rows.slice(0, 3);
   const rest = s.rows.slice(3);
   return `
-    <div class="lb-screen is-${s.mode}${offline ? ' is-offline' : ''}" style="--mode:${meta.colour}" role="document">
+    <div class="lb-screen is-${s.look?.cls ?? s.mode}${offline ? ' is-offline' : ''}" style="--mode:${meta.colour}" role="document">
       <div class="lb-bg" aria-hidden="true"><img src="${meta.art}" alt="" decoding="async"><i class="lb-fade"></i><i class="lb-glow"></i><i class="lb-grain"></i></div>
       <header class="lb-head">
         <div class="lb-bar">
           <button id="board-close" type="button" class="k-icon-button" aria-label="Back">${icon('arrow-left')}</button>
-          <h2 id="board-title" class="lb-title">LEADERBOARD</h2>
+          <h2 id="board-title" class="lb-title">${escape(s.look?.title ?? 'LEADERBOARD')}</h2>
           <button id="board-info" type="button" class="k-icon-button" aria-label="How ranking works" aria-haspopup="dialog">${icon('info')}</button>
           <button id="board-sound" type="button" class="k-icon-button" aria-label="Sound">${icon('volume')}</button>
         </div>
@@ -180,7 +199,7 @@ export function boardScreenMarkup(s: BoardScreen): string {
         ${offline ? '' : `
         <div class="lb-podium${loading ? ' is-loading' : ''}">${podiumMarkup(top, s.mode, loading)}</div>`}
         <section class="lb-sheet${offline ? ' is-offline' : ''}" aria-label="${escape(`${meta.name}, ${ladder?.name ?? ''}`)}">
-          ${offline ? offlineMarkup() : loading ? skeletonRows() : empty || s.rows.length < 3 ? fewMarkup(s.rows.length) : ''}
+          ${offline ? offlineMarkup() : loading ? skeletonRows() : empty || s.rows.length < 3 ? fewMarkup(s.rows.length, s.look?.few) : ''}
           ${s.banner && !offline && !loading ? bannerMarkup(s.banner) : ''}
           ${rest.length ? `<ol class="lb-list">${rest.map(row => rowMarkup(row)).join('')}</ol>` : ''}
         </section>
@@ -217,7 +236,7 @@ function podiumMarkup(top: readonly BoardEntry[], mode: BoardMode, loading: bool
             <span class="lb-face">${row.avatar === null ? '' : kitMarkup(row.avatar, row.name)}${badge}${you}</span>
             <span class="lb-name">${escape(row.you ? 'You' : row.name)}</span>
             <span class="lb-score">${escape(row.score)}</span>
-            <span class="lb-sub">${escape(row.podiumSub ?? row.sub)}</span>${numeral}</div>`;
+            <span class="lb-sub${row.podiumGold ? ' is-gold' : ''}">${escape(row.podiumSub ?? row.sub)}</span>${numeral}</div>`;
   });
   void mode;
   return slots.join('');
@@ -236,7 +255,7 @@ export function rowMarkup(row: BoardEntry): string {
   const name = row.ghost ? 'Your innings' : row.you ? 'You' : row.name;
   return `
           <li class="${classes}"${row.you || row.ghost ? ' aria-current="true"' : ''}${opens(row)}>
-            <span class="lb-place">${row.place}</span>
+            <span class="lb-place">${row.place || '–'}</span>
             ${row.chip ? `<i class="lb-result is-${row.chip}" aria-label="${RESULT_WORD[row.chip]}">${row.chip}</i>` : ''}
             ${face}
             <span class="lb-who"><span class="lb-who-name"><b>${escape(name)}</b>${tag}</span><small>${escape(row.sub)}</small></span>
@@ -267,13 +286,14 @@ function skeletonRows(): string {
 }
 
 /** Nobody yet, or only one or two: what the empty steps are waiting for. */
-function fewMarkup(count: number): string {
+function fewMarkup(count: number, words?: { none: string; one: string; two: string }): string {
   if (count === 0) {
     return `<div class="lb-message"><span class="lb-message-icon" aria-hidden="true">${icon('trophy')}</span>
-          <h3>THE BOARD IS WIDE OPEN</h3><p>Nobody has played this ladder yet. Finish one innings and the top spot is yours.</p></div>`;
+          <h3>THE BOARD IS WIDE OPEN</h3><p>${escape(words?.none ?? 'Nobody has played this ladder yet. Finish one innings and the top spot is yours.')}</p></div>`;
   }
   const next = count === 1 ? 2 : 3;
-  return `<div class="lb-message is-few"><h3>#${next} IS UP FOR GRABS</h3><p>Only ${count === 1 ? 'one innings' : 'two innings'} on the board. Any finished innings takes ${next === 2 ? 'second' : 'third'}.</p></div>`;
+  const said = words ? (count === 1 ? words.one : words.two) : `Only ${count === 1 ? 'one innings' : 'two innings'} on the board. Any finished innings takes ${next === 2 ? 'second' : 'third'}.`;
+  return `<div class="lb-message is-few"><h3>#${next} IS UP FOR GRABS</h3><p>${escape(said)}</p></div>`;
 }
 
 function offlineMarkup(): string {
@@ -283,7 +303,7 @@ function offlineMarkup(): string {
 }
 
 /** The mode menu, opened from the mode pill. */
-export function modeMenuMarkup(current: BoardMode, modes: BoardScreen['modes']): string {
+export function modeMenuMarkup(current: BoardMode, modes: BoardScreen['modes'], also: readonly BoardAlso[] = []): string {
   return `<div class="lb-scrim" data-close></div>
     <div id="board-mode-menu" class="lb-menu" role="listbox" aria-label="Which board">${modes.map(one => {
       const meta = BOARD_MODES[one.mode];
@@ -291,7 +311,9 @@ export function modeMenuMarkup(current: BoardMode, modes: BoardScreen['modes']):
       return `<button type="button" class="lb-menu-item${on ? ' is-on' : ''}" role="option" aria-selected="${on}" data-mode="${one.mode}" style="--tone:${meta.colour}">
           <span class="lb-menu-art"><img src="${meta.art}" alt="" decoding="async"></span>
           <span class="lb-menu-text"><b>${escape(meta.name)}</b><small>${escape(one.rank)}</small></span>${on ? icon('check') : ''}</button>`;
-    }).join('')}
+    }).join('')}${also.map(one => `<button type="button" class="lb-menu-item" role="option" aria-selected="false" data-also="${escape(one.id)}" style="--tone:${one.colour}">
+          <span class="lb-menu-art"><img src="${one.art}" alt="" decoding="async"></span>
+          <span class="lb-menu-text"><b>${escape(one.name)}</b><small>${escape(one.line)}</small></span>${icon('chevron-right')}</button>`).join('')}
       ${modes.length > 1 ? '<p class="lb-menu-tip">Tip: swipe the board left or right to switch modes</p>' : ''}
     </div>`;
 }

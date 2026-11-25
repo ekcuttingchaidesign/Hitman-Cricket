@@ -25,7 +25,11 @@
 
 import { chromium } from '@playwright/test';
 
-/** The update key in `src/game/whats-new.ts`. Bumped there, bumped here. */
+/**
+ * The update walked first, by name (`?whatsnew=cams`): the batting cams, which
+ * every build still keeps and production still tells. Super Knockout's, the
+ * update wherever the mode is played, is walked after it in a browser of its own.
+ */
 const UPDATE = 'cams';
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:5199').replace(/\/$/, '');
@@ -69,7 +73,7 @@ async function arrive() {
   if (await anyway.count()) { await anyway.first().click(); await tick(1500, 400); }
 }
 
-await page.goto(`${base}/`, { waitUntil: 'load' });
+await page.goto(`${base}/?whatsnew=${UPDATE}`, { waitUntil: 'load' });
 await arrive();
 
 // ── The first visit ────────────────────────────────────────────────────────
@@ -173,6 +177,118 @@ if (key) {
   check(await page.$eval('#board-overlay', node => !node.classList.contains('hidden')),
     'putting the player back on the board they came from');
   check(await seen() === `${UPDATE}:2`, 'without spending one of the two', await seen());
+}
+
+// ── Super Knockout's four cards ────────────────────────────────────────────
+// A browser of its own, so its two showings are its own: the mode on its
+// poster, the ladder and the game's own bar climbing out of the drop, the
+// rings with the tray, and a match's room, which holds with PLAY SUPER
+// KNOCKOUT and LATER. The clock is the check's here too: a card's timers move
+// only when it winds them, while what CSS animates runs on by itself.
+{
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const ko = await context.newPage();
+  await ko.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
+  ko.on('pageerror', error => errors.push(error.message));
+  await ko.clock.install({ time: new Date('2026-11-24T10:00:00+05:30') });
+  // Jumped, not run: a card's timers each fire once, and the ground under the stories is not drawn a frame at a
+  // time on the way, which without a GPU is minutes for a few seconds of the card.
+  const wind = async (ms, draw = 250) => { await ko.clock.fastForward(ms); await ko.waitForTimeout(draw); };
+  const hold = async () => { for (let tries = 0; ; tries++) { try { await ko.clock.pauseAt(await ko.evaluate(() => Date.now()) + 250); return; } catch (error) { if (tries > 8) throw error; } } };
+  const come = async () => {
+    await wind(3000, 800);
+    const anyway = ko.getByRole('button', { name: /PLAY ANYWAY/i });
+    if (await anyway.count()) { await anyway.first().click(); await wind(1500, 400); }
+  };
+  const open = async () => {
+    await hold();
+    await ko.click('#start');
+    for (let wound = 0; wound < 6000 && !(await ko.$('.whatsnew-sheet')); wound += 100) await ko.clock.runFor(100);
+    return !!(await ko.$('.whatsnew-sheet.is-ko'));
+  };
+  const at = () => ko.evaluate(() => {
+    const sheet = document.querySelector('.whatsnew-sheet');
+    const text = sel => sheet?.querySelector(sel)?.textContent.trim() ?? null;
+    return { scene: sheet?.dataset.scene ?? null, title: text('.kos-title'), eyebrow: text('.kos-eyebrow'),
+      bars: sheet?.querySelectorAll('.whatsnew-bar').length ?? 0, done: sheet?.querySelectorAll('.whatsnew-bar.is-done').length ?? 0,
+      held: !!sheet?.querySelector('.whatsnew-bar.is-held'), clear: !!sheet?.classList.contains('is-clear'),
+      pill: text('.ko-say'), brow: text('.ko-brow'), place: `${text('.ko-place b')} ${text('.ko-place span')}`, seats: sheet?.querySelectorAll('.ko-seat').length ?? 0,
+      watching: text('[data-watching]'), tray: [...(sheet?.querySelectorAll('.ko-watch-tray button') ?? [])].map(b => b.textContent).join(''),
+      rings: sheet?.querySelectorAll('.ko-ring').length ?? 0, ready: sheet?.querySelectorAll('.ko-lseat.is-ready').length ?? 0,
+      points: [...(sheet?.querySelectorAll('[data-points]') ?? [])].map(b => b.textContent).join(' '),
+      open: text('#whatsnew-open'), later: text('#whatsnew-later') };
+  });
+  // A tap on the picture is the page's: on on the right, back on the left, whatever is drawn there.
+  const tap = async (x, y = 0.45) => { const box = await ko.$eval('.whatsnew-sheet', n => { const b = n.getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; }); await ko.touchscreen.tap(box[0] + box[2] * x, box[1] + box[3] * y); await ko.waitForTimeout(300); };
+  const seenKo = () => ko.evaluate(() => localStorage.getItem('hitman-whatsnew'));
+
+  await ko.goto(`${base}/?whatsnew=knockout`, { waitUntil: 'load' });
+  await come();
+  check(await open(), 'Super Knockout: the play key stops at its stories');
+  let on = await at();
+  check(on.scene === 'mode' && on.title === '12 WALK OUT. 1 SURVIVES.' && on.eyebrow === 'WHAT’S NEW · SUPER KNOCKOUT', 'which open on the mode: 12 WALK OUT. 1 SURVIVES.', JSON.stringify(on));
+  check(on.bars === 4 && on.done === 0 && !on.held, 'the first of four, on a bar that runs', JSON.stringify(on));
+  await tap(0.8);
+  on = await at();
+  check(on.scene === 'cut' && on.title === 'SURVIVE THE CUT' && on.done === 1, 'a tap on the picture moves on to SURVIVE THE CUT', JSON.stringify(on));
+  check(on.seats === 12 && on.pill === 'NEED 5 RUNS TO BE SAFE' && on.place === '#9 OF 10' && /^BOTTOM 2 KNOCKED OUT IN 4 BALLS$/.test(on.brow ?? ''),
+    'with the game’s own bar in the drop: twelve seats, ninth of ten, NEED 5 RUNS TO BE SAFE', JSON.stringify(on));
+  await wind(2700, 900);
+  on = await at();
+  check(on.pill === '2 RUNS CLEAR' && on.place === '#8 OF 10' && on.clear, 'which then climbs over the line: 2 RUNS CLEAR, eighth, the red edges let go', JSON.stringify(on));
+  await tap(0.15);
+  check((await at()).scene === 'mode', 'a tap on the left goes back a card');
+  await tap(0.8); await tap(0.8);
+  on = await at();
+  check(on.scene === 'watch' && on.title === 'OUT EARLY? WATCH ON.' && on.rings >= 6 && on.tray === '😂🔥👏😱🦆💩',
+    'then OUT EARLY? WATCH ON.: the rings and the tray’s six', JSON.stringify(on));
+  check(on.watching === '1 WATCHING', 'one watching as it opens', JSON.stringify(on));
+  await wind(2000);
+  check((await at()).watching === '2 WATCHING', 'and a second counted in');
+  // Left alone it moves on by itself, to the card that holds.
+  await wind(4000, 500);
+  on = await at();
+  check(on.scene === 'friends' && on.title === 'PLAY WITH FRIENDS' && on.held && on.done === 3, 'left alone it moves on to PLAY WITH FRIENDS, which holds', JSON.stringify(on));
+  await wind(3000);
+  on = await at();
+  check(on.ready === 4 && on.points === '+10 +5 +2', 'a match’s room: four friends ready, and +10, +5 and +2 for the top three', JSON.stringify(on));
+  check(on.open === 'PLAY SUPER KNOCKOUT' && on.later === 'LATER', 'over PLAY SUPER KNOCKOUT and LATER', JSON.stringify(on));
+  await wind(9000);
+  check((await at()).scene === 'friends', 'and it is still there nine seconds on');
+  check(await seenKo() === 'knockout:1', 'counted once, under its own name', await seenKo());
+  await ko.click('#whatsnew-open');
+  await wind(900, 500);
+  const home = await ko.evaluate(() => ({ stories: document.getElementById('whatsnew-overlay').classList.contains('hidden'),
+    home: !document.getElementById('knockout-home')?.classList.contains('hidden'), modes: !document.getElementById('modes').classList.contains('hidden') }));
+  check(home.stories && home.home && home.modes, 'PLAY SUPER KNOCKOUT opens the Knockout home over Choose a mode', JSON.stringify(home));
+
+  // The second showing, with less motion asked for: each card as it was drawn, and LATER.
+  await ko.emulateMedia({ reducedMotion: 'reduce' });
+  await ko.reload({ waitUntil: 'load' });
+  await come();
+  check(await open(), 'it comes back a second time');
+  await tap(0.8);
+  await wind(4000);
+  on = await at();
+  check(on.scene === 'cut' && on.pill === 'NEED 5 RUNS TO BE SAFE' && !on.clear, 'with less motion the bar stands in the drop, as drawn', JSON.stringify(on));
+  await tap(0.8);
+  check((await at()).watching === '2 WATCHING', 'two watching from the start');
+  await tap(0.8);
+  on = await at();
+  check(on.scene === 'friends' && on.points === '+10 +5 +2', 'and the points stand at what they are', JSON.stringify(on));
+  await ko.click('#whatsnew-later');
+  await wind(700, 400);
+  const later = await ko.evaluate(() => ({ stories: document.getElementById('whatsnew-overlay').classList.contains('hidden'),
+    modes: !document.getElementById('modes').classList.contains('hidden'), home: !document.getElementById('knockout-home')?.classList.contains('hidden') }));
+  check(later.stories && later.modes && !later.home, 'LATER goes on to Choose a mode', JSON.stringify(later));
+  check(await seenKo() === 'knockout:2', 'counted twice', await seenKo());
+  await ko.reload({ waitUntil: 'load' });
+  await come();
+  await hold();
+  await ko.click('#start');
+  await wind(1200);
+  check(!(await ko.$('.whatsnew-sheet')), 'and never again on its own');
+  await context.close();
 }
 
 check(errors.length === 0, 'nothing threw on the way', errors.join(' ;; '));

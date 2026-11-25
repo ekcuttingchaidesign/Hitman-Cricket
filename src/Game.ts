@@ -1,5 +1,5 @@
 import { handleOf, ownsHandle } from './game/handle';
-import { Presence, liveNow, onLive, type Doing } from './game/live-api';
+import { Presence, liveNow, livePlayers, onLive, refreshLive, type Doing } from './game/live-api';
 import { watchLive } from './ui/LiveMarks';
 import { marathonDay } from './scene/night';
 import { fetchActivity, fetchProfile, saveBio, type OwnActivity, type ProfilePayload } from './game/profile-api';
@@ -42,7 +42,7 @@ import { Health } from './game/Health';
 import { TAILENDER, endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { EASE, easeFor, easedSkill, easedWindows, notePlayed, playedIn, seedPlayed } from './game/newcomer';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SUPER10_PLAN, SURVIVE_PLAN, bouncersEvery, lateCutsEvery, spinCutsEvery, spinPullsEvery, flightsEvery, flightAt, flightLengthOf, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SUPER10_PLAN, SURVIVE_PLAN, knockoutPlan, bouncersEvery, lateCutsEvery, spinCutsEvery, spinPullsEvery, flightsEvery, flightAt, flightLengthOf, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -169,6 +169,26 @@ import { nameProblem, renameReason, siblingReason } from './server/name-rules';
 import { cleanName, foldName } from './server/board-store';
 import { kitDeal } from './config/board';
 import { encodeInnings, limitsOf } from './game/ball-string';
+import { HOLD_MS, READY_MS, heldOf } from './ui/KnockoutHeld';
+import { swingFourthOf } from './game/free-hit';
+import { matchPlan, seatBallOf } from './game/knockout-replay';
+import { lastCard, mineIn, pointsNote, pointsWord, resultsOf } from './game/knockout-told';
+import { LIVE_RULES } from './game/knockout-points';
+import { KNOCKOUT, KnockoutRoom, chipOf, cutLine, freeHitOf, knockoutScreen, overLine, type BallNews, type Play, type Seat, type SeatBall, type SeatSpec, sampleTrack, storyFrom, trackOf, type TrackMood } from './game/knockout';
+import { KnockoutMoment, ordinal, type MomentView } from './ui/KnockoutMoment';
+import type { RingView, WatchHeader } from './ui/KnockoutWatch';
+import type { ResultsView } from './ui/KnockoutResults';
+import { KNOCKOUT_HERO, markRulesSeen, readTally, rulesSeen, tallyRoom } from './ui/KnockoutHome';
+import { FriendsScreen, LobbyScreen, type AroundPlayer, type LobbyView } from './ui/KnockoutFriends';
+import {
+  MATCH_BEAT_MS, MATCH_PARAM, MatchLink, awayInMatch, backToRoom, ballChar, ballInMatch, beatInMatch, doneMatch, hostMatch, inviteToMatch, joinMatch, keepMatch, leaveMatch, settleMatch,
+  nudgeInMatch, reactInMatch, watchInMatch, readKnockoutBoards, readKnockoutCareer, readKnockoutStanding, readMatchInvites, readyMatch, removeFromMatch, startMatch,
+  type KnockoutStanding, type MatchInviteView, type MatchView, type Me as MatchMe, type StoredResult,
+} from './game/knockout-api';
+import { KnockoutBoard } from './ui/KnockoutBoard';
+import { cleanMatchCode } from './game/match-code';
+import { AWAY_MS, STALL_MS } from './server/knockout-store';
+import { type BallHow, packHow, readHow } from './game/ball-how';
 import { demoRoom, demoWanted as roomDemoWanted } from './game/room-demo';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
 const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'];
@@ -270,6 +290,35 @@ const ASKED_GROUND = askedGround(location.search);
  */
 /** A camera switched away from within this many balls of being picked counts as given up on (`camera-quit-…`). */
 const CAMERA_QUIT_BALLS = 6;
+/**
+ * The room after the player has gone (section 51): a ball every this often
+ * while nobody watches; watched, a ball's run-up waits `WATCH_LEAD` and the
+ * ball stays dead `WATCH_TAIL` after it settles, as the game's own ball does.
+ */
+interface RoomBall {
+  start: number; delivery: Delivery; news: BallNews; seat: number; play: Play | null;
+  /** A friend's ball as their phone told it (`ball-how.ts`): staged as a replay stages one's own, where there is one. */
+  how?: BallHow | null;
+  swung: boolean; struck: boolean; shown: boolean; told: boolean; presentAt: number; endAt: number; outcome: ShotOutcome | null;
+}
+/** What somebody around now is batting, said in the friends screen's list. */
+const MODE_WORD_LIVE: Record<string, string> = { classic: 'the Blast', marathon: 'a Test Marathon', survive: 'Test Survival', super10: 'Super10' };
+const ROOM_BALL_MS = 6500, ROOM_FIRST_MS = 5500, WATCH_LEAD = 700, WATCH_TAIL = 1100;
+/**
+ * The room's end, on one clock (section 52's beats), in the page's milliseconds from the moment the
+ * last ball's call has stood: the lights answer at once, MATCH OVER at `over`, the count to Results
+ * from `count` for three seconds, the wipe at `wipe`, and Results under it halfway through.
+ */
+const ROOM_END = { over: 400, wipe: 4000 } as const;
+/** WINNER's keys land at 2.6 seconds and it settles by 3: its count to Results starts after that (`ROOM_END` from here). */
+const WON_RESULTS_MS = 2800;
+interface RoomEnding { from: number; lit: boolean; shown: boolean; wiped: boolean; done: boolean; pin?: number }
+/** How long after the cut's ball the floodlights answer it, so the ball's own call has landed first. */
+const FLOOD_AFTER_MS = 450;
+/** The crowd's swell at a cut: a four's, a little bigger. */
+const CUT_CHEER = { size: 'mid', peak: .62, decay: 1.6, swell: .6 } as const;
+/** Super Knockout's hit-stop on the player's wicket (`knockoutHit`). */
+const HIT_STOP_MS = 120;
 const VENUE_COIN = { blast: Math.random(), test: Math.random() } as const;
 const MARATHON_OPEN = SHOW_MARATHON || (!SURVIVE_ONLY
   && new URLSearchParams(location.search).get('mode')?.toLowerCase() === 'marathon');
@@ -283,6 +332,36 @@ const SURGE_WAIT_MS = 1600;
 /** The overs a Super10 crowd sends a Mexican wave round the arena at the top of: the third, sixth and eighth. */
 const WAVE_OVERS = [2, 5, 7];
 const SUPER10_OPEN = SUPER10_ONLY || !SURVIVE_ONLY;
+/**
+ * Super Knockout, stage one: `?knockout=1` walks out into a practice room of
+ * the player and eleven subs, the Blast's ball with one wicket, the lowest
+ * totals cut at the end of every over (`game/knockout.ts`). Nothing is sent;
+ * the switch makes it practice (`practice.ts`). Not in the two Pages builds.
+ */
+const KNOCKOUT_ASKED = !NO_BOARD && new URLSearchParams(location.search).get('knockout') === '1';
+/**
+ * Super Knockout on Choose a mode (its poster, its card, its home and its
+ * rules, and matches with friends): everywhere there is a board, production
+ * included since its release (24 November 2026), and never in the two Pages
+ * builds, which have none.
+ */
+/** How often a phone with a room's lobby on screen says it is still there (the store calls a friend away after `LOBBY_AWAY_MS`). */
+const LOBBY_BEAT_MS = 8000;
+/** How often a phone with a friend's story open says who it is watching (the store lets it lapse after `WATCH_FRESH_MS`). */
+const WATCH_BEAT_MS = 10_000;
+const KNOCKOUT_OPEN = !NO_BOARD && !SURVIVE_ONLY && !SUPER10_ONLY;
+/** `?matchlog=1`: where a match with friends stands on this phone, on a line over the screen (`matchLog`). */
+const MATCH_LOG = new URLSearchParams(location.search).get('matchlog') === '1';
+/** How often a player who is not batting is asked whether somebody has invited them to a match. */
+const INVITE_POLL_MS = 6000;
+/** A ball on its way or being played: nothing of a match is worked out or drawn until it is dead. */
+const MATCH_BALL_LIVE: GamePhase[] = ['BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE'];
+/** How soon the room asks again to have a sub bat for somebody the store said was not away yet. */
+/** A check-in this long overdue goes even with a ball live: well inside the store's wait before it takes a phone for away. */
+const MATCH_BEAT_OVERDUE_MS = 11_000;
+const MATCH_REASK_MS = 8000;
+/** Its innings, for `ScoreManager`: one wicket, and balls enough for the room's longest match. */
+const KNOCKOUT_LIMITS: InningsLimits = { totalBalls: KNOCKOUT.maxBalls, maxWickets: 1, ballsPerOver: KNOCKOUT.ballsPerOver };
 /** Challenges from a profile in Super10: wherever Super10 is played and a room can be reached. */
 const SUPER10_CHALLENGES = SUPER10_OPEN && !NO_BOARD;
 /** Super10's kits on the Dressing Room's kit shelf: wherever Super10 is played beside the other modes. */
@@ -306,10 +385,10 @@ interface Kept {
   /** From release: the swing, the ball resolved, and the bat on it; and from the bat, the ball where it was going. */
   swingAfter: number; resolveAfter: number; contactAfter: number; arrives: number; held?: number; bowled?: boolean;
 }
-function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' {
+function lastMode(): 'CLASSIC' | 'MARATHON' | 'SURVIVE' | 'SUPER10' | 'KNOCKOUT' {
   try {
     const kept = localStorage.getItem(LAST_MODE_KEY);
-    return kept === 'MARATHON' || kept === 'SURVIVE' || (kept === 'SUPER10' && SUPER10_OPEN && !SUPER10_ONLY) ? kept : 'CLASSIC';
+    return kept === 'MARATHON' || kept === 'SURVIVE' || (kept === 'SUPER10' && SUPER10_OPEN && !SUPER10_ONLY) || (kept === 'KNOCKOUT' && KNOCKOUT_OPEN) ? kept : 'CLASSIC';
   } catch { return 'CLASSIC'; }
 }
 
@@ -409,6 +488,8 @@ export class Game {
   private ending: Ending | null = null;
   /** The Marathon only: its three batters and its end. */
   private marathon: MarathonInnings | null = null;
+  /** The Super Knockout practice room this innings is batted in, behind `?knockout=1`. */
+  private knockout: KnockoutRoom | null = null;
   /** What the Marathon has put up this innings: the swing coming on, and the express bowler's first over. */
   private told = { swing: false };
   /**
@@ -426,6 +507,18 @@ export class Game {
   private fieldUi!: FieldUi;
   /** When the bowler may set off, if a level's banner is up: he waits for it as for the field. */
   private bannerUntil = 0;
+  /**
+   * Super Knockout's held scoreboard (`KnockoutHeld.ts`): when the hold
+   * began, on the game's clock, or null; how much of this wait's `HOLD_MS`
+   * is spent, so letting go and holding again never stretches it; and the
+   * ball it was spent on.
+   */
+  /** The last cut, for the ground's screen, and the ball it fell after. */
+  private koCut: { at: number; gone: Seat[] } | null = null;
+  private held: number | null = null;
+  private heldSpent = 0;
+  private heldBall = -1;
+  private heldWas = 0;
   /** Where the batter who played the last ball came in, in the team's history: his fifty is his own. */
   private playedFrom = 0;
   /** The last ball took the man in out of the innings, and the next walks out once it is dead. */
@@ -825,6 +918,11 @@ export class Game {
       void this.pullDressing();
       void this.catchUpOnKey();
       void this.catchUpOnPassword();
+      // A match's link (`?k=K7Q2`): straight to Play with friends with its code going in.
+      const linked = cleanMatchCode(new URLSearchParams(location.search).get(MATCH_PARAM));
+      if (linked && this.friendsOpen) this.openFriends(linked);
+      // Invites to a match are asked for all visit long, wherever the player is that is not an innings (`bannerMatchInvite`).
+      if (this.friendsOpen) window.setInterval(() => void this.bannerMatchInvite(), INVITE_POLL_MS);
       return this.openChallenges();
     }).catch(error => { if (import.meta.env.DEV) console.error('challenge startup', error); });
     this.countVisit();
@@ -843,7 +941,7 @@ export class Game {
     // `?follow=2` or `3` draws it that many times over, for seeing what it does.
     { const asked = new URLSearchParams(location.search).get('follow'); this.scene.followThrough = asked === null ? 1 : Math.min(3, Math.max(0, Number(asked) || 0)); }
     // Bowled or stumped, the wicket is heard when the ball reaches it.
-    this.scene.onStumps = () => this.audio.play('stumps');
+    this.scene.onStumps = () => { this.audio.play('stumps'); if (this.outcome?.isWicket) this.knockoutHit(); };
     // The stars' keys first, so the moments' keys come after them in the page
     // and can be lifted clear of them when both are asked for.
     if (this.rateKeys) this.hud.rateKeys(RATE_KEYS, thing => this.previewRating(thing));
@@ -907,6 +1005,29 @@ export class Game {
     // Super10's PLAY card: the whole card plays it.
     this.hud.on('mode-super10', () => { track('super10-play-card', 'Played Super10 from its card on Choose a mode'); this.choose('SUPER10'); });
     this.hud.on('mode-super10-poster', () => { track('super10-play-poster', 'Played Super10 from its poster on Choose a mode'); this.choose('SUPER10'); });
+    // Super Knockout's card and poster open its home; the card's (i) and the home's open how it works.
+    this.hud.on('mode-knockout', this.openKnockout);
+    this.hud.on('mode-knockout-poster', this.openKnockout);
+    this.hud.on('mode-knockout-info', () => { markRulesSeen(); this.hud.knockoutRules(true); });
+    this.hud.on('ko-home-back', () => this.hud.knockoutHome(null));
+    // PLAY WITH FRIENDS, live where matches can be kept: off production, with a board, in a window that can keep a name.
+    this.hud.knockoutFriendsLive(this.friendsOpen);
+    this.hud.on('ko-friends', () => this.openFriends());
+    this.hud.on('ko-home-figures', () => this.openKnockoutBoard('home'));
+    // Super Knockout on another player's profile, and INVITE TO A MATCH under it, where matches with friends are played.
+    if (this.friendsOpen) {
+      this.hud.onPlayerKnockout = handle => readKnockoutCareer(handle);
+      this.hud.onPlayerInvite = them => this.inviteFromProfile(them);
+    }
+    // Super Knockout on the Leaderboard's mode menu, where matches with friends are played: its own board, over that one.
+    if (this.friendsOpen) {
+      this.hud.boardAlso = [{ id: 'knockout', name: 'Super Knockout', colour: '#ee2a2a', art: KNOCKOUT_HERO, line: 'Points, wins and totals with friends' }];
+      this.hud.onBoardAlso = () => this.openKnockoutBoard('board');
+    }
+    this.hud.on('ko-home-info', () => { markRulesSeen(); this.hud.knockoutRules(true); });
+    this.hud.on('ko-rules-back', () => this.hud.knockoutRules(false));
+    this.hud.on('ko-quick', this.chooseKnockout);
+    this.hud.on('ko-rules-quick', this.chooseKnockout);
     // My Stats from Choose a mode: the avatar at the top and the tier card in the bento.
     this.hud.on('modes-profile', this.showStats);
     this.hud.on('modes-bell', () => this.openNotices());
@@ -1004,11 +1125,13 @@ export class Game {
     this.hud.showMarathonTab(MARATHON_OPEN);
     // Super10's board where Super10 can be played, and never in the tester build, which keeps nothing.
     this.hud.showSuper10Tab(SUPER10_OPEN && !SUPER10_ONLY);
+    this.hud.showKnockout(KNOCKOUT_OPEN);
     this.hud.onBoardTab = this.tabBoard;
     this.hud.onBoardStories = () => this.showStories('board');
     // OPEN THE DRESSING ROOM, on the last story: after the stories, the room,
     // over Choose a mode where the stories were on the way to it.
-    this.hud.onStoriesOpen = (what, shown) => (what === 'super10' ? this.playFromStory(shown) : what === 'rivals' ? this.rivalsFromStory(shown) : this.openDressing('story', shown));
+    this.hud.onStoriesOpen = (what, shown) => (what === 'super10' ? this.playFromStory(shown) : what === 'rivals' ? this.rivalsFromStory(shown)
+      : what === 'knockout' ? this.knockoutFromStory(shown) : this.openDressing('story', shown));
     this.hud.onStoryReel = (shot, beat) => this.playReel(shot, beat);
     this.hud.onStoryShow = (kind, beat) => this.playShow(kind, beat);
     this.hud.onLadderTab = this.tabLadder;
@@ -1128,6 +1251,7 @@ export class Game {
       else if (this.hud.viewport.requestFullscreen) void this.hud.viewport.requestFullscreen().catch(() => {});
     });
     this.hud.viewport.addEventListener('pointerdown', () => { this.walkedOn(true); this.skipReplay(); });
+    this.hud.onHold(down => (down ? this.holdBoard() : this.letGoBoard()));
     // The pause sheet's replays switch (`replay.ts`), kept across visits.
     // The pause sheet's Camera row (`camera.ts`), kept across visits; taken at once, mid-innings too.
     for (const { id } of CAMERAS) this.hud.on(`camera-${id}`, () => this.useCamera(id));
@@ -1138,7 +1262,7 @@ export class Game {
     // A bundle built survive-only plays one innings and offers no way out of
     // it — that is the whole of what makes it publishable somewhere with no
     // board behind it. A `?mode=` link does the same thing at runtime.
-    const named = SURVIVE_ONLY ? 'SURVIVE' : SUPER10_ONLY ? 'SUPER10' : new URLSearchParams(location.search).get('mode')?.toUpperCase();
+    const named = SURVIVE_ONLY ? 'SURVIVE' : SUPER10_ONLY ? 'SUPER10' : KNOCKOUT_ASKED ? 'CLASSIC' : new URLSearchParams(location.search).get('mode')?.toUpperCase();
     // Off production the Marathon has a card on the picker; on it, until it
     // ships, it is this link and nothing else. See `docs/MARATHON.md`.
     if (named === 'SURVIVE' || named === 'CLASSIC' || named === 'MARATHON' || (named === 'SUPER10' && SUPER10_OPEN)) {
@@ -1244,6 +1368,27 @@ export class Game {
       // A Blast innings written ball by ball, the same way, for looking at its card,
       // and a Super10 one, for jumping to its later bowlers.
       blast: (balls: (number | 'W')[]) => this.writeBlast(balls),
+      // Super Knockout's end moment held at `t` seconds (null lets it run), and where its clock is.
+      knockoutAt: (t: number | null) => { KnockoutMoment.pinned = t; },
+      // The knockout bar stood in a made-up room in each mood, for photographing it (`sampleTrack`); `left` is the balls left in the over.
+      knockoutMood: (mood: TrackMood, left = 2) => { this.hud.knockoutTrack(sampleTrack(mood, left), this.knockout?.you.face ?? 0); },
+      // The floodlights' flash or dip put up now, for photographing (`floodlights.ts`).
+      knockoutFlood: (kind: 'flash' | 'dip' | null) => { this.scene.floodlights(kind, this.elapsed); },
+      knockout: () => this.knockout && { standing: this.knockout.standing(), bowled: this.knockout.bowled, left: this.knockout.alive.length, you: { ...this.knockout.you },
+        freeNext: this.knockout.freeHit(), freeAhead: this.knockout.freeHitAhead(), freeBall: this.knockout.freeBallNext, hitStops: this.hitStops, flood: this.scene.floodShown, night: this.scene.lit === 'night',
+        roomOn: !!this.room, pending: !!this.room?.pending, finished: this.knockout.finished, watching: this.room?.watching ?? null, watchBall: this.room?.ball ? { seat: this.room.ball.seat, struck: this.room.ball.struck, shown: this.room.ball.shown, told: !!this.room.ball.how,
+          shot: this.room.ball.how ? this.room.ball.how.swing?.shot ?? null : this.room.ball.play?.shot ?? null, helicopter: !!this.room.ball.how?.swing?.helicopter } : null, done: this.knockout.done,
+        ending: this.room?.ending ? (this.room.ending.wiped ? 'wipe' : this.room.ending.shown ? 'over' : 'last') : null, results: !!document.getElementById('ko-results'),
+        winner: this.knockout.winner?.name ?? null, rings: this.room ? this.ringsOf().map(r => `${r.name}${r.out ? ':out' : ''}`) : [],
+        // A match with friends: the room's own clock, every seat as it stands, and this phone's balls sent and to send.
+        roomBalls: this.knockout.roomBalls, table: this.knockout.seats.map(s => `${s.name}:${s.runs}${s.out ? 'w' : ''}/${s.played}#${s.place ?? '-'}`).join(' '),
+        match: this.matchPlay ? { code: this.matchPlay.code, round: this.matchPlay.round, batted: this.matchPlay.batted, out: this.matchPlay.out, held: this.matchPlay.held, outbox: Math.max(0, this.matchPlay.balls.length - this.storedCard(this.matchPlay).length), holding: this.matchHolding } : null },
+      // The room played on to its end at once, for the checks: software rendering would take minutes over it.
+      knockoutResultsNow: () => this.resultsNow(),
+      // Holds the room's end at `ms` into its beats (null lets it run on), for photographing MATCH OVER on a slow renderer.
+      knockoutEndAt: (ms: number | null) => { const e = this.room?.ending; if (!e) return; if (ms === null) { e.from = performance.now() - (e.pin ?? 0); delete e.pin; } else e.pin = ms; },
+      knockoutPlayOn: () => { while (this.room && this.knockout && !this.knockout.done) this.roomNews(this.knockout.ball(this.generator.next(0), null), false); },
+      knockoutWatch: (id: number | null) => this.watch(id), knockoutStep: (by: 1 | -1) => this.watchStep(by), knockoutUnwatch: () => this.unwatch(),
       // The star prompt on demand, for `rating-check.mjs`: which thing, asked
       // as the end of an innings would ask it, and nothing about when.
       rating: (thing: RatedThing = 'game') => this.showRating(thing, thing === 'game' ? 'innings' : 'mode'),
@@ -1292,6 +1437,8 @@ export class Game {
    * just replaced the card.
    */
   private modes = (at = lastMode()) => {
+    // Choose a mode from inside a match with friends lets it go: running away, if the player was still in it.
+    if (this.matchPlay && !this.matchPlay.fresh) this.endMatch(!this.matchDone);
     this.audio.music('cover');
     // The bar rides on the picker, capped at two showings. Nothing is issued
     // yet, so it only appears where a key exists to be saved.
@@ -1310,6 +1457,7 @@ export class Game {
     void this.refreshCount();
     this.askNotices();
     if (this.noticed) this.bannerChallenge();
+    void this.bannerMatchInvite();
     // Anything earned away from an innings's end — a Rival Match settled while
     // the player was elsewhere — is celebrated here instead.
     this.celebrateUnlocks();
@@ -1331,6 +1479,7 @@ export class Game {
     const surviveBest = survive.wins > 0 ? 'Won a chase' : survive.draws > 0 ? SURVIVED : survive.innings > 0 ? 'Bowled out' : null;
     return {
       player: readPlayer(),
+      knockout: readTally(),
       marathon: { best: marathon.innings > 0 && marathon.highest > 0 ? String(marathon.highest) : null, rank: null },
       blast: { best: this.best > 0 ? String(this.best) : null, rank: at >= 0 ? at + 1 : null },
       survive: { best: surviveBest, rank: null },
@@ -2377,6 +2526,7 @@ export class Game {
   }
   choose = (mode: GameMode) => {
     this.mode = mode;
+    this.knockoutPicked = false;
     // The mode played last, where Choose a mode's rail opens next time.
     try { if (mode === 'CLASSIC' || mode === 'MARATHON' || mode === 'SURVIVE' || mode === 'SUPER10') localStorage.setItem(LAST_MODE_KEY, mode); } catch { /* Then it opens on the Blast. */ }
     this.walkOut();
@@ -2387,6 +2537,800 @@ export class Game {
    * the old ground up first, to be swiped off the new one; the stadium is
    * nobody's news any more, so a player now walks straight out to bat.
    */
+  /** Super Knockout from its home: a practice room against subs, the Blast's ball with one wicket. */
+  private chooseKnockout = () => {
+    this.hud.knockoutRules(false); this.hud.knockoutHome(null); this.hud.closeModes();
+    this.mode = 'CLASSIC';
+    this.knockoutPicked = true;
+    try { localStorage.setItem(LAST_MODE_KEY, 'KNOCKOUT'); } catch { /* Then it opens on the Blast. */ }
+    track('knockout-quick-match', 'Quick match in Super Knockout (practice room)');
+    this.walkOut();
+  };
+  /** Super Knockout's home over Choose a mode, with its rules over it the first time a browser opens it. */
+  private openKnockout = () => {
+    this.showKnockoutHome();
+    track('knockout-home', 'Opened Super Knockout');
+    if (!rulesSeen()) { markRulesSeen(); this.hud.knockoutRules(true); }
+    // The card's figures are the store's once matches with friends have counted: asked each time the home opens.
+    const me = this.friendsOpen ? this.matchMe() : null;
+    if (me && !this.knockoutStanding) void readKnockoutStanding(me.playerId).then(standing => { if (standing) { this.knockoutStanding = standing; if (this.hud.knockoutHomeOpen) this.showKnockoutHome(); } });
+  };
+  /** This player's Knockout record and places as the store last said; let go when a match pays, so the next look asks again. */
+  private knockoutStanding: KnockoutStanding | null = null;
+  /**
+   * INVITE TO A MATCH on a profile: a match hosted with them asked into it, as INVITE on somebody around now does. Not
+   * in the middle of an innings, where the profile may be up over the Leaderboard.
+   */
+  private inviteFromProfile(them: { handle: string; name: string }) {
+    if (!['START', 'INNINGS_END'].includes(this.phase) || this.matchPlay || this.lobbyScreen?.open) {
+      this.hud.notice(`Finish what you’re playing first, then invite ${them.name} from Play with friends.`);
+      return;
+    }
+    track('knockout-invite-profile', 'Invited a player to a match from their profile');
+    this.hud.closePlayer();
+    this.knockoutBoard?.close(); this.knockoutBoard = null;
+    this.hud.closeBoard(); this.hud.closeNotices(); this.hud.closeList();
+    this.modes('KNOCKOUT');
+    this.openKnockout();
+    this.openFriends();
+    void this.hostFriends(them.handle);
+  }
+  private showKnockoutHome() {
+    const career = this.knockoutStanding?.career ?? null;
+    this.hud.knockoutHome(readTally(), career && { weekPoints: career.weekPoints, bestPlace: career.bestPlace ?? 0, wins: career.wins, played: career.played }, this.friendsOpen);
+  }
+  /**
+   * Super Knockout's leaderboard (K13), over its home: the ladders and this player's standing asked for as it opens.
+   * Its key plays with friends.
+   */
+  private knockoutBoard: KnockoutBoard | null = null;
+  private openKnockoutBoard = (from: 'home' | 'board' = 'home') => {
+    if (!this.friendsOpen || this.knockoutBoard) return;
+    const me = this.matchMe();
+    track(`knockout-board-${from}`, 'Opened the Super Knockout leaderboard');
+    const board = this.knockoutBoard = new KnockoutBoard(this.hud.viewport, me && { playerId: me.playerId, avatar: me.avatar }, {
+      back: () => { this.knockoutBoard = null; },
+      // Over the Leaderboard it is a look and nothing more: that board may be up in the middle of an innings.
+      ...(from === 'home' ? { play: () => { this.knockoutBoard = null; this.openFriends(); } } : {}),
+      open: (row, from) => { track('profile-open-knockout', 'A player’s profile opened off the Super Knockout leaderboard'); this.hud.openPlayer({ ...row, mode: 'classic', place: null, best: null }, from); },
+      mine: () => { board.close(); this.knockoutBoard = null; if (from === 'home') this.hud.knockoutHome(null); this.showStats(); },
+    });
+    void Promise.all([readKnockoutBoards(), me ? readKnockoutStanding(me.playerId) : Promise.resolve(null)]).then(([boards, standing]) => {
+      if (this.knockoutBoard !== board) return;
+      if (standing) this.knockoutStanding = standing;
+      board.fill(boards, standing);
+    });
+  };
+  /* ── Super Knockout with friends (Figma Battle Royale page, sections 53 and 54) ─────────────────────── */
+
+  /** Play with friends and the lobby, made the first time either is asked for. */
+  private friendsScreen: FriendsScreen | null = null;
+  private lobbyScreen: LobbyScreen | null = null;
+  /** The match being waited for in the lobby, or batted. */
+  private matchLink: MatchLink | null = null;
+  /**
+   * A match with friends being batted: its seed and seats, the balls bowled so
+   * far by index, this player's balls as batted here (sent from wherever the
+   * store's own card has got to, so one lost or turned away on the way is sent
+   * again rather than leaving a gap nobody can fill), and when the room last
+   * asked to have a sub bat for whom.
+   */
+  private matchPlay: {
+    code: string; me: MatchMe; seed: number; seats: SeatSpec[]; you: number;
+    deliveries: Delivery[]; balls: string[]; sending: boolean; sendAt: number; refused: string | null; sendFails: number;
+    /** How each of this phone's balls was played, sent with it; and how the other players' were, as their phones told it, by handle and ball. */
+    hows: string[]; told: Map<string, Map<number, BallHow>>;
+    /** Balls this player has batted on this phone, sent or not, and whether one of them was the wicket. */
+    batted: number; out: boolean;
+    asked: Map<string, number>; beatAt: number; fresh: boolean; view: MatchView; logAt: number;
+    /** Which match of the room this is; whether the room has news the screen has not been shown (held while a ball is live); and whether the store has been told it is over. */
+    round: number; dirty: boolean; doneSent: boolean; leaving: boolean;
+    /** The store's result for this match has been shown (`resultIn`). */
+    paid?: boolean;
+    /** Whether the bowler has ever waited at his mark for the room, for the checks. */
+    held: boolean;
+    /** Reactions already shown here, by the store's id for each. */
+    reacted: Set<string>;
+    /** Which ball of the match the one being bowled is, as it was bowled. */
+    facing: number;
+    /** Back in the room with the match still being played: kept under the room, to be watched from it. */
+    parked: boolean;
+    /**
+     * In the room without ever batting this match on this phone (joined late, or the page was loaded again after going
+     * back): the room is built from the store's cards to be watched from, with no seat of this phone's own (`spectate`).
+     * `staged` once the ground has been put up for the first story.
+     */
+    onlooker?: boolean; staged?: boolean;
+  } | null = null;
+  /** Walking out of the lobby: the moment every phone counts to, by the store's clock. */
+  private walkOutAt: { at: number; timer: number } | null = null;
+  /** Matches anybody can play with friends in: off production, with a board, in a window that can keep a name. */
+  private get friendsOpen() { return KNOCKOUT_OPEN && this.canRegister; }
+  private matchMe(): MatchMe | null {
+    const mine = readPlayer();
+    return this.player && mine?.name ? { playerId: this.player, name: mine.name, avatar: mine.avatar } : null;
+  }
+  /** Who is around now, as the friends screen and the lobby list them: never this player. */
+  private aroundNow(invited: readonly string[] = []): AroundPlayer[] {
+    const mine = this.player ? handleOf(this.player) : '';
+    return livePlayers().filter(p => p.handle !== mine).map(p => ({
+      handle: p.handle, name: p.name, avatar: p.avatar, sent: invited.includes(p.handle),
+      batting: p.state === 'batting' ? `Batting ${MODE_WORD_LIVE[p.mode ?? 'classic'] ?? 'an innings'}` : null,
+    }));
+  }
+  /** PLAY WITH FRIENDS (1C): a name first, for a player who has none, then the friends screen, a code from a link joined straight away. */
+  private openFriends = (code: string | null = null) => {
+    if (!this.friendsOpen) return;
+    if (!this.matchMe()) { this.afterProfile = () => this.openFriends(code); this.askProfile(true); return; }
+    this.friendsScreen ??= new FriendsScreen(this.hud.viewport, {
+      back: () => this.friendsScreen!.hide(),
+      join: entered => void this.joinFriend(entered),
+      host: () => void this.hostFriends(null),
+      invite: handle => void this.hostFriends(handle),
+    });
+    this.friendsScreen.show(this.aroundNow());
+    void this.bannerMatchInvite();
+    track('knockout-friends', 'Opened Play with friends');
+    void refreshLive(true).then(() => { if (this.friendsScreen?.open) this.friendsScreen.around(this.aroundNow()); });
+    if (code) void this.joinFriend(code);
+  };
+  private async joinFriend(code: string) {
+    const me = this.matchMe(), screen = this.friendsScreen;
+    if (!me || !screen) return;
+    screen.busy(true);
+    // Joining twice is joining once, so a join the network lost is simply asked again.
+    let answer = await joinMatch(code, me);
+    for (let tries = 1; !answer.ok && answer.retry && tries < 3; tries++) answer = await joinMatch(code, me);
+    screen.busy(false);
+    if (!answer.ok || !answer.match) {
+      track('knockout-join-refused', 'A code that was not a match');
+      return screen.error(answer.status === 404 ? `No match with code ${code}. Check it with your friend.` : answer.reason ?? 'That did not work. Try again.');
+    }
+    track('knockout-joined', 'Joined a match with friends');
+    this.enterLobby(answer.match);
+  }
+  /** HOST A MATCH, or INVITE on somebody around now, which hosts one and asks them in. */
+  private async hostFriends(invite: string | null) {
+    const me = this.matchMe(), screen = this.friendsScreen;
+    if (!me || !screen) return;
+    screen.busy(true);
+    const answer = await hostMatch(me);
+    screen.busy(false);
+    if (!answer.ok || !answer.match) { this.hud.notice(answer.reason ?? 'The match could not be made. Try again.'); return; }
+    track('knockout-hosted', 'Hosted a match with friends');
+    this.enterLobby(answer.match);
+    if (invite) void this.inviteFriend(invite);
+  }
+  private enterLobby(match: MatchView) {
+    this.friendsScreen?.hide();
+    this.matchLink?.stop();
+    keepMatch(match.code);
+    this.lobbyScreen ??= new LobbyScreen(this.hud.viewport, {
+      back: () => void this.leaveLobby(),
+      share: () => void this.shareMatch(),
+      copy: () => { const code = this.matchLink?.code; if (code) void navigator.clipboard?.writeText(code).then(() => this.hud.notice('Code copied'), () => undefined); },
+      invite: handle => void this.inviteFriend(handle),
+      start: () => void this.startFriends(),
+      ready: on => { const me = this.matchMe(), link = this.matchLink; if (me && link) void readyMatch(link.code, me, on).then(answer => link.take(answer)); },
+      nudge: handle => {
+        const me = this.matchMe(), link = this.matchLink;
+        if (!me || !link) return;
+        track('knockout-nudge', 'The host nudged somebody not ready');
+        void nudgeInMatch(link.code, me, handle).then(answer => link.take(answer));
+      },
+      remove: handle => {
+        const me = this.matchMe(), link = this.matchLink;
+        if (!me || !link) return;
+        track('knockout-removed', 'The host took somebody out of the match');
+        void removeFromMatch(link.code, me, handle).then(answer => { if (!answer.ok) this.hud.notice(answer.reason ?? 'They could not be taken out. Try again.'); link.take(answer); });
+      },
+      watchSeat: handle => this.watchFromRoom(handle, null),
+      watchRing: id => this.watchFromRoom(null, id),
+      board: () => { if (this.knockout && this.matchPlay?.parked) { this.mark('knockout-leaderboard-room', 'The leaderboard opened from the room'); this.hud.knockoutResults(this.resultsView(), undefined, () => undefined); } },
+      lastBoard: () => {
+        const results = this.lastResults();
+        if (results) { this.mark('knockout-last-match', 'The last match’s results opened from the room'); this.hud.knockoutResults(results, undefined, () => undefined); }
+      },
+    });
+    this.matchLink = new MatchLink(match.code, view => this.lobbyNews(view), reason => this.matchGone(reason));
+    this.matchLink.take({ ok: true, match });
+    this.matchLink.start();
+    void refreshLive(true).then(() => { const view = this.matchLink?.match; if (view && view.state === 'lobby') this.lobbyNews(view); });
+  }
+  /** The lobby as the store says it stands, or the walk-out counted to the start every phone was given. */
+  private lobbyNews(match: MatchView) {
+    // An answer that throws on the way into the room is caught and said (`?matchlog=1`), never left to stop the match unseen.
+    if (this.matchPlay) {
+      try { this.matchNews(match); } catch (error) { this.frameFailed(error); }
+      // Kept under the room (section 57), the match moves on there and the room is drawn over it, unless somebody is being
+      // watched from it; `matchNews` lets it go once it is over.
+      if (this.matchPlay && (!this.matchPlay.parked || this.room?.watching != null || this.room?.ending)) return;
+    }
+    const me = this.matchMe(), lobby = this.lobbyScreen;
+    if (!me || !lobby) return;
+    const mine = handleOf(me.playerId);
+    const self = match.members.find(m => m.handle === mine);
+    if (!self || self.left) return this.matchGone('You are no longer in this match.');
+    // Seated in the match being played and not back from it: the walk-out. Anybody else is in the room, where those
+    // batting are tagged PLAYING and the next match waits for them.
+    if (match.state === 'live' && self.playing) {
+      if (!this.walkOutAt && match.startAt) {
+        this.walkOutAt = { at: match.startAt, timer: 0 };
+        const tick = () => {
+          if (!this.walkOutAt || !this.matchLink) return;
+          const left = this.walkOutAt.at - this.matchLink.serverNow();
+          if (left <= 0) { this.walkOutAt = null; lobby.walkOut(null); this.beginMatch(this.matchLink.match!); return; }
+          lobby.walkOut(Math.ceil(left / 1000));
+          this.walkOutAt.timer = window.setTimeout(tick, 100);
+        };
+        tick();
+      }
+      return;
+    }
+    const live = match.state === 'live';
+    // Still here: a phone with the room on screen says so every few seconds, so one that has gone quiet (a closed tab, a
+    // phone put down) is shown as away and not waited for. The poll alone is a read, which tells the store nothing.
+    if (!live && performance.now() - this.lobbyBeatAt > LOBBY_BEAT_MS && !document.hidden) {
+      this.lobbyBeatAt = performance.now();
+      const link = this.matchLink;
+      void beatInMatch(match.code, me).then(answer => { if (link === this.matchLink && answer.ok) link?.take(answer); });
+    }
+    // Nobody still batting it: the room is asked back to its lobby (the store decides), a few seconds apart.
+    if (live && match.busy === 0 && performance.now() - this.settleAsked > 3000) {
+      this.settleAsked = performance.now();
+      const link = this.matchLink;
+      void settleMatch(match.code, me).then(answer => { if (link === this.matchLink) link?.take(answer); });
+    }
+    // A match being played that this phone never batted (joined the room late, or loaded again): the room is built from
+    // the store's cards, so those still batting can be watched from here as from any phone that was in it.
+    if (live && !this.matchPlay && match.busy > 0) this.spectate(match);
+    const members = match.members.filter(m => !m.left);
+    // A match this phone batted in and kept under the room: who is still batting it, their scores, and who can be watched.
+    const play = this.matchPlay?.parked ? this.matchPlay : null, room = play && this.knockout && !this.knockout.done ? this.knockout : null;
+    const seatOf = (handle: string) => room?.seats.find(seat => seat.handle === handle) ?? null;
+    const still = (seat: Seat | null) => !!seat && seat.place === null && !seat.out;
+    const you = room?.you ?? null;
+    const view: LobbyView = {
+      code: match.code, hosting: match.host === mine, hostName: match.members.find(m => m.host)?.name ?? 'the host',
+      ready: !!self.ready, live, playing: members.filter(m => m.playing).length, now: match.now, nudged: self.nudged ?? 0,
+      seats: members.map(m => {
+        const seat = seatOf(m.handle), own = m.handle === mine, batting = still(seat) && !(own && play?.out);
+        return {
+          handle: m.handle, name: m.name, avatar: m.avatar, host: m.host, ready: m.ready, you: own, joined: m.joined, away: !own && !!m.away,
+          playing: m.playing || batting, score: batting ? `${seat!.runs}*` : undefined, watch: batting && !own,
+          // (Watching a match this phone is not batting, their own seat still going is a sub's.)
+          out: seat && !batting ? (seat.place !== null ? `Out · ${ordinal(seat.place).toLowerCase()}` : own && play?.onlooker && still(seat) ? 'A sub is batting' : 'Out') : undefined,
+        };
+      }),
+      around: this.aroundNow(match.invited),
+      match: room && you ? {
+        heading: room.final ? 'MATCH ON · THE FINAL' : `MATCH ON · OVER ${Math.min(KNOCKOUT.cuts.length + 1, Math.floor(room.roomBalls / KNOCKOUT.ballsPerOver) + 1)}`,
+        line: `${room.alive.length} still in · tap a face to watch`,
+        rings: this.ringsOf(),
+      } : null,
+      last: !live ? this.lastOf(match) : null,
+      worth: live ? null : { first: match.worth?.[0] ?? 0, from: match.pointsFrom ?? 3 },
+    };
+    lobby.render(view);
+  }
+  private lobbyBeatAt = -Infinity;
+  /** The match that just ended in the room this phone is in, as this phone had it: who won it, and its Results for the room's LEADERBOARD. */
+  private lastMatch: { code: string; title: string; line: string; face: number; results: ResultsView } | null = null;
+  /** The store's result for the match before the one the room is waiting to start, if it has one. */
+  private storedLast(match: MatchView | null | undefined) {
+    return match?.result && match.state === 'lobby' && match.result.round === match.round - 1 ? match.result : null;
+  }
+  /**
+   * The lobby's card for the match before: off the store's result, which every phone in the room has, whoever asked the
+   * room back to its lobby first; this phone's own memory of it only where the store has none. The card used to go by
+   * the phone's memory alone, and was missing on any phone another had beaten back to the lobby.
+   */
+  private lastOf(match: MatchView): { title: string; line: string; face: number } | null {
+    const stored = this.storedLast(match), me = this.matchMe();
+    if (stored && me) return lastCard(stored, handleOf(me.playerId));
+    return this.lastMatch?.code === match.code ? { title: this.lastMatch.title, line: this.lastMatch.line, face: this.lastMatch.face } : null;
+  }
+  private lastResults(): ResultsView | null {
+    const match = this.matchLink?.match, stored = this.storedLast(match), me = this.matchMe();
+    if (stored && me && match) return resultsOf(stored, handleOf(me.playerId), match.code, 'BACK TO ROOM');
+    return this.lastMatch?.results ?? null;
+  }
+  /** The match a phone could not make a room to watch from, by code and round: not tried again each answer. */
+  private spectated = '';
+  /**
+   * Watching from the room on a phone that never batted the match (section 57's last case): somebody who joined by the
+   * code while it was on, or who loaded the page again after going back. The room is built here as every phone in the
+   * match builds it, off the seed, the seats and the cards the store holds, with no seat of this phone's own
+   * (`you: -1`, the room's ghost), and kept under the room's screen as a match gone back from is (`parked`): MATCH ON,
+   * the scores, the rings and WATCH. Nothing on the ground is touched until a story is opened (`stageOnlooker`).
+   */
+  private spectate(match: MatchView) {
+    const me = this.matchMe(), key = `${match.code}:${match.round}`;
+    if (!me || this.matchPlay || this.spectated === key || !match.seats.length || !['START', 'INNINGS_END'].includes(this.phase) || this.walkOutAt) return;
+    this.spectated = key;
+    const seats: SeatSpec[] = match.seats.map(handle => {
+      const m = match.members.find(one => one.handle === handle);
+      return { name: m?.name ?? 'Player', face: m?.avatar ?? 0, sub: false, handle };
+    });
+    this.matchPlay = { code: match.code, me, seed: match.seed, seats, you: -1, deliveries: [], balls: [], hows: [], told: new Map(), sending: false, sendAt: 0, refused: null, sendFails: 0,
+      batted: 0, out: true, asked: new Map(), beatAt: performance.now(), fresh: false, view: match, logAt: 0, held: false, round: match.round, dirty: false, doneSent: false, leaving: false,
+      reacted: new Set(), facing: 0, parked: true, onlooker: true };
+    this.seed = match.seed;
+    this.knockout = new KnockoutRoom(match.seed, { seats, you: -1 });
+    this.generator = new DeliveryGenerator(new SeededRandom(match.seed), matchPlan(match.seed));
+    this.room = { nextAt: Infinity, watching: null, ball: null };
+    this.hearHows(match);
+    this.knockout.advance(this.matchSource, this.matchPaced);
+    // Already won on the balls the store holds (it is about to say so): nothing to watch.
+    if (this.knockout.done) { this.matchPlay = null; this.knockout = null; this.room = null; return; }
+    document.body.classList.add('ko-parked');
+    track('knockout-spectate', 'A match watched from the room by a phone that was not batting it');
+  }
+  /**
+   * The ground put up for an onlooker's first story: what walking out does for a player, with no innings begun. The
+   * room's screens go, the canopy is lit and the batter dressed, and the game stands as it does after an innings, so
+   * the stories play over it and ✕ is the room.
+   */
+  private stageOnlooker() {
+    const play = this.matchPlay;
+    if (!play?.onlooker || play.staged) return;
+    play.staged = true;
+    this.hud.closeNotices(); this.hud.closeChaseEnd(); this.verdict?.close();
+    this.friendsScreen?.hide();
+    this.hud.knockoutRules(false); this.hud.knockoutHome(null); this.hud.closeModes();
+    this.mode = 'CLASSIC'; this.knockoutPicked = true; this.lesson = -1;
+    this.audio.stop(); this.audio.music(null); this.audio.unlock();
+    this.score = new ScoreManager(this.limits); this.confidence = new Confidence(); this.health = new Health();
+    this.marathon = null; this.ending = null;
+    this.koCut = null; this.held = null; this.heldBall = -1; this.hud.knockoutHeld(null); this.scene.floodlights(null);
+    this.hud.knockoutTrack(null); this.hud.knockoutEnd(null); this.hud.knockoutFreeHit(null, true);
+    this.delivery = null; this.attempt = null; this.outcome = null; this.primed = null;
+    this.input.reset(); this.scene.reset();
+    const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat, look.guard, null);
+    this.scene.whites(false);
+    this.light(blastLights());
+    this.scene.prewarm();
+    this.told = { swing: false }; this.bannerUntil = 0; this.keeperHeld = 0; this.hud.closeIntro();
+    this.scene.overcast(false, true); this.hud.levelBanner(null);
+    this.hud.start(false, false);
+    document.body.classList.remove('s10-solid');
+    this.hand();
+    this.s10 = Game.freshField();
+    this.scene.arenaMood('calm');
+    this.fieldUi.show(false, this.scene.mirrored, this.scene.facing);
+    this.nearing = null; this.hud.nearing(null, null);
+    this.hud.score(this.score); this.showConfidence();
+    this.setPhase('INNINGS_END');
+  }
+  /**
+   * BACK TO ROOM with the match still being played (section 57): the match is kept as it stands under the room, moving on
+   * as the store's balls arrive, so everybody still batting can be watched from it. The end screen waits out of sight.
+   */
+  private park(match: MatchView) {
+    const play = this.matchPlay;
+    if (!play) return;
+    play.parked = true;
+    this.hud.knockoutWaiting(null); this.hud.knockoutResults(null);
+    this.audio.music(null);
+    track('knockout-back-to-room', 'Back to the room from a match with friends');
+    this.enterLobby(match);
+    this.showMatchRoom();
+  }
+  /** The room, over a match kept under it. */
+  private showMatchRoom() {
+    document.body.classList.add('ko-parked');
+    const view = this.matchLink?.match;
+    if (view) this.lobbyNews(view);
+  }
+  /** A face with the story ring, tapped in the room: that player's game as a story, and ✕ is the room. */
+  private watchFromRoom(handle: string | null, id: number | null) {
+    const play = this.matchPlay, room = this.knockout, on = this.room;
+    if (!play?.parked || !room || !on || room.done || on.ending) return;
+    const seat = handle ? room.seats.find(one => one.handle === handle) : id !== null ? room.seats[id] : null;
+    if (!this.batting().length) return;
+    this.stageOnlooker();
+    this.lobbyScreen?.hide();
+    this.hud.knockoutResults(null);
+    document.body.classList.remove('ko-parked');
+    this.watch(seat ? seat.id : null);
+    if (on.watching === null) { this.showMatchRoom(); return; }
+    track('knockout-watch-room', 'Watched somebody’s game from the room');
+  }
+  /** A match kept under the room, let go: it is over, or the room has moved on, or the player has left the room. */
+  private dropParked() {
+    if (!this.matchPlay?.parked) return;
+    this.hud.knockoutWatch(null, this.watchKeys);
+    this.leaveMatchScreens();
+  }
+  private settleAsked = 0;
+  private async inviteFriend(handle: string) {
+    const me = this.matchMe(), link = this.matchLink;
+    if (!me || !link) return;
+    const answer = await inviteToMatch(link.code, me, handle);
+    if (!answer.ok) { this.hud.notice(answer.reason ?? 'The invite did not go. Try again.'); return; }
+    track('knockout-invite-sent', 'Invited somebody around into a match');
+    link.take(answer);
+  }
+  private async startFriends() {
+    const me = this.matchMe(), link = this.matchLink;
+    if (!me || !link) return;
+    const answer = await startMatch(link.code, me);
+    if (!answer.ok) { this.hud.notice(answer.reason ?? 'The match could not start. Try again.'); return; }
+    track('knockout-match-started', 'Started a match with friends');
+    link.take(answer);
+  }
+  /** INVITE, or the share key: the phone's own share sheet with the match's link, or the link copied. */
+  private async shareMatch() {
+    const code = this.matchLink?.code;
+    if (!code) return;
+    const url = new URL(location.href);
+    url.search = ''; url.hash = ''; url.searchParams.set(MATCH_PARAM, code);
+    const text = `Bat with me in Super Knockout. Code ${code}`;
+    track('knockout-share', 'Shared a match with friends');
+    try {
+      if (navigator.share) { await navigator.share({ title: 'Super Knockout', text, url: url.toString() }); return; }
+    } catch { /* Turned down, or no sheet: copied instead. */ }
+    try { await navigator.clipboard.writeText(`${text} ${url}`); this.hud.notice('Link copied'); } catch { this.hud.notice(`Code ${code}`); }
+  }
+  private async leaveLobby() {
+    const me = this.matchMe(), link = this.matchLink;
+    this.dropParked();
+    this.closeLobby();
+    this.friendsScreen?.show(this.aroundNow());
+    if (me && link) await leaveMatch(link.code, me);
+  }
+  private closeLobby() {
+    this.matchLink?.stop(); this.matchLink = null; keepMatch(null);
+    if (this.walkOutAt) { window.clearTimeout(this.walkOutAt.timer); this.walkOutAt = null; }
+    this.lastMatch = null; this.spectated = '';
+    this.lobbyScreen?.hide(); this.lobbyScreen?.forget();
+  }
+  /** A match that has closed, or started without this player: said once, and back to Play with friends. */
+  private matchGone(reason: string) {
+    if (this.matchPlay && !this.matchPlay.parked) return;
+    this.dropParked();
+    this.closeLobby();
+    this.hud.notice(reason);
+    if (this.friendsOpen && this.matchMe()) this.friendsScreen?.show(this.aroundNow());
+  }
+  /**
+   * The walk-out (3B, 3C): the lobby goes and the match is batted, every phone
+   * on the same seed and the same seats, the empty seats subs.
+   */
+  private beginMatch(match: MatchView) {
+    const me = this.matchMe();
+    if (!me) return;
+    const mine = handleOf(me.playerId);
+    const seats: SeatSpec[] = match.seats.map(handle => {
+      const m = match.members.find(one => one.handle === handle);
+      return { name: m?.name ?? 'Player', face: m?.avatar ?? 0, sub: false, handle };
+    });
+    this.lobbyScreen?.hide(); this.friendsScreen?.hide();
+    this.hud.knockoutRules(false); this.hud.knockoutHome(null); this.hud.closeModes();
+    this.matchPlay = { code: match.code, me, seed: match.seed, seats, you: match.seats.indexOf(mine), deliveries: [], balls: [], hows: [], told: new Map(), sending: false, sendAt: 0, refused: null, sendFails: 0,
+      batted: 0, out: false, asked: new Map(), beatAt: 0, fresh: true, view: match, logAt: 0, held: false, round: match.round, dirty: false, doneSent: false, leaving: false, reacted: new Set(), facing: 0, parked: false };
+    this.lastMatch = null;
+    document.body.classList.remove('ko-parked');
+    this.mode = 'CLASSIC';
+    this.knockoutPicked = true;
+    track('knockout-match-walkout', 'Walked out in a match with friends');
+    this.walkOut();
+  }
+  /**
+   * The match and its room let go, for somewhere else in the game: walked out
+   * of while still to bat is running away (5A), and a sub bats the seat; done
+   * batting, the seat in the room simply empties.
+   */
+  private endMatch(ranAway: boolean) {
+    const play = this.matchPlay;
+    if (!play) return;
+    this.matchPlay = null;
+    this.hud.knockoutWaiting(null);
+    if (ranAway) track('knockout-ran-away', 'Left a match with friends');
+    void leaveMatch(play.code, play.me);
+    this.closeLobby();
+  }
+  /** Whether this player's batting in the match is done: out, knocked out, or the match over. */
+  private get matchDone() {
+    const room = this.knockout;
+    return !!this.matchPlay && (!room || room.finished || room.you.out || room.you.place !== null || this.matchPlay.out);
+  }
+  /** The match's screens put away, the game left on Choose a mode under whatever comes next (the room, or Play with friends). */
+  private leaveMatchScreens() {
+    // The match over, the room keeps who won it and its Results, for one card and its LEADERBOARD until the next begins.
+    const play = this.matchPlay, room = this.knockout;
+    if (play && room?.done && room.winner) {
+      const won = room.winner === room.you, place = room.you.place ?? room.seats.length;
+      this.lastMatch = { code: play.code, face: room.winner.face, results: this.resultsView(),
+        title: won ? 'YOU WON IT' : `${room.winner.name.toUpperCase()} WON IT`,
+        line: `${room.winner.runs} off ${room.winner.balls} · ${won ? 'the room was yours' : play.onlooker ? 'you sat this one out' : `you were ${ordinal(place).toLowerCase()}`}` };
+    }
+    document.body.classList.remove('ko-parked');
+    this.matchPlay = null;
+    this.knockout = null; this.room = null;
+    this.hud.knockoutWaiting(null); this.hud.knockoutResults(null); this.hud.knockoutEnd(null); this.hud.knockoutTrack(null); this.hud.knockout(null);
+    this.hud.knockoutWatched(null);
+    this.audio.music(null);
+    this.modes(); this.openKnockout();
+  }
+  /**
+   * BACK TO ROOM: batting done (out, knocked out, or the match over), the
+   * player goes back to the room under the same code. Everybody still batting
+   * is tagged PLAYING there, and the host starts the next match once nobody
+   * is. Any ball of theirs the store has not got yet goes first.
+   */
+  private backToRoom = async () => {
+    const play = this.matchPlay;
+    if (!play || play.leaving) return;
+    // Already back, the match kept under the room: the room again.
+    if (play.parked) { this.hud.knockoutResults(null); this.showMatchRoom(); return; }
+    play.leaving = true;
+    this.hud.knockoutWaiting('BACK TO THE ROOM…');
+    for (let tries = 0, refused = 0; tries < 6 && refused < 2 && this.matchPlay === play && this.storedCard(play).length < play.balls.length; tries++) {
+      const next = this.storedCard(play).length;
+      if (play.balls[next] === undefined) break;
+      const sent = await ballInMatch(play.code, play.me, next, play.balls[next], play.round, play.hows[next]);
+      if (sent.ok && sent.match) { play.view = sent.match; continue; }
+      // Turned away twice, it is not going to land (the room has moved on to its next match, a sub has the ball): the way
+      // back is not held up for it. A send lost on the way is tried again.
+      if (!sent.retry) refused++;
+      await new Promise(done => window.setTimeout(done, 400));
+    }
+    const answer = await backToRoom(play.code, play.me);
+    if (this.matchPlay !== play) return;
+    play.leaving = false;
+    if (!answer.ok || !answer.match) { this.hud.notice(answer.reason ?? 'The room could not be reached. Try again.'); this.matchWaitLine(); return; }
+    // Still being played, and this phone has it (its end screen and rings): kept under the room to be watched from it.
+    if (this.knockout && !this.knockout.done && this.room && !this.room.ending && answer.match.round === play.round && answer.match.state === 'live') { this.park(answer.match); return; }
+    track('knockout-back-to-room', 'Back to the room from a match with friends');
+    this.toRoom(answer.match);
+  };
+  /** The room's screen, over Choose a mode: from a match this phone was batting, or was left behind by. */
+  private toRoom(match: MatchView) {
+    this.leaveMatchScreens();
+    this.enterLobby(match);
+  }
+  /** What a seat did with a ball, from the match as the store last said: a real player's card, a sub where they were away, nothing yet. */
+  private matchSource = (seat: Seat, ball: number): SeatBall => {
+    const play = this.matchPlay;
+    if (!play || seat.sub || !seat.handle) return 'sub';
+    const card = play.view.members.find(m => m.handle === seat.handle)?.card ?? '';
+    return seatBallOf(card[ball]);
+  };
+  /**
+   * A ball of the match, by index, off the match's own bowler: the same list on
+   * every phone, drawn as far as it is asked for. This player is bowled ball
+   * `batted` from it, and the room bats every seat's ball by the same index, so
+   * a phone the store has moved on (a sub batted its over while it was away)
+   * still has every ball in between. Drawn only as each ball was bowled here,
+   * those were missing and the room stood at the first of them for good.
+   */
+  private matchDelivery = (ball: number): Delivery | null => {
+    const play = this.matchPlay;
+    if (!play || ball < 0 || ball >= KNOCKOUT.maxBalls) return null;
+    while (play.deliveries.length <= ball) play.deliveries.push(this.generator.next(0));
+    return play.deliveries[ball];
+  };
+  /**
+   * The balls the room may bat a sub on: those this phone has reached, so the
+   * subs keep pace with the player ball by ball as they do in a practice room,
+   * or every ball once the player is done batting. A player's own balls never
+   * wait on it; and since `batted` catches up with the store's card, a phone
+   * moved on by a sub has every ball before where it stands.
+   */
+  private matchPaced = (ball: number): Delivery | null => {
+    const play = this.matchPlay, room = this.knockout;
+    if (!play || !room) return null;
+    const batting = room.you.place === null && !room.you.out && !play.out;
+    return batting && ball >= play.batted ? null : this.matchDelivery(ball);
+  };
+  /** The ball this player is bowled next in a match, released when the run-up says. */
+  private matchBowled(release: number): Delivery {
+    const play = this.matchPlay!;
+    play.facing = play.batted;
+    const ball = this.matchDelivery(Math.min(play.batted, KNOCKOUT.maxBalls - 1))!;
+    return { ...ball, releaseTimeMs: release, idealContactTimeMs: release + ball.durationMs };
+  }
+  /**
+   * How the other players' latest balls were played, kept as their phones tell it (the store's answers carry each
+   * player's last few): read once each against the ball's own figure on their card, for the stories (`watchStored`).
+   */
+  private hearHows(match: MatchView) {
+    const play = this.matchPlay;
+    if (!play || match.round !== play.round) return;
+    const mine = handleOf(play.me.playerId);
+    for (const member of match.members) {
+      if (!member.hows || member.handle === mine) continue;
+      let told = play.told.get(member.handle);
+      member.hows.list.forEach((raw, i) => {
+        const at = member.hows!.from + i;
+        if (!raw || told?.has(at)) return;
+        const how = readHow(raw, member.card[at]);
+        if (how) { if (!told) play.told.set(member.handle, told = new Map()); told.set(at, how); }
+      });
+    }
+  }
+  /** The room moved on as far as the balls that have arrived allow, its news shown as a practice room's is. */
+  private matchStep() {
+    const room = this.knockout;
+    if (!room || !this.matchPlay) return;
+    const before = room.seats.reduce((n, seat) => n + seat.played, 0);
+    const news = room.advance(this.matchSource, this.matchPaced);
+    const moved = room.seats.reduce((n, seat) => n + seat.played, 0) !== before;
+    if (!news.length && !moved && !this.matchPlay.fresh) { this.matchWaitLine(); return; }
+    this.matchPlay.fresh = false;
+    // Knocked out, the room is the end screen's rings (and a watched seat's story): they keep up with every ball, not only a cut.
+    if (this.room) {
+      this.settleOut(); this.hud.knockoutRings(this.ringsOf());
+      if (!room.done) this.hud.knockoutStandings(() => this.resultsView());
+      for (const one of news) this.roomNews(one, false);
+      return;
+    }
+    this.knockoutNews(news);
+    this.matchWaitLine();
+    // Settled with the player between balls (the final won as the other's wicket arrives): the innings ends there.
+    if (room.finished && this.phase === 'READY') this.end();
+  }
+  /** Every answer from the store while the match is batted: the room moved on, and anybody quiet that it waits on handed to a sub. */
+  private matchNews(match: MatchView) {
+    const play = this.matchPlay, room = this.knockout, me = play?.me;
+    if (!play || !room || !me) return;
+    // The room has moved on from the match this phone was batting (it went back to its lobby, or the next match has begun):
+    // nothing of the new round is this match's. Left on its own screens until the next match is this player's to walk out
+    // to, which takes the phone to the room for the count.
+    this.hearHows(match);
+    if (match.round !== play.round) {
+      // Kept under the room: let go, unless its end is being watched (MATCH OVER and the Results, whose key is the room).
+      if (play.parked) { if (this.room?.watching == null && !this.room?.ending && !this.hud.knockoutResultsOpen) this.dropParked(); return; }
+      const self = match.members.find(m => m.handle === handleOf(me.playerId));
+      if (match.state === 'live' && self?.playing) { this.hud.notice('The next match is starting'); this.toRoom(match); }
+      return;
+    }
+    play.view = match;
+    this.tellWatching();
+    // The store has worked the match's result out: what it paid goes on the end screen and under the Results, once.
+    if (match.result && match.result.round === play.round && !play.paid) { play.paid = true; this.resultIn(match.result); }
+    const mine = match.members.find(m => m.handle === handleOf(me.playerId));
+    // The store went on ahead of this phone (a sub batted for it while it was away): what is batted here catches up.
+    if (mine && mine.card.length > play.batted) play.batted = mine.card.length;
+    // With a ball live nothing of the room is worked out or redrawn: it waits for the ball to be dead (`matchFrame`), so a
+    // friend's ball landing mid-flight never costs this player a frame.
+    if (MATCH_BALL_LIVE.includes(this.phase)) { play.dirty = true; return; }
+    play.dirty = false;
+    this.matchStep();
+    this.showReactions(match);
+    // Who is watching this player bat, under their scoreboard between balls; gone once their batting is.
+    const watched = this.matchDone ? null : match.watching?.find(one => one.seat === play.you) ?? null;
+    this.hud.knockoutWatched(watched && { n: watched.n, faces: watched.faces });
+    // The match is over, somebody having won it (not this player's part of it alone, which leaves the rest batting): the
+    // store is told once, so the room knows nobody is still batting it.
+    if (room.done && !play.doneSent) {
+      play.doneSent = true;
+      void doneMatch(play.code, me, play.round).then(answer => {
+        if (this.matchPlay !== play) return;
+        if (!answer.ok) { if (answer.retry) play.doneSent = false; return; }
+        this.matchLink?.take(answer);
+        // The store plays the room back itself and says over only when it comes to the same end: said again in a while if
+        // it had not (a ball of somebody's still on its way to it).
+        if (answer.match && answer.match.round === play.round && !answer.match.over) window.setTimeout(() => { if (this.matchPlay === play) play.doneSent = false; }, 4000);
+      });
+    }
+    // Over while this player sat in the room: nothing is played over the room. The match is let go, and the room says who won.
+    if (play.parked && room.done && this.room?.watching == null && !this.hud.knockoutResultsOpen) { this.dropParked(); return; }
+    const over = Math.floor(room.roomBalls / KNOCKOUT.ballsPerOver), now = performance.now();
+    for (const seat of room.waitingOn()) {
+      if (seat === room.you || !seat.handle) continue;
+      const member = match.members.find(m => m.handle === seat.handle);
+      const key = `${seat.handle}:${over}`;
+      // Gone quiet, or still checking in with no ball for a minute (a page whose game stopped): the store decides by its own
+      // clock, so an ask it turns down is asked again a little later rather than never.
+      if (!member || now - (play.asked.get(key) ?? -Infinity) < MATCH_REASK_MS) continue;
+      if (!member.left && member.quiet < AWAY_MS + 1000 && (member.idle ?? 0) < STALL_MS + 1000) continue;
+      play.asked.set(key, now);
+      void awayInMatch(play.code, me, seat.handle, over).then(answer => this.matchLink?.take(answer));
+    }
+  }
+  /** Each frame of a match: this player's balls sent in order, and a check-in every few seconds while they bat or wait. */
+  private matchFrame() {
+    const play = this.matchPlay, room = this.knockout;
+    if (!play || !room) return;
+    const now = performance.now();
+    // The match is always kept fresh while it is batted, whatever let its link go.
+    if (!this.matchLink) {
+      this.matchLink = new MatchLink(play.code, view => this.lobbyNews(view), reason => this.matchGone(reason));
+      this.matchLink.take({ ok: true, match: play.view });
+      this.matchLink.start();
+    }
+    // The next ball the store does not have yet, sent from where its card has got to: a ball lost on the way, or
+    // turned away, is sent again from there, a little later each time it fails (up to four seconds).
+    const next = this.storedCard(play).length;
+    if (!play.sending && now >= play.sendAt && next < Math.min(play.balls.length, KNOCKOUT.maxBalls) && play.balls[next] !== undefined) {
+      play.sending = true;
+      void ballInMatch(play.code, play.me, next, play.balls[next], play.round, play.hows[next]).then(answer => {
+        play.sending = false;
+        if (answer.ok) { play.sendFails = 0; play.refused = null; }
+        else {
+          play.sendFails++;
+          play.sendAt = performance.now() + Math.min(4000, 500 * play.sendFails);
+          if (!answer.retry) { play.refused = `${next}: ${answer.reason ?? answer.status}`; trackOnce('knockout-ball-refused', `A ball turned away: ${answer.reason ?? answer.status}`); }
+        }
+        this.matchLink?.take(answer);
+      });
+    }
+    const live = MATCH_BALL_LIVE.includes(this.phase);
+    // What the store said while the ball was live, taken up now it is dead.
+    if (play.dirty && !live) this.matchNews(play.view);
+    // Still here: a check-in every few seconds for as long as this phone is in the match, never with a ball live, and
+    // not while paused, so a pause is the same as dropping out.
+    // (With a ball live only once it is well overdue: the store takes twenty seconds of silence for away, and a ball that
+    // took that long, on a phone that stalled or a page starved of frames, had its batter's over handed to a sub. The
+    // check-in is one small request; what it answers still waits for the dead ball.)
+    if ((!live || now - play.beatAt > MATCH_BEAT_OVERDUE_MS) && this.phase !== 'PAUSED' && now - play.beatAt > MATCH_BEAT_MS) {
+      play.beatAt = now;
+      void beatInMatch(play.code, play.me).then(answer => this.matchLink?.take(answer));
+    }
+    this.matchLog();
+  }
+  /** This player's card as the store last said it. */
+  private storedCard(play: NonNullable<Game['matchPlay']>): string {
+    const mine = handleOf(play.me.playerId);
+    return play.view.members.find(m => m.handle === mine)?.card ?? '';
+  }
+  /**
+   * `?matchlog=1`: a line over the top of the screen saying where a match with
+   * friends stands on this phone — its own balls batted and stored, every real
+   * seat's card as the store last said, how long since it was heard from, and
+   * the last error — so a match that stalls on a real phone says why.
+   */
+  private matchLog() {
+    const play = this.matchPlay, room = this.knockout;
+    if (!MATCH_LOG || !play || !room || performance.now() - play.logAt < 400) return;
+    play.logAt = performance.now();
+    let line = document.getElementById('match-log');
+    if (!line) {
+      line = document.createElement('pre');
+      line.id = 'match-log';
+      line.style.cssText = 'position:fixed;left:4px;right:4px;top:calc(env(safe-area-inset-top,0px) + 2px);z-index:99999;margin:0;padding:4px 6px;'
+        + 'background:#000c;color:#9f9;font:10px/1.3 ui-monospace,monospace;white-space:pre-wrap;pointer-events:none;border-radius:4px';
+      document.body.append(line);
+    }
+    const heard = this.matchLink ? Math.round((Date.now() - this.matchLink.heardAt) / 100) / 10 : -1;
+    // The picture's pace over the last couple of seconds: frames a second, the slowest frame, and how much of a frame the game's own work took.
+    const frames = this.frameStats, span = frames.reduce((sum, f) => sum + f[0], 0) || 1;
+    const pace = frames.length ? `${Math.round(frames.length * 1000 / span)}fps worst ${Math.round(Math.max(...frames.map(f => f[0])))}ms work ${(frames.reduce((sum, f) => sum + f[1], 0) / frames.length).toFixed(1)}ms` : '';
+    const seats = play.view.members.filter(m => m.seat !== null)
+      .map(m => `${m.name.slice(0, 8)}:${m.card || '-'} q${Math.round(m.quiet / 1000)} i${Math.round((m.idle ?? 0) / 1000)}`).join(' | ');
+    line.textContent = `${pace}\n${play.code} r${play.round} ${this.phase} batted ${play.batted} local ${play.balls.join('')} stored ${this.storedCard(play)} `
+      + `sendFails ${play.sendFails}${play.refused ? ` refused@${play.refused}` : ''} hold ${this.matchHolding} room ${room.roomBalls} you ${room.you.played}`
+      + `\nheard ${heard}s link ${this.matchLink ? 'on' : 'OFF'} wait ${room.waitingOn().map(s => `${s.name}:${s.played}`).join(',') || '-'}\n${seats}`
+      + `${this.frameError ? `\nERROR ${this.frameError}` : ''}`;
+  }
+  /** The bowler waits at his mark (4A): this player's over is done, or they are out, and the room is still batting the over. */
+  private get matchHolding() {
+    const room = this.knockout;
+    if (!this.matchPlay || !room || room.finished) return false;
+    if (room.you.out || this.matchPlay.out) return true;
+    // By this phone's own count: a ball still on its way to the store is a ball batted.
+    const overEnd = (Math.floor(room.roomBalls / KNOCKOUT.ballsPerOver) + 1) * KNOCKOUT.ballsPerOver;
+    return Math.max(room.you.played, this.matchPlay.batted) >= Math.min(overEnd, KNOCKOUT.maxBalls);
+  }
+  /** The pill while the room is waited on: who is still batting the over, and how far they have to go. */
+  private matchWaitLine() {
+    const room = this.knockout;
+    // While somebody is being watched the pill is the watcher's (waiting for their next ball).
+    if (this.room && this.room.watching !== null) return;
+    // Out, the end screen is on its way or up: nothing is waited for at the crease.
+    if (!room || !this.matchPlay || !this.matchHolding || this.matchPlay.out || room.you.out || this.room) { this.hud.knockoutWaiting(null); return; }
+    const overEnd = Math.min(KNOCKOUT.maxBalls, (Math.floor(room.roomBalls / KNOCKOUT.ballsPerOver) + 1) * KNOCKOUT.ballsPerOver);
+    this.matchPlay.held = true;
+    const real = room.waitingOn().filter(seat => seat !== room.you && !seat.sub);
+    if (this.matchPlay.leaving) return;
+    // Subs bat as soon as their balls are bowled: only a friend is ever waited on by name.
+    if (!real.length) { this.hud.knockoutWaiting('THE CUT IS COMING'); return; }
+    const first = real[0], left = overEnd - first.played;
+    const who = real.length > 1 ? `${first.name.toUpperCase()} AND ${real.length - 1} MORE` : first.name.toUpperCase();
+    this.hud.knockoutWaiting(`WAITING FOR ${who} · ${left} ${left === 1 ? 'BALL' : 'BALLS'} TO GO`);
+  }
   private walkOut = () => this.start();
   start = () => {
     // Whatever led here — ANSWER, AGAIN or WIN IT BACK on Notifications — the innings is not played under it.
@@ -2402,6 +3346,16 @@ export class Game {
     // A restart is an innings walked out on, and reads as nothing else: it is
     // the only way here that is not the cover, the tutorial, or the card.
     if (!['START', 'INNINGS_END'].includes(this.phase) && this.lesson < 0) { this.mark('innings-restart', 'Innings restarted'); this.markQuit(); }
+    // A match with friends, and its key under the end screens (BACK TO ROOM): batting done, the way on is the room, where the
+    // next match is started. A restart with batting still to do is running away (5A), and the way on is Play with friends.
+    if (this.matchPlay && !this.matchPlay.fresh) {
+      if (this.matchDone) { void this.backToRoom(); return; }
+      this.endMatch(true);
+      this.knockout = null; this.room = null;
+      this.hud.knockoutEnd(null); this.hud.knockoutTrack(null); this.hud.knockout(null);
+      this.modes(); this.openKnockout(); this.openFriends();
+      return;
+    }
     this.innings++;
     this.quitMarked = false; this.fieldLooked = false;
     this.putRatingAway();
@@ -2413,7 +3367,7 @@ export class Game {
     // Walking out takes the cover's music with it: an innings is played to the
     // bat and the crowd. The card's music is fetched now instead, so that the
     // card does not go up in silence waiting for a megabyte to arrive.
-    this.audio.stop(); this.audio.music(null); this.audio.warm('result'); this.audio.unlock();
+    this.audio.stop(); this.audio.music(null); this.audio.warm('result'); if (this.knockingOut) { this.audio.warm('knockout'); this.audio.warm('winner'); } this.audio.unlock();
     // And the crowd comes in with him: see `crowd.ts`.
     this.audio.crowd(this.test ? MURMUR.test : MURMUR.blast);
     this.score = new ScoreManager(this.limits); this.confidence = new Confidence(); this.health = new Health();
@@ -2426,6 +3380,9 @@ export class Game {
     this.rng = new SeededRandom(this.seed);
     // A challenge from a profile: both innings bowled from the room, so the chaser faces the same balls.
     if (this.challenge.playing && this.challenge.room?.invite) { this.seed = roomSeed(this.challenge.room.code); this.rng = new SeededRandom(this.seed); }
+    // A match with friends: everybody bowled from the match's seed. The strokes take their dice from a stream of their own, so the
+    // balls are the same on every phone whatever anybody does with them.
+    if (this.matchPlay) { this.seed = this.matchPlay.seed; this.rng = new SeededRandom((this.seed ^ 0x5eed5eed) >>> 0); }
     // The score at the other end is drawn first, off the innings seed, so that
     // the same seed always walks out to the same scoreboard. Drawing it from the
     // clock would have made a share card a lie the moment it was reloaded.
@@ -2437,11 +3394,19 @@ export class Game {
       ? new MarathonInnings(leftHandersOf(this.seed, location.search, readHand()), new URLSearchParams(location.search).get('settled') === '1')
       : null;
     if (this.marathon) this.health = this.marathon.current.health;
+    this.knockout = this.matchPlay ? new KnockoutRoom(this.seed, { seats: this.matchPlay.seats, you: this.matchPlay.you })
+      : this.knockingOut ? new KnockoutRoom(this.seed, { name: readPlayer()?.name || 'You', face: readPlayer()?.avatar ?? 0 }) : null;
+    this.hud.knockout(this.knockout ? chipOf(this.knockout.standing()) : null);
+    this.hud.knockoutFreeHit(null, true);
+    this.koCut = null; this.held = null; this.heldBall = -1; this.hud.knockoutHeld(null); this.scene.floodlights(null);
+    if (this.room) { this.room = null; this.hud.knockoutWatch(null, this.watchKeys); }
+    this.hud.knockoutTrack(this.knockout ? trackOf(this.knockout) : null, this.knockout?.you.face);
+    this.hud.knockoutEnd(null);
     this.ease = this.newcomerEase();
     // Which of the helped innings this is, so the dashboard can set the
     // newcomers who come back against the ones who do not.
     if (this.ease > 1) this.mark(`newcomer-${EASE.indexOf(this.ease) + 1}`, 'Innings batted with a newcomer\'s help');
-    this.generator = new DeliveryGenerator(this.rng, this.plan);
+    this.generator = new DeliveryGenerator(this.matchPlay ? new SeededRandom(this.seed) : this.rng, this.plan);
     this.applyNets();
     // `?cover=1`: the cover drive's ball every time, to play the stroke over
     // and over. Practice, so it counts for nothing; and not in a Rival Match.
@@ -2477,7 +3442,9 @@ export class Game {
     // The coachmarks and the chase's card wait for the walk-on, where there is one.
     // A challenge's card goes first, and the coachmarks follow it on LET'S BAT (`afterCard`).
     const told = () => { if (this.marathoning) this.introduce(); else if (!this.cardFirst) this.teachShots(); this.startChase(); };
-    if (this.introAsked && !this.walkedIn.has(this.mode) && !this.demoing && !this.challenge.playing) this.walkOn(told); else told();
+    if (this.introAsked && !this.walkedIn.has(this.mode) && !this.demoing && !this.challenge.playing && !this.matchPlay) this.walkOn(told); else told();
+    // A match with friends: the first look at the room, and the first check-in.
+    if (this.matchPlay) { this.matchStep(); this.matchWaitLine(); }
   };
   /**
    * The walk-on (`IntroReel.ts`), before the first innings of each mode in a
@@ -2801,8 +3768,9 @@ export class Game {
   /** The scene's light put where the day has got to. */
   private lightDay() { const day = this.dayNow; this.scene.dayAt(day ? day.at : null, day?.dim); }
   private light(time: SkyTime) {
-    const game = this.super10 ? 'super10' : this.test ? 'test' : 'blast';
-    if (game === 'super10') time = 'night';
+    const game = this.super10 ? 'super10' : this.test ? 'test' : this.knockingOut ? 'knockout' : 'blast';
+    // Super10, and Super Knockout, whose floodlights answer the room's cuts (`floodlights.ts`), are always under lights.
+    if (game === 'super10' || game === 'knockout') time = 'night';
     this.scene.stands(groundFor(ASKED_GROUND, game, VENUE_COIN[game === 'test' ? 'test' : 'blast']));
     this.scene.brand(this.super10);
     this.scene.time(time);
@@ -2812,8 +3780,15 @@ export class Game {
   /** What the arena's big screen says between moments: the game, the score, the over and, in Super10, who is in. */
   private scoreboard() {
     const { runs, wickets, balls } = this.score;
-    const title = this.super10 ? 'SUPER10' : this.marathoning ? 'TEST MARATHON' : this.surviving ? 'TEST SURVIVAL' : 'THE BLAST';
     const overs = `${Math.floor(balls / 6)}.${balls % 6} OV`;
+    // Super Knockout: the line between balls, the cut at an over's end, the score while the ball is live (P5, P6).
+    if (this.knockout) {
+      const dead = this.phase === 'READY' || this.phase === 'RESULT';
+      const cut = this.koCut && this.koCut.at === this.knockout.bowled ? this.koCut.gone : null;
+      // The free hit is the screen's from the bowler's first stride, with every other word of it (`tellFreeHit`).
+      return { title: 'SUPER KNOCKOUT', score: String(runs), detail: overLine(balls), knockout: dead ? knockoutScreen(this.knockout, cut, false) : this.freeHitTold ? { kind: 'freehit' as const } : null };
+    }
+    const title = this.super10 ? 'SUPER10' : this.marathoning ? 'TEST MARATHON' : this.surviving ? 'TEST SURVIVAL' : 'THE BLAST';
     return { title, score: `${runs}/${wickets}`, detail: this.super10 ? `${overs} · ${super10Batter(wickets).title}` : overs };
   }
   /**
@@ -2823,7 +3798,12 @@ export class Game {
   private get hurts() { return this.surviving || this.marathoning; }
   /** A Test match of either kind: how it looks — whites, the Test field, by day. See `modes.ts`. */
   private get test() { return isTest(this.mode); }
+  /** A Super Knockout practice room: asked for by the link, in the Blast, never in a Rival Match. */
+  /** Super Knockout chosen from its home, rather than asked for by the link (`?knockout=1`); let go when any other mode is chosen. */
+  private knockoutPicked = false;
+  private get knockingOut() { return (KNOCKOUT_ASKED || this.knockoutPicked) && this.mode === 'CLASSIC' && !this.challenge.playing; }
   private get limits() {
+    if (this.knockingOut) return KNOCKOUT_LIMITS;
     return this.surviving ? SURVIVE_LIMITS : this.marathoning ? MARATHON_LIMITS : this.super10 ? SUPER10_LIMITS : CLASSIC_LIMITS;
   }
   /** The switches in this link that change the game: see `practice.ts`. */
@@ -2838,7 +3818,7 @@ export class Game {
    * (`SUPER10_ONLY`), which keeps nothing. Super10 itself has a board and a
    * career now, and counts everywhere else.
    */
-  private get practising() { return (this.switches.length > 0 || (this.super10 && SUPER10_ONLY)) && !this.challenge.playing; }
+  private get practising() { return (this.switches.length > 0 || (this.super10 && SUPER10_ONLY) || this.knockingOut) && !this.challenge.playing; }
   /**
    * What a card offers, once the innings is known to be practice or played in
    * a private window. An innings with nothing to offer stays quiet either way.
@@ -2869,7 +3849,7 @@ export class Game {
    * wickets — so a mistimed charge is still a mistimed charge.
    */
   private chargeable(delivery: Delivery): Delivery {
-    if (!this.chargeOnly || this.hurts || this.lesson >= 0 || this.challenge.playing) return delivery;
+    if (!this.chargeOnly || this.hurts || this.lesson >= 0 || this.challenge.playing || this.matchPlay) return delivery;
     if (this.chargeOnly !== 'ball') this.confidence.value = CONFIDENCE_FULL;
     // `meter`: the meter alone, the ball left to the innings, for the
     // strokes that want a ball the charge does not — the scoops.
@@ -2929,6 +3909,9 @@ export class Game {
   /** `?round=1`: every over of a Marathon bowled round the wicket, from the first. See `roundEvery`. */
   private roundOnly = new URLSearchParams(location.search).get('round') === '1';
   private get plan() {
+    // A match with friends: the knockout's own overs off the match's seed, nothing the link asks for, and no yorker owed for one
+    // player's sixes, which would bowl the next ball differently on their phone than on everybody else's.
+    if (this.matchPlay) return matchPlan(this.seed);
     // A Rival Match is bowled as its room's mode is, whatever the link asks for.
     if (this.challenge.playing) return this.challenge.room?.mode === 'super10' ? SUPER10_PLAN : CLASSIC_PLAN;
     const plain = this.ease > 1 ? withoutYorkers(this.basePlan) : this.basePlan;
@@ -2975,7 +3958,9 @@ export class Game {
       return marathonOnly({ swing: this.swingOnly, express: this.expressOnly, reverse: this.reverseOnly });
     }
     if (this.marathoning && this.wearFast) return marathonFastWear();
-    const plan = this.surviving ? SURVIVE_PLAN : this.marathoning ? MARATHON_PLAN : this.super10 ? SUPER10_PLAN : CLASSIC_PLAN;
+    // Super Knockout's overs are planned one by one (`knockoutPlan`); the fourth is the swing or the sling bowler, a coin off the room's seed.
+    const plan = this.surviving ? SURVIVE_PLAN : this.marathoning ? MARATHON_PLAN : this.super10 ? SUPER10_PLAN
+      : this.knockingOut ? knockoutPlan(swingFourthOf(this.seed), this.seed) : CLASSIC_PLAN;
     if (this.bouncersOnly || this.hooksOnly) return bouncersEvery(plan, this.hooksOnly);
     if (this.spinCutsOnly) return spinCutsEvery(plan);
     if (this.spinPullsOnly) return spinPullsEvery(plan);
@@ -3043,7 +4028,10 @@ export class Game {
     return this.practising ? [`practice-${moded}`, `Practice: ${said}`] : [moded, said];
   }
   private setPhase(phase: GamePhase) {
-    this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials);
+    this.phase = phase; this.phaseStart = this.elapsed;
+    if (phase === 'BOWLER_RUNUP') this.tellFreeHit();
+    else if (phase === 'READY' || phase === 'RESULT') this.freeHitTold = false;
+    this.hud.phase(phase, this.isPrimed, this.specials);
     this.presence?.changed();
     if (phase === 'READY' && this.marathon) this.tellLevel();
     if (phase === 'READY' && this.super10 && this.lesson < 0) this.super10Over(true);
@@ -3052,6 +4040,20 @@ export class Game {
     if (phase === 'BOWLER_RUNUP' && this.super10) { this.surgeShown(); this.fieldUi.shot(null, null); }
     if (phase === 'READY' && this.momentAsked) { const moment = this.momentAsked; this.momentAsked = null; this.askMoment(moment); }
     if (phase === 'READY' && this.actionAsked) { const kind = this.actionAsked; this.actionAsked = null; this.askAction(kind); }
+  }
+  /**
+   * Super Knockout's free hit, told as the bowler sets off and not before (the owner found it notified too early, 20
+   * November 2026: it went up the moment the ball before it was dead, and stood through the whole walk back): the cyan
+   * edge, FH in the ball's slot, FREE HIT on the line under the pitch and on the ground's screen, all from his first stride.
+   */
+  private freeHitTold = false;
+  private tellFreeHit() {
+    const room = this.knockout;
+    this.freeHitTold = !!room && !room.finished && !room.you.out && room.freeHitOn(this.score.balls);
+    // (Let go here too: in a match the room's word that the last one is done with can come after the next run-up.)
+    if (!this.freeHitTold) { if (room) this.hud.knockoutFreeHit(null, false, !room.finished && room.freeHitAhead()); return; }
+    this.hud.knockoutFreeHit(this.score.balls, false, true);
+    this.hud.score(this.score);
   }
   /**
    * A moment asked for with `?moments=1`'s keys. Between balls it goes up at
@@ -3393,7 +4395,7 @@ export class Game {
       this.input.cancel(); this.audio.stop(); this.audio.holdCrowd(true); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true, this.pauseGame);
       this.soundSwitches(); this.hud.cameraSwitch(this.scene.cameraId); this.hud.replaySwitch(this.replaysOn); this.hud.hapticsSwitch(hapticsWanted());
       // The arena is played at night whatever the switch says, so it has none.
-      this.hud.lightsSwitch(this.test || this.super10 || this.scene.arenaGround ? null : this.scene.lit);
+      this.hud.lightsSwitch(this.test || this.super10 || this.knockout || this.scene.arenaGround ? null : this.scene.lit);
       // Twenty overs in, the Marathon can be declared — from here, and from
       // nowhere else, so it is never pressed by accident mid-ball. Before
       // that the key is there but shut, saying when it opens.
@@ -3505,8 +4507,26 @@ export class Game {
     markWhatsNewShown();
     // Put away, or moved on from by themselves, the Super10 film's stories land on its poster.
     const told = STORIES.some(one => one.opens === 'super10') && SUPER10_OPEN && !SUPER10_ONLY;
-    this.showStories('intro', () => (this.locked ? this.walkOut() : this.modes(told ? 'SUPER10' : lastMode())));
+    // And Super Knockout's on its poster, the same way.
+    const knockout = STORIES.some(one => one.opens === 'knockout') && KNOCKOUT_OPEN;
+    this.showStories('intro', () => (this.locked ? this.walkOut() : this.modes(told ? 'SUPER10' : knockout ? 'KNOCKOUT' : lastMode())));
   };
+
+  /**
+   * PLAY SUPER KNOCKOUT under the last card of its story: the stories put away
+   * and the Knockout home opened over Choose a mode, its poster in front, so
+   * its back key lands where the card on Choose a mode would have. From the
+   * board in the middle of an innings, or where the mode is not played, it
+   * only puts them away.
+   */
+  private knockoutFromStory(shown: () => void) {
+    const between = (this.phase === 'START' || this.phase === 'INNINGS_END') && KNOCKOUT_OPEN && !this.matchPlay && !this.lobbyScreen?.open;
+    if (between) this.hud.onStoriesDone = null;
+    shown();
+    if (!between) return;
+    this.modes('KNOCKOUT');
+    this.openKnockout();
+  }
 
   /**
    * PLAY SUPER10 under the Super10 film: the stories put away and straight out
@@ -4213,6 +5233,46 @@ export class Game {
     });
   }
 
+  /**
+   * A match with friends waiting on this player (1K): a banner over Choose a
+   * mode with JOIN, once a match a visit, as a challenge's is.
+   */
+  /**
+   * Somebody asked this player into a match (2B). Asked for every few seconds
+   * wherever the player is that is not an innings or a room of their own — the
+   * cover, Choose a mode, the Knockout home, Play with friends, an end card, a
+   * match they are out of — and told once a match by a banner over that screen
+   * with JOIN; every one still open is listed at the head of Play with friends,
+   * so one missed as a banner is still there. It was asked for only as Choose a
+   * mode opened, so a phone sat on any other screen never heard of it.
+   */
+  private bannerMatchInvite = async () => {
+    const idle = () => !!this.player && this.friendsOpen && !!readPlayer()?.name && !document.hidden && !this.lobbyScreen?.open && !this.walkOutAt
+      && (['START', 'INNINGS_END'].includes(this.phase) || (!!this.matchPlay && this.matchDone));
+    if (!idle() || this.inviteAsking) return;
+    this.inviteAsking = true;
+    const invites = await readMatchInvites(this.player!).finally(() => { this.inviteAsking = false; });
+    if (!idle()) return;
+    // The bell counts them, and Notifications lists them under NEEDS YOU.
+    const changed = invites.map(one => one.code).join() !== this.matchInvites.map(one => one.code).join();
+    this.matchInvites = invites;
+    if (changed) this.refreshBell();
+    this.friendsScreen?.invites(invites);
+    const fresh = invites.find(invite => !this.alerted.has(`k:${invite.code}`));
+    if (!fresh || this.hud.noticesOpen) return;
+    for (const invite of invites) this.alerted.add(`k:${invite.code}`);
+    track('knockout-invite-banner', 'A match invite shown');
+    this.hud.matchInvite({ by: fresh.by, avatar: fresh.byAvatar, size: fresh.size }, () => this.joinInvite(fresh.code));
+  };
+  private inviteAsking = false;
+  /** JOIN on an invite, from wherever it was shown: whatever is up is put away, and Play with friends joins the match. */
+  private joinInvite(code: string) {
+    track('knockout-invite-joined', 'Joined a match from its invite');
+    this.hud.matchInvite(null);
+    if (this.matchPlay) { this.endMatch(!this.matchDone); this.leaveMatchScreens(); }
+    else { this.modes(); this.openKnockout(); }
+    this.openFriends(code);
+  }
   /** The challenges the banner on Choose a mode has already told of this visit. */
   private alerted = new Set<string>();
 
@@ -4225,8 +5285,16 @@ export class Game {
 
   /** Everything Notifications holds now, from the rooms and the activity already asked for. */
   private noticesNow(): Notice[] {
-    return this.player ? noticesOf(this.allRooms(), this.ownActivity, this.player) : [];
+    if (!this.player) return [];
+    // Super Knockout's rows, where matches with friends are played: the invites the banner asks for, and the player's last matches.
+    const who = readPlayer();
+    const knockout = this.friendsOpen && who?.name
+      ? { invites: this.matchInvites, recent: this.knockoutStanding?.career?.recent ?? [], you: { name: who.name, avatar: who.avatar ?? 0 } } : null;
+    return noticesOf(this.allRooms(), this.ownActivity, this.player, Date.now(), knockout);
   }
+  /** The matches this player has been asked into and not joined, as the store last said (`bannerMatchInvite`). */
+  private matchInvites: MatchInviteView[] = [];
+  private standingAt = 0;
 
   /** The bell's count, and the screen drawn again where it is up. */
   private refreshBell() {
@@ -4241,6 +5309,11 @@ export class Game {
     if (!this.noticed) { this.hud.bell(null); return; }
     this.refreshBell();
     if (Date.now() - this.activityAt > 60_000) void this.askActivity();
+    // The player's Knockout matches, for their results on the list: asked again once a minute old.
+    if (this.friendsOpen && this.player && Date.now() - this.standingAt > 60_000) {
+      this.standingAt = Date.now();
+      void readKnockoutStanding(this.player).then(standing => { if (standing) { this.knockoutStanding = standing; this.refreshBell(); } });
+    }
   }
 
   /** Notifications (Figma 23, E2): opened on a filter; what is there now counts as seen. */
@@ -4261,6 +5334,7 @@ export class Game {
     if (!key) return;
     track(`notices-${key.kind}`, 'A key on Notifications');
     if (key.kind === 'answer') { this.answerInvite(key.code); return; }
+    if (key.kind === 'join') { this.hud.closeNotices(); this.joinInvite(key.code); return; }
     if (key.kind === 'again') { this.challengeFrom({ handle: key.handle, name: notice.face.name, avatar: notice.face.avatar, profile: null }); return; }
     const event = this.ownActivity?.events[key.event];
     if (!event) return;
@@ -4271,6 +5345,14 @@ export class Game {
   /** A row itself: a challenge waiting opens its invite, a match its room, anything else the player's profile. */
   private noticeRow(notice: Notice) {
     if (notice.key?.kind === 'answer') { this.answerInvite(notice.key.code); return; }
+    // Super Knockout's rows: an invite joins its match, a match played opens the Knockout leaderboard.
+    if (notice.mode === 'knockout') {
+      this.hud.closeNotices();
+      if (notice.key?.kind === 'join') { this.joinInvite(notice.key.code); return; }
+      track('notices-knockout-board', 'The Super Knockout leaderboard opened from Notifications');
+      this.modes('KNOCKOUT'); this.openKnockout(); this.openKnockoutBoard('home');
+      return;
+    }
     if (notice.code && (notice.kind === 'results' || notice.kind === 'challenges')) {
       track('notices-room', 'A match opened from Notifications');
       this.hud.closeNotices(); this.hud.closeModes();
@@ -4295,6 +5377,13 @@ export class Game {
       this.hud.stats(view);
     });
     void this.askActivity();
+    // Super Knockout's tab, where matches with friends are played and the player has a name: what the store last said
+    // at once, and asked again as the page opens.
+    const me = this.friendsOpen ? this.matchMe() : null;
+    const slide = (standing: KnockoutStanding | null) => ({ standing, pointsFrom: standing?.pointsFrom ?? LIVE_RULES.pointsFrom });
+    this.hud.statsKnockout(me ? slide(this.knockoutStanding) : null);
+    if (me) void readKnockoutStanding(me.playerId).then(standing => { if (standing && this.statsPage) { this.knockoutStanding = standing; this.hud.statsKnockout(slide(standing)); } });
+    this.hud.onStatsKnockout = () => { track('stats-knockout-play', 'Played Super Knockout from My profile'); this.hud.closeStats(); this.modes('KNOCKOUT'); this.openKnockout(); };
     this.hud.onStatsBack = () => {
       this.statsPage = false;
       this.hud.onStatsBack = null;
@@ -4589,9 +5678,19 @@ export class Game {
     const stamp = typeof at === 'number' && at > 0 ? at : performance.now();
     return this.elapsed + Math.min(Math.max(stamp - this.frameClock, 0), 60) * this.timeScale;
   };
+  /** `?matchlog=1`: each of the last frames, how long since the one before and how long its own work took. */
+  private readonly frameStats: [number, number][] = [];
+  /** The last error a frame threw, for `?matchlog=1`. */
+  private frameError: string | null = null;
+  private frameFailed(error: unknown) {
+    const message = error instanceof Error ? `${error.message} ${error.stack?.split('\n')[1]?.trim() ?? ''}` : String(error);
+    if (this.frameError !== message) { console.error(error); trackOnce('frame-error', `A frame threw: ${message.slice(0, 120)}`); }
+    this.frameError = message;
+  }
   private frame = (time: number) => {
     if (this.disposed) return;
-    const dt = this.previousFrame ? Math.min(time - this.previousFrame, 60) : 0; this.previousFrame = time;
+    const since = this.previousFrame ? time - this.previousFrame : 0, began = MATCH_LOG ? performance.now() : 0;
+    const dt = Math.min(since, 60); this.previousFrame = time;
     this.frameClock = time;
     if (LIVE.includes(this.phase) && !document.hidden && !this.walking) {
       // Wall-clock rather than the game's own clock, which the charge stretches
@@ -4606,19 +5705,28 @@ export class Game {
       // A stroke's film held on one frame for its swipe, on the page's clock.
       if (this.reel && this.reel.hold > 0) this.reel.hold -= dt;
       this.elapsed += dt * this.timeScale;
-      this.input.flush(this.elapsed);
-      if (this.catchCam) this.catchCamFrame();
-      this.update();
-      if (this.reel) this.reelFrame();
-      if (this.show) this.showFrame();
-      if (this.replay) this.replayFrame();
-      if (this.walking) this.walkOnFrame();
+      // An error anywhere in a frame stopped the loop for good, the pause sheet still answering over a game that
+      // never bowled again: it is caught, counted once, and the next frame comes as ever.
+      try {
+        this.input.flush(this.elapsed);
+        if (this.catchCam) this.catchCamFrame();
+        this.update();
+        if (this.reel) this.reelFrame();
+      } catch (error) { this.frameFailed(error); }
+      try { if (this.matchPlay) this.matchFrame(); } catch (error) { this.frameFailed(error); }
+      try {
+        if (this.room) this.roomFrame();
+        if (this.show) this.showFrame();
+        if (this.replay) this.replayFrame();
+        if (this.walking) this.walkOnFrame();
+      } catch (error) { this.frameFailed(error); }
     }
     // Level Up covers the whole screen, so the ground under it is not drawn:
     // a phone has one GPU, and the confetti wants it.
     if (!document.hidden && !this.levelUp) { this.scene.scoreboard(this.scoreboard()); this.scene.render(this.elapsed); }
     // The sound first: on a phone the overlay is taller than the screen is.
     if (this.debug) this.hud.debug({ ...this.audio.describe(), ...this.snapshot() });
+    if (MATCH_LOG) { this.frameStats.push([since, performance.now() - began]); if (this.frameStats.length > 120) this.frameStats.shift(); }
     this.frameId = requestAnimationFrame(this.frame);
   };
   /**
@@ -4628,7 +5736,25 @@ export class Game {
    * still affect is running slowly — the clock only stretches the replay of a
    * shot he has won.
    */
+  /**
+   * Super Knockout's hit-stop (Figma section 37's first beat, the owner's word on
+   * 18 November 2026): the player's wicket holds the game's clock still for
+   * `HIT_STOP_MS`, on the stumps flying when bowled and on the call for any other
+   * way out, with the screen kicked, a white frame and a heavy knock in the hand
+   * (`HUD.hitStop`). Once a ball; a free hit's wicket, not out, has none.
+   */
+  private hitStopUntil = 0;
+  private hitStopFor: unknown = null;
+  private hitStops = 0;
+  private knockoutHit() {
+    if (!this.knockout || !this.delivery || this.hitStopFor === this.delivery) return;
+    this.hitStopFor = this.delivery;
+    this.hitStopUntil = performance.now() + HIT_STOP_MS; this.hitStops++;
+    this.hud.hitStop(HIT_STOP_MS);
+    buzz(60);
+  }
   private get timeScale() {
+    if (this.hitStopUntil > performance.now()) return 0;
     // A stroke's film slows through the bat meeting the ball (`reelPace`).
     // Stopped dead while the swipe is drawn over it.
     if (this.reel) return this.reel.hold > 0 ? 0 : reelPace(this.elapsed - this.reel.start - this.reel.times.contact);
@@ -4648,18 +5774,44 @@ export class Game {
     // still slow; two thirds keeps the run readable and the hit still lands.
     return since < 340 ? this.chargeSlowmo : 1;
   }
+  /**
+   * Held between balls (H1): everyone still in drops down under the
+   * scoreboard and the bowler waits at his mark, up to `HOLD_MS` a ball, the
+   * ring draining. With a ball live, or the room done, a touch does nothing (H3).
+   */
+  private holdBoard() {
+    const room = this.knockout;
+    if (!room || room.finished || this.phase !== 'READY' || this.held !== null) return;
+    if (this.heldBall !== this.score.balls) { this.heldBall = this.score.balls; this.heldSpent = 0; }
+    const left = HOLD_MS - this.heldSpent;
+    if (left <= 0) return;
+    this.held = this.elapsed; this.heldWas = this.bannerUntil;
+    this.bannerUntil = Math.max(this.bannerUntil, this.elapsed + left + READY_MS);
+    this.hud.knockoutHeld(heldOf(room), left);
+    trackOnce('knockout-held', 'The knockout scoreboard held');
+  }
+  /** Let go, or the ring ran out (H2): the list goes, a tick, and the bowler runs in `READY_MS` later. */
+  private letGoBoard() {
+    if (this.held === null) return;
+    this.heldSpent += this.elapsed - this.held;
+    this.held = null;
+    this.hud.knockoutHeld(null, 0, this.phase === 'READY');
+    if (this.phase === 'READY') { this.bannerUntil = Math.max(this.heldWas, this.elapsed + READY_MS); buzz(12); }
+  }
   private update() {
     const age = this.elapsed - this.phaseStart;
+    if (this.held !== null && (this.phase !== 'READY' || this.elapsed - this.held + this.heldSpent >= HOLD_MS)) this.letGoBoard();
     // The bowler waits for the field to be back on its marks — a catcher
     // jogging back from deep midwicket, the man who chased one to the rope —
     // and no longer than a few seconds past the usual wait, whatever happens.
     if (this.phase === 'READY' && age >= this.readyMs && this.elapsed >= this.bannerUntil && (this.scene.fieldSettled || age >= this.readyMs + FIELD_WAIT_MS)
       && (!this.scene.batterTapping || age >= this.readyMs + TAP_WAIT_MS)) {
       // `?yorkers=1`: every ball a yorker, on off, middle or leg as it falls, for the stumps it uproots. Practice.
-      if (this.yorkerDrill && !this.challenge.playing) this.generator.drill('YORKER', (['OFF', 'MIDDLE', 'LEG'] as const)[Math.floor(Math.random() * 3)]);
-      const fuller = this.heliDrill && !this.challenge.playing && this.lesson < 0 && this.heliBalls++ % 2 === 1;
-      if (this.heliDrill && !this.challenge.playing) this.generator.drill(fuller ? 'FAST' : 'YORKER', (['OFF', 'MIDDLE', 'LEG'] as const)[Math.floor(Math.random() * 3)]);
+      if (this.yorkerDrill && !this.challenge.playing && !this.matchPlay) this.generator.drill('YORKER', (['OFF', 'MIDDLE', 'LEG'] as const)[Math.floor(Math.random() * 3)]);
+      const fuller = this.heliDrill && !this.challenge.playing && !this.matchPlay && this.lesson < 0 && this.heliBalls++ % 2 === 1;
+      if (this.heliDrill && !this.challenge.playing && !this.matchPlay) this.generator.drill(fuller ? 'FAST' : 'YORKER', (['OFF', 'MIDDLE', 'LEG'] as const)[Math.floor(Math.random() * 3)]);
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
+        : this.matchPlay ? this.matchBowled(this.elapsed + GAME.runupMs)
         : this.chargeable(this.generator.next(this.elapsed + GAME.runupMs));
       // The fuller ball: a quick one pitched up to a half-volley at the shin (`FULLER`).
       if (fuller) this.delivery = { ...this.delivery, bounceZ: FULLER.bounce, rise: FULLER.rise, full: true };
@@ -4747,7 +5899,7 @@ export class Game {
       if (this.replayQueued && performance.now() < this.ghostDownAt) return;
       if (this.replayQueued) {
         const queued = this.replayQueued; this.replayQueued = null;
-        const over = !!this.changed || (this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended || this.targetPassed);
+        const over = !!this.changed || (this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.blastOver);
         if (!this.chasePassDue && !this.noticeDue && (!over || queued.kept.bowled)) {
           this.beginReplay(queued); return;
         }
@@ -4757,7 +5909,11 @@ export class Game {
         this.lesson++;
         if (this.lesson >= TUTORIAL.length) { this.lesson = -1; noteHowTo(false); track('tutorial-complete', 'Tutorial completed'); this.setPhase('START'); this.hud.tutorialComplete(); }
         else { this.setPhase('READY'); this.hud.coach(TUTORIAL[this.lesson], this.lesson + 1, TUTORIAL.length); }
-      } else if (this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended || this.targetPassed) this.end();
+      } else if (this.matchHolding) {
+        // A match with friends: the bowler waits at his mark until the room has batted the over too (4A).
+        // Out, there is nothing to wait at the crease for: the end screen comes now, and the cut settles the place on it.
+        if (this.matchPlay!.out) this.end(); else this.matchWaitLine();
+      } else if (this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.blastOver) this.end();
       else {
         // Out, or carried off, with the innings going on: the next man walks in (`arrival.ts`).
         const out = !!this.changed || !!this.outcome?.isWicket;
@@ -4792,6 +5948,8 @@ export class Game {
       if (this.outcome.fielder) this.mark(`fielded-${this.outcome.fielder.how}`, 'A ball fielded');
       if (lane && struck >= 4 && this.outcome.runs >= 4) this.s10.boundaries.push(line);
     }
+    // Super Knockout's free hit: a wicket on it does not count (`freeHitOf`).
+    if (!step && this.knockout?.freeHitOn(this.score.balls)) this.outcome = freeHitOf(this.outcome);
     if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);
     else {
       this.score.record(this.outcome); this.generator.record(this.outcome);
@@ -4836,6 +5994,7 @@ export class Game {
         // Super10's next man walks out once this ball is dead, as the
         // Marathon's does: the score says who, by the wickets down.
         if (this.super10 && this.outcome.isWicket && !this.score.ended) this.changed = 'OUT';
+        if (this.knockout) this.knockoutBall(this.delivery!, this.outcome);
       }
       this.showConfidence();
       // Not about a Marathon batter this ball has already taken out of the
@@ -4881,20 +6040,24 @@ export class Game {
   private writeBlast(balls: (number | 'W')[]) {
     if (this.marathon || this.surviving || this.phase !== 'READY') return false;
     for (const ball of balls) {
-      if (this.score.ended || this.targetPassed) break;
+      if (this.blastOver) break;
       this.delivery = this.generator.next(0);
       const outcome = {
         runs: typeof ball === 'number' ? ball : 0, isWicket: ball === 'W', quality: 0, feedback: '',
         timingGrade: 'MISS', timingDeltaMs: null, compatibility: 0, madeBatContact: false, aerial: false,
       } as ShotOutcome;
-      this.score.record(outcome); this.generator.record(outcome);
-      this.chaseBall(outcome);
+      const free = !!this.knockout?.freeHitOn(this.score.balls), played = free ? freeHitOf(outcome) : outcome;
+      // Written, not bowled, the ball had no run-up to say it at: its slot is marked as a bowled one's is.
+      if (free) this.hud.knockoutFreeHit(this.score.balls, false, true);
+      this.score.record(played); this.generator.record(played);
+      if (this.knockout) this.knockoutBall(this.delivery, played);
+      this.chaseBall(played);
       // Super10's next man walks out, as he would off a real ball.
       if (this.super10 && outcome.isWicket && !this.score.ended) { this.changed = 'OUT'; this.nextBatter(); }
     }
     this.hud.score(this.score);
     if (this.chasePassDue && !this.score.ended) this.celebrateChase();
-    if (this.score.ended || this.targetPassed) this.end(); else this.setPhase('READY');
+    if (this.blastOver) this.end(); else this.setPhase('READY');
     return true;
   }
   private writeMarathon(balls: (number | 'W' | 'H')[]) {
@@ -5240,6 +6403,8 @@ export class Game {
     // a pace of its own (`MARATHON_PACE`); not Survival, practice's tutorial or a demo.
     if (!(this.super10 || this.mode === 'CLASSIC' || this.marathon) || this.demoing || this.lesson >= 0) return;
     if (!this.replaysOn || this.replayAsked === 'off') return;
+    // Replays are off in Super Knockout: a room bats on while you watch one.
+    if (this.knockout) return;
     const ball: ReplayBall = { stroke: swing.stroke, grade: outcome.timingGrade, runs: outcome.runs, wicket: outcome.isWicket, index: this.score.balls - 1 };
     const due = replayDue(ball, this.replayLog, {
       cap: this.super10 ? REPLAYS_PER_INNINGS.super10 : this.marathon ? REPLAYS_PER_INNINGS.marathon : REPLAYS_PER_INNINGS.blast,
@@ -5247,7 +6412,7 @@ export class Game {
       // The ball brings something of its own to celebrate: that, and no replay over it.
       // A skier put down has had the catch camera on it already. A batter
       // bowled is shown before the next man walks out or the card comes up.
-      blocked: !!this.milestoneDue || !!this.momentAsked || (!bowled && (!!this.changed || this.score.ended || this.targetPassed)) || !!outcome.dropped,
+      blocked: !!this.milestoneDue || !!this.momentAsked || (!bowled && (!!this.changed || this.blastOver)) || !!outcome.dropped,
       roll: Math.random(), every: this.replayAsked === 'every',
     });
     if (due) this.replayQueued = { kept: this.kept, ball };
@@ -5542,6 +6707,7 @@ export class Game {
     }
     // A wicket goes quiet under a groan; one that cost him a milestone, or a
     // man carried off, is sent off with a softer cheer once it has.
+    if (outcome.isWicket) this.knockoutHit();
     if (outcome.isWicket || this.felled) {
       // The screen's word for how he went: bowled, out for nothing, or out.
       const runs = this.batterHistory.reduce((sum, ball) => sum + ball.runs, 0);
@@ -6298,8 +7464,56 @@ export class Game {
     this.showLevelUp(mode, was, now, null, true);
   }
 
+  /**
+   * The knockout's end screen: KNOCKED OUT or WINNER. In a match with friends a player who is out
+   * gets it there and then, before the over's cut has said where they finished (`pending`): the
+   * owner, out first ball, sat on the pitch until a friend had batted the over. The room plays on
+   * as the end screen's rings either way, and `settleOut` stamps the place when the cut lands.
+   */
+  private knockoutEnding() {
+    const room = this.knockout!, view = this.knockoutView(), pending = !!view.pending;
+    this.mark(view.won ? 'knockout-won' : pending ? 'knockout-out-early' : `knockout-out-${view.place}`,
+      view.won ? 'Super Knockout room won' : pending ? 'Out in a match before the cut' : 'Knocked out of a Super Knockout room');
+    if (!this.matchPlay) tallyRoom(view.won ? 1 : view.place);
+    this.hud.knockoutWaiting(null);
+    // Out before the cut, the scoreboard's dress and the bar go as they do when a cut takes the player: the glass puts the scoreboard back to break it.
+    if (pending) { this.hud.knockout(null); this.hud.knockoutTrack(null); this.hud.knockoutFreeHit(null, false, false); }
+    // Knocked out, the glass is heard (`MomentSound`) and Moye moye comes in with the lights going out.
+    this.hud.knockoutEnd(view, view.won ? undefined : cue => { if (cue === 'music') this.audio.music('knockout'); else this.audio.layer(cue); },
+      view.won || room.done ? undefined : id => this.watch(id), () => this.openStandings());
+    // In a match with friends the way on is the room, where the next match is started.
+    this.hud.knockoutAgain(this.matchPlay ? 'BACK TO ROOM' : null);
+    // The store's result was in before this screen went up (the match ended on the ball that settled this player): said on it now.
+    const stored = this.matchPlay?.view.result;
+    if (stored && stored.round === this.matchPlay!.round) this.tellPaid(stored);
+    // Knocked out with the room still going: it plays on, a ball at a time, as rings on the end screen (section 51).
+    if (!view.won && !room.done) { this.room = { nextAt: this.elapsed + ROOM_FIRST_MS, watching: null, ball: null, pending }; this.hud.knockoutRings(this.ringsOf()); }
+    // Won, WINNER plays and then counts to the room's Results, as any room's end does (section 52): never left standing.
+    if (view.won) this.room = { nextAt: Infinity, watching: null, ball: null, ending: { from: performance.now() + WON_RESULTS_MS, lit: true, shown: false, wiped: false, done: false } };
+  }
+  /**
+   * The cut has fallen on a player whose end screen is already up: the place goes on its stamp.
+   * An out player a cut passed over (more were out than it took) waits on for the next; one who
+   * wins the final from the pavilion, the other finalist never passing them, gets WINNER.
+   */
+  private settleOut() {
+    const on = this.room, room = this.knockout;
+    if (!on?.pending || !room?.finished) return;
+    on.pending = false;
+    const view = this.knockoutView();
+    if (view.won) {
+      if (on.watching !== null) this.unwatch(true);
+      this.room = null;
+      this.knockoutEnding();
+      this.audio.music('winner');
+      return;
+    }
+    this.mark(`knockout-out-${view.place}`, 'Knocked out of a Super Knockout room');
+    this.hud.knockoutSettle(view);
+  }
   private end() {
     this.setPhase('INNINGS_END');
+    if (this.knockout && (this.knockout.finished || this.matchPlay)) this.knockoutEnding();
     this.hud.rankHero(null, null);
     this.chaseCard();
     this.hud.cardAround(null);
@@ -6310,8 +7524,9 @@ export class Game {
     this.rateThisInnings();
     // Both cards get it, and it is asked for before the modes part company
     // below: the innings that just ended is a different innings in each of
-    // them, but the screen it ends on is the same screen.
-    this.audio.music('result');
+    // them, but the screen it ends on is the same screen. Knocked out, the glass is heard in silence and its
+    // own music comes in with the lights going out (`MomentSound`).
+    this.audio.music(this.knockout && (this.knockout.finished || this.matchPlay) ? (this.knockout.you.place === 1 ? 'winner' : null) : 'result');
     [...strokeMarks(this.spinPulls, COUNTED.spinPull), ...strokeMarks(this.hooks, COUNTED.hook)].forEach(([name, title]) => this.mark(name, title));
     // Which team's kit a Super10 innings was played in (`super10-kit-s10-neon`):
     // the pick in the room, or the earned kit drawn for it.
@@ -7169,6 +8384,557 @@ export class Game {
     return host.runs;
   }
   /** The total passed: the chase is won on this ball, and the innings is over (the store's rule too). */
+  /**
+   * A ball in the knockout room: every sub bats the delivery the player was
+   * bowled, the cut falls at the over's end and is called on the next guard,
+   * and the scoreboard says where the player stands. Out, the room bats on
+   * without them to the cut that takes them, all at once.
+   */
+  private knockoutBall(delivery: Delivery, outcome: ShotOutcome) {
+    const room = this.knockout!;
+    if (this.matchPlay) {
+      // A match with friends: the ball goes to the store, and the room counts it once the store has it, as every other phone will.
+      const play = this.matchPlay;
+      // The store went on while this ball was in the air: it took the phone for away (a bad connection, a page starved of
+      // frames) and a sub has batted the over, this ball with it. The ball is the sub's. Counted as the player's it was filed
+      // under whichever ball the store's card had got to, and at the innings' end as a thirty-first, which the store never
+      // takes and BACK TO ROOM kept trying to send before it would go (seen in friends-check, 19 November 2026).
+      if (play.facing !== play.batted || play.batted >= KNOCKOUT.maxBalls) { this.matchWaitLine(); return; }
+      const ball = play.batted++;
+      play.out ||= outcome.isWicket;
+      play.balls[ball] = ballChar(outcome.runs, outcome.isWicket);
+      // How it was played goes with it, for whoever is watching this player's game: the swing as the scene was told it,
+      // when it came, when the ball was resolved (now) and what came of it. Only its figure used to travel, and the
+      // watching phone made up a stroke to fit: a helicopter for one was shown as a cover drive for one.
+      const swing = this.keptSwing, release = delivery.releaseTimeMs;
+      play.hows[ball] = packHow({
+        swing: swing ? { shot: swing.shot, charging: swing.charging, lofted: swing.lofted, sweeping: swing.sweeping, levelled: swing.levelled, version: swing.version,
+          meets: swing.meets, cutting: swing.cutting, spinPulling: swing.spinPulling, helicopter: !!swing.helicopter } : null,
+        swingAfter: swing ? swing.at - release : this.elapsed - release, resolveAfter: this.elapsed - release, outcome });
+      this.matchWaitLine();
+      return;
+    }
+    const news = [room.ball(delivery, outcome)];
+    if (outcome.isWicket && !room.finished) news.push(...room.playOut(() => this.generator.next(0)));
+    this.knockoutNews(news);
+  }
+  /** What the room's balls did, on screen: the cut called and answered by the ground, the scoreboard, the bar and the free hit. */
+  private knockoutNews(news: BallNews[]) {
+    const room = this.knockout!;
+    const last = news.filter(n => n.gone.length).at(-1);
+    this.koCut = last ? { at: room.bowled, gone: last.gone } : this.koCut;
+    const line = last && !room.finished ? cutLine(last, room.alive.length, room.youId) : null;
+    if (line) this.hud.callOut(line);
+    // The ground answers the cut as the bowler walks back (F4 · Motion): the floodlights flash once and the
+    // crowd swells; going into the final they dip, and stay a shade down for it.
+    if (last && !room.finished) {
+      this.scene.floodlights(room.final ? 'dip' : 'flash', this.elapsed + FLOOD_AFTER_MS);
+      this.scene.cheer('hit-four', this.elapsed);
+      this.audio.cheer(CUT_CHEER, FLOOD_AFTER_MS / 1000);
+    }
+    this.hud.knockout(room.finished ? null : chipOf(room.standing()));
+    this.hud.knockoutTrack(room.finished ? null : trackOf(room), room.you.face);
+    // The free hit (`free-hit.ts`): nothing of it is put up here, between balls. It is told as the bowler sets off for
+    // its ball (`tellFreeHit`), and let go once that ball is dead.
+    const ahead = !room.finished && room.freeHitAhead();
+    this.hud.knockoutFreeHit(null, false, ahead);
+    // Earned is counted, never put on screen: the owner found a popup at the cut distracting, and the player is told on the ball itself.
+    if (ahead && last && room.bowled % KNOCKOUT.ballsPerOver === 0) this.mark('knockout-free-hit-earned', 'A free hit earned');
+  }
+  /**
+   * The room after the player has gone (Figma section 51, `KnockoutWatch.ts`).
+   * It plays on, a ball at a time, until somebody wins it: unwatched, on its
+   * own clock under the end screen, whose rings it keeps up to date; watched,
+   * each ball is played on the ground as the sub played it (`Play`: the
+   * stroke, swung at their timing, and what came of it), the call, their
+   * scoreboard and the cuts landing as the ball does. Nothing of the player's
+   * innings is touched: it is over, counted and on the card underneath.
+   */
+  private room: {
+    nextAt: number; watching: number | null; ball: RoomBall | null; ending?: RoomEnding;
+    /** In a match with friends: how many of each seat's balls the watcher has been shown; the room's end held until the one watched is caught up; and nothing new to show. */
+    seen?: Map<number, number>; endDue?: boolean; idle?: boolean;
+    /** Out in a match, the end screen up, and the cut that places the player still to fall. */
+    pending?: boolean;
+    /** The seat the batter on the ground is dressed as. */
+    dressed?: number;
+  } | null = null;
+  private readonly watchKeys = { close: () => this.unwatch(), step: (by: 1 | -1) => this.watchStep(by), react: (emoji: string) => this.sendReaction(emoji) };
+  /**
+   * A reaction from the tray, to whoever is being watched. In a match with friends it goes to the store for that
+   * player's phone, and for anybody else watching them; a sub has nobody to tell, so it only floats here.
+   */
+  private sendReaction(emoji: string) {
+    this.mark('knockout-react', 'A reaction sent while watching');
+    const play = this.matchPlay, id = this.room?.watching, to = id === null || id === undefined ? null : this.knockout?.seats[id]?.handle;
+    if (!play || !to) return;
+    void reactInMatch(play.code, play.me, to, emoji).then(answer => { if (this.matchPlay === play) this.matchLink?.take(answer); });
+  }
+  /**
+   * Who this phone is watching, told to the store (section 51, the N watching): at once when the story opens or turns to
+   * another, every `WATCH_BEAT_MS` while it is open, and once more when it closes. The header says how many are watching
+   * them, this phone among them.
+   */
+  private tellWatching() {
+    const play = this.matchPlay;
+    if (!play) return;
+    const seat = this.room?.watching ?? -1, now = performance.now(), told = this.watchTold;
+    if (seat >= 0) this.hud.knockoutWatchers(play.view.watching?.find(one => one.seat === seat)?.n ?? 0);
+    if (told.code === play.code && told.seat === seat && (seat < 0 || now - told.at < WATCH_BEAT_MS)) return;
+    this.watchTold = { code: play.code, seat, at: now };
+    void watchInMatch(play.code, play.me, seat).then(answer => { if (this.matchPlay === play) this.matchLink?.take(answer); });
+  }
+  private watchTold = { code: '', seat: -1, at: 0 };
+  /** Reactions the store has that this phone has not shown: the ones for this player, or for whoever they are watching (never their own). */
+  private showReactions(match: MatchView) {
+    const play = this.matchPlay;
+    if (!play || !match.reactions?.length) return;
+    const mine = handleOf(play.me.playerId), id = this.room?.watching;
+    const watched = id === null || id === undefined ? null : this.knockout?.seats[id]?.handle ?? null;
+    for (const rx of match.reactions) {
+      if (play.reacted.has(rx.id)) continue;
+      play.reacted.add(rx.id);
+      if (rx.by === mine || (rx.to !== mine && rx.to !== watched)) continue;
+      this.hud.knockoutReaction(rx.emoji);
+      this.mark('knockout-react-seen', 'A reaction shown');
+    }
+  }
+  /** The rings: everybody still in but the player, best first, those out greyed until the cut takes them. */
+  private ringsOf(): RingView[] {
+    return (this.knockout?.watchable ?? []).map(seat => ({ id: seat.id, name: seat.name, face: seat.face, out: seat.out }));
+  }
+  /** Who can be watched batting: still in and not out. */
+  private batting(): Seat[] { return (this.knockout?.watchable ?? []).filter(seat => !seat.out); }
+  private roomFrame() {
+    const on = this.room, room = this.knockout;
+    if (!on || !room) return;
+    if (on.ending) { if (on.ball) this.watchFrame(on.ball); this.endingFrame(on.ending); return; }
+    if (on.ball) { this.watchFrame(on.ball); return; }
+    if (on.watching !== null) { if (this.matchPlay) this.watchStored(); else this.watchBall(); return; }
+    if (this.matchPlay) return;
+    if (this.elapsed < on.nextAt) return;
+    on.nextAt = this.elapsed + ROOM_BALL_MS;
+    this.roomNews(room.ball(this.generator.next(0), null), false);
+  }
+  /** What a ball did to the room, shown: the rings, a cut answered by the floodlights, and the room's end. */
+  private roomNews(news: BallNews, watched: boolean) {
+    this.hud.knockoutRings(this.ringsOf());
+    if (!this.knockout!.done) this.hud.knockoutStandings(() => this.resultsView());
+    if (watched && news.kind === 'cut') {
+      const line = cutLine(news, this.knockout!.alive.length, this.knockout!.youId); if (line) this.hud.callOut(line);
+      this.scene.floodlights('flash', this.elapsed); this.scene.cheer('hit-four', this.elapsed); this.audio.cheer(CUT_CHEER);
+    }
+    if (this.knockout!.done) { this.roomEnd(watched); return; }
+    // Down to its last two: the rings say THE FINAL (B1).
+    this.hud.knockoutRoomFinal(this.knockout!.final);
+  }
+  /**
+   * The room won (section 52): never cut straight to the end screen. Watched, its last ball is
+   * played out and its call stands first; then the lights answer, MATCH OVER with a three-second
+   * count, the knockout's wipe and the room's Results.
+   */
+  private roomEnd(watched: boolean) {
+    const on = this.room;
+    if (!on || on.ending) return;
+    // In a match the room can be over before a watcher has seen the balls that ended it: it waits for the seat watched to be caught up.
+    if (this.matchPlay && on.watching !== null && (on.ball || this.seenOf(on.watching) < this.knockout!.seats[on.watching].played)) { on.endDue = true; return; }
+    const wait = watched && on.ball ? Math.max(0, on.ball.endAt - this.elapsed) : 0;
+    on.ending = { from: performance.now() + wait, lit: false, shown: false, wiped: false, done: false };
+  }
+  private endingFrame(e: RoomEnding) {
+    const room = this.knockout!, now = e.pin ?? performance.now() - e.from, watching = this.room!.watching !== null;
+    if (now < 0) return;
+    if (!e.lit) {
+      e.lit = true;
+      // Watched, the ground answers as it does a cut; the end screen has the match far off and blurred, so the crowd only.
+      if (watching) { this.scene.floodlights('flash', this.elapsed); this.scene.cheer('hit-six', this.elapsed); }
+      this.audio.cheer(CUT_CHEER);
+    }
+    if (!e.shown && now >= ROOM_END.over && room.you.place === 1) {
+      e.shown = true;
+      this.hud.knockoutCountdown(() => this.resultsNow());
+      this.mark('knockout-won-results', 'WINNER counted on to the results');
+    }
+    if (!e.shown && now >= ROOM_END.over) {
+      e.shown = true;
+      const winner = room.winner!, runner = room.seats.find(seat => seat.place === 2) ?? null, by = runner ? winner.runs - runner.runs : 0;
+      const you = room.you.place ?? room.seats.length;
+      this.hud.knockoutMatchOver({
+        name: winner.name, face: winner.face,
+        line: `${winner.runs} off ${winner.balls}${runner ? ` · outlasted ${runner.name}${by > 0 ? ` by ${by}` : ''} in the final` : ''}`,
+        you: this.matchPlay?.onlooker ? 'You watched this one from the room' : `You finished ${ordinal(you).toLowerCase()} of ${room.seats.length}`,
+      }, { id: winner.id, name: winner.name, face: winner.face, out: false }, this.roomLine(), watching, () => this.resultsNow());
+      this.audio.music('winner');
+      this.mark('knockout-room-over', 'A room watched to its end');
+    }
+    if (e.shown && !e.wiped) this.hud.knockoutCount(Math.max(1, Math.min(3, Math.ceil((ROOM_END.wipe - now) / 1000))));
+    if (!e.wiped && now >= ROOM_END.wipe) { e.wiped = true; this.hud.replayWipe('knockout'); }
+    if (!e.done && now >= ROOM_END.wipe + WIPE_MS / 2) { e.done = true; this.roomResults(); }
+  }
+  /** A tap through MATCH OVER: straight to the wipe. */
+  private resultsNow() {
+    const e = this.room?.ending;
+    if (!e || e.wiped || !e.shown) return;
+    e.from = performance.now() - ROOM_END.wipe;
+    this.mark('knockout-results-tapped', 'Tapped through MATCH OVER to the results');
+  }
+  private roomLine() {
+    const room = this.knockout!;
+    if (room.you.place === 1) return 'You won the room';
+    if (this.matchPlay?.onlooker) return `${room.winner!.name} won the room`;
+    return `${room.winner!.name} won the room · you were ${ordinal(room.you.place ?? room.seats.length).toLowerCase()}`;
+  }
+  /** Under the wipe: the game put away, the end screen told the result, and the room's Results over it. */
+  private roomResults() {
+    const room = this.knockout!;
+    if (this.room?.watching !== null) this.unwatch(true);
+    this.room = null;
+    this.hud.knockoutRoomOver(this.roomLine());
+    // (A phone that only watched has no end screen of its own under them: back is the room.)
+    this.hud.knockoutResults(this.resultsView(), () => { this.audio.music(null); if (this.matchPlay?.onlooker) this.showMatchRoom(); });
+    this.mark('knockout-results', 'The room\'s results');
+    void room;
+  }
+  /** LEADERBOARD on the end screen: the room's standings as they are, or its Results once it is over. */
+  private openStandings() {
+    if (!this.knockout) return;
+    this.mark('knockout-leaderboard', 'The leaderboard opened from the end screen');
+    this.hud.knockoutResults(this.resultsView());
+  }
+  /** WINNER's pill: practice, what the store paid this player, or what first place is worth until it has said. */
+  private matchPoints(won: boolean): string {
+    const play = this.matchPlay;
+    if (!play) return 'PRACTICE · NO POINTS';
+    const result = play.view.result?.round === play.round ? play.view.result : null;
+    if (result) return pointsWord(mineIn(result, handleOf(play.me.playerId))?.points ?? 0, result.counted);
+    // Not said yet: the winner's is what first place is worth as the room stood; anybody else's waits for the store.
+    const first = play.view.worth?.[0] ?? 0;
+    return won ? pointsWord(first, first > 0) : '';
+  }
+  /** What the store paid this player, on the end screen: WINNER's pill, or the end of a knocked-out line that was in the points. */
+  private tellPaid(result: StoredResult): number {
+    const paid = (this.matchPlay && mineIn(result, handleOf(this.matchPlay.me.playerId))?.points) || 0;
+    this.hud.knockoutPaid(pointsWord(paid, result.counted), paid > 0 ? pointsNote(paid, true) : null);
+    return paid;
+  }
+  /** The store's result for the match this phone batted: what it paid on the end screen, and the Results drawn from it. */
+  private resultIn(result: StoredResult) {
+    const play = this.matchPlay;
+    if (!play) return;
+    const paid = this.tellPaid(result);
+    this.hud.knockoutResultsPaid(() => this.resultsView());
+    this.knockoutStanding = null;
+    if (result.counted && !play.onlooker) track(paid > 0 ? 'knockout-paid' : 'knockout-unpaid', paid > 0 ? 'A match with friends paid points' : 'A match with friends that counted and paid this player nothing');
+  }
+  private resultsView(): ResultsView {
+    const room = this.knockout!, live = !room.done;
+    // Over, with the store's result in: the Results are the store's, with what each place paid and who ran away.
+    const stored = this.matchPlay && !live && this.matchPlay.view.result?.round === this.matchPlay.round ? this.matchPlay.view.result : null;
+    if (stored) return resultsOf(stored, handleOf(this.matchPlay!.me.playerId), this.matchPlay!.code, 'BACK TO ROOM');
+    // Still being played, the room as it stands: those still in best first, then the gone by where they finished.
+    const seats = live ? room.table() : [...room.seats].sort((a, b) => (a.place ?? 99) - (b.place ?? 99));
+    // A cut takes those out first, so a total still batting can stand above a bigger one that was out: the line says which.
+    const lineOf = (seat: Seat) => {
+      if (seat.place === null) return seat.out ? 'Out · waiting on the cut' : `${seat.balls} ${seat.balls === 1 ? 'ball' : 'balls'} · still batting`;
+      if (seat.place === 1) return 'Won the final';
+      if (seat.place === 2) return 'Runner-up';
+      const over = Math.ceil((seat.wentAt ?? room.bowled) / KNOCKOUT.ballsPerOver);
+      return seat.out ? `Out · cut after over ${over}` : `Cut after over ${over}, not out`;
+    };
+    const you = room.you, winner = room.winner ?? seats[0], runner = room.seats.find(seat => seat.place === 2) ?? null, by = runner ? winner.runs - runner.runs : 0;
+    const over = Math.min(KNOCKOUT.cuts.length + 1, Math.floor(room.roomBalls / KNOCKOUT.ballsPerOver) + 1);
+    // Out in a match before the cut, this phone's own figures stand in for the room's, which waits on the store for the wicket's ball.
+    const mine = this.matchPlay && you.place === null ? { runs: this.score.runs, out: true } : null;
+    return {
+      live,
+      winner: live ? {
+        title: winner === you ? 'You lead the room' : `${winner.name} leads`,
+        line: `${room.final ? 'The final' : `Over ${over} of ${KNOCKOUT.cuts.length + 1}`} · ${room.alive.length} still in`,
+      } : {
+        title: winner === you ? 'You won the room' : `${winner.name} won the room`,
+        line: `${winner.runs} off ${winner.balls}${runner ? ` · outlasted ${runner === you ? 'you' : runner.name}${by > 0 ? ` by ${by}` : ''} in the final` : ''}`,
+      },
+      rows: seats.map((seat, i) => ({ place: seat.place ?? i + 1, name: seat.name, face: seat.face, runs: seat === you && mine ? mine.runs : seat.runs,
+        line: seat === you && mine ? 'Out · waiting on the cut' : lineOf(seat), you: seat === you, sub: seat.sub })),
+      // (Watching a match this phone is not batting: no place of its own in the dock.)
+      you: this.matchPlay?.onlooker
+        ? { place: 0, of: seats.length, face: this.matchPlay.me.avatar, runs: null, line: live ? 'Watching from the room' : 'You were not batting in this one',
+          sentence: live ? 'You are <em>watching</em> this one' : 'You <em>sat this one out</em>' }
+        : { place: you.place ?? seats.indexOf(you) + 1, of: seats.length, face: you.face, runs: mine?.runs ?? you.runs,
+          line: `${this.knockoutView().line} · ${this.matchPlay ? 'with friends' : 'practice'}`,
+          sentence: you.place === null ? 'You are <em>out</em> · your place comes with the cut' : undefined },
+      practice: !this.matchPlay, again: this.matchPlay ? 'BACK TO ROOM' : undefined,
+    };
+  }
+  /** Watch a seat (null: the first still batting). The room's next ball is theirs, played now. */
+  private watch(id: number | null) {
+    const on = this.room, room = this.knockout;
+    if (!on || !room || on.ending) return;
+    const batting = this.batting();
+    const seat = batting.find(s => s.id === id) ?? batting[0];
+    if (!seat) return;
+    const first = on.watching === null;
+    on.watching = seat.id;
+    if (first) { this.audio.music(null); this.audio.crowd(MURMUR.blast); this.mark('knockout-watch', 'Watching the room after a knock-out'); }
+    // A match's story opens where it picks up (`storyFrom`), never on a ball being shown for somebody else.
+    if (this.matchPlay) {
+      if (on.ball && on.ball.seat !== seat.id) { this.dropWatched(); this.scene.reset(true); }
+      if (!on.ball) this.storySkip(seat.id);
+    }
+    this.watchHeader(0);
+  }
+  /** Back to the end screen. The ball being watched still counts: its news is shown at once. */
+  private unwatch(quiet = false) {
+    const on = this.room;
+    if (!on || on.watching === null) return;
+    // ✕ through MATCH OVER goes on to the results, as a tap does.
+    if (on.ending && !quiet) { this.resultsNow(); return; }
+    const ball = on.ball;
+    this.dropWatched();
+    on.watching = null; on.ball = null; on.nextAt = this.elapsed + ROOM_BALL_MS; on.idle = false;
+    this.hud.knockoutWaiting(null);
+    this.hud.knockoutWatch(null, this.watchKeys); this.hud.knockout(null);
+    this.tellWatching();
+    this.audio.crowd(null); this.scene.reset();
+    if (ball && !ball.told && !quiet) { ball.told = true; this.roomNews(ball.news, false); }
+    // The room ended while it was being watched: its end plays on the end screen now.
+    if (on.endDue && !quiet) { on.endDue = false; this.roomEnd(false); }
+    // Watched from the room, the way back is the room.
+    if (this.matchPlay?.parked && !quiet && !on.ending) this.showMatchRoom();
+  }
+  /** The next one along the rings, or the one before; the ball now being bowled is played again for them. */
+  private watchStep(by: 1 | -1) {
+    const on = this.room;
+    if (!on || on.watching === null || on.ending) return;
+    const batting = this.batting(), at = batting.findIndex(s => s.id === on.watching);
+    const next = batting[(Math.max(0, at) + by + batting.length) % batting.length];
+    if (!next || next.id === on.watching) return;
+    this.mark('knockout-watch-swipe', 'Swiped to another player while watching');
+    // In a match each seat's balls are its own, shown from where the watcher left them: the next one's are staged on the next frame.
+    if (this.matchPlay) { this.dropWatched(); on.watching = next.id; on.idle = false; this.hud.knockoutWaiting(null); this.scene.reset(true); this.storySkip(next.id); this.watchHeader(by); return; }
+    on.watching = next.id;
+    if (on.ball) this.watchStage(on.ball, next.id);
+    this.watchHeader(by);
+  }
+  private watchHeader(turned: 1 | -1 | 0) {
+    const room = this.knockout!, on = this.room!, id = on.watching!;
+    const seat = room.seats[id], batting = this.batting(), at = batting.findIndex(s => s.id === id);
+    const ranked = room.ranked, place = ranked.indexOf(seat) + 1;
+    const shown = on.ball?.shown ? 0 : on.ball ? 1 : 0;
+    // In a match the room may be balls ahead of what has been shown: the header counts what the watcher has seen.
+    const told = this.matchPlay ? this.seenOf(id) + (on.ball?.seat === id && on.ball.shown ? 1 : 0) : Math.max(0, (room.logs.get(id)?.length ?? 0) - shown);
+    const log = (room.logs.get(id) ?? []).slice(0, told);
+    const runs = log.reduce((sum, ball) => sum + ball.runs, 0), out = log.some(ball => ball.isWicket);
+    const header: WatchHeader = {
+      id, name: seat.name, face: seat.face,
+      line: `${runs}${out ? '' : '*'} off ${log.length} · ${place > 0 ? ordinal(place).toLowerCase() : '–'} of ${ranked.length}`,
+      bowled: this.matchPlay ? told : room.bowled - shown,
+      prev: batting.length > 1 ? batting[(at - 1 + batting.length) % batting.length] : null,
+      next: batting.length > 1 ? batting[(at + 1) % batting.length] : null,
+    };
+    this.hud.knockoutWatch(header, this.watchKeys, turned);
+    this.tellWatching();
+    // Their scoreboard, as the game shows the player's: their balls of the room, and where they stand.
+    const score = new ScoreManager(KNOCKOUT_LIMITS); log.forEach(ball => score.record(ball));
+    this.hud.knockout({ place: `#${Math.max(1, place)}`, line: `OF ${ranked.length}`, drop: false });
+    this.hud.score(score);
+  }
+  /** The room's next ball, bowled for the seat watched. */
+  private watchBall() {
+    const on = this.room!, room = this.knockout!;
+    const delivery = this.generator.next(this.elapsed + WATCH_LEAD + GAME.runupMs);
+    const news = room.ball(delivery, null);
+    on.ball = { start: 0, delivery, news, seat: on.watching!, play: null, swung: false, struck: false, shown: false, told: false, presentAt: Infinity, endAt: Infinity, outcome: null };
+    this.watchStage(on.ball, on.watching!);
+    this.watchHeader(0);
+  }
+  /** How many of a seat's balls the watcher of a match has been shown: from the top of the over the room is in, the first time. */
+  private seenOf(id: number): number {
+    const on = this.room!, room = this.knockout!;
+    on.seen ??= new Map();
+    let seen = on.seen.get(id);
+    if (seen === undefined) {
+      seen = Math.min(room.seats[id].played, Math.floor(room.roomBalls / KNOCKOUT.ballsPerOver) * KNOCKOUT.ballsPerOver);
+      on.seen.set(id, seen);
+    }
+    return seen;
+  }
+  /**
+   * A seat's story skipped on to where it picks up (`storyFrom`): a friend's latest ball, one at a time, the older
+   * passed over whenever more than one is waiting; a sub's latest over. Only between balls, never under one being shown.
+   */
+  private storySkip(id: number) {
+    const on = this.room!, seat = this.knockout!.seats[id], seen = this.seenOf(id);
+    const from = storyFrom(seen, seat.played, seat.sub);
+    if (from !== seen) on.seen!.set(id, from);
+  }
+  /** The ball being watched put away: seen, if it had got as far as its call. */
+  private dropWatched() {
+    const on = this.room;
+    if (!on?.ball || !this.matchPlay) return;
+    if (on.ball.shown) on.seen!.set(on.ball.seat, this.seenOf(on.ball.seat) + 1);
+    on.ball = null;
+  }
+  /**
+   * Watching a match with friends (section 51, on real seats): the room is
+   * the store's, moved on as balls arrive, so the seat watched is played back
+   * from what the room has kept of it (`history`), a ball at a time on the
+   * ground: a friend's from their latest ball, a sub's from the top of their
+   * latest over, never the innings run through to catch up (`storyFrom`).
+   * Caught up, the bowler waits at his mark for their next ball; a friend's are
+   * a few seconds behind them, a sub's come an over at a time.
+   */
+  private watchStored() {
+    const on = this.room!, room = this.knockout!, id = on.watching!, seat = room.seats[id];
+    this.storySkip(id);
+    const at = this.seenOf(id), play = room.history.get(id)?.[at], delivery = this.matchDelivery(at);
+    if (at >= seat.played || play === undefined || !delivery) {
+      if (on.endDue) { on.endDue = false; this.roomEnd(true); return; }
+      // Nothing more of theirs to come: on to the next still batting, as stories go on, or back to the end screen.
+      if (seat.out || seat.place !== null) {
+        const next = this.batting().find(one => one.id !== id);
+        if (next) { on.watching = next.id; on.idle = false; this.watchHeader(1); } else this.unwatch();
+        return;
+      }
+      if (!on.idle) { on.idle = true; this.scene.reset(true); this.hud.knockoutWaiting(`WAITING FOR ${seat.name.toUpperCase()}’S NEXT BALL`); }
+      return;
+    }
+    if (on.idle) { on.idle = false; this.hud.knockoutWaiting(null); }
+    const none: BallNews = { gone: [], kind: null, over: null } as unknown as BallNews;
+    on.ball = { start: 0, delivery: { ...delivery, releaseTimeMs: this.elapsed + WATCH_LEAD + GAME.runupMs }, news: none, seat: id, play: null,
+      swung: false, struck: false, shown: false, told: true, presentAt: Infinity, endAt: Infinity, outcome: null };
+    this.watchStage(on.ball, id);
+    on.ball.play = play;
+    // A friend's ball as their own phone told it, where it did: the stroke they played, not one made up to fit the figure.
+    on.ball.how = seat.handle ? this.matchPlay?.told.get(seat.handle)?.get(at) ?? null : null;
+    this.watchHeader(0);
+  }
+  /** The ball from the top, for this seat: dressed as their own, the bowler at his mark. */
+  private watchStage(ball: RoomBall, id: number) {
+    const room = this.knockout!;
+    ball.seat = id; ball.play = room.plays.get(id) ?? null; ball.start = this.elapsed;
+    ball.swung = false; ball.struck = false; ball.shown = false; ball.presentAt = Infinity; ball.endAt = Infinity; ball.outcome = null;
+    // Dressed once for each seat watched, not every ball: dressing the batter deals the fielding side a kit afresh, so the
+    // men in the field changed shirts between balls, which the owner saw (19 November 2026).
+    if (this.room && this.room.dressed !== id) {
+      this.room.dressed = id;
+      const look = this.myLook(), kits = OUTFITS.filter(kit => kit.id !== look.outfit.id);
+      this.scene.dressBatter(kits[(id * 3) % kits.length] ?? look.outfit, look.bat, look.guard);
+    }
+    this.scene.reset(true); this.scene.spinner(spun(ball.delivery));
+    this.scene.express(!!ball.delivery.express, !!ball.delivery.death, false); this.scene.round(!!ball.delivery.round);
+  }
+  /** One frame of a watched ball, as `update` plays the player's: run-up, flight, their stroke, the ball away. */
+  private watchFrame(ball: RoomBall) {
+    const d = ball.delivery, since0 = this.elapsed - ball.start, release = ball.start + WATCH_LEAD + GAME.runupMs;
+    if (since0 < WATCH_LEAD) return;
+    if (this.elapsed < release) { this.scene.runup(Math.min(1, (since0 - WATCH_LEAD) / GAME.runupMs)); return; }
+    if (!ball.struck) {
+      if (d.releaseTimeMs !== release) { d.releaseTimeMs = release; d.idealContactTimeMs = release + d.durationMs; }
+      const since = this.elapsed - release, progress = flightProgress(d, since);
+      this.scene.delivery(d, progress, since);
+      const play = ball.play, how = ball.how ?? null;
+      let outcome: ShotOutcome, shot: ShotType | undefined;
+      if (how) {
+        // Told by their own phone: the swing with every argument at the moment it came, and the ball resolved when
+        // theirs was, as a replay tells the scene one's own ball again (`replayFrame`).
+        const swing = how.swing;
+        if (swing && !ball.swung && since >= how.swingAfter) {
+          ball.swung = true;
+          this.scene.swing(swing.shot, this.elapsed, d, swing.charging, swing.lofted, swing.sweeping, swing.levelled, swing.version, swing.meets, swing.cutting, swing.spinPulling, swing.helicopter);
+        }
+        if (since < how.resolveAfter) return;
+        outcome = how.outcome; shot = swing?.shot;
+      } else {
+        const swingAt = play ? d.idealContactTimeMs + play.offset : Infinity;
+        if (play && !ball.swung && this.elapsed >= swingAt) { ball.swung = true; this.scene.swing(play.shot, this.elapsed, d, false, false, false, false, 2, 1); }
+        // Met when the ball arrives and the bat has come down, or let go: as the game resolves the player's.
+        if (this.elapsed < Math.max(d.idealContactTimeMs, Math.min(swingAt, d.idealContactTimeMs + this.swingWindow))) return;
+        outcome = play?.outcome ?? { runs: 0 as const, isWicket: false, quality: 0, feedback: 'LEFT ALONE', timingGrade: 'MISS' as const, timingDeltaMs: null, compatibility: 0, madeBatContact: false, aerial: false };
+        shot = play?.shot;
+      }
+      const flight = this.scene.hit(outcome, shot, d, this.elapsed);
+      ball.struck = true; ball.outcome = outcome; ball.presentAt = flight.presentAt; ball.endAt = flight.endAt + WATCH_TAIL;
+      if (outcome.madeBatContact && !outcome.aerial) this.audio.play(outcome.edged ? 'edge' : 'hit');
+    }
+    this.scene.result(this.elapsed);
+    if (!ball.shown && this.elapsed >= ball.presentAt) {
+      ball.shown = true;
+      const outcome = ball.outcome!;
+      this.hud.result(outcome);
+      if (outcome.isWicket) { this.audio.groan(GROAN.out); this.scene.arenaCue('wicket', this.elapsed, outcome.wicketType === 'BOWLED' ? 'BOWLED' : 'OUT'); }
+      else if (outcome.runs === 4 || outcome.runs === 6) { this.scene.cheer(outcome.runs === 6 ? 'hit-six' : 'hit-four', this.elapsed); this.audio.cheer(boundaryCheer(outcome.runs, 1, false)); }
+      this.watchHeader(0);
+      if (!ball.told) { ball.told = true; this.roomNews(ball.news, true); if (!this.room) return; }
+    }
+    if (this.elapsed < ball.endAt) return;
+    const on = this.room!;
+    // In a match the next ball of theirs, or the wait for it, is `watchStored`'s on the next frame.
+    if (this.matchPlay) { on.seen!.set(ball.seat, this.seenOf(ball.seat) + 1); on.ball = null; return; }
+    on.ball = null;
+    // The room is over: the game holds on this ball under MATCH OVER, and goes nowhere else.
+    if (on.ending) return;
+    // Out, or taken by the cut: on to the next still batting, as stories go on; nobody left batting, back to the end screen.
+    if (!this.batting().some(seat => seat.id === on.watching)) {
+      const next = this.batting()[0];
+      if (next) { on.watching = next.id; this.watchHeader(1); } else this.unwatch();
+    }
+  }
+  /** KNOCKED OUT or WINNER, from the room as it stands once the player's match is over. */
+  private knockoutView(): MomentView {
+    const room = this.knockout!, seat = room.you, table = room.table();
+    // Out in a match before the cut (`knockoutEnding`): no place yet, and the room may not have counted the
+    // wicket's ball, which goes by the store, so the figures are this phone's own.
+    const pending = !!this.matchPlay && seat.place === null;
+    const you = pending ? { ...seat, runs: this.score.runs, balls: this.score.balls, out: true } : seat;
+    const at = table.indexOf(seat), won = seat.place === 1;
+    // The standings round the player, seven rows at most: two who stayed above the line (one, if a big cut needs the room), then those who went with them.
+    // Before the cut the line is where the over's cut would fall as the room stands, or just over the player if it would pass them by.
+    const line = Math.min(at, Math.max(0, room.alive.length - room.nextCut.count));
+    const firstGone = pending ? line : table.findIndex(one => one.wentAt === seat.wentAt && one.place !== null && one.place !== 1);
+    const start = won ? 0 : Math.max(0, Math.max(firstGone - 2, at - 6));
+    const window = table.slice(start, start + 7);
+    const rows = window.map(one => ({
+      place: one.place ?? table.indexOf(one) + 1, name: one.name, runs: one === seat ? you.runs : one.runs, face: one.face,
+      you: one === seat, out: one === seat ? you.out : one.out, sub: one.sub,
+    }));
+    const above = pending ? Math.max(0, line - start) : Math.max(0, window.findIndex(one => one.wentAt === seat.wentAt && one.place !== null && one.place !== 1));
+    const over = Math.ceil((you.wentAt ?? (pending ? Math.max(1, you.balls) : room.bowled)) / KNOCKOUT.ballsPerOver);
+    const final = (you.wentAt ?? 0) > KNOCKOUT.cuts.length * KNOCKOUT.ballsPerOver;
+    const runner = room.seats.find(one => one.place === 2) ?? null;
+    // How the player went, in the words K9 v2's line uses: bowled, caught, stumped.
+    const how = you.out ? (this.score.history.at(-1)?.wicketType ?? 'out').toLowerCase().replace(/_/g, ' ') : null;
+    const lastOne = final ? 'in the final' : `at the end of over ${over}`;
+    const by = runner ? you.runs - runner.runs : 0;
+    return {
+      won, place: you.place ?? room.alive.length, of: room.seats.length,
+      you: { name: you.name, face: you.face, runs: you.runs, balls: you.balls, sixes: you.sixes },
+      pending,
+      heading: final ? 'THE FINAL' : pending ? `OVER ${over} · OUT` : `END OF OVER ${over}`,
+      line: won
+        ? (runner ? `Outlasted ${runner.name}${by > 0 ? ` by ${by}` : ''} ${lastOne}.` : 'The room is yours.')
+        : pending ? `${you.runs} off ${you.balls} · ${how} · your place comes with the cut`
+        : how ? `${you.runs} off ${you.balls} · ${how} in over ${Math.ceil(you.balls / KNOCKOUT.ballsPerOver) || 1}` : `${you.runs} off ${you.balls} · cut ${lastOne}`,
+      figures: `${you.runs} runs · ${you.balls} balls · ${you.sixes} ${you.sixes === 1 ? 'six' : 'sixes'}`,
+      rows, above,
+      other: won ? (runner && { name: runner.name, face: runner.face, runs: runner.runs }) : null,
+      // A room of subs is practice: no points (PRODUCT.md). A match with friends says what the store paid, or until it
+      // has answered what first place is worth as the room stood.
+      points: this.matchPoints(won),
+      origin: this.stumpsOnScreen(),
+    };
+  }
+  /** Where the batter's stumps stand on the screen, as shares of it: where KNOCKED OUT's glass cracks from. */
+  private stumpsOnScreen() {
+    try {
+      const at = this.scene.batterOnScreen();
+      if (!at.width || !at.height) return undefined;
+      const x = at.feet.x / at.width, y = (at.feet.y - (at.feet.y - at.head.y) * .3) / at.height;
+      return { x: Math.min(.9, Math.max(.1, x)), y: Math.min(.9, Math.max(.2, y)) };
+    } catch { return undefined; }
+  }
+  /** The Blast's innings is over: the balls or the wickets, a chase's target passed, or the knockout room done with the player. */
+  private get blastOver() { return this.matchPlay ? !!this.knockout?.finished : this.score.ended || this.targetPassed || !!this.knockout?.finished; }
   private get targetPassed() { const target = this.challengeTarget; return target !== null && this.score.runs > target; }
 
   /** What a profile's foot offers between this player and that one; null when the list could not be had. */

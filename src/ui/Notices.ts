@@ -10,7 +10,7 @@ import { escape, kitMarkup } from './Leaderboard';
  * What each row says is `src/game/notices.ts`.
  */
 
-const TONE: Record<Notice['mode'], string> = { classic: '#3f88f2', super10: '#a78bfa', marathon: '#2fbf71', survive: '#ff5a4e' };
+const TONE: Record<Notice['mode'], string> = { classic: '#3f88f2', super10: '#a78bfa', marathon: '#2fbf71', survive: '#ff5a4e', knockout: '#ff4d4d' };
 const FILTERS: { id: NoticeFilter; label: string }[] = [
   { id: 'all', label: 'All' }, { id: 'challenges', label: 'Challenges' }, { id: 'results', label: 'Results' }, { id: 'board', label: 'Board' },
 ];
@@ -28,6 +28,8 @@ function keyOf(notice: Notice, index: number): string {
   if (notice.key?.kind === 'answer') return `<button type="button" class="nt-key is-answer" data-key="${index}">ANSWER</button>`;
   if (notice.key?.kind === 'winback') return `<button type="button" class="nt-key is-win" data-key="${index}">WIN IT BACK</button>`;
   if (notice.key?.kind === 'again') return `<button type="button" class="nt-key is-again" data-key="${index}">AGAIN</button>`;
+  if (notice.key?.kind === 'join') return `<button type="button" class="nt-key is-join" data-key="${index}">JOIN</button>`;
+  if (notice.finish) return `<i class="nt-chip is-finish${notice.finish.top ? ' is-W' : ' is-D'}" aria-label="Finished ${notice.finish.word}">${notice.finish.word}</i>`;
   if (notice.chip) return `<i class="nt-chip is-${notice.chip}" aria-label="${notice.chip === 'W' ? 'Won' : notice.chip === 'L' ? 'Lost' : 'Drawn'}">${notice.chip}</i>`;
   return '';
 }

@@ -1,7 +1,7 @@
-import type { OverKind } from '../config/marathon';
-import { HELI, SOLID_SHOT } from '../config/gameplay';
-import { SUPER10, type Bowler } from '../config/super10';
-import type { ShotOutcome, ShotType } from './types';
+import type { OverKind } from '../config/marathon.js';
+import { HELI, SOLID_SHOT } from '../config/gameplay.js';
+import { SUPER10, type Bowler } from '../config/super10.js';
+import type { ShotOutcome, ShotType } from './types.js';
 
 /**
  * Super10's field: nine men, set by the bowler from the fields T20 sides use

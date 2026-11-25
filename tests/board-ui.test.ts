@@ -106,6 +106,20 @@ describe('the screen', () => {
     expect(boardScreenMarkup(screen({}))).toContain('THE BOARD IS WIDE OPEN');
   });
 
+  it('gives a row a chevron only where a tap opens something', () => {
+    // A Knockout room's Results draws on this screen and its rows open nothing: the player's own had the chevron and
+    // the key's role there, and a tap did nothing.
+    const row = (place: number, you: boolean, still: boolean) => ({ place, name: you ? 'You' : `Sub${place}`, avatar: 0, sub: '', score: '10', you, still });
+    const opening = boardScreenMarkup(screen({ rows: [1, 2, 3, 4, 5].map(place => row(place, place === 5, false)) }));
+    expect(opening).toContain('data-mine="1"');
+    expect(opening).toContain('lb-go');
+    const still = boardScreenMarkup(screen({ rows: [1, 2, 3, 4, 5].map(place => row(place, place === 5, true)) }));
+    expect(still).toContain('lb-row is-you');
+    expect(still).not.toContain('data-mine');
+    expect(still).not.toContain('lb-go');
+    expect(still).not.toContain('role="button"');
+  });
+
   it('says when the board cannot be reached, with a way to try again', () => {
     const markup = boardScreenMarkup(screen({ state: 'offline' }));
     expect(markup).toContain('CAN&rsquo;T REACH THE BOARD');
