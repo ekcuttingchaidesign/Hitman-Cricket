@@ -1042,7 +1042,12 @@ Time प्राइम टाइम, the two hours the design did not draw. `sr
 draws them from the Figma frames' own numbers, every poster at 402 by 874 and
 the frame scaled to the screen, as a story: a tap on the right two thirds on,
 the left third back, a hold to pause, 6.5 seconds a poster (the cover 4), the
-last one waiting, Escape and the close key out. Each poster is printed in as
+last one waiting, Escape and the close key out. It is full bleed: the screen
+is the poster's ground and grain (`--rc-ground` on `.rc`), and what runs off
+a poster's sides (the sixes' rings, the fours' stripes, the clock's rule,
+the bat's rays, the footer's ground) runs on to the screen's edges, so a
+phone shaped other than the design's has its ground round the poster and
+not a framed card in the middle, which is what the owner first saw. Each poster is printed in as
 the motion section times it (`AT`), in CSS for now. The batters are the
 game's own renders, made as the recap opens, the poster in front first,
 through `src/game/recap-render.ts` (the stills page's renderer, moved out of

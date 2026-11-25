@@ -120,7 +120,7 @@ function runs(p: RunsPoster): string {
 function sixes(p: HitsPoster): string {
   const ring = (x: number, y: number, d: number, c: string) => disc(x, y, d, 'none', { border: `62px solid ${c}`, '--d': `${AT.shape}ms` });
   return ring(-370, 465, 1000, INK.tomato) + ring(-298, 537, 856, INK.marigold) + ring(-226, 609, 712, INK.green)
-    + hero(184, 404, 209.7, 384, 'sixes') + rect(0, 790, 402, 84, INK.cream)
+    + hero(184, 404, 209.7, 384, 'sixes') + rect(-600, 790, 1602, 900, INK.cream)
     + plate(16, 4, 8, 236, INK.cobalt, INK.tomato, p.count.toLocaleString('en-IN'), AT.figure, 'fig')
     + sparkle(320, 80, 40, INK.marigold) + sparkle(359, 127, 18, INK.tomato)
     + `<div class="rc-row" style="left:22px;top:234px"><p class="rc-t rc-j rc-in" style="font-size:80px;color:${INK.ink};--d:${AT.label}ms">SIXES</p>`
@@ -131,7 +131,7 @@ function sixes(p: HitsPoster): string {
 }
 
 function fours(p: HitsPoster): string {
-  const stripes = [[700, 14], [724, 10], [743, 7], [758, 5], [771, 3]].map(([y, h]) => rect(0, y, 402, h, INK.cream, { '--d': `${AT.shape}ms` }, 'rc-in')).join('');
+  const stripes = [[700, 14], [724, 10], [743, 7], [758, 5], [771, 3]].map(([y, h]) => rect(-600, y, 1602, h, INK.cream, { '--d': `${AT.shape}ms` }, 'rc-in')).join('');
   return disc(104, 402, 316, INK.marigold) + stripes + hero(150, 386, 233.3, 404, 'fours')
     + `<svg class="rc-spark rc-pop" style="left:41px;top:690px;width:34px;height:34px;--d:${AT.shape}ms" viewBox="0 0 34 34"><circle cx="17" cy="17" r="17" fill="${INK.tomato}"/><path d="M10.2 1.4c7.3 10.4 7.3 20.9 0 31.3" stroke="${INK.cream}" stroke-width="2" stroke-dasharray="2.7 2.4" fill="none"/></svg>`
     + plate(16, 4, 8, 236, INK.ink, INK.cream, p.count.toLocaleString('en-IN'))
@@ -165,10 +165,10 @@ function when(p: WhenPoster): string {
   const size = p.clock.length > 4 ? 172 : night ? 204 : 192;
   return disc(-11, 427, 294, 'none', { border: `2px dashed ${night ? INK.pink : INK.ink}` })
     + clock(p.hour, night ? INK.lime : INK.marigold, night ? INK.night : INK.ink, night ? INK.pink : INK.tomato)
-    + rect(0, 784, 402, 6, night ? INK.cyan : INK.ink)
+    + rect(-600, 784, 1602, 6, night ? INK.cyan : INK.ink)
     + hero(262, 424, 121.7, 366, 'when')
     + sparkle(236, 430, 24, night ? INK.pink : INK.tomato) + sparkle(36, 438, 16, night ? INK.cyan : INK.cobalt) + sparkle(229, 709, 14, night ? INK.lime : INK.green)
-    + rect(0, 790, 402, 84, ground)
+    + rect(-600, 790, 1602, 900, ground)
     + `<div class="rc-t" data-fit="366" style="left:16px;top:26px">${plate(0, 0, 8, size, back, front, p.clock)}</div>`
     + t(22, 238, 'rc-j rc-in', p.name, { 'font-size': 70, color: ink, '--d': `${AT.label}ms` })
     + hindi(24, 310, 38, night ? INK.cyan : INK.green, p.word)
@@ -217,7 +217,7 @@ function kit(p: KitPoster): string {
     disc(25, y, 20, colour, { border: `2px solid ${INK.ink}`, '--d': `${AT.line}ms` }, 'rc-in')
     + t(52, y + 4, 'rc-s', label, { 'font-size': 10, 'letter-spacing': '.08em', color: INK.ink });
   return disc(18, 408, 392, 'none', { border: `10px solid ${INK.tomato}` }) + disc(46, 436, 336, INK.marigold)
-    + hero(104, 404, 219.8, 386, 'kit') + rect(0, 790, 402, 84, INK.cream)
+    + hero(104, 404, 219.8, 386, 'kit') + rect(-600, 790, 1602, 900, INK.cream)
     + plate(16, 4, 8, 236, back, p.ink, p.innings.toLocaleString('en-IN'), AT.figure, 'fig')
     + `<div class="rc-t" data-after="fig" data-gap="12" style="left:277px;top:92px">${sparkle(0, 0, 36, INK.marigold)}</div>`
     + t(275, 158, 'rc-j rc-in', 'INNINGS\nIN', { 'font-size': 34, 'line-height': .9, color: INK.ink, '--d': `${AT.label}ms` }, 'data-after="fig" data-gap="12"')
@@ -237,7 +237,7 @@ function bat(p: BatPoster): string {
     rays += `<line x1="${201 + Math.sin(a) * r0}" y1="${606 - Math.cos(a) * r0}" x2="${201 + Math.sin(a) * r1}" y2="${606 - Math.cos(a) * r1}" stroke="${INK.ink}" stroke-width="5"/>`;
   }
   return `<svg class="rc-spark rc-pop" style="left:0;top:0;width:402px;height:874px;--d:${AT.shape}ms" viewBox="0 0 402 874">${rays}</svg>`
-    + disc(36, 441, 330, INK.marigold) + hero(52, 414, 295.1, 380, 'bat') + rect(0, 790, 402, 84, INK.tomato)
+    + disc(36, 441, 330, INK.marigold) + hero(52, 414, 295.1, 380, 'bat') + rect(-600, 790, 1602, 900, INK.tomato)
     + plate(16, 4, 8, 236, INK.ink, INK.cream, p.innings.toLocaleString('en-IN'), AT.figure, 'fig')
     + hindi(257, 78, 50, INK.ink, 'बीस्ट', {}, 'data-after="fig" data-gap="14"')
     + t(257, 144, 'rc-j rc-in', 'INNINGS\nWITH', { 'font-size': 44, 'line-height': .88, color: INK.ink, '--d': `${AT.label}ms` }, 'data-after="fig" data-gap="14"')
@@ -355,7 +355,7 @@ function type(p: TypePoster): string {
   const l = typeLook(p.type);
   const [hx, hy, hw, hh] = l.hero;
   const [tx, ty, ts, tb, tf] = l.top;
-  let out = l.shape + hero(hx, hy, hw, hh, 'type') + rect(0, 790, 402, 84, p.ground)
+  let out = l.shape + hero(hx, hy, hw, hh, 'type') + rect(-600, 790, 1602, 900, p.ground)
     + t(26, l.you, 'rc-s rc-in', 'YOU ARE THE', { 'font-size': 12, 'letter-spacing': '.16em', color: l.ink, '--d': `${AT.figure}ms` })
     + plate(tx, ty, 7, ts, tb, tf, p.top, AT.figure, 'top');
   if (l.bottom && p.bottom) { const [bx, by, bs, bb, bf] = l.bottom; out += plate(bx, by, 6, bs, bb, bf, p.bottom, AT.figure + 120); }
@@ -404,7 +404,7 @@ function posterMarkup(p: Poster, avatar: string): string {
     when: () => when(p as WhenPoster), streak: () => streak(p as StreakPoster), kit: () => kit(p as KitPoster), bat: () => bat(p as BatPoster),
     rank: () => rank(p as RankPoster, avatar), type: () => type(p as TypePoster), season: () => season(p as SeasonPoster),
   }[p.id]();
-  return `<section class="rc-poster" data-poster="${p.id}" data-ink="${ink}" style="background:${ground}">${body}${masthead(p, ink)}<div class="rc-grain"></div></section>`;
+  return `<section class="rc-poster" data-poster="${p.id}" data-ink="${ink}" data-ground="${ground}">${body}${masthead(p, ink)}</section>`;
 }
 
 /** Sizes what was laid out against what it has to fit: names, figures and the words that stand beside them. */
@@ -489,7 +489,7 @@ export async function openRecap(host: HTMLElement, posters: Poster[], opts: Reca
     document.fonts.load(f, f.includes('Poppins') ? 'रन मशीन' : 'AZ09').catch(() => undefined)));
   const root = document.createElement('div');
   root.className = 'rc';
-  root.innerHTML = `<div class="rc-frame">${posters.map(p => posterMarkup(p, opts.avatar)).join('')}`
+  root.innerHTML = `<div class="rc-grain"></div><div class="rc-frame">${posters.map(p => posterMarkup(p, opts.avatar)).join('')}`
     + `<div class="rc-bars">${posters.map(() => '<span class="rc-bar"><i></i></span>').join('')}</div>`
     + `<button class="rc-close" aria-label="Close"><svg viewBox="0 0 22 22"><path d="M5 5l12 12M17 5 5 17" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button></div>`;
   host.append(root);
@@ -512,7 +512,7 @@ export async function openRecap(host: HTMLElement, posters: Poster[], opts: Reca
     sections.forEach(sec => sec.classList.remove('is-on'));
     at = i;
     const s = sections[i];
-    root.style.setProperty('--rc-ground', s.style.background);
+    root.style.setProperty('--rc-ground', s.dataset.ground!);
     chrome.forEach(c => { c.style.color = s.dataset.ink!; });
     bars.forEach((b, k) => {
       b.classList.toggle('is-done', k < i || (k === i && i === posters.length - 1));
