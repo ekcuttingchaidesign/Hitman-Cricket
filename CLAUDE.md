@@ -1013,7 +1013,14 @@ Wall: the back-foot defence, the owner's pick over the forward one, and
 side on from a shade behind square on the off side, the owner's pick over
 it from in front at az 70 and square side on at az 0 and 15),
 `HELICOPTER` 320 az 90 (the Finisher), `after:scrub` 1100 az 60 (the
-Grinder), the others el -6. The section
+Grinder), the others el -6. The season card's is `celebrate:aloft`
+1800 az 20 el -12, a still-only routine in `Batter.ts` (`ALOFT`, `Posed`),
+never played in the game: from a photograph the owner sent of a batter
+raising his bat (25 November 2026), both arms up in a wide V with the elbows
+soft and a touch forward, the bat stood upright out of the right fist, a
+little out and back, its face to the front, held near the end of the handle
+(`slide` on the pose moves the bottom hand up the handle); the double
+hundred's flex before it had the bat arm bent with the bat by his helmet. The section
 "Season '26 · Every kit, every colour" lists all nineteen kits with the hex
 of every part.
 
