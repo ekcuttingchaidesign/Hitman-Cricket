@@ -95,6 +95,12 @@ describe('every switch the game reads', () => {
     tile: 'the size of the bowler sheet\'s frames, a dev page that bats nothing',
     labels: 'leaves the names off the bowler sheet\'s frames, a dev page that bats nothing',
     s10kit: 'which Super10 kit he bats in, a look that bats nothing differently',
+    recap: 'the year recap over made-up seasons, a page instead of the game, reading and sending nothing',
+    poster: 'which of the year recap preview\'s posters it opens on',
+    player: 'which made-up season the year recap preview opens on',
+    kit: 'the kit on the year recap\'s stills page, a dev page that bats nothing',
+    bat: 'the bat on the year recap\'s stills page, a dev page that bats nothing',
+    guard: 'the gloves and pads on the year recap\'s stills page, a dev page that bats nothing',
   };
 
   it('is either practice or named as not practice', () => {

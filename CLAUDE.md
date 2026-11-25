@@ -1017,6 +1017,46 @@ Grinder), the others el -6. The section
 "Season '26 · Every kit, every colour" lists all nineteen kits with the hex
 of every part.
 
+The recap is being built a stage at a time, and the first is on screen
+behind `?recap=1` (decided in `main.ts` before the game is imported, as
+`?ui=1` is): four made-up seasons on keys along the foot, KABIR the big one
+the posters were drawn for, RIYA in the middle of the pack, DEV near the foot
+of it and ARJUN's first fortnight, reading nothing from the store and sending
+nothing (`src/ui/RecapPreview.ts`; `&player=` and `&poster=` open one).
+What each poster says is `recapPosters` (`src/game/recap-view.ts`, every case
+in `tests/recap-view.test.ts`), a pure function of the year's record, where
+the player's best stands on each board, the year's totals and what they have
+on in the Dressing Room: which posters there are and their numbering, the
+figures, the words and roasts, the footer, the kit each batter is drawn in
+and his pose (`POSES`, the notes under the Figma posters), the cover's disc
+and arch by the kit, the type and the hour's name. Nothing on a poster is
+made up: what the store never kept (the longest six, the best over, a
+favourite stroke, the latest minute) is left off the footers, which carry
+real figures in their place. Sixes and fours are counted as 75 and 30 metres
+(`SIX_CARRY_M`, `FOUR_RUN_M`) and set against Marine Drive (3.6 km), the Sea
+Link (5.6 km), laps of the rope (410 m) or a football pitch (105 m), the one
+their own size. The type is judged against the year's totals where the store
+has them, and a fixed guess for balls a Test innings (30) and days played
+(20), which it does not keep by player. Early Bird is अर्ली बर्ड and Prime
+Time प्राइम टाइम, the two hours the design did not draw. `src/ui/Recap.ts`
+draws them from the Figma frames' own numbers, every poster at 402 by 874 and
+the frame scaled to the screen, as a story: a tap on the right two thirds on,
+the left third back, a hold to pause, 6.5 seconds a poster (the cover 4), the
+last one waiting, Escape and the close key out. Each poster is printed in as
+the motion section times it (`AT`), in CSS for now. The batters are the
+game's own renders, made as the recap opens, the poster in front first,
+through `src/game/recap-render.ts` (the stills page's renderer, moved out of
+`src/recap-stills.ts` so both use it; a WebGL context of its own, let go on
+close), and cut out with the cream edge in a canvas (`dieCut`). Space
+Grotesk (500, 700) and Poppins Black's Devanagari are in `src/assets`, OFL,
+declared in `src/recap.css`. Still to come: SHARE painting a poster at 1080
+by 1920 (the key is drawn and does nothing yet), the motion's own
+transitions, reading the player's year from the store through a function
+that already exists (Vercel takes twelve), the places and slice bars from the
+boards, the next kit and bat from the Dressing Room, and Super Knockout,
+whose ledger keeps its own career (it shipped in November, so its all-time
+figures are 2026's) and is not in the year's record.
+
 GoatCounter counts the same things across everybody, by name (it keeps the
 path, not the title, so the item is in the name): `dressing-open-modes` and
 `-story`, `dressing-wear-<kit|bat>-<id>`, `dressing-unlock-…` and

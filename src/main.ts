@@ -44,6 +44,12 @@ void (async () => {
     kitGallery(root);
     return;
   }
+  // `?recap=1`: the year recap over made-up seasons, for looking at on a phone; a page too.
+  if (new URLSearchParams(location.search).get('recap') === '1') {
+    const { recapPreview } = await import('./ui/RecapPreview');
+    recapPreview(root);
+    return;
+  }
   // Before anything reads who is playing, because that is the point: `Game` is
   // imported below and asks for the player id on the way up, so a slate cleared
   // after that would be a slate the game had already seen the old version of.
