@@ -47,6 +47,11 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ticks{position:absolute;left:10px;right:10px;bottom:0;height:20px}
 .ticks i{position:absolute;top:0;transform:translateX(-50%);font:600 11px/1 var(--f-ui);font-style:normal;color:var(--text-2);white-space:nowrap}
 .ticks i::before{content:'';position:absolute;left:50%;top:-8px;width:1px;height:6px;background:var(--text-2)}
+.bats{display:flex;gap:8px;align-items:center}
+.bat-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.bat-row button{display:flex;align-items:center;gap:7px;white-space:nowrap;flex:none}
+.bat-row i{width:12px;height:12px;border-radius:50%;flex:none;border:1px solid #ffffff40}
+.bat-row button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#1a0d07}
 .gaps{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}
 .gap{display:grid;gap:8px;align-content:start;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
 .gap h3{margin:0;font:600 17px/1.3 var(--f-ui)}
@@ -76,10 +81,11 @@ code{font:500 13px var(--f-mono);color:var(--accent-soft)}
       <div class="seg" role="group" aria-label="Speed"><span class="lab">Speed</span><button data-speed="1" aria-pressed="false">1×</button><button data-speed=".5" aria-pressed="true">½×</button><button data-speed=".25" aria-pressed="false">¼×</button></div>
       <div class="seg" role="group" aria-label="Camera"><span class="lab">Camera</span><button data-view="game" aria-pressed="false">Game</button><button data-view="front" aria-pressed="true">Front</button><button data-view="side" aria-pressed="false">Side</button><button data-view="card" aria-pressed="false">Season card</button></div>
     </div>
+    <div class="bats" role="group" aria-label="Bat"><span class="lab">Bat</span><div class="bat-row" id="bats"></div></div>
   </div>
 
   <h2>Gaps to look at</h2>
   <div class="gaps" id="gaps"></div>
-  <p class="note">Drag either stage to turn round him; the other follows. The try is the hundred's own timing with <code>ALOFT</code> where the bat goes up, the knees giving under straight arms for each pump, and the look round. Its way down is the hundred's, untouched, which is where most of the gaps are. Nothing here is in the game yet.</p>
+  <p class="note">Drag either stage to turn round him; the other follows. The bat row puts the same bat in both their hands, the Diwali bats included. The try is the hundred's own timing with <code>ALOFT</code> where the bat goes up, the knees giving under straight arms for each pump, and the look round. Its way down is the hundred's, untouched, which is where most of the gaps are. Nothing here is in the game yet.</p>
 </div>
 <script type="module" src="/src/celebration-preview.ts"></script>

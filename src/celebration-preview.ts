@@ -11,6 +11,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Batter, celebrationBeats, type Posed } from './entities/Batter';
 import { GAME } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
+import { batSheet } from './entities/batSkins';
+import { ALL_BATS, type BatSkin } from './game/dressing';
 
 const NOW: Posed = 'hundred', TRY: Posed = 'hundredAloft';
 const beats = celebrationBeats(NOW);
@@ -146,6 +148,22 @@ addEventListener('keydown', e => {
   if (e.key === 'ArrowLeft') { setPlaying(false); show(t - 10); }
 });
 
+// ── The bat in both their hands ─────────────────────────────────────────────
+const batRow = document.querySelector<HTMLDivElement>('#bats')!;
+async function holdBat(bat: BatSkin) {
+  for (const b of batRow.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.bat === bat.id));
+  const sheet = await batSheet(bat.id);
+  for (const s of stages) s.batter.holdBat(bat.grip, sheet);
+  show(t);
+}
+for (const bat of ALL_BATS) {
+  const b = document.createElement('button'); b.dataset.bat = bat.id; b.setAttribute('aria-pressed', 'false');
+  const dot = document.createElement('i'); dot.style.background = bat.grip;
+  b.append(dot, document.createTextNode(bat.name));
+  b.onclick = () => void holdBat(bat);
+  batRow.append(b);
+}
+
 // ── The gaps ─────────────────────────────────────────────────────────────────
 const gaps = document.querySelector<HTMLDivElement>('#gaps')!;
 for (const g of GAPS) {
@@ -178,7 +196,7 @@ function frame(now: number) {
   requestAnimationFrame(frame);
 }
 
-resize(); aim('front'); show(t);
+resize(); aim('front'); show(t); void holdBat(ALL_BATS.find(b => b.id === 'boom')!);
 if (!matchMedia('(prefers-reduced-motion: reduce)').matches) setPlaying(true);
 requestAnimationFrame(frame);
-(window as unknown as { __celebration: object }).__celebration = { show, aim, play: setPlaying, ready: true };
+(window as unknown as { __celebration: object }).__celebration = { show, aim, play: setPlaying, bat: (id: string) => holdBat(ALL_BATS.find(b => b.id === id)!), ready: true };
