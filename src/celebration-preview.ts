@@ -1,8 +1,9 @@
 /**
  * The hundred beside a try at it with the arms held aloft (`celebration.html`):
  * two of the game's own batters on one clock, the one celebrating as the game
- * does and the other with `hundredAloft`, a routine the game never plays. For
- * the owner to find what the try still gets wrong before it goes in. Nothing
+ * does and the other with `hundredAloft`, a routine the game never plays: the
+ * century with a jump and both arms aloft (`HUNDRED_JUMP`). For the owner to
+ * find what the try still gets wrong before it goes in. Nothing
  * is scored, sent or counted. `scripts/celebration-artifact.mjs` bundles it
  * into one HTML file.
  */
@@ -15,28 +16,25 @@ import { batSheet } from './entities/batSkins';
 import { ALL_BATS, type BatSkin } from './game/dressing';
 
 const NOW: Posed = 'hundred', TRY: Posed = 'hundredAloft';
-const beats = celebrationBeats(NOW);
-/** The hundred's beats by name, at their times: the try keeps the same clock. */
-const NAMES = ['Rise', 'Lift', 'Up', 'Pump', 'Up', 'Pump', 'Look'];
-const BEATS = [...beats.keys.map((t, i) => ({ t, name: NAMES[i] })),
-  { t: beats.back, name: 'Back' }, { t: beats.down, name: 'Down' }, { t: beats.settle, name: 'Settle' }, { t: beats.total, name: 'Guard' }];
-const END = beats.total + 150;
+/** Each one's moments by name, at their times: the hundred's own, and the try's jump. */
+const named = (kind: Posed, names: string[]) => {
+  const b = celebrationBeats(kind);
+  return [...b.keys.map((t, i) => ({ t, name: names[i] })), { t: b.back, name: 'Back' }, { t: b.down, name: 'Down' }, { t: b.settle, name: 'Settle' }, { t: b.total, name: 'Guard' }];
+};
+const NOW_BEATS = named(NOW, ['Rise', 'Lift', 'Up', 'Pump', 'Up', 'Pump', 'Look']);
+const TRY_BEATS = named(TRY, ['Crouch', 'Spring', 'Leave', 'Top', 'Touch', 'Land', 'Up', 'Pump', 'Up', 'Pump', 'Look']);
+/** The scrubber's marks: the try's, the one being judged, with the steps either side of the jump's two touches left off. */
+const TICKS = TRY_BEATS.filter(b => !['Leave', 'Touch'].includes(b.name));
+const END = Math.max(NOW_BEATS.at(-1)!.t, TRY_BEATS.at(-1)!.t) + 150;
 
-/** What the try still gets wrong, each with the moment it shows best. */
+/** What to look at, each with the moment it shows best. */
 const GAPS = [
-  { t: 330, title: 'The blade twirls in his fist on the way up',
-    text: 'To show its face, the bat is turned more than half round inside the hand. Going up, that turn happens in a quarter of a second, so the blade spins in his fingers as it rises. The hundred has no turn at all.' },
-  { t: 540, title: 'The pump barely reads',
-    text: 'The hundred pumps by drawing the fist and the bat down together. With both arms held straight, only the knees give, so the arms sink a few centimetres and the bat does not punch. It may want a real punch: the arms bending and driving back up.' },
-  { t: 990, title: 'The look round',
-    text: 'He turns his head to the crowd with both arms still straight up. Worth checking the head does not turn into the raised bat arm.' },
-  { t: 1180, title: 'The way down unwinds the blade',
-    text: 'From arms wide to the hundred\'s way down, the half-turn in the fist unwinds, so the blade turns the other way in his hand as he lowers it, and the hand slides back down the handle.' },
-  { t: 1260, title: 'The left hand finds the handle',
-    text: 'The free hand comes from out wide, further than in the hundred, to take the handle again. Watch for it crossing in front of his face or arriving late.' },
+  { t: 90, title: 'The crouch', text: 'The century is reached and he sinks into his knees, both hands still on the bat, to spring. The hundred goes straight up from his stance instead.' },
+  { t: 360, title: 'The top of the jump', text: 'Both feet off the turf, toes pointed, the bat and the free fist going up together. Thirty centimetres of air: say if it wants more or less.' },
+  { t: 520, title: 'The landing', text: 'He comes down on bent knees with both arms already straight up, then stands into the first pump.' },
+  { t: 790, title: 'The pumps', text: 'Kept as they were: the knees giving under straight arms, twice, then the look round.' },
+  { t: 1450, title: 'Back to his stance', text: 'The hundred\'s own way down. The bat no longer turns in his fist at any point, going up or coming down, so nothing spins in his fingers.' },
 ];
-
-
 function lights(scene: THREE.Scene) {
   scene.add(new THREE.HemisphereLight(0xfff6ea, 0x3d4a3a, 2.2));
   const sun = new THREE.DirectionalLight(0xffeedd, 2.6);
@@ -112,19 +110,18 @@ const ticks = document.querySelector<HTMLDivElement>('#ticks')!;
 // Every other name on a narrow screen, so they never run into each other.
 const drawTicks = () => {
   const narrow = ticks.clientWidth < 520;
-  ticks.innerHTML = BEATS.filter((b, i) => !narrow || i % 2 === 0 || b.name === 'Guard')
+  ticks.innerHTML = TICKS.filter((b, i) => !narrow || i % 2 === 0 || b.name === 'Guard')
     .map(b => `<i style="left:${(b.t / END * 100).toFixed(2)}%">${b.name}</i>`).join('');
 };
 new ResizeObserver(drawTicks).observe(ticks);
 
-let t = 390, playing = false, speed = .5, last = 0, held = 0;
-const beatAt = (ms: number) => [...BEATS].reverse().find(b => ms >= b.t)?.name ?? 'Guard';
+let t = 360, playing = false, speed = .5, last = 0, held = 0;
+const beatAt = (beats: { t: number; name: string }[], ms: number) => ms < beats[0].t ? 'Guard' : [...beats].reverse().find(b => ms >= b.t)!.name;
 function show(ms: number) {
   t = Math.max(0, Math.min(END, ms));
   scrub.value = String(Math.round(t));
   time.textContent = `${Math.round(t)} ms`;
-  const name = t < BEATS[0].t ? 'Guard' : beatAt(t);
-  beatNow.textContent = beatTry.textContent = name;
+  beatNow.textContent = beatAt(NOW_BEATS, t); beatTry.textContent = beatAt(TRY_BEATS, t);
   for (const s of stages) s.pose(t);
 }
 scrub.oninput = () => { setPlaying(false); show(Number(scrub.value)); };

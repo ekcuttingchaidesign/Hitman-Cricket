@@ -2990,8 +2990,13 @@ const LOOKING: Pose = { ...RAISED, face: RAISED.face + .35, headDown: -.28 };
  */
 /** Further than the arm reaches, so both arms are held straight at full stretch. */
 const ALOFT_REACH = [.56, .44, .07] as const;
-/** Both arms up straight from `body`'s shoulders, the bat held aloft as `ALOFT` holds it. */
-function aloftOf(body: Pose): Pose {
+/**
+ * Both arms up straight from `body`'s shoulders, the bat held aloft as `ALOFT`
+ * holds it. `spin` turns the blade in the fist and `slide` moves the fist up
+ * the handle: the still's, to show the face to its camera, which played as a
+ * celebration twirl the blade in his fingers on the way up and down.
+ */
+function aloftOf(body: Pose, held: { spin: number; slide: number } = { spin: Math.PI + .7, slide: .08 }): Pose {
   const outR = outwards(body, 1), outL = outwards(body, 0);
   const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw));
   // Arms up in a wide V and a touch forward, both straight; the bat stood
@@ -3003,11 +3008,11 @@ function aloftOf(body: Pose): Pose {
   // glove where it is) to show its face to the recap's camera.
   const hand = shoulderOf(body, 1).addScaledVector(UP, ALOFT_REACH[0]).addScaledVector(outR, ALOFT_REACH[1]).addScaledVector(ahead, ALOFT_REACH[2]);
   const toe = UP.clone().addScaledVector(outR, .12).addScaledVector(ahead, -.06).normalize();
-  const slide = .08;
+  const { spin, slide } = held;
   return { ...body,
     // The bat's origin, from where the hand is to hold it: its glove sits `HAND.top` down the handle.
     grip: point(hand.clone().addScaledVector(toe, HAND.top)),
-    batUp: point(toe.clone().negate()), batFace: point(ahead.clone().negate()), ownFace: 1, spin: Math.PI + .7, slide, stretch: true,
+    batUp: point(toe.clone().negate()), batFace: point(ahead.clone().negate()), ownFace: 1, spin, slide, stretch: true,
     fist: point(shoulderOf(body, 0).addScaledVector(UP, ALOFT_REACH[0]).addScaledVector(outL, ALOFT_REACH[1]).addScaledVector(ahead, ALOFT_REACH[2])), release: 1 };
 }
 const ALOFT: Pose = aloftOf(FACING);
@@ -3017,8 +3022,21 @@ const ALOFT: Pose = aloftOf(FACING);
  * the game): the hundred's clock and beats, `ALOFT` where it raises the bat,
  * the pump the knees giving under straight arms, the look round the same.
  */
-const ALOFT_PUMPED: Pose = aloftOf({ ...FACING, hip: [-.03, .93, -.03], chest: [-.01, 1.27, -.01], headDown: -.14 });
-const ALOFT_LOOKING: Pose = { ...ALOFT, face: ALOFT.face + .35, headDown: -.28 };
+/** Held as he would hold it to celebrate: nothing turned in the fist, so its back, a skin's big art, is to the front. */
+const CHEERED = { spin: 0, slide: 0 };
+const ALOFT_UP: Pose = aloftOf(FACING, CHEERED);
+const ALOFT_PUMPED: Pose = aloftOf({ ...FACING, hip: [-.03, .93, -.03], chest: [-.01, 1.27, -.01], headDown: -.14 }, CHEERED);
+const ALOFT_LOOKING: Pose = { ...ALOFT_UP, face: ALOFT_UP.face + .35, headDown: -.28 };
+/** `pose` moved `by` metres up (or down), feet and all when `feet`: the jump's air, or the crouch and the landing without them. */
+function shifted(pose: Pose, by: number, feet: boolean): Pose {
+  const up = (p: Point): Point => [p[0], p[1] + by, p[2]];
+  return { ...pose, hip: up(pose.hip), chest: up(pose.chest), grip: up(pose.grip), ...(pose.fist ? { fist: up(pose.fist) } : {}),
+    ...(feet ? { frontFoot: up(pose.frontFoot), backFoot: up(pose.backFoot) } : {}) };
+}
+/** The jump: down into a crouch, up off both feet to the top with the arms going aloft, toes pointed, and down onto bent knees. */
+const JUMP = { crouch: .13, height: .3, land: .12 } as const;
+const AIRBORNE: Pose = { ...shifted(ALOFT_UP, JUMP.height, true), heel: .5, toe: .5 };
+const LANDED: Pose = shifted(ALOFT_UP, -JUMP.land, false);
 /**
  * On the way up, turning, with both hands still on the bat and the bat coming
  * up his right side. From the guard it sits behind the back shoulder, and the
@@ -3175,9 +3193,24 @@ const ROUTINES: Record<Celebration, Routine> = {
 export type Posed = Celebration | 'aloft' | 'hundredAloft';
 const STILL_ROUTINE: Routine = { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 400, pose: RAISED }, { time: 600, pose: ALOFT },
     { time: 1900, pose: ALOFT }], back: 2000, down: 2140, settle: 2280, total: 2440 };
-const HUNDRED_ALOFT: Routine = { keys: [{ time: CELEBRATION.rise, pose: RISING }, { time: CELEBRATION.lift, pose: LIFTING }, { time: CELEBRATION.up, pose: ALOFT },
-    { time: CELEBRATION.pump, pose: ALOFT_PUMPED }, { time: CELEBRATION.again, pose: ALOFT }, { time: CELEBRATION.pump2, pose: ALOFT_PUMPED }, { time: CELEBRATION.look, pose: ALOFT_LOOKING }],
-  back: CELEBRATION.back, down: CELEBRATION.down, settle: CELEBRATION.settle, total: CELEBRATION_MS };
+/** Down into the crouch with both hands on the bat, and on his toes as he springs. */
+const CROUCHED: Pose = shifted(RISING, -JUMP.crouch, false);
+const SPRINGING: Pose = { ...LIFTING, heel: .35, toe: .35 };
+/**
+ * The century with a jump, the owner's ask (25 November 2026): he crouches,
+ * springs off both feet with the bat and the free fist going up, lands on bent
+ * knees with both arms straight up (`ALOFT_UP`), pumps twice, looks round and
+ * goes back to his stance by the hundred's way down. Each foot is keyed on the
+ * turf twice, a moment apart, before it leaves and as it lands, so the curve
+ * through the keys cannot carry a boot below the grass.
+ */
+export const HUNDRED_JUMP = { crouch: 90, spring: 200, leave: 215, top: 360, touch: 495, land: 520, up: 650, pump: 790, again: 930, pump2: 1070, look: 1250,
+  back: 1390, down: 1520, settle: 1660, total: 1810 } as const;
+const J = HUNDRED_JUMP;
+const HUNDRED_ALOFT: Routine = { keys: [{ time: J.crouch, pose: CROUCHED }, { time: J.spring, pose: SPRINGING }, { time: J.leave, pose: SPRINGING },
+    { time: J.top, pose: AIRBORNE }, { time: J.touch, pose: ALOFT_UP }, { time: J.land, pose: LANDED }, { time: J.up, pose: ALOFT_UP },
+    { time: J.pump, pose: ALOFT_PUMPED }, { time: J.again, pose: ALOFT_UP }, { time: J.pump2, pose: ALOFT_PUMPED }, { time: J.look, pose: ALOFT_LOOKING }],
+  back: J.back, down: J.down, settle: J.settle, total: J.total };
 const routineOf = (kind: Posed) => kind === 'aloft' ? STILL_ROUTINE : kind === 'hundredAloft' ? HUNDRED_ALOFT : ROUTINES[kind];
 /** How long any of them runs, the try-outs too. */
 export const celebrationMs = (kind: Posed) => kind === 'aloft' || kind === 'hundredAloft' ? routineOf(kind).total : CELEBRATION_LENGTHS[kind];

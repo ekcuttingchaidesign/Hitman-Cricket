@@ -64,28 +64,28 @@ code{font:500 13px var(--f-mono);color:var(--accent-soft)}
 
 <div class="wrap">
   <header>
-    <h1>The hundred, <span>arms aloft</span></h1>
-    <p class="lede">The game's century celebration as it is, beside a first try with the season card's pose put into it. Same clock, same camera, the game's own batter. Scrub to any moment, or pick a gap below to jump to it.</p>
+    <h1>The hundred, <span>with a jump</span></h1>
+    <p class="lede">The game's century celebration as it is, beside the try: he crouches, jumps with the bat going up, lands with both arms straight up, pumps twice and goes back to his stance. Same camera, the game's own batter. Scrub to any moment, or pick one below to go to it.</p>
   </header>
 
   <div class="stages">
     <div class="stage" data-kind="now" id="now"><div class="stage-label"><b>Now</b><span>The hundred in the game</span></div><output class="beat" id="beat-now"></output></div>
-    <div class="stage" data-kind="try" id="try"><div class="stage-label"><b>Try</b><span>Arms aloft, not in the game</span></div><output class="beat" id="beat-try"></output></div>
+    <div class="stage" data-kind="try" id="try"><div class="stage-label"><b>Try</b><span>Jump and arms aloft, not in the game</span></div><output class="beat" id="beat-try"></output></div>
   </div>
 
   <div class="clock">
-    <div class="scrub"><input id="scrub" type="range" min="0" max="1700" step="1" value="390" aria-label="Moment"><div class="ticks" id="ticks"></div></div>
+    <div class="scrub"><input id="scrub" type="range" min="0" max="1700" step="1" value="360" aria-label="Moment"><div class="ticks" id="ticks"></div></div>
     <div class="row">
       <button id="play" aria-pressed="false">Play</button>
-      <output id="time">390 ms</output>
+      <output id="time">360 ms</output>
       <div class="seg" role="group" aria-label="Speed"><span class="lab">Speed</span><button data-speed="1" aria-pressed="false">1×</button><button data-speed=".5" aria-pressed="true">½×</button><button data-speed=".25" aria-pressed="false">¼×</button></div>
       <div class="seg" role="group" aria-label="Camera"><span class="lab">Camera</span><button data-view="game" aria-pressed="false">Game</button><button data-view="front" aria-pressed="true">Front</button><button data-view="side" aria-pressed="false">Side</button><button data-view="card" aria-pressed="false">Season card</button></div>
     </div>
     <div class="bats" role="group" aria-label="Bat"><span class="lab">Bat</span><div class="bat-row" id="bats"></div></div>
   </div>
 
-  <h2>Gaps to look at</h2>
+  <h2>Moments to check</h2>
   <div class="gaps" id="gaps"></div>
-  <p class="note">Drag either stage to turn round him; the other follows. The bat row puts the same bat in both their hands, the Diwali bats included. The try is the hundred's own timing with <code>ALOFT</code> where the bat goes up, the knees giving under straight arms for each pump, and the look round. Its way down is the hundred's, untouched, which is where most of the gaps are. Nothing here is in the game yet.</p>
+  <p class="note">Drag either stage to turn round him; the other follows. The bat row puts the same bat in both their hands, the Diwali bats included. The scrubber's names are the try's moments; each stage says where it is in its own. The try runs a quarter of a second longer than the hundred, for the jump. Nothing here is in the game yet.</p>
 </div>
 <script type="module" src="/src/celebration-preview.ts"></script>
