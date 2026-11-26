@@ -3232,6 +3232,8 @@ function wielding(yaw: number, hand: readonly [up: number, out: number, ahead: n
   return { ...body, grip: point(at.clone().addScaledVector(blade, HAND.top)), batUp: point(blade.clone().negate()), batFace: point(face), ownFace: 1,
     fist: rest ? onHip(body) : point(guard), release: 1 };
 }
+/** Up, out and forward of each shoulder: further than the arm reaches, so both arms are straight, and close together. */
+const SKYWARD = [.66, .13, .06] as const;
 /** The left arm's place behind him (out, up, back from its shoulder), and the yaw he squares up at. */
 const SWORD = { guard: [.30, -.30, .08], yaw: 2.5 } as const;
 /**
@@ -3244,7 +3246,7 @@ const SWORD = { guard: [.30, -.30, .08], yaw: 2.5 } as const;
  * it; where the hand is (forward of the right shoulder, below it and in) and
  * how far it drifts after the blade; and how finely the clock is sampled.
  */
-const SWIRL = { from: 460, to: 1700, salute: 1940, loops: 1, start: .5, ends: [.6, .6], across: 1.1, pitch: -.12, dip: .6, turn: .12, hand: [.48, .04, -.06], drift: .08, step: 20 } as const;
+const SWIRL = { from: 460, to: 1200, salute: 1540, loops: 1, start: .5, ends: [.6, .3], across: 1.1, pitch: -.12, dip: .6, turn: .12, hand: [.48, .04, -.06], drift: .08, step: 20 } as const;
 /** The sword at `s` round the ∞: a loop is 2π. */
 function swirling(s: number): Pose {
   const yaw = SWORD.yaw + SWIRL.turn * Math.sin(s);
@@ -3257,11 +3259,12 @@ function swirling(s: number): Pose {
   const face = blade.clone().cross(UP).normalize();
   const [forward, down, inward] = SWIRL.hand;
   const hand = shoulderOf(body, 1).addScaledVector(ahead, forward).addScaledVector(UP, -down).addScaledVector(outR, -inward + SWIRL.drift * Math.sin(s));
-  const guard = shoulderOf(body, 0).addScaledVector(outL, SWORD.guard[0]).addScaledVector(UP, SWORD.guard[1]).addScaledVector(ahead, -SWORD.guard[2]);
+  // The left arm straight up at the sky, as the other hundreds hold it, at full stretch.
+  const high = shoulderOf(body, 0).addScaledVector(UP, SKYWARD[0]).addScaledVector(outL, SKYWARD[1]).addScaledVector(ahead, SKYWARD[2]);
   return { ...body, grip: point(hand.clone().addScaledVector(blade, HAND.top)), batUp: point(blade.clone().negate()), batFace: point(face), ownFace: 1,
-    fist: point(guard), release: 1 };
+    fist: point(high), release: 1, stretch: true };
 }
-const SWORD_SALUTE = wielding(SWORD.yaw - .1, [-.04, -.10, .30], [1, 0, .05], 0, true);
+const SWORD_SALUTE: Pose = { ...wielding(SWORD.yaw - .1, [-.04, -.10, .30], [1, 0, .05], 0, true), stretch: true };
 /**
  * The swirl as keys every `step`. It is picked up already moving, out to his
  * right with the tip coming down (`SWIRL.start`), as the bat comes down there
@@ -3284,7 +3287,14 @@ const SWIRL_KEYS = (() => {
   const pace = (to - from) * b / (SWIRL.to - SWIRL.from), span = SWIRL.salute - SWIRL.to;
   for (let time = SWIRL.to + SWIRL.step; time <= SWIRL.salute; time += SWIRL.step) {
     const since = time - SWIRL.to;
-    keys.push({ time, pose: mix(swirling(to + pace * (since - since * since / (2 * span))), SWORD_SALUTE, ease(since / span)) });
+    const swirl = swirling(to + pace * (since - since * since / (2 * span))), u = ease(since / span), pose = mix(swirl, SWORD_SALUTE, u);
+    // The left arm brought down from the sky to his hip out round his side,
+    // as a straight arm swings: straight from one to the other, the fist
+    // passed by the shoulder and the elbow flipped over.
+    const shoulder = shoulderOf(pose, 0), high = new THREE.Vector3(...swirl.fist!).sub(shoulderOf(swirl, 0));
+    const hip = new THREE.Vector3(...SWORD_SALUTE.fist!).sub(shoulderOf(SWORD_SALUTE, 0));
+    const way = high.clone().normalize().lerp(hip.clone().normalize(), u).addScaledVector(outwards(pose, 0), 1.2 * Math.sin(Math.PI * u)).normalize();
+    keys.push({ time, pose: { ...pose, fist: point(shoulder.addScaledVector(way, high.length() + (hip.length() - high.length()) * u)) } });
   }
   return keys;
 })();
@@ -3304,8 +3314,6 @@ function skyward(body: Pose): Pose {
     ownFace: 1, stretch: true,
     fist: point(shoulderOf(body, 0).addScaledVector(UP, up).addScaledVector(outL, out).addScaledVector(ahead, forward)), release: 1 };
 }
-/** Up, out and forward of each shoulder: further than the arm reaches, so both arms are straight, and close together. */
-const SKYWARD = [.66, .13, .06] as const;
 const SKY_BODY: Pose = standing({ ...FACING, hip: [-.02, .98, -.02], chest: [.00, 1.33, -.01], yaw: 2.6, face: 2.6, headDown: -.30, look: -.62, shoulderLift: .12 });
 const TO_SKY: Pose = skyward(SKY_BODY);
 /** Stretched a touch further, as a man breathes it in. */
@@ -3370,11 +3378,11 @@ const ROUTINES: Record<Celebration, Routine> = {
       { time: 1160, pose: AIMED_ROUND }, { time: 1210, pose: FIRED_ROUND }, { time: 1300, pose: AIMED_ROUND }, { time: 1350, pose: FIRED_ROUND },
       { time: 1460, pose: AIMED_ROUND }, { time: 1700, pose: SMOKE }, { time: 1940, pose: SMOKE }],
     back: 2080, down: 2210, settle: 2350, total: 2510 },
-  hundredSword: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, ...SWIRL_KEYS, { time: 2180, pose: SWORD_SALUTE }],
-    back: 2320, down: 2450, settle: 2590, total: 2750 },
+  hundredSword: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, ...SWIRL_KEYS, { time: 1840, pose: SWORD_SALUTE }],
+    back: 1980, down: 2110, settle: 2250, total: 2410 },
   hundredSky: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 460, pose: TO_SKY }, { time: 1000, pose: TO_SKY_HELD },
       { time: 1220, pose: HEART }, { time: 1320, pose: HEART_TAP }, { time: 1420, pose: HEART }, { time: 1620, pose: RAISED }, { time: 1780, pose: LOOKING }],
-    back: 1920, down: 2050, settle: 2190, total: 2350 },
+    back: 1980, down: 2110, settle: 2250, total: 2410 },
   double: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 400, pose: RAISED }, { time: 560, pose: FLEXING },
       { time: 700, pose: FLEX_SQUEEZE }, { time: 840, pose: FLEXING }, { time: 1040, pose: FLEX_LEFT }, { time: 1240, pose: FLEX_RIGHT },
       { time: 1400, pose: FLEXING }, { time: 1520, pose: FLEX_SQUEEZE }, { time: 1640, pose: FLEXING }, { time: 1800, pose: RAISED }],

@@ -37,8 +37,8 @@ const GAPS = [
   { t: 520, title: 'Taking aim', text: 'The bat brought up like a rifle: the handle against his right shoulder, the blade out level, the left hand under it and his head down along it.' },
   { t: 570, title: 'The shots', text: 'Three shots at the crowd, each one kicking the bat back into him and its end up. Then swung round onto another stand for two more.' },
   { t: 1800, title: 'Blowing the smoke', text: 'The bat stood up in front of his face and the smoke blown off its end, the other hand on his hip. Then back to his stance.' },
-  { t: 760, title: 'The swirl', text: 'Jadeja\'s sword: the bat held by the handle out in front of him, the arm out long, swirled slowly so its tip draws one figure of eight on its side, gathering speed and easing off. The path has no corners.' },
-  { t: 1900, title: 'Into the salute', text: 'The swirl runs on and slows while the blade rises, so the tip carries round and up into the salute before his face. Then back to his stance.' },
+  { t: 800, title: 'The swirl', text: 'Jadeja\'s sword: the bat held by the handle out in front of him, the arm out long and the other straight up at the sky, swirled so its tip draws one figure of eight on its side, gathering speed and easing off. The path has no corners.' },
+  { t: 1380, title: 'Into the salute', text: 'The swirl runs on and slows while the blade rises, so the tip carries round and up into the salute before his face, and the left arm swings down round his side to his hip. Then back to his stance.' },
   { t: 800, title: 'To the sky', text: 'Both arms straight up and close together, the bat pointing at the sky, his head right back. Quieter than the jump, and held longer.' },
   { t: 1320, title: 'Hand on heart', text: 'The left hand comes down to his heart and taps it, the bat back beside his head, then raised to the crowd.' },
 ];
