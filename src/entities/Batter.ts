@@ -3161,66 +3161,51 @@ const CHAMPION_LOOK: Pose = { ...CHAMPION, face: CHAMPION.face + .4, headDown: -
 const CHAMPION_DONE: Pose = champion({ ...CHAMPION, headDown: -.20 }, [.08, -.10, .30]);
 
 /**
- * The hundred's other three, the owner's picks of 26 November 2026: the game
- * draws one of the four each hundred (`HundredStyle`, `hundredPose`). Each
- * ends with the bat raised to the crowd beside his head (`RAISED`, then
- * `LOOKING`), so all four go home by the hundred's way down.
+ * The hundred's other two, the owner's picks of 26 November 2026: the game
+ * draws one of the three each hundred (`HundredStyle`, `hundredPose`). Each
+ * ends with the bat raised to the crowd beside his head, or upright before
+ * it, so all three go home by the hundred's way down. Pointing at his back
+ * and a bow were built too and the owner found both bad: not to be built
+ * again.
  *
- * **His back** (`back`): turned away from the camera to face up the pitch,
- * the bat held straight up in his right hand as the jump's is, the left hand
- * up over its shoulder jabbing back twice at the name and number on his
- * back, which from the game's camera behind him is the side it sees, and his
- * head turned to look back over that shoulder at the crowd; then he turns
- * round to them with the bat still up. Both hands over the shoulders, the bat
- * stood up out of the right one, read from behind as a man about to swing.
+ * **The gun** (`gun`): the bat brought up like a rifle, the handle's end in
+ * his right hand against the shoulder and the blade out level in front of
+ * him, the left hand under it, his head down along it; fired three times
+ * at the crowd, each shot kicking the bat back and its end up; swung round
+ * onto another stand and fired twice more; then the bat stood up in front of
+ * his face and the smoke blown off its end (`aiming`, `GUN`).
  */
-function overShoulder(body: Pose, jab = 0): Pose {
-  const outL = outwards(body, 0), ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw));
-  return { ...aloftOf(body, CHEERED),
-    // The left fist just over its shoulder, out wide of the helmet, the elbow out to the side.
-    fist: point(shoulderOf(body, 0).addScaledVector(UP, OVER.up).addScaledVector(outL, OVER.out).addScaledVector(ahead, -OVER.back - jab)) };
+function aiming(yaw: number, kick = 0): Pose {
+  const body = standing({ ...FACING, hip: [-.02, .96, -.02], chest: [.00, 1.30, -.01], yaw, face: yaw - GUN.cheek,
+    headDown: GUN.head, shoulderLift: .08 });
+  const ahead = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)), outR = outwards(body, 1), outL = outwards(body, 0);
+  // Along the line he aims, kicked up at the end and back into him by a shot.
+  const toe = ahead.clone().addScaledVector(UP, GUN.rise + GUN.kick[1] * kick).normalize();
+  const [back, down, inward] = GUN.hand;
+  const hand = shoulderOf(body, 1).addScaledVector(ahead, back - GUN.kick[0] * kick).addScaledVector(UP, -down).addScaledVector(outR, -inward);
+  // The left hand out under the blade, holding it up.
+  const under = hand.clone().addScaledVector(toe, GUN.under[0]).addScaledVector(UP, -GUN.under[1]).addScaledVector(outL, GUN.under[2]);
+  return { ...body, grip: point(hand.clone().addScaledVector(toe, HAND.top)), batUp: point(toe.clone().negate()), batFace: point(outR), ownFace: 1,
+    fist: point(under), release: 1 };
 }
-/** Where the left fist is: up, out and back off its shoulder; each jab back; and how far round his head turns to look over it. */
-const OVER = { up: .10, out: .05, back: .11, jab: .08, look: 1.05 } as const;
-/** Facing up the pitch, his back to the camera, his head turned back over the left shoulder (`face` is its own yaw; his left is a quarter turn less). */
-const AWAY: Pose = standing({ ...GUARD, hip: [-.03, .97, -.02], chest: [-.01, 1.32, .00],
-  yaw: .22, face: .22 - OVER.look, headDown: -.16, heel: 0, leadElbow: .2, armHinge: -.6, armDrive: 0, shoulderLift: .12 });
-const THUMBS: Pose = overShoulder(AWAY);
-const THUMBS_JAB: Pose = overShoulder({ ...AWAY, headDown: -.22 }, OVER.jab);
 /**
- * **The bow** (`bow`): square on to the camera, the bat held upright in
- * front of his right shoulder as it is on the way up (`LIFTING`), the left
- * hand on his heart, and a deep bow from the hips, held; then up, and the
- * bat raised. The blade is up from start to end, so it never turns over:
- * hung from his hand, it swung through him and flipped his elbow; stood up
- * by his hip, the elbow went up over his shoulder. Tucked under his arm, as
- * the new batter can walk in with it, it pointed at the camera and was hidden
- * but for the handle's end.
+ * The gun's measures: how far his head is turned in to look along the bat
+ * and dropped onto it; the barrel's rise; the bat hand forward of the right
+ * shoulder, below it and in; the left hand along the blade, under it and
+ * across; and a shot's kick, back and up; the two directions he fires in.
  */
-function bowing(bow: number): Pose {
-  const yaw = 2.9, ahead = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
-  // Folded from the hips, the hips going back a little to stay over his feet.
-  const hip = new THREE.Vector3(-.02, .97 - .03 * bow, -.02).addScaledVector(ahead, -.07 * bow);
-  const angle = BOW.angle * bow;
-  const spine = UP.clone().multiplyScalar(Math.cos(angle)).addScaledVector(ahead, Math.sin(angle));
-  const chest = hip.clone().addScaledVector(spine, .34);
-  const body = standing({ ...FACING, hip: point(hip), chest: point(chest), yaw, face: yaw, headDown: -.06 + BOW.head * bow, shoulderLift: .06 });
-  // The feet where he stood up straight, so the bow does not walk them back.
-  const feet = standing({ ...body, hip: [-.02, .97, -.02] });
-  const outR = outwards(body, 1), outL = outwards(body, 0);
-  const forward = ahead.clone().addScaledVector(spine, -ahead.dot(spine)).normalize();
-  // The hand out in front of his right shoulder, the blade up along his
-  // trunk and out wide of his helmet however far he bows.
-  const hand = shoulderOf(body, 1).addScaledVector(spine, -BOW.hand[0]).addScaledVector(outR, BOW.hand[1]).addScaledVector(forward, BOW.hand[2]);
-  const toe = spine.clone().addScaledVector(outR, .12).normalize();
-  const heart = chest.clone().addScaledVector(forward, BOW.heart[0]).addScaledVector(outL, BOW.heart[1]).addScaledVector(spine, BOW.heart[2]);
-  return { ...body, frontFoot: feet.frontFoot, backFoot: feet.backFoot, backFootYaw: feet.backFootYaw,
-    grip: point(hand.addScaledVector(toe, HAND.top)), batUp: point(toe.clone().negate()), batFace: point(ahead.clone().negate()), ownFace: 1,
-    fist: point(heart), release: 1 };
-}
-/** How deep the bow is, the head going down with it, where the bat's hand is (down the trunk from its shoulder, out, forward) and the other on his heart (forward, to the left, up). */
-const BOW = { angle: .72, head: .62, hand: [.04, .14, .24], heart: [.15, .06, .03] } as const;
-const BOW_UP = bowing(0), BOWED = bowing(1), BOWED_DEEP = bowing(1.08);
+const GUN = { cheek: .12, head: .24, rise: .04, hand: [.32, .07, .03], under: [.36, .05, .0], kick: [.03, .22], first: 2.0, second: 2.7 } as const;
+const AIMED = aiming(GUN.first), FIRED = aiming(GUN.first, 1);
+const AIMED_ROUND = aiming(GUN.second), FIRED_ROUND = aiming(GUN.second, 1);
+/** The smoke blown off the end: the bat stood up in front of his face in the right hand, the left hand on his hip, his head bent to it. */
+const SMOKE: Pose = (() => {
+  const body = standing({ ...FACING, hip: [-.02, .97, -.02], chest: [.00, 1.31, -.01], yaw: 2.4, face: 2.4, headDown: .12, shoulderLift: .06 });
+  const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw)), outR = outwards(body, 1);
+  const hand = shoulderOf(body, 1).addScaledVector(ahead, .30).addScaledVector(UP, .02).addScaledVector(outR, -.10);
+  const toe = UP.clone().addScaledVector(ahead, .06).normalize();
+  return { ...body, grip: point(hand.clone().addScaledVector(toe, HAND.top)), batUp: point(toe.clone().negate()), batFace: point(ahead.clone().negate()),
+    ownFace: 1, fist: onHip(body), release: 1 };
+})();
 /**
  * **To the sky** (`sky`): turned to the camera, both arms straight up and
  * close together, the bat pointing at the sky out of the right fist, and his
@@ -3243,26 +3228,28 @@ const SKY_BODY: Pose = standing({ ...FACING, hip: [-.02, .98, -.02], chest: [.00
 const TO_SKY: Pose = skyward(SKY_BODY);
 /** Stretched a touch further, as a man breathes it in. */
 const TO_SKY_HELD: Pose = skyward({ ...SKY_BODY, hip: [-.02, .99, -.02], chest: [.00, 1.345, -.02], look: -.7 });
+/** Where the hand on his heart is: forward of his chest, to the left, up. */
+const HEART_AT = [.15, .06, .03] as const;
 /** The bat back beside his head and the left hand flat on his heart, the head level again. */
 function onHeart(off: number): Pose {
   const body: Pose = { ...FACING, yaw: 2.6, face: 2.6, headDown: .04, look: 0 };
   const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw));
   const raised = aloft(body, [.33, .10], [0, 0]);
-  return { ...raised, fist: point(V(body.chest).addScaledVector(ahead, BOW.heart[0] + off).addScaledVector(outwards(body, 0), BOW.heart[1]).addScaledVector(UP, BOW.heart[2])) };
+  return { ...raised, fist: point(V(body.chest).addScaledVector(ahead, HEART_AT[0] + off).addScaledVector(outwards(body, 0), HEART_AT[1]).addScaledVector(UP, HEART_AT[2])) };
 }
 const HEART = onHeart(0), HEART_TAP = onHeart(.06);
 
 /**
- * The celebrations: the fifty's nod, the hundred in any of its four ways
+ * The celebrations: the fifty's nod, the hundred in any of its three ways
  * (`hundred` is the jump), and the Marathon's three big ones.
  */
-export type Celebration = 'fifty' | 'hundred' | 'hundredBack' | 'hundredBow' | 'hundredSky' | 'double' | 'triple' | 'four';
-/** The hundred's four ways: one is drawn each hundred, a quarter each. */
-export type HundredStyle = 'jump' | 'back' | 'bow' | 'sky';
-export const HUNDRED_STYLES: readonly HundredStyle[] = ['jump', 'back', 'bow', 'sky'];
+export type Celebration = 'fifty' | 'hundred' | 'hundredGun' | 'hundredSky' | 'double' | 'triple' | 'four';
+/** The hundred's three ways: one is drawn each hundred, a third each. */
+export type HundredStyle = 'jump' | 'gun' | 'sky';
+export const HUNDRED_STYLES: readonly HundredStyle[] = ['jump', 'gun', 'sky'];
 /** The celebration a hundred plays for each way. */
 export const hundredPose = (style: HundredStyle): Celebration =>
-  style === 'back' ? 'hundredBack' : style === 'bow' ? 'hundredBow' : style === 'sky' ? 'hundredSky' : 'hundred';
+  style === 'gun' ? 'hundredGun' : style === 'sky' ? 'hundredSky' : 'hundred';
 /**
  * How each one goes. The way up and the hold are keyframes of its own; the
  * way down is the hundred's for all of them — out to his right, where the
@@ -3296,12 +3283,11 @@ const ROUTINES: Record<Celebration, Routine> = {
   fifty: { keys: [{ time: FIFTY.rise, pose: RISING }, { time: FIFTY.lift, pose: LIFTING }, { time: FIFTY.up, pose: NODDING }, { time: FIFTY.hold, pose: NODDED }],
     back: FIFTY.back, down: FIFTY.down, settle: FIFTY.settle, total: FIFTY_MS },
   hundred: HUNDRED,
-  hundredBack: { keys: [{ time: 110, pose: RISING }, { time: 440, pose: THUMBS }, { time: 560, pose: THUMBS_JAB }, { time: 680, pose: THUMBS },
-      { time: 800, pose: THUMBS_JAB }, { time: 920, pose: THUMBS }, { time: 1140, pose: THUMBS }, { time: 1480, pose: ALOFT_UP }, { time: 1640, pose: ALOFT_LOOKING }],
-    back: 1860, down: 1990, settle: 2130, total: 2290 },
-  hundredBow: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 440, pose: BOW_UP }, { time: 720, pose: BOWED },
-      { time: 1000, pose: BOWED_DEEP }, { time: 1240, pose: BOW_UP }, { time: 1460, pose: RAISED }, { time: 1620, pose: LOOKING }],
-    back: 1760, down: 1890, settle: 2030, total: 2190 },
+  hundredGun: { keys: [{ time: 110, pose: RISING }, { time: 380, pose: AIMED }, { time: 520, pose: AIMED }, { time: 570, pose: FIRED },
+      { time: 660, pose: AIMED }, { time: 710, pose: FIRED }, { time: 800, pose: AIMED }, { time: 850, pose: FIRED }, { time: 960, pose: AIMED },
+      { time: 1160, pose: AIMED_ROUND }, { time: 1210, pose: FIRED_ROUND }, { time: 1300, pose: AIMED_ROUND }, { time: 1350, pose: FIRED_ROUND },
+      { time: 1460, pose: AIMED_ROUND }, { time: 1700, pose: SMOKE }, { time: 1940, pose: SMOKE }],
+    back: 2080, down: 2210, settle: 2350, total: 2510 },
   hundredSky: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 460, pose: TO_SKY }, { time: 1000, pose: TO_SKY_HELD },
       { time: 1220, pose: HEART }, { time: 1320, pose: HEART_TAP }, { time: 1420, pose: HEART }, { time: 1620, pose: RAISED }, { time: 1780, pose: LOOKING }],
     back: 1920, down: 2050, settle: 2190, total: 2350 },
@@ -3336,7 +3322,7 @@ export const celebrationMs = (kind: Posed) => kind === 'aloft' || kind === 'hund
 export const celebrationBeats = (kind: Posed) => { const r = routineOf(kind); return { keys: r.keys.map(k => k.time), back: r.back, down: r.down, settle: r.settle, total: r.total }; };
 /** How long each celebration holds the next ball back. */
 export const CELEBRATION_LENGTHS: Record<Celebration, number> = {
-  fifty: FIFTY_MS, hundred: CELEBRATION_MS, hundredBack: ROUTINES.hundredBack.total, hundredBow: ROUTINES.hundredBow.total,
+  fifty: FIFTY_MS, hundred: CELEBRATION_MS, hundredGun: ROUTINES.hundredGun.total,
   hundredSky: ROUTINES.hundredSky.total, double: ROUTINES.double.total, triple: ROUTINES.triple.total, four: ROUTINES.four.total,
 };
 export const celebrationLength = (kind: Celebration) => CELEBRATION_LENGTHS[kind];

@@ -24,7 +24,7 @@ export const FIFTY = 50;
 export type Milestone = 'six-sixes' | 'fifty' | 'century' | 'raise' | 'double' | 'triple' | 'four';
 /**
  * A moment, with the mark it was: the runs, or nought for the six sixes; and
- * for a hundred asked for by name (`?moments=1`'s keys) which of its four ways
+ * for a hundred asked for by name (`?moments=1`'s keys) which of its three ways
  * he plays it. Otherwise one is drawn as it goes up.
  */
 export interface Moment { kind: Milestone; mark: number; style?: HundredStyle }

@@ -6609,9 +6609,9 @@ export class Game {
   /** The burst the last special stroke was drawn with, for the debug snapshot. */
   private powerStyle: PowerStyle | null = null;
   /**
-   * Which of the hundred's four ways he plays it (`HundredStyle`): drawn
-   * afresh each hundred, a quarter each, off the page's dice and never the
-   * seed, so no ball moves. `?hundred=jump`, `back`, `bow` or `sky` asks for
+   * Which of the hundred's three ways he plays it (`HundredStyle`): drawn
+   * afresh each hundred, a third each, off the page's dice and never the
+   * seed, so no ball moves. `?hundred=jump`, `gun` or `sky` asks for
    * one every time, and is not practice.
    */
   private readonly hundredAsked = ((): HundredStyle | null => {
@@ -6624,7 +6624,7 @@ export class Game {
   private celebrate(moment: Moment, asked = false) {
     const { kind } = moment;
     // Which celebration the batter plays: the raised bat for every other
-    // fifty, one of the hundred's four ways for a hundred, the jump for six
+    // fifty, one of the hundred's three ways for a hundred, the jump for six
     // sixes, and the three big ones their own.
     if (kind === 'century') this.hundredPlayed = moment.style ?? this.hundredAsked ?? HUNDRED_STYLES[Math.floor(Math.random() * HUNDRED_STYLES.length)];
     const pose: Celebration = kind === 'fifty' || kind === 'raise' ? 'fifty' : kind === 'century' ? hundredPose(this.hundredPlayed!)
@@ -9211,7 +9211,7 @@ export class Game {
       contact: this.contact ? { kind: this.contact.kind, ...this.scene.contactShown } : null,
       catchCam: this.catchCam ? { shot: this.catchCam.shot, on: this.catchCam.on, sinceTake: Math.round(this.elapsed - this.catchCam.take) } : null,
       kept: this.kept ? { stroke: this.kept.swing.stroke, runs: this.kept.outcome.runs, dropped: !!this.kept.outcome.dropped } : null, replayLog: { ...this.replayLog }, changed: this.changed, milestone: !!this.milestoneDue,
-      // Which of the hundred's four ways the last hundred was played.
+      // Which of the hundred's three ways the last hundred was played.
       hundred: this.hundredPlayed,
       replay: this.replay ? { stroke: this.replay.kept.swing.stroke, angle: this.replay.angle.id, at: this.replay.start === null ? null : Math.round(this.elapsed - this.replay.start), struck: this.replay.struck, ending: this.replay.ending !== null } : null,
       replays: this.replayLog.shown, balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
@@ -9347,10 +9347,10 @@ const ACTION_KEYS: readonly { label: string; kind: ActionKey }[] = [
   { label: 'DOWN', kind: 'down' }, { label: 'RIBS', kind: 'ribs' }, { label: 'HAND', kind: 'sting' }, { label: 'HELMET', kind: 'dazed' },
   { label: 'FALL', kind: 'fall' },
 ];
-/** `?moments=1`'s keys, in the order an innings reaches them, with the hundred's four ways after it. */
+/** `?moments=1`'s keys, in the order an innings reaches them, with the hundred's three ways after it. */
 const MOMENT_KEYS: readonly { label: string; moment: Moment }[] = [
   { label: '50', moment: { kind: 'fifty', mark: 50 } }, { label: '100', moment: { kind: 'century', mark: 100 } },
-  // The hundred's four ways by name; 100 draws one as a real hundred does.
+  // The hundred's three ways by name; 100 draws one as a real hundred does.
   ...HUNDRED_STYLES.map(style => ({ label: style.toUpperCase(), moment: { kind: 'century', mark: 100, style } as Moment })),
   { label: '6\u00d76', moment: { kind: 'six-sixes', mark: 0 } }, { label: '150', moment: { kind: 'raise', mark: 150 } },
   { label: '200', moment: { kind: 'double', mark: 200 } }, { label: '250', moment: { kind: 'raise', mark: 250 } },

@@ -3138,11 +3138,10 @@ describe('the hundred', () => {
 });
 
 /**
- * The hundred's other three ways (`HundredStyle`): pointing at his back, the
- * bow and to the sky. Each is held to what holds the jump, and to what makes
- * it itself.
+ * The hundred's other two ways (`HundredStyle`): the gun and to the sky. Each
+ * is held to what holds the jump, and to what makes it itself.
  */
-describe("the hundred's other three", () => {
+describe("the hundred's other ways", () => {
   const others = HUNDRED_STYLES.filter(style => style !== 'jump');
   const playing = (style: (typeof HUNDRED_STYLES)[number]) => {
     const batter = new Batter(); batter.update(0); batter.celebrate(0, hundredPose(style)); return batter;
@@ -3154,9 +3153,9 @@ describe("the hundred's other three", () => {
     return chest.addScaledVector(spine, .31).add(new Vector3(.01, .01, .025));
   };
 
-  it('draws one of four for every hundred, the jump among them', () => {
-    expect(HUNDRED_STYLES).toEqual(['jump', 'back', 'bow', 'sky']);
-    expect(new Set(HUNDRED_STYLES.map(hundredPose)).size).toBe(4);
+  it('draws one of three for every hundred, the jump among them', () => {
+    expect(HUNDRED_STYLES).toEqual(['jump', 'gun', 'sky']);
+    expect(new Set(HUNDRED_STYLES.map(hundredPose)).size).toBe(3);
     expect(hundredPose('jump')).toBe('hundred');
   });
 
@@ -3215,7 +3214,7 @@ describe("the hundred's other three", () => {
         const pose = batter.inspect();
         expect(Math.min(pose.frontFoot[1], pose.backFoot[1]), `boots at ${time}ms`).toBeGreaterThan(floor - .005);
       }
-      expect(lengthOf(style), 'a moment inside an innings').toBeLessThanOrEqual(2400);
+      expect(lengthOf(style), 'a moment inside an innings').toBeLessThanOrEqual(2550);
       batter.update(lengthOf(style));
       const done = batter.inspect();
       for (const key of ['grip', 'frontFoot', 'backFoot', 'hip', 'chest'] as const)
@@ -3224,36 +3223,33 @@ describe("the hundred's other three", () => {
     });
   });
 
-  it('back: turned away from the camera, the bat straight up, the left hand behind its shoulder', () => {
-    const batter = playing('back');
-    for (const time of [440, 680, 920, 1140]) {
+  it('gun: the bat out level like a rifle, the left hand under it, each shot kicking it back and up', () => {
+    const batter = playing('gun');
+    const aimAt = (time: number) => {
       batter.update(time);
       const pose = batter.inspect();
-      // Facing up the pitch: his back is what the camera behind the stumps sees.
-      expect(Math.cos(pose.yaw), `facing up the pitch at ${time}ms`).toBeGreaterThan(.9);
-      expect(pose.bladeTip[1] - pose.grip[1], `blade up at ${time}ms`).toBeGreaterThan(.6);
-      expect(pose.grip[1], `bat hand up at ${time}ms`).toBeGreaterThan(1.8);
-      // The fist up by the shoulder and behind the chest, towards the camera.
-      expect(pose.wrists[0][1], `fist at shoulder height at ${time}ms`).toBeGreaterThan(pose.chest[1] + .05);
-      expect(pose.wrists[0][2], `fist behind him at ${time}ms`).toBeLessThan(pose.chest[2]);
+      // Both in the world's frame: the bat hand's glove and the blade's toe.
+      const grip = new Vector3(...pose.hands[1]), tip = new Vector3(...pose.bladeTip);
+      return { pose, along: tip.clone().sub(grip), grip };
+    };
+    for (const time of [520, 1160]) {
+      const { pose, along } = aimAt(time);
+      // Out in front of him, close to level: a barrel, not a bat held up or down.
+      expect(Math.abs(along.clone().normalize().y), `level at ${time}ms`).toBeLessThan(.3);
+      const ahead = new Vector3(Math.sin(pose.yaw), 0, Math.cos(pose.yaw));
+      expect(along.clone().normalize().dot(ahead), `pointed the way he faces at ${time}ms`).toBeGreaterThan(.85);
+      // The left hand on the blade, out along it, not by the handle.
+      expect(new Vector3(...pose.wrists[0]).distanceTo(new Vector3(...pose.wrists[1])), `hands apart at ${time}ms`).toBeGreaterThan(.2);
+      expect(pose.wrists[1][1], `bat hand at his shoulder at ${time}ms`).toBeGreaterThan(pose.chest[1]);
     }
-    // Each jab goes back.
-    batter.update(680); const held = batter.inspect().wrists[0][2];
-    batter.update(800); expect(batter.inspect().wrists[0][2]).toBeLessThan(held - .05);
-  });
-
-  it('bow: square on to the camera, folded over from the hips, the free hand on his heart', () => {
-    const batter = playing('bow');
-    batter.update(440); const upright = batter.inspect();
-    batter.update(1000); const bowed = batter.inspect();
-    expect(Math.cos(bowed.yaw), 'facing the camera').toBeLessThan(-.9);
-    const lean = (pose: typeof bowed) => new Vector3(...pose.chest).sub(new Vector3(...pose.hip)).normalize().angleTo(new Vector3(0, 1, 0));
-    expect(lean(upright)).toBeLessThan(.15);
-    expect(lean(bowed), 'bowed forty degrees or so').toBeGreaterThan(.65);
-    for (const pose of [upright, bowed])
-      expect(new Vector3(...pose.wrists[0]).distanceTo(new Vector3(...pose.chest)), 'hand on his chest').toBeLessThan(.25);
-    // The bat stood up at his side, its blade up, bowed or not.
-    for (const pose of [upright, bowed]) expect(pose.bladeTip[1] - pose.grip[1], 'blade up').toBeGreaterThan(.4);
+    // A shot kicks the end up and the bat back.
+    const aimed = aimAt(520), fired = aimAt(570);
+    expect(fired.along.clone().normalize().y).toBeGreaterThan(aimed.along.clone().normalize().y + .1);
+    // Swung round onto another stand.
+    expect(aimAt(1160).pose.yaw - aimAt(520).pose.yaw).toBeGreaterThan(.5);
+    // The smoke: the bat stood up in front of his face.
+    const smoke = aimAt(1800);
+    expect(smoke.along.clone().normalize().y, 'bat upright').toBeGreaterThan(.9);
   });
 
   it('sky: both arms straight up and close together, the bat pointing at the sky, then a hand to his heart', () => {

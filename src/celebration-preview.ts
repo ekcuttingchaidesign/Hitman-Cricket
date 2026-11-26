@@ -1,8 +1,7 @@
 /**
- * The hundred's four ways side by side (`celebration.html`): four of the
+ * The hundred's three ways side by side (`celebration.html`): three of the
  * game's own batters on one clock, each playing one of the celebrations a
- * hundred draws from (`HUNDRED_STYLES`): the jump, pointing at his back, the
- * bow and to the sky. Nothing is scored, sent or counted. `scripts/celebration-artifact.mjs` bundles it
+ * hundred draws from (`HUNDRED_STYLES`): the jump, the gun and to the sky. Nothing is scored, sent or counted. `scripts/celebration-artifact.mjs` bundles it
  * into one HTML file.
  */
 import * as THREE from 'three';
@@ -14,13 +13,12 @@ import { batSheet } from './entities/batSkins';
 import { ALL_BATS, type BatSkin } from './game/dressing';
 
 /**
- * The four hundreds, one drawn each hundred (`HundredStyle`): each stage plays
+ * The three hundreds, one drawn each hundred (`HundredStyle`): each stage plays
  * one, on one clock. The beats are named for the pill in each stage's corner.
  */
 const STAGES: { id: string; kind: Posed; names: string[] }[] = [
   { id: 'jump', kind: 'hundred', names: ['Crouch', 'Spring', 'Leave', 'Top', 'Touch', 'Land', 'Up', 'Pump', 'Up', 'Pump', 'Look'] },
-  { id: 'back', kind: 'hundredBack', names: ['Rise', 'Over the shoulder', 'Jab', 'Over the shoulder', 'Jab', 'Over the shoulder', 'Hold', 'Turned round', 'Look'] },
-  { id: 'bow', kind: 'hundredBow', names: ['Rise', 'Lift', 'Hand on heart', 'Bow', 'Held', 'Up', 'Raised', 'Look'] },
+  { id: 'gun', kind: 'hundredGun', names: ['Rise', 'Aim', 'Aim', 'Bang', 'Aim', 'Bang', 'Aim', 'Bang', 'Aim', 'Swing round', 'Bang', 'Aim', 'Bang', 'Aim', 'Smoke', 'Smoke'] },
   { id: 'sky', kind: 'hundredSky', names: ['Rise', 'Lift', 'To the sky', 'Held', 'Heart', 'Tap', 'Heart', 'Raised', 'Look'] },
 ];
 /** Each one's moments by name, at their times. */
@@ -33,10 +31,9 @@ const END = Math.max(...BEATS.map(b => b.at(-1)!.t)) + 150;
 
 /** What to look at, each with the moment and the stage it shows best. */
 const GAPS = [
-  { t: 380, title: 'Thumbs at his back', text: 'Turned away to face up the pitch, his back to the game\'s camera, the bat straight up in his right hand, the left hand up over its shoulder and his head turned to look back at the crowd. Best seen on the Game camera.' },
-  { t: 790, title: 'The jabs', text: 'The left hand jabbed back over his shoulder twice, at the name and number on his back. The gloves are fists, so it is the hand that points, not a thumb.' },
-  { t: 1000, title: 'The bow', text: 'Square on to the crowd, the bat hanging from his right hand, his left hand on his heart, bowing from the hips and held.' },
-  { t: 1380, title: 'Up from the bow', text: 'He stands up and raises the bat to the crowd, then goes back to his stance by the hundred\'s own way down.' },
+  { t: 520, title: 'Taking aim', text: 'The bat brought up like a rifle: the handle against his right shoulder, the blade out level, the left hand under it and his head down along it.' },
+  { t: 570, title: 'The shots', text: 'Three shots at the crowd, each one kicking the bat back into him and its end up. Then swung round onto another stand for two more.' },
+  { t: 1800, title: 'Blowing the smoke', text: 'The bat stood up in front of his face and the smoke blown off its end, the other hand on his hip. Then back to his stance.' },
   { t: 800, title: 'To the sky', text: 'Both arms straight up and close together, the bat pointing at the sky, his head right back. Quieter than the jump, and held longer.' },
   { t: 1320, title: 'Hand on heart', text: 'The left hand comes down to his heart and taps it, the bat back beside his head, then raised to the crowd.' },
 ];
