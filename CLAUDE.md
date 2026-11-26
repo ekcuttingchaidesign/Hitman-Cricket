@@ -1031,23 +1031,28 @@ it is kept for that as it stands (`ALOFT`, the `aloft` routine
 putting `ALOFT` in the hundred's keys (`ROUTINES.hundred`, its pumps redone
 about it) and checking the way down, which no still has needed: from
 `ALOFT` to `RETURNING` its `spin` (π + .7) unwinds to nought and the
-handle slides back, so the blade turns in his fist as he lowers it. The try at it is `hundredAloft` (`HUNDRED_ALOFT` in `Batter.ts`, a
-`Posed` kind the game never plays), as the owner asked on 25 November 2026:
-the century reached, he crouches (`CROUCHED`), springs off both feet with the
-bat and the free fist going up (`SPRINGING`), is thirty centimetres in the air
-at the top with his toes pointed (`AIRBORNE`, `JUMP`, `shifted`), lands on
-bent knees (`LANDED`) with both arms straight up, pumps twice as the knees
-give (`ALOFT_PUMPED`, kept: the owner found the pump fine), looks round and
-goes back to his stance by the hundred's way down, on its own clock
-(`HUNDRED_JUMP`, 1.81 seconds against the hundred's 1.55). Each foot is keyed
-on the turf twice, a moment apart, as it leaves and as it lands, so the curve
-through the keys never takes a boot below the grass. It holds the bat with
-nothing turned in the fist (`CHEERED`: `aloftOf`'s spin and slide at nought),
-the back of the blade and its art to the front: the still's half turn, there
-to show the face to the season card's camera, twirled the blade in his
-fingers going up and coming down. It is shown beside the hundred on one clock in `celebration.html`
-(`src/celebration-preview.ts`, bundled by `scripts/celebration-artifact.mjs`,
-the claude.ai artifact "Hundred, Arms Aloft") for the owner to find its gaps. The section
+handle slides back, so the blade turns in his fist as he lowers it. It is the game's hundred since 26 November 2026, the owner's word
+(`ROUTINES.hundred` is `HUNDRED`, its clock `HUNDRED_JUMP`, 1.84 seconds
+against the old 1.55, `CELEBRATION_MS`): the century reached, he crouches
+(`CROUCHED`), springs off both feet with the bat and the free fist going up
+(`SPRINGING`), is thirty centimetres in the air at the top with his toes
+pointed (`AIRBORNE`, `JUMP`, `shifted`), lands on bent knees over 60ms
+(`LANDED`) with both arms straight up, pumps twice as the knees give
+(`ALOFT_PUMPED`, kept: the owner found the pump fine), looks round and goes
+back to his stance by the old hundred's way down, the straight arm given
+220ms to come down from the look (faster, the elbow jumped between frames).
+`flowing` now holds a boot to the lower of the two keys either side of it,
+so the curve through a foot landing and staying down never carries it below
+the grass; nothing else moved for it, every test passing as it was. It
+holds the bat with nothing turned in the fist (`CHEERED`: `aloftOf`'s spin
+and slide at nought), the back of the blade and its art to the front: the
+still's half turn, there to show the face to the season card's camera,
+twirled the blade in his fingers going up and coming down. The hundred
+before the jump is kept as `hundredBefore` (`BEFORE_JUMP`, a `Posed` kind
+the game never plays) for `celebration.html` (`src/celebration-preview.ts`,
+bundled by `scripts/celebration-artifact.mjs`, the claude.ai artifact
+"Hundred, Arms Aloft"), which shows the two side by side on one clock, with
+any bat in both their hands. `?moments=1` puts the hundred up in a game. The section
 "Season '26 · Every kit, every colour" lists all nineteen kits with the hex
 of every part.
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect } from 'vitest';
-import { Batter, HELICOPTER_CLOCK, HELICOPTER_CONTACT_MS, HELICOPTER_HOLD_MS, helicopterTurn, FLICK_CLOCK, FLICK_HOLD_MS, FLICK_MEETS_AT, FLICK_V3_CLOCK, FLICK_V3_CONTACT_MS, FLICK_V3_HOLD_MS, FLICK_V3_MEETS_AT, STRAIGHT_CHARGE_HOLD, PUNCH_CLOCK, PUNCH_CONTACT_MS, PUNCH_HIGHEST, PUNCH_HOLD_MS, PUNCH_MEETS_AT, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, DEFENCE_FRONT_MEETS_AT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_HEIGHT, SPIN_CUT_CONTACT_MS, SPIN_CUT_V2_MEETS_AT, SPIN_CUT_HOLD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_MEETS_AT, SPIN_PULL_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, pullVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
+import { Batter, HELICOPTER_CLOCK, HELICOPTER_CONTACT_MS, HELICOPTER_HOLD_MS, helicopterTurn, FLICK_CLOCK, FLICK_HOLD_MS, FLICK_MEETS_AT, FLICK_V3_CLOCK, FLICK_V3_CONTACT_MS, FLICK_V3_HOLD_MS, FLICK_V3_MEETS_AT, STRAIGHT_CHARGE_HOLD, PUNCH_CLOCK, PUNCH_CONTACT_MS, PUNCH_HIGHEST, PUNCH_HOLD_MS, PUNCH_MEETS_AT, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, HUNDRED_JUMP, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, DEFENCE_FRONT_MEETS_AT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_HEIGHT, SPIN_CUT_CONTACT_MS, SPIN_CUT_V2_MEETS_AT, SPIN_CUT_HOLD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_MEETS_AT, SPIN_PULL_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, pullVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -3024,9 +3024,10 @@ describe('the reverse scoop', () => {
 });
 
 /**
- * The hundred: turned to the camera, the bat up beside his head in his right
- * hand and his left fist punching the sky, two pumps, and both hands back on
- * the bat into his guard. It is not a stroke, so none of the stroke tables
+ * The hundred: turned to the camera, a crouch and a jump off both feet, the
+ * bat going up in his right hand and his left fist punching the sky, landing
+ * with both arms straight up, two pumps, and both hands back on the bat into
+ * his guard. It is not a stroke, so none of the stroke tables
  * above reach it, and every rule they hold a stroke to is held here instead —
  * bar the one it exists to break, that both hands stay on the handle.
  */
@@ -3053,7 +3054,7 @@ describe('the hundred', () => {
 
   it('lets go with his left and punches the sky, the bat up beside his head', () => {
     const batter = celebrating();
-    for (const time of [390, 690, 990]) {
+    for (const time of [HUNDRED_JUMP.up, HUNDRED_JUMP.again, HUNDRED_JUMP.look]) {
       batter.update(time);
       const pose = batter.inspect();
       expect(apart(pose), `hands apart at ${time}ms`).toBeGreaterThan(.40);
@@ -3076,7 +3077,7 @@ describe('the hundred', () => {
 
   it('takes the bat in both hands again before he settles', () => {
     const batter = celebrating();
-    for (let time = 1130; time <= CELEBRATION_MS; time += 16) {
+    for (let time = HUNDRED_JUMP.back; time <= CELEBRATION_MS; time += 16) {
       batter.update(time);
       expect(apart(batter.inspect()), `${time}ms`).toBeCloseTo(.110, 6);
     }
@@ -3105,8 +3106,27 @@ describe('the hundred', () => {
     expect(elbow.clearance, JSON.stringify(elbow)).toBeGreaterThan(.15);
   });
 
-  it('is over in a second and a half, and ends in his guard', () => {
-    expect(CELEBRATION_MS).toBeLessThanOrEqual(1600);
+  it('jumps clear of the turf off both feet, and never puts a boot through it', () => {
+    const batter = celebrating(), ground = new Batter(); ground.update(0);
+    const floor = Math.min(ground.inspect().frontFoot[1], ground.inspect().backFoot[1]);
+    batter.update(HUNDRED_JUMP.top);
+    const top = batter.inspect();
+    expect(top.frontFoot[1] - floor, 'front foot off the turf at the top').toBeGreaterThan(.2);
+    expect(top.backFoot[1] - floor, 'back foot off the turf at the top').toBeGreaterThan(.2);
+    for (let time = 0; time <= CELEBRATION_MS; time += 4) {
+      batter.update(time);
+      const pose = batter.inspect();
+      expect(pose.frontFoot[1], `front foot at ${time}ms`).toBeGreaterThan(floor - .005);
+      expect(pose.backFoot[1], `back foot at ${time}ms`).toBeGreaterThan(floor - .005);
+    }
+    for (const time of [HUNDRED_JUMP.crouch, HUNDRED_JUMP.land]) {
+      batter.update(time);
+      expect(batter.inspect().hip[1], `knees bent at ${time}ms`).toBeLessThan(ground.inspect().hip[1] - .05);
+    }
+  });
+
+  it('is over in under two seconds, and ends in his guard', () => {
+    expect(CELEBRATION_MS).toBeLessThanOrEqual(1850);
     const batter = celebrating(), fresh = new Batter(); fresh.update(0);
     batter.update(CELEBRATION_MS);
     const done = batter.inspect(), guard = fresh.inspect();

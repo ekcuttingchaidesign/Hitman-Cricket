@@ -1,9 +1,9 @@
 /**
  * The hundred beside a try at it with the arms held aloft (`celebration.html`):
  * two of the game's own batters on one clock, the one celebrating as the game
- * does and the other with `hundredAloft`, a routine the game never plays: the
- * century with a jump and both arms aloft (`HUNDRED_JUMP`). For the owner to
- * find what the try still gets wrong before it goes in. Nothing
+ * did before the jump (`hundredBefore`, a routine the game no longer plays)
+ * and the other the hundred the game plays now, with the jump and both arms
+ * aloft (`HUNDRED_JUMP`). Nothing
  * is scored, sent or counted. `scripts/celebration-artifact.mjs` bundles it
  * into one HTML file.
  */
@@ -15,7 +15,7 @@ import { buildWicket } from './scene/wicket';
 import { batSheet } from './entities/batSkins';
 import { ALL_BATS, type BatSkin } from './game/dressing';
 
-const NOW: Posed = 'hundred', TRY: Posed = 'hundredAloft';
+const NOW: Posed = 'hundredBefore', TRY: Posed = 'hundred';
 /** Each one's moments by name, at their times: the hundred's own, and the try's jump. */
 const named = (kind: Posed, names: string[]) => {
   const b = celebrationBeats(kind);
