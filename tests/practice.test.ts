@@ -44,6 +44,7 @@ describe('every switch the game reads', () => {
     seed: 'the innings seed; the browser checks claim places with it',
     lefty: 'where the left-hander bats; the browser checks claim places with it',
     moments: 'celebrations on demand, adding no runs and counting nothing',
+    hundred: 'which of the hundred\'s four celebrations he plays, the picture alone',
     rate: 'the star rating on demand, sending and remembering nothing',
     whatsnew: 'which update\'s What\'s new stories are told, by name: cards before the innings, nothing about it',
     stories: 'the What\'s new stories before every PLAY, counted as none of the two a player is shown: cards before the innings, nothing about it',

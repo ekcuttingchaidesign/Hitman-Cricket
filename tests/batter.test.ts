@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect } from 'vitest';
-import { Batter, HELICOPTER_CLOCK, HELICOPTER_CONTACT_MS, HELICOPTER_HOLD_MS, helicopterTurn, FLICK_CLOCK, FLICK_HOLD_MS, FLICK_MEETS_AT, FLICK_V3_CLOCK, FLICK_V3_CONTACT_MS, FLICK_V3_HOLD_MS, FLICK_V3_MEETS_AT, STRAIGHT_CHARGE_HOLD, PUNCH_CLOCK, PUNCH_CONTACT_MS, PUNCH_HIGHEST, PUNCH_HOLD_MS, PUNCH_MEETS_AT, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, HUNDRED_JUMP, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, DEFENCE_FRONT_MEETS_AT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_HEIGHT, SPIN_CUT_CONTACT_MS, SPIN_CUT_V2_MEETS_AT, SPIN_CUT_HOLD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_MEETS_AT, SPIN_PULL_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, pullVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
+import { Batter, HELICOPTER_CLOCK, HELICOPTER_CONTACT_MS, HELICOPTER_HOLD_MS, helicopterTurn, FLICK_CLOCK, FLICK_HOLD_MS, FLICK_MEETS_AT, FLICK_V3_CLOCK, FLICK_V3_CONTACT_MS, FLICK_V3_HOLD_MS, FLICK_V3_MEETS_AT, STRAIGHT_CHARGE_HOLD, PUNCH_CLOCK, PUNCH_CONTACT_MS, PUNCH_HIGHEST, PUNCH_HOLD_MS, PUNCH_MEETS_AT, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, HUNDRED_JUMP, HUNDRED_STYLES, hundredPose, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, PULL_MEETS_AT, PULL_HEIGHT, PULL_V1_CONTACT_MS, PULL_V1_HOLD_MS, PULL_V1_LOAD_MS, DEFENCE_FRONT_MEETS_AT, DEFENCE_BACK_MEETS_AT, DEFENCE_FRONT_CONTACT_MS, DEFENCE_BACK_CONTACT_MS, DEFENCE_BACK_HEIGHT, SPIN_CUT_CONTACT_MS, SPIN_CUT_V2_MEETS_AT, SPIN_CUT_HOLD_MS, SPIN_PULL_CONTACT_MS, SPIN_PULL_MEETS_AT, SPIN_PULL_HOLD_MS, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, SLOG_MEETS_AT, SLOG_CLOCK, SLOG_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, LOFT_V2_CLOCK, loftVersionOf, pullVersionOf, SCOOP_CLOCK, REVERSE_CLOCK, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -3134,6 +3134,140 @@ describe('the hundred', () => {
       done[key].forEach((v, i) => expect(v, key).toBeCloseTo(guard[key][i], 6));
     }
     expect(done.hands).toEqual(guard.hands);
+  });
+});
+
+/**
+ * The hundred's other three ways (`HundredStyle`): pointing at his back, the
+ * bow and to the sky. Each is held to what holds the jump, and to what makes
+ * it itself.
+ */
+describe("the hundred's other three", () => {
+  const others = HUNDRED_STYLES.filter(style => style !== 'jump');
+  const playing = (style: (typeof HUNDRED_STYLES)[number]) => {
+    const batter = new Batter(); batter.update(0); batter.celebrate(0, hundredPose(style)); return batter;
+  };
+  const lengthOf = (style: (typeof HUNDRED_STYLES)[number]) => CELEBRATION_LENGTHS[hundredPose(style)];
+  const apart = (pose: ReturnType<Batter['inspect']>) => new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1]));
+  const helmet = (pose: ReturnType<Batter['inspect']>) => {
+    const chest = new Vector3(...pose.chest), spine = chest.clone().sub(new Vector3(...pose.hip)).normalize();
+    return chest.addScaledVector(spine, .31).add(new Vector3(.01, .01, .025));
+  };
+
+  it('draws one of four for every hundred, the jump among them', () => {
+    expect(HUNDRED_STYLES).toEqual(['jump', 'back', 'bow', 'sky']);
+    expect(new Set(HUNDRED_STYLES.map(hundredPose)).size).toBe(4);
+    expect(hundredPose('jump')).toBe('hundred');
+  });
+
+  for (const style of others) describe(style, () => {
+    it('keeps the bat in his right hand, and both arms whole', () => {
+      const batter = playing(style);
+      for (let time = 0; time <= lengthOf(style); time += 8) {
+        batter.update(time);
+        const pose = batter.inspect();
+        expect(pose.handGrip[1], `bat hand on the handle at ${time}ms`).toBeCloseTo(-.035, 9);
+        for (const [upper, lower] of pose.armLengths) {
+          expect(upper, `${time}ms`).toBeCloseTo(.32, 3);
+          expect(lower, `${time}ms`).toBeLessThan(.345);
+        }
+      }
+    });
+
+    it('does not flip an elbow or wrist between frames', () => {
+      const batter = playing(style);
+      let previous = batter.inspect();
+      for (let time = 0; time <= lengthOf(style) + 32; time += 2) {
+        batter.update(time); const pose = batter.inspect();
+        for (let i = 0; i < 2; i++) {
+          const where = `arm=${i} @${time}`;
+          expect(new Vector3(...pose.elbows[i]).distanceTo(new Vector3(...previous.elbows[i])), where).toBeLessThan(.032);
+          expect(new Quaternion(...pose.gripRotation[i]).angleTo(new Quaternion(...previous.gripRotation[i])), where).toBeLessThan(.30);
+          expect(pose.cuffAim[i].socketError, where).toBeLessThan(1e-9);
+          expect(pose.cuffAim[i].flex, where).toBeLessThan(Math.PI / 2);
+          expect(pose.elbowCoverage[i], where).toBeGreaterThan(0);
+        }
+        previous = pose;
+      }
+    });
+
+    it('never puts the bat through him, or an elbow into him', () => {
+      const { worst, elbow } = throughHim(playing(style), lengthOf(style));
+      expect(worst.value, `reaches ${worst.value.toFixed(2)} into the ${worst.part} at ${worst.at}ms`).toBeGreaterThan(1);
+      expect(elbow.clearance, JSON.stringify(elbow)).toBeGreaterThan(.15);
+    });
+
+    it('keeps the free hand out of his helmet', () => {
+      const batter = playing(style);
+      for (let time = 0; time <= lengthOf(style); time += 4) {
+        batter.update(time);
+        const pose = batter.inspect();
+        if (apart(pose) < .2) continue;
+        expect(new Vector3(...pose.hands[0]).distanceTo(helmet(pose)), `at ${time}ms`).toBeGreaterThan(.2);
+      }
+    });
+
+    it('keeps both boots on the turf, and ends in his guard with both hands on the bat', () => {
+      const batter = playing(style), fresh = new Batter(); fresh.update(0);
+      const guard = fresh.inspect(), floor = Math.min(guard.frontFoot[1], guard.backFoot[1]);
+      for (let time = 0; time <= lengthOf(style); time += 4) {
+        batter.update(time);
+        const pose = batter.inspect();
+        expect(Math.min(pose.frontFoot[1], pose.backFoot[1]), `boots at ${time}ms`).toBeGreaterThan(floor - .005);
+      }
+      expect(lengthOf(style), 'a moment inside an innings').toBeLessThanOrEqual(2400);
+      batter.update(lengthOf(style));
+      const done = batter.inspect();
+      for (const key of ['grip', 'frontFoot', 'backFoot', 'hip', 'chest'] as const)
+        done[key].forEach((v, i) => expect(v, key).toBeCloseTo(guard[key][i], 6));
+      expect(done.hands).toEqual(guard.hands);
+    });
+  });
+
+  it('back: turned away from the camera, the bat straight up, the left hand behind its shoulder', () => {
+    const batter = playing('back');
+    for (const time of [440, 680, 920, 1140]) {
+      batter.update(time);
+      const pose = batter.inspect();
+      // Facing up the pitch: his back is what the camera behind the stumps sees.
+      expect(Math.cos(pose.yaw), `facing up the pitch at ${time}ms`).toBeGreaterThan(.9);
+      expect(pose.bladeTip[1] - pose.grip[1], `blade up at ${time}ms`).toBeGreaterThan(.6);
+      expect(pose.grip[1], `bat hand up at ${time}ms`).toBeGreaterThan(1.8);
+      // The fist up by the shoulder and behind the chest, towards the camera.
+      expect(pose.wrists[0][1], `fist at shoulder height at ${time}ms`).toBeGreaterThan(pose.chest[1] + .05);
+      expect(pose.wrists[0][2], `fist behind him at ${time}ms`).toBeLessThan(pose.chest[2]);
+    }
+    // Each jab goes back.
+    batter.update(680); const held = batter.inspect().wrists[0][2];
+    batter.update(800); expect(batter.inspect().wrists[0][2]).toBeLessThan(held - .05);
+  });
+
+  it('bow: square on to the camera, folded over from the hips, the free hand on his heart', () => {
+    const batter = playing('bow');
+    batter.update(440); const upright = batter.inspect();
+    batter.update(1000); const bowed = batter.inspect();
+    expect(Math.cos(bowed.yaw), 'facing the camera').toBeLessThan(-.9);
+    const lean = (pose: typeof bowed) => new Vector3(...pose.chest).sub(new Vector3(...pose.hip)).normalize().angleTo(new Vector3(0, 1, 0));
+    expect(lean(upright)).toBeLessThan(.15);
+    expect(lean(bowed), 'bowed forty degrees or so').toBeGreaterThan(.65);
+    for (const pose of [upright, bowed])
+      expect(new Vector3(...pose.wrists[0]).distanceTo(new Vector3(...pose.chest)), 'hand on his chest').toBeLessThan(.25);
+    // The bat stood up at his side, its blade up, bowed or not.
+    for (const pose of [upright, bowed]) expect(pose.bladeTip[1] - pose.grip[1], 'blade up').toBeGreaterThan(.4);
+  });
+
+  it('sky: both arms straight up and close together, the bat pointing at the sky, then a hand to his heart', () => {
+    const batter = playing('sky');
+    for (const time of [460, 1000]) {
+      batter.update(time);
+      const pose = batter.inspect(), head = helmet(pose);
+      expect(pose.hands[0][1], `left hand high at ${time}ms`).toBeGreaterThan(head.y + .35);
+      expect(pose.grip[1], `bat hand high at ${time}ms`).toBeGreaterThan(head.y + .2);
+      expect(pose.bladeTip[1] - pose.grip[1], `bat to the sky at ${time}ms`).toBeGreaterThan(.7);
+      expect(new Vector3(...pose.wrists[0]).distanceTo(new Vector3(...pose.wrists[1])), `hands close together at ${time}ms`).toBeLessThan(.65);
+    }
+    batter.update(1220);
+    expect(new Vector3(...batter.inspect().wrists[0]).distanceTo(new Vector3(...batter.inspect().chest)), 'hand on his heart').toBeLessThan(.25);
   });
 });
 

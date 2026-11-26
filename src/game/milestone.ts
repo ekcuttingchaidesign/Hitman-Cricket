@@ -1,4 +1,5 @@
 import type { ShotOutcome } from './types';
+import type { HundredStyle } from '../entities/Batter';
 
 /**
  * A hundred, which is one batter's, not the side's.
@@ -21,8 +22,12 @@ export const FIFTY = 50;
  * Six sixes in a row is the one that is not a number.
  */
 export type Milestone = 'six-sixes' | 'fifty' | 'century' | 'raise' | 'double' | 'triple' | 'four';
-/** A moment, with the mark it was: the runs, or nought for the six sixes. */
-export interface Moment { kind: Milestone; mark: number }
+/**
+ * A moment, with the mark it was: the runs, or nought for the six sixes; and
+ * for a hundred asked for by name (`?moments=1`'s keys) which of its four ways
+ * he plays it. Otherwise one is drawn as it goes up.
+ */
+export interface Moment { kind: Milestone; mark: number; style?: HundredStyle }
 
 /** Which moment a mark gets. */
 export function kindAt(mark: number): Exclude<Milestone, 'six-sixes'> {

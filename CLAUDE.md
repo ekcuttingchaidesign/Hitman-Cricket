@@ -1049,10 +1049,39 @@ and slide at nought), the back of the blade and its art to the front: the
 still's half turn, there to show the face to the season card's camera,
 twirled the blade in his fingers going up and coming down. The hundred
 before the jump is kept as `hundredBefore` (`BEFORE_JUMP`, a `Posed` kind
-the game never plays) for `celebration.html` (`src/celebration-preview.ts`,
-bundled by `scripts/celebration-artifact.mjs`, the claude.ai artifact
-"Hundred, Arms Aloft"), which shows the two side by side on one clock, with
-any bat in both their hands. `?moments=1` puts the hundred up in a game. The section
+the game never plays), which `celebration.html` (`src/celebration-preview.ts`,
+bundled by `scripts/celebration-artifact.mjs`) stood beside the jump; it now
+stands the hundred's four ways together (below), with any bat in their
+hands. `?moments=1` puts the hundred up in a game.
+
+The hundred is one of four since 26 November 2026, the owner's picks
+(`HundredStyle`, `HUNDRED_STYLES`, `hundredPose` in `Batter.ts`), drawn
+afresh each hundred, a quarter each, off the page's dice and never the seed
+(`celebrate` in `src/Game.ts`, `snapshot().hundred`); six sixes keeps the
+jump. The jump (`hundred`). His back (`hundredBack`): turned to face up the
+pitch, his back to the game's camera, the bat straight up in the right hand
+as the jump's is, the left fist behind its shoulder jabbing back twice at the
+name and number on his back (`overShoulder`, `OVER`), his head turned back
+over that shoulder, then round to the crowd with the bat still up; both
+hands over the shoulders with the bat stood up out of one read from behind as
+a man about to swing. The bow (`hundredBow`): square on to the camera, the
+bat upright in front of his right shoulder as it is on the way up
+(`LIFTING`), the left hand on his heart, a deep bow from the hips held
+(`bowing`, `BOW`), then up and the bat raised; tucked under his arm the bat
+pointed at the camera and hid, hung from his hand it turned over and flipped
+the elbow, and stood up by his hip it threw the elbow over his shoulder. To
+the sky (`hundredSky`): both arms straight up close together, the bat at the
+sky and his head right back (`skyward`), held, then the hand to his heart,
+tapped (`onHeart`), and the bat raised. Each of the three ends on the bat
+raised beside his head, so all four go home by the hundred's way down; they
+run 2.2 to 2.3 seconds against the jump's 1.84 (`CELEBRATION_LENGTHS`). The
+gloves are fists, so a hand points, never a thumb or a finger. `?hundred=jump`,
+`back`, `bow` or `sky` plays that one every hundred and is not practice;
+`?moments=1` has JUMP, BACK, BOW and SKY after 100, which draws as a real one
+does. `celebration.html`, the claude.ai artifact "Hundred, Four Ways", has
+all four on one clock (it was "Hundred, Arms Aloft", the jump beside the
+hundred before it, which `hundredBefore` still keeps). `describe("the
+hundred's other three")` in the batter tests holds them. The section
 "Season '26 · Every kit, every colour" lists all nineteen kits with the hex
 of every part.
 

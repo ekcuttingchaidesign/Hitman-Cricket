@@ -1,10 +1,8 @@
 /**
- * The hundred beside a try at it with the arms held aloft (`celebration.html`):
- * two of the game's own batters on one clock, the one celebrating as the game
- * did before the jump (`hundredBefore`, a routine the game no longer plays)
- * and the other the hundred the game plays now, with the jump and both arms
- * aloft (`HUNDRED_JUMP`). Nothing
- * is scored, sent or counted. `scripts/celebration-artifact.mjs` bundles it
+ * The hundred's four ways side by side (`celebration.html`): four of the
+ * game's own batters on one clock, each playing one of the celebrations a
+ * hundred draws from (`HUNDRED_STYLES`): the jump, pointing at his back, the
+ * bow and to the sky. Nothing is scored, sent or counted. `scripts/celebration-artifact.mjs` bundles it
  * into one HTML file.
  */
 import * as THREE from 'three';
@@ -15,25 +13,32 @@ import { buildWicket } from './scene/wicket';
 import { batSheet } from './entities/batSkins';
 import { ALL_BATS, type BatSkin } from './game/dressing';
 
-const NOW: Posed = 'hundredBefore', TRY: Posed = 'hundred';
-/** Each one's moments by name, at their times: the hundred's own, and the try's jump. */
+/**
+ * The four hundreds, one drawn each hundred (`HundredStyle`): each stage plays
+ * one, on one clock. The beats are named for the pill in each stage's corner.
+ */
+const STAGES: { id: string; kind: Posed; names: string[] }[] = [
+  { id: 'jump', kind: 'hundred', names: ['Crouch', 'Spring', 'Leave', 'Top', 'Touch', 'Land', 'Up', 'Pump', 'Up', 'Pump', 'Look'] },
+  { id: 'back', kind: 'hundredBack', names: ['Rise', 'Over the shoulder', 'Jab', 'Over the shoulder', 'Jab', 'Over the shoulder', 'Hold', 'Turned round', 'Look'] },
+  { id: 'bow', kind: 'hundredBow', names: ['Rise', 'Lift', 'Hand on heart', 'Bow', 'Held', 'Up', 'Raised', 'Look'] },
+  { id: 'sky', kind: 'hundredSky', names: ['Rise', 'Lift', 'To the sky', 'Held', 'Heart', 'Tap', 'Heart', 'Raised', 'Look'] },
+];
+/** Each one's moments by name, at their times. */
 const named = (kind: Posed, names: string[]) => {
   const b = celebrationBeats(kind);
   return [...b.keys.map((t, i) => ({ t, name: names[i] })), { t: b.back, name: 'Back' }, { t: b.down, name: 'Down' }, { t: b.settle, name: 'Settle' }, { t: b.total, name: 'Guard' }];
 };
-const NOW_BEATS = named(NOW, ['Rise', 'Lift', 'Up', 'Pump', 'Up', 'Pump', 'Look']);
-const TRY_BEATS = named(TRY, ['Crouch', 'Spring', 'Leave', 'Top', 'Touch', 'Land', 'Up', 'Pump', 'Up', 'Pump', 'Look']);
-/** The scrubber's marks: the try's, the one being judged, with the steps either side of the jump's two touches left off. */
-const TICKS = TRY_BEATS.filter(b => !['Leave', 'Touch'].includes(b.name));
-const END = Math.max(NOW_BEATS.at(-1)!.t, TRY_BEATS.at(-1)!.t) + 150;
+const BEATS = STAGES.map(s => named(s.kind, s.names));
+const END = Math.max(...BEATS.map(b => b.at(-1)!.t)) + 150;
 
-/** What to look at, each with the moment it shows best. */
+/** What to look at, each with the moment and the stage it shows best. */
 const GAPS = [
-  { t: 90, title: 'The crouch', text: 'The century is reached and he sinks into his knees, both hands still on the bat, to spring. The hundred goes straight up from his stance instead.' },
-  { t: 360, title: 'The top of the jump', text: 'Both feet off the turf, toes pointed, the bat and the free fist going up together. Thirty centimetres of air: say if it wants more or less.' },
-  { t: 520, title: 'The landing', text: 'He comes down on bent knees with both arms already straight up, then stands into the first pump.' },
-  { t: 790, title: 'The pumps', text: 'Kept as they were: the knees giving under straight arms, twice, then the look round.' },
-  { t: 1450, title: 'Back to his stance', text: 'The hundred\'s own way down. The bat no longer turns in his fist at any point, going up or coming down, so nothing spins in his fingers.' },
+  { t: 380, title: 'Thumbs at his back', text: 'Turned away to face up the pitch, his back to the game\'s camera, the bat straight up in his right hand, the left hand up over its shoulder and his head turned to look back at the crowd. Best seen on the Game camera.' },
+  { t: 790, title: 'The jabs', text: 'The left hand jabbed back over his shoulder twice, at the name and number on his back. The gloves are fists, so it is the hand that points, not a thumb.' },
+  { t: 1000, title: 'The bow', text: 'Square on to the crowd, the bat hanging from his right hand, his left hand on his heart, bowing from the hips and held.' },
+  { t: 1380, title: 'Up from the bow', text: 'He stands up and raises the bat to the crowd, then goes back to his stance by the hundred\'s own way down.' },
+  { t: 800, title: 'To the sky', text: 'Both arms straight up and close together, the bat pointing at the sky, his head right back. Quieter than the jump, and held longer.' },
+  { t: 1320, title: 'Hand on heart', text: 'The left hand comes down to his heart and taps it, the bat back beside his head, then raised to the crowd.' },
 ];
 function lights(scene: THREE.Scene) {
   scene.add(new THREE.HemisphereLight(0xfff6ea, 0x3d4a3a, 2.2));
@@ -72,7 +77,7 @@ function stage(host: HTMLElement, kind: Posed) {
   return { scene, renderer, camera, controls, pose, host, batter };
 }
 
-const stages = [stage(document.querySelector('#now')!, NOW), stage(document.querySelector('#try')!, TRY)];
+const stages = STAGES.map(s => stage(document.querySelector(`#${s.id}`)!, s.kind));
 
 /** Where each camera stands: round him from his chest, the stills' own convention (`recap-render`). */
 const VIEWS: Record<string, { az: number; el: number; dist: number }> = {
@@ -104,16 +109,8 @@ for (const s of stages) s.controls.addEventListener('change', () => {
 const scrub = document.querySelector<HTMLInputElement>('#scrub')!;
 const time = document.querySelector<HTMLOutputElement>('#time')!;
 const play = document.querySelector<HTMLButtonElement>('#play')!;
-const beatNow = document.querySelector<HTMLOutputElement>('#beat-now')!, beatTry = document.querySelector<HTMLOutputElement>('#beat-try')!;
+const beats = STAGES.map(s => document.querySelector<HTMLOutputElement>(`#beat-${s.id}`)!);
 scrub.max = String(END);
-const ticks = document.querySelector<HTMLDivElement>('#ticks')!;
-// Every other name on a narrow screen, so they never run into each other.
-const drawTicks = () => {
-  const narrow = ticks.clientWidth < 520;
-  ticks.innerHTML = TICKS.filter((b, i) => !narrow || i % 2 === 0 || b.name === 'Guard')
-    .map(b => `<i style="left:${(b.t / END * 100).toFixed(2)}%">${b.name}</i>`).join('');
-};
-new ResizeObserver(drawTicks).observe(ticks);
 
 let t = 360, playing = false, speed = .5, last = 0, held = 0;
 const beatAt = (beats: { t: number; name: string }[], ms: number) => ms < beats[0].t ? 'Guard' : [...beats].reverse().find(b => ms >= b.t)!.name;
@@ -121,7 +118,7 @@ function show(ms: number) {
   t = Math.max(0, Math.min(END, ms));
   scrub.value = String(Math.round(t));
   time.textContent = `${Math.round(t)} ms`;
-  beatNow.textContent = beatAt(NOW_BEATS, t); beatTry.textContent = beatAt(TRY_BEATS, t);
+  beats.forEach((b, i) => { b.textContent = beatAt(BEATS[i], t); });
   for (const s of stages) s.pose(t);
 }
 scrub.oninput = () => { setPlaying(false); show(Number(scrub.value)); };
@@ -167,7 +164,7 @@ for (const g of GAPS) {
   const card = document.createElement('article'); card.className = 'gap';
   const h = document.createElement('h3'); h.textContent = g.title;
   const p = document.createElement('p'); p.textContent = g.text;
-  const go = document.createElement('button'); go.textContent = `Show at ${g.t} ms`;
+  const go = document.createElement('button'); go.textContent = `Go to ${g.t} ms`;
   go.onclick = () => { setPlaying(false); show(g.t); document.querySelector('.stages')!.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   card.append(h, p, go); gaps.append(card);
 }
