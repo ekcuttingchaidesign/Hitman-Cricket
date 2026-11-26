@@ -3138,8 +3138,8 @@ describe('the hundred', () => {
 });
 
 /**
- * The hundred's other two ways (`HundredStyle`): the gun and to the sky. Each
- * is held to what holds the jump, and to what makes it itself.
+ * The hundred's other three ways (`HundredStyle`): the gun, the sword and to
+ * the sky. Each is held to what holds the jump, and to what makes it itself.
  */
 describe("the hundred's other ways", () => {
   const others = HUNDRED_STYLES.filter(style => style !== 'jump');
@@ -3153,9 +3153,9 @@ describe("the hundred's other ways", () => {
     return chest.addScaledVector(spine, .31).add(new Vector3(.01, .01, .025));
   };
 
-  it('draws one of three for every hundred, the jump among them', () => {
-    expect(HUNDRED_STYLES).toEqual(['jump', 'gun', 'sky']);
-    expect(new Set(HUNDRED_STYLES.map(hundredPose)).size).toBe(3);
+  it('draws one of four for every hundred, the jump among them', () => {
+    expect(HUNDRED_STYLES).toEqual(['jump', 'gun', 'sword', 'sky']);
+    expect(new Set(HUNDRED_STYLES.map(hundredPose)).size).toBe(4);
     expect(hundredPose('jump')).toBe('hundred');
   });
 
@@ -3250,6 +3250,27 @@ describe("the hundred's other ways", () => {
     // The smoke: the bat stood up in front of his face.
     const smoke = aimAt(1800);
     expect(smoke.along.clone().normalize().y, 'bat upright').toBeGreaterThan(.9);
+  });
+
+  it('sword: the bat swung by the handle, high over the shoulder, low across him, high again, struck down, then the salute', () => {
+    const batter = playing('sword');
+    const at = (time: number) => {
+      batter.update(time);
+      const pose = batter.inspect();
+      return { pose, blade: new Vector3(...pose.bladeTip).sub(new Vector3(...pose.hands[1])).normalize(), hand: new Vector3(...pose.wrists[1]) };
+    };
+    // One-handed: the left hand off the bat and up behind him.
+    const raised = at(420), low = at(580), high = at(890), over = at(1190), struck = at(1290), salute = at(1850);
+    expect(new Vector3(...raised.pose.wrists[0]).distanceTo(new Vector3(...raised.pose.wrists[1])), 'the left hand off the bat').toBeGreaterThan(.4);
+    expect(raised.blade.y, 'raised: the blade up').toBeGreaterThan(.4);
+    expect(low.blade.y, 'slashed down: the blade down').toBeLessThan(-.3);
+    expect(low.hand.y, 'slashed down: the hand by his hip').toBeLessThan(raised.hand.y - .4);
+    expect(high.blade.y, 'back up: the blade up').toBeGreaterThan(.4);
+    expect(over.blade.y, 'over his head: the blade up and back').toBeGreaterThan(.2);
+    expect(struck.blade.y, 'struck: the blade down in front').toBeLessThan(-.2);
+    const ahead = new Vector3(Math.sin(struck.pose.yaw), 0, Math.cos(struck.pose.yaw));
+    expect(struck.blade.dot(ahead), 'struck: out in front').toBeGreaterThan(.6);
+    expect(salute.blade.y, 'salute: the blade stood up').toBeGreaterThan(.9);
   });
 
   it('sky: both arms straight up and close together, the bat pointing at the sky, then a hand to his heart', () => {

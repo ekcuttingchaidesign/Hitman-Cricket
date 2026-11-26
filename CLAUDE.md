@@ -1051,12 +1051,12 @@ twirled the blade in his fingers going up and coming down. The hundred
 before the jump is kept as `hundredBefore` (`BEFORE_JUMP`, a `Posed` kind
 the game never plays), which `celebration.html` (`src/celebration-preview.ts`,
 bundled by `scripts/celebration-artifact.mjs`) stood beside the jump; it now
-stands the hundred's three ways together (below), with any bat in their
+stands the hundred's four ways together (below), with any bat in their
 hands. `?moments=1` puts the hundred up in a game.
 
-The hundred is one of three since 26 November 2026, the owner's picks
+The hundred is one of four since 26 November 2026, the owner's picks
 (`HundredStyle`, `HUNDRED_STYLES`, `hundredPose` in `Batter.ts`), drawn
-afresh each hundred, a third each, off the page's dice and never the seed
+afresh each hundred, a quarter each, off the page's dice and never the seed
 (`celebrate` in `src/Game.ts`, `snapshot().hundred`); six sixes keeps the
 jump. The jump (`hundred`). The gun (`hundredGun`): the bat brought up like
 a rifle at his shoulder, the handle's end in his right hand and the blade out
@@ -1065,21 +1065,31 @@ fired three times at the crowd, each shot kicking the end up and the bat back
 a little (the kick back is kept small, or the handle went into his chest),
 swung round onto another stand for two more, and the bat stood up in front
 of his face to blow the smoke off its end, the other hand on his hip
-(`SMOKE`). To the sky (`hundredSky`): both arms straight up close together,
-the bat at the sky and his head right back (`skyward`), held, then the hand
-to his heart, tapped (`onHeart`, `HEART_AT`), and the bat raised. All three
-go home by the hundred's way down; the gun runs 2.5 seconds and the sky 2.35
-against the jump's 1.84 (`CELEBRATION_LENGTHS`). Two more were built and the
-owner found both bad, not to be built again: pointing at his back (turned up
-the pitch, the left fist jabbing back over its shoulder at the name on his
-shirt) and a bow (square on, hand on heart, the bat held up before his right
-shoulder). The gloves are fists, so a hand points, never a thumb or a
-finger. `?hundred=jump`, `gun` or `sky` plays that one every hundred and is
-not practice; `?moments=1` has JUMP, GUN and SKY after 100, which draws as a
-real one does. `celebration.html`, the claude.ai artifact "Hundred, Three
-Ways", has all three on one clock (it was "Hundred, Arms Aloft", the jump
-beside the hundred before it, which `hundredBefore` still keeps).
-`describe("the hundred's other ways")` in the batter tests holds them. The section
+(`SMOKE`). The sword (`hundredSword`): the bat held by the handle in the
+right hand like a sword, the left arm down and out for balance (`wielding`,
+`SWORD`), raised over the right shoulder, slashed down across him to his left
+hip, back up across him to high on his right, lifted over his head and struck
+down out in front, held, then stood up before his face in a salute, the left
+hand on his hip. Each slash passes through a key out in front of his chest,
+so the blade sweeps round in front of him; it goes up his right side first
+(`LIFTING`), as the jump's does, since straight up from his guard it passed
+his helmet; and the balance arm is low because raised by his helmet the
+elbow flipped up over the hand as it left the bat. To the sky (`hundredSky`):
+both arms straight up close together, the bat at the sky and his head right
+back (`skyward`), held, then the hand to his heart, tapped (`onHeart`,
+`HEART_AT`), and the bat raised. All four go home by the hundred's way down;
+the gun and the sword run about 2.5 seconds and the sky 2.35 against the
+jump's 1.84 (`CELEBRATION_LENGTHS`). Two more were built and the owner found
+both bad, not to be built again: pointing at his back (turned up the pitch,
+the left fist jabbing back over its shoulder at the name on his shirt) and a
+bow (square on, hand on heart, the bat held up before his right shoulder).
+The gloves are fists, so a hand points, never a thumb or a finger.
+`?hundred=jump`, `gun`, `sword` or `sky` plays that one every hundred and is
+not practice; `?moments=1` has JUMP, GUN, SWORD and SKY after 100, which
+draws as a real one does. `celebration.html`, the claude.ai artifact
+"Hundred, Four Ways", has all four on one clock (it was "Hundred, Arms
+Aloft", the jump beside the hundred before it, which `hundredBefore` still
+keeps). `describe("the hundred's other ways")` in the batter tests holds them. The section
 "Season '26 · Every kit, every colour" lists all nineteen kits with the hex
 of every part.
 

@@ -3207,6 +3207,40 @@ const SMOKE: Pose = (() => {
     ownFace: 1, fist: onHip(body), release: 1 };
 })();
 /**
+ * **The sword** (`sword`): the bat held by the handle in his right hand like a
+ * sword, the left arm up behind him as a fencer's is; raised over his right
+ * shoulder, slashed down across him to his left hip, back up across him to
+ * high on his right, lifted over his head and brought down in one strike out
+ * in front, held; then the blade stood up before his face in a salute, the
+ * left hand on his hip (`wielding`, `SWORD`). Each slash passes through a key
+ * out in front of his chest, so the blade sweeps round in front of him and
+ * never through his body or his helmet.
+ */
+function wielding(yaw: number, hand: readonly [up: number, out: number, ahead: number], toe: readonly [up: number, out: number, ahead: number],
+  drop = 0, rest = false): Pose {
+  const body = standing({ ...FACING, hip: [-.02, .97 - drop, -.02], chest: [.00, 1.31 - drop, -.01], yaw, face: yaw, headDown: -.06, shoulderLift: .08 });
+  const ahead = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)), outR = outwards(body, 1), outL = outwards(body, 0);
+  const at = shoulderOf(body, 1).addScaledVector(UP, hand[0]).addScaledVector(outR, hand[1]).addScaledVector(ahead, hand[2]);
+  const blade = UP.clone().multiplyScalar(toe[0]).addScaledVector(outR, toe[1]).addScaledVector(ahead, toe[2]).normalize();
+  // The flat of the blade to the front where it can be, else to his right.
+  const ref = Math.abs(blade.dot(ahead)) > .8 ? outR : ahead.clone().negate();
+  const face = ref.clone().addScaledVector(blade, -ref.dot(blade)).normalize();
+  const guard = shoulderOf(body, 0).addScaledVector(outL, SWORD.guard[0]).addScaledVector(UP, SWORD.guard[1]).addScaledVector(ahead, -SWORD.guard[2]);
+  return { ...body, grip: point(at.clone().addScaledVector(blade, HAND.top)), batUp: point(blade.clone().negate()), batFace: point(face), ownFace: 1,
+    fist: rest ? onHip(body) : point(guard), release: 1 };
+}
+/** The left arm's place behind him (out, up, back from its shoulder), and the yaw he squares up at. */
+const SWORD = { guard: [.30, -.30, .08], yaw: 2.5 } as const;
+const Y = SWORD.yaw;
+const SWORD_RAISED = wielding(Y + .1, [.20, .08, .04], [.6, .3, -.45]);
+const SWORD_ACROSS = wielding(Y - .05, [-.05, -.05, .36], [.1, -.75, .6]);
+const SWORD_LOW = wielding(Y - .25, [-.40, -.28, .30], [-.6, -.6, .35], .04);
+const SWORD_BACK = wielding(Y - .05, [.0, .02, .38], [.2, .8, .5]);
+const SWORD_HIGH = wielding(Y + .2, [.18, .24, .14], [.7, .6, .1]);
+const SWORD_OVER = wielding(Y, [.26, .08, .02], [.5, .05, -.85]);
+const SWORD_STRUCK = wielding(Y, [-.06, -.06, .45], [-.4, -.02, .9], .06);
+const SWORD_SALUTE = wielding(Y - .1, [-.04, -.10, .30], [1, 0, .05], 0, true);
+/**
  * **To the sky** (`sky`): turned to the camera, both arms straight up and
  * close together, the bat pointing at the sky out of the right fist, and his
  * head right back to it, held; then the left hand to his heart, tapped, and
@@ -3243,13 +3277,13 @@ const HEART = onHeart(0), HEART_TAP = onHeart(.06);
  * The celebrations: the fifty's nod, the hundred in any of its three ways
  * (`hundred` is the jump), and the Marathon's three big ones.
  */
-export type Celebration = 'fifty' | 'hundred' | 'hundredGun' | 'hundredSky' | 'double' | 'triple' | 'four';
-/** The hundred's three ways: one is drawn each hundred, a third each. */
-export type HundredStyle = 'jump' | 'gun' | 'sky';
-export const HUNDRED_STYLES: readonly HundredStyle[] = ['jump', 'gun', 'sky'];
+export type Celebration = 'fifty' | 'hundred' | 'hundredGun' | 'hundredSword' | 'hundredSky' | 'double' | 'triple' | 'four';
+/** The hundred's four ways: one is drawn each hundred, a quarter each. */
+export type HundredStyle = 'jump' | 'gun' | 'sword' | 'sky';
+export const HUNDRED_STYLES: readonly HundredStyle[] = ['jump', 'gun', 'sword', 'sky'];
 /** The celebration a hundred plays for each way. */
 export const hundredPose = (style: HundredStyle): Celebration =>
-  style === 'gun' ? 'hundredGun' : style === 'sky' ? 'hundredSky' : 'hundred';
+  style === 'gun' ? 'hundredGun' : style === 'sword' ? 'hundredSword' : style === 'sky' ? 'hundredSky' : 'hundred';
 /**
  * How each one goes. The way up and the hold are keyframes of its own; the
  * way down is the hundred's for all of them — out to his right, where the
@@ -3288,6 +3322,11 @@ const ROUTINES: Record<Celebration, Routine> = {
       { time: 1160, pose: AIMED_ROUND }, { time: 1210, pose: FIRED_ROUND }, { time: 1300, pose: AIMED_ROUND }, { time: 1350, pose: FIRED_ROUND },
       { time: 1460, pose: AIMED_ROUND }, { time: 1700, pose: SMOKE }, { time: 1940, pose: SMOKE }],
     back: 2080, down: 2210, settle: 2350, total: 2510 },
+  hundredSword: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 420, pose: SWORD_RAISED }, { time: 500, pose: SWORD_ACROSS },
+      { time: 580, pose: SWORD_LOW }, { time: 720, pose: SWORD_LOW }, { time: 800, pose: SWORD_BACK }, { time: 890, pose: SWORD_HIGH },
+      { time: 1030, pose: SWORD_HIGH }, { time: 1190, pose: SWORD_OVER }, { time: 1290, pose: SWORD_STRUCK }, { time: 1500, pose: SWORD_STRUCK },
+      { time: 1740, pose: SWORD_SALUTE }, { time: 1980, pose: SWORD_SALUTE }],
+    back: 2120, down: 2250, settle: 2390, total: 2550 },
   hundredSky: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 460, pose: TO_SKY }, { time: 1000, pose: TO_SKY_HELD },
       { time: 1220, pose: HEART }, { time: 1320, pose: HEART_TAP }, { time: 1420, pose: HEART }, { time: 1620, pose: RAISED }, { time: 1780, pose: LOOKING }],
     back: 1920, down: 2050, settle: 2190, total: 2350 },
@@ -3322,7 +3361,7 @@ export const celebrationMs = (kind: Posed) => kind === 'aloft' || kind === 'hund
 export const celebrationBeats = (kind: Posed) => { const r = routineOf(kind); return { keys: r.keys.map(k => k.time), back: r.back, down: r.down, settle: r.settle, total: r.total }; };
 /** How long each celebration holds the next ball back. */
 export const CELEBRATION_LENGTHS: Record<Celebration, number> = {
-  fifty: FIFTY_MS, hundred: CELEBRATION_MS, hundredGun: ROUTINES.hundredGun.total,
+  fifty: FIFTY_MS, hundred: CELEBRATION_MS, hundredGun: ROUTINES.hundredGun.total, hundredSword: ROUTINES.hundredSword.total,
   hundredSky: ROUTINES.hundredSky.total, double: ROUTINES.double.total, triple: ROUTINES.triple.total, four: ROUTINES.four.total,
 };
 export const celebrationLength = (kind: Celebration) => CELEBRATION_LENGTHS[kind];
