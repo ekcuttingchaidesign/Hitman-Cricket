@@ -3271,7 +3271,8 @@ describe("the hundred's other ways", () => {
     }
     expect(right, 'out to his right').toBeGreaterThan(.6);
     expect(left, 'out to his left').toBeLessThan(-.6);
-    expect(crossings, 'through the middle twice a loop, three loops').toBeGreaterThanOrEqual(5);
+    expect(crossings, 'one loop: through the middle once between its ends, never round again').toBeGreaterThanOrEqual(1);
+    expect(crossings, 'one loop only').toBeLessThanOrEqual(2);
     // No corners: the tip's way never turns sharply between one frame and the next.
     // From the bat leaving his shoulder to the salute, the swirl's own ends included.
     let previous = tipAt(240).tip, heading: Vector3 | null = null, worst = 0;
@@ -3288,6 +3289,11 @@ describe("the hundred's other ways", () => {
     // The left hand off the bat, and the salute after.
     const swirl = tipAt(800);
     expect(new Vector3(...swirl.pose.wrists[0]).distanceTo(new Vector3(...swirl.pose.wrists[1])), 'the left hand off the bat').toBeGreaterThan(.4);
+    // The bat arm out from him, not tucked in at his chest, all through the swirl.
+    for (let time = 400; time <= 1680; time += 40) {
+      const { pose } = tipAt(time);
+      expect(new Vector3(...pose.wrists[1]).distanceTo(new Vector3(...pose.chest)), `the bat hand out from his chest at ${time}ms`).toBeGreaterThan(.45);
+    }
     expect(tipAt(2000).blade.y, 'salute: the blade stood up').toBeGreaterThan(.9);
   });
 

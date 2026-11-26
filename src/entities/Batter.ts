@@ -3244,7 +3244,7 @@ const SWORD = { guard: [.30, -.30, .08], yaw: 2.5 } as const;
  * it; where the hand is (forward of the right shoulder, below it and in) and
  * how far it drifts after the blade; and how finely the clock is sampled.
  */
-const SWIRL = { from: 380, to: 1700, salute: 1940, loops: 3, start: .5, ends: [.6, .6], across: 1.1, pitch: -.12, dip: .6, turn: .12, hand: [.30, .08, .10], drift: .08, step: 20 } as const;
+const SWIRL = { from: 460, to: 1700, salute: 1940, loops: 1, start: .5, ends: [.6, .6], across: 1.1, pitch: -.12, dip: .6, turn: .12, hand: [.48, .04, -.06], drift: .08, step: 20 } as const;
 /** The sword at `s` round the ∞: a loop is 2π. */
 function swirling(s: number): Pose {
   const yaw = SWORD.yaw + SWIRL.turn * Math.sin(s);
@@ -3272,7 +3272,7 @@ const SWORD_SALUTE = wielding(SWORD.yaw - .1, [-.04, -.10, .30], [1, 0, .05], 0,
  */
 const SWIRL_KEYS = (() => {
   const keys: { time: number; pose: Pose }[] = [];
-  const from = SWIRL.start * Math.PI, to = 2 * Math.PI * SWIRL.loops, [a, b] = SWIRL.ends;
+  const from = SWIRL.start * Math.PI, to = from + 2 * Math.PI * SWIRL.loops, [a, b] = SWIRL.ends;
   // Over the clock's share u: from nought to one, leaving at a and arriving at b of the mean pace.
   const flow = (u: number) => (u ** 3 - 2 * u ** 2 + u) * a + (-2 * u ** 3 + 3 * u ** 2) + (u ** 3 - u ** 2) * b;
   for (let time = SWIRL.from; time <= SWIRL.to; time += SWIRL.step)

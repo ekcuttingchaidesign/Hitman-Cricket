@@ -1066,10 +1066,10 @@ a little (the kick back is kept small, or the handle went into his chest),
 swung round onto another stand for two more, and the bat stood up in front
 of his face to blow the smoke off its end, the other hand on his hip
 (`SMOKE`). The sword (`hundredSword`), after Jadeja's: the bat held by the
-handle in the right hand out in front of his chest, the left arm down and out
-for balance, swirled so its tip draws a figure of eight on its side, ∞, in
-front of him, three loops gathering speed and easing off (`swirling`,
-`SWIRL`, `SWIRL_KEYS`), then stood up before his face in a salute, the left
+handle in the right hand, the arm out long in front of him, the left arm
+down and out for balance, swirled so its tip draws one figure of eight on
+its side, ∞, in front of him, slowly over a second and a quarter, gathering
+speed and easing off (`swirling`, `SWIRL`, `SWIRL_KEYS`), then stood up before his face in a salute, the left
 hand on his hip. The blade's angle is a function of the clock, across by one
 sine and up and down by its double, its flat kept level and square to it so
 nothing twists in his hand, and keyed every 20ms; it is picked up already
@@ -1078,9 +1078,11 @@ first, since straight up from his guard it passed his helmet) and let go
 still moving, the swirl carried on and slowing while the blade is eased over
 into the salute. Built first as slashes from key to key (raised, across,
 low, back up, over his head and struck down), every key was a corner in the
-path, which the owner saw as jerky: not to be built again. The batter tests
+path, which the owner saw as jerky: not to be built again. Then three loops
+in as long, with the hand tucked in at his chest, which the owner found too
+fast and cramped: one loop, the hand out (`SWIRL.hand`). The batter tests
 hold the tip's path to no sharp turn between frames, from his shoulder to
-the salute. To the sky (`hundredSky`):
+the salute, to one loop, and the bat hand out from his chest. To the sky (`hundredSky`):
 both arms straight up close together, the bat at the sky and his head right
 back (`skyward`), held, then the hand to his heart, tapped (`onHeart`,
 `HEART_AT`), and the bat raised. All four go home by the hundred's way down;
