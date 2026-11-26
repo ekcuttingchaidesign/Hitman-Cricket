@@ -20,7 +20,8 @@ import { ALL_BATS, type BatSkin } from './game/dressing';
 const STAGES: { id: string; kind: Posed; names: string[] }[] = [
   { id: 'jump', kind: 'hundred', names: ['Crouch', 'Spring', 'Leave', 'Top', 'Touch', 'Land', 'Up', 'Pump', 'Up', 'Pump', 'Look'] },
   { id: 'gun', kind: 'hundredGun', names: ['Rise', 'Aim', 'Aim', 'Bang', 'Aim', 'Bang', 'Aim', 'Bang', 'Aim', 'Swing round', 'Bang', 'Aim', 'Bang', 'Aim', 'Smoke', 'Smoke'] },
-  { id: 'sword', kind: 'hundredSword', names: ['Rise', 'Lift', 'Raised', 'Slash', 'Low', 'Low', 'Backhand', 'High', 'High', 'Overhead', 'Strike', 'Strike', 'Salute', 'Salute'] },
+  // The swirl is keyed every 20ms off the clock: every key of it is Swirl, then the salute.
+  { id: 'sword', kind: 'hundredSword', names: ['Rise', 'Lift', ...Array(celebrationBeats('hundredSword').keys.length - 3).fill('Swirl'), 'Salute'] },
   { id: 'sky', kind: 'hundredSky', names: ['Rise', 'Lift', 'To the sky', 'Held', 'Heart', 'Tap', 'Heart', 'Raised', 'Look'] },
 ];
 /** Each one's moments by name, at their times. */
@@ -36,8 +37,8 @@ const GAPS = [
   { t: 520, title: 'Taking aim', text: 'The bat brought up like a rifle: the handle against his right shoulder, the blade out level, the left hand under it and his head down along it.' },
   { t: 570, title: 'The shots', text: 'Three shots at the crowd, each one kicking the bat back into him and its end up. Then swung round onto another stand for two more.' },
   { t: 1800, title: 'Blowing the smoke', text: 'The bat stood up in front of his face and the smoke blown off its end, the other hand on his hip. Then back to his stance.' },
-  { t: 540, title: 'The slash', text: 'The bat held by the handle like a sword, the left arm up behind him. Raised over his right shoulder and slashed down across him to his left hip.' },
-  { t: 1250, title: 'The strike', text: 'Back up across him, lifted over his head and brought down in one strike out in front, held. Then the blade stood up before his face in a salute.' },
+  { t: 760, title: 'The swirl', text: 'Jadeja\'s sword: the bat held by the handle out in front of him, swirled so its tip draws a figure of eight on its side, three loops, gathering speed and easing off. The path has no corners.' },
+  { t: 1900, title: 'Into the salute', text: 'The swirl runs on and slows while the blade rises, so the tip carries round and up into the salute before his face. Then back to his stance.' },
   { t: 800, title: 'To the sky', text: 'Both arms straight up and close together, the bat pointing at the sky, his head right back. Quieter than the jump, and held longer.' },
   { t: 1320, title: 'Hand on heart', text: 'The left hand comes down to his heart and taps it, the bat back beside his head, then raised to the crowd.' },
 ];

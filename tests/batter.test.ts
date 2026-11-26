@@ -3214,7 +3214,7 @@ describe("the hundred's other ways", () => {
         const pose = batter.inspect();
         expect(Math.min(pose.frontFoot[1], pose.backFoot[1]), `boots at ${time}ms`).toBeGreaterThan(floor - .005);
       }
-      expect(lengthOf(style), 'a moment inside an innings').toBeLessThanOrEqual(2550);
+      expect(lengthOf(style), 'a moment inside an innings').toBeLessThanOrEqual(2750);
       batter.update(lengthOf(style));
       const done = batter.inspect();
       for (const key of ['grip', 'frontFoot', 'backFoot', 'hip', 'chest'] as const)
@@ -3252,25 +3252,43 @@ describe("the hundred's other ways", () => {
     expect(smoke.along.clone().normalize().y, 'bat upright').toBeGreaterThan(.9);
   });
 
-  it('sword: the bat swung by the handle, high over the shoulder, low across him, high again, struck down, then the salute', () => {
+  it('sword: the tip draws a smooth figure of eight, ∞, in front of him, then the salute', () => {
     const batter = playing('sword');
-    const at = (time: number) => {
+    const tipAt = (time: number) => {
       batter.update(time);
       const pose = batter.inspect();
-      return { pose, blade: new Vector3(...pose.bladeTip).sub(new Vector3(...pose.hands[1])).normalize(), hand: new Vector3(...pose.wrists[1]) };
+      return { pose, tip: new Vector3(...pose.bladeTip), blade: new Vector3(...pose.bladeTip).sub(new Vector3(...pose.hands[1])).normalize() };
     };
-    // One-handed: the left hand off the bat and up behind him.
-    const raised = at(420), low = at(580), high = at(890), over = at(1190), struck = at(1290), salute = at(1850);
-    expect(new Vector3(...raised.pose.wrists[0]).distanceTo(new Vector3(...raised.pose.wrists[1])), 'the left hand off the bat').toBeGreaterThan(.4);
-    expect(raised.blade.y, 'raised: the blade up').toBeGreaterThan(.4);
-    expect(low.blade.y, 'slashed down: the blade down').toBeLessThan(-.3);
-    expect(low.hand.y, 'slashed down: the hand by his hip').toBeLessThan(raised.hand.y - .4);
-    expect(high.blade.y, 'back up: the blade up').toBeGreaterThan(.4);
-    expect(over.blade.y, 'over his head: the blade up and back').toBeGreaterThan(.2);
-    expect(struck.blade.y, 'struck: the blade down in front').toBeLessThan(-.2);
-    const ahead = new Vector3(Math.sin(struck.pose.yaw), 0, Math.cos(struck.pose.yaw));
-    expect(struck.blade.dot(ahead), 'struck: out in front').toBeGreaterThan(.6);
-    expect(salute.blade.y, 'salute: the blade stood up').toBeGreaterThan(.9);
+    // Across to both sides of him, and up and down twice a loop.
+    let right = 0, left = 0, crossings = 0, before = 0;
+    for (let time = 400; time <= 1680; time += 4) {
+      const { pose, blade } = tipAt(time);
+      const outR = new Vector3(Math.cos(pose.yaw), 0, -Math.sin(pose.yaw));
+      const side = blade.dot(outR);
+      right = Math.max(right, side); left = Math.min(left, side);
+      if (before && Math.sign(side) !== Math.sign(before)) crossings++;
+      before = side;
+    }
+    expect(right, 'out to his right').toBeGreaterThan(.6);
+    expect(left, 'out to his left').toBeLessThan(-.6);
+    expect(crossings, 'through the middle twice a loop, three loops').toBeGreaterThanOrEqual(5);
+    // No corners: the tip's way never turns sharply between one frame and the next.
+    // From the bat leaving his shoulder to the salute, the swirl's own ends included.
+    let previous = tipAt(240).tip, heading: Vector3 | null = null, worst = 0;
+    for (let time = 244; time <= 1940; time += 4) {
+      const { tip } = tipAt(time);
+      const step = tip.clone().sub(previous);
+      if (step.length() > .004) {
+        if (heading) worst = Math.max(worst, heading.angleTo(step));
+        heading = step;
+      }
+      previous = tip;
+    }
+    expect(worst, 'the sharpest turn in the tip\'s path between frames').toBeLessThan(.45);
+    // The left hand off the bat, and the salute after.
+    const swirl = tipAt(800);
+    expect(new Vector3(...swirl.pose.wrists[0]).distanceTo(new Vector3(...swirl.pose.wrists[1])), 'the left hand off the bat').toBeGreaterThan(.4);
+    expect(tipAt(2000).blade.y, 'salute: the blade stood up').toBeGreaterThan(.9);
   });
 
   it('sky: both arms straight up and close together, the bat pointing at the sky, then a hand to his heart', () => {

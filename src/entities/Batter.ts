@@ -3207,14 +3207,17 @@ const SMOKE: Pose = (() => {
     ownFace: 1, fist: onHip(body), release: 1 };
 })();
 /**
- * **The sword** (`sword`): the bat held by the handle in his right hand like a
- * sword, the left arm up behind him as a fencer's is; raised over his right
- * shoulder, slashed down across him to his left hip, back up across him to
- * high on his right, lifted over his head and brought down in one strike out
- * in front, held; then the blade stood up before his face in a salute, the
- * left hand on his hip (`wielding`, `SWORD`). Each slash passes through a key
- * out in front of his chest, so the blade sweeps round in front of him and
- * never through his body or his helmet.
+ * **The sword** (`sword`), after Jadeja's: the bat held by the handle in his
+ * right hand like a sword, out in front of his chest, the left arm down and
+ * out for balance, and the blade swirled so its tip draws a figure of eight
+ * on its side, ∞, in front of him: swept across to his right and up, down
+ * and through the middle, across to his left and up, down and through the
+ * middle again (`swirling`, `SWIRL`). Three loops, gathering speed and
+ * easing off again; then the blade stood up before his face in a salute,
+ * the left hand on his hip (`wielding`). The blade's angle is worked out
+ * from the clock, two sines a loop, so the path has no corners: built first
+ * as slashes from key to key, raised, across, low, back up, over and struck,
+ * every key was a corner in the path, which the owner saw as jerky.
  */
 function wielding(yaw: number, hand: readonly [up: number, out: number, ahead: number], toe: readonly [up: number, out: number, ahead: number],
   drop = 0, rest = false): Pose {
@@ -3231,15 +3234,60 @@ function wielding(yaw: number, hand: readonly [up: number, out: number, ahead: n
 }
 /** The left arm's place behind him (out, up, back from its shoulder), and the yaw he squares up at. */
 const SWORD = { guard: [.30, -.30, .08], yaw: 2.5 } as const;
-const Y = SWORD.yaw;
-const SWORD_RAISED = wielding(Y + .1, [.20, .08, .04], [.6, .3, -.45]);
-const SWORD_ACROSS = wielding(Y - .05, [-.05, -.05, .36], [.1, -.75, .6]);
-const SWORD_LOW = wielding(Y - .25, [-.40, -.28, .30], [-.6, -.6, .35], .04);
-const SWORD_BACK = wielding(Y - .05, [.0, .02, .38], [.2, .8, .5]);
-const SWORD_HIGH = wielding(Y + .2, [.18, .24, .14], [.7, .6, .1]);
-const SWORD_OVER = wielding(Y, [.26, .08, .02], [.5, .05, -.85]);
-const SWORD_STRUCK = wielding(Y, [-.06, -.06, .45], [-.4, -.02, .9], .06);
-const SWORD_SALUTE = wielding(Y - .1, [-.04, -.10, .30], [1, 0, .05], 0, true);
+/**
+ * The swirl: when it runs and when the salute is reached, the loop it ends on and where in the first it is
+ * picked up (in half turns), and its pace leaving and arriving against its
+ * mean (`ends`); how far the blade swings
+ * either side of straight out in front (`across`, about its handle), where it
+ * points up or down on average (`pitch`) and how far it rises and dips, twice
+ * a loop (`dip`), which together draw the ∞; how far his shoulders turn with
+ * it; where the hand is (forward of the right shoulder, below it and in) and
+ * how far it drifts after the blade; and how finely the clock is sampled.
+ */
+const SWIRL = { from: 380, to: 1700, salute: 1940, loops: 3, start: .5, ends: [.6, .6], across: 1.1, pitch: -.12, dip: .6, turn: .12, hand: [.30, .08, .10], drift: .08, step: 20 } as const;
+/** The sword at `s` round the ∞: a loop is 2π. */
+function swirling(s: number): Pose {
+  const yaw = SWORD.yaw + SWIRL.turn * Math.sin(s);
+  const body = standing({ ...FACING, hip: [-.02, .96, -.02], chest: [.00, 1.30, -.01], yaw, face: yaw, headDown: -.04, shoulderLift: .08 });
+  const ahead = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)), outR = outwards(body, 1), outL = outwards(body, 0);
+  // Across about the handle by one sine (a turn about UP takes it towards his right) and up and down by its double: the tip's ∞.
+  const across = SWIRL.across * Math.sin(s), pitch = SWIRL.pitch + SWIRL.dip * Math.sin(2 * s);
+  const blade = ahead.clone().multiplyScalar(Math.cos(pitch)).addScaledVector(UP, Math.sin(pitch)).applyAxisAngle(UP, across);
+  // The flat of the blade kept level and square to it, turned with it: it never twists in his hand.
+  const face = blade.clone().cross(UP).normalize();
+  const [forward, down, inward] = SWIRL.hand;
+  const hand = shoulderOf(body, 1).addScaledVector(ahead, forward).addScaledVector(UP, -down).addScaledVector(outR, -inward + SWIRL.drift * Math.sin(s));
+  const guard = shoulderOf(body, 0).addScaledVector(outL, SWORD.guard[0]).addScaledVector(UP, SWORD.guard[1]).addScaledVector(ahead, -SWORD.guard[2]);
+  return { ...body, grip: point(hand.clone().addScaledVector(blade, HAND.top)), batUp: point(blade.clone().negate()), batFace: point(face), ownFace: 1,
+    fist: point(guard), release: 1 };
+}
+const SWORD_SALUTE = wielding(SWORD.yaw - .1, [-.04, -.10, .30], [1, 0, .05], 0, true);
+/**
+ * The swirl as keys every `step`. It is picked up already moving, out to his
+ * right with the tip coming down (`SWIRL.start`), as the bat comes down there
+ * off his shoulder, and let go still moving, out in front with the tip on its
+ * way up and to his right, into the salute: started and stopped dead, the tip
+ * halted and turned back on itself at both ends. In between it gathers speed
+ * and eases off again (`flow`).
+ */
+const SWIRL_KEYS = (() => {
+  const keys: { time: number; pose: Pose }[] = [];
+  const from = SWIRL.start * Math.PI, to = 2 * Math.PI * SWIRL.loops, [a, b] = SWIRL.ends;
+  // Over the clock's share u: from nought to one, leaving at a and arriving at b of the mean pace.
+  const flow = (u: number) => (u ** 3 - 2 * u ** 2 + u) * a + (-2 * u ** 3 + 3 * u ** 2) + (u ** 3 - u ** 2) * b;
+  for (let time = SWIRL.from; time <= SWIRL.to; time += SWIRL.step)
+    keys.push({ time, pose: swirling(from + (to - from) * flow((time - SWIRL.from) / (SWIRL.to - SWIRL.from))) });
+  // Into the salute: the swirl carried on, slowing to a stop, while the
+  // blade is eased over to the salute, so the tip runs on round and up into
+  // it. Keyed straight from the swirl's last key to the salute, the tip
+  // turned a corner there.
+  const pace = (to - from) * b / (SWIRL.to - SWIRL.from), span = SWIRL.salute - SWIRL.to;
+  for (let time = SWIRL.to + SWIRL.step; time <= SWIRL.salute; time += SWIRL.step) {
+    const since = time - SWIRL.to;
+    keys.push({ time, pose: mix(swirling(to + pace * (since - since * since / (2 * span))), SWORD_SALUTE, ease(since / span)) });
+  }
+  return keys;
+})();
 /**
  * **To the sky** (`sky`): turned to the camera, both arms straight up and
  * close together, the bat pointing at the sky out of the right fist, and his
@@ -3322,11 +3370,8 @@ const ROUTINES: Record<Celebration, Routine> = {
       { time: 1160, pose: AIMED_ROUND }, { time: 1210, pose: FIRED_ROUND }, { time: 1300, pose: AIMED_ROUND }, { time: 1350, pose: FIRED_ROUND },
       { time: 1460, pose: AIMED_ROUND }, { time: 1700, pose: SMOKE }, { time: 1940, pose: SMOKE }],
     back: 2080, down: 2210, settle: 2350, total: 2510 },
-  hundredSword: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 420, pose: SWORD_RAISED }, { time: 500, pose: SWORD_ACROSS },
-      { time: 580, pose: SWORD_LOW }, { time: 720, pose: SWORD_LOW }, { time: 800, pose: SWORD_BACK }, { time: 890, pose: SWORD_HIGH },
-      { time: 1030, pose: SWORD_HIGH }, { time: 1190, pose: SWORD_OVER }, { time: 1290, pose: SWORD_STRUCK }, { time: 1500, pose: SWORD_STRUCK },
-      { time: 1740, pose: SWORD_SALUTE }, { time: 1980, pose: SWORD_SALUTE }],
-    back: 2120, down: 2250, settle: 2390, total: 2550 },
+  hundredSword: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, ...SWIRL_KEYS, { time: 2180, pose: SWORD_SALUTE }],
+    back: 2320, down: 2450, settle: 2590, total: 2750 },
   hundredSky: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 460, pose: TO_SKY }, { time: 1000, pose: TO_SKY_HELD },
       { time: 1220, pose: HEART }, { time: 1320, pose: HEART_TAP }, { time: 1420, pose: HEART }, { time: 1620, pose: RAISED }, { time: 1780, pose: LOOKING }],
     back: 1920, down: 2050, settle: 2190, total: 2350 },

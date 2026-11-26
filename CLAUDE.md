@@ -1065,20 +1065,26 @@ fired three times at the crowd, each shot kicking the end up and the bat back
 a little (the kick back is kept small, or the handle went into his chest),
 swung round onto another stand for two more, and the bat stood up in front
 of his face to blow the smoke off its end, the other hand on his hip
-(`SMOKE`). The sword (`hundredSword`): the bat held by the handle in the
-right hand like a sword, the left arm down and out for balance (`wielding`,
-`SWORD`), raised over the right shoulder, slashed down across him to his left
-hip, back up across him to high on his right, lifted over his head and struck
-down out in front, held, then stood up before his face in a salute, the left
-hand on his hip. Each slash passes through a key out in front of his chest,
-so the blade sweeps round in front of him; it goes up his right side first
-(`LIFTING`), as the jump's does, since straight up from his guard it passed
-his helmet; and the balance arm is low because raised by his helmet the
-elbow flipped up over the hand as it left the bat. To the sky (`hundredSky`):
+(`SMOKE`). The sword (`hundredSword`), after Jadeja's: the bat held by the
+handle in the right hand out in front of his chest, the left arm down and out
+for balance, swirled so its tip draws a figure of eight on its side, ∞, in
+front of him, three loops gathering speed and easing off (`swirling`,
+`SWIRL`, `SWIRL_KEYS`), then stood up before his face in a salute, the left
+hand on his hip. The blade's angle is a function of the clock, across by one
+sine and up and down by its double, its flat kept level and square to it so
+nothing twists in his hand, and keyed every 20ms; it is picked up already
+moving down his right side as the bat comes off his shoulder (`LIFTING`
+first, since straight up from his guard it passed his helmet) and let go
+still moving, the swirl carried on and slowing while the blade is eased over
+into the salute. Built first as slashes from key to key (raised, across,
+low, back up, over his head and struck down), every key was a corner in the
+path, which the owner saw as jerky: not to be built again. The batter tests
+hold the tip's path to no sharp turn between frames, from his shoulder to
+the salute. To the sky (`hundredSky`):
 both arms straight up close together, the bat at the sky and his head right
 back (`skyward`), held, then the hand to his heart, tapped (`onHeart`,
 `HEART_AT`), and the bat raised. All four go home by the hundred's way down;
-the gun and the sword run about 2.5 seconds and the sky 2.35 against the
+the gun runs 2.5 seconds, the sword 2.75 and the sky 2.35 against the
 jump's 1.84 (`CELEBRATION_LENGTHS`). Two more were built and the owner found
 both bad, not to be built again: pointing at his back (turned up the pitch,
 the left fist jabbing back over its shoulder at the name on his shirt) and a
